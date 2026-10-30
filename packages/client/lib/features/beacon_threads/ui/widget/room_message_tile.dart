@@ -1772,6 +1772,11 @@ class RoomMessageTile extends StatelessWidget {
       hasFooterContent: hasFooterContent,
     );
 
+    final childBeaconId =
+        capabilities.childPromotion || capabilities.childPromotionOwnOnly
+        ? promotedChildBeaconId
+        : null;
+
     final measuredBubble = LayoutBuilder(
       builder: (context, constraints) {
         final proportionalCap =
@@ -2058,6 +2063,9 @@ class RoomMessageTile extends StatelessWidget {
               onQuickReact: quickReactCb,
               onPickReaction: pickReactionCb,
               selectedReactions: _viewerReactionEmojiSet(message),
+              toolbarClearanceBelow: childBeaconId != null
+                  ? tt.tightGap + TenturaSpacing.hoverActionTarget
+                  : 0,
               child: bubbleChild,
             ),
           ),
@@ -2133,10 +2141,6 @@ class RoomMessageTile extends StatelessWidget {
           );
 
     // Post rooms show the footer under a bud source too (plan D2).
-    final childBeaconId =
-        capabilities.childPromotion || capabilities.childPromotionOwnOnly
-        ? promotedChildBeaconId
-        : null;
     final underBubble = [
       if (childBeaconId != null)
         BeaconChildPromotionFooter(childBeaconId: childBeaconId),
@@ -3019,10 +3023,12 @@ class _MessageBubbleInteraction extends StatefulWidget {
     required this.onPickReaction,
     required this.selectedReactions,
     this.onReply,
+    this.toolbarClearanceBelow = 0,
   });
 
   final Widget child;
   final bool isMine;
+  final double toolbarClearanceBelow;
   final VoidCallback? onActions;
 
   final VoidCallback? onReply;
@@ -3352,6 +3358,7 @@ class _MessageBubbleInteractionState extends State<_MessageBubbleInteraction>
                         bounds: _toolbarBounds(context, info, scrollable),
                         alignLeft: widget.isMine,
                         overlap: _toolbarOverlap,
+                        clearanceBelowBubble: widget.toolbarClearanceBelow,
                       ),
                       // Its own region keeps the toolbar up while the pointer
                       // is on it; onHover (not onEnter) so the bubble's region
@@ -3402,6 +3409,7 @@ class HoverToolbarLayout extends SingleChildLayoutDelegate {
     required this.bounds,
     required this.alignLeft,
     required this.overlap,
+    this.clearanceBelowBubble = 0,
   });
 
   /// The bubble, in overlay coordinates.
@@ -3415,6 +3423,10 @@ class HoverToolbarLayout extends SingleChildLayoutDelegate {
 
   /// How far the toolbar dips into the bubble's padding.
   final double overlap;
+
+  /// When a child-request footer sits under the bubble, keep the toolbar
+  /// below that strip instead of overlapping it (#809).
+  final double clearanceBelowBubble;
 
   @override
   BoxConstraints getConstraintsForChild(BoxConstraints constraints) =>
@@ -3433,12 +3445,14 @@ class HoverToolbarLayout extends SingleChildLayoutDelegate {
         )
         .toDouble();
     final above = bubble.top + overlap - childSize.height;
-    final below = bubble.bottom - overlap;
+    final belowStart = clearanceBelowBubble > 0
+        ? bubble.bottom + clearanceBelowBubble
+        : bubble.bottom - overlap;
     final double y;
     if (above >= bounds.top) {
       y = above;
-    } else if (below + childSize.height <= bounds.bottom) {
-      y = below;
+    } else if (belowStart + childSize.height <= bounds.bottom) {
+      y = belowStart;
     } else {
       // Neither side fits (a bubble taller than the view): keep it in view.
       y = bounds.top;
@@ -3451,7 +3465,8 @@ class HoverToolbarLayout extends SingleChildLayoutDelegate {
       bubble != oldDelegate.bubble ||
       bounds != oldDelegate.bounds ||
       alignLeft != oldDelegate.alignLeft ||
-      overlap != oldDelegate.overlap;
+      overlap != oldDelegate.overlap ||
+      clearanceBelowBubble != oldDelegate.clearanceBelowBubble;
 }
 
 /// Desktop hover toolbar: reply + reaction picker + more, mirroring
