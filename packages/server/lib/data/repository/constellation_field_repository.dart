@@ -321,6 +321,7 @@ DateTime? readCustomSelectTimestamptz(Object? value) {
 ConstellationRequestRecord readConstellationRequestRow(
   QueryRow row, {
   bool? viewerParticipates,
+  String? pinState,
 }) {
   ImagePublicRecord? coverThumb;
   final coverId = row.readNullable<String>('cover_thumb_id');
@@ -362,6 +363,7 @@ ConstellationRequestRecord readConstellationRequestRow(
     coverSource: row.read<int>('cover_source'),
     coverThumb: coverThumb,
     viewerParticipates: viewerParticipates,
+    pinState: pinState,
     parentBeaconId: row.readNullable<String>('parent_beacon_id'),
   );
 }

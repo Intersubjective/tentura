@@ -229,12 +229,18 @@ class _ConstellationViewportOverlayState
     TenturaTokens tt,
   ) => switch (node) {
     FieldPersonNode(:final person) => (
-      person.shownName,
+      widget.cubit.fieldPersonById(person.id)?.pinState == 'tombstone'
+          ? l10n.constellationPinAccountDeleted
+          : person.shownName,
       1,
       tt.graphLabelMaxWidthPerson,
     ),
     FieldBeaconNode(request: final request?) => (
-      request.title.isEmpty ? l10n.beaconViewTitle : request.title,
+      request.isPlaceholder
+          ? constellationPinStateLabel(l10n, request.pinState)
+          : request.title.isEmpty
+          ? l10n.beaconViewTitle
+          : request.title,
       2,
       tt.graphLabelMaxWidthRequest,
     ),

@@ -8,6 +8,7 @@ import 'package:tentura_server/consts/constellation_consts.dart';
 import 'package:tentura_server/data/database/migration/_migrations.dart'
     show m0256;
 import 'package:tentura_server/data/database/tentura_db.dart' show TenturaDb;
+import 'package:tentura_server/data/repository/constellation_anchor_projection_reader.dart';
 import 'package:tentura_server/data/repository/constellation_anchor_repository.dart';
 import 'package:tentura_server/data/repository/constellation_field_repository.dart';
 import 'package:tentura_server/domain/entity/constellation_anchor_projection.dart';
@@ -18,6 +19,37 @@ import 'constellation_anchor_batch_fixture.dart';
 import 'disposable_pg_target.dart';
 import 'pg_test_public_keys.dart';
 import 'pg_wait.dart';
+
+/// Required Ferry fields use empty defaults, never content from the target.
+/// Optional fields and any newly introduced fields must remain null.
+void expectContentFreeConstellationRequestWire(Map<String, dynamic> record) {
+  const defaults = <String, Object>{
+    'authorId': '',
+    'title': '',
+    'status': 0,
+    'needs': <String>[],
+    'hasCoordinates': false,
+    'isMine': false,
+    'viewerHasActiveHelpOffer': false,
+    'viewerIsRoomParticipant': false,
+    'viewerHasForwardEdge': false,
+    'helpOfferCount': 0,
+    'coverSource': 0,
+    'kind': 0,
+  };
+  for (final entry in defaults.entries) {
+    expect(record, containsPair(entry.key, entry.value));
+  }
+  for (final entry in record.entries) {
+    if (entry.key != 'id' && entry.key != 'pinState') {
+      expect(
+        entry.value,
+        defaults[entry.key],
+        reason: 'An inaccessible Request must not expose ${entry.key}',
+      );
+    }
+  }
+}
 
 Future<List<Map<String, dynamic>>> readStoredConstellationAnchors(
   Session connection, {
@@ -229,14 +261,55 @@ WHERE viewer_id = @viewer
 
   Future<ConstellationAnchorProjection> read(
     ConstellationProjection projection,
-  ) async => (await _fields.readSnapshot(
+  ) async => (await readSnapshot(projection)).anchorProjection;
+
+  Future<ConstellationFieldSnapshot> readSnapshot(
+    ConstellationProjection projection,
+  ) => _fields.readSnapshot(
     viewerId: viewer,
     context: kConstellationContext,
     params: (
       filters: ConstellationFieldMembershipFilters.defaults,
       projection: projection,
     ),
-  )).anchorProjection;
+  );
+
+  Future<ConstellationAnchorProjection> readExtracted({
+    required bool prepared,
+    required bool mutating,
+  }) {
+    Future<ConstellationAnchorProjection> readInTransaction() async {
+      // Readability is transaction-local; use a new reader on every read.
+      final reader = ConstellationAnchorProjectionReader(
+        db,
+        _PgTombstoneProfiles(db),
+      );
+      const filters = ConstellationFieldMembershipFilters.defaults;
+      if (!prepared) {
+        return reader.read(
+          viewerId: viewer,
+          context: kConstellationContext,
+          filters: filters,
+        );
+      }
+      final inputs = await reader.prepare(
+        viewerId: viewer,
+        context: kConstellationContext,
+        filters: filters,
+        upsertTargets: const [],
+      );
+      return reader.readPrepared(
+        viewerId: viewer,
+        context: kConstellationContext,
+        filters: filters,
+        prepared: inputs,
+      );
+    }
+
+    return mutating
+        ? db.withMutatingRepeatableRead(viewer, readInTransaction)
+        : db.withReadSnapshot(readInTransaction);
+  }
 
   List<Map<String, dynamic>> hints([String viewerId = viewer]) => [
     for (final notification in _notifications)

@@ -223,9 +223,16 @@ ConstellationComposedPresentation composeConstellationPresentation({
   bool semanticZoomEnabled = kFieldSemanticZoomEnabled,
 }) {
   final projection = field.resolvedAnchorProjection;
+  final placeholderIds = {
+    for (final request in projection.pinnedRequests)
+      if (request.isPlaceholder) request.id,
+  };
   final automatic = ConstellationAutomaticLayer(
     peers: field.peers,
-    requests: field.requests,
+    requests: [
+      for (final request in field.requests)
+        if (!placeholderIds.contains(request.id)) request,
+    ],
     edges: field.edges,
     peersCapped: field.peersCapped,
     requestsCapped: field.requestsCapped,
@@ -308,7 +315,8 @@ ConstellationComposedPresentation composeConstellationPresentation({
     ...visiblePosts.map((post) => post.authorId),
     for (final web in selectedRequestWebs) web.personId,
     ...automatic.requests.map((request) => request.authorId),
-    ...anchorOverlay.pinnedRequests.map((request) => request.authorId),
+    for (final request in anchorOverlay.pinnedRequests)
+      if (!request.isPlaceholder) request.authorId,
     ...pathPinnedPeerIds,
     ...directContactIds,
     if (fieldMembershipV2Enabled)
@@ -458,7 +466,8 @@ ConstellationAnchorOverlay _overlayForVisiblePins({
   final pathHolderIds = {
     for (final peer in projection.pinnedPeers)
       if (peer.visible) peer.id,
-    for (final request in visiblePinnedRequests) request.authorId,
+    for (final request in visiblePinnedRequests)
+      if (!request.isPlaceholder) request.authorId,
   };
 
   if (pathHolderIds.isEmpty) {
@@ -580,7 +589,11 @@ ConstellationLabelDisplayPlan _buildLabelDisplayPlan({
     allByAuthor.putIfAbsent(request.authorId, () => <String>[]).add(request.id);
   }
   for (final request in anchorOverlay.pinnedRequests) {
-    allByAuthor.putIfAbsent(request.authorId, () => <String>[]).add(request.id);
+    if (!request.isPlaceholder) {
+      allByAuthor
+          .putIfAbsent(request.authorId, () => <String>[])
+          .add(request.id);
+    }
   }
   // Posts are satellites of their author, like Requests.
   for (final post in activePosts) {
@@ -713,6 +726,7 @@ bool _requestMatchesLocalFilters(
   ConstellationFilters filters,
   DateTime asOfUtc,
 ) {
+  if (request.isPlaceholder) return true;
   return filterRequestIds(
     requests: [
       (

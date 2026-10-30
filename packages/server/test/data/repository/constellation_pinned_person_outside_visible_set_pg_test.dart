@@ -20,8 +20,9 @@ import '../../support/constellation_profiles_from_public_records.dart';
 import '../../support/disposable_pg_target.dart';
 
 /// A pinned person who lost visibility stays in the anchor projection (with
-/// `visible: false`); blocks in either direction hide them, unpin removes
-/// them, and unreadable pinned Requests are dropped.
+/// `visible: false`). Binding architecture rev 10 D15 / section 5.10 keeps a
+/// viewer-blocked pin marked, hides a person who blocked the viewer, and keeps
+/// unreadable pinned Requests as content-free placeholders. Unpin removes them.
 Future<void> main() async {
   final target = DisposablePgTarget.fromNamedEnvironment(
     envVarName: 'TENTURA_CONSTELLATION_PINNED_OUTSIDE_VISIBLE_TEST_DB',
@@ -194,20 +195,26 @@ WHERE blocker_id = '$blocker' AND blocked_id = '$blocked'
         );
 
         test(
-          'disappears when blocked by the viewer and returns on unblock',
+          'stays marked when blocked by the viewer and clears the mark on unblock',
           () async {
             await pinStranger();
             await block(viewer, stranger);
             final blocked = (await read(projection)).anchorProjection;
-            expect(blocked.pinnedPeers, isEmpty);
-            expect(blocked.anchors, isEmpty);
+            expect(blocked.pinnedPeers.map((p) => p.id), [stranger]);
+            expect(blocked.pinnedPeers.single.pinState, 'blockedByMe');
+            expect(blocked.pinnedPeers.single.displayName, stranger);
+            expect(blocked.pinnedPeers.single.visible, isFalse);
+            expect(blocked.anchors.map((a) => a.target.id), [stranger]);
+            final position = blocked.anchors.single.position;
 
             await unblock(viewer, stranger);
             final restored = (await read(projection)).anchorProjection;
             expect(restored.pinnedPeers.map((p) => p.id), [stranger]);
             expect(restored.pinnedPeers.single.visible, isFalse);
             expect(restored.pinnedPeers.single.displayName, stranger);
+            expect(restored.pinnedPeers.single.pinState, isNull);
             expect(restored.anchors.map((a) => a.target.id), [stranger]);
+            expect(restored.anchors.single.position, position);
           },
         );
 
@@ -259,12 +266,13 @@ WHERE blocker_id = '$blocker' AND blocked_id = '$blocked'
   );
 
   group('pinned Request read wall', () {
-    test('an unreadable pinned Request disappears while a readable one stays',
-        () async {
-      // Closed (status 5), not discoverable, no relation to the viewer:
-      // beacon_can_read_content is false for it. The viewer's own Request is
-      // always readable.
-      await db.customStatement('''
+    test(
+      'an unreadable pinned Request stays as a placeholder beside a readable pin',
+      () async {
+        // Closed (status 5), not discoverable, no relation to the viewer:
+        // beacon_can_read_content is false for it. The viewer's own Request is
+        // always readable.
+        await db.customStatement('''
 INSERT INTO public.beacon (
   id, user_id, title, description, status, is_discoverable,
   published_at, created_at, updated_at
@@ -273,18 +281,35 @@ INSERT INTO public.beacon (
   '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'
 )
 ''');
-      await insertBeacon('Bpinvisown01', viewer);
-      await pinBeacon('Bpinvishid01');
-      await pinBeacon('Bpinvisown01');
+        await insertBeacon('Bpinvisown01', viewer);
+        await pinBeacon('Bpinvishid01');
+        await pinBeacon('Bpinvisown01');
 
-      final projectionRead = (await read(
-        ConstellationProjection.anchors,
-      )).anchorProjection;
+        final projectionRead = (await read(
+          ConstellationProjection.anchors,
+        )).anchorProjection;
 
-      expect(projectionRead.pinnedRequests.map((r) => r.id), [
-        'Bpinvisown01',
-      ]);
-    });
+        expect(
+          projectionRead.pinnedRequests.map((r) => r.id),
+          unorderedEquals(['Bpinvishid01', 'Bpinvisown01']),
+        );
+        expect(
+          projectionRead.anchors.map((a) => a.target.id),
+          unorderedEquals(['Bpinvishid01', 'Bpinvisown01']),
+        );
+        final placeholder = projectionRead.pinnedRequests.singleWhere(
+          (r) => r.id == 'Bpinvishid01',
+        );
+        expect(placeholder.pinState, 'noAccess');
+        expect(placeholder.title, isEmpty);
+        expect(placeholder.authorId, isEmpty);
+        final readable = projectionRead.pinnedRequests.singleWhere(
+          (r) => r.id == 'Bpinvisown01',
+        );
+        expect(readable.title, 'title-Bpinvisown01');
+        expect(readable.authorId, viewer);
+      },
+    );
   });
 }
 

@@ -27,6 +27,8 @@ class GraphPersonContextPanel extends StatelessWidget {
   const GraphPersonContextPanel({
     required this.profile,
     required this.focusedNode,
+    this.isBlocked = false,
+    this.onUnblock,
     this.hiddenNeighborCount = 0,
     this.isLoading = false,
     this.canPageMore = false,
@@ -42,6 +44,8 @@ class GraphPersonContextPanel extends StatelessWidget {
   });
 
   final Profile profile;
+  final bool isBlocked;
+  final VoidCallback? onUnblock;
   final UserNode focusedNode;
   final int hiddenNeighborCount;
   final bool isLoading;
@@ -79,7 +83,7 @@ class GraphPersonContextPanel extends StatelessWidget {
     final policy = PersonActionPolicy.from(
       profile,
       isSelf: false,
-      isBlocked: false,
+      isBlocked: isBlocked,
       todayUtc: todayUtc,
     );
     final canShowMore = !isLoading && canPageMore && hiddenNeighborCount > 0;
@@ -123,22 +127,23 @@ class GraphPersonContextPanel extends StatelessWidget {
         ),
         // Between the primary action (1) and request options (2) in tab
         // order, matching the old trust button's place.
-        FocusTraversalOrder(
-          order: const NumericFocusOrder(1.5),
-          child: TrustToggleLine(
-            trusts: profile.viewerExplicitlyTrustsSubject,
-            switchKey: TestIds.key(TestIds.graphPersonContextTrust),
-            onChanged: (on) => on
-                ? unawaited(contextCubit.trustSelected())
-                : unawaited(
-                    FriendRemoveDialog.show(
-                      context,
-                      profile: profile,
-                      onRemove: contextCubit.untrustSelected,
+        if (!isBlocked)
+          FocusTraversalOrder(
+            order: const NumericFocusOrder(1.5),
+            child: TrustToggleLine(
+              trusts: profile.viewerExplicitlyTrustsSubject,
+              switchKey: TestIds.key(TestIds.graphPersonContextTrust),
+              onChanged: (on) => on
+                  ? unawaited(contextCubit.trustSelected())
+                  : unawaited(
+                      FriendRemoveDialog.show(
+                        context,
+                        profile: profile,
+                        onRemove: contextCubit.untrustSelected,
+                      ),
                     ),
-                  ),
+            ),
           ),
-        ),
         _VisibilitySection(
           l10n: l10n,
           profile: profile,
@@ -242,6 +247,16 @@ class GraphPersonContextPanel extends StatelessWidget {
       if (children.isNotEmpty) {
         children.add(SizedBox(height: context.tt.rowGap));
       }
+    }
+
+    if (isBlocked) {
+      children.add(
+        OutlinedButton.icon(
+          onPressed: onUnblock,
+          icon: const Icon(Icons.block),
+          label: Text(l10n.unblockUserMenuItem),
+        ),
+      );
     }
 
     switch (policy.primaryAction) {

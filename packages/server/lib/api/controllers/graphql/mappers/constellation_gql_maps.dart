@@ -119,10 +119,19 @@ Map<String, dynamic> _edgeToGqlMap(ConstellationEdgeRecord edge) => {
   'tier': edge.tier,
 };
 
-Map<String, dynamic> _requestToGqlMap(ConstellationRequestRecord request) =>
-    request.pinState != null
-    ? {'id': request.id, 'pinState': request.pinState}
-    : _liveRequestToGqlMap(request);
+Map<String, dynamic> _requestToGqlMap(ConstellationRequestRecord request) => {
+  // Empty non-null defaults keep existing Ferry clients parseable. Always
+  // construct the identity-only form before serializing an inaccessible pin.
+  ..._liveRequestToGqlMap(
+    request.isPlaceholder
+        ? ConstellationRequestRecord.placeholder(
+            request.id,
+            pinState: request.pinState,
+          )
+        : request,
+  ),
+  if (request.pinState != null) 'pinState': request.pinState,
+};
 
 /// One live Request row, as the field's `requests` list carries it.
 Map<String, dynamic> constellationRequestToGqlMap(

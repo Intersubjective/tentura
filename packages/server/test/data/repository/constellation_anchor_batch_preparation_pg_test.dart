@@ -310,12 +310,23 @@ INSERT INTO public.constellation_anchor_cursor (viewer_id) VALUES ('$viewer')
         ]);
         expect(result.results.single.status, AnchorOpStatus.ok);
         expect(
-          (await freshAnchors()).anchors.single.target,
+          profiles.loads,
+          isEmpty,
+          reason: 'The write must not hydrate profiles',
+        );
+        final snapshot = await freshAnchors();
+        expect(
+          snapshot.anchors.single.target,
           ConstellationAnchorTarget.beacon(closedBeacon),
         );
-        expect((await freshAnchors()).pinnedRequests, isEmpty);
-        expect((await freshAnchors()).serverFilteredBeaconIds, [closedBeacon]);
-        expect(profiles.loads.expand((load) => load.ids), isEmpty);
+        final record = snapshot.pinnedRequests.single;
+        expect(record.id, closedBeacon);
+        expect(record.authorId, peers.first);
+        expect(record.pinState, 'wrappingUp');
+        expect(record.status, 5);
+        expect(record.isPlaceholder, isFalse);
+        expect(snapshot.serverFilteredBeaconIds, [closedBeacon]);
+        expect(profiles.loads.expand((load) => load.ids).toSet(), {peers.first});
         await expectFreshProjection(result);
       },
     );
@@ -548,7 +559,7 @@ SELECT public.mr_put_edge('$viewer', '$churnA', $amount::double precision, '$con
   group('anchor batch preparation across foreign writes', () {
     for (final mutation in [
       'anchor placement',
-      'visibility revocation',
+      'viewer block',
       'target deletion',
     ]) {
       test(
@@ -610,7 +621,7 @@ INSERT INTO public.constellation_anchor
    revision, placed_at)
 VALUES ('CAbatchforeign01', '$viewer', '${peers[2]}', 7, 8, 1, 0, 'epoch')
 ''');
-                case 'visibility revocation':
+                case 'viewer block':
                   await tx.execute('''
 INSERT INTO public.user_block (blocker_id, blocked_id, origin_id)
 VALUES ('$viewer', '${peers.first}', '$viewer')
@@ -697,9 +708,23 @@ WHERE viewer_id = '$viewer'
                 }
               }
             } else {
+              // D15 keeps the viewer-blocked pin after the cursor retry.
+              final snapshot = await freshAnchors();
               expect(
-                (await freshAnchors()).anchors.map((a) => a.target.id),
-                isNot(contains(peers.first)),
+                snapshot.anchors.map((a) => a.target.id),
+                unorderedEquals([peers.first, peers[1]]),
+              );
+              final blocked = snapshot.pinnedPeers.singleWhere(
+                (p) => p.id == peers.first,
+              );
+              expect(blocked.pinState, 'blockedByMe');
+              expect(blocked.visible, isFalse);
+              expect(blocked.displayName, peers.first);
+              expect(
+                snapshot.pinnedPeers
+                    .singleWhere((p) => p.id == peers[1])
+                    .pinState,
+                isNull,
               );
             }
             expect(result.results.single.status, AnchorOpStatus.ok);

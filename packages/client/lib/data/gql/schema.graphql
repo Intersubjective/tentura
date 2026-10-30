@@ -8272,6 +8272,7 @@ type v2_ConstellationPeer {
   displayName: String
   handle: String
   id: String!
+  pinState: String
   image: v2_image
   presence: String!
   temporaryBeaconId: String
@@ -8303,6 +8304,7 @@ type v2_ConstellationRequest {
   hasCoordinates: Boolean!
   helpOfferCount: Int!
   id: String!
+  pinState: String
   isMine: Boolean!
   needs: [String!]!
   primaryNeedSlug: String

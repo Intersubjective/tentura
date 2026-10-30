@@ -1,0 +1,59 @@
+---
+description: Fixing a GitHub issue, a QA FAIL or a bug, or writing a bead or brief for one — the coverage map, sibling matrix, real-path test and phone + RU check every fix ships with
+alwaysApply: false
+---
+
+# Fix completeness
+
+QA reopens a fix when it covers the reported scenario but not the rest of the issue. Over 72 QA FAILs (2026-10-24..30), the causes were:
+
+| Cause | Share of FAILs |
+|---|---|
+| a sibling path left unfixed | 26% |
+| issue items with no commit | 18% |
+| tests built on states the app never produces | 15% |
+| broken at phone width (involved in 23 of the 72) | 14% |
+
+A complete fix ships four things, in this order. Each step is done only when its criterion holds.
+
+## 1. Coverage map
+
+List every item the issue asks for, from the body and from the OWNER/MEMBER comments (comments often add scope). Map each item to the commit or test that delivers it, or to «out of scope → #N» with the follow-up issue filed.
+
+**Done when** every item has a row. Put the map in the PR description, or in the bead notes and the «Ready for QA» comment.
+
+## 2. Sibling matrix
+
+The reported scenario is one cell. Fill the matrix for the behaviour you changed. Each row gets a test, or «n/a: reason»:
+
+| Row | Cells |
+|---|---|
+| input | mouse · touch · keyboard |
+| surface | every screen, card, sheet and list that shows this data (grep the widget's, presenter's and l10n key's other callers) |
+| role | author · admitted helper · invitee · outsider |
+| state | open · enough help · closed · archived; Request · Post |
+| freshness | own action · another client's change (realtime hint) · cold start · reload |
+| network | fast · slow (first-load gate) |
+| width | desktop · 375×667 phone |
+| locale | EN · RU |
+
+**Done when** every row is decided. A row marked «n/a» names its reason.
+
+## 3. Real-path test
+
+At least one test drives real-shaped data along the path the app uses: transport → GQL operation → mapper → repository → cubit → widget. Hand-built entities can carry fields the query never fetches, and states the app never reaches.
+
+- Use `test/support/remote_wire_harness.dart` (real Ferry chain, fake HTTP) and the fixtures under `test/support/`.
+- Browser-only behaviour belongs in the web integration suite (`scripts/run_client_integration_web_local.sh`, `integration_test/`), because a widget test can't show it. That covers touch hit-testing, focus after a remount, Flutter web semantics, and bfcache / `main()` re-runs.
+
+**Done when** the test fails on main for the reported scenario, and every claim in your commit subject is pinned by a test on that path.
+
+## 4. Phone + RU
+
+Every UI change gets a widget test at 375×667 with RU copy:
+- set the surface with `usePhoneSurface(tester)` from `test/support/phone_surface.dart`;
+- run with the `ru` locale.
+
+Status lines, counts and action labels render in full: they wrap to more lines, or the layout moves trailing badges and buttons below. Single-line ellipsis is for names and titles only. Sheets and dialogs keep their actions visible or scrollable at 667 px height.
+
+**Done when** the test asserts the key text is present in full and nothing overflows. Keep fixture copy short; the narrow-2x ListView trap is in `AGENTS.md` Headroom notes.

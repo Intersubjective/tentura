@@ -17,6 +17,7 @@ query ConstellationFieldFetch(
     directContactIds
     peers {
       id
+      pinState
       contactOnly
       presence
       temporaryBeaconId
@@ -37,6 +38,7 @@ query ConstellationFieldFetch(
     }
     requests {
       id
+      pinState
       authorId
       title
       status
@@ -85,6 +87,7 @@ query ConstellationFieldFetch(
       }
       pinnedPeers {
         id
+        pinState
         visible
         presence
         temporaryBeaconId
@@ -100,6 +103,7 @@ query ConstellationFieldFetch(
       }
       pinnedRequests {
         id
+        pinState
         authorId
         title
         status
