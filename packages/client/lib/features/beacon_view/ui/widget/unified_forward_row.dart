@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/entity/help_offer_end.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/features/beacon_view/ui/util/beacon_people_labels.dart';
 import 'package:tentura/features/capability/ui/widget/forward_capability_chips.dart';
 import 'package:tentura/features/forward/domain/entity/forward_edge.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -25,6 +27,8 @@ class UnifiedForwardRow extends StatelessWidget {
     this.involvementWatchingIds,
     this.involvementOnwardForwarderIds,
     this.involvementWithdrawnIds = const {},
+    this.involvementParticipationEndedIds = const {},
+    this.involvementDeclinedIds = const {},
     super.key,
   }) : assert(
          (inboundSender != null &&
@@ -60,6 +64,8 @@ class UnifiedForwardRow extends StatelessWidget {
     required Set<String> watching,
     required Set<String> onward,
     Set<String> withdrawn = const {},
+    Set<String> participationEnded = const {},
+    Set<String> declined = const {},
     bool showSender = true,
     List<String> reasonSlugs = const [],
     Key? key,
@@ -72,6 +78,8 @@ class UnifiedForwardRow extends StatelessWidget {
     involvementWatchingIds: watching,
     involvementOnwardForwarderIds: onward,
     involvementWithdrawnIds: withdrawn,
+    involvementParticipationEndedIds: participationEnded,
+    involvementDeclinedIds: declined,
     key: key,
   );
 
@@ -92,6 +100,11 @@ class UnifiedForwardRow extends StatelessWidget {
   /// Recipients whose help offer on this request was withdrawn (and who have
   /// no live offer). The forward stays as history, marked withdrawn.
   final Set<String> involvementWithdrawnIds;
+
+  /// Recipients whose participation the author ended, or whose offer the
+  /// author declined. Neither withdrew (#783).
+  final Set<String> involvementParticipationEndedIds;
+  final Set<String> involvementDeclinedIds;
 
   bool get _isInbound => outboundEdge == null;
 
@@ -227,6 +240,8 @@ class UnifiedForwardRow extends StatelessWidget {
       involvementWatchingIds!,
       involvementOnwardForwarderIds!,
       involvementWithdrawnIds,
+      involvementParticipationEndedIds,
+      involvementDeclinedIds,
     );
 
     return _NoteColumnWithBar(
@@ -248,6 +263,8 @@ class UnifiedForwardRow extends StatelessWidget {
     Set<String> watching,
     Set<String> onward,
     Set<String> withdrawn,
+    Set<String> participationEnded,
+    Set<String> declined,
   ) {
     final id = edge.recipient.id;
     // Cancelled is still history (#396): the row stays, saying so, and no
@@ -276,11 +293,43 @@ class UnifiedForwardRow extends StatelessWidget {
         ),
       ];
     }
+    if (participationEnded.contains(id)) {
+      return [
+        _ReactionLine(
+          icon: Icons.person_off_outlined,
+          text: helpOfferEndLabel(
+            l10n,
+            HelpOfferEndKind.participationEnded,
+            HelpOfferEndLabelSurface.forwardRow,
+          ),
+          iconColor: scheme.onSurfaceVariant,
+          alignEnd: false,
+        ),
+      ];
+    }
+    if (declined.contains(id)) {
+      return [
+        _ReactionLine(
+          icon: Icons.block,
+          text: helpOfferEndLabel(
+            l10n,
+            HelpOfferEndKind.declined,
+            HelpOfferEndLabelSurface.forwardRow,
+          ),
+          iconColor: scheme.onSurfaceVariant,
+          alignEnd: false,
+        ),
+      ];
+    }
     if (withdrawn.contains(id)) {
       return [
         _ReactionLine(
           icon: Icons.undo,
-          text: l10n.forwardWithdrawn,
+          text: helpOfferEndLabel(
+            l10n,
+            HelpOfferEndKind.withdrew,
+            HelpOfferEndLabelSurface.forwardRow,
+          ),
           iconColor: scheme.onSurfaceVariant,
           alignEnd: false,
         ),
