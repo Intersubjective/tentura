@@ -2519,10 +2519,6 @@
   "@newStuffReasonCoordinationStatusChanged": {
     "context": "NewStuff dot — beacon-level coordination status"
   },
-  "inboxEmpty": "Activity is empty",
-  "@inboxEmpty": {
-    "context": "InboxScreen"
-  },
   "notifications": "Notifications",
   "@notifications": {
     "context": "NotificationCenter"
@@ -2636,10 +2632,6 @@
   "notificationQuietHoursTo": "To",
   "notificationLockScreen": "Hide details on lock screen",
   "notificationLockScreenDesc": "Show a generic summary instead of message content",
-  "inboxEmptyHint": "Requests forwarded to you will appear here",
-  "@inboxEmptyHint": {
-    "context": "InboxScreen"
-  },
   "inboxNeedsMe": "Waiting on you",
   "@inboxNeedsMe": {
     "context": "InboxScreen"
@@ -2671,10 +2663,6 @@
   },
   "inboxRejectedTitle": "Dismissed",
   "@inboxRejectedTitle": {
-    "context": "InboxScreen"
-  },
-  "inboxNeedsMeEmptyCalm": "Activity is clear. New requests will appear here.",
-  "@inboxNeedsMeEmptyCalm": {
     "context": "InboxScreen"
   },
   "inboxWatchingEmptyCalm": "Nothing to follow yet.",
@@ -2718,29 +2706,8 @@
       }
     }
   },
-  "inboxTabWatching": "Following",
-  "@inboxTabWatching": {
-    "context": "InboxScreen"
-  },
-  "inboxTabReceipts": "Receipts",
-  "@inboxTabReceipts": {
-    "context": "InboxScreen",
-    "description": "Primary Inbox tab for folded Updates / notification receipts."
-  },
-  "inboxForwardedByMe": "Forwarded",
-  "@inboxForwardedByMe": {
-    "context": "InboxScreen"
-  },
   "inboxTabRejected": "Dismissed",
   "@inboxTabRejected": {
-    "context": "InboxScreen"
-  },
-  "inboxTabNeedsEmpty": "Nothing waiting for you here",
-  "@inboxTabNeedsEmpty": {
-    "context": "InboxScreen"
-  },
-  "inboxTabWatchingEmpty": "You are not following anything",
-  "@inboxTabWatchingEmpty": {
     "context": "InboxScreen"
   },
   "inboxTabRejectedEmpty": "No dismissed requests",
@@ -2754,50 +2721,6 @@
   "inboxViewInTab": "View",
   "@inboxViewInTab": {
     "context": "InboxScreen"
-  },
-  "inboxTombstoneQueueStatus": "Queue status",
-  "@inboxTombstoneQueueStatus": {
-    "context": "InboxScreen"
-  },
-  "inboxTombstoneSectionTitle": "Resolved requests",
-  "@inboxTombstoneSectionTitle": {
-    "context": "InboxScreen"
-  },
-  "inboxTombstoneLast24h": "Last 24h",
-  "@inboxTombstoneLast24h": {
-    "context": "InboxScreen"
-  },
-  "inboxTombstoneStatusResolved": "Resolved",
-  "@inboxTombstoneStatusResolved": {
-    "context": "InboxTombstoneCard"
-  },
-  "inboxTombstoneStatusUnavailable": "Unavailable",
-  "@inboxTombstoneStatusUnavailable": {
-    "context": "InboxTombstoneCard"
-  },
-  "inboxTombstoneClosedTitle": "Resolved before you acted",
-  "@inboxTombstoneClosedTitle": {
-    "context": "InboxTombstoneCard"
-  },
-  "inboxTombstoneClosedSubtitle": "This request was closed before you responded.",
-  "@inboxTombstoneClosedSubtitle": {
-    "context": "InboxTombstoneCard"
-  },
-  "inboxTombstoneDeletedTitle": "No longer available",
-  "@inboxTombstoneDeletedTitle": {
-    "context": "InboxTombstoneCard"
-  },
-  "inboxTombstoneDeletedSubtitle": "This request was removed before you responded.",
-  "@inboxTombstoneDeletedSubtitle": {
-    "context": "InboxTombstoneCard"
-  },
-  "inboxTombstoneDismiss": "Dismiss",
-  "@inboxTombstoneDismiss": {
-    "context": "InboxTombstoneCard"
-  },
-  "inboxTombstoneOpen": "Open",
-  "@inboxTombstoneOpen": {
-    "context": "InboxTombstoneCard"
   },
   "actionCantHelp": "Can't help",
   "@actionCantHelp": {
@@ -2825,15 +2748,6 @@
   },
   "forwardedCount": "{count}x forwarded",
   "@forwardedCount": {
-    "context": "InboxItemTile",
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "inboxMoreForwarders": "+{count}",
-  "@inboxMoreForwarders": {
     "context": "InboxItemTile",
     "placeholders": {
       "count": {
@@ -2881,24 +2795,8 @@
   "@actionHide": {
     "context": "InboxItemTile"
   },
-  "inboxProvenanceTrail": "Forwarded to you by",
-  "@inboxProvenanceTrail": {
-    "context": "InboxItemTile"
-  },
-  "inboxProvenanceExpand": "Expand",
-  "@inboxProvenanceExpand": {
-    "context": "InboxItemTile"
-  },
-  "inboxProvenanceMore": "More",
-  "@inboxProvenanceMore": {
-    "context": "InboxItemTile"
-  },
   "inboxProvenanceCollapse": "Collapse",
   "@inboxProvenanceCollapse": {
-    "context": "InboxItemTile"
-  },
-  "inboxActionNotForMe": "Not for me",
-  "@inboxActionNotForMe": {
     "context": "InboxItemTile"
   },
   "inboxCardOpenBeacon": "Forward",
@@ -2918,15 +2816,6 @@
     "context": "InboxItemTile",
     "placeholders": {
       "hours": {
-        "type": "int"
-      }
-    }
-  },
-  "inboxDeadlineDaysRemaining": "{days}d left",
-  "@inboxDeadlineDaysRemaining": {
-    "context": "InboxItemTile",
-    "placeholders": {
-      "days": {
         "type": "int"
       }
     }
@@ -2969,48 +2858,9 @@
   "@inboxForwardedByLabel": {
     "context": "InboxItemTile"
   },
-  "inboxFromForwarder": "From {name}",
-  "@inboxFromForwarder": {
-    "context": "InboxItemTile",
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
-  "inboxFromForwarderPlus": "From {name} +{rest}",
-  "@inboxFromForwarderPlus": {
-    "context": "InboxItemTile",
-    "placeholders": {
-      "name": {
-        "type": "String"
-      },
-      "rest": {
-        "type": "int"
-      }
-    }
-  },
-  "inboxForwardCount": "{count, plural, one{1 forward} other{{count} forwards}}",
-  "@inboxForwardCount": {
-    "context": "InboxItemTile",
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
   "inboxCategoryGeneral": "General",
   "@inboxCategoryGeneral": {
     "context": "InboxItemTile"
-  },
-  "inboxHelpOffersCount": "{count} help offers",
-  "@inboxHelpOffersCount": {
-    "context": "BeaconViewScreen help offers tab label",
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
   },
   "beaconCardHelpOfferCount": "{count}",
   "@beaconCardHelpOfferCount": {
@@ -6140,14 +5990,6 @@
       }
     }
   },
-  "inboxCardPublicFactLine": "Public fact: {text}",
-  "@inboxCardPublicFactLine": {
-    "placeholders": {
-      "text": {
-        "type": "String"
-      }
-    }
-  },
   "inboxCardOpenBlocker": "Open blocker: {text}",
   "@inboxCardOpenBlocker": {
     "placeholders": {
@@ -6375,7 +6217,6 @@
   "helpOfferHideCategories": "Hide categories",
   "helpOfferSearchEmpty": "No match — try Other or keep text only",
   "forwardViewInvitations": "View invitations",
-  "inboxViewMyWork": "Open Requests",
   "logoutConfirmTitle": "Log out?",
   "logoutConfirmBody": "You’ll need to sign in again to use Tentura on this device.",
   "capabilityCueHelpOffered": "Offered help: {tags}",
