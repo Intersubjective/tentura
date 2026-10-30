@@ -28,7 +28,7 @@ class _MockRoomCubit extends Mock implements RoomCubit {
   RoomState get state => _state;
 
   @override
-  Stream<RoomState> get stream => Stream<RoomState>.empty();
+  Stream<RoomState> get stream => const Stream<RoomState>.empty();
 
   @override
   Future<void> markReadToBottom() async {}
@@ -43,7 +43,7 @@ class _MockProfileCubit extends Mock implements ProfileCubit {
   ProfileState get state => ProfileState(profile: profile);
 
   @override
-  Stream<ProfileState> get stream => Stream<ProfileState>.empty();
+  Stream<ProfileState> get stream => const Stream<ProfileState>.empty();
 }
 
 class _MockPresenceCubit extends Mock implements PresenceCubit {
@@ -52,7 +52,7 @@ class _MockPresenceCubit extends Mock implements PresenceCubit {
 
   @override
   Stream<Map<String, UserPresenceStatus>> get stream =>
-      Stream<Map<String, UserPresenceStatus>>.empty();
+      const Stream<Map<String, UserPresenceStatus>>.empty();
 }
 
 Rect _viewport(WidgetTester tester) =>
@@ -173,23 +173,25 @@ void main() {
     const bubble = Rect.fromLTWH(12, 8, 200, 48);
     const clearance = 48.0;
 
-    final withoutClearance = HoverToolbarLayout(
+    const withoutClearance = HoverToolbarLayout(
       bubble: bubble,
       bounds: bounds,
       alignLeft: true,
       overlap: 4,
-    ).getPositionForChild(bounds.size, strip);
-
-    final withClearance = HoverToolbarLayout(
+    );
+    const withClearance = HoverToolbarLayout(
       bubble: bubble,
       bounds: bounds,
       alignLeft: true,
       overlap: 4,
       clearanceBelowBubble: clearance,
-    ).getPositionForChild(bounds.size, strip);
+    );
 
-    expect(withoutClearance.dy, lessThan(bubble.bottom + clearance));
-    expect(withClearance.dy, greaterThanOrEqualTo(bubble.bottom + clearance));
+    final withoutPos = withoutClearance.getPositionForChild(bounds.size, strip);
+    final withPos = withClearance.getPositionForChild(bounds.size, strip);
+
+    expect(withoutPos.dy, lessThan(bubble.bottom + clearance));
+    expect(withPos.dy, greaterThanOrEqualTo(bubble.bottom + clearance));
   });
 
 }

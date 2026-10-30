@@ -93,9 +93,13 @@ class _ShareCodeDialogState extends State<ShareCodeDialog> {
     final theme = Theme.of(context);
     final l10n = L10n.of(context)!;
     final tt = context.tt;
-    // On compact (phone) the QR leads, as before; wider windows lead with the
-    // link and Copy, and tuck the QR behind a toggle (#452).
-    final linkFirst = context.windowClass != WindowClass.compact;
+    // Wider windows lead with the link and Copy, and tuck the QR behind a
+    // toggle (#452). On compact phones the QR still leads when there is room;
+    // on short viewports tuck it behind the toggle so Copy stays visible (#790).
+    final size = MediaQuery.sizeOf(context);
+    final tallCompactPhone = size.height >= size.width * 2;
+    final linkFirst =
+        context.windowClass != WindowClass.compact || !tallCompactPhone;
     // The QR on screen may be scanned at any moment, so it counts as used.
     if (!linkFirst || _qrRevealed) _markUsed();
 
