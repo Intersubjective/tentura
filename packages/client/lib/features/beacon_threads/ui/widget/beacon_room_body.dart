@@ -866,6 +866,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     unawaited(
       showModalBottomSheet<void>(
         context: context,
+        isScrollControlled: true,
         showDragHandle: true,
         // useRootNavigator: true is required on Web.
         //
@@ -886,18 +887,9 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
         builder: (ctx) {
           final theme = Theme.of(ctx);
           final tt = ctx.tt;
-          return Align(
-            alignment: Alignment.topCenter,
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                maxWidth: tt.contentMaxWidth ?? double.infinity,
-              ),
-              child: SafeArea(
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
+          return _boundedRoomActionSheet(
+            context: ctx,
+            children: [
                       Padding(
                         padding: EdgeInsets.only(
                           left: tt.screenHPadding,
@@ -1185,11 +1177,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                           },
                         ),
                       ],
-                    ],
-                  ),
-                ),
-              ),
-            ),
+            ],
           );
         },
       ),
@@ -1222,24 +1210,16 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     unawaited(
       showModalBottomSheet<void>(
         context: context,
+        isScrollControlled: true,
         showDragHandle: true,
         // Root navigator for the same Web PopScope reason as the message
         // actions sheet above.
         useRootNavigator: true,
         builder: (ctx) {
-          final tt = ctx.tt;
           final error = Theme.of(ctx).colorScheme.error;
-          return Align(
-            alignment: Alignment.topCenter,
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                maxWidth: tt.contentMaxWidth ?? double.infinity,
-              ),
-              child: SafeArea(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
+          return _boundedRoomActionSheet(
+            context: ctx,
+            children: [
                     if (canManage)
                       ListTile(
                         leading: const Icon(Icons.edit_outlined),
@@ -1299,10 +1279,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                         },
                       ),
                     ],
-                  ],
-                ),
-              ),
-            ),
+            ],
           );
         },
       ),
@@ -1619,6 +1596,39 @@ Future<bool> _editPlanLine(
     baseRevision = refused.currentRevision;
     notice = refused.toL10n(l10n.localeName);
   }
+}
+
+/// Caps sheet content to the modal height and scrolls inside it (#809).
+Widget _boundedRoomActionSheet({
+  required BuildContext context,
+  required List<Widget> children,
+}) {
+  final tt = context.tt;
+  return Align(
+    alignment: Alignment.topCenter,
+    child: ConstrainedBox(
+      constraints: BoxConstraints(
+        maxWidth: tt.contentMaxWidth ?? double.infinity,
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final maxHeight = constraints.maxHeight.isFinite
+              ? constraints.maxHeight
+              : MediaQuery.sizeOf(context).height * 0.9;
+          return ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: maxHeight),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: children,
+              ),
+            ),
+          );
+        },
+      ),
+    ),
+  );
 }
 
 class _BeaconRoomTextBottomSheet extends StatefulWidget {
