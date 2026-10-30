@@ -13,8 +13,19 @@ QA reopens a fix when it covers the reported scenario but not the rest of the is
 | issue items with no commit | 18% |
 | tests built on states the app never produces | 15% |
 | broken at phone width (involved in 23 of the 72) | 14% |
+| each round a new fix, the root cause never found | 11% |
 
 A complete fix ships four things, in this order. Each step is done only when its criterion holds.
+
+## Returned twice: diagnose first
+
+An issue with two or more QA FAILs gets a diagnosis before any new fix. Two rounds of green tests and an unchanged browser mean the tests and the fix share the same wrong model of the bug.
+
+1. Reproduce it on the local stack, the way QA did: same role, width, locale and steps (the `local-debug` skill: Playwright, QA login).
+2. Trace the real data path for the failing case: the query, its response, the mapper, the state, and the widget that renders it. Name the first point where the data goes wrong.
+3. Answer every hint in the QA comments, one by one: confirmed, or ruled out with evidence.
+
+**Done when** the root cause is written down with its evidence (bead design notes, brief, or PR description), and the planned test reproduces exactly that cause. Write the fix only after that. If no root cause is found, report the findings instead of shipping a guess.
 
 ## 1. Coverage map
 
@@ -46,7 +57,7 @@ At least one test drives real-shaped data along the path the app uses: transport
 - Use `test/support/remote_wire_harness.dart` (real Ferry chain, fake HTTP) and the fixtures under `test/support/`.
 - Browser-only behaviour belongs in the web integration suite (`scripts/run_client_integration_web_local.sh`, `integration_test/`), because a widget test can't show it. That covers touch hit-testing, focus after a remount, Flutter web semantics, and bfcache / `main()` re-runs.
 
-**Done when** the test fails on main for the reported scenario, and every claim in your commit subject is pinned by a test on that path.
+**Done when** the test fails on main for the reported scenario, and every behaviour claimed in the commit message, subject and body, is pinned by a test that fails without the change. A browser-only claim (touch, focus, semantics, scroll, bfcache, reload) is pinned by the web integration suite or a Playwright run, never by a widget test alone.
 
 ## 4. Phone + RU
 
