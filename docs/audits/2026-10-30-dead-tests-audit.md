@@ -15,11 +15,11 @@ This audit documents dead, skipped, weak, duplicate, stale, unreachable, and orp
 | 1 | **Skipped** | 11 | Tests explicitly skipped via `skip:` or `markTestSkipped` |
 | 2 | **No assertions** | 8 | Tests with zero assertions or trivial expectations (`expect(true, isTrue)`) |
 | 3 | **Stale behaviour** | 1 | Tests asserting legacy pre-redesign wire fallback constants |
-| 4 | **Dead targets** | 7 | Classes/widgets/mocks defined in production `lib/` with 0 production callers |
+| 4 | **Dead targets** | 5 | Classes or mock repository implementations defined in `lib/` with 0 production callers |
 | 5 | **Duplicates** | 9 | Copy-pasted test suites or duplicate test names within the same file |
 | 6 | **Unreachable in CI** | 16 | Test files excluded from CI (root `test/` tree, client `pg` tests) |
 | 7 | **Orphan support** | 3 | Unused support/fixture files unreferenced across the entire repository |
-| **Total** | | **55** | |
+| **Total** | | **53** | |
 
 ---
 
@@ -68,13 +68,11 @@ This audit documents dead, skipped, weak, duplicate, stale, unreachable, and orp
 
 | # | File:line | Test name | Why it's dead or weak | Recommendation |
 |---|---|---|---|---|
-| 1 | `packages/client/lib/features/updates/ui/screen/updates_screen.dart:19` | `UpdatesScreen` | Unwired screen in `packages/client/lib`. Grep evidence: `grep -rn "UpdatesScreen" packages/client/lib packages/client/test` (1 hit in `lib/` [declaration only, 0 callers], 3 hits in `test/` [`notification_history_screen_test.dart`]). Production routing and widgets never instantiate `UpdatesScreen`. | Remove dead `UpdatesScreen` or wire into router/navigation. Update tests to target active `NotificationCenterScreen`. |
-| 2 | `packages/client/lib/domain/entity/beacon_activity_event_consts.dart:2` | `BeaconActivityEventVisibilityBits` | Defined in `lib/` but has 0 production callers across `packages/client/lib`. Grep evidence: `grep -rn "BeaconActivityEventVisibilityBits" packages/client/lib packages/client/test` (1 hit in `lib/` [declaration only], 10 hits across `test/`). | Move constant into test helper or remove if unused in domain. |
-| 3 | `packages/client/lib/data/gql/timestamptz_serializer.dart:7` | `TimestamptzSerializer` | Custom serializer defined in `lib/data/gql/` with 0 production call sites in `lib/`. Grep evidence: `grep -rn "TimestamptzSerializer" packages/client/lib packages/client/test` (1 hit in `lib/` [declaration only], 3 hits in `test/`). | Remove or wire into Ferry GQL serializer plugin. |
-| 4 | `packages/client/lib/data/repository/mock/client_repository_mocks.dart:7` | `ClosureRepositoryMock`, `BeaconLobbyRepositoryMock` | Mock classes defined inside production `lib/` tree (`packages/client/lib/data/repository/mock/`). Grep evidence: `grep -rn "ClosureRepositoryMock" packages/client/lib packages/client/test` (1 hit in `lib/` [declaration only], 15 hits in `test/`). Production code never references them. | Move mock classes from `lib/` to `test/support/`. |
-| 5 | `packages/server/lib/data/repository/mock/pair_block_query_repository_mock.dart:6` | `PairBlockQueryRepositoryMock` | Mock class defined in server `lib/data/repository/mock/`. Grep evidence: `grep -rn "PairBlockQueryRepositoryMock" packages/server/lib packages/server/test` (1 hit in `lib/` [declaration only], 1 hit in `test/`). 0 callers in `packages/server/lib`. | Move mock repository out of production `lib/` into `test/support/`. |
-| 6 | `packages/server/lib/data/repository/mock/trust_ledger_repository_mock.dart:5` | `TrustLedgerRepositoryMock` | Mock class defined in production `lib/`. Grep evidence: `grep -rn "TrustLedgerRepositoryMock" packages/server/lib packages/server/test` (1 hit in `lib/` [declaration only], 3 hits in `test/`). 0 production references. | Move to `test/support/`. |
-| 7 | `packages/server/lib/data/repository/mock/invite_seed_prompt_repository_mock.dart:5` | `InviteSeedPromptRepositoryMock` | Mock class defined in production `lib/`. Grep evidence: `grep -rn "InviteSeedPromptRepositoryMock" packages/server/lib packages/server/test` (1 hit in `lib/` [declaration only], 56 hits in `test/`). 0 production references. | Move to `test/support/`. |
+| 1 | `packages/client/lib/domain/entity/beacon_activity_event_consts.dart:2` | `BeaconActivityEventVisibilityBits` | Defined in `lib/` but has 0 production callers across `packages/client/lib`. Grep evidence: `grep -rn "BeaconActivityEventVisibilityBits" packages/client/lib packages/client/test` (1 hit in `lib/` [declaration only], 10 hits across `test/`). Checked against build.yaml, .graphql, DI, router, and @freezed (0 references). | Move constant into test helper or remove if unused in domain. |
+| 2 | `packages/client/lib/data/repository/mock/client_repository_mocks.dart:7` | `ClosureRepositoryMock`, `BeaconLobbyRepositoryMock` | Mock classes defined inside production `lib/` tree (`packages/client/lib/data/repository/mock/`). Grep evidence: `grep -rn "ClosureRepositoryMock" packages/client/lib packages/client/test` (1 hit in `lib/` [declaration only], 15 hits in `test/`). Production code never references them. | Move mock classes from `lib/` to `test/support/`. |
+| 3 | `packages/server/lib/data/repository/mock/pair_block_query_repository_mock.dart:6` | `PairBlockQueryRepositoryMock` | Mock class defined in server `lib/data/repository/mock/`. Grep evidence: `grep -rn "PairBlockQueryRepositoryMock" packages/server/lib packages/server/test` (1 hit in `lib/` [declaration only], 1 hit in `test/`). 0 callers in `packages/server/lib`. | Move mock repository out of production `lib/` into `test/support/`. |
+| 4 | `packages/server/lib/data/repository/mock/trust_ledger_repository_mock.dart:5` | `TrustLedgerRepositoryMock` | Mock class defined in production `lib/`. Grep evidence: `grep -rn "TrustLedgerRepositoryMock" packages/server/lib packages/server/test` (1 hit in `lib/` [declaration only], 3 hits in `test/`). 0 production references. | Move to `test/support/`. |
+| 5 | `packages/server/lib/data/repository/mock/invite_seed_prompt_repository_mock.dart:5` | `InviteSeedPromptRepositoryMock` | Mock class defined in production `lib/`. Grep evidence: `grep -rn "InviteSeedPromptRepositoryMock" packages/server/lib packages/server/test` (1 hit in `lib/` [declaration only], 56 hits in `test/`). 0 production references. | Move to `test/support/`. |
 
 ---
 
@@ -133,16 +131,16 @@ Based on CI impact, dead code clutter, and risk of false confidence, here are th
 
 1. **Root `test/` directory test files (`test/mention_span_validation_test.dart:1`, `test/domain/...`)** — 11 test files in the repository root are completely bypassed by CI pipeline jobs (`pipeline.yml`). Move them to `packages/client/test` or `packages/server/test`.
 2. **`packages/client/test/widget_test.dart:8` (`placeholder`)** — Trivial `expect(true, isTrue)` placeholder test providing zero test coverage. Replace with real UI smoke test or remove.
-3. **`packages/client/lib/features/updates/ui/screen/updates_screen.dart:19` (`UpdatesScreen`)** — Unwired screen in `packages/client/lib` with 0 production callers (`grep -rn "UpdatesScreen" packages/client/lib` hit count: 1, declaration only). Remove dead screen or wire into router; update `notification_history_screen_test.dart` to target `NotificationCenterScreen`.
-4. **`packages/client/test/domain/attention/attention_read_clear_axis_test.dart:1` (and 4 other client `pg` tests)** — Client tests tagged `pg` are silently excluded in CI (`--exclude-tags pg`). Refactor to unit mocks or provide Postgres in client CI runner.
-5. **`packages/client/test/drift/tentura/migration_test.dart:53`** — Hardcoded `skip` on schema data integrity migration test. Wire real schema verifier fixtures.
-6. **`packages/client/lib/data/repository/mock/client_repository_mocks.dart:7`** — Production `lib/` mock repository implementations. Move out of `lib/` to `test/support/`.
-7. **`packages/server/lib/data/repository/mock/pair_block_query_repository_mock.dart:6`** — Production server `lib/` mock repository implementations. Move out of `lib/` to `test/support/`.
-8. **`packages/server/test/api/hasura_beacon_expires_at_pg_test.dart:45` (and 5 matching files)** — Empty `Docker unavailable` test functions with no assertions; remove dummy test blocks.
-9. **`packages/server/test/domain/attention/attention_intent_case_test.dart:498`** — Duplicate test blocks with identical names in the same test file (lines 498, 534, 604). Consolidate test cases.
-10. **`packages/server/test/domain/use_case/beacon_case_media_test.dart:243`** — Duplicate test blocks in the same file (lines 243 & 358). Remove duplicate block.
-11. **`packages/client/lib/domain/entity/beacon_activity_event_consts.dart:2` (`BeaconActivityEventVisibilityBits`)** — Dead `lib/` entity with 0 production references (`grep -rn "BeaconActivityEventVisibilityBits" packages/client/lib`: 1 hit [declaration only]). Remove or relocate to test support.
-12. **`packages/client/lib/data/gql/timestamptz_serializer.dart:7` (`TimestamptzSerializer`)** — Dead serializer class in `lib/` (`grep -rn "TimestamptzSerializer" packages/client/lib`: 1 hit [declaration only]). Remove or wire into Ferry plugin.
+3. **`packages/client/test/domain/attention/attention_read_clear_axis_test.dart:1` (and 4 other client `pg` tests)** — Client tests tagged `pg` are silently excluded in CI (`--exclude-tags pg`). Refactor to unit mocks or provide Postgres in client CI runner.
+4. **`packages/client/test/drift/tentura/migration_test.dart:53`** — Hardcoded `skip` on schema data integrity migration test. Wire real schema verifier fixtures.
+5. **`packages/client/lib/data/repository/mock/client_repository_mocks.dart:7`** — Production `lib/` mock repository implementations (`ClosureRepositoryMock`, `BeaconLobbyRepositoryMock`). Move out of `lib/` to `test/support/`.
+6. **`packages/server/lib/data/repository/mock/pair_block_query_repository_mock.dart:6`** — Production server `lib/` mock repository implementations. Move out of `lib/` to `test/support/`.
+7. **`packages/server/test/api/hasura_beacon_expires_at_pg_test.dart:45` (and 5 matching files)** — Empty `Docker unavailable` test functions with no assertions; remove dummy test blocks.
+8. **`packages/server/test/domain/attention/attention_intent_case_test.dart:498`** — Duplicate test blocks with identical names in the same test file (lines 498, 534, 604). Consolidate test cases.
+9. **`packages/server/test/domain/use_case/beacon_case_media_test.dart:243`** — Duplicate test blocks in the same file (lines 243 & 358). Remove duplicate block.
+10. **`packages/client/lib/domain/entity/beacon_activity_event_consts.dart:2` (`BeaconActivityEventVisibilityBits`)** — Dead `lib/` entity with 0 production references (`grep -rn "BeaconActivityEventVisibilityBits" packages/client/lib`: 1 hit [declaration only]). Remove or relocate to test support.
+11. **`packages/server/lib/data/repository/mock/trust_ledger_repository_mock.dart:5`** — Production `lib/` mock repository implementation. Move out of `lib/` to `test/support/`.
+12. **`packages/server/lib/data/repository/mock/invite_seed_prompt_repository_mock.dart:5`** — Production `lib/` mock repository implementation. Move out of `lib/` to `test/support/`.
 13. **`packages/client/test/fixtures/tentura_q8s8_beacon_operational_header_pre_mount.dart:1`** — Orphan fixture file with 0 references across the entire repository. Delete.
 14. **`test/fixtures/agents_alloy_memory_5zq_lesson_snippet.txt:1`** — Root orphan text fixture with 0 references across the repo. Delete.
 15. **`test/domain/availability_test.dart:92`** — Duplicate availability entity test suite matching client/server unit test files. Delete root duplicate.
