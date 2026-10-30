@@ -68,4 +68,62 @@ void main() {
       expect(weight, body?.fontWeight);
     }
   });
+
+  // #609 (#449) re-check: not only the weight; colour and size must not vary
+  // by tier either. One line of each tier (high, medium, low) carries the
+  // same body style; only the icon colour tells the tiers apart.
+  testWidgets('#609 Timeline lines of every tier share one text style', (
+    tester,
+  ) async {
+    const helper = Profile(id: 'U2', displayName: 'Helper');
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('en'),
+        theme: TenturaTheme.light(),
+        localizationsDelegates: L10n.localizationsDelegates,
+        supportedLocales: L10n.supportedLocales,
+        home: TenturaResponsiveScope(
+          child: Scaffold(
+            body: BeaconActivityList(
+              timeline: [
+                TimelineCreation(author: author, createdAt: created),
+                TimelineHelpOfferCreated(
+                  helpOfferer: helper,
+                  message: 'I can lift',
+                  createdAt: created.add(const Duration(minutes: 1)),
+                ),
+                TimelineHelpOfferUpdated(
+                  helpOfferer: helper,
+                  message: 'I can lift, Sunday',
+                  updatedAt: created.add(const Duration(minutes: 2)),
+                ),
+              ],
+              beacon: beacon,
+              isAuthorView: true,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final l10n = lookupL10n(const Locale('en'));
+    final body = Theme.of(
+      tester.element(find.byType(BeaconActivityList)),
+    ).textTheme.bodySmall;
+    final lines = {
+      'high': find.text(l10n.timelineCreated('Author')),
+      'medium': find.text(l10n.timelineHelpOffered('Helper')),
+      'low': find.text(l10n.timelineHelpOfferDetailsUpdated('Helper')),
+    };
+    for (final MapEntry(:key, :value) in lines.entries) {
+      // Vacuity guard: each tier's line is on screen.
+      expect(value, findsOneWidget, reason: '$key-tier line');
+      expect(
+        tester.widget<Text>(value).style,
+        body,
+        reason: '$key-tier line uses the plain body style',
+      );
+    }
+  });
 }

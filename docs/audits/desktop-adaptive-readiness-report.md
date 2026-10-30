@@ -57,7 +57,7 @@ The app uses **opt-in width caps**, not a root-level constraint.
 | Narrow modal targets | **480** | `connect_bottom_sheet.dart`, `my_work_empty_body.dart` |
 | Overlay / empty-state cap | **360** | `mention_suggestions_overlay.dart`, `my_work_empty_body.dart` |
 | Inbox master pane | **420–560** | `inbox_screen.dart` |
-| Forward search sidebar | **320–420** (40% width) | `forward_search_overlay.dart` |
+| Forward search sidebar | **320–420** (40% width) | `forward_search_overlay.dart` (since removed: search filters the recipient list in place, #453) |
 | Room text bubble caps | **520 / 640** | `room_message_tile.dart` |
 
 **Not used:** `ResponsiveBuilder`, `breakpoint`, `largeScreen` third-party APIs. Grids use `SliverLayoutBuilder` + fixed cross-axis count (`beacon_icon_picker_screen.dart`), not `SliverGridDelegateWithMaxCrossAxisExtent`.
@@ -123,7 +123,7 @@ The app uses **opt-in width caps**, not a root-level constraint.
 | Profile view / edit | `profile_view_screen.dart`, `profile_edit_screen.dart` |
 | Credentials | `credentials_screen.dart` |
 | Beacon list / create / icon picker | `beacon_screen.dart`, `beacon_create/**`, `beacon_icon_picker_screen.dart` |
-| Forward beacon | `forward_beacon_screen.dart`, `forward_search_overlay.dart` |
+| Forward beacon | `forward_beacon_screen.dart`, `forward_search_overlay.dart` (since removed, #453) |
 | Trust / forwards / invite genealogy graphs | `TenturaFullBleed` — intentional |
 | Rating scatter | Full viewport by design |
 | Complaint, review contributions | `TenturaContentColumn` |
@@ -241,7 +241,7 @@ The app uses **opt-in width caps**, not a root-level constraint.
 
 ### Non-token width literals
 
-`connect_bottom_sheet.dart` (480), `my_work_empty_body.dart` (360/480), `mention_suggestions_overlay.dart` (360), `beacon_compact_metadata_strip.dart` (360/160), `friends_screen.dart` (320 fallback), `forward_search_overlay.dart` (320–420), `inbox_screen.dart` (420–560), `qr_scan_dialog.dart` (600/800/1200 height breakpoints).
+`connect_bottom_sheet.dart` (480), `my_work_empty_body.dart` (360/480), `mention_suggestions_overlay.dart` (360), `beacon_compact_metadata_strip.dart` (360/160), `friends_screen.dart` (320 fallback), `forward_search_overlay.dart` (320–420; since removed, #453), `inbox_screen.dart` (420–560), `qr_scan_dialog.dart` (600/800/1200 height breakpoints).
 
 ---
 

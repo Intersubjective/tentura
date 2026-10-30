@@ -1,3 +1,5 @@
+import 'package:flutter/rendering.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 
 /// Keeps notice bars clear of a primary action that lives at the bottom of a
@@ -7,7 +9,10 @@ import 'package:flutter/widgets.dart';
 /// about such a body-bottom action bar, so the bar was drawn across it (e.g.
 /// «Forward to N»). Wrap that action bar in [SnackBarClearance]; while it is
 /// mounted, visible and on the current route, `showSnackBar` floats new bars
-/// above it.
+/// above it. When the action bar appears, grows or shrinks while a bar is up
+/// (a composer that comes in after the page loads, a second line typed into
+/// it), [snackBarClearanceChanges] tells `showSnackBar` to move that bar
+/// (#605).
 class SnackBarClearance extends StatefulWidget {
   const SnackBarClearance({required this.child, super.key});
 
@@ -29,6 +34,7 @@ class _SnackBarClearanceState extends State<SnackBarClearance> {
   @override
   void dispose() {
     _mounted.remove(this);
+    _clearanceChanges.notifySoon();
     super.dispose();
   }
 
@@ -51,8 +57,55 @@ class _SnackBarClearanceState extends State<SnackBarClearance> {
   }
 
   @override
-  Widget build(BuildContext context) => widget.child;
+  Widget build(BuildContext context) =>
+      _ClearanceSizeReporter(child: widget.child);
 }
+
+/// Reports a change of the action bar's height (including its first layout)
+/// once the frame is drawn.
+class _ClearanceSizeReporter extends SingleChildRenderObjectWidget {
+  const _ClearanceSizeReporter({super.child});
+
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      _RenderClearanceSizeReporter();
+}
+
+class _RenderClearanceSizeReporter extends RenderProxyBox {
+  double? _reportedHeight;
+
+  @override
+  void performLayout() {
+    super.performLayout();
+    if (size.height != _reportedHeight) {
+      _reportedHeight = size.height;
+      _clearanceChanges.notifySoon();
+    }
+  }
+}
+
+class _ClearanceChanges extends ChangeNotifier {
+  var _scheduled = false;
+
+  /// Notifies after the current frame: listeners show bars, which must not
+  /// happen during layout or while the tree is locked.
+  void notifySoon() {
+    if (_scheduled || !hasListeners) return;
+    _scheduled = true;
+    SchedulerBinding.instance
+      ..addPostFrameCallback((_) {
+        _scheduled = false;
+        notifyListeners();
+      })
+      ..ensureVisualUpdate();
+  }
+}
+
+final _clearanceChanges = _ClearanceChanges();
+
+/// Fires (after the frame) when a [SnackBarClearance] action bar appears,
+/// changes height or goes away.
+Listenable get snackBarClearanceChanges => _clearanceChanges;
 
 /// Height of the tallest body-bottom action bar showing right now, measured
 /// when the bar is shown (so a taller composer, e.g. with the note expanded,

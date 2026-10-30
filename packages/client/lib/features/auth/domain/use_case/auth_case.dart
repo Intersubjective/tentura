@@ -84,31 +84,30 @@ final class AuthCase extends UseCaseBase {
     required String displayName,
     required String invitationCode,
     String? handle,
-  }) =>
-      _runAuthTransition(() async {
-        final seed = base64UrlEncode(
-          Uint8List.fromList(
-            List<int>.generate(
-              kSeedLength,
-              (_) => _random.nextInt(256),
-              growable: false,
-            ),
-          ),
-        );
-        final userId = await _authRemoteRepository.signUp(
-          seed: seed,
-          displayName: displayName,
-          invitationCode: invitationCode,
-          handle: handle,
-        );
-        await _authLocalRepository.addAccount(
-          userId,
-          seed,
-          displayName,
-        );
-        await _authLocalRepository.setCurrentAccountId(userId);
-        return userId;
-      });
+  }) => _runAuthTransition(() async {
+    final seed = base64UrlEncode(
+      Uint8List.fromList(
+        List<int>.generate(
+          kSeedLength,
+          (_) => _random.nextInt(256),
+          growable: false,
+        ),
+      ),
+    );
+    final userId = await _authRemoteRepository.signUp(
+      seed: seed,
+      displayName: displayName,
+      invitationCode: invitationCode,
+      handle: handle,
+    );
+    await _authLocalRepository.addAccount(
+      userId,
+      seed,
+      displayName,
+    );
+    await _authLocalRepository.setCurrentAccountId(userId);
+    return userId;
+  });
 
   ///
   /// Web bootstrap: probe the HttpOnly session cookie and pick the current
@@ -209,6 +208,24 @@ final class AuthCase extends UseCaseBase {
     await _authRemoteRepository.signIn(seed);
     await _authLocalRepository.setCurrentAccountId(userId);
   });
+
+  ///
+  /// Boot sign-in after [bootstrapWebSession]. When the cookie probe already
+  /// signed this session account in, [signIn] would only repeat the probe's
+  /// access-token round trip, and every first-paint request waits on it
+  /// (#796). Seed accounts and switches still go through [signIn].
+  /// Runs outside `_authTransitionLock` (only [signIn] takes it): keep the
+  /// shortcut free of remote calls.
+  ///
+  Future<void> signInRestored(WebBootstrapResult bootstrap) async {
+    final userId = bootstrap.currentAccountId;
+    if (userId.isNotEmpty &&
+        userId == bootstrap.sessionUserId &&
+        await _authLocalRepository.isSessionAccount(userId)) {
+      return;
+    }
+    return signIn(userId: userId);
+  }
 
   Future<void> _signInWithSession(String userId) async {
     await _authRemoteRepository.signInWithSession();

@@ -304,6 +304,42 @@ void main() {
       );
     });
 
+    // #611 (#501): Posts take no help offers, so the "offered help" ring
+    // has nothing to explain on a Post's graph.
+    testWidgets('the legend has no help-offerer ring row', (tester) async {
+      await _pumpScreen(
+        tester,
+        beacon: _beacon(kind: BeaconKind.post, id: 'Bpost1'),
+      );
+      await _openLegend(tester);
+      final l10n = lookupL10n(const Locale('en'));
+
+      expect(
+        _legendText((t) => t == l10n.graphLegendHelpOfferer),
+        findsNothing,
+      );
+      expect(
+        _legendText((t) => t.toLowerCase().contains('offered help')),
+        findsNothing,
+      );
+    });
+
+    testWidgets('Russian: the legend has no «предложил помощь» row', (
+      tester,
+    ) async {
+      await _pumpScreen(
+        tester,
+        beacon: _beacon(kind: BeaconKind.post, id: 'Bpost1'),
+        locale: const Locale('ru'),
+      );
+      await _openLegend(tester);
+
+      expect(
+        _legendText((t) => t.toLowerCase().contains('предложил')),
+        findsNothing,
+      );
+    });
+
     testWidgets('Russian: the legend does not mention «запрос»', (
       tester,
     ) async {
@@ -383,14 +419,75 @@ void main() {
       expect(find.text(l10n.forwardsGraphView), findsNothing);
     });
 
-    testWidgets('without a kind on the route the loading title keeps the '
-        'request wording (guard)', (tester) async {
+    // PR #819 review: the legend read only the loaded beacon, so a Post's
+    // legend showed the help-offerer ring while the beacon loaded and then
+    // dropped it — the same flip the title fix removes.
+    testWidgets('the legend never shows the help-offerer ring while the post '
+        'loads', (tester) async {
+      final pending = Completer<Beacon>();
+      final beacon = _beacon(kind: BeaconKind.post, id: 'Bpost1');
+      await _pumpScreen(
+        tester,
+        beacon: beacon,
+        routeKind: BeaconKind.post.name,
+        pendingBeacon: pending,
+      );
+      await _openLegend(tester);
+      final l10n = lookupL10n(const Locale('en'));
+      Finder ring() => _legendText((t) => t == l10n.graphLegendHelpOfferer);
+
+      expect(ring(), findsNothing);
+
+      pending.complete(beacon);
+      await _settle(tester);
+
+      expect(ring(), findsNothing);
+    });
+
+    // the beacon loaded and then flip to "post". The title now waits.
+    testWidgets('without a kind on the route the title waits for the beacon '
+        'instead of saying request', (tester) async {
+      final pending = Completer<Beacon>();
+      final beacon = _beacon(kind: BeaconKind.post, id: 'Bpost1');
+      await _pumpScreen(tester, beacon: beacon, pendingBeacon: pending);
+      final l10n = lookupL10n(const Locale('en'));
+
+      expect(find.text(l10n.forwardsGraphView), findsNothing);
+      expect(find.text(l10n.forwardsGraphViewPost), findsNothing);
+      expect(_topBarText(_requestWord.hasMatch), findsNothing);
+
+      pending.complete(beacon);
+      await _settle(tester);
+
+      expect(find.text(l10n.forwardsGraphViewPost), findsOneWidget);
+      expect(find.text(l10n.forwardsGraphView), findsNothing);
+    });
+
+    testWidgets('without a kind on the route a request gets its title once '
+        'it loads (guard)', (tester) async {
+      final pending = Completer<Beacon>();
+      final beacon = _beacon(kind: BeaconKind.request, id: 'Breq1');
+      await _pumpScreen(tester, beacon: beacon, pendingBeacon: pending);
+      final l10n = lookupL10n(const Locale('en'));
+
+      pending.complete(beacon);
+      await _settle(tester);
+
+      expect(find.text(l10n.forwardsGraphView), findsOneWidget);
+    });
+
+    testWidgets('without a kind on the route an unreadable beacon falls back '
+        'to the request title (guard)', (tester) async {
+      final pending = Completer<Beacon>();
       await _pumpScreen(
         tester,
         beacon: _beacon(kind: BeaconKind.request, id: 'Breq1'),
-        pendingBeacon: Completer<Beacon>(),
+        pendingBeacon: pending,
       );
       final l10n = lookupL10n(const Locale('en'));
+
+      pending.completeError(StateError('offline'));
+      await _settle(tester);
 
       expect(find.text(l10n.forwardsGraphView), findsOneWidget);
     });
@@ -433,6 +530,22 @@ void main() {
       final l10n = lookupL10n(const Locale('en'));
 
       expect(_openDetailsTooltip(tester), l10n.openBeacon);
+    });
+
+    testWidgets('the legend still explains the help-offerer ring', (
+      tester,
+    ) async {
+      await _pumpScreen(
+        tester,
+        beacon: _beacon(kind: BeaconKind.request, id: 'Breq1'),
+      );
+      await _openLegend(tester);
+      final l10n = lookupL10n(const Locale('en'));
+
+      expect(
+        _legendText((t) => t == l10n.graphLegendHelpOfferer),
+        findsOneWidget,
+      );
     });
   });
 

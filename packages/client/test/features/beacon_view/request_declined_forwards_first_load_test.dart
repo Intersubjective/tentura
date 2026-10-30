@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
@@ -273,6 +274,143 @@ void main() {
           reason:
               'Only the gate spinner may be visible while forwards are pending',
         );
+      } finally {
+        forwards.release();
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pump();
+        await tester.runAsync(() async {
+          await host.close();
+          await cubit.close();
+          await harness?.threadsCubit.close();
+          await repository.dispose();
+          await forwards.dispose();
+        });
+      }
+    },
+    timeout: const Timeout(Duration(seconds: 30)),
+  );
+
+  testWidgets(
+    'phone bar shows no status until the first-load gate reveals the declined line',
+    (tester) async {
+      final forwards = _DelayedAuthorForwards();
+      final repository = TrackingBeaconRepository()
+        ..fetchByIdHandler = (_) async => _request;
+      final cubit = BeaconViewCubit(
+        id: _request.id,
+        myProfile: _author,
+        beaconViewCase: buildTestBeaconViewCase(
+          beaconRepo: repository,
+          forward: forwards,
+        ),
+        effects: FakeUiEffectPort(),
+      );
+      final host = beaconViewHarnessHost(beaconId: _request.id);
+      BeaconViewHarness? harness;
+      addTearDown(unregisterBeaconViewHarnessGetIt);
+
+      // The overlay spinner only. Indicators inside the hidden body do not
+      // count: Visibility keeps that subtree mounted.
+      int gateSpinners() => find
+          .descendant(
+            of: find.byType(TenturaFirstLoadGate),
+            matching: find.byType(CircularProgressIndicator),
+          )
+          .evaluate()
+          .where((element) {
+            var insideContent = false;
+            element.visitAncestorElements((ancestor) {
+              if (ancestor.widget is TenturaFirstLoadGate) return false;
+              if (ancestor.widget is Visibility) insideContent = true;
+              return true;
+            });
+            return !insideContent;
+          })
+          .length;
+
+      Finder barText(String text) => find.descendant(
+        of: find.byType(TenturaTopBar),
+        matching: find.textContaining(text, findRichText: true),
+      );
+
+      int barStatusLines() => find
+          .descendant(
+            of: find.byType(TenturaTopBar),
+            matching: find.byType(TenturaStatusLine),
+          )
+          .evaluate()
+          .length;
+
+      try {
+        harness = await pumpBeaconViewHarness(
+          tester,
+          size: const Size(375, 667),
+          beaconState: beaconViewHarnessAuthorState(
+            beaconId: _request.id,
+            authorId: _author.id,
+          ).copyWith(beacon: _request),
+          beaconViewCubit: cubit,
+          threadsState: beaconViewHarnessThreadsState(authorId: _author.id),
+          host: host,
+          viewTab: 'now',
+        );
+        for (var i = 0; i < 30 && !forwards.requested.isCompleted; i++) {
+          await tester.pump(const Duration(milliseconds: 16));
+        }
+        expect(forwards.requested.isCompleted, isTrue);
+        expect(forwards.response.isCompleted, isFalse);
+        expect(
+          cubit.state.forwardsLoading || !cubit.state.forwardsLoaded,
+          isTrue,
+        );
+        await tester.pump(const Duration(milliseconds: 200));
+
+        expect(gateSpinners(), 1, reason: 'the gate spinner is up');
+        expect(find.byType(BeaconNowSurface), findsNothing);
+        expect(
+          barStatusLines(),
+          0,
+          reason: 'no phase status in the bar while the gate is closed',
+        );
+        expect(barText('Looking for helpers'), findsNothing);
+        expect(barText('no offers yet'), findsNothing);
+        final titleShown =
+            barText(_request.title).evaluate().isNotEmpty ||
+            barText('Request').evaluate().isNotEmpty;
+        expect(titleShown, isTrue, reason: 'the bar keeps its load-time title');
+
+        forwards.release();
+        var revealed = false;
+        for (var i = 0; i < 40; i++) {
+          await tester.pump(const Duration(milliseconds: 16));
+          final bodyVisible = find
+              .byType(BeaconNowSurface)
+              .evaluate()
+              .isNotEmpty;
+          final statusLines = barStatusLines();
+          expect(barText('no offers yet'), findsNothing);
+          if (!bodyVisible) {
+            expect(
+              statusLines,
+              0,
+              reason: 'the status must not appear before the body',
+            );
+            continue;
+          }
+          expect(gateSpinners(), 0);
+          expect(statusLines, greaterThan(0));
+          expect(barText('2 of 2 declined'), findsOneWidget);
+          expect(barText('forward to someone else'), findsWidgets);
+          revealed = true;
+          break;
+        }
+        expect(
+          revealed,
+          isTrue,
+          reason: 'forwards completion reveals the bar status with the body',
+        );
+        expect(cubit.state.firstLoadDone, isTrue);
+        expect(cubit.state.forwardsLoaded, isTrue);
       } finally {
         forwards.release();
         await tester.pumpWidget(const SizedBox.shrink());

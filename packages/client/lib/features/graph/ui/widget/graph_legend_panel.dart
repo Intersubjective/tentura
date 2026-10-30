@@ -13,10 +13,14 @@ class GraphLegendPanel extends StatelessWidget {
     required this.mode,
     required this.expanded,
     required this.onToggle,
+    this.showHelpOffererRing = true,
     super.key,
   });
 
   final GraphLegendMode mode;
+
+  /// See [GraphLegendContent.showHelpOffererRing].
+  final bool showHelpOffererRing;
   final bool expanded;
   final VoidCallback onToggle;
 
@@ -93,7 +97,10 @@ class GraphLegendPanel extends StatelessWidget {
                   right: tt.cardPadding.right,
                   bottom: tt.cardPadding.bottom,
                 ),
-                child: GraphLegendContent(mode: mode),
+                child: GraphLegendContent(
+                  mode: mode,
+                  showHelpOffererRing: showHelpOffererRing,
+                ),
               ),
             ),
           ],

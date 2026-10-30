@@ -7,6 +7,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:intl/intl.dart';
 import 'package:logging/logging.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 
 import 'package:tentura/app/sentry/report_user_facing_error.dart';
 import 'package:tentura/consts.dart';
@@ -235,14 +236,12 @@ ScaffoldFeatureController<SnackBar, SnackBarClosedReason>? showSnackBar(
   // A primary action at the bottom of the body (Forward/Recipients
   // composer) is invisible to the Scaffold's bar layout: float the bar above
   // it so the action stays tappable (#406).
-  final clearance = snackBarBottomClearance();
-  final lifted = clearance > 0;
-  final floating = isFloating || isError || lifted;
-
-  return scaffoldMessenger.showSnackBar(
-    SnackBar(
+  SnackBar build(double clearance, Duration shownFor) {
+    final lifted = clearance > 0;
+    final floating = isFloating || isError || lifted;
+    return SnackBar(
       action: effectiveAction,
-      duration: duration,
+      duration: shownFor,
       persist: persist,
       // Action and close icon coexist (M3); users can dismiss without using the action.
       showCloseIcon: true,
@@ -280,8 +279,141 @@ ScaffoldFeatureController<SnackBar, SnackBarClosedReason>? showSnackBar(
               : theme.snackBarTheme.contentTextStyle,
         ),
       ),
-    ),
+    );
+  }
+
+  return _LiftableSnackBar.show(
+    messenger: scaffoldMessenger,
+    build: build,
+    duration: duration,
+    persist: persist,
   );
+}
+
+/// The bar last shown through [showSnackBar] while it is up, so it can be
+/// moved when a body-bottom action appears or changes height under it
+/// (#605, from #406): a bar is placed once, when shown, so the "X shared a
+/// post with you" bar shown while the post was loading covered its composer.
+class _LiftableSnackBar {
+  _LiftableSnackBar._({
+    required this.messenger,
+    required this.build,
+    required this.clearance,
+    required this.endsAt,
+    required this.persist,
+  });
+
+  static _LiftableSnackBar? _current;
+
+  static var _listening = false;
+
+  final ScaffoldMessengerState messenger;
+
+  final SnackBar Function(double clearance, Duration shownFor) build;
+
+  final double clearance;
+
+  final DateTime endsAt;
+
+  final bool persist;
+
+  static ScaffoldFeatureController<SnackBar, SnackBarClosedReason> show({
+    required ScaffoldMessengerState messenger,
+    required SnackBar Function(double clearance, Duration shownFor) build,
+    required Duration duration,
+    required bool persist,
+    DateTime? endsAt,
+  }) {
+    if (!_listening) {
+      _listening = true;
+      snackBarClearanceChanges.addListener(_onClearanceChanged);
+    }
+    final clearance = snackBarBottomClearance();
+    final bar = _LiftableSnackBar._(
+      messenger: messenger,
+      build: build,
+      clearance: clearance,
+      endsAt: endsAt ?? DateTime.now().add(duration),
+      persist: persist,
+    );
+    final controller = messenger.showSnackBar(build(clearance, duration));
+    _current = bar;
+    unawaited(
+      controller.closed.then((_) {
+        if (identical(_current, bar)) {
+          _current = null;
+          _changedAt = null;
+        }
+      }),
+    );
+    return controller;
+  }
+
+  /// Frame time of the last height change that reached under the bar, while
+  /// waiting for the height to settle; null when not waiting.
+  static Duration? _changedAt;
+
+  /// A composer grows line by line; wait for its height to settle rather
+  /// than move the bar on every line (PR #819 review).
+  static const _settleDelay = Duration(milliseconds: 300);
+
+  /// Moving a bar removes it and shows a new one, which slides in and is
+  /// announced again by screen readers: only move it when the action now
+  /// reaches under it. A shrink, or a growth that still clears the bar (a
+  /// lifted bar keeps a kSpacingSmall gap above the action it was lifted
+  /// over), leaves it where it is.
+  static bool _covered(_LiftableSnackBar bar) {
+    final gap = bar.clearance > 0 ? kSpacingSmall : 0.0;
+    return snackBarBottomClearance() > bar.clearance + gap;
+  }
+
+  static void _onClearanceChanged() {
+    final bar = _current;
+    if (bar == null || !bar.messenger.mounted || !_covered(bar)) {
+      _changedAt = null;
+      return;
+    }
+    final waiting = _changedAt != null;
+    _changedAt = SchedulerBinding.instance.currentSystemFrameTimeStamp;
+    // Frames, not a Timer: nothing is left pending when the screen goes.
+    if (!waiting) _waitForSettledHeight();
+  }
+
+  static void _waitForSettledHeight() {
+    SchedulerBinding.instance
+      ..addPostFrameCallback((_) {
+        final changedAt = _changedAt;
+        if (changedAt == null) return;
+        final now = SchedulerBinding.instance.currentSystemFrameTimeStamp;
+        if (now - changedAt < _settleDelay) {
+          _waitForSettledHeight();
+          return;
+        }
+        _changedAt = null;
+        _reliftIfCovered();
+      })
+      ..scheduleFrame();
+  }
+
+  static void _reliftIfCovered() {
+    final bar = _current;
+    if (bar == null || !bar.messenger.mounted || !_covered(bar)) return;
+    // Shown again in its new place for the time it had left; a bar can't
+    // be moved in place (its margin is fixed when it is built).
+    final left = bar.endsAt.difference(DateTime.now());
+    if (!bar.persist && left <= Duration.zero) return;
+    _current = null;
+    bar.messenger.removeCurrentSnackBar();
+    show(
+      messenger: bar.messenger,
+      build: bar.build,
+      duration: left < _minimumRelift ? _minimumRelift : left,
+      persist: bar.persist,
+      endsAt: bar.endsAt,
+    );
+  }
+
+  static const _minimumRelift = Duration(seconds: 1);
 }
 
 Widget separatorBuilder(_, _) => const Divider(

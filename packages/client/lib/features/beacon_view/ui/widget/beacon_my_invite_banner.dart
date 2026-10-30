@@ -28,7 +28,8 @@ class BeaconMyInviteBanner extends StatelessWidget {
   final String beaconId;
 
   /// Reloads the Request once the server took the answer.
-  final Future<void> Function()? onAnswered;
+  /// `accepted` is «Принять»; a decline reloads without admitting.
+  final Future<void> Function({bool accepted})? onAnswered;
 
   @override
   Widget build(BuildContext context) =>
