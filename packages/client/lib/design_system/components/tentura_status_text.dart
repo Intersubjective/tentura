@@ -6,12 +6,12 @@ import '../tentura_tone.dart';
 
 /// Resolves a semantic [TenturaTone] to a theme token color.
 Color tenturaToneColor(TenturaTokens tt, TenturaTone tone) => switch (tone) {
-  TenturaTone.neutral => tt.textMuted,
-  TenturaTone.info => tt.info,
-  TenturaTone.good => tt.good,
-  TenturaTone.warn => tt.warn,
-  TenturaTone.danger => tt.danger,
-};
+      TenturaTone.neutral => tt.textMuted,
+      TenturaTone.info => tt.info,
+      TenturaTone.good => tt.good,
+      TenturaTone.warn => tt.warn,
+      TenturaTone.danger => tt.danger,
+    };
 
 /// Colored status line: compact sans (see [TenturaText.status]), no Container/Chip.
 class TenturaStatusText extends StatelessWidget {
@@ -31,6 +31,9 @@ class TenturaStatusText extends StatelessWidget {
   /// When null, the line wraps freely (list cards). App bars keep [maxLines] = 1.
   final int? maxLines;
   final TextAlign? textAlign;
+  /// Defaults to [TextOverflow.clip] when [maxLines] is null (free
+  /// wrapping: an ellipsis would still cut after the first line, #267) and
+  /// to [TextOverflow.ellipsis] otherwise.
   final TextOverflow? overflow;
   final bool softWrap;
 
@@ -59,7 +62,7 @@ class TenturaStatusLine extends StatelessWidget {
     required this.slot1Tone,
     this.slot2Tone,
     this.maxLines,
-    this.overflow,
+    this.overflow = TextOverflow.ellipsis,
     this.softWrap = true,
     super.key,
   });
@@ -69,22 +72,22 @@ class TenturaStatusLine extends StatelessWidget {
   final TenturaTone slot1Tone;
   final TenturaTone? slot2Tone;
   final int? maxLines;
-  final TextOverflow? overflow;
+  /// Unlike [TenturaStatusText], the default stays [TextOverflow.ellipsis]
+  /// even with a null [maxLines]: app bars and card headers rely on it to
+  /// keep the status on one line.
+  final TextOverflow overflow;
   final bool softWrap;
 
   @override
   Widget build(BuildContext context) {
     final tt = context.tt;
-    final effectiveOverflow =
-        overflow ??
-        (maxLines == null ? TextOverflow.clip : TextOverflow.ellipsis);
     final s2 = slot2?.trim() ?? '';
     if (s2.isEmpty) {
       return TenturaStatusText(
         slot1,
         tone: slot1Tone,
         maxLines: maxLines,
-        overflow: effectiveOverflow,
+        overflow: overflow,
         softWrap: softWrap,
       );
     }
@@ -98,9 +101,7 @@ class TenturaStatusLine extends StatelessWidget {
           TextSpan(text: slot1),
           TextSpan(
             text: ' · ',
-            style: TenturaText.status(
-              tenturaToneColor(tt, TenturaTone.neutral),
-            ),
+            style: TenturaText.status(tenturaToneColor(tt, TenturaTone.neutral)),
           ),
           TextSpan(
             text: s2,
@@ -109,7 +110,7 @@ class TenturaStatusLine extends StatelessWidget {
         ],
       ),
       maxLines: maxLines,
-      overflow: effectiveOverflow,
+      overflow: overflow,
       softWrap: softWrap,
     );
   }
