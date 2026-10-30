@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
@@ -7,7 +5,7 @@ import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
 import '../../support/burst_coalescer_test_timing.dart';
 import 'room_cubit_fakes.dart';
 
-/// Waits for a reply-jump refresh in [room_cubit_reply_test.dart]: the expected
+/// Waits for a reply-jump refresh in `room_cubit_reply_test.dart`: the expected
 /// message fetch count is reached and [reflectsRefreshedSnapshot] is true on
 /// [cubit] before this future completes.
 Future<void> awaitRoomReplyRefreshSettled({

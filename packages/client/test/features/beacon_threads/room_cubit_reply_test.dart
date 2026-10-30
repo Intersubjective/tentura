@@ -572,8 +572,8 @@ void main() {
         });
         fakeRoom
           ..messages = [visible, edited]
-          ..fetchMessagesCompleter = gate;
-        fakeRoom.emitInvalidation(BeaconRoomEntityType.roomMessage);
+          ..fetchMessagesCompleter = gate
+          ..emitInvalidation(BeaconRoomEntityType.roomMessage);
 
         bool reflectsEditedPin() => cubit.state.messages.any(
           (message) =>
@@ -647,7 +647,7 @@ void main() {
         fakeRoom
           ..messages = [visible, edited]
           ..fetchMessagesCompleter = gate;
-        realtime.port.emitCatchUp(connectionEpoch: 2);
+        realtime.port.emitCatchUp();
 
         bool reflectsEditedPin() => cubit.state.messages.any(
           (message) =>

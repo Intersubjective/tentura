@@ -24,7 +24,7 @@ RoomMessage _roomMsg({
     authorId: 'other',
     body: body,
     createdAt: createdAt,
-    author: Profile(id: 'other', displayName: 'Author other'),
+    author: const Profile(id: 'other', displayName: 'Author other'),
   );
 }
 
@@ -148,7 +148,7 @@ void main() {
           ..messages = [visible, edited]
           ..fetchMessagesCompleter = gate;
         final expectedFetches = fakeRoom.fetchMessagesCallCount + 1;
-        realtime.port.emitCatchUp(connectionEpoch: 2);
+        realtime.port.emitCatchUp();
 
         bool reflectsEditedPin() => cubit.state.messages.any(
           (message) =>

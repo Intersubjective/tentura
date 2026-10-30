@@ -4,6 +4,7 @@ import 'package:tentura_server/domain/use_case/constellation_field_requests_case
 
 import '../custom_types.dart';
 import '../gql_nodel_base.dart';
+import '../input/_input_types.dart';
 import '../mappers/constellation_gql_maps.dart';
 
 /// Root query field [constellationFieldRequests] (#671): the few Requests a
@@ -15,10 +16,7 @@ final class QueryConstellationFieldRequests extends GqlNodeBase {
 
   final ConstellationFieldRequestsCase _case;
 
-  final GraphQLFieldInput<List<String>, List<String>> _ids = GraphQLFieldInput(
-    'ids',
-    GraphQLListType(graphQLString.nonNullable()).nonNullable(),
-  );
+  static final _ids = InputFieldStringList(fieldName: 'ids');
 
   final GraphQLFieldInput<bool, bool> _showClosed = GraphQLFieldInput(
     'showClosed',
@@ -42,11 +40,11 @@ final class QueryConstellationFieldRequests extends GqlNodeBase {
         GraphQLListType(
           gqlTypeConstellationRequest.nonNullable(),
         ).nonNullable(),
-        arguments: [_ids, _showClosed, _participatedOnly],
+        arguments: [_ids.field, _showClosed, _participatedOnly],
         resolve: (_, args) {
           final viewerId = getCredentials(args).sub;
           final ids = {
-            for (final id in List<String>.from(args[_ids.name]! as List))
+            for (final id in _ids.fromArgsNonNullable(args))
               if (id.trim().isNotEmpty) id,
           };
           if (ids.length > kConstellationFieldRequestsByIdsCap) {
