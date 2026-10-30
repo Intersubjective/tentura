@@ -12,7 +12,6 @@ import 'package:tentura/data/repository/image_repository.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_activity_event.dart';
-import 'package:tentura/domain/entity/beacon_activity_event_consts.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
@@ -40,6 +39,7 @@ import 'package:tentura/ui/test_ids.dart';
 
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 
+import '../../support/beacon_activity_event_visibility_bits.dart';
 import '../inbox/author_invite_test_support.dart'
     show registerEmptyAuthorInvitesGetIt;
 import '../../ui/effect/fake_ui_effect_port.dart';

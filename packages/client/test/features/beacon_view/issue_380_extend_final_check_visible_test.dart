@@ -34,6 +34,7 @@ import 'package:tentura/features/closure/domain/entity/closure_state.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/beacon_activity_event_presenter.dart';
 
+import '../../support/beacon_activity_event_visibility_bits.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'beacon_view_case_test_support.dart';
 import 'beacon_view_initial_load_test.dart';

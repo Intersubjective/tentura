@@ -17,6 +17,8 @@ import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_closure_readiness.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
+import '../../support/beacon_activity_event_visibility_bits.dart';
+
 Beacon _openBeacon({
   BeaconStatus status = BeaconStatus.open,
 }) =>

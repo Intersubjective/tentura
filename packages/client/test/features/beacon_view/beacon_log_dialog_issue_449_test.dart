@@ -17,6 +17,8 @@ import 'package:tentura/features/beacon_view/ui/widget/activity_list.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_activity_sheet.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../support/beacon_activity_event_visibility_bits.dart';
+
 // #449: Request > Log is an oversized modal for two rows, has no Close
 // button, and renders the creation row (request title, primary colour) unlike
 // the status row.

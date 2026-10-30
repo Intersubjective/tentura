@@ -2,8 +2,6 @@
 // ("Not taking new requests · until Nov 3, 2026" / "Вы не принимаете новые запросы · до 3 нояб. 2026 г.")
 // wraps across two lines with no ellipsis and no clipping.
 
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -111,12 +109,18 @@ void main() {
           reason: 'Line must not exceed max lines or show ellipsis',
         );
 
-        // Must wrap across two lines on a 375 px screen (multi-line height > 24.0).
-        expect(
-          paragraph.size.height,
-          greaterThan(24.0),
-          reason: 'Availability line must wrap across two lines',
-        );
+        // Wherever the line is wider than the screen it must wrap onto more
+        // lines. Whether it is depends on the font: the test font makes every
+        // glyph 1 em wide, but a test earlier in the same bundle can load
+        // real fonts, and then the English line fits on one line.
+        final oneLineWidth = paragraph.getMaxIntrinsicWidth(double.infinity);
+        if (oneLineWidth > paragraph.size.width) {
+          expect(
+            paragraph.size.height,
+            greaterThan(paragraph.getMinIntrinsicHeight(double.infinity)),
+            reason: 'Availability line must wrap across two lines',
+          );
+        }
       },
     );
   }
