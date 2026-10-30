@@ -173,95 +173,139 @@ class HelpOfferTile extends StatelessWidget {
               avatarWidget,
               const SizedBox(width: _contentGap),
               Expanded(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Column(
+                child: LayoutBuilder(
+                  builder: (context, innerConstraints) {
+                    Widget? trailingBadge({int? maxLines = 1}) {
+                      if (isDeclinedByAuthor) {
+                        return TenturaStatusText(
+                          l10n.helpOfferStatusDeclined,
+                          tone: TenturaTone.danger,
+                          maxLines: maxLines,
+                        );
+                      }
+                      if (isWithdrawn) {
+                        return TenturaStatusText(
+                          l10n.labelWithdrawn,
+                          maxLines: maxLines,
+                        );
+                      }
+                      if (stakeParticipationLabel != null) {
+                        return TenturaStatusText(
+                          stakeParticipationLabel,
+                          maxLines: maxLines,
+                        );
+                      }
+                      return null;
+                    }
+
+                    final hasTrailingBadge =
+                        isDeclinedByAuthor ||
+                        isWithdrawn ||
+                        stakeParticipationLabel != null;
+
+                    final textColumn = Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        BlocBuilder<ProfileCubit, ProfileState>(
+                          buildWhen: (p, c) => p.profile.id != c.profile.id,
+                          builder: (context, state) {
+                            final titleSmall = theme.textTheme.titleSmall!;
+                            final isSelf = SelfUserHighlight.profileIsSelf(
+                              helpOffer.user,
+                              state.profile.id,
+                            );
+                            final name = SelfUserHighlight.displayName(
+                              l10n,
+                              helpOffer.user,
+                              state.profile.id,
+                            );
+                            return Text(
+                              name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              // The dot is colour only (#533).
+                              semanticsLabel: isOnline
+                                  ? '$name, ${l10n.chatPresenceOnline}'
+                                  : null,
+                              style: isSelf
+                                  ? SelfUserHighlight.nameStyle(
+                                      theme,
+                                      titleSmall,
+                                      true,
+                                    )
+                                  : titleSmall.copyWith(
+                                      color: theme.colorScheme.onSurface,
+                                    ),
+                            );
+                          },
+                        ),
+                        SizedBox(height: tt.tightGap / 2),
+                        if (participantMeta != null) ...[
+                          Text(
+                            '${beaconPeopleRoleLabel(l10n, participantMeta.role)} · ${beaconPeopleStatusLabel(
+                              l10n,
+                              participantMeta.status,
+                              helpOffer.coordinationResponse,
+                              admissionAction: helpOffer.admissionAction,
+                            )}',
+                            style: TenturaText.status(
+                              theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                          SizedBox(height: tt.tightGap / 2),
+                        ] else if (showAuthorStar) ...[
+                          Text(
+                            beaconPeopleRoleLabel(
+                              l10n,
+                              BeaconParticipantRoleBits.author,
+                            ),
+                            style: TenturaText.status(
+                              theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                          SizedBox(height: tt.tightGap / 2),
+                        ],
+                        // Relative like the My Work card that opens this
+                        // tile; the exact stamp stays one hover away.
+                        Tooltip(
+                          message:
+                              '${dateFormatYMD(dateShown.toLocal(), locale: l10n.localeName)} · '
+                              '${timeFormatHm(dateShown.toLocal(), locale: l10n.localeName)}',
+                          child: TenturaMetaText(
+                            '${_offerWhen(dateShown, l10n)}'
+                            '${helpOffer.isEdited ? ' · ${l10n.labelEdited}' : ''}',
+                          ),
+                        ),
+                      ],
+                    );
+
+                    if (!hasTrailingBadge) return textColumn;
+
+                    const minTextWidth = kMinInteractiveDimension * 3;
+                    final sideBySide =
+                        innerConstraints.maxWidth >=
+                        minTextWidth +
+                            tt.rowGap +
+                            kMinInteractiveDimension * 4;
+                    if (sideBySide) {
+                      return Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          BlocBuilder<ProfileCubit, ProfileState>(
-                            buildWhen: (p, c) => p.profile.id != c.profile.id,
-                            builder: (context, state) {
-                              final titleSmall = theme.textTheme.titleSmall!;
-                              final isSelf = SelfUserHighlight.profileIsSelf(
-                                helpOffer.user,
-                                state.profile.id,
-                              );
-                              final name = SelfUserHighlight.displayName(
-                                l10n,
-                                helpOffer.user,
-                                state.profile.id,
-                              );
-                              return Text(
-                                name,
-                                // The dot is colour only (#533).
-                                semanticsLabel: isOnline
-                                    ? '$name, ${l10n.chatPresenceOnline}'
-                                    : null,
-                                style: isSelf
-                                    ? SelfUserHighlight.nameStyle(
-                                        theme,
-                                        titleSmall,
-                                        true,
-                                      )
-                                    : titleSmall.copyWith(
-                                        color: theme.colorScheme.onSurface,
-                                      ),
-                              );
-                            },
-                          ),
-                          const SizedBox(height: 2),
-                          if (participantMeta != null) ...[
-                            Text(
-                              '${beaconPeopleRoleLabel(l10n, participantMeta.role)} · ${beaconPeopleStatusLabel(
-                                l10n,
-                                participantMeta.status,
-                                helpOffer.coordinationResponse,
-                                admissionAction: helpOffer.admissionAction,
-                              )}',
-                              style: TenturaText.status(
-                                theme.colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                          ] else if (showAuthorStar) ...[
-                            Text(
-                              beaconPeopleRoleLabel(
-                                l10n,
-                                BeaconParticipantRoleBits.author,
-                              ),
-                              style: TenturaText.status(
-                                theme.colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                          ],
-                          // Relative like the My Work card that opens this
-                          // tile; the exact stamp stays one hover away.
-                          Tooltip(
-                            message:
-                                '${dateFormatYMD(dateShown.toLocal(), locale: l10n.localeName)} · '
-                                '${timeFormatHm(dateShown.toLocal(), locale: l10n.localeName)}',
-                            child: TenturaMetaText(
-                              '${_offerWhen(dateShown, l10n)}'
-                              '${helpOffer.isEdited ? ' · ${l10n.labelEdited}' : ''}',
-                            ),
-                          ),
+                          Expanded(child: textColumn),
+                          SizedBox(width: tt.rowGap),
+                          trailingBadge()!,
                         ],
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    if (isDeclinedByAuthor)
-                      TenturaStatusText(
-                        l10n.helpOfferStatusDeclined,
-                        tone: TenturaTone.danger,
-                      )
-                    else if (isWithdrawn)
-                      TenturaStatusText(l10n.labelWithdrawn)
-                    else if (stakeParticipationLabel != null)
-                      TenturaStatusText(stakeParticipationLabel),
-                  ],
+                      );
+                    }
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        textColumn,
+                        SizedBox(height: tt.tightGap),
+                        trailingBadge(maxLines: null)!,
+                      ],
+                    );
+                  },
                 ),
               ),
               if (showForwardPathButton)
