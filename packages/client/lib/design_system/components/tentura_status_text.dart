@@ -21,7 +21,7 @@ class TenturaStatusText extends StatelessWidget {
     this.tone = TenturaTone.neutral,
     this.maxLines = 1,
     this.textAlign,
-    this.overflow = TextOverflow.ellipsis,
+    this.overflow,
     this.softWrap = true,
   });
 
@@ -31,16 +31,22 @@ class TenturaStatusText extends StatelessWidget {
   /// When null, the line wraps freely (list cards). App bars keep [maxLines] = 1.
   final int? maxLines;
   final TextAlign? textAlign;
-  final TextOverflow overflow;
+  /// Defaults to [TextOverflow.clip] when [maxLines] is null (free
+  /// wrapping: an ellipsis would still cut after the first line, #267) and
+  /// to [TextOverflow.ellipsis] otherwise.
+  final TextOverflow? overflow;
   final bool softWrap;
 
   @override
   Widget build(BuildContext context) {
     final tt = context.tt;
+    final effectiveOverflow =
+        overflow ??
+        (maxLines == null ? TextOverflow.clip : TextOverflow.ellipsis);
     return Text(
       text,
       maxLines: maxLines,
-      overflow: overflow,
+      overflow: effectiveOverflow,
       softWrap: softWrap,
       textAlign: textAlign,
       style: TenturaText.status(tenturaToneColor(tt, tone)),
@@ -66,6 +72,9 @@ class TenturaStatusLine extends StatelessWidget {
   final TenturaTone slot1Tone;
   final TenturaTone? slot2Tone;
   final int? maxLines;
+  /// Unlike [TenturaStatusText], the default stays [TextOverflow.ellipsis]
+  /// even with a null [maxLines]: app bars and card headers rely on it to
+  /// keep the status on one line.
   final TextOverflow overflow;
   final bool softWrap;
 
