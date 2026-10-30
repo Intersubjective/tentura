@@ -36,6 +36,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/one_node_button.dart';
 import 'package:tentura/ui/widget/pending_attachments.dart';
 import 'package:tentura/ui/test_ids.dart';
+import 'package:tentura/ui/utils/snack_bar_clearance.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
 /// True when [message] is a `childCreated` notice whose promotion source is
@@ -813,7 +814,12 @@ class BasicChatBodyState extends State<BasicChatBody> {
                     ],
                   ),
           ),
-          widget.composerReplacement ?? _buildComposerRow(context),
+          // The composer is the room's primary action at the body bottom:
+          // notice bars float above it instead of covering it, also when it
+          // grows or comes in after the bar is up (#605, from #406).
+          SnackBarClearance(
+            child: widget.composerReplacement ?? _buildComposerRow(context),
+          ),
         ],
       ),
     );
