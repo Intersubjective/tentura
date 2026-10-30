@@ -71,6 +71,7 @@ class BeaconRoomMessages extends Table {
   late final clientMessageId = text().nullable()();
 
   // DORMANT(item-threads): nullable column for item-thread scope (never written in production).
+  // See docs/adr/0013-item-thread-plumbing-kept-dormant.md.
   // Rooms are General-only (guard: beacon_room_message_general_only_guard, DiscussionScopeDisabledException); thread_item_id is always NULL for new rows. Do not design for this path. See #192.
   /// NULL = main beacon room; non-null = coordination item thread.
   late final threadItemId = text().nullable().references(
