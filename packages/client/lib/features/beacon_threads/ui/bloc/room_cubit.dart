@@ -72,6 +72,7 @@ class RoomCubit extends Cubit<RoomState> {
     required String beaconId,
     String? threadItemId,
     BeaconLobbyAccess? lobbyAccess,
+    this._loadQuestionsAccess,
     DateTime? initialUnreadAnchorAt,
     BeaconThreadsCase? beaconRoomCase,
     CoordinationItemRoomSync? coordinationItemRoomSync,
@@ -112,6 +113,7 @@ class RoomCubit extends Cubit<RoomState> {
   }
 
   final BeaconThreadsCase _case;
+  final Future<BeaconLobbyAccess> Function()? _loadQuestionsAccess;
 
   /// Request-only fetches this room skips when a capability is off.
   final RoomCapabilities capabilities;
@@ -816,6 +818,10 @@ class RoomCubit extends Cubit<RoomState> {
     }
     try {
       final inThread = state.threadItemId != null;
+      final loadQuestionsAccess = _loadQuestionsAccess;
+      final questionsAccess = !_unreadBandTaken && loadQuestionsAccess != null
+          ? await loadQuestionsAccess()
+          : null;
       final rawMessages = await _case.fetchMessages(
         beaconId: state.beaconId,
         threadItemId: state.threadItemId,
@@ -895,13 +901,28 @@ class RoomCubit extends Cubit<RoomState> {
       if (isClosed) return;
 
       var anchor = state.unreadAnchorAt;
-      if (!inThread) {
-        final localSeen = _case.readThrough(state.beaconId);
-        if (localSeen != null) {
-          if (anchor == null || localSeen.isAfter(anchor)) {
-            anchor = localSeen;
-          }
+      if (questionsAccess != null && messages.isNotEmpty) {
+        // The Overview probe counts visible peer messages after the persisted
+        // Questions cursor. Recover that boundary in the loaded history, even
+        // after a reload has discarded the session watermark store.
+        final peers = messages
+            .where((message) => message.authorId != state.myUserId)
+            .toList();
+        final readCount = peers.length - questionsAccess.unreadCount;
+        if (questionsAccess.unreadCount == 0) {
+          anchor = messages.last.createdAt;
+        } else if (readCount > 0) {
+          anchor = peers[readCount - 1].createdAt;
         }
+      }
+      final localSeen = _case.readThrough(
+        state.beaconId,
+        threadId: state.threadItemId ?? RequestThread.generalId,
+      );
+      if (localSeen != null && (anchor == null || localSeen.isAfter(anchor))) {
+        anchor = localSeen;
+      }
+      if (!inThread) {
         final myId = GetIt.I<ProfileCubit>().state.profile.id;
         DateTime? serverSeen;
         for (final p in participants) {

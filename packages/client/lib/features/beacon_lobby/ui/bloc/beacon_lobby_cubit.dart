@@ -7,6 +7,7 @@ import 'package:tentura/features/updates/updates_receipt_display_copy.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 
+import '../../domain/entity/beacon_lobby.dart';
 import '../../domain/exception/beacon_lobby_exception.dart';
 import '../../domain/use_case/beacon_lobby_case.dart';
 import 'beacon_lobby_state.dart';
@@ -48,6 +49,9 @@ class BeaconLobbyCubit extends Cubit<BeaconLobbyState> {
   bool _refreshing = false;
 
   bool _refreshAgain = false;
+
+  /// The same persisted Questions unread state used by the Overview entry.
+  Future<BeaconLobbyAccess> loadAccess() => _case.access(beaconId);
 
   /// First load, and the retry after a failed one.
   Future<void> load() async {
