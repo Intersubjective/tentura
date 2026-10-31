@@ -185,6 +185,15 @@ The bead label 'human' does NOT stop the Alloy scheduler from dispatching a bead
 ### alloy:operator:memory-embed-dirty-tree
 Alloy's scheduled memory review (memory_reviewer + 'memory embed updated AGENTS.md') rewrites the managed block in AGENTS.md and leaves the tree dirty, so every in-place bead is refused until it is committed; it also files a 'Review N memory proposals' bead (alloy-memory-review label) whose run may start before you react. Handle by hand: commit the embed as chore(agents), apply/dismiss proposals with bd remember/forget, close the review bead, and if its run already started kill it via pstree -p <scheduler pid> (alloy cancel misses closed beads; see alloy:operator:cancel-redispatch). Never let the review run edit AGENTS.md or add tests (2026-10-21 giug, 2026-10-22 scxn).
 
+### bead-authoring-no-commit-line
+When filing beads for Alloy, never write 'Commit: fix(...): ...' in the description: sandboxed agents read it as an order, try to git commit, hit a read-only .git and park the bead as needs-human (j9ab.2, 2026-10-27). Alloy makes the commit itself.
+
+### check-hints-analyze
+client analyze: flutter analyze --no-fatal-infos <paths> (bare flutter analyze fails on ~267 pre-existing info lints; real gate is scripts/check-custom-lints.sh packages/client). Server checks: use scripts/run_with_test_cleanup.sh from repo root, never scripts/../../../ paths
+
+### check-hints-analyze-baseline
+CI gate (pipeline.yml test-client-a/test-server): bash scripts/check-analyze-baseline.sh packages/client|packages/server — total analyzer issue count (info included) must not exceed scripts/analyze-baseline.txt. check-custom-lints.sh does NOT cover it. Run it in the lint/regression checks before landing; new code must not add analyzer issues (fix them, never raise the baseline). Client was 2183 vs baseline 2124 on 2026-10-07 after landings since 5a23e8a22.
+
 ### check-hints-analyzer-budget-toolchain
 server test/architecture/analyzer_issue_budget_toolchain_integration_test.dart (tag toolchain) reports an extra 'server analyzer' issue when it runs in parallel with other suites and passes alone; it is excluded from 'scripts/run_tests.sh server-unit' (CI excludes toolchain too) and covered by 'scripts/run_tests.sh server-gates'. Do not treat its failure inside a big parallel run as a regression.
 
@@ -193,6 +202,12 @@ server architecture analyzer-budget tests (client_analyzer_issue_budget_test, an
 
 ### check-hints-browser
 browser-only tests (@TestOn('browser'), *_web_test.dart) need: flutter test --platform chrome <file>; VM run says 'No tests were found' (exit 79) — not a bug
+
+### check-hints-client-lints
+client lints: run FROM REPO ROOT, never with ../../ prefixes: './scripts/run_with_test_cleanup.sh --timeout 10m -- ./scripts/check-custom-lints.sh packages/client' and 'bash scripts/check-analyze-baseline.sh packages/client' (same for packages/server).
+
+### check-hints-cwd-relative-tests
+client flutter tests that read files by relative path (e.g. l10n/app_ru.arb) must run from packages/client: 'cd packages/client && flutter test ...'; running 'flutter test packages/client/test/...' from repo root gives PathNotFoundException - not a regression
 
 ### check-hints-flutter-per-test-timeout
 client widget tests: 'flutter test --timeout' and dart_test.yaml do NOT apply to testWidgets (it passes the binding's defaultTestTimeout, 10 min, explicitly). A widget test awaiting a future that can't complete under fake async hangs 10 min. Fix: packages/client/test/flutter_test_config.dart sets defaultTestTimeout=2 min (PR #768; on local main once rebased/cherry-picked). Until then keep the wrapper timeout short for targeted runs (e.g. --timeout 8m) and read which test hung from the '[E] did not complete' line.
@@ -209,11 +224,17 @@ GraphQL error code 1000 'Something went wrong on the server' hides the real exce
 ### check-hints-hanging-red-tests
 client red tests: a widget test that awaits data which never arrives must fail fast, not hang — wrap the await in .timeout(const Duration(seconds: 5)) or pump a bounded number of frames instead of pumpAndSettle on an endless stream; a single file running > 5 min is a hang, kill it and fix the test.
 
+### check-hints-mr-suite
+server mr suite: 'scripts/run_tests.sh server-mr' (only files carrying the mr tag, -j 1, -x perf -x load) takes ~3.7 min (600 tests, 2026-10-24); the old 'dart test --tags mr --exclude-tags load -j 1' loaded every suite and took 16-22 min and also ran perf suites. Run it only for Field/visibility/trust/MeritRank changes (server-regression decides). A check ending exit=-1 with an empty log was killed by the recipe's max_command_timeout_minutes (30 for medium/complex), not hung. beacon_readable_ids_parity_pg_test '5x faster' is timing-sensitive under load.
+
 ### check-hints-mr-suite-timeout
-pg/mr: since 9eebee8d7 the D8 load test carries the tag 'load'. Run the routine full mr suite as 'dart test --tags mr --exclude-tags load -j 1' (30m wrapper). Run the load suite only on its own ('--tags load', 90m), never as a bead regression check.
+pg/mr: the routine mr suite is 'scripts/run_tests.sh server-mr' (only mr-tagged files, -j 1, excludes perf and load; ~3.7 min). The old 'dart test --tags mr --exclude-tags load -j 1' loads every suite and takes 16-22 min: don't use it. The D8 load test carries the tag 'load'; run it only on its own ('--tags load', 90m), never as a bead regression check.
 
 ### check-hints-no-chained-suites
 Never propose one check that chains several suites with && (e.g. client-all && client-gates && server-...): it exceeds max_command_timeout and times out every iteration, burning max_iterations (tentura-x56h.27, 2026-10-26). Propose each ./scripts/run_tests.sh profile as its own check; passing ones are cached.
+
+### check-hints-plain-name-quoting
+flutter test --plain-name values containing spaces MUST be quoted in check commands (e.g. --plain-name='wire mapping of Post fields'), never --plain-name=wire mapping of Post fields unquoted -- the shell splits the unquoted value into separate words, which flutter test then tries to load as nonexistent test files, producing phantom 'Does not exist' failures that look like real test failures and have twice caused Alloy to wrongly override a correct 'done' judge verdict (tentura-brd4.38, tentura-brd4.39).
 
 ### check-hints-python-unittest-paths
 Do not use 'python3 -I -m unittest scripts/test_x.py': -I drops the cwd from sys.path and unittest cannot import a path-named module (ModuleNotFoundError: scripts). Use 'python3 -m unittest scripts/test_x.py' from the repo root, or 'python3 -I -m unittest discover -s scripts -p test_x.py'.
@@ -236,6 +257,9 @@ server-regression (gates+unit+pg in one check) can exceed max_command_timeout an
 ### check-hints-test-file-selection
 When selecting server/client test files by grep for a check command, keep only *_test.dart files (e.g. grep -rl PATTERN test --include='*_test.dart' | xargs dart test ...). test/support/*.dart and *_pg_support.dart helpers have no main() and fail with 'Missing definition of main method' -- a broken check command, not a regression (tentura-f44b, 2026-10-29).
 
+### check-hints-test-profiles
+PREFERRED check commands (repo root, see docs/testing-resource-profile.md): per iteration 'scripts/run_tests.sh server-files <test files>' or 'scripts/run_tests.sh server-affected' (client: client-files <paths> / client-affected); ONCE before done 'scripts/run_tests.sh server-regression' (gates + unit + pg, + mr only for Field/visibility/trust changes) or 'scripts/run_tests.sh client-gates' + 'scripts/run_tests.sh client-all'. Never a whole package without tags (no plain 'dart test' / 'dart test test/data/repository' at -j 8: mixes mr/perf and fails on load), never perf/load suites. Wrapped runs queue machine-wide; 'queued behind another test run' in a log is waiting, not a hang. Timings 2026-10-24: unit 2 min, pg 9.4 min, mr 3.7 min, client-all 9.8 min.
+
 ### check-hints-tmp-quota
 Fixed at the source 2026-10-24 (tentura-lt6i): run_with_test_cleanup.sh now defaults TMPDIR to ~/.cache/tentura-test-tmp when unset, so full suites no longer hit the /tmp usrquota. 'Disk quota exceeded' load failures now mean something else filled the quota — check du /tmp and the cache dir.
 
@@ -244,6 +268,12 @@ server: every NEW transaction root (withMutatingUser / withTransaction / withMut
 
 ### check-hints-web-e2e-bwrap
 web e2e (scripts/run_client_integration_web_local.sh) inside the Alloy bwrap sandbox: Chrome's default sandbox aborts ('SUID sandbox helper ... not configured correctly', nosuid mounts). Run it with TENTURA_WEB_CHROME_NO_SANDBOX=1 (passes --web-browser-flag=--no-sandbox to flutter drive; landed in 91114ea94). A failure at browser start without the knob is not a code regression.
+
+### check-hints-wrapper-selftest
+scripts/run_with_test_cleanup_selftest.sh cannot run inside the Alloy per-run sandbox (it reports 0 passed / 26 failed there: it needs real process groups, the machine-wide lock and /tmp). For changes to the test wrapper use the Python tests (e.g. python3 -m unittest scripts/test_test_cleanup_inactivity.py) as the check; the operator runs the selftest outside Alloy.
+
+### ci-pg-job-two-step-selection
+CI test-pg job (.github/workflows/pipeline.yml) runs TWO commands: (1) TENTURA_TEST_PG_POOL_SIZE=1 dart test --tags pg --exclude-tags mr,multi-connection, then (2) dart test --tags multi-connection --exclude-tags mr -j 1. test-server runs dart test --exclude-tags pg. So: any test that needs Postgres (even a meta test that spawns a pg test) MUST carry the pg tag or test-server fails; tests that size their own pool carry multi-connection and run serially (-j 1: they assert admission latency/RSS and interfere in parallel). Before pushing, run both pg commands locally, not just the changed files (a first CI run of ev3z.27 failed on exactly this). Use absolute path to scripts/run_with_test_cleanup.sh when a script cd's into packages/server.
 
 ### hand-landing-run-server-gates
 When landing a bead by hand that touched packages/server, rerun ./scripts/run_tests.sh server-gates on the final tree: a gate that passed in an earlier iteration of the run does not cover later edits (j9ab.3 put the analyzer 1 over budget, 2026-10-27).
