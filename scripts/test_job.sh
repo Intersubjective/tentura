@@ -24,9 +24,16 @@
 # abandoned: whoever started it is gone. `wait --max` defaults to
 # TENTURA_TEST_JOB_WAIT (20m). Jobs live under
 # ${XDG_STATE_HOME:-~/.local/state}/tentura-test-jobs; finished ones are
-# dropped after two days.
+# dropped after two days. Inside an Alloy agent call (ALLOY_JOBS_DIR and
+# ALLOY_BIN set) every subcommand goes to `alloy job` instead.
 
 set -euo pipefail
+
+# Under Alloy, its own `alloy job` (same commands and exit codes) keeps the
+# jobs in the agent call's directory, so Alloy stops them with the call.
+if [[ -n "${ALLOY_JOBS_DIR:-}" && -x "${ALLOY_BIN:-}" && "${1:-}" != "--run" ]]; then
+  exec "$ALLOY_BIN" job "$@"
+fi
 
 SELF="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
 JOBS="${TENTURA_TEST_JOBS_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/tentura-test-jobs}"
@@ -36,7 +43,7 @@ DIED=70
 log() { printf '[test-job] %s\n' "$*" >&2; }
 
 usage() {
-  sed -n '2,27p' "$SELF" | sed 's/^# \?//'
+  sed -n '2,29p' "$SELF" | sed 's/^# \?//'
   exit 2
 }
 
