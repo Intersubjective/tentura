@@ -28,6 +28,7 @@ class BeaconInvolvementResult {
     required this.forwardedToIds,
     required this.helpOfferedIds,
     required this.withdrawnIds,
+    required this.declinedOfferIds,
     required this.rejectedIds,
     required this.watchingIds,
     required this.onwardForwarderIds,
@@ -37,6 +38,7 @@ class BeaconInvolvementResult {
   final List<String> forwardedToIds;
   final List<String> helpOfferedIds;
   final List<String> withdrawnIds;
+  final List<String> declinedOfferIds;
   final List<String> rejectedIds;
   final List<String> watchingIds;
   final List<String> onwardForwarderIds;

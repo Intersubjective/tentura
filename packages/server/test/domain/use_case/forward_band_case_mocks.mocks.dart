@@ -957,6 +957,20 @@ class MockBeaconAccessGuard extends _i1.Mock implements _i13.BeaconAccessGuard {
           as _i3.Future<Set<String>>);
 
   @override
+  _i3.Future<Set<String>> readableContentViewerIds({
+    required String? beaconId,
+    required Iterable<String>? viewerIds,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#readableContentViewerIds, [], {
+              #beaconId: beaconId,
+              #viewerIds: viewerIds,
+            }),
+            returnValue: _i3.Future<Set<String>>.value(<String>{}),
+          )
+          as _i3.Future<Set<String>>);
+
+  @override
   _i3.Future<bool> canReadInvolvement({
     required String? beaconId,
     required String? viewerId,

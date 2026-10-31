@@ -74,6 +74,7 @@ Map<String, dynamic> beaconInvolvementResultToGqlMap(
   'forwardedToIds': dto.forwardedToIds,
   'helpOfferedIds': dto.helpOfferedIds,
   'withdrawnIds': dto.withdrawnIds,
+  'declinedOfferIds': dto.declinedOfferIds,
   'rejectedIds': dto.rejectedIds,
   'watchingIds': dto.watchingIds,
   'onwardForwarderIds': dto.onwardForwarderIds,

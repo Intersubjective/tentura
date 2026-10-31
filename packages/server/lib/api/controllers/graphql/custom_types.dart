@@ -872,6 +872,10 @@ final gqlTypeBeaconInvolvement = GraphQLObjectType('BeaconInvolvement', null)
       GraphQLListType(graphQLString.nonNullable()),
     ),
     field(
+      'declinedOfferIds',
+      GraphQLListType(graphQLString.nonNullable()),
+    ),
+    field(
       'rejectedIds',
       GraphQLListType(graphQLString.nonNullable()),
     ),
