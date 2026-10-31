@@ -1,7 +1,8 @@
 // #686: a closed Request still told a backup offerer "Your offer is with the
 // author" and said "HELPING · 1 person is helping". On a closed or cancelled
 // Request an unanswered offer gets a closed-state line and the team reads in
-// the past tense. #527: while it runs, the line names the author.
+// the past tense. #527: while it runs, the line says the offer was sent to
+// the author, by name, and a second line says what happens next.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -55,12 +56,12 @@ void main() {
       ]) {
         expect(
           beaconShowcaseOfferPendingText(en, _state(status)),
-          'Your offer is with Ana',
+          'Offer sent to Ana',
           reason: status.name,
         );
         expect(
           beaconShowcaseOfferPendingText(ru, _state(status)),
-          'Ваше предложение у автора — Ana',
+          'Предложение отправлено автору (Ana)',
           reason: status.name,
         );
       }
@@ -73,12 +74,54 @@ void main() {
       );
       expect(
         beaconShowcaseOfferPendingText(en, nameless),
-        'Your offer is with the author',
+        'Offer sent to the author',
       );
       expect(
         beaconShowcaseOfferPendingText(ru, nameless),
-        ru.beaconShowcaseOfferPending,
+        'Предложение отправлено автору',
       );
+    });
+
+    test('a backup offer while the Request runs (#527)', () {
+      final s = _state(BeaconStatus.enoughHelp, offerKind: 1);
+      expect(
+        beaconShowcaseOfferPendingText(en, s),
+        'Backup offer sent to Ana',
+      );
+      expect(
+        beaconShowcaseOfferPendingText(ru, s),
+        'Запасное предложение отправлено автору (Ana)',
+      );
+    });
+
+    test('what happens next: notified, Withdraw only when shown (#527)', () {
+      final s = _state(BeaconStatus.open);
+      expect(
+        beaconShowcaseOfferNextText(en, s, canWithdraw: true),
+        "You'll be notified when they answer. "
+        'You can withdraw the offer until then.',
+      );
+      expect(
+        beaconShowcaseOfferNextText(en, s, canWithdraw: false),
+        "You'll be notified when they answer.",
+      );
+      expect(
+        beaconShowcaseOfferNextText(ru, s, canWithdraw: true),
+        'Вы получите уведомление, когда автор ответит. '
+        'До тех пор предложение можно отозвать.',
+      );
+      final backup = _state(BeaconStatus.enoughHelp, offerKind: 1);
+      expect(
+        beaconShowcaseOfferNextText(en, backup, canWithdraw: false),
+        'They may contact you if more help is needed.',
+      );
+      for (final status in [BeaconStatus.closed, BeaconStatus.cancelled]) {
+        expect(
+          beaconShowcaseOfferNextText(en, _state(status), canWithdraw: false),
+          isNull,
+          reason: status.name,
+        );
+      }
     });
 
     test('the offer text is quoted under the line (#527)', () {
@@ -140,7 +183,7 @@ void main() {
                 l10n,
                 _state(status, offerKind: kind),
               ),
-              isNot(l10n.beaconShowcaseOfferPending),
+              isNot(l10n.beaconShowcaseOfferSent),
             );
           }
         }
