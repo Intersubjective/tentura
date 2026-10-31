@@ -50,7 +50,6 @@ const kPaddingSmallV = EdgeInsets.symmetric(vertical: kSpacingSmall);
 
 const kBorderRadius = 8.0;
 
-final _fmtYMdByLocale = <String?, DateFormat>{};
 final _fmtHmByLocale = <String?, DateFormat>{};
 
 final GlobalKey<ScaffoldMessengerState> snackbarKey =
@@ -129,14 +128,20 @@ class _PaneScaffoldMessengerState extends State<PaneScaffoldMessenger> {
 /// with a raw `DateFormat` call on an unconverted `DateTime` — that was the
 /// bug behind issue #112's beacon_tile/inbox_item_tile/HUD-composer leaks.
 ///
-/// Pass the app's [locale] (`L10n.localeName`): without it the date follows
-/// the process default (US `M/d/y`), not the language the person chose
-/// (#609: «05.10.2026» in Russian).
-String dateFormatYMD(DateTime? dateTime, {String? locale}) => dateTime == null
-    ? ''
-    : _fmtYMdByLocale
-          .putIfAbsent(locale, () => DateFormat.yMd(locale))
-          .format(dateTime.toLocal());
+/// #450: a day in the app language ([locale] is `L10n.localeName`), with
+/// its weekday — «Sat, Oct 17» / «сб, 17 окт.» — and the year only when it
+/// is not this year. Never a numeric `M/d/y` (or `d.M.y`) date.
+String dateFormatDay(
+  DateTime? dateTime, {
+  required String locale,
+  DateTime? now,
+}) {
+  if (dateTime == null) return '';
+  final local = dateTime.toLocal();
+  final thisYear = local.year == (now ?? DateTime.now()).toLocal().year;
+  return (thisYear ? DateFormat.MMMEd(locale) : DateFormat.yMMMEd(locale))
+      .format(local);
+}
 
 /// Time as `Hm` in [locale] (pass `L10n.localeName`, #670); null keeps the
 /// process default locale.

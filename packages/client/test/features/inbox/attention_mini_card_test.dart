@@ -3,6 +3,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/intl.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
@@ -160,7 +161,17 @@ void main() {
     final tooltip = tester.widget<Tooltip>(
       find.byKey(AttentionMiniCard.ageTooltipKey),
     );
-    expect(tooltip.message, contains('2026'));
+    // #450: the day in the weekday style («Fri, Jun 19 …»), with the year
+    // only when it is not this year — never a numeric date.
+    expect(
+      tooltip.message,
+      contains(
+        DateFormat.MMMd(
+          'en',
+        ).format(DateTime.utc(2026, 6, 19, 16, 40).toLocal()),
+      ),
+    );
+    expect(tooltip.message, isNot(matches(RegExp(r'\d{1,2}/\d{1,2}/\d{4}'))));
   });
 
   testWidgets('dismiss is a labelled button with a >=48dp target', (

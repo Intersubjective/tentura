@@ -34,8 +34,12 @@ enum PostAction {
   delete,
 }
 
-/// «до 18:40» today, «до 05.10.2026 18:40» on another day.
-String postMuteUntilTime(DateTime until, DateTime now, {String? locale}) {
+/// «до 18:40» today, «до пн, 5 окт. 18:40» on another day (#450).
+String postMuteUntilTime(
+  DateTime until,
+  DateTime now, {
+  required String locale,
+}) {
   final local = until.toLocal();
   final today = now.toLocal();
   final sameDay =
@@ -44,7 +48,7 @@ String postMuteUntilTime(DateTime until, DateTime now, {String? locale}) {
       local.day == today.day;
   return sameDay
       ? timeFormatHm(local, locale: locale)
-      : '${dateFormatYMD(local, locale: locale)} '
+      : '${dateFormatDay(local, locale: locale, now: today)} '
             '${timeFormatHm(local, locale: locale)}';
 }
 

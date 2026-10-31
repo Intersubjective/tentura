@@ -6,6 +6,7 @@ import 'package:tentura/features/post_view/ui/widget/post_action.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 // #609: the Post mute line printed a US date (10/5/2026) for Russian users.
+// #450: another day reads in the weekday style, never a numeric date.
 void main() {
   setUpAll(() async {
     await initializeDateFormatting('en');
@@ -15,25 +16,26 @@ void main() {
   final now = DateTime(2026, 10, 3, 12);
   final until = DateTime(2026, 10, 5, 18, 40);
 
-  test('ru mute line shows dd.MM.yyyy', () {
+  test('ru mute line shows the weekday date', () {
     final line = postMuteLine(
       lookupL10n(const Locale('ru')),
       mutedForever: false,
       mutedUntil: until,
       now: now,
     );
-    expect(line, contains('05.10.2026 18:40'));
+    expect(line, contains('пн, 5 окт. 18:40'));
+    expect(line, isNot(contains('05.10.2026')));
     expect(line, isNot(contains('10/5/2026')));
   });
 
-  test('en mute line keeps M/d/yyyy', () {
+  test('en mute line shows the weekday date', () {
     final line = postMuteLine(
       lookupL10n(const Locale('en')),
       mutedForever: false,
       mutedUntil: until,
       now: now,
     );
-    expect(line, contains('10/5/2026 18:40'));
+    expect(line, contains('Mon, Oct 5 18:40'));
   });
 
   test('same day shows the time only (guard)', () {

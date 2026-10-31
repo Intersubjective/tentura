@@ -10,14 +10,12 @@ import 'package:tentura/domain/entity/help_offer_admission_action.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/port/platform_repository_port.dart';
-import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
 import 'package:tentura/features/beacon_view/ui/widget/help_offer_tile.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
-import 'package:tentura/ui/widget/show_more_text.dart';
 
 class _FakePlatformRepository implements PlatformRepositoryPort {
   Uri? launchedUserLink;
@@ -175,7 +173,8 @@ void main() {
       TenturaTokens.light.textMuted,
     );
     final seenAt = DateTime.utc(2025, 1, 2, 3, 4).toLocal();
-    final when = '${dateFormatYMD(seenAt)} · ${timeFormatHm(seenAt)}';
+    final when =
+        '${dateFormatDay(seenAt, locale: 'en')} · ${timeFormatHm(seenAt)}';
     expect(
       find.byWidgetPredicate(
         (w) => w is Tooltip && w.message == 'Seen $when',
