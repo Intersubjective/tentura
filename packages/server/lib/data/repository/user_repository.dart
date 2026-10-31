@@ -223,16 +223,25 @@ class UserRepository implements UserRepositoryPort {
   }) => _database.withJoinedTransaction<UserEntity>(() async {
     final invitation = await _database.managers.invitations
         .filter((e) => e.id(invitationId))
-        .getSingle();
+        .getSingleOrNull();
+    if (invitation == null) {
+      throw const InvitationWrongException(
+        description: 'Invitation not found',
+      );
+    }
     if (invitation.invitedId != null) {
       throw const InvitationWrongException(
         description: 'Invitation already used!',
+        reason: InvitationWrongReason.used,
       );
     }
     if (invitation.createdAt.dateTime
         .add(_env.invitationTTL)
         .isBefore(DateTime.timestamp())) {
-      throw const InvitationWrongException(description: 'Invitation expired!');
+      throw const InvitationWrongException(
+        description: 'Invitation expired!',
+        reason: InvitationWrongReason.expired,
+      );
     }
 
     final beacon = switch (invitation.beaconId) {
@@ -403,16 +412,25 @@ class UserRepository implements UserRepositoryPort {
   }) => _database.withJoinedTransaction<UserEntity>(() async {
     final invitation = await _database.managers.invitations
         .filter((e) => e.id(invitationId))
-        .getSingle();
+        .getSingleOrNull();
+    if (invitation == null) {
+      throw const InvitationWrongException(
+        description: 'Invitation not found',
+      );
+    }
     if (invitation.invitedId != null) {
       throw const InvitationWrongException(
         description: 'Invitation already used!',
+        reason: InvitationWrongReason.used,
       );
     }
     if (invitation.createdAt.dateTime
         .add(_env.invitationTTL)
         .isBefore(DateTime.timestamp())) {
-      throw const InvitationWrongException(description: 'Invitation expired!');
+      throw const InvitationWrongException(
+        description: 'Invitation expired!',
+        reason: InvitationWrongReason.expired,
+      );
     }
 
     final beacon = switch (invitation.beaconId) {
@@ -931,15 +949,24 @@ class UserRepository implements UserRepositoryPort {
   }) => (() async {
     final invitation = await _database.managers.invitations
         .filter((e) => e.id(invitationId))
-        .getSingle();
+        .getSingleOrNull();
+    if (invitation == null) {
+      throw const InvitationWrongException(
+        description: 'Invitation not found',
+      );
+    }
     if (invitation.invitedId != null) {
       throw const InvitationWrongException(
         description: 'Invitation already used!',
+        reason: InvitationWrongReason.used,
       );
     } else if (invitation.createdAt.dateTime
         .add(_env.invitationTTL)
         .isBefore(DateTime.timestamp())) {
-      throw const InvitationWrongException(description: 'Invitation expired!');
+      throw const InvitationWrongException(
+        description: 'Invitation expired!',
+        reason: InvitationWrongReason.expired,
+      );
     }
 
     if (invitation.beaconId != null &&

@@ -105,7 +105,8 @@ final class RateLimitedException extends ExceptionBase {
           GeneralExceptionCode.rateLimitedException,
         ),
         description:
-            description ?? 'Too many requests, please slow down and retry later',
+            description ??
+            'Too many requests, please slow down and retry later',
       );
 }
 
@@ -144,14 +145,22 @@ final class UnauthorizedException extends ExceptionBase {
       );
 }
 
+/// Why an invitation was refused (#788): the landing and the confirm page
+/// answer each reason differently, so it travels typed, not in the text.
+enum InvitationWrongReason { invalid, used, expired }
+
 final class InvitationWrongException extends ExceptionBase {
-  const InvitationWrongException({String? description})
-    : super(
-        code: const AuthExceptionCodes(
-          AuthExceptionCode.authInvitationWrongException,
-        ),
-        description: description ?? 'Wrong invitation code',
-      );
+  const InvitationWrongException({
+    String? description,
+    this.reason = InvitationWrongReason.invalid,
+  }) : super(
+         code: const AuthExceptionCodes(
+           AuthExceptionCode.authInvitationWrongException,
+         ),
+         description: description ?? 'Wrong invitation code',
+       );
+
+  final InvitationWrongReason reason;
 }
 
 /// Linking a credential whose `(type, identifier)` already exists (on this or
@@ -271,23 +280,23 @@ final class BeaconFactCardAlreadyPinnedException extends ExceptionBase {
     required this.existingFactCardId,
     String? description,
   }) : super(
-          code: const BeaconExceptionCodes(
-            BeaconExceptionCode.beaconFactCardAlreadyPinned,
-          ),
-          description: description ?? 'Fact already pinned for this message',
-        );
+         code: const BeaconExceptionCodes(
+           BeaconExceptionCode.beaconFactCardAlreadyPinned,
+         ),
+         description: description ?? 'Fact already pinned for this message',
+       );
 
   final String existingFactCardId;
 
   @override
   Map<String, Object> get toMap => {
-        'message': description,
-        'extensions': {
-          'code': '${code.codeNumber}',
-          'path': path,
-          'factCardId': existingFactCardId,
-        },
-      };
+    'message': description,
+    'extensions': {
+      'code': '${code.codeNumber}',
+      'path': path,
+      'factCardId': existingFactCardId,
+    },
+  };
 }
 
 /// Two poll options are equal after trim / case / whitespace normalisation.
@@ -432,8 +441,7 @@ final class BeaconChildCommandConflictException extends ExceptionBase {
           BeaconExceptionCode.beaconChildCommandConflict,
         ),
         description:
-            description ??
-            'Client command id was reused with different input',
+            description ?? 'Client command id was reused with different input',
       );
 }
 
@@ -454,8 +462,7 @@ final class DiscussionScopeDisabledException extends ExceptionBase {
         code: const BeaconExceptionCodes(
           BeaconExceptionCode.discussionScopeDisabled,
         ),
-        description:
-            description ?? 'Only the General discussion is available',
+        description: description ?? 'Only the General discussion is available',
       );
 }
 
@@ -492,8 +499,7 @@ final class BeaconHierarchyCursorInvalidException extends ExceptionBase {
         code: const BeaconExceptionCodes(
           BeaconExceptionCode.beaconHierarchyCursorInvalid,
         ),
-        description:
-            description ?? 'BEACON_HIERARCHY_CURSOR_INVALID',
+        description: description ?? 'BEACON_HIERARCHY_CURSOR_INVALID',
       );
 }
 
@@ -726,7 +732,8 @@ final class BatonTakerNotAvailableException extends ExceptionBase {
         code: const BeaconExceptionCodes(
           BeaconExceptionCode.batonTakerNotAvailable,
         ),
-        description: description ?? 'No eligible person is available to take it',
+        description:
+            description ?? 'No eligible person is available to take it',
       );
 }
 
@@ -767,7 +774,8 @@ final class ConstellationException extends ExceptionBase {
     this.retryAfter,
   }) : super(
          code: ConstellationExceptionCodes(constellationCode),
-         description: description ?? _constellationDescription(constellationCode),
+         description:
+             description ?? _constellationDescription(constellationCode),
        );
 
   /// Backoff hint for [ConstellationExceptionCode.retryLater].

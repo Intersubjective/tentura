@@ -190,6 +190,26 @@ TRUNCATE TABLE public.invitation, public.beacon_forward_edge,
     expect(await forwardEdgeCount(beaconId, senderId), 0);
   }
 
+  // #788: an unknown invite code is a typed refusal, not `StateError: No
+  // element` from getSingle() (which the controller answered with a 500).
+  final unknownInvite = isA<InvitationWrongException>().having(
+    (e) => e.reason,
+    'reason',
+    InvitationWrongReason.invalid,
+  );
+  for (final path in paths) {
+    test('${path.name} refuses an unknown invite code', () async {
+      await expectLater(path.signUp(), throwsA(unknownInvite));
+      expect(await newcomerCount(), 0, reason: 'no account was created');
+    });
+  }
+  test('bindMutual refuses an unknown invite code', () async {
+    await expectLater(
+      users.bindMutual(invitationId: _invitation, userId: _helperId),
+      throwsA(unknownInvite),
+    );
+  });
+
   for (final path in paths) {
     group('${path.name} with a beacon invite', () {
       test(
