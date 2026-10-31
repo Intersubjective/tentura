@@ -14,7 +14,6 @@ class PerRecipientNoteInput extends StatelessWidget {
     required this.profile,
     required this.controller,
     required this.onChanged,
-    this.onClose,
     this.hintText,
     super.key,
   });
@@ -22,7 +21,6 @@ class PerRecipientNoteInput extends StatelessWidget {
   final Profile profile;
   final TextEditingController controller;
   final ValueChanged<String> onChanged;
-  final VoidCallback? onClose;
 
   /// Overrides the default «Add a note for {name} (optional)» hint.
   final String? hintText;
@@ -53,15 +51,6 @@ class PerRecipientNoteInput extends StatelessWidget {
                       state.profile.id,
                     ),
                   ),
-              suffixIcon: onClose != null
-                  ? IconButton(
-                      icon: const Icon(Icons.close),
-                      iconSize: tt.iconSize,
-                      color: tt.textMuted,
-                      tooltip: l10n.forwardSkipPersonalNote,
-                      onPressed: onClose,
-                    )
-                  : null,
             ),
             maxLines: 2,
           );

@@ -3224,14 +3224,6 @@
       }
     }
   },
-  "forwardSkipPersonalNote": "Skip personal note",
-  "@forwardSkipPersonalNote": {
-    "context": "ForwardBeaconScreen per-recipient note"
-  },
-  "forwardRestorePersonalNote": "Add a personal note",
-  "@forwardRestorePersonalNote": {
-    "context": "ForwardBeaconScreen per-recipient note"
-  },
   "forwardUncoveredRecipientsTitle": "Shared note",
   "@forwardUncoveredRecipientsTitle": {
     "context": "ForwardBeaconScreen uncovered recipients sheet title"

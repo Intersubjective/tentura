@@ -24,6 +24,17 @@ class ForwardRecipientPersonalNoteSlot extends StatelessWidget {
 
   static const slotWidth = kMinInteractiveDimension;
 
+  /// A collapsed note's preview may grow past the reserved slot: the person
+  /// wrote it, so the shift is theirs, and three characters would be useless.
+  static const previewMaxWidth = slotWidth * 3;
+
+  /// Whether the slot shows a collapsed note's preview instead of the button.
+  static bool showsPreview({
+    required bool isSelected,
+    required bool isExpanded,
+    required String? notePreview,
+  }) => isSelected && !isExpanded && (notePreview?.trim().isNotEmpty ?? false);
+
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
@@ -42,12 +53,16 @@ class ForwardRecipientPersonalNoteSlot extends StatelessWidget {
           child: InkWell(
             onTap: onOpenNote,
             borderRadius: BorderRadius.circular(TenturaRadii.button),
-            child: SizedBox(
-              width: slotWidth,
-              height: slotWidth,
-              child: Center(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: tt.tightGap),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                minWidth: slotWidth,
+                maxWidth: previewMaxWidth,
+                minHeight: slotWidth,
+              ),
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: tt.tightGap),
+                child: Align(
+                  widthFactor: 1,
                   child: Text(
                     trimmedPreview,
                     maxLines: 1,

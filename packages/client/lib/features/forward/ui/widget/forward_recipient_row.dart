@@ -178,6 +178,13 @@ class ForwardRecipientRow extends StatelessWidget {
     final hasForwardManageActions =
         editForwardButton != null || cancelForwardButton != null;
     final displayName = profileWithContactOverlay(candidate.profile).shownName;
+    final personalNoteSlot = ForwardRecipientPersonalNoteSlot(
+      recipientName: displayName,
+      isSelected: isSelected && canSelectNew,
+      isExpanded: isPersonalNoteExpanded,
+      notePreview: personalNotePreview,
+      onOpenNote: onOpenPersonalNote,
+    );
 
     Widget forwardManageActionsRow() {
       return Row(
@@ -354,13 +361,16 @@ class ForwardRecipientRow extends StatelessWidget {
                   SizedBox(width: tt.iconTextGap),
                 ],
                 if (showsPersonalNoteSlot) ...[
-                  ForwardRecipientPersonalNoteSlot(
-                    recipientName: displayName,
+                  // A note preview shares the row with the name instead of
+                  // squeezing it; the empty slot keeps its fixed width.
+                  if (ForwardRecipientPersonalNoteSlot.showsPreview(
                     isSelected: isSelected && canSelectNew,
                     isExpanded: isPersonalNoteExpanded,
                     notePreview: personalNotePreview,
-                    onOpenNote: onOpenPersonalNote,
-                  ),
+                  ))
+                    Flexible(child: personalNoteSlot)
+                  else
+                    personalNoteSlot,
                   SizedBox(width: tt.iconTextGap),
                 ],
                 if (hasPersonMenu) ...[

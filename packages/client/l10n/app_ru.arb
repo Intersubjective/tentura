@@ -3066,14 +3066,6 @@
       }
     }
   },
-  "forwardSkipPersonalNote": "Без личной заметки",
-  "@forwardSkipPersonalNote": {
-    "context": "ForwardBeaconScreen per-recipient note"
-  },
-  "forwardRestorePersonalNote": "Добавить личную заметку",
-  "@forwardRestorePersonalNote": {
-    "context": "ForwardBeaconScreen per-recipient note"
-  },
   "forwardUncoveredRecipientsTitle": "Общая заметка",
   "@forwardUncoveredRecipientsTitle": {
     "context": "ForwardBeaconScreen uncovered recipients sheet title"

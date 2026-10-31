@@ -135,10 +135,6 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
     }
   }
 
-  void _openPersonalNote(String userId) {
-    _expandedPersonalNoteRecipientId.value = userId;
-  }
-
   @override
   void initState() {
     super.initState();
@@ -785,18 +781,24 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                                     height:
                                         ForwardInviteBar.buttonHeight +
                                         tt.rowGap * 2,
-                                    child: BlocSelector<ForwardCubit,
-                                        ForwardState, bool>(
-                                      selector: (s) => s.selectedIds.isNotEmpty,
-                                      builder: (context, hasSelection) =>
-                                          ForwardInviteBar(
-                                        hasSelection: hasSelection,
-                                        onInvite: () => unawaited(
-                                          _inviteNewPerson(context),
+                                    child:
+                                        BlocSelector<
+                                          ForwardCubit,
+                                          ForwardState,
+                                          bool
+                                        >(
+                                          selector: (s) =>
+                                              s.selectedIds.isNotEmpty,
+                                          builder: (context, hasSelection) =>
+                                              ForwardInviteBar(
+                                                hasSelection: hasSelection,
+                                                onInvite: () => unawaited(
+                                                  _inviteNewPerson(context),
+                                                ),
+                                                onClearSelection:
+                                                    cubit.clearSelection,
+                                              ),
                                         ),
-                                        onClearSelection: cubit.clearSelection,
-                                      ),
-                                    ),
                                   ),
                                 ),
                               if (showBandBlock)
@@ -811,39 +813,43 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                                             next.recipientReasons,
                                     builder: (context, bandState) =>
                                         ForwardBandStrip(
-                                      band: bandState.band,
-                                      candidates: bandState.candidates,
-                                      selectedIds: bandState.selectedIds,
-                                      beacon: beacon,
-                                      recipientNoteHint:
-                                          widget.recipientNoteHint,
-                                      recipientReasons:
-                                          bandState.recipientReasons,
-                                      recipientNoteControllers:
-                                          _recipientNoteControllers,
-                                      onRecipientNoteChanged:
-                                          cubit.setRecipientNote,
-                                      showsPersonalNotes:
-                                          profile.showsPersonalNotes,
-                                      expandedPersonalNoteRecipientId:
-                                          _expandedPersonalNoteRecipientId,
-                                      onOpenPersonalNote: _openPersonalNote,
-                                      onPersonalNoteCollapsed:
-                                          _collapseExpandedPersonalNote,
-                                      perRecipientNotes:
-                                          bandState.perRecipientNotes,
-                                      onToggle: (userId) =>
-                                          _toggle(cubit, userId),
-                                      onEditReasons: (userId) => unawaited(
-                                        _editReasons(
-                                          context,
-                                          cubit,
-                                          userId,
-                                          bandState.recipientReasons[userId] ??
-                                              const [],
+                                          band: bandState.band,
+                                          candidates: bandState.candidates,
+                                          selectedIds: bandState.selectedIds,
+                                          beacon: beacon,
+                                          recipientNoteHint:
+                                              widget.recipientNoteHint,
+                                          recipientReasons:
+                                              bandState.recipientReasons,
+                                          recipientNoteControllers:
+                                              _recipientNoteControllers,
+                                          onRecipientNoteChanged:
+                                              cubit.setRecipientNote,
+                                          showsPersonalNotes:
+                                              profile.showsPersonalNotes,
+                                          expandedPersonalNoteRecipientId:
+                                              _expandedPersonalNoteRecipientId,
+                                          onOpenPersonalNote: (userId) =>
+                                              _expandedPersonalNoteRecipientId
+                                                      .value =
+                                                  userId,
+                                          onPersonalNoteCollapsed:
+                                              _collapseExpandedPersonalNote,
+                                          perRecipientNotes:
+                                              bandState.perRecipientNotes,
+                                          onToggle: (userId) =>
+                                              _toggle(cubit, userId),
+                                          onEditReasons: (userId) => unawaited(
+                                            _editReasons(
+                                              context,
+                                              cubit,
+                                              userId,
+                                              bandState
+                                                      .recipientReasons[userId] ??
+                                                  const [],
+                                            ),
+                                          ),
                                         ),
-                                      ),
-                                    ),
                                   ),
                                 ),
                               SliverToBoxAdapter(
@@ -942,29 +948,31 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                                 prev.note != next.note,
                             builder: (context, footerState) =>
                                 ForwardBottomComposer(
-                              sendLabel: widget.sendLabel,
-                              selectedIds: footerState.selectedIds,
-                              noteExpanded: _noteExpanded,
-                              onToggleNoteExpanded: _toggleNote,
-                              sharedNoteController: _sharedNoteController,
-                              onSharedNoteChanged: cubit.setNote,
-                              showSuggestedNoteHelper:
-                                  footerState.lineageSuggestions.isNotEmpty &&
-                                  footerState.note.trim().isNotEmpty &&
-                                  _noteExpanded,
-                              onForward: widget.onSendPressed != null
-                                  ? (widget.sendEnabled
-                                        ? () => unawaited(
-                                            _handleForwardPressed(context),
-                                          )
-                                        : null)
-                                  : (!widget.embedded &&
-                                            footerState.selectedCount > 0
-                                        ? () => unawaited(
-                                            _handleForwardPressed(context),
-                                          )
-                                        : null),
-                            ),
+                                  sendLabel: widget.sendLabel,
+                                  selectedIds: footerState.selectedIds,
+                                  noteExpanded: _noteExpanded,
+                                  onToggleNoteExpanded: _toggleNote,
+                                  sharedNoteController: _sharedNoteController,
+                                  onSharedNoteChanged: cubit.setNote,
+                                  showSuggestedNoteHelper:
+                                      footerState
+                                          .lineageSuggestions
+                                          .isNotEmpty &&
+                                      footerState.note.trim().isNotEmpty &&
+                                      _noteExpanded,
+                                  onForward: widget.onSendPressed != null
+                                      ? (widget.sendEnabled
+                                            ? () => unawaited(
+                                                _handleForwardPressed(context),
+                                              )
+                                            : null)
+                                      : (!widget.embedded &&
+                                                footerState.selectedCount > 0
+                                            ? () => unawaited(
+                                                _handleForwardPressed(context),
+                                              )
+                                            : null),
+                                ),
                           ),
                         ],
                       ],
@@ -1027,7 +1035,7 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
             ),
       onEditForward: onEditForward,
       onCancelForward: onCancelForward,
-      onOpenPersonalNote: () => _openPersonalNote(id),
+      onOpenPersonalNote: () => _expandedPersonalNoteRecipientId.value = id,
       onPersonalNoteCollapsed: _collapseExpandedPersonalNote,
       recipientNoteController: _recipientNoteControllers[id],
       onRecipientNoteChanged: (text) => cubit.setRecipientNote(id, text),
