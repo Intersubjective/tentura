@@ -1,13 +1,15 @@
 # #781 Phantoms — "map of my people" architecture
 
-Status: **rev 12 (2026-10-31)** — design walk-through with the owner done
+Status: **rev 13 (2026-10-31)** — design walk-through with the owner done
 (D1–D27); rev 7 applied adversarial review round 1 (R1–R37), rev 8 round 2
 (R38–R58) and rev 9 round 3 (R59–R72), both with reviewer Muse Wonder and
 critics Gemini 4 Argon + GPT-5.6-Sol. Rev 10 (owner request) replaced the
 lock-order ladder with owner-graph transactions and asynchronous invite
 merges (P6, P7, §5.2a); rev 11 applies the rev-10 reviews by Gemini 4 Argon
 and Grok 4.7 (R75–R88) and moves clusters out to #901; rev 12 applies
-Fable 5.1's review of rev 11 (R89–R97). Change log §14.
+Fable 5.1's review of rev 11 (R89–R97); rev 13 applies the rev-12 reviews by
+Grok 4.7 and Fable 5.1 (R98–R108), adding P8 (accepts retry), and adds the
+M9 deadlock acceptance gate (owner request, R109). Change log §14.
 Source: GitHub #781 (body + owner comments 2026-10-25, decisions comment
 2026-10-31), mockups `docs/design/phantoms/phantoms-{a,b}.png`.
 
@@ -163,6 +165,15 @@ Technical choices:
   runs under that owner's scope lock, taken first; enforced by a domain type,
   a test-time trigger and tests (§5.2a). Replaces the global lock-order
   ladder of rev 7–9.
+- **P8 Accepts retry.** Signup and existing-account accept run their whole
+  transaction under `withPostgresDeadlockOrSerializationRetry`
+  (`postgres_serialization_retry.dart`, unused today). Their bodies only
+  write the database and record attention inside the transaction (the
+  invitation read is before it, JWT issuance after), so a rolled-back
+  attempt leaves nothing behind. Trust writes meet on a global row and fire
+  trust work from triggers (§2), so no lock order makes them deadlock-free;
+  with the retry such a deadlock costs one retry, not a failed join
+  (§5.2a).
 
 ---
 
@@ -199,13 +210,23 @@ Technical choices:
   - **Defect D:** `invitationAccept` → `InvitationCase.accept` binds
     friendship even for Request invites (`invitation_case.dart:336–345`),
     unlike `acceptAsExisting`'s admission-only path.
-  - Accept paths run READ COMMITTED with no retry: existing-account accepts
+  - Accept paths run READ COMMITTED with no retry today (P8 adds it): existing-account accepts
     in `withMutatingUser` (`tentura_db.dart:388`), signups in
     `runAction(actorUserId: null)` = `withMutatingSystem`
     (`auth_case.dart:166`, `credential_auth_case.dart:156`). `lockConstellationViewerBatch` throws
     `PostgresSnapshotUnavailableException` whenever it had to wait
     (`constellation_viewer_tx.dart:10–30`); only `withMutatingRepeatableRead`
     retries that, and it refuses to nest.
+  - **Trust writes meet in hidden places.** A `vote_user` insert first locks
+    the voter's `user_vsids` row in a BEFORE trigger (`m0193.dart:4623`),
+    then, per statement, the global `visibility_trust_generation` row
+    (m0235). `trust_project_pair` takes `trust_pair_lock` before writing
+    `user_trust_edge`, which bumps the same row (`m0216.dart:45,91–98`), so
+    ledger writers (`trust_ledger_repository.dart`) lock pair → generation
+    while vote writers lock generation → pair. Every forward-edge insert runs
+    `contact_engage` (`m0206.dart:96–153`), which may project trust. Signup
+    and `bindMutual` insert their two votes in two statements
+    (`user_repository.dart:289–295,986–996`).
   - **Defect B:** `acceptAsExisting` on already-mutual friends with a
     non-Request invite returns `true` without consuming the invite.
   - **Defect C (several gates):** `_requireInviteIssuerMayForward`
@@ -460,8 +481,8 @@ Key versions: §9.
   transaction (§5.2a); `invitationUpdate`
   rejects phantom invites. Names follow the contact-name contract (3–32,
   §3.1), so the mirror into `user_contact` always validates.
-  So the existing `_upsertInviteContact` makes the phantom's name the owner's
-  private contact name for the joined account (answers #781 Q2).
+  The merge writes the phantom's current name as the owner's private contact
+  name for the joined account (§5.2b step 7; answers #781 Q2).
 - **Minting:** a phantom has no invite until the owner takes one: Copy
   invite link / Share… (A2, A3) call `phantomInviteEnsure`, which returns the
   live invite or creates it inside the owner's scope (§5.2a), so two
@@ -514,8 +535,8 @@ merges at once.
 ### 5.2 Merge (`PhantomMergeCase` → `PhantomMergeRepositoryPort`)
 
 **Where it runs.** Never inside an accept transaction. For a phantom invite
-the accept claims the invite, writes trust as today and inserts one
-`phantom_merge_job` row (P6); it skips `_upsertInviteContact`, which the
+the accept claims the invite, inserts one `phantom_merge_job` row (P6)
+before its trust writes, and writes trust as today; it skips `_upsertInviteContact`, which the
 merge does instead (§5.2b step 7). The merge runs after commit in an
 owner-graph transaction opened as the owner (§5.2a), retried on
 40001/40P01. A manual link runs the same merge directly in such a
@@ -547,8 +568,8 @@ phantom and `U`; the phantom realtime event (§6.1) then merges them on
 screen. The joiner sees none of it. The race-free "joining right now" signal
 is the invitation row, whose lock the accept's claim takes too
 (`user_repository.dart:257–266`): Copy link / New link (`phantomInviteEnsure`,
-rotate), manual link and delete first lock `h`'s invitation rows
-`FOR UPDATE`; if one of them is claimed and its job is still `queued`, they
+rotate), manual link and delete — inside the owner's scope (rule 1), then
+before anything else — lock `h`'s invitation rows `FOR UPDATE`; if one of them is claimed and its job is still `queued`, they
 answer *"Anna is joining right now"* and change nothing. A rotate whose
 delete of the live invite hits 0 rows refuses instead of minting. Rename is
 allowed (step 7 reads the current name).
@@ -595,14 +616,16 @@ or not, takes these in this order only:
 3. invitation claim;
 4. parent forward chain;
 5. contact rows (`user_contact`);
-6. **trust, last:** the `vote_user` / `user_block` write — whose statement
-   trigger locks the global `visibility_trust_generation` row until commit
-   (m0235) — then `trust_project_pair` (`trust_pair_lock`, `m0216.dart:45`),
-   then commit, with nothing in between that waits on another lock. This is
-   the order every existing trust writer already uses
-   (`user_trust_edge_repository.dart:89–109`).
+6. **trust, last:** the vote / block writes and `trust_project_pair`, then
+   only keyed attention inserts before commit. The accept inserts both votes
+   in **one statement, rows in subject-id order**, so their BEFORE triggers
+   lock both `user_vsids` rows before the statement's generation bump. Trust
+   work also hides in triggers — `contact_engage` on every forward insert,
+   the ledger's pair → generation order (§2) — so this step is ordered as
+   far as it can be, not deadlock-free; P8 makes the accept retry.
 
-M0 brings the accept bodies onto it: claim → chain → contact → trust (today
+M0 brings the accept bodies onto it: Post lock (Post invites) → claim →
+chain → contact → merge-job insert → trust (today
 signup writes trust before contact and chain, and `bindMutual` locks the
 chain before the claim — Defect A). Block / unblock, account erasure and
 draft deletion take the hierarchy lock at their top and take no scopes.
@@ -620,24 +643,28 @@ know every such owner without a race. Instead erasure is made retryable:
 the atomic small-account erase (one `runAction`,
 `user_erasure_case.dart:50–57,171–177`) is retried as a whole — it is
 idempotent, and `enqueueGc` is `ON CONFLICT DO NOTHING` — and the chunked
-path's final delete runs in its own bounded-retry transaction. Draft deletion stays as today — a pre-existing
-exposure on anchors, not widened here.
+path's final delete runs in its own bounded-retry transaction. Draft
+deletion — standalone and erasure's chunked draft steps — stays as today: it
+reaches only the author's own pins (drafts are author-only), a pre-existing
+exposure not widened here.
 
 **What this guarantees.** Scoped transactions can't deadlock with each other
-(rule 1) or with accepts (rule 2 — an accept holds no graph lock and takes
-the shared resources in the same order as everyone). A cascade from a user
-or Request delete can still meet a scoped writer; both sides retry, so it
-costs a retry. One exception is accepted: erasing an inviter while someone
-accepts that inviter's invite can make the accept the deadlock victim — the
-invite dies with its issuer anyway. Otherwise the accept, the one
-transaction that can't retry, takes no scope and follows rule 2 like
-everyone else.
+(rule 1). Everything else that still can — accepts, trust writers, deletion
+cascades, which meet on the global trust-generation row and inside triggers
+— retries: accepts (P8), erasure (rule 3), scoped transactions (`run`). A
+deadlock costs a retry, not a failed request; only an exhausted retry budget
+can fail a join on locks, and the rule-2 order keeps retries rare. An
+accept retried after its inviter was erased finds the invite gone, which is
+correct.
 
 **Entry points.** `OwnerGraphTransactionPort` has two:
 - `run(ownerIds, actorUserId, (OwnerGraphScope scope) => …)` — READ
   COMMITTED, opened as `withMutatingUser(actorUserId)`, blocking sorted scope
   locks, the whole transaction retried on 40001/40P01 with bounded backoff;
-  must start outside any transaction and outside a leased connection scope.
+  refuses — before any SQL, like `withMutatingRepeatableRead`
+  (`tentura_db.dart:437–459`) — to start inside an open transaction or a
+  leased connection scope, where a retry would only redo a savepoint or
+  sleep holding a connection.
   A nested `run` joins only with the same actor and an owner set within the
   held one — no savepoint, no inner retry, held set unchanged — and throws
   otherwise.
@@ -647,7 +674,11 @@ everyone else.
   `lockConstellationViewerBatch` logic on the new key), and sets
   `tentura.owner_scopes` like `run`. It retries on *any* wait, and the one
   key now also covers first-seen writes and tag ops, so M0b carries a perf
-  test of batch retries under the 3-attempt / 5 s budget.
+  test of batch retries under the 3-attempt / 5 s budget. M0b is therefore
+  not contention-neutral: a tag edit or an import now competes with an
+  in-flight anchor batch. Imports commit in chunks of ≤ 20 phantoms so no
+  scope is held long, and the perf test also covers a Field read's
+  first-seen write waiting behind an import.
 
 Merge, unmerge and phantom create write anchors through scoped READ
 COMMITTED anchor methods (explicit positions, both target watermarks
@@ -664,7 +695,7 @@ out of `withConnectionScope` (after the lease is released) into `run`.
 | tag ops, tag magnet, auto-tag prefs, phantom create / batch create / delete / rename, Copy link / New link, notes, avatars, first-seen writes, hint dismissal, import | the actor |
 | merge job, manual link, unmerge, pending-forward recording, delivery (§7) | the owner (Phase 1: sender = owner) |
 | tie creation, and deletion by its author (M6+) | the author and every phantom end's owner |
-| signup, invite accept, block / unblock, account erasure, draft deletion | **none** (rule 2; erasure's final delete retries, rule 3) |
+| signup, invite accept, block / unblock, account erasure, draft deletion | **none** (rule 2; accepts retry, P8; erasure retries, rule 3) |
 
 A merge deletes ties with `h` as an end (§5.2b step 9) holding only `o`'s
 scope; tie creation holds `o`'s scope too, so the two serialize, and an
@@ -695,8 +726,14 @@ author deleting the same tie is a single-row wait.
    existing-account accept of the same invite; accept while the owner moves
    pins on another device; Copy link while a job is queued; block × accept
    and block × unmerge of the same pair; a merge job whose lease expires
-   while it waits on the scope; plus a test that
+   while it waits on the scope; and the P8 cases — two votes racing an
+   accept (`user_vsids`), an accept whose forward insert fires
+   `contact_engage` while an unmerge of the pair runs, a ledger write × an
+   accept of the same pair — each ending in success within the retry
+   budget; plus a test that
    every private-graph table with an owner column carries the trigger.
+4. **Acceptance gate.** These tests prove the cases someone thought of. M9
+   (§12) then attacks the finished system to find the ones nobody did.
 
 ### 5.2b Merge steps
 
@@ -933,7 +970,9 @@ calls it later (covers "invite link forwarded and someone else accepted it").
   preselected, no "select all"**; rows already on my map (phantom name or
   contact name match, client-side) marked. Options: "Use their photo as my
   private picture" (default ON), "Keep phone/email privately" (default OFF).
-- `phantomCreateBatch` (atomic, ≤ remaining cap under the owner's scope) →
+- `phantomCreateBatch` (≤ remaining cap under the owner's scope, committed
+  in chunks of ≤ 20 so the scope is never held long; after a failed chunk
+  the earlier ones stay and the checklist shows them as already on my map) →
   phantoms land unpinned, with no invite (§4 Minting), tagged with an own tag
   **"Imported"** (created if absent; the tag magnet clusters them). Photos
   then upload one by one as private avatars.
@@ -1076,8 +1115,8 @@ calls it later (covers "invite link forwarded and someone else accepted it").
 
 | M | Epic | Depends on | Notes |
 |---|---|---|---|
-| M0 | Invite accept hardening | — | accept bodies restructured to claim → chain → contact → trust, and block's pair cleanup moved before its `user_block` write (§5.2a rule 2; Defect A); Defect B; Defect C → D15 fallback across every gate (both signup methods, `acceptAsExisting`, `invitationAccept`; consumes the invite; signup → friendship + invite-accepted event with a "Request lapsed" outcome, existing account → admission-only); Defect D; landing preview + accept screen + post-join card; `invitationAccept` gets the same expiry check |
-| M0b | Owner-graph transactions | — | §5.2a as a pure refactor, no behaviour change: `OwnerGraphTransactionPort` (`run`, `runRepeatableRead`) + `OwnerGraphScope`, implemented by `OwnerGraphUnitOfWork`; one `owner_graph:<id>` key replacing the anchor-batch and `person_tags` keys across anchors (incl. the bud sweep, `anchor_inherit_operation.dart:66`), layout snapshots, people tags, tag magnet and auto-tag prefs; the first-seen write moved out of the connection lease; erasure retryable; test-time `assert_owner_scope`; perf test of anchor-batch retries |
+| M0 | Invite accept hardening | — | accepts retry (P8); bodies restructured to Post lock → claim → chain → contact → trust with both votes in one subject-sorted statement, and block's pair cleanup moved before its `user_block` write (§5.2a rule 2; Defect A); Defect B; Defect C → D15 fallback across every gate (both signup methods, `acceptAsExisting`, `invitationAccept`; consumes the invite; signup → friendship + invite-accepted event with a "Request lapsed" outcome, existing account → admission-only); Defect D; landing preview + accept screen + post-join card; `invitationAccept` gets the same expiry check |
+| M0b | Owner-graph transactions | — | §5.2a refactor — no feature change, but contention changes (tag ops and imports now share the anchor batch's key): `OwnerGraphTransactionPort` (`run`, `runRepeatableRead`) + `OwnerGraphScope`, implemented by `OwnerGraphUnitOfWork`; one `owner_graph:<id>` key replacing the anchor-batch and `person_tags` keys across anchors (incl. the bud sweep, `anchor_inherit_operation.dart:66`), layout snapshots, people tags, tag magnet and auto-tag prefs; the first-seen write moved out of the connection lease; erasure retryable; test-time `assert_owner_scope`; `run` refuses ambient transactions and leases; perf test of anchor-batch retries and of a Field read waiting behind an import |
 | M1 | Phase 1 phantoms | M0, M0b, #699 | storage + delete actions (§3) + PHANTOM anchors (§3.3) + mixed tags (§3.2) + invites (§4) + merge/undo/unlink (§5) + hint + Field/client + realtime (§6) + privacy suite (§11) + deadlock/contention tests |
 | M2 | Private notes + private avatars on anyone (+ note search) | M1 | §3.4; merge avatar copy, display-time notes (§5.2) |
 | M3 | Forward a Request to a phantom | M1 | §7 |
@@ -1086,9 +1125,77 @@ calls it later (covers "invite link forwarded and someone else accepted it").
 | M6 | Suggested ties (private) | M1 | §10.1 |
 | M7 | Joiner review + confirmation flow | M6 | §10.2 |
 | M8 | Shared visibility + safeguards (clusters: #901) | M7, M5, D26 runbook | §10.3 |
+| M9 | Deadlock acceptance gate | M8 | §12.1: adversarial concurrency harness over every write path, findings fixed until the exit criteria hold |
 
 Each epic ends with a ship bead (next minor above current; raise
 `kDefaultMinClientVersion` — no legacy-client support).
+
+### 12.1 Deadlock acceptance gate — M9
+
+The last stage. Its job is to **break** the lock design: use combinations of
+normal product actions to produce a deadlock, a lock timeout or an exhausted
+retry, then fix each one. Earlier tests check the interleavings the plan
+names; this one looks for the rest. It runs once everything through M8
+exists, because every new write path adds pairs.
+
+**Harness** (`packages/server/tool/lock_gate/`, tests tagged `lock-gate`,
+outside the default CI selections). It drives the real use cases with
+simulated users on a small, dense graph built to collide: a few owners with
+many phantoms, shared Requests and Posts, mutual invites, pending forwards
+with contact deadlines (so `contact_engage` fires), and merges in progress. A
+**path table** lists every write path — the §5.2a path table plus the
+existing trust writers (votes, ledger, block, closure review) — with the
+resources each one locks, in order. Every pair of paths that share a resource
+(same owner, pair, Request, Post, invitation, phantom or job) must have a
+scenario; a test fails when a pair is missing, so a new path can't skip the
+gate.
+
+**Three attack modes:**
+1. **Forced interleavings.** A test-only `LockStepHook` port (no-op in
+   production, `env: [Environment.test]` barrier version) stops a
+   transaction at named points between its lock steps
+   (`accept.afterClaim`, `merge.afterScope`, `block.afterCleanup`, …). For
+   each scenario pair the harness runs both orders, at every pair of points,
+   with both sides on the same keys. Deterministic, so a finding reproduces
+   exactly.
+2. **Seeded soak.** Many simulated users run a weighted random mix of normal
+   actions for 30 minutes, skewed toward a few hot owners, pairs and
+   Requests. Each run logs its seed so it can be replayed.
+3. **Red-team pass.** A reviewer model from another family, not the
+   implementer, reads the lock rules (§5.2a), the migrations' triggers and
+   FKs, and the path table, and proposes interleavings it expects to
+   deadlock. Each proposal becomes a forced-interleaving scenario, whether
+   or not it turns out to deadlock.
+
+**Measured.** The database runs with `deadlock_timeout = 100ms`,
+`log_lock_waits = on` and the test-time `assert_owner_scope`. After each run
+the harness reads the `pg_stat_database.deadlocks` delta, every
+`deadlock detected` log entry with both statements, every retry the server
+logged (by path), and the latency of each action. It then checks invariants:
+at most one merge per phantom, every job `done` or `queued` (none stuck past
+its lease), no lost tag membership or pin, trust rows matching the votes, and
+the §11 privacy suite still green.
+
+**Findings.** Each one becomes a deterministic forced-interleaving pg test
+that fails first and then lands in the normal pg selection, plus a fix bead in
+a «Deadlock round N» epic. A fix restructures the order, takes a scope or adds
+a retry. The fix that is never accepted is a longer timeout. After each round
+the full matrix and the soak run again.
+
+**Exit criteria**, all on one run of the final tree:
+- the forced-interleaving matrix covers every resource-sharing pair, and none
+  ends in an error visible to the user;
+- zero deadlocks between two scoped transactions (that would break rule 1);
+- three consecutive 30-minute soaks with zero failed actions, zero exhausted
+  retry budgets and zero lock timeouts;
+- retried transactions are ≤ 1 % of accepts and ≤ 0.1 % of all writes, and
+  each path's p99 stays within its existing perf budget;
+- every red-team proposal has a scenario, and every one of them passes.
+
+Runs on the local machine, never on dev, with the suite limits (`alloy.slice`,
+the flock queue, RAM `TMPDIR`). Each run gets a throwaway migrated database.
+One soak also runs on a clone of the perfsynth database to test at
+realistic scale.
 
 ### #781 acceptance mapped
 
@@ -1110,6 +1217,26 @@ None. Q1–Q11 of the walk-through are decided (D12–D22).
 
 ## 14. Change log
 
+- **rev 13 (2026-10-31), reviews of rev 12** by Grok 4.7 and Fable 5.1
+  (Gemini 4 Argon and Muse Wonder blocked by the Cursor usage limit). R98
+  P8: accepts retry — trust writes cross the global generation row and
+  trigger-borne trust work (`user_vsids` per vote, `contact_engage` on
+  forward inserts, ledger pair → generation), so no order makes the accept
+  deadlock-free (P8, §2, §5.2a). R99 both votes in one subject-sorted
+  statement (rule 2). R100 rule 2 step 6 reworded: ordered, not
+  deadlock-free; keyed attention inserts only after trust. R101 merge-job
+  insert before trust. R102 Post lock first in the M0 accept order. R103
+  merge-window guards take the scope before the invitation rows (rule 1).
+  R104 `run` refuses ambient transactions and leases. R105 M0b is not
+  contention-neutral; imports commit in chunks of ≤ 20; perf test covers a
+  Field read behind an import (§5.2a, §8, M0b). R106 stale §4 contact-name
+  sentence. R107 erasure's draft steps named under rule 3. R108 guarantee
+  restated; the inviter-erasure exception dissolves under P8. Not taken:
+  reordering `trust_project_pair` to lock the generation row first —
+  unnecessary once the accept retries. R109 (owner request) M9 deadlock
+  acceptance gate: forced interleavings over every resource-sharing pair of
+  write paths, a seeded soak and a red-team pass; findings fixed until the
+  exit criteria hold (§12.1, §5.2a enforcement 4).
 - **rev 12 (2026-10-31), Fable 5.1's review of rev 11.** R89 block wrote
   `user_block` before its contact/forward cleanup, inverting rule 2: the
   cleanup moves first (M0, §5.2a). R90 job insert `ON CONFLICT DO NOTHING`
