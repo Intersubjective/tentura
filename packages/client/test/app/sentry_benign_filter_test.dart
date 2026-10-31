@@ -291,5 +291,35 @@ void main() {
         expect(isBenignSentryEvent(event, Hint()), isFalse);
       },
     );
+
+    test('drops blocked Firebase JS SDK dynamic import on gstatic', () {
+      final event = SentryEvent(
+        exceptions: [
+          SentryException(
+            type: 'TypeError',
+            value:
+                'TypeError: Failed to fetch dynamically imported module: '
+                'https://www.gstatic.com/firebasejs/12.17.0/firebase-app.js',
+          ),
+        ],
+      );
+
+      expect(isBenignSentryEvent(event, Hint()), isTrue);
+    });
+
+    test('keeps unrelated dynamic import module failures', () {
+      final event = SentryEvent(
+        exceptions: [
+          SentryException(
+            type: 'TypeError',
+            value:
+                'TypeError: Failed to fetch dynamically imported module: '
+                'https://cdn.example.com/some-module.js',
+          ),
+        ],
+      );
+
+      expect(isBenignSentryEvent(event, Hint()), isFalse);
+    });
   });
 }
