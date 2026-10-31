@@ -2992,7 +2992,7 @@
   "@beaconForwardPersonReasonAlreadyHelping": {
     "context": "PersonForwardScreen row disabled reason"
   },
-  "beaconForwardPersonReasonDeclined": "Declined",
+  "beaconForwardPersonReasonDeclined": "Dismissed",
   "@beaconForwardPersonReasonDeclined": {
     "context": "PersonForwardScreen row disabled reason"
   },
