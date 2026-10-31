@@ -1740,6 +1740,46 @@ class BeaconRoomCase extends UseCaseBase {
     return _room.mainRoomReadWatermarks(beaconId);
   }
 
+  /// #766: a member opened the Request view, so they have seen its latest
+  /// next-step update. Only room members of a Request are recorded.
+  Future<Map<String, Object?>> markBeaconUpdateSeen({
+    required String beaconId,
+    required String userId,
+  }) async {
+    await _requireRequest(beaconId);
+    final allowed = await _canUseRoom(beaconId: beaconId, userId: userId);
+    if (!allowed) {
+      throw const UnauthorizedException(
+        description: 'Room access required',
+      );
+    }
+    final seenAt = await _room.markBeaconUpdateSeen(
+      userId: userId,
+      beaconId: beaconId,
+    );
+    return {
+      'beaconId': beaconId,
+      'seenAt': seenAt.toUtc().toIso8601String(),
+    };
+  }
+
+  /// #766: who has seen the latest next-step update. Like the #178 read
+  /// receipts, only the update's own people read it — its author and the
+  /// Request's author or stewards; anyone else gets an empty list.
+  Future<List<RoomReadWatermarkRecord>> listLatestUpdateReaders({
+    required String beaconId,
+    required String userId,
+  }) async {
+    final state = await _room.getBeaconRoomState(beaconId);
+    if (state == null) return const [];
+    final mayRead =
+        state.updatedBy == userId ||
+        await _room.isBeaconAuthor(beaconId: beaconId, userId: userId) ||
+        await _room.isBeaconSteward(beaconId: beaconId, userId: userId);
+    if (!mayRead) return const [];
+    return _room.latestUpdateReaders(beaconId);
+  }
+
   Future<void> offerHelp({
     required String beaconId,
     required String userId,

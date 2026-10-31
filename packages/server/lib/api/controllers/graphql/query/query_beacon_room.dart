@@ -32,6 +32,7 @@ final class QueryBeaconRoom extends GqlNodeBase {
     myWorkLastActivityEvent,
     beaconThreads,
     beaconRoomReadWatermarks,
+    beaconUpdateSeenBy,
   ];
 
   GraphQLObjectField<dynamic, dynamic> get roomMessageList =>
@@ -157,14 +158,35 @@ final class QueryBeaconRoom extends GqlNodeBase {
           return rows.map(roomReadWatermarkRecordToMap).toList();
         },
       );
+
+  final _id = InputFieldString(fieldName: 'id');
+
+  /// #766: who has seen the Request's latest next-step update.
+  GraphQLObjectField<dynamic, dynamic> get beaconUpdateSeenBy =>
+      GraphQLObjectField(
+        'beaconUpdateSeenBy',
+        GraphQLListType(gqlTypeBeaconUpdateReader.nonNullable()).nonNullable(),
+        arguments: [_id.field],
+        resolve: (_, args) async {
+          final rows = await _case.listLatestUpdateReaders(
+            beaconId: _id.fromArgsNonNullable(args),
+            userId: getCredentials(args).sub,
+          );
+          return [
+            for (final row in rows)
+              roomReadWatermarkRecordToMap(row, seenAtKey: 'seenAt'),
+          ];
+        },
+      );
 }
 
 Map<String, Object?> roomReadWatermarkRecordToMap(
-  RoomReadWatermarkRecord row,
-) {
+  RoomReadWatermarkRecord row, {
+  String seenAtKey = 'lastSeenAt',
+}) {
   return {
     'userId': row.userId,
-    'lastSeenAt': row.lastSeenAt.toUtc().toIso8601String(),
+    seenAtKey: row.lastSeenAt.toUtc().toIso8601String(),
     'userTitle': row.userTitle,
     'userHasPicture': row.userHasPicture,
     'userImageId': row.userImageId,

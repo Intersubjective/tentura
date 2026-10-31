@@ -82,6 +82,7 @@ final class MutationBeaconRoom extends GqlNodeBase {
     roomMessageReactionToggle,
     roomMessageMarkSemanticDone,
     markThreadSeen,
+    markBeaconUpdateSeen,
     roomPollCreate,
     beaconRoomNowLineUpdate,
   ];
@@ -307,6 +308,18 @@ final class MutationBeaconRoom extends GqlNodeBase {
       readThroughAtIso: _readThroughAt.fromArgs(args),
     ),
   );
+
+  /// #766: the member opened the Request view.
+  GraphQLObjectField<dynamic, dynamic> get markBeaconUpdateSeen =>
+      GraphQLObjectField(
+        'MarkBeaconUpdateSeen',
+        gqlTypeBeaconUpdateSeenResult.nonNullable(),
+        arguments: [_beaconIdStr.field],
+        resolve: (_, args) => _case.markBeaconUpdateSeen(
+          beaconId: _beaconIdStr.fromArgsNonNullable(args),
+          userId: getCredentials(args).sub,
+        ),
+      );
 
   GraphQLObjectField<dynamic, dynamic> get beaconRoomNowLineUpdate =>
       GraphQLObjectField(

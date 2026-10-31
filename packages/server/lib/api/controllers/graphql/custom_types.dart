@@ -69,6 +69,7 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeBeaconRoomStateRow,
   gqlTypeBeaconParticipantRow,
   gqlTypeRoomReadWatermark,
+  gqlTypeBeaconUpdateReader,
   gqlTypeBeaconFactCardRow,
   gqlTypeBeaconFactHistoryEntryRow,
   gqlTypeBeaconFactCardRevisionsPage,
@@ -76,6 +77,7 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeInboxRoomContextRow,
   gqlTypeBeaconRoomSeenResult,
   gqlTypeBeaconPeopleSeenResult,
+  gqlTypeBeaconUpdateSeenResult,
   gqlTypeOfferAcceptedDismissals,
   gqlTypeTagCount,
   gqlTypeTagBeaconRef,
@@ -669,6 +671,19 @@ final gqlTypeRoomReadWatermark = GraphQLObjectType('v2_RoomReadWatermark', null)
     field('userPicWidth', graphQLInt.nonNullable()),
   ]);
 
+/// #766: a member who has seen a Request's latest next-step update.
+final gqlTypeBeaconUpdateReader = GraphQLObjectType('BeaconUpdateReader', null)
+  ..fields.addAll([
+    field('userId', graphQLString.nonNullable()),
+    field('seenAt', graphQLString.nonNullable()),
+    field('userTitle', graphQLString.nonNullable()),
+    field('userHasPicture', graphQLBoolean.nonNullable()),
+    field('userImageId', graphQLString.nonNullable()),
+    field('userBlurHash', graphQLString.nonNullable()),
+    field('userPicHeight', graphQLInt.nonNullable()),
+    field('userPicWidth', graphQLInt.nonNullable()),
+  ]);
+
 /// `beacon_fact_card` projection for BeaconFactCardList (V2 only).
 final gqlTypeBeaconFactCardRow = GraphQLObjectType('BeaconFactCardRow', null)
   ..fields.addAll([
@@ -797,6 +812,14 @@ final gqlTypeOfferAcceptedDismissals =
           'beaconIds',
           GraphQLListType(graphQLString.nonNullable()).nonNullable(),
         ),
+      ]);
+
+/// #766: result of a member opening the Request view.
+final gqlTypeBeaconUpdateSeenResult =
+    GraphQLObjectType('BeaconUpdateSeenResult', null)
+      ..fields.addAll([
+        field('beaconId', graphQLString.nonNullable()),
+        field('seenAt', graphQLString.nonNullable()),
       ]);
 
 /// Result of marking the beacon People tab as seen (author/steward watermark).
