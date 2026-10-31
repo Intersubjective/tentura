@@ -118,20 +118,31 @@ class InboxWatchlistRow extends StatelessWidget {
     final beacon = item.beacon;
     if (beacon == null) return const SizedBox.shrink();
 
+    final isPost = !beacon.isRequest;
     final postExcerpt = item.roomHints?.postRootExcerpt.trim() ?? '';
-    final displayTitle = beacon.isRequest ? beacon.title : postExcerpt;
+    final authorName = beacon.author.shownName.trim();
+    final displayTitle = isPost
+        ? (authorName.isEmpty ? '—' : l10n.postRowSharedBy(authorName))
+        : beacon.title.isEmpty
+        ? '—'
+        : beacon.title;
 
     final secondaryLabel = _secondaryLabel(l10n);
     final secondaryIcon = _secondaryIcon();
 
-    final phaseResult = deriveBeaconCoordinationPhase(
-      beaconPhaseInputFromInbox(beacon: beacon, roomHints: item.roomHints),
-    );
-    final phaseStatus = formatBeaconPhaseStatus(
-      l10n,
-      phaseResult,
-      now: DateTime.now(),
-    );
+    final BeaconPhaseStatusPresentation? phaseStatus;
+    if (isPost) {
+      phaseStatus = null;
+    } else {
+      final phaseResult = deriveBeaconCoordinationPhase(
+        beaconPhaseInputFromInbox(beacon: beacon, roomHints: item.roomHints),
+      );
+      phaseStatus = formatBeaconPhaseStatus(
+        l10n,
+        phaseResult,
+        now: DateTime.now(),
+      );
+    }
 
     final showDetails = beaconViewHasDetailsContent(beacon);
     final showForwardInFooter = showForwardCta && onTap != null;
@@ -143,7 +154,9 @@ class InboxWatchlistRow extends StatelessWidget {
       selected: isSelected,
       // #416: the visible title already names the card; repeating it as the
       // label made a screen reader say it twice.
-      tapSemanticsLabel: displayTitle.isEmpty ? l10n.openBeacon : '',
+      tapSemanticsLabel: displayTitle.isEmpty || displayTitle == '—'
+          ? (isPost ? l10n.constellationOpenPost : l10n.openBeacon)
+          : '',
       footer: showFooter
           ? InboxCardActionRow(
               onOfferHelp: showCtaRow ? onOfferHelp : null,
@@ -165,6 +178,12 @@ class InboxWatchlistRow extends StatelessWidget {
         children: [
           BeaconCardHeaderRow(
             beacon: beacon,
+            leading: isPost
+                ? TenturaAvatar(
+                    profile: beacon.author,
+                    size: kBeaconCardHeaderIconSize,
+                  )
+                : null,
             displayTitle: displayTitle.isEmpty ? '—' : displayTitle,
             onTitleBlockTap: onOpenBeacon,
             phaseStatus: phaseStatus,
@@ -177,9 +196,12 @@ class InboxWatchlistRow extends StatelessWidget {
                     }
                   : null,
               onForward: onTap,
-              onForwardsGraph: () => context
-                  .read<ScreenCubit>()
-                  .showForwardsGraphFor(beacon.id, kind: beacon.kind),
+              onForwardsGraph: beacon.isRequest
+                  ? () => context.read<ScreenCubit>().showForwardsGraphFor(
+                      beacon.id,
+                      kind: beacon.kind,
+                    )
+                  : null,
               onWatch: onWatch,
               onStopWatching: onStopWatching,
               onCantHelp: onCantHelp,
@@ -189,8 +211,18 @@ class InboxWatchlistRow extends StatelessWidget {
             ),
           ),
           SizedBox(height: tt.rowGap),
-          BeaconCardMetadataLine(beacon: beacon, updatedLine: null),
-          if (showDetails) ...[
+          if (!isPost)
+            BeaconCardMetadataLine(beacon: beacon, updatedLine: null),
+          if (isPost && postExcerpt.isNotEmpty) ...[
+            SizedBox(height: tt.rowGap),
+            Text(
+              postExcerpt,
+              style: theme.textTheme.bodyMedium,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+          if (!isPost && showDetails) ...[
             SizedBox(height: tt.rowGap),
             BeaconDetailsFactsAccessRow(
               showDetails: true,
@@ -202,11 +234,11 @@ class InboxWatchlistRow extends StatelessWidget {
               onOpenFacts: null,
             ),
           ],
-          if (beacon.needs.isNotEmpty) ...[
+          if (!isPost && beacon.needs.isNotEmpty) ...[
             SizedBox(height: tt.rowGap),
             BeaconRequirementsBar(needs: beacon.needs),
           ],
-          if (item.roomHints != null) ...[
+          if (!isPost && item.roomHints != null) ...[
             SizedBox(height: tt.rowGap),
             ..._roomHintLines(context, l10n, item.roomHints!),
           ],

@@ -2538,11 +2538,11 @@
   "@inboxTabRejected": {
     "context": "InboxScreen"
   },
-  "inboxTabRejectedEmpty": "Нет убранных запросов",
+  "inboxTabRejectedEmpty": "Нет убранных запросов и постов",
   "@inboxTabRejectedEmpty": {
     "context": "InboxScreen"
   },
-  "inboxRejectedEmptyHint": "Сюда попадают запросы, которые вы убрали из «Активности». Любой из них можно вернуть.",
+  "inboxRejectedEmptyHint": "Сюда попадают запросы и посты, которые вы убрали из «Активности». Любой из них можно вернуть.",
   "@inboxRejectedEmptyHint": {
     "context": "InboxScreen"
   },
