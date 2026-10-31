@@ -178,6 +178,12 @@ class InboxWatchlistRow extends StatelessWidget {
         children: [
           BeaconCardHeaderRow(
             beacon: beacon,
+            leading: isPost
+                ? TenturaAvatar(
+                    profile: beacon.author,
+                    size: kBeaconCardHeaderIconSize,
+                  )
+                : null,
             displayTitle: displayTitle.isEmpty ? '—' : displayTitle,
             onTitleBlockTap: onOpenBeacon,
             phaseStatus: phaseStatus,

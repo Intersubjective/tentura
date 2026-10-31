@@ -420,6 +420,7 @@ class BeaconCardHeaderRow extends StatelessWidget {
     this.titleMaxLines = 2,
     this.displayTitle,
     this.identitySize = kBeaconCardHeaderIconSize,
+    this.leading,
     this.onTitleBlockTap,
     this.titleStyle,
     this.phaseStatus,
@@ -436,6 +437,9 @@ class BeaconCardHeaderRow extends StatelessWidget {
 
   /// Passed to [BeaconIdentityTile] (inbox / My Work list cards use 40px).
   final double identitySize;
+
+  /// Replaces the identity tile (a Post row shows its author, #864).
+  final Widget? leading;
 
   /// When set, the title [Text] opens detail without wrapping the menu.
   final VoidCallback? onTitleBlockTap;
@@ -546,11 +550,12 @@ class BeaconCardHeaderRow extends StatelessWidget {
         return Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            BeaconIdentityTile(
-              beacon: beacon,
-              size: identitySize,
-              semanticsIncludeTitle: false,
-            ),
+            leading ??
+                BeaconIdentityTile(
+                  beacon: beacon,
+                  size: identitySize,
+                  semanticsIncludeTitle: false,
+                ),
             const SizedBox(width: kSpacingSmall),
             Expanded(child: titleColumn),
             SizedBox(

@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_cover.dart';
-import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/ui/utils/capability_tag_presenter.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -27,13 +26,6 @@ class BeaconIdentityTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (beacon.kind == BeaconKind.post) {
-      return TenturaIdentityTileFrame(
-        size: size,
-        semanticsLabel: semanticsIncludeTitle ? beacon.title : null,
-        child: TenturaAvatar(profile: beacon.author, size: size),
-      );
-    }
     final identity = beacon.resolveIdentity(allowPhoto: true);
     return TenturaIdentityTileFrame(
       size: size,
