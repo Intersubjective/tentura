@@ -24,6 +24,7 @@ import {
   initLocale,
   t,
   withPreservedLocale,
+  withAppLocaleHandoff,
 } from './onboarding.js';
 import { needsExpand, beaconBodyText } from './beacon_overlay.js';
 
@@ -131,11 +132,11 @@ function header(p) {
 // --- CTAs ------------------------------------------------------------------
 function appHashUrl(path) {
   const normalized = path.startsWith('/') ? path : `/${path}`;
-  return `${location.origin}/#${normalized}`;
+  return withAppLocaleHandoff(`${location.origin}/#${normalized}`);
 }
 
 function openProductUrl() {
-  return `${location.origin}/`;
+  return withAppLocaleHandoff(`${location.origin}/`);
 }
 
 function openAcceptInviteUrl(code) {
