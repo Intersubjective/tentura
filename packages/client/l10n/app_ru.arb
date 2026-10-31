@@ -6563,7 +6563,7 @@
   "@beaconShowcaseOfferSent": {
     "description": "#527: the line under the team while the viewer's help offer waits for an author with no shown name."
   },
-  "beaconShowcaseOfferSentTo": "Предложение отправлено: {author}",
+  "beaconShowcaseOfferSentTo": "Предложение отправлено автору ({author})",
   "@beaconShowcaseOfferSentTo": {
     "description": "#527: the line under the team while the viewer's help offer waits for the author; author is the author's shown name.",
     "placeholders": {
@@ -6576,7 +6576,7 @@
   "@beaconShowcaseBackupOfferSent": {
     "description": "#527: as beaconShowcaseOfferSent, for a backup offer (Enough help)."
   },
-  "beaconShowcaseBackupOfferSentTo": "Запасное предложение отправлено: {author}",
+  "beaconShowcaseBackupOfferSentTo": "Запасное предложение отправлено автору ({author})",
   "@beaconShowcaseBackupOfferSentTo": {
     "description": "#527: as beaconShowcaseOfferSentTo, for a backup offer (Enough help); author is the author's shown name.",
     "placeholders": {
