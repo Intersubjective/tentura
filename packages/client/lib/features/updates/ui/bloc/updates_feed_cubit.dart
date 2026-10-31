@@ -226,10 +226,14 @@ final class UpdatesFeedCubit extends Cubit<UpdatesFeedState> {
     emit(state.copyWith(refreshError: null));
     try {
       await _attention.refresh(destinationId: _destinationId);
-      _projectFromDomain();
+      if (!isClosed) _projectFromDomain();
     } catch (error, stackTrace) {
       _logger.warning('Updates refresh failed', error, stackTrace);
-      emit(state.copyWith(refreshError: error, status: const StateIsSuccess()));
+      if (!isClosed) {
+        emit(
+          state.copyWith(refreshError: error, status: const StateIsSuccess()),
+        );
+      }
     }
   }
 
@@ -239,7 +243,11 @@ final class UpdatesFeedCubit extends Cubit<UpdatesFeedState> {
       await _attention.fetchNextPage(destinationId: _destinationId);
     } catch (error, stackTrace) {
       _logger.warning('Updates pagination failed', error, stackTrace);
-      emit(state.copyWith(refreshError: error, status: const StateIsSuccess()));
+      if (!isClosed) {
+        emit(
+          state.copyWith(refreshError: error, status: const StateIsSuccess()),
+        );
+      }
     }
   }
 
@@ -276,10 +284,14 @@ final class UpdatesFeedCubit extends Cubit<UpdatesFeedState> {
   Future<void> markRead(String id) async {
     try {
       await _attention.markSeen([id]);
-      emit(state.copyWith(actionError: null));
+      if (!isClosed) emit(state.copyWith(actionError: null));
     } catch (error, stackTrace) {
       _logger.warning('Updates mark-read failed', error, stackTrace);
-      emit(state.copyWith(actionError: error, status: const StateIsSuccess()));
+      if (!isClosed) {
+        emit(
+          state.copyWith(actionError: error, status: const StateIsSuccess()),
+        );
+      }
     }
   }
 
