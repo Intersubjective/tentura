@@ -16,6 +16,7 @@ import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../support/phone_surface.dart';
 import '../../support/remote_wire_harness.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 
@@ -88,11 +89,9 @@ Future<String> _inviteDialogText(
   WidgetTester tester,
   Locale locale, {
   int? servedHours,
+  Map<String, Map<String, dynamic>> errors = const {},
 }) async {
-  tester.view
-    ..physicalSize = const Size(750, 1334)
-    ..devicePixelRatio = 2;
-  addTearDown(tester.view.reset);
+  await usePhoneSurface(tester);
 
   late String text;
   await tester.runAsync(() async {
@@ -106,6 +105,7 @@ Future<String> _inviteDialogText(
         'InvitationCreate': _createdInvitation(),
       },
       <WireSent>[],
+      errors: errors,
       (remote) async {
         final effects = FakeUiEffectPort();
         GetIt.I
@@ -192,6 +192,39 @@ void main() {
       'server does not answer the TTL lookup', (tester) async {
     final text = await _inviteDialogText(tester, const Locale('en'));
     expect(text, contains('expires in 7 days'));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Russian invite dialog renders the served 2-day lifetime in full '
+      'on a phone', (tester) async {
+    final text = await _inviteDialogText(
+      tester,
+      const Locale('ru'),
+      servedHours: 48,
+    );
+    expect(text, contains('действует 2 дня.'));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('invite dialog falls back to the compiled lifetime when the '
+      'server answers the TTL lookup with an error', (tester) async {
+    final text = await _inviteDialogText(
+      tester,
+      const Locale('en'),
+      errors: {'InvitationTtl': wireCodeError(1)},
+    );
+    expect(text, contains('expires in 7 days'));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Russian invite dialog falls back to the compiled lifetime in '
+      'full when the TTL lookup fails', (tester) async {
+    final text = await _inviteDialogText(
+      tester,
+      const Locale('ru'),
+      errors: {'InvitationTtl': wireCodeError(1)},
+    );
+    expect(text, contains('действует 7 дней.'));
     expect(tester.takeException(), isNull);
   });
 }

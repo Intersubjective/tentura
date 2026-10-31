@@ -97,7 +97,11 @@ class InvitationRepository implements InvitationAcceptPort {
     int acceptedOffset = 0,
     int acceptedLimit = kFetchWindowSize,
   }) async {
-    final ttlHours = await fetchTtlHours();
+    // The cutoff only trims stale rows, so an unanswered TTL lookup must not
+    // keep the list from loading.
+    final ttlHours = await fetchTtlHours().onError<Object>(
+      (_, _) => kInvitationDefaultTTL,
+    );
     final data = await _remoteApiService
         .request(
           GInvitationsFetchByUserIdReq(
