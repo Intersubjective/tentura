@@ -119,7 +119,6 @@ abstract class ForwardState extends StateBase with _$ForwardState {
     @Default(<String, Set<String>>{}) Map<String, Set<String>> tagMembers,
     @Default(<String>{}) Set<String> droppedPreselectedIds,
     @Default(<String, String>{}) Map<String, String> perRecipientNotes,
-    @Default(<String>{}) Set<String> skippedPersonalNoteIds,
     @Default(<String>[]) List<String> lastDeliveredRecipientIds,
     @Default(<String, List<String>>{})
     Map<String, List<String>> recipientReasons,

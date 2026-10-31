@@ -3053,6 +3053,19 @@
   "@forwardCancelAction": {
     "context": "ForwardBeaconScreen recipient row"
   },
+  "forwardAddPersonalNoteShort": "+ Заметка",
+  "@forwardAddPersonalNoteShort": {
+    "context": "Forward recipient row compact control"
+  },
+  "forwardAddPersonalNoteForName": "Добавить заметку для {name}",
+  "@forwardAddPersonalNoteForName": {
+    "context": "Forward recipient row note control tooltip",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "forwardSkipPersonalNote": "Без личной заметки",
   "@forwardSkipPersonalNote": {
     "context": "ForwardBeaconScreen per-recipient note"

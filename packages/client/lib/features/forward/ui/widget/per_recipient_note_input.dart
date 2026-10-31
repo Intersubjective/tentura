@@ -14,7 +14,7 @@ class PerRecipientNoteInput extends StatelessWidget {
     required this.profile,
     required this.controller,
     required this.onChanged,
-    required this.onClose,
+    this.onClose,
     this.hintText,
     super.key,
   });

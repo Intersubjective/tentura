@@ -295,7 +295,7 @@ void main() {
         expect(cubit.state.lastDeliveredRecipientIds, ['u-bob']);
         expect(cubit.state.selectedIds, isEmpty);
         expect(cubit.state.perRecipientNotes, isEmpty);
-        expect(cubit.state.skippedPersonalNoteIds, isEmpty);
+        expect(cubit.state.perRecipientNotes, isEmpty);
         expect(cubit.state.note, isEmpty);
       },
     );
@@ -393,12 +393,13 @@ void main() {
                 ),
           ),
         );
-        cubit.skipPersonalNote('u-bob');
 
         await cubit.forward();
 
         expect(harness.forwardRepo.forwardBeaconCalls, 1);
-        expect(harness.forwardRepo.lastPerRecipientNotes, isNull);
+        expect(harness.forwardRepo.lastPerRecipientNotes, {
+          'u-bob': 'leftover typed note',
+        });
       },
     );
 

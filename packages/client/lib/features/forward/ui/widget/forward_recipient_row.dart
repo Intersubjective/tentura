@@ -20,6 +20,7 @@ import '../../domain/entity/candidate_involvement.dart';
 import '../../domain/entity/forward_candidate.dart';
 import '../../domain/entity/lineage_suggestion_group.dart';
 import '../model/forward_recipient_row_host.dart';
+import 'forward_recipient_personal_note_slot.dart';
 import 'lineage_forward_section.dart';
 
 class ForwardRecipientRow extends StatelessWidget {
@@ -29,9 +30,10 @@ class ForwardRecipientRow extends StatelessWidget {
     required this.isSelected,
     required this.onToggle,
     this.onOpenDetails,
-    this.isPersonalNoteSkipped = false,
-    this.onSkipPersonalNote,
-    this.onRestorePersonalNote,
+    this.showsPersonalNoteSlot = false,
+    this.personalNotePreview,
+    this.isPersonalNoteExpanded = false,
+    this.onOpenPersonalNote,
     this.reasonSlugs = const [],
     this.onEditReasons,
     this.onEditForward,
@@ -63,9 +65,12 @@ class ForwardRecipientRow extends StatelessWidget {
   final bool isSelected;
   final VoidCallback? onToggle;
   final VoidCallback? onOpenDetails;
-  final bool isPersonalNoteSkipped;
-  final VoidCallback? onSkipPersonalNote;
-  final VoidCallback? onRestorePersonalNote;
+
+  /// Reserves the «+ Note» / preview slot on every row when true.
+  final bool showsPersonalNoteSlot;
+  final String? personalNotePreview;
+  final bool isPersonalNoteExpanded;
+  final VoidCallback? onOpenPersonalNote;
 
   /// Capability reason slugs currently selected for this recipient.
   final List<String> reasonSlugs;
@@ -172,6 +177,7 @@ class ForwardRecipientRow extends StatelessWidget {
     }
     final hasForwardManageActions =
         editForwardButton != null || cancelForwardButton != null;
+    final displayName = profileWithContactOverlay(candidate.profile).shownName;
 
     Widget forwardManageActionsRow() {
       return Row(
@@ -324,47 +330,36 @@ class ForwardRecipientRow extends StatelessWidget {
                   ?cancelForwardButton,
                   SizedBox(width: tt.iconTextGap),
                 ],
-                if (isSelected && canSelectNew && onEditReasons != null) ...[
-                  IconButton(
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(
-                      minWidth: 44,
-                      minHeight: 44,
+                if (onEditReasons != null) ...[
+                  if (isSelected && canSelectNew)
+                    IconButton(
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(
+                        minWidth: 44,
+                        minHeight: 44,
+                      ),
+                      tooltip: l10n.forwardReasonPrompt,
+                      icon: Icon(
+                        Icons.label_outline,
+                        size: tt.iconSize,
+                        color: reasonSlugs.isNotEmpty ? tt.info : tt.textMuted,
+                      ),
+                      onPressed: onEditReasons,
+                    )
+                  else
+                    const SizedBox(
+                      width: ForwardRecipientPersonalNoteSlot.slotWidth,
+                      height: ForwardRecipientPersonalNoteSlot.slotWidth,
                     ),
-                    tooltip: l10n.forwardReasonPrompt,
-                    icon: Icon(
-                      Icons.label_outline,
-                      size: tt.iconSize,
-                      color: reasonSlugs.isNotEmpty ? tt.info : tt.textMuted,
-                    ),
-                    onPressed: onEditReasons,
-                  ),
                   SizedBox(width: tt.iconTextGap),
                 ],
-                if (isSelected &&
-                    canSelectNew &&
-                    (isPersonalNoteSkipped
-                        ? onRestorePersonalNote != null
-                        : onSkipPersonalNote != null)) ...[
-                  IconButton(
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(
-                      minWidth: 44,
-                      minHeight: 44,
-                    ),
-                    tooltip: isPersonalNoteSkipped
-                        ? l10n.forwardRestorePersonalNote
-                        : l10n.forwardSkipPersonalNote,
-                    icon: Icon(
-                      isPersonalNoteSkipped
-                          ? Icons.add_comment_outlined
-                          : Icons.do_not_disturb_on_outlined,
-                      size: tt.iconSize,
-                      color: tt.textMuted,
-                    ),
-                    onPressed: isPersonalNoteSkipped
-                        ? onRestorePersonalNote
-                        : onSkipPersonalNote,
+                if (showsPersonalNoteSlot) ...[
+                  ForwardRecipientPersonalNoteSlot(
+                    recipientName: displayName,
+                    isSelected: isSelected && canSelectNew,
+                    isExpanded: isPersonalNoteExpanded,
+                    notePreview: personalNotePreview,
+                    onOpenNote: onOpenPersonalNote,
                   ),
                   SizedBox(width: tt.iconTextGap),
                 ],

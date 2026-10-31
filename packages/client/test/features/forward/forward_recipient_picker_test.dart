@@ -411,7 +411,6 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Forward to 1'), findsOneWidget);
-      cubit.skipPersonalNote('u1');
       await tester.tap(find.text('Forward to 1'));
       await tester.pumpAndSettle();
       expect(sendPressed, isTrue);
@@ -699,7 +698,7 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('skipping personal note marks recipient in cubit skip set', (
+  testWidgets('personal note opens from + Note control, not on tick', (
     tester,
   ) async {
     final cubit = ForwardCubit(
@@ -729,18 +728,13 @@ void main() {
 
     await pumpPicker(tester, cubit: cubit, embedded: true);
 
-    // Note field opens automatically on selection (no "add note" tap).
-    expect(find.byType(TextField), findsWidgets);
-    expect(find.byTooltip('add personalized note'), findsNothing);
-    expect(find.byTooltip('Skip personal note'), findsOneWidget);
-    await tester.tap(find.byTooltip('Skip personal note'));
-    await tester.pumpAndSettle();
-
-    expect(cubit.state.skippedPersonalNoteIds, {'u1'});
     expect(find.byType(TextField), findsNothing);
+    await tester.tap(find.byTooltip('Add a note for Alex'));
+    await tester.pumpAndSettle();
+    expect(find.byType(TextField), findsOneWidget);
   });
 
-  testWidgets('submit after skip proceeds without uncovered sheet', (
+  testWidgets('submit with one selected recipient proceeds without sheet', (
     tester,
   ) async {
     final cubit = ForwardCubit(
@@ -764,7 +758,6 @@ void main() {
           ),
         ],
         selectedIds: {'u1'},
-        skippedPersonalNoteIds: {'u1'},
         perRecipientNotes: {'u1': 'leftover typed note'},
         candidatesLoad: const ForwardCandidatesReady(),
       ),
@@ -784,7 +777,6 @@ void main() {
 
     expect(sendPressed, isTrue);
     expect(find.text('Shared note'), findsNothing);
-    expect(cubit.state.skippedPersonalNoteIds, {'u1'});
   });
 
   testWidgets(
@@ -834,9 +826,6 @@ void main() {
         findsNothing,
       );
       expect(sendPressed, isTrue);
-      // The cubit refuses to send to anyone still «uncovered», so the lone
-      // recipient must be marked as having skipped the personal note.
-      expect(cubit.state.skippedPersonalNoteIds, {'u1'});
       // Whatever the composer already holds is left alone.
       expect(cubit.state.note, 'composer shared');
     },
@@ -897,7 +886,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(cubit.state.note, 'already typed shared');
-    expect(cubit.state.skippedPersonalNoteIds, {'u1', 'u2'});
   });
 
   testWidgets(
@@ -947,7 +935,6 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(cubit.state.note, '');
-      expect(cubit.state.skippedPersonalNoteIds, {'u1', 'u2'});
     },
   );
 
@@ -1003,7 +990,6 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(sendPressed, isFalse);
-      expect(cubit.state.skippedPersonalNoteIds, isEmpty);
       expect(cubit.state.note, '');
     },
   );
