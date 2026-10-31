@@ -28,17 +28,12 @@ class UpdatesFeedAppBarRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tt = context.tt;
-    final compact = context.windowClass == WindowClass.compact;
-    final markAllControl = compact
-        ? IconButton(
-            tooltip: markAllLabel,
-            onPressed: hasUnread ? onMarkAll : null,
-            icon: const Icon(Icons.done_all_outlined),
-          )
-        : TenturaTextAction(
-            label: markAllLabel,
-            onPressed: hasUnread ? onMarkAll : null,
-          );
+    // #258: a text button at every width; an icon-only ✓✓ on phones is
+    // why nobody found it. Disabled, not hidden, so the bar does not shift.
+    final markAllControl = TenturaTextAction(
+      label: markAllLabel,
+      onPressed: hasUnread ? onMarkAll : null,
+    );
     return Row(
       children: [
         Expanded(

@@ -264,10 +264,10 @@ class _ActivityDismissAllButton extends StatelessWidget {
       initialData: const AttentionSurfaceSummary(),
       builder: (context, snapshot) {
         final eligible = snapshot.data?.forYouSweepEligible ?? false;
-        return IconButton(
+        // #258: a text button at every width, not an icon-only glyph.
+        return TenturaTextAction(
           key: buttonKey,
-          icon: const Icon(Icons.clear_all),
-          tooltip: l10n.inboxDismissAll,
+          label: l10n.inboxDismissAll,
           onPressed: eligible
               ? () => unawaited(_runDismissAll(context, attention))
               : null,

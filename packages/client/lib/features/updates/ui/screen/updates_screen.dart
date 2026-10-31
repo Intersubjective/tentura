@@ -58,26 +58,26 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
                 leading: const AutoLeadingWithFallback(
                   fallbackPath: kPathInbox,
                 ),
-                title: Text(
-                  l10n.notificationHistoryTitle,
-                  overflow: TextOverflow.clip,
+                // #258: back + title + «Read all» text + search on a 375 px
+                // phone leaves the RU title ~18 px short; it scales down a
+                // little instead of being clipped.
+                title: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: AlignmentDirectional.centerStart,
+                  child: Text(
+                    l10n.notificationHistoryTitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.clip,
+                  ),
                 ),
                 actions: [
-                  if (compact)
-                    IconButton(
-                      tooltip: l10n.updatesMarkAllSeen,
-                      onPressed: hasUnread
-                          ? () => unawaited(markAllUpdatesSeen(context))
-                          : null,
-                      icon: const Icon(Icons.done_all_outlined),
-                    )
-                  else
-                    TenturaTextAction(
-                      label: l10n.updatesMarkAllSeen,
-                      onPressed: hasUnread
-                          ? () => unawaited(markAllUpdatesSeen(context))
-                          : null,
-                    ),
+                  // #258: text at every width, never an icon-only ✓✓.
+                  TenturaTextAction(
+                    label: l10n.updatesMarkAllSeen,
+                    onPressed: hasUnread
+                        ? () => unawaited(markAllUpdatesSeen(context))
+                        : null,
+                  ),
                   if (compact)
                     ValueListenableBuilder<bool>(
                       valueListenable: _searchOpen,
