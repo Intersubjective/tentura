@@ -1,6 +1,9 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
@@ -32,15 +35,13 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/l10n/l10n_en.dart';
 
 import '../../support/attention_repository_fake_base.dart';
+import '../../support/phone_surface.dart';
 import '../../support/test_realtime_sync.dart';
 import '../../support/noop_posts_case.dart';
 import '../block/support/controllable_block_case.dart';
 import '../updates/support/noop_invite_setup_port.dart';
 import 'inbox_case_test.dart'
-    show
-        FakeInboxRepository,
-        buildTestBeaconThreadsCase,
-        buildTestInboxCase;
+    show FakeInboxRepository, buildTestBeaconThreadsCase, buildTestInboxCase;
 import '../../support/noop_attention_actor_profiles.dart';
 
 class _HarnessRouter extends Mock implements StackRouter {
@@ -58,7 +59,6 @@ class _HarnessRouter extends Mock implements StackRouter {
 
 class _TestInboxCubit extends Cubit<InboxState> implements InboxCubit {
   _TestInboxCubit(super.initial);
-
 
   @override
   void clearPendingMovedNudge() {}
@@ -210,11 +210,10 @@ class _ChromeAttentionRepo extends AttentionRepositoryFake {
     String? search,
     int limit = 50,
     AttentionSurface? surface,
-  }) async =>
-      const AttentionFeed(
-        summary: AttentionSummary(),
-        page: AttentionFeedPage(),
-      );
+  }) async => const AttentionFeed(
+    summary: AttentionSummary(),
+    page: AttentionFeedPage(),
+  );
 
   @override
   Future<Set<String>> unreadForBeacons(Set<String> beaconIds) async => {};
@@ -244,8 +243,9 @@ Future<void> _pumpInbox(
   WidgetTester tester, {
   required _ChromeAttentionRepo attentionRepo,
   required _HarnessRouter router,
+  Size logicalSize = const Size(800, 800),
+  Locale locale = const Locale('en'),
 }) async {
-  const logicalSize = Size(800, 800);
   tester.view.physicalSize = logicalSize;
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.resetPhysicalSize);
@@ -330,7 +330,7 @@ Future<void> _pumpInbox(
           BlocProvider(create: (_) => ScreenCubit.local()),
         ],
         child: MaterialApp(
-          locale: const Locale('en'),
+          locale: locale,
           theme: TenturaTheme.light(),
           localizationsDelegates: L10n.localizationsDelegates,
           supportedLocales: L10n.supportedLocales,
@@ -360,13 +360,39 @@ Future<void> _settle(WidgetTester tester) async {
   }
 }
 
+/// The app font (Inter), as in beacon_surface_tabs_360_labels_test: the test
+/// font's 1 em glyphs are far wider than any real label, so fit is measured
+/// with the font the app ships.
+Future<void> _loadInter() async {
+  final loader = FontLoader('Inter');
+  for (final weight in const ['Regular', 'Medium', 'SemiBold', 'Bold']) {
+    final bytes = File('fonts/Inter-$weight.ttf').readAsBytesSync();
+    loader.addFont(Future.value(ByteData.sublistView(bytes)));
+  }
+  await loader.load();
+}
+
+/// The text is laid out whole: one line, nothing ellipsised or clipped.
+void _expectWholeLine(WidgetTester tester, String text) {
+  final finder = find.text(text);
+  expect(finder, findsWidgets);
+  for (final element in finder.evaluate()) {
+    final paragraph = element.renderObject! as RenderParagraph;
+    expect(paragraph.didExceedMaxLines, isFalse, reason: text);
+    expect(
+      paragraph.getMaxIntrinsicWidth(double.infinity),
+      lessThanOrEqualTo(paragraph.size.width + 0.5),
+      reason: '«$text» is clipped',
+    );
+  }
+}
+
 Future<void> _tapDismissAll(WidgetTester tester) async {
   await tester.tap(find.byKey(const Key(_dismissAllKey)));
   await _settle(tester);
 }
 
 void main() {
-
   // CHANGES IN U16c-1: these three asserted the *read* axis — `Icons.done_all`,
   // "Read all", `markAllSeen` and an `activityUnreadTotal` gate. D02 says For
   // You's header gesture is the **clear** axis, so the control, the signal and
@@ -390,11 +416,13 @@ void main() {
         reason: 'the read-axis control is gone, not merely relabelled',
       );
 
-      final dismissAll = tester.widget<IconButton>(
+      // #258: a text button at every width, never an icon-only glyph.
+      final dismissAll = tester.widget<TenturaTextAction>(
         find.byKey(const Key(_dismissAllKey)),
       );
       expect(dismissAll.onPressed, isNotNull);
-      expect(dismissAll.tooltip, l10n.inboxDismissAll);
+      expect(dismissAll.label, l10n.inboxDismissAll);
+      expect(find.byIcon(Icons.clear_all), findsNothing);
 
       expect(find.byType(ActivityStreamView), findsOneWidget);
     },
@@ -416,7 +444,7 @@ void main() {
         router: _HarnessRouter(),
       );
 
-      final dismissAll = tester.widget<IconButton>(
+      final dismissAll = tester.widget<TenturaTextAction>(
         find.byKey(const Key(_dismissAllKey)),
       );
       expect(dismissAll.onPressed, isNull);
@@ -438,7 +466,7 @@ void main() {
         router: _HarnessRouter(),
       );
 
-      final dismissAll = tester.widget<IconButton>(
+      final dismissAll = tester.widget<TenturaTextAction>(
         find.byKey(const Key(_dismissAllKey)),
       );
       expect(dismissAll.onPressed, isNotNull);
@@ -498,7 +526,10 @@ void main() {
 
     expect(repo.lastUndoOperationId, repo.dismissAllOperationIds.single);
     expect(repo.lastUndoToken, 'undo-token');
-    expect(find.text(l10n.inboxDismissAllUndone(2), findRichText: true), findsOneWidget);
+    expect(
+      find.text(l10n.inboxDismissAllUndone(2), findRichText: true),
+      findsOneWidget,
+    );
   });
 
   testWidgets('gate on: a sweep with no undo token offers no undo', (
@@ -549,7 +580,10 @@ void main() {
     await _tapDismissAll(tester);
 
     final l10n = L10nEn();
-    expect(find.text(l10n.inboxDismissAllPartial(5), findRichText: true), findsOneWidget);
+    expect(
+      find.text(l10n.inboxDismissAllPartial(5), findRichText: true),
+      findsOneWidget,
+    );
     expect(
       find.text(l10n.inboxDismissAllCleared(5), findRichText: true),
       findsNothing,
@@ -584,8 +618,14 @@ void main() {
     await _tapDismissAll(tester);
 
     final l10n = L10nEn();
-    expect(find.text(l10n.inboxDismissAllFailed, findRichText: true), findsOneWidget);
-    expect(find.text(l10n.inboxDismissAllCleared(0), findRichText: true), findsNothing);
+    expect(
+      find.text(l10n.inboxDismissAllFailed, findRichText: true),
+      findsOneWidget,
+    );
+    expect(
+      find.text(l10n.inboxDismissAllCleared(0), findRichText: true),
+      findsNothing,
+    );
   });
 
   testWidgets('gate on: a refused undo says so and restores nothing', (
@@ -613,8 +653,14 @@ void main() {
     await tester.tap(find.text(l10n.inboxDismissAllUndo));
     await _settle(tester);
 
-    expect(find.text(l10n.inboxDismissAllUndoFailed, findRichText: true), findsOneWidget);
-    expect(find.text(l10n.inboxDismissAllUndone(0), findRichText: true), findsNothing);
+    expect(
+      find.text(l10n.inboxDismissAllUndoFailed, findRichText: true),
+      findsOneWidget,
+    );
+    expect(
+      find.text(l10n.inboxDismissAllUndone(0), findRichText: true),
+      findsNothing,
+    );
   });
 
   testWidgets(
@@ -679,7 +725,8 @@ void main() {
       expect(
         find.text(l10n.forYouEmptyNothingHere),
         findsNothing,
-        reason: 'somebody who just cleared five rows was not told they never '
+        reason:
+            'somebody who just cleared five rows was not told they never '
             'had any',
       );
     },
@@ -732,4 +779,45 @@ void main() {
     expect(router.lastPush, isA<UpdatesRoute>());
   });
 
+  // Last in the file: the app font it loads stays registered for the rest of
+  // the run, and the tests above were written against the test font.
+  group('#258 For you bar fit (app font)', () {
+    setUpAll(_loadInter);
+
+    // #258: «Dismiss all» is a text button at every width, and the For you bar
+    // fits on a phone in both locales with the label whole.
+    for (final (locale, size, label) in [
+      (const Locale('ru'), kPhoneSurface, 'RU 375×667'),
+      (const Locale('en'), kPhoneSurface, 'EN 375×667'),
+      (const Locale('ru'), const Size(1280, 800), 'RU desktop'),
+      (const Locale('en'), const Size(1280, 800), 'EN desktop'),
+    ]) {
+      for (final eligible in [true, false]) {
+        testWidgets(
+          '#258 $label: Dismiss all is a whole text label '
+          '(${eligible ? 'enabled' : 'disabled, still shown'})',
+          (tester) async {
+            await _pumpInbox(
+              tester,
+              attentionRepo: _ChromeAttentionRepo(sweepEligible: eligible),
+              router: _HarnessRouter(),
+              logicalSize: size,
+              locale: locale,
+            );
+            final l10n = lookupL10n(locale);
+
+            final action = tester.widget<TenturaTextAction>(
+              find.byKey(const Key(_dismissAllKey)),
+            );
+            expect(action.label, l10n.inboxDismissAll);
+            expect(action.onPressed == null, !eligible);
+            expect(find.byIcon(Icons.clear_all), findsNothing);
+            _expectWholeLine(tester, l10n.inboxDismissAll);
+            _expectWholeLine(tester, l10n.inbox);
+            expect(tester.takeException(), isNull);
+          },
+        );
+      }
+    }
+  });
 }
