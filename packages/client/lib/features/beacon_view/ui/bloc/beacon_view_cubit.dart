@@ -1917,8 +1917,14 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
         return;
       }
       final parent = await _case.fetchBeaconById(parentId);
+      final summary = await _case.postSummary(parentId);
       if (isClosed || state.beacon.id != beacon.id) return;
-      emit(state.copyWith(accessParent: parent));
+      emit(
+        state.copyWith(
+          accessParent: parent,
+          accessParentPostExcerpt: summary?.rootExcerpt.trim() ?? '',
+        ),
+      );
     } on Object {
       // Not readable: the banner keeps its general wording.
     } finally {

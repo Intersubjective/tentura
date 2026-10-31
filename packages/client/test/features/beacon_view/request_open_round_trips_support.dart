@@ -25,6 +25,7 @@ import 'package:tentura/features/beacon_view/domain/use_case/beacon_view_case.da
 import 'package:tentura/features/closure/data/repository/closure_repository.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 import 'package:tentura/features/inbox/data/repository/inbox_repository.dart';
+import 'package:tentura/features/inbox/data/repository/posts_repository.dart';
 import 'package:tentura/features/my_work/data/repository/archive_repository.dart';
 import 'package:tentura/features/polling/data/repository/polling_repository.dart';
 
@@ -68,9 +69,7 @@ void expectOpenRounds(
     for (final name in call.operationNames) {
       expect(
         call.path,
-        isTenturaDirectOperation(name)
-            ? '/api/v2/graphql'
-            : '/api/v1/graphql',
+        isTenturaDirectOperation(name) ? '/api/v2/graphql' : '/api/v1/graphql',
         reason: '$name\n$trace',
       );
     }
@@ -155,6 +154,7 @@ buildWiredBeaconViewCase(
     CoordinationRepository(remote),
     BeaconDisplayRepository(remote),
     InboxRepository(remote, hints),
+    PostsRepository(remote),
     BeaconFactCardRepository(remote),
     threads,
     BeaconActivityEventRepository(remote, realtime.port),

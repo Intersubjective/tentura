@@ -136,6 +136,7 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
           RequestAccessReasonBanner(
             beacon: state.beacon,
             parent: state.accessParent,
+            parentPostExcerpt: state.accessParentPostExcerpt,
           ),
           // Someone else's Request has to say whose it is; the author's own
           // view already knows, and so does the HUD (People tab).

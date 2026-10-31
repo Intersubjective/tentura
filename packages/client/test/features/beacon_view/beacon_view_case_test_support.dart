@@ -33,7 +33,9 @@ import 'package:tentura/features/forward/data/repository/forward_repository.dart
 import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
 import 'package:tentura/features/inbox/data/repository/inbox_repository.dart';
 import 'package:tentura/features/inbox/domain/entity/inbox_provenance.dart';
+import 'package:tentura/features/inbox/domain/entity/post_summary.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
+import 'package:tentura/features/inbox/domain/port/posts_repository_port.dart';
 import 'package:tentura/features/my_work/data/repository/archive_repository.dart';
 import 'package:tentura/features/polling/data/repository/polling_repository.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
@@ -73,6 +75,18 @@ Never _throwTestError(Object error) {
     throw error;
   }
   throw StateError(error.toString());
+}
+
+class FakeBeaconViewPostsRepository implements PostsRepositoryPort {
+  FakeBeaconViewPostsRepository({this.summaries = const {}});
+
+  final Map<String, PostSummary?> summaries;
+
+  @override
+  Future<List<PostSummary>> myPosts() async => const [];
+
+  @override
+  Future<PostSummary?> postSummary(String id) async => summaries[id];
 }
 
 class FakeBeaconViewForwardRepository implements ForwardRepository {
@@ -626,6 +640,7 @@ BeaconViewCase buildTestBeaconViewCase({
   RealtimeSyncCase? realtimeSyncCase,
   PresenceRepository? presenceRepository,
   BeaconHierarchyRepositoryPort? hierarchyRepository,
+  PostsRepositoryPort? postsRepository,
 }) {
   final forwardRepo = forward ?? FakeBeaconViewForwardRepository();
   final watermark = watermarkStore ?? RoomReadWatermarkStore.testing();
@@ -646,6 +661,7 @@ BeaconViewCase buildTestBeaconViewCase({
     coordination,
     display,
     inboxRepo ?? FakeBeaconViewInboxRepository(),
+    postsRepository ?? FakeBeaconViewPostsRepository(),
     factCards,
     buildTestBeaconThreadsCaseForView(watermark, room: roomRepo),
     activityEvents,
