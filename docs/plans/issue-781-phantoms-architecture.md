@@ -1,9 +1,11 @@
 # #781 Phantoms — "map of my people" architecture
 
-Status: **rev 9 (2026-10-31)** — design walk-through with the owner done
+Status: **rev 10 (2026-10-31)** — design walk-through with the owner done
 (D1–D27); rev 7 applied adversarial review round 1 (R1–R37), rev 8 round 2
 (R38–R58) and rev 9 round 3 (R59–R72), both with reviewer Muse Wonder and
-critics Gemini 4 Argon + GPT-5.6-Sol. Change log §14.
+critics Gemini 4 Argon + GPT-5.6-Sol. Rev 10 (owner request) replaces the
+lock-order ladder with owner-graph transactions and asynchronous invite
+merges (P6, P7, §5.2a) — not yet adversarially reviewed. Change log §14.
 Source: GitHub #781 (body + owner comments 2026-10-25, decisions comment
 2026-10-31), mockups `docs/design/phantoms/phantoms-{a,b}.png`.
 
@@ -152,6 +154,13 @@ Technical choices:
 - **P5 Id prefix `PH`** (`generateId('PH')` → **14 chars**). Every GraphQL
   input that may carry a phantom id uses a target-aware string input (like
   `MutationPeopleTags`' `InputFieldString`), never `InputFieldId` (exactly 13).
+- **P6 Invite merges are asynchronous.** The accept claims the invite and
+  queues a `phantom_merge_job` in its own transaction; the merge runs after
+  commit (§5.2). Joining never waits on, fails on, or deadlocks with a merge.
+- **P7 Owner-graph transactions.** Every write to an owner's private graph
+  runs under that owner's scope lock, taken first; enforced by a domain type,
+  a database trigger and tests (§5.2a). Replaces the global lock-order
+  ladder of rev 7–9.
 
 ---
 
@@ -286,6 +295,7 @@ stall on `NO ACTION` or violate a check:
 | `phantom_pending_forward.phantom_id` / `.beacon_id` | CASCADE |
 | `phantom_pending_forward.merge_id` / `.recipient_id` / `.forward_edge_id` | SET NULL |
 | `phantom_tie` ends (user or phantom) | CASCADE |
+| `phantom_merge_job.owner_id` / `.user_id` → `user` | CASCADE (`phantom_id` deliberately has no FK, §5.2) |
 | `phantom_tag_member (tag_id, owner_id)` → `person_tag` | CASCADE |
 | `phantom.cluster_id` → `phantom_cluster` | SET NULL |
 | `phantom_cluster_link` ends → `phantom` | CASCADE |
@@ -328,17 +338,9 @@ pg test: erasing a merged `U` leaves the phantom orphaned with
   gen_random_uuid()` — a re-added pair gets a new id, which lets unmerge tell
   a merge-created membership from a later deliberate one (§5.3).
 - **The people-tags repository learns mixed members** (D12 exception), all
-  under the existing `person_tags:<owner>` lock. **Lock rule:** a statement
-  that inserts `phantom_tag_member` rows (apply, restore) first locks the
-  referenced phantom rows `FOR SHARE` in id order, *before*
-  `person_tags:<owner>` (§5.2 steps 6 → 9), and re-checks their state
-  (apply: active; restore: not orphaned);
-  otherwise the FK's implicit KEY SHARE on the phantom would come after the
-  tag lock and deadlock with merge. `applyMembers` / `restore` open
-  `withMutatingUser(owner)` themselves, lock the phantoms, then call
-  `_idempotent`, which joins that transaction (same-actor re-entry,
-  `tentura_db.dart:392–400`), so its advisory lock follows the phantom
-  locks.
+  under the owner's scope lock (§5.2a), which replaces today's
+  `person_tags:<owner>` key; the phantom rows they reference are re-checked
+  after it (apply: active; restore: not orphaned).
   - `applyMembers` accepts `PH` ids: validated against `phantom` (owner =
     caller, active) instead of `"user"`, written to `phantom_tag_member`;
   - `memberships`, member counts and the 1000-per-tag limit read/count both
@@ -397,7 +399,7 @@ phantom wins (D13); deduplication happens before any write.
 - `person_note(owner_id, subject_user_id NULL, subject_phantom_id NULL,
   body text, updated_at, revision)`; exactly-one subject; unique per
   `(owner, subject)`; `owner ≠ subject_user_id`. **Length:** 4000 chars, API
-  and DB check alike; merge never copies note text (§5.2 step 5), so no row
+  and DB check alike; merge never copies note text (§5.2b step 5), so no row
   grows past it.
 - **Search (M2):** owner-scoped V2 query `personNoteSearch(q)` → subject ids
   (user or phantom) whose note matches (`ILIKE`, `owner_id = viewer`, ≤ 50);
@@ -452,16 +454,15 @@ Key versions: §9.
   `_or: [{created_at: {_gt: $cutoff}}, {phantom_id: {_is_null: false}}]` for
   both the list and the aggregate.
 - **Name mirror:** `addressee_name` = `phantom.display_name`. Renaming goes
-  only through `phantomUpdate`, which locks the live invitation row
-  (`FOR UPDATE … WHERE phantom_id = h AND invited_id IS NULL`), then the
-  phantom row — the §5.2 order — and updates both; `invitationUpdate`
+  only through `phantomUpdate`, which updates both in one owner-graph
+  transaction (§5.2a); `invitationUpdate`
   rejects phantom invites. Names follow the contact-name contract (3–32,
   §3.1), so the mirror into `user_contact` always validates.
   So the existing `_upsertInviteContact` makes the phantom's name the owner's
   private contact name for the joined account (answers #781 Q2).
 - **Minting:** a phantom has no invite until the owner takes one: Copy
   invite link / Share… (A2, A3) call `phantomInviteEnsure`, which returns the
-  live invite or creates it, under the phantom `FOR UPDATE` (§5.2), so two
+  live invite or creates it inside the owner's scope (§5.2a), so two
   concurrent calls return the same invite. "Save without inviting", batch create and import
   mint nothing, so People → Invites → Pending lists only invites the owner
   actually took; `inviteState` is `none` until then.
@@ -505,110 +506,125 @@ Key versions: §9.
 | Owner "This is someone already on Tentura…" → picks a person the owner sees on the Field | manual link | **none** | **not delivered**; offered to the owner as ordinary forwards |
 | Same-name hint "Link them" (A4) | manual link | none | as manual link |
 
-### 5.2 Merge transaction (`PhantomMergeRepository.merge`)
+Invite-origin merges run after the accept commits (P6, §5.2); a manual link
+merges at once.
 
-Runs inside the accept transaction (invite origins) or its own (manual link),
-through **tx-scoped repository methods** (`…InTx`) — never the public anchor /
-tag methods, which open their own `withMutatingRepeatableRead`.
+### 5.2 Merge (`PhantomMergeCase` → `PhantomMergeRepositoryPort`)
 
-**Global lock order** — every path that touches these resources acquires
-them in this order, skipping what it doesn't need. A path may skip a step
-only if nothing it runs takes that lock *implicitly* (FK checks, cascades,
-triggers); where something does, the path takes the lock explicitly at its
-position first.
+**Where it runs.** Never inside an accept transaction. An invite accept
+claims the invite and, in the same transaction, inserts one
+`phantom_merge_job` row (P6); the merge runs after commit in an owner-graph
+transaction of its own (§5.2a), retried on 40001/40P01. A manual link runs
+the same merge directly in such a transaction. Joining therefore never fails,
+waits on Field contention, or deadlocks because of a merge.
 
-0. pair lock `user_pair:<min(a,b)>:<max(a,b)>` (advisory xact) on
-   (owner, `U`): merges into an existing `U`, unmerge, and block / unblock
-   of that pair (so the block guard can't race a block);
-1. Post lock (`PostLockRepository`; Request invites, forwards, delivery);
-2. invitation rows: the claim (`UPDATE … WHERE invited_id IS NULL`) or
-   `FOR UPDATE … WHERE phantom_id = h` (rename, New link, delete, manual
-   link); a cluster merge locks the claimed invite and every other member's
-   live invite here, in id order;
-3. parent forward chain `FOR UPDATE` (Request invites, forwards, delivery);
-4. cluster row `FOR UPDATE` (M8, clustered phantoms only);
-5. per owner, in owner-id order: viewer batch lock → viewer cursor
-   (upserting a missing row) → `phantoms:<owner>` advisory lock;
-6. phantom rows in id order — `FOR UPDATE` to change one or its invite
-   (merge, unmerge, delete, rename, New link, `phantomInviteEnsure`),
-   `FOR SHARE` to rely on one (tag inserts, tie creation, forward recording,
-   delivery); state is re-checked after the lock;
-7. `phantom_pending_forward` rows of those phantoms, then `phantom_tie` rows
-   (M6+);
-8. anchor rows (and their target watermarks);
-9. `person_tags:<owner>` advisory lock → tag memberships;
-10. `trust_pair_lock`s (sorted, as `_applyReciprocalTrustEdges` does).
-    Unmerge's trust removal takes `trust_pair_lock(o, U)` *before* deleting
-    `vote_user`, whose statement trigger bumps the global
-    `visibility_trust_generation` row (m0235), as every `trust_project_pair`
-    caller does.
+**Merge jobs.** `phantom_merge_job(id, phantom_id, owner_id, user_id, origin,
+invitation_id, prior_contact jsonb, state queued|done|skipped, skip_reason,
+attempts, lease_owner, lease_until, next_attempt_at, last_error,
+created_at, done_at)` with `ImageObjectGcRepository`'s lease semantics.
+`phantom_id` has **no FK** on purpose: the accept must not take a KEY SHARE
+lock on the phantom row, the one lock it would otherwise share with
+owner-graph transactions; the worker treats a missing phantom as `skipped
+(deleted)`. The accept body writes the invite contact as today and stores
+U's prior contact name in `prior_contact` for undo. After commit the case
+layer (`auth_case`, `credential_auth_case`, `invitation_case`) wakes the
+worker; a sweep picks up anything missed (restart, crash).
 
-**Accept bodies follow it.** M0 restructures them: signup (`createInvited`,
-`createInvitedWithCredential`) = Post lock → create user → claim → chain lock
-and D15 decision → trust projection → contact; `bindMutual` = claim → chain
-lock (its pre-claim chain lock becomes a plain read) → trust. M1 hooks merge
-(steps 4–9) in between the chain lock and trust projection. This fixes
-Defect A. For a phantom invite the merge owns the contact write (step 7): it
-records U's prior contact name and writes `addressee_name` itself, and the
-body skips its own `_upsertInviteContact` (today signup writes it after
-trust, `user_repository.dart:288–300`, and `bindMutual` right after the
-claim, `:967–971`). The data-layer bodies return the merged phantom id; the
-case layers (`auth_case`, `credential_auth_case`, `invitation_case`), which
-hold the `AttentionTransaction`, record `phantomMerged` and schedule
-post-commit delivery (§7).
+**The window.** Between the accept's commit and the merge (normally well under
+a second, at worst one sweep interval) the owner's Field shows both the
+phantom and `U`; the phantom realtime event (§6.1) then merges them on
+screen. The joiner sees none of it. Pending forwards are delivered after the
+merge, as before.
 
-**Batch lock inside accept.** Accept transactions are READ COMMITTED and not
-retried, so the try-lock-then-throw `lockConstellationViewerBatch` must not
-run there. Merge in an accept uses a waiting variant,
-`lockConstellationViewerBatchWait` (`pg_advisory_xact_lock`, never throws) —
-safe under READ COMMITTED, where every later statement sees what the
-previous holder committed. RR paths (anchor batches, phantom CRUD) keep the
-try-lock as their first statement and retry through
-`withMutatingRepeatableRead`. **Every merge-family path — invite merge,
-manual link, unmerge — runs READ COMMITTED with the waiting variant:** one
-code path, fresh reads after each lock (so the step-1 guards see concurrent
-commits), and no 40001 from the global `visibility_trust_generation` row
-that unmerge's trust removal bumps. An owner moving pins on another device
-can delay a signup, never abort it.
+**Guard failure at merge time** (`h` deleted or no longer active, `U = o`, a
+block between `o` and `U`): the job ends `skipped` with the reason and the
+phantom stays as it is. Unless `h` is gone or already merged, the owner gets
+an attention card *"«Anna K.» joined Tentura — link?"* whose action is the
+manual link. The accept's own effects (trust, contact) stay.
 
-| Path | Steps |
+### 5.2a Owner-graph transactions — the lock rule
+
+An owner's **private graph** is what this plan and the Field keep per owner:
+`phantom` and its invites (`invitation` rows with `phantom_id`),
+`constellation_anchor` and its cursor, `person_tag` / `person_tag_member` /
+`phantom_tag_member` / the tag op log, `person_note`, `person_private_avatar`,
+`phantom_pending_forward`, `phantom_merge` and running merge jobs,
+`person_field_first_seen` and its init marker, `phantom_link_hint_dismissal`,
+`phantom_contact_point`, and `phantom_tie` (owned by its author and by every
+phantom end's owner).
+
+**Rule.** A transaction that writes an owner's private graph first takes that
+owner's **scope lock** `owner_graph:<id>` (`pg_advisory_xact_lock`) — for all
+owners it touches, **as its first locks, in id order, all at once**. Inside a
+scope nothing else needs ordering: two transactions that could meet on one
+owner's rows already queue on that owner's scope. The only order left is
+outside the graph, and it is the existing one: scope locks → Post lock →
+invitation claim → parent forward chain → user rows → `trust_pair_lock`s,
+always last (unmerge takes `trust_pair_lock(o, U)` before deleting
+`vote_user`, whose statement trigger bumps the global
+`visibility_trust_generation` row, m0235, like every `trust_project_pair`
+caller).
+
+One scope key replaces the two per-owner keys of today,
+`constellation_anchor_apply:<viewer>` (anchor batches) and
+`person_tags:<owner>` (tags) — refactor epic M0b. Advisory locks are
+re-entrant within a session, so a scoped transaction calling another scoped
+method for the same owner pays nothing.
+
+**Isolation.** Scoped transactions run READ COMMITTED: they wait for the
+scope, every later statement sees the previous holder's commit (so guards
+read fresh state), and the whole transaction is retried on 40001/40P01 with
+bounded backoff. The anchor batch keeps its REPEATABLE READ conditional-write
+path and its try-lock-then-retry entry, on the new key.
+
+| Path | Scopes taken |
 |---|---|
-| plain anchor batch | 5 → 8 |
-| tag apply / restore with phantom members | 6 (`FOR SHARE`) → 9 |
-| phantom create / batch create | 5 (cap) → 8 (pin) → 9 (tags) |
-| rename | 2 → 6 |
-| New link / `phantomInviteEnsure` | 2 → 6 (`FOR UPDATE`; re-check the live invite, then insert) |
-| phantom delete | 2 → 5 → 6 → 7 → delete (cascades anchors, tag rows, invite) |
-| invite merge | (0, existing account) → 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 |
-| manual link | 0 → 2 (h's live invite) → 5 → 6 → 7 → 8 → 9 |
-| unmerge | 0 → 5 → 6 → 7 → 8 → 9 → 10 (trust removal) |
-| block / unblock | 0 → existing body |
-| tie creation (M6) | 6 (`FOR SHARE`, ends re-checked active) → 7 |
-| pending-forward recording | 1 → 3 → 6 (`FOR SHARE`) → 7 |
-| delivery (§7) | 1 → 3 → 6 (`FOR SHARE`) → 7 → forward edge |
-| erasure of account `U` | `U`'s live invitations (2) → cursors of `U` and of every viewer with an anchor on `U`, viewer-id order (5) → `U`'s own phantoms and phantoms merged into `U`, id order (6) → delete; READ COMMITTED, cursor row locks only (no batch advisory lock) |
+| anchor batch, tag ops, phantom create / batch create / delete / rename, New link / `phantomInviteEnsure`, notes, avatars, first-seen writes, hint dismissal, import | the actor |
+| merge job, manual link, unmerge, pending-forward recording, delivery (§7) | the owner (Phase 1: sender = owner) |
+| block / unblock | both users (so a merge's block guard can't race a block) |
+| tie creation (M6+) | the author and every phantom end's owner |
+| cluster merge, link, leave (M8) | every member's owner |
+| erasure of account `U` — the final delete (earlier chunks that delete `U`'s drafts take `U`) | `U`, every viewer with an anchor on `U`, every owner of a phantom merged into `U` |
+| signup, invite accept | **none** — they touch the invitation row, the job row and the existing user/trust rows only |
 
-The erasure pre-lock covers the final `DELETE` of the user, which locks
-anchors through FK SET NULL and then the cursor through the trigger
-(`m0236.dart:55–59,86–95`) — the inverse of anchor batches' cursor → anchor.
-Earlier erasure chunks only scrub published Requests (UPDATE) and delete
-`U`'s drafts (`user_erasure_repository.dart:51–69,131–150`), whose anchors
-can only be `U`'s own (drafts are author-only).
+Accepts can still meet owner-graph writers on single rows (rename and the
+claim on one invitation row; the accept writing the issuer's contact while
+an unmerge restores it). Those are single-row waits, never a cycle: an
+accept holds no scope and waits on no owner-graph lock.
 
-**M1 ships pg deadlock tests** for merge × anchor batch (same owner), merge ×
-tag apply naming the phantom, merge × phantom delete, rename × accept,
-delivery × unmerge, erasure of `U` × merge into `U`, manual link × New
-link, block × manual link, tie creation × merge (M6), unmerge × concurrent
-vote writes (no 40001), and signup × existing-account accept of the same
-Request invite; plus a contention test
-in which the owner holds the batch lock while the invitee signs up (the
-signup waits, then succeeds).
+**Enforced, not remembered:**
+1. **Type.** Domain port `OwnerGraphTransactionPort.run(ownerIds, actorUserId,
+   (OwnerGraphScope scope) => …)`. `OwnerGraphScope` is an opaque domain
+   interface (`ownerIds` only; no I/O, no Drift types). Every repository port
+   method that writes the private graph takes an `OwnerGraphScope` and
+   asserts the owner it writes is in `scope.ownerIds`. Only the data-layer
+   implementation can create a scope — after taking the locks. Nesting with
+   an owner set that isn't a subset of the held one throws (a late lock
+   would break "all at once").
+2. **Database.** `run` sets a transaction-local `tentura.owner_scopes`; a row
+   trigger `assert_owner_scope` on every private-graph table raises when the
+   written row's owner isn't in it — FK cascades included, so a path that
+   deletes users or Requests without the scopes fails its tests instead of
+   deadlocking in production. Raises in tests and dev; in production it
+   logs a warning for one release, then raises.
+3. **Tests.** pg tests for the pairs that used to need ordering rules: merge
+   job × anchor batch, × tag apply naming the phantom, × phantom delete,
+   × rename; delivery × unmerge; erasure of `U` × merge into `U`; block ×
+   manual link; tie creation × merge (M6); unmerge × concurrent vote writes
+   (no 40001); signup × existing-account accept of the same invite; accept
+   while the owner moves pins on another device. Plus a test that every
+   private-graph table carries the trigger.
 
-Steps for owner `o`, phantom `h`, user `U`:
+Retry is the backstop: a case the rule still misses costs one retry, not a
+failed request — and the accept, which can't retry, takes no scope.
 
-1. **Guards:** `h` active; `U ≠ o`; `NOT block_hides(o, U)` — evaluated
-   after the locks (READ COMMITTED + pair lock), so a concurrently committed
-   block is seen.
+### 5.2b Merge steps
+
+Inside the owner's scope, for owner `o`, phantom `h` (`FOR UPDATE`), user `U`:
+
+1. **Guards:** `h` active; `U ≠ o`; `NOT block_hides(o, U)` — read after the
+   scope, which block / unblock also take (§5.2a), so a concurrent block is
+   seen. A failure ends a job as `skipped` (§5.2).
 2. **Record** `phantom_merge(id, phantom_id, owner_id, user_id, origin,
    created_at, undo jsonb, undone_at)`; `undo` gets everything below.
 3. **Pin** (case table; `h` anchors are never tombstoned and a live `U` has
@@ -636,21 +652,23 @@ Steps for owner `o`, phantom `h`, user `U`:
 6. **Avatar:** `h`'s avatar row stays on `h`. If U has no private avatar from
    `o`, insert a row for U referencing the same `object_key` (record it);
    otherwise U's wins (D13).
-7. **Contact name:** record U's prior contact name/absence, then write:
-   invite origins write `addressee_name` (the accept body skips its own
-   upsert, above); manual link upserts only if `o` has none. Record the
-   value written.
-8. **Invite:** invite origins: the claimed invite is the phantom's; manual
-   link: delete `h`'s live invite (locked at step 2).
+7. **Contact name:** invite origins: the accept already wrote
+   `addressee_name`; copy the job's `prior_contact` and the written value
+   into `undo`. Manual link: record U's prior contact name/absence, upsert
+   only if `o` has none, record the value written.
+8. **Invite:** invite origins: claimed by the accept; manual link: delete
+   `h`'s live invite.
 9. **Ties (M6+):** delete ties whose ends would both be real (§10.1).
 10. Set `merged_user_id, merged_at, merge_origin, current_merge_id`; bump
     revisions (the phantom update fires the owner-only realtime event,
-    §6.1); emit attention event `phantomMerged` to `o` only.
+    §6.1); claim pending forwards (§7); record attention event
+    `phantomMerged` for `o` only; mark the job `done`. Delivery runs after
+    commit.
 
 ### 5.3 Undo / Unlink = unmerge
 
-Owner-only; refused for orphaned phantoms; subject to the cap (D4). Inside
-one transaction with the §5.2 lock order:
+Owner-only; refused for orphaned phantoms; subject to the cap (D4). One
+owner-graph transaction (scope `o`, §5.2a), trust removal last:
 
 - **Tags:** delete U's memberships whose `membership_id` matches one recorded
   as merge-inserted (a later removal + re-add has a new id and stays);
@@ -661,7 +679,7 @@ one transaction with the §5.2 lock order:
   `PHANTOM:h` at the recorded position; otherwise leave U's pin and give `h`
   no pin. Bump both watermarks.
 - **Contact name:** restore U's prior value only if the current value equals
-  what the merge wrote. Notes need nothing (§5.2 step 5).
+  what the merge wrote. Notes need nothing (§5.2b step 5).
 - **Avatar:** delete the U row the merge inserted, if still present (the
   object survives — `h` still references it).
 - **Trust (D23):** invite origins: take `trust_pair_lock(o, U)`, remove `vote_user(o → U)` and re-project
@@ -778,15 +796,16 @@ calls it later (covers "invite link forwarded and someone else accepted it").
   (same gate as `BeaconVisibility.canPreviewInvite`); otherwise `r` is
   ignored. A bare query parameter never grants access.
 - **Delivery (P4), invite origins only:**
-  1. merge transaction: atomically claim
+  1. the merge (§5.2b step 10) atomically claims
      `UPDATE … SET state='claimed', merge_id=:m, recipient_id=:U WHERE
      phantom_id=:h AND state='pending'`;
   2. after commit, `PhantomForwardDeliveryCase` handles each claimed row
      through **`ForwardCase.deliverPending`**, a new entry point sharing
      `ForwardCase.forward`'s single-recipient body. It runs its own
-     `_attention.runAction(actor = sender)` transaction (post-commit, so no
-     nested-actor mismatch), takes the Post lock and chain lock, then the
-     phantom `FOR SHARE` and the row `FOR UPDATE` (§5.2), checks the row
+     transaction: the sender's owner scope first (§5.2a; Phase 1 sender =
+     owner), then `_attention.runAction(actor = sender)` joins it (same
+     actor), takes the Post lock and chain lock and the row `FOR UPDATE`,
+     checks the row
      still belongs to the phantom's `current_merge_id`, **re-runs the full
      forward checks** (Request status, sender readability and forward right,
      policy, blocks between sender and U, recipient eligibility, parent chain
@@ -887,9 +906,10 @@ calls it later (covers "invite link forwarded and someone else accepted it").
   end to its `merged_user_id`; nothing is re-pointed, so D8 provenance and
   unmerge need no tie bookkeeping. A tie with an orphaned end resolves to
   nothing and every read skips it.
-- **Creation lock:** lock the phantom end(s) `FOR SHARE` (§5.2 step 6) and
-  re-check they are active before inserting; merge's `FOR UPDATE` serializes
-  with it, so no tie appears after a merge made both ends real.
+- **Creation scope:** tie creation takes the scopes of the author and of
+  every phantom end's owner (§5.2a) and re-checks the ends are active; a
+  merge holds its owner's scope, so no tie appears after a merge made both
+  ends real.
 - **On merge (D20):** in the merge transaction, delete every tie for which,
   after this merge, neither end is an active phantom. Not restored by
   unmerge. Cluster merges apply the same rule to all members at once.
@@ -931,12 +951,11 @@ calls it later (covers "invite link forwarded and someone else accepted it").
 - **Clusters (B3):** `phantom_cluster(id)` + `phantom.cluster_id` +
   `phantom_cluster_link(a, b, proposed_by, confirmed_at)`; cluster =
   connected component over confirmed links; link/leave operations lock the
-  cluster row. **Cluster merge:** accepting any member's invite runs one
-  transaction in the §5.2 lock order (cluster row → owners in id order →
-  member phantoms in id order); the accepted member merges with its invite
+  cluster row. **Cluster merge:** accepting any member's invite queues one
+  merge job for the cluster; the worker takes every member owner's scope
+  (§5.2a), then the cluster row; the accepted member merges with its invite
   origin, every other member with origin 4 (cluster, no trust effect); all
-  other members' live invites (locked at step 2 with the claim, in id order)
-  are deleted. Members that fail the §5.2
+  other members' live invites are deleted. Members that fail the §5.2
   guards (already merged — to `U` or anyone else —, owned by `U`, or
   blocked) are skipped, leave the cluster, and stay as they are: accepting
   never fails because of another member (D15). Shared effects of origin-4 merges
@@ -976,7 +995,7 @@ calls it later (covers "invite link forwarded and someone else accepted it").
    join the export when #780 lands.
 6. **Deletion:** owner deletion cascades every phantom table and enqueues
    private objects (§3.4); merged user's deletion orphans the phantom (delete
-   actions §3, erasure lock order §5.2).
+   actions §3, erasure scopes §5.2a).
 
 ---
 
@@ -984,8 +1003,9 @@ calls it later (covers "invite link forwarded and someone else accepted it").
 
 | M | Epic | Depends on | Notes |
 |---|---|---|---|
-| M0 | Invite accept hardening | — | accept bodies restructured to the §5.2 order (claim → chain → trust; Defect A); Defect B; Defect C → D15 fallback across every gate (both signup methods, `acceptAsExisting`, `invitationAccept`; consumes the invite; signup → friendship + invite-accepted event with a "Request lapsed" outcome, existing account → admission-only); Defect D; landing preview + accept screen + post-join card; `invitationAccept` gets the same expiry check |
-| M1 | Phase 1 phantoms | M0, #699 | storage + delete actions (§3) + PHANTOM anchors (§3.3) + mixed tags (§3.2) + invites (§4) + merge/undo/unlink (§5) + hint + Field/client + realtime (§6) + privacy suite (§11) + deadlock/contention tests |
+| M0 | Invite accept hardening | — | accept bodies restructured to one order: claim → chain → trust → contact (the outside-graph order of §5.2a; Defect A); Defect B; Defect C → D15 fallback across every gate (both signup methods, `acceptAsExisting`, `invitationAccept`; consumes the invite; signup → friendship + invite-accepted event with a "Request lapsed" outcome, existing account → admission-only); Defect D; landing preview + accept screen + post-join card; `invitationAccept` gets the same expiry check |
+| M0b | Owner-graph transactions | — | §5.2a as a pure refactor, no behaviour change: `OwnerGraphTransactionPort` + `OwnerGraphScope`; one `owner_graph:<id>` key replacing the anchor-batch and `person_tags` keys; scoped READ COMMITTED runner with bounded retry; `assert_owner_scope` on today's private-graph tables (anchors, cursor, tags, tag op log, first-seen); erasure and draft deletion take scopes |
+| M1 | Phase 1 phantoms | M0, M0b, #699 | storage + delete actions (§3) + PHANTOM anchors (§3.3) + mixed tags (§3.2) + invites (§4) + merge/undo/unlink (§5) + hint + Field/client + realtime (§6) + privacy suite (§11) + deadlock/contention tests |
 | M2 | Private notes + private avatars on anyone (+ note search) | M1 | §3.4; merge avatar copy, display-time notes (§5.2) |
 | M3 | Forward a Request to a phantom | M1 | §7 |
 | M4 | Selective contact import | M1, M2 (avatars) | §8 + HMAC key ring (§9) |
@@ -1017,6 +1037,16 @@ None. Q1–Q11 of the walk-through are decided (D12–D22).
 
 ## 14. Change log
 
+- **rev 10 (2026-10-31), owner request after round 3.** R73 the lock-order
+  ladder (§5.2 of rev 7–9) is replaced by owner-graph transactions — one
+  scope lock per owner, taken first, enforced by a domain type, a database
+  trigger and tests (P7, §5.2a; new refactor epic M0b). R74 invite-origin
+  merges run asynchronously from a `phantom_merge_job` queued by the accept
+  (P6, §5.2): the accept takes no owner-graph lock; guard failures become an
+  owner card. The pair lock, the waiting batch-lock variant, merge-owned
+  contact writes and the per-path step table are gone. §3, §3.2, §4, §5.1,
+  §5.3, §7, §10, §11, §12 references updated. Not yet adversarially
+  reviewed.
 - **rev 9 (2026-10-31), adversarial review round 3** (same roles). R59 tag
   ops lock phantoms, then join `_idempotent`'s transaction (§3.2). R60 merge
   owns the contact write; case layers record `phantomMerged` (§5.2). R61
