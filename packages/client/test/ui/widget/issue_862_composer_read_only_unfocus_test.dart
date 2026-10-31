@@ -3,6 +3,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tentura/app/platform/web_safe_text_field_enabled.dart';
 
 import 'package:tentura/data/repository/clipboard_image_repository.dart';
 import 'package:tentura/data/repository/image_repository.dart';
@@ -108,4 +109,59 @@ void main() {
     expect(tester.widget<TextField>(fieldFinder).focusNode!.hasFocus, isFalse);
     expect(tester.widget<TextField>(fieldFinder).enabled, isFalse);
   });
+
+  testWidgets(
+    'web hold: a read-only lock while focused still ends disabled once focus '
+    'leaves',
+    (
+      tester,
+    ) async {
+      debugWebTextInputConfigHold = true;
+      addTearDown(() => debugWebTextInputConfigHold = false);
+      await tester.binding.setSurfaceSize(const Size(700, 720));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      final harnessKey = GlobalKey<_HarnessState>();
+      await tester.pumpWidget(
+        MultiBlocProvider(
+          providers: [
+            BlocProvider<ProfileCubit>.value(
+              value: RoomBodyHarnessProfileCubit(
+                const Profile(id: 'me', displayName: 'Me'),
+              ),
+            ),
+            BlocProvider<PresenceCubit>.value(
+              value: RoomBodyHarnessPresenceCubit(),
+            ),
+          ],
+          child: MaterialApp(
+            locale: const Locale('en'),
+            theme: TenturaTheme.light(),
+            localizationsDelegates: L10n.localizationsDelegates,
+            supportedLocales: L10n.supportedLocales,
+            home: TenturaResponsiveScope(
+              child: Scaffold(
+                body: _Harness(key: harnessKey),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final fieldFinder = find.byKey(TestIds.key(TestIds.roomMessageInput));
+      await tester.tap(fieldFinder);
+      await tester.pumpAndSettle();
+      expect(tester.widget<TextField>(fieldFinder).focusNode!.hasFocus, isTrue);
+
+      harnessKey.currentState!.lockReadOnly();
+      await tester.pumpAndSettle();
+
+      expect(
+        tester.widget<TextField>(fieldFinder).focusNode!.hasFocus,
+        isFalse,
+      );
+      expect(tester.widget<TextField>(fieldFinder).enabled, isFalse);
+    },
+  );
 }

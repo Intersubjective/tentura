@@ -1491,9 +1491,16 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer>
   /// `RoomPollCard` handles that, and this covers any remaining
   /// focus->connection timing gap (EditableText #126312).
   void _onComposerFocusChange() {
-    if (kIsWeb || !_composerFocus.hasFocus) {
+    if (!_composerFocus.hasFocus) {
+      // A locked field is held enabled while focused (#862); rebuild so it
+      // takes its locked state once focus has left.
+      if (mounted &&
+          (widget.readOnlyHint != null || widget.isSending || _submitting)) {
+        setState(() {});
+      }
       return;
     }
+    if (kIsWeb) return;
     _scheduleComposerKeyboardRequest();
   }
 
