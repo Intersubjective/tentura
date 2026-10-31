@@ -6,6 +6,8 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 JOB="$ROOT/scripts/test_job.sh"
+# These cases test the script's own jobs; case 7 covers the Alloy hand-off.
+unset ALLOY_JOBS_DIR ALLOY_BIN
 export TENTURA_TEST_JOBS_DIR
 TENTURA_TEST_JOBS_DIR="$(mktemp -d)"
 trap 'pkill -f "$TENTURA_TEST_JOBS_DIR" 2>/dev/null || true; rm -rf "$TENTURA_TEST_JOBS_DIR"' EXIT
@@ -68,6 +70,13 @@ check "a dead supervisor is reported as died" test "$rc" -eq 70
 # 6. status lists every job with its state.
 run status
 check "status lists every job" test "$(wc -l <<<"$out")" -eq 4
+
+# 7. Inside an Alloy agent call every subcommand goes to `alloy job`.
+fake_alloy="$TENTURA_TEST_JOBS_DIR/fake-alloy"
+printf '#!/usr/bin/env bash\necho "alloy $*"\n' >"$fake_alloy"
+chmod +x "$fake_alloy"
+out="$(ALLOY_JOBS_DIR="$TENTURA_TEST_JOBS_DIR/alloy" ALLOY_BIN="$fake_alloy" "$JOB" wait abc --max 1m)"
+check "under Alloy, test_job hands the call to alloy job" test "$out" = "alloy job wait abc --max 1m"
 
 echo "passed=$passed failed=$failed"
 [[ "$failed" -eq 0 ]]

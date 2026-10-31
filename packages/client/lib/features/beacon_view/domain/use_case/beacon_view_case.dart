@@ -31,7 +31,9 @@ import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
 import 'package:tentura/features/forward/domain/entity/forward_edge.dart';
 import 'package:tentura/features/inbox/data/repository/inbox_repository.dart';
 import 'package:tentura/features/inbox/domain/entity/inbox_provenance.dart';
+import 'package:tentura/features/inbox/domain/entity/post_summary.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
+import 'package:tentura/features/inbox/domain/port/posts_repository_port.dart';
 import 'package:tentura/features/beacon_threads/data/repository/beacon_activity_event_repository.dart';
 import 'package:tentura/features/beacon_threads/data/repository/beacon_fact_card_repository.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/beacon_room_invalidation.dart';
@@ -53,6 +55,7 @@ final class BeaconViewCase extends UseCaseBase {
     this._coordinationRepository,
     this._displayRepository,
     this._inboxRepository,
+    this._postsRepository,
     this._factCards,
     this._beaconRoomCase,
     this._activityEvents,
@@ -78,6 +81,8 @@ final class BeaconViewCase extends UseCaseBase {
 
   final InboxRepository _inboxRepository;
 
+  final PostsRepositoryPort _postsRepository;
+
   final BeaconFactCardRepository _factCards;
 
   final BeaconThreadsCase _beaconRoomCase;
@@ -99,7 +104,11 @@ final class BeaconViewCase extends UseCaseBase {
   /// (#724); no parent when no hierarchy repository is wired.
   Future<BeaconParentReference> fetchParentReference(String beaconId) async =>
       await _hierarchy?.fetchParentReference(beaconId: beaconId) ??
-      const BeaconParentReference(state: BeaconParentReferenceState.none);
+      BeaconParentReference.none;
+
+  /// Root message excerpt for a Post (#724 access banner).
+  Future<PostSummary?> postSummary(String id) =>
+      _postsRepository.postSummary(id);
 
   Stream<RepositoryEvent<Beacon>> get beaconChanges =>
       _beaconRepository.changes;

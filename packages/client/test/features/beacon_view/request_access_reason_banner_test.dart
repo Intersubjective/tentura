@@ -9,6 +9,8 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon_view/ui/widget/request_access_reason_banner.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../support/phone_surface.dart';
+
 const _bannerText =
     'You can see this request because you take part in a related request.';
 
@@ -29,12 +31,10 @@ Beacon _beacon({
 
 Beacon _parent({
   BeaconKind kind = BeaconKind.post,
-  String title = 'GQ1024: planning a weekend',
-  String context = '',
+  String title = '',
 }) => Beacon(
   id: 'P1',
   title: title,
-  context: context,
   kind: kind,
   author: const Profile(id: 'U1', displayName: 'a'),
   createdAt: DateTime.utc(2026, 6, 19),
@@ -49,6 +49,7 @@ Future<void> _pumpBanner(
   WidgetTester tester,
   Beacon beacon, {
   Beacon? parent,
+  String parentPostExcerpt = 'GQ1024: planning a weekend',
 }) async {
   await tester.pumpWidget(
     MaterialApp(
@@ -60,7 +61,11 @@ Future<void> _pumpBanner(
         child: Scaffold(
           body: SizedBox(
             width: 400,
-            child: RequestAccessReasonBanner(beacon: beacon, parent: parent),
+            child: RequestAccessReasonBanner(
+              beacon: beacon,
+              parent: parent,
+              parentPostExcerpt: parentPostExcerpt,
+            ),
           ),
         ),
       ),
@@ -184,18 +189,21 @@ void main() {
       );
     });
 
-    testWidgets('a post with empty title falls back to context for title', (
+    testWidgets('a post with empty excerpt keeps untitled copy', (
       tester,
     ) async {
       await _pumpBanner(
         tester,
         budded,
-        parent: _parent(
-          title: '',
-          context: 'GQ1024: planning a weekend',
-        ),
+        parent: _parent(),
+        parentPostExcerpt: '',
       );
-      expect(find.text(_postBannerText), findsOneWidget);
+      expect(
+        find.text(
+          "You can see this request because you're in the post it grew from.",
+        ),
+        findsOneWidget,
+      );
     });
 
     testWidgets('guard: a Request parent keeps the related-request line', (
@@ -234,6 +242,7 @@ void main() {
     });
 
     testWidgets('Russian names the post too', (tester) async {
+      await usePhoneSurface(tester);
       await tester.pumpWidget(
         MaterialApp(
           locale: const Locale('ru'),
@@ -242,12 +251,10 @@ void main() {
           supportedLocales: L10n.supportedLocales,
           home: TenturaResponsiveScope(
             child: Scaffold(
-              body: SizedBox(
-                width: 400,
-                child: RequestAccessReasonBanner(
-                  beacon: budded,
-                  parent: _parent(),
-                ),
+              body: RequestAccessReasonBanner(
+                beacon: budded,
+                parent: _parent(),
+                parentPostExcerpt: 'GQ1024: planning a weekend',
               ),
             ),
           ),
