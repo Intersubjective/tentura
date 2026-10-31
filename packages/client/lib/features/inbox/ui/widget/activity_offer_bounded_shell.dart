@@ -39,7 +39,7 @@ class ActivityOfferBoundedShell extends StatelessWidget {
     // #476: the card's short age («1d»), as every other Activity row reads;
     // it follows the shared clock, so it keeps counting (#532).
     final absoluteTime =
-        '${dateFormatYMD(localCreatedAt, locale: l10n.localeName)} '
+        '${dateFormatDay(localCreatedAt, locale: l10n.localeName)} '
         '${timeFormatHm(localCreatedAt, locale: l10n.localeName)}';
 
     return Material(

@@ -27,10 +27,13 @@ void main() {
   final lateUtc = DateTime.utc(2026, 6, 20, 23, 30);
   final earlyUtc = DateTime.utc(2026, 1, 1, 0, 30);
 
-  test('dateFormatYMD/timeFormatHm match direct .toLocal() formatting', () {
+  test('dateFormatDay/timeFormatHm match direct .toLocal() formatting', () {
     for (final utc in [lateUtc, earlyUtc]) {
       final local = utc.toLocal();
-      expect(dateFormatYMD(utc), DateFormat.yMd().format(local));
+      expect(
+        dateFormatDay(utc, locale: 'en', now: utc),
+        DateFormat.MMMEd('en').format(local),
+      );
       expect(timeFormatHm(utc), DateFormat.Hm().format(local));
     }
   });

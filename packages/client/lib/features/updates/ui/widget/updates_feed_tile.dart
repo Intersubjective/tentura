@@ -258,7 +258,7 @@ class _UpdatesFeedTileState extends State<UpdatesFeedTile> {
           )
         : null;
     final absoluteTime =
-        '${dateFormatYMD(localCreatedAt, locale: l10n.localeName)} '
+        '${dateFormatDay(localCreatedAt, locale: l10n.localeName)} '
         '${timeFormatHm(localCreatedAt, locale: l10n.localeName)}';
     final rowAction =
         widget.action ??

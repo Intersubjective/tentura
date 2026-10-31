@@ -95,7 +95,7 @@ class TombstoneRow extends StatelessWidget {
       l10n: l10n,
     );
     final absoluteTime =
-        '${dateFormatYMD(localCreatedAt, locale: l10n.localeName)} '
+        '${dateFormatDay(localCreatedAt, locale: l10n.localeName)} '
         '${timeFormatHm(localCreatedAt, locale: l10n.localeName)}';
 
     return Semantics(

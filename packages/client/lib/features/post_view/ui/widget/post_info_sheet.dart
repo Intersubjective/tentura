@@ -153,7 +153,7 @@ class PostInfoSheet extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                         Text(
-                          '${dateFormatYMD(beacon.createdAt, locale: l10n.localeName)} '
+                          '${dateFormatDay(beacon.createdAt, locale: l10n.localeName)} '
                           '${timeFormatHm(beacon.createdAt, locale: l10n.localeName)}',
                           style: TenturaText.bodySmall(tt.textMuted),
                         ),

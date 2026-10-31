@@ -147,7 +147,7 @@ class HelpOfferTile extends StatelessWidget {
                     .abs() <
                 1
         ? null
-        : '${dateFormatYMD(participantUpdatedAt, locale: l10n.localeName)} · '
+        : '${dateFormatDay(participantUpdatedAt, locale: l10n.localeName)} · '
               '${timeFormatHm(participantUpdatedAt, locale: l10n.localeName)}';
     final stakeParticipationLabel = helpOfferStakeParticipationLabel(
       l10n,
@@ -278,7 +278,7 @@ class HelpOfferTile extends StatelessWidget {
                         // tile; the exact stamp stays one hover away.
                         Tooltip(
                           message:
-                              '${dateFormatYMD(dateShown.toLocal(), locale: l10n.localeName)} · '
+                              '${dateFormatDay(dateShown.toLocal(), locale: l10n.localeName)} · '
                               '${timeFormatHm(dateShown.toLocal(), locale: l10n.localeName)}',
                           child: TenturaMetaText(
                             '${_offerWhen(dateShown, l10n)}'
@@ -511,7 +511,7 @@ String _offerWhen(DateTime when, L10n l10n) {
   final now = DateTime.now();
   final local = when.toLocal();
   if (now.difference(local).inDays >= 7) {
-    return dateFormatYMD(local, locale: l10n.localeName);
+    return dateFormatDay(local, locale: l10n.localeName);
   }
   return compactRelativeTimeAgo(when: when, now: now, l10n: l10n);
 }
@@ -585,7 +585,7 @@ class _AuthorSeenRow extends StatelessWidget {
     if (seenAt == null) return row;
     return Tooltip(
       message: l10n.helpOfferAuthorSeenAtTooltip(
-        '${dateFormatYMD(seenAt, locale: l10n.localeName)} · '
+        '${dateFormatDay(seenAt, locale: l10n.localeName)} · '
         '${timeFormatHm(seenAt, locale: l10n.localeName)}',
       ),
       child: row,

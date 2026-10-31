@@ -9,37 +9,56 @@ void main() {
     await initializeDateFormatting('ru');
   });
 
-  test('dateFormatYMD/timeFormatHm always render viewer-local time', () {
+  test('dateFormatDay/timeFormatHm always render viewer-local time', () {
     final utcInstant = DateTime.utc(2026, 6, 20, 23, 30);
     final local = utcInstant.toLocal();
-    expect(dateFormatYMD(utcInstant), DateFormat.yMd().format(local));
+    expect(
+      dateFormatDay(utcInstant, locale: 'en', now: local),
+      DateFormat.MMMEd('en').format(local),
+    );
     expect(timeFormatHm(utcInstant), DateFormat.Hm().format(local));
   });
 
   test('null input is empty string', () {
-    expect(dateFormatYMD(null), '');
-    expect(dateFormatYMD(null, locale: 'ru'), '');
+    expect(dateFormatDay(null, locale: 'ru'), '');
     expect(timeFormatHm(null), '');
   });
 
-  group('#609 dateFormatYMD follows the app locale', () {
-    final day = DateTime(2026, 10, 5, 18, 40);
+  // #450 (#609 follow-up): a day reads «Sat, Oct 17» with its weekday, in
+  // the app language, never a numeric 10/17/2026 or 17.10.2026.
+  group('#450 dateFormatDay: weekday style in the app language', () {
+    final day = DateTime(2026, 10, 17, 18, 40);
+    final now = DateTime(2026, 10, 31, 12);
 
-    test('ru reads dd.MM.yyyy', () {
-      expect(dateFormatYMD(day, locale: 'ru'), '05.10.2026');
+    test('en reads «Sat, Oct 17»', () {
+      expect(dateFormatDay(day, locale: 'en', now: now), 'Sat, Oct 17');
     });
 
-    test('en keeps M/d/yyyy', () {
-      expect(dateFormatYMD(day, locale: 'en'), '10/5/2026');
+    test('ru reads «сб, 17 окт.»', () {
+      expect(dateFormatDay(day, locale: 'ru', now: now), 'сб, 17 окт.');
     });
 
-    test('ru does not depend on the process default locale', () {
+    test('another year carries the year', () {
+      final old = DateTime(2025, 3, 4, 9);
+      expect(dateFormatDay(old, locale: 'en', now: now), 'Tue, Mar 4, 2025');
+      // intl separates «2025 г.» with a no-break space.
+      expect(
+        dateFormatDay(
+          old,
+          locale: 'ru',
+          now: now,
+        ).replaceAll(RegExp('[\u00A0\u202F]'), ' '),
+        'вт, 4 мар. 2025 г.',
+      );
+    });
+
+    test('the locale is the given one, not the process default', () {
       final saved = Intl.defaultLocale;
       addTearDown(() => Intl.defaultLocale = saved);
       Intl.defaultLocale = 'en';
-      expect(dateFormatYMD(day, locale: 'ru'), '05.10.2026');
+      expect(dateFormatDay(day, locale: 'ru', now: now), 'сб, 17 окт.');
       Intl.defaultLocale = 'ru';
-      expect(dateFormatYMD(day, locale: 'en'), '10/5/2026');
+      expect(dateFormatDay(day, locale: 'en', now: now), 'Sat, Oct 17');
     });
   });
 
