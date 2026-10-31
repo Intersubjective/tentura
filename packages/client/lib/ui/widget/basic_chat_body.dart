@@ -8,6 +8,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 
 import 'package:tentura/app/platform/text_input_focus.dart';
+import 'package:tentura/app/platform/web_safe_text_field_enabled.dart';
 import 'package:tentura/data/repository/clipboard_image_repository.dart';
 import 'package:tentura/data/repository/image_repository.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -1183,6 +1184,11 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer>
   @override
   void didUpdateWidget(covariant BeaconRoomComposer oldWidget) {
     super.didUpdateWidget(oldWidget);
+    unfocusBeforeReadOnlyFieldLock(
+      focusNode: _composerFocus,
+      wasReadOnly: oldWidget.readOnlyHint != null,
+      isReadOnly: widget.readOnlyHint != null,
+    );
     if (oldWidget.participants != widget.participants ||
         oldWidget.enableParticipantMentions !=
             widget.enableParticipantMentions) {
@@ -1763,7 +1769,10 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer>
                     minLines: 1,
                     maxLines: 4,
                     textInputAction: TextInputAction.send,
-                    enabled: !locked,
+                    enabled: webSafeTextFieldEnabled(
+                      targetEnabled: !locked,
+                      hasFocus: _composerFocus.hasFocus,
+                    ),
                     onTapAlwaysCalled: true,
                     onTap: _requestComposerKeyboardFromTap,
                     onSubmitted: (_) {
