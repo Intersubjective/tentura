@@ -323,5 +323,17 @@ bool isBenignSentryExceptionText(String text) {
       lower.contains('messaging/unsupported-browser')) {
     return true;
   }
+  if (_isBlockedFirebaseJsDynamicImport(text)) {
+    return true;
+  }
   return false;
+}
+
+/// Blocked Firebase JS SDK CDN import (privacy extensions, offline, etc.).
+/// Other dynamic-import failures must still report.
+bool _isBlockedFirebaseJsDynamicImport(String text) {
+  if (!text.contains('Failed to fetch dynamically imported module')) {
+    return false;
+  }
+  return text.contains('gstatic.com/firebasejs/');
 }

@@ -7,6 +7,7 @@ import 'package:tentura/env.dart';
 import 'package:tentura/features/notification/fcm_debug_log.dart';
 
 import 'firebase_client_config.dart';
+import 'firebase_web_sdk_import.dart';
 import 'service_base.dart';
 
 @singleton
@@ -27,6 +28,7 @@ class FirebaseService extends ServiceBase {
     required Env env,
     required Logger logger,
     @ignoreParam Future<void> Function(FirebaseOptions options)? initializeApp,
+    @ignoreParam Future<void> Function()? assertWebSdkReachable,
     @ignoreParam Duration initTimeout = kFirebaseInitTimeout,
   }) async {
     logFirebaseClientConfig(env);
@@ -43,12 +45,16 @@ class FirebaseService extends ServiceBase {
       );
       try {
         // Web: firebase_core_web loads the Firebase JS SDK with a dynamic
-        // import(); when that import fails (blocked or unreachable host) the
-        // init never completes, which held startup until its 60 s timeout
-        // (#878, TENTURA-CLIENT-5J).
+        // import(); when that import fails (blocked or unreachable host) its
+        // internal completer never completes (#880), so boot waited the full
+        // init timeout (#878). Probe the SDK import first on web; keep
+        // [initTimeout] as a backstop for a hang in the probe or the init.
         await bootStep(
           'firebase_init',
-          () => (initializeApp ?? _initializeApp)(options).timeout(initTimeout),
+          () => () async {
+            await (assertWebSdkReachable ?? assertFirebaseWebSdkReachable)();
+            await (initializeApp ?? _initializeApp)(options);
+          }().timeout(initTimeout),
         );
         isInitialized = true;
         fcmLog('FirebaseService: Firebase.initializeApp OK');
