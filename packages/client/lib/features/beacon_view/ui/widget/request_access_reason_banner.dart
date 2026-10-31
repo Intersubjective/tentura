@@ -8,6 +8,35 @@ import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../../domain/request_access_reason.dart';
 
+const _postExcerptMaxLength = 40;
+const _postExcerptEllipsis = '…';
+
+/// Shortens a Post root excerpt for the access banner (#724): the sentence
+/// wraps on phones; only the excerpt inside «…» is clipped (40 code units
+/// keeps EN/RU copy within five lines at 375 px; ~60 overflowed RU).
+String clipParentPostExcerptForAccessBanner(String excerpt) {
+  final trimmed = excerpt.trim();
+  if (trimmed.length <= _postExcerptMaxLength) return trimmed;
+  const room = _postExcerptMaxLength - _postExcerptEllipsis.length;
+  var head = _cutUtf16CodeUnits(trimmed, room);
+  final space = head.lastIndexOf(RegExp(r'\s'));
+  final atWordEnd =
+      head.length < trimmed.length &&
+      RegExp(r'\s').hasMatch(trimmed[head.length]);
+  if (!atWordEnd && space > 0) head = head.substring(0, space);
+  head = head.replaceFirst(RegExp(r'[\s\-–—,;:]+$'), '');
+  if (head.isEmpty) head = _cutUtf16CodeUnits(trimmed, room);
+  return '$head$_postExcerptEllipsis';
+}
+
+String _cutUtf16CodeUnits(String s, int max) {
+  if (s.length <= max) return s;
+  var end = max;
+  final last = s.codeUnitAt(end - 1);
+  if (last >= 0xD800 && last <= 0xDBFF) end--;
+  return s.substring(0, end);
+}
+
 /// Informational line for observers whose access comes only from a related
 /// (parent/child) request or the Post the Request grew from. Applied and
 /// forwarded access are explained elsewhere, so they take priority and hide
@@ -31,6 +60,9 @@ class RequestAccessReasonBanner extends StatelessWidget {
 
   static const openParentKey = Key('request-access-reason-open-parent');
 
+  @visibleForTesting
+  static const bodyTextKey = Key('request-access-reason-body');
+
   @override
   Widget build(BuildContext context) {
     if (!requestAccessViaRelated(beacon)) return const SizedBox.shrink();
@@ -46,7 +78,7 @@ class RequestAccessReasonBanner extends StatelessWidget {
             requestAccessViaParent(beacon)
         ? parent
         : null;
-    final postTitle = parentPostExcerpt.trim();
+    final postTitle = clipParentPostExcerptForAccessBanner(parentPostExcerpt);
     final text = post == null
         ? l10n.requestAccessViaRelatedRequest
         : postTitle.isEmpty
@@ -71,8 +103,8 @@ class RequestAccessReasonBanner extends StatelessWidget {
                 children: [
                   Text(
                     text,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                    key: bodyTextKey,
+                    maxLines: 5,
                     style: TenturaText.bodySmall(scheme.onSurfaceVariant),
                   ),
                   if (post != null)

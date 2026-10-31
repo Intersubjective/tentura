@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura_root/domain/entity/beacon_access.dart';
 
@@ -45,6 +46,44 @@ const _postBannerText =
     "You can see this request because you're in the post "
     '«GQ1024: planning a weekend» it grew from.';
 
+/// Long enough that a single-line ellipsis hid «post» on a 375 px phone (#724).
+const _longPostExcerpt =
+    'GQ1024: planning an extended weekend garden cleanup with neighbors '
+    'and friends from the whole city block joining together';
+
+RenderParagraph _bannerParagraph(WidgetTester tester) =>
+    tester.renderObject<RenderParagraph>(
+      find.byKey(RequestAccessReasonBanner.bodyTextKey),
+    );
+
+Future<void> _pumpBannerPhone(
+  WidgetTester tester, {
+  required Locale locale,
+  required Beacon beacon,
+  Beacon? parent,
+  String parentPostExcerpt = 'GQ1024: planning a weekend',
+}) async {
+  await usePhoneSurface(tester);
+  await tester.pumpWidget(
+    MaterialApp(
+      locale: locale,
+      theme: TenturaTheme.light(),
+      localizationsDelegates: L10n.localizationsDelegates,
+      supportedLocales: L10n.supportedLocales,
+      home: TenturaResponsiveScope(
+        child: Scaffold(
+          body: RequestAccessReasonBanner(
+            beacon: beacon,
+            parent: parent,
+            parentPostExcerpt: parentPostExcerpt,
+          ),
+        ),
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+}
+
 Future<void> _pumpBanner(
   WidgetTester tester,
   Beacon beacon, {
@@ -75,6 +114,19 @@ Future<void> _pumpBanner(
 }
 
 void main() {
+  test('clipParentPostExcerptForAccessBanner keeps a short excerpt intact', () {
+    const short = 'GQ1024: planning a weekend';
+    expect(clipParentPostExcerptForAccessBanner(short), short);
+    expect(clipParentPostExcerptForAccessBanner('  $short  '), short);
+  });
+
+  test('clipParentPostExcerptForAccessBanner shortens a long excerpt', () {
+    final clipped = clipParentPostExcerptForAccessBanner(_longPostExcerpt);
+    expect(clipped.length, lessThanOrEqualTo(40));
+    expect(clipped, endsWith('…'));
+    expect(clipped, startsWith('GQ1024:'));
+  });
+
   testWidgets('shown for context-child observer', (tester) async {
     await _pumpBanner(
       tester,
@@ -242,32 +294,78 @@ void main() {
     });
 
     testWidgets('Russian names the post too', (tester) async {
-      await usePhoneSurface(tester);
-      await tester.pumpWidget(
-        MaterialApp(
+      await _pumpBannerPhone(
+        tester,
+        locale: const Locale('ru'),
+        beacon: budded,
+        parent: _parent(),
+      );
+      final paragraph = _bannerParagraph(tester);
+      expect(paragraph.didExceedMaxLines, isFalse);
+      final plain = paragraph.text.toPlainText();
+      expect(plain, contains('пост'));
+      expect(plain, contains('GQ1024'));
+      expect(plain, isNot(contains('…')));
+    });
+
+    testWidgets(
+      '375 phone EN: long excerpt wraps without clipping the reason',
+      (
+        tester,
+      ) async {
+        await _pumpBannerPhone(
+          tester,
+          locale: const Locale('en'),
+          beacon: budded,
+          parent: _parent(),
+          parentPostExcerpt: _longPostExcerpt,
+        );
+        final paragraph = _bannerParagraph(tester);
+        expect(paragraph.didExceedMaxLines, isFalse);
+        final plain = paragraph.text.toPlainText();
+        expect(plain, contains('post'));
+        expect(plain, contains('GQ1024'));
+        expect(plain, contains('…'));
+        expect(
+          find.byKey(RequestAccessReasonBanner.openParentKey),
+          findsOneWidget,
+        );
+      },
+    );
+
+    testWidgets(
+      '375 phone RU: long excerpt wraps without clipping the reason',
+      (
+        tester,
+      ) async {
+        await _pumpBannerPhone(
+          tester,
           locale: const Locale('ru'),
-          theme: TenturaTheme.light(),
-          localizationsDelegates: L10n.localizationsDelegates,
-          supportedLocales: L10n.supportedLocales,
-          home: TenturaResponsiveScope(
-            child: Scaffold(
-              body: RequestAccessReasonBanner(
-                beacon: budded,
-                parent: _parent(),
-                parentPostExcerpt: 'GQ1024: planning a weekend',
-              ),
-            ),
-          ),
-        ),
+          beacon: budded,
+          parent: _parent(),
+          parentPostExcerpt: _longPostExcerpt,
+        );
+        final paragraph = _bannerParagraph(tester);
+        expect(paragraph.didExceedMaxLines, isFalse);
+        final plain = paragraph.text.toPlainText();
+        expect(plain, contains('пост'));
+        expect(plain, contains('GQ1024'));
+        expect(plain, contains('…'));
+      },
+    );
+
+    testWidgets('desktop: long excerpt wraps within the line cap', (
+      tester,
+    ) async {
+      await _pumpBanner(
+        tester,
+        budded,
+        parent: _parent(),
+        parentPostExcerpt: _longPostExcerpt,
       );
-      await tester.pumpAndSettle();
-      expect(
-        find.text(
-          'Вы видите этот запрос, потому что участвуете в посте '
-          '«GQ1024: planning a weekend», из которого он вырос.',
-        ),
-        findsOneWidget,
-      );
+      final paragraph = _bannerParagraph(tester);
+      expect(paragraph.didExceedMaxLines, isFalse);
+      expect(paragraph.text.toPlainText(), contains('post'));
     });
   });
 }
