@@ -168,6 +168,46 @@ final class _PromptSetup implements InviteAcceptedSetupPort {
   Future<void> skip(String subjectId) async {}
 }
 
+/// #259: prompts stay pending until skipped; a skipped subject reads back as
+/// skipped, so a refetch cannot resurrect it.
+final class _SkippablePromptSetup extends _PromptSetup {
+  final skipped = <String>[];
+
+  @override
+  Future<Map<String, InviteSeedPromptState>> fetchPrompts(
+    Set<String> subjectIds,
+  ) async => {
+    for (final id in subjectIds)
+      id: InviteSeedPromptState(
+        inviterUserId: 'inv',
+        inviteeUserId: id,
+        state: skipped.contains(id)
+            ? PromptStateValue.skipped
+            : PromptStateValue.pending,
+      ),
+  };
+
+  @override
+  Future<void> skip(String subjectId) async => skipped.add(subjectId);
+}
+
+AttentionReceipt _pendingInviteReceipt(int i) => AttentionReceipt(
+  id: 'prompt-batch-$i',
+  category: 'social',
+  kind: 'inviteAccepted',
+  priority: 'normal',
+  title: 'Invite $i',
+  body: 'Body',
+  actionUrl: '/#/',
+  createdAt: DateTime.now().subtract(Duration(hours: 1 + i)),
+  collapsedCount: 1,
+  presentationPayloadJson: '{"inviteOrigin":"new_account"}',
+  surface: AttentionSurface.activity,
+  presentationKey: 'invite_accepted',
+  actorUserId: 'invitee-batch-$i',
+  targetEntityId: 'invitee-batch-$i',
+);
+
 class _FeedAttentionRepo extends ConfigurableActivityOffersAttentionRepo {
   _FeedAttentionRepo({
     required this.firstPage,
@@ -667,6 +707,88 @@ void main() {
     expect(find.byType(ForYouEmptyState), findsNothing);
     expect(find.byType(CaughtUpPanel), findsNothing);
   });
+
+  // #259: the real path, For you with four pending «Set up connection»
+  // prompts: collapsed row → batch sheet → Skip all → confirm → the pinned
+  // zone is empty, and every prompt was skipped exactly once.
+  for (final locale in const [Locale('en'), Locale('ru')]) {
+    testWidgets(
+      '#259 ${locale.languageCode.toUpperCase()} 375×667: Skip all empties '
+      'the pinned prompt zone',
+      (tester) async {
+        final receipts = [for (var i = 0; i < 4; i++) _pendingInviteReceipt(i)];
+        final inboxRepo = FakeInboxRepository();
+        final attentionRepo = _FeedAttentionRepo(firstPage: receipts);
+        wireActivityOffersV2(
+          inbox: inboxRepo,
+          attention: attentionRepo,
+          items: const [],
+        );
+        final setup = _SkippablePromptSetup();
+        if (GetIt.I.isRegistered<InviteAcceptedSetupPort>()) {
+          GetIt.I.unregister<InviteAcceptedSetupPort>();
+        }
+        GetIt.I.registerSingleton<InviteAcceptedSetupPort>(setup);
+        addTearDown(() {
+          if (GetIt.I.isRegistered<InviteAcceptedSetupPort>()) {
+            GetIt.I.unregister<InviteAcceptedSetupPort>();
+          }
+        });
+        final boot = await _boot(
+          inboxRepo: inboxRepo,
+          attentionRepo: attentionRepo,
+          setup: setup,
+        );
+        addTearDown(boot.dispose);
+        for (var i = 0; i < 4; i++) {
+          boot.stream.applyKnownPrompt(
+            'invitee-batch-$i',
+            InviteSeedPromptState(
+              inviterUserId: 'inv',
+              inviteeUserId: 'invitee-batch-$i',
+              state: PromptStateValue.pending,
+            ),
+          );
+        }
+
+        await _pumpStreamView(
+          tester,
+          boot: boot,
+          logicalSize: const Size(375, 667),
+          locale: locale,
+        );
+        final l10n = lookupL10n(locale);
+
+        final collapsed = find.byKey(
+          TestIds.key(TestIds.activityPromptCollapsed),
+        );
+        expect(collapsed, findsOneWidget);
+        await tester.tap(collapsed);
+        await _pumpFrames(tester, frames: 8);
+
+        await tester.tap(find.text(l10n.promptBatchSkipAll(4)));
+        await _pumpFrames(tester, frames: 8);
+        await tester.tap(find.text(l10n.promptBatchSkipAllConfirm));
+        await _pumpFrames(tester, frames: 10);
+
+        expect(setup.skipped, [
+          for (var i = 0; i < 4; i++) 'invitee-batch-$i',
+        ]);
+        expect(collapsed, findsNothing);
+        for (final receipt in receipts) {
+          expect(
+            find.byKey(TestIds.key(TestIds.activityPromptPin(receipt.id))),
+            findsNothing,
+          );
+        }
+        expect(
+          find.text(l10n.promptBatchSkipAllDone(4), findRichText: true),
+          findsOneWidget,
+        );
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
 
   testWidgets('stream pagination waits until offers hasMore is false', (
     tester,

@@ -5920,6 +5920,57 @@
   "inviteAcceptedSetupCapabilitiesError": "Не удалось сохранить возможности. Повторите попытку.",
   "inviteAcceptedSetupPartialSuccessError": "Личное имя сохранено, но возможности — нет. Попробуйте сохранить снова.",
   "inviteAcceptedSetupSkipError": "Не удалось пропустить настройку. Повторите попытку.",
+  "promptBatchSkipAll": "Пропустить все ({count})",
+  "@promptBatchSkipAll": {
+    "description": "Action in the title row of the batch sheet for pending «Set up connection» prompts (#259).",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "promptBatchSkipAllConfirmTitle": "{count, plural, one{Пропустить настройку для {count} человека?} few{Пропустить настройку для {count} человек?} many{Пропустить настройку для {count} человек?} other{Пропустить настройку для {count} человека?}}",
+  "@promptBatchSkipAllConfirmTitle": {
+    "description": "Confirm dialog title before Skip all in the invite prompt batch sheet (#259).",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "promptBatchSkipAllConfirmBody": "Их можно будет настроить позже в профилях.",
+  "@promptBatchSkipAllConfirmBody": {
+    "description": "Confirm dialog body before Skip all (#259)."
+  },
+  "promptBatchSkipAllConfirm": "Пропустить все",
+  "@promptBatchSkipAllConfirm": {
+    "description": "Confirm button of the Skip all dialog (#259)."
+  },
+  "promptBatchSkipAllDone": "Пропущено: {count}",
+  "@promptBatchSkipAllDone": {
+    "description": "Shown after Skip all skipped every pending prompt (#259).",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "promptBatchSkipAllPartial": "Пропущено {done} из {total}",
+  "@promptBatchSkipAllPartial": {
+    "description": "Shown when Skip all skipped only some prompts (#259).",
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "promptBatchSkipAllRetry": "Повторить",
+  "@promptBatchSkipAllRetry": {
+    "description": "Retries Skip all for the prompts not skipped yet (#259)."
+  },
   "profileSeedSuggestionEditPrompt": "Изменить подсказки по маршрутизации для {name}",
   "@profileSeedSuggestionEditPrompt": {
     "placeholders": {
