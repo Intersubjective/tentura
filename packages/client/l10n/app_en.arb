@@ -3112,6 +3112,10 @@
   "@forwardWithdrawn": {
     "context": "ForwardBeaconScreen"
   },
+  "forwardOfferDeclinedByAuthor": "Offer declined",
+  "@forwardOfferDeclinedByAuthor": {
+    "context": "ForwardBeaconScreen"
+  },
   "forwardWatching": "Following",
   "@forwardWatching": {
     "context": "ForwardBeaconScreen"

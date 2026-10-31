@@ -184,6 +184,7 @@ BeaconInvolvementData _involvementWithForward({
   forwardedToIds: {recipientId},
   helpOfferedIds: <String>{},
   withdrawnIds: <String>{},
+  declinedOfferIds: <String>{},
   rejectedIds: <String>{},
   watchingIds: <String>{},
   onwardForwarderIds: <String>{},

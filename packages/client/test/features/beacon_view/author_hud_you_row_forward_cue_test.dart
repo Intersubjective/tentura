@@ -86,6 +86,7 @@ class _AuthorForwards extends FakeBeaconViewForwardRepository {
     forwardedToIds: {for (final p in recipients.keys) p.id},
     helpOfferedIds: const <String>{},
     withdrawnIds: const <String>{},
+    declinedOfferIds: const <String>{},
     rejectedIds: {
       for (final e in recipients.entries)
         if (e.value) e.key.id,

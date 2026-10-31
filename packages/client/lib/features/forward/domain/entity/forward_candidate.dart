@@ -44,7 +44,8 @@ abstract class ForwardCandidate with _$ForwardCandidate {
       involvement != CandidateInvolvement.author &&
       involvement != CandidateInvolvement.declined &&
       involvement != CandidateInvolvement.helpOffered &&
-      involvement != CandidateInvolvement.withdrawn;
+      involvement != CandidateInvolvement.withdrawn &&
+      involvement != CandidateInvolvement.offerDeclinedByAuthor;
 
   bool get canForwardTo => canForwardToOn(availabilityTodayUtc());
 

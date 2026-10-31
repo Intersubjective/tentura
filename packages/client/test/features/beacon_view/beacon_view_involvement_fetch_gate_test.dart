@@ -59,6 +59,7 @@ class _StubForwardRepository extends FakeBeaconViewForwardRepository {
     forwardedToIds: const <String>{},
     helpOfferedIds: const <String>{},
     withdrawnIds: const <String>{},
+    declinedOfferIds: const <String>{},
     rejectedIds: const <String>{},
     watchingIds: const <String>{},
     onwardForwarderIds: const <String>{},
