@@ -157,13 +157,15 @@ void main() {
       expect(_chip(CapabilityTag.tools), findsNothing);
     });
 
-    testWidgets('guard: with nothing chosen every group is folded', (
+    testWidgets('with nothing chosen only the first group is open (#741)', (
       tester,
     ) async {
       await tester.pumpWidget(_host());
       await tester.pumpAndSettle();
 
-      expect(find.byType(FilterChip), findsNothing);
+      expect(_chip(CapabilityTag.transport), findsOneWidget);
+      expect(_chip(CapabilityTag.calls), findsNothing);
+      expect(_chip(CapabilityTag.money), findsNothing);
     });
   });
 }

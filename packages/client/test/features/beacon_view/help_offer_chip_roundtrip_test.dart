@@ -71,8 +71,11 @@ Future<void> _expandCapabilityGroup(WidgetTester tester, String label) async {
 Future<int> _countChipsAcrossAllGroups(WidgetTester tester) async {
   var total = 0;
   final chipSet = find.byType(CapabilityChipSet);
+  final chips = find.descendant(of: chipSet, matching: find.byType(FilterChip));
   for (final label in _capabilityGroupLabels) {
     await _expandCapabilityGroup(tester, label);
+    // The first group starts open (#741): that tap folded it, so open it.
+    if (chips.evaluate().isEmpty) await _expandCapabilityGroup(tester, label);
     total += tester
         .widgetList<FilterChip>(
           find.descendant(

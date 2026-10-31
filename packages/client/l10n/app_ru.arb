@@ -5388,6 +5388,14 @@
   "profileLabelPrivate": "Ваша заметка, видите только вы",
   "profileLabelShared": "Из пересылок или отметок о помощи, видно другим",
   "profileSeedSuggestionInfo": "Люди, которые вам доверяют, увидят этого человека в подсказках для таких запросов.",
+  "capabilitySearchLabel": "Поиск",
+  "@capabilitySearchLabel": {
+    "description": "Подпись поля поиска над выбором навыков (требования, навыки в профиле) (#741)."
+  },
+  "capabilitySearchEmpty": "Ничего не найдено",
+  "@capabilitySearchEmpty": {
+    "description": "Показывается в выборе навыков, когда поиск ничего не нашёл (#741)."
+  },
   "capabilityDialogTitle": "Чем может помочь {name}?",
   "capabilityDialogOnlyYou": "Новые метки — ваши заметки, их видите только вы",
   "capabilityEditCapabilities": "Редактировать способности",
