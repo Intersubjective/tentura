@@ -6559,8 +6559,48 @@
   "beaconShowcaseTeamSheetTitle": "Помогают",
   "beaconShowcaseTeamHidden": "{count, plural, =1{Ещё 1 скрыт от вас} few{Ещё {count} скрыты от вас} other{Ещё {count} скрыты от вас}}",
   "beaconShowcaseAcquaintanceTag": "знакомый",
-  "beaconShowcaseOfferPending": "Ваше предложение у автора",
-  "beaconShowcaseOfferPendingWithAuthor": "Ваше предложение у автора — {author}",
+  "beaconShowcaseOfferSent": "Предложение отправлено автору",
+  "@beaconShowcaseOfferSent": {
+    "description": "#527: the line under the team while the viewer's help offer waits for an author with no shown name."
+  },
+  "beaconShowcaseOfferSentTo": "Предложение отправлено: {author}",
+  "@beaconShowcaseOfferSentTo": {
+    "description": "#527: the line under the team while the viewer's help offer waits for the author; author is the author's shown name.",
+    "placeholders": {
+      "author": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconShowcaseBackupOfferSent": "Запасное предложение отправлено автору",
+  "@beaconShowcaseBackupOfferSent": {
+    "description": "#527: as beaconShowcaseOfferSent, for a backup offer (Enough help)."
+  },
+  "beaconShowcaseBackupOfferSentTo": "Запасное предложение отправлено: {author}",
+  "@beaconShowcaseBackupOfferSentTo": {
+    "description": "#527: as beaconShowcaseOfferSentTo, for a backup offer (Enough help); author is the author's shown name.",
+    "placeholders": {
+      "author": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconShowcaseOfferNext": "Вы получите уведомление, когда автор ответит.",
+  "@beaconShowcaseOfferNext": {
+    "description": "#527: muted line under the offer-sent line: what happens next, when Withdraw is not shown."
+  },
+  "beaconShowcaseOfferNextWithdraw": "Вы получите уведомление, когда автор ответит. До тех пор предложение можно отозвать.",
+  "@beaconShowcaseOfferNextWithdraw": {
+    "description": "#527: muted line under the offer-sent line: what happens next, when the Withdraw offer button is shown."
+  },
+  "beaconShowcaseBackupOfferNext": "Автор может обратиться к вам, если понадобится больше помощи.",
+  "@beaconShowcaseBackupOfferNext": {
+    "description": "#527: muted line under a backup offer-sent line, when Withdraw is not shown (mirrors the backup-offer snackbar)."
+  },
+  "beaconShowcaseBackupOfferNextWithdraw": "Автор может обратиться к вам, если понадобится больше помощи. Предложение можно отозвать в любой момент.",
+  "@beaconShowcaseBackupOfferNextWithdraw": {
+    "description": "#527: muted line under a backup offer-sent line, when the Withdraw offer button is shown."
+  },
   "beaconShowcaseOfferQuote": "«{text}»",
   "beaconShowcaseWithdrawOffer": "Отозвать предложение",
   "beaconPreviewAsOthers": "Как видят другие",

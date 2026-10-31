@@ -127,9 +127,8 @@ class BeaconShowcaseSurface extends StatelessWidget {
                 ),
               ),
             ),
-            // Notice bars (e.g. «Help offered! Forward it to someone?»)
-            // float above this panel instead of covering Offer help /
-            // Forward (#406, #605).
+            // Notice bars (e.g. the «Offer sent» receipt) float above this
+            // panel instead of covering Offer help / Forward (#406, #605).
             SnackBarClearance(
               child: _ShowcaseBottomPanel(
                 state: state,
@@ -434,6 +433,10 @@ class _ShowcaseBottomPanel extends StatelessWidget {
             onStopWatching: () => unawaited(beaconViewCubit.stopWatching()),
           ).primary;
     final primary = actions.where((a) => a.filled).toList();
+    final offerPending =
+        !isPreview &&
+        state.isRoomAdmissionBlocked &&
+        !state.coordinationDeniesRoomAdmission;
     final secondary = [
       ...actions.where((a) => !a.filled),
       if (beacon.viewerCanForward || isPreview)
@@ -449,13 +452,11 @@ class _ShowcaseBottomPanel extends StatelessWidget {
               ),
             ),
           ),
-          filled: primary.isEmpty,
+          // #527: a waiting offer never gets a filled Forward: forwarding
+          // is not the helper's next step.
+          filled: primary.isEmpty && !offerPending,
         ),
     ];
-    final offerPending =
-        !isPreview &&
-        state.isRoomAdmissionBlocked &&
-        !state.coordinationDeniesRoomAdmission;
     // Closed or cancelled: the team is past tense and an unanswered offer is
     // no longer "with the author" (#686).
     final finished = beacon.status.isFinished;
@@ -465,6 +466,9 @@ class _ShowcaseBottomPanel extends StatelessWidget {
         : null;
     // #527: Withdraw sits under the waiting offer, not only in More actions.
     final canWithdraw = !isPreview && beaconShowcaseShowsWithdraw(state);
+    final offerNext = offerPending
+        ? beaconShowcaseOfferNextText(l10n, state, canWithdraw: canWithdraw)
+        : null;
     // In its final check a non-member has nothing to do here: Offer help and
     // Forward are gone, and this line says why (#733).
     final inFinalCheck =
@@ -531,18 +535,17 @@ class _ShowcaseBottomPanel extends StatelessWidget {
                     finished ? tt.textMuted : tt.info,
                   ),
                 ),
+                // #527: what happens next stays on the page (the receipt
+                // snack is gone in seconds).
+                if (offerNext != null)
+                  Text(
+                    offerNext,
+                    key: const Key('beaconShowcaseOfferNext'),
+                    style: TenturaText.bodySmall(tt.textMuted),
+                  ),
                 // #527: the helper's own words, so the page shows what they
                 // offered while it waits.
-                if (offerQuote != null)
-                  Text(
-                    offerQuote,
-                    key: const Key('beaconShowcaseOfferPendingMessage'),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TenturaText.bodySmall(
-                      tt.textMuted,
-                    ).copyWith(fontStyle: FontStyle.italic),
-                  ),
+                if (offerQuote != null) _OfferQuote(text: offerQuote),
                 if (canWithdraw)
                   Align(
                     alignment: AlignmentDirectional.centerStart,
@@ -632,11 +635,92 @@ String beaconShowcaseOfferPendingText(L10n l10n, BeaconViewState state) {
     BeaconStatus.closed when isBackup =>
       l10n.beaconShowcaseBackupOfferUnneededClosed,
     BeaconStatus.closed => l10n.beaconShowcaseOfferUnansweredClosed,
-    _ when authorName.isNotEmpty => l10n.beaconShowcaseOfferPendingWithAuthor(
-      authorName,
-    ),
-    _ => l10n.beaconShowcaseOfferPending,
+    _ when isBackup && authorName.isNotEmpty =>
+      l10n.beaconShowcaseBackupOfferSentTo(authorName),
+    _ when isBackup => l10n.beaconShowcaseBackupOfferSent,
+    _ when authorName.isNotEmpty => l10n.beaconShowcaseOfferSentTo(authorName),
+    _ => l10n.beaconShowcaseOfferSent,
   };
+}
+
+/// #527: the muted line under [beaconShowcaseOfferPendingText] saying what
+/// happens next, while the Request runs; null once it is closed or
+/// cancelled. A backup offer may be needed rather than answered, as its
+/// receipt says. Withdraw is mentioned only when the button is shown.
+String? beaconShowcaseOfferNextText(
+  L10n l10n,
+  BeaconViewState state, {
+  required bool canWithdraw,
+}) {
+  if (state.beacon.status.isFinished) return null;
+  final isBackup = state.myActiveHelpOffer?.offerKind == 1;
+  return switch ((isBackup, canWithdraw)) {
+    (true, true) => l10n.beaconShowcaseBackupOfferNextWithdraw,
+    (true, false) => l10n.beaconShowcaseBackupOfferNext,
+    (false, true) => l10n.beaconShowcaseOfferNextWithdraw,
+    (false, false) => l10n.beaconShowcaseOfferNext,
+  };
+}
+
+/// #527: the viewer's own offer, two lines at most; when it is longer, a tap
+/// shows all of it and another tap folds it again.
+class _OfferQuote extends StatefulWidget {
+  const _OfferQuote({required this.text});
+
+  final String text;
+
+  @override
+  State<_OfferQuote> createState() => _OfferQuoteState();
+}
+
+class _OfferQuoteState extends State<_OfferQuote> {
+  static const _foldedLines = 2;
+
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = TenturaText.bodySmall(
+      context.tt.textMuted,
+    ).copyWith(fontStyle: FontStyle.italic);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final painter = TextPainter(
+          text: TextSpan(
+            text: widget.text,
+            style: DefaultTextStyle.of(context).style.merge(style),
+          ),
+          maxLines: _foldedLines,
+          textDirection: Directionality.of(context),
+          textScaler: MediaQuery.textScalerOf(context),
+        )..layout(maxWidth: constraints.maxWidth);
+        final overflows = painter.didExceedMaxLines;
+        painter.dispose();
+        final quote = Text(
+          widget.text,
+          key: const Key('beaconShowcaseOfferPendingMessage'),
+          maxLines: _expanded ? null : _foldedLines,
+          overflow: _expanded ? null : TextOverflow.ellipsis,
+          style: style,
+        );
+        if (!overflows) return quote;
+        // Unfolded, a very long offer scrolls inside a short box so the
+        // bottom panel stays compact on a phone.
+        return InkWell(
+          key: const Key('beaconShowcaseOfferPendingMessageToggle'),
+          onTap: () => setState(() => _expanded = !_expanded),
+          child: _expanded
+              ? ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.sizeOf(context).height / 5,
+                  ),
+                  child: SingleChildScrollView(child: quote),
+                )
+              : quote,
+        );
+      },
+    );
+  }
 }
 
 /// #527: the viewer's own offer text, quoted, under the waiting line; null

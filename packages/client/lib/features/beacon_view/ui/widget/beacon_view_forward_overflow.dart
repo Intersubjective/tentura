@@ -6,6 +6,7 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/dialog/help_offer_message_dialog.dart';
+import 'package:tentura/features/beacon_view/ui/util/beacon_request_modes.dart';
 import 'package:tentura/features/forward/domain/forward_draft_policy.dart';
 import 'package:tentura/features/forward/domain/forward_target_profile.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -21,6 +22,15 @@ bool beaconViewAllowsForwardAction({
   return state.beacon.viewerCanForward;
 }
 
+/// #527: while the viewer's offer waits, the showcase's bottom Forward is the
+/// page's only Forward, so More actions leaves its own out. Only when that
+/// bottom Forward is actually there.
+bool beaconShowcaseOwnsForward(BeaconViewState state) =>
+    beaconViewModeFor(state) == BeaconViewMode.showcase &&
+    state.isRoomAdmissionBlocked &&
+    !state.coordinationDeniesRoomAdmission &&
+    state.beacon.viewerCanForward;
+
 Future<void> beaconViewOpenForwardThenMaybeNudgeOfferHelp(
   BuildContext context,
   BeaconViewCubit cubit,
@@ -31,7 +41,8 @@ Future<void> beaconViewOpenForwardThenMaybeNudgeOfferHelp(
   await context.router.push(ForwardBeaconRoute(beaconId: id));
   if (!context.mounted) return;
   final s = cubit.state;
-  final offerHelpAllowed = !s.isHelpOffered &&
+  final offerHelpAllowed =
+      !s.isHelpOffered &&
       !s.isBeaconMine &&
       s.beacon.allowsNewHelpOfferAsNonAuthor &&
       s.beacon.status == BeaconStatus.open;
@@ -92,6 +103,7 @@ VoidCallback? beaconViewForwardOverflowAction({
   required bool showInitialLoading,
 }) {
   if (!showBeaconManagementOverflow) return null;
+  if (beaconShowcaseOwnsForward(state)) return null;
   if (!beaconViewAllowsForwardAction(
     state: state,
     showBeaconContent: showBeaconContent,
@@ -100,6 +112,6 @@ VoidCallback? beaconViewForwardOverflowAction({
     return null;
   }
   return () => unawaited(
-        beaconViewOpenForwardThenMaybeNudgeOfferHelp(context, cubit, l10n),
-      );
+    beaconViewOpenForwardThenMaybeNudgeOfferHelp(context, cubit, l10n),
+  );
 }
