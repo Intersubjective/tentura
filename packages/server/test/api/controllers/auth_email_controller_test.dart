@@ -361,19 +361,22 @@ void main() {
     expect(body['attemptId'], startsWith('E'));
   });
 
-  test('POST start answers 400 invalid_email for a malformed address', () async {
-    final res = await controller.start(
-      Request(
-        'POST',
-        Uri.parse('https://dev.tentura.io/api/v2/auth/email/start'),
-        body: '{"email":"nope"}',
-        headers: {'content-type': 'application/json'},
-      ),
-    );
-    expect(res.statusCode, 400);
-    final body = jsonDecode(await res.readAsString()) as Map<String, dynamic>;
-    expect(body, {'ok': false, 'error': 'invalid_email'});
-  });
+  test(
+    'POST start answers 400 invalid_email for a malformed address',
+    () async {
+      final res = await controller.start(
+        Request(
+          'POST',
+          Uri.parse('https://dev.tentura.io/api/v2/auth/email/start'),
+          body: '{"email":"nope"}',
+          headers: {'content-type': 'application/json'},
+        ),
+      );
+      expect(res.statusCode, 400);
+      final body = jsonDecode(await res.readAsString()) as Map<String, dynamic>;
+      expect(body, {'ok': false, 'error': 'invalid_email'});
+    },
+  );
 
   group('testLogin', () {
     Request qaRequest(String body) => Request(
@@ -425,13 +428,14 @@ void main() {
       );
       final userRepo = MockUserRepositoryPort();
       final contactRepo = MockVerifiedContactRepositoryPort();
-      final res = await buildQaController(
-        qaEnv: disabled,
-        userRepo: userRepo,
-        contactRepo: contactRepo,
-      ).testLogin(
-        qaRequest('{"email":"u@test.tentura.local"}'),
-      );
+      final res =
+          await buildQaController(
+            qaEnv: disabled,
+            userRepo: userRepo,
+            contactRepo: contactRepo,
+          ).testLogin(
+            qaRequest('{"email":"u@test.tentura.local"}'),
+          );
       expect(res.statusCode, 404);
     });
 
@@ -443,13 +447,14 @@ void main() {
       );
       final userRepo = MockUserRepositoryPort();
       final contactRepo = MockVerifiedContactRepositoryPort();
-      final res = await buildQaController(
-        qaEnv: qaEnv,
-        userRepo: userRepo,
-        contactRepo: contactRepo,
-      ).testLogin(
-        qaRequest('{"email":"u@example.com"}'),
-      );
+      final res =
+          await buildQaController(
+            qaEnv: qaEnv,
+            userRepo: userRepo,
+            contactRepo: contactRepo,
+          ).testLogin(
+            qaRequest('{"email":"u@example.com"}'),
+          );
       expect(res.statusCode, 400);
     });
 
@@ -478,13 +483,14 @@ void main() {
         ),
       ).thenAnswer((_) async {});
 
-      final res = await buildQaController(
-        qaEnv: qaEnv,
-        userRepo: userRepo,
-        contactRepo: contactRepo,
-      ).testLogin(
-        qaRequest('{"email":"u@test.tentura.local"}'),
-      );
+      final res =
+          await buildQaController(
+            qaEnv: qaEnv,
+            userRepo: userRepo,
+            contactRepo: contactRepo,
+          ).testLogin(
+            qaRequest('{"email":"u@test.tentura.local"}'),
+          );
 
       expect(res.statusCode, 200);
       final body = jsonDecode(await res.readAsString()) as Map<String, dynamic>;
@@ -510,7 +516,9 @@ void main() {
           identifier: anyNamed('identifier'),
         ),
       ).thenThrow(const IdNotFoundException());
-      when(contactRepo.findAccountIdsByContacts(any)).thenAnswer((_) async => {});
+      when(
+        contactRepo.findAccountIdsByContacts(any),
+      ).thenAnswer((_) async => {});
       when(
         userRepo.createWithCredential(
           type: anyNamed('type'),
@@ -524,13 +532,14 @@ void main() {
         (_) async => const UserEntity(id: 'Unew', displayName: 'u'),
       );
 
-      final res = await buildQaController(
-        qaEnv: qaEnv,
-        userRepo: userRepo,
-        contactRepo: contactRepo,
-      ).testLogin(
-        qaRequest('{"email":"u@test.tentura.local"}'),
-      );
+      final res =
+          await buildQaController(
+            qaEnv: qaEnv,
+            userRepo: userRepo,
+            contactRepo: contactRepo,
+          ).testLogin(
+            qaRequest('{"email":"u@test.tentura.local"}'),
+          );
 
       expect(res.statusCode, 200);
       final body = jsonDecode(await res.readAsString()) as Map<String, dynamic>;
@@ -578,19 +587,96 @@ void main() {
           ),
         ).thenThrow(InvitationWrongException(description: description));
 
-        final res = await buildQaController(
-          qaEnv: qaEnv,
-          userRepo: userRepo,
-          contactRepo: contactRepo,
-        ).testLogin(
-          qaRequest('{"email":"u@test.tentura.local","inviteCode":"Iused"}'),
-        );
+        final res =
+            await buildQaController(
+              qaEnv: qaEnv,
+              userRepo: userRepo,
+              contactRepo: contactRepo,
+            ).testLogin(
+              qaRequest(
+                '{"email":"u@test.tentura.local","inviteCode":"Iused"}',
+              ),
+            );
 
         expect(res.statusCode, 409);
         final body =
             jsonDecode(await res.readAsString()) as Map<String, dynamic>;
         expect(body['error'], error);
       });
+    }
+
+    // #788 round 2: an unknown invite code (mistyped /invite/<code>) answers
+    // 409 invite_invalid, and the typed reason wins over the description text.
+    for (final (exception, error) in [
+      (
+        const InvitationWrongException(description: 'Invitation not found'),
+        'invite_invalid',
+      ),
+      (
+        const InvitationWrongException(
+          description: 'gone',
+          reason: InvitationWrongReason.expired,
+        ),
+        'invite_expired',
+      ),
+      (
+        const InvitationWrongException(
+          description: 'taken',
+          reason: InvitationWrongReason.used,
+        ),
+        'invite_used',
+      ),
+    ]) {
+      test(
+        'new account on ${exception.description} answers 409 $error',
+        () async {
+          final qaEnv = Env(
+            environment: Environment.test,
+            publicOrigin: 'https://dev.tentura.io',
+            qaSimpleLoginMode: true,
+            isNeedInvite: true,
+          );
+          final userRepo = MockUserRepositoryPort();
+          final contactRepo = MockVerifiedContactRepositoryPort();
+          when(
+            userRepo.getByCredential(
+              type: anyNamed('type'),
+              identifier: anyNamed('identifier'),
+            ),
+          ).thenThrow(const IdNotFoundException());
+          when(
+            contactRepo.findAccountIdsByContacts(any),
+          ).thenAnswer((_) async => {});
+          when(
+            userRepo.createInvitedWithCredential(
+              invitationId: anyNamed('invitationId'),
+              type: anyNamed('type'),
+              identifier: anyNamed('identifier'),
+              displayName: anyNamed('displayName'),
+              handle: anyNamed('handle'),
+              publicData: anyNamed('publicData'),
+              contacts: anyNamed('contacts'),
+              onPostForwardCreated: anyNamed('onPostForwardCreated'),
+            ),
+          ).thenThrow(exception);
+
+          final res =
+              await buildQaController(
+                qaEnv: qaEnv,
+                userRepo: userRepo,
+                contactRepo: contactRepo,
+              ).testLogin(
+                qaRequest(
+                  '{"email":"u@test.tentura.local","inviteCode":"I000000000000"}',
+                ),
+              );
+
+          expect(res.statusCode, 409);
+          final body =
+              jsonDecode(await res.readAsString()) as Map<String, dynamic>;
+          expect(body['error'], error);
+        },
+      );
     }
   });
 }

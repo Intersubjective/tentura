@@ -81,7 +81,8 @@ final class AuthEmailController extends BaseController {
     final email = body['email'] as String? ?? '';
     final inviteCode = body['inviteCode'] as String?;
     final normalized = normalizeAuthEmail(email);
-    if (!isValidAuthEmailFormat(normalized) || !env.isQaEmailDomain(normalized)) {
+    if (!isValidAuthEmailFormat(normalized) ||
+        !env.isQaEmailDomain(normalized)) {
       return Response.badRequest(body: 'invalid QA email');
     }
 
@@ -128,12 +129,11 @@ final class AuthEmailController extends BaseController {
   /// A used, expired or unknown invite on the page is an expected answer
   /// (409 + reason), not a 500 the landing reports to Sentry (#788).
   Response _testLoginInviteFailure(ExceptionBase e) {
-    final lower = e.description.toLowerCase();
-    final error = lower.contains('expired')
-        ? 'invite_expired'
-        : lower.contains('already used') || lower.contains('consumed')
-        ? 'invite_used'
-        : 'invite_invalid';
+    final error = switch (_inviteFailureReason(e)) {
+      InvitationWrongReason.expired => 'invite_expired',
+      InvitationWrongReason.used => 'invite_used',
+      InvitationWrongReason.invalid => 'invite_invalid',
+    };
     return Response(
       409,
       body: jsonEncode({'error': error}),
@@ -291,10 +291,25 @@ final class AuthEmailController extends BaseController {
     }
   }
 
-  Response _inviteFailurePage(Object e, String? inviteCode) {
+  /// The typed reason when the repository gave one; otherwise (an
+  /// [IdNotFoundException] from an older path) read from the description.
+  InvitationWrongReason _inviteFailureReason(Object e) {
+    if (e is InvitationWrongException &&
+        e.reason != InvitationWrongReason.invalid) {
+      return e.reason;
+    }
     final desc = e is ExceptionBase ? e.description : e.toString();
     final lower = desc.toLowerCase();
-    if (lower.contains('expired')) {
+    if (lower.contains('expired')) return InvitationWrongReason.expired;
+    if (lower.contains('already used') || lower.contains('consumed')) {
+      return InvitationWrongReason.used;
+    }
+    return InvitationWrongReason.invalid;
+  }
+
+  Response _inviteFailurePage(Object e, String? inviteCode) {
+    final reason = _inviteFailureReason(e);
+    if (reason == InvitationWrongReason.expired) {
       return _html(
         409,
         renderEmailAuthInviteExpiredPage(
@@ -303,7 +318,7 @@ final class AuthEmailController extends BaseController {
         ),
       );
     }
-    if (lower.contains('already used') || lower.contains('consumed')) {
+    if (reason == InvitationWrongReason.used) {
       return _html(
         409,
         renderEmailAuthInviteUsedPage(
@@ -388,7 +403,10 @@ final class AuthEmailController extends BaseController {
 
   String get _landingUrl => publicLandingUrl(env.publicOrigin);
 
-  String _redirectAfterVerify(String? inviteCode, {required bool isNewAccount}) {
+  String _redirectAfterVerify(
+    String? inviteCode, {
+    required bool isNewAccount,
+  }) {
     if (inviteCode != null && inviteCode.isNotEmpty) {
       return Uri.parse(env.publicOrigin)
           .replace(
