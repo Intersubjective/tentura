@@ -6618,6 +6618,51 @@
       }
     }
   },
+  "updatesRelayReceivedHeadline": "{name} forwarded a request to you",
+  "@updatesRelayReceivedHeadline": {
+    "description": "Updates row headline: someone forwarded a Request to the reader (#736)",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "updatesRoomMessageHeadline": "{name} wrote to you",
+  "@updatesRoomMessageHeadline": {
+    "description": "Updates row headline: someone wrote to or mentioned the reader in a Request discussion (#736)",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "updatesPostFirstResponseHeadline": "{name} replied to your post",
+  "@updatesPostFirstResponseHeadline": {
+    "description": "Updates row headline: someone replied to the reader's post (#736)",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "updatesMutualConnectionHeadline": "You and {name} are now connected",
+  "@updatesMutualConnectionHeadline": {
+    "description": "Updates row headline: the reader and someone are now connected (#736)",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "updatesQuestionsMessageFrom": "{name} wrote in Questions",
+  "@updatesQuestionsMessageFrom": {
+    "description": "Updates row headline: someone wrote in a Request's Questions (#736)",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "updatesRequestNoteBody": "{title} — “{note}”",
   "@updatesRequestNoteBody": {
     "context": "Updates row body for an invite answer or invite: the request title, then the person's note (#736)",
@@ -8355,7 +8400,7 @@
   "@batonCancelConfirmKeep": {
     "description": "Dismiss button of the cancel-baton confirmation: keeps the baton. Must not read like «Cancel», which is ambiguous next to the cancel action."
   },
-  "batonReceiptAsked": "{author} asks you can help",
+  "batonReceiptAsked": "{author} asks if you can help",
   "@batonReceiptAsked": {
     "description": "Private Activity receipt asking the viewer whether they can help.",
     "placeholders": {

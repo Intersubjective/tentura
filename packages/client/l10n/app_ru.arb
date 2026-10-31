@@ -5811,6 +5811,51 @@
   "updatesOfferDeclinedBody": "{title} — «{reason}»",
   "updatesOfferReceivedHeadline": "{name} предложил(а) помощь",
   "updatesOfferAcceptedHeadline": "{name} принял(а) ваше предложение",
+  "updatesRelayReceivedHeadline": "{name} переслал(а) вам запрос",
+  "@updatesRelayReceivedHeadline": {
+    "description": "Updates row headline: someone forwarded a Request to the reader (#736)",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "updatesRoomMessageHeadline": "{name} написал(а) вам",
+  "@updatesRoomMessageHeadline": {
+    "description": "Updates row headline: someone wrote to or mentioned the reader in a Request discussion (#736)",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "updatesPostFirstResponseHeadline": "{name} ответил(а) на ваш пост",
+  "@updatesPostFirstResponseHeadline": {
+    "description": "Updates row headline: someone replied to the reader's post (#736)",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "updatesMutualConnectionHeadline": "Вы и {name} теперь на связи",
+  "@updatesMutualConnectionHeadline": {
+    "description": "Updates row headline: the reader and someone are now connected (#736)",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "updatesQuestionsMessageFrom": "{name} написал(а) в вопросах",
+  "@updatesQuestionsMessageFrom": {
+    "description": "Updates row headline: someone wrote in a Request's Questions (#736)",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "updatesRequestNoteBody": "{title} — «{note}»",
   "updatesFallbackTitleOfferRemoved": "Удаление из обсуждения",
   "updatesFallbackBodyOfferRemoved": "Вы удалены из обсуждения запроса.",

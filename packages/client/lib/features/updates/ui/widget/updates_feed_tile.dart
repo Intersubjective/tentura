@@ -96,7 +96,6 @@ class UpdatesFeedTile extends StatefulWidget {
     required this.onMarkSeen,
     required this.onMarkUnseen,
     this.onSettle,
-    this.headlineOverride,
     this.bodyOverride,
     this.action,
     this.actor,
@@ -111,7 +110,6 @@ class UpdatesFeedTile extends StatefulWidget {
   final VoidCallback onMarkSeen;
   final VoidCallback onMarkUnseen;
   final VoidCallback? onSettle;
-  final String? headlineOverride;
   final String? bodyOverride;
   final Widget? action;
 
@@ -221,7 +219,6 @@ class _UpdatesFeedTileState extends State<UpdatesFeedTile> {
       presentationKey: widget.receipt.presentationKey,
       presentationPayloadJson: widget.receipt.presentationPayloadJson,
       l10n: l10n,
-      headlineOverride: widget.headlineOverride,
       bodyOverride: widget.bodyOverride,
       actorName: widget.actor == null
           ? null

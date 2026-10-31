@@ -381,7 +381,7 @@ void main() {
                 ('ru', 'batonAsked') => 'Anna спрашивает, сможете ли вы помочь',
                 ('ru', 'batonTaken') => 'Вы взялись: Carry the boxes',
                 ('ru', _) => 'Все ответили на ваше «Кто возьмётся?»',
-                (_, 'batonAsked') => 'Anna asks you can help',
+                (_, 'batonAsked') => 'Anna asks if you can help',
                 (_, 'batonTaken') => 'You took it: Carry the boxes',
                 _ => "Everyone answered your «Who'll take it?»",
               };

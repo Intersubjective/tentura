@@ -561,7 +561,8 @@ void main() {
             captureFrame();
           }
           expect(card, findsOneWidget);
-          expect(find.text('QA Bob'), findsOneWidget);
+          // #736: the row says what happened, not the bare name.
+          expect(find.text('QA Bob accepted your invite'), findsOneWidget);
           expect(find.text('Add what QA Bob can help with'), findsOneWidget);
           expect(setupAction, findsOneWidget);
           expect(tester.takeException(), isNull);

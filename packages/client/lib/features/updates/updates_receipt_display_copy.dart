@@ -743,7 +743,6 @@ UpdatesFeedRowCopy resolveUpdatesFeedRowCopy({
   required String? presentationKey,
   required String presentationPayloadJson,
   required L10n l10n,
-  String? headlineOverride,
   String? bodyOverride,
   String? actorName,
   bool isPost = false,
@@ -759,15 +758,7 @@ UpdatesFeedRowCopy resolveUpdatesFeedRowCopy({
           postRootExcerpt: postRootExcerpt,
         )
       : null;
-  if (shared != null) {
-    final override = headlineOverride?.trim();
-    return UpdatesFeedRowCopy(
-      headline: override != null && override.isNotEmpty
-          ? override
-          : shared.headline,
-      body: shared.body,
-    );
-  }
+  if (shared != null) return shared;
   final baton = batonReceiptDisplayCopy(
     title: title,
     presentationKey: presentationKey,
@@ -796,16 +787,16 @@ UpdatesFeedRowCopy resolveUpdatesFeedRowCopy({
         presentationKey: presentationKey,
         presentationPayloadJson: presentationPayloadJson,
         l10n: l10n,
+      ) ??
+      _relayReceivedRowCopy(
+        title: title,
+        body: body,
+        presentationKey: presentationKey,
+        presentationPayloadJson: presentationPayloadJson,
+        l10n: l10n,
+        actorName: actorName,
       );
-  if (eventCopy != null) {
-    final override = headlineOverride?.trim();
-    return UpdatesFeedRowCopy(
-      headline: override != null && override.isNotEmpty
-          ? override
-          : eventCopy.headline,
-      body: eventCopy.body,
-    );
-  }
+  if (eventCopy != null) return eventCopy;
   final whoDidWhatRequestTitle = beaconTitleFromPresentationPayload(
     presentationPayloadJson,
   );
@@ -818,7 +809,6 @@ UpdatesFeedRowCopy resolveUpdatesFeedRowCopy({
     requestTitles: {?whoDidWhatRequestTitle},
   );
   if (whoDidWhat != null) {
-    final override = headlineOverride?.trim();
     // A feed row names the Request it is about, then the person's words.
     final request = whoDidWhatRequestTitle ?? '';
     final subject = request.isEmpty
@@ -827,9 +817,7 @@ UpdatesFeedRowCopy resolveUpdatesFeedRowCopy({
         ? request
         : l10n.updatesOfferDeclinedBody(request, whoDidWhat.note);
     return UpdatesFeedRowCopy(
-      headline: override != null && override.isNotEmpty
-          ? override
-          : whoDidWhat.headline,
+      headline: whoDidWhat.headline,
       body: [
         if (subject.isNotEmpty) subject,
         if (whoDidWhat.flag.isNotEmpty) whoDidWhat.flag,
@@ -841,32 +829,26 @@ UpdatesFeedRowCopy resolveUpdatesFeedRowCopy({
     presentationPayloadJson: presentationPayloadJson,
     l10n: l10n,
   );
-  if (plan != null) {
-    final override = headlineOverride?.trim();
-    return UpdatesFeedRowCopy(
-      headline: override != null && override.isNotEmpty
-          ? override
-          : plan.headline,
-      body: plan.body,
-    );
-  }
+  if (plan != null) return plan;
   if (isQuestionsMessageReceipt(
     presentationKey: presentationKey,
     presentationPayloadJson: presentationPayloadJson,
   )) {
     // The server title is the asker's name (never the text: Questions
-    // notices carry none); the event names Questions, not a "thread".
-    final override = headlineOverride?.trim();
-    final t = title.trim();
-    final name = override != null && override.isNotEmpty
-        ? override
-        : (t.isEmpty || _serverQuestionsTitles.contains(t) ? '' : t);
-    return name.isEmpty
-        ? UpdatesFeedRowCopy(headline: l10n.updatesQuestionsMessage, body: '')
-        : UpdatesFeedRowCopy(
-            headline: name,
-            body: l10n.updatesQuestionsMessage,
-          );
+    // notices carry none). It is data: the headline is the event, which
+    // names Questions, not a "thread" (#736).
+    final name =
+        _nonBlank(actorName) ??
+        questionsActorName(
+          title: title,
+          presentationPayloadJson: presentationPayloadJson,
+        );
+    return UpdatesFeedRowCopy(
+      headline: name == null
+          ? l10n.updatesQuestionsMessage
+          : l10n.updatesQuestionsMessageFrom(name),
+      body: '',
+    );
   }
   final fallback = resolveUpdatesReceiptDisplayCopy(
     title: title,
@@ -878,23 +860,21 @@ UpdatesFeedRowCopy resolveUpdatesFeedRowCopy({
   final beaconTitle = beaconTitleFromPresentationPayload(
     presentationPayloadJson,
   );
-  final override = headlineOverride?.trim();
   final eventTitle = title.trim().isEmpty ? fallback.title : title.trim();
-  // An English server label reads in the locale instead; a title that is a
-  // name or a Request title is data and stays.
-  final localizedHeadline = _isServerCannedTitle(eventTitle)
-      ? cannedAttentionEventLine(
-              title: title,
-              body: body,
-              presentationKey: presentationKey,
-              presentationPayloadJson: presentationPayloadJson,
-              l10n: l10n,
-            ) ??
-            _fallbackTitle(presentationKey, l10n)
-      : eventTitle;
-  final headline = (override != null && override.isNotEmpty)
-      ? override
-      : localizedHeadline;
+  // #736: the headline is the event, from the key and the payload; the
+  // server title (often just the actor's name, or the Request title) is data
+  // and never the headline. Only a legacy row with no key at all keeps a
+  // non-canned title, since nothing else says what it was.
+  final headline = presentationKey == null && !_isServerCannedTitle(eventTitle)
+      ? eventTitle
+      : _eventHeadline(
+          title: title,
+          body: body,
+          presentationKey: presentationKey,
+          presentationPayloadJson: presentationPayloadJson,
+          l10n: l10n,
+          actorName: actorName,
+        );
 
   final bodyOverrideTrim = bodyOverride?.trim();
   final structuredExcerpt = excerptFromPresentationPayload(
@@ -951,6 +931,127 @@ UpdatesFeedRowCopy resolveUpdatesFeedRowCopy({
   return UpdatesFeedRowCopy(
     headline: headline,
     body: _isServerCannedSentence(line2) ? '' : line2,
+  );
+}
+
+/// The event line of a row with no dedicated mapper (#736): status and trust
+/// changes from their payload, a person's event as «`<name>` did it» when
+/// the event names one, else the key's own localized line — the generic
+/// «Update» for a key this client does not know. Never the bare title.
+String _eventHeadline({
+  required String title,
+  required String body,
+  required String? presentationKey,
+  required String presentationPayloadJson,
+  required L10n l10n,
+  String? actorName,
+}) {
+  final canned = cannedAttentionEventLine(
+    title: title,
+    body: body,
+    presentationKey: presentationKey,
+    presentationPayloadJson: presentationPayloadJson,
+    l10n: l10n,
+  );
+  if (canned != null) return canned;
+  final name = _eventActorName(
+    title: title,
+    presentationPayloadJson: presentationPayloadJson,
+    actorName: actorName,
+  );
+  return switch (presentationKey) {
+    'room_message_posted' when name != null => l10n.updatesRoomMessageHeadline(
+      name,
+    ),
+    'post_first_response' when name != null =>
+      l10n.updatesPostFirstResponseHeadline(name),
+    'invite_accepted' when name != null => l10n.attentionCardInviteAccepted(
+      name,
+    ),
+    'mutual_connection_formed' when name != null =>
+      l10n.updatesMutualConnectionHeadline(name),
+    _ => _fallbackTitle(presentationKey, l10n),
+  };
+}
+
+/// The person an event is about: [actorName] when the caller knows them,
+/// else the payload's `actorName`, else the server title when it is a name
+/// («Name» or «Name · @handle») rather than a label or the Request title.
+String? _eventActorName({
+  required String title,
+  required String presentationPayloadJson,
+  String? actorName,
+}) {
+  final known =
+      _nonBlank(actorName) ??
+      actorNameFromPresentationPayload(presentationPayloadJson);
+  if (known != null) return known;
+  var t = title.trim();
+  final cut = t.indexOf(' · ');
+  if (cut >= 0) t = t.substring(0, cut).trim();
+  if (t.isEmpty ||
+      t == beaconTitleFromPresentationPayload(presentationPayloadJson) ||
+      _isServerCannedTitle(t) ||
+      _isServerCannedSentence(t) ||
+      _serverQuestionsTitles.contains(t) ||
+      _serverWhoDidWhatTitles.contains(t) ||
+      t == 'Кто-то') {
+    return null;
+  }
+  return localizedDisplayName(t);
+}
+
+/// The asker named on a Questions notice (the server titles it with their
+/// name), or null when the title is the server's own label.
+String? questionsActorName({
+  required String title,
+  String presentationPayloadJson = '',
+}) {
+  final t = title.trim();
+  return _serverQuestionsTitles.contains(t)
+      ? null
+      : _eventActorName(
+          title: t,
+          presentationPayloadJson: presentationPayloadJson,
+        );
+}
+
+/// A Request forwarded to the viewer (`relay_received`, #736): the server
+/// titles it with the sender's name only, so the event comes from the
+/// locale — «`<name>` forwarded a request to you». The body is the Request
+/// title and the forward note. Null for any other receipt.
+UpdatesFeedRowCopy? _relayReceivedRowCopy({
+  required String title,
+  required String body,
+  required String? presentationKey,
+  required String presentationPayloadJson,
+  required L10n l10n,
+  String? actorName,
+}) {
+  if (presentationKey != 'relay_received') return null;
+  final name = _eventActorName(
+    title: title,
+    presentationPayloadJson: presentationPayloadJson,
+    actorName: actorName,
+  );
+  final request = beaconTitleFromPresentationPayload(presentationPayloadJson);
+  // A row written before the payload carried `excerpt` has «Name: note».
+  var legacy = body.trim();
+  final prefix = '${title.trim()}: ';
+  if (legacy.startsWith(prefix)) legacy = legacy.substring(prefix.length);
+  final note =
+      excerptFromPresentationPayload(presentationPayloadJson) ??
+      (legacy == title.trim() || _isServerCannedSentence(legacy) ? '' : legacy);
+  final words = note == request ? '' : note;
+  return UpdatesFeedRowCopy(
+    headline: name == null
+        ? l10n.updatesFallbackTitleRelayReceived
+        : l10n.updatesRelayReceivedHeadline(name),
+    body: request == null
+        ? words
+        : words.isEmpty
+        ? request
+        : l10n.updatesRequestNoteBody(request, words),
   );
 }
 

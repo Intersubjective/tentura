@@ -18,22 +18,22 @@ AttentionReceipt _trustReceipt({
   DateTime? seenAt,
 }) {
   return AttentionReceipt(
-      id: 'receipt-trust-1',
-      category: 'connections',
-      kind: 'reviewReady',
-      priority: 'normal',
-      title: title,
-      body: body,
-      actionUrl: '/profile/view/u1',
-      createdAt: DateTime(2026, 8, 4, 14, 30),
-      collapsedCount: 1,
-      presentationKey: presentationKey,
-      presentationPayloadJson: presentationPayloadJson,
-      surface: AttentionSurface.activity,
-      beaconId: beaconId,
-      actorUserId: 'actor-1',
-      seenAt: seenAt ?? DateTime.utc(2026, 8, 4),
-    );
+    id: 'receipt-trust-1',
+    category: 'connections',
+    kind: 'reviewReady',
+    priority: 'normal',
+    title: title,
+    body: body,
+    actionUrl: '/profile/view/u1',
+    createdAt: DateTime(2026, 8, 4, 14, 30),
+    collapsedCount: 1,
+    presentationKey: presentationKey,
+    presentationPayloadJson: presentationPayloadJson,
+    surface: AttentionSurface.activity,
+    beaconId: beaconId,
+    actorUserId: 'actor-1',
+    seenAt: seenAt ?? DateTime.utc(2026, 8, 4),
+  );
 }
 
 Widget _wrap(Widget child) => MaterialApp(
@@ -83,7 +83,8 @@ void main() {
       ),
       findsNothing,
     );
-    expect(find.text('Trust in Alex increased'), findsOneWidget);
+    // #736: the event from the key, not the English push title.
+    expect(find.text(l10n.attentionEventTrustGivenUp), findsOneWidget);
     expect(find.byIcon(TenturaIcons.arrowUp), findsOneWidget);
     expect(find.text('Move help this weekend'), findsOneWidget);
     expect(find.textContaining('ago'), findsOneWidget);
@@ -100,11 +101,16 @@ void main() {
       body: 'After the request closed, your trust shifted down.',
     );
 
-    expect(find.textContaining('Trust in Alex decreased'), findsOneWidget);
+    expect(
+      find.textContaining(l10n.attentionEventTrustGivenDown),
+      findsOneWidget,
+    );
     expect(find.byIcon(TenturaIcons.arrowDown), findsOneWidget);
   });
 
-  testWidgets('trust_received_changed_neutral shows flat glyph', (tester) async {
+  testWidgets('trust_received_changed_neutral shows flat glyph', (
+    tester,
+  ) async {
     await pumpCard(
       tester,
       presentationKey: 'trust_received_changed_neutral',

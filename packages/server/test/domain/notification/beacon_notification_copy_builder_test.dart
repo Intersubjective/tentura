@@ -335,7 +335,7 @@ void main() {
             'Anna спрашивает, сможете ли вы помочь',
           ('ru', NotificationKind.batonTaken) => 'Вы взялись: Carry the boxes',
           ('ru', _) => 'Все ответили на ваше «Кто возьмётся?»',
-          (_, NotificationKind.batonAsked) => 'Anna asks you can help',
+          (_, NotificationKind.batonAsked) => 'Anna asks if you can help',
           (_, NotificationKind.batonTaken) => 'You took it: Carry the boxes',
           _ => "Everyone answered your «Who'll take it?»",
         };

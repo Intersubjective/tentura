@@ -93,7 +93,11 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text('Alex accepted your ask'), findsOneWidget);
+    // #736: the event from the key, not the English push title.
+    expect(
+      find.text(L10nEn().updatesFallbackTitleCommitmentAccepted),
+      findsOneWidget,
+    );
     expect(find.text('Garden cleanup'), findsOneWidget);
     expect(find.textContaining('ago'), findsOneWidget);
   });

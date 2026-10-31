@@ -246,12 +246,12 @@ class BeaconNotificationCopyBuilder {
       NotificationKind.batonAsked => (
         ru
             ? '$actor спрашивает, сможете ли вы помочь'
-            : '$actor asks you can help',
+            : '$actor asks if you can help',
         excerpt.isNotEmpty
             ? excerpt
             : ru
             ? '$actor спрашивает, сможете ли вы помочь'
-            : '$actor asks you can help',
+            : '$actor asks if you can help',
       ),
       NotificationKind.batonTaken => (
         ru ? 'Вы взялись за это' : 'You took it',
