@@ -114,4 +114,7 @@ final class _FakeCoParticipantLookup
     required String viewerId,
     required Iterable<String> peerIds,
   }) async => _allowed.intersection(peerIds.toSet());
+
+  @override
+  Future<Set<String>> roomMemberUserIds({required String beaconId}) async => {};
 }

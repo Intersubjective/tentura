@@ -40,7 +40,7 @@ void main() {
       expect(recoveries, isEmpty);
       expect(
         connector.connections.single.listenedChannels,
-        ['entity_changes', 'user_presence'],
+        ['entity_changes', 'user_presence', 'room_typing'],
       );
     });
 
@@ -69,7 +69,7 @@ void main() {
         await _waitUntil(() => connector.connections.length == 2);
         expect(
           connector.connections.last.listenedChannels,
-          ['entity_changes', 'user_presence'],
+          ['entity_changes', 'user_presence', 'room_typing'],
         );
         final afterRecovery = service.presenceNotifications.first;
         connector.connections.last.addOn('user_presence', '{"user_id":"U2"}');
