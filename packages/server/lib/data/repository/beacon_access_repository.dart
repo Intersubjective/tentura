@@ -39,6 +39,26 @@ class BeaconAccessRepository implements BeaconAccessGuard {
   }
 
   @override
+  Future<Set<String>> readableContentViewerIds({
+    required String beaconId,
+    required Iterable<String> viewerIds,
+  }) async {
+    final ids = viewerIds.toSet().toList();
+    if (ids.isEmpty) return {};
+    final rows = await _db
+        .customSelect(
+          r'SELECT id FROM unnest($1::text[]) AS id '
+          r'WHERE public.beacon_can_read_content($2, id)',
+          variables: [
+            Variable<List<String>>(ids, PgTypes.textArray),
+            Variable<String>(beaconId),
+          ],
+        )
+        .get();
+    return {for (final row in rows) row.read<String>('id')};
+  }
+
+  @override
   Future<bool> canReadInvolvement({
     required String beaconId,
     required String viewerId,

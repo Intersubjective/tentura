@@ -122,42 +122,53 @@ class ForwardEdgeRepository implements ForwardEdgeRepositoryPort {
     }
 
     final lockOrder = orderedUniqueRecipients.toList()..sort();
-    for (final recipientId in lockOrder) {
-      await _acquireAvailabilityLock(recipientId);
-    }
+    await _acquireAvailabilityLocks(lockOrder);
 
-    final inserted = <ForwardEdgeCreated>[];
-    final availabilitySkipped = <String>[];
-
-    for (final recipientId in orderedUniqueRecipients) {
-      final edgeId = ForwardEdgeEntity.newId;
-      final note = noteForRecipient(recipientId);
-      await _insertActiveEdgeIfAvailable(
-        edgeId: edgeId,
-        beaconId: beaconId,
-        senderId: senderId,
-        recipientId: recipientId,
-        note: note,
-        context: context,
-        parentEdgeId: parentEdgeId,
-        batchId: batchId,
-        sweepExempt: sweepExemptFor?.call(recipientId) ?? false,
-      );
-      final existing = await findActiveEdge(
-        beaconId: beaconId,
-        senderId: senderId,
-        recipientId: recipientId,
-      );
-      if (existing?.id == edgeId) {
-        inserted.add(
-          ForwardEdgeCreated(edgeId: edgeId, recipientId: recipientId),
-        );
-        continue;
-      }
-      if (existing == null) {
-        availabilitySkipped.add(recipientId);
-      }
-    }
+    final edgeIds = {
+      for (final recipientId in orderedUniqueRecipients)
+        recipientId: ForwardEdgeEntity.newId,
+    };
+    final insertedRecipientIds = await _insertActiveEdgesIfAvailable(
+      edgeIds: edgeIds,
+      beaconId: beaconId,
+      senderId: senderId,
+      notes: {
+        for (final recipientId in orderedUniqueRecipients)
+          recipientId: noteForRecipient(recipientId),
+      },
+      context: context,
+      parentEdgeId: parentEdgeId,
+      batchId: batchId,
+      sweepExemptRecipientIds: {
+        for (final recipientId in orderedUniqueRecipients)
+          if (sweepExemptFor?.call(recipientId) ?? false) recipientId,
+      },
+    );
+    final inserted = [
+      for (final recipientId in orderedUniqueRecipients)
+        if (insertedRecipientIds.contains(recipientId))
+          ForwardEdgeCreated(
+            edgeId: edgeIds[recipientId]!,
+            recipientId: recipientId,
+          ),
+    ];
+    // Not inserted: either an active edge already exists (deduplicated, not
+    // reported) or the recipient is availability-paused (skipped).
+    final notInserted = [
+      for (final recipientId in orderedUniqueRecipients)
+        if (!insertedRecipientIds.contains(recipientId)) recipientId,
+    ];
+    final alreadyActive = notInserted.isEmpty
+        ? const <String>{}
+        : await _recipientIdsWithActiveEdge(
+            beaconId: beaconId,
+            senderId: senderId,
+            recipientIds: notInserted,
+          );
+    final availabilitySkipped = [
+      for (final recipientId in notInserted)
+        if (!alreadyActive.contains(recipientId)) recipientId,
+    ];
 
     if (inserted.isNotEmpty) {
       await onAfterEdgesInserted?.call();
@@ -398,19 +409,24 @@ WHERE sender_id = $1
     return rows.map((r) => r.read<String>('recipient_id')).toSet();
   }
 
-  Future<void> _insertActiveEdgeIfAvailable({
-    required String edgeId,
+  /// Inserts one edge per entry of [edgeIds] (recipient id → edge id) in one
+  /// statement and returns the recipients that got a new edge. A recipient is
+  /// skipped when the sender already has an active edge to them or they are
+  /// availability-paused.
+  Future<Set<String>> _insertActiveEdgesIfAvailable({
+    required Map<String, String> edgeIds,
     required String beaconId,
     required String senderId,
-    required String recipientId,
-    required String note,
+    required Map<String, String> notes,
+    required Set<String> sweepExemptRecipientIds,
     String? context,
     String? parentEdgeId,
     String? batchId,
-    bool sweepExempt = false,
   }) async {
-    await _database.customInsert(
-      r'''
+    final recipientIds = edgeIds.keys.toList();
+    final rows = await _database
+        .customSelect(
+          r'''
 INSERT INTO public.beacon_forward_edge (
   id,
   beacon_id,
@@ -423,52 +439,101 @@ INSERT INTO public.beacon_forward_edge (
   contact_sweep_exempt
 )
 SELECT
+  r.edge_id,
   $1,
   $2,
+  r.recipient_id,
+  r.note,
   $3,
   $4,
   $5,
-  $6,
-  $7,
-  $8,
-  $9
+  r.recipient_id = ANY($6::text[])
+FROM unnest($7::text[], $8::text[], $9::text[])
+  WITH ORDINALITY AS r(edge_id, recipient_id, note, ord)
 WHERE NOT EXISTS (
   SELECT 1
   FROM public.beacon_forward_edge e
-  WHERE e.beacon_id = $2
-    AND e.sender_id = $3
-    AND e.recipient_id = $4
+  WHERE e.beacon_id = $1
+    AND e.sender_id = $2
+    AND e.recipient_id = r.recipient_id
     AND e.cancelled_at IS NULL
 )
 AND NOT EXISTS (
   SELECT 1
   FROM public.user_availability ua
-  WHERE ua.user_id = $4
+  WHERE ua.user_id = r.recipient_id
     AND ua.resume_on > (CURRENT_TIMESTAMP AT TIME ZONE 'UTC')::date
 )
+ORDER BY r.ord
 ON CONFLICT (beacon_id, sender_id, recipient_id) WHERE cancelled_at IS NULL
 DO NOTHING
+RETURNING recipient_id
 ''',
-      variables: [
-        Variable.withString(edgeId),
-        Variable.withString(beaconId),
-        Variable.withString(senderId),
-        Variable.withString(recipientId),
-        Variable.withString(note),
-        Variable(context),
-        Variable(parentEdgeId),
-        Variable(batchId),
-        Variable.withBool(sweepExempt),
-      ],
-      updates: {_database.beaconForwardEdges},
-    );
+          variables: [
+            Variable.withString(beaconId),
+            Variable.withString(senderId),
+            Variable(context),
+            Variable(parentEdgeId),
+            Variable(batchId),
+            Variable<List<String>>(
+              sweepExemptRecipientIds.toList(),
+              PgTypes.textArray,
+            ),
+            Variable<List<String>>(
+              [for (final id in recipientIds) edgeIds[id]!],
+              PgTypes.textArray,
+            ),
+            Variable<List<String>>(recipientIds, PgTypes.textArray),
+            Variable<List<String>>(
+              [for (final id in recipientIds) notes[id]!],
+              PgTypes.textArray,
+            ),
+          ],
+          readsFrom: {_database.beaconForwardEdges},
+        )
+        .get();
+    return {for (final row in rows) row.read<String>('recipient_id')};
   }
 
-  Future<void> _acquireAvailabilityLock(String userId) =>
-      _database.customStatement(
-        r"SELECT pg_advisory_xact_lock(hashtextextended('user_availability:' || $1, 4242))",
-        [userId],
-      );
+  Future<Set<String>> _recipientIdsWithActiveEdge({
+    required String beaconId,
+    required String senderId,
+    required List<String> recipientIds,
+  }) async {
+    final rows = await _database
+        .customSelect(
+          r'''
+SELECT recipient_id
+FROM public.beacon_forward_edge
+WHERE beacon_id = $1
+  AND sender_id = $2
+  AND cancelled_at IS NULL
+  AND recipient_id = ANY($3::text[])
+''',
+          variables: [
+            Variable.withString(beaconId),
+            Variable.withString(senderId),
+            Variable<List<String>>(recipientIds, PgTypes.textArray),
+          ],
+        )
+        .get();
+    return {for (final row in rows) row.read<String>('recipient_id')};
+  }
+
+  /// Takes every recipient's availability advisory lock in one statement,
+  /// in ascending id order ([sortedUserIds] must already be sorted).
+  Future<void> _acquireAvailabilityLocks(List<String> sortedUserIds) =>
+      _database
+          .customSelect(
+            r'''
+SELECT pg_advisory_xact_lock(hashtextextended('user_availability:' || id, 4242))
+FROM (SELECT id FROM unnest($1::text[]) WITH ORDINALITY AS t(id, ord) ORDER BY ord) AS ids
+''',
+            variables: [
+              Variable<List<String>>(sortedUserIds, PgTypes.textArray),
+            ],
+          )
+          .get();
 
   Future<void> _insertActiveEdge({
     String? edgeId,

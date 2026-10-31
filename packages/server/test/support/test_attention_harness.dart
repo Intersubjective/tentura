@@ -94,4 +94,14 @@ final class _Access extends Fake implements BeaconAccessGuard {
     final read = this.read;
     return read == null ? allowed : read(viewerId);
   }
+
+  @override
+  Future<Set<String>> readableContentViewerIds({
+    required String beaconId,
+    required Iterable<String> viewerIds,
+  }) async => {
+    for (final viewerId in viewerIds)
+      if (await canReadContent(beaconId: beaconId, viewerId: viewerId))
+        viewerId,
+  };
 }

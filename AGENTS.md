@@ -170,38 +170,83 @@ Standard dev setup is in `DEVELOPMENT.md` and the `local-debug` skill; only the 
 <!-- headroom:learn:end -->
 
 <!-- alloy:memory:begin -->
-reviewed: 2026-10-30
-review due: 2026-11-06
+reviewed: 2026-10-31
+review due: 2026-11-07
 
-### bead-authoring-no-commit-line
-When filing beads for Alloy, never write 'Commit: fix(...): ...' in the description: sandboxed agents read it as an order, try to git commit, hit a read-only .git and park the bead as needs-human (j9ab.2, 2026-10-27). Alloy makes the commit itself.
+### 0-evidence-real-path
+Evidence rule (owner 2026-10-30, QA-bounce prevention). Every behaviour the commit message or verdict claims needs its own test that fails without the change. At least one test per bead runs the real path: the real transport response through the GQL mapper/repository to the cubit and widget (client), or a real Postgres pg test (server). Hand-built entities don't count. Touch, focus, keyboard, semantics, scroll and web lifecycle (bfcache, reload) are proven only by the web integration_test (scripts/run_client_integration_web_local.sh) or Playwright; a widget test alone is not evidence. Judge: an unbacked claim is not done, so answer retry and name the missing test, or human when the sandbox can't run the browser suite.
 
-### check-hints-analyze
-client analyze: flutter analyze --no-fatal-infos <paths> (bare flutter analyze fails on ~267 pre-existing info lints; real gate is scripts/check-custom-lints.sh packages/client). Server checks: use scripts/run_with_test_cleanup.sh from repo root, never scripts/../../../ paths
+### alloy:operator:cancel-redispatch
+alloy cancel <bead> leaves the bead ready, so a running scheduler re-dispatches it within seconds (tentura-giug 2026-10-21: cancelled 17:13:53, re-picked 17:13:58). To drop a bead's work, first bd close / add label manual (or alloy stop and wait), THEN cancel. alloy stop is graceful and waits for the in-flight run; a run whose bead was closed meanwhile is invisible to alloy cancel ('nothing to cancel') — find it with pstree -p <scheduler pid> and stop that process tree.
 
-### check-hints-analyze-baseline
-CI gate (pipeline.yml test-client-a/test-server): bash scripts/check-analyze-baseline.sh packages/client|packages/server — total analyzer issue count (info included) must not exceed scripts/analyze-baseline.txt. check-custom-lints.sh does NOT cover it. Run it in the lint/regression checks before landing; new code must not add analyzer issues (fix them, never raise the baseline). Client was 2183 vs baseline 2124 on 2026-10-07 after landings since 5a23e8a22.
+### alloy:operator:human-label-not-a-gate
+The bead label 'human' does NOT stop the Alloy scheduler from dispatching a bead; only 'manual' (and status deferred/closed/blocked deps) do. When escalating a bead for an owner decision, add BOTH 'human' and 'manual' (2026-10-22: s7gl.100 was picked within a minute of the scheduler restart).
 
-### check-hints-client-lints
-client lints: run FROM REPO ROOT, never with ../../ prefixes: './scripts/run_with_test_cleanup.sh --timeout 10m -- ./scripts/check-custom-lints.sh packages/client' and 'bash scripts/check-analyze-baseline.sh packages/client' (same for packages/server).
+### alloy:operator:memory-embed-dirty-tree
+Alloy's scheduled memory review (memory_reviewer + 'memory embed updated AGENTS.md') rewrites the managed block in AGENTS.md and leaves the tree dirty, so every in-place bead is refused until it is committed; it also files a 'Review N memory proposals' bead (alloy-memory-review label) whose run may start before you react. Handle by hand: commit the embed as chore(agents), apply/dismiss proposals with bd remember/forget, close the review bead, and if its run already started kill it via pstree -p <scheduler pid> (alloy cancel misses closed beads; see alloy:operator:cancel-redispatch). Never let the review run edit AGENTS.md or add tests (2026-10-21 giug, 2026-10-22 scxn).
 
-### check-hints-cwd-relative-tests
-client flutter tests that read files by relative path (e.g. l10n/app_ru.arb) must run from packages/client: 'cd packages/client && flutter test ...'; running 'flutter test packages/client/test/...' from repo root gives PathNotFoundException - not a regression
+### check-hints-analyzer-budget-toolchain
+server test/architecture/analyzer_issue_budget_toolchain_integration_test.dart (tag toolchain) reports an extra 'server analyzer' issue when it runs in parallel with other suites and passes alone; it is excluded from 'scripts/run_tests.sh server-unit' (CI excludes toolchain too) and covered by 'scripts/run_tests.sh server-gates'. Do not treat its failure inside a big parallel run as a regression.
 
-### check-hints-mr-suite
-server mr suite: 'scripts/run_tests.sh server-mr' (only files carrying the mr tag, -j 1, -x perf -x load) takes ~3.7 min (600 tests, 2026-10-24); the old 'dart test --tags mr --exclude-tags load -j 1' loaded every suite and took 16-22 min and also ran perf suites. Run it only for Field/visibility/trust/MeritRank changes (server-regression decides). A check ending exit=-1 with an empty log was killed by the recipe's max_command_timeout_minutes (30 for medium/complex), not hung. beacon_readable_ids_parity_pg_test '5x faster' is timing-sensitive under load.
+### check-hints-analyzer-crash
+server architecture analyzer-budget tests (client_analyzer_issue_budget_test, analyzer_issue_budget_toolchain_integration_test): on this machine the Dart analyzer intermittently crashes ('analyzer did not complete … exit 255' / SIGBUS) under concurrent load, which shows up as a budget failure with count 1. Before treating it as a regression, rerun bash scripts/check-analyze-baseline.sh packages/<pkg> on its own. Only an explicit 'has N issues, baseline is M' line is a real overrun.
 
-### check-hints-plain-name-quoting
-flutter test --plain-name values containing spaces MUST be quoted in check commands (e.g. --plain-name='wire mapping of Post fields'), never --plain-name=wire mapping of Post fields unquoted -- the shell splits the unquoted value into separate words, which flutter test then tries to load as nonexistent test files, producing phantom 'Does not exist' failures that look like real test failures and have twice caused Alloy to wrongly override a correct 'done' judge verdict (tentura-brd4.38, tentura-brd4.39).
+### check-hints-browser
+browser-only tests (@TestOn('browser'), *_web_test.dart) need: flutter test --platform chrome <file>; VM run says 'No tests were found' (exit 79) — not a bug
 
-### check-hints-test-profiles
-PREFERRED check commands (repo root, see docs/testing-resource-profile.md): per iteration 'scripts/run_tests.sh server-files <test files>' or 'scripts/run_tests.sh server-affected' (client: client-files <paths> / client-affected); ONCE before done 'scripts/run_tests.sh server-regression' (gates + unit + pg, + mr only for Field/visibility/trust changes) or 'scripts/run_tests.sh client-gates' + 'scripts/run_tests.sh client-all'. Never a whole package without tags (no plain 'dart test' / 'dart test test/data/repository' at -j 8: mixes mr/perf and fails on load), never perf/load suites. Wrapped runs queue machine-wide; 'queued behind another test run' in a log is waiting, not a hang. Timings 2026-10-24: unit 2 min, pg 9.4 min, mr 3.7 min, client-all 9.8 min.
+### check-hints-flutter-per-test-timeout
+client widget tests: 'flutter test --timeout' and dart_test.yaml do NOT apply to testWidgets (it passes the binding's defaultTestTimeout, 10 min, explicitly). A widget test awaiting a future that can't complete under fake async hangs 10 min. Fix: packages/client/test/flutter_test_config.dart sets defaultTestTimeout=2 min (PR #768; on local main once rebased/cherry-picked). Until then keep the wrapper timeout short for targeted runs (e.g. --timeout 8m) and read which test hung from the '[E] did not complete' line.
 
-### check-hints-wrapper-selftest
-scripts/run_with_test_cleanup_selftest.sh cannot run inside the Alloy per-run sandbox (it reports 0 passed / 26 failed there: it needs real process groups, the machine-wide lock and /tmp). For changes to the test wrapper use the Python tests (e.g. python3 -m unittest scripts/test_test_cleanup_inactivity.py) as the check; the operator runs the selftest outside Alloy.
+### check-hints-flutter-render-debug-vars
+widget tests that set rendering debug hooks (debugOnProfilePaint, debugRepaintRainbowEnabled, debugPaintSizeEnabled …) must reset them INSIDE the test body; addTearDown is too late — the binding asserts 'The value of a rendering debug variable was changed by the test' before tear-downs. Widget-layer hooks like debugOnRebuildDirtyWidget are fine in addTearDown (tentura-s7gl.96).
 
-### ci-pg-job-two-step-selection
-CI test-pg job (.github/workflows/pipeline.yml) runs TWO commands: (1) TENTURA_TEST_PG_POOL_SIZE=1 dart test --tags pg --exclude-tags mr,multi-connection, then (2) dart test --tags multi-connection --exclude-tags mr -j 1. test-server runs dart test --exclude-tags pg. So: any test that needs Postgres (even a meta test that spawns a pg test) MUST carry the pg tag or test-server fails; tests that size their own pool carry multi-connection and run serially (-j 1: they assert admission latency/RSS and interfere in parallel). Before pushing, run both pg commands locally, not just the changed files (a first CI run of ev3z.27 failed on exactly this). Use absolute path to scripts/run_with_test_cleanup.sh when a script cd's into packages/server.
+### check-hints-force-directed-graphview-analyze
+packages/force_directed_graphview is NOT under the analyze ratchet: bare 'dart analyze' there fails with ~290 pre-existing infos/warnings (tentura-s7gl.35 stopped on it). Gate it with its own 'flutter test' plus client tests (test/features/constellation), scripts/check-analyze-baseline.sh packages/client and check-custom-lints.sh packages/client; only analyze files you changed.
+
+### check-hints-graphql-1000-debug
+GraphQL error code 1000 'Something went wrong on the server' hides the real exception (GraphqlController catch-all sends it only to Sentry, never to the server log). To see it locally, temporarily print e/st in that catch in packages/server/lib/api/controllers/graphql_controller.dart, restart the server on :2080, re-run, then remove the print. 2026-10-21: it was a web JSON int vs Float TypeError (fixed 26c68649d).
+
+### check-hints-hanging-red-tests
+client red tests: a widget test that awaits data which never arrives must fail fast, not hang — wrap the await in .timeout(const Duration(seconds: 5)) or pump a bounded number of frames instead of pumpAndSettle on an endless stream; a single file running > 5 min is a hang, kill it and fix the test.
+
+### check-hints-mr-suite-timeout
+pg/mr: since 9eebee8d7 the D8 load test carries the tag 'load'. Run the routine full mr suite as 'dart test --tags mr --exclude-tags load -j 1' (30m wrapper). Run the load suite only on its own ('--tags load', 90m), never as a bead regression check.
+
+### check-hints-no-chained-suites
+Never propose one check that chains several suites with && (e.g. client-all && client-gates && server-...): it exceeds max_command_timeout and times out every iteration, burning max_iterations (tentura-x56h.27, 2026-10-26). Propose each ./scripts/run_tests.sh profile as its own check; passing ones are cached.
+
+### check-hints-python-unittest-paths
+Do not use 'python3 -I -m unittest scripts/test_x.py': -I drops the cwd from sys.path and unittest cannot import a path-named module (ModuleNotFoundError: scripts). Use 'python3 -m unittest scripts/test_x.py' from the repo root, or 'python3 -I -m unittest discover -s scripts -p test_x.py'.
+
+### check-hints-sandbox-tmp-full
+'No space left on device' on /tmp/dart_test.kernel.* during a bead's full-suite check = the run's private capped sandbox tmpfs filling (agent-filed 'MR verification exhausts temporary storage', tentura-khm7, was not-a-bug). Close such reports; consider raising sandbox.tmp_size if it recurs.
+
+### check-hints-server-di-stale
+server: run_client_integration_web_local.sh 'tentura-server did not come up' with di.config.dart 'Required named parameter ... must be provided' / 'Too few positional arguments' = stale gitignored packages/server/lib/app/di.config.dart, not a code bug. Fix: cd packages/server && dart run build_runner build --delete-conflicting-outputs, then rerun.
+
+### check-hints-server-full-suite-no-j1
+Full server suite: 'dart test --exclude-tags load' with default parallelism (~25 min). Do NOT add -j 1: only mr-tagged suites need serial (AGENTS.md: dart test --tags mr --exclude-tags load -j 1); -j 1 on the whole suite exceeds 90 min and times out (tentura-ev3z.4).
+
+### check-hints-server-perf-flakes
+server full 'dart test --exclude-tags load' has load-sensitive perf tests (constellation_apply_batch_budgets_pg_test fails whenever other PG sessions exist = tentura-qfsj; perf_recorder_probes 250ms wait; meritrank_suite_serialization 30s timeouts). On needs-human with only these failing, rerun them alone with -j1 and land by hand if the bead's own tests pass.
+
+### check-hints-server-regression-split
+server-regression (gates+unit+pg in one check) can exceed max_command_timeout and time out (tentura-kxyq.4, 2026-10-26): propose server-gates, server-unit and server-pg (TENTURA_PG_TESTS_REQUIRED=1) as three separate checks instead.
+
+### check-hints-test-file-selection
+When selecting server/client test files by grep for a check command, keep only *_test.dart files (e.g. grep -rl PATTERN test --include='*_test.dart' | xargs dart test ...). test/support/*.dart and *_pg_support.dart helpers have no main() and fail with 'Missing definition of main method' -- a broken check command, not a regression (tentura-f44b, 2026-10-29).
+
+### check-hints-tmp-quota
+Fixed at the source 2026-10-24 (tentura-lt6i): run_with_test_cleanup.sh now defaults TMPDIR to ~/.cache/tentura-test-tmp when unset, so full suites no longer hit the /tmp usrquota. 'Disk quota exceeded' load failures now mean something else filled the quota — check du /tmp and the cache dir.
+
+### check-hints-transaction-inventory
+server: every NEW transaction root (withMutatingUser / withTransaction / withMutatingRepeatableRead / withReadSnapshot call site in packages/server/lib) must get a line in packages/server/test/architecture/transaction_entry_inventory.txt ('path | Class.member | api | owner | reason'), else test/architecture/scoped_main_db_access_test.dart fails the non-pg regression. Check: cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 10m -- dart test test/architecture/scoped_main_db_access_test.dart
+
+### check-hints-web-e2e-bwrap
+web e2e (scripts/run_client_integration_web_local.sh) inside the Alloy bwrap sandbox: Chrome's default sandbox aborts ('SUID sandbox helper ... not configured correctly', nosuid mounts). Run it with TENTURA_WEB_CHROME_NO_SANDBOX=1 (passes --web-browser-flag=--no-sandbox to flutter drive; landed in 91114ea94). A failure at browser start without the knob is not a code regression.
+
+### hand-landing-run-server-gates
+When landing a bead by hand that touched packages/server, rerun ./scripts/run_tests.sh server-gates on the final tree: a gate that passed in an earlier iteration of the run does not cover later edits (j9ab.3 put the analyzer 1 over budget, 2026-10-27).
 <!-- alloy:memory:end -->
 
 <!-- alloy:memory-review:ptl:begin -->

@@ -1253,6 +1253,12 @@ class AttentionIntentCase {
     final recipients = resolvedRecipients
         .where((recipient) => !hiddenPeerIds.contains(recipient.userId))
         .toList();
+    final readers = notification.beaconId.isEmpty
+        ? const <String>{}
+        : await _accessGuard.readableContentViewerIds(
+            beaconId: notification.beaconId,
+            viewerIds: recipients.map((recipient) => recipient.userId),
+          );
     final actor = await _users.getById(notification.actorUserId);
     final copy = _copyBuilder.build(
       intent: notification,
@@ -1276,12 +1282,7 @@ class AttentionIntentCase {
             recipientId: recipient.userId,
             reasons: recipient.reasons.map(_attentionReason).toSet(),
             role: AttentionRecipientRoleFacts(
-              canReadBeaconContent:
-                  notification.beaconId.isNotEmpty &&
-                  await _accessGuard.canReadContent(
-                    beaconId: notification.beaconId,
-                    viewerId: recipient.userId,
-                  ),
+              canReadBeaconContent: readers.contains(recipient.userId),
               beaconId: notification.beaconId.isEmpty
                   ? null
                   : notification.beaconId,

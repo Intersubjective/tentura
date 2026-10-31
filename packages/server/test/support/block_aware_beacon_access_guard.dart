@@ -42,6 +42,16 @@ class BlockAwareBeaconAccessGuard implements BeaconAccessGuard {
   };
 
   @override
+  Future<Set<String>> readableContentViewerIds({
+    required String beaconId,
+    required Iterable<String> viewerIds,
+  }) async => {
+    for (final viewerId in viewerIds)
+      if (await canReadContent(beaconId: beaconId, viewerId: viewerId))
+        viewerId,
+  };
+
+  @override
   Future<bool> canReadInvolvement({
     required String beaconId,
     required String viewerId,

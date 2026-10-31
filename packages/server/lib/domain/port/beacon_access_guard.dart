@@ -12,6 +12,13 @@ abstract class BeaconAccessGuard {
     required String viewerId,
   });
 
+  /// Those of [viewerIds] who may read the content of [beaconId]
+  /// ([canReadContent]), checked in one query.
+  Future<Set<String>> readableContentViewerIds({
+    required String beaconId,
+    required Iterable<String> viewerIds,
+  });
+
   Future<bool> canReadInvolvement({
     required String beaconId,
     required String viewerId,
