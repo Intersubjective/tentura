@@ -884,5 +884,87 @@ void main() {
       expect(panel, findsNothing);
       expect(tester.takeException(), isNull);
     });
+
+    // #458/#391: a node the keyboard lands on stayed off the canvas on the
+    // Graph screen (the Field reveals it).
+    testWidgets('keyboard focus on a node off the canvas pans it into view', (
+      tester,
+    ) async {
+      final harness = await _pumpTrustGraphBody(
+        tester,
+        size: const Size(900, 600),
+        legendExpanded: false,
+        pages: {
+          null: {_e('Ume', 'Ub')},
+        },
+      );
+      final controller = harness.graphCubit.graphController;
+      final ub = controller.nodes.singleWhere((n) => n.id == 'Ub');
+      final ubFinder = find.byKey(TestIds.key(TestIds.graphNode('Ub')));
+
+      // Pan so Bob's marker is half past the right edge of the canvas.
+      final viewport = controller.viewportSize!;
+      final bob = controller.getPositionForId(ub.graphNodeId);
+      controller.jumpToPosition(
+        bob - Offset((viewport.width / 2 - 4) / controller.cameraScale, 0),
+      );
+      await tester.pump();
+      final canvas = tester.getRect(find.byType(GraphBody));
+      final before = tester.getRect(ubFinder);
+      // Guard: Bob is cut by the right edge.
+      expect(before.right, greaterThan(canvas.right));
+
+      final previous = FocusManager.instance.highlightStrategy;
+      FocusManager.instance.highlightStrategy =
+          FocusHighlightStrategy.alwaysTraditional;
+      addTearDown(
+        () => FocusManager.instance.highlightStrategy = previous,
+      );
+      final ubMarker = find.descendant(
+        of: ubFinder,
+        matching: find.byType(GestureDetector),
+      );
+      Focus.of(tester.element(ubMarker.first)).requestFocus();
+      await tester.pump();
+      await tester.pump();
+
+      final after = tester.getRect(ubFinder);
+      expect(after.right, lessThanOrEqualTo(canvas.right));
+      expect(after.left, greaterThanOrEqualTo(canvas.left));
+      expect(after.size, before.size, reason: 'a pan, never a zoom');
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('guard: keyboard focus on a node in view leaves the camera', (
+      tester,
+    ) async {
+      final harness = await _pumpTrustGraphBody(
+        tester,
+        size: const Size(900, 600),
+        legendExpanded: false,
+        pages: {
+          null: {_e('Ume', 'Ub')},
+        },
+      );
+      final ubFinder = find.byKey(TestIds.key(TestIds.graphNode('Ub')));
+      final before = tester.getRect(ubFinder);
+      final previous = FocusManager.instance.highlightStrategy;
+      FocusManager.instance.highlightStrategy =
+          FocusHighlightStrategy.alwaysTraditional;
+      addTearDown(
+        () => FocusManager.instance.highlightStrategy = previous,
+      );
+      Focus.of(
+        tester.element(
+          find
+              .descendant(of: ubFinder, matching: find.byType(GestureDetector))
+              .first,
+        ),
+      ).requestFocus();
+      await tester.pump();
+      await tester.pump();
+      expect(tester.getRect(ubFinder), before);
+      expect(harness.graphCubit.graphController.nodes, isNotEmpty);
+    });
   });
 }

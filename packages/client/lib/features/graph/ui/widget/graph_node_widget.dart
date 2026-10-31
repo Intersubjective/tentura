@@ -24,6 +24,7 @@ class GraphNodeWidget extends StatelessWidget {
     this.hiddenNeighborCount,
     this.connectionSemantics,
     this.onTap,
+    this.onFocusChange,
     super.key,
   });
 
@@ -45,6 +46,10 @@ class GraphNodeWidget extends StatelessWidget {
   final String? connectionSemantics;
   final NodeDetails nodeDetails;
   final VoidCallback? onTap;
+
+  /// Called when the marker gains or loses keyboard focus (#458: the Graph
+  /// screen reveals a node Tab lands on).
+  final ValueChanged<bool>? onFocusChange;
 
   static String semanticLabel(
     L10n l10n,
@@ -224,6 +229,7 @@ class GraphNodeWidget extends StatelessWidget {
       onTap: onTap,
       child: FocusableActionDetector(
         mouseCursor: SystemMouseCursors.click,
+        onFocusChange: onFocusChange,
         actions: <Type, Action<Intent>>{
           ActivateIntent: CallbackAction<ActivateIntent>(
             onInvoke: (_) {

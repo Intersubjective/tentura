@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
@@ -268,6 +269,51 @@ class GraphBodyState extends State<GraphBody>
   }
 
   static const _layoutTransitionDuration = Duration(milliseconds: 350);
+
+  /// Keyboard reveal (#458/#391, as on the Field): a node Tab or the arrows
+  /// land on that is partly off the canvas is panned (never zoomed) into
+  /// view with its name. A tap or a click does not move the camera.
+  void _revealFocusedNode(String nodeId) {
+    if (!mounted ||
+        FocusManager.instance.highlightMode != FocusHighlightMode.traditional) {
+      return;
+    }
+    final controller = _graphCubit.graphController;
+    final viewport = controller.viewportSize;
+    NodeDetails? node;
+    for (final candidate in controller.nodes) {
+      if (candidate.id == nodeId) node = candidate;
+    }
+    if (node == null || viewport == null) return;
+    final scenePosition = controller.getPositionOrNullForId(node.graphNodeId);
+    if (scenePosition == null) return;
+    final scale = controller.cameraScale;
+    final centre = controller.sceneToViewportLocal(scenePosition);
+    final half = node.size / 2 * scale;
+    final label = widget.isLabeled ? widget.labelSize : Size.zero;
+    final halfWidth = max(half, label.width / 2 * scale);
+    final rect = Rect.fromLTRB(
+      centre.dx - halfWidth,
+      centre.dy - half,
+      centre.dx + halfWidth,
+      centre.dy + half + label.height * scale,
+    );
+    final gap = context.tt.rowGap;
+    double shift(double low, double high, double extent) {
+      if (low < gap) return low - gap;
+      if (high > extent - gap) return min(high - (extent - gap), low - gap);
+      return 0;
+    }
+
+    final dx = shift(rect.left, rect.right, viewport.width);
+    final dy = shift(rect.top, rect.bottom, viewport.height);
+    if (dx == 0 && dy == 0) return;
+    controller.jumpToPosition(
+      controller.viewportLocalToScene(
+        viewport.center(Offset.zero) + Offset(dx, dy),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -634,6 +680,9 @@ class GraphBodyState extends State<GraphBody>
           ? _viewerConnectionSemantics(node)
           : null,
       onTap: () => _onNodeTap(node),
+      onFocusChange: (focused) {
+        if (focused) _revealFocusedNode(node.id);
+      },
     ),
   );
 }
