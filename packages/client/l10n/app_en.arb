@@ -6738,6 +6738,57 @@
   "inviteAcceptedSetupCapabilitiesError": "Couldn't save capabilities. Try again.",
   "inviteAcceptedSetupPartialSuccessError": "The private name was saved, but capabilities were not. Try saving again.",
   "inviteAcceptedSetupSkipError": "Couldn't skip setup. Try again.",
+  "promptBatchSkipAll": "Skip all ({count})",
+  "@promptBatchSkipAll": {
+    "description": "Action in the title row of the batch sheet for pending «Set up connection» prompts (#259). Skips setup for every pending prompt in the sheet after a confirm.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "promptBatchSkipAllConfirmTitle": "{count, plural, =1{Skip setup for 1 person?} other{Skip setup for {count} people?}}",
+  "@promptBatchSkipAllConfirmTitle": {
+    "description": "Confirm dialog title before Skip all in the invite prompt batch sheet (#259).",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "promptBatchSkipAllConfirmBody": "You can still set them up later from their profiles.",
+  "@promptBatchSkipAllConfirmBody": {
+    "description": "Confirm dialog body before Skip all in the invite prompt batch sheet (#259)."
+  },
+  "promptBatchSkipAllConfirm": "Skip all",
+  "@promptBatchSkipAllConfirm": {
+    "description": "Confirm button of the Skip all dialog in the invite prompt batch sheet (#259)."
+  },
+  "promptBatchSkipAllDone": "Skipped {count}",
+  "@promptBatchSkipAllDone": {
+    "description": "Shown after Skip all skipped every pending prompt (#259). The count is what was actually skipped.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "promptBatchSkipAllPartial": "Skipped {done} of {total}",
+  "@promptBatchSkipAllPartial": {
+    "description": "Shown in the batch sheet when Skip all skipped only some prompts (#259). Never claims a count it did not achieve; a Retry action follows.",
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "promptBatchSkipAllRetry": "Retry",
+  "@promptBatchSkipAllRetry": {
+    "description": "Retries Skip all for the prompts that were not skipped yet (#259)."
+  },
   "profileSeedSuggestionEditPrompt": "Edit routing suggestions for {name}",
   "@profileSeedSuggestionEditPrompt": {
     "placeholders": {
