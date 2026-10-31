@@ -34,6 +34,8 @@ import 'package:tentura/ui/widget/browser_context_menu_hold.dart';
 import 'package:tentura/ui/widget/show_more_text.dart';
 import 'package:tentura/ui/widget/tentura_selection_area.dart';
 
+import '../../support/phone_surface.dart';
+
 const _outside = 'Profile text';
 const _room = 'Room text';
 const _showMore = 'Show more';
@@ -82,6 +84,7 @@ void main() {
   late StateSetter setOuter;
   var rooms = <Key>[];
   var tick = 0;
+  final navigatorKey = GlobalKey<NavigatorState>();
 
   Future<void> pumpHome(WidgetTester tester, {Widget? outside}) {
     rooms = [];
@@ -108,6 +111,40 @@ void main() {
             },
           ),
         ),
+      ),
+    );
+  }
+
+  Future<void> pumpHomeWithRoutes(WidgetTester tester, {Widget? outside}) {
+    rooms = [];
+    tick = 0;
+    return tester.pumpWidget(
+      MaterialApp(
+        theme: TenturaTheme.light(),
+        navigatorKey: navigatorKey,
+        initialRoute: '/home',
+        routes: {
+          '/home': (context) => Scaffold(
+            body: StatefulBuilder(
+              builder: (context, setState) {
+                setOuter = setState;
+                return Column(
+                  children: [
+                    TenturaSelectionArea(
+                      child: outside ?? Text('$_outside $tick'),
+                    ),
+                    for (final key in rooms)
+                      BrowserContextMenuHold(
+                        key: key,
+                        child: const TenturaSelectionArea(child: Text(_room)),
+                      ),
+                  ],
+                );
+              },
+            ),
+          ),
+          '/profile': (_) => const Scaffold(body: Text('Profile page')),
+        },
       ),
     );
   }
@@ -419,4 +456,146 @@ void main() {
     expect(identical(regionOf(tester, _outside), before), isTrue);
     expect(BrowserContextMenuHold.menuFlips.value, 0);
   }, variant: TargetPlatformVariant.desktop());
+
+  testWidgets(
+    '#761 re-key waits until the area is active on the current route',
+    (tester) async {
+      menuOffAtOnce = true;
+      Completer<void>? enablePending;
+      BrowserContextMenuHold.enableMenu = () {
+        calls.add('enable');
+        enablePending = Completer<void>();
+        return enablePending!.future;
+      };
+
+      await pumpHomeWithRoutes(tester);
+      final regionBefore = regionOf(tester, _outside);
+
+      await setRooms(tester, const [ValueKey('a')]);
+      await tester.pumpAndSettle();
+      final regionRoomOpen = regionOf(tester, _outside);
+      expect(identical(regionRoomOpen, regionBefore), isFalse);
+
+      await setRooms(tester, const []);
+      expect(enablePending, isNotNull);
+
+      navigatorKey.currentState!.pushNamed('/profile');
+      await tester.pump();
+
+      enablePending!.complete();
+      await tester.pump();
+      expectNoCrash(tester);
+      expect(
+        identical(regionOf(tester, _outside), regionRoomOpen),
+        isTrue,
+        reason: 'flip while Home is covered must not re-key yet',
+      );
+
+      navigatorKey.currentState!.pop();
+      await tester.pumpAndSettle();
+      expectNoCrash(tester);
+      expect(
+        identical(regionOf(tester, _outside), regionRoomOpen),
+        isFalse,
+        reason: 're-key applies once Home is current again',
+      );
+    },
+    variant: TargetPlatformVariant.desktop(),
+  );
+
+  testWidgets(
+    '#761 flip pending during sign-out-like teardown does not re-key',
+    (tester) async {
+      menuOffAtOnce = true;
+      Completer<void>? enablePending;
+      BrowserContextMenuHold.enableMenu = () {
+        calls.add('enable');
+        enablePending = Completer<void>();
+        return enablePending!.future;
+      };
+
+      await pumpHome(tester);
+      await setRooms(tester, const [ValueKey('a')]);
+      await tester.pumpAndSettle();
+      await setRooms(tester, const []);
+      expect(enablePending, isNotNull);
+
+      enablePending!.complete();
+      await tester.pump();
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+      expectNoCrash(tester);
+    },
+    variant: TargetPlatformVariant.desktop(),
+  );
+
+  testWidgets(
+    '#761 QA trail: room-close flip then Profile pushed twice quickly',
+    (tester) async {
+      menuOffAtOnce = true;
+      await pumpHomeWithRoutes(tester);
+      await setRooms(tester, const [ValueKey('beacon-room')]);
+      await tester.pumpAndSettle();
+
+      await setRooms(tester, const []);
+      navigatorKey.currentState!.pushNamed('/profile');
+      navigatorKey.currentState!.push(
+        MaterialPageRoute<void>(
+          builder: (_) => const Scaffold(body: Text('Profile overlay')),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expectNoCrash(tester);
+
+      while (navigatorKey.currentState!.canPop()) {
+        navigatorKey.currentState!.pop();
+      }
+      await tester.pumpAndSettle();
+      expectNoCrash(tester);
+    },
+    variant: TargetPlatformVariant.desktop(),
+  );
+
+  testWidgets(
+    '#761 phone width: menu flips do not build SelectionArea (Lobby Back path)',
+    (tester) async {
+      await usePhoneSurface(tester);
+      BrowserContextMenuHold.isWeb = () => true;
+      menuOffAtOnce = true;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: TenturaTheme.light().copyWith(
+            platform: TargetPlatform.iOS,
+          ),
+          locale: const Locale('ru'),
+          home: Scaffold(
+            body: StatefulBuilder(
+              builder: (context, setState) {
+                setOuter = setState;
+                return Column(
+                  children: [
+                    const TenturaSelectionArea(child: Text(_outside)),
+                    for (final key in rooms)
+                      BrowserContextMenuHold(
+                        key: key,
+                        child: const TenturaSelectionArea(child: Text(_room)),
+                      ),
+                  ],
+                );
+              },
+            ),
+          ),
+        ),
+      );
+      expect(find.byType(SelectionArea), findsNothing);
+
+      await setRooms(tester, const [ValueKey('lobby')]);
+      await tester.pumpAndSettle();
+      await setRooms(tester, const []);
+      await tester.pumpAndSettle();
+      expect(find.byType(SelectionArea), findsNothing);
+      expectNoCrash(tester);
+    },
+  );
 }
