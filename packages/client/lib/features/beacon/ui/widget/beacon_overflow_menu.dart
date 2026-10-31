@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
@@ -150,7 +151,13 @@ class BeaconOverflowMenu extends StatelessWidget {
     }
 
     if (onOpenBeacon != null) {
-      add('open_beacon', Icons.open_in_new, l10n.openBeacon);
+      add(
+        'open_beacon',
+        Icons.open_in_new,
+        beacon.kind == BeaconKind.post
+            ? l10n.constellationOpenPost
+            : l10n.openBeacon,
+      );
     }
     if (onRequestStatus != null) {
       add(
