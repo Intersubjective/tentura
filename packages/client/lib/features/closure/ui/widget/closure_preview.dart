@@ -6,7 +6,7 @@ import 'package:tentura/features/closure/domain/entity/closure_state.dart';
 import 'package:tentura/features/closure/domain/silent_preview.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
-/// Live bars: what each member would get if the colleagues stay silent.
+/// Live bars: what each member gets by default, if the others don't respond.
 class ClosurePreview extends StatelessWidget {
   const ClosurePreview({
     required this.data,
@@ -44,6 +44,10 @@ class ClosurePreview extends StatelessWidget {
         Text(
           l10n.closureAuthorPreviewTitle,
           style: theme.textTheme.titleMedium,
+        ),
+        Text(
+          l10n.closureAuthorPreviewSubtitle,
+          style: theme.textTheme.bodySmall,
         ),
         const SizedBox(height: TenturaSpacing.row),
         for (final m in shown)

@@ -6325,7 +6325,11 @@
   "closureAuthorSplitEqual": "Поровну между теми, кого ты не отметил как «Не выполнено»",
   "closureAuthorSplitTooMany": "Вручную можно распределить не больше 20 человек. Здесь доли остаются равными",
   "closureAuthorSplitShare": "{name} — {pct}%",
-  "closureAuthorPreviewTitle": "Что получит каждый, если коллеги промолчат",
+  "closureAuthorPreviewTitle": "Что получит каждый помощник по умолчанию",
+  "closureAuthorPreviewSubtitle": "если остальные не ответят",
+  "@closureAuthorPreviewSubtitle": {
+    "description": "Строка под заголовком предпросмотра (#905): доли по умолчанию, если остальные помощники не ответят."
+  },
   "closureAuthorTwoMembers": "Доли задаёшь ты. Когда помощников двое, каждый по своему итогу поймёт и долю другого",
   "closureAuthorStoryHint": "Расскажи, как всё прошло",
   "closureAuthorStorySave": "Сохранить",
