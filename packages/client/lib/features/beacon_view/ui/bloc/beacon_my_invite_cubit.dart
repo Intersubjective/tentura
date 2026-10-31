@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:get_it/get_it.dart';
 
 import 'package:tentura/domain/attention/attention_actor_profiles_case.dart';
@@ -5,6 +7,7 @@ import 'package:tentura/domain/entity/author_invite.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/use_case/author_invite_case.dart';
 import 'package:tentura/features/inbox/domain/use_case/inbox_case.dart';
+import 'package:tentura/features/inbox/ui/message/author_invite_declined_message.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
@@ -90,8 +93,34 @@ final class BeaconMyInviteCubit extends Cubit<BeaconMyInviteState> {
   Future<void> accept() => _answer(_invites.accept, accepted: true);
 
   /// «Не смогу», with the rejection dialog's optional [message].
-  Future<void> decline({String message = ''}) =>
-      _answer(_invites.decline, note: message);
+  Future<void> decline({String message = ''}) async {
+    final invite = state.invite;
+    await _answer(_invites.decline, note: message);
+    // Taken (the banner is gone): offer to take it back.
+    if (invite == null || isClosed || state.invite != null) return;
+    var undone = false;
+    _effects?.emit(
+      ShowMessage(
+        AuthorInviteDeclinedMessage(() {
+          if (undone) return;
+          undone = true;
+          unawaited(_undoDecline(invite, message));
+        }),
+      ),
+    );
+  }
+
+  Future<void> _undoDecline(PendingAuthorInvite invite, String message) async {
+    try {
+      await _invites.revertDecline(invite.id);
+    } on Object catch (error) {
+      if (!isClosed) _effects?.emit(ShowError(error));
+      return;
+    }
+    if (isClosed) return;
+    emit(BeaconMyInviteState(invite: invite, inviter: state.inviter));
+    await _inbox.forgetInviteDeclineNote(beaconId: beaconId, message: message);
+  }
 
   Future<void> _answer(
     Future<Object?> Function(String inviteId) send, {

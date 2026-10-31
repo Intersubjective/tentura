@@ -28,6 +28,9 @@ final class AuthorInviteCase extends UseCaseBase {
   Future<AuthorInvite> decline(String inviteId) =>
       _port.decline(inviteId: inviteId);
 
+  Future<AuthorInvite> revertDecline(String inviteId) =>
+      _port.revertDecline(inviteId: inviteId);
+
   Future<AuthorInvite> withdraw(String inviteId) =>
       _port.withdraw(inviteId: inviteId);
 

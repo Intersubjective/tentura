@@ -110,6 +110,10 @@ final class _Port implements AuthorInvitePort {
       throw UnimplementedError();
 
   @override
+  Future<AuthorInvite> revertDecline({required String inviteId}) =>
+      throw UnimplementedError();
+
+  @override
   Future<List<PendingAuthorInvite>> myPending() => throw UnimplementedError();
 }
 

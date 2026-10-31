@@ -14,6 +14,7 @@ import 'package:tentura/domain/use_case/author_invite_case.dart';
 import 'package:tentura/features/beacon/domain/beacon_hierarchy_exception.dart';
 import 'package:tentura/features/inbox/ui/widget/activity_invite_card.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
+import 'package:tentura/ui/effect/ui_effect_handler.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
@@ -44,12 +45,15 @@ import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/features/updates/domain/use_case/invite_accepted_setup_case.dart';
 import 'package:tentura/features/updates/ui/bloc/updates_feed_cubit.dart';
 import 'package:tentura/ui/l10n/l10n_en.dart';
+import 'package:tentura/ui/l10n/l10n_ru.dart';
+import 'package:tentura/ui/widget/undo_snack_bar.dart';
 import 'package:tentura/ui/widget/caught_up_panel.dart';
 import 'package:tentura/features/updates/ui/widget/updates_feed_tile.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
 import '../../support/test_realtime_sync.dart';
+import '../../support/phone_surface.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'author_invite_test_support.dart';
 import '../block/support/controllable_block_case.dart';
@@ -420,6 +424,11 @@ Future<void> _pumpStreamView(
   _TestInboxCubit? inbox,
   Size logicalSize = const Size(360, 640),
   double textScale = 1,
+  Locale locale = const Locale('en'),
+
+  /// When set, the effects cubits emit on it reach the person as they do in
+  /// the app (snack bars), through the real [UiEffectHandler].
+  UiEffectPort? shownEffects,
 }) async {
   tester.view.physicalSize = logicalSize;
   tester.view.devicePixelRatio = 1;
@@ -457,7 +466,7 @@ Future<void> _pumpStreamView(
           BlocProvider<InboxCubit>.value(value: inboxCubit),
         ],
         child: MaterialApp(
-          locale: const Locale('en'),
+          locale: locale,
           theme: TenturaTheme.light(),
           localizationsDelegates: L10n.localizationsDelegates,
           supportedLocales: L10n.supportedLocales,
@@ -466,8 +475,13 @@ Future<void> _pumpStreamView(
               size: logicalSize,
               textScaler: TextScaler.linear(textScale),
             ),
-            child: const TenturaResponsiveScope(
-              child: Scaffold(body: ActivityStreamView()),
+            child: TenturaResponsiveScope(
+              child: shownEffects == null
+                  ? const Scaffold(body: ActivityStreamView())
+                  : UiEffectHandler(
+                      effects: shownEffects,
+                      child: const Scaffold(body: ActivityStreamView()),
+                    ),
             ),
           ),
         ),
@@ -482,6 +496,9 @@ double _top(Finder finder, WidgetTester tester) {
   expect(finder, findsOneWidget);
   return tester.getRect(finder).top;
 }
+
+/// A snack bar line a person reads; its icon glyphs are `RichText`s too.
+bool _isCopy(String line) => RegExp(r'\p{L}', unicode: true).hasMatch(line);
 
 void main() {
   // U17b — the Timeline entry is one API. Both For You cards used to answer
@@ -1712,6 +1729,269 @@ void main() {
       await tester.tap(find.text(l10n.buttonOk));
       await _pumpFrames(tester);
       expect(inbox.rejected, [(beaconId: 'B-725', message: '')]);
+    });
+  });
+
+  // #797: «Can't make it» is easy to hit by mistake; right after it the person
+  // gets a snack bar with Undo, and the invitation card comes back.
+  group("Undo after «Can't make it» on the invite card", () {
+    // An error bar logs through the app's Logger.
+    setUp(() {
+      if (!GetIt.I.isRegistered<Logger>()) {
+        GetIt.I.registerSingleton<Logger>(Logger('undo-test'));
+      }
+    });
+    tearDown(() async {
+      if (GetIt.I.isRegistered<Logger>()) await GetIt.I.unregister<Logger>();
+    });
+
+    const inviter = Profile(id: 'Uinviter', displayName: 'Oleg');
+
+    Future<({_Boot boot, FakeAuthorInvitePort port, FakeUiEffectPort effects})>
+    bootWithInvite() async {
+      final inboxRepo = FakeInboxRepository();
+      final attentionRepo = _FeedAttentionRepo(firstPage: const []);
+      final items = [_offerItem('B-invite'), _offerItem('B-plain')];
+      wireActivityOffersV2(
+        inbox: inboxRepo,
+        attention: attentionRepo,
+        items: items,
+      );
+      attentionRepo.offerRows = [
+        for (final item in items)
+          activityOfferSortRow(item).copyWith(
+            inviteId: item.beaconId == 'B-invite' ? 'I1' : null,
+          ),
+      ];
+      final port = FakeAuthorInvitePort()
+        ..pending = [
+          PendingAuthorInvite(
+            id: 'I1',
+            beaconId: 'B-invite',
+            beaconTitle: 'Offer B-invite',
+            inviterId: inviter.id,
+            createdAt: DateTime.utc(2026, 10, 11),
+            note: 'You have a ladder',
+          ),
+        ];
+      final effects = FakeUiEffectPort();
+      final boot = await _boot(
+        inboxRepo: inboxRepo,
+        attentionRepo: attentionRepo,
+        authorInviteCase: buildAuthorInviteCase(port),
+        actorProfiles: buildActorProfiles(const [inviter]),
+        effects: effects,
+      );
+      return (boot: boot, port: port, effects: effects);
+    }
+
+    /// «Can't make it» → the dialog → OK, as a person does it.
+    Future<void> declineThroughDialog(
+      WidgetTester tester, {
+      required String ok,
+    }) async {
+      await tester.tap(find.byKey(const Key('ActivityInviteCard.Decline')));
+      await _pumpFrames(tester);
+      await tester.enterText(find.byType(TextField), 'Away that weekend');
+      await tester.tap(find.text(ok));
+      // An action snack bar is shown after the next frame; a test with no
+      // animation running has to ask for it (the app always has one).
+      tester.binding.scheduleFrame();
+      await _pumpFrames(tester);
+    }
+
+    final inviteCard = find.byType(ActivityInviteCard);
+    final undo = find.descendant(
+      of: find.byType(SnackBar),
+      matching: find.byType(SnackBarAction),
+    );
+    // The bar's message is a RichText; the action label is a Text (a RichText
+    // too), so this finds both.
+    final snackBarTexts = find.descendant(
+      of: find.byType(SnackBar),
+      matching: find.byType(RichText),
+    );
+
+    String lineOf(RichText text) => text.text.toPlainText();
+
+    testWidgets("after «Can't make it» the snack bar offers Undo, and "
+        'tapping it brings the invite card back', (tester) async {
+      final (:boot, :port, :effects) = await bootWithInvite();
+      addTearDown(boot.dispose);
+      await _pumpStreamView(
+        tester,
+        boot: boot,
+        logicalSize: const Size(360, 1600),
+        shownEffects: effects,
+      );
+
+      await declineThroughDialog(tester, ok: L10nEn().buttonOk);
+
+      expect(port.declined, ['I1']);
+      expect(inviteCard, findsNothing);
+      expect(undo, findsOneWidget);
+      expect(
+        find.descendant(of: undo, matching: find.text('Undo')),
+        findsOneWidget,
+      );
+      expect(port.revertedDeclines, isEmpty, reason: 'nothing undone yet');
+
+      await tester.tap(undo);
+      await _pumpFrames(tester);
+
+      expect(port.revertedDeclines, ['I1']);
+      expect(inviteCard, findsOneWidget);
+      expect(find.text('Oleg invites you to help'), findsOneWidget);
+      expect(find.text('You have a ladder'), findsOneWidget);
+      expect(
+        find.byKey(const Key('ActivityInviteCard.Accept')),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('the Undo snack bar is the shared long-lived Undo bar: it is '
+        'not pinned, leaves on its own, and the decline stands', (
+      tester,
+    ) async {
+      final (:boot, :port, :effects) = await bootWithInvite();
+      addTearDown(boot.dispose);
+      await _pumpStreamView(
+        tester,
+        boot: boot,
+        logicalSize: const Size(360, 1600),
+        shownEffects: effects,
+      );
+      await declineThroughDialog(tester, ok: L10nEn().buttonOk);
+      expect(undo, findsOneWidget);
+
+      final bar = tester.widget<SnackBar>(find.byType(SnackBar));
+      expect(bar.duration, kUndoSnackBarDuration);
+      expect(bar.persist, isFalse);
+
+      // Still up just before the Undo window ends: a shorter bar is wrong.
+      await tester.pump(kUndoSnackBarDuration - const Duration(seconds: 2));
+      expect(undo, findsOneWidget);
+
+      await tester.pump(const Duration(seconds: 3));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(SnackBar), findsNothing);
+      expect(port.revertedDeclines, isEmpty);
+      expect(inviteCard, findsNothing);
+    });
+
+    // A refusal (the Request closed meanwhile, the invitation replaced) reads
+    // as a translated sentence, never a raw key or the exception's own text.
+    for (final (locale, language) in [
+      (const Locale('en'), 'English'),
+      (const Locale('ru'), 'Russian'),
+    ]) {
+      testWidgets('a refused Undo tells the person in $language, in plain '
+          'words', (tester) async {
+        final (:boot, :port, :effects) = await bootWithInvite();
+        addTearDown(boot.dispose);
+        port.revertError = const AuthorInviteRequestNotOpenException();
+        await _pumpStreamView(
+          tester,
+          boot: boot,
+          logicalSize: const Size(360, 1600),
+          locale: locale,
+          shownEffects: effects,
+        );
+        final ok = locale.languageCode == 'ru'
+            ? L10nRu().buttonOk
+            : L10nEn().buttonOk;
+        await declineThroughDialog(tester, ok: ok);
+        expect(undo, findsOneWidget);
+        final undoLabel = locale.languageCode == 'ru' ? 'Отменить' : 'Undo';
+
+        await tester.tap(undo);
+        await _pumpFrames(tester);
+
+        expect(port.revertedDeclines, ['I1']);
+        expect(inviteCard, findsNothing);
+        // The Undo bar gave way to the error bar.
+        expect(
+          find.descendant(
+            of: find.byType(SnackBar),
+            matching: find.text(undoLabel),
+          ),
+          findsNothing,
+        );
+        final lines = [
+          for (final text in tester.widgetList<RichText>(snackBarTexts))
+            lineOf(text).trim(),
+        ].where(_isCopy).toList();
+        expect(lines, isNotEmpty, reason: 'the refusal is told');
+        final message = lines.first;
+        expect(
+          message,
+          isNot(matches(RegExp(r'^[a-z]+(?:[A-Z][a-z0-9]*)+$'))),
+          reason: 'no raw l10n key',
+        );
+        for (final raw in ['Exception', 'Instance of', 'AuthorInvite']) {
+          expect(message, isNot(contains(raw)));
+        }
+        expect(message.split(RegExp(r'\s+')).length, greaterThan(2));
+        expect(message, endsWith('.'));
+        expect(
+          message,
+          locale.languageCode == 'ru'
+              ? matches(RegExp('[А-Яа-я]'))
+              : isNot(matches(RegExp('[А-Яа-я]'))),
+          reason: 'the sentence is in the app language',
+        );
+      });
+    }
+
+    // Fix completeness step 4: QA's phone, in Russian.
+    testWidgets('375×667 in Russian: the Undo snack bar renders in full '
+        'and works', (tester) async {
+      await usePhoneSurface(tester);
+      final (:boot, :port, :effects) = await bootWithInvite();
+      addTearDown(boot.dispose);
+      await _pumpStreamView(
+        tester,
+        boot: boot,
+        logicalSize: kPhoneSurface,
+        locale: const Locale('ru'),
+        shownEffects: effects,
+      );
+
+      await declineThroughDialog(tester, ok: L10nRu().buttonOk);
+
+      expect(port.declined, ['I1']);
+      expect(undo, findsOneWidget);
+      expect(
+        find.descendant(of: undo, matching: find.text('Отменить')),
+        findsOneWidget,
+      );
+      final bar = tester.getRect(find.byType(SnackBar));
+      expect(bar.left, greaterThanOrEqualTo(0));
+      expect(bar.right, lessThanOrEqualTo(kPhoneSurface.width));
+      expect(bar.bottom, lessThanOrEqualTo(kPhoneSurface.height));
+      final action = tester.getRect(undo);
+      expect(action.left, greaterThanOrEqualTo(bar.left));
+      expect(action.right, lessThanOrEqualTo(bar.right));
+      // The message beside the action is whole: no ellipsis, in Russian.
+      final lines = [
+        for (final text in tester.widgetList<RichText>(snackBarTexts))
+          lineOf(text).trim(),
+      ].where(_isCopy);
+      expect(lines.length, greaterThan(1), reason: 'message and action');
+      for (final line in lines) {
+        expect(line, isNot(endsWith('…')));
+        expect(line, matches(RegExp('[А-Яа-я]')));
+      }
+      expect(tester.takeException(), isNull);
+
+      await tester.tap(undo);
+      await _pumpFrames(tester);
+
+      expect(port.revertedDeclines, ['I1']);
+      expect(inviteCard, findsOneWidget);
+      expect(find.text('Принять'), findsOneWidget);
+      expect(tester.takeException(), isNull);
     });
   });
 }

@@ -7,6 +7,7 @@ import 'package:tentura/domain/attention/attention_actor_profiles_case.dart';
 import 'package:tentura/domain/attention/attention_case.dart';
 import 'package:tentura/domain/attention/entity/activity_offer_sort_row.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
+import 'package:tentura/domain/entity/author_invite.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/use_case/author_invite_case.dart';
 import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
@@ -15,6 +16,7 @@ import 'package:tentura/ui/effect/ui_effect_port.dart';
 
 import '../../domain/entity/inbox_item.dart';
 import '../../domain/use_case/inbox_case.dart';
+import '../message/author_invite_declined_message.dart';
 import 'activity_offers_state.dart';
 
 export 'package:flutter_bloc/flutter_bloc.dart';
@@ -214,33 +216,107 @@ final class ActivityOffersCubit extends Cubit<ActivityOffersState> {
 
   /// «Не смогу» on the invite card: the existing decline (the rejection
   /// dialog's optional note is kept on the inbox row, as for any decline).
-  Future<void> declineInvite(String beaconId, {String message = ''}) =>
-      _answerInvite(beaconId, (inviteId) async {
-        await _invites.decline(inviteId);
-        // #725: the Request now carries an answered invitation; if it comes
-        // back to the zone (restored, forwarded), its card keeps these words.
-        if (!isClosed) {
-          emit(
-            state.copyWith(
-              declinedInviteBeacons: {
-                ...state.declinedInviteBeacons,
-                beaconId,
-              },
+  ///
+  /// A taken decline offers Undo: the server puts the invitation back and the
+  /// row returns to where it was.
+  Future<void> declineInvite(String beaconId, {String message = ''}) async {
+    final inviteId = state.inviteIdByBeacon[beaconId];
+    final invite = state.invites[inviteId];
+    final index = state.items.indexWhere((e) => e.beaconId == beaconId);
+    final item = index < 0 ? null : state.items[index];
+    final declined = await _answerInvite(beaconId, (inviteId) async {
+      await _invites.decline(inviteId);
+      // #725: the Request now carries an answered invitation; if it comes
+      // back to the zone (restored, forwarded), its card keeps these words.
+      if (!isClosed) {
+        emit(
+          state.copyWith(
+            declinedInviteBeacons: {
+              ...state.declinedInviteBeacons,
+              beaconId,
+            },
+          ),
+        );
+      }
+      await _inboxCase.recordInviteDeclineNote(
+        beaconId: beaconId,
+        message: message,
+      );
+    });
+    if (!declined || isClosed || inviteId == null) return;
+    var undone = false;
+    _effects.emit(
+      ShowMessage(
+        AuthorInviteDeclinedMessage(() {
+          if (undone) return;
+          undone = true;
+          unawaited(
+            _undoDecline(
+              beaconId,
+              inviteId,
+              message: message,
+              invite: invite,
+              item: item,
+              index: index,
             ),
           );
-        }
-        await _inboxCase.recordInviteDeclineNote(
-          beaconId: beaconId,
-          message: message,
-        );
-      });
+        }),
+      ),
+    );
+  }
 
-  Future<void> _answerInvite(
+  Future<void> _undoDecline(
+    String beaconId,
+    String inviteId, {
+    required String message,
+    required PendingAuthorInvite? invite,
+    required InboxItem? item,
+    required int index,
+  }) async {
+    try {
+      await _invites.revertDecline(inviteId);
+    } on Object catch (error) {
+      if (!isClosed) _effects.emit(ShowError(error));
+      return;
+    }
+    if (isClosed) return;
+    _putBack(beaconId, inviteId, item, index);
+    emit(
+      state.copyWith(
+        invites: invite == null
+            ? state.invites
+            : {...state.invites, inviteId: invite},
+        declinedInviteBeacons: {...state.declinedInviteBeacons}
+          ..remove(beaconId),
+      ),
+    );
+    await _inboxCase.forgetInviteDeclineNote(
+      beaconId: beaconId,
+      message: message,
+    );
+  }
+
+  /// The row [item] and its invite back in the pinned zone at [index].
+  void _putBack(String beaconId, String inviteId, InboxItem? item, int index) {
+    final items = [...state.items];
+    if (item != null && !items.any((e) => e.beaconId == beaconId)) {
+      items.insert(index.clamp(0, items.length), item);
+    }
+    emit(
+      state.copyWith(
+        items: items,
+        inviteIdByBeacon: {...state.inviteIdByBeacon, beaconId: inviteId},
+      ),
+    );
+  }
+
+  /// False when the server refused and the row was put back.
+  Future<bool> _answerInvite(
     String beaconId,
     Future<void> Function(String inviteId) send,
   ) async {
     final inviteId = state.inviteIdByBeacon[beaconId];
-    if (inviteId == null) return;
+    if (inviteId == null) return false;
     final index = state.items.indexWhere((e) => e.beaconId == beaconId);
     final item = index < 0 ? null : state.items[index];
     emit(
@@ -255,23 +331,14 @@ final class ActivityOffersCubit extends Cubit<ActivityOffersState> {
     try {
       await send(inviteId);
     } on Object catch (error) {
-      if (isClosed) return;
+      if (isClosed) return false;
       // Roll the optimistic removal back: the row and its invite return
       // where they were.
-      final items = [...state.items];
-      if (item != null && !items.any((e) => e.beaconId == beaconId)) {
-        items.insert(index.clamp(0, items.length), item);
-      }
-      emit(
-        state.copyWith(
-          items: items,
-          inviteIdByBeacon: {...state.inviteIdByBeacon, beaconId: inviteId},
-        ),
-      );
+      _putBack(beaconId, inviteId, item, index);
       _effects.emit(ShowError(error));
-      return;
+      return false;
     }
-    if (isClosed) return;
+    if (isClosed) return false;
     _attention.forgetOfferGroup(beaconId);
     emit(
       state.copyWith(
@@ -280,6 +347,7 @@ final class ActivityOffersCubit extends Cubit<ActivityOffersState> {
       ),
     );
     unawaited(_refreshOpenForwardsCount());
+    return true;
   }
 
   static Set<String> _declinedInvitesOf(List<ActivityOfferSortRow> rows) => {

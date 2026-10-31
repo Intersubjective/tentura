@@ -103,6 +103,7 @@ void main() {
         'AuthorInviteCreate',
         'AuthorInviteAccept',
         'AuthorInviteDecline',
+        'AuthorInviteRevertDecline',
         'AuthorInviteWithdraw',
         'MyPendingAuthorInvites',
         'BeaconAuthorInvites',

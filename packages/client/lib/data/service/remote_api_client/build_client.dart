@@ -517,6 +517,7 @@ class _V2RoutingLink extends Link {
     'AuthorInviteCreate',
     'AuthorInviteAccept',
     'AuthorInviteDecline',
+    'AuthorInviteRevertDecline',
     'AuthorInviteWithdraw',
     'MyPendingAuthorInvites',
     'BeaconAuthorInvites',

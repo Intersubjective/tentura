@@ -60,6 +60,7 @@ void dispatchUiEffect(
             showSnackBar(
               context,
               text: m.toL10n(localeName),
+              duration: m is LocalizableUndoMessage ? m.duration : null,
               action: SnackBarAction(
                 label: m.label.toL10n(localeName),
                 onPressed: m.onPressed,
