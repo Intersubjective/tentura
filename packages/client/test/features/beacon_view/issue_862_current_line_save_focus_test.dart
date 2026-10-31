@@ -26,18 +26,17 @@ class _SlowNowLineRepo extends FakeBeaconThreadsRepository {
     required String beaconId,
     required String text,
     required int baseRevision,
-  }) =>
-      completer.future;
+  }) => completer.future;
 }
 
 void main() {
   late Completer<BeaconRoomState> saveDone;
 
-  setUp(() {
+  setUp(() async {
     debugWebTextInputConfigHold = true;
     saveDone = Completer<BeaconRoomState>();
     if (GetIt.I.isRegistered<BeaconThreadsCase>()) {
-      GetIt.I.unregister<BeaconThreadsCase>();
+      await GetIt.I.unregister<BeaconThreadsCase>();
     }
     GetIt.I.registerSingleton<BeaconThreadsCase>(
       roomCubitMakeCase(_SlowNowLineRepo(saveDone)),
@@ -91,7 +90,7 @@ void main() {
     saveDone.complete(
       BeaconRoomState(
         beaconId: 'B1',
-        updatedAt: DateTime.utc(2026, 1, 1),
+        updatedAt: DateTime.utc(2026),
         currentLine: 'Plan B',
         currentLineRevision: 2,
       ),
