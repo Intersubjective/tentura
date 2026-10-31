@@ -1,12 +1,13 @@
 # #781 Phantoms — "map of my people" architecture
 
-Status: **rev 11 (2026-10-31)** — design walk-through with the owner done
+Status: **rev 12 (2026-10-31)** — design walk-through with the owner done
 (D1–D27); rev 7 applied adversarial review round 1 (R1–R37), rev 8 round 2
 (R38–R58) and rev 9 round 3 (R59–R72), both with reviewer Muse Wonder and
 critics Gemini 4 Argon + GPT-5.6-Sol. Rev 10 (owner request) replaced the
 lock-order ladder with owner-graph transactions and asynchronous invite
 merges (P6, P7, §5.2a); rev 11 applies the rev-10 reviews by Gemini 4 Argon
-and Grok 4.7 (R75–R88) and moves clusters out to #901. Change log §14.
+and Grok 4.7 (R75–R88) and moves clusters out to #901; rev 12 applies
+Fable 5.1's review of rev 11 (R89–R97). Change log §14.
 Source: GitHub #781 (body + owner comments 2026-10-25, decisions comment
 2026-10-31), mockups `docs/design/phantoms/phantoms-{a,b}.png`.
 
@@ -198,8 +199,10 @@ Technical choices:
   - **Defect D:** `invitationAccept` → `InvitationCase.accept` binds
     friendship even for Request invites (`invitation_case.dart:336–345`),
     unlike `acceptAsExisting`'s admission-only path.
-  - All accept paths run in `withMutatingUser` (READ COMMITTED, no retry,
-    `tentura_db.dart:388`). `lockConstellationViewerBatch` throws
+  - Accept paths run READ COMMITTED with no retry: existing-account accepts
+    in `withMutatingUser` (`tentura_db.dart:388`), signups in
+    `runAction(actorUserId: null)` = `withMutatingSystem`
+    (`auth_case.dart:166`, `credential_auth_case.dart:156`). `lockConstellationViewerBatch` throws
     `PostgresSnapshotUnavailableException` whenever it had to wait
     (`constellation_viewer_tx.dart:10–30`); only `withMutatingRepeatableRead`
     retries that, and it refuses to nest.
@@ -522,10 +525,16 @@ deadlocks because of a merge.
 **Merge jobs.** `phantom_merge_job(id, phantom_id, owner_id, user_id, origin,
 invitation_id UNIQUE, state queued|done|skipped|failed, reason, attempts,
 lease_owner, lease_until, next_attempt_at, last_error, created_at,
-done_at)`; at most one `queued` job per phantom (partial unique index);
+done_at)`; at most one `queued` job per phantom (partial unique index),
+inserted with `ON CONFLICT DO NOTHING` — a second accept of the same phantom
+(possible only if the guards below failed) never fails the join: it keeps
+its own trust and the owner gets the card below;
 `ImageObjectGcRepository`'s lease semantics (the lease is claimed with
 `SKIP LOCKED` in its own statement; the merge and `state = done` commit
-together). `phantom_id` has **no FK** on purpose: the accept must not take a
+together). Under the scope the worker re-reads the job `FOR UPDATE`, runs
+only if it is still `queued` and leased to it, and rolls back if the final
+`state = done` update touches 0 rows — so a lease that expires while the
+worker waits behind a long scoped op (an import) never runs a merge twice. `phantom_id` has **no FK** on purpose: the accept must not take a
 KEY SHARE lock on the phantom row; the worker treats a missing phantom as
 `skipped (deleted)`. After commit the case layer (`auth_case`,
 `credential_auth_case`, `invitation_case`) wakes the worker; a sweep picks
@@ -535,10 +544,14 @@ Sentry alert and the owner card below.
 **The window.** Between the accept's commit and the merge (normally well under
 a second, at worst one sweep interval) the owner's Field shows both the
 phantom and `U`; the phantom realtime event (§6.1) then merges them on
-screen. The joiner sees none of it. While a job is queued for `h`, Copy link
-/ New link (`phantomInviteEnsure`, rotate), manual link and delete answer
-*"Anna is joining right now"* and change nothing; rename is allowed (step 7
-reads the current name).
+screen. The joiner sees none of it. The race-free "joining right now" signal
+is the invitation row, whose lock the accept's claim takes too
+(`user_repository.dart:257–266`): Copy link / New link (`phantomInviteEnsure`,
+rotate), manual link and delete first lock `h`'s invitation rows
+`FOR UPDATE`; if one of them is claimed and its job is still `queued`, they
+answer *"Anna is joining right now"* and change nothing. A rotate whose
+delete of the live invite hits 0 rows refuses instead of minting. Rename is
+allowed (step 7 reads the current name).
 
 **Guard failure at merge time** (`h` deleted or no longer active, `U = o`,
 `o` blocks `U`): the job ends `skipped` and the phantom stays as it is. When
@@ -592,23 +605,33 @@ or not, takes these in this order only:
 M0 brings the accept bodies onto it: claim → chain → contact → trust (today
 signup writes trust before contact and chain, and `bindMutual` locks the
 chain before the claim — Defect A). Block / unblock, account erasure and
-draft deletion take the hierarchy lock at their top and take no scopes, so
-they never invert rule 2.
+draft deletion take the hierarchy lock at their top and take no scopes.
+**Block is restructured in M0 too:** today it writes `user_block` (locking
+the generation row) and only then cancels the pair's forward edges and
+deletes their contacts (`user_block_case.dart:108–120,342–375`) — trust →
+chain → contact, the inverse of rule 2 against the restructured accepts and
+unmerge. The cleanup moves before the `user_block` write (it never reads the
+new row); unblock is checked the same way.
 
 **Rule 3 — deleters outside the graph retry.** Deleting a user or a Request
 cascades into other owners' graph rows (tags on, notes about, first-seen
 rows of, anchors on the deleted target) without their scopes; they can't
-know every such owner without a race. Instead the final user delete of
-`UserErasureCase` runs in its own bounded-retry transaction (idempotent:
-delete if still present). Draft deletion stays as today — a pre-existing
+know every such owner without a race. Instead erasure is made retryable:
+the atomic small-account erase (one `runAction`,
+`user_erasure_case.dart:50–57,171–177`) is retried as a whole — it is
+idempotent, and `enqueueGc` is `ON CONFLICT DO NOTHING` — and the chunked
+path's final delete runs in its own bounded-retry transaction. Draft deletion stays as today — a pre-existing
 exposure on anchors, not widened here.
 
 **What this guarantees.** Scoped transactions can't deadlock with each other
 (rule 1) or with accepts (rule 2 — an accept holds no graph lock and takes
 the shared resources in the same order as everyone). A cascade from a user
 or Request delete can still meet a scoped writer; both sides retry, so it
-costs a retry, never a failed request. The accept, the one transaction that
-can't retry, takes no scope.
+costs a retry. One exception is accepted: erasing an inviter while someone
+accepts that inviter's invite can make the accept the deadlock victim — the
+invite dies with its issuer anyway. Otherwise the accept, the one
+transaction that can't retry, takes no scope and follows rule 2 like
+everyone else.
 
 **Entry points.** `OwnerGraphTransactionPort` has two:
 - `run(ownerIds, actorUserId, (OwnerGraphScope scope) => …)` — READ
@@ -621,7 +644,10 @@ can't retry, takes no scope.
 - `runRepeatableRead(ownerId, actorUserId, …)` — the anchor batch and layout
   snapshots: opens the REPEATABLE READ transaction, try-locks the scope as
   its first statement and retries after a wait (today's
-  `lockConstellationViewerBatch` logic on the new key).
+  `lockConstellationViewerBatch` logic on the new key), and sets
+  `tentura.owner_scopes` like `run`. It retries on *any* wait, and the one
+  key now also covers first-seen writes and tag ops, so M0b carries a perf
+  test of batch retries under the 3-attempt / 5 s budget.
 
 Merge, unmerge and phantom create write anchors through scoped READ
 COMMITTED anchor methods (explicit positions, both target watermarks
@@ -653,7 +679,7 @@ author deleting the same tie is a single-row wait.
    scope, after taking the locks; its `*UnitOfWork` name puts it under
    `test/architecture/scoped_main_db_access_test.dart` and
    `transaction_entry_inventory.txt`.
-2. **Test-time detector.** `run` sets a transaction-local
+2. **Test-time detector.** Both entries set a transaction-local
    `tentura.owner_scopes`. A row trigger `assert_owner_scope` on the
    private-graph tables that carry an owner column raises on a *direct*
    INSERT / UPDATE (`pg_trigger_depth() = 1`) whose owner isn't in it — only
@@ -667,7 +693,9 @@ author deleting the same tie is a single-row wait.
    trust); unmerge × concurrent vote writes; erasure of `U` × merge into `U`
    (a retry, no failure); tie creation × merge (M6); signup ×
    existing-account accept of the same invite; accept while the owner moves
-   pins on another device; Copy link while a job is queued; plus a test that
+   pins on another device; Copy link while a job is queued; block × accept
+   and block × unmerge of the same pair; a merge job whose lease expires
+   while it waits on the scope; plus a test that
    every private-graph table with an owner column carries the trigger.
 
 ### 5.2b Merge steps
@@ -1048,8 +1076,8 @@ calls it later (covers "invite link forwarded and someone else accepted it").
 
 | M | Epic | Depends on | Notes |
 |---|---|---|---|
-| M0 | Invite accept hardening | — | accept bodies restructured to claim → chain → contact → trust (§5.2a rule 2; Defect A); Defect B; Defect C → D15 fallback across every gate (both signup methods, `acceptAsExisting`, `invitationAccept`; consumes the invite; signup → friendship + invite-accepted event with a "Request lapsed" outcome, existing account → admission-only); Defect D; landing preview + accept screen + post-join card; `invitationAccept` gets the same expiry check |
-| M0b | Owner-graph transactions | — | §5.2a as a pure refactor, no behaviour change: `OwnerGraphTransactionPort` (`run`, `runRepeatableRead`) + `OwnerGraphScope`, implemented by `OwnerGraphUnitOfWork`; one `owner_graph:<id>` key replacing the anchor-batch and `person_tags` keys across anchors, layout snapshots, people tags, tag magnet and auto-tag prefs; the first-seen write moved out of the connection lease; erasure's final delete retryable; test-time `assert_owner_scope` |
+| M0 | Invite accept hardening | — | accept bodies restructured to claim → chain → contact → trust, and block's pair cleanup moved before its `user_block` write (§5.2a rule 2; Defect A); Defect B; Defect C → D15 fallback across every gate (both signup methods, `acceptAsExisting`, `invitationAccept`; consumes the invite; signup → friendship + invite-accepted event with a "Request lapsed" outcome, existing account → admission-only); Defect D; landing preview + accept screen + post-join card; `invitationAccept` gets the same expiry check |
+| M0b | Owner-graph transactions | — | §5.2a as a pure refactor, no behaviour change: `OwnerGraphTransactionPort` (`run`, `runRepeatableRead`) + `OwnerGraphScope`, implemented by `OwnerGraphUnitOfWork`; one `owner_graph:<id>` key replacing the anchor-batch and `person_tags` keys across anchors (incl. the bud sweep, `anchor_inherit_operation.dart:66`), layout snapshots, people tags, tag magnet and auto-tag prefs; the first-seen write moved out of the connection lease; erasure retryable; test-time `assert_owner_scope`; perf test of anchor-batch retries |
 | M1 | Phase 1 phantoms | M0, M0b, #699 | storage + delete actions (§3) + PHANTOM anchors (§3.3) + mixed tags (§3.2) + invites (§4) + merge/undo/unlink (§5) + hint + Field/client + realtime (§6) + privacy suite (§11) + deadlock/contention tests |
 | M2 | Private notes + private avatars on anyone (+ note search) | M1 | §3.4; merge avatar copy, display-time notes (§5.2) |
 | M3 | Forward a Request to a phantom | M1 | §7 |
@@ -1082,6 +1110,17 @@ None. Q1–Q11 of the walk-through are decided (D12–D22).
 
 ## 14. Change log
 
+- **rev 12 (2026-10-31), Fable 5.1's review of rev 11.** R89 block wrote
+  `user_block` before its contact/forward cleanup, inverting rule 2: the
+  cleanup moves first (M0, §5.2a). R90 job insert `ON CONFLICT DO NOTHING`
+  (§5.2). R91 the merge-window guards lock the invitation rows instead of
+  reading the job table; rotate refuses on 0 deleted (§5.2). R92 the worker
+  re-checks its lease under the scope; no double merge (§5.2). R93 erasure
+  retry fitted to the atomic and chunked paths; the inviter-erasure ×
+  accept exception stated (§5.2a). R94 signups run in `withMutatingSystem`
+  (§2). R95 `runRepeatableRead` sets `tentura.owner_scopes` (§5.2a). R96 the
+  bud sweep's anchor writes named in M0b. R97 anchor-batch retry perf test
+  (§5.2a, M0b).
 - **rev 11 (2026-10-31), reviews of rev 10** by Gemini 4 Argon and Grok 4.7.
   R75 accept vs unmerge cycle on contact + trust: accepts take contact
   before trust (rule 2), phantom-invite accepts skip the contact write and
