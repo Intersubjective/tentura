@@ -133,4 +133,51 @@ WHERE outbox.occurrence_id = occ.id
     ],
     updateKind: UpdateKind.update,
   );
+
+  @override
+  Future<void> reverseAuthorInviteDeclineReceipts({
+    required String inviteId,
+    required String beaconId,
+    required String inviterId,
+    required String inviteeId,
+  }) async {
+    // Undo exactly the decline's own system clear (`sweep`, no operation).
+    await _database.customUpdate(
+      r'''
+UPDATE public.notification_outbox
+SET cleared_at = NULL, clear_reason = NULL, seen_at = NULL
+WHERE source_event_key = $1
+  AND beacon_id = $2
+  AND account_id = $3
+  AND NOT requires_action
+  AND clear_reason = 'sweep'
+  AND cleared_by_operation_id IS NULL
+''',
+      variables: [
+        Variable<String>('author_invite:$inviteId'),
+        Variable<String>(beaconId),
+        Variable<String>(inviteeId),
+      ],
+      updateKind: UpdateKind.update,
+    );
+    await _database.customUpdate(
+      '''
+UPDATE public.notification_outbox AS outbox
+SET
+  cleared_at = now(),
+  clear_reason = 'sweep',
+  seen_at = COALESCE(outbox.seen_at, now())
+WHERE outbox.source_event_key = \$1
+  AND outbox.beacon_id = \$2
+  AND outbox.account_id = \$3
+  AND ${AttentionDismissibleSql.activeOptional('outbox')}
+''',
+      variables: [
+        Variable<String>('author_invite_declined:$inviteId'),
+        Variable<String>(beaconId),
+        Variable<String>(inviterId),
+      ],
+      updateKind: UpdateKind.update,
+    );
+  }
 }

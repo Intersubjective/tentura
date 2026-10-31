@@ -130,6 +130,31 @@ class AuthorInviteRepository implements AuthorInvitePort {
   );
 
   @override
+  Future<AuthorInvite?> reopenDeclined(String inviteId) async {
+    final reopened = await _one(
+      'UPDATE public.beacon_author_invite '
+      'SET status = ${AuthorInviteStatus.pending.code}, '
+      '    resolved_at = NULL, resolved_by = NULL '
+      r'WHERE id = $1 '
+      'AND status = ${AuthorInviteStatus.declined.code} '
+      'RETURNING $_columns',
+      [inviteId],
+    );
+    final edgeId = reopened?.forwardEdgeId;
+    if (edgeId != null) {
+      // Only the decline's own resolution (outcome 2, no evidence).
+      await _database.customUpdate(
+        'UPDATE public.beacon_forward_edge '
+        'SET contact_outcome = NULL, contact_resolved_at = NULL '
+        r'WHERE id = $1 AND contact_outcome = 2',
+        variables: [Variable.withString(edgeId)],
+        updateKind: UpdateKind.update,
+      );
+    }
+    return reopened;
+  }
+
+  @override
   Future<List<AuthorInvite>> withdrawPendingBetween(String a, String b) async {
     final rows = await _database
         .customSelect(

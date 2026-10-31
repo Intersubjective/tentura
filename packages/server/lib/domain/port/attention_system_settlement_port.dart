@@ -34,4 +34,15 @@ abstract class AttentionSystemSettlementPort {
     required String beaconId,
     required String inviteeId,
   });
+
+  /// The invitee took back the decline of [inviteId]: their
+  /// `authorInviteReceived` receipt for that invite asks for an answer again
+  /// (no new event, so no new notification), and the inviter's
+  /// `authorInviteDeclined` receipt stops asking for attention.
+  Future<void> reverseAuthorInviteDeclineReceipts({
+    required String inviteId,
+    required String beaconId,
+    required String inviterId,
+    required String inviteeId,
+  });
 }
