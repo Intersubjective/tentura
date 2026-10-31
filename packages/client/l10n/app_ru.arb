@@ -2835,7 +2835,7 @@
   "@beaconForwardPersonReasonAlreadyHelping": {
     "context": "PersonForwardScreen row disabled reason"
   },
-  "beaconForwardPersonReasonDeclined": "Отклонено",
+  "beaconForwardPersonReasonDeclined": "Убрано",
   "@beaconForwardPersonReasonDeclined": {
     "context": "PersonForwardScreen row disabled reason"
   },
