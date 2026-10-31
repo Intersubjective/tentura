@@ -6403,7 +6403,6 @@
   },
   "beaconPhaseWrappingUp": "Final check",
   "beaconPhaseNeedsMoreHelp": "Needs more help",
-  "beaconPhaseEnoughHelpInMotion": "Enough help — in motion",
   "beaconPhaseOffersAwaitingAuthor": "Offers awaiting author",
   "beaconPhaseCoordinating": "Coordinating the plan",
   "beaconPhaseLookingForHelpers": "Looking for helpers",
