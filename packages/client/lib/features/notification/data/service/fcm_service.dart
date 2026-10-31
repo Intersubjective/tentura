@@ -4,6 +4,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 
 import 'package:tentura/env.dart';
 import 'package:tentura/data/service/firebase_client_config.dart';
+import 'package:tentura/data/service/firebase_service.dart';
 import 'package:tentura/data/service/service_base.dart';
 
 import '../../domain/entity/notification_permission_status.dart';
@@ -22,6 +23,7 @@ class FcmService extends ServiceBase {
   factory FcmService.create({
     required Env env,
     required Logger logger,
+    required FirebaseService firebase,
   }) {
     logFirebaseClientConfig(env);
     if (!isFirebaseClientConfigValid(env)) {
@@ -29,6 +31,11 @@ class FcmService extends ServiceBase {
       fcmLog(
         'FcmService: using fake — ${firebaseClientConfigIssue(env) ?? 'FB_API_KEY empty'}',
       );
+      return const _FcmServiceFake();
+    }
+    if (!firebase.isInitialized) {
+      // Startup went on without Firebase (#878): no app to call into.
+      fcmLog('FcmService: using fake — Firebase app not initialized');
       return const _FcmServiceFake();
     }
     fcmLog('FcmService: real Firebase Messaging');

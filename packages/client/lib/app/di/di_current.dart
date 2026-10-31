@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:injectable/injectable.dart';
 import 'package:blurhash_shader/blurhash_shader.dart';
 
+import '../boot_step.dart';
 import '../sentry/sentry_init.dart';
 import '../sentry/sentry_log_bridge.dart';
 import '../../env.dart';
@@ -13,14 +14,17 @@ import 'di_current.config.dart';
 
 @InjectableInit()
 Future<GetIt> configureDependencies() async {
-  await BlurHash.loadShader();
+  await bootStep('blurhash_shader', BlurHash.loadShader);
   const envName = String.fromEnvironment('ENV', defaultValue: 'dev');
   final injectableEnv = switch (envName) {
     'test' => Environment.test,
     'prod' => Environment.prod,
     _ => Environment.dev,
   };
-  final getIt = await GetIt.I.init(environment: injectableEnv);
+  final getIt = await bootStep(
+    'get_it_init',
+    () => GetIt.I.init(environment: injectableEnv),
+  );
   getIt<PeopleTagsCase>().bindAccountChanges(
     getIt<AuthCase>().currentAccountChanges(),
   );

@@ -1,8 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
 
+import 'package:tentura/data/service/firebase_service.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/features/notification/data/service/fcm_service.dart';
+import 'package:tentura/features/notification/domain/entity/notification_permission_status.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -30,7 +32,15 @@ void main() {
 
       // No Firebase app is initialised in tests, so the plugin throws
       // FirebaseException [core/no-app] — a non-"unsupported" error.
-      final service = FcmService.create(env: env, logger: logger);
+      final service = FcmService.create(
+        env: env,
+        logger: logger,
+        firebase: FirebaseService(
+          env: env,
+          logger: logger,
+          isInitialized: true,
+        ),
+      );
 
       final permissions = await service.requestPermission();
 
@@ -38,6 +48,27 @@ void main() {
       expect(
         records.where((r) => r.level >= Level.WARNING && r.error != null),
         isNotEmpty,
+      );
+    },
+  );
+
+  // #878: Firebase init that hung or failed at startup is skipped (#878
+  // FirebaseService); push then runs on the fake service instead of calling
+  // into a Firebase app that does not exist ([core/no-app] at FcmCubit start).
+  test(
+    'without an initialised Firebase app the fake service is used',
+    () async {
+      final service = FcmService.create(
+        env: env,
+        logger: Logger('FcmServiceTest'),
+        firebase: FirebaseService(env: env, logger: Logger('FcmServiceTest')),
+      );
+
+      expect(() => service.onTokenRefresh, returnsNormally);
+      expect(await service.getToken(), isNull);
+      expect(
+        await service.permissionStatus(),
+        NotificationPermissionStatus.unsupported,
       );
     },
   );

@@ -69,6 +69,47 @@ void main() {
     });
   });
 
+  // #878: Sentry TENTURA-CLIENT-5J was a bare "TimeoutException after
+  // 0:01:00: Future not completed" — nothing said which startup step hung.
+  group('boot step attribution (#878)', () {
+    test('a boot timeout names the step that hung', () async {
+      final reported = <Object>[];
+
+      final ok = await bootDependencies(
+        configure: () => bootStep(
+          'get_it_init',
+          () async {
+            await bootStep('blurhash_shader', () async {});
+            return bootStep('firebase_init', () => Completer<Object?>().future);
+          },
+        ),
+        timeout: const Duration(milliseconds: 10),
+        report: (e, _) => reported.add(e),
+      );
+
+      expect(ok, isFalse);
+      final error = reported.single;
+      expect(error, isA<TimeoutException>());
+      expect(error, isA<BootTimeoutException>());
+      error as BootTimeoutException;
+      expect(error.pendingSteps, ['get_it_init', 'firebase_init']);
+      expect(error.toString(), contains('firebase_init'));
+      expect(error.toString(), isNot(contains('blurhash_shader')));
+      expect(bootFailureTags(error), {
+        'boot_failure': 'true',
+        'boot_step': 'firebase_init',
+      });
+    });
+
+    test('a step outside startup runs as is', () async {
+      expect(await bootStep('firebase_init', () async => 42), 42);
+    });
+
+    test('a non-timeout failure carries no step tag', () {
+      expect(bootFailureTags(StateError('x')), {'boot_failure': 'true'});
+    });
+  });
+
   group('BootFailureApp', () {
     testWidgets('web: explains and offers Reload', (tester) async {
       var reloads = 0;

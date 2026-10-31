@@ -4,6 +4,7 @@
 import 'package:flutter/material.dart';
 import 'package:injectable/injectable.dart';
 
+import 'package:tentura/app/boot_step.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/config/app_build_info.dart';
 import 'package:tentura/domain/port/platform_repository_port.dart';
@@ -21,6 +22,9 @@ export 'package:flutter_bloc/flutter_bloc.dart';
 
 export 'settings_state.dart';
 
+/// Longest startup waits for the app version label (#878).
+const kAppVersionTimeout = Duration(seconds: 5);
+
 /// Global Cubit
 @singleton
 class SettingsCubit extends Cubit<SettingsState> {
@@ -37,8 +41,7 @@ class SettingsCubit extends Cubit<SettingsState> {
     final isIntroEnabled = await settingsRepository.getIsIntroEnabled() ?? true;
     final themeModeName =
         await settingsRepository.getThemeModeName() ?? 'system';
-    final localePreferenceRaw =
-        await settingsRepository.getLocalePreference();
+    final localePreferenceRaw = await settingsRepository.getLocalePreference();
     final localePreference = SettingsState.normalizeLocalePreference(
       localePreferenceRaw,
     );
@@ -51,7 +54,10 @@ class SettingsCubit extends Cubit<SettingsState> {
       state: SettingsState(
         introEnabled: isIntroEnabled,
         visibleVersion: AppBuildInfo.formatVisibleVersionLabel(
-          await platformRepository.getAppVersion(),
+          await bootStep(
+            'app_version',
+            () => appVersionOrEmpty(platformRepository),
+          ),
         ),
         localePreference: localePreference,
         themeMode: ThemeMode.values.firstWhere(
@@ -61,6 +67,19 @@ class SettingsCubit extends Cubit<SettingsState> {
       ),
     );
   }
+
+  /// The app version for the Settings label, or `''` when it takes longer
+  /// than [timeout]: on web it is a `version.json` fetch with no deadline of
+  /// its own, and a stalled one held startup until the 60 s boot timeout
+  /// (#878).
+  @visibleForTesting
+  static Future<String> appVersionOrEmpty(
+    PlatformRepositoryPort platformRepository, {
+    Duration timeout = kAppVersionTimeout,
+  }) => platformRepository.getAppVersion().timeout(
+    timeout,
+    onTimeout: () => '',
+  );
 
   SettingsCubit({
     required this._authCase,

@@ -1,4 +1,5 @@
 import 'package:injectable/injectable.dart';
+import 'package:tentura/app/boot_step.dart';
 import 'package:synchronized/synchronized.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
@@ -7,7 +8,8 @@ class LocalSecureStorage {
   final _lock = Lock();
 
   @PostConstruct(preResolve: true)
-  Future<void> init() => _secureStorage.read(key: 'init');
+  Future<void> init() =>
+      bootStep('secure_storage', () => _secureStorage.read(key: 'init'));
 
   Future<String?> read(String key) => _lock.synchronized(
     () => _secureStorage.read(key: key),
