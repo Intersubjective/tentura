@@ -8245,15 +8245,47 @@
     }
   },
   "beaconShowcaseAcquaintanceTag": "you know them",
-  "beaconShowcaseOfferPending": "Your offer is with the author",
-  "beaconShowcaseOfferPendingWithAuthor": "Your offer is with {author}",
-  "@beaconShowcaseOfferPendingWithAuthor": {
+  "beaconShowcaseOfferSent": "Offer sent to the author",
+  "@beaconShowcaseOfferSent": {
+    "description": "#527: the line under the team while the viewer's help offer waits for an author with no shown name."
+  },
+  "beaconShowcaseOfferSentTo": "Offer sent to {author}",
+  "@beaconShowcaseOfferSentTo": {
     "description": "#527: the line under the team while the viewer's help offer waits for the author; author is the author's shown name.",
     "placeholders": {
       "author": {
         "type": "String"
       }
     }
+  },
+  "beaconShowcaseBackupOfferSent": "Backup offer sent to the author",
+  "@beaconShowcaseBackupOfferSent": {
+    "description": "#527: as beaconShowcaseOfferSent, for a backup offer (Enough help)."
+  },
+  "beaconShowcaseBackupOfferSentTo": "Backup offer sent to {author}",
+  "@beaconShowcaseBackupOfferSentTo": {
+    "description": "#527: as beaconShowcaseOfferSentTo, for a backup offer (Enough help); author is the author's shown name.",
+    "placeholders": {
+      "author": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconShowcaseOfferNext": "You'll be notified when they answer.",
+  "@beaconShowcaseOfferNext": {
+    "description": "#527: muted line under the offer-sent line: what happens next, when Withdraw is not shown."
+  },
+  "beaconShowcaseOfferNextWithdraw": "You'll be notified when they answer. You can withdraw the offer until then.",
+  "@beaconShowcaseOfferNextWithdraw": {
+    "description": "#527: muted line under the offer-sent line: what happens next, when the Withdraw offer button is shown."
+  },
+  "beaconShowcaseBackupOfferNext": "They may contact you if more help is needed.",
+  "@beaconShowcaseBackupOfferNext": {
+    "description": "#527: muted line under a backup offer-sent line, when Withdraw is not shown (mirrors the backup-offer snackbar)."
+  },
+  "beaconShowcaseBackupOfferNextWithdraw": "They may contact you if more help is needed. You can withdraw the offer at any time.",
+  "@beaconShowcaseBackupOfferNextWithdraw": {
+    "description": "#527: muted line under a backup offer-sent line, when the Withdraw offer button is shown."
   },
   "beaconShowcaseOfferQuote": "“{text}”",
   "@beaconShowcaseOfferQuote": {

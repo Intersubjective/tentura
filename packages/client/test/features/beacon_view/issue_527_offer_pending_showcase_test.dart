@@ -1,4 +1,5 @@
 // #527: right after Offer help the helper saw "Your offer is with the author",
+// (now "Offer sent to {author}", see issue_527_waiting_next_steps_test.dart)
 // none of their own words, and Withdraw only under More actions. The waiting
 // state now names the author, quotes the helper's offer (at most two lines)
 // and shows a "Withdraw offer" button that opens the usual withdraw dialog.
@@ -83,8 +84,8 @@ void main() {
     expect(find.byType(BeaconShowcaseSurface), findsOneWidget);
 
     expect(find.byKey(pendingKey), findsOneWidget);
-    expect(find.text('Your offer is with Author'), findsOneWidget);
-    expect(find.text('Your offer is with the author'), findsNothing);
+    expect(find.text('Offer sent to Author'), findsOneWidget);
+    expect(find.text('Offer sent to the author'), findsNothing);
 
     expect(find.byKey(quoteKey), findsOneWidget);
     expect(find.text('“$offerText”'), findsOneWidget);
