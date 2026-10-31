@@ -8,7 +8,6 @@ import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart'
 import 'package:tentura/features/constellation/ui/utils/constellation_presentation_frame.dart';
 import 'package:tentura/features/constellation/ui/utils/constellation_tap_resolver.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_node_ring_layer.dart';
-import 'package:tentura/features/constellation/ui/widget/constellation_overview_layer.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_viewport_overlay.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
@@ -139,40 +138,6 @@ void clickThroughSemantics(WidgetTester tester, Offset global) {
     global * tester.view.devicePixelRatio,
     SemanticsAction.tap,
   );
-}
-
-/// Points on the cluster labels of the overview (their centre and the middle
-/// of each half) that sit inside the round target of some dot, with the dot
-/// whose centre is nearest: a tap there is a tap on the label and on a dot.
-List<(Offset, String)> _clusterLabelPoints(
-  WidgetTester tester,
-  ConstellationPresentationFrame frame,
-  Offset origin,
-) {
-  final labels = find.descendant(
-    of: find.byType(ConstellationOverviewLayer),
-    matching: find.byType(Text),
-  );
-  final points = <(Offset, String)>[];
-  for (final label in labels.evaluate()) {
-    final rect = tester.getRect(find.byWidget(label.widget)).shift(-origin);
-    for (final dx in [-rect.width / 4, 0.0, rect.width / 4]) {
-      final p = rect.center + Offset(dx, 0);
-      String? nearest;
-      var distance = double.infinity;
-      for (final id in _everyone) {
-        final d = (frame.bodies['fp:$id']!.center - p).distance;
-        if (d < distance) {
-          distance = d;
-          nearest = id;
-        }
-      }
-      if (distance < kMinInteractiveDimension / 2 - 1) {
-        points.add((p, nearest!));
-      }
-    }
-  }
-  return points;
 }
 
 void main() {
@@ -360,75 +325,6 @@ void main() {
           handle.dispose();
         }
       });
-
-      // Only on the wide map do the labels sit within reach of the dots (on
-      // the phone they hang above the targets).
-      if (viewport.name == 'desktop overview') {
-        testWidgets('a tap that lands on a cluster label passes through to the '
-            'nearest dot', (tester) async {
-          await mountAtDetail(tester, viewport);
-          final points = _clusterLabelPoints(tester, holder.frame!, origin);
-          expect(
-            points,
-            isNotEmpty,
-            reason: 'labels sit over some dot targets',
-          );
-          final mouse = await tester.createGesture(
-            kind: PointerDeviceKind.mouse,
-          );
-          await mouse.addPointer(location: origin);
-          addTearDown(mouse.removePointer);
-
-          for (final (p, nearest) in points) {
-            await freshFrame(tester);
-            await tester.tapAt(origin + p);
-            await tester.pumpAndSettle();
-            expect(
-              cubit.state.selectedPersonId,
-              nearest,
-              reason: 'touch tap on a label at $p',
-            );
-
-            await freshFrame(tester);
-            await mouse.moveTo(origin + p);
-            await mouse.down(origin + p);
-            await mouse.up();
-            await tester.pumpAndSettle();
-            expect(
-              cubit.state.selectedPersonId,
-              nearest,
-              reason: 'mouse click on a label at $p',
-            );
-          }
-        });
-
-        testWidgets('a click delivered through semantics on a cluster label '
-            'selects the nearest dot', (tester) async {
-          final handle = tester.ensureSemantics();
-          try {
-            await mountAtDetail(tester, viewport);
-            final points = _clusterLabelPoints(tester, holder.frame!, origin);
-            expect(
-              points,
-              isNotEmpty,
-              reason: 'labels sit over some dot targets',
-            );
-            for (final (p, nearest) in points) {
-              await freshFrame(tester);
-              clickThroughSemantics(tester, origin + p);
-              await tester.pumpAndSettle();
-
-              expect(
-                cubit.state.selectedPersonId,
-                nearest,
-                reason: 'semantics click on a label at $p',
-              );
-            }
-          } finally {
-            handle.dispose();
-          }
-        });
-      }
     });
   }
 }

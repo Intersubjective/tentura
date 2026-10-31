@@ -57,7 +57,6 @@ import 'constellation_filter_bar.dart';
 import 'constellation_minimap.dart';
 import 'constellation_no_contacts.dart';
 import 'constellation_overflow_group.dart';
-import 'constellation_overview_layer.dart';
 import 'constellation_presence_halo_layer.dart';
 import 'constellation_request_status_marker.dart';
 import 'constellation_node_semantics.dart';
@@ -161,7 +160,6 @@ class _ConstellationBodyState extends State<ConstellationBody>
   ConstellationZoomLevelController? _ownZoom;
   // Outlives the minimap widget, which leaves at the close level.
   final _minimapExpanded = ValueNotifier<bool>(true);
-  final _clusterLabels = ConstellationClusterLabels();
   int _pointersDown = 0;
 
   // The level held back near a threshold while a gesture ran must catch up
@@ -230,7 +228,6 @@ class _ConstellationBodyState extends State<ConstellationBody>
     _zoom.removeListener(_onZoomLevel);
     _ownZoom?.dispose();
     _minimapExpanded.dispose();
-    _clusterLabels.dispose();
     _reveal.dispose();
     _edgeStrokeScale.dispose();
     _mapFocus.dispose();
@@ -1467,18 +1464,6 @@ class _ConstellationBodyState extends State<ConstellationBody>
       key: _graphStackKey,
       fit: StackFit.expand,
       children: [
-        // Beneath the map: a dot's own semantics win over a label's.
-        ConstellationClusterLabelSemantics(
-          labels: _clusterLabels,
-          onPersonTapped: (personId) {
-            final node = cubit.graphController.nodePayloadForId(
-              'fp:$personId',
-            );
-            if (node is NodeDetails) {
-              _onNodeTap(context, cubit, node);
-            }
-          },
-        ),
         // A new touch or wheel on the map cancels a running reveal pan.
         Listener(
           onPointerDown: (_) {
@@ -1830,7 +1815,6 @@ class _ConstellationBodyState extends State<ConstellationBody>
               cubit: cubit,
               frameHolder: _frameHolder,
               peopleTags: _peopleTags,
-              clusterLabels: _clusterLabels,
             ),
           ),
         ),
