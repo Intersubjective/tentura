@@ -5326,6 +5326,14 @@
       }
     }
   },
+  "beaconRoomParticipantJoinedBySelf": "You admitted {joinedName} to the discussion",
+  "@beaconRoomParticipantJoinedBySelf": {
+    "placeholders": {
+      "joinedName": {
+        "type": "String"
+      }
+    }
+  },
   "beaconRoomParticipantJoinedOfferQuote": "“{note}”",
   "@beaconRoomParticipantJoinedOfferQuote": {
     "description": "Room (#527): the helper's own offer text, quoted under the line that says they joined the discussion.",
@@ -5393,6 +5401,14 @@
       }
     }
   },
+  "beaconRoomParticipantLeftBySelf": "You left the request ({reason})",
+  "@beaconRoomParticipantLeftBySelf": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
   "beaconRoomParticipantRemoved": "{name} is no longer in the request",
   "@beaconRoomParticipantRemoved": {
     "placeholders": {
@@ -5407,6 +5423,17 @@
       "name": {
         "type": "String"
       },
+      "reason": {
+        "type": "String"
+      },
+      "note": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconRoomParticipantLeftBySelfWithNote": "You left the request ({reason}): “{note}”",
+  "@beaconRoomParticipantLeftBySelfWithNote": {
+    "placeholders": {
       "reason": {
         "type": "String"
       },
@@ -6376,7 +6403,6 @@
   },
   "beaconPhaseWrappingUp": "Final check",
   "beaconPhaseNeedsMoreHelp": "Needs more help",
-  "beaconPhaseEnoughHelpInMotion": "Enough help — in motion",
   "beaconPhaseOffersAwaitingAuthor": "Offers awaiting author",
   "beaconPhaseCoordinating": "Coordinating the plan",
   "beaconPhaseLookingForHelpers": "Looking for helpers",

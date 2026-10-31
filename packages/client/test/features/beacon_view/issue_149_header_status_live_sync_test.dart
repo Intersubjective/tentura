@@ -64,7 +64,7 @@ void main() {
         final after = beaconViewStatusSlots(l10n, cubit.state);
         expect(
           after.displayLine,
-          contains(l10n.beaconPhaseEnoughHelpInMotion),
+          contains(l10n.coordinationEnoughHelp),
         );
       },
     );
@@ -136,7 +136,7 @@ void main() {
         );
 
         final slots = beaconViewStatusSlots(l10n, cubit.state);
-        expect(slots.displayLine, contains(l10n.beaconPhaseEnoughHelpInMotion));
+        expect(slots.displayLine, contains(l10n.coordinationEnoughHelp));
       },
     );
   });

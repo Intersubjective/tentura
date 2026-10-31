@@ -15,12 +15,12 @@ final _t = DateTime.utc(2026, 6, 20, 12);
 final _l10n = lookupL10n(const Locale('en'));
 
 Beacon _beacon() => Beacon.empty.copyWith(
-      id: 'b1',
-      title: 'Test',
-      status: BeaconStatus.open,
-      createdAt: _t,
-      updatedAt: _t,
-    );
+  id: 'b1',
+  title: 'Test',
+  status: BeaconStatus.open,
+  createdAt: _t,
+  updatedAt: _t,
+);
 
 void main() {
   setUpAll(() async {
@@ -181,32 +181,41 @@ void main() {
     );
     final pres = formatBeaconPhaseStatus(_l10n, result, now: now);
     expect(pres.statusLine, contains(_l10n.beaconPhaseCoordinating));
-    expect(pres.statusLine, isNot(contains(_l10n.beaconPhaseOffersAwaitingAuthor)));
+    expect(
+      pres.statusLine,
+      isNot(contains(_l10n.beaconPhaseOffersAwaitingAuthor)),
+    );
     expect(pres.statusLine, contains(_l10n.beaconPhaseActiveToday));
     expect(pres.tone, TenturaTone.neutral);
   });
 
-  test('coordinating with unreviewed offers includes quiet days when stale', () {
-    final now = DateTime.utc(2026, 6, 20, 12);
-    final beacon = _beacon().copyWith(
-      helpOfferCount: 2,
-      admittedHelperCount: 1, // B075: coordinating needs an accepted helper
-      updatedAt: now.subtract(const Duration(days: 5)),
-    );
-    final result = deriveBeaconCoordinationPhase(
-      BeaconCoordinationPhaseInput(
-        beacon: beacon,
-        tier: BeaconVisibilityTier.coordination,
-        now: now,
-        hasUnreviewedOffers: true,
-      ),
-    );
-    final pres = formatBeaconPhaseStatus(_l10n, result, now: now);
-    expect(pres.statusLine, contains(_l10n.beaconPhaseCoordinating));
-    expect(pres.statusLine, isNot(contains(_l10n.beaconPhaseOffersAwaitingAuthor)));
-    expect(pres.statusLine, contains(_l10n.beaconPhaseQuietForDays(5)));
-    expect(pres.tone, TenturaTone.neutral);
-  });
+  test(
+    'coordinating with unreviewed offers includes quiet days when stale',
+    () {
+      final now = DateTime.utc(2026, 6, 20, 12);
+      final beacon = _beacon().copyWith(
+        helpOfferCount: 2,
+        admittedHelperCount: 1, // B075: coordinating needs an accepted helper
+        updatedAt: now.subtract(const Duration(days: 5)),
+      );
+      final result = deriveBeaconCoordinationPhase(
+        BeaconCoordinationPhaseInput(
+          beacon: beacon,
+          tier: BeaconVisibilityTier.coordination,
+          now: now,
+          hasUnreviewedOffers: true,
+        ),
+      );
+      final pres = formatBeaconPhaseStatus(_l10n, result, now: now);
+      expect(pres.statusLine, contains(_l10n.beaconPhaseCoordinating));
+      expect(
+        pres.statusLine,
+        isNot(contains(_l10n.beaconPhaseOffersAwaitingAuthor)),
+      );
+      expect(pres.statusLine, contains(_l10n.beaconPhaseQuietForDays(5)));
+      expect(pres.tone, TenturaTone.neutral);
+    },
+  );
 
   test('ru enough help in motion uses compact status line', () {
     final l10nRu = lookupL10n(const Locale('ru'));
@@ -223,7 +232,7 @@ void main() {
       ),
     );
     final pres = formatBeaconPhaseStatus(l10nRu, result, now: now);
-    expect(pres.statusLine, 'В работе · акт. сегодня');
+    expect(pres.statusLine, '${l10nRu.coordinationEnoughHelp} · акт. сегодня');
     expect(pres.statusLine.length, lessThan(30));
     expect(pres.tone, TenturaTone.good);
   });

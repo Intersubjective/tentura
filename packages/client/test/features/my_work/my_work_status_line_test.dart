@@ -168,7 +168,7 @@ void main() {
     final line = myWorkStatusLine(l10n: l10n, vm: vm, now: now);
     final expected = expectedFromPresenter(l10n, vm, now: now);
     expect(line.slot1, expected.slot1);
-    expect(line.slot1, contains(l10n.beaconPhaseEnoughHelpInMotion));
+    expect(line.slot1, contains(l10n.coordinationEnoughHelp));
     expect(line.slot2, expected.slot2);
     expect(line.tone, TenturaTone.good);
   });

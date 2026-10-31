@@ -351,6 +351,10 @@ class RoomMessageTile extends StatelessWidget {
   }
 
   /// Status names as the status sheet shows them.
+  @visibleForTesting
+  static String roomLogStatusLabel(L10n l10n, BeaconStatus status) =>
+      _statusLineLabel(l10n, status);
+
   static String _statusLineLabel(L10n l10n, BeaconStatus status) =>
       switch (status) {
         BeaconStatus.draft => l10n.beaconStatusRowDraft,
@@ -858,12 +862,15 @@ class RoomMessageTile extends StatelessWidget {
         // The viewer gets second-person copy ("You were admitted…"), not
         // the third-person template with "You" substituted (UI review #200).
         final viewerJoined = joinedId == myProfile.id;
+        final viewerAdmitted = message.authorId == myProfile.id;
         final line = reason == 'autoAdmit'
             ? (viewerJoined
                   ? l10n.beaconRoomViewerJoinedAutoAdmit
                   : l10n.beaconRoomParticipantJoinedAutoAdmit(joinedName))
             : (viewerJoined
                   ? l10n.beaconRoomViewerAdmittedByActor(actorName)
+                  : viewerAdmitted
+                  ? l10n.beaconRoomParticipantJoinedBySelf(joinedName)
                   : l10n.beaconRoomParticipantJoinedByActor(
                       joinedName,
                       actorName,
@@ -949,13 +956,21 @@ class RoomMessageTile extends StatelessWidget {
       final reason =
           withdrawReasonLabel(l10n, leftPayload.withdrawReason) ??
           l10n.withdrawOther;
+      final viewerLeft = leftPayload.leftUserId == myProfile.id;
       final line = leftPayload.note.isEmpty
-          ? l10n.beaconRoomParticipantLeft(name, reason)
-          : l10n.beaconRoomParticipantLeftWithNote(
-              name,
-              reason,
-              leftPayload.note,
-            );
+          ? (viewerLeft
+                ? l10n.beaconRoomParticipantLeftBySelf(reason)
+                : l10n.beaconRoomParticipantLeft(name, reason))
+          : (viewerLeft
+                ? l10n.beaconRoomParticipantLeftBySelfWithNote(
+                    reason,
+                    leftPayload.note,
+                  )
+                : l10n.beaconRoomParticipantLeftWithNote(
+                    name,
+                    reason,
+                    leftPayload.note,
+                  ));
       return Padding(
         padding: EdgeInsets.fromLTRB(
           tt.screenHPadding,
