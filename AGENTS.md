@@ -62,6 +62,21 @@ Iterate with `*-files` / `*-affected`; run `server-regression` (or
 routine run. Wrapped runs queue machine-wide (one at a time). Policy and
 measurements: [`docs/testing-resource-profile.md`](docs/testing-resource-profile.md).
 
+**Agents: run anything that may take over ~15 min detached, then poll it in
+bounded waits.** Whole profiles count (`client-all`, `server-pg`,
+`server-regression`), and so does any run that may sit in the queue. Your
+prompt cache expires while you block inside one long command. Every return from
+a bounded wait is a new turn, and that turn keeps the cache warm:
+
+```bash
+id=$(scripts/test_job.sh start -- scripts/run_tests.sh client-all)
+scripts/test_job.sh wait "$id"   # ≤20 min; exit 3 = still running → call wait again
+```
+
+When the run ends, `wait` exits with the run's exit code and prints the log
+tail. A job nobody waits on for 45 min is killed as abandoned. Self-check:
+`bash scripts/test_job_selftest.sh`.
+
 ```bash
 # sweep leftovers from a killed agent, no new tests
 ./scripts/run_with_test_cleanup.sh --sweep-only
