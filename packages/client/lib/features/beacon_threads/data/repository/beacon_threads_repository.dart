@@ -31,6 +31,7 @@ import 'package:tentura/domain/port/realtime_sync_port.dart';
 
 import '../gql/_g/beacon_participant_list.req.gql.dart';
 import '../gql/_g/beacon_room_read_watermarks.req.gql.dart';
+import '../gql/_g/beacon_update_seen_by.req.gql.dart';
 import '../gql/_g/beacon_threads_list.req.gql.dart';
 import '../gql/_g/mark_thread_seen.req.gql.dart';
 import '../gql/_g/room_message_mark_semantic_done.req.gql.dart';
@@ -579,6 +580,33 @@ class BeaconThreadsRepository {
           (row) => RoomReadWatermark(
             userId: row.userId,
             lastSeenAt: DateTime.parse(row.lastSeenAt).toUtc(),
+            userTitle: row.userTitle,
+            userHasPicture: row.userHasPicture,
+            userImageId: row.userImageId,
+            userBlurHash: row.userBlurHash,
+            userPicHeight: row.userPicHeight,
+            userPicWidth: row.userPicWidth,
+          ),
+        )
+        .toList();
+  }
+
+  /// #766: who has seen the Request's latest next step / status update.
+  /// The server answers an empty list unless the viewer may know. Each
+  /// reader's `lastSeenAt` is when they opened the Request after the update.
+  Future<List<RoomReadWatermark>> fetchLatestUpdateReaders(
+    String beaconId,
+  ) async {
+    final r = await _remoteApiService
+        .request(GBeaconUpdateSeenByReq((b) => b.vars.beaconId = beaconId))
+        .firstLinkResponse(label: _label);
+    return r
+        .dataOrThrow(label: _label)
+        .beaconUpdateSeenBy
+        .map(
+          (row) => RoomReadWatermark(
+            userId: row.userId,
+            lastSeenAt: DateTime.parse(row.seenAt).toUtc(),
             userTitle: row.userTitle,
             userHasPicture: row.userHasPicture,
             userImageId: row.userImageId,

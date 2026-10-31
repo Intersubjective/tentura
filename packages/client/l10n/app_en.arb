@@ -8146,6 +8146,16 @@
   "postCreateForwardingOffHint": "Only the people you invite take part. You can allow forwarding later.",
   "beaconHudStepLabel": "NEXT STEP",
   "beaconHudStepEmptyEditable": "No next step yet. Tap the pencil to set one",
+  "beaconHudCounterSeenBy": "Seen by {count}",
+  "@beaconHudCounterSeenBy": {
+    "description": "Pill on the Request's next step / status update: how many people have seen it. Tap lists them.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "beaconHudUpdateSeenByTitle": "Seen by",
   "beaconHudStepAttribution": "{name} · {when}",
   "@beaconHudStepAttribution": {
     "placeholders": {

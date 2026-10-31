@@ -16,6 +16,8 @@
 //   author, live Request:          12 requests, 2 round trips
 //   author, wrapping-up Request:   10 requests, 2 round trips
 //   helper, wrapping-up Request:   10 requests, 2 round trips
+// Since then the "Seen by" lookup (#766) leaves in the same round as the
+// other reads: one more request each, no more round trips (13 / 11 / 11).
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -103,7 +105,7 @@ void main() {
   group('Opening the Request screen', () {
     test(
       'the author of a live Request gets the whole screen, including their '
-      'forward status, in two round trips and fewer than 13 requests',
+      'forward status, in two round trips and fewer than 14 requests',
       () async {
         final opened = await _openRequest(
           viewerId: _authorId,
@@ -125,7 +127,7 @@ void main() {
         expectOpenRounds(
           server,
           rounds: 2,
-          calls: 12,
+          calls: 13,
           roundsBefore: 3,
           callsBefore: 13,
         );
@@ -134,7 +136,7 @@ void main() {
 
     test(
       'the author of a wrapping-up Request gets the final check in two round '
-      'trips and fewer than 11 requests',
+      'trips and fewer than 12 requests',
       () async {
         final opened = await _openRequest(
           viewerId: _authorId,
@@ -150,7 +152,7 @@ void main() {
         expectOpenRounds(
           server,
           rounds: 2,
-          calls: 10,
+          calls: 11,
           roundsBefore: 4,
           callsBefore: 11,
         );
@@ -159,7 +161,7 @@ void main() {
 
     test(
       'a helper on a wrapping-up Request gets the final check in two round '
-      'trips and fewer than 11 requests',
+      'trips and fewer than 12 requests',
       () async {
         final opened = await _openRequest(
           viewerId: _helperId,
@@ -176,7 +178,7 @@ void main() {
         expectOpenRounds(
           server,
           rounds: 2,
-          calls: 10,
+          calls: 11,
           roundsBefore: 4,
           callsBefore: 11,
         );

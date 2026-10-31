@@ -224,6 +224,7 @@ class _BeaconNowSurfaceState extends State<BeaconNowSurface> {
           p.beaconRoomCue?.lastRoomMeaningfulChange !=
               c.beaconRoomCue?.lastRoomMeaningfulChange ||
           p.beaconRoomCue?.currentLine != c.beaconRoomCue?.currentLine ||
+          p.latestUpdateReaders != c.latestUpdateReaders ||
           p.beaconRoomCue?.openBlockerTitle !=
               c.beaconRoomCue?.openBlockerTitle ||
           p.unansweredHelpOffersCount != c.unansweredHelpOffersCount ||

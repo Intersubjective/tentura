@@ -19,6 +19,8 @@
 //   author, wrapping-up Request:  15 requests, 3 round trips
 //   helper, wrapping-up Request:  15 requests, 3 round trips
 //   helper, live Request:         14 requests, 3 round trips
+// Since then the "Seen by" lookup (#766) joins the Request's own round: one
+// more request in every case (18 / 16 / 16 / 15), no more round trips.
 // Helper live at 390×844 sends that same chain; the frame overflows a
 // helper-only row there, so the pin is the 1280×900 open.
 // Round 1 is the kind gate (Request or Post?), round 2 the Request itself
@@ -230,7 +232,7 @@ void main() {
     ]) {
       testWidgets(
         'the author of a live Request sees it with their forward status in '
-        'at most three round trips and fewer than 18 requests ($label)',
+        'at most three round trips and fewer than 19 requests ($label)',
         (tester) async {
           final opened = await _openRoute(
             tester,
@@ -252,7 +254,7 @@ void main() {
           expectOpenRounds(
             server,
             rounds: 3,
-            calls: 17,
+            calls: 18,
             roundsBefore: 4,
             callsBefore: 18,
           );
@@ -266,7 +268,7 @@ void main() {
     ]) {
       testWidgets(
         '$who a wrapping-up Request sees the final check in at most '
-        'three round trips and fewer than 16 requests',
+        'three round trips and fewer than 17 requests',
         (tester) async {
           final opened = await _openRoute(
             tester,
@@ -287,7 +289,7 @@ void main() {
           expectOpenRounds(
             server,
             rounds: 3,
-            calls: 15,
+            calls: 16,
             roundsBefore: 5,
             callsBefore: 16,
           );
@@ -296,7 +298,7 @@ void main() {
     }
 
     testWidgets(
-      'a helper on a live Request sees it in three round trips and 14 requests',
+      'a helper on a live Request sees it in three round trips and 15 requests',
       (tester) async {
         final opened = await _openRoute(
           tester,
@@ -311,7 +313,7 @@ void main() {
         expectOpenRounds(
           server,
           rounds: 3,
-          calls: 14,
+          calls: 15,
           roundsBefore: 3,
           callsBefore: 14,
         );

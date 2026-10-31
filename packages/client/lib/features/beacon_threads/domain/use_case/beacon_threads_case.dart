@@ -170,6 +170,10 @@ base class BeaconThreadsCase extends UseCaseBase {
     String beaconId,
   ) => _room.fetchMainRoomReadWatermarks(beaconId);
 
+  Future<List<RoomReadWatermark>> fetchLatestUpdateReaders(
+    String beaconId,
+  ) => _room.fetchLatestUpdateReaders(beaconId);
+
   // DORMANT(item-threads): threadItemId targets item-thread scope; always null in production.
   // Rooms are General-only (guard: beacon_room_message_general_only_guard, DiscussionScopeDisabledException); thread_item_id is always NULL for new rows. Do not design for this path. See #192.
   Future<String?> createMessage({

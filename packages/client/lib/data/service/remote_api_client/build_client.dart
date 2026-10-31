@@ -430,6 +430,7 @@ class _V2RoutingLink extends Link {
     'RoomMessageList',
     'BeaconParticipantList',
     'BeaconRoomReadWatermarks',
+    'BeaconUpdateSeenBy',
     'RoomMessageCreate',
     'RoomMessageAttachmentAdd',
     'BeaconParticipantOfferHelp',

@@ -13,6 +13,7 @@ import 'package:tentura/domain/entity/commitment_stake_state.dart';
 import 'package:tentura/domain/entity/help_offer_admission_action.dart';
 import 'package:tentura/domain/entity/beacon_display_status_dto.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/domain/entity/room_read_watermark.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
 import 'package:tentura/features/forward/domain/entity/forward_edge.dart';
@@ -303,6 +304,10 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
 
     BeaconRoomState? beaconRoomCue,
     CoordinationItem? openCoordinationBlocker,
+
+    /// #766: members who have seen the latest next step / status update, as
+    /// far as the server tells this viewer (empty for everyone else).
+    @Default([]) List<RoomReadWatermark> latestUpdateReaders,
 
     /// Server-backed coordination events (Phase 5+); empty when no room API access.
     @Default([]) List<BeaconActivityEvent> roomActivityEvents,

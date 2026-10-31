@@ -6587,6 +6587,15 @@
   "postCreateForwardingOffHint": "Участвуют только те, кого вы позвали. Разрешить пересылку можно будет позже.",
   "beaconHudStepLabel": "СЛЕДУЮЩИЙ ШАГ",
   "beaconHudStepEmptyEditable": "Следующий шаг не задан. Нажмите карандаш, чтобы указать",
+  "beaconHudCounterSeenBy": "Видели: {count}",
+  "@beaconHudCounterSeenBy": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "beaconHudUpdateSeenByTitle": "Видели",
   "beaconHudStepAttribution": "{name} · {when}",
   "beaconHudCounterHelpers": "{count, plural, =0{Пока нет помощников} one{{count} помощник} few{{count} помощника} many{{count} помощников} other{{count} помощника}}",
   "beaconHudCounterSubrequests": "{count, plural, =1{1 подзапрос} few{{count} подзапроса} other{{count} подзапросов}}",
