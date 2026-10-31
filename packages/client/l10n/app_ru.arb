@@ -7166,6 +7166,8 @@
   "beaconLobbyBannedCountSemantics": "{count, plural, one{Без доступа к вопросам: {count} человек} few{Без доступа к вопросам: {count} человека} many{Без доступа к вопросам: {count} человек} other{Без доступа к вопросам: {count} человека}}",
   "beaconRoomEmptyTitle": "Сообщений пока нет",
   "beaconRoomEmptyBody": "Здесь вы и помощники договариваетесь. Те, кому вы отправили запрос, могут задать вам вопросы в разделе «Вопросы» до того, как предложат помощь.",
+  "beaconRoomTypingOne": "{name} печатает…",
+  "beaconRoomTypingMany": "{count, plural, one{{count} человек печатает…} few{{count} человека печатают…} many{{count} человек печатают…} other{{count} человека печатают…}}",
   "batonPlanStepPromptTitle": "Создать шаг плана с исполнителем {name}?",
   "batonPlanStepPromptBody": "Шаг появится в плане запроса, исполнитель — {name}. Позже его можно изменить в плане.",
   "batonPlanStepTitleLabel": "Шаг",

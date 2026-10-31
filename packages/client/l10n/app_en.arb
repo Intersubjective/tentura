@@ -10527,6 +10527,24 @@
   "@beaconRoomEmptyBody": {
     "description": "#443 Request discussion empty state: body"
   },
+  "beaconRoomTypingOne": "{name} is typing…",
+  "@beaconRoomTypingOne": {
+    "description": "Line above the Request chat composer while one other member types",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconRoomTypingMany": "{count, plural, =1{1 person is typing…} other{{count} people are typing…}}",
+  "@beaconRoomTypingMany": {
+    "description": "Line above the Request chat composer while several other members type",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "batonPlanStepPromptTitle": "Create a plan step with {name}?",
   "@batonPlanStepPromptTitle": {
     "description": "After the author picks who takes a «Who'll take it?» ask (#479): title of the optional prompt to add it to the Request plan.",

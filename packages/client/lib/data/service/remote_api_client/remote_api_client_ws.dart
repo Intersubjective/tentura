@@ -70,6 +70,7 @@ base mixin RemoteApiClientWs on RemoteApiClientBase {
     ),
   );
 
+  @override
   Stream<Map<String, dynamic>> get webSocketMessages =>
       _messagesController.stream;
 
@@ -143,6 +144,7 @@ base mixin RemoteApiClientWs on RemoteApiClientBase {
     await _minClientVersionController.close();
   }
 
+  @override
   void webSocketSend(Object message) {
     if (_transportStatus.phase == RealtimeTransportPhase.authenticated) {
       _webSocket?.send(message);

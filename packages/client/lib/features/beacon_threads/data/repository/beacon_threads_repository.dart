@@ -11,6 +11,7 @@ import 'package:tentura/data/gql/tentura_v2_upload.dart';
 import 'package:tentura/domain/contacts/contact_name_overlay.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/beacon_room_invalidation.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
+import 'package:tentura/features/beacon_threads/domain/entity/room_typing_signal.dart';
 import 'package:tentura/data/gql/_g/schema.schema.gql.dart'
     show Gv2_RoomBatonCandidateInput;
 import 'package:tentura/data/service/remote_api_client/remote_api_client_web.dart';
@@ -105,6 +106,47 @@ class BeaconThreadsRepository {
       _roomRefreshController.add(inv.beaconId);
     }
   }
+
+  /// Who the server says is typing, parsed from `room_typing` socket frames
+  /// (`{beacon_id, user_id, typing}`); malformed frames are dropped.
+  Stream<RoomTypingSignal> get roomTypingSignals => _remoteApiService
+      .webSocketMessages
+      .map(_parseTypingFrame)
+      .where((signal) => signal != null)
+      .cast<RoomTypingSignal>();
+
+  static RoomTypingSignal? _parseTypingFrame(Map<String, dynamic> frame) {
+    if (frame['type'] != 'subscription' || frame['path'] != 'room_typing') {
+      return null;
+    }
+    final payload = frame['payload'];
+    if (payload is! Map) return null;
+    final beaconId = payload['beacon_id'];
+    final userId = payload['user_id'];
+    final typing = payload['typing'];
+    if (beaconId is! String ||
+        beaconId.isEmpty ||
+        userId is! String ||
+        userId.isEmpty ||
+        typing is! bool) {
+      return null;
+    }
+    return RoomTypingSignal(beaconId: beaconId, userId: userId, typing: typing);
+  }
+
+  /// Tells the room's other members the viewer started (or refreshed) or
+  /// stopped typing. Best effort: dropped while the socket is not signed in.
+  void sendRoomTyping({required String beaconId, required bool typing}) =>
+      _remoteApiService.webSocketSend(
+        jsonEncode({
+          'type': 'message',
+          'path': 'room_typing',
+          'payload': {
+            'intent': typing ? 'start' : 'stop',
+            'beacon_id': beaconId,
+          },
+        }),
+      );
 
   /// Local echo so RoomCubit refreshes participants after actor edits
   /// (e.g. role label) when the actor is not in `realtime_beacon_recipients`.

@@ -104,6 +104,8 @@ class BasicChatBody extends StatefulWidget {
     this.composerSendFailedOffline = false,
     this.composerSendUnconfirmed = false,
     this.onComposerContentChanged,
+    this.onComposerTextChanged,
+    this.aboveComposer,
     this.jumpFabHeroTag = 'basic_chat_jump_latest',
     this.onScrollToPromoteSource,
     this.onOpenCoordinationItem,
@@ -245,6 +247,12 @@ class BasicChatBody extends StatefulWidget {
 
   /// Reports whether the composer holds text or an attachment, on change.
   final ValueChanged<bool>? onComposerContentChanged;
+
+  /// The composer's text on every edit (typing indicator).
+  final ValueChanged<String>? onComposerTextChanged;
+
+  /// A line shown right above the composer (e.g. who is typing).
+  final Widget? aboveComposer;
 
   /// Distinct [FloatingActionButton.small] hero tag when multiple chat bodies
   /// might exist in the same navigator context.
@@ -818,6 +826,7 @@ class BasicChatBodyState extends State<BasicChatBody> {
           // The composer is the room's primary action at the body bottom:
           // notice bars float above it instead of covering it, also when it
           // grows or comes in after the bar is up (#605, from #406).
+          ?widget.aboveComposer,
           SnackBarClearance(
             child: widget.composerReplacement ?? _buildComposerRow(context),
           ),
@@ -858,6 +867,7 @@ class BasicChatBodyState extends State<BasicChatBody> {
                         sendFailedOffline: widget.composerSendFailedOffline,
                         sendUnconfirmed: widget.composerSendUnconfirmed,
                         onContentChanged: widget.onComposerContentChanged,
+                        onTextChanged: widget.onComposerTextChanged,
                         replyTarget: widget.replyTarget,
                         onCancelReply: widget.onCancelReply,
                         onPickFact: widget.onPickFact,
@@ -895,6 +905,7 @@ class BeaconRoomComposer extends StatefulWidget {
     this.sendFailedOffline = false,
     this.sendUnconfirmed = false,
     this.onContentChanged,
+    this.onTextChanged,
     this.replyTarget,
     this.onCancelReply,
     this.onPickFact,
@@ -948,6 +959,9 @@ class BeaconRoomComposer extends StatefulWidget {
 
   /// Called when the composer starts or stops holding text or an attachment.
   final ValueChanged<bool>? onContentChanged;
+
+  /// Called with the field's text on every edit.
+  final ValueChanged<String>? onTextChanged;
 
   final RoomMessage? replyTarget;
 
@@ -1215,6 +1229,7 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer>
       setState(() => _unsentText = null);
     }
     _reportContent();
+    widget.onTextChanged?.call(_text.text);
     _scheduleOverlaySync();
   }
 

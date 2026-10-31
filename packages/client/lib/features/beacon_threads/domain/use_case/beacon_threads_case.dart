@@ -23,6 +23,7 @@ import '../../data/repository/beacon_threads_repository.dart';
 import '../entity/beacon_room_invalidation.dart';
 import '../entity/request_thread.dart';
 import '../entity/room_seen_outcome.dart';
+import '../entity/room_typing_signal.dart';
 import '../entity/room_unread_snapshot.dart';
 import '../exception/now_line_changed_exception.dart';
 import '../room_read_watermark_store.dart';
@@ -71,6 +72,11 @@ base class BeaconThreadsCase extends UseCaseBase {
 
   Stream<BeaconRoomInvalidation> get beaconRoomInvalidations =>
       _room.beaconRoomInvalidations;
+
+  Stream<RoomTypingSignal> get roomTypingSignals => _room.roomTypingSignals;
+
+  void sendRoomTyping({required String beaconId, required bool typing}) =>
+      _room.sendRoomTyping(beaconId: beaconId, typing: typing);
 
   Stream<BeaconRoomInvalidation> get deskRelevantInvalidations =>
       beaconRoomInvalidations.where(
