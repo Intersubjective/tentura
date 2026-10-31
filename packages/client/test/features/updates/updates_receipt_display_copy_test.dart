@@ -95,7 +95,8 @@ void main() {
       l10n: l10n,
     );
 
-    expect(copy.headline, 'Alex accepted your ask');
+    // #736: the headline is the event; the server title is only data.
+    expect(copy.headline, l10n.updatesFallbackTitleCommitmentAccepted);
     expect(copy.body, 'Garden cleanup');
   });
 
@@ -110,7 +111,7 @@ void main() {
       l10n: l10n,
     );
 
-    expect(copy.headline, 'Trust in Alex increased');
+    expect(copy.headline, l10n.attentionEventTrustGivenUp);
     expect(copy.body, 'Move help this weekend');
   });
 

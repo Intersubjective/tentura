@@ -264,7 +264,10 @@ class _InviteAcceptedReceiptCardState extends State<InviteAcceptedReceiptCard> {
                     context.read<ScreenCubit>().showProfile(profile.id),
               )
             : SizedBox.square(dimension: tt.avatarSize),
-        headline: copy.title,
+        // #736: the event, never the bare name.
+        headline: copy.title == l10n.updatesFallbackTitleInviteAccepted
+            ? copy.title
+            : l10n.attentionCardInviteAccepted(copy.title),
         whyLine: copy.body,
         createdAt: receipt.createdAt,
         showUnseenDot: !receipt.isSeen,
@@ -284,7 +287,6 @@ class _InviteAcceptedReceiptCardState extends State<InviteAcceptedReceiptCard> {
       onTap: widget.onTap,
       onMarkSeen: () => unawaited(widget.onMarkSeen()),
       onMarkUnseen: widget.onMarkUnseen,
-      headlineOverride: copy.title,
       bodyOverride: copy.body,
       action: action,
       activityRow: widget.activityRow,

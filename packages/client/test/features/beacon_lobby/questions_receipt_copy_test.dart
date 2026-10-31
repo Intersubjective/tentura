@@ -72,8 +72,9 @@ void main() {
         presentationPayloadJson: _receipt(id: 'r').presentationPayloadJson,
         l10n: l10n,
       );
-      expect(feed.headline, 'Ilya');
-      expect(feed.body, l10n.updatesQuestionsMessage);
+      // #736: the asker's name is data; the headline is the event.
+      expect(feed.headline, l10n.updatesQuestionsMessageFrom('Ilya'));
+      expect(feed.body, isEmpty);
     }
     expect(ru.updatesQuestionsMessage, 'Новое сообщение в вопросах');
   });

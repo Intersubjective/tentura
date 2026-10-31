@@ -21,7 +21,7 @@ import 'package:tentura/ui/test_ids.dart';
 
 AttentionReceipt _inviteReceipt({
   String presentationPayloadJson = '{"inviteOrigin":"new_account"}',
-  String title = 'Carol joined via your invitation',
+  String title = 'Carol',
   String body = 'Carol is now on Tentura.',
   DateTime? seenAt,
   bool hasSubject = true,
@@ -337,7 +337,8 @@ void main() {
         promptProjection: PromptProjection.known(setupCase.prompt),
       );
 
-      expect(find.text('Carol joined via your invitation'), findsOneWidget);
+      // #736: the event, never the bare name.
+      expect(find.text('Carol accepted your invite'), findsOneWidget);
       // #712: the body comes from the payload origin, not the stored text.
       expect(
         find.text(l10n.updatesInviteAcceptedBodyNewAccount),
@@ -361,12 +362,13 @@ void main() {
         settle: false,
       );
 
-      expect(find.text('Carol joined via your invitation'), findsOneWidget);
+      // #736: the event, never the bare name.
+      expect(find.text('Carol accepted your invite'), findsOneWidget);
       completer.complete(
         const Profile(id: 'invitee-1', displayName: 'Carol'),
       );
       await tester.pumpAndSettle();
-      expect(find.text('Carol'), findsOneWidget);
+      expect(find.text('Carol accepted your invite'), findsOneWidget);
     });
   });
 
@@ -437,7 +439,9 @@ void main() {
       expect(setupCase.answerCalls, 1);
       expect(setupCase.answeredSlugs, ['transport']);
       expect(markSeenCalls, 1);
-      expect(find.text('Mum'), findsOneWidget);
+      // #736: the private name leads the event line, never stands alone.
+      expect(find.text('Mum accepted your invite'), findsOneWidget);
+      expect(find.text('Carol accepted your invite'), findsNothing);
       expect(_setupAction(), findsNothing);
     });
 
@@ -517,7 +521,9 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(markSeenCalls, 0);
-        expect(find.text('Mum'), findsOneWidget);
+        // #736: the private name leads the event line, never stands alone.
+        expect(find.text('Mum accepted your invite'), findsOneWidget);
+        expect(find.text('Carol accepted your invite'), findsNothing);
         expect(_setupAction(), findsOneWidget);
       },
     );
