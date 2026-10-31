@@ -52,6 +52,33 @@ void main() {
     expect(warnings, isNotEmpty);
   });
 
+  // #880: blocked gstatic Firebase JS import must not wait for initializeApp
+  // or the 15 s init timeout.
+  test(
+    'a blocked Firebase web SDK import skips initializeApp immediately',
+    () async {
+      var initializeAppCalled = false;
+      final stopwatch = Stopwatch()..start();
+      final service = await FirebaseService.create(
+        env: env,
+        logger: logger,
+        assertWebSdkReachable: () async => throw StateError(
+          'TypeError: Failed to fetch dynamically imported module: '
+          'https://www.gstatic.com/firebasejs/12.17.0/firebase-app.js',
+        ),
+      initializeApp: (_) async {
+        initializeAppCalled = true;
+      },
+    );
+      stopwatch.stop();
+
+      expect(initializeAppCalled, isFalse);
+      expect(service.isInitialized, isFalse);
+      expect(stopwatch.elapsed, lessThan(const Duration(seconds: 1)));
+      expect(warnings, isNotEmpty);
+    },
+  );
+
   test('a Firebase init that finishes marks the service initialised', () async {
     FirebaseOptions? used;
     final service = await FirebaseService.create(
