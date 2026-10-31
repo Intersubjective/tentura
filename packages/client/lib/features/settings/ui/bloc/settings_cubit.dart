@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura/app/boot_step.dart';
+import 'package:tentura/app/platform/landing_locale_handoff.dart';
+import 'package:tentura/app/platform/landing_locale_handoff_logic.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/config/app_build_info.dart';
 import 'package:tentura/domain/port/platform_repository_port.dart';
@@ -41,10 +43,18 @@ class SettingsCubit extends Cubit<SettingsState> {
     final isIntroEnabled = await settingsRepository.getIsIntroEnabled() ?? true;
     final themeModeName =
         await settingsRepository.getThemeModeName() ?? 'system';
+    final landingLangQuery = readLandingLangQueryParam();
     final localePreferenceRaw = await settingsRepository.getLocalePreference();
-    final localePreference = SettingsState.normalizeLocalePreference(
-      localePreferenceRaw,
+    final localePreference = resolveLocalePreferenceAfterLandingHandoff(
+      storedRaw: localePreferenceRaw,
+      landingLangQuery: landingLangQuery,
     );
+    if (landingLangQuery != null &&
+        !storedLocalePreferenceBlocksLandingHandoff(localePreferenceRaw) &&
+        localePreference != localePreferenceRaw) {
+      await settingsRepository.setLocalePreference(localePreference);
+    }
+    stripLandingLangQueryParam();
     return SettingsCubit(
       authCase: authCase,
       authCubit: authCubit,

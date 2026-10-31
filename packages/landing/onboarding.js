@@ -183,6 +183,9 @@ export const TRANSLATIONS = { ru: RU };
 
 let current = DEFAULT_LOCALE;
 
+/** Set in [initLocale] when the visit URL had an explicit supported `?lang=`. */
+let localeExplicitFromQuery = false;
+
 /** Supported locale for one BCP 47 tag (`ru-RU` → `ru`), or null. */
 function supportedLocaleOf(tag) {
   const primary = String(tag ?? '')
@@ -235,6 +238,32 @@ export function withPreservedLocale(urlString, base) {
   }
 }
 
+export function isLocaleExplicitFromQuery() {
+  return localeExplicitFromQuery;
+}
+
+/**
+ * App hand-off (#875): pass `?lang=` only when the reader explicitly chose
+ * a locale on the landing (`?lang=en|ru`), not when the locale came from the
+ * browser alone.
+ * @param {string} urlString
+ * @param {string} [base]
+ */
+export function withAppLocaleHandoff(urlString, base) {
+  if (!localeExplicitFromQuery) return urlString;
+  try {
+    const url = new URL(
+      urlString,
+      base ??
+        (typeof location !== 'undefined' ? location.href : 'https://localhost/'),
+    );
+    url.searchParams.set('lang', current);
+    return url.toString();
+  } catch {
+    return urlString;
+  }
+}
+
 export function setLocale(locale) {
   current = supportedLocaleOf(locale) ?? DEFAULT_LOCALE;
   return current;
@@ -249,11 +278,14 @@ export function initLocale({
   location: loc = globalThis.location,
   document: doc = globalThis.document,
 } = {}) {
+  const search = loc?.search ?? '';
+  localeExplicitFromQuery =
+    supportedLocaleOf(new URLSearchParams(search).get('lang')) != null;
   const locale = setLocale(
     pickLocale({
       languages: nav?.languages,
       language: nav?.language,
-      search: loc?.search,
+      search,
     }),
   );
   if (doc?.documentElement) doc.documentElement.lang = locale;
