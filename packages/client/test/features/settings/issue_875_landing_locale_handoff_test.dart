@@ -45,23 +45,33 @@ void main() {
       );
     });
 
-    test('system stored preference accepts landing ru', () {
+    test('nothing stored accepts landing ru', () {
       expect(
         resolveLocalePreferenceAfterLandingHandoff(
-          storedRaw: kLocalePreferenceSystem,
+          storedRaw: null,
           landingLangQuery: 'ru',
         ),
         kLocalePreferenceRu,
       );
     });
+
+    test('System chosen in Settings blocks a later landing ru', () {
+      expect(
+        resolveLocalePreferenceAfterLandingHandoff(
+          storedRaw: kLocalePreferenceSystem,
+          landingLangQuery: 'ru',
+        ),
+        kLocalePreferenceSystem,
+      );
+    });
   });
 
   group('storedLocalePreferenceBlocksLandingHandoff', () {
-    test('null and system do not block', () {
+    test('only an unset preference does not block', () {
       expect(storedLocalePreferenceBlocksLandingHandoff(null), isFalse);
       expect(
         storedLocalePreferenceBlocksLandingHandoff(kLocalePreferenceSystem),
-        isFalse,
+        isTrue,
       );
     });
 

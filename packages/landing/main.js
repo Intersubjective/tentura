@@ -132,7 +132,7 @@ function header(p) {
 // --- CTAs ------------------------------------------------------------------
 function appHashUrl(path) {
   const normalized = path.startsWith('/') ? path : `/${path}`;
-  return `${location.origin}/#${normalized}`;
+  return withAppLocaleHandoff(`${location.origin}/#${normalized}`);
 }
 
 function openProductUrl() {

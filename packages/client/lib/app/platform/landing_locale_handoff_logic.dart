@@ -14,11 +14,10 @@ String? normalizeLandingLangQuery(String? raw) {
   }
 }
 
-/// Whether a stored settings value is an explicit in-app language choice.
-bool storedLocalePreferenceBlocksLandingHandoff(String? storedRaw) {
-  final stored = storedRaw ?? kLocalePreferenceSystem;
-  return stored == kLocalePreferenceEn || stored == kLocalePreferenceRu;
-}
+/// Whether a language was already chosen (in Settings, System included, or by
+/// an earlier landing hand-off); only a first start takes the landing's.
+bool storedLocalePreferenceBlocksLandingHandoff(String? storedRaw) =>
+    storedRaw != null && storedRaw.isNotEmpty;
 
 /// Maps a landing hand-off query to the persisted settings preference, if any.
 String? landingLangQueryToLocalePreference(String? landingLangQuery) {

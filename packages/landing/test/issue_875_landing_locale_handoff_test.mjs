@@ -23,8 +23,10 @@ test('withAppLocaleHandoff adds lang=en for an explicit English choice', async (
   assert.equal(url.searchParams.get('lang'), 'en');
 });
 
-test('main openProductUrl uses withAppLocaleHandoff', async () => {
-  const { readFileSync } = await import('node:fs');
-  const mainJs = readFileSync(new URL('../main.js', import.meta.url), 'utf8');
-  assert.match(mainJs, /withAppLocaleHandoff\(`\$\{location\.origin\}\/`\)/);
+test('withAppLocaleHandoff puts lang before the app route hash', async () => {
+  const { initLocale, withAppLocaleHandoff } = await import('../onboarding.js');
+  initLocale({ location: { search: '?lang=ru' }, languages: ['en-US'] });
+  const url = new URL(withAppLocaleHandoff('https://app.test/#/accept-invite/ABC'));
+  assert.equal(url.searchParams.get('lang'), 'ru');
+  assert.equal(url.hash, '#/accept-invite/ABC');
 });
