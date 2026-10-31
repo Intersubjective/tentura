@@ -83,9 +83,11 @@ run_job() {
       else
         printf '[test-job] nobody waited on this job for %ss; killing it as abandoned\n' "$abandon" >>"$dir/log"
       fi
+      # The cleanup wrapper defers its TERM trap until its command exits, so
+      # KILL follows soon; the wrapper's reaper then tears the run down.
       kill -TERM "$child" 2>/dev/null || true
       local n=0
-      while alive "$child" && (( n < 30 )); do sleep 1; n=$((n + 1)); done
+      while alive "$child" && (( n < 5 )); do sleep 1; n=$((n + 1)); done
       kill -KILL "$child" 2>/dev/null || true
       break
     fi
