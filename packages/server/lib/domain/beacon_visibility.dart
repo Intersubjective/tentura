@@ -120,8 +120,8 @@ abstract final class BeaconVisibility {
             facts.isMutuallyVisibleWithAuthor);
   }
 
-  /// Involvement graph read — requires content visibility plus the involved
-  /// set (author, forward edge, help offerer, room participant/steward).
+  /// Involvement graph read — requires content visibility plus participation
+  /// or trusted Field discovery. Hierarchy context alone grants no involvement.
   /// Deleted beacons return false.
   static bool canReadInvolvement(BeaconInvolvementVisibilityFacts facts) {
     if (!canReadContent(facts.contentFacts)) {
@@ -130,7 +130,11 @@ abstract final class BeaconVisibility {
     return facts.isAuthor ||
         facts.isOnActiveForwardEdge ||
         facts.isActiveHelpOfferer ||
-        facts.isRoomAdmittedOrSteward;
+        facts.isRoomAdmittedOrSteward ||
+        (facts.contentFacts.isDiscoverable &&
+            facts.contentFacts.isPublished &&
+            facts.contentFacts.status.isOpenFamily &&
+            facts.contentFacts.isMutuallyVisibleWithAuthor);
   }
 
   /// Public admitted-helper roster (face pile / Active helpers). Same audience

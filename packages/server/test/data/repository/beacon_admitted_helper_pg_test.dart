@@ -122,7 +122,7 @@ ON CONFLICT (beacon_id, user_id) DO UPDATE SET
     );
 
     test(
-      'SQL admitted-helpers matches content; discover sees helpers right but not involvement',
+      'trusted Field readers can read admitted helpers and involvement',
       () async {
         final beaconId = BeaconHierarchyTopology.beaconB;
         final author = BeaconHierarchyTopology.bobId;
@@ -161,7 +161,7 @@ ON CONFLICT (subject, object) DO UPDATE SET amount = EXCLUDED.amount
             beaconId: beaconId,
             viewerId: discoverer,
           ),
-          isFalse,
+          isTrue,
         );
         expect(
           BeaconVisibility.canReadAdmittedHelpers(

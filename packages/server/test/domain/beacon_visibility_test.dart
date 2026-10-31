@@ -271,14 +271,14 @@ void main() {
       );
     });
 
-    test('discovery-only viewer sees content but not involvement', () {
+    test('trusted discovery grants content and involvement without participation', () {
       final content = _content(isMutuallyVisibleWithAuthor: true);
       expect(BeaconVisibility.canReadContent(content), isTrue);
       expect(
         BeaconVisibility.canReadInvolvement(
           _involvement(contentFacts: content),
         ),
-        isFalse,
+        isTrue,
       );
     });
   });
@@ -291,7 +291,7 @@ void main() {
       expect(BeaconVisibility.canReadAdmittedHelpers(context), isTrue);
       expect(
         BeaconVisibility.canReadInvolvement(_involvement(contentFacts: discover)),
-        isFalse,
+        isTrue,
       );
       expect(
         BeaconVisibility.canReadInvolvement(_involvement(contentFacts: context)),

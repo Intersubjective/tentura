@@ -200,9 +200,13 @@ VALUES (@b, @author, 'Request', 'Needs help', 0, 0, true, now())
           web['personId']! as String: web['state']! as String,
     };
 
-    test('content reader without involvement sees admitted helpers only',
+    test('trusted Field reader sees admitted helpers and visible forward recipients',
         () async {
-      expect(await statesSeenBy(_readerId), {_helperId: 'INSIDE'});
+      expect(await statesSeenBy(_readerId), {
+        _helperId: 'INSIDE',
+        _recipientId: 'FORWARDED',
+        _otherRecipientId: 'FORWARDED',
+      });
     });
 
     test('every row names the requested Request', () async {

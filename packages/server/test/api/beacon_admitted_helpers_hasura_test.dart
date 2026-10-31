@@ -19,7 +19,7 @@ import '../support/isolated_hasura_session.dart';
 import '../data/repository/beacon_hierarchy_pg_helpers.dart';
 
 /// m0174: admitted_helpers nested under beacon for content viewers;
-/// involvement-gated help_offer.message stays closed for discover observers.
+/// trusted discovery grants involvement; private help_offer.message stays closed.
 Future<void> main() async {
   final postgresReachable = await canConnectBeaconHierarchyPostgres();
   final dockerReachable =
@@ -158,7 +158,7 @@ query {
         );
         final beacon = row['beacon_by_pk'] as Map<String, dynamic>;
         expect(beacon['can_read_admitted_helpers'], isTrue);
-        expect(beacon['can_read_involvement'], isFalse);
+        expect(beacon['can_read_involvement'], isTrue);
         final helpers = (beacon['admitted_helpers'] as List)
             .map((e) => (e as Map)['user_id'] as String)
             .toList();

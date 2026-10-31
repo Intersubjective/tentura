@@ -421,7 +421,7 @@ WHERE id = 'Pvisparity02'
   );
 
   test(
-    'SQL involvement denies vote-mutual friendship without involvement',
+    'SQL involvement allows trusted Field discovery before and after forwarding',
     () async {
       await seedUsers();
       await insertBeacon(status: BeaconStatus.open.smallintValue);
@@ -436,7 +436,7 @@ ON CONFLICT (subject, object) DO UPDATE SET amount = EXCLUDED.amount
 ''',
       );
       expect(await sqlContent('Uvisparityview'), isTrue);
-      expect(await sqlInvolvement('Uvisparityview'), isFalse);
+      expect(await sqlInvolvement('Uvisparityview'), isTrue);
 
       await db.customStatement(
         '''
@@ -639,7 +639,7 @@ ON CONFLICT (id) DO NOTHING
   );
 
   test(
-    'SQL discoverability branch matches Dart for active published mutual peers',
+    'SQL discovery grants content and involvement to published open mutual peers',
     () async {
       await seedUsers();
       await insertBeacon(status: BeaconStatus.open.smallintValue);
@@ -660,7 +660,7 @@ ON CONFLICT (subject, object) DO UPDATE SET amount = EXCLUDED.amount
         ),
         isTrue,
       );
-      expect(await sqlInvolvement('Uvisparityview'), isFalse);
+      expect(await sqlInvolvement('Uvisparityview'), isTrue);
     },
     skip: skipReason,
   );
