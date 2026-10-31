@@ -17,6 +17,7 @@ import '../gql/_g/invitation_accept.req.gql.dart';
 import '../gql/_g/invitation_create.req.gql.dart';
 import '../gql/_g/invitation_delete_by_id.req.gql.dart';
 import '../gql/_g/invitation_fetch_by_id.req.gql.dart';
+import '../gql/_g/invitation_ttl.req.gql.dart';
 import '../gql/_g/invitation_update.req.gql.dart';
 import '../gql/_g/invitations_fetch_by_user_id.data.gql.dart';
 import '../gql/_g/invitations_fetch_by_user_id.req.gql.dart';
@@ -76,18 +77,33 @@ class InvitationRepository implements InvitationAcceptPort {
     );
   }
 
+  int? _ttlHours;
+
+  /// How long an invitation stays valid, as the server is configured (the
+  /// server's INVITATION_TTL, not the compiled default). Asked once.
+  Future<int> fetchTtlHours() async {
+    final cached = _ttlHours;
+    if (cached != null) return cached;
+    final hours = await _remoteApiService
+        .request(GInvitationTtlReq())
+        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .then((r) => r.dataOrThrow(label: _label).invitationTtlHours);
+    return _ttlHours = hours;
+  }
+
   Future<InvitationsFetchResult> fetchMine({
     int pendingOffset = 0,
     int pendingLimit = kFetchWindowSize,
     int acceptedOffset = 0,
     int acceptedLimit = kFetchWindowSize,
   }) async {
+    final ttlHours = await fetchTtlHours();
     final data = await _remoteApiService
         .request(
           GInvitationsFetchByUserIdReq(
             (b) => b.vars
               ..created_at_gt = DateTime.timestamp().subtract(
-                const Duration(hours: kInvitationDefaultTTL),
+                Duration(hours: ttlHours),
               )
               ..pending_offset = pendingOffset
               ..pending_limit = pendingLimit

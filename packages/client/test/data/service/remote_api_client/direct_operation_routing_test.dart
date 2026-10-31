@@ -14,6 +14,10 @@ void main() {
       expect(isTenturaDirectOperation('BeaconAddImage'), isTrue);
     });
 
+    test('the server-served invitation TTL lookup routes to Tentura V2', () {
+      expect(isTenturaDirectOperation('InvitationTtl'), isTrue);
+    });
+
     test('beaconSetCover is not a supported operation name', () {
       expect(isTenturaDirectOperation('BeaconSetCover'), isFalse);
       expect(isTenturaDirectOperation('beaconSetCover'), isFalse);

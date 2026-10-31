@@ -35,7 +35,8 @@ Future<void> runBeaconInviteFlow(
   // A request invite says what it does: who it brings in, to what, and
   // that the link is single-use with a limited life (#452).
   final forBeacon = beaconId.isNotEmpty;
-  const days = kInvitationDefaultTTL ~/ 24;
+  final days = await invitations.inviteTtlDays();
+  if (!context.mounted) return;
   final used = await ShareCodeDialog.show(
     context,
     header: !forBeacon

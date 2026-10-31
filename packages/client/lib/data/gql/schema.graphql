@@ -5314,6 +5314,7 @@ type query_root {
     where: invitation_bool_exp
   ): [invitation!]!
   invitationById(id: String!): v2_Invitation
+  invitationTtlHours: Int!
 
   """
   fetch aggregated fields from the table: "invitation"

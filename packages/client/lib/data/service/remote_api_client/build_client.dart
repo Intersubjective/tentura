@@ -364,6 +364,7 @@ class _V2RoutingLink extends Link {
     'InvitationUpdate',
     'InvitationAccept',
     'InvitationById',
+    'InvitationTtl',
     'InviteGenealogy',
     'InviteGenealogyBetween',
     'InviteGenealogyChildren',
