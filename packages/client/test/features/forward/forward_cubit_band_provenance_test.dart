@@ -275,10 +275,8 @@ void main() {
       cubit.toggleSelection('U-tiered');
       cubit.toggleSelection('U-exploration');
       cubit.toggleSelection('U-main-list');
-      cubit.skipPersonalNote('U-tiered');
-      cubit.skipPersonalNote('U-exploration');
-      cubit.skipPersonalNote('U-main-list');
 
+      cubit.setNote('band forward');
       final ok = await cubit.forward();
 
       expect(ok, isTrue);

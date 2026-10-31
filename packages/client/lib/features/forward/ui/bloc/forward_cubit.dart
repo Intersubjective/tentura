@@ -279,7 +279,6 @@ class ForwardCubit extends Cubit<ForwardState> {
           selectedIds: nextSelectedIds,
           perRecipientNotes: draft.notes,
           recipientReasons: draft.reasons,
-          skippedPersonalNoteIds: draft.skipped,
           droppedPreselectedIds: droppedPreselected,
           note: state.note.isNotEmpty ? state.note : load.suggestedNote,
           hasMyOutgoingForward: load.hasMyOutgoingForward,
@@ -507,7 +506,6 @@ class ForwardCubit extends Cubit<ForwardState> {
         selectedIds: selected,
         perRecipientNotes: draft.notes,
         recipientReasons: draft.reasons,
-        skippedPersonalNoteIds: draft.skipped,
         note: '',
       ),
     );
@@ -532,7 +530,6 @@ class ForwardCubit extends Cubit<ForwardState> {
         tagMembers: {},
         perRecipientNotes: {},
         recipientReasons: {},
-        skippedPersonalNoteIds: {},
         note: '',
       ),
     );
@@ -561,7 +558,6 @@ class ForwardCubit extends Cubit<ForwardState> {
         addedByTag: _keepSelected(state.addedByTag, selected),
         perRecipientNotes: draft.notes,
         recipientReasons: draft.reasons,
-        skippedPersonalNoteIds: draft.skipped,
       ),
     );
     return selected.contains(userId)
@@ -614,7 +610,6 @@ class ForwardCubit extends Cubit<ForwardState> {
         tagMembers: members,
         perRecipientNotes: draft.notes,
         recipientReasons: draft.reasons,
-        skippedPersonalNoteIds: draft.skipped,
       ),
     );
   }
@@ -629,7 +624,6 @@ class ForwardCubit extends Cubit<ForwardState> {
         addedByTag: _keepSelected(state.addedByTag, selected),
         perRecipientNotes: draft.notes,
         recipientReasons: draft.reasons,
-        skippedPersonalNoteIds: draft.skipped,
       ),
     );
   }
@@ -663,12 +657,6 @@ class ForwardCubit extends Cubit<ForwardState> {
     final next = Map<String, String>.from(state.perRecipientNotes)
       ..remove(userId);
     emit(state.copyWith(perRecipientNotes: next));
-  }
-
-  void skipPersonalNote(String userId) {
-    if (state.skippedPersonalNoteIds.contains(userId)) return;
-    final next = Set<String>.from(state.skippedPersonalNoteIds)..add(userId);
-    emit(state.copyWith(skippedPersonalNoteIds: next));
   }
 
   void startEditForward(String recipientId) {
@@ -795,12 +783,13 @@ class ForwardCubit extends Cubit<ForwardState> {
       return false;
     }
 
+    final uncovered = uncoveredRecipientIds(
+      selectedIds: state.selectedIds,
+      perRecipientNotes: state.perRecipientNotes,
+    );
     if (state.profile.showsPersonalNotes &&
-        uncoveredRecipientIds(
-          selectedIds: state.selectedIds,
-          perRecipientNotes: state.perRecipientNotes,
-          skippedPersonalNoteIds: state.skippedPersonalNoteIds,
-        ).isNotEmpty) {
+        state.note.trim().isEmpty &&
+        uncovered.length > 1) {
       return false;
     }
 
@@ -844,9 +833,6 @@ class ForwardCubit extends Cubit<ForwardState> {
       final perNotes = <String, String>{};
       if (state.profile.showsPersonalNotes) {
         for (final id in recipientIdsToSend) {
-          if (state.skippedPersonalNoteIds.contains(id)) {
-            continue;
-          }
           final personal = state.perRecipientNotes[id];
           if (personal != null && personal.trim().isNotEmpty) {
             perNotes[id] = personal.trim();
@@ -911,7 +897,6 @@ class ForwardCubit extends Cubit<ForwardState> {
               lastDeliveredRecipientIds: outcome.deliveredRecipientIds,
               selectedIds: {},
               perRecipientNotes: {},
-              skippedPersonalNoteIds: {},
               note: '',
             ),
           );
@@ -939,22 +924,18 @@ class ForwardCubit extends Cubit<ForwardState> {
     }
   }
 
-  /// Drops per-recipient draft for ids leaving the selection (notes, reasons,
-  /// personal-note skip). Skip must not survive deselect/reselect.
+  /// Drops per-recipient draft for ids leaving the selection (notes, reasons).
   ({
     Map<String, String> notes,
     Map<String, List<String>> reasons,
-    Set<String> skipped,
   })
   _pruneRecipientDraft(Set<String> removedIds) {
     final notes = Map<String, String>.from(state.perRecipientNotes);
     final reasons = Map<String, List<String>>.from(state.recipientReasons);
-    final skipped = Set<String>.from(state.skippedPersonalNoteIds);
     for (final id in removedIds) {
       notes.remove(id);
       reasons.remove(id);
-      skipped.remove(id);
     }
-    return (notes: notes, reasons: reasons, skipped: skipped);
+    return (notes: notes, reasons: reasons);
   }
 }

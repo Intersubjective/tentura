@@ -9,49 +9,30 @@ void main() {
       String name,
       Set<String> selectedIds,
       Map<String, String> perRecipientNotes,
-      Set<String> skippedPersonalNoteIds,
       Set<String> expected,
     })>[
       (
         name: 'selected with partial notes',
         selectedIds: {'a', 'b'},
         perRecipientNotes: {'a': 'hi'},
-        skippedPersonalNoteIds: {},
         expected: {'b'},
-      ),
-      (
-        name: 'skip removes whitespace-only note from uncovered',
-        selectedIds: {'a'},
-        perRecipientNotes: {'a': '  '},
-        skippedPersonalNoteIds: {'a'},
-        expected: {},
-      ),
-      (
-        name: 'skip removes typed note from uncovered',
-        selectedIds: {'a'},
-        perRecipientNotes: {'a': 'typed'},
-        skippedPersonalNoteIds: {'a'},
-        expected: {},
       ),
       (
         name: 'empty personal note is uncovered',
         selectedIds: {'a'},
         perRecipientNotes: {'a': ''},
-        skippedPersonalNoteIds: {},
         expected: {'a'},
       ),
       (
         name: 'whitespace personal note is uncovered',
         selectedIds: {'a'},
         perRecipientNotes: {'a': '   '},
-        skippedPersonalNoteIds: {},
         expected: {'a'},
       ),
       (
         name: 'missing personal note is uncovered',
         selectedIds: {'a'},
         perRecipientNotes: {},
-        skippedPersonalNoteIds: {},
         expected: {'a'},
       ),
     ];
@@ -62,7 +43,6 @@ void main() {
           uncoveredRecipientIds(
             selectedIds: c.selectedIds,
             perRecipientNotes: c.perRecipientNotes,
-            skippedPersonalNoteIds: c.skippedPersonalNoteIds,
           ),
           c.expected,
         );

@@ -48,7 +48,6 @@ Future<String> _hint(
             profile: _clara,
             controller: TextEditingController(),
             onChanged: (_) {},
-            onClose: null,
             hintText: hintText,
           ),
         ),

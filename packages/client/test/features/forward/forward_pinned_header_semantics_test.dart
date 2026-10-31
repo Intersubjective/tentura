@@ -84,8 +84,7 @@ void main() {
       final semantics = tester.ensureSemantics();
       tester.view
         ..devicePixelRatio = 1
-        ..physicalSize = const Size(412, 839)
-        ..viewInsets = FakeViewPadding(bottom: keyboard);
+        ..physicalSize = const Size(412, 839);
       addTearDown(tester.view.reset);
 
       final cubit = ForwardCubit(
@@ -137,22 +136,30 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      await tester.tap(find.byIcon(Icons.add_comment_outlined));
+      await tester.pumpAndSettle();
+
+      tester.view.viewInsets = FakeViewPadding(bottom: keyboard);
+      await tester.pumpAndSettle();
+
+      final scrollable = find
+          .descendant(
+            of: find.byType(CustomScrollView),
+            matching: find.byType(Scrollable),
+          )
+          .first;
+
       // The recipient section header (#440) sits above the first row, so a
       // tall keyboard leaves the note field below the lazily built range:
       // scroll it in under the pinned headers, as a user would.
       await tester.scrollUntilVisible(
-        find.byType(PerRecipientNoteInput),
+        find.byType(TextField),
         100,
-        scrollable: find
-            .descendant(
-              of: find.byType(CustomScrollView),
-              matching: find.byType(Scrollable),
-            )
-            .first,
+        scrollable: scrollable,
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byType(PerRecipientNoteInput));
+      await tester.tap(find.byType(TextField));
       await tester.pumpAndSettle();
 
       final header = tester.getSemantics(find.byType(ForwardScopeLinks));

@@ -3,13 +3,10 @@ import 'forward_target_profile.dart';
 Set<String> uncoveredRecipientIds({
   required Set<String> selectedIds,
   required Map<String, String> perRecipientNotes,
-  required Set<String> skippedPersonalNoteIds,
 }) {
   return selectedIds
       .where(
-        (id) =>
-            !skippedPersonalNoteIds.contains(id) &&
-            (perRecipientNotes[id]?.trim().isEmpty ?? true),
+        (id) => perRecipientNotes[id]?.trim().isEmpty ?? true,
       )
       .toSet();
 }

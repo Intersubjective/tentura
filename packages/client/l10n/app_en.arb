@@ -3211,13 +3211,18 @@
   "@forwardCancelAction": {
     "context": "ForwardBeaconScreen recipient row"
   },
-  "forwardSkipPersonalNote": "Skip personal note",
-  "@forwardSkipPersonalNote": {
-    "context": "ForwardBeaconScreen per-recipient note"
+  "forwardAddPersonalNoteShort": "+ Note",
+  "@forwardAddPersonalNoteShort": {
+    "context": "Forward recipient row compact control"
   },
-  "forwardRestorePersonalNote": "Add a personal note",
-  "@forwardRestorePersonalNote": {
-    "context": "ForwardBeaconScreen per-recipient note"
+  "forwardAddPersonalNoteForName": "Add a note for {name}",
+  "@forwardAddPersonalNoteForName": {
+    "context": "Forward recipient row note control tooltip",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
   },
   "forwardUncoveredRecipientsTitle": "Shared note",
   "@forwardUncoveredRecipientsTitle": {

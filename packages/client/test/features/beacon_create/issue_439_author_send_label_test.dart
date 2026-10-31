@@ -267,6 +267,11 @@ void main() {
     // recipients».
     final button = tester.widget<OutlinedButton>(_sendButton);
     expect(button.onPressed, isNotNull, reason: 'send must be enabled');
+    // Ticking no longer opens the note (#893): open Clara's note from her
+    // row's «+ Note» control, as a person would.
+    expect(find.byType(PerRecipientNoteInput), findsNothing);
+    await tester.tap(find.byIcon(Icons.add_comment_outlined));
+    await _settle(tester);
     // Precondition: Clara has the per-person note field under her row.
     expect(find.byType(PerRecipientNoteInput), findsOneWidget);
   }

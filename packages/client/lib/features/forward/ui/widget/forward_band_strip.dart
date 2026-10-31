@@ -13,6 +13,7 @@ import 'package:tentura/features/forward_candidate_context/ui/widget/forward_can
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/capability_tag_presenter.dart';
 
+import 'forward_recipient_personal_note_slot.dart';
 import 'forward_recipient_row.dart';
 import '../bloc/forward_cubit.dart';
 import '../model/forward_recipient_row_host.dart';
@@ -29,8 +30,11 @@ class ForwardBandStrip extends StatelessWidget {
     required this.recipientReasons,
     required this.recipientNoteControllers,
     required this.onRecipientNoteChanged,
-    required this.skippedPersonalNoteIds,
-    required this.onSkipPersonalNote,
+    required this.showsPersonalNotes,
+    required this.expandedPersonalNoteRecipientId,
+    required this.onOpenPersonalNote,
+    required this.onPersonalNoteCollapsed,
+    required this.perRecipientNotes,
     this.beacon,
     this.recipientNoteHint,
     super.key,
@@ -44,8 +48,11 @@ class ForwardBandStrip extends StatelessWidget {
   final Map<String, List<String>> recipientReasons;
   final Map<String, TextEditingController> recipientNoteControllers;
   final void Function(String userId, String text) onRecipientNoteChanged;
-  final Set<String> skippedPersonalNoteIds;
-  final void Function(String userId) onSkipPersonalNote;
+  final bool showsPersonalNotes;
+  final ValueNotifier<String?> expandedPersonalNoteRecipientId;
+  final void Function(String userId) onOpenPersonalNote;
+  final VoidCallback onPersonalNoteCollapsed;
+  final Map<String, String> perRecipientNotes;
   final Beacon? beacon;
 
   /// Optional hint for the per-recipient note field (author step overrides).
@@ -107,111 +114,125 @@ class ForwardBandStrip extends StatelessWidget {
     final evidenceRows = band.where((row) => !row.isExploration).toList();
     final explorationRows = band.where((row) => row.isExploration).toList();
 
-    final children = <Widget>[
-      Padding(
-        padding: EdgeInsets.fromLTRB(
-          tt.screenHPadding,
-          tt.rowGap,
-          tt.screenHPadding,
-          tt.rowGap * 0.5,
-        ),
-        child: Text(
-          l10n.forwardBandSectionTitle,
-          style: theme.textTheme.titleSmall,
-        ),
-      ),
-    ];
-
-    void addBandRow(ForwardBandRow row, {required bool exploration}) {
-      final candidate = _candidateFor(row.userId);
-      if (candidate == null) {
-        return;
-      }
-      final isSelected = selectedIds.contains(candidate.id);
-      final isSkipped = skippedPersonalNoteIds.contains(candidate.id);
-      final tierLabel = exploration || row.rowTier == null || row.labels.isEmpty
-          ? null
-          : tierEvidenceCopy(l10n, row.rowTier!, row.labels);
-      children.add(
-        ForwardRecipientRow(
-          host: ForwardRecipientRowHost.pickerBand,
-          candidate: candidate,
-          requiredCapabilitySlugs: needs,
-          isSelected: isSelected,
-          onToggle: () => onToggle(candidate.id),
-          onOpenDetails: () => unawaited(
-            showForwardCandidateContextSheet(
-              sourceContext: context,
-              forwardCubit: context.read<ForwardCubit>(),
-              candidate: candidate,
-              relevanceLabel: tierLabel,
+    return ValueListenableBuilder<String?>(
+      valueListenable: expandedPersonalNoteRecipientId,
+      builder: (context, expandedId, _) {
+        final children = <Widget>[
+          Padding(
+            padding: EdgeInsets.fromLTRB(
+              tt.screenHPadding,
+              tt.rowGap,
+              tt.screenHPadding,
+              tt.rowGap * 0.5,
+            ),
+            child: Text(
+              l10n.forwardBandSectionTitle,
+              style: theme.textTheme.titleSmall,
             ),
           ),
-          reasonSlugs: recipientReasons[candidate.id] ?? const [],
-          onEditReasons: () => onEditReasons(candidate.id),
-          tierEvidenceLabel: tierLabel,
-          tierEvidenceTone: row.rowTier == null
+        ];
+
+        void addBandRow(ForwardBandRow row, {required bool exploration}) {
+          final candidate = _candidateFor(row.userId);
+          if (candidate == null) {
+            return;
+          }
+          final isSelected = selectedIds.contains(candidate.id);
+          final tierLabel =
+              exploration || row.rowTier == null || row.labels.isEmpty
               ? null
-              : tierEvidenceTone(row.rowTier!),
-          showPresenceLine: !exploration,
-        ),
-      );
-      if (isSelected && !isSkipped) {
-        final controller = recipientNoteControllers[candidate.id];
-        if (controller != null) {
+              : tierEvidenceCopy(l10n, row.rowTier!, row.labels);
           children.add(
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: tt.screenHPadding),
-              child: PerRecipientNoteInput(
-                profile: candidate.profile,
-                controller: controller,
-                onChanged: (text) => onRecipientNoteChanged(candidate.id, text),
-                onClose: () => onSkipPersonalNote(candidate.id),
-                hintText: recipientNoteHint,
+            ForwardRecipientRow(
+              host: ForwardRecipientRowHost.pickerBand,
+              candidate: candidate,
+              requiredCapabilitySlugs: needs,
+              isSelected: isSelected,
+              onToggle: () => onToggle(candidate.id),
+              onOpenDetails: () => unawaited(
+                showForwardCandidateContextSheet(
+                  sourceContext: context,
+                  forwardCubit: context.read<ForwardCubit>(),
+                  candidate: candidate,
+                  relevanceLabel: tierLabel,
+                ),
               ),
+              reasonSlugs: recipientReasons[candidate.id] ?? const [],
+              onEditReasons: () => onEditReasons(candidate.id),
+              tierEvidenceLabel: tierLabel,
+              tierEvidenceTone: row.rowTier == null
+                  ? null
+                  : tierEvidenceTone(row.rowTier!),
+              showPresenceLine: !exploration,
+              showsPersonalNoteSlot: showsPersonalNotes,
+              personalNotePreview: perRecipientNotes[candidate.id],
+              isPersonalNoteExpanded: expandedId == candidate.id,
+              onOpenPersonalNote: isSelected
+                  ? () => onOpenPersonalNote(candidate.id)
+                  : null,
             ),
           );
+          if (showsPersonalNotes && expandedId == candidate.id) {
+            final controller = recipientNoteControllers[candidate.id];
+            if (controller != null) {
+              children.add(
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: tt.screenHPadding),
+                  child: ForwardRecipientExpandedPersonalNote(
+                    onCollapsed: onPersonalNoteCollapsed,
+                    child: PerRecipientNoteInput(
+                      profile: candidate.profile,
+                      controller: controller,
+                      onChanged: (text) =>
+                          onRecipientNoteChanged(candidate.id, text),
+                      hintText: recipientNoteHint,
+                    ),
+                  ),
+                ),
+              );
+            }
+          }
         }
-      }
-    }
 
-    for (var i = 0; i < evidenceRows.length; i++) {
-      if (i > 0) {
+        for (var i = 0; i < evidenceRows.length; i++) {
+          if (i > 0) {
+            children.add(const TenturaHairlineDivider());
+          }
+          addBandRow(evidenceRows[i], exploration: false);
+        }
+
+        if (evidenceRows.isNotEmpty && explorationRows.isNotEmpty) {
+          children.addAll([
+            const TenturaHairlineDivider(),
+            Padding(
+              padding: EdgeInsets.fromLTRB(
+                tt.screenHPadding,
+                tt.rowGap,
+                tt.screenHPadding,
+                tt.rowGap * 0.5,
+              ),
+              child: Text(
+                l10n.forwardBandExplorationDivider,
+                style: TenturaText.bodySmall(tt.textMuted),
+              ),
+            ),
+          ]);
+        }
+
+        for (var i = 0; i < explorationRows.length; i++) {
+          if (i > 0 || evidenceRows.isNotEmpty) {
+            children.add(const TenturaHairlineDivider());
+          }
+          addBandRow(explorationRows[i], exploration: true);
+        }
+
         children.add(const TenturaHairlineDivider());
-      }
-      addBandRow(evidenceRows[i], exploration: false);
-    }
 
-    if (evidenceRows.isNotEmpty && explorationRows.isNotEmpty) {
-      children.addAll([
-        const TenturaHairlineDivider(),
-        Padding(
-          padding: EdgeInsets.fromLTRB(
-            tt.screenHPadding,
-            tt.rowGap,
-            tt.screenHPadding,
-            tt.rowGap * 0.5,
-          ),
-          child: Text(
-            l10n.forwardBandExplorationDivider,
-            style: TenturaText.bodySmall(tt.textMuted),
-          ),
-        ),
-      ]);
-    }
-
-    for (var i = 0; i < explorationRows.length; i++) {
-      if (i > 0 || evidenceRows.isNotEmpty) {
-        children.add(const TenturaHairlineDivider());
-      }
-      addBandRow(explorationRows[i], exploration: true);
-    }
-
-    children.add(const TenturaHairlineDivider());
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: children,
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: children,
+        );
+      },
     );
   }
 }

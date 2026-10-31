@@ -294,7 +294,7 @@ void main() {
       cubit.emit(
         cubit.state.copyWith(
           selectedIds: {'U-alice', 'U-bob'},
-          skippedPersonalNoteIds: {'U-alice', 'U-bob'},
+          note: 'shared coverage',
         ),
       );
 
@@ -367,6 +367,7 @@ void main() {
       cubit.emit(
         cubit.state.copyWith(
           selectedIds: {'U-alice', 'U-disappeared'},
+          note: 'shared coverage',
           beacon: _openBeacon(),
         ),
       );
@@ -408,7 +409,6 @@ void main() {
       cubit.emit(
         cubit.state.copyWith(
           selectedIds: {'U-paused'},
-          skippedPersonalNoteIds: {'U-paused'},
           beacon: _openBeacon(),
         ),
       );
@@ -458,7 +458,7 @@ void main() {
       cubit.emit(
         cubit.state.copyWith(
           selectedIds: {'U-alice', 'U-bob', 'U-carol'},
-          skippedPersonalNoteIds: {'U-alice', 'U-bob', 'U-carol'},
+          note: 'shared coverage',
           beacon: _openBeacon(),
         ),
       );
@@ -526,7 +526,7 @@ void main() {
       cubit.emit(
         cubit.state.copyWith(
           selectedIds: {'U-alice', 'U-server'},
-          skippedPersonalNoteIds: {'U-alice', 'U-server'},
+          note: 'shared coverage',
           beacon: _openBeacon(),
         ),
       );
@@ -567,7 +567,7 @@ void main() {
     cubit.emit(
       cubit.state.copyWith(
         selectedIds: {'U-alice', 'U-bob'},
-        skippedPersonalNoteIds: {'U-alice', 'U-bob'},
+          note: 'shared coverage',
         beacon: _openBeacon(),
       ),
     );
@@ -610,7 +610,6 @@ void main() {
       cubit.emit(
         cubit.state.copyWith(
           selectedIds: {'U-alice'},
-          skippedPersonalNoteIds: {'U-alice'},
           beacon: otherAuthorBeacon,
         ),
       );
@@ -659,7 +658,6 @@ void main() {
     cubit.emit(
       cubit.state.copyWith(
         selectedIds: {'U-alice'},
-        skippedPersonalNoteIds: {'U-alice'},
         beacon: beacon,
       ),
     );
@@ -705,7 +703,6 @@ void main() {
       cubit.emit(
         cubit.state.copyWith(
           selectedIds: {'U-alice'},
-          skippedPersonalNoteIds: {'U-alice'},
           beacon: _openBeacon(),
         ),
       );
@@ -751,6 +748,7 @@ void main() {
     await cubit.forward();
     await Future<void>.delayed(Duration.zero);
 
-    expect(harness.forwardRepo.fetchCandidatesCalls, callsBefore);
+    // Successful send reloads candidates once; the change stream must not add another.
+    expect(harness.forwardRepo.fetchCandidatesCalls, callsBefore + 1);
   });
 }

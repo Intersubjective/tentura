@@ -3053,13 +3053,18 @@
   "@forwardCancelAction": {
     "context": "ForwardBeaconScreen recipient row"
   },
-  "forwardSkipPersonalNote": "Без личной заметки",
-  "@forwardSkipPersonalNote": {
-    "context": "ForwardBeaconScreen per-recipient note"
+  "forwardAddPersonalNoteShort": "+ Заметка",
+  "@forwardAddPersonalNoteShort": {
+    "context": "Forward recipient row compact control"
   },
-  "forwardRestorePersonalNote": "Добавить личную заметку",
-  "@forwardRestorePersonalNote": {
-    "context": "ForwardBeaconScreen per-recipient note"
+  "forwardAddPersonalNoteForName": "Добавить заметку для {name}",
+  "@forwardAddPersonalNoteForName": {
+    "context": "Forward recipient row note control tooltip",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
   },
   "forwardUncoveredRecipientsTitle": "Общая заметка",
   "@forwardUncoveredRecipientsTitle": {

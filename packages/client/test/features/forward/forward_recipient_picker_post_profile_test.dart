@@ -130,7 +130,6 @@ ForwardState _state(BeaconKind? kind) => ForwardState(
     'u1': ['knows_topic'],
   },
   selectedIds: const {'u1'},
-  skippedPersonalNoteIds: const {'u1'},
   candidatesLoad: const ForwardCandidatesReady(),
 );
 
@@ -287,7 +286,7 @@ void main() {
       expect(find.text('Sender One'), findsOneWidget);
     });
 
-    testWidgets('ticking 1 person shows per-recipient note field and skip action', (
+    testWidgets('ticking 1 person shows + Note control without auto-expanded field', (
       tester,
     ) async {
       tester.view
@@ -332,12 +331,15 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      expect(find.byType(PerRecipientNoteInput), findsNothing);
+      expect(find.byTooltip('Add a note for Alex'), findsOneWidget);
+      await tester.tap(find.byTooltip('Add a note for Alex'));
+      await tester.pumpAndSettle();
       expect(find.byType(PerRecipientNoteInput), findsOneWidget);
       expect(
         find.widgetWithText(TextField, 'Add a note for this person (optional)'),
         findsOneWidget,
       );
-      expect(find.byTooltip('Skip personal note'), findsOneWidget);
     });
   });
 

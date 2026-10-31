@@ -233,11 +233,10 @@ void main() {
 
     await cubit.stream.firstWhere((s) => s.candidates.isNotEmpty);
     cubit
-      ..toggleTag('tag-secret-id', ['U-a', 'U-b'])
-      ..skipPersonalNote('U-a')
-      ..skipPersonalNote('U-b');
+      ..toggleTag('tag-secret-id', ['U-a', 'U-b']);
     expect(cubit.state.selectedIds, {'U-a', 'U-b'});
 
+    cubit.setNote('tag forward');
     final ok = await cubit.forward();
 
     expect(ok, isTrue);
