@@ -11639,14 +11639,6 @@
   "@requestAccessOpenParentPost": {
     "description": "Link on the banner that opens the Post the Request grew from (#724)"
   },
-  "constellationClusterPeople": "{n} people",
-  "@constellationClusterPeople": {
-    "placeholders": {
-      "n": {
-        "type": "int"
-      }
-    }
-  },
   "constellationMinimapShow": "Show minimap",
   "constellationMinimapHide": "Hide minimap",
   "constellationPlaceAsMagnet": "Place as magnet",
