@@ -651,6 +651,11 @@ final class BeaconViewCase extends UseCaseBase {
     required String beaconId,
   }) => _forwardRepository.fetchBeaconInvolvement(beaconId: beaconId);
 
+  /// Involvement for a Request already loaded. Skips the beacon re-read
+  /// [fetchBeaconInvolvement] does for callers that don't have one.
+  Future<BeaconInvolvementData> fetchInvolvementForBeacon(Beacon beacon) =>
+      _forwardRepository.fetchInvolvementForBeacon(beacon);
+
   Future<Map<String, List<String>>> fetchForwardReasonsByBeacon(
     String beaconId,
   ) => _forwardRepository.fetchReasonsByBeacon(beaconId: beaconId);
@@ -666,9 +671,16 @@ final class BeaconViewCase extends UseCaseBase {
   void notifyBeaconUpdated(Beacon beacon) =>
       _beaconRepository.notifyUpdated(beacon);
 
-  Future<ClosureState?> fetchClosureStateIfReviewOpen(String beaconId) async {
-    final beacon = await fetchBeaconById(beaconId);
-    if (beacon.status != BeaconStatus.reviewOpen) return null;
+  /// Final-check snapshot when the Request is wrapping up.
+  ///
+  /// [status] is the status of a Request just read. Passing it skips another
+  /// beacon fetch; without it the status is read first.
+  Future<ClosureState?> fetchClosureStateIfReviewOpen(
+    String beaconId, {
+    BeaconStatus? status,
+  }) async {
+    final resolved = status ?? (await fetchBeaconById(beaconId)).status;
+    if (resolved != BeaconStatus.reviewOpen) return null;
     return _closureRepository.fetchState(beaconId);
   }
 }

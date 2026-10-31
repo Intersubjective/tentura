@@ -66,6 +66,18 @@ export 'beacon_view_state.dart';
 /// Marks a background refresh slice that failed and keeps its current value.
 const Object _keptSlice = Object();
 
+/// Forwards read for a Request the screen already holds.
+typedef _ForwardsRead = ({
+  List<ForwardEdge> myForwards,
+  List<ForwardEdge> viewerForwardEdges,
+  Map<String, List<String>> forwardReasonSlugs,
+  Set<String> involvementHelpOfferedIds,
+  Set<String> involvementWatchingIds,
+  Set<String> involvementOnwardForwarderIds,
+  Set<String> involvementRejectedIds,
+  bool hasForwardedThisBeaconOnce,
+});
+
 class BeaconViewCubit extends Cubit<BeaconViewState>
     implements RoomHost, RoomFactAuthoring {
   BeaconViewCubit({
@@ -1708,6 +1720,31 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
         return displayStatus;
       }
 
+      // The author's forwards (#484) and the final-check snapshot need only
+      // the Request just read, so they leave with this round. Waiting until
+      // the round returns re-reads the Request and adds a dependent chain.
+      final closureFuture = beacon.status == BeaconStatus.reviewOpen
+          ? _case
+                .fetchClosureStateIfReviewOpen(
+                  beaconId,
+                  status: beacon.status,
+                )
+                .then<ClosureState?>(
+                  (value) => value,
+                  onError: (Object _) => null,
+                )
+          : Future<ClosureState?>.value();
+      final forwardsFuture = needsAuthorForwards
+          ? _readForwards(
+              beaconId: beaconId,
+              myUserId: myUserId,
+              beacon: beacon,
+            ).then<_ForwardsRead?>(
+              (value) => value,
+              onError: (Object _) => null,
+            )
+          : Future<_ForwardsRead?>.value();
+
       final results = await Future.wait([
         // Without involvement access the viewer still sees their own offer
         // (a declined offerer loses access but must learn why).
@@ -1740,6 +1777,8 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
           _case.fetchTeamAcquaintanceIds(beaconId)
         else
           Future.value(const <String>{}),
+        closureFuture,
+        forwardsFuture,
       ]);
 
       final inboxKept = identical(results[1], _keptSlice);
@@ -1760,20 +1799,13 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
       final roomActivityEvents = results[5]! as List<BeaconActivityEvent>;
       final admittedHelperRoster = results[7]! as List<Profile>;
       final teamAcquaintanceIds = results[8]! as Set<String>;
+      final closureState = results[9] as ClosureState?;
+      final forwards = results[10] as _ForwardsRead?;
       final openCoordinationBlocker = roomCueKept
           ? state.openCoordinationBlocker
           : beaconRoomCue != null
           ? await _case.fetchOpenCoordinationBlocker(beaconId)
           : null;
-
-      ClosureState? closureState;
-      if (beacon.status == BeaconStatus.reviewOpen) {
-        try {
-          closureState = await _case.fetchClosureStateIfReviewOpen(beaconId);
-        } on Object catch (_) {
-          closureState = null;
-        }
-      }
 
       if (isClosed || blockGeneration != _blockGeneration) return;
       _hydratePinnedFactsSeen(beaconId, factCards);
@@ -1801,26 +1833,32 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
           displayStatus: displayStatusLoaded
               ? loadedDisplayStatus
               : state.displayStatus,
-          forwardsLoaded: !clearForwards && wasForwardsLoaded,
-          myForwards: clearForwards ? const [] : state.myForwards,
-          viewerForwardEdges: clearForwards
-              ? const []
-              : state.viewerForwardEdges,
-          forwardReasonSlugs: clearForwards
-              ? const {}
-              : state.forwardReasonSlugs,
-          involvementHelpOfferedIds: clearForwards
-              ? const {}
-              : state.involvementHelpOfferedIds,
-          involvementWatchingIds: clearForwards
-              ? const {}
-              : state.involvementWatchingIds,
-          involvementOnwardForwarderIds: clearForwards
-              ? const {}
-              : state.involvementOnwardForwarderIds,
-          involvementRejectedIds: clearForwards
-              ? const {}
-              : state.involvementRejectedIds,
+          forwardsLoaded:
+              forwards != null || (!clearForwards && wasForwardsLoaded),
+          myForwards:
+              forwards?.myForwards ??
+              (clearForwards ? const [] : state.myForwards),
+          viewerForwardEdges:
+              forwards?.viewerForwardEdges ??
+              (clearForwards ? const [] : state.viewerForwardEdges),
+          forwardReasonSlugs:
+              forwards?.forwardReasonSlugs ??
+              (clearForwards ? const {} : state.forwardReasonSlugs),
+          involvementHelpOfferedIds:
+              forwards?.involvementHelpOfferedIds ??
+              (clearForwards ? const {} : state.involvementHelpOfferedIds),
+          involvementWatchingIds:
+              forwards?.involvementWatchingIds ??
+              (clearForwards ? const {} : state.involvementWatchingIds),
+          involvementOnwardForwarderIds:
+              forwards?.involvementOnwardForwarderIds ??
+              (clearForwards ? const {} : state.involvementOnwardForwarderIds),
+          involvementRejectedIds:
+              forwards?.involvementRejectedIds ??
+              (clearForwards ? const {} : state.involvementRejectedIds),
+          hasForwardedThisBeaconOnce:
+              forwards?.hasForwardedThisBeaconOnce ??
+              state.hasForwardedThisBeaconOnce,
           beaconContentLoaded: true,
           beaconContextLoaded: true,
           beaconUnavailable: false,
@@ -1830,14 +1868,19 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
       );
       if (!skipRoom && wasForwardsLoaded) {
         unawaited(_refreshForwards(beaconId, myUserId));
-      } else if (needsAuthorForwards ||
-          (!_authorForwardStatusTried && state.needsTrailForDirectForward)) {
+      } else if (needsAuthorForwards) {
+        // The read already ran with this round. A failure leaves the status
+        // unknown; the screen still finishes loading.
         _authorForwardStatusTried = true;
-        // #484: the Now panel tells the author of a live Request that it was
-        // sent to nobody yet; that needs the author's own forwards. #496: a
-        // helper card's "forwarded directly" line follows the same trail.
+        authorForwardStatusLoaded = true;
+        emitPrimary(state);
+      } else if (!_authorForwardStatusTried &&
+          state.needsTrailForDirectForward) {
+        // #496: a helper card's "forwarded directly" line follows this
+        // viewer's trail, which is only known once offers are in hand.
         // Best effort: a failed read leaves the status unknown (no line, no
         // error; the card says "Joined via the network").
+        _authorForwardStatusTried = true;
         await _loadForwards(silent: true);
         authorForwardStatusLoaded = true;
         emitPrimary(state);
@@ -1944,36 +1987,59 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
     String beaconId,
     String myUserId,
   ) async {
+    final read = await _readForwards(
+      beaconId: beaconId,
+      myUserId: myUserId,
+      beacon: state.beacon,
+    );
+    if (!isClosed) {
+      emit(
+        state.copyWith(
+          myForwards: read.myForwards,
+          viewerForwardEdges: read.viewerForwardEdges,
+          forwardReasonSlugs: read.forwardReasonSlugs,
+          involvementHelpOfferedIds: read.involvementHelpOfferedIds,
+          involvementWatchingIds: read.involvementWatchingIds,
+          involvementOnwardForwarderIds: read.involvementOnwardForwarderIds,
+          involvementRejectedIds: read.involvementRejectedIds,
+          hasForwardedThisBeaconOnce: read.hasForwardedThisBeaconOnce,
+        ),
+      );
+    }
+  }
+
+  /// Edges, involvement and reasons for a Request already in hand.
+  /// Involvement uses [beacon] so the read does not fetch the Request again.
+  Future<_ForwardsRead> _readForwards({
+    required String beaconId,
+    required String myUserId,
+    required Beacon beacon,
+  }) async {
     final results = await Future.wait([
       _case.fetchForwardEdgesForBeacon(beaconId),
-      _case.fetchBeaconInvolvement(beaconId: beaconId),
+      _case.fetchInvolvementForBeacon(beacon),
       _case.fetchForwardReasonsByBeacon(beaconId),
     ]);
     final allEdges = results[0] as List<ForwardEdge>;
     final involvement = results[1] as BeaconInvolvementData;
     final reasons = results[2] as Map<String, List<String>>;
     // Live forwards only: a cancelled forward never reached anyone.
-    final myForwards = allEdges
-        .where((e) => e.sender.id == myUserId && !e.isCancelled)
-        .toList(growable: false);
-    final viewerEdges = viewerForwardTrail(allEdges, viewerUserId: myUserId);
-    if (!isClosed) {
-      emit(
-        state.copyWith(
-          myForwards: myForwards,
-          viewerForwardEdges: viewerEdges,
-          forwardReasonSlugs: reasons,
-          involvementHelpOfferedIds: involvement.helpOfferedIds,
-          involvementWatchingIds: involvement.watchingIds,
-          involvementOnwardForwarderIds: involvement.onwardForwarderIds,
-          involvementRejectedIds: involvement.rejectedIds,
-          // History, not live state: a cancelled forward still counts.
-          hasForwardedThisBeaconOnce: allEdges.any(
-            (e) => e.sender.id == myUserId,
-          ),
-        ),
-      );
-    }
+    return (
+      myForwards: allEdges
+          .where((e) => e.sender.id == myUserId && !e.isCancelled)
+          .toList(growable: false),
+      viewerForwardEdges: viewerForwardTrail(
+        allEdges,
+        viewerUserId: myUserId,
+      ),
+      forwardReasonSlugs: reasons,
+      involvementHelpOfferedIds: involvement.helpOfferedIds,
+      involvementWatchingIds: involvement.watchingIds,
+      involvementOnwardForwarderIds: involvement.onwardForwarderIds,
+      involvementRejectedIds: involvement.rejectedIds,
+      // History, not live state: a cancelled forward still counts.
+      hasForwardedThisBeaconOnce: allEdges.any((e) => e.sender.id == myUserId),
+    );
   }
 
   Set<String> _visiblePeopleIds() => {

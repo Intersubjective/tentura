@@ -103,6 +103,12 @@ class FakeBeaconViewForwardRepository implements ForwardRepository {
     await _helpOfferChanges.close();
   }
 
+  /// The view load asks for involvement on a beacon it already has. Stubs
+  /// still override [fetchBeaconInvolvement].
+  @override
+  Future<BeaconInvolvementData> fetchInvolvementForBeacon(Beacon beacon) =>
+      fetchBeaconInvolvement(beaconId: beacon.id);
+
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
