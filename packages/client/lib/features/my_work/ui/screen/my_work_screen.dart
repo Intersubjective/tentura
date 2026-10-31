@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
@@ -46,11 +47,64 @@ class MyWorkScreen extends StatefulWidget implements AutoRouteWrapper {
 
 class _MyWorkScreenState extends State<MyWorkScreen> {
   final ScrollController _listScrollController = ScrollController();
+  final _cardKeys = <String, GlobalKey>{};
+
+  GlobalKey _cardKey(String beaconId) =>
+      _cardKeys.putIfAbsent(beaconId, GlobalKey.new);
 
   @override
   void dispose() {
     _listScrollController.dispose();
     super.dispose();
+  }
+
+  /// Reselecting the open tab: bring the first Request that needs the viewer
+  /// into view, or go to the top when none does.
+  Future<void> _revealFirstNeedingAttention(MyWorkCubit cubit) async {
+    final state = cubit.state;
+    final target = firstMyWorkCardNeedingAttention(
+      sections: deriveMyWorkSections(
+        cards: state.visibleCards,
+        attentionByBeacon: state.attentionByBeacon,
+        filter: state.filter,
+      ),
+      attentionByBeacon: state.attentionByBeacon,
+    );
+    final controller = _listScrollController;
+    // The list has just been rebuilt for the reset filter and sort.
+    await WidgetsBinding.instance.endOfFrame;
+    if (!mounted || !controller.hasClients) return;
+    if (target == null) {
+      await controller.animateTo(
+        0,
+        duration: kThemeAnimationDuration,
+        curve: Curves.easeOut,
+      );
+      return;
+    }
+    final key = _cardKey(target.beaconId);
+    // Cards far from the viewport are not built; walk down from the top
+    // until the target is.
+    if (key.currentContext == null) controller.jumpTo(0);
+    while (key.currentContext == null &&
+        controller.offset < controller.position.maxScrollExtent) {
+      controller.jumpTo(
+        math.min(
+          controller.offset + controller.position.viewportDimension,
+          controller.position.maxScrollExtent,
+        ),
+      );
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted || !controller.hasClients) return;
+    }
+    final cardContext = key.currentContext;
+    if (cardContext == null || !cardContext.mounted) return;
+    await Scrollable.ensureVisible(
+      cardContext,
+      duration: kThemeAnimationDuration,
+      curve: Curves.easeOut,
+      alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtStart,
+    );
   }
 
   @override
@@ -118,6 +172,7 @@ class _MyWorkScreenState extends State<MyWorkScreen> {
             minimum: EdgeInsets.symmetric(horizontal: tt.screenHPadding),
             child: _MyWorkBody(
               listScrollController: _listScrollController,
+              cardKey: _cardKey,
             ),
           ),
         );
@@ -140,9 +195,10 @@ class _MyWorkScreenState extends State<MyWorkScreen> {
       listenWhen: (prev, curr) =>
           prev.myWorkReselectCount != curr.myWorkReselectCount,
       listener: (context, _) {
-        context.read<MyWorkCubit>()
+        final cubit = context.read<MyWorkCubit>()
           ..setFilter(MyWorkFilter.active)
           ..setSort(MyWorkSort.recent);
+        unawaited(_revealFirstNeedingAttention(cubit));
       },
       child: content,
     );
@@ -336,9 +392,11 @@ class _MyWorkSortButtonState extends State<_MyWorkSortButton> {
 class _MyWorkBody extends StatelessWidget {
   const _MyWorkBody({
     required this.listScrollController,
+    required this.cardKey,
   });
 
   final ScrollController listScrollController;
+  final GlobalKey Function(String beaconId) cardKey;
 
   bool _shouldRebuild(MyWorkState p, MyWorkState c) {
     if (p.firstLoadDone != c.firstLoadDone ||
@@ -383,6 +441,7 @@ class _MyWorkBody extends StatelessWidget {
             l10n: l10n,
             tt: tt,
             scrollController: listScrollController,
+            cardKey: cardKey,
           );
           return TenturaFirstLoadGate(
             ready: state.firstLoadDone,
@@ -450,6 +509,7 @@ class _MyWorkListBody extends StatelessWidget {
     required this.l10n,
     required this.tt,
     required this.scrollController,
+    required this.cardKey,
   });
 
   final MyWorkState state;
@@ -457,6 +517,7 @@ class _MyWorkListBody extends StatelessWidget {
   final L10n l10n;
   final TenturaTokens tt;
   final ScrollController scrollController;
+  final GlobalKey Function(String beaconId) cardKey;
 
   @override
   Widget build(BuildContext context) {
@@ -587,6 +648,7 @@ class _MyWorkListBody extends StatelessWidget {
           tt: tt,
           state: state,
           cards: cards,
+          cardKey: cardKey,
         ),
       ),
     );
@@ -599,6 +661,7 @@ List<Widget> _myWorkRedesignSlivers({
   required TenturaTokens tt,
   required MyWorkState state,
   required List<MyWorkCardViewModel> cards,
+  required GlobalKey Function(String beaconId) cardKey,
 }) {
   final sections = deriveMyWorkSections(
     cards: cards,
@@ -680,7 +743,10 @@ List<Widget> _myWorkRedesignSlivers({
         separatorBuilder: (_, _) => SizedBox(height: tt.rowGap),
         itemBuilder: (context, index) {
           final vm = group.cards[index];
-          final tile = _myWorkCardTile(context: context, vm: vm);
+          final tile = KeyedSubtree(
+            key: cardKey(vm.beaconId),
+            child: _myWorkCardTile(context: context, vm: vm),
+          );
           // #487 — a child Request sits indented under its parent; past two
           // levels the "Part of: …" line carries the rest, so narrow
           // screens keep a usable card width.
