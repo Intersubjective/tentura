@@ -13,9 +13,12 @@ import 'package:tentura/ui/widget/accordion_expansion.dart';
 ///
 /// [selectedSlugs] is the current selection; [onChanged] fires on every toggle.
 ///
-/// Groups are collapsible accordion sections, folded by default unless the group
-/// has a selected or pre-existing ([automaticSlugs]) tag. Collapsed headers show
-/// small count badges for selections and pre-existing hints.
+/// Groups are collapsible accordion sections. The first group holding a
+/// selected or pre-existing ([automaticSlugs]) tag starts open; with nothing
+/// chosen the first group starts open, so the picker never opens on a bare
+/// list of folded categories (#741). Collapsed headers show small count
+/// badges for selections and pre-existing hints. While [query] is set every
+/// matching group is open, and a query matching nothing says so.
 class CapabilityChipSet extends StatelessWidget {
   const CapabilityChipSet({
     required this.selectedSlugs,
@@ -56,9 +59,11 @@ class CapabilityChipSet extends StatelessWidget {
     // a selected or pre-existing tag, so a reopened picker shows the choice
     // instead of a folded group with a count badge (#436).
     String? heldGroupId;
+    String? firstGroupId;
     for (final group in CapabilityGroup.values) {
       final tags = _matchingTags(group, l10n);
       if (tags.isEmpty) continue;
+      firstGroupId ??= group.name;
       if (heldGroupId == null &&
           tags.any(
             (t) =>
@@ -88,9 +93,20 @@ class CapabilityChipSet extends StatelessWidget {
       );
     }
 
+    if (searching && sections.isEmpty) {
+      return Text(
+        l10n.capabilitySearchEmpty,
+        style: theme.textTheme.bodySmall?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
+      );
+    }
+
     return AccordionExpansionGroup(
       accordionMode: !searching,
-      initialExpandedId: heldGroupId,
+      // With nothing chosen, open the first group rather than show only
+      // folded headers (#741).
+      initialExpandedId: heldGroupId ?? firstGroupId,
       child: Theme(
         // One interaction theme for the whole set — avoids ThemeData.copyWith
         // per group on every rebuild (was amplifying browse-open jank).

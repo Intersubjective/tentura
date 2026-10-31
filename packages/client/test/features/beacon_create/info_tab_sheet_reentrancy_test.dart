@@ -121,29 +121,33 @@ void main() {
 
   group('Request editor overlay rows ignore repeat taps', () {
     for (final row in _sheetRows) {
-      testWidgets(
-        'taps made while the ${row.name} sheet is still being prepared do not '
-        'queue more sheets behind it',
-        (tester) async {
-          // A title and description make the draft flush before the sheet
-          // opens hit the (held) server, so the open is slow.
-          final write = FakeBeaconWritePort()..createHold = Completer<void>();
-          buildCubit(write: write)
-            ..setTitle('Need a piano moved')
-            ..setDescription('Two flights of stairs, this weekend.');
-          await tester.pumpWidget(_editorHarness(cubit));
-          await tester.pumpAndSettle();
+      // The Requirements sheet no longer waits for the draft save: it opens
+      // on the first tap (#741, issue_741_requirements_picker_test.dart).
+      if (row.name != 'requirements') {
+        testWidgets(
+          'taps made while the ${row.name} sheet is still being prepared do not '
+          'queue more sheets behind it',
+          (tester) async {
+            // A title and description make the draft flush before the sheet
+            // opens hit the (held) server, so the open is slow.
+            final write = FakeBeaconWritePort()..createHold = Completer<void>();
+            buildCubit(write: write)
+              ..setTitle('Need a piano moved')
+              ..setDescription('Two flights of stairs, this weekend.');
+            await tester.pumpWidget(_editorHarness(cubit));
+            await tester.pumpAndSettle();
 
-          await rapidTaps(tester, find.byKey(row.rowKey));
-          await tester.pump();
-          expect(row.openOverlays(), findsNothing);
+            await rapidTaps(tester, find.byKey(row.rowKey));
+            await tester.pump();
+            expect(row.openOverlays(), findsNothing);
 
-          write.createHold!.complete();
-          await tester.pumpAndSettle();
+            write.createHold!.complete();
+            await tester.pumpAndSettle();
 
-          expect(row.openOverlays(), findsOneWidget);
-        },
-      );
+            expect(row.openOverlays(), findsOneWidget);
+          },
+        );
+      }
 
       testWidgets(
         'taps made while the ${row.name} sheet is already open do not stack '

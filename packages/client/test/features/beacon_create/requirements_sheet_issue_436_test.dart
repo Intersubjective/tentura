@@ -119,7 +119,10 @@ void main() {
     ) async {
       await pumpInfoTab(tester);
       await openSheet(tester);
-      await tapInSheet(tester, find.text(_l10n.capabilityGroupLogistics));
+      // Logistics is the first group, open from the start (#741).
+      if (_chip(CapabilityTag.tools).evaluate().isEmpty) {
+        await tapInSheet(tester, find.text(_l10n.capabilityGroupLogistics));
+      }
       await tapInSheet(tester, _chip(CapabilityTag.tools));
       await tapInSheet(
         tester,
@@ -135,14 +138,14 @@ void main() {
       expect(tester.widget<FilterChip>(tools).selected, isTrue);
     });
 
-    testWidgets('guard: with nothing selected every group starts folded', (
-      tester,
-    ) async {
+    testWidgets('with nothing selected only the first group starts open '
+        '(#741)', (tester) async {
       await pumpInfoTab(tester);
       await openSheet(tester);
 
       expect(_inSheet(find.byType(CapabilityChipSet)), findsOneWidget);
-      expect(_inSheet(find.byType(FilterChip)), findsNothing);
+      expect(_inSheet(_chip(CapabilityTag.transport)), findsOneWidget);
+      expect(_inSheet(_chip(CapabilityTag.calls)), findsNothing);
     });
   });
 }

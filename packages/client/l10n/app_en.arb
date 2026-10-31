@@ -5953,6 +5953,14 @@
   "profileLabelPrivate": "Your note, only you see it",
   "profileLabelShared": "From forwards or help acknowledgements, visible to others",
   "profileSeedSuggestionInfo": "People who trust you will see this person in suggestions for these requests.",
+  "capabilitySearchLabel": "Search",
+  "@capabilitySearchLabel": {
+    "description": "Label of the search box above a capability chip picker (Requirements, profile capabilities) (#741)."
+  },
+  "capabilitySearchEmpty": "Nothing found",
+  "@capabilitySearchEmpty": {
+    "description": "Shown in a capability chip picker when the search matches no category or tag (#741)."
+  },
   "capabilityDialogTitle": "What can {name} help with?",
   "@capabilityDialogTitle": {
     "placeholders": {

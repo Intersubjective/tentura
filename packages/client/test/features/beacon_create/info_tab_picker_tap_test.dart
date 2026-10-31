@@ -22,10 +22,13 @@ import '../../ui/effect/fake_ui_effect_port.dart';
 import 'fake_beacon_ports.dart';
 
 Future<void> _scrollToGroupInSheet(WidgetTester tester, String label) async {
-  final scrollable = find.descendant(
-    of: find.byType(DraggableScrollableSheet),
-    matching: find.byType(Scrollable),
-  );
+  // The sheet's list; the search field (#741) has a Scrollable of its own.
+  final scrollable = find
+      .descendant(
+        of: find.byType(DraggableScrollableSheet),
+        matching: find.byType(Scrollable),
+      )
+      .first;
   await tester.scrollUntilVisible(
     find.text(label),
     200,
@@ -40,7 +43,12 @@ Future<void> _openRequirementsSheet(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
+/// Opens Logistics unless it is open already: with nothing chosen the first
+/// group (Logistics) starts open (#741), and a tap there would fold it.
 Future<void> _expandLogisticsGroup(WidgetTester tester) async {
+  if (find.widgetWithText(FilterChip, 'Transport').evaluate().isNotEmpty) {
+    return;
+  }
   await tester.ensureVisible(find.text('Logistics'));
   await tester.tap(find.text('Logistics'));
   await tester.pumpAndSettle();
@@ -66,7 +74,8 @@ Finder _timingFieldInkWell() => find.ancestor(
   matching: find.byType(InkWell),
 );
 
-Finder _descriptionField() => find.byKey(TestIds.key(TestIds.requestDescription));
+Finder _descriptionField() =>
+    find.byKey(TestIds.key(TestIds.requestDescription));
 
 class _GeoRepositoryMock extends Mock implements GeoRepository {}
 
@@ -692,7 +701,10 @@ void main() {
 
     expect(find.byKey(const Key('BeaconCreate.TimingRow')), findsOneWidget);
     expect(find.byKey(const Key('BeaconCreate.CoverRow')), findsOneWidget);
-    expect(find.byKey(const Key('BeaconCreate.RequirementsRow')), findsOneWidget);
+    expect(
+      find.byKey(const Key('BeaconCreate.RequirementsRow')),
+      findsOneWidget,
+    );
     expect(find.text('Date / period'), findsNothing);
 
     await tester.tap(find.byKey(const Key('BeaconCreate.TimingRow')));

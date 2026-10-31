@@ -16,6 +16,7 @@ import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/widget/unfocus_sheet_body.dart';
 import 'package:tentura/features/beacon/ui/widget/beacon_discoverability_control.dart';
 import 'package:tentura/features/capability/ui/widget/capability_chip_set.dart';
+import 'package:tentura/features/capability/ui/widget/capability_search_field.dart';
 import 'package:tentura/features/context/ui/widget/context_drop_down.dart';
 import 'package:tentura/features/geo/ui/dialog/choose_location_dialog.dart';
 
@@ -183,11 +184,17 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
     BuildContext context, {
     bool reopenSymbolAfterSave = false,
   }) async {
-    await _flushDraft();
+    // Open at once: waiting here for the draft save (the first one creates
+    // the draft on the server) left the first tap looking dead, so it took a
+    // second tap (#741). The sheet only edits needs, which the save does not
+    // touch; the save runs alongside.
+    _commitFormFieldsToCubit();
+    unawaited(_cubit.flushAutosave());
     if (!context.mounted) return;
     final l10n = L10n.of(context)!;
     final baseline = Set<String>.from(_cubit.state.needs);
     var selected = Set<String>.from(baseline);
+    var query = '';
 
     bool hasUnsavedChanges() =>
         baseline.length != selected.length || !baseline.containsAll(selected);
@@ -333,8 +340,14 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
                                       ),
                                     ),
                                     SizedBox(height: tt.rowGap),
+                                    CapabilitySearchField(
+                                      onChanged: (q) =>
+                                          setModalState(() => query = q),
+                                    ),
+                                    SizedBox(height: tt.rowGap),
                                     CapabilityChipSet(
                                       selectedSlugs: selected,
+                                      query: query,
                                       onChanged: (s) =>
                                           setModalState(() => selected = s),
                                     ),
