@@ -7,6 +7,7 @@ import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/features/home/domain/entity/home_activation.dart';
 import 'package:tentura/features/home/domain/port/home_orientation_preferences_port.dart';
 import 'package:tentura/features/home/ui/bloc/home_activation_cubit.dart';
+import 'package:tentura/features/home/ui/widget/home_orientation_panel.dart';
 import 'package:tentura/main.dart' as app;
 import 'package:tentura/ui/test_ids.dart';
 
@@ -37,6 +38,11 @@ void main() {
     await expectOrientationPanel(tester, visible: true);
 
     await runE2eStep('Activity nav row', () async {
+      // The "Where things are" rows live in the How Tentura works sheet.
+      await tapAndSettle(
+        tester,
+        find.byKey(HomeOrientationPanel.howItWorksKey),
+      );
       await tapAndSettle(
         tester,
         find.bySemanticsLabel(_inboxNavSemanticsLabel),
@@ -140,21 +146,24 @@ void main() {
       );
     });
 
-    await runE2eStep('helper: hidden because activated, not author latch', () async {
-      await logout(tester);
-      await loginAs(tester, fixture.helperEmail);
-      await showMyWorkList(tester);
-      await awaitActivationSettled(tester, fixture.helperUserId);
-      await expectOrientationPanel(tester, visible: false);
-      expect(
-        await prefs.isOrientationDismissed(userId: fixture.helperUserId),
-        isFalse,
-      );
-      expect(
-        await prefs.isActivated(userId: fixture.helperUserId),
-        isTrue,
-      );
-    });
+    await runE2eStep(
+      'helper: hidden because activated, not author latch',
+      () async {
+        await logout(tester);
+        await loginAs(tester, fixture.helperEmail);
+        await showMyWorkList(tester);
+        await awaitActivationSettled(tester, fixture.helperUserId);
+        await expectOrientationPanel(tester, visible: false);
+        expect(
+          await prefs.isOrientationDismissed(userId: fixture.helperUserId),
+          isFalse,
+        );
+        expect(
+          await prefs.isActivated(userId: fixture.helperUserId),
+          isTrue,
+        );
+      },
+    );
 
     await runE2eStep('teardown debug override', () async {
       await openDebugSettings(tester);

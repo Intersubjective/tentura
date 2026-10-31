@@ -1265,18 +1265,26 @@ Future<void> setOrientationOverride(
 }
 
 Future<void> resetFirstRunOrientation(WidgetTester tester) async {
-  await tapAndSettle(
-    tester,
-    find.byKey(TestIds.key(TestIds.debugOrientationReset)),
-  );
-  await pumpUntil(
-    tester,
-    () {
-      final state = GetIt.I<HomeActivationCubit>().state;
-      return !state.dismissedLatch && !state.activatedLatch;
-    },
-    label: 'resetFirstRunOrientation',
-  );
+  // Watch for the cleared state rather than polling for it: when My Work or
+  // Inbox already prove activity, any refetch after the reset re-derives
+  // activation (D3), and that can land between two polls.
+  var cleared = false;
+  final subscription = GetIt.I<HomeActivationCubit>().stream.listen((state) {
+    if (!state.dismissedLatch && !state.activatedLatch) cleared = true;
+  });
+  try {
+    await tapAndSettle(
+      tester,
+      find.byKey(TestIds.key(TestIds.debugOrientationReset)),
+    );
+    await pumpUntil(
+      tester,
+      () => cleared,
+      label: 'resetFirstRunOrientation',
+    );
+  } finally {
+    await subscription.cancel();
+  }
 }
 
 Future<String> ensureQaUserId(WidgetTester tester, String email) async {

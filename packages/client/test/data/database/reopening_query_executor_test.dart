@@ -311,6 +311,28 @@ void main() {
       expect(failures[3].statement, contains('contacts'));
     });
 
+    test('storage errors are told apart from bad statements (#853)', () {
+      SqliteException error(int code, String message) =>
+          SqliteException(extendedResultCode: code, message: message);
+
+      // SQLITE_IOERR_WRITE: extended code of result code 10.
+      expect(
+        ReopeningQueryExecutor.isStorageError(error(778, 'disk I/O error')),
+        isTrue,
+      );
+      expect(
+        ReopeningQueryExecutor.isStorageError(error(1, 'SQL logic error')),
+        isTrue,
+      );
+      expect(
+        ReopeningQueryExecutor.isStorageError(
+          error(1, 'no such column: title'),
+        ),
+        isFalse,
+      );
+      expect(ReopeningQueryExecutor.isStorageError(Exception()), isFalse);
+    });
+
     test('a statement that succeeds is not reported', () async {
       final failures = <DatabaseStatementFailure>[];
       final db = _database(

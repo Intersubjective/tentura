@@ -53,6 +53,7 @@ dependencies:
   url_launcher: ^6.3.2
   google_sign_in: ^7.2.0
   drift_flutter: ^0.3.0
+  sqlite3: ^3.5.1
   firebase_core: ^4.11.0
   share_handler: ^0.0.25
   mobile_scanner: ^7.2.0

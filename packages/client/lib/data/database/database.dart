@@ -77,12 +77,11 @@ final class Database extends _$Database {
       },
       from3To4: (m, schema) async {
         _logger.warning('Migrating step 3 to 4 (title → display_name)...');
-        await customStatement(
-          'ALTER TABLE accounts RENAME COLUMN title TO display_name',
-        );
-        await customStatement(
-          'ALTER TABLE friends RENAME COLUMN title TO display_name',
-        );
+        // user_version moves only after this step returns, and each rename
+        // commits on its own. A crash between them leaves the first column
+        // renamed; the next open runs the step again (#853).
+        await _renameColumnIfPresent('accounts', 'title', 'display_name');
+        await _renameColumnIfPresent('friends', 'title', 'display_name');
       },
       from4To5: (m, schema) async {
         _logger.warning('Migrating step 4 to 5 (contacts)...');
@@ -90,6 +89,20 @@ final class Database extends _$Database {
       },
     ),
   );
+
+  /// Renames [from] to [to] when [from] is still present.
+  Future<void> _renameColumnIfPresent(
+    String table,
+    String from,
+    String to,
+  ) async {
+    final columns = await customSelect('PRAGMA table_info($table)').get();
+    final hasFrom = columns.any((row) => row.data['name'] == from);
+    if (!hasFrom) {
+      return;
+    }
+    await customStatement('ALTER TABLE $table RENAME COLUMN $from TO $to');
+  }
 
   @disposeMethod
   Future<void> dispose() => super.close();
