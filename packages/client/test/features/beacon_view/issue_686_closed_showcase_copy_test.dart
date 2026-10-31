@@ -61,7 +61,7 @@ void main() {
         );
         expect(
           beaconShowcaseOfferPendingText(ru, _state(status)),
-          'Предложение отправлено: Ana',
+          'Предложение отправлено автору (Ana)',
           reason: status.name,
         );
       }
@@ -90,7 +90,7 @@ void main() {
       );
       expect(
         beaconShowcaseOfferPendingText(ru, s),
-        'Запасное предложение отправлено: Ana',
+        'Запасное предложение отправлено автору (Ana)',
       );
     });
 

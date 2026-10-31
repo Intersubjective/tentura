@@ -1,9 +1,11 @@
 // #527 (rest): after Offer help the waiting state on the Request page says
 // what happens next ("Offer sent to …" + "You'll be notified …"), shows one
 // Forward (the bottom, secondary one; More actions drops its duplicate) and
-// lets a long offer quote expand to its full text, on a phone and a desktop.
+// lets a long offer quote expand to its full text, on a phone and a desktop,
+// and the RU copy (the longest) on a 375x667 phone.
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:tentura_root/domain/entity/beacon_access.dart';
@@ -34,6 +36,9 @@ void main() {
   const withdrawKey = Key('beaconShowcaseWithdrawOffer');
   const phone = Size(375, 812);
   const desktop = Size(1280, 800);
+  // The smallest phone we check, in RU: the longest copy on this page.
+  const smallPhone = Size(375, 667);
+  const ru = Locale('ru');
 
   tearDown(() async {
     await unregisterBeaconViewHarnessGetIt();
@@ -75,6 +80,7 @@ void main() {
     String message = shortOffer,
     int offerKind = 0,
     BeaconStatus status = BeaconStatus.open,
+    Locale locale = const Locale('en'),
   }) async {
     GetIt.I.registerSingleton<BeaconLobbyCase>(
       lobbyCaseFor(
@@ -95,6 +101,7 @@ void main() {
         status: status,
       ),
       threadsState: beaconViewHarnessThreadsState(),
+      locale: locale,
     );
     await tester.pumpAndSettle();
   }
@@ -187,6 +194,87 @@ void main() {
       ),
       findsOneWidget,
     );
+  });
+
+  group('RU 375x667: the long lines still fit', () {
+    // Shown and hittable after scrolling to it.
+    Future<void> expectReachable(WidgetTester tester, Finder f) async {
+      expect(f, findsOneWidget);
+      await tester.ensureVisible(f);
+      await tester.pumpAndSettle();
+      expect(f.hitTestable(), findsOneWidget);
+    }
+
+    Future<void> expectFits(WidgetTester tester) async {
+      // No RenderFlex overflow or other layout error while pumping.
+      expect(tester.takeException(), isNull);
+      final next = tester.renderObject<RenderParagraph>(
+        find.descendant(
+          of: find.byKey(nextKey),
+          matching: find.byType(RichText),
+        ),
+      );
+      expect(next.didExceedMaxLines, isFalse);
+      await expectReachable(tester, find.byKey(withdrawKey));
+      await expectReachable(
+        tester,
+        find.descendant(
+          of: find.byType(BeaconShowcaseSurface),
+          matching: find.text('Переслать'),
+        ),
+      );
+      // While the offer waits, Withdraw takes Offer help's place.
+      expect(find.text('Предложить помощь'), findsNothing);
+      expect(tester.takeException(), isNull);
+    }
+
+    testWidgets('a backup offer with Withdraw', (tester) async {
+      await pump(
+        tester,
+        smallPhone,
+        offerKind: 1,
+        status: BeaconStatus.enoughHelp,
+        locale: ru,
+      );
+      expect(
+        find.text('Запасное предложение отправлено автору (Author)'),
+        findsOneWidget,
+      );
+      expect(
+        find.text(
+          'Автор может обратиться к вам, если понадобится больше помощи. '
+          'Предложение можно отозвать в любой момент.',
+        ),
+        findsOneWidget,
+      );
+      await expectFits(tester);
+    });
+
+    testWidgets('a normal offer with Withdraw', (tester) async {
+      await pump(tester, smallPhone, locale: ru);
+      expect(
+        find.text('Предложение отправлено автору (Author)'),
+        findsOneWidget,
+      );
+      expect(
+        find.text(
+          'Вы получите уведомление, когда автор ответит. '
+          'До тех пор предложение можно отозвать.',
+        ),
+        findsOneWidget,
+      );
+      await expectFits(tester);
+    });
+
+    testWidgets('the long quote expanded', (tester) async {
+      await pump(tester, smallPhone, message: longOffer, locale: ru);
+      final toggle = find.byKey(toggleKey);
+      await tester.ensureVisible(toggle);
+      await tester.tap(toggle);
+      await tester.pumpAndSettle();
+      expect(tester.widget<Text>(find.byKey(quoteKey)).maxLines, isNull);
+      await expectFits(tester);
+    });
   });
 
   test('More actions keeps Forward when the showcase has none to show', () {
