@@ -3,6 +3,10 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
+import 'boot_step.dart';
+
+export 'boot_step.dart';
+
 /// Longest a startup may take before the app gives up and shows the
 /// startup-failure screen. Generous: the auth bootstrap alone may take 10 s
 /// on a bad network.
@@ -21,8 +25,13 @@ Future<bool> bootDependencies({
   Duration timeout = kBootTimeout,
   BootFailureReporter report = reportBootFailure,
 }) async {
+  final pendingSteps = <String>[];
   try {
-    await configure().timeout(timeout);
+    await runWithBootSteps(configure, pendingSteps).timeout(
+      timeout,
+      onTimeout: () =>
+          throw BootTimeoutException(timeout, List.of(pendingSteps)),
+    );
     afterConfigure?.call();
     return true;
   } on Object catch (error, stackTrace) {
@@ -38,7 +47,20 @@ void reportBootFailure(Object error, StackTrace stackTrace) {
     Sentry.captureException(
       error,
       stackTrace: stackTrace,
-      withScope: (scope) => scope.setTag('boot_failure', 'true'),
+      withScope: (scope) async {
+        for (final tag in bootFailureTags(error).entries) {
+          await scope.setTag(tag.key, tag.value);
+        }
+      },
     ),
   );
 }
+
+/// The Sentry tags of a startup failure: `boot_step` names the step that
+/// hung on a boot timeout (#878).
+@visibleForTesting
+Map<String, String> bootFailureTags(Object error) => {
+  'boot_failure': 'true',
+  if (error is BootTimeoutException && error.pendingSteps.isNotEmpty)
+    'boot_step': error.pendingSteps.last,
+};

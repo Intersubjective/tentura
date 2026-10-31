@@ -6,6 +6,7 @@ import 'package:injectable/injectable.dart';
 
 import 'package:tentura_root/domain/entity/localizable.dart';
 
+import 'package:tentura/app/boot_step.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
@@ -53,7 +54,10 @@ class AuthCubit extends Cubit<AuthState> {
     ProfileRepositoryPort profileRepository,
     UiEffectPort effects,
   ) async {
-    final accounts = await accountCase.getAccountsAll();
+    final accounts = await bootStep(
+      'auth_accounts',
+      accountCase.getAccountsAll,
+    );
     final cubit = AuthCubit._(
       env,
       authCase,
@@ -69,7 +73,7 @@ class AuthCubit extends Cubit<AuthState> {
     // Must finish before other singletons (ProfileCubit, FriendsCubit, …) resolve:
     // they subscribe to currentAccountChanges and fetch immediately, which throws
     // AuthenticationNoKeyException when remote auth is not restored yet.
-    await cubit._bootstrap();
+    await bootStep('auth_bootstrap', cubit._bootstrap);
     return cubit;
   }
 
