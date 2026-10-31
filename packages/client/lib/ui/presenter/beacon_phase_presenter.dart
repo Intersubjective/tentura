@@ -45,7 +45,8 @@ String? formatBeaconPhasePrimaryCtaLabel(
   bool isAuthor = false,
 }) {
   return switch (action) {
-    BeaconPhasePrimaryAction.resolveBlocker => l10n.beaconPhaseCtaResolveBlocker,
+    BeaconPhasePrimaryAction.resolveBlocker =>
+      l10n.beaconPhaseCtaResolveBlocker,
     BeaconPhasePrimaryAction.reviewOffers => l10n.beaconPhaseCtaReviewOffers,
     BeaconPhasePrimaryAction.forward => l10n.labelForward,
     BeaconPhasePrimaryAction.offerHelp => l10n.labelOfferHelp,
@@ -69,31 +70,36 @@ BeaconPhasePrimaryAction resolveEffectivePrimaryAction({
           ? BeaconPhasePrimaryAction.resolveBlocker
           : BeaconPhasePrimaryAction.none,
     BeaconPhasePrimaryAction.reviewOffers =>
-      isAuthor ? BeaconPhasePrimaryAction.reviewOffers : BeaconPhasePrimaryAction.none,
+      isAuthor
+          ? BeaconPhasePrimaryAction.reviewOffers
+          : BeaconPhasePrimaryAction.none,
     BeaconPhasePrimaryAction.forward =>
-      isAuthor ? BeaconPhasePrimaryAction.forward : BeaconPhasePrimaryAction.none,
+      isAuthor
+          ? BeaconPhasePrimaryAction.forward
+          : BeaconPhasePrimaryAction.none,
     BeaconPhasePrimaryAction.offerHelp =>
-      canOfferHelp ? BeaconPhasePrimaryAction.offerHelp : BeaconPhasePrimaryAction.none,
+      canOfferHelp
+          ? BeaconPhasePrimaryAction.offerHelp
+          : BeaconPhasePrimaryAction.none,
     BeaconPhasePrimaryAction.none => BeaconPhasePrimaryAction.none,
   };
 }
 
 String _phaseSlot1(L10n l10n, BeaconCoordinationPhase phase) => switch (phase) {
-      BeaconCoordinationPhase.blocked => l10n.beaconPhaseBlocked,
-      BeaconCoordinationPhase.wrappingUp => l10n.beaconPhaseWrappingUp,
-      BeaconCoordinationPhase.needsMoreHelp => l10n.beaconPhaseNeedsMoreHelp,
-      BeaconCoordinationPhase.enoughHelpInMotion =>
-        l10n.beaconPhaseEnoughHelpInMotion,
-      BeaconCoordinationPhase.offersAwaitingAuthor =>
-        l10n.beaconPhaseOffersAwaitingAuthor,
-      BeaconCoordinationPhase.coordinating => l10n.beaconPhaseCoordinating,
-      BeaconCoordinationPhase.lookingForHelpers =>
-        l10n.beaconPhaseLookingForHelpers,
-      BeaconCoordinationPhase.closed => l10n.beaconPhaseClosed,
-      BeaconCoordinationPhase.cancelled => l10n.beaconPhaseCancelled,
-      BeaconCoordinationPhase.draft => l10n.beaconPhaseDraftNotPosted,
-      BeaconCoordinationPhase.openFloor => l10n.beaconPhaseOpen,
-    };
+  BeaconCoordinationPhase.blocked => l10n.beaconPhaseBlocked,
+  BeaconCoordinationPhase.wrappingUp => l10n.beaconPhaseWrappingUp,
+  BeaconCoordinationPhase.needsMoreHelp => l10n.beaconPhaseNeedsMoreHelp,
+  BeaconCoordinationPhase.enoughHelpInMotion => l10n.coordinationEnoughHelp,
+  BeaconCoordinationPhase.offersAwaitingAuthor =>
+    l10n.beaconPhaseOffersAwaitingAuthor,
+  BeaconCoordinationPhase.coordinating => l10n.beaconPhaseCoordinating,
+  BeaconCoordinationPhase.lookingForHelpers =>
+    l10n.beaconPhaseLookingForHelpers,
+  BeaconCoordinationPhase.closed => l10n.beaconPhaseClosed,
+  BeaconCoordinationPhase.cancelled => l10n.beaconPhaseCancelled,
+  BeaconCoordinationPhase.draft => l10n.beaconPhaseDraftNotPosted,
+  BeaconCoordinationPhase.openFloor => l10n.beaconPhaseOpen,
+};
 
 String? _formatSlot2(
   L10n l10n,
@@ -107,8 +113,11 @@ String? _formatSlot2(
     BeaconPhaseSlot2Kind.reviewCountdown => _reviewCountdown(l10n, result, now),
     BeaconPhaseSlot2Kind.freshness => _freshness(l10n, result, now),
     BeaconPhaseSlot2Kind.noOffersYet => l10n.beaconPhaseNoOffersYet,
-    BeaconPhaseSlot2Kind.lifecycleEndedAt =>
-      _lifecycleEndedAt(l10n, result, now),
+    BeaconPhaseSlot2Kind.lifecycleEndedAt => _lifecycleEndedAt(
+      l10n,
+      result,
+      now,
+    ),
     BeaconPhaseSlot2Kind.none => null,
   };
 }
@@ -158,14 +167,14 @@ String _joinSlots(String slot1, String? slot2) {
 }
 
 TenturaTone _toneForPhase(BeaconCoordinationPhase phase) => switch (phase) {
-      BeaconCoordinationPhase.blocked => TenturaTone.warn,
-      BeaconCoordinationPhase.needsMoreHelp => TenturaTone.warn,
-      BeaconCoordinationPhase.enoughHelpInMotion => TenturaTone.good,
-      BeaconCoordinationPhase.offersAwaitingAuthor => TenturaTone.info,
-      BeaconCoordinationPhase.wrappingUp => TenturaTone.info,
-      BeaconCoordinationPhase.lookingForHelpers => TenturaTone.info,
-      _ => TenturaTone.neutral,
-    };
+  BeaconCoordinationPhase.blocked => TenturaTone.warn,
+  BeaconCoordinationPhase.needsMoreHelp => TenturaTone.warn,
+  BeaconCoordinationPhase.enoughHelpInMotion => TenturaTone.good,
+  BeaconCoordinationPhase.offersAwaitingAuthor => TenturaTone.info,
+  BeaconCoordinationPhase.wrappingUp => TenturaTone.info,
+  BeaconCoordinationPhase.lookingForHelpers => TenturaTone.info,
+  _ => TenturaTone.neutral,
+};
 
 TenturaTone _toneForSlot2(
   BeaconCoordinationPhaseResult result, {

@@ -4940,6 +4940,14 @@
       }
     }
   },
+  "beaconRoomParticipantJoinedBySelf": "Вы допустили {joinedName} в обсуждение",
+  "@beaconRoomParticipantJoinedBySelf": {
+    "placeholders": {
+      "joinedName": {
+        "type": "String"
+      }
+    }
+  },
   "beaconRoomParticipantJoinedOfferQuote": "«{note}»",
   "roomStatusChangedByActor": "{actor} изменил(а) статус: {from} → {to}",
   "@roomStatusChangedByActor": {
@@ -4999,6 +5007,14 @@
       }
     }
   },
+  "beaconRoomParticipantLeftBySelf": "Вы покинули запрос ({reason})",
+  "@beaconRoomParticipantLeftBySelf": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
   "beaconRoomParticipantRemoved": "{name} больше не в запросе",
   "@beaconRoomParticipantRemoved": {
     "placeholders": {
@@ -5013,6 +5029,17 @@
       "name": {
         "type": "String"
       },
+      "reason": {
+        "type": "String"
+      },
+      "note": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconRoomParticipantLeftBySelfWithNote": "Вы покинули запрос ({reason}): «{note}»",
+  "@beaconRoomParticipantLeftBySelfWithNote": {
+    "placeholders": {
       "reason": {
         "type": "String"
       },
