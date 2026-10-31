@@ -6,6 +6,7 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
+import 'package:tentura/features/inbox/domain/entity/post_summary.dart';
 
 import '../../domain/use_case/fake_beacon_hierarchy_ports.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
@@ -29,9 +30,11 @@ void main() {
   const requestId = 'Bea026c489fab';
   const postId = 'B797e767f5da1';
 
+  const excerpt = 'GQ1024: planning a weekend';
+
   final post = Beacon(
     id: postId,
-    title: 'GQ1024: planning a weekend',
+    title: '',
     kind: BeaconKind.post,
     createdAt: DateTime.utc(2026, 10, 24),
     updatedAt: DateTime.utc(2026, 10, 24),
@@ -58,9 +61,18 @@ void main() {
     author: const Profile(id: 'Ualice', displayName: 'Alice'),
   );
 
+  PostSummary postSummary() => PostSummary(
+    id: postId,
+    authorId: 'Ualice',
+    authorName: 'Alice',
+    lastActivityAt: DateTime.utc(2026, 10, 24),
+    rootExcerpt: excerpt,
+  );
+
   Future<(BeaconViewCubit, List<String>)> load(
     Beacon target, {
     BeaconParentReference reference = postReference,
+    PostSummary? summary,
   }) async {
     final fetchedIds = <String>[];
     final beaconRepo = TrackingBeaconRepository()
@@ -77,6 +89,9 @@ void main() {
         hierarchyRepository: FakeBeaconHierarchyRepositoryPort(
           parentReference: reference,
         ),
+        postsRepository: FakeBeaconViewPostsRepository(
+          summaries: {postId: summary ?? postSummary()},
+        ),
       ),
       effects: FakeUiEffectPort(),
     );
@@ -91,7 +106,7 @@ void main() {
 
     expect(cubit.state.accessParent?.id, postId);
     expect(cubit.state.accessParent?.kind, BeaconKind.post);
-    expect(cubit.state.accessParent?.title, 'GQ1024: planning a weekend');
+    expect(cubit.state.accessParentPostExcerpt, excerpt);
   });
 
   test('guard: a member of the request does not read the parent', () async {

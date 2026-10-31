@@ -332,9 +332,12 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
     /// Server returned no readable beacon (gated `beacon_by_pk` null).
     @Default(false) bool beaconUnavailable,
 
-    /// The Request's lineage parent, fetched only when the viewer sees the
+    /// The Request's hierarchy parent, fetched only when the viewer sees the
     /// Request through it (#724): the access banner names a Post parent.
     Beacon? accessParent,
+
+    /// Root message excerpt for [accessParent] when it is a Post (#724).
+    @Default('') String accessParentPostExcerpt,
 
     Object? loadError,
   }) = _BeaconViewState;
@@ -351,8 +354,7 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
   /// the server already has for them (#758). Someone who never offered has
   /// no row.
   bool get viewerOfferedHelp =>
-      isHelpOffered ||
-      helpOffers.any((offer) => offer.user.id == myProfile.id);
+      isHelpOffered || helpOffers.any((offer) => offer.user.id == myProfile.id);
 
   /// The author's own live Request that is discoverable in the Field: the
   /// case where "sent to nobody yet" is worth saying (#484).

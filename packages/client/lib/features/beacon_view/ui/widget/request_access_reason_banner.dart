@@ -16,6 +16,7 @@ class RequestAccessReasonBanner extends StatelessWidget {
   const RequestAccessReasonBanner({
     required this.beacon,
     this.parent,
+    this.parentPostExcerpt = '',
     super.key,
   });
 
@@ -24,6 +25,9 @@ class RequestAccessReasonBanner extends StatelessWidget {
   /// The Request's hierarchy parent when it was read (#724): a Post parent
   /// is named, with a way to open it.
   final Beacon? parent;
+
+  /// Root message excerpt for [parent] when it is a Post (#724).
+  final String parentPostExcerpt;
 
   static const openParentKey = Key('request-access-reason-open-parent');
 
@@ -42,10 +46,7 @@ class RequestAccessReasonBanner extends StatelessWidget {
             requestAccessViaParent(beacon)
         ? parent
         : null;
-    final rawPostTitle = post?.title.trim() ?? '';
-    final postTitle = rawPostTitle.isNotEmpty
-        ? rawPostTitle
-        : (post?.context.trim() ?? '');
+    final postTitle = parentPostExcerpt.trim();
     final text = post == null
         ? l10n.requestAccessViaRelatedRequest
         : postTitle.isEmpty
@@ -70,6 +71,8 @@ class RequestAccessReasonBanner extends StatelessWidget {
                 children: [
                   Text(
                     text,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TenturaText.bodySmall(scheme.onSurfaceVariant),
                   ),
                   if (post != null)
