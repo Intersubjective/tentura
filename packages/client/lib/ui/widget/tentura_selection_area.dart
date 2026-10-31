@@ -52,6 +52,12 @@ class _TenturaSelectionAreaState extends State<TenturaSelectionArea> {
   // A region built after a flip never sees that flip, so it keeps its key.
   var _areaKey = GlobalKey<SelectionAreaState>();
 
+  /// Whether this state is in the active element list (#761).
+  var _active = true;
+
+  /// A menu flip arrived while this area could not safely replace its region.
+  var _flipPending = false;
+
   @override
   void initState() {
     super.initState();
@@ -63,7 +69,54 @@ class _TenturaSelectionAreaState extends State<TenturaSelectionArea> {
     // child's text keeps its own selection state, so without this it would
     // stay highlighted under a fresh region that knows nothing about it.
     _areaKey.currentState?.selectableRegion.clearSelection();
+    if (_mayReplaceRegionNow) {
+      _flipPending = false;
+      setState(() => _areaKey = GlobalKey<SelectionAreaState>());
+      return;
+    }
+    _flipPending = true;
+    _schedulePendingFlip();
+  }
+
+  bool get _mayReplaceRegionNow {
+    if (!mounted || !_active) {
+      return false;
+    }
+    final route = ModalRoute.of(context);
+    if (route != null && !route.isCurrent) {
+      return false;
+    }
+    return true;
+  }
+
+  void _schedulePendingFlip() {
+    WidgetsBinding.instance.addPostFrameCallback(_applyPendingFlipAfterFrame);
+  }
+
+  void _applyPendingFlipAfterFrame(Duration _) {
+    if (!mounted || !_flipPending) {
+      return;
+    }
+    if (!_mayReplaceRegionNow) {
+      return;
+    }
+    _flipPending = false;
     setState(() => _areaKey = GlobalKey<SelectionAreaState>());
+  }
+
+  @override
+  void activate() {
+    super.activate();
+    _active = true;
+    if (_flipPending) {
+      _schedulePendingFlip();
+    }
+  }
+
+  @override
+  void deactivate() {
+    _active = false;
+    super.deactivate();
   }
 
   @override
@@ -77,6 +130,9 @@ class _TenturaSelectionAreaState extends State<TenturaSelectionArea> {
   Widget build(BuildContext context) {
     // Keyed on both paths, so a platform switch keeps the child's state too.
     final child = KeyedSubtree(key: _childKey, child: widget.child);
+    if (_flipPending && _mayReplaceRegionNow) {
+      _schedulePendingFlip();
+    }
     if (!tenturaDesktopSelectionEnabledFor(Theme.of(context))) {
       return child;
     }
@@ -91,10 +147,14 @@ class _TenturaSelectionAreaState extends State<TenturaSelectionArea> {
     // wraps its inner container in a browser-menu view only while that menu
     // is on, so rebuilding a region across a flip re-creates the container
     // under a region that still has the old one registered, and release web
-    // builds crash in SelectionContainer. Only the region and its selection
-    // are new (see [_onMenuFlip]): a selection here is dropped when a room
-    // opens or the last one closes, while the child itself keeps its state
-    // (see [_childKey]).
+    // builds crash in SelectionContainer. The re-key is deferred until this
+    // state is active on the current route (#761 QA): flipping while Home is
+    // deactivated for a Profile push re-keyed into the same unmount pass as
+    // the GlobalKey child move and left a subscribed container with no
+    // registrar at dispose. Only the region and its selection are new (see
+    // [_onMenuFlip]): a selection here is dropped when a room opens or the
+    // last one closes, while the child itself keeps its state (see
+    // [_childKey]).
     // Inside a room nothing flips (#623).
     return ExcludeFocusTraversal(
       child: SelectionArea(
