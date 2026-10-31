@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
+import 'package:tentura/app/platform/web_safe_text_field_enabled.dart';
 import 'package:tentura/data/repository/clipboard_image_repository.dart';
 import 'package:tentura/data/repository/image_repository.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -55,6 +56,7 @@ class _BeaconFactComposerBody extends StatefulWidget {
 class _BeaconFactComposerBodyState extends State<_BeaconFactComposerBody>
     with PendingAttachmentsMixin {
   final _text = TextEditingController();
+  final _focusNode = FocusNode();
   var _visibility = BeaconFactCardVisibilityBits.public;
   var _submitting = false;
 
@@ -72,6 +74,7 @@ class _BeaconFactComposerBodyState extends State<_BeaconFactComposerBody>
   @override
   void dispose() {
     _text.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
 
@@ -143,7 +146,11 @@ class _BeaconFactComposerBodyState extends State<_BeaconFactComposerBody>
             SizedBox(height: tt.rowGap),
             TextField(
               controller: _text,
-              enabled: !_submitting,
+              focusNode: _focusNode,
+              enabled: webSafeTextFieldEnabled(
+                targetEnabled: !_submitting,
+                hasFocus: _focusNode.hasFocus,
+              ),
               minLines: 2,
               maxLines: 6,
               onChanged: (_) => setState(() => _showEmptyError = false),

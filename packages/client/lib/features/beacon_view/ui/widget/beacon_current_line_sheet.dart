@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
+import 'package:tentura/app/platform/web_safe_text_field_enabled.dart';
 import 'package:tentura/app/sentry/report_user_facing_error.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
@@ -250,7 +251,10 @@ class _BeaconCurrentLineSheetBodyState
               maxLines: 2,
               minLines: 1,
               textInputAction: TextInputAction.done,
-              enabled: !_submitting,
+              enabled: webSafeTextFieldEnabled(
+                targetEnabled: !_submitting,
+                hasFocus: _focusNode.hasFocus,
+              ),
               autofocus: true,
             ),
             SizedBox(height: tt.sectionGap),
