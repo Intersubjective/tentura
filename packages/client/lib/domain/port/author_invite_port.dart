@@ -13,6 +13,10 @@ abstract interface class AuthorInvitePort {
 
   Future<AuthorInvite> decline({required String inviteId});
 
+  /// Takes back a «Can't make it» while the invitation is still valid: the
+  /// invite is pending again.
+  Future<AuthorInvite> revertDecline({required String inviteId});
+
   Future<AuthorInvite> withdraw({required String inviteId});
 
   /// The caller's pending invites (the «Для вас» invite card).

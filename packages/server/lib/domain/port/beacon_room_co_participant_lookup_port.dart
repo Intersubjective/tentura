@@ -5,4 +5,8 @@ abstract class BeaconRoomCoParticipantLookupPort {
     required String viewerId,
     required Iterable<String> peerIds,
   });
+
+  /// Everyone in the room of [beaconId]: the Request's author, its stewards
+  /// and its admitted participants.
+  Future<Set<String>> roomMemberUserIds({required String beaconId});
 }

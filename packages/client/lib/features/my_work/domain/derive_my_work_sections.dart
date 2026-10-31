@@ -1,5 +1,7 @@
 import 'package:tentura/domain/attention/entity/my_work_beacon_attention.dart';
+import 'package:tentura/domain/attention/request_attention_predicate.dart';
 
+import 'derive_my_work_card_attention.dart';
 import 'entity/my_work_card_view_model.dart';
 import 'entity/my_work_filter.dart';
 
@@ -198,4 +200,24 @@ List<MyWorkDeskSectionGroup> deriveMyWorkSections({
     );
   }
   return groups;
+}
+
+/// The first card, in the order [sections] list them, that carries a live
+/// obligation or a dot (`docs/features/request-attention.md` §6) — the same
+/// facts the card's indicators show. Null when no card needs the viewer.
+MyWorkCardViewModel? firstMyWorkCardNeedingAttention({
+  required List<MyWorkDeskSectionGroup> sections,
+  required Map<String, MyWorkBeaconAttention> attentionByBeacon,
+}) {
+  for (final group in sections) {
+    for (final card in group.cards) {
+      final view = myWorkCardAttentionView(
+        beaconId: card.beaconId,
+        attention: attentionByBeacon[card.beaconId],
+        viewerArchived: card.viewerArchived,
+      );
+      if (requestHasMyDeskAttention(view.facts)) return card;
+    }
+  }
+  return null;
 }

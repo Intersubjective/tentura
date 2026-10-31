@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
@@ -25,6 +27,8 @@ import '../../ui/effect/fake_ui_effect_port.dart';
 // "Invitation code" that never said the invite is for this request, that
 // the link works once, or how long it stays valid.
 
+const _servedTtlHours = 48;
+
 const _enTitle = 'Invite someone to help with this request';
 
 class _MockProfileCubit extends Mock implements ProfileCubit {
@@ -36,6 +40,11 @@ class _MockProfileCubit extends Mock implements ProfileCubit {
 }
 
 class _FakeInvitationRepository extends Fake implements InvitationRepository {
+  _FakeInvitationRepository({Future<int> Function()? ttlHours})
+    : _ttlHours = ttlHours ?? (() async => _servedTtlHours);
+
+  final Future<int> Function() _ttlHours;
+
   @override
   Stream<void> get changes => const Stream<void>.empty();
 
@@ -50,6 +59,10 @@ class _FakeInvitationRepository extends Fake implements InvitationRepository {
     accepted: <InvitationEntity>[],
     pendingCount: 0,
   );
+
+  /// By default the server serves a 48 h invitation lifetime.
+  @override
+  Future<int> fetchTtlHours() => _ttlHours();
 
   @override
   Future<InvitationFetchByIdResult?> fetchById(String id) async => null;
@@ -112,13 +125,19 @@ String _describeEffects(FakeUiEffectPort effects) => effects.emitted
 
 /// Opens the Forward page in [locale], taps "Invite new person" and
 /// returns every string the invite dialog renders, joined by newlines.
-Future<String> _openInviteDialog(WidgetTester tester, Locale locale) async {
+Future<String> _openInviteDialog(
+  WidgetTester tester,
+  Locale locale, {
+  Future<int> Function()? ttlHours,
+}) async {
   // Everything the lazily built InvitationCubit (picker `_invitationCubit`)
   // resolves from GetIt is registered before the page is even pumped; reset
   // after each test so the next one registers on a clean locator.
   final effects = FakeUiEffectPort();
   GetIt.I
-    ..registerSingleton<InvitationRepository>(_FakeInvitationRepository())
+    ..registerSingleton<InvitationRepository>(
+      _FakeInvitationRepository(ttlHours: ttlHours),
+    )
     ..registerSingleton<UiEffectPort>(effects);
   addTearDown(GetIt.I.reset);
 
@@ -174,17 +193,33 @@ Future<String> _openInviteDialog(WidgetTester tester, Locale locale) async {
   await tester.pumpAndSettle();
 
   expect(shareDialog, findsOneWidget);
-  final dialog = shareDialog;
-  return tester
-      .widgetList<RichText>(
-        find.descendant(of: dialog, matching: find.byType(RichText)),
-      )
-      .map((t) => t.text.toPlainText())
-      .join('\n');
+  return _dialogText(tester);
 }
 
+/// Every string the open invite dialog currently renders, newline-joined.
+String _dialogText(WidgetTester tester) => tester
+    .widgetList<RichText>(
+      find.descendant(
+        of: find.byType(ShareCodeDialog),
+        matching: find.byType(RichText),
+      ),
+    )
+    .map((t) => t.text.toPlainText())
+    .join('\n');
+
+/// "N days" as a whole phrase: `2 days` must not match inside `12 days`.
+RegExp _days(int n) => RegExp('\\b$n days\\b');
+
+/// What the invite says when the server has not (yet) said how long it lasts.
+const _defaultDays = kInvitationDefaultTTL ~/ 24;
+
 void main() {
-  const days = kInvitationDefaultTTL ~/ 24;
+  const days = _servedTtlHours ~/ 24;
+
+  // Guards the "served, not default" assertions below against going vacuous.
+  test('the served lifetime used by these tests differs from the default', () {
+    expect(_defaultDays, isNot(days));
+  });
 
   testWidgets('forward invite dialog says it invites someone to this request', (
     tester,
@@ -208,8 +243,10 @@ void main() {
       text,
       matches(RegExp(r'\bonce\b|single-use|one-time', caseSensitive: false)),
     );
-    // Validity comes from the shared invite TTL, not a made-up number.
-    expect(text, contains('$days days'));
+    // Validity comes from the TTL the server serves, not the compiled
+    // default.
+    expect(text, matches(_days(days)));
+    expect(text, isNot(matches(_days(_defaultDays))));
   });
 
   testWidgets('forward invite dialog copy is translated in Russian', (
@@ -222,6 +259,46 @@ void main() {
     expect(text, isNot(contains('this request')));
     // Says, in Russian, that the link works only once, and for how long.
     expect(text, matches(RegExp('один раз|одноразов', caseSensitive: false)));
-    expect(text, contains('$days'));
+    // The served 48 h, in Russian plural form for 2.
+    expect(text, contains('действует 2 дня.'));
+  });
+
+  group('while the served lifetime is not known', () {
+    testWidgets('invite dialog states the compiled default when the lookup '
+        'fails', (tester) async {
+      final text = await _openInviteDialog(
+        tester,
+        const Locale('en'),
+        ttlHours: () async => throw StateError('network'),
+      );
+
+      expect(text, matches(_days(_defaultDays)));
+      expect(text, isNot(matches(_days(days))));
+    });
+
+    testWidgets('invite dialog opens at once with the compiled default while '
+        'the lookup is pending, then shows the served lifetime', (
+      tester,
+    ) async {
+      final served = Completer<int>();
+      addTearDown(() {
+        if (!served.isCompleted) served.complete(_servedTtlHours);
+      });
+
+      final waiting = await _openInviteDialog(
+        tester,
+        const Locale('en'),
+        ttlHours: () => served.future,
+      );
+      expect(waiting, matches(_days(_defaultDays)));
+      expect(waiting, isNot(matches(_days(days))));
+
+      served.complete(_servedTtlHours);
+      await tester.pumpAndSettle();
+
+      final arrived = _dialogText(tester);
+      expect(arrived, matches(_days(days)));
+      expect(arrived, isNot(matches(_days(_defaultDays))));
+    });
   });
 }

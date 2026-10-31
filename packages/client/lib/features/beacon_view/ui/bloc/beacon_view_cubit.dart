@@ -23,6 +23,7 @@ import 'package:tentura/domain/entity/beacon_room_state.dart';
 import 'package:tentura/domain/entity/help_offer_admission_action.dart';
 import 'package:tentura/domain/entity/beacon_display_status_dto.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/domain/entity/room_read_watermark.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
@@ -1211,7 +1212,20 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
     }
   }
 
+  /// [pending] is a lookup already in flight (the load starts it with its
+  /// other reads, so it adds no round trip).
+  Future<void> _refreshLatestUpdateReaders(
+    String beaconId, {
+    Future<List<RoomReadWatermark>>? pending,
+  }) async {
+    final readers = await (pending ?? _case.fetchLatestUpdateReaders(beaconId));
+    if (!isClosed && beaconId == state.beacon.id) {
+      emit(state.copyWith(latestUpdateReaders: readers));
+    }
+  }
+
   Future<void> _refreshBeaconRoomCue(String beaconId) async {
+    unawaited(_refreshLatestUpdateReaders(beaconId));
     final cue = await _case.fetchRoomStateIfAllowed(beaconId);
     if (!isClosed && cue != null) {
       emit(
@@ -1745,6 +1759,11 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
             )
           : Future<_ForwardsRead?>.value();
 
+      // #766: the "Seen by" lookup leaves with the other reads but does not
+      // hold the screen back; it lands when it lands.
+      final updateReaders = skipRoom
+          ? null
+          : _case.fetchLatestUpdateReaders(beaconId);
       final results = await Future.wait([
         // Without involvement access the viewer still sees their own offer
         // (a declined offerer loses access but must learn why).
@@ -1866,6 +1885,11 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
           status: StateStatus.isSuccess,
         ),
       );
+      if (updateReaders != null) {
+        unawaited(
+          _refreshLatestUpdateReaders(beaconId, pending: updateReaders),
+        );
+      }
       if (!skipRoom && wasForwardsLoaded) {
         unawaited(_refreshForwards(beaconId, myUserId));
       } else if (needsAuthorForwards) {

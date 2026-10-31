@@ -101,6 +101,7 @@ final class ForwardCase extends UseCaseBase {
     forwardedToIds: const <String>{},
     helpOfferedIds: const <String>{},
     withdrawnIds: const <String>{},
+    declinedOfferIds: const <String>{},
     rejectedIds: const <String>{},
     watchingIds: const <String>{},
     onwardForwarderIds: const <String>{},
@@ -320,6 +321,9 @@ final class ForwardCase extends UseCaseBase {
     }
     if (inv.helpOfferedIds.contains(userId)) {
       return CandidateInvolvement.helpOffered;
+    }
+    if (inv.declinedOfferIds.contains(userId)) {
+      return CandidateInvolvement.offerDeclinedByAuthor;
     }
     if (inv.withdrawnIds.contains(userId)) {
       return CandidateInvolvement.withdrawn;

@@ -150,6 +150,7 @@ class _ForwardsFake extends FakeBeaconViewForwardRepository {
     forwardedToIds: {for (final p in sentTo) p.id},
     helpOfferedIds: const <String>{},
     withdrawnIds: const <String>{},
+    declinedOfferIds: const <String>{},
     rejectedIds: const <String>{},
     watchingIds: const <String>{},
     onwardForwarderIds: const <String>{},

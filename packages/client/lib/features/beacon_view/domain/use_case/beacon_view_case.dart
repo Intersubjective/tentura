@@ -9,6 +9,7 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_state.dart';
+import 'package:tentura/domain/entity/room_read_watermark.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
@@ -600,6 +601,19 @@ final class BeaconViewCase extends UseCaseBase {
       return await _beaconRoomCase.fetchBeaconRoomState(beaconId);
     } on Object catch (_) {
       return null;
+    }
+  }
+
+  /// #766: who has seen the latest next step / status update. The server
+  /// names them only to people entitled to know; a failed lookup is no
+  /// readers (the "Seen by" row is a courtesy, never worth an error).
+  Future<List<RoomReadWatermark>> fetchLatestUpdateReaders(
+    String beaconId,
+  ) async {
+    try {
+      return await _beaconRoomCase.fetchLatestUpdateReaders(beaconId);
+    } on Object catch (_) {
+      return const [];
     }
   }
 

@@ -2,6 +2,8 @@
 library;
 
 import 'package:injectable/injectable.dart' show Environment;
+import 'package:graphql_schema2/graphql_schema2.dart';
+import 'package:graphql_server2/graphql_server2.dart';
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:postgres/postgres.dart';
@@ -9,6 +11,9 @@ import 'package:test/test.dart';
 import 'package:tentura_root/domain/entity/beacon_parent_reference.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
+import 'package:tentura_server/api/controllers/graphql/custom_types.dart';
+import 'package:tentura_server/api/controllers/graphql/input/_input_types.dart';
+import 'package:tentura_server/api/controllers/graphql/mutation/mutation_author_invite.dart';
 import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
 import 'package:tentura_server/data/database/migration/_migrations.dart'
     show migrateDbSchema;
@@ -48,6 +53,7 @@ import 'package:tentura_server/data/repository/vote_user_friendship_lookup.dart'
 import 'package:tentura_server/data/repository/witness_window_repository.dart';
 import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/entity/author_invite.dart';
+import 'package:tentura_server/domain/entity/jwt_entity.dart';
 import 'package:tentura_server/domain/entity/post_bud.dart';
 import 'package:tentura_server/domain/entity/task_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
@@ -622,6 +628,299 @@ VALUES ('BIai4repair01', '$_child', '$_author', '$_cold', 'Fai4repair001',
           );
         },
       );
+    });
+
+    // #797: the invitee takes back a «Can't make it» while the invitation is
+    // still answerable. Driven through the GraphQL mutation, the way the
+    // client calls it, against real repositories.
+    group('revert decline', () {
+      const mutation = 'beaconAuthorInviteRevertDecline';
+      late GraphQL graphQL;
+
+      setUpAll(() {
+        graphQL = GraphQL(
+          GraphQLSchema(
+            queryType: GraphQLObjectType('Query', 'Query root')
+              ..fields.add(
+                GraphQLObjectField(
+                  'ping',
+                  graphQLString,
+                  resolve: (_, _) => 'pong',
+                ),
+              ),
+            mutationType: GraphQLObjectType('Mutation', 'Mutation root')
+              ..fields.addAll(
+                MutationAuthorInvite(authorInviteCase: s.invites).all,
+              ),
+          ),
+          customTypes: customTypes,
+        );
+      });
+
+      /// Runs the mutation and shapes the outcome like `GraphqlController`
+      /// answers it on the wire: `data`, or `errors[0].extensions.code`.
+      Future<({Map<String, Object?>? invite, String? errorCode})> revert(
+        String inviteId, {
+        required String actor,
+      }) async {
+        Map<String, Object?> envelope;
+        try {
+          final out =
+              await graphQL.parseAndExecute(
+                    'mutation { $mutation(inviteId: "$inviteId") '
+                    '{ inviteId beaconId status } }',
+                    globalVariables: {
+                      kGlobalInputQueryJwt: JwtEntity(sub: actor),
+                    },
+                  )
+                  as Map<String, dynamic>;
+          envelope = {'data': out};
+        } on GraphQLException catch (e) {
+          envelope = Map<String, Object?>.from(e.toJson());
+        } on ExceptionBase catch (e) {
+          envelope = {
+            'errors': [e.toMap],
+          };
+        }
+        final errors = envelope['errors'] as List?;
+        if (errors != null && errors.isNotEmpty) {
+          final extensions = (errors.first as Map)['extensions'] as Map?;
+          return (invite: null, errorCode: '${extensions?['code']}');
+        }
+        // An unknown mutation field answers with no data at all.
+        final data = (envelope['data'] as Map?)?[mutation];
+        if (data == null) return (invite: null, errorCode: 'no-result');
+        return (
+          invite: Map<String, Object?>.from(data as Map),
+          errorCode: null,
+        );
+      }
+
+      Future<String> declined(String invitee) async {
+        final id = await invited(invitee);
+        await s.invites.decline(actorUserId: invitee, inviteId: id);
+        expect(
+          (await _invite(writer, id)).status,
+          AuthorInviteStatus.declined.code,
+        );
+        return id;
+      }
+
+      test(
+        'a declined invitation is pending again and can be accepted',
+        () async {
+          final id = await declined(_cold);
+          expect(await _eligiblePinned(writer, _cold), isNot(contains(_child)));
+
+          final result = await revert(id, actor: _cold);
+
+          expect(result.errorCode, isNull);
+          expect(result.invite, {
+            'inviteId': id,
+            'beaconId': _child,
+            'status': 'pending',
+          });
+          expect(
+            (await _invite(writer, id)).status,
+            AuthorInviteStatus.pending.code,
+          );
+          expect(await _inboxStatus(writer, _cold), 0);
+          expect(await _eligiblePinned(writer, _cold), contains(_child));
+          final edge = (await _invite(writer, id)).forwardEdgeId!;
+          expect((await _contact(writer, edge)).outcome, isNull);
+          // The invitee's «you are invited» receipt asks for an answer again
+          // and the inviter's «declined» receipt no longer stands.
+          final received = (await _receipts(
+            writer,
+            kind: 'authorInviteReceived',
+          )).where((r) => r.account == _cold);
+          expect(
+            received.map((r) => r.cleared),
+            contains(isFalse),
+            reason: 'a pending invite is waiting on the invitee',
+          );
+          expect(
+            (await _receipts(
+              writer,
+              kind: 'authorInviteDeclined',
+            )).where((r) => r.account == _author).map((r) => r.cleared),
+            everyElement(isTrue),
+          );
+          expect(
+            (await s.invites.myPendingInvites(actorUserId: _cold)).map(
+              (i) => i.inviteId,
+            ),
+            [id],
+          );
+
+          final accepted = await s.invites.accept(
+            actorUserId: _cold,
+            inviteId: id,
+          );
+          expect(accepted.status, AuthorInviteStatus.accepted);
+          expect(
+            await rowSet(_cold),
+            contains(
+              'beacon_commitment_event|user=$_cold|actor=$_author|kind=1',
+            ),
+          );
+        },
+      );
+
+      test('a reverted invitation can be declined again', () async {
+        final id = await declined(_cold);
+        expect((await revert(id, actor: _cold)).errorCode, isNull);
+
+        final again = await s.invites.decline(
+          actorUserId: _cold,
+          inviteId: id,
+        );
+
+        expect(again.status, AuthorInviteStatus.declined);
+        expect(await _inboxStatus(writer, _cold), 2);
+      });
+
+      test('another user cannot revert the decline', () async {
+        final id = await declined(_cold);
+
+        for (final other in [_author, _warm]) {
+          final result = await revert(id, actor: other);
+          expect(result.invite, isNull, reason: other);
+          expect(
+            result.errorCode,
+            _errorCode(const AuthorInviteNotFoundException()),
+            reason: other,
+          );
+        }
+
+        expect(
+          (await _invite(writer, id)).status,
+          AuthorInviteStatus.declined.code,
+        );
+        expect(await _inboxStatus(writer, _cold), 2);
+      });
+
+      test(
+        'a decline cannot be reverted once the Request is no longer open',
+        () async {
+          final id = await declined(_cold);
+          await s.beaconCase.beaconCancel(beaconId: _child, userId: _author);
+          expect(
+            await _status(writer, _child),
+            BeaconStatus.cancelled.smallintValue,
+          );
+
+          final result = await revert(id, actor: _cold);
+
+          expect(result.invite, isNull);
+          // Same gate as accept: the declined invite is valid, the Request
+          // it asks to join is not open.
+          expect(
+            result.errorCode,
+            _errorCode(const AuthorInviteRequestNotOpenException()),
+          );
+          expect(
+            (await _invite(writer, id)).status,
+            AuthorInviteStatus.declined.code,
+          );
+          expect(await _inboxStatus(writer, _cold), 2);
+          expect(await rowSet(_cold), isEmpty);
+        },
+      );
+
+      test('a second revert is a no-op success', () async {
+        final id = await declined(_cold);
+        expect((await revert(id, actor: _cold)).errorCode, isNull);
+        final receipts = await _receipts(writer);
+        final invites = await _inviteCount(writer);
+
+        final again = await revert(id, actor: _cold);
+
+        expect(again.errorCode, isNull);
+        expect(again.invite?['status'], 'pending');
+        expect(
+          (await _invite(writer, id)).status,
+          AuthorInviteStatus.pending.code,
+        );
+        expect(await _inboxStatus(writer, _cold), 0);
+        expect(await _inviteCount(writer), invites);
+        expect(await _receipts(writer), receipts);
+      });
+
+      test('reverting an invitation that was never declined is a no-op '
+          'success', () async {
+        final id = await invited(_cold);
+        final receipts = await _receipts(writer);
+
+        final result = await revert(id, actor: _cold);
+
+        expect(result.errorCode, isNull);
+        expect(result.invite?['status'], 'pending');
+        expect(
+          (await _invite(writer, id)).status,
+          AuthorInviteStatus.pending.code,
+        );
+        expect(await _receipts(writer), receipts);
+      });
+
+      test(
+        'an invitation that expired with its Request cannot be reverted',
+        () async {
+          final id = await invited(_cold);
+          await s.beaconCase.beaconCancel(beaconId: _child, userId: _author);
+          expect(
+            (await _invite(writer, id)).status,
+            AuthorInviteStatus.expired.code,
+          );
+
+          final result = await revert(id, actor: _cold);
+
+          expect(result.invite, isNull);
+          expect(
+            result.errorCode,
+            _errorCode(const AuthorInviteNotPendingException()),
+          );
+          expect(
+            (await _invite(writer, id)).status,
+            AuthorInviteStatus.expired.code,
+          );
+          expect(await rowSet(_cold), isEmpty);
+        },
+      );
+
+      test('an accepted invitation cannot be reverted', () async {
+        final id = await invited(_cold);
+        await s.invites.accept(actorUserId: _cold, inviteId: id);
+
+        final result = await revert(id, actor: _cold);
+
+        expect(result.invite, isNull);
+        expect(
+          result.errorCode,
+          _errorCode(const AuthorInviteNotPendingException()),
+        );
+        expect(
+          (await _invite(writer, id)).status,
+          AuthorInviteStatus.accepted.code,
+        );
+      });
+
+      test('a withdrawn invitation cannot be reverted', () async {
+        final id = await invited(_cold);
+        await s.invites.withdraw(actorUserId: _author, inviteId: id);
+
+        final result = await revert(id, actor: _cold);
+
+        expect(result.invite, isNull);
+        expect(
+          result.errorCode,
+          _errorCode(const AuthorInviteNotPendingException()),
+        );
+        expect(
+          (await _invite(writer, id)).status,
+          AuthorInviteStatus.withdrawn.code,
+        );
+      });
     });
 
     group('withdraw', () {
@@ -1370,6 +1669,9 @@ typedef _InviteRow = ({
   int status,
   String? arrival,
 });
+
+String _errorCode(ExceptionBase e) =>
+    '${(e.toMap['extensions']! as Map)['code']}';
 
 Future<_InviteRow> _invite(Connection writer, String id) async {
   final r = (await writer.execute(

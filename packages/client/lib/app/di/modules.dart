@@ -5,7 +5,9 @@ import 'package:logging/logging.dart';
 import 'package:injectable/injectable.dart';
 import 'package:sentry_drift/sentry_drift.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
-import 'package:drift_flutter/drift_flutter.dart';
+
+import 'package:tentura/data/database/open_local_database.dart'
+    if (dart.library.js_interop) 'package:tentura/data/database/open_local_database_web.dart';
 
 import 'package:tentura/data/database/reopening_query_executor.dart';
 
@@ -15,6 +17,7 @@ import 'package:tentura/data/service/remote_api_client/auth_remote_client.dart';
 import 'package:tentura/data/service/remote_api_client/remote_api_client_web.dart';
 import 'package:tentura/data/service/remote_api_client/remote_request_client.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
+import 'package:tentura/features/auth/data/repository/auth_local_repository.dart';
 import 'package:tentura/domain/attention/attention_case.dart';
 import 'package:tentura/domain/attention/port/attention_reconcile_port.dart';
 import 'package:tentura/domain/port/beacon_image_port.dart';
@@ -65,17 +68,12 @@ abstract class RegisterModule {
   @singleton
   Logger get logger => Logger.root;
 
-  /// The local database. A failed open is retried on a fresh connection
-  /// (web: the previous page may still hold the OPFS file, #674).
+  /// The local database. A failed open is retried on a fresh connection.
   @singleton
   QueryExecutor get database {
-    DatabaseConnection open() => driftDatabase(
-      name: _mainDbName,
-      native: const DriftNativeOptions(shareAcrossIsolates: true),
-      web: DriftWebOptions(
-        sqlite3Wasm: Uri.parse('/assets/packages/sqlite3.wasm'),
-        driftWorker: Uri.parse('/assets/packages/drift_worker.js'),
-      ),
+    final open = localDatabaseOpener(
+      _mainDbName,
+      restoreAccounts: AuthLocalRepository.restoreSeedAccounts,
     );
     // A plain, connection-independent stream store on purpose: drift's
     // per-connection stores (cross-tab / cross-isolate relays) stay bound to

@@ -10,11 +10,13 @@ import 'package:tentura_server/domain/use_case/beacon_involvement_case.dart';
 import 'package:tentura_server/env.dart';
 
 import 'forward_case_mocks.mocks.dart';
+import 'help_offer_case_mocks.mocks.dart' as admission_mocks;
 import '../../support/fake_beacon_access_guard.dart';
 
 void main() {
   late MockForwardEdgeRepositoryPort forwardEdgeRepo;
   late MockHelpOfferRepositoryPort helpOfferRepo;
+  late admission_mocks.MockHelpOfferAdmissionRepositoryPort helpOfferAdmissionRepo;
   late MockInboxRepositoryPort inboxRepo;
   late FakeBeaconAccessGuard guard;
   late BeaconInvolvementCase case_;
@@ -68,6 +70,8 @@ void main() {
         .thenAnswer((_) async => edges);
     when(helpOfferRepo.fetchAllByBeaconId(beaconId))
         .thenAnswer((_) async => helpOffers);
+    when(helpOfferAdmissionRepo.latestForBeacon(beaconId))
+        .thenAnswer((_) async => {});
     when(inboxRepo.fetchRejectedUserIdsByBeacon(beaconId))
         .thenAnswer((_) async => rejectedIds);
     when(inboxRepo.fetchWatchingUserIdsByBeacon(beaconId))
@@ -82,11 +86,13 @@ void main() {
   setUp(() {
     forwardEdgeRepo = MockForwardEdgeRepositoryPort();
     helpOfferRepo = MockHelpOfferRepositoryPort();
+    helpOfferAdmissionRepo = admission_mocks.MockHelpOfferAdmissionRepositoryPort();
     inboxRepo = MockInboxRepositoryPort();
     guard = FakeBeaconAccessGuard();
     case_ = BeaconInvolvementCase(
       forwardEdgeRepo,
       helpOfferRepo,
+      helpOfferAdmissionRepo,
       inboxRepo,
       guard,
       env: Env(environment: Environment.test),
@@ -110,6 +116,7 @@ void main() {
       expect(r.forwardedToIds, isEmpty);
       expect(r.helpOfferedIds, isEmpty);
       expect(r.withdrawnIds, isEmpty);
+      expect(r.declinedOfferIds, isEmpty);
       expect(r.rejectedIds, isEmpty);
       expect(r.watchingIds, isEmpty);
       expect(r.onwardForwarderIds, isEmpty);

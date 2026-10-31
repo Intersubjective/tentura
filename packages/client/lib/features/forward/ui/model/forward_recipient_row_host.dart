@@ -51,6 +51,7 @@ bool forwardRecipientAlreadyIneligibleInvolvement(CandidateInvolvement i) =>
     i == CandidateInvolvement.declined ||
     i == CandidateInvolvement.helpOffered ||
     i == CandidateInvolvement.withdrawn ||
+    i == CandidateInvolvement.offerDeclinedByAuthor ||
     i == CandidateInvolvement.forwardedByMe;
 
 bool forwardRecipientPauseReplacesRelation(CandidateInvolvement i) =>
@@ -90,6 +91,8 @@ String forwardRecipientRelationLabel(
     CandidateInvolvement.watching => l10n.forwardWatching,
     CandidateInvolvement.helpOffered => l10n.forwardHelpOffered,
     CandidateInvolvement.withdrawn => l10n.forwardWithdrawn,
+    CandidateInvolvement.offerDeclinedByAuthor =>
+      l10n.forwardOfferDeclinedByAuthor,
     CandidateInvolvement.unseen => l10n.forwardFilterUnseen,
   };
 }

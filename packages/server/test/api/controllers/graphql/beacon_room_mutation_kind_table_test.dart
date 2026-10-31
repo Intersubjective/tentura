@@ -57,6 +57,7 @@ const _postAllowedByMutation = <String, bool>{
   'BeaconStewardPromote': false,
   'RoomMessageMarkSemanticDone': false,
   'BeaconRoomNowLineUpdate': false,
+  'MarkBeaconUpdateSeen': false,
 };
 
 /// The classification the product requires, spelled out independently of the
@@ -76,6 +77,7 @@ const _requiredRequestOnly = {
   'BeaconStewardPromote',
   'RoomMessageMarkSemanticDone',
   'BeaconRoomNowLineUpdate',
+  'MarkBeaconUpdateSeen',
 };
 
 /// Calls the use-case method behind each mutation, for a Post room.
@@ -136,6 +138,8 @@ final _probes = <String, Future<Object?> Function(BeaconRoomCase)>{
     text: 'Now',
     baseRevision: 0,
   ),
+  'MarkBeaconUpdateSeen': (c) =>
+      c.markBeaconUpdateSeen(beaconId: _beaconId, userId: _userId),
 };
 
 final _now = DateTime.utc(2026);
@@ -318,6 +322,15 @@ class _PostRoom extends Fake implements BeaconRoomRepositoryPort {
   }) async {
     writes.add('setBeaconRoomCurrentLine');
     return null;
+  }
+
+  @override
+  Future<DateTime> markBeaconUpdateSeen({
+    required String userId,
+    required String beaconId,
+  }) async {
+    writes.add('markBeaconUpdateSeen');
+    return _now;
   }
 }
 

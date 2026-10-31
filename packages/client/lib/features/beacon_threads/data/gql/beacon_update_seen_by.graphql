@@ -1,0 +1,12 @@
+query BeaconUpdateSeenBy($beaconId: String!) {
+  beaconUpdateSeenBy(id: $beaconId) {
+    userId
+    seenAt
+    userTitle
+    userHasPicture
+    userImageId
+    userBlurHash
+    userPicHeight
+    userPicWidth
+  }
+}

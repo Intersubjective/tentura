@@ -1,0 +1,7 @@
+{
+  "name": "tentura-e2e-local-database",
+  "private": true,
+  "type": "module",
+  "scripts": { "test": "node --test suite.mjs" },
+  "dependencies": { "playwright": "^1.51.0" }
+}

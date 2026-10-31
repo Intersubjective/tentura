@@ -295,6 +295,61 @@ class AuthorInviteCase {
     );
   }
 
+  /// The invitee takes back a decline (the Undo after «Не смогу»): reverses
+  /// what [decline] wrote — the inbox row, the invite, the resolved contact and
+  /// both receipts — so the invite is pending and can be accepted again. Only
+  /// the decliner, only while the Request is open (the gate [accept] has; the
+  /// m0245 trigger expires invites with their Request). A pending invite is
+  /// returned as is, so a repeat is a no-op; any other end state refuses.
+  Future<AuthorInvite> revertDecline({
+    required String actorUserId,
+    required String inviteId,
+  }) async {
+    final found = await _findFor(inviteId, inviteeId: actorUserId);
+    return _attention.runAction(
+      actorUserId: actorUserId,
+      action: (_) async {
+        final (beacon, invite) = await _lockInvite(found, actorUserId);
+        if (invite.isPending) return invite;
+        if (invite.status != AuthorInviteStatus.declined) {
+          throw const AuthorInviteNotPendingException();
+        }
+        if (!beacon.status.isOpenFamily) {
+          throw const AuthorInviteRequestNotOpenException();
+        }
+        // A later invite to the same person replaced the declined one.
+        if (await _invites.fetchPending(
+              beaconId: beacon.id,
+              inviteeId: actorUserId,
+            ) !=
+            null) {
+          throw const AuthorInviteNotPendingException();
+        }
+        if (await _blocks.isBlockedPair(
+          a: invite.inviterId,
+          b: invite.inviteeId,
+        )) {
+          throw const UnauthorizedException(
+            description: 'Cannot restore an invitation from a blocked user',
+          );
+        }
+        final reopened = await _invites.reopenDeclined(invite.id);
+        if (reopened == null) throw const AuthorInviteNotPendingException();
+        await _inbox.repinForAuthorInvite(
+          userId: actorUserId,
+          beaconId: beacon.id,
+        );
+        await _settlement.reverseAuthorInviteDeclineReceipts(
+          inviteId: invite.id,
+          beaconId: beacon.id,
+          inviterId: invite.inviterId,
+          inviteeId: actorUserId,
+        );
+        return reopened;
+      },
+    );
+  }
+
   /// The inviter withdraws (Arch §5.4): the confirmation is revoked whatever
   /// happens to the edge. The delivery edge is cancelled only when the
   /// ordinary forward-cancel rules allow it; otherwise it stays as an

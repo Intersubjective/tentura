@@ -1,8 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/entity/image_entity.dart';
+import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/features/beacon_threads/ui/widget/room_readers_sheet.dart';
 import 'package:tentura/features/beacon_view/domain/pinned_facts.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_request_modes.dart';
@@ -355,6 +360,40 @@ class _HudCounters extends StatelessWidget {
         onTap: onOpenTeam,
         attention: pending > 0,
       ),
+      // #766: only the people the server names this update's readers to.
+      if (state.latestUpdateReaders.isNotEmpty)
+        _HudCounter(
+          icon: Icons.done_all,
+          label: l10n.beaconHudCounterSeenBy(state.latestUpdateReaders.length),
+          semanticsLabel: l10n.beaconHudCounterSeenBy(
+            state.latestUpdateReaders.length,
+          ),
+          onTap: () => unawaited(
+            showRoomReadersSheet(
+              context,
+              title: l10n.beaconHudUpdateSeenByTitle,
+              readers: [
+                for (final r in state.latestUpdateReaders)
+                  RoomReaderEntry(
+                    profile: Profile(
+                      id: r.userId,
+                      displayName: r.userTitle,
+                      image: r.userHasPicture && r.userImageId.isNotEmpty
+                          ? ImageEntity(
+                              id: r.userImageId,
+                              authorId: r.userId,
+                              blurHash: r.userBlurHash,
+                              height: r.userPicHeight,
+                              width: r.userPicWidth,
+                            )
+                          : null,
+                    ),
+                    readAt: r.lastSeenAt,
+                  ),
+              ],
+            ),
+          ),
+        ),
       if (subrequestCount > 0)
         _HudCounter(
           icon: Icons.subdirectory_arrow_right,

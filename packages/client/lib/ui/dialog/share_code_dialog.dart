@@ -21,6 +21,7 @@ class ShareCodeDialog extends StatefulWidget {
     // TBD: get id only, build link here
     required Uri link,
     String? caption,
+    Future<String>? captionUpdate,
   }) async {
     // Not disposed: the dialog may still rebuild during its exit animation.
     final used = ValueNotifier<bool>(false);
@@ -30,6 +31,7 @@ class ShareCodeDialog extends StatefulWidget {
         header: header,
         link: link.toString(),
         caption: caption,
+        captionUpdate: captionUpdate,
         used: used,
       ),
     );
@@ -40,6 +42,7 @@ class ShareCodeDialog extends StatefulWidget {
     required this.header,
     required this.link,
     this.caption,
+    this.captionUpdate,
     this.used,
     super.key,
   });
@@ -56,6 +59,11 @@ class ShareCodeDialog extends StatefulWidget {
   /// on wider ones, where the QR waits behind a toggle (#452).
   final String? caption;
 
+  /// Replaces [caption] once it completes: for a caption whose final wording
+  /// is still being looked up when the dialog opens. A failed future leaves
+  /// [caption] in place.
+  final Future<String>? captionUpdate;
+
   @override
   State<ShareCodeDialog> createState() => _ShareCodeDialogState();
 }
@@ -69,7 +77,20 @@ class _ShareCodeDialogState extends State<ShareCodeDialog> {
 
   String get link => widget.link;
 
-  String? get caption => widget.caption;
+  late String? caption = widget.caption;
+
+  @override
+  void initState() {
+    super.initState();
+    final update = widget.captionUpdate;
+    if (update != null) {
+      unawaited(
+        update.then((text) {
+          if (mounted) setState(() => caption = text);
+        }, onError: (_) {}),
+      );
+    }
+  }
 
   void _markUsed() => widget.used?.value = true;
 

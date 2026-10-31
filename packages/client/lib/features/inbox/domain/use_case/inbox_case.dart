@@ -171,6 +171,24 @@ final class InboxCase extends UseCaseBase {
     }
   }
 
+  /// Undo of [recordInviteDeclineNote]: the invitation is pending again, so
+  /// the row is no longer a rejected one. Best-effort, like the write it
+  /// undoes; an empty [message] means nothing was written.
+  Future<void> forgetInviteDeclineNote({
+    required String beaconId,
+    required String message,
+  }) async {
+    if (message.isEmpty) return;
+    try {
+      await _repository.setStatus(
+        beaconId: beaconId,
+        status: InboxItemStatus.needsMe,
+      );
+    } on Object {
+      // The invitation is back; a stale note is harmless.
+    }
+  }
+
   /// «Can't help» (#486): the author is told, with [message]. False when
   /// the server refused (nothing to answer any more).
   Future<bool> cantHelp({required String beaconId, String message = ''}) =>

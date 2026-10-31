@@ -222,6 +222,18 @@ abstract class BeaconRoomRepositoryPort {
 
   Future<List<RoomReadWatermarkRecord>> mainRoomReadWatermarks(String beaconId);
 
+  /// #766: [userId] opened the Request view now (server clock). Monotonic;
+  /// returns the stored time.
+  Future<DateTime> markBeaconUpdateSeen({
+    required String userId,
+    required String beaconId,
+  });
+
+  /// #766: members who opened the Request at or after its latest next-step
+  /// update, newest first. The update's author is not listed; a Request
+  /// without an update has no readers.
+  Future<List<RoomReadWatermarkRecord>> latestUpdateReaders(String beaconId);
+
   Future<DateTime> markBeaconRoomSeen({
     required String userId,
     required String beaconId,

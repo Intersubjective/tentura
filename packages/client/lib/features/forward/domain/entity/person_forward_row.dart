@@ -56,6 +56,7 @@ abstract class PersonForwardRow with _$PersonForwardRow {
       CandidateInvolvement.helpOffered => PersonForwardBlock.alreadyHelping,
       CandidateInvolvement.declined => PersonForwardBlock.declined,
       CandidateInvolvement.withdrawn => PersonForwardBlock.withdrawn,
+      CandidateInvolvement.offerDeclinedByAuthor => PersonForwardBlock.declined,
       CandidateInvolvement.author => PersonForwardBlock.theirOwn,
       CandidateInvolvement.unseen ||
       CandidateInvolvement.forwarded ||

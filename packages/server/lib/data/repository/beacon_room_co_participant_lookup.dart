@@ -47,4 +47,26 @@ class BeaconRoomCoParticipantLookup
     )).get();
     return coParticipantRows.map((r) => r.userId).toSet();
   }
+
+  @override
+  Future<Set<String>> roomMemberUserIds({required String beaconId}) async {
+    final authors = await (_database.select(
+      _database.beacons,
+    )..where((b) => b.id.equals(beaconId))).get();
+    final stewards = await (_database.select(
+      _database.beaconStewards,
+    )..where((s) => s.beaconId.equals(beaconId))).get();
+    final admitted = await (_database.select(
+      _database.beaconParticipants,
+    )..where(
+      (p) =>
+          p.beaconId.equals(beaconId) &
+          p.roomAccess.equals(RoomAccessBits.admitted),
+    )).get();
+    return {
+      for (final b in authors) ?b.userId,
+      for (final s in stewards) s.userId,
+      for (final p in admitted) p.userId,
+    };
+  }
 }

@@ -74,6 +74,25 @@ class AuthLocalRepository implements AuthLocalRepositoryPort {
       accountModelToEntity(account),
   ];
 
+  /// Restores the cache after a failed web import, before opening completes.
+  /// One atomic insert preserves existing rows and can rerun after a crash.
+  static Future<void> restoreSeedAccounts(QueryExecutor executor) async {
+    final stored = await LocalSecureStorage().readAll();
+    final ids = [
+      for (final entry in stored.entries)
+        if (entry.key.startsWith(_accountKeyPrefix) &&
+            entry.key.length > _accountKeyPrefix.length &&
+            entry.value.isNotEmpty)
+          entry.key.substring(_accountKeyPrefix.length),
+    ];
+    if (ids.isEmpty) return;
+    await executor.runInsert(
+      'INSERT OR IGNORE INTO accounts (id) VALUES '
+      '${List.filled(ids.length, '(?)').join(', ')}',
+      ids,
+    );
+  }
+
   //
   //
   @override
@@ -217,6 +236,8 @@ class AuthLocalRepository implements AuthLocalRepositoryPort {
 
   static const _currentAccountKey = '$_repositoryKey:currentAccountId';
 
+  static const _accountKeyPrefix = '$_repositoryKey:Id:';
+
   //
-  static String _getAccountKey(String id) => '$_repositoryKey:Id:$id';
+  static String _getAccountKey(String id) => '$_accountKeyPrefix$id';
 }

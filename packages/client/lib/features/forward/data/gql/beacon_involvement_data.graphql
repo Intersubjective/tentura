@@ -6,6 +6,7 @@ query BeaconInvolvementData($id: String!) {
     forwardedToIds
     helpOfferedIds
     withdrawnIds
+    declinedOfferIds
     rejectedIds
     watchingIds
     onwardForwarderIds

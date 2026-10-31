@@ -35,6 +35,10 @@ abstract class RoomState extends StateBase with _$RoomState {
     @Default(<String, RoomReadWatermark>{})
     Map<String, RoomReadWatermark> readWatermarks,
 
+    /// Other members typing in this room right now, in the order they began;
+    /// never the viewer.
+    @Default(<String>[]) List<String> typingUserIds,
+
     /// True after [readWatermarks] has been fetched successfully at least once.
     @Default(false) bool readWatermarksLoaded,
     @Default(<BeaconFactCard>[]) List<BeaconFactCard> factCards,

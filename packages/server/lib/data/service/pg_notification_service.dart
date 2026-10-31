@@ -31,17 +31,24 @@ class PgNotificationService {
   /// all of them. The payload names the user; receivers read the status.
   static const presenceChannel = 'user_presence';
 
+  /// Typing starts and stops in a Request room: the typist's socket and the
+  /// room's other members' sockets are often on different workers. Payloads
+  /// are never stored.
+  static const roomTypingChannel = 'room_typing';
+
   final Env _env;
   final PgNotificationConnector _connector;
   final Duration Function(int attempt) _reconnectDelay;
   final _controller = StreamController<String>.broadcast();
   final _presenceController = StreamController<String>.broadcast();
+  final _roomTypingController = StreamController<String>.broadcast();
   final _recoveryController =
       StreamController<PgNotificationRecovery>.broadcast();
 
   PgNotificationConnection? _connection;
   StreamSubscription<String>? _sub;
   StreamSubscription<String>? _presenceSub;
+  StreamSubscription<String>? _roomTypingSub;
   Timer? _reconnectTimer;
   int _reconnectAttempts = 0;
   int _recoverySequence = 0;
@@ -82,6 +89,9 @@ class PgNotificationService {
   /// Payloads on [presenceChannel], from every worker this one included.
   Stream<String> get presenceNotifications => _presenceController.stream;
 
+  /// Payloads on [roomTypingChannel], from every worker this one included.
+  Stream<String> get roomTypingNotifications => _roomTypingController.stream;
+
   /// Emits once after a failed LISTEN connection has been replaced.
   /// Initial startup deliberately emits nothing.
   Stream<PgNotificationRecovery> get recoveryNotifications =>
@@ -102,11 +112,19 @@ class PgNotificationService {
     );
     await connection.listen(_channel);
     await connection.listen(presenceChannel);
+    await connection.listen(roomTypingChannel);
     _connection = connection;
     _presenceSub = connection
         .channel(presenceChannel)
         .listen(
           _presenceController.add,
+          // The entity_changes subscription below owns reconnects.
+          onError: (Object _) {},
+        );
+    _roomTypingSub = connection
+        .channel(roomTypingChannel)
+        .listen(
+          _roomTypingController.add,
           // The entity_changes subscription below owns reconnects.
           onError: (Object _) {},
         );
@@ -156,6 +174,7 @@ class PgNotificationService {
     try {
       await _sub?.cancel();
       await _presenceSub?.cancel();
+      await _roomTypingSub?.cancel();
       await _connection?.close();
       _connection = null;
       await _connect(isRecovery: true);
@@ -180,9 +199,11 @@ class PgNotificationService {
     _reconnectTimer?.cancel();
     await _sub?.cancel();
     await _presenceSub?.cancel();
+    await _roomTypingSub?.cancel();
     await _connection?.close();
     await _controller.close();
     await _presenceController.close();
+    await _roomTypingController.close();
     await _recoveryController.close();
   }
 }

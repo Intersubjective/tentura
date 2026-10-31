@@ -59,6 +59,7 @@ class _DelayedAuthorForwards extends FakeBeaconViewForwardRepository {
     forwardedToIds: {for (final p in _recipients) p.id},
     helpOfferedIds: const <String>{},
     withdrawnIds: const <String>{},
+    declinedOfferIds: const <String>{},
     rejectedIds: {for (final p in _recipients) p.id},
     watchingIds: const <String>{},
     onwardForwarderIds: const <String>{},

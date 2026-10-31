@@ -35,7 +35,12 @@ Future<void> runBeaconInviteFlow(
   // A request invite says what it does: who it brings in, to what, and
   // that the link is single-use with a limited life (#452).
   final forBeacon = beaconId.isNotEmpty;
-  const days = kInvitationDefaultTTL ~/ 24;
+  // The dialog opens at once on the compiled default and corrects its day
+  // count when the served lifetime arrives.
+  final servedDays = invitations.inviteTtlDays();
+  String body(int days) => isPost
+      ? l10n.forwardInviteDialogBodyPost(days)
+      : l10n.forwardInviteDialogBody(days);
   final used = await ShareCodeDialog.show(
     context,
     header: !forBeacon
@@ -43,11 +48,8 @@ Future<void> runBeaconInviteFlow(
         : isPost
         ? l10n.forwardInviteDialogTitlePost
         : l10n.forwardInviteDialogTitle,
-    caption: !forBeacon
-        ? null
-        : isPost
-        ? l10n.forwardInviteDialogBodyPost(days)
-        : l10n.forwardInviteDialogBody(days),
+    caption: forBeacon ? body(kInvitationDefaultTTL ~/ 24) : null,
+    captionUpdate: forBeacon ? servedDays.then(body) : null,
     link: inviteShareUri(invitation.id),
   );
   // Closed without Copy, Share, a hand selection of the link (#605) or a

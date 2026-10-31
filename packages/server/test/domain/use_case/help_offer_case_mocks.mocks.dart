@@ -2658,6 +2658,40 @@ class MockBeaconRoomRepositoryPort extends _i1.Mock
           as _i3.Future<List<_i27.RoomReadWatermarkRecord>>);
 
   @override
+  _i3.Future<DateTime> markBeaconUpdateSeen({
+    required String? userId,
+    required String? beaconId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#markBeaconUpdateSeen, [], {
+              #userId: userId,
+              #beaconId: beaconId,
+            }),
+            returnValue: _i3.Future<DateTime>.value(
+              _FakeDateTime_5(
+                this,
+                Invocation.method(#markBeaconUpdateSeen, [], {
+                  #userId: userId,
+                  #beaconId: beaconId,
+                }),
+              ),
+            ),
+          )
+          as _i3.Future<DateTime>);
+
+  @override
+  _i3.Future<List<_i27.RoomReadWatermarkRecord>> latestUpdateReaders(
+    String? beaconId,
+  ) =>
+      (super.noSuchMethod(
+            Invocation.method(#latestUpdateReaders, [beaconId]),
+            returnValue: _i3.Future<List<_i27.RoomReadWatermarkRecord>>.value(
+              <_i27.RoomReadWatermarkRecord>[],
+            ),
+          )
+          as _i3.Future<List<_i27.RoomReadWatermarkRecord>>);
+
+  @override
   _i3.Future<DateTime> markBeaconRoomSeen({
     required String? userId,
     required String? beaconId,

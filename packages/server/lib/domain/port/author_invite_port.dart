@@ -45,6 +45,11 @@ abstract interface class AuthorInvitePort {
     required String? resolvedBy,
   });
 
+  /// Moves the declined invite [inviteId] back to pending and returns it, or
+  /// returns null when it was not declined. Also reopens the contact that the
+  /// decline resolved, so the invitee is again undecided on the delivery edge.
+  Future<AuthorInvite?> reopenDeclined(String inviteId);
+
   /// Withdraws every pending invite between [a] and [b] (either direction;
   /// block cleanup) and returns them.
   Future<List<AuthorInvite>> withdrawPendingBetween(String a, String b);

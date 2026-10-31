@@ -304,9 +304,12 @@ BeaconInvolvementCase _buildBeaconInvolvementCase({
       .thenAnswer((_) async => []);
   when(inbox.fetchWatchingUserIdsByBeacon(beaconId))
       .thenAnswer((_) async => []);
+  final admission = help_mocks.MockHelpOfferAdmissionRepositoryPort();
+  when(admission.latestForBeacon(beaconId)).thenAnswer((_) async => {});
   return BeaconInvolvementCase(
     forward,
     help,
+    admission,
     inbox,
     access,
     env: _env,

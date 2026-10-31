@@ -190,6 +190,17 @@ class InvitationCubit extends Cubit<InvitationState> {
     }
   }
 
+  /// Days an invitation stays valid. A failed lookup only costs the hint its
+  /// accuracy, so it falls back to the compiled default instead of blocking
+  /// the invite.
+  Future<int> inviteTtlDays() async {
+    try {
+      return await _invitationRepository.fetchTtlHours() ~/ 24;
+    } catch (_) {
+      return kInvitationDefaultTTL ~/ 24;
+    }
+  }
+
   Future<InvitationEntity?> createInvitation({
     required String addresseeName,
     String? beaconId,

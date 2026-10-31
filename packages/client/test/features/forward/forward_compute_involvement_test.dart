@@ -21,6 +21,7 @@ BeaconInvolvementData _involvement({
   forwardedToIds: forwardedToIds,
   helpOfferedIds: helpOfferedIds,
   withdrawnIds: withdrawnIds,
+  declinedOfferIds: const <String>{},
   rejectedIds: rejectedIds,
   watchingIds: watchingIds,
   onwardForwarderIds: onwardForwarderIds,

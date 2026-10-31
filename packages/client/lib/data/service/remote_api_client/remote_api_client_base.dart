@@ -62,6 +62,13 @@ abstract base class RemoteApiClientBase {
 
   bool get isSessionAuth => _sessionAuth;
 
+  /// Decoded server frames of the realtime socket; empty for a client that
+  /// has none (the socket comes with `RemoteApiClientWs`).
+  Stream<Map<String, dynamic>> get webSocketMessages => const Stream.empty();
+
+  /// Sends a frame on the realtime socket; dropped without one.
+  void webSocketSend(Object message) {}
+
   bool get hasValidToken =>
       _sessionAuth
           ? (_sessionCredentials?.hasValidToken ?? false)

@@ -24,6 +24,7 @@ import 'package:tentura/features/beacon_threads/data/repository/beacon_room_hint
 import 'package:tentura/features/beacon_threads/data/repository/beacon_threads_repository.dart';
 import 'package:tentura/features/beacon_threads/domain/coordination_item_room_sync.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/beacon_room_invalidation.dart';
+import 'package:tentura/features/beacon_threads/domain/entity/room_typing_signal.dart';
 import 'package:tentura/features/beacon_threads/domain/room_read_watermark_store.dart';
 import 'package:tentura/features/beacon_threads/domain/use_case/beacon_threads_case.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
@@ -107,6 +108,12 @@ class FakeBeaconThreadsRepository extends Fake
 
   @override
   Stream<String> get beaconRoomRefresh => const Stream.empty();
+
+  @override
+  Stream<RoomTypingSignal> get roomTypingSignals => const Stream.empty();
+
+  @override
+  void sendRoomTyping({required String beaconId, required bool typing}) {}
 
   @override
   Stream<BeaconRoomInvalidation> get beaconRoomInvalidations =>

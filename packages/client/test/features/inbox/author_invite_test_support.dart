@@ -21,9 +21,13 @@ final class FakeAuthorInvitePort implements AuthorInvitePort {
   List<PendingAuthorInvite> pending = const [];
   final accepted = <String>[];
   final declined = <String>[];
+  final revertedDeclines = <String>[];
 
   /// When set, accept/decline throw it (after [gate], if any).
   Exception? error;
+
+  /// When set, only the take-back of a decline throws it.
+  Exception? revertError;
 
   /// When set, accept/decline wait on it, so a test can look at the
   /// optimistic state before the server answers.
@@ -48,6 +52,18 @@ final class FakeAuthorInvitePort implements AuthorInvitePort {
   @override
   Future<AuthorInvite> decline({required String inviteId}) =>
       _answer(inviteId, declined, AuthorInviteStatus.declined);
+
+  @override
+  Future<AuthorInvite> revertDecline({required String inviteId}) async {
+    revertedDeclines.add(inviteId);
+    final e = revertError;
+    if (e != null) throw e;
+    return AuthorInvite(
+      id: inviteId,
+      beaconId: 'B',
+      status: AuthorInviteStatus.pending,
+    );
+  }
 
   @override
   Future<List<PendingAuthorInvite>> myPending() async => pending;

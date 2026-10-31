@@ -370,6 +370,9 @@ final class _EveryoneIsAFriend
   }) async => peerIds.toSet();
 
   @override
+  Future<Set<String>> roomMemberUserIds({required String beaconId}) async => {};
+
+  @override
   Future<({Set<String> viewerTrusts, Set<String> trustsViewer})>
   directionalPositiveTrustPeerIds({
     required String viewerId,

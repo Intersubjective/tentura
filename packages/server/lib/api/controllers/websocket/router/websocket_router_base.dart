@@ -5,6 +5,7 @@ import 'dart:isolate';
 import 'package:tentura_server/data/service/pg_notification_service.dart';
 
 import '../path_handler/websocket_path_entity_changes.dart';
+import '../path_handler/websocket_path_room_typing.dart';
 import '../path_handler/websocket_path_user_presence.dart';
 import 'websocket_message_router.dart';
 import '../session/websocket_session_handler_base.dart';
@@ -14,6 +15,7 @@ base class WebsocketRouterBase extends WebsocketSessionHandlerBase
     with
         WebsocketPathUserPresence,
         WebsocketPathEntityChanges,
+        WebsocketPathRoomTyping,
         WebsocketMessageRouter,
         WebsocketSubscriptionRouter {
   WebsocketRouterBase(
@@ -41,6 +43,13 @@ base class WebsocketRouterBase extends WebsocketSessionHandlerBase
         '[WebsocketRouterBase] PG user_presence error: $e',
       ),
     );
+    _roomTypingSubscription = pgNotificationService.roomTypingNotifications
+        .listen(
+          _onRoomTypingNotification,
+          onError: (Object e) => logger.severe(
+            '[WebsocketRouterBase] PG room_typing error: $e',
+          ),
+        );
     _recoverySubscription = pgNotificationService.recoveryNotifications.listen(
       _onPgListenerRecovery,
       onError: (Object e) => logger.severe(
@@ -53,13 +62,16 @@ base class WebsocketRouterBase extends WebsocketSessionHandlerBase
 
   late final StreamSubscription<String> _entityChangeSubscription;
   late final StreamSubscription<String> _presenceSubscription;
+  late final StreamSubscription<String> _roomTypingSubscription;
   late final StreamSubscription<PgNotificationRecovery> _recoverySubscription;
 
   Future<void> dispose() async {
     cancelPendingPresenceWrites();
     disposeEntityChanges();
+    disposeRoomTyping();
     await _entityChangeSubscription.cancel();
     await _presenceSubscription.cancel();
+    await _roomTypingSubscription.cancel();
     await _recoverySubscription.cancel();
   }
 
@@ -118,6 +130,56 @@ base class WebsocketRouterBase extends WebsocketSessionHandlerBase
         '[WebsocketRouterBase] presence leaving NOTIFY failed: $e',
       );
     }
+  }
+
+  /// Carries the typing change to every web worker, this one included. Without
+  /// a NOTIFY connection, at least this worker's members hear it.
+  @override
+  Future<void> announceRoomTyping(
+    String beaconId,
+    String userId, {
+    required bool typing,
+  }) async {
+    try {
+      await pgNotificationService.notify(
+        PgNotificationService.roomTypingChannel,
+        jsonEncode({
+          'beacon_id': beaconId,
+          'user_id': userId,
+          'typing': typing,
+        }),
+      );
+    } on Object catch (e) {
+      logger.warning(
+        '[WebsocketRouterBase] room typing NOTIFY failed, local fan-out only: '
+        '$e',
+      );
+      await fanOutRoomTyping(beaconId, userId, typing: typing);
+    }
+  }
+
+  void _onRoomTypingNotification(String payload) {
+    unawaited(() async {
+      try {
+        final data = jsonDecode(payload);
+        if (data is! Map<String, dynamic>) return;
+        final beaconId = data['beacon_id'];
+        final userId = data['user_id'];
+        final typing = data['typing'];
+        if (beaconId is! String ||
+            beaconId.isEmpty ||
+            userId is! String ||
+            userId.isEmpty ||
+            typing is! bool) {
+          return;
+        }
+        await fanOutRoomTyping(beaconId, userId, typing: typing);
+      } catch (e) {
+        logger.warning(
+          '[WebsocketRouterBase] room typing notification failed: $e',
+        );
+      }
+    }());
   }
 
   Future<void> _fanOutPresenceQuietly(String userId) async {

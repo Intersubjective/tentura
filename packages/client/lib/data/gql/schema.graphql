@@ -3832,6 +3832,7 @@ type mutation_root {
   beaconAuthorInviteAccept(inviteId: String!): v2_AuthorInviteResult!
   beaconAuthorInviteCreate(beaconId: String!, note: String, userId: String!): v2_AuthorInviteCreateResult!
   beaconAuthorInviteDecline(inviteId: String!): v2_AuthorInviteResult!
+  beaconAuthorInviteRevertDecline(inviteId: String!): v2_AuthorInviteResult!
   beaconAuthorInviteWithdraw(inviteId: String!): v2_AuthorInviteResult!
   beaconBudFromPost(addressLabel: String, clientCommandId: String!, closePost: Boolean, context: String, coordinates: v2_Coordinates = {}, description: String, endAt: String, invitees: [v2_PostBudInviteeInput!], isDiscoverable: Boolean, needs: String, postId: String!, primaryNeedSlug: String, sourceMessageId: String!, startAt: String, tags: String, title: String!): v2_PostBudResult!
   beaconCancel(id: String!): v2_BeaconCancelResult!
@@ -4767,6 +4768,7 @@ type query_root {
   activityAttention(beaconId: String!, cursor: String, limit: Int): v2_ActivityBeaconAttention!
   activityOffers(beaconId: String, cursor: String, limit: Int): v2_ActivityOfferPage!
   attentionClearSnapshot(beaconId: String, kind: String!, receiptId: String): v2_AttentionClearSnapshot!
+  beaconUpdateSeenBy(id: String!): [v2_BeaconUpdateReader!]!
   attentionFeed(cursor: String, limit: Int, search: String, surface: String, view: String!): v2_AttentionFeed!
   attentionMarkers(beaconIds: [String!]): v2_AttentionMarkers!
   attentionRequestHistory(beaconId: String!, cursor: String, limit: Int): v2_AttentionPage!
@@ -5314,6 +5316,7 @@ type query_root {
     where: invitation_bool_exp
   ): [invitation!]!
   invitationById(id: String!): v2_Invitation
+  invitationTtlHours: Int!
 
   """
   fetch aggregated fields from the table: "invitation"
@@ -7940,6 +7943,7 @@ type v2_BeaconInvolvement {
   rejectedIds: [String!]
   watchingIds: [String!]
   withdrawnIds: [String!]
+  declinedOfferIds: [String!]
 }
 
 type v2_BeaconLineageForwardSuggestions {
@@ -7995,6 +7999,17 @@ type v2_BeaconPromotionSource {
   sourceBeaconId: String!
   sourceMessageId: String!
   textPreview: String!
+}
+
+type v2_BeaconUpdateReader {
+  seenAt: String!
+  userBlurHash: String!
+  userHasPicture: Boolean!
+  userId: String!
+  userImageId: String!
+  userPicHeight: Int!
+  userPicWidth: Int!
+  userTitle: String!
 }
 
 type v2_BeaconPeopleSeenResult {

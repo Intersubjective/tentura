@@ -50,6 +50,7 @@ class _FakeForwardRepository implements ForwardRepository {
     forwardedToIds: <String>{},
     helpOfferedIds: <String>{},
     withdrawnIds: <String>{},
+    declinedOfferIds: <String>{},
     rejectedIds: <String>{},
     watchingIds: <String>{},
     onwardForwarderIds: <String>{},

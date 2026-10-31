@@ -15,6 +15,9 @@ class LocalSecureStorage {
     () => _secureStorage.read(key: key),
   );
 
+  Future<Map<String, String>> readAll() =>
+      _lock.synchronized(_secureStorage.readAll);
+
   Future<void> write(String key, String? value) => _lock.synchronized(
     () => _secureStorage.write(key: key, value: value),
   );

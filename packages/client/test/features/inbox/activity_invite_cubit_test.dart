@@ -21,6 +21,7 @@ import 'package:tentura/domain/entity/author_invite.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon/domain/beacon_hierarchy_exception.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
+import 'package:tentura/ui/message/action_message_base.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'author_invite_test_support.dart';
@@ -408,6 +409,133 @@ void main() {
       expect(ids().first, 'B9');
       expect(cubit.state.declinedInviteBeacons, contains('B9'));
       expect(cubit.state.inviteIdByBeacon.containsKey('B9'), isFalse);
+    });
+  });
+
+  // #797: «Can't make it» is easy to hit by mistake, so a taken decline offers
+  // a short Undo that asks the server to put the invitation back.
+  group("undo after «Can't make it»", () {
+    /// The undo offer the cubit put on the effect bus, if any.
+    LocalizableActionMessage? undoOffer() => effects.emitted
+        .whereType<ShowMessage>()
+        .map((e) => e.message)
+        .whereType<LocalizableActionMessage>()
+        .firstOrNull;
+
+    /// The undo offer, failing with the reason when there is none.
+    LocalizableActionMessage requireUndoOffer() {
+      final offer = undoOffer();
+      expect(offer, isNotNull, reason: 'the decline offers an Undo');
+      return offer!;
+    }
+
+    test('a decline the server took offers Undo, in both languages, '
+        'with plain copy', () async {
+      await loadWithInvite();
+
+      await cubit.declineInvite('B2', message: 'Away that weekend');
+
+      final offer = undoOffer();
+      expect(offer, isNotNull, reason: 'the decline offers an Undo');
+      expect(offer!.label.toEn, 'Undo');
+      expect(offer.label.toRu, 'Отменить');
+      for (final text in [offer.toEn, offer.toRu]) {
+        expect(text.trim(), isNotEmpty);
+        expect(
+          text,
+          isNot(matches(RegExp(r'^[a-z]+(?:[A-Z][a-z0-9]*)+$'))),
+          reason: 'a raw l10n key must never reach the person',
+        );
+      }
+      expect(offer.toRu, matches(RegExp('[А-Яа-я]')));
+    });
+
+    test(
+      'the Undo is not offered before the server took the decline',
+      () async {
+        await loadWithInvite();
+        invitePort.gate = Completer<void>();
+
+        final declining = cubit.declineInvite('B2');
+        await _settle(2);
+        expect(undoOffer(), isNull, reason: 'nothing to take back yet');
+
+        invitePort.gate!.complete();
+        await declining;
+        expect(undoOffer(), isNotNull);
+      },
+    );
+
+    test('a decline the server refused offers no Undo', () async {
+      await loadWithInvite();
+      invitePort.error = const AuthorInviteNotPendingException('withdrawn');
+
+      await cubit.declineInvite('B2');
+
+      expect(undoOffer(), isNull);
+      expect(effects.emitted.whereType<ShowError>(), hasLength(1));
+    });
+
+    test('pressing Undo reverts the decline and the invitation is pending '
+        'again, in its place, with its words', () async {
+      await loadWithInvite();
+      await cubit.declineInvite('B2', message: 'Away that weekend');
+      expect(ids(), ['B1', 'B3']);
+      final offer = requireUndoOffer();
+
+      offer.onPressed();
+      await _settle();
+
+      expect(invitePort.revertedDeclines, ['I1']);
+      expect(ids(), ['B1', 'B2', 'B3']);
+      expect(cubit.state.inviteIdByBeacon, {'B2': 'I1'});
+      expect(cubit.state.invites['I1']?.note, 'You have a ladder');
+      expect(cubit.state.declinedInviteBeacons, isNot(contains('B2')));
+      expect(effects.emitted.whereType<ShowError>(), isEmpty);
+    });
+
+    test('Undo is not a second decline: after it the invite can be '
+        'answered again', () async {
+      await loadWithInvite();
+      await cubit.declineInvite('B2');
+      requireUndoOffer().onPressed();
+      await _settle();
+
+      await cubit.acceptInvite('B2');
+
+      expect(invitePort.accepted, ['I1']);
+      expect(ids(), ['B1', 'B3']);
+    });
+
+    test('pressing Undo twice reverts once', () async {
+      await loadWithInvite();
+      await cubit.declineInvite('B2');
+      final offer = requireUndoOffer();
+
+      offer.onPressed();
+      offer.onPressed();
+      await _settle();
+
+      expect(invitePort.revertedDeclines, ['I1']);
+    });
+
+    test('a refused Undo (expired, replaced, Request closed) shows the '
+        'error and leaves the row out', () async {
+      await loadWithInvite();
+      await cubit.declineInvite('B2');
+      const refusal = AuthorInviteRequestNotOpenException();
+      invitePort.revertError = refusal;
+
+      requireUndoOffer().onPressed();
+      await _settle();
+
+      expect(invitePort.revertedDeclines, ['I1']);
+      expect(ids(), ['B1', 'B3']);
+      expect(cubit.state.inviteIdByBeacon, isEmpty);
+      expect(
+        effects.emitted.whereType<ShowError>().single.error,
+        same(refusal),
+      );
     });
   });
 }

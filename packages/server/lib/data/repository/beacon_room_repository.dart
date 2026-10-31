@@ -2112,25 +2112,86 @@ RETURNING last_seen_at
                 ),
               ]))
             .get();
+    return _withUserMeta([
+      for (final row in rows) (row.userId, row.lastSeenAt.dateTime.toUtc()),
+    ]);
+  }
+
+  @override
+  Future<DateTime> markBeaconUpdateSeen({
+    required String userId,
+    required String beaconId,
+  }) => _db.withMutatingUser(userId, () async {
+    // Server clock, like the next step's `updated_at`, so «seen after the
+    // update» compares two times from the same clock.
+    final row = await _db
+        .customSelect(
+          r'''
+INSERT INTO public.beacon_update_seen (user_id, beacon_id, last_seen_at)
+VALUES ($1, $2, now())
+ON CONFLICT (user_id, beacon_id)
+DO UPDATE SET last_seen_at = GREATEST(
+  beacon_update_seen.last_seen_at, EXCLUDED.last_seen_at
+)
+RETURNING last_seen_at
+''',
+          variables: [Variable<String>(userId), Variable<String>(beaconId)],
+        )
+        .getSingle();
+    return DateTime.parse(row.read<String>('last_seen_at')).toUtc();
+  });
+
+  @override
+  Future<List<RoomReadWatermarkRecord>> latestUpdateReaders(
+    String beaconId,
+  ) async {
+    final rows = await _db
+        .customSelect(
+          r'''
+SELECT seen.user_id, seen.last_seen_at
+FROM public.beacon_room_state st
+JOIN public.beacon_update_seen seen
+  ON seen.beacon_id = st.beacon_id
+ AND seen.last_seen_at >= st.updated_at
+WHERE st.beacon_id = $1
+  AND seen.user_id IS DISTINCT FROM st.updated_by
+ORDER BY seen.last_seen_at DESC
+''',
+          variables: [Variable<String>(beaconId)],
+        )
+        .get();
+    return _withUserMeta([
+      for (final row in rows)
+        (
+          row.read<String>('user_id'),
+          DateTime.parse(row.read<String>('last_seen_at')).toUtc(),
+        ),
+    ]);
+  }
+
+  /// Read rows `(userId, seenAt)` with each reader's name and picture.
+  Future<List<RoomReadWatermarkRecord>> _withUserMeta(
+    List<(String, DateTime)> rows,
+  ) async {
     if (rows.isEmpty) {
       return const [];
     }
 
-    final userIds = rows.map((row) => row.userId).toList();
+    final userIds = rows.map((row) => row.$1).toList();
     final titlesByUserId = await userTitlesByIds(userIds);
     final picMetaByUserId = await userPicMetaByIds(userIds);
 
     return [
-      for (final row in rows)
+      for (final (userId, seenAt) in rows)
         RoomReadWatermarkRecord(
-          userId: row.userId,
-          lastSeenAt: row.lastSeenAt.dateTime.toUtc(),
-          userTitle: titlesByUserId[row.userId] ?? '',
-          userHasPicture: picMetaByUserId[row.userId]?.hasPicture ?? false,
-          userPicHeight: picMetaByUserId[row.userId]?.picHeight ?? 0,
-          userPicWidth: picMetaByUserId[row.userId]?.picWidth ?? 0,
-          userBlurHash: picMetaByUserId[row.userId]?.blurHash ?? '',
-          userImageId: picMetaByUserId[row.userId]?.imageId ?? '',
+          userId: userId,
+          lastSeenAt: seenAt,
+          userTitle: titlesByUserId[userId] ?? '',
+          userHasPicture: picMetaByUserId[userId]?.hasPicture ?? false,
+          userPicHeight: picMetaByUserId[userId]?.picHeight ?? 0,
+          userPicWidth: picMetaByUserId[userId]?.picWidth ?? 0,
+          userBlurHash: picMetaByUserId[userId]?.blurHash ?? '',
+          userImageId: picMetaByUserId[userId]?.imageId ?? '',
         ),
     ];
   }

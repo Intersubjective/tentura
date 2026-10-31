@@ -42,6 +42,7 @@ import '../../domain/entity/room_composer_intent.dart';
 import '../../domain/entity/committed_mention.dart';
 import '../../domain/entity/request_thread.dart';
 import '../../domain/entity/room_seen_outcome.dart';
+import '../../domain/entity/room_typing_signal.dart';
 import '../../domain/exception/beacon_fact_already_pinned_exception.dart';
 import '../../domain/room_host.dart';
 import '../../domain/exception/beacon_fact_card_exceptions.dart';
@@ -101,9 +102,15 @@ class RoomCubit extends Cubit<RoomState> {
        ) {
     _refreshSub = _case.beaconRoomInvalidations.listen(_onRoomInvalidation);
     _catchUpsSub = _case.catchUps.listen(
-      (_) => _requestRefresh(scope: _RoomRefreshScope.full),
+      (_) {
+        // Typing intents sent while the socket was down are lost: a name
+        // kept from before would only leave at its expiry.
+        _forgetTypists();
+        unawaited(_requestRefresh(scope: _RoomRefreshScope.full));
+      },
       cancelOnError: false,
     );
+    _typingSub = _case.roomTypingSignals.listen(_onTypingSignal);
     if (threadItemId == null) {
       _itemSyncSub = _itemSync.changes
           .where((item) => item.beaconId == beaconId)
@@ -198,6 +205,85 @@ class RoomCubit extends Cubit<RoomState> {
   late final StreamSubscription<BeaconRoomInvalidation> _refreshSub;
 
   late final StreamSubscription<void> _catchUpsSub;
+
+  late final StreamSubscription<RoomTypingSignal> _typingSub;
+
+  /// The server relays one typing intent per sender every 3 s, so a typist
+  /// who keeps typing is refreshed about that often.
+  static const _typingRefreshInterval = Duration(seconds: 3);
+
+  /// A typist stays listed this long without a refresh: past a skipped
+  /// relay (6 s between two), short enough that a lost stop does not
+  /// leave the name up.
+  static const _typingExpiry = Duration(seconds: 8);
+
+  final _typingExpiryTimers = <String, Timer>{};
+
+  /// When the viewer's last typing start was sent; null when not typing.
+  DateTime? _typingSentAt;
+
+  void _onTypingSignal(RoomTypingSignal signal) {
+    if (isClosed ||
+        signal.beaconId != state.beaconId ||
+        signal.userId == state.myUserId) {
+      return;
+    }
+    final userId = signal.userId;
+    _typingExpiryTimers.remove(userId)?.cancel();
+    if (!signal.typing) {
+      _dropTypist(userId);
+      return;
+    }
+    _typingExpiryTimers[userId] = Timer(_typingExpiry, () {
+      _typingExpiryTimers.remove(userId);
+      _dropTypist(userId);
+    });
+    if (!state.typingUserIds.contains(userId)) {
+      _setTypingUsers([...state.typingUserIds, userId]);
+    }
+  }
+
+  void _dropTypist(String userId) => _setTypingUsers([
+    for (final id in state.typingUserIds)
+      if (id != userId) id,
+  ]);
+
+  void _setTypingUsers(List<String> userIds) {
+    if (isClosed || userIds.length == state.typingUserIds.length) return;
+    emit(state.copyWith(typingUserIds: userIds));
+  }
+
+  void _forgetTypists() {
+    for (final timer in _typingExpiryTimers.values) {
+      timer.cancel();
+    }
+    _typingExpiryTimers.clear();
+    _setTypingUsers(const []);
+  }
+
+  /// The composer's current text, on every edit: tells the room's other
+  /// members the viewer is typing (at most once per
+  /// [_typingRefreshInterval]) and that they stopped when the text is empty.
+  void composerTextChanged(String text) {
+    if (_blocksDiscussionWrite) return;
+    if (text.trim().isEmpty) {
+      _stopTyping();
+      return;
+    }
+    final sentAt = _typingSentAt;
+    final now = DateTime.now();
+    if (sentAt != null && now.difference(sentAt) < _typingRefreshInterval) {
+      return;
+    }
+    _typingSentAt = now;
+    _case.sendRoomTyping(beaconId: state.beaconId, typing: true);
+  }
+
+  void _stopTyping() {
+    if (_typingSentAt == null) return;
+    _typingSentAt = null;
+    _case.sendRoomTyping(beaconId: state.beaconId, typing: false);
+  }
 
   StreamSubscription<CoordinationItem>? _itemSyncSub;
 
@@ -1314,6 +1400,7 @@ class RoomCubit extends Cubit<RoomState> {
     if (trimmed.isEmpty && uploads.isEmpty && quotedFact == null) {
       return false;
     }
+    _stopTyping();
     final leadingTrimmedUnits = body.length - body.trimLeft().length;
     final trailingBoundary = body.trimRight().length;
     final normalizedMentions = [
@@ -1930,7 +2017,13 @@ class RoomCubit extends Cubit<RoomState> {
     // fake clock, which left close() (and the host awaiting it) pending.
     unawaited(_refreshSub.cancel());
     unawaited(_catchUpsSub.cancel());
+    unawaited(_typingSub.cancel());
     unawaited(_itemSyncSub?.cancel());
+    _stopTyping();
+    for (final timer in _typingExpiryTimers.values) {
+      timer.cancel();
+    }
+    _typingExpiryTimers.clear();
     // close() is not a read: flush only when the last bottom-of-list callback
     // happened after the last inbound message arrived.
     final atBottomSince = _atBottomSince;

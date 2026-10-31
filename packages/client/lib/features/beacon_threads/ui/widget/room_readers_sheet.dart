@@ -15,10 +15,12 @@ class RoomReaderEntry {
   final DateTime readAt;
 }
 
-/// Bottom sheet listing everyone who has read the message.
+/// Bottom sheet listing everyone who has read the message ([title] names
+/// what they read when it is not a message).
 Future<void> showRoomReadersSheet(
   BuildContext context, {
   required List<RoomReaderEntry> readers,
+  String? title,
 }) async {
   if (readers.isEmpty) {
     return;
@@ -47,7 +49,7 @@ Future<void> showRoomReadersSheet(
                   bottom: tt.rowGap,
                 ),
                 child: Text(
-                  l10n.beaconRoomReadByTitle,
+                  title ?? l10n.beaconRoomReadByTitle,
                   style: theme.textTheme.titleMedium,
                   textAlign: TextAlign.center,
                 ),

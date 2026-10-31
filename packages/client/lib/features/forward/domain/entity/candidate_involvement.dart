@@ -5,6 +5,7 @@ enum CandidateInvolvement {
   watching,
   helpOffered,
   withdrawn,
+  offerDeclinedByAuthor,
   declined,
   author;
 

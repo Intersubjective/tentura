@@ -8,6 +8,7 @@ import 'package:tentura/domain/port/author_invite_port.dart';
 import '../gql/_g/author_invite_accept.req.gql.dart';
 import '../gql/_g/author_invite_create.req.gql.dart';
 import '../gql/_g/author_invite_decline.req.gql.dart';
+import '../gql/_g/author_invite_revert_decline.req.gql.dart';
 import '../gql/_g/author_invite_withdraw.req.gql.dart';
 import '../gql/_g/beacon_author_invites.req.gql.dart';
 import '../gql/_g/beacon_bud_observers.req.gql.dart';
@@ -59,6 +60,19 @@ class AuthorInviteRepository implements AuthorInvitePort {
         .request(GAuthorInviteDeclineReq((b) => b.vars.inviteId = inviteId))
         .firstWhere((e) => e.dataSource == DataSource.Link)
         .then((r) => r.dataOrThrow(label: _label).beaconAuthorInviteDecline);
+    return _transition(data.inviteId, data.beaconId, data.status.name);
+  }
+
+  @override
+  Future<AuthorInvite> revertDecline({required String inviteId}) async {
+    final data = await _remoteApiService
+        .request(
+          GAuthorInviteRevertDeclineReq((b) => b.vars.inviteId = inviteId),
+        )
+        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .then(
+          (r) => r.dataOrThrow(label: _label).beaconAuthorInviteRevertDecline,
+        );
     return _transition(data.inviteId, data.beaconId, data.status.name);
   }
 

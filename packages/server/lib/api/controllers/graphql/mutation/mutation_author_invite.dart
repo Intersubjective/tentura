@@ -6,7 +6,7 @@ import '../gql_nodel_base.dart';
 import '../input/_input_types.dart';
 
 /// The author-invite lifecycle (plan C4, Arch §5): later invites, accept,
-/// decline and withdraw.
+/// decline, revert-decline and withdraw.
 final class MutationAuthorInvite extends GqlNodeBase {
   MutationAuthorInvite({AuthorInviteCase? authorInviteCase})
     : _injectedCase = authorInviteCase;
@@ -24,6 +24,7 @@ final class MutationAuthorInvite extends GqlNodeBase {
     beaconAuthorInviteCreate,
     beaconAuthorInviteAccept,
     beaconAuthorInviteDecline,
+    beaconAuthorInviteRevertDecline,
     beaconAuthorInviteWithdraw,
   ];
 
@@ -51,6 +52,9 @@ final class MutationAuthorInvite extends GqlNodeBase {
 
   GraphQLObjectField<dynamic, dynamic> get beaconAuthorInviteDecline =>
       _transition('beaconAuthorInviteDecline', _case.decline);
+
+  GraphQLObjectField<dynamic, dynamic> get beaconAuthorInviteRevertDecline =>
+      _transition('beaconAuthorInviteRevertDecline', _case.revertDecline);
 
   GraphQLObjectField<dynamic, dynamic> get beaconAuthorInviteWithdraw =>
       _transition('beaconAuthorInviteWithdraw', _case.withdraw);

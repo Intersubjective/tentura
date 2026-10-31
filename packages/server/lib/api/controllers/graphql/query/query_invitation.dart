@@ -29,7 +29,22 @@ final class QueryInvitation extends GqlNodeBase {
 
   final VoteUserFriendshipLookupPort _voteUserFriendshipLookup;
 
-  List<GraphQLObjectField<dynamic, dynamic>> get all => [invitationById];
+  List<GraphQLObjectField<dynamic, dynamic>> get all => [
+    invitationById,
+    invitationTtlHours,
+  ];
+
+  /// The effective invitation lifetime (INVITATION_TTL), so clients do not
+  /// assume the compiled default.
+  GraphQLObjectField<dynamic, dynamic> get invitationTtlHours =>
+      GraphQLObjectField(
+        'invitationTtlHours',
+        graphQLInt.nonNullable(),
+        resolve: (_, args) {
+          getCredentials(args);
+          return _invitationCase.env.invitationTTL.inHours;
+        },
+      );
 
   GraphQLObjectField<dynamic, dynamic> get invitationById => GraphQLObjectField(
     'invitationById',

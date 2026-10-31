@@ -171,6 +171,11 @@ rule, implemented once. A tab that lights up and then shows nothing to act on is
 whatever is counted must be reachable — including archived Requests, whose attention lights the tab only if the
 Archive filter actually exposes it.
 
+**Card unread count (#525).** A card's unread count skips system lines, exactly as its preview does, so the number
+never counts a line the card cannot show.
+
+**Rail tap (#525).** Tapping **My desk** while already on it scrolls to the first Request that needs attention.
+
 _Avoid:_ reusing event totals, forward-sender counts or page lengths as a badge; counting Request cards where the
 contract counts obligations.
 

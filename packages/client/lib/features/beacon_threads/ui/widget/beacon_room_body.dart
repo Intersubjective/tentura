@@ -130,6 +130,45 @@ String _readWatermarksFingerprint(Map<String, RoomReadWatermark> watermarks) {
 class _BeaconRoomBodyState extends State<BeaconRoomBody> {
   final _basicChatKey = GlobalKey<BasicChatBodyState>();
 
+  /// «Ben is typing…» / «N people are typing…» above the composer; null when
+  /// nobody is typing. A typist without a name on hand (the Request's author
+  /// has no participant row) counts as a person.
+  Widget? _typingLine(BuildContext context, RoomState state, L10n l10n) {
+    final ids = state.typingUserIds;
+    if (ids.isEmpty) return null;
+    String? name;
+    if (ids.length == 1) {
+      for (final p in state.participants) {
+        if (p.userId == ids.single) {
+          final label = p.displayLabel('');
+          if (label.isNotEmpty) name = label;
+        }
+      }
+      if (name == null) {
+        for (final m in state.messages) {
+          if (m.authorId == ids.single && m.author.shownName.isNotEmpty) {
+            name = m.author.shownName;
+          }
+        }
+      }
+    }
+    final text = name != null
+        ? l10n.beaconRoomTypingOne(name)
+        : l10n.beaconRoomTypingMany(ids.length);
+    return Padding(
+      padding: kPaddingH,
+      child: Align(
+        alignment: AlignmentDirectional.centerStart,
+        child: Text(
+          text,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ),
+    );
+  }
+
   /// Opens the «Who'll take it?» sheet; the baton is posted as a new message
   /// at the end of the room, replying to [replyTo] when given.
   Future<void> _showBatonCreateSheet(
@@ -365,6 +404,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
             p.composerPrefill != c.composerPrefill ||
             p.sendFailedOffline != c.sendFailedOffline ||
             p.sendUnconfirmed != c.sendUnconfirmed ||
+            !listEquals(p.typingUserIds, c.typingUserIds) ||
             p.beaconStatus != c.beaconStatus ||
             p.beaconExpired != c.beaconExpired ||
             p.myUserId != c.myUserId ||
@@ -514,6 +554,12 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                     explicitMentions: mentions,
                   )
                 : null,
+            onComposerTextChanged: widget.enableComposer
+                ? cubit.composerTextChanged
+                : null,
+            aboveComposer: archivedPost
+                ? null
+                : _typingLine(context, state, l10n),
             composerReplacement: archivedPost
                 ? _ArchivedPostComposerBar(
                     onBudRequest: widget.postBuddingEnabled
