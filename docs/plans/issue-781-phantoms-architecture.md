@@ -1,9 +1,9 @@
 # #781 Phantoms — "map of my people" architecture
 
-Status: **rev 7 (2026-10-31)** — design walk-through with the owner done
-(D1–D27); rev 7 applies adversarial review round 1 (reviewer GPT-6.1-Sol,
-critics Gemini 4 Argon + GPT-6-Astra, advisory Muse Wonder; findings R1–R37,
-change log §14).
+Status: **rev 8 (2026-10-31)** — design walk-through with the owner done
+(D1–D27); rev 7 applied adversarial review round 1 (R1–R37), rev 8 round 2
+(reviewer Muse Wonder, critics Gemini 4 Argon + GPT-5.6-Sol; R38–R58).
+Change log §14.
 Source: GitHub #781 (body + owner comments 2026-10-25, decisions comment
 2026-10-31), mockups `docs/design/phantoms/phantoms-{a,b}.png`.
 
@@ -77,7 +77,8 @@ All decisions below are binding. D1–D27 are the owner's (walk-through
   phantoms: `constellation_anchor` (already polymorphic), the people-tags
   repository (mixed member lists, §3.2), and `invitation.phantom_id` (§4).
 - **D13 Merge rules:** if the phantom has a pin it wins over U's pin, tags
-  union, notes appended, an existing private avatar on U wins (§5.2).
+  union, notes shown appended (display-time, nothing copied), an existing
+  private avatar on U wins (§5.2).
 - **D14 Same-name hint:** first-token casefold match + "newly seen" (§5.4).
 - **D15 Request invites never block joining.** Applies to *all* Request
   invites, not only phantoms: if the Request is closed/expired/unreadable, the
@@ -87,6 +88,12 @@ All decisions below are binding. D1–D27 are the owner's (walk-through
   you to «Request», but it has already closed. You're still welcome on
   Tentura, and you're now connected with Vadim."* Landing preview (before
   signup), in-app accept screen, and a card after joining. Lands in M0.
+  **Existing accounts:** a Request invite accepted by an existing account is
+  admission-only (§2), and so is its fallback: the invite is consumed, no
+  friendship is created, and the screen says *"Vadim invited you to
+  «Request», but it has already closed."* Only signups get the connection
+  (the owner's decision was about joining); otherwise a Request closing would
+  upgrade admission into mutual trust.
 - **D16 Phantom look.** Violet accent token + ghost badge fixed now; exact
   stroke chosen in the first M1 UI bead (material-3 skill, screenshots for
   owner review). **Phantom nodes render semi-transparent when not selected**,
@@ -174,8 +181,18 @@ Technical choices:
     by an existing account is *admission only*: `_acceptBeaconInviteOnly`
     passes `bindFriendship: false, emitInviteAccepted: false`
     (`invitation_case.dart:451–475`).
-  - **Defect A:** lock order differs — signup claims the invitation then locks
-    the parent forward chain; `bindMutual` locks the chain then claims.
+  - **Defect A:** lock order differs — signup claims the invitation, projects
+    trust (`trust_pair_lock`s), then locks the parent forward chain
+    (`user_repository.dart:289–312`); `bindMutual` locks the chain, claims,
+    locks the chain again, then projects trust (`:945–996`).
+  - **Defect D:** `invitationAccept` → `InvitationCase.accept` binds
+    friendship even for Request invites (`invitation_case.dart:336–345`),
+    unlike `acceptAsExisting`'s admission-only path.
+  - All accept paths run in `withMutatingUser` (READ COMMITTED, no retry,
+    `tentura_db.dart:388`). `lockConstellationViewerBatch` throws
+    `PostgresSnapshotUnavailableException` whenever it had to wait
+    (`constellation_viewer_tx.dart:10–30`); only `withMutatingRepeatableRead`
+    retries that, and it refuses to nest.
   - **Defect B:** `acceptAsExisting` on already-mutual friends with a
     non-Request invite returns `true` without consuming the invite.
   - **Defect C (several gates):** `_requireInviteIssuerMayForward`
@@ -185,13 +202,27 @@ Technical choices:
     created; `bindMutual` returns `false` before claiming on a broken chain
     (`:945`); `_acceptBeaconInviteOnly` throws on unreadable /
     non-forwardable Requests.
-- **Private per-viewer data**: `user_contact(viewer, subject, contact_name)`;
-  people tags (`m0261`, V2-only, owner-scoped SQL, `person_tags:<owner>`
-  advisory lock, realtime trigger `notify_person_tag_change` m0262).
+- **Private per-viewer data**: `user_contact(viewer, subject, contact_name)`
+  (names 3–32 chars, `kTitleMinLength`/`kTitleMaxLength`,
+  `user_contacts.dart:17–21`, `ContactCase.normalizeName`); people tags
+  (`m0261`, V2-only, owner-scoped SQL, realtime trigger
+  `notify_person_tag_change` m0262). Tag mutations take the
+  `person_tags:<owner>` advisory lock first (`people_tags_repository.dart:573–600`);
+  restore re-inserts members as new rows (`:250–266`); `_counts` derives
+  `off_field_count` from visible peers and person anchors (`:623–685`).
+- **Forwards**: `ForwardCase.forward` runs in `_attention.runAction(actor =
+  sender)` and around `createBatch` upserts the sender's watching, records
+  attribution and `relayReceived` (`forward_case.dart:332–422`); `createBatch`
+  silently skips a recipient who already has an active edge or is paused
+  (`forward_edge_repository.dart:148–178`).
+- **Landing**: `packages/landing/main.js` carries only the code across the
+  open-in-app, recovery and Google sign-in transitions (`:142–153,232–255`).
 - **Field**: V2 `constellationField` → `ConstellationFieldSnapshotReader`
   (snapshot read first; `person_field_first_seen` rows written afterwards,
-  with `-infinity` on the viewer's first backfill read,
-  `constellation_field_repository.dart:124–152`). Caps
+  with `-infinity` on the viewer's first backfill read, where "first" means
+  the viewer has no first-seen rows yet,
+  `constellation_field_repository.dart:124–152`,
+  `constellation_field_snapshot_reader.dart:758–769`). Caps
   `kConstellationPeerCap = 400`, reserved set outside the cap.
 - **Pins**: `constellation_anchor` (kinds PERSON/BEACON; typed FK columns;
   tombstones; unique `(viewer, target_kind, target_id)` incl. tombstones,
@@ -208,11 +239,18 @@ Technical choices:
   (`constellation_layout_snapshot_repository.dart:324–367`). Dart/GraphQL
   target kinds are closed over PERSON/BEACON
   (`lib/domain/constellation/constellation_anchor.dart:6`,
-  `custom_types.dart:1112`; snapshot decode `values.byName`).
+  `custom_types.dart:1112`; snapshot decode `values.byName`). Tombstones arise
+  only from target deletion (FK SET NULL). `applyBatch` retries FK violations
+  only for the person/beacon fkeys (`constellation_anchor_repository.dart:170–180`);
+  `shownAnchors` checks every non-person target against beacons
+  (`constellation_anchor_projection_reader.dart:368–374`).
 - **Client Field**: `NodeDetails` sealed (`FieldPersonNode`,
   `FieldBeaconNode`, `FieldDraftNode`). Canvas long-press/secondary tap opens
   the create menu (`constellation_create_entry.dart`); app-bar "+" menu typed
   by `BeaconKind`. **Dashed outline already means "temporary person".**
+  `ConstellationFieldStoreCase` refreshes on `constellationAnchor` and, lazily
+  (non-urgent, 5 min), on `constellationField`; its anchors refresh fetches
+  anchors only (`constellation_field_store_case.dart:91–105,221–238,590–605`).
 - **Images**: objects under `images/<authorId>/<id>.jpg`; the storage adapter
   attaches `x-amz-acl: public-read` to every upload by default
   (`remote_storage.dart:37`, `env.dart:1077`), room attachments included.
@@ -231,8 +269,26 @@ Technical choices:
 
 ## 3. Data model (Phase 1)
 
-All new tables: owner FK → `"user"(id) ON DELETE CASCADE`; **not tracked in
-Hasura**; read/written by V2 resolvers with `WHERE owner_id = $viewer`.
+All new tables: **not tracked in Hasura**; read/written by V2 resolvers with
+`WHERE owner_id = $viewer`.
+
+**Delete actions** — every FK states one, so deletes and account erasure never
+stall on `NO ACTION` or violate a check:
+
+| FK | On delete |
+|---|---|
+| every `owner_id` / `author_id` / `sender_id` → `user` | CASCADE |
+| `phantom.merged_user_id` → `user` | SET NULL (→ orphaned) |
+| `phantom.current_merge_id` → `phantom_merge` | SET NULL |
+| `phantom_merge.phantom_id` → `phantom`; `phantom_merge.user_id` → `user` | CASCADE (an erased `U` takes the undo record along; the phantom is orphaned and can't be unmerged anyway) |
+| `person_note` / `person_private_avatar` subject (user or phantom) | CASCADE (SET NULL would break exactly-one) |
+| `phantom_tag_member`, `phantom_contact_point`, `invitation.phantom_id`, `constellation_anchor.phantom_id` → `phantom` | CASCADE |
+| `phantom_pending_forward.phantom_id` / `.beacon_id` | CASCADE |
+| `phantom_pending_forward.merge_id` / `.recipient_id` / `.forward_edge_id` | SET NULL |
+| `phantom_tie` ends (user or phantom) | CASCADE |
+
+pg test: erasing a merged `U` leaves the phantom orphaned with
+`merged_user_id` and `current_merge_id` both NULL.
 
 ### 3.1 `phantom`
 
@@ -240,17 +296,18 @@ Hasura**; read/written by V2 resolvers with `WHERE owner_id = $viewer`.
 |---|---|
 | `id text PK` | `PH` + 12 hex (14 chars, P5) |
 | `owner_id` | FK user CASCADE |
-| `display_name text` | 1–128, trimmed |
+| `display_name text` | 3–32 after trim — the contact-name contract it is mirrored into (§4) |
 | `emoji text NULL` | ≤ 8 (A2 "Photo / emoji") |
 | `created_at`, `updated_at` | |
 | `merged_user_id text NULL` | FK user **ON DELETE SET NULL** |
 | `merged_at timestamptz NULL`, `merge_origin smallint NULL` | 1 invite-new, 2 invite-existing, 3 manual link, 4 cluster (M8) |
-| `current_merge_id text NULL` | → `phantom_merge.id` of the live merge |
+| `current_merge_id text NULL` | → `phantom_merge.id` of the live merge (SET NULL) |
 | `revision bigint` | realtime / optimistic concurrency |
 
 - States: **active** (`merged_at IS NULL`), **merged** (`merged_at` and
-  `merged_user_id` set), **orphaned** (`merged_at` set, `merged_user_id`
-  NULL — hidden everywhere, unmerge refused, snapshot restore drops it).
+  `merged_user_id` set), **orphaned** (`merged_at` set, `merged_user_id` and
+  `current_merge_id` NULL — hidden everywhere, unmerge refused, snapshot
+  restore drops it).
 - **Cap (D4):** every activation path (create, batch create, unmerge) takes
   the owner lock `phantoms:<owner>` (advisory xact lock) and checks
   `count(active) < 200`; unmerge over the cap fails with
@@ -267,13 +324,24 @@ Hasura**; read/written by V2 resolvers with `WHERE owner_id = $viewer`.
   gen_random_uuid()` — a re-added pair gets a new id, which lets unmerge tell
   a merge-created membership from a later deliberate one (§5.3).
 - **The people-tags repository learns mixed members** (D12 exception), all
-  under the existing `person_tags:<owner>` lock:
+  under the existing `person_tags:<owner>` lock. **Lock rule:** a statement
+  that inserts `phantom_tag_member` rows (apply, restore) first locks the
+  referenced phantom rows `FOR SHARE` in id order, *before*
+  `person_tags:<owner>` (§5.2 steps 6 → 9), and re-checks they are active;
+  otherwise the FK's implicit KEY SHARE on the phantom would come after the
+  tag lock and deadlock with merge.
   - `applyMembers` accepts `PH` ids: validated against `phantom` (owner =
     caller, active) instead of `"user"`, written to `phantom_tag_member`;
-  - `memberships`, member counts and the 1000-per-tag limit read/count both
-    tables;
-  - tag delete snapshot and its restore carry `{kind: person|phantom, id}`;
-    restore skips phantoms that are no longer active;
+  - `memberships`, member counts, the 1000-per-tag limit and the delete
+    snapshot read/count both tables, **phantom rows only while the phantom
+    is active** (`merged_at IS NULL`; a merged phantom keeps its rows,
+    hidden, §5.2). Phantom members never count toward `off_field_count` (own
+    active phantoms are always on the owner's Field, D5), and a tag with no
+    person members skips `person_visible_peer_ids_tx`;
+  - tag delete snapshot and its restore carry `{kind, id, membership_id}`;
+    restore re-inserts each row **with its old `membership_id`** (so §5.3
+    still recognises merge-created rows) and skips phantoms that are no
+    longer active;
   - `notify_person_tag_change` is attached to `phantom_tag_member` too.
 - Automatic tags (`autoTagKinds`) never apply to phantoms.
 
@@ -290,13 +358,23 @@ Database (one migration):
 - `constellation_anchor_apply_ops` gets an explicit PHANTOM branch for update
   and insert (today every non-PERSON op is treated as BEACON).
 
+Tombstones exist only after target deletion (FK SET NULL), so a live `U`
+never has a tombstone pin; PHANTOM anchors are deleted with their phantom
+(CASCADE), never tombstoned.
+
 Application (shared + server + client):
 - `ConstellationAnchorTargetKind.phantom`, a sealed phantom target, wire
   parsing, the GraphQL enum, `_existingUpsertTargets` / `_storedAnchors`,
   `ConstellationAnchorProjectionReader`, snapshot capture/list/decode/restore
   and client adapters — with round-trip tests for PHANTOM *and* the existing
   kinds;
-- upsert validation for PHANTOM joins `phantom` (owner = viewer, active).
+- upsert validation for PHANTOM joins `phantom` (owner = viewer, active);
+- `applyBatch`'s FK-retry filter adds `constellation_anchor_phantom_id_fkey`
+  (a concurrent phantom delete retries instead of surfacing `23503`);
+- `ConstellationAnchorProjectionReader.shownAnchors` gets a phantom branch
+  (owner = viewer, active) instead of falling into the beacon check;
+- client `ConstellationFieldStoreCase.settle` / `_runAnchorsRefresh` handle
+  PHANTOM targets, and the anchors refresh returns PHANTOM anchors.
 
 Layout snapshots are not rewritten on merge. **Restore resolves then dedupes:**
 `PHANTOM:h` → `PHANTOM:h` (active), `PERSON:U` (merged), dropped (orphaned or
@@ -307,10 +385,13 @@ phantom wins (D13); deduplication happens before any write.
 
 - `person_note(owner_id, subject_user_id NULL, subject_phantom_id NULL,
   body text, updated_at, revision)`; exactly-one subject; unique per
-  `(owner, subject)`; `owner ≠ subject_user_id`. **Length:** API writes are
-  capped at 4000 chars but may not *lengthen* a note beyond
-  `max(4000, current length)`; the DB check is 8200 chars, so a merged note
-  (two notes + separator, §5.2) always fits.
+  `(owner, subject)`; `owner ≠ subject_user_id`. **Length:** 4000 chars, API
+  and DB check alike; merge never copies note text (§5.2 step 5), so no row
+  grows past it.
+- **Search (M2):** owner-scoped V2 query `personNoteSearch(q)` → subject ids
+  (user or phantom) whose note matches (`ILIKE`, `owner_id = viewer`, ≤ 50);
+  the client intersects them with the loaded Field population and lists them
+  in the Field name search. No other surface reads notes.
 - `person_private_avatar(owner_id, subject_user_id NULL, subject_phantom_id
   NULL, object_key, blurhash, width, height, created_at)`; same uniqueness.
   Several rows may reference one `object_key` (merge copies, §5.2).
@@ -319,19 +400,24 @@ phantom wins (D13); deduplication happens before any write.
   overridden), served only by an authenticated controller that checks
   `owner_id = viewer`. Test: anonymous direct GET of a private object → 403.
   Counts against `UPLOAD_DAILY_CAP_MB`; `kMaxImageUploadBytes` applies.
-- **GC:** a new `private_object_gc(object_key, enqueued_at)` queue. A
-  `BEFORE DELETE` row trigger on `person_private_avatar` enqueues the key, so
-  every path — avatar replacement, phantom deletion, owner erasure, subject
-  erasure, FK cascades — is covered. The worker deletes the object only when
-  no `person_private_avatar` row references the key any more.
+- **GC:** queue `private_object_gc(object_key PK, enqueued_at, attempts,
+  lease_until, last_error)` with `ImageObjectGcRepository`'s lease/retry
+  semantics; enqueue is `ON CONFLICT DO NOTHING`. A row trigger
+  `BEFORE DELETE OR UPDATE OF object_key` on `person_private_avatar` enqueues
+  `OLD.object_key`, so every path — replacement (delete + insert or upsert),
+  phantom deletion, owner erasure, subject erasure, FK cascades — is covered.
+  Upload follows `ImageRepository.put`: row first, object second, row deleted
+  on upload failure (which enqueues the key). The worker deletes the object
+  only when no `person_private_avatar` row references the key any more.
 
 ### 3.5 Phantom contact points — M4/M5
 
 `phantom_contact_point(phantom_id, kind email|phone, value text NULL,
 match_hmac bytea NULL, hmac_key_version smallint NULL)`. `value` is stored
 only if the owner chose to keep it (import default OFF); `match_hmac` is
-computed for every email (D17) at write time. Owner-private, CASCADE with
-phantom. Key versions: §9.
+computed for every email (D17) at write time, from M4 on (the key ring lands
+with M4, §9). Owner-private, CASCADE with phantom. Index on `match_hmac`.
+Key versions: §9.
 
 ---
 
@@ -355,10 +441,18 @@ phantom. Key versions: §9.
   `_or: [{created_at: {_gt: $cutoff}}, {phantom_id: {_is_null: false}}]` for
   both the list and the aggregate.
 - **Name mirror:** `addressee_name` = `phantom.display_name`. Renaming goes
-  only through `phantomUpdate`, which updates both rows in one transaction
-  under the phantom row lock; `invitationUpdate` rejects phantom invites.
+  only through `phantomUpdate`, which locks the live invitation row
+  (`FOR UPDATE … WHERE phantom_id = h AND invited_id IS NULL`), then the
+  phantom row — the §5.2 order — and updates both; `invitationUpdate`
+  rejects phantom invites. Names follow the contact-name contract (3–32,
+  §3.1), so the mirror into `user_contact` always validates.
   So the existing `_upsertInviteContact` makes the phantom's name the owner's
   private contact name for the joined account (answers #781 Q2).
+- **Minting:** a phantom has no invite until the owner takes one: Copy
+  invite link / Share… (A2, A3) call `phantomInviteEnsure`, which returns the
+  live invite or creates it. "Save without inviting", batch create and import
+  mint nothing, so People → Invites → Pending lists only invites the owner
+  actually took; `inviteState` is `none` until then.
 - **"New link"** (A3 "Renew") — active phantoms only: delete the unaccepted
   row, insert a new one. Old links then say "invalid".
 - **Remove phantom** deletes the live invite (CASCADE). **Manual link**
@@ -368,7 +462,9 @@ phantom. Key versions: §9.
   phantom's name and no expiry caption; tapping opens the phantom panel.
   Delete there = remove the invite only (the phantom stays).
 - **Link:** `/invite/<code>`; with a Request context `/invite/<code>?r=<beaconId>`
-  — `r` only feeds the preview (§7).
+  — `r` only feeds the preview (§7). `InvitePreviewController` reads `r` and
+  passes it to `InvitationCase.preview`; the landing carries `r` across the
+  open-in-app, recovery and Google sign-in transitions exactly like the code.
 - **Share UI:** A2/A3 "Copy invite link" + "Share…" with a prefilled personal
   line ("Hi Anna, I put you on my map in Tentura — join so we can ask each
   other for a hand."). Extend `ShareCodeDialog` / `SharePlus` with `text`.
@@ -377,7 +473,10 @@ phantom. Key versions: §9.
 - **Already friends:** for a phantom invite the preview never returns the
   terminal `alreadyFriends`; it returns `existingUser` with
   `phantomInvite: true`, and the client calls accept (merge) and shows
-  "You're on Vadim's map". The client path is covered end to end.
+  "You're on Vadim's map". Touchpoints: `InvitePreviewResult.phantomInvite`
+  (server `toJson`), client `InvitePreview.phantomInvite`, and
+  `AcceptInviteCubit` routing `existingUser + phantomInvite` to accept and
+  that confirmation. The client path is covered end to end.
 
 ---
 
@@ -398,42 +497,83 @@ Runs inside the accept transaction (invite origins) or its own (manual link),
 through **tx-scoped repository methods** (`…InTx`) — never the public anchor /
 tag methods, which open their own `withMutatingRepeatableRead`.
 
-**Global lock order** — every path that touches these resources, including
-plain anchor batches, tag edits, phantom create/update/delete/rotate and all
-accept paths, acquires them in this order (skipping what it doesn't need):
+**Global lock order** — every path that touches these resources acquires
+them in this order, skipping what it doesn't need. A path may skip a step
+only if nothing it runs takes that lock *implicitly* (FK checks, cascades,
+triggers); where something does, the path takes the lock explicitly at its
+position first.
 
-1. Post lock (Request invites only; `PostLockRepository`);
-2. invitation row (claim: `UPDATE … WHERE invited_id IS NULL`);
-3. cluster row `FOR UPDATE` (M8, clustered phantoms only);
-4. per owner, in owner-id order: `lockConstellationViewerBatch(owner)` →
-   `lockConstellationViewerCursor(owner)` (upserting a missing cursor row) →
-   `phantoms:<owner>` advisory lock;
-5. phantom row(s) `FOR UPDATE`, in id order;
-6. anchor rows (and their target watermarks);
-7. `person_tags:<owner>` advisory lock → tag memberships;
-8. parent forward chain `FOR UPDATE` (Request invites);
-9. `trust_pair_lock`s (sorted, as `_applyReciprocalTrustEdges` does).
+1. Post lock (`PostLockRepository`; Request invites, forwards, delivery);
+2. invitation rows: the claim (`UPDATE … WHERE invited_id IS NULL`) or
+   `FOR UPDATE … WHERE phantom_id = h` (rename, New link, delete);
+3. parent forward chain `FOR UPDATE` (Request invites, forwards, delivery);
+4. cluster row `FOR UPDATE` (M8, clustered phantoms only);
+5. per owner, in owner-id order: viewer batch lock → viewer cursor
+   (upserting a missing row) → `phantoms:<owner>` advisory lock;
+6. phantom rows in id order — `FOR UPDATE` to change one (merge, unmerge,
+   delete, rename), `FOR SHARE` to rely on one (tag inserts, forward
+   recording, delivery, New link);
+7. `phantom_pending_forward` rows of those phantoms;
+8. anchor rows (and their target watermarks);
+9. `person_tags:<owner>` advisory lock → tag memberships;
+10. `trust_pair_lock`s (sorted, as `_applyReciprocalTrustEdges` does).
 
-Plain anchor batches only take 4→6 (they never lock a phantom row beyond the
-FK check), so they cannot cycle with merge. Defect A is fixed by moving
-`bindMutual`'s claim before its chain lock. **M1 ships a pg deadlock test**
-for merge × anchor batch on the same owner, merge × phantom delete, and
-signup × existing-account accept of the same Request invite.
+**Accept bodies follow it.** M0 restructures them: signup (`createInvited`,
+`createInvitedWithCredential`) = Post lock → create user → claim → chain lock
+and D15 decision → trust projection → contact; `bindMutual` = claim → chain
+lock (its pre-claim chain lock becomes a plain read) → trust. M1 hooks merge
+(steps 4–9) in between the chain lock and trust projection. This fixes
+Defect A.
+
+**Batch lock inside accept.** Accept transactions are READ COMMITTED and not
+retried, so the try-lock-then-throw `lockConstellationViewerBatch` must not
+run there. Merge in an accept uses a waiting variant,
+`lockConstellationViewerBatchWait` (`pg_advisory_xact_lock`, never throws) —
+safe under READ COMMITTED, where every later statement sees what the
+previous holder committed. RR paths (anchor batches, manual link, unmerge,
+phantom CRUD) keep the try-lock as their first statement and retry through
+`withMutatingRepeatableRead`. An owner moving pins on another device can
+delay a signup, never abort it.
+
+| Path | Steps |
+|---|---|
+| plain anchor batch | 5 → 8 |
+| tag apply / restore with phantom members | 6 (`FOR SHARE`) → 9 |
+| phantom create / batch create | 5 (cap) → 8 (pin) → 9 (tags) |
+| rename | 2 → 6 |
+| New link / `phantomInviteEnsure` | 2 → 6 (`FOR SHARE`) |
+| phantom delete | 2 → 5 → 6 → 7 → delete (cascades anchors, tag rows, invite) |
+| invite merge | 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 |
+| manual link | 5 → 6 → 7 → 8 → 9 |
+| unmerge | 5 → 6 → 7 → 8 → 9 → 10 (trust removal) |
+| pending-forward recording | 1 → 3 → 6 (`FOR SHARE`) → 7 |
+| delivery (§7) | 1 → 3 → 6 (`FOR SHARE`) → 7 → forward edge |
+| erasure of account `U` | `U`'s live invitations (2) → cursors of `U` and of every viewer with an anchor on `U`, viewer-id order (5) → `U`'s own phantoms and phantoms merged into `U`, id order (6) → delete |
+
+The erasure pre-lock also closes an existing inversion: deleting a user locks
+anchors through FK SET NULL and then the trigger locks the cursor
+(`m0236.dart:55–59,86–95`), against anchor batches' cursor → anchor.
+
+**M1 ships pg deadlock tests** for merge × anchor batch (same owner), merge ×
+tag apply naming the phantom, merge × phantom delete, rename × accept,
+delivery × unmerge, erasure of `U` × merge into `U`, and signup ×
+existing-account accept of the same Request invite; plus a contention test
+in which the owner holds the batch lock while the invitee signs up (the
+signup waits, then succeeds).
 
 Steps for owner `o`, phantom `h`, user `U`:
 
 1. **Guards:** `h` active; `U ≠ o`; `NOT block_hides(o, U)`.
 2. **Record** `phantom_merge(id, phantom_id, owner_id, user_id, origin,
    created_at, undo jsonb, undone_at)`; `undo` gets everything below.
-3. **Pin** (case table; `h` anchors are never tombstoned — phantom deletion
-   cascades):
+3. **Pin** (case table; `h` anchors are never tombstoned and a live `U` has
+   no tombstone pin, §3.3 — the merge asserts both):
 
    | `h` anchor | U anchor | Action | `undo` records |
    |---|---|---|---|
    | none | any | keep U as is | nothing |
    | live | none | delete `PHANTOM:h`, insert `PERSON:U` at h's position | h position; "U had none" |
    | live | live | set U's position to h's, delete `PHANTOM:h` | h position; U's prior position |
-   | live | tombstone | delete the tombstone, insert `PERSON:U` at h's position | h position; "U had tombstone" |
 
    Inserts/updates set `target_kind`/`target_id` explicitly. Bump the target
    watermarks of **both** `PHANTOM:h` and `PERSON:U` (stale pre-merge
@@ -442,10 +582,12 @@ Steps for owner `o`, phantom `h`, user `U`:
    `person_tag_member` unless it exists (skip if `block_hides`); record in
    `undo` the *full* original phantom membership list and the
    `membership_id` of every row the merge inserted. Phantom memberships are
-   **kept** on `h` (the merged phantom is hidden, so they're invisible).
-5. **Note:** `h`'s note row stays on `h`. If U has no note from `o`, create
-   one with `h`'s body; else append `"\n\n— «<h name>»\n" + h body`. Record
-   U's prior body/absence and the resulting `revision`.
+   **kept** on `h`, hidden by the active-only reads (§3.2).
+5. **Note:** nothing is copied. `h`'s note row stays on `h`; U's panel shows
+   `o`'s note on U followed by the notes of `o`'s phantoms merged into U
+   (merge order), each under `— «<h name>»`, and each section edits its own
+   row (4000 chars each, §3.4). Chained merges therefore never overflow, and
+   unmerge needs no note bookkeeping.
 6. **Avatar:** `h`'s avatar row stays on `h`. If U has no private avatar from
    `o`, insert a row for U referencing the same `object_key` (record it);
    otherwise U's wins (D13).
@@ -456,7 +598,8 @@ Steps for owner `o`, phantom `h`, user `U`:
    link: delete `h`'s live invite.
 9. **Ties (M6+):** delete ties whose ends would both be real (§10.1).
 10. Set `merged_user_id, merged_at, merge_origin, current_merge_id`; bump
-    revisions; emit attention event `phantomMerged` to `o` only.
+    revisions (the phantom update fires the owner-only realtime event,
+    §6.1); emit attention event `phantomMerged` to `o` only.
 
 ### 5.3 Undo / Unlink = unmerge
 
@@ -468,11 +611,11 @@ one transaction with the §5.2 lock order:
   `h`'s own memberships were never removed (tags deleted since simply drop
   out via CASCADE).
 - **Pin:** if U's target watermark still equals the recorded post-merge
-  value, restore U's prior state (none / position / tombstone) and re-create
+  value, restore U's prior state (none / position) and re-create
   `PHANTOM:h` at the recorded position; otherwise leave U's pin and give `h`
   no pin. Bump both watermarks.
-- **Note / contact name:** restore U's prior value only if the current
-  revision/value equals what the merge wrote; `h`'s own note row is untouched.
+- **Contact name:** restore U's prior value only if the current value equals
+  what the merge wrote. Notes need nothing (§5.2 step 5).
 - **Avatar:** delete the U row the merge inserted, if still present (the
   object survives — `h` still references it).
 - **Trust (D23):** invite origins: remove `vote_user(o → U)` and re-project
@@ -494,10 +637,14 @@ calls it later (covers "invite link forwarded and someone else accepted it").
   chars, no row in `phantom_link_hint_dismissal(phantom_id, user_id)`.
 - "Newly seen" = `p`'s `first_seen_at > h.created_at`, where a peer not yet
   recorded (first sighting in this very read) counts as seen *now*.
-- **First-seen initialization:** creating a phantom first runs the owner's
-  first-seen backfill if the owner has no first-seen rows yet (same
-  transaction), so `-infinity` only ever marks people seen before the first
-  phantom existed.
+- **First-seen initialization:** "first backfill" is decided by a per-viewer
+  marker `person_field_first_seen_init(viewer_id PK, at)`, not by "the viewer
+  has no first-seen rows" — a viewer with 0 peers would otherwise backfill
+  (and stamp `-infinity` on) the first person seen after their first
+  phantom. The first backfill read writes the marker; phantom creation runs
+  the backfill first (same transaction) when the marker is absent; the
+  migration inserts it for every viewer that already has rows. So
+  `-infinity` only ever marks people seen before the first phantom existed.
 - "Not her" writes the dismissal (D14).
 
 ---
@@ -515,14 +662,22 @@ calls it later (covers "invite link forwarded and someone else accepted it").
   bounds it at 200).
 - `constellationFieldHasNoContacts` (#252) stays "no real contacts"; the empty
   banner gains a "+ Person" action.
+- **Realtime:** a `notify_phantom_change` trigger on `phantom` (the tag
+  trigger already covers `phantom_tag_member`, §3.2) publishes a new
+  `RealtimeEntityKind.phantom` to the owner only, shaped like m0262.
+  `ConstellationFieldStoreCase` refreshes phantoms and anchors **urgently**
+  on it, so merges, unmerges, manual links and People-screen edits reach an
+  open Field without waiting for the 5-min lazy `constellationField`
+  refresh.
 
 ### 6.2 Client (`features/phantoms/`, clean architecture)
 
 - Entity `Phantom`; repository over new V2 ops: `phantomCreate`,
-  `phantomUpdate`, `phantomDelete`, `phantomInviteRotate`, `phantomLink`,
-  `phantomUnmerge`, `phantomHintDismiss`; reads ride on the Field snapshot.
+  `phantomUpdate`, `phantomDelete`, `phantomInviteEnsure`,
+  `phantomInviteRotate`, `phantomLink`, `phantomUnmerge`,
+  `phantomHintDismiss`; reads ride on the Field snapshot.
 - `NodeDetails.FieldPhantomNode`, graph id `fh:<id>`; rows in the List view
-  (#253) and name search.
+  (#253) and name search (plus note search from M2, §3.4).
 - **Look (D16):** violet phantom accent (new design-system token, light/dark)
   + ghost badge + a stroke distinguishable from the temporary dashed outline,
   semi-transparent unless selected/hovered.
@@ -539,8 +694,10 @@ calls it later (covers "invite link forwarded and someone else accepted it").
   Remove from my map (confirm).
 - **Filter chip** «Not here yet · N» in `ConstellationVisibilityBar`.
 - **Merge snackbar** on `phantomMerged` (A4) with UNDO.
-- **Report (M8):** `ComplaintCase` gets a phantom lookup port and a `PH`
-  branch.
+- **Report (M8):** `ComplaintCase.fetchReportedItem` and `ComplaintScreen`
+  (its `startsWith('U')` tab choice, `complaint_screen.dart:112`) get a `PH`
+  branch; the phantom lookup port is visibility-scoped (D2) and answers
+  not-found for a phantom the reporter can't see.
 - Cross-platform: every long-press path has secondary-tap + visible button.
 
 ---
@@ -549,7 +706,8 @@ calls it later (covers "invite link forwarded and someone else accepted it").
 
 - Table `phantom_pending_forward(id, phantom_id, sender_id, beacon_id,
   parent_forward_edge_id NULL, note, created_at, state, merge_id NULL,
-  recipient_id NULL, forward_edge_id NULL, resolved_at)`; states
+  recipient_id NULL, forward_edge_id NULL, lapse_reason NULL,
+  resolved_at)`; states
   `pending | claimed | delivered | lapsed | offered`; unique
   `(phantom_id, beacon_id) WHERE state IN ('pending','claimed')`.
   Phase 1: `sender_id = owner`.
@@ -570,17 +728,26 @@ calls it later (covers "invite link forwarded and someone else accepted it").
   1. merge transaction: atomically claim
      `UPDATE … SET state='claimed', merge_id=:m, recipient_id=:U WHERE
      phantom_id=:h AND state='pending'`;
-  2. after commit, `PhantomForwardDeliveryCase` handles each claimed row in
-     its own short transaction: lock the row, check it still belongs to the
-     phantom's `current_merge_id`, then **re-run the full forward checks**
-     (`ForwardCase.deliverPending`: Request status, sender readability and
-     forward right, policy, blocks between sender and U, recipient
-     eligibility, parent chain alive) and insert the forward edge with the
-     stored note → `delivered` + `forward_edge_id`; any failed check →
-     `lapsed` (terminal, never throws);
-  3. a retry sweep processes only `claimed` rows whose `merge_id` is the
-     phantom's live merge. Terminal rows are never re-delivered, so a forward
-     the sender later cancelled is not resurrected.
+  2. after commit, `PhantomForwardDeliveryCase` handles each claimed row
+     through **`ForwardCase.deliverPending`**, a new entry point sharing
+     `ForwardCase.forward`'s single-recipient body. It runs its own
+     `_attention.runAction(actor = sender)` transaction (post-commit, so no
+     nested-actor mismatch), takes the Post lock and chain lock, then the
+     phantom `FOR SHARE` and the row `FOR UPDATE` (§5.2), checks the row
+     still belongs to the phantom's `current_merge_id`, **re-runs the full
+     forward checks** (Request status, sender readability and forward right,
+     policy, blocks between sender and U, recipient eligibility, parent chain
+     alive) and performs an ordinary forward's side effects (sender
+     watching, attribution, `relayReceived`) with the stored note. Outcomes:
+     edge inserted → `delivered` + `forward_edge_id`; an active sender → U
+     edge already exists → `delivered` + that edge's id; recipient paused or
+     any check failed → `lapsed` + `lapse_reason`. Terminal; never throws;
+  3. a retry sweep processes `claimed` rows. One whose merge is gone
+     (`merge_id` NULL or ≠ `current_merge_id` — only when `U` erased the
+     account, since unmerge resets its rows in its own transaction) becomes
+     `lapsed` (`recipient_gone`), freeing the `(phantom_id, beacon_id)` slot.
+     Terminal rows are never re-delivered, so a forward the sender later
+     cancelled is not resurrected.
   4. lapsed rows produce the joiner card *"Vadim sent you a request; it has
      since closed. You're connected with Vadim."* — the connection clause only
      when the merge created the connection (invite origins do).
@@ -606,9 +773,13 @@ calls it later (covers "invite link forwarded and someone else accepted it").
   contact name match, client-side) marked. Options: "Use their photo as my
   private picture" (default ON), "Keep phone/email privately" (default OFF).
 - `phantomCreateBatch` (atomic, ≤ remaining cap under `phantoms:<owner>`) →
-  phantoms land unpinned, tagged with an own tag **"Imported"** (created if
-  absent; the tag magnet clusters them). Photos then upload one by one as
-  private avatars.
+  phantoms land unpinned, with no invite (§4 Minting), tagged with an own tag
+  **"Imported"** (created if absent; the tag magnet clusters them). Photos
+  then upload one by one as private avatars.
+- Names are trimmed and cut to 32 chars; a row whose name is under 3 chars is
+  marked and must be edited in the checklist before import (§3.1).
+- Every imported email gets `match_hmac` under the newest key (§9 — the key
+  ring lands with M4); the plaintext only if "Keep" is on.
 - Only ticked rows leave the device. No invites are sent by import.
 
 ---
@@ -617,19 +788,23 @@ calls it later (covers "invite link forwarded and someone else accepted it").
 
 - **Email only (D17).** Normalization `trim().toLowerCase()` (as
   `email_auth_util.dart`).
-- **Key ring:** `CONTACT_MATCH_HMAC_KEYS` (versioned). Writes use the newest
-  version. Matching computes the candidate hash under every version still
+- **Key ring (lands with M4, which writes the first hashes):**
+  `CONTACT_MATCH_HMAC_KEYS` (versioned). Writes use the newest version. Matching computes the candidate hash under every version still
   referenced by any stored row. `account_verified_contact` keeps plaintext,
   so its hashes are re-keyed by a background job; hash-only phantom rows
   can't be, so their key version stays in the ring until those rows are gone.
-  A version is retired only when no row references it.
+  A version is retired only when no row references it; the server refuses
+  to start while a stored row references a version missing from the ring.
+  `match_hmac` is indexed on both tables.
 - `account_verified_contact.match_hmac` + `hmac_key_version` written by both
   writers (`_insertAuthoritativeContacts`, `addVerifiedContacts`) + a one-shot
   Dart backfill.
 - Setting **"People who have my email can see I'm on Tentura"**: new
-  `user_privacy_setting` row (outside Hasura-readable `user` columns), default
-  ON; explicit choice at signup (native register screen + landing name step);
-  toggle in Settings → Account.
+  `user_privacy_setting` row (outside Hasura-readable `user` columns). An
+  absent row means ON (`COALESCE(…, true)`), so existing accounts match too;
+  when M5 ships, existing users get a one-time card explaining the setting
+  with the toggle inline. New users choose explicitly at signup (native
+  register screen + landing name step); toggle in Settings → Account.
 - `contactCheck(kind, value)` → `{alreadyOnTentura: bool}`; also run on
   phantom contact save/import. Only users with the setting ON match.
   **200 checks/day/account**, counter + log alert on bulk patterns.
@@ -649,7 +824,8 @@ calls it later (covers "invite link forwarded and someone else accepted it").
   `know_each_other`, `from_vouches_to`, `to_vouches_from` (B1).
 - **Ties keep their phantom ids for life.** Reads resolve a merged phantom
   end to its `merged_user_id`; nothing is re-pointed, so D8 provenance and
-  unmerge need no tie bookkeeping.
+  unmerge need no tie bookkeeping. A tie with an orphaned end resolves to
+  nothing and every read skips it.
 - **On merge (D20):** in the merge transaction, delete every tie for which,
   after this merge, neither end is an active phantom. Not restored by
   unmerge. Cluster merges apply the same rule to all members at once.
@@ -695,15 +871,19 @@ calls it later (covers "invite link forwarded and someone else accepted it").
   transaction in the §5.2 lock order (cluster row → owners in id order →
   member phantoms in id order); the accepted member merges with its invite
   origin, every other member with origin 4 (cluster, no trust effect); all
-  other members' live invites are deleted. Shared effects of origin-4 merges
+  other members' live invites are deleted. Members that fail the §5.2
+  guards (already merged — to `U` or anyone else —, owned by `U`, or
+  blocked) are skipped, leave the cluster, and stay as they are: accepting
+  never fails because of another member (D15). Shared effects of origin-4 merges
   wait for U's confirmation in B4 (D25). Each owner's pending forwards are
   delivered only for the accepted member's owner; the others become
   `offered`.
 - **Cross-owner contact match (D9):** shown only if the matched phantom is
   visible to me.
 - **Report / hide:** `complaintCreate` takes a target-aware id input (13-char
-  ids as today, plus `PH` ids, P5); client `ComplaintCase` gets the phantom
-  port and branch; per-viewer hide table.
+  ids as today, plus `PH` ids, P5); client `ComplaintCase` and
+  `ComplaintScreen` get the `PH` branch with a visibility-scoped lookup port
+  (§6.2); per-viewer hide table.
 - **Non-user deletion (D26):** privacy contact address on the landing,
   runbook, Dart admin command (find by email HMAC across key versions, or by
   name + owner; delete; log). Needed before M8 ships.
@@ -730,7 +910,8 @@ calls it later (covers "invite link forwarded and someone else accepted it").
 5. **Export (#780, D18):** phantoms, notes, private avatars and contact points
    join the export when #780 lands.
 6. **Deletion:** owner deletion cascades every phantom table and enqueues
-   private objects (§3.4); merged user's deletion orphans the phantom.
+   private objects (§3.4); merged user's deletion orphans the phantom (delete
+   actions §3, erasure lock order §5.2).
 
 ---
 
@@ -738,12 +919,12 @@ calls it later (covers "invite link forwarded and someone else accepted it").
 
 | M | Epic | Depends on | Notes |
 |---|---|---|---|
-| M0 | Invite accept hardening | — | Defect A (lock order), Defect B, Defect C → D15 fallback across every gate (both signup methods, `acceptAsExisting`, `invitationAccept`; consumes the invite, `bindFriendship: true`, invite-accepted event with a "Request lapsed" outcome); landing preview + accept screen + post-join card; `invitationAccept` gets the same expiry check |
-| M1 | Phase 1 phantoms | M0, #699 | storage + PHANTOM anchors (§3.3) + mixed tags (§3.2) + invites (§4) + merge/undo/unlink (§5) + hint + Field/client (§6) + privacy suite (§11) + deadlock tests |
-| M2 | Private notes + private avatars on anyone (+ search) | M1 | §3.4; merge copies (§5.2) |
+| M0 | Invite accept hardening | — | accept bodies restructured to the §5.2 order (claim → chain → trust; Defect A); Defect B; Defect C → D15 fallback across every gate (both signup methods, `acceptAsExisting`, `invitationAccept`; consumes the invite; signup → friendship + invite-accepted event with a "Request lapsed" outcome, existing account → admission-only); Defect D; landing preview + accept screen + post-join card; `invitationAccept` gets the same expiry check |
+| M1 | Phase 1 phantoms | M0, #699 | storage + delete actions (§3) + PHANTOM anchors (§3.3) + mixed tags (§3.2) + invites (§4) + merge/undo/unlink (§5) + hint + Field/client + realtime (§6) + privacy suite (§11) + deadlock/contention tests |
+| M2 | Private notes + private avatars on anyone (+ note search) | M1 | §3.4; merge avatar copy, display-time notes (§5.2) |
 | M3 | Forward a Request to a phantom | M1 | §7 |
-| M4 | Selective contact import | M1, M2 (avatars) | §8 |
-| M5 | "Already on Tentura" check + setting | M4 | §9 |
+| M4 | Selective contact import | M1, M2 (avatars) | §8 + HMAC key ring (§9) |
+| M5 | "Already on Tentura" check + setting | M4 | §9 account side, check, setting |
 | M6 | Suggested ties (private) | M1 | §10.1 |
 | M7 | Joiner review + confirmation flow | M6 | §10.2 |
 | M8 | Shared visibility + clusters + safeguards | M7, M5, D26 runbook | §10.3 |
@@ -771,6 +952,32 @@ None. Q1–Q11 of the walk-through are decided (D12–D22).
 
 ## 14. Change log
 
+- **rev 8 (2026-10-31), adversarial review round 2** (reviewer Muse Wonder;
+  critics Gemini 4 Argon and GPT-5.6-Sol standing in for GPT-6-Astra). R38
+  lock order extended to invitations by phantom, pending forwards, `FOR
+  SHARE` readers, per-path table; accept bodies restructured claim → chain →
+  merge → trust (§5.2, M0). R39 waiting batch lock in READ COMMITTED
+  accepts — Field contention can't abort a signup (§5.2). R40 delete,
+  rename and erasure take their implicit locks explicitly; erasure pre-lock
+  (§4, §5.2). R41 phantom tag inserts lock the phantom `FOR SHARE` before
+  `person_tags` (§3.2). R42 tombstone row dropped from the pin table — a
+  live U has none (§3.3, §5.2). R43 notes no longer copied: display-time
+  sections, 4000 per row (D13, §3.4, §5.2, §5.3). R44 FK delete actions
+  (§3). R45 dead-merge claimed rows lapse; `ForwardCase.deliverPending`
+  defined incl. side effects and already-active edges (§7). R46 active-only
+  tag reads, `off_field_count`, `membership_id` kept across tag restore
+  (§3.2). R47 HMAC key ring moved to M4, indexes, startup key check, absent
+  setting = ON + notice card (§3.5, §8, §9, §12). R48 GC on `UPDATE OF
+  object_key`, queue PK and lease (§3.4). R49 preview/`r` touchpoints incl.
+  landing transitions (§4). R50 invite minted on first Copy/Share (§4, §8).
+  R51 names 3–32 (§3.1, §4, §8). R52 cluster members failing the guards are
+  skipped; orphaned tie ends skipped (§10). R53 complaint screen +
+  visibility-scoped port (§6.2, §10.3). R54 D15 for existing accounts stays
+  admission-only; Defect D (D15, §2, M0). R55 first-seen marker (§5.4). R56
+  PHANTOM in `applyBatch` FK retry, `shownAnchors`, client store (§3.3). R57
+  owner-only phantom realtime, urgent refresh (§6.1). R58 note search
+  defined (§3.4). Rejected with evidence: "private uploads write the object
+  before the row" (`image_repository.dart:73–86` writes the row first).
 - **rev 7 (2026-10-31), adversarial review round 1.** R1 `invitationById`
   leak → issuer-only projection (§4, §11). R2 global lock order incl. anchor
   batch/cursor, tx-scoped methods, deadlock tests (§5.2). R3/R29/R31 PHANTOM
