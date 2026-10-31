@@ -20,6 +20,9 @@ final class _UnusedPgNotifications implements PgNotificationService {
   Stream<String> get presenceNotifications => const Stream.empty();
 
   @override
+  Stream<String> get roomTypingNotifications => const Stream.empty();
+
+  @override
   Stream<PgNotificationRecovery> get recoveryNotifications =>
       const Stream.empty();
 

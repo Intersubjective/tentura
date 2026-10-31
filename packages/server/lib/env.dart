@@ -97,7 +97,10 @@ Duration? _parseEnvDuration(String? raw) {
 /// poll author, #337 Updates search by actor, #545 first-load gate).
 /// Raised to 7.59.14 for the Posts list fields of 2026-10-25 (#719
 /// `forwardedById`/`forwardedByName`, #767 `lastMessageIsRoot`).
-const kDefaultMinClientVersion = '7.59.14';
+/// Raised to 7.60.0 for the QA batch of 2026-10-28 C (#525 per-card unread
+/// count, #766 seen-by and typing, #770 declined-offer state, #771 invitation
+/// expiry, #797 undo-decline mutation).
+const kDefaultMinClientVersion = '7.60.0';
 
 class Env {
   Env({

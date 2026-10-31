@@ -794,6 +794,17 @@ class MockBeaconRoomCoParticipantLookupPort extends _i1.Mock
             ),
           )
           as _i6.Future<Set<String>>);
+
+  @override
+  _i6.Future<Set<String>> roomMemberUserIds({required String? beaconId}) =>
+      (super.noSuchMethod(
+            Invocation.method(#roomMemberUserIds, [], {#beaconId: beaconId}),
+            returnValue: _i6.Future<Set<String>>.value(<String>{}),
+            returnValueForMissingStub: _i6.Future<Set<String>>.value(
+              <String>{},
+            ),
+          )
+          as _i6.Future<Set<String>>);
 }
 
 /// A class which mocks [RoomMessageSnapshotLookupPort].
