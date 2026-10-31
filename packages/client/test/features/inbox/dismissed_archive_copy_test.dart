@@ -19,12 +19,13 @@ void main() {
       expect(en.inboxTabRejected, 'Dismissed');
     });
 
-    test('English empty state talks about dismissed requests', () {
+    test('English empty state talks about dismissed requests and posts', () {
       expect(
         en.inboxRejectedEmptyHint,
-        'Requests you dismissed land here. You can bring any of them back.',
+        'Requests and posts you dismissed from Activity land here. You can bring any of them back.',
       );
       expect(en.inboxTabRejectedEmpty.toLowerCase(), contains('dismissed'));
+      expect(en.inboxTabRejectedEmpty.toLowerCase(), contains('post'));
       for (final s in [
         en.inboxRejectedTitle,
         en.inboxTabRejected,

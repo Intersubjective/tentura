@@ -472,7 +472,7 @@ void main() {
     expect(find.text('Dismissed'), findsOneWidget);
     expect(
       find.text(
-        'Requests you dismissed land here. You can bring any of them back.',
+        'Requests and posts you dismissed from Activity land here. You can bring any of them back.',
       ),
       findsOneWidget,
     );

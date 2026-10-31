@@ -2694,11 +2694,11 @@
   "@inboxTabRejected": {
     "context": "InboxScreen"
   },
-  "inboxTabRejectedEmpty": "No dismissed requests",
+  "inboxTabRejectedEmpty": "No dismissed requests or posts",
   "@inboxTabRejectedEmpty": {
     "context": "InboxScreen"
   },
-  "inboxRejectedEmptyHint": "Requests you dismissed land here. You can bring any of them back.",
+  "inboxRejectedEmptyHint": "Requests and posts you dismissed from Activity land here. You can bring any of them back.",
   "@inboxRejectedEmptyHint": {
     "context": "InboxScreen"
   },
