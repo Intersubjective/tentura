@@ -7405,9 +7405,13 @@
       }
     }
   },
-  "closureAuthorPreviewTitle": "What each helper gets if colleagues stay silent",
+  "closureAuthorPreviewTitle": "What each helper gets by default",
   "@closureAuthorPreviewTitle": {
     "description": "Live preview title."
+  },
+  "closureAuthorPreviewSubtitle": "if the others don't respond",
+  "@closureAuthorPreviewSubtitle": {
+    "description": "Secondary line under the live preview title (#905): the default applies when the other helpers do not respond."
   },
   "closureAuthorTwoMembers": "You set each share. With only two helpers, each of them can work out the other's share from their own result",
   "@closureAuthorTwoMembers": {
