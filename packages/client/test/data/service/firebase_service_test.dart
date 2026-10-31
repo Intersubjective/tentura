@@ -66,15 +66,36 @@ void main() {
           'TypeError: Failed to fetch dynamically imported module: '
           'https://www.gstatic.com/firebasejs/12.17.0/firebase-app.js',
         ),
-      initializeApp: (_) async {
-        initializeAppCalled = true;
-      },
-    );
+        initializeApp: (_) async {
+          initializeAppCalled = true;
+        },
+      );
       stopwatch.stop();
 
       expect(initializeAppCalled, isFalse);
       expect(service.isInitialized, isFalse);
       expect(stopwatch.elapsed, lessThan(const Duration(seconds: 1)));
+      expect(warnings, isNotEmpty);
+    },
+  );
+
+  // #880: a probe that hangs (slow CDN) is bounded by the same init timeout.
+  test(
+    'a Firebase web SDK probe that never finishes does not block startup',
+    () async {
+      var initializeAppCalled = false;
+      final service = await FirebaseService.create(
+        env: env,
+        logger: logger,
+        assertWebSdkReachable: () => Completer<void>().future,
+        initializeApp: (_) async {
+          initializeAppCalled = true;
+        },
+        initTimeout: const Duration(milliseconds: 10),
+      );
+
+      expect(initializeAppCalled, isFalse);
+      expect(service.isInitialized, isFalse);
       expect(warnings, isNotEmpty);
     },
   );

@@ -48,15 +48,13 @@ class FirebaseService extends ServiceBase {
         // import(); when that import fails (blocked or unreachable host) its
         // internal completer never completes (#880), so boot waited the full
         // init timeout (#878). Probe the SDK import first on web; keep
-        // [initTimeout] as a backstop for a hang after the SDK is reachable.
+        // [initTimeout] as a backstop for a hang in the probe or the init.
         await bootStep(
           'firebase_init',
-          () async {
+          () => () async {
             await (assertWebSdkReachable ?? assertFirebaseWebSdkReachable)();
-            await (initializeApp ?? _initializeApp)(options).timeout(
-              initTimeout,
-            );
-          },
+            await (initializeApp ?? _initializeApp)(options);
+          }().timeout(initTimeout),
         );
         isInitialized = true;
         fcmLog('FirebaseService: Firebase.initializeApp OK');
