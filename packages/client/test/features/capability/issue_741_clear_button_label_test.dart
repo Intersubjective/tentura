@@ -6,6 +6,8 @@ import 'package:tentura/features/capability/ui/widget/capability_search_field.da
 import 'package:tentura/features/profile_view/ui/dialog/edit_capabilities_dialog.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../support/phone_surface.dart';
+
 // #741 (QA round 2): in Russian the search box's clear (×) button was
 // announced «Удалить текст» — Material's stock clearButtonTooltip. It is the
 // app's own «Очистить поиск» / "Clear search".
@@ -31,10 +33,7 @@ void main() {
       tester,
     ) async {
       final semantics = tester.ensureSemantics();
-      tester.view
-        ..physicalSize = const Size(375, 667)
-        ..devicePixelRatio = 1;
-      addTearDown(tester.view.reset);
+      await usePhoneSurface(tester);
       var query = '';
       await tester.pumpWidget(
         _app(
@@ -72,10 +71,7 @@ void main() {
 
     testWidgets('${locale.languageCode}: Edit labels dialog search × reads '
         '«$clear»', (tester) async {
-      tester.view
-        ..physicalSize = const Size(375, 667)
-        ..devicePixelRatio = 1;
-      addTearDown(tester.view.reset);
+      await usePhoneSurface(tester);
       await tester.pumpWidget(
         _app(
           locale,
