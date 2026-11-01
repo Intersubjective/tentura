@@ -35,26 +35,27 @@ abstract class UpdatesFeedState extends StateBase with _$UpdatesFeedState {
   bool get hasRefreshError => refreshError != null;
   bool get hasActionError => actionError != null;
 
-  /// «Read all» has something to do (#258): the sweep would take rows, a
-  /// loaded row is unseen, or a loaded row is optional attention it clears
-  /// after the sweep (`AttentionCase.readAll`). `summary.unreadTotal` also
-  /// counts unanswered forwards, which Read all never clears, so gating on it
-  /// left the control enabled with nothing to do.
+  /// «Read all» has something to do (#258): the sweep would take rows, or a
+  /// loaded row is on the Unread view ([isInUnreadView], the server's
+  /// `unread` filter) and is either unseen or optional attention Read all
+  /// clears after the sweep (`AttentionCase.readAll`). `summary.unreadTotal`
+  /// is not the gate: it also counts unanswered forwards, which Read all
+  /// never clears (round 1).
   ///
-  /// The optional-row clause also needs the server's Unread view to hold
-  /// something (`unreadTotal > 0`): Read all clears leftovers read from that
-  /// view, and an All page can keep rows the For you sweep already cleared,
-  /// which left it enabled on «All» and disabled on «Unread» (#258 round 2).
+  /// Only rows on Unread count (round 3): Dismiss all clears rows without
+  /// reading them, so «All» keeps cleared, unseen rows that are not on
+  /// Unread and that Read all has nothing to do for; counting them left the
+  /// control enabled on «All» and disabled on «Unread».
   bool get canReadAll =>
       sweepEligible ||
       items.any(
         (r) =>
-            !r.isSeen ||
-            (summary.unreadTotal > 0 &&
-                r.itemKind == AttentionItemKind.receipt &&
-                isActiveOptional(r) &&
-                r.presentationKey != 'relay_received' &&
-                r.surface != AttentionSurface.activity),
+            isInUnreadView(r) &&
+            (!r.isSeen ||
+                (r.itemKind == AttentionItemKind.receipt &&
+                    isActiveOptional(r) &&
+                    r.presentationKey != 'relay_received' &&
+                    r.surface != AttentionSurface.activity)),
       );
 
   PromptProjection promptProjectionFor(String subjectId) =>

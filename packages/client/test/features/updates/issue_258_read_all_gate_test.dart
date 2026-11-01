@@ -99,19 +99,27 @@ void main() {
   });
 
   group('#258 round 2: after Dismiss all on For you', () {
-    // The All page still holds the Updates copies of the shared Posts, read
-    // and not yet cleared on this client; the server's Unread view is empty.
+    // The All page still holds the shared Posts as Dismiss all leaves them:
+    // cleared, never read (the sweep writes `cleared_at`, not `seen_at`), so
+    // they are not on the server's Unread view (round 3; the wire path is in
+    // issue_258_read_all_mixed_wire_test.dart).
     final stale = [
       for (var i = 0; i < 6; i++)
-        _sharedPost(read: true).copyWith(
-          id: 'post$i',
-          clearedAt: null,
-          surface: AttentionSurface.myWork,
-        ),
+        _sharedPost(read: true).copyWith(id: 'post$i', seenAt: null),
     ];
 
     test('«All» with nothing unread: Read all is disabled', () {
       expect(UpdatesFeedState(items: stale).canReadAll, isFalse);
+    });
+
+    test('«All» with the forwards still counted in unreadTotal: disabled', () {
+      expect(
+        UpdatesFeedState(
+          summary: const AttentionSummary(unreadTotal: 6),
+          items: [...stale, ...forwards],
+        ).canReadAll,
+        isFalse,
+      );
     });
 
     test('«Unread» (empty) gives the same answer', () {
