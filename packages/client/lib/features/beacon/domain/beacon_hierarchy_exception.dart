@@ -165,24 +165,67 @@ final class PostLifetimeExtendException extends BeaconHierarchyException {
 }
 
 /// No author invite with this id for the caller.
-final class AuthorInviteNotFoundException extends BeaconHierarchyException {
+final class AuthorInviteNotFoundException extends BeaconHierarchyException
+    implements Localizable {
   const AuthorInviteNotFoundException([super.message]);
 
   static const codeNumber = 1333;
+
+  @override
+  String get toEn => 'This invitation was not found.';
+
+  @override
+  String get toRu => 'Приглашение не найдено.';
+
+  @override
+  String toL10n(String? locale) => switch (locale) {
+    'ru' => toRu,
+    'en' => toEn,
+    _ => 'Unsupported locale for $runtimeType',
+  };
 }
 
 /// The author invite is no longer pending (declined, withdrawn, expired or
 /// superseded).
-final class AuthorInviteNotPendingException extends BeaconHierarchyException {
+final class AuthorInviteNotPendingException extends BeaconHierarchyException
+    implements Localizable {
   const AuthorInviteNotPendingException([super.message]);
 
   static const codeNumber = 1334;
+
+  @override
+  String get toEn => 'This invitation is no longer pending.';
+
+  @override
+  String get toRu => 'Это приглашение больше не активно.';
+
+  @override
+  String toL10n(String? locale) => switch (locale) {
+    'ru' => toRu,
+    'en' => toEn,
+    _ => 'Unsupported locale for $runtimeType',
+  };
 }
 
 /// The invited Request is not open (for example, it is in review).
-final class AuthorInviteRequestNotOpenException
-    extends BeaconHierarchyException {
+final class AuthorInviteRequestNotOpenException extends BeaconHierarchyException
+    implements Localizable {
   const AuthorInviteRequestNotOpenException([super.message]);
 
   static const codeNumber = 1335;
+
+  @override
+  String get toEn =>
+      "This Request is no longer open, so the invitation can't be restored.";
+
+  @override
+  String get toRu =>
+      'Запрос уже закрыт, поэтому приглашение нельзя восстановить.';
+
+  @override
+  String toL10n(String? locale) => switch (locale) {
+    'ru' => toRu,
+    'en' => toEn,
+    _ => 'Unsupported locale for $runtimeType',
+  };
 }
