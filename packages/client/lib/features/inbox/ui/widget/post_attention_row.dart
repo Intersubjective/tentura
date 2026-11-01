@@ -9,6 +9,7 @@ import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/relative_time.dart';
+import 'package:tentura/ui/widget/beacon_image.dart';
 import 'package:tentura/ui/widget/relative_timestamp_ticker.dart';
 
 import '../../domain/entity/inbox_provenance.dart';
@@ -266,10 +267,12 @@ class _RootThumbnail extends StatelessWidget {
         borderRadius: BorderRadius.circular(tt.cardRadius),
         child: SizedBox.square(
           dimension: tt.avatarSize,
+          // #816: a token-coloured tile until the photo decodes, and on error.
           child: Image.network(
             url,
             fit: BoxFit.cover,
-            errorBuilder: (_, _, _) => const SizedBox.shrink(),
+            frameBuilder: beaconImageFadeInOverPlaceholder,
+            errorBuilder: (_, _, _) => const BeaconImagePlaceholder(),
           ),
         ),
       ),
