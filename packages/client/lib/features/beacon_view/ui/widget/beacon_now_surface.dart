@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -386,7 +387,10 @@ class _BeaconNowSurfaceState extends State<BeaconNowSurface> {
                           BeaconSurface.people,
                         ),
                         onOpenClosureReview:
-                            !state.isBeaconMine && state.closureState != null
+                            !state.isBeaconMine &&
+                                state.beacon.status ==
+                                    BeaconStatus.reviewOpen &&
+                                state.closureState != null
                             ? () => unawaited(
                                 beaconViewOpenClosureReview(
                                   context.router,

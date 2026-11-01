@@ -634,12 +634,16 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
     await refreshAfterClosureReview();
   }
 
-  /// Refreshes the closure snapshot when lifecycle is wrapping up.
+  /// Refreshes the closure snapshot during final check or on a closed Request.
   Future<void> refreshClosureState() async {
-    if (state.beacon.status != BeaconStatus.reviewOpen) return;
+    final status = state.beacon.status;
+    if (status != BeaconStatus.reviewOpen && status != BeaconStatus.closed) {
+      return;
+    }
     try {
-      final closureState = await _case.fetchClosureStateIfReviewOpen(
+      final closureState = await _case.fetchClosureStateIfReviewOpenOrClosed(
         state.beacon.id,
+        status: status,
       );
       if (!isClosed) {
         emit(state.copyWith(closureState: closureState));
@@ -1737,17 +1741,15 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
       // The author's forwards (#484) and the final-check snapshot need only
       // the Request just read, so they leave with this round. Waiting until
       // the round returns re-reads the Request and adds a dependent chain.
-      final closureFuture = beacon.status == BeaconStatus.reviewOpen
-          ? _case
-                .fetchClosureStateIfReviewOpen(
-                  beaconId,
-                  status: beacon.status,
-                )
-                .then<ClosureState?>(
-                  (value) => value,
-                  onError: (Object _) => null,
-                )
-          : Future<ClosureState?>.value();
+      final closureFuture = _case
+          .fetchClosureStateIfReviewOpenOrClosed(
+            beaconId,
+            status: beacon.status,
+          )
+          .then<ClosureState?>(
+            (value) => value,
+            onError: (Object _) => null,
+          );
       final forwardsFuture = needsAuthorForwards
           ? _readForwards(
               beaconId: beaconId,
