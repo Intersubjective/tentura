@@ -34,6 +34,27 @@ cleanup_tmp_archive() {
   fi
 }
 
+# Every web build adds app-assets/<version>-<sha>/ (~150 MB) and nothing removed
+# them (42 GB on dev by 2026-11-01). Keep the newest APP_ASSETS_KEEP builds, so
+# clients still on a recent cached build can load its files, and always the
+# build the new bootstrap references. Best-effort: never fails the deploy.
+prune_app_assets() {
+  local assets_dir="$WEB_DIR/app-assets"
+  local keep="${APP_ASSETS_KEEP:-20}"
+  local current old
+  [[ -d "$assets_dir" ]] || return 0
+  current="$(grep -ho 'app-assets/[A-Za-z0-9._-]*' "$WEB_DIR/flutter_bootstrap.js" "$WEB_DIR/index.html" 2>/dev/null | sort -u | cut -d/ -f2 || true)"
+  if [[ -z "$current" || "$current" == *$'\n'* || ! -d "$assets_dir/$current" ]]; then
+    echo "Warning: cannot tell the live build from the bootstrap; skipping app-assets prune" >&2
+    return 0
+  fi
+  old="$(ls -t "$assets_dir" | tail -n "+$((keep + 1))" | grep -vx "$current" || true)"
+  [[ -n "$old" ]] || return 0
+  echo "Pruning $(echo "$old" | wc -l) old web builds from $assets_dir (keeping $keep + live $current)"
+  (cd "$assets_dir" && echo "$old" | xargs -r rm -rf --) \
+    || echo "Warning: app-assets prune failed (non-fatal)" >&2
+}
+
 read_hasura_admin_secret() {
   local line
   line="$(grep -E '^HASURA_GRAPHQL_ADMIN_SECRET=' .env 2>/dev/null | head -1 || true)"
@@ -183,6 +204,7 @@ mkdir -p "$WEB_DIR"
 echo "Extracting web archive to $WEB_DIR..."
 tar -xzf "$ARCHIVE_PATH" -C "$WEB_DIR/"
 echo "Web archive extracted successfully"
+prune_app_assets
 
 # Extract landing archive (optional) — static landing served at {$LANDING_ROOT}.
 # Prefer LANDING_ARCHIVE from CI; fallback only when unset (e.g. manual deploy).
@@ -233,6 +255,10 @@ echo "Starting containers (waiting for healthchecks)..."
 docker compose "${COMPOSE_ARGS[@]}" up -d --wait --wait-timeout 300
 
 apply_hasura_metadata
+
+# Each pull of a :latest tag leaves the previous image untagged (13 GB of them
+# on dev by 2026-11-01). Running containers use the new images, so drop those.
+docker image prune -f >/dev/null || echo "Warning: docker image prune failed (non-fatal)" >&2
 
 # Show status
 echo ""
