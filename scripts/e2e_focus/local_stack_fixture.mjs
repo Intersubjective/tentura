@@ -60,7 +60,9 @@ try {
   const [mode = 'all', ...args] = process.argv.slice(2);
   const target = mode === 'all'
     ? ['scripts/e2e_focus/typing_survives_interactions_on_all_surfaces.mjs', ...args]
-    : ['scripts/e2e_focus/typing_survives_clear_and_tooltip.mjs', mode, ...args];
+    : mode === 'scroll-reveal'
+      ? ['scripts/e2e_focus/typing_survives_note_reveal_scroll.mjs', ...args]
+      : ['scripts/e2e_focus/typing_survives_clear_and_tooltip.mjs', mode, ...args];
   const suite = spawn(process.execPath, [
     ...target,
   ], { cwd: root, stdio: 'inherit', env: process.env });

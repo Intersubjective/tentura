@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -120,12 +123,16 @@ class ForwardRecipientExpandedPersonalNote extends StatefulWidget {
 class _ForwardRecipientExpandedPersonalNoteState
     extends State<ForwardRecipientExpandedPersonalNote> {
   late final FocusNode _focusNode;
+  EditableTextState? _editor;
+  bool _settlePending = false;
 
   @override
   void initState() {
     super.initState();
     _focusNode = FocusNode();
-    _focusNode.addListener(_onFocusChange);
+    // Global: collapse only once focus has settled outside (#893 r4).
+    FocusManager.instance.addListener(_onFocusChange);
+    // Focus the note field itself, not this wrapper (#893 r3).
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) {
         return;
@@ -138,24 +145,67 @@ class _ForwardRecipientExpandedPersonalNoteState
   }
 
   void _onFocusChange() {
-    if (!_focusNode.hasFocus) {
-      widget.onCollapsed();
+    if (_focusNode.hasFocus) {
+      // Arm collapse only once the editable descendant actually takes focus.
+      _editor = FocusManager.instance.primaryFocus?.context
+          ?.findAncestorStateOfType<EditableTextState>();
+      return;
     }
+    if (_editor == null || _settlePending) return;
+    _settlePending = true;
+    WidgetsBinding.instance
+      ..addPostFrameCallback((_) {
+        // The shared web helper restores editing on the next frame. Observe
+        // the resulting focus notifications before deciding to unmount it.
+        scheduleMicrotask(_collapseAfterSettledFocus);
+      })
+      ..scheduleFrame();
+  }
+
+  void _collapseAfterSettledFocus() {
+    _settlePending = false;
+    if (!mounted || _focusNode.hasFocus) return;
+    final editor = _editor;
+    if (editor == null || !editor.mounted) return;
+    final target = FocusManager.instance.primaryFocus;
+    final movedToControl = target != null && target is! FocusScopeNode;
+    if (movedToControl || editor.widget.controller.text.trim().isEmpty) {
+      _collapse();
+    }
+  }
+
+  void _collapse() {
+    if (_editor == null) return;
+    _editor = null;
+    widget.onCollapsed();
+  }
+
+  KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
+    if (event is KeyDownEvent &&
+        event.logicalKey == LogicalKeyboardKey.escape &&
+        _editor != null) {
+      _collapse();
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
   }
 
   @override
   void dispose() {
-    _focusNode
-      ..removeListener(_onFocusChange)
-      ..dispose();
+    FocusManager.instance.removeListener(_onFocusChange);
+    _focusNode.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Focus(
-      focusNode: _focusNode,
-      child: widget.child,
+    return TextFieldTapRegion(
+      onTapOutside: (_) => _collapse(),
+      child: Focus(
+        focusNode: _focusNode,
+        onKeyEvent: _onKeyEvent,
+        child: widget.child,
+      ),
     );
   }
 }

@@ -165,7 +165,7 @@ void main() {
   });
 
   testWidgets(
-    '+ Note → type → blur → preview keeps note in state',
+    'tapping outside a personal note saves its recipient preview',
     (tester) async {
       final cubit = _cubitWithCandidates(const [
         ForwardCandidate(
@@ -206,7 +206,9 @@ void main() {
       await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextField), 'private hello');
       await tester.pump();
-      FocusManager.instance.primaryFocus?.unfocus();
+      // A bare unfocus can be view/helper parking. Use the intentional
+      // outside interaction that commits the note to its collapsed preview.
+      await tester.tapAt(const Offset(180, 12));
       await tester.pumpAndSettle();
 
       expect(find.text('private hello'), findsOneWidget);

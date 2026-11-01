@@ -9,7 +9,7 @@ import 'package:tentura/ui/widget/self_user_highlight.dart';
 import 'forward_input_decoration.dart';
 
 /// Personalized note field shown under a selected forward recipient.
-class PerRecipientNoteInput extends StatelessWidget {
+class PerRecipientNoteInput extends StatefulWidget {
   const PerRecipientNoteInput({
     required this.profile,
     required this.controller,
@@ -26,6 +26,27 @@ class PerRecipientNoteInput extends StatelessWidget {
   final String? hintText;
 
   @override
+  State<PerRecipientNoteInput> createState() => _PerRecipientNoteInputState();
+}
+
+class _PerRecipientNoteInputState extends State<PerRecipientNoteInput> {
+  final _focusNode = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _focusNode.requestFocus();
+    });
+  }
+
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
@@ -36,18 +57,19 @@ class PerRecipientNoteInput extends StatelessWidget {
         buildWhen: (p, c) => p.profile.id != c.profile.id,
         builder: (context, state) {
           return TextField(
-            controller: controller,
-            onChanged: onChanged,
+            focusNode: _focusNode,
+            controller: widget.controller,
+            onChanged: widget.onChanged,
             style: TenturaText.body(tt.text),
             cursorColor: tt.info,
             decoration: forwardNoteInputDecoration(
               context,
               hintText:
-                  hintText ??
+                  widget.hintText ??
                   l10n.forwardRecipientNoteHint(
                     SelfUserHighlight.displayName(
                       l10n,
-                      profile,
+                      widget.profile,
                       state.profile.id,
                     ),
                   ),
