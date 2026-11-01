@@ -9,6 +9,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
 import 'package:tentura/features/capability/ui/widget/capability_chip_set.dart';
+import 'package:tentura/features/capability/ui/widget/capability_search_field.dart';
 
 /// Bottom-sheet modal for editing the viewer's private, subjective capability
 /// view of [subjectId]. Shows all capability slugs currently visible to the viewer,
@@ -61,6 +62,7 @@ class EditCapabilitiesDialog extends StatefulWidget {
 class _EditCapabilitiesDialogState extends State<EditCapabilitiesDialog> {
   late Set<String> _selected;
   bool _saving = false;
+  String _query = '';
 
   @override
   void initState() {
@@ -146,9 +148,14 @@ class _EditCapabilitiesDialogState extends State<EditCapabilitiesDialog> {
                 controller: scrollController,
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
                 children: [
+                  CapabilitySearchField(
+                    onChanged: (q) => setState(() => _query = q),
+                  ),
+                  SizedBox(height: context.tt.rowGap),
                   CapabilityChipSet(
                     selectedSlugs: _selected,
                     automaticSlugs: widget.automaticSlugs,
+                    query: _query,
                     onChanged: (s) => setState(() => _selected = s),
                   ),
                 ],

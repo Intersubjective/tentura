@@ -5388,6 +5388,14 @@
   "profileLabelPrivate": "Ваша заметка, видите только вы",
   "profileLabelShared": "Из пересылок или отметок о помощи, видно другим",
   "profileSeedSuggestionInfo": "Люди, которые вам доверяют, увидят этого человека в подсказках для таких запросов.",
+  "capabilitySearchLabel": "Поиск",
+  "@capabilitySearchLabel": {
+    "description": "Подпись поля поиска над выбором навыков (требования, навыки в профиле) (#741)."
+  },
+  "capabilitySearchEmpty": "Ничего не найдено",
+  "@capabilitySearchEmpty": {
+    "description": "Показывается в выборе навыков, когда поиск ничего не нашёл (#741)."
+  },
   "capabilityDialogTitle": "Чем может помочь {name}?",
   "capabilityDialogOnlyYou": "Новые метки — ваши заметки, их видите только вы",
   "capabilityEditCapabilities": "Редактировать способности",
@@ -5912,6 +5920,57 @@
   "inviteAcceptedSetupCapabilitiesError": "Не удалось сохранить возможности. Повторите попытку.",
   "inviteAcceptedSetupPartialSuccessError": "Личное имя сохранено, но возможности — нет. Попробуйте сохранить снова.",
   "inviteAcceptedSetupSkipError": "Не удалось пропустить настройку. Повторите попытку.",
+  "promptBatchSkipAll": "Пропустить все ({count})",
+  "@promptBatchSkipAll": {
+    "description": "Action in the title row of the batch sheet for pending «Set up connection» prompts (#259).",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "promptBatchSkipAllConfirmTitle": "{count, plural, one{Пропустить настройку для {count} человека?} few{Пропустить настройку для {count} человек?} many{Пропустить настройку для {count} человек?} other{Пропустить настройку для {count} человека?}}",
+  "@promptBatchSkipAllConfirmTitle": {
+    "description": "Confirm dialog title before Skip all in the invite prompt batch sheet (#259).",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "promptBatchSkipAllConfirmBody": "Их можно будет настроить позже в профилях.",
+  "@promptBatchSkipAllConfirmBody": {
+    "description": "Confirm dialog body before Skip all (#259)."
+  },
+  "promptBatchSkipAllConfirm": "Пропустить все",
+  "@promptBatchSkipAllConfirm": {
+    "description": "Confirm button of the Skip all dialog (#259)."
+  },
+  "promptBatchSkipAllDone": "Пропущено: {count}",
+  "@promptBatchSkipAllDone": {
+    "description": "Shown after Skip all skipped every pending prompt (#259).",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "promptBatchSkipAllPartial": "Пропущено {done} из {total}",
+  "@promptBatchSkipAllPartial": {
+    "description": "Shown when Skip all skipped only some prompts (#259).",
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "promptBatchSkipAllRetry": "Повторить",
+  "@promptBatchSkipAllRetry": {
+    "description": "Retries Skip all for the prompts not skipped yet (#259)."
+  },
   "profileSeedSuggestionEditPrompt": "Изменить подсказки по маршрутизации для {name}",
   "@profileSeedSuggestionEditPrompt": {
     "placeholders": {
@@ -6325,7 +6384,11 @@
   "closureAuthorSplitEqual": "Поровну между теми, кого ты не отметил как «Не выполнено»",
   "closureAuthorSplitTooMany": "Вручную можно распределить не больше 20 человек. Здесь доли остаются равными",
   "closureAuthorSplitShare": "{name} — {pct}%",
-  "closureAuthorPreviewTitle": "Что получит каждый, если коллеги промолчат",
+  "closureAuthorPreviewTitle": "Что получит каждый помощник по умолчанию",
+  "closureAuthorPreviewSubtitle": "если остальные не ответят",
+  "@closureAuthorPreviewSubtitle": {
+    "description": "Строка под заголовком предпросмотра (#905): доли по умолчанию, если остальные помощники не ответят."
+  },
   "closureAuthorTwoMembers": "Доли задаёшь ты. Когда помощников двое, каждый по своему итогу поймёт и долю другого",
   "closureAuthorStoryHint": "Расскажи, как всё прошло",
   "closureAuthorStorySave": "Сохранить",

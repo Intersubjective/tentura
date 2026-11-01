@@ -5953,6 +5953,14 @@
   "profileLabelPrivate": "Your note, only you see it",
   "profileLabelShared": "From forwards or help acknowledgements, visible to others",
   "profileSeedSuggestionInfo": "People who trust you will see this person in suggestions for these requests.",
+  "capabilitySearchLabel": "Search",
+  "@capabilitySearchLabel": {
+    "description": "Label of the search box above a capability chip picker (Requirements, profile capabilities) (#741)."
+  },
+  "capabilitySearchEmpty": "Nothing found",
+  "@capabilitySearchEmpty": {
+    "description": "Shown in a capability chip picker when the search matches no category or tag (#741)."
+  },
   "capabilityDialogTitle": "What can {name} help with?",
   "@capabilityDialogTitle": {
     "placeholders": {
@@ -6730,6 +6738,57 @@
   "inviteAcceptedSetupCapabilitiesError": "Couldn't save capabilities. Try again.",
   "inviteAcceptedSetupPartialSuccessError": "The private name was saved, but capabilities were not. Try saving again.",
   "inviteAcceptedSetupSkipError": "Couldn't skip setup. Try again.",
+  "promptBatchSkipAll": "Skip all ({count})",
+  "@promptBatchSkipAll": {
+    "description": "Action in the title row of the batch sheet for pending «Set up connection» prompts (#259). Skips setup for every pending prompt in the sheet after a confirm.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "promptBatchSkipAllConfirmTitle": "{count, plural, =1{Skip setup for 1 person?} other{Skip setup for {count} people?}}",
+  "@promptBatchSkipAllConfirmTitle": {
+    "description": "Confirm dialog title before Skip all in the invite prompt batch sheet (#259).",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "promptBatchSkipAllConfirmBody": "You can still set them up later from their profiles.",
+  "@promptBatchSkipAllConfirmBody": {
+    "description": "Confirm dialog body before Skip all in the invite prompt batch sheet (#259)."
+  },
+  "promptBatchSkipAllConfirm": "Skip all",
+  "@promptBatchSkipAllConfirm": {
+    "description": "Confirm button of the Skip all dialog in the invite prompt batch sheet (#259)."
+  },
+  "promptBatchSkipAllDone": "Skipped {count}",
+  "@promptBatchSkipAllDone": {
+    "description": "Shown after Skip all skipped every pending prompt (#259). The count is what was actually skipped.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "promptBatchSkipAllPartial": "Skipped {done} of {total}",
+  "@promptBatchSkipAllPartial": {
+    "description": "Shown in the batch sheet when Skip all skipped only some prompts (#259). Never claims a count it did not achieve; a Retry action follows.",
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "promptBatchSkipAllRetry": "Retry",
+  "@promptBatchSkipAllRetry": {
+    "description": "Retries Skip all for the prompts that were not skipped yet (#259)."
+  },
   "profileSeedSuggestionEditPrompt": "Edit routing suggestions for {name}",
   "@profileSeedSuggestionEditPrompt": {
     "placeholders": {
@@ -7405,9 +7464,13 @@
       }
     }
   },
-  "closureAuthorPreviewTitle": "What each helper gets if colleagues stay silent",
+  "closureAuthorPreviewTitle": "What each helper gets by default",
   "@closureAuthorPreviewTitle": {
     "description": "Live preview title."
+  },
+  "closureAuthorPreviewSubtitle": "if the others don't respond",
+  "@closureAuthorPreviewSubtitle": {
+    "description": "Secondary line under the live preview title (#905): the default applies when the other helpers do not respond."
   },
   "closureAuthorTwoMembers": "You set each share. With only two helpers, each of them can work out the other's share from their own result",
   "@closureAuthorTwoMembers": {

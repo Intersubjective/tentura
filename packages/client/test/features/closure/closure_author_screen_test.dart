@@ -821,7 +821,7 @@ void main() {
       ),
     );
     expect(
-      find.text('Что получит каждый, если коллеги промолчат'),
+      find.text('Что получит каждый помощник по умолчанию'),
       findsOneWidget,
     );
     expect(_name('u1'), findsWidgets);

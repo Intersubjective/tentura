@@ -166,14 +166,20 @@ void main() {
 
     // Expand one category group and check its chips.
     final groupLabel = l10n.capabilityGroupLogistics;
-    await tester.ensureVisible(find.text(groupLabel));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text(groupLabel));
-    await tester.pumpAndSettle();
-
     final tag = CapabilityTag.values.firstWhere(
       (t) => t.group == CapabilityGroup.logistics,
     );
+    // Logistics is the first group, open from the start (#741).
+    if (find
+        .byKey(TestIds.key(TestIds.capabilityChip(tag.slug)))
+        .evaluate()
+        .isEmpty) {
+      await tester.ensureVisible(find.text(groupLabel));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(groupLabel));
+      await tester.pumpAndSettle();
+    }
+
     final chipLabel = '${tag.labelOf(l10n)}, $groupLabel';
     await tester.ensureVisible(
       find.byKey(TestIds.key(TestIds.capabilityChip(tag.slug))),
