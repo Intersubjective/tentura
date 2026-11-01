@@ -1266,8 +1266,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
 
                       final statusSlots = beaconViewStatusSlots(l10n, state);
                       final appBarPhaseStatus = statusSlots.presentation;
-                      // The phone status is held until the body gate below
-                      // reveals (#545). The split header is unchanged.
+                      // All status chrome shares the body gate's reveal flag.
                       var gateTheBody = false;
 
                       Widget body;
@@ -1609,6 +1608,8 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                                                                 state.beacon,
                                                             showBeaconContent:
                                                                 showBeaconContent,
+                                                            showStatus:
+                                                                phaseStatusVisible,
                                                             phaseStatus:
                                                                 appBarPhaseStatus,
                                                             l10n: l10n,
@@ -1626,7 +1627,8 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                                                   child: _splitNowPaneAppBar(
                                                     beaconState: state,
                                                     showBeaconContent:
-                                                        showBeaconContent,
+                                                        showBeaconContent &&
+                                                        phaseStatusVisible,
                                                     l10n: l10n,
                                                     tt: tt,
                                                     overflow: splitOverflow,
@@ -1658,7 +1660,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
 
                       // Same ready / revealOnTimeout the gate has always used.
                       // frameBuilder reads the gate's own revealed flag, so the
-                      // phone status cannot drift from the body (#545).
+                      // status and face pile cannot drift from the body.
                       final roomExpected =
                           !showcase &&
                           !state.isRoomAdmissionBlocked &&
@@ -1703,8 +1705,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                                     frameBuilder: (_, revealed, gated) =>
                                         screenFrame(
                                           frameBody: gated,
-                                          phaseStatusVisible:
-                                              isSplit || revealed,
+                                          phaseStatusVisible: revealed,
                                         ),
                                     child: body,
                                   ),

@@ -46,14 +46,20 @@ BeaconViewStatusSlots beaconViewStatusSlots(
   final offerCue = _pendingOfferCue(l10n, state, result);
   // #636: a pending offer is a per-viewer cue in slot2; the shared status
   // verb (slot1) stays as derived — the first offer does not change it (#504).
-  final pres = offerCue == null
-      ? phasePres
-      : BeaconPhaseStatusPresentation(
-          slot1: phasePres.slot1,
-          slot2: offerCue,
-          slot1Tone: phasePres.slot1Tone,
-          slot2Tone: TenturaTone.info,
-        );
+  // The author's unfinished or failed forward read is unknown, not empty.
+  // Timeout reveal may expose that state before the read finishes.
+  final emptyStatusKnown = !state.isBeaconMine || state.forwardsLoaded;
+  final pres = BeaconPhaseStatusPresentation(
+    slot1: phasePres.slot1,
+    slot2:
+        offerCue ??
+        (result.slot2Kind == BeaconPhaseSlot2Kind.noOffersYet &&
+                !emptyStatusKnown
+            ? null
+            : phasePres.slot2),
+    slot1Tone: phasePres.slot1Tone,
+    slot2Tone: offerCue == null ? phasePres.slot2Tone : TenturaTone.info,
+  );
 
   assert(pres.statusLine.trim().isNotEmpty, 'phase status must never be empty');
 
