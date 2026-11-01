@@ -175,7 +175,11 @@ class OpenRequestObserverHarness {
     RoomReadWatermarkStore? watermarkStore,
     this.viewerOverride,
     String? threadItemId,
+    activity.FakeInboxRepository? inboxRepository,
+    Zone? homeInboxZone,
+    Zone? watchingInboxZone,
   }) : watermark = watermarkStore ?? RoomReadWatermarkStore.testing(),
+       inboxRepo = inboxRepository ?? activity.FakeInboxRepository(),
        ownsInvalidations = invalidationService == null {
     registerProfile();
     invalidations =
@@ -288,15 +292,19 @@ class OpenRequestObserverHarness {
     );
     // Home keeps its InboxCubit mounted when Watching creates another one.
     // Both are observers of the same projection and must share its read.
-    homeInbox = InboxCubit(
-      userId: viewerId,
-      inboxCase: inboxCase,
-      effects: FakeUiEffectPort(),
+    homeInbox = (homeInboxZone ?? Zone.current).run(
+      () => InboxCubit(
+        userId: viewerId,
+        inboxCase: inboxCase,
+        effects: FakeUiEffectPort(),
+      ),
     );
-    watchingInbox = InboxCubit(
-      userId: viewerId,
-      inboxCase: inboxCase,
-      effects: FakeUiEffectPort(),
+    watchingInbox = (watchingInboxZone ?? Zone.current).run(
+      () => InboxCubit(
+        userId: viewerId,
+        inboxCase: inboxCase,
+        effects: FakeUiEffectPort(),
+      ),
     );
     myWork = MyWorkCubit(
       userId: viewerId,
@@ -363,7 +371,7 @@ class OpenRequestObserverHarness {
   late final DiscussionSnapshots roomRepo;
   final viewFacts = detail.FakeBeaconViewFactCardRepository();
   final roomFacts = detail.FakeBeaconViewFactCardRepository();
-  final inboxRepo = activity.FakeInboxRepository();
+  final activity.FakeInboxRepository inboxRepo;
   final myWorkRepo = desk.FakeMyWorkRepository();
   final deskHints = desk.FakeRoomHints();
   final attentionRepo = _AttentionSnapshots();

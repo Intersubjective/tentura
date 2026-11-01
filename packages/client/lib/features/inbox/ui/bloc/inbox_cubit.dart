@@ -81,7 +81,15 @@ class InboxCubit extends Cubit<InboxState> {
   final UiEffectPort _effects;
 
   late final _deskRelevantRequests = BurstCoalescer<void>((_) {
-    if (!isClosed) unawaited(fetch(showLoading: false, showError: false));
+    if (!isClosed) {
+      unawaited(
+        _fetch(
+          showLoading: false,
+          showError: false,
+          shareRefresh: true,
+        ),
+      );
+    }
   });
 
   late final StreamSubscription<HelpOfferEvent> _helpOfferChanges;
@@ -95,6 +103,7 @@ class InboxCubit extends Cubit<InboxState> {
   /// an in-flight initial load and leave [StateIsLoading] stuck.
   Completer<bool>? _fetchGate;
   var _fetchQueued = false;
+  var _queuedShareRefresh = false;
   var _forceNextInboxRead = false;
 
   void _emitSnackError(Object error) {
@@ -220,10 +229,17 @@ class InboxCubit extends Cubit<InboxState> {
   Future<bool> fetch({
     bool showLoading = true,
     bool showError = true,
+  }) => _fetch(showLoading: showLoading, showError: showError);
+
+  Future<bool> _fetch({
+    required bool showLoading,
+    required bool showError,
+    bool shareRefresh = false,
   }) async {
     final existing = _fetchGate;
     if (existing != null) {
       _fetchQueued = true;
+      _queuedShareRefresh = shareRefresh;
       return existing.future;
     }
 
@@ -234,13 +250,16 @@ class InboxCubit extends Cubit<InboxState> {
       ok = await _runFetch(
         showLoading: showLoading,
         showError: showError,
+        shareRefresh: shareRefresh,
       );
       while (_fetchQueued && !isClosed) {
+        final shareQueuedRefresh = _queuedShareRefresh;
         _fetchQueued = false;
         ok = await _runFetch(
           showLoading: false,
           showError: false,
-          forceFreshInboxRead: true,
+          forceFreshInboxRead: !shareQueuedRefresh,
+          shareRefresh: shareQueuedRefresh,
         );
       }
     } finally {
@@ -256,6 +275,7 @@ class InboxCubit extends Cubit<InboxState> {
     required bool showLoading,
     required bool showError,
     bool forceFreshInboxRead = false,
+    bool shareRefresh = false,
   }) async {
     if (showLoading) {
       emit(
@@ -272,6 +292,7 @@ class InboxCubit extends Cubit<InboxState> {
       final raw = await _inboxCase.fetch(
         userId: _userId,
         forceFresh: forceFresh,
+        shareRefresh: shareRefresh,
       );
       if (isClosed) return false;
       final items = [

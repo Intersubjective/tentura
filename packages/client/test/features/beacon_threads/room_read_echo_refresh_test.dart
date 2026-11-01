@@ -5,6 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:fake_async/fake_async.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_read_watermark.dart';
+import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
+import 'package:tentura/domain/entity/realtime/realtime_catch_up.dart';
+import 'package:tentura/domain/util/burst_coalescer.dart';
+import 'package:tentura/features/inbox/domain/entity/inbox_item.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/beacon_room_invalidation.dart';
 import 'package:tentura/features/beacon_threads/domain/room_host.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/beacon_hierarchy_cubit.dart';
@@ -17,6 +21,7 @@ import 'package:tentura/features/beacon_lobby/ui/bloc/beacon_lobby_entry_cubit.d
 import 'package:tentura/features/beacon_lobby/domain/use_case/beacon_lobby_case.dart';
 import '../beacon_lobby/fake_lobby_port.dart';
 import '../realtime/open_request_change_refresh_test.dart' as observer;
+import '../inbox/inbox_case_test.dart' show FakeInboxRepository;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
@@ -41,6 +46,58 @@ import '../realtime/request_change_hint_replay.dart';
 import 'room_cubit_fakes.dart';
 import 'support/room_body_harness.dart';
 import 'support/room_hint_wire_harness.dart';
+
+typedef _Delivery = ({int id, String observer, String trigger});
+
+class _TracedInboxRepository extends FakeInboxRepository {
+  final trace = <String>[];
+  final starts = <({_Delivery? delivery, bool overlapsRead})>[];
+  final deliveries = <_Delivery>[];
+  _Delivery? activeDelivery;
+  _Delivery? activeRefresh;
+  int _deliveryId = 0;
+  int _pendingReads = 0;
+  void Function()? onNextFetch;
+
+  R deliver<R>(String observer, Object? event, R Function() callback) {
+    final trigger = switch (event) {
+      RealtimeEntityChange change => 'realtime:${change.kind.name}',
+      BeaconRoomInvalidation hint => 'room:${hint.entityType.name}',
+      RealtimeCatchUp catchUp => 'catch-up:${catchUp.reason.name}',
+      RoomReadWatermarkKey _ => 'watermark',
+      _ => null,
+    };
+    if (trigger == null) return callback();
+    final delivery = (id: ++_deliveryId, observer: observer, trigger: trigger);
+    deliveries.add(delivery);
+    trace.add('deliver:$delivery');
+    final previous = activeDelivery;
+    activeDelivery = delivery;
+    try {
+      return callback();
+    } finally {
+      activeDelivery = previous;
+    }
+  }
+
+  @override
+  Future<List<InboxItem>> fetch({required String userId}) {
+    final origin = activeRefresh ?? activeDelivery;
+    starts.add((
+      delivery: origin,
+      overlapsRead: _pendingReads > 0,
+    ));
+    trace.add('InboxFetch:${starts.last}');
+    _pendingReads++;
+    final started = onNextFetch;
+    onNextFetch = null;
+    started?.call();
+    return super.fetch(userId: userId).whenComplete(() {
+      _pendingReads--;
+      trace.add('response:${origin?.observer ?? "initial load"}');
+    });
+  }
+}
 
 /// Message HTTP -> Ferry -> real repository -> case -> cubit -> body.
 /// Only unrelated room slices and the mark-seen server write are faked.
@@ -164,6 +221,9 @@ Future<_Observer> _mountObserver(
   required String? scope,
   required bool firstRead,
   int previousCount = 1,
+  FakeInboxRepository? inboxRepository,
+  Zone? homeInboxZone,
+  Zone? watchingInboxZone,
 }) async {
   await usePhoneSurface(tester);
   await GetIt.I.reset();
@@ -225,6 +285,9 @@ Future<_Observer> _mountObserver(
       viewerOverride: roomHintWireViewerId,
       threadItemId: scope,
       withUnreadHints: true,
+      inboxRepository: inboxRepository,
+      homeInboxZone: homeInboxZone,
+      watchingInboxZone: watchingInboxZone,
     );
     await awaitRoomCubitLoad(client.room);
     client.room.syncBeaconStatus(BeaconStatus.open);
@@ -414,6 +477,295 @@ ScrollPosition _chatScroll(WidgetTester tester) => tester
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  for (final holdResponse in [true, false]) {
+    testWidgets(
+      'Home and Watching refresh once per status change across event-loop '
+      'turns with ${holdResponse ? "an unfinished" : "an already completed"} '
+      'response',
+      (tester) async {
+        final inbox = _TracedInboxRepository();
+        final gates = (await tester.runAsync(
+          () async => (
+            watchingDue: Completer<void>(),
+            homeTurn: Completer<void>(),
+            started: Completer<void>(),
+            echo: Completer<void>(),
+            response: Completer<List<InboxItem>>(),
+          ),
+        ))!;
+        var watchingTimerScheduled = false;
+        void Function()? dispatchWatching;
+        Object? lastHomeTurn;
+        final zones = (await tester.runAsync(() async {
+          Zone observerZone(String surface) => Zone.current.fork(
+            specification: ZoneSpecification(
+              // Scope attribution to the actual typed subscriber invocation.
+              // Synchronous map/where/merge delivery retains this token; an
+              // unrelated later event cannot replace a timer's cause.
+              registerUnaryCallback: <R, T>(self, parent, zone, callback) =>
+                  parent.registerUnaryCallback(
+                    zone,
+                    (T event) =>
+                        inbox.deliver(surface, event, () => callback(event)),
+                  ),
+              createTimer: (self, parent, zone, duration, callback) {
+                if (surface == 'home' &&
+                    duration == Duration.zero &&
+                    inbox.activeRefresh != null) {
+                  final turn = Object();
+                  lastHomeTurn = turn;
+                  return parent.createTimer(zone, duration, () {
+                    callback();
+                    if (identical(lastHomeTurn, turn) &&
+                        !gates.homeTurn.isCompleted) {
+                      inbox.trace.add('home event-loop turn completed');
+                      gates.homeTurn.complete();
+                    }
+                  });
+                }
+                if (duration != BurstCoalescer.window) {
+                  return parent.createTimer(zone, duration, callback);
+                }
+                final delivery = inbox.activeDelivery;
+                void refresh() {
+                  final previous = inbox.activeRefresh;
+                  inbox.activeRefresh = delivery;
+                  inbox.trace.add('refresh:$surface <- $delivery');
+                  try {
+                    callback();
+                  } finally {
+                    inbox.activeRefresh = previous;
+                  }
+                  if (surface == 'home' &&
+                      lastHomeTurn == null &&
+                      !gates.homeTurn.isCompleted) {
+                    gates.homeTurn.complete();
+                  }
+                }
+
+                if (surface != 'watching') {
+                  return parent.createTimer(zone, duration, refresh);
+                }
+                watchingTimerScheduled = true;
+                return parent.createTimer(zone, duration, () {
+                  // The real timer has become due. Suspend this one pending
+                  // callback while Home's real next-turn timers run. The test
+                  // creates no zero-duration timers and adds no timing slack.
+                  dispatchWatching = refresh;
+                  if (!gates.watchingDue.isCompleted) {
+                    gates.watchingDue.complete();
+                  }
+                });
+              },
+            ),
+          );
+          return (
+            home: observerZone('home'),
+            watching: observerZone('watching'),
+          );
+        }))!;
+        final o = await _mountObserver(
+          tester,
+          scope: null,
+          firstRead: true,
+          inboxRepository: inbox,
+          homeInboxZone: zones.home,
+          watchingInboxZone: zones.watching,
+        );
+        final before = inbox.fetchCallCount;
+        inbox.trace.clear();
+        inbox.starts.clear();
+        inbox.deliveries.clear();
+        final homeUpdates = <InboxState>[];
+        final watchingUpdates = <InboxState>[];
+        final subscriptions = (await tester.runAsync(
+          () async => (
+            home: o.client.homeInbox.stream.listen(homeUpdates.add),
+            watching: o.client.watchingInbox.stream.listen(watchingUpdates.add),
+            hints: o.wire.realtime.entityChanges.listen((change) {
+              inbox.trace.add('wire:${change.kind.name}');
+              if (change.kind == RealtimeEntityKind.roomSeen &&
+                  change.readCursor?.lastSeenAt ==
+                      DateTime.utc(2026, 10, 31, 12) &&
+                  !gates.echo.isCompleted) {
+                gates.echo.complete();
+              }
+            }),
+          ),
+        ))!;
+        addTearDown(subscriptions.home.cancel);
+        addTearDown(subscriptions.watching.cancel);
+        addTearDown(subscriptions.hints.cancel);
+        inbox.onNextFetch = gates.started.complete;
+        if (holdResponse) inbox.pendingFetches.add(gates.response);
+        addTearDown(() {
+          if (!gates.response.isCompleted)
+            gates.response.complete(inbox.fetchResult);
+        });
+        final at = await _deliverStatusChange(tester, o, scope: null);
+        final expectedProjection = [
+          (
+            beaconId: kRoomCubitFakeBeaconId,
+            title: 'Request snapshot 1',
+            context: '',
+            status: BeaconStatus.enoughHelp,
+            unread: 0,
+          ),
+        ];
+        Object projection(InboxState state) => [
+          for (final item in state.items)
+            (
+              beaconId: item.beaconId,
+              title: item.beacon?.title,
+              context: item.context,
+              status: item.beacon?.status,
+              unread: item.roomHints?.roomUnreadCount,
+            ),
+        ];
+        Future<void> updated(InboxCubit cubit) async {
+          if (cubit.state.items.single.beacon?.title != 'Request snapshot 1') {
+            await cubit.stream
+                .firstWhere(
+                  (s) => s.items.single.beacon?.title == 'Request snapshot 1',
+                )
+                .timeout(const Duration(seconds: 3));
+          }
+        }
+
+        await tester.runAsync(() async {
+          await gates.started.future.timeout(const Duration(seconds: 5));
+          if (watchingTimerScheduled) {
+            await gates.watchingDue.future.timeout(const Duration(seconds: 3));
+            await gates.homeTurn.future.timeout(const Duration(seconds: 3));
+            if (!holdResponse) {
+              await updated(o.client.homeInbox);
+              expect(projection(o.client.homeInbox.state), expectedProjection);
+              // A duplicate read returns distinguishable data. No new hint
+              // was published: Watching still owes this wave's first result.
+              inbox.fetchResult = [
+                for (final item in inbox.fetchResult)
+                  item.copyWith(context: 'A later server response'),
+              ];
+              inbox.trace.add(
+                'home applied first response before Watching callback',
+              );
+            }
+            dispatchWatching!();
+          }
+          if (holdResponse) gates.response.complete(inbox.fetchResult);
+          await updated(o.client.homeInbox);
+          await updated(o.client.watchingInbox);
+        });
+        // Capture each applied result before the chat publishes its cursor.
+        final applied = {
+          'home': projection(o.client.homeInbox.state),
+          'watching': projection(o.client.watchingInbox.state),
+        };
+        int statusUpdates(List<InboxState> states) => states
+            .where(
+              (s) =>
+                  s.projectionLoaded &&
+                  s.items.single.beacon?.title == 'Request snapshot 1',
+            )
+            .length;
+        final updates = {
+          'home': statusUpdates(homeUpdates),
+          'watching': statusUpdates(watchingUpdates),
+        };
+        // The room has its own request. An Inbox refresh completing does not
+        // mean the status message is ready to render and auto-read yet.
+        await tester.runAsync(() async {
+          if (!o.client.room.state.messages.any((m) => m.id == 'notice-1')) {
+            await o.client.room.stream
+                .firstWhere((s) => s.messages.any((m) => m.id == 'notice-1'))
+                .timeout(const Duration(seconds: 3));
+          }
+        });
+        await _wait(tester, Duration.zero);
+        await tester.runAsync(
+          () => gates.echo.future.timeout(const Duration(seconds: 3)),
+        );
+        await tester.pump();
+        expect(o.repo.readMarks, contains(at));
+        expect(o.watermark.syncedAt(kRoomCubitFakeBeaconId), at);
+        expect(o.client.room.state.unreadCount, 0);
+        expect(find.textContaining('Помощи хватает'), findsWidgets);
+        for (final cubit in [o.client.homeInbox, o.client.watchingInbox]) {
+          expect(cubit.state.projectionLoaded, isTrue);
+          expect(cubit.state.projectionFailed, isFalse);
+          expect(cubit.state.items.single.beacon?.title, 'Request snapshot 1');
+          expect(cubit.state.items.single.roomHints?.roomUnreadCount, 0);
+        }
+        expect(tester.takeException(), isNull);
+        expect(inbox.starts, isNotEmpty);
+        for (final read in inbox.starts) {
+          expect(
+            read.delivery,
+            isNotNull,
+            reason: 'A fetch must have an actual delivered cause',
+          );
+          expect(inbox.deliveries, contains(read.delivery));
+          expect(
+            read.delivery!.trigger,
+            anyOf(
+              'realtime:roomMessage',
+              'room:roomMessage',
+              'realtime:beacon',
+              'realtime:activityEvent',
+              'room:activityEvent',
+            ),
+            reason:
+                'A read must come from this status wave, never its '
+                'watermark, room_seen echo, or an unrelated catch-up',
+          );
+        }
+        expect(inbox.starts.first.overlapsRead, isFalse);
+        expect(
+          inbox.starts.skip(1).map((read) => read.overlapsRead),
+          everyElement(holdResponse),
+        );
+        expect(
+          inbox.deliveries.where((d) => d.trigger.startsWith('catch-up:')),
+          isEmpty,
+        );
+        final echoIndex = inbox.trace.indexOf('wire:roomSeen');
+        final watermarkIndex = inbox.trace.indexWhere(
+          (s) => s.contains('trigger: watermark'),
+        );
+        expect(echoIndex, greaterThanOrEqualTo(0));
+        expect(watermarkIndex, greaterThanOrEqualTo(0));
+        final readIndices = [
+          for (var i = 0; i < inbox.trace.length; i++)
+            if (inbox.trace[i].startsWith('InboxFetch:')) i,
+        ];
+        expect(readIndices, everyElement(lessThan(echoIndex)));
+        expect(readIndices, everyElement(lessThan(watermarkIndex)));
+        // Check the read budget and both applied results together. In the fast
+        // response case a second read yields a different context, so checking
+        // eventual titles alone would miss the inconsistent projection.
+        expect(
+          {
+            'InboxFetch': inbox.fetchCallCount - before,
+            'applied result': applied,
+            'successful updates': updates,
+          },
+          {
+            'InboxFetch': 1,
+            'applied result': {
+              'home': expectedProjection,
+              'watching': expectedProjection,
+            },
+            'successful updates': {'home': 1, 'watching': 1},
+          },
+          reason:
+              'One status wave must apply the same result exactly once '
+              'to both observers. Trigger/read order: ${inbox.trace}',
+        );
+        await tester.pumpWidget(const SizedBox.shrink());
+      },
+    );
+  }
 
   group('A reader at the bottom reads a status line in one refresh wave', () {
     for (final scope in <String?>[null, 'CIquestions1']) {

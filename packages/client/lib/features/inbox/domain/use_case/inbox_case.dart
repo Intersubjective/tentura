@@ -39,11 +39,11 @@ final class InboxCase extends UseCaseBase {
   final BlockCase _blockCase;
 
   /// Inbox list refresh after local writes.
-  Stream<void> get localMutations => MergeStream<void>([
+  late final Stream<void> localMutations = MergeStream<void>([
     _repository.localMutations,
     _bookkeepingRefreshSignal.stream,
     _blockCase.changes.map((_) {}),
-  ]);
+  ]).doOnData((_) => _invalidateRefreshRead()).asBroadcastStream();
 
   /// A Request's Discussion read watermark moved (this or another session of
   /// the reader): its card's unread is recomputed locally, never refetched.
@@ -53,10 +53,12 @@ final class InboxCase extends UseCaseBase {
   Stream<HelpOfferEvent> get helpOfferChanges =>
       _forwardRepository.helpOfferChanges;
 
-  Stream<String> get forwardCommandCompleted =>
-      _forwardRepository.forwardCommandCompleted;
+  late final Stream<String> forwardCommandCompleted = _forwardRepository
+      .forwardCommandCompleted
+      .doOnData((_) => _invalidateRefreshRead())
+      .asBroadcastStream();
 
-  Stream<String> get deskRelevantChanges => MergeStream<String>([
+  late final Stream<String> deskRelevantChanges = MergeStream<String>([
     _beaconRoomCase.deskRelevantChanges,
     _forwardRepository.forwardChanges,
     _forwardRepository.helpOfferChanges.map((event) => event.beaconId),
@@ -75,38 +77,33 @@ final class InboxCase extends UseCaseBase {
           RealtimeEntityKind.coordinationItem,
         })
         .map((change) => change.aggregateId),
-  ]);
+  ]).doOnData((_) => _invalidateRefreshRead()).asBroadcastStream();
 
-  Stream<void> get catchUps => _realtimeSyncCase.catchUps.map((_) {});
+  late final Stream<void> catchUps = _realtimeSyncCase.catchUps
+      .map((_) {})
+      .doOnData((_) => _invalidateRefreshRead())
+      .asBroadcastStream();
 
-  /// The read started in this event-loop turn, if any.
-  ({String userId, Future<List<InboxItem>> read})? _turnRead;
-  int _turnReadEpoch = 0;
-  int? _sharedReadEpoch;
+  final _refreshReads = <String, Future<List<InboxItem>>>{};
 
-  /// Inbox lists mounted together (Home's and Watching's) share one turn's read
-  /// while it is still open on this case. [forceFresh] skips sharing.
+  void _invalidateRefreshRead() => _refreshReads.clear();
+
+  /// Background observers share this refresh epoch's result, including after
+  /// it completes. The next hint, catch-up or local write starts a fresh epoch.
+  /// Explicit fetches and [forceFresh] bypass sharing.
   Future<List<InboxItem>> fetch({
     required String userId,
     bool forceFresh = false,
+    bool shareRefresh = false,
   }) {
-    if (!forceFresh) {
-      final shared = _turnRead;
-      if (shared != null &&
-          shared.userId == userId &&
-          _sharedReadEpoch == _turnReadEpoch) {
-        return shared.read;
-      }
+    if (shareRefresh && !forceFresh) {
+      return _refreshReads.putIfAbsent(
+        userId,
+        () => _repository.fetch(userId: userId),
+      );
     }
-    final epoch = ++_turnReadEpoch;
-    final turnRead = (userId: userId, read: _repository.fetch(userId: userId));
-    _turnRead = turnRead;
-    _sharedReadEpoch = epoch;
-    Timer.run(() {
-      if (identical(_turnRead, turnRead)) _turnRead = null;
-      if (_sharedReadEpoch == epoch) _sharedReadEpoch = null;
-    });
-    return turnRead.read;
+    _invalidateRefreshRead();
+    return _repository.fetch(userId: userId);
   }
 
   Future<({List<InboxItem> page, int totalCount})>
