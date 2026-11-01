@@ -4,7 +4,7 @@ import 'package:tentura_root/domain/entity/beacon_creation_context.dart';
 import 'package:tentura/features/beacon_create/ui/bloc/beacon_create_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/beacon_child_request_card.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_tile.dart';
-import 'package:tentura/features/beacon_threads/ui/widget/beacon_child_requests_section.dart';
+import 'package:tentura/features/beacon_view/ui/widget/beacon_child_requests_section.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/beacon_hierarchy_parent_link.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_cards.dart';
