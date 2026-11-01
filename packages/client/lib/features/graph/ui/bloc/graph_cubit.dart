@@ -342,6 +342,7 @@ class GraphCubit extends Cubit<GraphState> {
 
   @override
   Future<void> close() async {
+    _cancelOpenFit();
     _relationshipRefreshTimer?.cancel();
     _publicationCatchUpTimer?.cancel();
     await _relationshipChanges?.cancel();
@@ -916,62 +917,64 @@ class GraphCubit extends Cubit<GraphState> {
     graphController.fitToRect(bounds, maxScale: maxScale);
   }
 
-  /// Set after the genealogy bootstrap: fit the lineage once its first
-  /// layout has settled, so every hop (incl. the far endpoint) is on screen.
+  /// Fit the opening trust neighbourhood or invite lineage once its first
+  /// layout and viewport are ready, including the labels in the bounds.
   /// A pan or zoom by the person before then cancels it.
-  bool _invitePathFitPending = false;
+  bool _openFitPending = false;
 
-  /// The person's camera input count when the bootstrap fetch started.
-  int? _invitePathFitInputRevision;
+  /// The person's camera input count when the opening fetch started.
+  int? _openFitInputRevision;
 
-  bool get _cameraMovedSinceInviteFetch =>
-      graphController.userCameraInputRevision.value !=
-      _invitePathFitInputRevision;
+  bool get _cameraMovedSinceOpenFetch =>
+      graphController.userCameraInputRevision.value != _openFitInputRevision;
 
-  void _armInvitePathFitOnOpen() {
-    if (_invitePathFitPending ||
-        _genealogyParentChainNodeIds.length < 2 ||
-        _cameraMovedSinceInviteFetch) {
+  void _armOpenFit() {
+    if (_openFitPending ||
+        (genealogyMode && _genealogyParentChainNodeIds.length < 2) ||
+        _cameraMovedSinceOpenFetch) {
       return;
     }
-    _invitePathFitPending = true;
-    graphController.addListener(_onControllerForInvitePathFit);
+    _openFitPending = true;
+    graphController.addListener(_onControllerForOpenFit);
     graphController.userCameraInputRevision.addListener(
-      _cancelInvitePathFitOnOpen,
+      _cancelOpenFit,
     );
-    _onControllerForInvitePathFit();
+    _onControllerForOpenFit();
   }
 
-  void _cancelInvitePathFitOnOpen() {
-    _invitePathFitPending = false;
+  void _cancelOpenFit() {
+    _openFitPending = false;
     graphController
-      ..removeListener(_onControllerForInvitePathFit)
-      ..userCameraInputRevision.removeListener(_cancelInvitePathFitOnOpen);
+      ..removeListener(_onControllerForOpenFit)
+      ..userCameraInputRevision.removeListener(_cancelOpenFit);
   }
 
-  void _onControllerForInvitePathFit() {
-    if (!_invitePathFitPending ||
+  void _onControllerForOpenFit() {
+    if (!_openFitPending ||
         isClosed ||
+        graphController.viewportSize == null ||
         !graphController.canLayout ||
         graphController.isLayoutSettling) {
       return;
     }
-    _cancelInvitePathFitOnOpen();
+    _cancelOpenFit();
     // Out of the notifying call stack (may be mid-frame) before moving the
     // camera.
     scheduleMicrotask(() {
       if (isClosed ||
+          graphController.viewportSize == null ||
           !graphController.canLayout ||
-          _cameraMovedSinceInviteFetch) {
+          _cameraMovedSinceOpenFetch) {
         return;
       }
-      _fitInvitePath();
+      _fitNodeIds(
+        genealogyMode
+            ? _genealogyParentChainNodeIds
+            : graphController.nodes.map((node) => node.id).toSet(),
+        maxScale: 1,
+      );
     });
   }
-
-  /// Fits the loaded lineage without zooming in past 1:1 for short paths.
-  void _fitInvitePath() =>
-      _fitNodeIds(_genealogyParentChainNodeIds, maxScale: 1);
 
   @Deprecated('Use selectNode or expandNode')
   void setFocus(NodeDetails node) => selectNode(node);
@@ -1193,6 +1196,10 @@ class GraphCubit extends Cubit<GraphState> {
     final cacheEpoch = _cacheEpoch;
     final fetchEpoch = ++_fetchEpoch;
     final relationshipRevision = _relationshipRevision;
+    final fitTrustOnOpen = _isTrustGraph && graphController.nodes.isEmpty;
+    if (fitTrustOnOpen) {
+      _openFitInputRevision = graphController.userCameraInputRevision.value;
+    }
     var loadingOwned = false;
     try {
       emit(state.copyWith(status: StateStatus.isLoading));
@@ -1271,8 +1278,7 @@ class GraphCubit extends Cubit<GraphState> {
         if (fetchFocus.isEmpty) {
           // A pan or zoom made while the lineage loads also counts against
           // the open fit, not just one made during the first layout.
-          _invitePathFitInputRevision =
-              graphController.userCameraInputRevision.value;
+          _openFitInputRevision = graphController.userCameraInputRevision.value;
           final graph = await source.fetchGenealogyBootstrap(
             targetId: genealogyTargetId,
           );
@@ -1398,6 +1404,7 @@ class GraphCubit extends Cubit<GraphState> {
         emit(state.copyWith(status: StateStatus.isSuccess));
         loadingOwned = false;
         _recomputeVisibility();
+        if (fitTrustOnOpen) _armOpenFit();
         // Second pass over the actual on-screen set repairs a failed/empty
         // first closure and matches the product invariant literally.
         unawaited(_ensureVisibleStructuralEdges());
@@ -1427,7 +1434,7 @@ class GraphCubit extends Cubit<GraphState> {
 
       _updateGraph(edges);
       if (fitInvitePathAfterUpdate) {
-        _armInvitePathFitOnOpen();
+        _armOpenFit();
       }
 
       if (showNoHelpOffererPathMessage) {
