@@ -150,7 +150,7 @@ class _UpdatesFeedPaneState extends State<UpdatesFeedPane>
     final searchOpen = external?.value ?? _searchOpen;
     final showSearchField = !compact || searchOpen;
     final hasUnread = context.select<UpdatesFeedCubit, bool>(
-      (cubit) => cubit.state.summary.unreadTotal > 0,
+      (cubit) => cubit.state.canReadAll,
     );
 
     return Column(

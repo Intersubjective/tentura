@@ -47,7 +47,7 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
         child: Builder(
           builder: (context) {
             final hasUnread = context.select<UpdatesFeedCubit, bool>(
-              (cubit) => cubit.state.summary.unreadTotal > 0,
+              (cubit) => cubit.state.canReadAll,
             );
             return Scaffold(
               backgroundColor: tt.bg,

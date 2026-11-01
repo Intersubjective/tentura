@@ -10,6 +10,7 @@ import 'package:tentura/domain/attention/attention_dismissible_membership.dart';
 import 'package:tentura/domain/attention/entity/attention_clear.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
+import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/capability/invite_seed_prompt_state.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
@@ -54,6 +55,10 @@ final class UpdatesFeedCubit extends Cubit<UpdatesFeedState> {
       _attention.setActiveView(_destinationId, pinnedView);
     }
     _accountSub = _attention.feedPages.listen((_) => _projectFromDomain());
+    _surfaceSummarySub = _attention.surfaceSummary.listen((summary) {
+      if (isClosed) return;
+      emit(state.copyWith(sweepEligible: summary.forYouSweepEligible));
+    });
     _sessionSub = _attention
         .watchFeedSession(_destinationId)
         .listen((_) => _projectFromDomain());
@@ -72,6 +77,7 @@ final class UpdatesFeedCubit extends Cubit<UpdatesFeedState> {
   final Logger _logger;
   late final StreamSubscription<AttentionFeedSnapshot> _accountSub;
   late final StreamSubscription<AttentionFeedSession> _sessionSub;
+  late final StreamSubscription<AttentionSurfaceSummary> _surfaceSummarySub;
   late final StreamSubscription<RealtimeEntityChange> _promptInvalidationSub;
   final _clearNotices = StreamController<UpdatesClearNotice>.broadcast();
   int _promptFetchEpoch = 0;
@@ -87,6 +93,7 @@ final class UpdatesFeedCubit extends Cubit<UpdatesFeedState> {
         view: session.activeView,
         searchText: session.searchText,
         summary: _attention.snapshot.summary,
+        sweepEligible: _attention.surfaceSummarySnapshot.forYouSweepEligible,
         items: items,
         hasNextPage: page?.nextCursor?.isNotEmpty ?? false,
         refreshError: session.headRefreshError,
@@ -367,6 +374,7 @@ final class UpdatesFeedCubit extends Cubit<UpdatesFeedState> {
     _attention.detachFeedSession(_destinationId);
     await _accountSub.cancel();
     await _sessionSub.cancel();
+    await _surfaceSummarySub.cancel();
     await _promptInvalidationSub.cancel();
     await _clearNotices.close();
     return super.close();
