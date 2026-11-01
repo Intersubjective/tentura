@@ -132,6 +132,7 @@ class Env {
     String? qaAuthToken,
     bool? qaSimpleLoginMode,
     List<String>? qaEmailDomains,
+    bool? suppressTestDomainEmails,
     String? unsubscribeSigningSecret,
     String? genealogyNodeKeySecret,
     Duration? emailNotifCooldown,
@@ -269,6 +270,9 @@ class Env {
                .map((domain) => domain.trim().toLowerCase())
                .where((domain) => domain.isNotEmpty)
                .toList(),
+       suppressTestDomainEmails =
+           suppressTestDomainEmails ??
+           _env['EMAIL_SUPPRESS_TEST_DOMAINS'] == 'true',
        unsubscribeSigningSecret =
            unsubscribeSigningSecret ?? _env['UNSUBSCRIBE_SIGNING_SECRET'] ?? '',
        genealogyNodeKeySecret =
@@ -698,6 +702,12 @@ class Env {
   /// Domains accepted by the QA email-sink endpoint.
   final List<String> qaEmailDomains;
 
+  /// When true (`EMAIL_SUPPRESS_TEST_DOMAINS`), no email is sent to a
+  /// test-class address ([isTestClassEmail]): QA accounts would otherwise trip
+  /// the provider's sending limits. Off by default so local development keeps
+  /// its usual delivery path.
+  final bool suppressTestDomainEmails;
+
   /// HMAC secret for one-click email unsubscribe tokens.
   final String unsubscribeSigningSecret;
 
@@ -790,6 +800,35 @@ class Env {
     }
     final domain = parts[1];
     return domain.isNotEmpty && qaEmailDomains.contains(domain);
+  }
+
+  /// Reserved names (RFC 2606 / RFC 6761, plus mDNS `.local`) that never
+  /// reach a real mailbox.
+  static const kTestClassEmailTlds = [
+    'test',
+    'example',
+    'invalid',
+    'localhost',
+    'local',
+  ];
+
+  static const kTestClassEmailDomains = [
+    'example.com',
+    'example.net',
+    'example.org',
+  ];
+
+  /// A QA domain, a reserved test TLD, or an `example.*` domain (and their
+  /// subdomains).
+  bool isTestClassEmail(String email) {
+    final at = email.lastIndexOf('@');
+    if (at < 0) return false;
+    final domain = email.substring(at + 1).trim().toLowerCase();
+    if (domain.isEmpty) return false;
+    bool within(String zone) => domain == zone || domain.endsWith('.$zone');
+    return qaEmailDomains.any(within) ||
+        kTestClassEmailDomains.any(within) ||
+        kTestClassEmailTlds.contains(domain.split('.').last);
   }
 
   // Web server
