@@ -5965,6 +5965,10 @@
   "@capabilitySearchLabel": {
     "description": "Label of the search box above a capability chip picker (Requirements, profile capabilities) (#741)."
   },
+  "capabilitySearchClear": "Clear search",
+  "@capabilitySearchClear": {
+    "description": "Tooltip and screen-reader label of the clear (×) button in the capability search box; it empties the search (#741)."
+  },
   "capabilitySearchEmpty": "Nothing found",
   "@capabilitySearchEmpty": {
     "description": "Shown in a capability chip picker when the search matches no category or tag (#741)."

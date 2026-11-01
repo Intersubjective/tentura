@@ -95,8 +95,16 @@ void main() {
       final clear = tester.widget<IconButton>(
         find.descendant(of: _field, matching: find.byType(IconButton)),
       );
-      expect(clear.tooltip, material.clearButtonTooltip);
+      // The app's own «Очистить поиск» / "Clear search" (#741 round 2):
+      // Material's stock RU clear tooltip reads «Удалить текст».
+      expect(clear.tooltip, l10n.capabilitySearchClear);
       expect(clear.tooltip, isNot(material.deleteButtonTooltip));
+      if (locale.languageCode == 'ru') {
+        expect(clear.tooltip, 'Очистить поиск');
+        expect(clear.tooltip, isNot(contains('Удалить')));
+      } else {
+        expect(clear.tooltip, 'Clear search');
+      }
     });
 
     testWidgets('$lang: a tag picked while searching opens its group once '

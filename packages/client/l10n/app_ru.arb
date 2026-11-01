@@ -5400,6 +5400,10 @@
   "@capabilitySearchLabel": {
     "description": "Подпись поля поиска над выбором навыков (требования, навыки в профиле) (#741)."
   },
+  "capabilitySearchClear": "Очистить поиск",
+  "@capabilitySearchClear": {
+    "description": "Подсказка и метка для экранного диктора у кнопки очистки (×) в поле поиска навыков; она очищает поиск (#741)."
+  },
   "capabilitySearchEmpty": "Ничего не найдено",
   "@capabilitySearchEmpty": {
     "description": "Показывается в выборе навыков, когда поиск ничего не нашёл (#741)."
