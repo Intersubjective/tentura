@@ -75,4 +75,35 @@ void main() {
     expect(sent.single.operationName, 'AuthorInviteRevertDecline');
     expect(thrown, isA<AuthorInviteNotPendingException>());
   });
+
+  test(
+    'a closed Request (1335) throws AuthorInviteRequestNotOpenException',
+    () async {
+      final sent = <WireSent>[];
+      Object? thrown;
+      await withRemoteWire(
+        const {},
+        sent,
+        (remote) async {
+          try {
+            await AuthorInviteRepository(
+              remote,
+            ).revertDecline(inviteId: _inviteId);
+          } on Object catch (e) {
+            thrown = e;
+          }
+        },
+        errors: {
+          'AuthorInviteRevertDecline': wireCodeError(1335),
+        },
+      );
+
+      expect(sent.single.operationName, 'AuthorInviteRevertDecline');
+      expect(thrown, isA<AuthorInviteRequestNotOpenException>());
+      expect(
+        (thrown! as AuthorInviteRequestNotOpenException).toEn,
+        contains('no longer open'),
+      );
+    },
+  );
 }
