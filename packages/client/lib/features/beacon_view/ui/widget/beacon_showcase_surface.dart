@@ -23,6 +23,8 @@ import 'package:tentura/features/beacon_view/ui/widget/closed_request_banner.dar
 import 'package:tentura/features/beacon_view/ui/widget/declined_offer_notice.dart';
 import 'package:tentura/features/beacon_view/ui/widget/request_access_reason_banner.dart';
 import 'package:tentura/features/capability/ui/widget/capability_requirement_tags.dart';
+import 'package:tentura/features/closure/domain/entity/closure_member.dart';
+import 'package:tentura/features/closure/ui/widget/closure_result_card.dart';
 import 'package:tentura/features/inbox/domain/entity/inbox_provenance.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
@@ -76,6 +78,24 @@ class BeaconShowcaseSurface extends StatelessWidget {
                     if (lineageParent != null && lineageParent.isNotEmpty)
                       BeaconLineageParentLink(parentBeaconId: lineageParent),
                     ClosedRequestBanner(beacon: beacon),
+                    // #758: a helper who withdrew or was removed is no longer
+                    // a member, so a closed Request shows them the showcase;
+                    // their result card lives here. The card renders nothing
+                    // when the server has no result for them.
+                    if (beacon.status == BeaconStatus.closed &&
+                        !state.isBeaconMine &&
+                        state.viewerOfferedHelp)
+                      Padding(
+                        padding: EdgeInsets.only(bottom: tt.cardGap),
+                        child: ClosureResultCard(
+                          beaconId: beacon.id,
+                          viewerId: state.myProfile.id,
+                          author: ClosureMember(
+                            id: beacon.author.id,
+                            displayName: beacon.author.shownName,
+                          ),
+                        ),
+                      ),
                     if (beacon.hasPicture) ...[
                       BeaconDefinitionMediaBand(beacon: beacon),
                       SizedBox(height: tt.rowGap),
