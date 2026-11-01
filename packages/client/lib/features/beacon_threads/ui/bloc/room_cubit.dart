@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:tentura/features/beacon_threads/domain/exception/now_line_changed_exception.dart';
 import 'package:uuid/uuid.dart';
@@ -394,6 +395,54 @@ class RoomCubit extends Cubit<RoomState> {
         ),
       ),
     );
+    _refreshParticipantsForUnknown([message]);
+  }
+
+  /// Joined users already asked for, so the list is re-read once per id.
+  final _participantRefreshRequested = <String>{};
+
+  /// #742: a live admission line («X was admitted…») arrives before the
+  /// participant list has X, so the line had no name for X. Re-read the list
+  /// once per such id; the line re-renders with the name when it lands.
+  void _refreshParticipantsForUnknown(Iterable<RoomMessage> messages) {
+    if (isClosed || !state.participantsLoaded || state.lobbyCanPost != null) {
+      return;
+    }
+    final known = {for (final p in state.participants) p.userId};
+    final unknown = <String>{
+      for (final message in messages)
+        if (_joinedUserId(message) case final id?)
+          if (!known.contains(id) &&
+              id != state.myUserId &&
+              !_participantRefreshRequested.contains(id))
+            id,
+    };
+    if (unknown.isEmpty) return;
+    _participantRefreshRequested.addAll(unknown);
+    unawaited(_refetchParticipants());
+  }
+
+  Future<void> _refetchParticipants() async {
+    try {
+      final participants = await _case.fetchParticipants(state.beaconId);
+      if (isClosed) return;
+      emit(state.copyWith(participants: participants));
+    } on Object {
+      // Best effort: the next full refresh re-reads the list anyway.
+    }
+  }
+
+  static String? _joinedUserId(RoomMessage message) {
+    final raw = message.systemPayloadJson;
+    if (raw == null || !raw.contains('joinedUserId')) return null;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map<String, dynamic>) return null;
+      final id = decoded['joinedUserId'];
+      return id is String && id.trim().isNotEmpty ? id.trim() : null;
+    } on Object {
+      return null;
+    }
   }
 
   void _flushDeferredOwnPaints() {
@@ -1133,6 +1182,7 @@ class RoomCubit extends Cubit<RoomState> {
             loadError: null,
           ),
         );
+        _refreshParticipantsForUnknown(merged);
       }
     } on Object catch (e) {
       if (!isClosed && !silent) {
