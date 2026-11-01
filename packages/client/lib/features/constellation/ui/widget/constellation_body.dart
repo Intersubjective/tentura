@@ -50,7 +50,6 @@ import '../utils/constellation_tap_resolver.dart';
 import 'constellation_anchor_controls.dart';
 import 'constellation_camera_controls.dart';
 import 'constellation_composer_radius.dart';
-import 'constellation_drag_ring_overlay.dart';
 import 'constellation_composer_sheet.dart';
 import 'constellation_create_entry.dart';
 import 'constellation_filter_bar.dart';
@@ -1864,8 +1863,6 @@ class _ConstellationBodyState extends State<ConstellationBody>
                     ),
                   ),
           ),
-        if (widget.arrangeV2Enabled)
-          Positioned.fill(child: ConstellationDragRingOverlay(cubit: cubit)),
         Positioned(
           top: 0,
           left: 0,
