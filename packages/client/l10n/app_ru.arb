@@ -4957,6 +4957,14 @@
       }
     }
   },
+  "beaconRoomUnknownParticipant": "Новый участник",
+  "@beaconRoomUnknownParticipant": {
+    "description": "Chat system lines (#742): stands in for a person whose name has not loaded yet, never their raw ID."
+  },
+  "beaconRoomParticipantJoinedBySelfUnknown": "Вы допустили нового участника в обсуждение",
+  "@beaconRoomParticipantJoinedBySelfUnknown": {
+    "description": "Chat admission line (#742) when the viewer admitted someone whose name has not loaded yet."
+  },
   "beaconRoomParticipantJoinedOfferQuote": "«{note}»",
   "roomStatusChangedByActor": "{actor} изменил(а) статус: {from} → {to}",
   "@roomStatusChangedByActor": {

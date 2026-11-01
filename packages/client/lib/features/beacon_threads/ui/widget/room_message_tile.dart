@@ -425,7 +425,9 @@ class RoomMessageTile extends StatelessWidget {
     if (userId == viewer.id) {
       return l10n.labelYou;
     }
-    return userId;
+    // #742: no participant row yet (a live admission line lands before the
+    // list refreshes). Never show the raw user ID.
+    return l10n.beaconRoomUnknownParticipant;
   }
 
   /// Centered coordination timeline row pointing at a source message.
@@ -870,7 +872,9 @@ class RoomMessageTile extends StatelessWidget {
             : (viewerJoined
                   ? l10n.beaconRoomViewerAdmittedByActor(actorName)
                   : viewerAdmitted
-                  ? l10n.beaconRoomParticipantJoinedBySelf(joinedName)
+                  ? (joinedName == l10n.beaconRoomUnknownParticipant
+                        ? l10n.beaconRoomParticipantJoinedBySelfUnknown
+                        : l10n.beaconRoomParticipantJoinedBySelf(joinedName))
                   : l10n.beaconRoomParticipantJoinedByActor(
                       joinedName,
                       actorName,
