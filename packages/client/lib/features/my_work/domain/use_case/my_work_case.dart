@@ -296,43 +296,36 @@ final class MyWorkCase extends UseCaseBase {
           if (!h.isRoomMember) {
             return withParent;
           }
-          final parts = <String>[];
-          if (h.myNextMove.isNotEmpty) {
-            parts.add(h.myNextMove);
-          }
-          var unread = 0;
-          if (h.roomUnreadCount > 0) {
-            unread = _beaconRoomCase.resolveUnread(
-              beaconId: c.beaconId,
-              serverCount: h.roomUnreadCount,
-              serverSeenAt: h.lastSeenAt,
-            );
-            // U087 — with a "latest" line the count rides on it ("2 new");
-            // without one it stays the header's "+N". A photo-, file-, poll-
-            // or fact-only message has a line too (#498).
-            if (unread > 0 &&
-                !isRoomLatestMessageShown(
-                  text: h.lastMessageText,
-                  kind: h.lastMessageKind,
-                )) {
-              parts.add('+$unread');
-            }
-          }
           return withParent.copyWith(
             planSlice: h.planSlice,
             roomCurrentLine: h.currentLineSnippet,
             roomOpenBlockerTitle: h.openBlockerTitle,
             roomOpenBlocker: h.openBlocker,
-            roomInboxSubtitle: parts.join(' · '),
+            roomNextMove: h.myNextMove,
             roomLastActivityAt: h.lastActivityAt,
             roomLatestMessageText: h.lastMessageText,
             roomLatestMessageAuthorId: h.lastMessageAuthorId,
             roomLatestMessageAuthorName: h.lastMessageAuthorName,
             roomLatestMessageAt: h.lastMessageAt,
             roomLatestMessageKind: h.lastMessageKind,
-            roomUnreadCount: unread > 0 ? unread : 0,
+            roomUnreadCount: h.roomUnreadCount > 0 ? h.roomUnreadCount : 0,
+            roomLastSeenAt: h.lastSeenAt,
           );
         }(),
-    ];
+    ].map(resolveRoomUnread).toList();
+  }
+
+  /// Applies the reader's local Discussion read watermark to [card]'s server
+  /// unread count; returns [card] itself when nothing changes.
+  MyWorkCardViewModel resolveRoomUnread(MyWorkCardViewModel card) {
+    if (card.roomUnreadCount == 0) return card;
+    final unread = _beaconRoomCase.resolveUnread(
+      beaconId: card.beaconId,
+      serverCount: card.roomUnreadCount,
+      serverSeenAt: card.roomLastSeenAt,
+    );
+    return unread == card.roomUnreadCount
+        ? card
+        : card.copyWith(roomUnreadCount: unread);
   }
 }

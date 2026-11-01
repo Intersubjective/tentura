@@ -28,6 +28,7 @@ import 'package:tentura_server/domain/use_case/user_presence_case.dart';
 import 'package:tentura_server/env.dart';
 
 import 'websocket_realtime_protocol_test.mocks.dart';
+import '../../../../../client/test/features/realtime/read_cursor_server_frames.dart';
 
 const _actorId = 'Uaaaaaaaaaaaa';
 const _affectedId = 'Ubbbbbbbbbbbb';
@@ -35,6 +36,40 @@ const _unauthorizedId = 'Ucccccccccccc';
 const _accountId = 'Udddddddddddd';
 const _firstId = 'Ueeeeeeeeeeee';
 const _secondId = 'Uffffffffffff';
+
+/// Production authenticated-session fan-out of one `entity_changes`
+/// notification to two signed-in tabs of its single recipient. The room_seen
+/// PG test feeds it the real NOTIFY.
+Future<({List<Map<String, dynamic>> first, List<Map<String, dynamic>> second})>
+fanOutPrivateReadCursor(
+  Map<String, dynamic> notification, {
+  bool actorEcho = true,
+}) async {
+  final readerId = (notification['user_ids'] as List).single as String;
+  final dependencies = _Dependencies();
+  final handler = _EntityChangeHarness(
+    Env(realtimeActorEchoEnabled: actorEcho),
+    dependencies,
+  );
+  final first = _RecordingSession();
+  final second = _RecordingSession();
+  await dependencies.authenticate(handler, first, readerId);
+  await dependencies.authenticate(handler, second, readerId);
+  first.sent.clear();
+  second.sent.clear();
+  await handler.fanOutEntityChange(Map.of(notification));
+  handler.disposeEntityChanges();
+  return (
+    first: [
+      for (final frame in first.sent)
+        jsonDecode(frame! as String) as Map<String, dynamic>,
+    ],
+    second: [
+      for (final frame in second.sent)
+        jsonDecode(frame! as String) as Map<String, dynamic>,
+    ],
+  );
+}
 
 @GenerateNiceMocks([
   MockSpec<UserRepositoryPort>(),
@@ -45,6 +80,75 @@ const _secondId = 'Uffffffffffff';
   MockSpec<RoomMessageSnapshotLookupPort>(),
 ])
 void main() {
+  group('Private read cursors reach every session of the reader', () {
+    for (final echo in [true, false]) {
+      for (final scope in <String?>[null, 'CIquestions1']) {
+        for (final event in ['insert', 'update']) {
+          test('${scope == null ? 'Discussion' : 'Questions'} $event cursor '
+              'keeps its scope and timestamp in both reader tabs with actor '
+              'echo ${echo ? 'on' : 'off'}', () async {
+            final dependencies = _Dependencies();
+            final handler = _EntityChangeHarness(
+              Env(realtimeActorEchoEnabled: echo),
+              dependencies,
+            );
+            final first = _RecordingSession();
+            final second = _RecordingSession();
+            final outsider = _RecordingSession();
+            await dependencies.authenticate(handler, first, _actorId);
+            await dependencies.authenticate(handler, second, _actorId);
+            await dependencies.authenticate(handler, outsider, _unauthorizedId);
+            for (final session in [first, second, outsider]) {
+              session.sent.clear();
+            }
+            final at = DateTime.utc(2026, 10, 31, 12);
+            await handler.fanOutEntityChange(
+              roomSeenReadCursorNotification(
+                readerId: _actorId,
+                beaconId: 'Bcursor00001',
+                at: at,
+                event: event,
+                threadItemId: scope,
+              ),
+            );
+            expect(outsider.sent, isEmpty);
+            for (final session in [first, second]) {
+              expect(
+                session.sent,
+                hasLength(1),
+                reason:
+                    'The same account must converge even when content actor echo is disabled',
+              );
+              final frame = jsonDecode(session.sent.single! as String) as Map;
+              expect(frame['path'], 'entity_changes');
+              final payload = frame['payload'] as Map;
+              expect(payload, containsPair('entity', 'room_seen'));
+              expect(payload, containsPair('id', 'Bcursor00001'));
+              expect(payload, containsPair('event', event));
+              expect(payload, containsPair('thread_item_id', scope));
+              expect(
+                DateTime.parse(payload['last_seen_at'] as String).toUtc(),
+                at,
+              );
+              expect(payload, isNot(contains('user_ids')));
+              expect(
+                frame,
+                roomSeenReadCursorFrame(
+                  readerId: _actorId,
+                  beaconId: 'Bcursor00001',
+                  at: at,
+                  event: event,
+                  threadItemId: scope,
+                ),
+                reason: 'Client tests feed exactly this frame',
+              );
+            }
+          });
+        }
+      }
+    }
+  });
+
   group('realtime websocket protocol', () {
     test('compatibility mode filters actor but preserves metadata', () async {
       final dependencies = _Dependencies();
@@ -1121,8 +1225,7 @@ void main() {
         expect(second.sent, hasLength(1));
         expect(unlisted.sent, isEmpty);
         final payload =
-            (jsonDecode(first.sent.single! as String) as Map)['payload']
-                as Map;
+            (jsonDecode(first.sent.single! as String) as Map)['payload'] as Map;
         expect(payload['entity'], 'constellation_field');
         expect(payload['id'], 'global');
         expect(payload['event'], 'update');

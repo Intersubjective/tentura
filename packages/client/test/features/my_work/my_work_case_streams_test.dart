@@ -381,13 +381,13 @@ void main() {
       await cubit.close();
     });
 
-    test('read watermark change triggers desk refetch', () async {
+    test('read watermark change does not refetch the desk', () async {
       final cubit = MyWorkCubit(userId: 'u1', myWorkCase: buildCase());
       await cubit.stream.firstWhere((s) => s.isSuccess);
 
       watermarkStore.observeReadThrough('b1', DateTime.utc(2026));
-      await waitForFetchCount(2);
-      expect(repo.fetchInitCallCount, 2);
+      await pumpAfterHintBurst();
+      expect(repo.fetchInitCallCount, 1);
 
       await cubit.close();
     });
@@ -453,7 +453,7 @@ void main() {
       roomRepo.emitRoomInvalidation(
         const BeaconRoomInvalidation(
           beaconId: 'b1',
-          entityType: BeaconRoomEntityType.roomSeen,
+          entityType: BeaconRoomEntityType.participant,
         ),
       );
       await waitForFetchCount(2);

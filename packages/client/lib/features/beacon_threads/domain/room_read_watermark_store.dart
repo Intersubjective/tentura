@@ -128,6 +128,27 @@ class RoomReadWatermarkStore {
     }
   }
 
+  /// Applies a cursor the server persisted for this reader in any session.
+  /// Monotonic, and never marks a newer local read-through as synced: that
+  /// read still has to reach the server.
+  void observeServerCursor(
+    String beaconId,
+    DateTime at, {
+    String threadId = RequestThread.generalId,
+  }) {
+    final key = _key(beaconId, threadId);
+    final synced = _syncedByKey[key];
+    final local = _readThroughByKey[key];
+    final syncedMoved = synced == null || at.isAfter(synced);
+    final localMoved = local == null || at.isAfter(local);
+    if (!syncedMoved && !localMoved) return;
+    if (syncedMoved) _syncedByKey[key] = at;
+    if (localMoved) _readThroughByKey[key] = at;
+    if (!_threadChangesController.isClosed) {
+      _threadChangesController.add(key);
+    }
+  }
+
   /// Resolves display unread count from server batch + local read-through.
   int resolveUnread({
     required String beaconId,

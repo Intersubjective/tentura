@@ -401,26 +401,21 @@ void main() {
       expect(repo.listThreadsCallCount, 2);
     });
 
-    test('roomSeen bypasses debounce and fetches immediately', () async {
+    test('a read cursor clears unread without refetching threads', () async {
+      final watermark = RoomReadWatermarkStore.testing();
       final repo = _FakeBeaconThreadsRepository()
         ..threads = [_generalThread(unreadCount: 1)];
-      final cubit = _cubit(repo: repo);
+      final cubit = _cubit(repo: repo, watermark: watermark);
       addTearDown(cubit.close);
 
       await cubit.fetch();
       expect(repo.listThreadsCallCount, 1);
 
-      repo.emitInvalidation(BeaconRoomEntityType.roomMessage);
-      repo.emitInvalidation(BeaconRoomEntityType.roomSeen);
-
-      await _awaitListThreadsCount(repo, 2);
+      watermark.observeServerCursor(_kBeaconId, DateTime.utc(2030));
       await Future<void>.delayed(const Duration(milliseconds: 80));
 
-      expect(
-        repo.listThreadsCallCount,
-        2,
-        reason: 'cancelled debounce must not schedule a second fetch',
-      );
+      expect(cubit.state.resolvedUnreadByThreadId[RequestThread.generalId], 0);
+      expect(repo.listThreadsCallCount, 1);
     });
 
     test('roomSeenPeer invalidation does not refetch threads', () async {
@@ -437,7 +432,8 @@ void main() {
       expect(
         repo.listThreadsCallCount,
         1,
-        reason: 'peer read-presence must stay out of the threads refetch allow-list',
+        reason:
+            'peer read-presence must stay out of the threads refetch allow-list',
       );
     });
 

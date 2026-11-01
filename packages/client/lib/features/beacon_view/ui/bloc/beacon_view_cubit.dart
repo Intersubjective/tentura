@@ -1154,8 +1154,6 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
       if (t == BeaconRoomEntityType.roomMessage) {
         needActivity = true;
         needRoomState = true;
-      } else if (t == BeaconRoomEntityType.roomSeen) {
-        // Threads list owns thread-keyed unread; beacon view no longer tracks batch count.
       } else if (t == BeaconRoomEntityType.roomSeenPeer) {
         // Peer read-presence only; no request_detail refetch.
       } else if (t == BeaconRoomEntityType.activityEvent) {

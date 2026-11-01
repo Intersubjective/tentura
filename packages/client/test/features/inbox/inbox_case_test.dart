@@ -340,15 +340,19 @@ void main() {
       await sub.cancel();
     });
 
-    test('emits on read watermark changes', () async {
+    test('does not emit on read watermark changes', () async {
       final events = <void>[];
+      final ids = <String>[];
       final sub = case_.localMutations.listen(events.add);
+      final reads = case_.readWatermarkChanges.listen(ids.add);
 
       beaconRoom.observeReadThrough('b1', DateTime.utc(2026));
       await Future<void>.delayed(Duration.zero);
 
-      expect(events, hasLength(1));
+      expect(events, isEmpty);
+      expect(ids, ['b1']);
       await sub.cancel();
+      await reads.cancel();
     });
   });
 
@@ -452,7 +456,7 @@ void main() {
       await cubit.close();
     });
 
-    test('room-seen invalidation refetches and clears room unread', () async {
+    test('a read watermark clears room unread without refetching', () async {
       repo.fetchResult = [
         _item(status: InboxItemStatus.watching, roomUnreadCount: 1),
       ];
@@ -464,19 +468,13 @@ void main() {
       );
       await cubit.stream.firstWhere((state) => state.isSuccess);
       expect(cubit.state.items.single.roomHints?.roomUnreadCount, 1);
-      repo.fetchResult = [
-        _item(status: InboxItemStatus.watching, roomUnreadCount: 0),
-      ];
+      final reads = repo.fetchCallCount;
 
-      roomRepo.emitRoomInvalidation(
-        const BeaconRoomInvalidation(
-          beaconId: 'b-forward',
-          entityType: BeaconRoomEntityType.roomSeen,
-        ),
-      );
+      beaconRoom.observeServerReadThrough('b-forward', DateTime.utc(2030));
       await pumpAfterHintBurst();
 
       expect(cubit.state.items.single.roomHints?.roomUnreadCount, 0);
+      expect(repo.fetchCallCount, reads);
       expect(effects.emitted, isEmpty);
       await cubit.close();
     });

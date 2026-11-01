@@ -38,13 +38,17 @@ final class InboxCase extends UseCaseBase {
   final BookkeepingRefreshSignal _bookkeepingRefreshSignal;
   final BlockCase _blockCase;
 
-  /// Inbox list refresh after local writes or session read-watermark changes.
+  /// Inbox list refresh after local writes.
   Stream<void> get localMutations => MergeStream<void>([
     _repository.localMutations,
-    _beaconRoomCase.readWatermarkChanges.map((_) {}),
     _bookkeepingRefreshSignal.stream,
     _blockCase.changes.map((_) {}),
   ]);
+
+  /// A Request's Discussion read watermark moved (this or another session of
+  /// the reader): its card's unread is recomputed locally, never refetched.
+  Stream<String> get readWatermarkChanges =>
+      _beaconRoomCase.readWatermarkChanges;
 
   Stream<HelpOfferEvent> get helpOfferChanges =>
       _forwardRepository.helpOfferChanges;
@@ -56,7 +60,8 @@ final class InboxCase extends UseCaseBase {
     _beaconRoomCase.deskRelevantChanges,
     _forwardRepository.forwardChanges,
     _forwardRepository.helpOfferChanges.map((event) => event.beaconId),
-    // roomSeenPeer is presence-only; omitted from desk refetch ids (see BeaconThreadsCase).
+    // roomSeenPeer is presence-only and room_seen is the viewer's read
+    // cursor (see BeaconThreadsCase); neither is a desk refetch.
     _realtimeSyncCase
         .changesFor(const {
           RealtimeEntityKind.inboxItem,
@@ -68,7 +73,6 @@ final class InboxCase extends UseCaseBase {
           RealtimeEntityKind.factCard,
           RealtimeEntityKind.activityEvent,
           RealtimeEntityKind.coordinationItem,
-          RealtimeEntityKind.roomSeen,
         })
         .map((change) => change.aggregateId),
   ]);

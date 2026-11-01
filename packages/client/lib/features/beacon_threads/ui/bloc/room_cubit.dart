@@ -38,6 +38,7 @@ import '../../domain/entity/beacon_room_invalidation.dart';
 import '../../domain/entity/room_composer_intent.dart';
 import '../../domain/entity/committed_mention.dart';
 import '../../domain/entity/request_thread.dart';
+import '../../domain/room_read_watermark_store.dart';
 import '../../domain/entity/room_seen_outcome.dart';
 import '../../domain/entity/room_typing_signal.dart';
 import '../../domain/exception/beacon_fact_already_pinned_exception.dart';
@@ -108,6 +109,13 @@ class RoomCubit extends Cubit<RoomState> {
       cancelOnError: false,
     );
     _typingSub = _case.roomTypingSignals.listen(_onTypingSignal);
+    _readWatermarkSub = _case.threadReadWatermarkChanges
+        .where(
+          (key) =>
+              key.beaconId == beaconId &&
+              key.threadId == (threadItemId ?? RequestThread.generalId),
+        )
+        .listen((_) => _followReadWatermark());
     if (threadItemId == null) {
       _itemSyncSub = _itemSync.changes
           .where((item) => item.beaconId == beaconId)
@@ -204,6 +212,8 @@ class RoomCubit extends Cubit<RoomState> {
   late final StreamSubscription<void> _catchUpsSub;
 
   late final StreamSubscription<RoomTypingSignal> _typingSub;
+
+  late final StreamSubscription<RoomReadWatermarkKey> _readWatermarkSub;
 
   /// The server relays one typing intent per sender every 3 s, so a typist
   /// who keeps typing is refreshed about that often.
@@ -864,6 +874,29 @@ class RoomCubit extends Cubit<RoomState> {
       state.beaconId,
       latest,
       threadId: state.threadItemId ?? RequestThread.generalId,
+    );
+  }
+
+  /// The reader's watermark for this room moved (a read in this or another
+  /// session of theirs): unread follows it without refetching the room.
+  void _followReadWatermark() {
+    if (isClosed) return;
+    final threadId = state.threadItemId ?? RequestThread.generalId;
+    final readThrough = _case.readThrough(state.beaconId, threadId: threadId);
+    final anchor = state.unreadAnchorAt;
+    if (readThrough == null ||
+        (anchor != null && !readThrough.isAfter(anchor))) {
+      return;
+    }
+    final syncedAt = _case.syncedAt(state.beaconId, threadId: threadId);
+    final messages = state.messages;
+    emit(
+      state.copyWith(
+        unreadAnchorAt: readThrough,
+        pendingMarkSeen:
+            messages.isNotEmpty &&
+            (syncedAt == null || messages.last.createdAt.isAfter(syncedAt)),
+      ),
     );
   }
 
@@ -2064,6 +2097,7 @@ class RoomCubit extends Cubit<RoomState> {
     unawaited(_refreshSub.cancel());
     unawaited(_catchUpsSub.cancel());
     unawaited(_typingSub.cancel());
+    unawaited(_readWatermarkSub.cancel());
     unawaited(_itemSyncSub?.cancel());
     _stopTyping();
     for (final timer in _typingExpiryTimers.values) {

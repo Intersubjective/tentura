@@ -26,11 +26,11 @@ class ThreadsCubit extends Cubit<ThreadsState> {
         .where(
           (e) =>
               e.beaconId == beaconId &&
-              // roomSeenPeer is presence-only; excluded beside roomSeen (unread).
+              // roomSeenPeer is presence-only; the viewer's own read cursor
+              // arrives through the watermark store below.
               (e.entityType == BeaconRoomEntityType.roomMessage ||
                   e.entityType == BeaconRoomEntityType.participant ||
-                  e.entityType == BeaconRoomEntityType.factCard ||
-                  e.entityType == BeaconRoomEntityType.roomSeen),
+                  e.entityType == BeaconRoomEntityType.factCard),
         )
         .listen(_onInvalidation);
     _watermarkSub = _threads.threadReadWatermarkChanges
@@ -51,12 +51,6 @@ class ThreadsCubit extends Cubit<ThreadsState> {
 
   void _onInvalidation(BeaconRoomInvalidation invalidation) {
     if (isClosed) return;
-    if (invalidation.entityType == BeaconRoomEntityType.roomSeen) {
-      _debouncedFetchTimer?.cancel();
-      _debouncedFetchTimer = null;
-      unawaited(fetch(silent: true));
-      return;
-    }
     _scheduleDebouncedFetch();
   }
 

@@ -1,5 +1,6 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import 'realtime_read_cursor.dart';
 import 'realtime_room_message_paint.dart';
 import 'realtime_seen_peer.dart';
 
@@ -91,6 +92,10 @@ abstract class RealtimeEntityChange with _$RealtimeEntityChange {
 
     /// Peer read cursor from WS `seen_user_id` / `last_seen_at` extras.
     RealtimeSeenPeer? seenPeer,
+
+    /// The viewer's own read cursor from WS `room_seen` `thread_item_id` /
+    /// `last_seen_at` extras; always set on a delivered `room_seen` change.
+    RealtimeReadCursor? readCursor,
 
     /// Author/steward People-surface watermark from WS `people_seen` `last_seen_at`.
     DateTime? peopleSeenAt,

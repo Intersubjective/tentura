@@ -9,6 +9,7 @@ import 'package:tentura/domain/entity/beacon_room_state.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/entity/realtime/realtime_room_message_paint.dart';
 import 'package:tentura/domain/entity/room_baton_data.dart';
 import 'package:tentura/domain/entity/room_message.dart';
@@ -40,7 +41,24 @@ base class BeaconThreadsCase extends UseCaseBase {
     this._realtimeSyncCase, {
     required super.env,
     required super.logger,
-  });
+  }) {
+    // The reader's own cursor, from this or another of their sessions, is a
+    // scoped watermark, never a room refresh (#639). Lives as long as the
+    // app-wide singleton.
+    _realtimeSyncCase
+        .changesFor(const {RealtimeEntityKind.roomSeen})
+        .listen(_applyOwnReadCursor);
+  }
+
+  void _applyOwnReadCursor(RealtimeEntityChange change) {
+    final cursor = change.readCursor;
+    if (cursor == null || change.operation == RealtimeOperation.delete) return;
+    _watermark.observeServerCursor(
+      change.aggregateId,
+      cursor.lastSeenAt,
+      threadId: cursor.threadItemId ?? RequestThread.generalId,
+    );
+  }
 
   final BeaconThreadsRepository _room;
 
@@ -54,7 +72,8 @@ base class BeaconThreadsCase extends UseCaseBase {
 
   final RealtimeSyncCase _realtimeSyncCase;
 
-  // roomSeenPeer is presence-only; omitted unlike roomSeen (unread convergence).
+  // roomSeenPeer is presence-only; the viewer's own room_seen is a read
+  // cursor applied to the watermark store, not a room invalidation.
   static const _deskRelevantEntityTypes = {
     BeaconRoomEntityType.roomMessage,
     BeaconRoomEntityType.roomReaction,
@@ -63,7 +82,6 @@ base class BeaconThreadsCase extends UseCaseBase {
     BeaconRoomEntityType.participant,
     BeaconRoomEntityType.factCard,
     BeaconRoomEntityType.coordinationItem,
-    BeaconRoomEntityType.roomSeen,
   };
 
   Stream<String> get readWatermarkChanges => _watermark.changes;

@@ -101,7 +101,6 @@ class BeaconThreadsRepository {
         inv.entityType == BeaconRoomEntityType.participant ||
         inv.entityType == BeaconRoomEntityType.factCard ||
         inv.entityType == BeaconRoomEntityType.coordinationItem ||
-        inv.entityType == BeaconRoomEntityType.roomSeen ||
         inv.entityType == BeaconRoomEntityType.helpOffer) {
       _roomRefreshController.add(inv.beaconId);
     }

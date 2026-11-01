@@ -224,6 +224,13 @@ void main() {
               id: '${entry.key}-id',
               event: 'insert',
               actorUserId: 'actor-1',
+              // room_seen is the reader's own scoped cursor.
+              extra: entry.value == RealtimeEntityKind.roomSeen
+                  ? const {
+                      'thread_item_id': null,
+                      'last_seen_at': '2026-01-01T00:00:00.000Z',
+                    }
+                  : const {},
             ),
           );
         }
@@ -616,11 +623,6 @@ void main() {
             BeaconRoomInvalidation(
               beaconId: 'room-1',
               entityType: BeaconRoomEntityType.roomPoll,
-              operation: RealtimeOperation.update,
-            ),
-            BeaconRoomInvalidation(
-              beaconId: 'room-1',
-              entityType: BeaconRoomEntityType.roomSeen,
               operation: RealtimeOperation.update,
             ),
             BeaconRoomInvalidation(

@@ -16,6 +16,8 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_read_watermark.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
+import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
+import 'package:tentura/domain/entity/realtime/realtime_read_cursor.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/features/beacon_threads/data/repository/beacon_fact_card_repository.dart';
@@ -716,24 +718,42 @@ void main() {
       expect(untouched.linkedItemMessageCount, 0);
     });
 
-    test('room-seen invalidation reads watermark without writing it', () async {
-      _registerProfileCubit(_kMyUserId);
-      final fakeRoom = _FakeBeaconThreadsRepository(userId: _kMyUserId)
-        ..messages = [_msg('m1', _kAnchorTime)];
-      addTearDown(fakeRoom.dispose);
-      final cubit = _roomCubit(fakeRoom);
-      addTearDown(cubit.close);
-      await _awaitLoad(cubit);
-      fakeRoom.markThreadSeenCalled = false;
+    test(
+      "the reader's own read cursor from another session moves the anchor "
+      'without writing it or refetching',
+      () async {
+        _registerProfileCubit(_kMyUserId);
+        final realtime = buildTestRealtimeSync();
+        addTearDown(realtime.port.dispose);
+        final fakeRoom = _FakeBeaconThreadsRepository(userId: _kMyUserId)
+          ..messages = [_msg('m1', _kAnchorTime)];
+        addTearDown(fakeRoom.dispose);
+        final cubit = _roomCubit(fakeRoom, realtimeSyncCase: realtime.case_);
+        addTearDown(cubit.close);
+        await _awaitLoad(cubit);
+        fakeRoom.markThreadSeenCalled = false;
+        final reads = fakeRoom.fetchMessagesCallCount;
 
-      final remoteSeenAt = _kAnchorTime.add(const Duration(minutes: 1));
-      fakeRoom.participantLastSeenRoomAt = remoteSeenAt;
-      fakeRoom.emitInvalidation(BeaconRoomEntityType.roomSeen);
-      await _awaitCondition(() => cubit.state.unreadAnchorAt == remoteSeenAt);
+        final remoteSeenAt = _kAnchorTime.add(const Duration(minutes: 1));
+        realtime.port.emitChange(
+          RealtimeEntityChange(
+            kind: RealtimeEntityKind.roomSeen,
+            aggregateId: _kBeaconId,
+            operation: RealtimeOperation.update,
+            source: RealtimeChangeSource.serverInvalidation,
+            readCursor: RealtimeReadCursor(
+              threadItemId: null,
+              lastSeenAt: remoteSeenAt,
+            ),
+          ),
+        );
+        await _awaitCondition(() => cubit.state.unreadAnchorAt == remoteSeenAt);
 
-      expect(cubit.state.unreadAnchorAt, remoteSeenAt);
-      expect(fakeRoom.markThreadSeenCalled, isFalse);
-    });
+        expect(cubit.state.unreadAnchorAt, remoteSeenAt);
+        expect(fakeRoom.markThreadSeenCalled, isFalse);
+        expect(fakeRoom.fetchMessagesCallCount, reads);
+      },
+    );
 
     test('reaction and poll invalidations replace message snapshots', () async {
       _registerProfileCubit(_kMyUserId);

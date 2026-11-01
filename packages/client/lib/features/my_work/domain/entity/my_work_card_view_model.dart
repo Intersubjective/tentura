@@ -54,8 +54,8 @@ abstract class MyWorkCardViewModel with _$MyWorkCardViewModel {
     @Default(false) bool showArchiveAffordance,
     MyWorkAttentionChip? attentionChip,
 
-    /// Admitted room coordination summary line (Phase 6).
-    @Default('') String roomInboxSubtitle,
+    /// The viewer's next move in the admitted room (Phase 6 summary line).
+    @Default('') String roomNextMove,
 
     /// Room current line for the NOW row (V2 inbox room context batch).
     @Default('') String roomCurrentLine,
@@ -112,6 +112,10 @@ abstract class MyWorkCardViewModel with _$MyWorkCardViewModel {
     /// as "+N"), shown on the "latest" line.
     @Default(0) int roomUnreadCount,
 
+    /// The viewer's server read watermark the unread count was taken at, so
+    /// a newer local read clears it without a refetch.
+    DateTime? roomLastSeenAt,
+
     /// #487 — the Request's immediate parent, when the viewer may read it
     /// (V2 batch); empty for a top-level Request. Shown as "Part of: …".
     @Default('') String parentBeaconId,
@@ -121,6 +125,15 @@ abstract class MyWorkCardViewModel with _$MyWorkCardViewModel {
   const MyWorkCardViewModel._();
 
   bool get isArchived => viewerArchived;
+
+  /// Admitted room coordination summary line (Phase 6). U087 — with a
+  /// "latest" line the unread count rides on it ("2 new"); without one it
+  /// stays here as "+N". A photo-, file-, poll- or fact-only message has a
+  /// line too (#498).
+  String get roomInboxSubtitle => [
+    if (roomNextMove.isNotEmpty) roomNextMove,
+    if (roomUnreadCount > 0 && !hasRoomLatestMessage) '+$roomUnreadCount',
+  ].join(' · ');
 
   /// U087/#498 — whether the card shows a "latest" line: a message with text,
   /// or one with only a photo, file, poll or quoted fact.

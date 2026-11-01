@@ -9,6 +9,7 @@ import 'package:tentura_server/domain/entity/room_message_snapshot.dart';
 base mixin WebsocketPathEntityChanges on WebsocketSessionHandlerBase {
   static const _forwardedExtrasByKind = <String, Set<String>>{
     'room_seen_peer': {'seen_user_id', 'last_seen_at'},
+    'room_seen': {'thread_item_id', 'last_seen_at'},
     'people_seen': {'last_seen_at'},
     'constellation_anchor': {'revision'},
     'person_tag': {'revision'},
@@ -96,10 +97,14 @@ base mixin WebsocketPathEntityChanges on WebsocketSessionHandlerBase {
         valid = revision is String && _decimalRevision.hasMatch(revision);
       } else {
         final seenUserId = data['seen_user_id'];
+        final threadItemId = data['thread_item_id'];
         final lastSeenAt = data['last_seen_at'];
         valid =
             (!forwardedExtras.contains('seen_user_id') ||
                 (seenUserId is String && seenUserId.isNotEmpty)) &&
+            (!forwardedExtras.contains('thread_item_id') ||
+                threadItemId == null ||
+                (threadItemId is String && threadItemId.isNotEmpty)) &&
             lastSeenAt is String &&
             DateTime.tryParse(lastSeenAt) != null;
       }

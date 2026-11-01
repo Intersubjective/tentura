@@ -52,7 +52,7 @@ class MyWorkCubit extends Cubit<MyWorkState> {
       cancelOnError: false,
     );
     _readWatermarkSub = _myWorkCase.readWatermarkChanges.listen(
-      (_) => _scheduleHintRefresh(),
+      _onReadWatermarkChanged,
       cancelOnError: false,
     );
     _deskRelevantChanges = _myWorkCase.deskRelevantInvalidations.listen(
@@ -182,6 +182,30 @@ class MyWorkCubit extends Cubit<MyWorkState> {
   void _scheduleHintRefresh() {
     if (isClosed) return;
     _hintRefreshRequests.request(null);
+  }
+
+  /// A read (in this or another session of the reader) only moves the card's
+  /// unread: recompute it from the loaded card, never re-read the desk.
+  void _onReadWatermarkChanged(String beaconId) {
+    if (isClosed) return;
+    var changed = false;
+    List<MyWorkCardViewModel> resolve(List<MyWorkCardViewModel> cards) => [
+      for (final card in cards)
+        if (card.beaconId == beaconId)
+          () {
+            final resolved = _myWorkCase.resolveRoomUnread(card);
+            changed |= !identical(resolved, card);
+            return resolved;
+          }()
+        else
+          card,
+    ];
+    final nonArchived = resolve(state.nonArchivedCards);
+    final archived = resolve(state.archivedCards);
+    if (!changed) return;
+    emit(
+      state.copyWith(nonArchivedCards: nonArchived, archivedCards: archived),
+    );
   }
 
   void _onRequestInvalidated(String beaconId) {

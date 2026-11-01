@@ -29,6 +29,11 @@ import 'package:tentura/env.dart';
 import 'package:tentura/features/beacon_lobby/domain/use_case/beacon_lobby_case.dart';
 import 'package:tentura/features/beacon_lobby/ui/bloc/beacon_lobby_entry_cubit.dart';
 import 'package:tentura/features/beacon_threads/domain/coordination_item_room_sync.dart';
+import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
+import 'package:tentura/features/beacon_threads/domain/room_host.dart';
+import 'package:tentura/features/beacon_lobby/domain/entity/beacon_lobby.dart';
+import 'package:tentura/features/forward/data/repository/forward_repository.dart';
+import 'package:tentura/features/forward/domain/entity/forward_edge.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/beacon_room_invalidation.dart';
 import 'package:tentura/features/beacon_threads/domain/room_read_watermark_store.dart';
 import 'package:tentura/features/beacon_threads/domain/use_case/beacon_threads_case.dart';
@@ -37,6 +42,7 @@ import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
 import 'package:tentura/features/inbox/domain/entity/inbox_item.dart';
+import 'package:tentura/features/inbox/domain/entity/inbox_room_card_hints.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/features/inbox/ui/bloc/inbox_cubit.dart';
 import 'package:tentura/features/my_work/ui/bloc/my_work_cubit.dart';
@@ -51,6 +57,7 @@ import '../beacon_view/beacon_view_case_test_support.dart' as detail;
 import '../block/support/controllable_block_case.dart';
 import '../inbox/inbox_case_test.dart' as activity;
 import '../my_work/my_work_test_support.dart' as desk;
+import 'read_cursor_server_frames.dart';
 import 'request_change_hint_replay.dart';
 
 const _beaconId = discussion.kRoomCubitFakeBeaconId;
@@ -59,14 +66,58 @@ const _helperId = kReplayHelperId;
 const _feedDestination = AttentionFeedDestinationId.activityStream;
 
 class _ForwardSnapshots extends detail.FakeBeaconViewForwardRepository {
+  int involvementReads = 0;
+  int generation = 0;
+  final involvementCalls = <({String beaconId, StackTrace stack})>[];
+
+  @override
+  Future<List<ForwardEdge>> fetchEdges({required String beaconId}) async => [];
+
+  @override
+  Future<Map<String, List<String>>> fetchReasonsByBeacon({
+    required String beaconId,
+  }) async => {};
+
+  @override
+  Future<BeaconInvolvementData> fetchInvolvementForBeacon(Beacon beacon) async {
+    involvementReads++;
+    involvementCalls.add((beaconId: beacon.id, stack: StackTrace.current));
+    return (
+      beacon: beacon,
+      forwardedToIds: <String>{},
+      helpOfferedIds: <String>{kReplayHelperId},
+      withdrawnIds: <String>{},
+      declinedOfferIds: <String>{},
+      rejectedIds: <String>{},
+      watchingIds: <String>{kReplayHelperId, 'watcher-$generation'},
+      onwardForwarderIds: <String>{},
+      myForwardedRecipientNotes: <String, String>{},
+      myForwardedRecipientEdgeIds: <String, String>{},
+      myForwardedRecipientReadAts: <String, DateTime?>{},
+      myForwardedRecipientHasOnwardChild: <String, bool>{},
+      myForwardedRecipientRejected: <String, bool>{},
+    );
+  }
+
   @override
   Stream<String> get forwardCommandCompleted => const Stream.empty();
 }
 
-class _DiscussionSnapshots extends discussion.FakeBeaconThreadsRepository {
-  _DiscussionSnapshots(String userId) : super(userId: userId);
+class DiscussionSnapshots extends discussion.FakeBeaconThreadsRepository {
+  DiscussionSnapshots(String userId) : super(userId: userId);
 
   int roomStateReads = 0;
+  void Function(String threadId, DateTime at)? onSeen;
+
+  @override
+  Future<DateTime> markThreadSeen({
+    required String beaconId,
+    required String threadId,
+    required DateTime readThroughAt,
+  }) async {
+    onSeen?.call(threadId, readThroughAt);
+    return readThroughAt;
+  }
 
   @override
   Future<BeaconRoomState> fetchBeaconRoomState(String beaconId) async {
@@ -81,6 +132,8 @@ class _DiscussionSnapshots extends discussion.FakeBeaconThreadsRepository {
 
 class _AttentionSnapshots extends desk.StubAttentionRepository {
   List<AttentionReceipt> receipts = const [];
+  int feedReads = 0;
+  int summaryReads = 0;
 
   @override
   Future<AttentionFeed> fetch({
@@ -90,6 +143,7 @@ class _AttentionSnapshots extends desk.StubAttentionRepository {
     int limit = 50,
     AttentionSurface? surface,
   }) async {
+    feedReads++;
     return AttentionFeed(
       summary: AttentionSummary(unreadTotal: receipts.length),
       page: AttentionFeedPage(items: receipts),
@@ -98,6 +152,7 @@ class _AttentionSnapshots extends desk.StubAttentionRepository {
 
   @override
   Future<AttentionSurfaceSummary> surfaceSummary() async {
+    summaryReads++;
     return AttentionSurfaceSummary(forYouDot: receipts.isNotEmpty);
   }
 }
@@ -107,14 +162,47 @@ class _AttentionSnapshots extends desk.StubAttentionRepository {
 /// seam: BeaconRepository emits RepositoryEventInvalidate, ForwardRepository
 /// emits HelpOfferInvalidated, and rooms use fromRealtimeChange. It performs
 /// no batching, read suppression or timing of its own.
-class _OpenClient {
-  _OpenClient(this.scenario, this.clock, {int initialGeneration = 0}) {
+class OpenRequestObserverHarness {
+  OpenRequestObserverHarness(
+    this.scenario,
+    this.clock, {
+    int initialGeneration = 0,
+    bool echoReadMarks = false,
+    bool readerHasSeenRow = true,
+    this.withUnreadHints = false,
+    DiscussionSnapshots? discussionRepository,
+    InvalidationService? invalidationService,
+    RoomReadWatermarkStore? watermarkStore,
+    this.viewerOverride,
+    String? threadItemId,
+  }) : watermark = watermarkStore ?? RoomReadWatermarkStore.testing(),
+       ownsInvalidations = invalidationService == null {
     registerProfile();
-    invalidations = InvalidationService.forTesting(socket.stream);
+    invalidations =
+        invalidationService ?? InvalidationService.forTesting(socket.stream);
     realtime = RealtimeSyncCase(invalidations);
-    roomRepo = _DiscussionSnapshots(viewerId);
-    final watermark = RoomReadWatermarkStore.testing();
-    final roomCase = BeaconThreadsCase(
+    roomRepo = discussionRepository ?? DiscussionSnapshots(viewerId);
+    if (echoReadMarks) {
+      // The server persists the cursor and fans out the frame its trigger
+      // NOTIFY produces (pinned by the server tests, actor echo on or off):
+      // the reader's first read of a scope is an INSERT, later ones UPDATEs.
+      final persistedScopes = <String>{
+        if (readerHasSeenRow) ...[RequestThread.generalId, ?threadItemId],
+      };
+      roomRepo.onSeen = (threadId, at) {
+        final event = persistedScopes.add(threadId) ? 'insert' : 'update';
+        socket.add(
+          roomSeenReadCursorFrame(
+            readerId: viewerId,
+            beaconId: _beaconId,
+            at: at,
+            event: event,
+            threadItemId: threadId == RequestThread.generalId ? null : threadId,
+          ),
+        );
+      };
+    }
+    roomCase = BeaconThreadsCase(
       roomRepo,
       roomFacts,
       discussion.FakePollingRepository(),
@@ -155,12 +243,14 @@ class _OpenClient {
       if (roomHint != null) {
         viewRoom.emitRoomInvalidation(roomHint);
         deskRoom.emitRoomInvalidation(roomHint);
-        roomRepo.emitInvalidation(
-          roomHint.entityType,
-          operation: roomHint.operation,
-          messageId: roomHint.messageId,
-          paint: roomHint.paint,
-        );
+        if (discussionRepository == null) {
+          roomRepo.emitInvalidation(
+            roomHint.entityType,
+            operation: roomHint.operation,
+            messageId: roomHint.messageId,
+            paint: roomHint.paint,
+          );
+        }
       }
     });
     setSnapshot(initialGeneration);
@@ -178,6 +268,13 @@ class _OpenClient {
     );
     room = RoomCubit(
       beaconId: _beaconId,
+      threadItemId: threadItemId,
+      lobbyAccess: threadItemId == null
+          ? null
+          : const BeaconLobbyAccess(canRead: true, canPost: true),
+      capabilities: threadItemId == null
+          ? const RoomCapabilities.request()
+          : const RoomCapabilities.questions(),
       beaconRoomCase: roomCase,
       coordinationItemRoomSync: CoordinationItemRoomSync(),
       presenceRepository: discussion.roomCubitFakePresenceRepository(),
@@ -205,6 +302,8 @@ class _OpenClient {
       userId: viewerId,
       myWorkCase: desk.buildTestMyWorkCase(
         repo: myWorkRepo,
+        roomHints: deskHints,
+        watermarkStore: watermark,
         beaconRepo: beaconRepo,
         forwardRepo: deskForward,
         roomRepo: deskRoom,
@@ -227,12 +326,18 @@ class _OpenClient {
     accounts.emit(viewerId);
   }
 
+  final bool withUnreadHints;
   final RequestChangeReplay scenario;
   final FakeAsync clock;
-  String get viewerId => scenario.viewerId;
+  final String? viewerOverride;
+  final bool ownsInvalidations;
+  String get viewerId => viewerOverride ?? scenario.viewerId;
+  String get helperId =>
+      scenario == RequestChangeReplay.enoughHelp ? viewerId : _helperId;
   String actorFor(int generation) => scenario.actorFor(generation);
   void registerProfile() => discussion.registerRoomCubitProfileCubit(viewerId);
 
+  final RoomReadWatermarkStore watermark;
   final socket = StreamController<Map<String, dynamic>>.broadcast();
   late final InvalidationService invalidations;
   late final RealtimeSyncCase realtime;
@@ -255,11 +360,12 @@ class _OpenClient {
   final deskForward = desk.FakeForwardRepository();
   final viewRoom = detail.FakeBeaconViewRoomRepository();
   final deskRoom = desk.FakeBeaconThreadsRepository();
-  late final _DiscussionSnapshots roomRepo;
+  late final DiscussionSnapshots roomRepo;
   final viewFacts = detail.FakeBeaconViewFactCardRepository();
   final roomFacts = detail.FakeBeaconViewFactCardRepository();
   final inboxRepo = activity.FakeInboxRepository();
   final myWorkRepo = desk.FakeMyWorkRepository();
+  final deskHints = desk.FakeRoomHints();
   final attentionRepo = _AttentionSnapshots();
   final accounts = AttentionCaseTestAccounts();
   late final AttentionCase attention;
@@ -267,6 +373,7 @@ class _OpenClient {
   final childReads = <BeaconHierarchyChildGroup, int>{};
   late final BeaconViewCubit view;
   late final RoomCubit room;
+  late final BeaconThreadsCase roomCase;
   late final InboxCubit homeInbox;
   late final InboxCubit watchingInbox;
   late final MyWorkCubit myWork;
@@ -289,6 +396,7 @@ class _OpenClient {
       updatedAt: DateTime.utc(2026, 1, 1, 0, 0, generation),
     );
     beaconRepo.fetchByIdHandler = (_) async => beacon;
+    forward.generation = generation;
     viewRoom.roomState = BeaconRoomState(
       beaconId: _beaconId,
       updatedAt: DateTime.utc(2026),
@@ -298,7 +406,7 @@ class _OpenClient {
       for (final userId in [
         _authorId,
         if (scenario == RequestChangeReplay.enoughHelp || generation == 0)
-          _helperId,
+          helperId,
         if (scenario == RequestChangeReplay.helperLeaves && generation < 2)
           kReplayOtherHelperId,
       ])
@@ -345,18 +453,25 @@ class _OpenClient {
     ];
     viewFacts.cards = facts;
     roomFacts.cards = facts;
+    final unreadHints = InboxRoomCardHints(
+      isRoomMember: true,
+      roomUnreadCount: generation == 0 ? 0 : 1,
+      lastSeenAt: DateTime.utc(2026),
+    );
+    if (withUnreadHints) deskHints.hintsByBeaconId = {_beaconId: unreadHints};
     inboxRepo.fetchResult = [
       InboxItem(
         beaconId: _beaconId,
         latestForwardAt: DateTime.utc(2026),
         status: InboxItemStatus.watching,
+        roomHints: withUnreadHints ? unreadHints : null,
         beacon: beacon,
       ),
     ];
     myWorkRepo.initResult = (
       authoredNonArchived: viewerId == _authorId ? [beacon] : const <Beacon>[],
       helpOfferedNonArchived: [
-        if (viewerId == _helperId)
+        if (viewerId == helperId)
           (
             beacon: beacon,
             helpOfferRowUpdatedAt: DateTime.utc(2026),
@@ -417,7 +532,11 @@ class _OpenClient {
       'children.BeaconChildren(${group.name})': childReads[group] ?? 0,
   };
 
-  void expectSnapshot(int generation, {BeaconStatus? statusOverride}) {
+  void expectSnapshot(
+    int generation, {
+    BeaconStatus? statusOverride,
+    bool includeRoom = true,
+  }) {
     expect(view.state.loadError, isNull);
     expect(room.state.loadError, isNull);
     expect(view.state.beacon.title, 'Request snapshot $generation');
@@ -431,18 +550,24 @@ class _OpenClient {
               : BeaconStatus.needsMoreHelp),
     );
     expect(view.state.beaconRoomCue?.currentLine, 'Bring the tools');
-    expect(room.state.roomState?.currentLine, 'Bring the tools');
+    if (includeRoom) {
+      expect(room.state.roomState?.currentLine, 'Bring the tools');
+    }
     expect(view.state.factCards.single.factText, 'Tools are in the shed');
-    expect(room.state.factCards.single.factText, 'Tools are in the shed');
+    if (includeRoom) {
+      expect(room.state.factCards.single.factText, 'Tools are in the shed');
+    }
     final visibleMembers = [
       _authorId,
       if (scenario == RequestChangeReplay.enoughHelp || generation == 0)
-        _helperId,
+        helperId,
       if (scenario == RequestChangeReplay.helperLeaves && generation < 2)
         kReplayOtherHelperId,
     ];
     expect(view.state.roomParticipants.map((p) => p.userId), visibleMembers);
-    expect(room.state.participants.map((p) => p.userId), visibleMembers);
+    if (includeRoom) {
+      expect(room.state.participants.map((p) => p.userId), visibleMembers);
+    }
     for (final inbox in [homeInbox, watchingInbox]) {
       expect(inbox.state.projectionLoaded, isTrue);
       expect(inbox.state.projectionFailed, isFalse);
@@ -460,9 +585,9 @@ class _OpenClient {
       children.state.active.items.single.title,
       'Visible child',
     );
-    if (generation == 0) {
+    if (generation == 0 && includeRoom) {
       expect(room.state.messages, isEmpty);
-    } else {
+    } else if (includeRoom) {
       expect(room.state.messages.single.id, 'notice-$generation');
       expect(
         room.state.messages.single.body,
@@ -496,8 +621,9 @@ class _OpenClient {
     await view.close();
     await attention.dispose();
     await bridge.cancel();
-    await invalidations.dispose();
+    if (ownsInvalidations) await invalidations.dispose();
     await socket.close();
+    await watermark.dispose();
     await accounts.dispose();
     await roomRepo.dispose();
     await viewRoom.dispose();
@@ -509,6 +635,19 @@ class _OpenClient {
   }
 }
 
+/// The per-consumer operation budget, including the Activity feed itself.
+Map<String, int> readWaveCounts(OpenRequestObserverHarness client) => {
+  ...client.readCounts(),
+  'detail.BeaconFetchById': client.beaconRepo.fetchByIdCalls,
+  'detail.BeaconParticipantList': client.viewRoom.fetchParticipantsCalls,
+  'discussion.BeaconParticipantList':
+      client.roomRepo.fetchParticipantsCallCount,
+  'discussion.BeaconRoomReadWatermarks':
+      client.roomRepo.fetchMainRoomReadWatermarksCallCount,
+  'activity.AttentionFeed': client.attentionRepo.feedReads,
+  'activity.AttentionSurfaceSummary': client.attentionRepo.summaryReads,
+};
+
 Map<String, int> _difference(Map<String, int> after, Map<String, int> before) =>
     {
       for (final entry in after.entries)
@@ -518,7 +657,7 @@ Map<String, int> _difference(Map<String, int> after, Map<String, int> before) =>
 /// Replays change [generation] and waits until every refresh has settled.
 Map<String, int> _replayChange(
   FakeAsync clock,
-  _OpenClient client,
+  OpenRequestObserverHarness client,
   int generation,
 ) {
   final before = client.readCounts();
@@ -563,6 +702,344 @@ Map<String, int> _replayChange(
 }
 
 void main() {
+  // Coverage: QA wave-2 RoomMessageList, RoomState, facts, participants,
+  // read-watermarks, InboxFetch, MyWorkInit and child slices are measured
+  // per consumer. BeaconChildren(active/finished/deleted) are separate groups.
+  // Involvement has a separate trailing-forwards path: after fetch(),
+  // BeaconViewCubit calls _refreshForwards when wasForwardsLoaded is true.
+  // The mounted real-wire widget scenario lives in room_read_echo_refresh_test.
+  // Sibling matrix: Request Discussion at bottom -> real-wire body test;
+  // Activity and My Work -> local unread + one-wave tests (actor echo on/off
+  // delivers the same frame: pinned by websocket_realtime_protocol_test);
+  // Questions -> real PG scope + no-content-refetch/isolation tests here;
+  // Questions entry -> no repeat access read; second tab -> unread convergence.
+  // Native scroll-up/auto-follow, touch/keyboard and cross-tab browser delivery
+  // need a web integration/Playwright network trace; widget tests cannot prove
+  // those browser behaviours. Notification settlement echoes must be included
+  // in that trace. The mounted replay pins the involvement pair: People load
+  // owns read 1; one status-driven trailing forwards refresh owns read 2.
+  // Fresh watching ids and an exact one-read delta prove this disposition.
+  group(
+    'Reading a newly received status line preserves one refresh per surface',
+    () {
+      for (final firstRead in [false, true]) {
+        test('read marking does not reopen Request, Activity or My Work reads '
+            'when the server publishes the ${firstRead ? 'first' : 'advanced'} '
+            'read cursor', () {
+          fakeAsync((clock) {
+            final client = OpenRequestObserverHarness(
+              RequestChangeReplay.enoughHelp,
+              clock,
+              echoReadMarks: true,
+              readerHasSeenRow: !firstRead,
+            );
+            addTearDown(() {
+              client.roomRepo.onSeen = null;
+              return client.dispose();
+            });
+            clock.elapse(const Duration(seconds: 6));
+            client.expectSnapshot(0);
+            final before = readWaveCounts(client);
+            client.setSnapshot(1);
+            // A single committed transaction flushes its frames back to back.
+            client.scenario
+                .viewerFrames(beaconId: _beaconId, generation: 1)
+                .forEach(client.socket.add);
+            clock.elapse(const Duration(milliseconds: 2700));
+            client.expectSnapshot(1);
+            unawaited(client.room.markReadToBottom());
+            clock.elapse(const Duration(milliseconds: 3300));
+            expect(
+              client.watermark.readThrough(_beaconId),
+              client.room.state.messages.single.createdAt,
+            );
+            expect(client.room.state.unreadCount, 0);
+            final delta = _difference(readWaveCounts(client), before);
+            expect(
+              delta['discussion.RoomMessageList'],
+              1,
+              reason: 'The displayed status line requires one message read',
+            );
+            expect(
+              delta['home+watching.InboxFetch'],
+              1,
+              reason:
+                  'Local read observation and confirmation are not new server content',
+            );
+            expect(delta['desk.MyWorkInit'], 1);
+            expect(
+              delta,
+              everyReadAtMostOnce,
+              reason:
+                  'Read marking must not start another refresh wave: $delta',
+            );
+          });
+        });
+      }
+    },
+  );
+
+  group('Local read watermarks recompute cards without remote reads', () {
+    for (final surface in ['Activity', 'My Work']) {
+      test(
+        '$surface clears the discussion unread badge without fetching again',
+        () {
+          fakeAsync((clock) {
+            final client = OpenRequestObserverHarness(
+              RequestChangeReplay.enoughHelp,
+              clock,
+              initialGeneration: 1,
+              withUnreadHints: true,
+            );
+            addTearDown(client.dispose);
+            clock.elapse(const Duration(seconds: 6));
+            int unread() => surface == 'Activity'
+                ? client.homeInbox.state.items.single.roomHints!.roomUnreadCount
+                : client.myWork.state.nonArchivedCards.single.roomUnreadCount;
+            int reads() => surface == 'Activity'
+                ? client.inboxRepo.fetchCallCount
+                : client.myWorkRepo.fetchInitCallCount;
+            expect(unread(), 1);
+            final before = reads();
+            unawaited(client.room.markReadToBottom());
+            clock.elapse(const Duration(seconds: 6));
+            expect(
+              client.watermark.syncedAt(_beaconId),
+              client.room.state.messages.single.createdAt,
+            );
+            expect(
+              unread(),
+              0,
+              reason: 'The displayed card must recompute its unread badge',
+            );
+            expect(
+              reads(),
+              before,
+              reason:
+                  'Neither observing a local read nor confirming it requires a projection fetch',
+            );
+          });
+        },
+      );
+    }
+  });
+
+  group('Read cursor hints preserve content projections', () {
+    for (final scope in <String?>[null, 'CIquestions1']) {
+      for (final event in ['insert', 'update']) {
+        test(
+          '${scope == null ? 'Discussion' : 'Questions'} read cursor $event '
+          'does not reload Request, Questions access, Activity or My Work',
+          () {
+            fakeAsync((clock) {
+              final client = OpenRequestObserverHarness(
+                RequestChangeReplay.enoughHelp,
+                clock,
+                initialGeneration: 1,
+                withUnreadHints: true,
+              );
+              addTearDown(client.dispose);
+              final port = FakeLobbyPort(
+                viewerId: client.viewerId,
+                authorId: _authorId,
+                offerers: {client.viewerId},
+              )..messageCount = 7;
+              final questions = BeaconLobbyEntryCubit(
+                BeaconLobbyCase(port, client.realtime),
+                beaconId: _beaconId,
+              );
+              addTearDown(questions.close);
+              unawaited(questions.load());
+              clock.elapse(const Duration(seconds: 6));
+              client.expectSnapshot(1);
+              expect(questions.state?.canRead, isTrue);
+              final before = readWaveCounts(client);
+              final accessBefore = port.calls
+                  .where((call) => call == 'access')
+                  .length;
+              final at = client.room.state.messages.single.createdAt;
+              client.socket.add(
+                roomSeenReadCursorFrame(
+                  readerId: client.viewerId,
+                  beaconId: _beaconId,
+                  at: at,
+                  event: event,
+                  threadItemId: scope,
+                ),
+              );
+              clock.elapse(const Duration(seconds: 6));
+              client.expectSnapshot(1);
+              expect(questions.state?.messageCount, 7);
+              final delta = _difference(readWaveCounts(client), before);
+              expect(
+                delta.values,
+                everyElement(0),
+                reason: 'A scoped read cursor is not a content change: $delta',
+              );
+              expect(
+                port.calls.where((call) => call == 'access').length,
+                accessBefore,
+              );
+              expect(
+                client.homeInbox.state.items.single.roomHints!.roomUnreadCount,
+                scope == null ? 0 : 1,
+                reason: 'Questions cursors must never clear Discussion unread',
+              );
+              expect(
+                client.myWork.state.nonArchivedCards.single.roomUnreadCount,
+                scope == null ? 0 : 1,
+              );
+            });
+          },
+        );
+      }
+    }
+  });
+
+  group('A read in another tab clears unread without fetching projections', () {
+    for (final firstRead in [true, false]) {
+      test(
+        'a second session converges Request, Activity and My Work unread from '
+        'the server-side ${firstRead ? 'first' : 'advanced'} read cursor',
+        () {
+          fakeAsync((clock) {
+            // Both tabs are the same signed-in reader with independent
+            // session stores; only the server connects them.
+            final first = OpenRequestObserverHarness(
+              RequestChangeReplay.enoughHelp,
+              clock,
+              initialGeneration: 1,
+              withUnreadHints: true,
+            );
+            final second = OpenRequestObserverHarness(
+              RequestChangeReplay.enoughHelp,
+              clock,
+              initialGeneration: 1,
+              withUnreadHints: true,
+            );
+            addTearDown(first.dispose);
+            addTearDown(second.dispose);
+            clock.elapse(const Duration(seconds: 6));
+            expect(second.room.state.messages.single.id, 'notice-1');
+            expect(second.room.state.unreadCount, 1);
+            expect(
+              second.homeInbox.state.items.single.roomHints!.roomUnreadCount,
+              1,
+            );
+            expect(
+              second.myWork.state.nonArchivedCards.single.roomUnreadCount,
+              1,
+            );
+            final before = readWaveCounts(second);
+            unawaited(first.room.markReadToBottom());
+            clock.flushMicrotasks();
+            final readAt = first.watermark.syncedAt(_beaconId)!;
+            expect(
+              second.watermark.readThrough(_beaconId),
+              isNull,
+              reason: 'Tabs must have independent session stores',
+            );
+            // The frame production fan-out delivers to every tab of the
+            // reader (actor echo on or off) for the first tab's read.
+            second.socket.add(
+              roomSeenReadCursorFrame(
+                readerId: second.viewerId,
+                beaconId: _beaconId,
+                at: readAt,
+                event: firstRead ? 'insert' : 'update',
+              ),
+            );
+            clock.elapse(const Duration(seconds: 6));
+            expect(
+              second.room.state.unreadCount,
+              0,
+              reason:
+                  'The other tab read this message; its own read cursor must converge',
+            );
+            expect(second.watermark.syncedAt(_beaconId), readAt);
+            expect(
+              second.homeInbox.state.items.single.roomHints!.roomUnreadCount,
+              0,
+            );
+            expect(
+              second.myWork.state.nonArchivedCards.single.roomUnreadCount,
+              0,
+            );
+            expect(
+              _difference(readWaveCounts(second), before).values,
+              everyElement(0),
+              reason: 'A read cursor is not a content invalidation',
+            );
+          });
+        },
+      );
+    }
+  });
+
+  // Disposition of QA's second BeaconInvolvementData: it is not caused by the
+  // reader's room_seen echo. BeaconViewCubit.fetch() refreshes forwards
+  // (and with them involvement) only when People/forwards were already
+  // loaded, so an opened People list costs one involvement read per detail
+  // refresh and an unopened one costs none.
+  group(
+    'A Request status change refreshes involvement only for an opened People list',
+    () {
+      for (final peopleOpen in [true, false]) {
+        test(
+          peopleOpen
+              ? 'an opened People list gets one trailing involvement read and nothing from the read echo'
+              : 'an unopened People list gets no involvement read',
+          () {
+            fakeAsync((clock) {
+              final client = OpenRequestObserverHarness(
+                RequestChangeReplay.enoughHelp,
+                clock,
+                echoReadMarks: true,
+              );
+              addTearDown(() {
+                client.roomRepo.onSeen = null;
+                return client.dispose();
+              });
+              clock.elapse(const Duration(seconds: 6));
+              expect(client.view.state.beaconContextLoaded, isTrue);
+              if (peopleOpen) {
+                unawaited(client.view.loadForwards());
+                clock.elapse(const Duration(seconds: 1));
+                expect(client.view.state.forwardsLoaded, isTrue);
+              }
+              final opened = client.forward.involvementReads;
+              expect(opened, peopleOpen ? 1 : 0);
+              client.setSnapshot(1);
+              client.scenario
+                  .viewerFrames(beaconId: _beaconId, generation: 1)
+                  .forEach(client.socket.add);
+              clock.elapse(const Duration(milliseconds: 2700));
+              final afterStatus = client.forward.involvementReads;
+              expect(afterStatus - opened, peopleOpen ? 1 : 0);
+              if (peopleOpen) {
+                expect(
+                  client.view.state.involvementWatchingIds,
+                  contains('watcher-1'),
+                  reason:
+                      'The trailing read returns the new involvement snapshot',
+                );
+              }
+              // The reader then reads the line and the server echoes room_seen.
+              unawaited(client.room.markReadToBottom());
+              clock.elapse(const Duration(seconds: 6));
+              expect(client.room.state.unreadCount, 0);
+              expect(
+                client.forward.involvementReads,
+                afterStatus,
+                reason: 'A read cursor never reloads Request involvement',
+              );
+            });
+          },
+        );
+      }
+    },
+  );
+
   group('An observer receives one refresh for a Request status change', () {
     for (final target in [BeaconStatus.enoughHelp, BeaconStatus.open]) {
       test(
@@ -572,7 +1049,7 @@ void main() {
         () {
           fakeAsync((clock) {
             final initialGeneration = target == BeaconStatus.open ? 1 : 0;
-            final client = _OpenClient(
+            final client = OpenRequestObserverHarness(
               RequestChangeReplay.enoughHelp,
               clock,
               initialGeneration: initialGeneration,
@@ -776,7 +1253,7 @@ void main() {
                   'surface, and a later withdrawal refreshes again',
         () {
           fakeAsync((clock) {
-            final client = _OpenClient(scenario, clock);
+            final client = OpenRequestObserverHarness(scenario, clock);
             addTearDown(client.dispose);
             // Finish initial loads, before measuring invalidation-driven I/O.
             clock.elapse(const Duration(seconds: 6));

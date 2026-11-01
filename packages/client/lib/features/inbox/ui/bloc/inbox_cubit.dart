@@ -56,6 +56,10 @@ class InboxCubit extends Cubit<InboxState> {
       },
       cancelOnError: false,
     );
+    _readWatermarkChanges = _inboxCase.readWatermarkChanges.listen(
+      _onReadWatermarkChanged,
+      cancelOnError: false,
+    );
     _deskRelevantChanges = _inboxCase.deskRelevantChanges.listen(
       _onDeskRelevantChanged,
       cancelOnError: false,
@@ -83,6 +87,7 @@ class InboxCubit extends Cubit<InboxState> {
   late final StreamSubscription<HelpOfferEvent> _helpOfferChanges;
   late final StreamSubscription<String> _forwardCommandCompleted;
   late final StreamSubscription<void> _inboxLocalMutations;
+  late final StreamSubscription<String> _readWatermarkChanges;
   late final StreamSubscription<String> _deskRelevantChanges;
   late final StreamSubscription<void> _catchUps;
 
@@ -175,9 +180,27 @@ class InboxCubit extends Cubit<InboxState> {
     await _helpOfferChanges.cancel();
     await _forwardCommandCompleted.cancel();
     await _inboxLocalMutations.cancel();
+    await _readWatermarkChanges.cancel();
     await _deskRelevantChanges.cancel();
     await _catchUps.cancel();
     return super.close();
+  }
+
+  void _onReadWatermarkChanged(String beaconId) {
+    if (isClosed) return;
+    var changed = false;
+    final items = [
+      for (final item in state.items)
+        if (item.beaconId == beaconId)
+          () {
+            final resolved = _withResolvedRoomUnread(item);
+            changed |= !identical(resolved, item);
+            return resolved;
+          }()
+        else
+          item,
+    ];
+    if (changed) emit(state.copyWith(items: items));
   }
 
   InboxItem _withResolvedRoomUnread(InboxItem item) {

@@ -13,6 +13,7 @@ import 'package:tentura/domain/entity/quoted_fact.dart';
 import 'package:tentura/domain/entity/realtime/realtime_catch_up.dart';
 import 'package:tentura/domain/entity/realtime/realtime_connection_status.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
+import 'package:tentura/domain/entity/realtime/realtime_read_cursor.dart';
 import 'package:tentura/domain/entity/realtime/realtime_room_message_paint.dart';
 import 'package:tentura/domain/entity/realtime/realtime_seen_peer.dart';
 import 'package:tentura/domain/entity/room_message_attachment.dart';
@@ -208,6 +209,15 @@ class InvalidationService implements RealtimeSyncPort {
       return;
     }
     final lastSeenAtRaw = payload['last_seen_at'];
+    final readCursor = kind == RealtimeEntityKind.roomSeen
+        ? _parseReadCursor(
+            threadItemId: payload['thread_item_id'],
+            lastSeenAtRaw: lastSeenAtRaw,
+          )
+        : null;
+    if (kind == RealtimeEntityKind.roomSeen && readCursor == null) {
+      return;
+    }
     final peopleSeenAt =
         kind == RealtimeEntityKind.peopleSeen && lastSeenAtRaw is String
         ? DateTime.tryParse(lastSeenAtRaw)?.toUtc()
@@ -227,6 +237,7 @@ class InvalidationService implements RealtimeSyncPort {
         childId: childId,
         roomMessagePaint: paint,
         seenPeer: seenPeer,
+        readCursor: readCursor,
         peopleSeenAt: peopleSeenAt,
         revision:
             kind == RealtimeEntityKind.constellationAnchor ||
@@ -240,6 +251,24 @@ class InvalidationService implements RealtimeSyncPort {
   }
 
   static final _decimalRevision = RegExp(r'^[0-9]+$');
+
+  static RealtimeReadCursor? _parseReadCursor({
+    required Object? threadItemId,
+    required Object? lastSeenAtRaw,
+  }) {
+    if (threadItemId != null &&
+        (threadItemId is! String || threadItemId.isEmpty)) {
+      return null;
+    }
+    final lastSeenAt = lastSeenAtRaw is String
+        ? DateTime.tryParse(lastSeenAtRaw)?.toUtc()
+        : null;
+    if (lastSeenAt == null) return null;
+    return RealtimeReadCursor(
+      threadItemId: threadItemId as String?,
+      lastSeenAt: lastSeenAt,
+    );
+  }
 
   static BigInt? _parseRevision(Object? raw) =>
       raw is String && _decimalRevision.hasMatch(raw)
@@ -334,9 +363,12 @@ class InvalidationService implements RealtimeSyncPort {
         change.roomMessagePaint?.id,
         change.seenPeer?.userId,
         change.peopleSeenAt,
-        change.kind == RealtimeEntityKind.relationship
-            ? change.actorUserId
-            : null,
+        switch (change.kind) {
+          RealtimeEntityKind.relationship => change.actorUserId,
+          // Discussion and Questions cursors are separate watermarks.
+          RealtimeEntityKind.roomSeen => change.readCursor?.threadItemId,
+          _ => null,
+        },
       );
       // A later plain `beacon` hint must not erase an earlier next-step
       // flag in the same batch (#654).
