@@ -9,6 +9,7 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/relative_timestamp_ticker.dart';
 
 import 'activity_forward_outcome_copy.dart';
+import 'attention_mini_card.dart' show kMiniCardAgeWidthShare;
 
 /// A tombstone: one compact row saying *something was here* (card spec §8).
 ///
@@ -125,49 +126,55 @@ class TombstoneRow extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // The title keeps the lion's share; the age is
-                          // flexible and ellipsises, because an absolute date
-                          // at 2x text is wide enough to push the row into
-                          // overflow on a 360 dp screen.
-                          Expanded(
-                            flex: 4,
-                            child: Text(
-                              headline,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: TenturaText.titleSmall(
-                                tt.text,
-                              ).copyWith(fontWeight: FontWeight.w500),
+                      LayoutBuilder(
+                        builder: (context, rowConstraints) => Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // The title keeps the lion's share; the age is
+                            // flexible and ellipsises, because an absolute date
+                            // at 2x text is wide enough to push the row into
+                            // overflow on a 360 dp screen.
+                            Expanded(
+                              flex: 4,
+                              child: Text(
+                                headline,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: TenturaText.titleSmall(
+                                  tt.text,
+                                ).copyWith(fontWeight: FontWeight.w500),
+                              ),
                             ),
-                          ),
-                          SizedBox(width: tt.iconTextGap),
-                          // The age keeps its own width ("80d ago" was cut to
-                          // "80d …" while the title had room), capped so a
-                          // long absolute date at 2x text still fits 360 dp.
-                          ConstrainedBox(
-                            constraints: BoxConstraints(
-                              maxWidth: tt.avatarSize * 3,
-                            ),
-                            child: Tooltip(
-                              message: absoluteTime,
-                              excludeFromSemantics: true,
-                              child: RelativeTimestampTicker(
-                                builder: (_) => Text(
-                                  age(),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TenturaText.withTabular(
-                                    TenturaText.bodySmall(tt.textMuted),
+                            SizedBox(width: tt.iconTextGap),
+                            // The age keeps its own width ("80d ago" was cut to
+                            // "80d …" while the title had room), capped so a
+                            // long absolute date at 2x text still fits 360 dp;
+                            // #609: past the cap it wraps, so an earlier year
+                            // («Sun, Nov 1, 2026») is never cut before the year.
+                            ConstrainedBox(
+                              constraints: BoxConstraints(
+                                maxWidth:
+                                    rowConstraints.maxWidth *
+                                    kMiniCardAgeWidthShare,
+                              ),
+                              child: Tooltip(
+                                message: absoluteTime,
+                                excludeFromSemantics: true,
+                                child: RelativeTimestampTicker(
+                                  builder: (_) => Text(
+                                    age(),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TenturaText.withTabular(
+                                      TenturaText.bodySmall(tt.textMuted),
+                                    ),
+                                    semanticsLabel: '',
                                   ),
-                                  semanticsLabel: '',
                                 ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                       if (from != null)
                         Text(

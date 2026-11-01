@@ -130,7 +130,9 @@ class ActivityOfferBoundedShell extends StatelessWidget {
                                 ],
                                 SizedBox(width: tt.iconTextGap),
                                 // #609: a dated age at 2x text is wider than a
-                                // 360 dp row; capped like the mini card's age.
+                                // 360 dp row; capped like the mini card's age,
+                                // and wraps past the cap rather than losing
+                                // the year.
                                 ConstrainedBox(
                                   constraints: BoxConstraints(
                                     maxWidth:
@@ -149,7 +151,7 @@ class ActivityOfferBoundedShell extends StatelessWidget {
                                             now: now,
                                             l10n: l10n,
                                           ),
-                                          maxLines: 1,
+                                          maxLines: 2,
                                           overflow: TextOverflow.ellipsis,
                                           style: TenturaText.withTabular(
                                             TenturaText.bodySmall(tt.textFaint),

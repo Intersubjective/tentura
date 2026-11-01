@@ -1091,14 +1091,15 @@ class _ChangeLine extends StatelessWidget {
                 ),
                 SizedBox(width: tt.iconTextGap),
                 // #609: a dated age ("Sat, Oct 31, 2025") at 2x text is wider
-                // than a 360 dp line; capped like the mini card's age.
+                // than a 360 dp line; capped like the mini card's age;
+                // past the cap it wraps rather than losing the year.
                 ConstrainedBox(
                   constraints: BoxConstraints(
                     maxWidth: rowConstraints.maxWidth * kMiniCardAgeWidthShare,
                   ),
                   child: Text(
                     age,
-                    maxLines: 1,
+                    maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: TenturaText.withTabular(style),
                   ),
