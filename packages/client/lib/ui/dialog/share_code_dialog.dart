@@ -55,8 +55,9 @@ class ShareCodeDialog extends StatefulWidget {
   final ValueNotifier<bool>? used;
 
   /// Explanatory text, shown in the dialog only and never included in
-  /// [ShareParams]: under the QR on compact (phone) windows, above the link
-  /// on wider ones, where the QR waits behind a toggle (#452).
+  /// [ShareParams]: under the QR on tall compact (phone) windows, above the
+  /// link everywhere else (wider windows and short phones), where the QR
+  /// waits behind a toggle (#452, #790).
   final String? caption;
 
   /// Replaces [caption] once it completes: for a caption whose final wording

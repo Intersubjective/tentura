@@ -10,6 +10,7 @@ import 'package:tentura/features/profile_view/ui/widget/mutual_friends_button.da
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/availability_line.dart';
+import 'package:tentura/ui/utils/snack_bar_clearance.dart';
 import 'package:tentura/ui/widget/focus_flash_highlight.dart';
 
 import '../../domain/entity/person_forward_row.dart';
@@ -113,7 +114,7 @@ class _PersonForwardBody extends StatelessWidget {
       todayUtc,
     );
 
-    return ListView(
+    final list = ListView(
       padding: EdgeInsets.fromLTRB(
         tt.screenHPadding,
         tt.sectionGap,
@@ -148,21 +149,47 @@ class _PersonForwardBody extends StatelessWidget {
             personId: person.id,
             canCreateRequest: !isPaused,
           )
-        else ...[
+        else
           for (final row in state.rows)
             Padding(
               padding: EdgeInsets.only(bottom: tt.rowGap),
               child: _PersonForwardRowTile(row: row, state: state),
             ),
-          SizedBox(height: tt.rowGap),
-          _NoteAndSend(state: state),
-          SizedBox(height: tt.rowGap),
-          _NewRequestButton(
-            personName: person.shownName,
-            personId: person.id,
-            enabled: !isPaused,
+      ],
+    );
+    if (state.rows.isEmpty) return list;
+
+    // #605 (#406): Send and «Create a new request for …» are pinned under
+    // the list in a SnackBarClearance, so the «Request sent» bar (or a
+    // taller error bar) floats above them instead of covering the end of a
+    // list that cannot scroll it clear.
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(child: list),
+        SnackBarClearance(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              tt.screenHPadding,
+              tt.rowGap,
+              tt.screenHPadding,
+              tt.rowGap,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _NoteAndSend(state: state),
+                SizedBox(height: tt.rowGap),
+                _NewRequestButton(
+                  personName: person.shownName,
+                  personId: person.id,
+                  enabled: !isPaused,
+                ),
+              ],
+            ),
           ),
-        ],
+        ),
       ],
     );
   }
