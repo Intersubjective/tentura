@@ -200,28 +200,30 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
 
   void _syncRecipientNoteControllers(ForwardState state) {
     final selected = state.selectedIds;
-    for (final id in _recipientNoteControllers.keys.toList()) {
-      if (!selected.contains(id)) {
-        _recipientNoteControllers.remove(id)?.dispose();
+    final draftCleared =
+        state.selectedIds.isEmpty &&
+        state.perRecipientNotes.isEmpty &&
+        state.note.isEmpty;
+    if (draftCleared) {
+      for (final c in _recipientNoteControllers.values) {
+        c.dispose();
       }
+      _recipientNoteControllers.clear();
     }
     for (final id in selected) {
       final noteText = state.perRecipientNotes[id] ?? '';
       final existing = _recipientNoteControllers[id];
       if (existing == null) {
         _recipientNoteControllers[id] = TextEditingController(text: noteText);
-      } else if (existing.text != noteText) {
+      } else if (existing.text != noteText &&
+          _expandedPersonalNoteRecipientId.value != id) {
         existing.text = noteText;
       }
     }
 
-    final draftCleared =
-        state.selectedIds.isEmpty &&
-        state.perRecipientNotes.isEmpty &&
-        state.note.isEmpty;
     if (draftCleared) {
       _sharedNoteController.text = '';
-    } else if (_sharedNoteController.text != state.note) {
+    } else if (_sharedNoteController.text != state.note && !_noteExpanded) {
       _sharedNoteController.text = state.note;
     }
   }
@@ -542,7 +544,7 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                 next.lineageSuggestions.isNotEmpty &&
                 next.note.trim().isNotEmpty,
             listener: (context, state) {
-              if (_sharedNoteController.text != state.note) {
+              if (_sharedNoteController.text != state.note && !_noteExpanded) {
                 _sharedNoteController.text = state.note;
               }
               if (!_noteExpanded) {

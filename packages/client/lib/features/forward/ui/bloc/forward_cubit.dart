@@ -267,9 +267,6 @@ class ForwardCubit extends Cubit<ForwardState> {
       final nextSelectedIds = preservedSelection.isNotEmpty
           ? preservedSelection
           : {...lineagePreselect, ...userPreselect};
-      final draft = _pruneRecipientDraft(
-        state.selectedIds.difference(nextSelectedIds),
-      );
 
       emit(
         state.copyWith(
@@ -277,8 +274,6 @@ class ForwardCubit extends Cubit<ForwardState> {
           candidates: load.candidates,
           lineageSuggestions: load.lineageSuggestions,
           selectedIds: nextSelectedIds,
-          perRecipientNotes: draft.notes,
-          recipientReasons: draft.reasons,
           droppedPreselectedIds: droppedPreselected,
           note: state.note.isNotEmpty ? state.note : load.suggestedNote,
           hasMyOutgoingForward: load.hasMyOutgoingForward,
@@ -498,14 +493,10 @@ class ForwardCubit extends Cubit<ForwardState> {
 
   void clearLineageSuggestions() {
     final lineageIds = state.lineageSuggestions.map((c) => c.id).toSet();
-    final removedIds = state.selectedIds.intersection(lineageIds);
     final selected = Set<String>.from(state.selectedIds)..removeAll(lineageIds);
-    final draft = _pruneRecipientDraft(removedIds);
     emit(
       state.copyWith(
         selectedIds: selected,
-        perRecipientNotes: draft.notes,
-        recipientReasons: draft.reasons,
         note: '',
       ),
     );
@@ -551,13 +542,10 @@ class ForwardCubit extends Cubit<ForwardState> {
       }
       selected.add(userId);
     }
-    final draft = _pruneRecipientDraft(state.selectedIds.difference(selected));
     emit(
       state.copyWith(
         selectedIds: selected,
         addedByTag: _keepSelected(state.addedByTag, selected),
-        perRecipientNotes: draft.notes,
-        recipientReasons: draft.reasons,
       ),
     );
     return selected.contains(userId)
@@ -602,28 +590,22 @@ class ForwardCubit extends Cubit<ForwardState> {
       byTag[tagId] = added;
       members[tagId] = memberIds.toSet();
     }
-    final draft = _pruneRecipientDraft(state.selectedIds.difference(selected));
     emit(
       state.copyWith(
         selectedIds: selected,
         addedByTag: byTag,
         tagMembers: members,
-        perRecipientNotes: draft.notes,
-        recipientReasons: draft.reasons,
       ),
     );
   }
 
-  /// Replaces the selected set; notes and reasons of ids that stay are kept.
+  /// Replaces the selected set; stored notes and reasons stay until draft reset.
   void setSelection(Set<String> ids) {
     final selected = Set<String>.from(ids);
-    final draft = _pruneRecipientDraft(state.selectedIds.difference(selected));
     emit(
       state.copyWith(
         selectedIds: selected,
         addedByTag: _keepSelected(state.addedByTag, selected),
-        perRecipientNotes: draft.notes,
-        recipientReasons: draft.reasons,
       ),
     );
   }
@@ -833,10 +815,19 @@ class ForwardCubit extends Cubit<ForwardState> {
       final perNotes = <String, String>{};
       if (state.profile.showsPersonalNotes) {
         for (final id in recipientIdsToSend) {
+          if (!state.selectedIds.contains(id)) continue;
           final personal = state.perRecipientNotes[id];
           if (personal != null && personal.trim().isNotEmpty) {
             perNotes[id] = personal.trim();
           }
+        }
+      }
+      final recipientReasonsForSend = <String, List<String>>{};
+      for (final id in recipientIdsToSend) {
+        if (!state.selectedIds.contains(id)) continue;
+        final slugs = state.recipientReasons[id];
+        if (slugs != null && slugs.isNotEmpty) {
+          recipientReasonsForSend[id] = slugs;
         }
       }
       final composedNote = state.note.trim();
@@ -855,9 +846,9 @@ class ForwardCubit extends Cubit<ForwardState> {
         note: composedNote.isEmpty ? null : composedNote,
         perRecipientNotes: perNotes.isEmpty ? null : perNotes,
         context: state.context.isEmpty ? null : state.context,
-        recipientReasons: state.recipientReasons.isEmpty
+        recipientReasons: recipientReasonsForSend.isEmpty
             ? null
-            : state.recipientReasons,
+            : recipientReasonsForSend,
         attributionParentEdgeIds: attributionParentEdgeIds,
         recipientBandProvenance: recipientBandProvenance.isEmpty
             ? null
@@ -922,20 +913,5 @@ class ForwardCubit extends Cubit<ForwardState> {
     } finally {
       _suppressForwardChangeReload = false;
     }
-  }
-
-  /// Drops per-recipient draft for ids leaving the selection (notes, reasons).
-  ({
-    Map<String, String> notes,
-    Map<String, List<String>> reasons,
-  })
-  _pruneRecipientDraft(Set<String> removedIds) {
-    final notes = Map<String, String>.from(state.perRecipientNotes);
-    final reasons = Map<String, List<String>>.from(state.recipientReasons);
-    for (final id in removedIds) {
-      notes.remove(id);
-      reasons.remove(id);
-    }
-    return (notes: notes, reasons: reasons);
   }
 }
