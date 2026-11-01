@@ -7,6 +7,7 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
 import 'beacon_gallery_viewer.dart';
+import 'beacon_image.dart';
 
 class BeaconImageGallery extends StatefulWidget {
   const BeaconImageGallery({
@@ -69,10 +70,8 @@ class _BeaconImageGalleryState extends State<BeaconImageGallery> {
           fit: compactFit ? BoxFit.contain : BoxFit.cover,
           width: double.infinity,
           height: double.infinity,
-          errorBuilder: (_, _, _) => Image.asset(
-            'images/placeholder/beacon.jpg',
-            fit: compactFit ? BoxFit.contain : BoxFit.cover,
-          ),
+          frameBuilder: beaconImageFadeInFrame,
+          errorBuilder: (_, _, _) => const BeaconImagePlaceholder(),
         );
 
         return GestureDetector(
@@ -81,9 +80,15 @@ class _BeaconImageGalleryState extends State<BeaconImageGallery> {
             beacon: widget.beacon,
             initialIndex: index,
           ),
-          child: image.blurHash.isEmpty
-              ? networkImage
-              : BlurHash(image.blurHash, child: networkImage),
+          // #816: the same placeholder as BeaconImage, BlurHash above it.
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              const BeaconImagePlaceholder(),
+              if (image.blurHash.isNotEmpty) BlurHash(image.blurHash),
+              networkImage,
+            ],
+          ),
         );
       },
     );

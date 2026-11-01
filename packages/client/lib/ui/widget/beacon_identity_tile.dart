@@ -6,6 +6,7 @@ import 'package:tentura/domain/entity/beacon_cover.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/ui/utils/capability_tag_presenter.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/widget/beacon_image.dart';
 
 /// Resolved request identity: cover photo, capability symbol, or neutral glyph.
 class BeaconIdentityTile extends StatelessWidget {
@@ -75,6 +76,8 @@ class BeaconIdentityTile extends StatelessWidget {
       height: size,
       cacheWidth: cacheExtent,
       cacheHeight: cacheExtent,
+      // #816: a token-coloured tile until the photo decodes.
+      frameBuilder: beaconImageFadeInOverPlaceholder,
       errorBuilder: (_, _, _) => _photoErrorFallback(context, image),
     );
   }

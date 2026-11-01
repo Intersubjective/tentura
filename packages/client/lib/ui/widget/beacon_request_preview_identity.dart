@@ -17,6 +17,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/presenter/beacon_phase_presenter.dart';
 import 'package:tentura/ui/utils/capability_tag_presenter.dart';
 import 'package:tentura/ui/widget/beacon_card_primitives.dart';
+import 'package:tentura/ui/widget/beacon_image.dart';
 import 'package:tentura/ui/widget/overlapping_people_avatars.dart';
 
 /// Typed list-card preview — not an action-capable [Beacon].
@@ -412,6 +413,8 @@ class _PreviewIdentityTile extends StatelessWidget {
       height: size,
       cacheWidth: cacheExtent,
       cacheHeight: cacheExtent,
+      // #816: a token-coloured tile until the photo decodes.
+      frameBuilder: beaconImageFadeInOverPlaceholder,
       errorBuilder: (_, _, _) => _photoErrorFallback(context, image),
     );
   }
