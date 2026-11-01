@@ -203,6 +203,11 @@ gates() {
   local pkg="$1"
   (cd "$ROOT" && run 2m python3 scripts/check_cross_package_imports.py)
   (cd "$ROOT" && run 10m bash scripts/check-analysis.sh "$pkg")
+  # #808: warns (never fails) when a Flutter upgrade should re-test
+  # multi-threaded skwasm.
+  if [[ "$pkg" == packages/client ]]; then
+    (cd "$ROOT" && bash scripts/check_skwasm_single_thread.sh)
+  fi
 }
 
 server_pg() {

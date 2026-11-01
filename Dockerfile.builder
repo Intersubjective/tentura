@@ -9,6 +9,8 @@
 # + flutter_test.) CI builds web and runs VM / flutter_tester tests only.
 FROM debian:bookworm-slim
 
+# Upgrading Flutter? Run scripts/check_skwasm_single_thread.sh: the web build
+# forces single-threaded skwasm on 3.47.0 (#808); re-test multi-threaded.
 ARG FLUTTER_VERSION=3.47.0
 
 ENV FLUTTER_HOME=/sdks/flutter

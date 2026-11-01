@@ -81,11 +81,26 @@ void _rewriteBootstrap(File file, {required String assetPrefix}) {
   }
 }
 
+/// SINGLE-THREADED SKWASM WORKAROUND (#808) — RE-CHECK ON EVERY FLUTTER UPGRADE.
+///
+/// Multi-threaded skwasm (Flutter 3.47.0) makes its FreeType lock a no-op, so
+/// text layout on the main thread races glyph drawing on the raster worker:
+/// the Field froze in 7 of 8 local fast-zoom runs (TENTURA-CLIENT-5C, #910).
+/// Upstream: flutter/flutter#193439, fix PR flutter/flutter#193801 (unmerged
+/// when this was pinned). Single-threaded skwasm froze 0 of 3 runs.
+///
+/// After a Flutter upgrade, run `scripts/check_skwasm_single_thread.sh`. When
+/// the new Flutter contains the upstream fix, set this to false, rebuild with
+/// `--wasm`, rerun the #808 fast-zoom repro and the Field perf bench, and
+/// update the pinned version in that script. COOP/COEP headers stay on in
+/// Caddy, so switching back needs no server change.
+const kForceSingleThreadedSkwasm = true;
+
 String _loaderConfigSource(String assetPrefix) {
   final prefix = jsonEncode(assetPrefix);
   final canvasKitPrefix = jsonEncode('${assetPrefix}canvaskit/');
   return '''
-{entrypointBaseUrl:new URL($prefix,document.baseURI).toString(),canvasKitBaseUrl:new URL($canvasKitPrefix,document.baseURI).toString(),assetBase:new URL($prefix,document.baseURI).toString()}''';
+{entrypointBaseUrl:new URL($prefix,document.baseURI).toString(),canvasKitBaseUrl:new URL($canvasKitPrefix,document.baseURI).toString(),assetBase:new URL($prefix,document.baseURI).toString(),forceSingleThreadedSkwasm:$kForceSingleThreadedSkwasm}''';
 }
 
 void _rewriteIndexHtml(File file, {required String assetPrefix}) {
