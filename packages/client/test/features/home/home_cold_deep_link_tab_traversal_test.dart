@@ -37,22 +37,22 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../support/a11y_focus.dart';
 import '../../support/phone_surface.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../my_work/my_work_test_support.dart';
 
 const _detailKey = Key('927.detail');
 const _networkButton = 'network page control';
+const _friendsTab = 'friends tab';
+const _blockedUsers = 'blocked users page';
 
 /// A browse detail with an ordered traversal group (as the Graph's person
 /// panel mounts one).
 class _Detail extends StatelessWidget {
-  const _Detail(this.label, {this.nested = false});
+  const _Detail(this.label);
 
   final String label;
-
-  /// Hosts the route's child router (the request's operational page).
-  final bool nested;
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -72,7 +72,6 @@ class _Detail extends StatelessWidget {
             order: const NumericFocusOrder(1),
             child: TextButton(onPressed: () {}, child: Text('$label B')),
           ),
-          if (nested) const SizedBox(height: 40, child: AutoRouter()),
         ],
       ),
     ),
@@ -80,15 +79,25 @@ class _Detail extends StatelessWidget {
 }
 
 class _Network extends StatelessWidget {
-  const _Network();
+  const _Network({this.tab});
+
+  /// The Friends tab the route asked for (`?tab=`).
+  final String? tab;
 
   @override
   Widget build(BuildContext context) => Scaffold(
     body: Align(
       alignment: Alignment.topLeft,
-      child: ElevatedButton(
-        onPressed: () {},
-        child: const Text(_networkButton),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ElevatedButton(
+            onPressed: () {},
+            child: const Text(_networkButton),
+          ),
+          Text('$_friendsTab: $tab'),
+        ],
       ),
     ),
   );
@@ -253,16 +262,39 @@ void _expectHomeShell(WidgetTester tester, Finder nav) {
   expect(find.text(_networkButton), findsOneWidget, reason: 'Network tab');
 }
 
-/// Tab from Home's shell moves focus into Home without throwing.
+/// Tab from Home's shell moves focus into Home without throwing, and the
+/// screen reader's focus follows every stop.
 Future<void> _tabTraversesHome(WidgetTester tester) async {
-  final home = find.byType(HomeScreen);
-  var inHome = false;
-  for (var i = 0; i < 6 && !inHome; i++) {
-    await _tab(tester, shift: false);
-    expect(tester.takeException(), isNull, reason: 'Tab #$i in Home');
-    inHome = _focusUnder(home);
+  final semantics = tester.ensureSemantics();
+  try {
+    final home = find.byType(HomeScreen);
+    final seen = <String>[];
+    var inHome = false;
+    for (var i = 0; i < 6 && !inHome; i++) {
+      await _tab(tester, shift: false);
+      expect(tester.takeException(), isNull, reason: 'Tab #$i in Home');
+      seen.add(_expectSemanticsFocus('Tab #$i in Home', seen));
+      inHome = _focusUnder(home);
+    }
+    expect(inHome, isTrue, reason: 'Tab reaches Home once it is shown');
+  } finally {
+    semantics.dispose();
   }
-  expect(inHome, isTrue, reason: 'Tab reaches Home once it is shown');
+}
+
+/// A semantics node says it has focus: on the web the browser's focus (and
+/// the screen reader's) follows Flutter's primaryFocus to this stop. Returns
+/// the stop as the screen reader names it; [seen] are the earlier stops.
+String _expectSemanticsFocus(String stop, [List<String> seen = const []]) {
+  final nodes = focusedSemanticsNodes();
+  expect(
+    nodes,
+    isNotEmpty,
+    reason:
+        '$stop focused ${FocusManager.instance.primaryFocus}, but no '
+        'semantics node says it has focus. Stops so far: $seen',
+  );
+  return nodes.map(describeSemanticsNode).join(' + ');
 }
 
 bool _isUnder(BuildContext context, Element ancestor) {
@@ -323,11 +355,38 @@ Future<void> _firstTabsLandInDetail(
   await _enterViewIfUnfocused(tester, forward: !shift);
   await _tab(tester, shift: shift);
   expect(tester.takeException(), isNull, reason: 'first Tab threw');
+  final firstStop = FocusManager.instance.primaryFocus;
   final firstLanded = _focusInDetail();
+  // With the bug the first Tab lands in the covered Home's «Skip to
+  // content» and the second throws `RenderBox was not laid out`.
   await _tab(tester, shift: shift);
   expect(tester.takeException(), isNull, reason: 'second Tab threw');
   expect(firstLanded, isTrue, reason: 'the first Tab lands in the detail');
-  expect(_focusInDetail(), isTrue, reason: 'Tab stays in the visible detail');
+  expect(
+    _focusInDetail(),
+    isTrue,
+    reason: 'Tab stays in the visible detail',
+  );
+
+  // The screen reader's focus at both stops. Semantics goes on only now:
+  // with it on while the bug threw, the run hung instead of failing. The
+  // first stop is checked by stepping back to it.
+  final semantics = tester.ensureSemantics();
+  try {
+    await tester.pump();
+    await tester.pump();
+    final second = _expectSemanticsFocus('second Tab');
+    await _tab(tester, shift: !shift);
+    expect(tester.takeException(), isNull, reason: 'stepping back threw');
+    expect(
+      FocusManager.instance.primaryFocus,
+      same(firstStop),
+      reason: 'stepping back returns to the first stop',
+    );
+    _expectSemanticsFocus('first Tab', [second]);
+  } finally {
+    semantics.dispose();
+  }
 }
 
 void _matrix({
@@ -335,6 +394,8 @@ void _matrix({
   required Locale locale,
   required Future<void> Function(WidgetTester) surface,
   required Finder nav,
+  // The phone keeps a branch's pushed detail full-screen: no bottom bar.
+  required bool navHiddenOnBranchDetail,
 }) {
   group('#927 cold deep link, $name', () {
     for (final shift in [false, true]) {
@@ -392,6 +453,90 @@ void _matrix({
       );
     }
 
+    testWidgets(
+      'graph, notification link: the request opens on top, Back returns '
+      'to the Graph',
+      (tester) async {
+        await surface(tester);
+        final router = await _coldStart(
+          tester,
+          path: '$kPathGraph/U2',
+          locale: locale,
+        );
+
+        unawaited(router.openFromNotificationLink('$kPathBeaconView/B1'));
+        await _settle(tester);
+        expect(tester.takeException(), isNull);
+        expect(find.text('request A'), findsOneWidget);
+        expect(router.stackData.map((r) => r.name), [
+          HomeRoute.name,
+          GraphRoute.name,
+          BeaconViewRoute.name,
+        ], reason: 'the Graph the person was on stays under the request');
+
+        await router.maybePop();
+        await _settle(tester);
+        expect(find.text('graph A'), findsOneWidget, reason: 'Back: Graph');
+
+        await router.maybePop();
+        await _settle(tester);
+        expect(tester.takeException(), isNull);
+        _expectHomeShell(tester, nav);
+      },
+    );
+
+    testWidgets('graph, open invitations: Network › Invitations in the shell', (
+      tester,
+    ) async {
+      await surface(tester);
+      final router = await _coldStart(
+        tester,
+        path: '$kPathGraph/U2',
+        locale: locale,
+      );
+
+      unawaited(router.openInvitations());
+      await _settle(tester);
+      expect(tester.takeException(), isNull);
+      _expectHomeShell(tester, nav);
+      expect(
+        router.innerRouterOf<TabsRouter>(HomeRoute.name)!.activeIndex,
+        HomeTabSpec.forTab(HomeTab.network).index,
+      );
+      expect(find.text('$_friendsTab: $kHomeTabInvitations'), findsOneWidget);
+    });
+
+    testWidgets('profile, open blocked users: Blocked users in Network', (
+      tester,
+    ) async {
+      await surface(tester);
+      final router = await _coldStart(
+        tester,
+        path: '$kPathProfileView/U2',
+        locale: locale,
+      );
+
+      unawaited(router.openBlockedUsers());
+      await _settle(tester);
+      expect(tester.takeException(), isNull);
+      expect(find.byKey(_detailKey), findsNothing);
+      expect(find.text(_blockedUsers), findsOneWidget);
+      final shell = find.byType(HomeRailLayout);
+      expect(shell, findsOneWidget, reason: 'Home shell is built');
+      expect(tester.renderObject<RenderBox>(shell).hasSize, isTrue);
+      expect(
+        router.innerRouterOf<TabsRouter>(HomeRoute.name)!.activeIndex,
+        HomeTabSpec.forTab(HomeTab.network).index,
+      );
+      expect(nav, navHiddenOnBranchDetail ? findsNothing : findsOneWidget);
+
+      // Back from Blocked users lands on Friends, bar and all.
+      await router.maybePopTop();
+      await _settle(tester);
+      expect(tester.takeException(), isNull);
+      _expectHomeShell(tester, nav);
+    });
+
     testWidgets('in-app: Home stays built and laid out under the Graph', (
       tester,
     ) async {
@@ -426,26 +571,43 @@ void main() {
       ProfileViewRoute.name: ProfileViewRoute.page,
       BeaconViewRoute.name: BeaconViewRoute.page,
       BeaconViewOperationalRoute.name: BeaconViewOperationalRoute.page,
+      BlockedUsersRoute.name: BlockedUsersRoute.page,
     };
     const empty = SizedBox.shrink();
     MyWorkRoute.page = _page(MyWorkRoute.name, empty);
     ConversationsRoute.page = _page(ConversationsRoute.name, empty);
     InboxRoute.page = _page(InboxRoute.name, empty);
     ConstellationRoute.page = _page(ConstellationRoute.name, empty);
-    FriendsRoute.page = _page(FriendsRoute.name, const _Network());
+    FriendsRoute.page = PageInfo(
+      FriendsRoute.name,
+      builder: (data) => _Network(
+        tab: data
+            .argsAs<FriendsRouteArgs>(
+              orElse: () => FriendsRouteArgs(
+                initialTab: data.queryParams.optString('tab'),
+              ),
+            )
+            .initialTab,
+      ),
+    );
     ProfileRoute.page = _page(ProfileRoute.name, empty);
     GraphRoute.page = _page(GraphRoute.name, const _Detail('graph'));
     ProfileViewRoute.page = _page(
       ProfileViewRoute.name,
       const _Detail('profile'),
     );
-    BeaconViewRoute.page = _page(
-      BeaconViewRoute.name,
-      const _Detail('request', nested: true),
-    );
+    // As in the app: the request route only hosts its child router, and the
+    // request's page (app bar and controls) is the operational child. An
+    // empty child would hold the route's initial focus with nothing to Tab
+    // to, a state the app never produces.
+    BeaconViewRoute.page = _page(BeaconViewRoute.name, const AutoRouter());
     BeaconViewOperationalRoute.page = _page(
       BeaconViewOperationalRoute.name,
-      empty,
+      const _Detail('request'),
+    );
+    BlockedUsersRoute.page = _page(
+      BlockedUsersRoute.name,
+      const Scaffold(body: Text(_blockedUsers)),
     );
   });
 
@@ -460,6 +622,7 @@ void main() {
     ProfileViewRoute.page = saved[ProfileViewRoute.name]!;
     BeaconViewRoute.page = saved[BeaconViewRoute.name]!;
     BeaconViewOperationalRoute.page = saved[BeaconViewOperationalRoute.name]!;
+    BlockedUsersRoute.page = saved[BlockedUsersRoute.name]!;
   });
 
   setUp(() async => GetIt.I.reset());
@@ -468,6 +631,7 @@ void main() {
     name: 'desktop 1280x800 (en)',
     locale: const Locale('en'),
     nav: find.byType(NavigationRail),
+    navHiddenOnBranchDetail: false,
     surface: (tester) async {
       tester.view.physicalSize = const Size(1280, 800);
       tester.view.devicePixelRatio = 1;
@@ -478,6 +642,7 @@ void main() {
     name: 'phone 375x667 (ru)',
     locale: const Locale('ru'),
     nav: find.byType(HomeBottomNavigationBar),
+    navHiddenOnBranchDetail: true,
     surface: (tester) async {
       await usePhoneSurface(tester);
       // MediaQuery follows the view: the bottom-bar (compact) Home shell.

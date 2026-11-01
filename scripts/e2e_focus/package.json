@@ -1,0 +1,12 @@
+{
+  "name": "tentura-e2e-focus",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node cold_graph_tab.mjs",
+    "cold-graph-tab": "node cold_graph_tab.mjs"
+  },
+  "dependencies": {
+    "playwright": "^1.51.0"
+  }
+}
