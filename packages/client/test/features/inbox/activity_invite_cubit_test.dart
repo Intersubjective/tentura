@@ -536,6 +536,10 @@ void main() {
         effects.emitted.whereType<ShowError>().single.error,
         same(refusal),
       );
+      expect(
+        refusal.toEn,
+        contains('no longer open'),
+      );
     });
   });
 }

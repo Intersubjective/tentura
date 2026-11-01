@@ -7,12 +7,15 @@ import 'package:tentura/domain/exception/generic_exception.dart';
 import 'package:tentura/domain/exception/user_input_exception.dart';
 import 'package:tentura/features/auth/domain/exception.dart';
 import 'package:tentura/features/beacon_lobby/domain/exception/beacon_lobby_exception.dart';
+import 'package:tentura/features/beacon/domain/beacon_hierarchy_exception.dart';
 import 'package:tentura/features/beacon_plan/domain/exception/beacon_plan_exceptions.dart';
+import 'package:tentura_root/domain/entity/localizable.dart';
 
 /// Whether [error] is an expected, user-facing failure that should not
 /// become a Sentry issue (connectivity loss, session expiry, etc.).
 bool isBenignSentryThrowable(Object? error) {
   if (error is BeaconPlanException) return true;
+  if (error is BeaconHierarchyException && error is Localizable) return true;
   if (error == null) {
     return false;
   }

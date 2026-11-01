@@ -2063,6 +2063,10 @@ void main() {
               : isNot(matches(RegExp('[А-Яа-я]'))),
           reason: 'the sentence is in the app language',
         );
+        final expected = locale.languageCode == 'ru'
+            ? const AuthorInviteRequestNotOpenException().toRu
+            : const AuthorInviteRequestNotOpenException().toEn;
+        expect(message, expected);
       });
     }
 

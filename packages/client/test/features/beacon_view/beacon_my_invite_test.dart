@@ -275,7 +275,13 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 50));
 
       expect(port.revertedDeclines, ['I1']);
-      expect(effects.emitted.whereType<ShowError>().single.error, refusal);
+      final showError = effects.emitted.whereType<ShowError>().single;
+      expect(showError.error, refusal);
+      expect(
+        (showError.error as Localizable).toEn,
+        refusal.toEn,
+        reason: 'Undo refusal is shown as localized copy, not a generic bar',
+      );
     });
 
     test('a refused accept keeps the invite and shows the error', () async {
@@ -518,6 +524,10 @@ void main() {
           text.text.toPlainText().trim(),
       ].firstWhere(_isCopy, orElse: () => '');
       expect(message, isNotEmpty, reason: 'the refusal is told');
+      expect(
+        message,
+        const AuthorInviteRequestNotOpenException().toEn,
+      );
       expect(message, isNot(matches(RegExp(r'^[a-z]+(?:[A-Z][a-z0-9]*)+$'))));
       for (final raw in ['Exception', 'Instance of', 'AuthorInvite']) {
         expect(message, isNot(contains(raw)));
