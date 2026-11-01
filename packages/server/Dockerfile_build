@@ -5,6 +5,8 @@
 # workspace pub get can solve analyzer 13 + flutter_test (test_api 0.7.12).
 FROM ghcr.io/cirruslabs/flutter:3.44.0 AS build
 
+# Upgrading Flutter? Run scripts/check_skwasm_single_thread.sh: the web build
+# forces single-threaded skwasm on 3.47.0 (#808); re-test multi-threaded.
 ARG FLUTTER_VERSION=3.47.0
 ARG GIT_SHA=unknown
 ARG SERVER_VERSION=0.0.0
