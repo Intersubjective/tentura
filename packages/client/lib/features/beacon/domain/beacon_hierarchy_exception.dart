@@ -181,7 +181,7 @@ final class AuthorInviteNotFoundException extends BeaconHierarchyException
   String toL10n(String? locale) => switch (locale) {
     'ru' => toRu,
     'en' => toEn,
-    _ => 'Unsupported locale for $runtimeType',
+    _ => toEn,
   };
 }
 
@@ -203,7 +203,7 @@ final class AuthorInviteNotPendingException extends BeaconHierarchyException
   String toL10n(String? locale) => switch (locale) {
     'ru' => toRu,
     'en' => toEn,
-    _ => 'Unsupported locale for $runtimeType',
+    _ => toEn,
   };
 }
 
@@ -226,6 +226,6 @@ final class AuthorInviteRequestNotOpenException extends BeaconHierarchyException
   String toL10n(String? locale) => switch (locale) {
     'ru' => toRu,
     'en' => toEn,
-    _ => 'Unsupported locale for $runtimeType',
+    _ => toEn,
   };
 }
