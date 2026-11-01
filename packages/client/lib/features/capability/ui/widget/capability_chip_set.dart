@@ -103,6 +103,9 @@ class CapabilityChipSet extends StatelessWidget {
     }
 
     return AccordionExpansionGroup(
+      // A fresh group when the search clears, so it opens the group holding
+      // a tag picked while searching rather than the one open before (#741).
+      key: ValueKey(searching),
       accordionMode: !searching,
       // With nothing chosen, open the first group rather than show only
       // folded headers (#741).
