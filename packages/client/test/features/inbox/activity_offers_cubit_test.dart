@@ -37,7 +37,6 @@ Future<void> _settle([int turns = 12]) async {
 InboxItem _offer(String beaconId, DateTime at) => InboxItem(
   beaconId: beaconId,
   latestForwardAt: at,
-  status: InboxItemStatus.needsMe,
 );
 
 final class _Accounts implements AttentionAccountPort {
@@ -55,9 +54,9 @@ class _AttentionRepo extends ConfigurableActivityOffersAttentionRepo {
     String? search,
     int limit = 50,
     AttentionSurface? surface,
-  }) async => AttentionFeed(
-    summary: const AttentionSummary(),
-    page: const AttentionFeedPage(),
+  }) async => const AttentionFeed(
+    summary: AttentionSummary(),
+    page: AttentionFeedPage(),
   );
 
   @override
@@ -210,13 +209,13 @@ void main() {
 
   group('live arrival', () {
     test('inserts at top when not scrolled away', () async {
-      final first = [_offer('B1', DateTime.utc(2026, 1, 1))];
+      final first = [_offer('B1', DateTime.utc(2026))];
       wireActivityOffersV2(inbox: repo, attention: attentionRepo, items: first);
       repo.openForwardsCount = 1;
       cubit = buildCubit();
 
       await cubit.loadFirst();
-      final arrival = _offer('B-new', DateTime.utc(2026, 6, 1));
+      final arrival = _offer('B-new', DateTime.utc(2026, 6));
       attentionRepo.offerRows = [
         ...attentionRepo.offerRows,
         activityOfferSortRow(arrival),
@@ -231,14 +230,14 @@ void main() {
     });
 
     test('held back while scrolled away until revealHeldBack', () async {
-      final first = [_offer('B1', DateTime.utc(2026, 1, 1))];
+      final first = [_offer('B1', DateTime.utc(2026))];
       wireActivityOffersV2(inbox: repo, attention: attentionRepo, items: first);
       repo.openForwardsCount = 1;
       cubit = buildCubit();
 
       await cubit.loadFirst();
       cubit.setScrolledAway(true);
-      final arrival = _offer('B-new', DateTime.utc(2026, 6, 1));
+      final arrival = _offer('B-new', DateTime.utc(2026, 6));
       attentionRepo.offerRows = [
         ...attentionRepo.offerRows,
         activityOfferSortRow(arrival),
@@ -323,7 +322,7 @@ void main() {
       await _settle(20);
       expect(cubit.state.items, isEmpty);
 
-      final restored = _offer('B3', DateTime.utc(2026, 7, 1));
+      final restored = _offer('B3', DateTime.utc(2026, 7));
       attentionRepo.offerRows = [
         activityOfferSortRow(restored),
       ];
@@ -347,10 +346,8 @@ void main() {
       repo.inboxItemsByBeacon[postId] = InboxItem(
         beaconId: postId,
         latestForwardAt: DateTime.utc(2026, 10, 24),
-        status: InboxItemStatus.needsMe,
         beacon: Beacon(
           id: postId,
-          title: '',
           kind: BeaconKind.post,
           author: const Profile(id: 'a', displayName: 'Alice'),
           createdAt: DateTime.utc(2026, 10, 24),
@@ -370,7 +367,7 @@ void main() {
 
   group('totalCount', () {
     test('reflects aggregate before all pages are loaded', () async {
-      final at = DateTime.utc(2026, 3, 1);
+      final at = DateTime.utc(2026, 3);
       final first = [_offer('B2', at), _offer('B1', at)];
       final second = [_offer('B0', at.subtract(const Duration(hours: 1)))];
       wireActivityOffersV2(

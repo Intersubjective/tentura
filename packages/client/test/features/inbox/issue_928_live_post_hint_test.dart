@@ -78,10 +78,8 @@ InboxItem _legacyOpenPostInboxRow() {
   return InboxItem(
     beaconId: _postId,
     latestForwardAt: at,
-    status: InboxItemStatus.needsMe,
     beacon: Beacon(
       id: _postId,
-      title: '',
       kind: BeaconKind.post,
       author: const Profile(id: 'alice', displayName: 'Alice'),
       createdAt: at,
@@ -96,11 +94,9 @@ InboxItem _requestInboxItem({BeaconStatus status = BeaconStatus.open}) {
   return InboxItem(
     beaconId: _requestId,
     latestForwardAt: at,
-    status: InboxItemStatus.needsMe,
     beacon: Beacon(
       id: _requestId,
       title: _requestTitle,
-      kind: BeaconKind.request,
       status: status,
       author: const Profile(id: 'alice', displayName: 'Alice'),
       createdAt: at,
@@ -135,7 +131,7 @@ final class Issue928AttentionRepo
   }) async {
     if (beaconId == _postId) {
       beaconOfferLookups.add(beaconId!);
-      return const ActivityOfferPage(items: [], totalCount: 0);
+      return const ActivityOfferPage();
     }
     return super.activityOffers(
       cursor: cursor,

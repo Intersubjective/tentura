@@ -53,7 +53,7 @@ abstract class ConfigurableActivityOffersAttentionRepo
         throw StateError('activity offers offline');
       }
       if (v2AbsentBeaconIds.contains(beaconId)) {
-        return const ActivityOfferPage(items: [], totalCount: 0);
+        return const ActivityOfferPage();
       }
       return ActivityOfferPage(
         items: [
@@ -69,7 +69,7 @@ abstract class ConfigurableActivityOffersAttentionRepo
       throw StateError('activity offers offline');
     }
     if (cursor != null && cursor.isNotEmpty) {
-      final start = 0;
+      const start = 0;
       final end = (start + limit).clamp(0, secondOfferRows.length);
       return ActivityOfferPage(
         items: secondOfferRows.sublist(start, end),
