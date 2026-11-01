@@ -75,12 +75,45 @@ class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
     final l10n = L10n.of(context)!;
     // Shell chrome uses full viewport width; token density follows [WindowClass].
     final windowClass = context.windowClass;
-    return _HomeShell(
-      l10n: l10n,
-      windowClass: windowClass,
-      useSideNav: windowClass != WindowClass.compact,
-      homeTabRoutes: _homeTabRoutes,
+    return _ShellOnceShown(
+      child: _HomeShell(
+        l10n: l10n,
+        windowClass: windowClass,
+        useSideNav: windowClass != WindowClass.compact,
+        homeTabRoutes: _homeTabRoutes,
+      ),
     );
+  }
+}
+
+/// Builds [child] (the tab shell) only once Home has been the current route,
+/// and keeps it from then on (#927).
+///
+/// A cold start into a browse detail (deep link or reload of `#/graph/<id>`)
+/// pushes Home and the detail in one frame. Home stays offstage and is never
+/// laid out, yet a built shell's tab navigators autofocus and record Home's
+/// route scope as the focused one, so the first Tab sorted Home's unlaid
+/// focus nodes: `RenderBox was not laid out`. Until Home is shown it holds
+/// no focus node at all. The providers in [HomeScreen.wrappedRoute] stay
+/// mounted either way. A Home that starts as the current route (normal start,
+/// in-app navigation) never sees the placeholder.
+class _ShellOnceShown extends StatefulWidget {
+  const _ShellOnceShown({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_ShellOnceShown> createState() => _ShellOnceShownState();
+}
+
+class _ShellOnceShownState extends State<_ShellOnceShown> {
+  var _shown = false;
+
+  @override
+  Widget build(BuildContext context) {
+    // The isCurrent dependency rebuilds this when the detail above pops.
+    _shown = _shown || (ModalRoute.isCurrentOf(context) ?? true);
+    return _shown ? widget.child : const SizedBox.expand();
   }
 }
 
