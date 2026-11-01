@@ -214,13 +214,7 @@ class _TenturaUnderlineTabsState extends State<TenturaUnderlineTabs>
         TenturaText.withTabular(TenturaText.bodySmall(tt.text)),
       );
     }
-    // TenturaCountBadge: 5 px padding each side, at least 18 px wide.
-    final text = _textWidth(
-      context,
-      count > 99 ? '99+' : '$count',
-      TenturaText.labelSmall(tt.text),
-    );
-    return text + 10 < 18 ? 18 : text + 10;
+    return TenturaCountBadge.widthFor(context, count);
   }
 
   /// What a flex tab's content needs: icon, label, inline counts or dot.

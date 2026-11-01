@@ -23,6 +23,8 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura_root/domain/enums.dart';
 
+import '../../support/phone_surface.dart';
+
 class _MockProfileCubit extends Mock implements ProfileCubit {
   @override
   ProfileState get state => const ProfileState(
@@ -109,7 +111,7 @@ void main() {
   setUpAll(_loadInter);
 
   const sizes = {
-    '375x667': Size(375, 667),
+    '375x667': kPhoneSurface,
     'desktop 1280x800': Size(1280, 800),
   };
   // (visibility, own bubble?, viewer)
@@ -126,10 +128,14 @@ void main() {
       for (final (visibility, name, viewerId) in cases) {
         testWidgets('${locale.languageCode} $sizeName: $name pin mark shows '
             'in full', (tester) async {
-          tester.view
-            ..physicalSize = size
-            ..devicePixelRatio = 1;
-          addTearDown(tester.view.reset);
+          if (size == kPhoneSurface) {
+            await usePhoneSurface(tester);
+          } else {
+            tester.view
+              ..physicalSize = size
+              ..devicePixelRatio = 1;
+            addTearDown(tester.view.reset);
+          }
           await tester.pumpWidget(
             _harness(
               pinnedFact: _publicFact().copyWith(visibility: visibility),
