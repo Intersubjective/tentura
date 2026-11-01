@@ -220,7 +220,7 @@ final class AuthorInviteRequestNotOpenException extends BeaconHierarchyException
 
   @override
   String get toRu =>
-      'Запрос уже закрыт, поэтому приглашение нельзя восстановить.';
+      'Запрос больше не открыт, поэтому приглашение нельзя восстановить.';
 
   @override
   String toL10n(String? locale) => switch (locale) {
