@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
-import 'package:tentura/features/beacon_view/domain/pinned_facts.dart';
+import 'package:tentura/domain/util/beacon_pinned_facts.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_fact_actions.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_fact_composer_sheet.dart';

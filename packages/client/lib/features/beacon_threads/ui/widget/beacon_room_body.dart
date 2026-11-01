@@ -26,8 +26,8 @@ import 'package:tentura/ui/widget/coordination_participant_lookup.dart';
 
 import 'package:tentura/ui/bloc/state_base.dart';
 
-import 'package:tentura/features/beacon_view/domain/pinned_facts.dart';
-import 'package:tentura/features/beacon_view/ui/util/beacon_hud_derivation.dart';
+import 'package:tentura/domain/util/beacon_pinned_facts.dart';
+import 'package:tentura/ui/util/beacon_hud_now_display.dart';
 import 'package:tentura/ui/widget/hud_labeled_multiline.dart';
 import 'package:tentura/ui/widget/beacon_hud_row_lead.dart';
 import 'package:tentura/app/router/root_router.dart';
@@ -35,8 +35,6 @@ import 'package:tentura/consts.dart';
 
 import 'package:tentura/features/beacon_threads/domain/room_host.dart';
 import 'package:tentura/features/beacon_threads/domain/room_message_receipt.dart';
-
-import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 
 import '../bloc/room_cubit.dart';
 import '../util/room_reply_excerpt.dart';
@@ -68,6 +66,7 @@ class BeaconRoomBody extends StatefulWidget {
     this.header,
     this.readOnlyHint,
     this.onRemoveAuthor,
+    this.closureHadNoFinalCheck,
   });
 
   final bool enableComposer;
@@ -114,6 +113,10 @@ class BeaconRoomBody extends StatefulWidget {
 
   /// Opens an item thread or scrolls to a plan anchor; host-owned when nested.
   final ValueChanged<CoordinationItem>? onOpenCoordinationItem;
+
+  /// When true, lifecycle status lines that only exist because Final check was
+  /// skipped are hidden (#825). Null keeps every line (no Request detail host).
+  final bool? closureHadNoFinalCheck;
 
   @override
   State<BeaconRoomBody> createState() => _BeaconRoomBodyState();
@@ -479,7 +482,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                       ),
                     ),
                   ),
-            messages: _discussionMessages(context, state.messages),
+            messages: _filterDiscussionMessages(state.messages),
             myProfile: myProfile,
             participants: state.participants,
             isLoading: state.isLoading,
@@ -1588,6 +1591,12 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     );
     if (saved) widget.onCoordinationSaved?.call();
   }
+
+  /// Chat lines for this Request (#825).
+  List<RoomMessage> _filterDiscussionMessages(List<RoomMessage> messages) {
+    if (widget.closureHadNoFinalCheck != true) return messages;
+    return omitSkippedFinalCheckStatusLines(messages);
+  }
 }
 
 /// Standalone "Update plan" text sheet, from the beacon app-bar overflow
@@ -1992,22 +2001,4 @@ class _PinnedPostRootRow extends StatelessWidget {
       ),
     );
   }
-}
-
-/// Chat lines for this Request. When the closure the viewer loaded says the
-/// review window never applied, the phantom Final check step is not shown
-/// (#825). A room opened without the Request cubit keeps every line.
-List<RoomMessage> _discussionMessages(
-  BuildContext context,
-  List<RoomMessage> messages,
-) {
-  BeaconViewCubit? view;
-  try {
-    view = context.read<BeaconViewCubit>();
-  } on ProviderNotFoundException {
-    view = null;
-  }
-  final closure = view?.state.closureState;
-  if (closure == null || !closure.hadNoFinalCheck) return messages;
-  return omitSkippedFinalCheckStatusLines(messages);
 }

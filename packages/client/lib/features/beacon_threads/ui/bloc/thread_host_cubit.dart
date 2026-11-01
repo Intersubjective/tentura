@@ -1,6 +1,4 @@
 import 'package:flutter/widgets.dart';
-import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart'
-    show BeaconViewCubit;
 
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
@@ -36,7 +34,7 @@ class ThreadHostCubit extends Cubit<ThreadHostState> {
 
   RoomCubit? _roomCubit;
 
-  /// Cached after [BeaconViewCubit] content load; never seeded from placeholder.
+  /// Cached after the Request detail content load; never seeded from placeholder.
   BeaconStatus? _beaconStatus;
   bool _beaconExpired = false;
   String? _beaconAuthorId;

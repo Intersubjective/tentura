@@ -6,7 +6,7 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/features/beacon_view/domain/pinned_facts.dart';
+import 'package:tentura/domain/util/beacon_pinned_facts.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
 import 'package:tentura/features/beacon_view/ui/presenter/beacon_hud_author_action.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_details_facts_access_row.dart';
@@ -14,7 +14,7 @@ import 'package:tentura/features/beacon_view/ui/widget/beacon_view_details_sheet
 import 'package:tentura/features/closure/domain/entity/closure_member.dart';
 import 'package:tentura/features/closure/ui/widget/closure_result_card.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/widget/beacon_hud_metadata_composer.dart';
+import 'package:tentura/features/beacon_view/ui/widget/beacon_view_hud_metadata_entries.dart';
 import 'package:tentura/ui/widget/beacon_hud_metadata_table.dart';
 import 'package:tentura/ui/widget/beacon_hud_row_lead.dart';
 import 'package:tentura/ui/widget/tentura_focus_semantics.dart';

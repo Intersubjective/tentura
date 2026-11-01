@@ -1,10 +1,6 @@
 import 'dart:async';
 
 import 'package:tentura/features/beacon_threads/domain/exception/now_line_changed_exception.dart';
-import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_cubit.dart'
-    show ThreadHostCubit;
-import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart'
-    show BeaconViewCubit;
 import 'package:uuid/uuid.dart';
 
 import 'package:tentura_root/domain/entity/beacon_status.dart';
@@ -151,7 +147,7 @@ class RoomCubit extends Cubit<RoomState> {
     }
   }
 
-  /// Sync lifecycle from [BeaconViewCubit] (via [ThreadHostCubit]). Clears an
+  /// Sync lifecycle from the Request detail host (via [ThreadHostCubit]). Clears an
   /// in-progress reply when writes become locked.
   void syncBeaconStatus(BeaconStatus status, {String? authorId}) =>
       _syncLifecycle(

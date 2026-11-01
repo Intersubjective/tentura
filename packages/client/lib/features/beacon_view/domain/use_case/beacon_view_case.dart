@@ -43,7 +43,7 @@ import 'package:tentura/features/beacon_threads/domain/use_case/beacon_threads_c
 import '../../data/repository/coordination_repository.dart';
 import '../../data/repository/beacon_display_repository.dart';
 import 'package:tentura/domain/entity/beacon_display_status_dto.dart';
-import '../pinned_facts.dart';
+import 'package:tentura/domain/util/beacon_pinned_facts.dart';
 import '../help_offer_row_record.dart';
 
 @singleton

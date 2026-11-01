@@ -32,7 +32,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/presenter/beacon_phase_presenter.dart';
 
 import 'beacon_hud_author_confirm_sheets.dart';
-import 'beacon_view_constants.dart';
+import 'package:tentura/ui/beacon/beacon_surface.dart';
 import 'package:tentura/features/beacon/ui/sheet/beacon_close_confirm_sheet.dart'
     show showBeaconCloseConfirmSheet;
 

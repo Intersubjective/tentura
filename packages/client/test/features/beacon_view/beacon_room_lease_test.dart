@@ -7,7 +7,7 @@ import 'package:tentura/features/beacon_threads/domain/room_host.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_cubit.dart';
-import 'package:tentura/features/beacon_view/ui/util/beacon_room_lease.dart';
+import 'package:tentura/ui/beacon/beacon_room_lease.dart';
 
 const _kBeaconId = 'b-lease-test';
 final _kSeenAt = DateTime.utc(2026, 8, 14, 10);

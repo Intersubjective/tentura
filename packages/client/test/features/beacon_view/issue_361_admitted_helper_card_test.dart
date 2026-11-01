@@ -29,7 +29,7 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/port/platform_repository_port.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/timeline_help_offer_mapping.dart';
-import 'package:tentura/features/beacon_view/ui/util/beacon_people_labels.dart';
+import 'package:tentura/ui/presenter/beacon_people_labels.dart';
 import 'package:tentura/features/beacon_view/ui/widget/help_offer_tile.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';

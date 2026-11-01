@@ -16,7 +16,7 @@ import 'package:tentura/features/beacon_threads/ui/bloc/threads_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/threads_state.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_hud_plan_rows.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_now_surface.dart';
-import 'package:tentura/features/beacon_view/ui/widget/beacon_view_constants.dart';
+import 'package:tentura/ui/beacon/beacon_surface.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';

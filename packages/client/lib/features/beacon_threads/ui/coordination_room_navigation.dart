@@ -4,7 +4,7 @@ import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_state.dart';
-import 'package:tentura/features/beacon_view/ui/util/beacon_room_navigation_scope.dart';
+import 'package:tentura/ui/beacon/beacon_room_navigation_scope.dart';
 
 /// Plan coordination items use the main beacon room, not per-item threads.
 bool planItemSuppressesItemDiscussion(CoordinationItem item) =>

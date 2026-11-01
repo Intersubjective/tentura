@@ -32,7 +32,7 @@ import 'package:tentura/features/beacon_view/ui/screen/beacon_view_screen.dart';
 import 'package:tentura/features/beacon_view/ui/widget/activity_list.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_activity_sheet.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_surface_tabs.dart';
-import 'package:tentura/features/beacon_view/ui/widget/beacon_view_constants.dart';
+import 'package:tentura/ui/beacon/beacon_surface.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';

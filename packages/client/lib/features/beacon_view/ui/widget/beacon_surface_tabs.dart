@@ -9,7 +9,7 @@ import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
-import 'beacon_view_constants.dart';
+import 'package:tentura/ui/beacon/beacon_surface.dart';
 
 /// Surface tab row for the request detail screen (NOW / CHAT / People).
 ///

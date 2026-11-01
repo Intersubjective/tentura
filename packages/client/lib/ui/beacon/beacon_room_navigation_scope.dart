@@ -1,7 +1,7 @@
 import 'package:flutter/widgets.dart';
 
-import 'package:tentura/features/beacon_view/ui/util/beacon_room_lease.dart';
-import 'package:tentura/features/beacon_view/ui/widget/beacon_view_constants.dart';
+import 'package:tentura/ui/beacon/beacon_room_lease.dart';
+import 'package:tentura/ui/beacon/beacon_surface.dart';
 
 /// Whether the ROOM surface is visible: CHAT tab selected or split room pane
 /// mounted (plan §4.8 — replaces route-name probes).

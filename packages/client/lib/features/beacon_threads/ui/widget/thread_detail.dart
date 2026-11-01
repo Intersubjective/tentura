@@ -38,6 +38,7 @@ class ThreadDetail extends StatelessWidget {
     this.capabilities = const RoomCapabilities.request(),
     this.postRoot,
     this.postArchived = false,
+    this.closureHadNoFinalCheck,
     super.key,
   });
 
@@ -51,6 +52,9 @@ class ThreadDetail extends StatelessWidget {
 
   /// Post rooms only: the Post is closed or past its `expiresAt`.
   final bool postArchived;
+
+  /// Passed through to [BeaconRoomBody] (#825).
+  final bool? closureHadNoFinalCheck;
 
   @override
   Widget build(BuildContext context) {
@@ -72,6 +76,7 @@ class ThreadDetail extends StatelessWidget {
                   capabilities: capabilities,
                   postRoot: postRoot,
                   postArchived: postArchived,
+                  closureHadNoFinalCheck: closureHadNoFinalCheck,
                 ),
               ),
             ],

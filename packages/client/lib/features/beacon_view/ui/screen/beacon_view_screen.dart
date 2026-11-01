@@ -19,14 +19,14 @@ import 'package:tentura/features/beacon_threads/ui/bloc/threads_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/threads_state.dart';
 import 'package:tentura/features/beacon_threads/ui/coordination_room_navigation.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
-import 'package:tentura/features/beacon_view/ui/util/beacon_room_lease.dart';
+import 'package:tentura/ui/beacon/beacon_room_lease.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_request_modes.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_plan_people.dart';
 import 'package:tentura/features/beacon_plan/domain/entity/beacon_plan.dart';
 import 'package:tentura/features/beacon_plan/ui/bloc/plan_cubit.dart';
 import 'package:tentura/features/beacon_plan/ui/widget/beacon_plan_surface.dart';
 import 'package:tentura/features/beacon_plan/ui/widget/beacon_plan_page.dart';
-import 'package:tentura/features/beacon_view/ui/util/beacon_room_navigation_scope.dart';
+import 'package:tentura/ui/beacon/beacon_room_navigation_scope.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/first_load_gate.dart';
@@ -45,7 +45,7 @@ import '../widget/beacon_surface_tabs.dart';
 import '../widget/beacon_view_app_bar_overflow.dart';
 import '../widget/beacon_view_app_bar_title.dart';
 import '../widget/beacon_view_status_bottom_sheet.dart';
-import '../widget/beacon_view_constants.dart';
+import 'package:tentura/ui/beacon/beacon_surface.dart';
 
 bool _beaconPeopleTabAttentionQueryTruthy(String? v) {
   if (v == null || v.isEmpty) return false;
@@ -926,6 +926,8 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
           coordinationItemId: _roomScrollCoordinationItemId,
           onCoordinationSaved: _refreshThreadsTab,
           onOpenCoordinationItem: _onOpenCoordinationItemFromThread,
+          closureHadNoFinalCheck:
+              beaconState.closureState?.hadNoFinalCheck,
         );
       case BeaconSurface.people:
         return BeaconPeopleSurface(
@@ -1027,6 +1029,8 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                       messageId: widget.messageId,
                       onCoordinationSaved: _refreshThreadsTab,
                       onOpenCoordinationItem: _onOpenCoordinationItemFromThread,
+                      closureHadNoFinalCheck:
+                          beaconState.closureState?.hadNoFinalCheck,
                     ),
                   ),
                 ),

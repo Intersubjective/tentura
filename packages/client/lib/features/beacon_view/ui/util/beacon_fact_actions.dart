@@ -6,7 +6,7 @@ import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/fact_actions_sheet.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/fact_history_sheet.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
-import 'package:tentura/features/beacon_view/ui/util/beacon_room_navigation_scope.dart';
+import 'package:tentura/ui/beacon/beacon_room_navigation_scope.dart';
 
 /// Opens manage/edit/remove actions using the live [BeaconViewCubit].
 ///

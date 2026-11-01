@@ -9,7 +9,7 @@ import 'package:tentura/domain/entity/commitment_stake_state.dart';
 import 'package:tentura/domain/entity/help_offer_end.dart';
 import 'package:tentura/features/beacon_view/data/repository/coordination_repository.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/timeline_help_offer_mapping.dart';
-import 'package:tentura/features/beacon_view/ui/util/beacon_people_labels.dart';
+import 'package:tentura/ui/presenter/beacon_people_labels.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../../support/remote_wire_harness.dart';
