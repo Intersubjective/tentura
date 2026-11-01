@@ -89,6 +89,59 @@ void main() {
       clearedAt: null,
       surface: AttentionSurface.myWork,
     );
-    expect(UpdatesFeedState(items: [desk, ...forwards]).canReadAll, isTrue);
+    expect(
+      UpdatesFeedState(
+        summary: const AttentionSummary(unreadTotal: 7),
+        items: [desk, ...forwards],
+      ).canReadAll,
+      isTrue,
+    );
+  });
+
+  group('#258 round 2: after Dismiss all on For you', () {
+    // The All page still holds the Updates copies of the shared Posts, read
+    // and not yet cleared on this client; the server's Unread view is empty.
+    final stale = [
+      for (var i = 0; i < 6; i++)
+        _sharedPost(read: true).copyWith(
+          id: 'post$i',
+          clearedAt: null,
+          surface: AttentionSurface.myWork,
+        ),
+    ];
+
+    test('«All» with nothing unread: Read all is disabled', () {
+      expect(UpdatesFeedState(items: stale).canReadAll, isFalse);
+    });
+
+    test('«Unread» (empty) gives the same answer', () {
+      expect(
+        const UpdatesFeedState(view: AttentionView.unread).canReadAll,
+        isFalse,
+      );
+    });
+
+    test('a genuinely unread row still enables it on both tabs', () {
+      final unseen = _sharedPost().copyWith(
+        id: 'fresh',
+        surface: AttentionSurface.myWork,
+      );
+      const summary = AttentionSummary(unreadTotal: 1);
+      expect(
+        UpdatesFeedState(
+          summary: summary,
+          items: [unseen, ...stale],
+        ).canReadAll,
+        isTrue,
+      );
+      expect(
+        UpdatesFeedState(
+          view: AttentionView.unread,
+          summary: summary,
+          items: [unseen],
+        ).canReadAll,
+        isTrue,
+      );
+    });
   });
 }

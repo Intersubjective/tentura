@@ -40,12 +40,18 @@ abstract class UpdatesFeedState extends StateBase with _$UpdatesFeedState {
   /// after the sweep (`AttentionCase.readAll`). `summary.unreadTotal` also
   /// counts unanswered forwards, which Read all never clears, so gating on it
   /// left the control enabled with nothing to do.
+  ///
+  /// The optional-row clause also needs the server's Unread view to hold
+  /// something (`unreadTotal > 0`): Read all clears leftovers read from that
+  /// view, and an All page can keep rows the For you sweep already cleared,
+  /// which left it enabled on «All» and disabled on «Unread» (#258 round 2).
   bool get canReadAll =>
       sweepEligible ||
       items.any(
         (r) =>
             !r.isSeen ||
-            (r.itemKind == AttentionItemKind.receipt &&
+            (summary.unreadTotal > 0 &&
+                r.itemKind == AttentionItemKind.receipt &&
                 isActiveOptional(r) &&
                 r.presentationKey != 'relay_received' &&
                 r.surface != AttentionSurface.activity),
