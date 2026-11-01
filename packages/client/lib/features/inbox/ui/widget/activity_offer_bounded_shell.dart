@@ -7,6 +7,8 @@ import 'package:tentura/ui/utils/relative_time.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/relative_timestamp_ticker.dart';
 
+import 'attention_mini_card.dart' show kMiniCardAgeWidthShare;
+
 /// Shared bounded offer-card chrome (design §5.1): avatar, headline, why, age, ✕.
 class ActivityOfferBoundedShell extends StatelessWidget {
   const ActivityOfferBoundedShell({
@@ -92,64 +94,78 @@ class ActivityOfferBoundedShell extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  headline,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style:
-                                      TenturaText.titleSmall(
-                                        scheme.onSurface,
-                                      ).copyWith(
-                                        fontWeight: showUnseenDot
-                                            ? FontWeight.w600
-                                            : FontWeight.w500,
-                                      ),
+                          LayoutBuilder(
+                            builder: (context, rowConstraints) => Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    headline,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style:
+                                        TenturaText.titleSmall(
+                                          scheme.onSurface,
+                                        ).copyWith(
+                                          fontWeight: showUnseenDot
+                                              ? FontWeight.w600
+                                              : FontWeight.w500,
+                                        ),
+                                  ),
                                 ),
-                              ),
-                              if (showUnseenDot) ...[
-                                SizedBox(width: tt.iconTextGap),
-                                DecoratedBox(
-                                  decoration: BoxDecoration(
-                                    color: tt.info,
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: scheme.surfaceContainerLow,
-                                      width: tt.tightGap,
+                                if (showUnseenDot) ...[
+                                  SizedBox(width: tt.iconTextGap),
+                                  DecoratedBox(
+                                    decoration: BoxDecoration(
+                                      color: tt.info,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: scheme.surfaceContainerLow,
+                                        width: tt.tightGap,
+                                      ),
+                                    ),
+                                    child: SizedBox.square(
+                                      dimension: tt.unreadDotSize,
                                     ),
                                   ),
-                                  child: SizedBox.square(
-                                    dimension: tt.unreadDotSize,
+                                ],
+                                SizedBox(width: tt.iconTextGap),
+                                // #609: a dated age at 2x text is wider than a
+                                // 360 dp row; capped like the mini card's age.
+                                ConstrainedBox(
+                                  constraints: BoxConstraints(
+                                    maxWidth:
+                                        rowConstraints.maxWidth *
+                                        kMiniCardAgeWidthShare,
+                                  ),
+                                  child: Tooltip(
+                                    message: absoluteTime,
+                                    child: RelativeTimestampTicker(
+                                      builder: (_) {
+                                        final now =
+                                            RelativeTimestampTicker.now();
+                                        return Text(
+                                          cardRelativeAge(
+                                            when: createdAt,
+                                            now: now,
+                                            l10n: l10n,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TenturaText.withTabular(
+                                            TenturaText.bodySmall(tt.textFaint),
+                                          ),
+                                          semanticsLabel: cardRelativeAgeSpoken(
+                                            when: createdAt,
+                                            now: now,
+                                            l10n: l10n,
+                                          ),
+                                        );
+                                      },
+                                    ),
                                   ),
                                 ),
                               ],
-                              SizedBox(width: tt.iconTextGap),
-                              Tooltip(
-                                message: absoluteTime,
-                                child: RelativeTimestampTicker(
-                                  builder: (_) {
-                                    final now = RelativeTimestampTicker.now();
-                                    return Text(
-                                      cardRelativeAge(
-                                        when: createdAt,
-                                        now: now,
-                                        l10n: l10n,
-                                      ),
-                                      style: TenturaText.withTabular(
-                                        TenturaText.bodySmall(tt.textFaint),
-                                      ),
-                                      semanticsLabel: cardRelativeAgeSpoken(
-                                        when: createdAt,
-                                        now: now,
-                                        l10n: l10n,
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ),
-                            ],
+                            ),
                           ),
                           if (whyLine.isNotEmpty) ...[
                             SizedBox(height: tt.tightGap),

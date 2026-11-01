@@ -75,7 +75,7 @@ void main() {
         lastActivityAt: now.subtract(const Duration(days: 30)),
       );
 
-      expect(find.text('Sep 14'), findsOneWidget);
+      expect(find.text('Sat, Sep 14'), findsOneWidget);
     });
 
     testWidgets('Russian reads the short age too', (tester) async {
