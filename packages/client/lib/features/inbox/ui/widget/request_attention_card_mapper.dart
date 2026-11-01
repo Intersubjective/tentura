@@ -112,7 +112,7 @@ RequestAttentionCardModel? requestCardFromInboxItem(
   ActivityOfferBeaconMeta? meta,
 }) {
   final beacon = item.beacon;
-  if (beacon == null) return null;
+  if (beacon == null || !beacon.isRequest) return null;
 
   return RequestAttentionCardModel(
     beacon: beacon,

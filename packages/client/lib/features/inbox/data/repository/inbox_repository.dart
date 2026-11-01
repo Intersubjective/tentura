@@ -109,25 +109,6 @@ class InboxRepository {
     return _mapInboxItemRows(rows, userId);
   }
 
-  Future<InboxItem?> fetchOpenForwardForBeacon({
-    required String userId,
-    required String beaconId,
-  }) async {
-    final rows = await _remoteApiService
-        .request(
-          GActivityOfferForBeaconReq(
-            (r) => r
-              ..vars.userId = userId
-              ..vars.beaconId = beaconId,
-          ),
-        )
-        .firstWhere((e) => e.dataSource == DataSource.Link)
-        .then((r) => r.dataOrThrow(label: _label).inbox_item);
-    if (rows.isEmpty) return null;
-    final mapped = await _mapInboxItemRows(rows, userId);
-    return mapped.first;
-  }
-
   Future<({List<GInboxItemFields> rows, int? totalCount})>
   _fetchActivityOffersPageRaw({
     required String userId,

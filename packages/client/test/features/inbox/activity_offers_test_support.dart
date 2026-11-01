@@ -38,6 +38,9 @@ abstract class ConfigurableActivityOffersAttentionRepo
   /// [activityOffersCalls], which counts page loads.
   final beaconOfferLookups = <String>[];
 
+  /// Beacons the v2 single-row lookup treats as absent (#928 Post parent).
+  Set<String> v2AbsentBeaconIds = const {};
+
   @override
   Future<ActivityOfferPage> activityOffers({
     String? cursor,
@@ -48,6 +51,9 @@ abstract class ConfigurableActivityOffersAttentionRepo
       beaconOfferLookups.add(beaconId);
       if (failActivityOffers) {
         throw StateError('activity offers offline');
+      }
+      if (v2AbsentBeaconIds.contains(beaconId)) {
+        return const ActivityOfferPage(items: [], totalCount: 0);
       }
       return ActivityOfferPage(
         items: [

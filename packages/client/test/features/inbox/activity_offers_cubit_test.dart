@@ -10,6 +10,9 @@ import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
+import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/beacon_kind.dart';
+import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/inbox/domain/entity/inbox_item.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/features/inbox/domain/use_case/inbox_case.dart';
@@ -214,7 +217,11 @@ void main() {
 
       await cubit.loadFirst();
       final arrival = _offer('B-new', DateTime.utc(2026, 6, 1));
-      repo.openForwardByBeacon['B-new'] = arrival;
+      attentionRepo.offerRows = [
+        ...attentionRepo.offerRows,
+        activityOfferSortRow(arrival),
+      ];
+      repo.inboxItemsByBeacon[arrival.beaconId] = arrival;
 
       forwardRepo.emitDeskChange('B-new');
       await _settle(20);
@@ -232,7 +239,11 @@ void main() {
       await cubit.loadFirst();
       cubit.setScrolledAway(true);
       final arrival = _offer('B-new', DateTime.utc(2026, 6, 1));
-      repo.openForwardByBeacon['B-new'] = arrival;
+      attentionRepo.offerRows = [
+        ...attentionRepo.offerRows,
+        activityOfferSortRow(arrival),
+      ];
+      repo.inboxItemsByBeacon[arrival.beaconId] = arrival;
 
       forwardRepo.emitDeskChange('B-new');
       await _settle(20);
@@ -260,7 +271,9 @@ void main() {
       final demoted = <String>[];
       final sub = cubit.demotedBeaconIds.listen(demoted.add);
 
-      repo.openForwardByBeacon['B1'] = null;
+      attentionRepo.offerRows = attentionRepo.offerRows
+          .where((row) => row.beaconId != 'B1')
+          .toList();
       forwardRepo.emitDeskChange('B1');
       await _settle(20);
 
@@ -282,7 +295,9 @@ void main() {
       final demoted = <String>[];
       final sub = cubit.demotedBeaconIds.listen(demoted.add);
 
-      repo.openForwardByBeacon['B2'] = null;
+      attentionRepo.offerRows = attentionRepo.offerRows
+          .where((row) => row.beaconId != 'B2')
+          .toList();
       forwardRepo.emitHelpOffer(const HelpOfferCreated('B2'));
       await _settle(20);
 
@@ -301,13 +316,18 @@ void main() {
       cubit = buildCubit();
 
       await cubit.loadFirst();
-      repo.openForwardByBeacon['B3'] = null;
+      attentionRepo.offerRows = attentionRepo.offerRows
+          .where((row) => row.beaconId != 'B3')
+          .toList();
       forwardRepo.emitDeskChange('B3');
       await _settle(20);
       expect(cubit.state.items, isEmpty);
 
       final restored = _offer('B3', DateTime.utc(2026, 7, 1));
-      repo.openForwardByBeacon['B3'] = restored;
+      attentionRepo.offerRows = [
+        activityOfferSortRow(restored),
+      ];
+      repo.inboxItemsByBeacon['B3'] = restored;
       forwardRepo.emitDeskChange('B3');
       await _settle(20);
 
@@ -316,6 +336,35 @@ void main() {
         cubit.state.items.single.latestForwardAt,
         restored.latestForwardAt,
       );
+    });
+  });
+
+  group('live refresh eligibility (#928)', () {
+    test('does not pin a Post when the v2 row is absent', () async {
+      const postId = 'B-post-parent';
+      wireActivityOffersV2(inbox: repo, attention: attentionRepo, items: []);
+      attentionRepo.v2AbsentBeaconIds = {postId};
+      repo.inboxItemsByBeacon[postId] = InboxItem(
+        beaconId: postId,
+        latestForwardAt: DateTime.utc(2026, 10, 24),
+        status: InboxItemStatus.needsMe,
+        beacon: Beacon(
+          id: postId,
+          title: '',
+          kind: BeaconKind.post,
+          author: const Profile(id: 'a', displayName: 'Alice'),
+          createdAt: DateTime.utc(2026, 10, 24),
+          updatedAt: DateTime.utc(2026, 10, 24),
+        ),
+      );
+      cubit = buildCubit();
+      await cubit.loadFirst();
+
+      forwardRepo.emitDeskChange(postId);
+      await _settle(20);
+
+      expect(cubit.state.items, isEmpty);
+      expect(attentionRepo.beaconOfferLookups, contains(postId));
     });
   });
 

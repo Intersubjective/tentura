@@ -347,11 +347,11 @@ void main() {
       () async {
         await loadWithInvite();
         final arrival = _offer('B9', at);
-        repo.openForwardByBeacon['B9'] = arrival;
         attentionRepo.offerRows = [
           ...attentionRepo.offerRows,
           activityOfferSortRow(arrival).copyWith(inviteId: 'I9'),
         ];
+        repo.inboxItemsByBeacon[arrival.beaconId] = arrival;
         invitePort.pending = [
           ...invitePort.pending,
           PendingAuthorInvite(
@@ -380,11 +380,11 @@ void main() {
 
       // Re-invited and withdrawn meanwhile, then restored: the row answers
       // `declinedInvite: false`.
-      repo.openForwardByBeacon['B2'] = _offer('B2', at);
       attentionRepo.offerRows = [
         for (final id in ['B1', 'B2', 'B3'])
           activityOfferSortRow(_offer(id, at)),
       ];
+      repo.inboxItemsByBeacon['B2'] = _offer('B2', at);
       forwardRepo.emitDeskChange('B2');
       await _settle(20);
       await _settle(20);
@@ -396,11 +396,11 @@ void main() {
     test('a restored row with a declined invitation arrives marked', () async {
       await loadWithInvite();
       final arrival = _offer('B9', at);
-      repo.openForwardByBeacon['B9'] = arrival;
       attentionRepo.offerRows = [
         ...attentionRepo.offerRows,
         activityOfferSortRow(arrival).copyWith(declinedInvite: true),
       ];
+      repo.inboxItemsByBeacon[arrival.beaconId] = arrival;
 
       forwardRepo.emitDeskChange('B9');
       await _settle(20);

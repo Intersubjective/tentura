@@ -125,14 +125,6 @@ final class InboxCase extends UseCaseBase {
 
   Future<int> fetchOpenForwardsCount() => _repository.fetchOpenForwardsCount();
 
-  Future<InboxItem?> fetchOpenForwardForBeacon({
-    required String userId,
-    required String beaconId,
-  }) => _repository.fetchOpenForwardForBeacon(
-    userId: userId,
-    beaconId: beaconId,
-  );
-
   Future<List<InboxItem>> fetchInboxItemsForBeacons({
     required String userId,
     required List<String> beaconIds,

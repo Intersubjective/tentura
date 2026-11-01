@@ -472,7 +472,12 @@ final class AttentionCase implements AttentionReconcilePort {
       beaconId: beaconId,
     );
     for (final row in page.items) {
-      if (row.beaconId == beaconId) return row;
+      if (row.beaconId == beaconId) {
+        _offerRowsByBeaconId[beaconId] = row;
+        _indexChildren([...row.eventsPreview]);
+        _publishOfferGroups();
+        return row;
+      }
     }
     return null;
   }
