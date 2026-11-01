@@ -7,7 +7,7 @@ import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 
 void main() {
-  test('deselect clears personal note draft for reselect', () {
+  test('deselect keeps personal note draft for reselect', () {
     final cubit = ForwardCubit(
       beaconId: 'draft-1',
       debugSkipInitialLoad: true,
@@ -38,16 +38,64 @@ void main() {
       cubit.toggleSelection('u1'),
       ForwardSelectionResult.deselected,
     );
-    expect(cubit.state.perRecipientNotes, isEmpty);
+    expect(cubit.state.perRecipientNotes, {'u1': 'hello'});
 
     expect(
       cubit.toggleSelection('u1'),
       ForwardSelectionResult.selected,
     );
-    expect(cubit.state.perRecipientNotes, isEmpty);
+    expect(cubit.state.perRecipientNotes, {'u1': 'hello'});
   });
 
-  test('clearLineageSuggestions prunes notes for deselected lineage ids', () {
+  test('tag-chip select all then untick tag keeps notes for re-tick', () {
+    final cubit = ForwardCubit(
+      beaconId: 'draft-1',
+      debugSkipInitialLoad: true,
+      embedded: true,
+      effects: FakeUiEffectPort(),
+    );
+    addTearDown(cubit.close);
+    cubit.emit(
+      ForwardState(
+        beaconId: 'draft-1',
+        candidates: const [
+          ForwardCandidate(
+            profile: Profile(
+              id: 'u1',
+              displayName: 'One',
+              score: 10,
+              rScore: 1,
+            ),
+          ),
+          ForwardCandidate(
+            profile: Profile(
+              id: 'u2',
+              displayName: 'Two',
+              score: 9,
+              rScore: 1,
+            ),
+          ),
+        ],
+        perRecipientNotes: const {'u1': 'n1', 'u2': 'n2'},
+        candidatesLoad: const ForwardCandidatesReady(),
+      ),
+    );
+
+    cubit.toggleTag('t1', ['u1', 'u2']);
+
+    expect(cubit.state.selectedIds, {'u1', 'u2'});
+    expect(cubit.state.perRecipientNotes, {'u1': 'n1', 'u2': 'n2'});
+
+    cubit.toggleTag('t1', ['u1', 'u2']);
+    expect(cubit.state.selectedIds, isEmpty);
+    expect(cubit.state.perRecipientNotes, {'u1': 'n1', 'u2': 'n2'});
+
+    cubit.toggleTag('t1', ['u1', 'u2']);
+    expect(cubit.state.selectedIds, {'u1', 'u2'});
+    expect(cubit.state.perRecipientNotes, {'u1': 'n1', 'u2': 'n2'});
+  });
+
+  test('clearLineageSuggestions keeps stored notes for lineage ids', () {
     final cubit = ForwardCubit(
       beaconId: 'draft-1',
       debugSkipInitialLoad: true,
@@ -76,6 +124,6 @@ void main() {
 
     cubit.clearLineageSuggestions();
 
-    expect(cubit.state.perRecipientNotes, {'u-main': 'a'});
+    expect(cubit.state.perRecipientNotes, {'u-main': 'a', 'u-lineage': 'b'});
   });
 }

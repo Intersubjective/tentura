@@ -80,8 +80,7 @@ class _LiveSyncForwardRepository implements ForwardRepository {
     String? context,
     String? parentEdgeId,
     List<String>? attributionParentEdgeIds,
-    Map<String, ({String? tier, bool isExploration})>?
-    recipientBandProvenance,
+    Map<String, ({String? tier, bool isExploration})>? recipientBandProvenance,
   }) async {
     forwardBeaconCalls++;
     lastPerRecipientNotes = perRecipientNotes;
@@ -357,6 +356,53 @@ void main() {
         expect(effects.emitted.whereType<NavigateBack>(), isEmpty);
         expect(cubit.state.activeFilter, filterBefore);
         expect(cubit.state.lastDeliveredRecipientIds, isEmpty);
+      },
+    );
+
+    test(
+      'unticked recipient personal note is omitted from forwardBeacon payload',
+      () async {
+        final harness = await _buildForwardCaseHarness();
+        addTearDown(() async {
+          await harness.forwardRepo.dispose();
+          await harness.contactsCase.dispose();
+          if (GetIt.I.isRegistered<ContactNameStore>()) {
+            await GetIt.I.unregister<ContactNameStore>();
+          }
+          await harness.store.dispose();
+        });
+
+        final cubit = ForwardCubit(
+          beaconId: 'b1',
+          forwardCase: harness.forwardCase,
+          effects: FakeUiEffectPort(),
+        );
+        addTearDown(cubit.close);
+
+        await cubit.stream.firstWhere((s) => s.candidates.isNotEmpty);
+        cubit.emit(
+          cubit.state.copyWith(
+            selectedIds: {'u-bob'},
+            perRecipientNotes: {
+              'u-bob': 'send me',
+              'u-alice': 'stay in draft',
+            },
+            beacon:
+                cubit.state.beacon ??
+                Beacon.empty.copyWith(
+                  id: 'b1',
+                  status: BeaconStatus.open,
+                  viewerCanForward: true,
+                ),
+          ),
+        );
+
+        await cubit.forward();
+
+        expect(harness.forwardRepo.forwardBeaconCalls, 1);
+        expect(harness.forwardRepo.lastPerRecipientNotes, {
+          'u-bob': 'send me',
+        });
       },
     );
 
