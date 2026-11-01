@@ -146,7 +146,10 @@ class _EditCapabilitiesDialogState extends State<EditCapabilitiesDialog> {
             Expanded(
               child: ListView(
                 controller: scrollController,
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
+                // Room above the search field for its floating label, which
+                // sits half above the field's box and was clipped by the
+                // scroll view's top edge (#741).
+                padding: EdgeInsets.fromLTRB(16, context.tt.sectionGap, 16, 32),
                 children: [
                   CapabilitySearchField(
                     onChanged: (q) => setState(() => _query = q),
