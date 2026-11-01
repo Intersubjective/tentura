@@ -1,4 +1,7 @@
+import 'dart:ui' show Tristate;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 
@@ -12,6 +15,7 @@ import 'package:tentura/features/forward/domain/entity/forward_candidate.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
 import 'package:tentura/features/forward/ui/widget/forward_band_strip.dart';
 import 'package:tentura/features/forward/ui/widget/forward_recipient_picker.dart';
+import 'package:tentura/features/forward/ui/widget/per_recipient_note_input.dart';
 import 'package:tentura/features/invitation/data/repository/invitation_repository.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
@@ -20,6 +24,7 @@ import 'package:tentura/ui/widget/self_aware_profile_avatar.dart';
 
 import 'package:tentura/ui/test_ids.dart';
 
+import '../../support/phone_surface.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 
 class _MockProfileCubit extends Mock implements ProfileCubit {
@@ -60,6 +65,84 @@ class _FakeInvitationRepository extends Fake implements InvitationRepository {
 
   @override
   Future<void> dispose() async {}
+}
+
+ForwardCubit _alexSelectedPickerCubit() {
+  return ForwardCubit(
+    beaconId: 'draft-1',
+    debugSkipInitialLoad: true,
+    embedded: true,
+    effects: FakeUiEffectPort(),
+  )..emit(
+    ForwardState(
+      beaconId: 'draft-1',
+      beacon: Beacon.empty.copyWith(id: 'draft-1', title: 'Draft'),
+      candidates: const [
+        ForwardCandidate(
+          profile: Profile(
+            id: 'u1',
+            displayName: 'Alex',
+            score: 10,
+            rScore: 1,
+          ),
+        ),
+      ],
+      selectedIds: {'u1'},
+      candidatesLoad: const ForwardCandidatesReady(),
+    ),
+  );
+}
+
+void _expectPersonalNoteEditorPrimaryFocus(WidgetTester tester) {
+  final editor = tester.widget<EditableText>(
+    find.descendant(
+      of: find.byType(PerRecipientNoteInput),
+      matching: find.byType(EditableText),
+    ),
+  );
+  expect(FocusManager.instance.primaryFocus, same(editor.focusNode));
+  expect(tester.testTextInput.hasAnyClients, isTrue);
+}
+
+Future<void> _pumpPickerSurface(
+  WidgetTester tester, {
+  required ForwardCubit cubit,
+  required Locale locale,
+  required Size surfaceSize,
+  bool embedded = true,
+}) async {
+  await tester.binding.setSurfaceSize(surfaceSize);
+  addTearDown(() => tester.binding.setSurfaceSize(null));
+  await tester.pumpWidget(
+    MaterialApp(
+      locale: locale,
+      localizationsDelegates: L10n.localizationsDelegates,
+      supportedLocales: L10n.supportedLocales,
+      theme: TenturaTheme.light(),
+      home: MultiBlocProvider(
+        providers: [
+          BlocProvider<ForwardCubit>.value(value: cubit),
+          BlocProvider<ProfileCubit>.value(value: _MockProfileCubit()),
+        ],
+        child: Scaffold(
+          body: ForwardRecipientPicker(
+            beaconId: 'draft-1',
+            embedded: embedded,
+          ),
+        ),
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+}
+
+Future<void> _tapAddNoteAndPumpForFocus(
+  WidgetTester tester,
+  Finder addNote,
+) async {
+  await tester.tap(addNote);
+  await tester.pump();
+  await tester.pump();
 }
 
 void main() {
@@ -697,6 +780,174 @@ void main() {
     );
     await tester.pumpAndSettle();
   }
+
+  group('#893 + Note focuses the note field for typing', () {
+    testWidgets('desktop EN: open, type, blur, reopen from preview', (
+      tester,
+    ) async {
+      final cubit = _alexSelectedPickerCubit();
+      addTearDown(cubit.close);
+      await _pumpPickerSurface(
+        tester,
+        cubit: cubit,
+        locale: const Locale('en'),
+        surfaceSize: const Size(1280, 800),
+      );
+
+      expect(find.byType(TextField), findsNothing);
+      await _tapAddNoteAndPumpForFocus(
+        tester,
+        find.byTooltip('Add a note for Alex'),
+      );
+      expect(find.byType(TextField), findsOneWidget);
+      _expectPersonalNoteEditorPrimaryFocus(tester);
+
+      const typed = 'hello without enterText';
+      tester.testTextInput.enterText(typed);
+      await tester.pump();
+      expect(cubit.state.perRecipientNotes['u1'], typed);
+
+      FocusManager.instance.primaryFocus?.unfocus();
+      await tester.pumpAndSettle();
+      expect(find.byType(TextField), findsNothing);
+      expect(find.text(typed), findsOneWidget);
+
+      await _tapAddNoteAndPumpForFocus(tester, find.text(typed));
+      _expectPersonalNoteEditorPrimaryFocus(tester);
+      tester.testTextInput.enterText('$typed more');
+      await tester.pump();
+      expect(cubit.state.perRecipientNotes['u1'], '$typed more');
+    });
+
+    testWidgets('phone RU: open, type, blur collapses field', (tester) async {
+      final cubit = _alexSelectedPickerCubit();
+      addTearDown(cubit.close);
+      cubit.emit(
+        cubit.state.copyWith(
+          candidates: const [
+            ForwardCandidate(
+              profile: Profile(
+                id: 'u1',
+                displayName: 'Алекс',
+                score: 10,
+                rScore: 1,
+              ),
+            ),
+          ],
+        ),
+      );
+      await _pumpPickerSurface(
+        tester,
+        cubit: cubit,
+        locale: const Locale('ru'),
+        surfaceSize: kPhoneSurface,
+      );
+
+      await _tapAddNoteAndPumpForFocus(
+        tester,
+        find.byTooltip('Добавить заметку для Алекс'),
+      );
+      _expectPersonalNoteEditorPrimaryFocus(tester);
+      tester.testTextInput.enterText('заметка');
+      await tester.pump();
+      expect(cubit.state.perRecipientNotes['u1'], 'заметка');
+
+      FocusManager.instance.primaryFocus?.unfocus();
+      await tester.pumpAndSettle();
+      expect(find.byType(TextField), findsNothing);
+      expect(find.text('заметка'), findsOneWidget);
+    });
+
+    testWidgets('band strip + Note focuses editor at desktop width', (
+      tester,
+    ) async {
+      final cubit = _alexSelectedPickerCubit();
+      addTearDown(cubit.close);
+      cubit.emit(
+        cubit.state.copyWith(band: const [ForwardBandRow(userId: 'u1')]),
+      );
+      await _pumpPickerSurface(
+        tester,
+        cubit: cubit,
+        locale: const Locale('en'),
+        surfaceSize: const Size(1280, 800),
+      );
+
+      expect(find.byType(ForwardBandStrip), findsOneWidget);
+      await _tapAddNoteAndPumpForFocus(
+        tester,
+        find.byTooltip('Add a note for Alex'),
+      );
+      _expectPersonalNoteEditorPrimaryFocus(tester);
+      tester.testTextInput.enterText('band note');
+      await tester.pump();
+      expect(cubit.state.perRecipientNotes['u1'], 'band note');
+    });
+
+    testWidgets('band strip + Note focuses editor on phone RU', (tester) async {
+      final cubit = _alexSelectedPickerCubit();
+      addTearDown(cubit.close);
+      cubit.emit(
+        cubit.state.copyWith(
+          candidates: const [
+            ForwardCandidate(
+              profile: Profile(
+                id: 'u1',
+                displayName: 'Алекс',
+                score: 10,
+                rScore: 1,
+              ),
+            ),
+          ],
+          band: const [ForwardBandRow(userId: 'u1')],
+        ),
+      );
+      await _pumpPickerSurface(
+        tester,
+        cubit: cubit,
+        locale: const Locale('ru'),
+        surfaceSize: kPhoneSurface,
+      );
+
+      await _tapAddNoteAndPumpForFocus(
+        tester,
+        find.byTooltip('Добавить заметку для Алекс'),
+      );
+      _expectPersonalNoteEditorPrimaryFocus(tester);
+    });
+
+    testWidgets('keyboard Enter on + Note focuses the editor', (tester) async {
+      final cubit = _alexSelectedPickerCubit();
+      addTearDown(cubit.close);
+      await _pumpPickerSurface(
+        tester,
+        cubit: cubit,
+        locale: const Locale('en'),
+        surfaceSize: const Size(1280, 800),
+      );
+
+      final noteControl = find.byTooltip('Add a note for Alex');
+      Tristate focused() => tester
+          .getSemantics(noteControl)
+          .getSemanticsData()
+          .flagsCollection
+          .isFocused;
+
+      for (var i = 0; i < 40 && focused() != Tristate.isTrue; i++) {
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        await tester.pump();
+      }
+      expect(focused(), Tristate.isTrue);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pump();
+      await tester.pump();
+      _expectPersonalNoteEditorPrimaryFocus(tester);
+      tester.testTextInput.enterText('from keyboard');
+      await tester.pump();
+      expect(cubit.state.perRecipientNotes['u1'], 'from keyboard');
+    });
+  });
 
   testWidgets('personal note opens from + Note control, not on tick', (
     tester,

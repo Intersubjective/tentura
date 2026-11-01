@@ -25,6 +25,7 @@ import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/widget/beacon_requirements_bar.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';
+import '../../support/phone_surface.dart';
 
 class _MockProfileCubit extends Mock implements ProfileCubit {
   @override
@@ -341,6 +342,68 @@ void main() {
         findsOneWidget,
       );
     });
+
+    testWidgets(
+      '#893 Request recipients step + Note focuses the note field',
+      (tester) async {
+        tester.view
+          ..physicalSize = kPhoneSurface
+          ..devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        final cubit = _SendRecordingCubit();
+        addTearDown(cubit.close);
+        cubit.emit(
+          ForwardState(
+            beaconId: 'B1',
+            beacon: Beacon.empty.copyWith(
+              id: 'B1',
+              title: 'Subject',
+              kind: BeaconKind.request,
+            ),
+            candidates: const [ForwardCandidate(profile: _alex)],
+            selectedIds: const {'u1'},
+            candidatesLoad: const ForwardCandidatesReady(),
+          ),
+        );
+        await tester.pumpWidget(
+          MaterialApp(
+            locale: const Locale('ru'),
+            localizationsDelegates: L10n.localizationsDelegates,
+            supportedLocales: L10n.supportedLocales,
+            theme: TenturaTheme.light(),
+            home: MultiBlocProvider(
+              providers: [
+                BlocProvider<ForwardCubit>.value(value: cubit),
+                BlocProvider<ProfileCubit>.value(value: _MockProfileCubit()),
+              ],
+              child: const Scaffold(
+                body: ForwardRecipientPicker(
+                  beaconId: 'B1',
+                  recipientNoteHint: 'Add a note for this person (optional)',
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.byTooltip('Добавить заметку для Alex'));
+        await tester.pump();
+        await tester.pump();
+
+        final editor = tester.widget<EditableText>(
+          find.descendant(
+            of: find.byType(PerRecipientNoteInput),
+            matching: find.byType(EditableText),
+          ),
+        );
+        expect(FocusManager.instance.primaryFocus, same(editor.focusNode));
+        expect(tester.testTextInput.hasAnyClients, isTrue);
+        tester.testTextInput.enterText('author step');
+        await tester.pump();
+        expect(cubit.state.perRecipientNotes['u1'], 'author step');
+      },
+    );
   });
 
   group('ForwardRecipientPicker for a Post', () {

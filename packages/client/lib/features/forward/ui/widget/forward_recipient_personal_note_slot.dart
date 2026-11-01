@@ -127,8 +127,12 @@ class _ForwardRecipientExpandedPersonalNoteState
     _focusNode = FocusNode();
     _focusNode.addListener(_onFocusChange);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        _focusNode.requestFocus();
+      if (!mounted) {
+        return;
+      }
+      for (final descendant in _focusNode.traversalDescendants) {
+        descendant.requestFocus();
+        return;
       }
     });
   }
