@@ -949,8 +949,7 @@ class FakeInboxRepository implements InboxRepository {
   bool failOpenForwardsCount = false;
   int openForwardsCountCalls = 0;
 
-  final openForwardByBeacon = <String, InboxItem?>{};
-  int openForwardForBeaconCalls = 0;
+  Map<String, InboxItem> inboxItemsByBeacon = {};
 
   @override
   Future<({List<InboxItem> page, int totalCount})>
@@ -986,8 +985,6 @@ class FakeInboxRepository implements InboxRepository {
     return openForwardsCount;
   }
 
-  Map<String, InboxItem> inboxItemsByBeacon = {};
-
   @override
   Future<List<InboxItem>> fetchInboxItemsForBeacons({
     required String userId,
@@ -1000,23 +997,6 @@ class FakeInboxRepository implements InboxRepository {
         else
           ...activityOffersPages.where((e) => e.beaconId == id),
     ];
-  }
-
-  @override
-  Future<InboxItem?> fetchOpenForwardForBeacon({
-    required String userId,
-    required String beaconId,
-  }) async {
-    openForwardForBeaconCalls++;
-    if (openForwardByBeacon.containsKey(beaconId)) {
-      return openForwardByBeacon[beaconId];
-    }
-    for (final item in activityOffersPages) {
-      if (item.beaconId == beaconId) {
-        return item;
-      }
-    }
-    return null;
   }
 
   @override

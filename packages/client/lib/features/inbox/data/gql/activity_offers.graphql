@@ -39,16 +39,3 @@ query ActivityOffersCount {
     }
   }
 }
-
-query ActivityOfferForBeacon($userId: String!, $beaconId: String!) {
-  inbox_item(
-    where: {
-      beacon_id: {_eq: $beaconId}
-      status: {_eq: 0}
-      beacon: {can_read_content: {_eq: true}}
-    }
-    limit: 1
-  ) {
-    ...InboxItemFields
-  }
-}

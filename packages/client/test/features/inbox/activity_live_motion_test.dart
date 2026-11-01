@@ -198,7 +198,12 @@ class _TestInboxCubit extends Cubit<InboxState> implements InboxCubit {
 
   @override
   Future<void> setWatching(String beaconId) async {
-    inboxRepo?.openForwardByBeacon[beaconId] = null;
+    final feed = feedRepo;
+    if (feed != null) {
+      feed.offerRows = feed.offerRows
+          .where((row) => row.beaconId != beaconId)
+          .toList();
+    }
     feedRepo?.forwardBeaconId = beaconId;
     forwardRepo?.emitDeskChange(beaconId);
   }
@@ -398,7 +403,11 @@ void main() {
     await _pumpMotionView(tester, boot: boot);
 
     final arrival = _offerItem('B-new');
-    inboxRepo.openForwardByBeacon['B-new'] = arrival;
+    feedRepo.offerRows = [
+      ...feedRepo.offerRows,
+      activityOfferSortRow(arrival),
+    ];
+    inboxRepo.inboxItemsByBeacon[arrival.beaconId] = arrival;
     forwardRepo.emitDeskChange('B-new');
     await _pumpDeskDebounce(tester);
 
@@ -456,7 +465,11 @@ void main() {
       final before = _globalRect(reference, tester);
 
       final arrival = _offerItem('B-held');
-      inboxRepo.openForwardByBeacon['B-held'] = arrival;
+      feedRepo.offerRows = [
+        ...feedRepo.offerRows,
+        activityOfferSortRow(arrival),
+      ];
+      inboxRepo.inboxItemsByBeacon[arrival.beaconId] = arrival;
       forwardRepo.emitDeskChange('B-held');
       await _pumpDeskDebounce(tester, frames: 5);
 
@@ -475,8 +488,7 @@ void main() {
   ) async {
     const beaconId = 'B-watch';
     final forwardRepo = _ControllableForwardRepo();
-    final inboxRepo = FakeInboxRepository()
-      ..openForwardByBeacon[beaconId] = _offerItem(beaconId);
+    final inboxRepo = FakeInboxRepository();
     final feedRepo = _MotionFeedRepo();
     wireActivityOffersV2(
       inbox: inboxRepo,
@@ -526,8 +538,7 @@ void main() {
   ) async {
     const beaconId = 'B-fast';
     final forwardRepo = _ControllableForwardRepo();
-    final inboxRepo = FakeInboxRepository()
-      ..openForwardByBeacon[beaconId] = _offerItem(beaconId);
+    final inboxRepo = FakeInboxRepository();
     final feedRepo = _MotionFeedRepo();
     wireActivityOffersV2(
       inbox: inboxRepo,
@@ -571,8 +582,7 @@ void main() {
   ) async {
     const beaconId = 'B-far';
     final forwardRepo = _ControllableForwardRepo();
-    final inboxRepo = FakeInboxRepository()
-      ..openForwardByBeacon[beaconId] = _offerItem(beaconId);
+    final inboxRepo = FakeInboxRepository();
     final padOffers = [
       _offerItem(beaconId),
       for (var i = 0; i < 30; i++) _offerItem('pad-$i'),

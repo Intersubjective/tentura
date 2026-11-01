@@ -10,6 +10,9 @@ import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
+import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/beacon_kind.dart';
+import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/inbox/domain/entity/inbox_item.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/features/inbox/domain/use_case/inbox_case.dart';
@@ -34,7 +37,6 @@ Future<void> _settle([int turns = 12]) async {
 InboxItem _offer(String beaconId, DateTime at) => InboxItem(
   beaconId: beaconId,
   latestForwardAt: at,
-  status: InboxItemStatus.needsMe,
 );
 
 final class _Accounts implements AttentionAccountPort {
@@ -52,9 +54,9 @@ class _AttentionRepo extends ConfigurableActivityOffersAttentionRepo {
     String? search,
     int limit = 50,
     AttentionSurface? surface,
-  }) async => AttentionFeed(
-    summary: const AttentionSummary(),
-    page: const AttentionFeedPage(),
+  }) async => const AttentionFeed(
+    summary: AttentionSummary(),
+    page: AttentionFeedPage(),
   );
 
   @override
@@ -207,14 +209,18 @@ void main() {
 
   group('live arrival', () {
     test('inserts at top when not scrolled away', () async {
-      final first = [_offer('B1', DateTime.utc(2026, 1, 1))];
+      final first = [_offer('B1', DateTime.utc(2026))];
       wireActivityOffersV2(inbox: repo, attention: attentionRepo, items: first);
       repo.openForwardsCount = 1;
       cubit = buildCubit();
 
       await cubit.loadFirst();
-      final arrival = _offer('B-new', DateTime.utc(2026, 6, 1));
-      repo.openForwardByBeacon['B-new'] = arrival;
+      final arrival = _offer('B-new', DateTime.utc(2026, 6));
+      attentionRepo.offerRows = [
+        ...attentionRepo.offerRows,
+        activityOfferSortRow(arrival),
+      ];
+      repo.inboxItemsByBeacon[arrival.beaconId] = arrival;
 
       forwardRepo.emitDeskChange('B-new');
       await _settle(20);
@@ -224,15 +230,19 @@ void main() {
     });
 
     test('held back while scrolled away until revealHeldBack', () async {
-      final first = [_offer('B1', DateTime.utc(2026, 1, 1))];
+      final first = [_offer('B1', DateTime.utc(2026))];
       wireActivityOffersV2(inbox: repo, attention: attentionRepo, items: first);
       repo.openForwardsCount = 1;
       cubit = buildCubit();
 
       await cubit.loadFirst();
       cubit.setScrolledAway(true);
-      final arrival = _offer('B-new', DateTime.utc(2026, 6, 1));
-      repo.openForwardByBeacon['B-new'] = arrival;
+      final arrival = _offer('B-new', DateTime.utc(2026, 6));
+      attentionRepo.offerRows = [
+        ...attentionRepo.offerRows,
+        activityOfferSortRow(arrival),
+      ];
+      repo.inboxItemsByBeacon[arrival.beaconId] = arrival;
 
       forwardRepo.emitDeskChange('B-new');
       await _settle(20);
@@ -260,7 +270,9 @@ void main() {
       final demoted = <String>[];
       final sub = cubit.demotedBeaconIds.listen(demoted.add);
 
-      repo.openForwardByBeacon['B1'] = null;
+      attentionRepo.offerRows = attentionRepo.offerRows
+          .where((row) => row.beaconId != 'B1')
+          .toList();
       forwardRepo.emitDeskChange('B1');
       await _settle(20);
 
@@ -282,7 +294,9 @@ void main() {
       final demoted = <String>[];
       final sub = cubit.demotedBeaconIds.listen(demoted.add);
 
-      repo.openForwardByBeacon['B2'] = null;
+      attentionRepo.offerRows = attentionRepo.offerRows
+          .where((row) => row.beaconId != 'B2')
+          .toList();
       forwardRepo.emitHelpOffer(const HelpOfferCreated('B2'));
       await _settle(20);
 
@@ -301,13 +315,18 @@ void main() {
       cubit = buildCubit();
 
       await cubit.loadFirst();
-      repo.openForwardByBeacon['B3'] = null;
+      attentionRepo.offerRows = attentionRepo.offerRows
+          .where((row) => row.beaconId != 'B3')
+          .toList();
       forwardRepo.emitDeskChange('B3');
       await _settle(20);
       expect(cubit.state.items, isEmpty);
 
-      final restored = _offer('B3', DateTime.utc(2026, 7, 1));
-      repo.openForwardByBeacon['B3'] = restored;
+      final restored = _offer('B3', DateTime.utc(2026, 7));
+      attentionRepo.offerRows = [
+        activityOfferSortRow(restored),
+      ];
+      repo.inboxItemsByBeacon['B3'] = restored;
       forwardRepo.emitDeskChange('B3');
       await _settle(20);
 
@@ -319,9 +338,36 @@ void main() {
     });
   });
 
+  group('live refresh eligibility (#928)', () {
+    test('does not pin a Post when the v2 row is absent', () async {
+      const postId = 'B-post-parent';
+      wireActivityOffersV2(inbox: repo, attention: attentionRepo, items: []);
+      attentionRepo.v2AbsentBeaconIds = {postId};
+      repo.inboxItemsByBeacon[postId] = InboxItem(
+        beaconId: postId,
+        latestForwardAt: DateTime.utc(2026, 10, 24),
+        beacon: Beacon(
+          id: postId,
+          kind: BeaconKind.post,
+          author: const Profile(id: 'a', displayName: 'Alice'),
+          createdAt: DateTime.utc(2026, 10, 24),
+          updatedAt: DateTime.utc(2026, 10, 24),
+        ),
+      );
+      cubit = buildCubit();
+      await cubit.loadFirst();
+
+      forwardRepo.emitDeskChange(postId);
+      await _settle(20);
+
+      expect(cubit.state.items, isEmpty);
+      expect(attentionRepo.beaconOfferLookups, contains(postId));
+    });
+  });
+
   group('totalCount', () {
     test('reflects aggregate before all pages are loaded', () async {
-      final at = DateTime.utc(2026, 3, 1);
+      final at = DateTime.utc(2026, 3);
       final first = [_offer('B2', at), _offer('B1', at)];
       final second = [_offer('B0', at.subtract(const Duration(hours: 1)))];
       wireActivityOffersV2(
