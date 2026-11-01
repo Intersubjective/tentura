@@ -23,11 +23,11 @@ class RoomPinnedFactVisibilityMark extends StatelessWidget {
     final isPublic = visibility == BeaconFactCardVisibilityBits.public;
     final label = compact
         ? (isPublic
-            ? l10n.beaconRoomFactCardVisibilityPublic
-            : l10n.beaconRoomFactCardVisibilityChat)
+              ? l10n.beaconRoomFactCardVisibilityPublic
+              : l10n.beaconRoomFactCardVisibilityChat)
         : (isPublic
-            ? l10n.beaconRoomMessagePinnedFactChipPublic
-            : l10n.beaconRoomMessagePinnedFactChipPrivate);
+              ? l10n.beaconRoomMessagePinnedFactChipPublic
+              : l10n.beaconRoomMessagePinnedFactChipPrivate);
     final iconColor = isPublic ? tt.info : tt.textMuted;
     final icon = isPublic ? Icons.public_outlined : Icons.push_pin_outlined;
 
@@ -39,8 +39,12 @@ class RoomPinnedFactVisibilityMark extends StatelessWidget {
           Icon(icon, size: tt.iconSize * 0.75, color: iconColor),
           SizedBox(width: tt.iconTextGap / 2),
           Flexible(
+            // #930: two lines, so «Закреплено · факт обсуждения» is not cut
+            // in the narrower bubble of someone else's message; the public
+            // and private marks share this layout.
             child: TenturaStatusText(
               label,
+              maxLines: 2,
               tone: isPublic ? TenturaTone.info : TenturaTone.neutral,
             ),
           ),
