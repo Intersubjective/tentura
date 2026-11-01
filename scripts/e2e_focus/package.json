@@ -3,10 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node cold_graph_tab.mjs",
+    "test": "bash run.sh all",
     "cold-graph-tab": "node cold_graph_tab.mjs"
   },
-  "dependencies": {
-    "playwright": "^1.51.0"
-  }
+  "dependencies": { "playwright": "^1.51.0" }
 }

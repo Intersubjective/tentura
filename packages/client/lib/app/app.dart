@@ -38,6 +38,7 @@ import 'di/globals.dart';
 import 'platform/emoji_font_warmup.dart';
 import 'platform/lifecycle_handler.dart';
 import 'platform/orientation_policy.dart';
+import 'platform/text_input_focus.dart';
 import 'router/root_router.dart';
 import 'debug_error_overlay.dart';
 import 'tentura_widgets_binding.dart';
@@ -85,6 +86,7 @@ class App extends StatelessWidget {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           SemanticsBinding.instance.ensureSemantics();
+          restoreTextInputFocusAfterSemanticsBlur();
         });
       });
     }

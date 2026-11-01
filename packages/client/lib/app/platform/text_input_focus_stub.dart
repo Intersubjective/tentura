@@ -1,3 +1,6 @@
+/// Native platforms do not have a browser semantics input to reconnect.
+void restoreTextInputFocusAfterSemanticsBlur() {}
+
 /// Native platforms have no page focus a click could move off a text field.
 void keepTextInputFocusOnPress(Iterable<String> semanticsIdentifierPrefixes) {}
 

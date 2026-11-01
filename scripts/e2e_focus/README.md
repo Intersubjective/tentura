@@ -1,10 +1,92 @@
-# Focus e2e (Playwright)
+# Typing survives clear buttons and tooltip transitions
 
-Standalone browser pins for keyboard / screen-reader focus on Flutter web.
-They live here until the Playwright focus suite of #603 lands; then they
-move into it.
+These tests use real Chrome pointer and keyboard input on the full application,
+with real authentication and transport. `run.sh` compiles a fresh **profile +
+Wasm** build with semantics enabled (`ENV` defaults to `dev`). It deliberately
+does not use the integration-test entry point, which disables semantics.
 
-## `cold_graph_tab.mjs` — #927: Tab after a cold Graph deep link
+## Prerequisites
+
+Use the existing local Docker services and the QA test-login settings described
+in `.claude/skills/local-debug/SKILL.md`. The runner starts the API and static
+Caddy when absent and stops only those processes it started. An existing local
+Caddy must already serve the test's profile build in static mode.
+Generate `packages/client/env/local-web.env` with
+`bash scripts/sync-client-local-config.sh` if absent. For a manually started
+Caddy, use static mode:
+
+```sh
+LOCAL_USE_FLUTTER_PROXY=off LOCAL_APP_ROOT=/tmp/tentura-focus-profile-web \
+  caddy run --config Caddyfile.local
+```
+
+Node 20+ and installed Google Chrome are required. The runner installs the locked
+Playwright dependency. No browser download is needed. The default QA account is
+the original trace's `society-bravo3@test.tentura.local`; `EMAIL` can select
+another QA account. Each run uses a fresh browser context and blocks service
+workers, so a previous build cannot supply cached application code.
+
+## Mandatory acceptance gate
+
+From the repository root:
+
+```sh
+./scripts/run_with_test_cleanup.sh --timeout 15m -- bash scripts/e2e_focus/run.sh all 10
+```
+
+`typing_survives_interactions_on_all_surfaces.mjs` executes every row below,
+sequentially, with at least ten cycles per row. It builds once and shares the
+local stack, while each row uses a fresh browser context. It runs later rows
+even if earlier ones fail and prints the exit code for every row. The gate
+passes only when **all seven rows pass**.
+`run.sh` with no arguments and the package's `npm test` also select this gate.
+
+| Surface | Mandatory interaction |
+| --- | --- |
+| Rating search | Clear X, then typing without a click and after one field click |
+| Rating search | Tooltip appears and disappears while typing |
+| Updates search | Clear X, then typing without a click and after one field click |
+| Forward recipient search | Clear/Cancel X, then typing without a click and after one field click |
+| Forward recipient search | Tooltip appears and disappears while typing |
+| Chat composer | Emoji tooltip appears and disappears while typing |
+| Chat composer | Back tooltip appears and disappears while typing |
+
+Run through `alloy job start -- <command>` and bounded `alloy job wait` calls
+when executing interactively. A check handed to Alloy uses the plain command.
+
+## Focused diagnostics
+
+An individual row can still be selected with `run.sh close 10` or
+`run.sh hover 10` and the environment variables below. Individual invocations
+do not replace the mandatory gate. To rerun one row against an already rebuilt
+profile app and running stack, use
+`node scripts/e2e_focus/typing_survives_clear_and_tooltip.mjs close 10`.
+
+`close` verifies the query clears, then asserts the next keys appear without a
+click and that typing continues after one click. `hover` verifies typing both
+while the tooltip is shown and after it hides. Both modes exercise ten cycles,
+including failures, and print actual versus expected field text per cycle.
+`backspace` is the diagnostic control and is expected to pass before the fix;
+it is not a failing baseline check.
+
+The chat composer rows kept all keys in ten cycles on the original code; they
+guard that the app-wide repair does not break the composer.
+
+Exit **2** means typed keys were lost. Exit **1** means a prerequisite failed
+(login, profile/Wasm app, semantics, labeled field/action, or initial typing).
+Exit **0** means every checkpoint in every required cycle passed. The aggregate
+gate reports **1** if any row has a setup error, otherwise **2** if any row
+loses keys, otherwise **0**. The test never
+repairs browser focus, fills DOM values, or dispatches synthetic blur events.
+
+The configurable `BASE`, `ROUTE`, `FIELD_LABEL`, `CLEAR_LABEL`, `HOVER_LABEL`,
+`PRE_CLICK_LABEL`, `RESET_XY` and `EMAIL` allow the same trace on other fields.
+Routes containing `{requestId}` create a private Request through the public
+GraphQL API as the signed-in test user, then delete it in `finally`. This keeps
+the sibling checks independent of durable Request fixtures. The tests do not
+send messages or forwards.
+
+## Standalone pin: `cold_graph_tab.mjs` — #927: Tab after a cold Graph deep link
 
 A cold load of `#/graph/<id>` (or a reload of it) puts Home under the Graph
 in the first frame. On 7.60.14 and earlier, Home's tab shell is built there
