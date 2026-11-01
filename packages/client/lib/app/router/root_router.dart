@@ -702,9 +702,14 @@ class RootRouter extends RootStackRouter {
   /// Activates Network, normalizes the branch to [FriendsRoute], then pushes
   /// [BlockedUsersRoute]. Cold-start (no mounted home tabs) builds
   /// `HomeRoute → NetworkTabShell → FriendsRoute → BlockedUsersRoute`.
+  ///
+  /// Warm, it pops root routes above Home first (the profile whose block
+  /// sheet links here), as [openInvitations] does; otherwise Blocked users
+  /// opened hidden under that profile (#942).
   Future<void> openBlockedUsers() async {
     final tabs = innerRouterOf<TabsRouter>(HomeRoute.name);
     if (tabs != null) {
+      popUntilRouteWithName(HomeRoute.name);
       final networkSpec = HomeTabSpec.forTab(HomeTab.network);
       tabs.setActiveIndex(networkSpec.index);
       final branch = tabs.stackRouterOfIndex(networkSpec.index);
