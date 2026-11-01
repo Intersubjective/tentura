@@ -134,7 +134,7 @@ void main() {
     );
     await tester.pump();
     final before = changeAge(tester);
-    expect(before, 'Sep 14');
+    expect(before, 'Mon, Sep 14');
 
     await advance(tester, const Duration(minutes: 2));
     expect(changeAge(tester), before);

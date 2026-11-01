@@ -1069,28 +1069,42 @@ class _ChangeLine extends StatelessWidget {
           constraints: const BoxConstraints(
             minHeight: kMinInteractiveDimension,
           ),
-          child: Row(
-            children: [
-              SizedBox(
-                width: tt.avatarSize,
-                child: Icon(
-                  updatesFeedGlyphFor(receipt, tt).icon,
-                  size: tt.iconSize,
-                  color: tt.textMuted,
+          child: LayoutBuilder(
+            builder: (context, rowConstraints) => Row(
+              children: [
+                SizedBox(
+                  width: tt.avatarSize,
+                  child: Icon(
+                    updatesFeedGlyphFor(receipt, tt).icon,
+                    size: tt.iconSize,
+                    color: tt.textMuted,
+                  ),
                 ),
-              ),
-              SizedBox(width: tt.avatarTextGap),
-              Expanded(
-                child: Text(
-                  text,
-                  maxLines: carriesReason ? kChangeLineReasonMaxLines : 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: style,
+                SizedBox(width: tt.avatarTextGap),
+                Expanded(
+                  child: Text(
+                    text,
+                    maxLines: carriesReason ? kChangeLineReasonMaxLines : 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: style,
+                  ),
                 ),
-              ),
-              SizedBox(width: tt.iconTextGap),
-              Text(age, maxLines: 1, style: TenturaText.withTabular(style)),
-            ],
+                SizedBox(width: tt.iconTextGap),
+                // #609: a dated age ("Sat, Oct 31, 2025") at 2x text is wider
+                // than a 360 dp line; capped like the mini card's age.
+                ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: rowConstraints.maxWidth * kMiniCardAgeWidthShare,
+                  ),
+                  child: Text(
+                    age,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TenturaText.withTabular(style),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
