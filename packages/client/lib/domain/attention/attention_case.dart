@@ -463,9 +463,9 @@ final class AttentionCase implements AttentionReconcilePort {
     return page;
   }
 
-  /// One Request's pinned-zone row, without disturbing the loaded rows: a
-  /// live arrival learns its invite facts (#725). Null when the Request is
-  /// not in the zone.
+  /// One beacon's pinned-zone row, refreshed in place: a live update learns
+  /// its eligibility and invite facts (#725, #928). Null when the beacon is
+  /// not in the zone (a Post, or a Request that left it); its stale row goes.
   Future<ActivityOfferSortRow?> activityOfferRow(String beaconId) async {
     final page = await _repository.activityOffers(
       limit: 1,
@@ -479,6 +479,7 @@ final class AttentionCase implements AttentionReconcilePort {
         return row;
       }
     }
+    if (_offerRowsByBeaconId.remove(beaconId) != null) _publishOfferGroups();
     return null;
   }
 

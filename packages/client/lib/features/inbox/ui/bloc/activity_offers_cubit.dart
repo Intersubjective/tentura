@@ -490,11 +490,12 @@ final class ActivityOffersCubit extends Cubit<ActivityOffersState> {
       final hasInvite = inviteId != null && inviteId.isNotEmpty;
       emit(
         state.copyWith(
-          inviteIdByBeacon:
-              hasInvite
-                    ? {...state.inviteIdByBeacon, beaconId: inviteId}
-                    : {...state.inviteIdByBeacon}
-                ..remove(beaconId),
+          inviteIdByBeacon: hasInvite
+              ? {...state.inviteIdByBeacon, beaconId: inviteId}
+              : {
+                  for (final e in state.inviteIdByBeacon.entries)
+                    if (e.key != beaconId) e.key: e.value,
+                },
           declinedInviteBeacons: _withDeclinedInvitesOf(
             state.declinedInviteBeacons,
             [row],
