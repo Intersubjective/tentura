@@ -17,6 +17,8 @@ import 'package:tentura/features/inbox/ui/widget/tombstone_row.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/relative_timestamp_ticker.dart';
 
+import '../../support/phone_surface.dart';
+
 /// #609 (QA round 5) — on iPhone SE (375×667, 1.0x text) an earlier-year
 /// card age was cut before the year («Sun, Nov 1, 20…» /
 /// «вс, 1 нояб. 20…») on the Activity row for help you offered. The whole
@@ -125,10 +127,7 @@ void main() {
     for (final MapEntry(key: name, value: card) in _cards.entries) {
       testWidgets('${locale.languageCode} 375×667 1.0x: the $name shows the '
           'whole earlier-year date', (tester) async {
-        tester.view
-          ..physicalSize = const Size(375, 667)
-          ..devicePixelRatio = 1;
-        addTearDown(tester.view.reset);
+        await usePhoneSurface(tester);
         await tester.pumpWidget(_host(card(), locale));
         await tester.pump();
 
