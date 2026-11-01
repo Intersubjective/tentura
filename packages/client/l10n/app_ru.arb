@@ -1427,7 +1427,7 @@
   "@constellationHeldParticipant": {
     "context": "ConstellationRequestLabel"
   },
-  "constellationHeldForwarded": "Вы переслали этот запрос",
+  "constellationHeldForwarded": "Вам переслали этот запрос",
   "@constellationHeldForwarded": {
     "context": "ConstellationRequestLabel"
   },

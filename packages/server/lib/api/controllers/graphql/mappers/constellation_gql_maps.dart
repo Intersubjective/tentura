@@ -154,6 +154,8 @@ Map<String, dynamic> _liveRequestToGqlMap(ConstellationRequestRecord request) =>
       'viewerHasActiveHelpOffer': request.viewerHasActiveHelpOffer,
       'viewerIsRoomParticipant': request.viewerIsRoomParticipant,
       'viewerHasForwardEdge': request.viewerHasForwardEdge,
+      'forwardedById': request.forwardedBy?.id,
+      'forwardedByName': request.forwardedBy?.displayName,
       'helpOfferCount': request.helpOfferCount,
       'kind': request.kind,
       'coverSource': request.coverSource,

@@ -43,6 +43,8 @@ query ConstellationAnchorsFetch(
       viewerHasActiveHelpOffer
       viewerIsRoomParticipant
       viewerHasForwardEdge
+      forwardedById
+      forwardedByName
       parentBeaconId
       helpOfferCount
       coverSource
@@ -87,6 +89,8 @@ query ConstellationAnchorsFetch(
         viewerHasActiveHelpOffer
         viewerIsRoomParticipant
         viewerHasForwardEdge
+        forwardedById
+        forwardedByName
         parentBeaconId
         helpOfferCount
         coverSource

@@ -11,6 +11,9 @@ import 'package:tentura/ui/utils/capability_tag_presenter.dart';
 
 import 'constellation_request_status_marker.dart';
 
+/// Two title lines plus two provenance lines, also reserved by scene layout.
+const kConstellationRequestMapLabelMaxLines = 4;
+
 /// The request's primary capability label, when it has a known one.
 String? constellationCapabilityText(L10n l10n, ConstellationRequest request) {
   final slug = request.primaryNeedSlug?.trim();
@@ -96,7 +99,13 @@ String? constellationHeldAnnotation(L10n l10n, ConstellationRequest request) {
     ConstellationHeldState.mine => l10n.constellationHeldMine,
     ConstellationHeldState.offered => l10n.constellationHeldOffered,
     ConstellationHeldState.participant => l10n.constellationHeldParticipant,
-    ConstellationHeldState.forwarded => l10n.constellationHeldForwarded,
+    ConstellationHeldState.forwarded => switch (request.forwardedBy?.displayName
+        ?.trim()) {
+      final String name when name.isNotEmpty => l10n.attentionCardForwardedBy(
+        name,
+      ),
+      _ => l10n.constellationHeldForwarded,
+    },
     ConstellationHeldState.none => null,
   };
 }

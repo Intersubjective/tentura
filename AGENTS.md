@@ -186,8 +186,8 @@ Standard dev setup is in `DEVELOPMENT.md` and the `local-debug` skill; only the 
 <!-- headroom:learn:end -->
 
 <!-- alloy:memory:begin -->
-reviewed: 2026-10-31
-review due: 2026-11-07
+reviewed: 2026-11-01
+review due: 2026-11-08
 
 ### 0-evidence-real-path
 Evidence rule (owner 2026-10-30, QA-bounce prevention). Every behaviour the commit message or verdict claims needs its own test that fails without the change. At least one test per bead runs the real path: the real transport response through the GQL mapper/repository to the cubit and widget (client), or a real Postgres pg test (server). Hand-built entities don't count. Touch, focus, keyboard, semantics, scroll and web lifecycle (bfcache, reload) are proven only by the web integration_test (scripts/run_client_integration_web_local.sh) or Playwright; a widget test alone is not evidence. Judge: an unbacked claim is not done, so answer retry and name the missing test, or human when the sandbox can't run the browser suite.

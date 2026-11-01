@@ -137,6 +137,7 @@ abstract class ConstellationRequest with _$ConstellationRequest {
     @Default(false) bool viewerHasActiveHelpOffer,
     @Default(false) bool viewerIsRoomParticipant,
     @Default(false) bool viewerHasForwardEdge,
+    ({String id, String? displayName})? forwardedBy,
     @Default(0) int helpOfferCount,
     @Default(BeaconCoverSource.photo) BeaconCoverSource coverSource,
     ImageEntity? coverThumb,

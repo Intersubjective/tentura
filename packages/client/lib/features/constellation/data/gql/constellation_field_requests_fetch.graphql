@@ -26,6 +26,8 @@ query ConstellationFieldRequestsFetch(
     viewerHasActiveHelpOffer
     viewerIsRoomParticipant
     viewerHasForwardEdge
+    forwardedById
+    forwardedByName
     parentBeaconId
     helpOfferCount
     coverSource

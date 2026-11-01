@@ -8316,6 +8316,8 @@ type v2_ConstellationRequest {
   coverSource: Int!
   coverThumb: v2_image
   endAt: String
+  forwardedById: String
+  forwardedByName: String
   hasCoordinates: Boolean!
   helpOfferCount: Int!
   id: String!

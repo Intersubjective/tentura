@@ -1,0 +1,92 @@
+{
+  "__typename": "query_root",
+  "constellationField": {
+    "__typename": "ConstellationField",
+    "loadedAt": "2026-10-31T23:17:00.671445Z",
+    "context": "",
+    "peersCapped": false,
+    "requestsCapped": false,
+    "directContactIds": [
+      "Uforwardbob01"
+    ],
+    "peers": [
+      {
+        "__typename": "ConstellationPeer",
+        "id": "Uauthoralice1",
+        "pinState": null,
+        "contactOnly": false,
+        "presence": "temporary",
+        "temporaryBeaconId": "Bforwarded001",
+        "bondContexts": [],
+        "displayName": "Alice",
+        "handle": null,
+        "image": null
+      },
+      {
+        "__typename": "ConstellationPeer",
+        "id": "Uforwardbob01",
+        "pinState": null,
+        "contactOnly": false,
+        "presence": "visible",
+        "temporaryBeaconId": null,
+        "bondContexts": [],
+        "displayName": "Bob",
+        "handle": null,
+        "image": null
+      }
+    ],
+    "edges": [
+      {
+        "__typename": "ConstellationEdge",
+        "src": "Uforwardbob01",
+        "dst": "Uviewer000001",
+        "tier": 1
+      },
+      {
+        "__typename": "ConstellationEdge",
+        "src": "Uviewer000001",
+        "dst": "Uforwardbob01",
+        "tier": 1
+      }
+    ],
+    "requests": [
+      {
+        "__typename": "ConstellationRequest",
+        "id": "Bforwarded001",
+        "pinState": null,
+        "authorId": "Uauthoralice1",
+        "title": "Move the piano",
+        "status": 0,
+        "needs": [],
+        "primaryNeedSlug": null,
+        "startAt": null,
+        "endAt": null,
+        "addressLabel": null,
+        "hasCoordinates": false,
+        "isMine": false,
+        "viewerHasActiveHelpOffer": false,
+        "viewerIsRoomParticipant": false,
+        "viewerHasForwardEdge": true,
+        "parentBeaconId": null,
+        "helpOfferCount": 0,
+        "coverSource": 0,
+        "coverThumb": null,
+        "forwardedById": "Uforwardbob01",
+        "forwardedByName": "Bob"
+      }
+    ],
+    "posts": [],
+    "memberWebs": [],
+    "anchorProjection": {
+      "__typename": "ConstellationAnchorProjection",
+      "revision": "0",
+      "anchors": [],
+      "pinnedPeers": [],
+      "pinnedRequests": [],
+      "supportPeers": [],
+      "supportEdges": [],
+      "serverFilteredBeaconIds": [],
+      "serverFilteredBeaconCount": 0
+    }
+  }
+}

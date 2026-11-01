@@ -15,6 +15,7 @@ import 'package:tentura/features/people_tags/domain/use_case/people_tags_case.da
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import '../../domain/constellation_trust_badge.dart';
 import '../../domain/constellation_trust_chain.dart';
+import '../../domain/entity/constellation_field.dart';
 import '../bloc/constellation_cubit.dart';
 import '../bloc/constellation_presence_cubit.dart';
 import '../utils/constellation_presentation_frame.dart';
@@ -23,6 +24,7 @@ import 'constellation_node_ring_layer.dart';
 import 'constellation_overflow_group.dart';
 import 'constellation_presence_halo_layer.dart';
 import 'constellation_request_status_marker.dart';
+import 'constellation_request_label.dart';
 import 'constellation_overview_layer.dart';
 
 Size measureConstellationLabelPlate({
@@ -231,14 +233,10 @@ class _ConstellationViewportOverlayState
       1,
       tt.graphLabelMaxWidthPerson,
     ),
-    FieldBeaconNode(request: final request?) => (
-      request.isPlaceholder
-          ? constellationPinStateLabel(l10n, request.pinState)
-          : request.title.isEmpty
-          ? l10n.beaconViewTitle
-          : request.title,
-      2,
-      tt.graphLabelMaxWidthRequest,
+    FieldBeaconNode(request: final request?) => _requestLabelSpec(
+      request,
+      l10n,
+      tt,
     ),
     FieldBeaconNode(post: final post?) => (
       post.rootExcerpt,
@@ -247,6 +245,29 @@ class _ConstellationViewportOverlayState
     ),
     _ => ('', 1, tt.graphLabelMaxWidthPerson),
   };
+
+  (String, int, double) _requestLabelSpec(
+    ConstellationRequest request,
+    L10n l10n,
+    TenturaTokens tt,
+  ) {
+    if (request.isPlaceholder) {
+      return (
+        constellationPinStateLabel(l10n, request.pinState),
+        2,
+        tt.graphLabelMaxWidthRequest,
+      );
+    }
+    final title = request.title.isEmpty ? l10n.beaconViewTitle : request.title;
+    final annotation = request.heldState == ConstellationHeldState.forwarded
+        ? constellationHeldAnnotation(l10n, request)
+        : null;
+    return (
+      annotation == null ? title : '$title\n$annotation',
+      annotation == null ? 2 : kConstellationRequestMapLabelMaxLines,
+      tt.graphLabelMaxWidthRequest,
+    );
+  }
 
   void _maybeClearLabelCache(BuildContext context, int nodeCount) {
     final locale = Localizations.localeOf(context);

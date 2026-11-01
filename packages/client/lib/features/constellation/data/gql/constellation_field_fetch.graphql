@@ -52,6 +52,8 @@ query ConstellationFieldFetch(
       viewerHasActiveHelpOffer
       viewerIsRoomParticipant
       viewerHasForwardEdge
+      forwardedById
+      forwardedByName
       parentBeaconId
       helpOfferCount
       coverSource
@@ -117,6 +119,8 @@ query ConstellationFieldFetch(
         viewerHasActiveHelpOffer
         viewerIsRoomParticipant
         viewerHasForwardEdge
+        forwardedById
+        forwardedByName
         parentBeaconId
         helpOfferCount
         coverSource

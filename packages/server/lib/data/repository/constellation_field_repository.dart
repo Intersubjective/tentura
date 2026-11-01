@@ -46,6 +46,15 @@ final constellationRequestSelectColumns =
       AND bfe.cancelled_at IS NULL
   ) AS viewer_has_forward_edge,
   (
+    SELECT ARRAY[e.sender_id, sender.display_name]
+    FROM public.beacon_forward_edge e
+    JOIN public."user" sender ON sender.id = e.sender_id
+    WHERE e.beacon_id = b.id AND e.recipient_id = \$1
+      AND e.cancelled_at IS NULL
+    ORDER BY e.created_at DESC, e.id DESC
+    LIMIT 1
+  ) AS forwarded_by,
+  (
     SELECT COUNT(*)::int FROM public.beacon_help_offer ho
     WHERE ho.beacon_id = b.id AND ho.status = 0
   ) AS help_offer_count,
@@ -358,6 +367,14 @@ ConstellationRequestRecord readConstellationRequestRow(
     viewerHasActiveHelpOffer: row.read<bool>('viewer_has_active_help_offer'),
     viewerIsRoomParticipant: row.read<bool>('viewer_is_room_participant'),
     viewerHasForwardEdge: row.read<bool>('viewer_has_forward_edge'),
+    forwardedBy: switch (row.data['forwarded_by']) {
+      [final String id, final String? displayName] => (
+        id: id,
+        displayName: displayName,
+      ),
+      null => null,
+      _ => throw const FormatException('Invalid incoming-forward sender'),
+    },
     helpOfferCount: row.read<int>('help_offer_count'),
     kind: row.read<int>('kind'),
     coverSource: row.read<int>('cover_source'),

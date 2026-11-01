@@ -139,7 +139,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
 
   Size? _lastLabelBudgetViewport;
   double? _lastLabelBudgetTextScale;
-  (Brightness, Locale, double)? _lastFootprintSyncKey;
+  (Brightness, Locale, double, int)? _lastFootprintSyncKey;
   SceneLayoutAlgorithm? _mountedLayoutAlgorithm;
   String? _selectionUnavailableMessage;
   final _internalFrameHolder = ConstellationPresentationFrameHolder();
@@ -340,10 +340,20 @@ class _ConstellationBodyState extends State<ConstellationBody>
     );
     final reference = style.fontSize!;
     final ratio = MediaQuery.textScalerOf(context).scale(reference) / reference;
+    final cubit = context.read<ConstellationCubit>();
+    final hasForwardedLabel =
+        cubit.state.composition?.beaconNodes.any(
+          (node) => node.request?.heldState == ConstellationHeldState.forwarded,
+        ) ??
+        false;
+    final requestLabelMaxLines = hasForwardedLabel
+        ? kConstellationRequestMapLabelMaxLines
+        : 2;
     final footprintKey = (
       Theme.of(context).brightness,
       Localizations.localeOf(context),
       ratio,
+      requestLabelMaxLines,
     );
     final budgetDirty =
         _lastLabelBudgetViewport != viewport ||
@@ -359,7 +369,6 @@ class _ConstellationBodyState extends State<ConstellationBody>
     if (footprintDirty) {
       _lastFootprintSyncKey = footprintKey;
     }
-    final cubit = context.read<ConstellationCubit>();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) {
         return;
@@ -371,12 +380,12 @@ class _ConstellationBodyState extends State<ConstellationBody>
         );
       }
       if (footprintDirty) {
-        _syncFootprintMetrics(context);
+        _syncFootprintMetrics(context, requestLabelMaxLines);
       }
     });
   }
 
-  void _syncFootprintMetrics(BuildContext context) {
+  void _syncFootprintMetrics(BuildContext context, int requestLabelMaxLines) {
     final tt = context.tt;
     final l10n = L10n.of(context)!;
     final scheme = Theme.of(context).colorScheme;
@@ -397,9 +406,9 @@ class _ConstellationBodyState extends State<ConstellationBody>
       direction: direction,
     );
     final requestPlate = measureConstellationLabelPlate(
-      text: 'Ág\nÁg',
+      text: List.filled(requestLabelMaxLines, 'Ág').join('\n'),
       style: style,
-      maxLines: 2,
+      maxLines: requestLabelMaxLines,
       plateWidth: tt.graphLabelMaxWidthRequest,
       padding: padding,
       textScaler: textScaler,

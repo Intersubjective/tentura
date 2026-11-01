@@ -318,6 +318,7 @@ class ConstellationRequestRecord {
     required this.viewerHasActiveHelpOffer,
     required this.viewerIsRoomParticipant,
     required this.viewerHasForwardEdge,
+    this.forwardedBy,
     required this.helpOfferCount,
     this.kind = 0,
     this.coverSource = 0,
@@ -348,6 +349,7 @@ class ConstellationRequestRecord {
        viewerHasActiveHelpOffer = false,
        viewerIsRoomParticipant = false,
        viewerHasForwardEdge = false,
+       forwardedBy = null,
        helpOfferCount = 0,
        kind = 0,
        coverSource = 0,
@@ -369,6 +371,9 @@ class ConstellationRequestRecord {
   final bool viewerHasActiveHelpOffer;
   final bool viewerIsRoomParticipant;
   final bool viewerHasForwardEdge;
+
+  /// The sender of the viewer's most recent active incoming forward.
+  final ({String id, String? displayName})? forwardedBy;
   final int helpOfferCount;
 
   /// Wire: 0 = Request, 1 = Post (matches `beacon.kind`).
@@ -411,6 +416,7 @@ class ConstellationRequestRecord {
           other.viewerHasActiveHelpOffer == viewerHasActiveHelpOffer &&
           other.viewerIsRoomParticipant == viewerIsRoomParticipant &&
           other.viewerHasForwardEdge == viewerHasForwardEdge &&
+          other.forwardedBy == forwardedBy &&
           other.helpOfferCount == helpOfferCount &&
           other.kind == kind &&
           other.coverSource == coverSource &&
@@ -435,6 +441,7 @@ class ConstellationRequestRecord {
     viewerHasActiveHelpOffer,
     viewerIsRoomParticipant,
     viewerHasForwardEdge,
+    forwardedBy,
     helpOfferCount,
     kind,
     coverSource,

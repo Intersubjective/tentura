@@ -1064,6 +1064,8 @@ final gqlTypeConstellationRequest =
         field('viewerHasActiveHelpOffer', graphQLBoolean),
         field('viewerIsRoomParticipant', graphQLBoolean),
         field('viewerHasForwardEdge', graphQLBoolean),
+        field('forwardedById', graphQLString),
+        field('forwardedByName', graphQLString),
         field('helpOfferCount', graphQLInt),
         field('kind', graphQLInt),
         field('coverSource', graphQLInt),
