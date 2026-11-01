@@ -208,7 +208,7 @@ When filing beads for Alloy, never write 'Commit: fix(...): ...' in the descript
 client analyze: flutter analyze --no-fatal-infos <paths> (bare flutter analyze fails on ~267 pre-existing info lints; real gate is scripts/check-custom-lints.sh packages/client). Server checks: use scripts/run_with_test_cleanup.sh from repo root, never scripts/../../../ paths
 
 ### check-hints-analyze-baseline
-CI gate (pipeline.yml test-client-a/test-server): bash scripts/check-analyze-baseline.sh packages/client|packages/server — total analyzer issue count (info included) must not exceed scripts/analyze-baseline.txt. check-custom-lints.sh does NOT cover it. Run it in the lint/regression checks before landing; new code must not add analyzer issues (fix them, never raise the baseline). Client was 2183 vs baseline 2124 on 2026-10-07 after landings since 5a23e8a22.
+CI gate (pipeline.yml test-client-a/test-server): bash scripts/check-analyze-baseline.sh packages/client|packages/server — total analyzer issue count (info included) must not exceed scripts/analyze-baseline.txt. check-custom-lints.sh does NOT cover it. Run it before landing; new code must not add analyzer issues (fix them, never raise the baseline).
 
 ### check-hints-analyzer-budget-toolchain
 server test/architecture/analyzer_issue_budget_toolchain_integration_test.dart (tag toolchain) reports an extra 'server analyzer' issue when it runs in parallel with other suites and passes alone; it is excluded from 'scripts/run_tests.sh server-unit' (CI excludes toolchain too) and covered by 'scripts/run_tests.sh server-gates'. Do not treat its failure inside a big parallel run as a regression.
@@ -226,7 +226,7 @@ client lints: run FROM REPO ROOT, never with ../../ prefixes: './scripts/run_wit
 client flutter tests that read files by relative path (e.g. l10n/app_ru.arb) must run from packages/client: 'cd packages/client && flutter test ...'; running 'flutter test packages/client/test/...' from repo root gives PathNotFoundException - not a regression
 
 ### check-hints-flutter-per-test-timeout
-client widget tests: 'flutter test --timeout' and dart_test.yaml do NOT apply to testWidgets (it passes the binding's defaultTestTimeout, 10 min, explicitly). A widget test awaiting a future that can't complete under fake async hangs 10 min. Fix: packages/client/test/flutter_test_config.dart sets defaultTestTimeout=2 min (PR #768; on local main once rebased/cherry-picked). Until then keep the wrapper timeout short for targeted runs (e.g. --timeout 8m) and read which test hung from the '[E] did not complete' line.
+client widget tests: flutter test --timeout and dart_test.yaml do NOT apply to testWidgets (it passes the binding defaultTestTimeout explicitly). packages/client/test/flutter_test_config.dart sets defaultTestTimeout to 2 minutes; a test that still awaits forever can hang until that cap—use bounded pumps or .timeout on awaits and read the '[E] did not complete' line.
 
 ### check-hints-flutter-render-debug-vars
 widget tests that set rendering debug hooks (debugOnProfilePaint, debugRepaintRainbowEnabled, debugPaintSizeEnabled …) must reset them INSIDE the test body; addTearDown is too late — the binding asserts 'The value of a rendering debug variable was changed by the test' before tear-downs. Widget-layer hooks like debugOnRebuildDirtyWidget are fine in addTearDown (tentura-s7gl.96).
@@ -242,9 +242,6 @@ client red tests: a widget test that awaits data which never arrives must fail f
 
 ### check-hints-mr-suite
 server mr suite: 'scripts/run_tests.sh server-mr' (only files carrying the mr tag, -j 1, -x perf -x load) takes ~3.7 min (600 tests, 2026-10-24); the old 'dart test --tags mr --exclude-tags load -j 1' loaded every suite and took 16-22 min and also ran perf suites. Run it only for Field/visibility/trust/MeritRank changes (server-regression decides). A check ending exit=-1 with an empty log was killed by the recipe's max_command_timeout_minutes (30 for medium/complex), not hung. beacon_readable_ids_parity_pg_test '5x faster' is timing-sensitive under load.
-
-### check-hints-mr-suite-timeout
-pg/mr: the routine mr suite is 'scripts/run_tests.sh server-mr' (only mr-tagged files, -j 1, excludes perf and load; ~3.7 min). The old 'dart test --tags mr --exclude-tags load -j 1' loads every suite and takes 16-22 min: don't use it. The D8 load test carries the tag 'load'; run it only on its own ('--tags load', 90m), never as a bead regression check.
 
 ### check-hints-no-chained-suites
 Never propose one check that chains several suites with && (e.g. client-all && client-gates && server-...): it exceeds max_command_timeout and times out every iteration, burning max_iterations (tentura-x56h.27, 2026-10-26). Propose each ./scripts/run_tests.sh profile as its own check; passing ones are cached.
@@ -266,6 +263,9 @@ Full server suite: 'dart test --exclude-tags load' with default parallelism (~25
 
 ### check-hints-server-perf-flakes
 server full 'dart test --exclude-tags load' has load-sensitive perf tests (constellation_apply_batch_budgets_pg_test fails whenever other PG sessions exist = tentura-qfsj; perf_recorder_probes 250ms wait; meritrank_suite_serialization 30s timeouts). On needs-human with only these failing, rerun them alone with -j1 and land by hand if the bead's own tests pass.
+
+### check-hints-server-pg-chunked
+server pg suite: run it ONLY as 'scripts/run_tests.sh server-pg' (chunks of 80 files, RAM TMPDIR handled by the wrapper). Never a bare 'dart test --tags pg' (with or without -j 1): dart test compiles every pg suite into one dart_test.kernel.* dir under TMPDIR, which grew at ~1 GB per 45 s to 18+ GB on the RAM-backed /tmp and was killed (tentura-3tqd.3, 2026-11-01). For a quick targeted pg check, name the test files explicitly.
 
 ### check-hints-server-regression-split
 server-regression (gates+unit+pg in one check) can exceed max_command_timeout and time out (tentura-kxyq.4, 2026-10-26): propose server-gates, server-unit and server-pg (TENTURA_PG_TESTS_REQUIRED=1) as three separate checks instead.

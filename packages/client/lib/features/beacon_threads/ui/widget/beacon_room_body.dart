@@ -760,23 +760,25 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     return joined;
   }
 
+  /// Read-by rows of an own message's actions sheet, built from [state] so
+  /// the open sheet follows reads that arrive live (#738).
   List<Widget> _messageActionsReadByRows({
     required BuildContext sheetContext,
     required BuildContext hostContext,
-    required RoomCubit cubit,
+    required RoomState state,
     required L10n l10n,
     required Profile viewer,
     required RoomMessage message,
   }) {
-    final receipt = _receiptIndexFor(cubit.state).receiptFor(message);
+    final receiptIndex = _receiptIndexFor(state);
+    final receipt = receiptIndex.receiptFor(message);
     if (receipt == null || receipt.state == RoomMessageReceiptState.pending) {
       return const [];
     }
 
     final theme = Theme.of(sheetContext);
     final tt = sheetContext.tt;
-    final participants = cubit.state.participants;
-    final receiptIndex = _receiptIndexFor(cubit.state);
+    final participants = state.participants;
 
     if (receipt.state == RoomMessageReceiptState.sent) {
       return [
@@ -972,13 +974,22 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                   ),
                 ),
               if (isOwnMessage)
-                ..._messageActionsReadByRows(
-                  sheetContext: ctx,
-                  hostContext: context,
-                  cubit: cubit,
-                  l10n: l10n,
-                  viewer: viewer,
-                  message: message,
+                // The sheet sits under the root navigator, outside the
+                // room's providers, so it listens to the cubit directly.
+                BlocBuilder<RoomCubit, RoomState>(
+                  bloc: cubit,
+                  builder: (ctx, state) => Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: _messageActionsReadByRows(
+                      sheetContext: ctx,
+                      hostContext: context,
+                      state: state,
+                      l10n: l10n,
+                      viewer: viewer,
+                      message: message,
+                    ),
+                  ),
                 ),
               if (showBatonStart)
                 ListTile(
