@@ -33,7 +33,9 @@ class TenturaTextAction extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tt = context.tt;
-    final color = _toneToColor(tt, tone);
+    // A disabled action must look disabled (#258): the label's own style
+    // fixes its colour, so TextButton's disabled foreground never reached it.
+    final color = onPressed == null ? tt.textFaint : _toneToColor(tt, tone);
     final minSide = minInteractive ? kMinInteractiveDimension : 44.0;
     final button = TextButton(
       onPressed: onPressed,
@@ -44,6 +46,7 @@ class TenturaTextAction extends StatelessWidget {
         minimumSize: Size(minSide, minSide),
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
         foregroundColor: color,
+        disabledForegroundColor: color,
         alignment: flushStart
             ? AlignmentDirectional.centerStart
             : Alignment.center,

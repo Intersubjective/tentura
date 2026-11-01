@@ -1,3 +1,4 @@
+import 'package:tentura/domain/attention/attention_dismissible_membership.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/attention/entity/attention_summary.dart';
@@ -14,6 +15,10 @@ abstract class UpdatesFeedState extends StateBase with _$UpdatesFeedState {
     @Default(false) bool firstLoadDone,
     @Default('') String searchText,
     @Default(AttentionSummary()) AttentionSummary summary,
+
+    /// The server's "would Dismiss all take anything" (#258): Read all runs
+    /// that same sweep.
+    @Default(false) bool sweepEligible,
     @Default(<AttentionReceipt>[]) List<AttentionReceipt> items,
     @Default(<String, PromptProjection>{})
     Map<String, PromptProjection> promptProjections,
@@ -29,6 +34,22 @@ abstract class UpdatesFeedState extends StateBase with _$UpdatesFeedState {
   bool get isEmpty => items.isEmpty;
   bool get hasRefreshError => refreshError != null;
   bool get hasActionError => actionError != null;
+
+  /// «Read all» has something to do (#258): the sweep would take rows, a
+  /// loaded row is unseen, or a loaded row is optional attention it clears
+  /// after the sweep (`AttentionCase.readAll`). `summary.unreadTotal` also
+  /// counts unanswered forwards, which Read all never clears, so gating on it
+  /// left the control enabled with nothing to do.
+  bool get canReadAll =>
+      sweepEligible ||
+      items.any(
+        (r) =>
+            !r.isSeen ||
+            (r.itemKind == AttentionItemKind.receipt &&
+                isActiveOptional(r) &&
+                r.presentationKey != 'relay_received' &&
+                r.surface != AttentionSurface.activity),
+      );
 
   PromptProjection promptProjectionFor(String subjectId) =>
       promptProjections[subjectId] ?? const PromptProjection.unknown();
