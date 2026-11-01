@@ -198,145 +198,143 @@ class ForwardRecipientRow extends StatelessWidget {
       );
     }
 
-    return Semantics(
-      identifier: TestIds.forwardRecipient(candidate.id),
-      child: Padding(
-        padding: EdgeInsets.symmetric(
-          vertical: tt.rowGap,
-          horizontal: tt.screenHPadding,
-        ),
-        child: LayoutBuilder(
-          builder: (context, rowConstraints) {
-            final stackForwardManageActions =
-                hasForwardManageActions &&
-                context.windowClass == WindowClass.compact;
+    final stackForwardManageActions =
+        hasForwardManageActions && context.windowClass == WindowClass.compact;
 
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: PersonMenuGestures(
-                    enabled: hasPersonMenu,
-                    personId: candidate.id,
-                    child: Semantics(
-                      button: onOpenDetails != null,
-                      child: InkWell(
-                        key: TestIds.key(
-                          TestIds.forwardRecipient(candidate.id),
-                        ),
-                        onTap: onOpenDetails,
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            SelfAwareAvatar.medium(
-                              profile: candidate.profile,
-                              withContactBadge: true,
-                            ),
-                            SizedBox(width: tt.avatarTextGap),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  BlocBuilder<ProfileCubit, ProfileState>(
-                                    buildWhen: (p, c) =>
-                                        p.profile.id != c.profile.id,
-                                    builder: (context, state) {
-                                      final displayProfile =
-                                          profileWithContactOverlay(
-                                            candidate.profile,
-                                          );
-                                      return Text(
-                                        SelfUserHighlight.displayName(
-                                          l10n,
-                                          displayProfile,
+    return RepaintBoundary(
+      child: Semantics(
+        identifier: TestIds.forwardRecipient(candidate.id),
+        child: Padding(
+          padding: EdgeInsets.symmetric(
+            vertical: tt.rowGap,
+            horizontal: tt.screenHPadding,
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: PersonMenuGestures(
+                  enabled: hasPersonMenu,
+                  personId: candidate.id,
+                  child: Semantics(
+                    button: onOpenDetails != null,
+                    child: InkWell(
+                      key: TestIds.key(
+                        TestIds.forwardRecipient(candidate.id),
+                      ),
+                      onTap: onOpenDetails,
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SelfAwareAvatar.medium(
+                            profile: candidate.profile,
+                            withContactBadge: true,
+                          ),
+                          SizedBox(width: tt.avatarTextGap),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                BlocBuilder<ProfileCubit, ProfileState>(
+                                  buildWhen: (p, c) =>
+                                      p.profile.id != c.profile.id,
+                                  builder: (context, state) {
+                                    final displayProfile =
+                                        profileWithContactOverlay(
+                                          candidate.profile,
+                                        );
+                                    return Text(
+                                      SelfUserHighlight.displayName(
+                                        l10n,
+                                        displayProfile,
+                                        state.profile.id,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: SelfUserHighlight.nameStyle(
+                                        theme,
+                                        nameBaseStyle,
+                                        SelfUserHighlight.profileIsSelf(
+                                          candidate.profile,
                                           state.profile.id,
                                         ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: SelfUserHighlight.nameStyle(
-                                          theme,
-                                          nameBaseStyle,
-                                          SelfUserHighlight.profileIsSelf(
-                                            candidate.profile,
-                                            state.profile.id,
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                  SizedBox(height: tt.tightGap),
-                                  if (!line2.suppressed)
-                                    _Line2Content(
-                                      line2: line2,
-                                      candidate: candidate,
-                                      l10n: l10n,
-                                      tt: tt,
-                                      theme: theme,
-                                    ),
-                                  if (stackForwardManageActions) ...[
-                                    SizedBox(height: tt.tightGap),
-                                    forwardManageActionsRow(),
-                                  ],
-                                  if (showPresenceLine &&
-                                      candidate.topCapabilities.isNotEmpty) ...[
-                                    SizedBox(height: tt.tightGap),
-                                    Wrap(
-                                      spacing: tt.iconTextGap,
-                                      runSpacing: tt.tightGap,
-                                      children: [
-                                        for (final slug
-                                            in candidate.topCapabilities)
-                                          if (CapabilityTag.fromSlug(
-                                                slug.trim(),
-                                              )
-                                              case final tag?)
-                                            _CapabilityHintChip(
-                                              label: tag.labelOf(l10n),
-                                              icon: tag.icon,
-                                              group: tag.group,
-                                              matchesNeed: requiredSet.contains(
-                                                slug.trim(),
-                                              ),
-                                              matchSemanticsLabel: l10n
-                                                  .forwardRecipientCapabilityMatchesNeed,
-                                              tt: tt,
-                                            ),
-                                      ],
-                                    ),
-                                  ],
-                                  if (candidate.lineageGroup != null) ...[
-                                    SizedBox(height: tt.tightGap * 2),
-                                    _LineageMemoryBadge(l10n: l10n, tt: tt),
-                                    TenturaStatusText(
-                                      lineageReasonLabel(
-                                        l10n,
-                                        candidate.lineageReasonCode ?? '',
-                                        arg: candidate.lineageReasonArg,
                                       ),
-                                      tone:
-                                          candidate.lineageGroup ==
-                                              LineageSuggestionGroup.involved
-                                          ? TenturaTone.good
-                                          : TenturaTone.info,
-                                    ),
-                                  ],
+                                    );
+                                  },
+                                ),
+                                SizedBox(height: tt.tightGap),
+                                if (!line2.suppressed)
+                                  _Line2Content(
+                                    line2: line2,
+                                    candidate: candidate,
+                                    l10n: l10n,
+                                    tt: tt,
+                                    theme: theme,
+                                  ),
+                                if (stackForwardManageActions) ...[
+                                  SizedBox(height: tt.tightGap),
+                                  forwardManageActionsRow(),
                                 ],
-                              ),
+                                if (showPresenceLine &&
+                                    candidate.topCapabilities.isNotEmpty) ...[
+                                  SizedBox(height: tt.tightGap),
+                                  Wrap(
+                                    spacing: tt.iconTextGap,
+                                    runSpacing: tt.tightGap,
+                                    children: [
+                                      for (final slug
+                                          in candidate.topCapabilities)
+                                        if (CapabilityTag.fromSlug(
+                                              slug.trim(),
+                                            )
+                                            case final tag?)
+                                          _CapabilityHintChip(
+                                            label: tag.labelOf(l10n),
+                                            icon: tag.icon,
+                                            group: tag.group,
+                                            matchesNeed: requiredSet.contains(
+                                              slug.trim(),
+                                            ),
+                                            matchSemanticsLabel: l10n
+                                                .forwardRecipientCapabilityMatchesNeed,
+                                            tt: tt,
+                                          ),
+                                    ],
+                                  ),
+                                ],
+                                if (candidate.lineageGroup != null) ...[
+                                  SizedBox(height: tt.tightGap * 2),
+                                  _LineageMemoryBadge(l10n: l10n, tt: tt),
+                                  TenturaStatusText(
+                                    lineageReasonLabel(
+                                      l10n,
+                                      candidate.lineageReasonCode ?? '',
+                                      arg: candidate.lineageReasonArg,
+                                    ),
+                                    tone:
+                                        candidate.lineageGroup ==
+                                            LineageSuggestionGroup.involved
+                                        ? TenturaTone.good
+                                        : TenturaTone.info,
+                                  ),
+                                ],
+                              ],
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
                 ),
-                SizedBox(width: tt.rowGap),
-                if (!stackForwardManageActions && hasForwardManageActions) ...[
-                  ?editForwardButton,
-                  if (editForwardButton != null && cancelForwardButton != null)
-                    SizedBox(width: tt.iconTextGap),
-                  ?cancelForwardButton,
+              ),
+              SizedBox(width: tt.rowGap),
+              if (!stackForwardManageActions && hasForwardManageActions) ...[
+                ?editForwardButton,
+                if (editForwardButton != null && cancelForwardButton != null)
                   SizedBox(width: tt.iconTextGap),
-                ],
+                ?cancelForwardButton,
+                SizedBox(width: tt.iconTextGap),
+              ],
                 if (onEditReasons != null) ...[
                   if (isSelected && canSelectNew)
                     IconButton(
@@ -361,8 +359,6 @@ class ForwardRecipientRow extends StatelessWidget {
                   SizedBox(width: tt.iconTextGap),
                 ],
                 if (showsPersonalNoteSlot) ...[
-                  // A note preview shares the row with the name instead of
-                  // squeezing it; the empty slot keeps its fixed width.
                   if (ForwardRecipientPersonalNoteSlot.showsPreview(
                     isSelected: isSelected && canSelectNew,
                     isExpanded: isPersonalNoteExpanded,
@@ -373,23 +369,22 @@ class ForwardRecipientRow extends StatelessWidget {
                     personalNoteSlot,
                   SizedBox(width: tt.iconTextGap),
                 ],
-                if (hasPersonMenu) ...[
-                  PersonMenuButton(personId: candidate.id),
-                  SizedBox(width: tt.iconTextGap),
-                ],
-                _ForwardRowCheckbox(
-                  key: TestIds.key(
-                    TestIds.forwardRecipientCheckbox(candidate.id),
-                  ),
-                  identifier: TestIds.forwardRecipientCheckbox(candidate.id),
-                  name: profileWithContactOverlay(candidate.profile).shownName,
-                  isSelected: isSelected,
-                  enabled: checkboxEnabled,
-                  onTap: onToggle,
-                ),
+              if (hasPersonMenu) ...[
+                PersonMenuButton(personId: candidate.id),
+                SizedBox(width: tt.iconTextGap),
               ],
-            );
-          },
+              _ForwardRowCheckbox(
+                key: TestIds.key(
+                  TestIds.forwardRecipientCheckbox(candidate.id),
+                ),
+                identifier: TestIds.forwardRecipientCheckbox(candidate.id),
+                name: profileWithContactOverlay(candidate.profile).shownName,
+                isSelected: isSelected,
+                enabled: checkboxEnabled,
+                onTap: onToggle,
+              ),
+            ],
+          ),
         ),
       ),
     );

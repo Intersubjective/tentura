@@ -71,33 +71,44 @@ class ForwardRecipientPickerEntry extends StatelessWidget {
       ),
       builder: (context, view) {
         onBuild?.call();
-        return ValueListenableBuilder<String?>(
-          valueListenable: expandedPersonalNoteRecipientId,
-          builder: (context, expandedId, _) {
-            final isExpanded = expandedId == id;
+        Widget row({required bool isPersonalNoteExpanded}) =>
+            ForwardRecipientRow(
+              host: host,
+              isPost: profile == ForwardTargetProfile.post,
+              viewerIsAuthor: viewerIsAuthor,
+              candidate: candidate,
+              requiredCapabilitySlugs: beacon?.needs ?? const {},
+              isSelected: view.isSelected,
+              onToggle: onToggle,
+              onOpenDetails: onOpenDetails,
+              reasonSlugs: view.reasonSlugs,
+              onEditReasons: onEditReasons,
+              onEditForward: onEditForward,
+              onCancelForward: onCancelForward,
+              showsPersonalNoteSlot: showsNotes,
+              personalNotePreview: view.personalNotePreview,
+              isPersonalNoteExpanded: isPersonalNoteExpanded,
+              onOpenPersonalNote: showsNotes && view.isSelected
+                  ? onOpenPersonalNote
+                  : null,
+            );
+
+        if (!showsNotes || !view.isSelected) {
+          return row(isPersonalNoteExpanded: false);
+        }
+
+        return ListenableBuilder(
+          listenable: expandedPersonalNoteRecipientId,
+          builder: (context, _) {
+            final expandedId = expandedPersonalNoteRecipientId.value;
+            if (expandedId != id) {
+              return row(isPersonalNoteExpanded: false);
+            }
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                ForwardRecipientRow(
-                  host: host,
-                  isPost: profile == ForwardTargetProfile.post,
-                  viewerIsAuthor: viewerIsAuthor,
-                  candidate: candidate,
-                  requiredCapabilitySlugs: beacon?.needs ?? const {},
-                  isSelected: view.isSelected,
-                  onToggle: onToggle,
-                  onOpenDetails: onOpenDetails,
-                  reasonSlugs: view.reasonSlugs,
-                  onEditReasons: onEditReasons,
-                  onEditForward: onEditForward,
-                  onCancelForward: onCancelForward,
-                  showsPersonalNoteSlot: showsNotes,
-                  personalNotePreview: view.personalNotePreview,
-                  isPersonalNoteExpanded: isExpanded,
-                  onOpenPersonalNote:
-                      showsNotes && view.isSelected ? onOpenPersonalNote : null,
-                ),
-                if (showsNotes && isExpanded && recipientNoteController != null)
+                row(isPersonalNoteExpanded: true),
+                if (recipientNoteController != null)
                   Padding(
                     padding: EdgeInsets.symmetric(
                       horizontal: context.tt.screenHPadding,

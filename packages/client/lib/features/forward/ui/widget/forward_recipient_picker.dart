@@ -53,6 +53,7 @@ class ForwardRecipientPicker extends StatefulWidget {
     this.recipientNoteHint,
     this.promptUncoveredNotes = true,
     this.copyProfile,
+    this.debugOnRowBuild,
     super.key,
   });
 
@@ -96,6 +97,10 @@ class ForwardRecipientPicker extends StatefulWidget {
   /// defaults to [ForwardState.profile]. The Post composer sets it, as its
   /// draft is not a loaded beacon.
   final ForwardTargetProfile? copyProfile;
+
+  /// Test hook (#807): called when a recipient row entry rebuilds.
+  @visibleForTesting
+  final void Function(String candidateId)? debugOnRowBuild;
 
   /// «Your connections» header (#440).
   static const directSectionKey = Key('ForwardRecipientPicker.directSection');
@@ -915,15 +920,25 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                               else ...[
                                 SliverPadding(
                                   padding: EdgeInsets.only(bottom: tt.rowGap),
-                                  sliver: SliverList.list(
-                                    children: _buildVisibleRecipientList(
-                                      context: context,
-                                      cubit: cubit,
-                                      state: state,
-                                      visible: visible,
-                                      beacon: beacon,
-                                    ),
-                                  ),
+                                  sliver: () {
+                                    final recipientSlots =
+                                        _planVisibleRecipientSlots(
+                                          state: state,
+                                          visible: visible,
+                                        );
+                                    return SliverList.list(
+                                      children: [
+                                        for (final slot in recipientSlots)
+                                          _buildVisibleRecipientSlot(
+                                            context: context,
+                                            cubit: cubit,
+                                            state: state,
+                                            beacon: beacon,
+                                            slot: slot,
+                                          ),
+                                      ],
+                                    );
+                                  }(),
                                 ),
                                 const SliverFillRemaining(
                                   hasScrollBody: false,
@@ -1042,7 +1057,11 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
       recipientNoteController: _recipientNoteControllers[id],
       onRecipientNoteChanged: (text) => cubit.setRecipientNote(id, text),
       recipientNoteHint: widget.recipientNoteHint,
-      onBuild: onBuild,
+      onBuild:
+          onBuild ??
+          (widget.debugOnRowBuild != null
+              ? () => widget.debugOnRowBuild!(id)
+              : null),
     );
   }
 
@@ -1073,21 +1092,10 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
     return children;
   }
 
-  List<Widget> _buildVisibleRecipientList({
-    required BuildContext context,
-    required ForwardCubit cubit,
+  List<_RecipientListSlot> _planVisibleRecipientSlots({
     required ForwardState state,
     required List<ForwardCandidate> visible,
-    required Beacon? beacon,
   }) {
-    final tt = context.tt;
-    final l10n = L10n.of(context)!;
-    final children = <Widget>[];
-
-    // #440: people the viewer trusts directly first, then everyone else the
-    // picker can reach, each under its own header. The involved scope is a
-    // history of this beacon's chain, not a choice of whom to send to, so it
-    // stays one flat list. Order inside each group is unchanged.
     final grouped = state.activeFilter != ForwardFilter.alreadyInvolved;
     final ordered = grouped
         ? [
@@ -1101,68 +1109,104 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
     final hasDirect =
         grouped && ordered.isNotEmpty && ordered.first.profile.isFriend;
 
-    Widget sectionHeader(String label, {required Key key, String? helper}) =>
-        Padding(
-          key: key,
-          padding: EdgeInsets.symmetric(horizontal: tt.screenHPadding),
-          child: TenturaSectionHeader(label: label, helperText: helper),
-        );
+    final slots = <_RecipientListSlot>[];
 
     if (hasDirect) {
-      children.add(
-        sectionHeader(
-          l10n.forwardSectionDirectContacts,
-          key: ForwardRecipientPicker.directSectionKey,
-        ),
-      );
+      slots.add(const _RecipientListDirectHeader());
     }
 
     for (var i = 0; i < ordered.length; i++) {
       final startsOthers = grouped && i == firstOtherIndex;
       if (startsOthers) {
-        children.add(
-          sectionHeader(
-            l10n.forwardSectionOthersReachable,
-            helper: l10n.forwardSectionOthersReachableHint,
-            key: ForwardRecipientPicker.othersSectionKey,
-          ),
-        );
+        slots.add(const _RecipientListOthersHeader());
       } else if (i > 0) {
-        children.add(const TenturaHairlineDivider());
+        slots.add(const _RecipientListDivider());
       }
-      children.add(
-        _pickerEntry(
-          context: context,
-          cubit: cubit,
-          state: state,
-          candidate: ordered[i],
-          host: ForwardRecipientRowHost.pickerStandard,
-          beacon: beacon,
-          onEditForward: _forwardEdgeActionsEnabled(ordered[i])
-              ? () {
-                  _editNoteController.text = ordered[i].myForwardNote ?? '';
-                  cubit.startEditForward(ordered[i].id);
-                }
-              : null,
-          onCancelForward: _forwardEdgeActionsEnabled(ordered[i])
-              ? () => unawaited(cubit.cancelForward(ordered[i].id))
-              : null,
-        ),
-      );
-      if (state.editingRecipientId == ordered[i].id) {
-        children.add(
-          ForwardEditPanel(
-            controller: _editNoteController,
-            onNoteChanged: cubit.setEditNote,
-            onSave: () => unawaited(cubit.saveForwardEdit()),
-            onCancel: cubit.cancelEditForward,
-          ),
-        );
+      final candidate = ordered[i];
+      slots.add(_RecipientListRow(candidate));
+      if (state.editingRecipientId == candidate.id) {
+        slots.add(const _RecipientListEditPanel());
       }
     }
 
-    return children;
+    return slots;
   }
+
+  Widget _buildVisibleRecipientSlot({
+    required BuildContext context,
+    required ForwardCubit cubit,
+    required ForwardState state,
+    required Beacon? beacon,
+    required _RecipientListSlot slot,
+  }) {
+    final tt = context.tt;
+    final l10n = L10n.of(context)!;
+    return switch (slot) {
+      _RecipientListDirectHeader() => Padding(
+        key: ForwardRecipientPicker.directSectionKey,
+        padding: EdgeInsets.symmetric(horizontal: tt.screenHPadding),
+        child: TenturaSectionHeader(label: l10n.forwardSectionDirectContacts),
+      ),
+      _RecipientListOthersHeader() => Padding(
+        key: ForwardRecipientPicker.othersSectionKey,
+        padding: EdgeInsets.symmetric(horizontal: tt.screenHPadding),
+        child: TenturaSectionHeader(
+          label: l10n.forwardSectionOthersReachable,
+          helperText: l10n.forwardSectionOthersReachableHint,
+        ),
+      ),
+      _RecipientListDivider() => const TenturaHairlineDivider(),
+      _RecipientListEditPanel() => ForwardEditPanel(
+        controller: _editNoteController,
+        onNoteChanged: cubit.setEditNote,
+        onSave: () => unawaited(cubit.saveForwardEdit()),
+        onCancel: cubit.cancelEditForward,
+      ),
+      _RecipientListRow(:final candidate) => _pickerEntry(
+        context: context,
+        cubit: cubit,
+        state: state,
+        candidate: candidate,
+        host: ForwardRecipientRowHost.pickerStandard,
+        beacon: beacon,
+        onEditForward: _forwardEdgeActionsEnabled(candidate)
+            ? () {
+                _editNoteController.text = candidate.myForwardNote ?? '';
+                cubit.startEditForward(candidate.id);
+              }
+            : null,
+        onCancelForward: _forwardEdgeActionsEnabled(candidate)
+            ? () => unawaited(cubit.cancelForward(candidate.id))
+            : null,
+      ),
+    };
+  }
+}
+
+sealed class _RecipientListSlot {
+  const _RecipientListSlot();
+}
+
+final class _RecipientListDirectHeader extends _RecipientListSlot {
+  const _RecipientListDirectHeader();
+}
+
+final class _RecipientListOthersHeader extends _RecipientListSlot {
+  const _RecipientListOthersHeader();
+}
+
+final class _RecipientListDivider extends _RecipientListSlot {
+  const _RecipientListDivider();
+}
+
+final class _RecipientListEditPanel extends _RecipientListSlot {
+  const _RecipientListEditPanel();
+}
+
+final class _RecipientListRow extends _RecipientListSlot {
+  const _RecipientListRow(this.candidate);
+
+  final ForwardCandidate candidate;
 }
 
 /// Why the recipient list is empty (#252): nobody can be picked at all, the
