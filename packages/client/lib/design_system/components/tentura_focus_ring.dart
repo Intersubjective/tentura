@@ -142,8 +142,10 @@ class _TenturaFocusRingState extends State<TenturaFocusRing> {
         target.size.isEmpty) {
       return null;
     }
-    final topLeft = target.localToGlobal(Offset.zero, ancestor: stack);
-    final rect = topLeft & target.size;
+    final rect = MatrixUtils.transformRect(
+      target.getTransformTo(stack),
+      Offset.zero & target.size,
+    );
     // A focus covering most of the app is a screen- or pane-level shortcut
     // scope (e.g. the constellation body), not a control; outlining it says
     // nothing about where the user is.

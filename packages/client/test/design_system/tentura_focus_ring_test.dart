@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/ui/l10n/l10n.dart';
+
+import '../support/phone_surface.dart';
 
 // #499: keyboard focus was shown only as a faint grey fill. Focused controls
 // must get a 2 dp outline in primary blue with >= 3:1 contrast.
@@ -39,6 +42,89 @@ class _Controls {
       n.dispose();
     }
   }
+}
+
+const _scaledTargetKey = ValueKey<String>('scaledFocusTarget');
+
+Rect _ringOuterRect(Rect controlOnScreen) => controlOnScreen.inflate(
+  TenturaFocusRing.gap + TenturaSpacing.focusRing,
+);
+
+Rect _globalRenderRect(WidgetTester tester, Key key) {
+  final box = tester.renderObject<RenderBox>(find.byKey(key));
+  return MatrixUtils.transformRect(
+    box.getTransformTo(null),
+    Offset.zero & box.size,
+  );
+}
+
+Future<void> _pumpScaledFocusTarget(
+  WidgetTester tester, {
+  required double scale,
+  required Locale locale,
+  required Size surfaceSize,
+}) async {
+  await tester.binding.setSurfaceSize(surfaceSize);
+  addTearDown(() => tester.binding.setSurfaceSize(null));
+
+  final node = FocusNode(debugLabel: 'scaled');
+  addTearDown(node.dispose);
+
+  final target = Transform.scale(
+    scale: scale,
+    child: SizedBox(
+      key: _scaledTargetKey,
+      width: 80,
+      height: 32,
+      child: Material(
+        child: InkWell(
+          focusNode: node,
+          onTap: () {},
+          child: const Center(child: Text('Цель')),
+        ),
+      ),
+    ),
+  );
+
+  await tester.pumpWidget(
+    MaterialApp(
+      locale: locale,
+      theme: TenturaTheme.light(),
+      localizationsDelegates: L10n.localizationsDelegates,
+      supportedLocales: L10n.supportedLocales,
+      builder: (context, child) => TenturaFocusRing(child: child!),
+      home: Scaffold(
+        body: Center(child: target),
+      ),
+    ),
+  );
+
+  FocusManager.instance.highlightStrategy =
+      FocusHighlightStrategy.alwaysTraditional;
+  node.requestFocus();
+  await tester.pump();
+  await tester.pump();
+
+  expect(find.byKey(TenturaFocusRing.ringKey), findsOneWidget);
+  expect(
+    tester.getRect(find.byKey(TenturaFocusRing.ringKey)),
+    rectMoreOrLessEquals(
+      _ringOuterRect(_globalRenderRect(tester, _scaledTargetKey)),
+    ),
+  );
+}
+
+Future<void> _expectRingMatchesTarget(
+  WidgetTester tester,
+  Key targetKey,
+) async {
+  await tester.pump();
+  await tester.pump();
+  expect(find.byKey(TenturaFocusRing.ringKey), findsOneWidget);
+  expect(
+    tester.getRect(find.byKey(TenturaFocusRing.ringKey)),
+    rectMoreOrLessEquals(_ringOuterRect(_globalRenderRect(tester, targetKey))),
+  );
 }
 
 Future<ThemeData> _pump(
@@ -302,5 +388,118 @@ void main() {
     await tester.pump();
     await tester.pump();
     expect(ring, findsOneWidget);
+  });
+
+  group('#914 focus ring under ancestor transforms', () {
+    for (final (label, locale, surface) in [
+      ('375×667 RU', const Locale('ru'), kPhoneSurface),
+      ('desktop EN', const Locale('en'), const Size(900, 600)),
+    ]) {
+      testWidgets('Transform.scale(2) ring matches on-screen bounds ($label)', (
+        tester,
+      ) async {
+        await _pumpScaledFocusTarget(
+          tester,
+          scale: 2,
+          locale: locale,
+          surfaceSize: surface,
+        );
+      });
+
+      testWidgets('Transform.scale(1) ring unchanged ($label)', (tester) async {
+        await _pumpScaledFocusTarget(
+          tester,
+          scale: 1,
+          locale: locale,
+          surfaceSize: surface,
+        );
+      });
+    }
+
+    testWidgets('InteractiveViewer zoom ring matches on-screen bounds', (
+      tester,
+    ) async {
+      await usePhoneSurface(tester);
+      final node = FocusNode(debugLabel: 'iv');
+      addTearDown(node.dispose);
+      final controller = TransformationController(
+        Matrix4.identity()..scaleByDouble(2, 2, 2, 1),
+      );
+      addTearDown(controller.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          locale: const Locale('ru'),
+          theme: TenturaTheme.light(),
+          localizationsDelegates: L10n.localizationsDelegates,
+          supportedLocales: L10n.supportedLocales,
+          builder: (context, child) => TenturaFocusRing(child: child!),
+          home: Scaffold(
+            body: InteractiveViewer(
+              transformationController: controller,
+              child: Center(
+                child: SizedBox(
+                  key: _scaledTargetKey,
+                  width: 60,
+                  height: 28,
+                  child: Material(
+                    child: InkWell(
+                      focusNode: node,
+                      onTap: () {},
+                      child: const Center(child: Text('Узел')),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      FocusManager.instance.highlightStrategy =
+          FocusHighlightStrategy.alwaysTraditional;
+      node.requestFocus();
+      await _expectRingMatchesTarget(tester, _scaledTargetKey);
+    });
+
+    testWidgets('rotated Transform ancestor ring matches bounds', (
+      tester,
+    ) async {
+      await tester.binding.setSurfaceSize(const Size(900, 600));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final node = FocusNode(debugLabel: 'rotated');
+      addTearDown(node.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: TenturaTheme.light(),
+          builder: (context, child) => TenturaFocusRing(child: child!),
+          home: Scaffold(
+            body: Center(
+              child: Transform.rotate(
+                angle: 0.6,
+                child: SizedBox(
+                  key: _scaledTargetKey,
+                  width: 70,
+                  height: 30,
+                  child: Material(
+                    child: InkWell(
+                      focusNode: node,
+                      onTap: () {},
+                      child: const Center(child: Text('Rotate')),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      FocusManager.instance.highlightStrategy =
+          FocusHighlightStrategy.alwaysTraditional;
+      node.requestFocus();
+      await _expectRingMatchesTarget(tester, _scaledTargetKey);
+    });
   });
 }
