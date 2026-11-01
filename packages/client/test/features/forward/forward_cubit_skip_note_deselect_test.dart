@@ -81,7 +81,7 @@ void main() {
       ),
     );
 
-    cubit..toggleTag('t1', ['u1', 'u2']);
+    cubit.toggleTag('t1', ['u1', 'u2']);
 
     expect(cubit.state.selectedIds, {'u1', 'u2'});
     expect(cubit.state.perRecipientNotes, {'u1': 'n1', 'u2': 'n2'});

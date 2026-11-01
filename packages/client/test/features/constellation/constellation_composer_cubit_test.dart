@@ -73,7 +73,7 @@ void main() {
   }
 
   group('ForwardCubit.setSelection', () {
-    test('replaces the selected set and keeps notes of ids that stay', () {
+    test('replaces the selected set and keeps every stored note until the draft resets (#893)', () {
       final forward = ForwardCubit(
         beaconId: 'b',
         embedded: true,
@@ -90,7 +90,7 @@ void main() {
       forward.setSelection({'Ub', 'Uc'});
 
       expect(forward.state.selectedIds, {'Ub', 'Uc'});
-      expect(forward.state.perRecipientNotes, {'Ub': 'two'});
+      expect(forward.state.perRecipientNotes, {'Ua': 'one', 'Ub': 'two'});
     });
   });
 

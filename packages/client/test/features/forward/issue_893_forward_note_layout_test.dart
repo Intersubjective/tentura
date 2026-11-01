@@ -12,7 +12,6 @@ import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
-import 'package:get_it/get_it.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';
