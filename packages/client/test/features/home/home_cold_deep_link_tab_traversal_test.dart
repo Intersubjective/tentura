@@ -8,6 +8,9 @@
 //
 // Real RootRouter (its routes, deep-link builder and browse stack), real
 // HomeRoute page and shell; tab roots and the detail pages are stand-ins.
+//
+// #942 (warm, `_warmMatrix`): Blocked users opened from an in-app profile's
+// block sheet must come up over that profile, not under it.
 import 'dart:async';
 import 'dart:ui' show ViewFocusDirection, ViewFocusEvent, ViewFocusState;
 
@@ -556,6 +559,90 @@ void _matrix({
   });
 }
 
+/// #942: a profile opened in-app (Home already shown) whose block sheet
+/// links to Blocked users. The warm path pops the routes above Home first, as
+/// `openInvitations` does, so Blocked users is not hidden under the profile.
+void _warmMatrix({
+  required String name,
+  required Locale locale,
+  required Future<void> Function(WidgetTester) surface,
+  required Finder nav,
+  required bool navHiddenOnBranchDetail,
+}) {
+  // Where the in-app profile was opened from: the People list (Network)
+  // pushes it straight over Home; the Graph and a request push it over
+  // themselves.
+  const origins = <String, List<String>>{
+    'People list': ['$kPathProfileView/U2'],
+    'Graph': ['$kPathGraph/U2', '$kPathProfileView/U2'],
+    'request': ['$kPathBeaconView/B1', '$kPathProfileView/U2'],
+  };
+
+  Future<RootRouter> openProfileInApp(
+    WidgetTester tester,
+    List<String> paths,
+  ) async {
+    await surface(tester);
+    final router = await _start(tester, path: kPathNetwork, locale: locale);
+    _expectHomeShell(tester, nav);
+    for (final path in paths) {
+      unawaited(router.pushPath(path));
+      await _settle(tester);
+    }
+    expect(tester.takeException(), isNull);
+    expect(find.text('profile A'), findsOneWidget, reason: 'profile on top');
+    return router;
+  }
+
+  group('#942 in-app profile, $name', () {
+    for (final MapEntry(key: origin, value: paths) in origins.entries) {
+      testWidgets(
+        'from the $origin, open blocked users: Blocked users is shown, '
+        'Back goes to Friends',
+        (tester) async {
+          final router = await openProfileInApp(tester, paths);
+
+          unawaited(router.openBlockedUsers());
+          await _settle(tester);
+          expect(tester.takeException(), isNull);
+          expect(
+            find.text(_blockedUsers),
+            findsOneWidget,
+            reason: 'Blocked users is visible, not under the profile',
+          );
+          expect(find.byKey(_detailKey), findsNothing);
+          expect(router.stackData.map((r) => r.name), [HomeRoute.name]);
+          expect(
+            router.innerRouterOf<TabsRouter>(HomeRoute.name)!.activeIndex,
+            HomeTabSpec.forTab(HomeTab.network).index,
+          );
+          expect(nav, navHiddenOnBranchDetail ? findsNothing : findsOneWidget);
+
+          // Back from Blocked users lands on Friends, rail / bar and all.
+          await router.maybePopTop();
+          await _settle(tester);
+          expect(tester.takeException(), isNull);
+          expect(find.text(_blockedUsers), findsNothing);
+          _expectHomeShell(tester, nav);
+        },
+      );
+    }
+
+    testWidgets('open invitations: Network › Invitations is shown', (
+      tester,
+    ) async {
+      final router = await openProfileInApp(tester, origins['Graph']!);
+
+      unawaited(router.openInvitations());
+      await _settle(tester);
+      expect(tester.takeException(), isNull);
+      _expectHomeShell(tester, nav);
+      expect(router.stackData.map((r) => r.name), [HomeRoute.name]);
+      expect(find.text('$_friendsTab: $kHomeTabInvitations'), findsOneWidget);
+    });
+  });
+}
+
 void main() {
   late Map<String, PageInfo> saved;
 
@@ -639,6 +726,31 @@ void main() {
     },
   );
   _matrix(
+    name: 'phone 375x667 (ru)',
+    locale: const Locale('ru'),
+    nav: find.byType(HomeBottomNavigationBar),
+    navHiddenOnBranchDetail: true,
+    surface: (tester) async {
+      await usePhoneSurface(tester);
+      // MediaQuery follows the view: the bottom-bar (compact) Home shell.
+      tester.view
+        ..physicalSize = kPhoneSurface
+        ..devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+    },
+  );
+  _warmMatrix(
+    name: 'desktop 1280x800 (en)',
+    locale: const Locale('en'),
+    nav: find.byType(NavigationRail),
+    navHiddenOnBranchDetail: false,
+    surface: (tester) async {
+      tester.view.physicalSize = const Size(1280, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+    },
+  );
+  _warmMatrix(
     name: 'phone 375x667 (ru)',
     locale: const Locale('ru'),
     nav: find.byType(HomeBottomNavigationBar),
