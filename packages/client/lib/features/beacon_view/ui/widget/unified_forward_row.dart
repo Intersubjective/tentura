@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/help_offer_end.dart';
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/features/beacon_view/ui/util/beacon_people_labels.dart';
+import 'package:tentura/ui/presenter/beacon_people_labels.dart';
 import 'package:tentura/features/capability/ui/widget/forward_capability_chips.dart';
 import 'package:tentura/features/forward/domain/entity/forward_edge.dart';
 import 'package:tentura/ui/l10n/l10n.dart';

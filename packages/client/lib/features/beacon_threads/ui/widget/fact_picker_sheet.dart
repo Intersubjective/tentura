@@ -4,7 +4,7 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_attachment_widgets.dart';
-import 'package:tentura/features/beacon_view/domain/pinned_facts.dart';
+import 'package:tentura/domain/util/beacon_pinned_facts.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 /// Plan §7.3: search is shown only once the listed facts exceed this count.

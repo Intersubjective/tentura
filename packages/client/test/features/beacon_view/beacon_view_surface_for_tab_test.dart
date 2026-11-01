@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/consts.dart';
-import 'package:tentura/features/beacon_view/ui/widget/beacon_view_constants.dart';
+import 'package:tentura/ui/beacon/beacon_surface.dart';
 
 void main() {
   test('help_offers deep link opens People (issue #147)', () {

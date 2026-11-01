@@ -2,7 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_fact_card_consts.dart';
-import 'package:tentura/features/beacon_view/domain/pinned_facts.dart';
+import 'package:tentura/domain/util/beacon_pinned_facts.dart';
 
 BeaconFactCard _fact({
   required String id,

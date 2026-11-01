@@ -14,7 +14,7 @@ import 'package:tentura/features/beacon_threads/domain/room_host.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_state.dart';
-import 'package:tentura/features/beacon_view/ui/util/beacon_room_lease.dart';
+import 'package:tentura/ui/beacon/beacon_room_lease.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_room_surface.dart';
 import 'package:tentura/features/constellation/ui/util/constellation_focus_request.dart';
 import 'package:tentura/features/forward/ui/widget/beacon_invite_flow.dart';

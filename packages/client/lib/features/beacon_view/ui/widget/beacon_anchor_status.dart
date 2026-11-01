@@ -5,7 +5,7 @@ import 'package:tentura/domain/entity/beacon_coordination_phase.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/presenter/beacon_phase_input_builders.dart';
+import 'package:tentura/features/beacon_view/ui/presenter/beacon_phase_input_from_view_state.dart';
 import 'package:tentura/ui/presenter/beacon_phase_presenter.dart';
 
 /// Shared operational status for beacon detail app bar subtitle.

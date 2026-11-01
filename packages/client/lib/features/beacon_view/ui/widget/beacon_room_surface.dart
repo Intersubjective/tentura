@@ -11,7 +11,7 @@ import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_state.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/threads_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/threads_state.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/thread_detail.dart';
-import 'package:tentura/features/beacon_view/ui/util/beacon_room_lease.dart';
+import 'package:tentura/ui/beacon/beacon_room_lease.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
@@ -27,6 +27,7 @@ class BeaconRoomSurface extends StatefulWidget {
     this.onOpenCoordinationItem,
     this.postRoot,
     this.postArchived = false,
+    this.closureHadNoFinalCheck,
     super.key,
   });
 
@@ -46,6 +47,9 @@ class BeaconRoomSurface extends StatefulWidget {
 
   /// Post rooms only: the Post is closed or past its `expiresAt`.
   final bool postArchived;
+
+  /// When the loaded closure skipped Final check (#825).
+  final bool? closureHadNoFinalCheck;
 
   @override
   State<BeaconRoomSurface> createState() => _BeaconRoomSurfaceState();
@@ -264,6 +268,7 @@ class _BeaconRoomSurfaceState extends State<BeaconRoomSurface> {
                   capabilities: host.capabilities,
                   postRoot: widget.postRoot,
                   postArchived: widget.postArchived,
+                  closureHadNoFinalCheck: widget.closureHadNoFinalCheck,
                   onCoordinationSaved: widget.onCoordinationSaved,
                   onOpenCoordinationItem: widget.onOpenCoordinationItem,
                 );

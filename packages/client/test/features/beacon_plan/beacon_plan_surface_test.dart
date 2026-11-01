@@ -11,7 +11,7 @@ import 'package:tentura/features/beacon_plan/ui/bloc/plan_cubit.dart';
 import 'package:tentura/features/beacon_plan/ui/widget/beacon_plan_surface.dart';
 import 'package:tentura/features/beacon_plan/ui/widget/plan_step_row.dart';
 import 'package:tentura/features/beacon_plan/ui/widget/plan_step_sheet.dart';
-import 'package:tentura/features/beacon_view/ui/widget/beacon_view_constants.dart';
+import 'package:tentura/ui/beacon/beacon_surface.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import 'beacon_plan_test_support.dart';

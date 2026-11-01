@@ -14,6 +14,7 @@ import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_read_watermark.dart';
+import 'package:tentura/features/beacon_threads/domain/room_host.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/beacon_room_body.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
@@ -156,6 +157,8 @@ Future<RoomBodyHarnessCubit> pumpBeaconRoomBody(
   /// A harness cubit subclass to use instead of a plain one (it must have
   /// been created with `roomState`).
   RoomBodyHarnessCubit? cubit,
+  RoomCapabilities capabilities = const RoomCapabilities.request(),
+  bool? closureHadNoFinalCheck,
 }) async {
   final getIt = GetIt.I;
   await getIt.reset();
@@ -189,7 +192,11 @@ Future<RoomBodyHarnessCubit> pumpBeaconRoomBody(
           data: MediaQueryData(size: Size(width, height)),
           child: TenturaResponsiveScope(
             child: Scaffold(
-              body: BeaconRoomBody(enableComposer: enableComposer),
+              body: BeaconRoomBody(
+                enableComposer: enableComposer,
+                capabilities: capabilities,
+                closureHadNoFinalCheck: closureHadNoFinalCheck,
+              ),
             ),
           ),
         ),

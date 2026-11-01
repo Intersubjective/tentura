@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura/domain/entity/commitment_stake_state.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/help_offer_end.dart';
-import 'package:tentura/features/beacon_view/ui/util/beacon_people_labels.dart';
+import 'package:tentura/ui/presenter/beacon_people_labels.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 void main() {

@@ -17,7 +17,7 @@ import 'package:tentura/domain/use_case/beacon_create_case.dart';
 import 'package:tentura/domain/use_case/beacon_hierarchy_case.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/beacon_hierarchy_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/beacon_child_request_card.dart';
-import 'package:tentura/features/beacon_threads/ui/widget/beacon_child_requests_section.dart';
+import 'package:tentura/features/beacon_view/ui/widget/beacon_child_requests_section.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/beacon_hierarchy_parent_link.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_now_surface.dart';
