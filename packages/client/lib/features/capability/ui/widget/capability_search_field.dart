@@ -48,10 +48,9 @@ class _CapabilitySearchFieldState extends State<CapabilitySearchField> {
             suffixIcon: _controller.text.isEmpty
                 ? null
                 : IconButton(
-                    // «Clear», not «Delete»: it empties the search (#741).
-                    tooltip: MaterialLocalizations.of(
-                      context,
-                    ).clearButtonTooltip,
+                    // «Очистить поиск», not Material's «Удалить текст»: it
+                    // empties the search (#741).
+                    tooltip: l10n.capabilitySearchClear,
                     onPressed: () {
                       _controller.clear();
                       _changed('');
