@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
@@ -30,21 +29,8 @@ class ConstellationInteractionController {
 
   set draggingNodeId(String? nodeId) {
     _draggingNodeId = nodeId;
-    if (nodeId != null) return;
-    // GraphView releases capture during deactivation. Its sibling ring
-    // overlay may still be subscribed, so clear its presentation after build.
-    if (SchedulerBinding.instance.schedulerPhase ==
-        SchedulerPhase.persistentCallbacks) {
-      SchedulerBinding.instance.addPostFrameCallback((_) {
-        if (_draggingNodeId == null) dragCentre.value = null;
-      });
-    } else {
-      dragCentre.value = null;
-    }
   }
 
-  /// Scene centre the dragged node is held at; null when no node is dragged.
-  final dragCentre = ValueNotifier<Offset?>(null);
   bool suppressLateGestureEnd = false;
 
   final Set<GraphNodeId> placementClusterGraphIds = {};
@@ -128,7 +114,6 @@ class ConstellationInteractionController {
     ConstellationAnchorTarget target,
     Offset sceneCentre,
   ) {
-    dragCentre.value = sceneCentre;
     final parentGraphId = constellationGraphNodeIdForTarget(target);
     if (placementClusterGraphIds.isEmpty) {
       _scene.updateSingleNodePresentation(parentGraphId, sceneCentre);

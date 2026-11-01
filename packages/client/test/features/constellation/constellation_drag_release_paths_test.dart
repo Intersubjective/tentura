@@ -20,6 +20,7 @@ import '../../support/constellation_apply_via_writes.dart';
 import '../../support/constellation_store_fixture.dart';
 import '../../support/fake_clock_port.dart';
 import '../../support/fake_wake_up_port.dart';
+import '../../support/phone_surface.dart';
 import '../../support/test_realtime_sync.dart';
 import 'fixtures/constellation_reference_fixture.dart';
 
@@ -182,7 +183,11 @@ final class _Counters {
   Future<void> dispose() => _sub.cancel();
 }
 
-Future<_Harness> _mount(WidgetTester tester) async {
+Future<_Harness> _mount(
+  WidgetTester tester, {
+  Size size = const Size(800, 700),
+  Locale locale = const Locale('ru'),
+}) async {
   final repository = _FieldRepository(
     constellationReferenceField(
       egoRequestCount: _mountedEgoRequests,
@@ -214,7 +219,7 @@ Future<_Harness> _mount(WidgetTester tester) async {
   if (cubit.state.status is! StateIsSuccess) {
     await cubit.stream.firstWhere((state) => state.status is StateIsSuccess);
   }
-  await pumpConstellationBody(tester, cubit, size: const Size(800, 700));
+  await pumpConstellationBody(tester, cubit, size: size, locale: locale);
   await _settleFrames(tester);
   // The scene starts on the real layout, so every node is reachable by a
   // pointer; layouts after this point are the counted ones.
@@ -238,6 +243,11 @@ Future<void> _settleFrames(WidgetTester tester) async {
   await tester.pump(const Duration(milliseconds: 400));
   await tester.pump(const Duration(milliseconds: 400));
   await tester.pump(const Duration(milliseconds: 400));
+}
+
+void _expectNoTrustRingCaption() {
+  expect(find.textContaining('шаг', findRichText: true), findsNothing);
+  expect(find.textContaining('steps', findRichText: true), findsNothing);
 }
 
 Finder _nodeFinder(ConstellationAnchorTarget target) =>
@@ -1161,6 +1171,55 @@ void main() {
           );
         },
       );
+    }
+  });
+
+  group('dragging a person node (#939)', () {
+    for (final surface in [
+      (size: kPhoneSurface, locale: const Locale('ru'), label: '375×667 RU'),
+      (
+        size: const Size(1200, 900),
+        locale: const Locale('en'),
+        label: 'desktop',
+      ),
+    ]) {
+      for (final kind in [PointerDeviceKind.mouse, PointerDeviceKind.touch]) {
+        testWidgets(
+          'on ${surface.label} with ${kind.name}: no trust-ring caption '
+          'while dragging and the drop still saves placement',
+          (tester) async {
+            final harness = await _mount(
+              tester,
+              size: surface.size,
+              locale: surface.locale,
+            );
+            final cubit = harness.cubit;
+            final gesture = await _pickUpFreePerson(
+              tester,
+              harness,
+              kind: kind,
+            );
+            await gesture.moveBy(const Offset(120, 90));
+            await tester.pump();
+            _expectNoTrustRingCaption();
+
+            final frozen = _displayedWithout(cubit, _freeNodeId);
+            _expectLaidOut(frozen);
+            harness.counters.reset();
+
+            await _expectOneTransitionAfter(
+              tester,
+              cubit,
+              frozen: frozen,
+              release: gesture.up,
+            );
+
+            _expectNoTrustRingCaption();
+            expect(harness.placement.current.targets, contains(_freePerson));
+            expect(_writesFor(harness, _freePerson), 1);
+          },
+        );
+      }
     }
   });
 }

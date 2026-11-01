@@ -7273,7 +7273,6 @@
   "constellationArrange": "Расставить",
   "constellationUndo": "Отменить",
   "constellationRedo": "Повторить",
-  "constellationRingSteps": "{count, plural, one{{count} шаг} few{{count} шага} many{{count} шагов} other{{count} шага}}",
   "constellationResetPositionsConfirm": "Сбросить",
   "constellationResetPositionsFailed": "Не удалось сбросить позиции. Попробуйте ещё раз.",
   "constellationTrustLegendTitle": "Доверие между вами",

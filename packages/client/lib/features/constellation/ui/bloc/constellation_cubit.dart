@@ -341,9 +341,6 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   GraphController<NodeDetails, EdgeDetails> get graphController =>
       _scene.graphController;
 
-  /// Scene centre the dragged node is held at; null when nothing is dragged.
-  ValueListenable<Offset?> get dragCentre => _interaction.dragCentre;
-
   Map<GraphEdgeId, ConstellationEdgeKind> get edgeKinds => _scene.edgeKinds;
 
   Map<String, ConstellationEdgeKind> get edgeKindByPair =>

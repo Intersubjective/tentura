@@ -10766,16 +10766,6 @@
     "description": "Arrange sheet: applies the last undone arrangement action on the Field map again",
     "context": "ConstellationArrangeSheet"
   },
-  "constellationRingSteps": "{count, plural, one{{count} step} other{{count} steps}}",
-  "@constellationRingSteps": {
-    "description": "Caption of the trust ring nearest to a node being dragged: how many trust steps from you the ring is",
-    "context": "ConstellationRingCaption",
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
   "constellationResetPositionsConfirm": "Reset",
   "@constellationResetPositionsConfirm": {
     "context": "Field map: confirm button of the reset-positions dialog (#251)"
