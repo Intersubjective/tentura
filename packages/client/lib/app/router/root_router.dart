@@ -578,9 +578,10 @@ class RootRouter extends RootStackRouter {
 
   /// Opens a notification [rawLink] above the current root source.
   ///
-  /// Cold starts use the typed semantic Home owner from
-  /// [buildBrowseDeepLinkStack]. Warm starts keep the mounted Home tab (or
-  /// Forward flow) in place and push the canonical root detail above it.
+  /// Cold starts (no Home on the root stack) use the typed semantic Home
+  /// owner from [buildBrowseDeepLinkStack]. Warm starts keep the mounted Home
+  /// tab (or Forward flow) in place and push the canonical root detail above
+  /// it.
   Future<void> openFromNotificationLink(
     String rawLink, {
     bool preferUpdatesBranch = false,
@@ -598,8 +599,13 @@ class RootRouter extends RootStackRouter {
     }
 
     final browseStack = buildBrowseDeepLinkStack(normalized);
+    // Cold means no Home on the root stack. Home's tabs router is not the
+    // test: a Home covered since a cold deep link has not built its tab shell
+    // yet (#927), and replacing the stack would drop the page the person is
+    // on. Such a Home takes the warm path; the detail goes on top.
+    final homeOnStack = stackData.any((r) => r.name == HomeRoute.name);
     final tabs = innerRouterOf<TabsRouter>(HomeRoute.name);
-    if (tabs == null && browseStack != null) {
+    if (!homeOnStack && browseStack != null) {
       final preferredHome = _coldStartHomeForTab(
         preferUpdatesBranch: preferUpdatesBranch,
         preferHomeTab: preferHomeTab,
