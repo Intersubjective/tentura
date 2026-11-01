@@ -67,6 +67,9 @@ void main() {
           contains('assetBase:new URL("$prefix",document.baseURI)'),
         );
         expect(bootstrap, isNot(contains('_flutter.loader.load();')));
+        // #808: skwasm runs single-threaded until the upstream FreeType lock
+        // fix ships (see kForceSingleThreadedSkwasm).
+        expect(bootstrap, contains('forceSingleThreadedSkwasm:true'));
 
         final index = File('${dir.path}/index.html').readAsStringSync();
         expect(index, contains('href="${prefix}icons/Icon-192.png"'));

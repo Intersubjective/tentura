@@ -383,6 +383,8 @@ class ProfileAvatarInitials extends StatelessWidget {
             onContainer: scheme.onSecondaryContainer,
           )
         : context.palette.avatarHueFor(key);
+    // #808: a size that changes every frame means new FreeType work every
+    // frame; see kForceSingleThreadedSkwasm (hook/build/versioned_web_assets.dart).
     final fontSize = size * 0.38;
     return ColoredBox(
       color: swatch.container,

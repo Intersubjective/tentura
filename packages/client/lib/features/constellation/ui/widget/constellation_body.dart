@@ -2603,6 +2603,12 @@ class _OverviewDot extends StatelessWidget {
 /// A [kConstellationDistrictMarkerDiameter] circle of the person's initials on
 /// screen whatever the camera scale, ringed in the first own-tag colour (no
 /// ring without a tag), centred in the node's own scene box.
+///
+/// #808: these markers re-lay out ~30 initials paragraphs per zoom frame, which
+/// is what triggers the multi-threaded skwasm FreeType race; the web build runs
+/// skwasm single-threaded for now (see kForceSingleThreadedSkwasm in
+/// hook/build/versioned_web_assets.dart). Re-test fast zoom here after a
+/// Flutter upgrade.
 class _DistrictMarker extends StatelessWidget {
   const _DistrictMarker({
     required this.spec,
