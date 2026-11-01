@@ -193,6 +193,114 @@ class _TenturaUnderlineTabsState extends State<TenturaUnderlineTabs>
         : _TabLabelMode.iconOnly;
   }
 
+  double _textWidth(BuildContext context, String text, TextStyle style) {
+    final painter = TextPainter(
+      text: TextSpan(text: text, style: style),
+      textDirection: Directionality.of(context),
+      textScaler: MediaQuery.textScalerOf(context),
+      maxLines: 1,
+    )..layout();
+    final width = painter.width;
+    painter.dispose();
+    return width;
+  }
+
+  double _countWidth(BuildContext context, int count) {
+    final tt = context.tt;
+    if (widget.countStyle == TenturaTabCountStyle.plainText) {
+      return _textWidth(
+        context,
+        '$count',
+        TenturaText.withTabular(TenturaText.bodySmall(tt.text)),
+      );
+    }
+    // TenturaCountBadge: 5 px padding each side, at least 18 px wide.
+    final text = _textWidth(
+      context,
+      count > 99 ? '99+' : '$count',
+      TenturaText.labelSmall(tt.text),
+    );
+    return text + 10 < 18 ? 18 : text + 10;
+  }
+
+  /// What a flex tab's content needs: icon, label, inline counts or dot.
+  double _contentWidth(BuildContext context, int i, _TabLabelMode mode) {
+    final tt = context.tt;
+    final showIcon =
+        mode != _TabLabelMode.labelOnly &&
+        widget.icons != null &&
+        i < widget.icons!.length;
+    final showLabel = mode != _TabLabelMode.iconOnly;
+    var width = 0.0;
+    if (showIcon) width += _kTabIconSize + (showLabel ? tt.iconTextGap : 0);
+    if (showLabel) {
+      width += _textWidth(
+        context,
+        widget.tabs[i],
+        TenturaText.tabLabel(tt.text),
+      );
+    }
+    final badge = widget.badges != null && i < widget.badges!.length
+        ? widget.badges![i]
+        : null;
+    final secondary =
+        widget.secondaryBadges != null && i < widget.secondaryBadges!.length
+        ? widget.secondaryBadges![i]
+        : null;
+    final hasPrimary = badge != null && badge > 0;
+    final hasSecondary = secondary != null && secondary > 0;
+    if (hasPrimary || hasSecondary) {
+      width += tt.iconTextGap;
+      if (hasPrimary) width += _countWidth(context, badge);
+      if (hasPrimary && hasSecondary) width += tt.tightGap;
+      if (hasSecondary) width += _countWidth(context, secondary);
+    } else if (widget.dots != null &&
+        i < widget.dots!.length &&
+        widget.dots![i]) {
+      width += tt.tightGap + tt.unreadDotSize;
+    }
+    // Sub-pixel slack, so a label that fits is never ellipsised by rounding.
+    return width.ceilToDouble() + 1;
+  }
+
+  /// Flex factors for the non-compact tabs (#930). Equal slots while every
+  /// tab's content fits one; otherwise the width is shared by content, so a
+  /// tab with a count («Обсуждение ❶») keeps its whole label and the
+  /// shorter tabs give up what they do not use.
+  List<int>? _contentFlexes(
+    BuildContext context,
+    double maxWidth,
+    _TabLabelMode mode,
+  ) {
+    if (!maxWidth.isFinite) return null;
+    final n = widget.tabs.length;
+    final compact = widget.compactIconTabs;
+    final flexIndices = [
+      for (var i = 0; i < n; i++)
+        if (!compact.contains(i)) i,
+    ];
+    if (flexIndices.isEmpty) return null;
+    final available =
+        maxWidth -
+        compact.where((i) => i >= 0 && i < n).length *
+            context.tt.tabCompactWidth;
+    final slot = available / flexIndices.length;
+    final needed = {
+      for (final i in flexIndices) i: _contentWidth(context, i, mode),
+    };
+    if (needed.values.every((w) => w <= slot)) return null;
+    final total = needed.values.fold<double>(0, (a, b) => a + b);
+    final share = total < available
+        ? (available - total) / flexIndices.length
+        : 0.0;
+    return List.generate(n, (i) {
+      final width = needed[i];
+      return width == null
+          ? 0
+          : ((width + share) * 100).round().clamp(1, 1 << 30);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final tt = context.tt;
@@ -213,6 +321,7 @@ class _TenturaUnderlineTabsState extends State<TenturaUnderlineTabs>
           final mode = hasIcons
               ? _labelMode(context, constraints.maxWidth)
               : _TabLabelMode.iconAndLabel;
+          final flexes = _contentFlexes(context, constraints.maxWidth, mode);
           return Row(
             children: [
               for (var i = 0; i < widget.tabs.length; i++)
@@ -231,6 +340,7 @@ class _TenturaUnderlineTabsState extends State<TenturaUnderlineTabs>
                   )
                 else
                   Expanded(
+                    flex: flexes?[i] ?? 1,
                     child: _buildTabCell(
                       context,
                       index: i,
