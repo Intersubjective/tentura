@@ -694,16 +694,20 @@ final class BeaconViewCase extends UseCaseBase {
   void notifyBeaconUpdated(Beacon beacon) =>
       _beaconRepository.notifyUpdated(beacon);
 
-  /// Final-check snapshot when the Request is wrapping up.
+  /// Final-check snapshot while the Request is wrapping up or after it closed
+  /// without a review window (#825, #915).
   ///
   /// [status] is the status of a Request just read. Passing it skips another
   /// beacon fetch; without it the status is read first.
-  Future<ClosureState?> fetchClosureStateIfReviewOpen(
+  Future<ClosureState?> fetchClosureStateIfReviewOpenOrClosed(
     String beaconId, {
     BeaconStatus? status,
   }) async {
     final resolved = status ?? (await fetchBeaconById(beaconId)).status;
-    if (resolved != BeaconStatus.reviewOpen) return null;
+    if (resolved != BeaconStatus.reviewOpen &&
+        resolved != BeaconStatus.closed) {
+      return null;
+    }
     return _closureRepository.fetchState(beaconId);
   }
 }
