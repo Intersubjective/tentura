@@ -11,6 +11,8 @@ FROM debian:bookworm-slim
 
 # Upgrading Flutter? Run scripts/check_skwasm_single_thread.sh: the web build
 # forces single-threaded skwasm on 3.47.0 (#808); re-test multi-threaded.
+# Also run scripts/check_flutter_semantics_patch.sh: 3.47.0 is patched below
+# with flutter/flutter#192724 (#746, #916); drop the patch once Flutter has it.
 ARG FLUTTER_VERSION=3.47.0
 
 ENV FLUTTER_HOME=/sdks/flutter
@@ -35,8 +37,15 @@ RUN apt-get update -qq \
 # refuses that unless marked safe (breaks pub git deps like ferry).
 RUN git config --global --add safe.directory '*'
 
+# Upstream fixes not yet in a Flutter release (scripts/flutter_patches/README.md).
+# The build fails when a patch no longer applies to $FLUTTER_VERSION.
+COPY scripts/flutter_patches/flutter-195316-flush-semantics.patch /tmp/flutter-patches/
+
 RUN git clone --depth 1 --branch "$FLUTTER_VERSION" \
       https://github.com/flutter/flutter.git "$FLUTTER_HOME" \
+ && git -C "$FLUTTER_HOME" apply --check /tmp/flutter-patches/flutter-195316-flush-semantics.patch \
+ && git -C "$FLUTTER_HOME" apply /tmp/flutter-patches/flutter-195316-flush-semantics.patch \
+ && rm -rf /tmp/flutter-patches \
  && flutter config --no-analytics --no-cli-animations \
       --no-enable-android --no-enable-ios --no-enable-macos-desktop \
       --no-enable-windows-desktop --no-enable-linux-desktop \
