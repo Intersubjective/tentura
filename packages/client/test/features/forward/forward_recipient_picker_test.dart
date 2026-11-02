@@ -807,7 +807,9 @@ void main() {
       await tester.pump();
       expect(cubit.state.perRecipientNotes['u1'], typed);
 
-      FocusManager.instance.primaryFocus?.unfocus();
+      // A bare unfocus can be view/helper parking and keeps a non-empty note
+      // open (#893 r4); an outside tap is the blur that collapses it.
+      await tester.tapAt(const Offset(180, 12));
       await tester.pumpAndSettle();
       expect(find.byType(TextField), findsNothing);
       expect(find.text(typed), findsOneWidget);
@@ -852,7 +854,8 @@ void main() {
       await tester.pump();
       expect(cubit.state.perRecipientNotes['u1'], 'заметка');
 
-      FocusManager.instance.primaryFocus?.unfocus();
+      // An outside tap, not a bare unfocus, collapses a non-empty note (#893 r4).
+      await tester.tapAt(const Offset(180, 12));
       await tester.pumpAndSettle();
       expect(find.byType(TextField), findsNothing);
       expect(find.text('заметка'), findsOneWidget);
