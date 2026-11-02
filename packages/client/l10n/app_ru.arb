@@ -574,18 +574,6 @@
   "@setDisplayPeriod": {
     "context": "BeaconCreateScreen"
   },
-  "beaconTitleRequired": "Название запроса (обязательно)",
-  "@beaconTitleRequired": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconNeedsTitle": "Требуемые компетенции",
-  "@beaconNeedsTitle": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconNeedsHelper": "Необязательно. Отметьте, что нужно для запроса — так проще подобрать получателей при пересылке.",
-  "@beaconNeedsHelper": {
-    "context": "BeaconCreateScreen"
-  },
   "buttonPublish": "Опубликовать",
   "@buttonPublish": {
     "context": "BeaconCreateScreen"
@@ -607,14 +595,6 @@
   "@removeAll": {
     "context": "BeaconCreateScreen"
   },
-  "beaconInfo": "Инфо",
-  "@beaconInfo": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconImage": "Изображение",
-  "@beaconImage": {
-    "context": "BeaconCreateScreen"
-  },
   "beaconRecipients": "Получатели",
   "@beaconRecipients": {
     "context": "BeaconCreateScreen"
@@ -629,10 +609,6 @@
   },
   "beaconRecipientsBlockedBannerBody": "Добавьте название и описание, прежде чем выбирать получателей или приглашать нового человека.",
   "@beaconRecipientsBlockedBannerBody": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconSendRequest": "Отправить запрос",
-  "@beaconSendRequest": {
     "context": "BeaconCreateScreen"
   },
   "beaconSendRequestBlockedRecipients": "Выберите хотя бы одного получателя или сохраните черновик.",
@@ -651,15 +627,6 @@
   "@beaconSendConfirmationTitle": {
     "context": "BeaconCreateScreen"
   },
-  "beaconSendConfirmationDelivered": "Доставлено {count, plural, =1{1 человеку} few{{count} людям} many{{count} людям} other{{count} людям}}.",
-  "@beaconSendConfirmationDelivered": {
-    "context": "BeaconCreateScreen",
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
   "beaconSendConfirmationFailed": "Запрос опубликован, но доставка не удалась. Откройте его в «Запросах», чтобы отправить снова.",
   "@beaconSendConfirmationFailed": {
     "context": "BeaconCreateScreen"
@@ -676,42 +643,8 @@
   "@beaconCoverSourceSymbol": {
     "context": "BeaconCreateScreen"
   },
-  "beaconCoverSymbolNeedsCapability": "Сначала добавьте возможность.",
-  "@beaconCoverSymbolNeedsCapability": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconCoverHintPhotoPick": "Нажмите на превью, чтобы добавить фото обложки.",
-  "@beaconCoverHintPhotoPick": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconCoverHintPhotoSelected": "Нажмите на превью, чтобы выбрать или заменить фото обложки.",
-  "@beaconCoverHintPhotoSelected": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconCoverHintNoPhotoUsingSymbol": "Фото обложки пока нет — показываем символ «{capability}».",
-  "@beaconCoverHintNoPhotoUsingSymbol": {
-    "context": "BeaconCreateScreen",
-    "placeholders": {
-      "capability": {
-        "type": "String"
-      }
-    }
-  },
-  "beaconCoverHintSymbolSelected": "Показываем символ «{capability}».",
-  "@beaconCoverHintSymbolSelected": {
-    "context": "BeaconCreateScreen",
-    "placeholders": {
-      "capability": {
-        "type": "String"
-      }
-    }
-  },
   "beaconCoverPreviewSemantics": "Превью обложки запроса",
   "@beaconCoverPreviewSemantics": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconCoverChangeSymbol": "Изменить символ",
-  "@beaconCoverChangeSymbol": {
     "context": "BeaconCreateScreen"
   },
   "beaconCoverSymbolSheetTitle": "Выберите символ",
@@ -744,10 +677,6 @@
   },
   "beaconCoverThumbReset": "Сбросить миниатюру карточки",
   "@beaconCoverThumbReset": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconCoverHintThumbOnCard": "На запросе остаётся полное фото; кадрирование влияет только на маленькую карточку.",
-  "@beaconCoverHintThumbOnCard": {
     "context": "BeaconCreateScreen"
   },
   "beaconCoverStatusAddCover": "Добавить обложку",
@@ -852,18 +781,6 @@
   },
   "createBeaconErrorTooShortQuestion": "слишком короткий вопрос",
   "@createBeaconErrorTooShortQuestion": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconCreateSuccess": "Запрос успешно создан!",
-  "@beaconCreateSuccess": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconCreateError": "Что-то пошло не так, запрос не создан. Попробуйте ещё раз.",
-  "@beaconCreateError": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconViewButton": "Посмотреть",
-  "@beaconViewButton": {
     "context": "BeaconCreateScreen"
   },
   "confirmBeaconPublishing": "Вы уверены, что хотите опубликовать этот запрос?",
@@ -2528,15 +2445,6 @@
   "@inboxCategoryGeneral": {
     "context": "InboxItemTile"
   },
-  "beaconCardHelpOfferCount": "{count}",
-  "@beaconCardHelpOfferCount": {
-    "context": "Beacon list card meta strip (icon conveys help offers)",
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
   "forwardBeaconTitle": "Переслать запрос",
   "@forwardBeaconTitle": {
     "context": "ForwardBeaconScreen"
@@ -3275,19 +3183,6 @@
       }
     }
   },
-  "beaconCardScheduleEndedAgo": "Завершено {ago}",
-  "@beaconCardScheduleEndedAgo": {
-    "description": "Screen reader label for beacon schedule finished relative time",
-    "placeholders": {
-      "ago": {
-        "type": "String"
-      }
-    }
-  },
-  "beaconCardScheduleInProgress": "В процессе",
-  "@beaconCardScheduleInProgress": {
-    "description": "Screen reader label when beacon is in progress without an end date"
-  },
   "beaconCardScheduleScheduledFor": "Запланировано: {date}",
   "@beaconCardScheduleScheduledFor": {
     "description": "Screen reader label for an upcoming event shown as an absolute date/range",
@@ -3612,10 +3507,6 @@
   "@beaconViewRoomAccessUnavailableBanner": {
     "context": "BeaconViewScreen"
   },
-  "beaconViewSurfaceStatusAction": "Статус",
-  "@beaconViewSurfaceStatusAction": {
-    "context": "BeaconViewScreen"
-  },
   "beaconViewBannerDismiss": "Скрыть",
   "@beaconViewBannerDismiss": {
     "context": "BeaconViewScreen"
@@ -3765,25 +3656,10 @@
     "context": "BeaconViewScreen",
     "description": "Tab title for forward trail / notes to the viewer"
   },
-  "beaconPeopleShowForwards": "Показать пересылки",
-  "@beaconPeopleShowForwards": {
-    "context": "BeaconViewScreen",
-    "description": "CTA button in People tab to lazy-load the forwards subsection"
-  },
   "beaconForwardsEmpty": "Пока нет цепочки пересылок к вам по этому запросу.",
   "@beaconForwardsEmpty": {
     "context": "BeaconViewScreen",
     "description": "Empty state when the viewer has no inbox forward provenance"
-  },
-  "beaconForwardsCount": "{count} пересылок",
-  "@beaconForwardsCount": {
-    "context": "BeaconViewScreen",
-    "description": "Tab header pill: number of distinct forwarders to the viewer",
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
   },
   "myForwardDeclined": "Убрано",
   "@myForwardDeclined": {
@@ -4009,42 +3885,9 @@
   "beaconHierarchyLifecycleChild": "Дочерний запрос {status, select, reviewOpen{перешёл к подведению итогов} closed{закрыт} cancelled{отменён} deleted{удалён} other{сменил статус}} {date}",
   "beaconHierarchyLifecycleAncestor": "Вышестоящий запрос {status, select, reviewOpen{перешёл к подведению итогов} closed{закрыт} cancelled{отменён} deleted{удалён} other{сменил статус}} {date}",
   "beaconHierarchyLifecycleTitled": "Запрос «{title}» {status, select, reviewOpen{перешёл к подведению итогов} closed{закрыт} cancelled{отменён} deleted{удалён} other{сменил статус}} {date}",
-  "beaconPromotionAlreadyExists": "Это сообщение уже преобразовано в дочерний запрос",
   "beaconChildFooterUnavailable": "Запрос недоступен",
-  "beaconChildCardWithHelper": "С {name}",
-  "@beaconChildCardWithHelper": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    },
-    "description": "Child request card: one admitted helper display name"
-  },
   "threadGeneralTitle": "Обсуждение",
   "beaconItemsEmptyPlaceholder": "Элементов координации пока нет",
-  "beaconItemsActiveFoldTitle": "Активные ({count})",
-  "@beaconItemsActiveFoldTitle": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "beaconItemsActiveFoldTitleFiltered": "Активные ({filtered} из {total})",
-  "@beaconItemsActiveFoldTitleFiltered": {
-    "placeholders": {
-      "filtered": {
-        "type": "int"
-      },
-      "total": {
-        "type": "int"
-      }
-    }
-  },
-  "beaconItemsActiveForMeFilter": "Для меня",
-  "beaconItemsActiveForMeFilterSemantics": "Показать только пункты, где вы источник или получатель",
-  "beaconItemsActiveForMeEmpty": "Нет активных пунктов для вас",
-  "beaconItemsFactsFoldTitle": "Закреплённые факты",
   "beaconHudNowLabel": "СЕЙЧАС",
   "beaconHudYouLabel": "ВЫ",
   "beaconHudPeopleRowSemantics": "Участники",
@@ -4062,21 +3905,11 @@
     "description": "YOU line fallback when non-author has no personal coordination items"
   },
   "beaconYouClosed": "Закрыто",
-  "beaconYouActionReply": "Ответить",
-  "beaconYouActionDone": "Готово",
-  "beaconYouActionDecline": "Отклонить",
-  "beaconYouActionUpdate": "Обновить",
-  "beaconYouActionWithdraw": "Отозвать",
-  "beaconYouActionResolve": "Решить",
   "beaconHudNoCurrentLine": "Следующего шага пока нет",
   "beaconHudEditCurrentLineTitle": "Следующий шаг",
   "beaconHudEditNowLine": "Изменить следующий шаг",
-  "beaconSituationStateLabel": "Статус",
   "beaconSituationCurrentLineLabel": "Следующий шаг",
-  "beaconSituationBlockerLabel": "Блокер",
-  "beaconSituationLastChangeLabel": "Последнее",
   "beaconSituationOpenRoom": "Открыть обсуждение",
-  "beaconBlockersPanelTitle": "Блокеры / Вопросы",
   "beaconBlockersPanelAskInRoom": "Спросить в обсуждении",
   "beaconHudYouAuthorReview": "{count, plural, one{Проверить {count} предложение} few{Проверить {count} предложения} other{Проверить {count} предложений}}",
   "@beaconHudYouAuthorReview": {
@@ -4120,7 +3953,6 @@
   "beaconHudYouAuthorReadyToClose": "Завершите цикл",
   "beaconHudYouAuthorCoordinationActive": "Координация активна — обновите или перешлите",
   "beaconCloseSheetReadyTitle": "Закрыть запрос?",
-  "beaconCloseSheetReadyBody": "Запрос будет отмечен завершённым и откроется подтверждение вклада.",
   "beaconCloseSheetReviewTitle": "Закрыть после проверки?",
   "beaconCloseSheetReviewBody": "Возможно, всё готово, но часть сигналов всё ещё требует вашего решения.",
   "beaconCloseSheetPrematureTitle": "Закрыть сейчас?",
@@ -4171,7 +4003,6 @@
   "beaconReviewReopenAction": "Открыть снова",
   "beaconReviewCloseNowAction": "Закрыть сейчас",
   "beaconReviewExtendSuccess": "Время на итоги продлено",
-  "beaconReviewCloseNowSuccess": "Запрос закрыт",
   "beaconReviewReopenTitle": "Открыть запрос снова?",
   "beaconReviewReopenBodyNoSent": "Подведение итогов прервётся, сохранённые ответы останутся черновиками. Вернуть запрос можно только один раз.",
   "beaconReviewReopenConfirm": "Открыть снова",
@@ -4212,15 +4043,9 @@
   "@myWorkUnarchive": {
     "context": "MyWorkScreen"
   },
-  "beaconPeopleLensAuthorHeading": "Автор",
-  "beaconPeopleLensStewardsHeading": "Стюард",
-  "beaconPeopleLensRoomMembersHeading": "Участники обсуждения",
   "beaconPeopleLensActiveHelpersHeading": "Активные помощники",
   "beaconPeopleLensWillingToHelpHeading": "Готовы помочь",
   "beaconPeopleLensNotFittingHeading": "Отклонённые предложения",
-  "beaconPeopleLensWithdrawnHeading": "Отозваны",
-  "beaconPeopleLensNeedsAttentionHeading": "Нужна координация",
-  "beaconCtaUpdateStatus": "Статус",
   "beaconHudActMarkEnoughHelp": "Помощи хватает",
   "beaconHudActWrapUpForReview": "Перейти к итогам",
   "beaconReviewCloseNowBody": "Оценки станут видны адресатам, изменить их будет нельзя.",
@@ -4268,81 +4093,11 @@
   "beaconHudNeedsResponse": "Нужен ответ",
   "beaconHudWaitingForReviews": "Ждём итогов от участников",
   "beaconCtaEditHelpOffer": "Изменить предложение помощи",
-  "beaconCtaViewChain": "Цепочка",
   "beaconCtaReadOnly": "Только просмотр",
-  "beaconChipHelpOffersCount": "{count} предложений помощи",
-  "@beaconChipHelpOffersCount": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "beaconChipUsefulCount": "{count} полезных",
-  "@beaconChipUsefulCount": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "beaconChipForwardedBy": "Переслано от {count}",
-  "@beaconChipForwardedBy": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "beaconChipYouForwarded": "Вы переслали ×{count}",
-  "@beaconChipYouForwarded": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "beaconChipMoreHelpNeeded": "Нужна ещё помощь",
-  "beaconChipReviewingHelpOffers": "Проверка предложений помощи",
   "beaconChipEnoughHelp": "Помощи хватает",
-  "beaconChipHelpTypeCommitted": "{type}",
-  "@beaconChipHelpTypeCommitted": {
-    "placeholders": {
-      "type": {
-        "type": "String"
-      }
-    }
-  },
-  "beaconChipDeadlineOn": "До {date}",
-  "@beaconChipDeadlineOn": {
-    "placeholders": {
-      "date": {
-        "type": "String"
-      }
-    }
-  },
-  "beaconHeaderNoHelpOffers": "Нет предложений",
-  "beaconHeaderHelpOffersCount": "{count} предложений",
-  "@beaconHeaderHelpOffersCount": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "beaconHeaderRoomCount": "Обсуждение · {count}",
-  "@beaconHeaderRoomCount": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
   "beaconHeaderWatch": "Следить",
   "beaconHeaderStopWatching": "Не следить",
   "beaconHeaderUpdateHelpOffer": "Изменить предложение помощи",
-  "beaconNeedSummaryTitle": "Потребность",
-  "beaconCoordinationCardTitle": "Координация",
   "beaconStatusSheetTitle": "Статус запроса",
   "beaconStatusRowDraft": "Черновик",
   "beaconStatusRowOpen": "Открыт",
@@ -4365,26 +4120,7 @@
   "beaconStatusCancelTitle": "Отменить запрос?",
   "beaconStatusCancelBody": "Запрос будет отмечен как отменённый. Его можно просматривать, но помощь больше не принимается.",
   "beaconStatusCancelConfirm": "Отменить запрос",
-  "beaconHelpOfferSnapshotTitle": "Предложения помощи",
-  "beaconViewAllHelpOffers": "Все предложения помощи",
-  "beaconForwardChainPreview": "Цепочка пересылок",
-  "beaconForwardChainTapHint": "Нажмите для графа",
-  "beaconDescriptionAttachmentsTitle": "Описание и вложения",
-  "beaconNeedCardTitle": "Что нужно",
-  "beaconDefinitionSectionTitle": "Описание",
-  "beaconDefinitionLastPublicChangeLabel": "Последнее обновление",
   "beaconDefinitionLastRoomChangeLabel": "Последнее в обсуждении",
-  "beaconNeedAndContextTitle": "Запрос и контекст",
-  "beaconContextAttachmentsTitle": "Контекст и вложения",
-  "beaconNeedBriefPrefix": "Запрос:",
-  "beaconDoneWhenTitle": "Готово, когда",
-  "beaconNeedSummaryFieldLabel": "Что нужно?",
-  "beaconNeedSummaryHelper": "Цельтесь в 160–240 символов.",
-  "beaconNeedSummaryTooShortError": "Опишите потребность не короче 16 символов.",
-  "beaconNeedSummaryTooLongError": "Краткое описание потребности — не больше 280 символов.",
-  "beaconSuccessCriteriaTooLongError": "Критерии готовности — не больше 240 символов.",
-  "beaconSuccessCriteriaFieldLabel": "Что считать выполненным? (необязательно)",
-  "beaconAddContextHint": "Добавьте описание",
   "beaconDescriptionRequired": "Описание обязательно",
   "@beaconDescriptionRequired": {},
   "beaconDescriptionTooLong": "Описание должно быть не длиннее {max} символов",
@@ -4541,15 +4277,6 @@
       }
     }
   },
-  "beaconViaChain": "через {chain}",
-  "@beaconViaChain": {
-    "placeholders": {
-      "chain": {
-        "type": "String"
-      }
-    }
-  },
-  "beaconRelationNoTrail": "Для вас нет записанной цепочки пересылок.",
   "beaconRoomTitle": "Обсуждение",
   "beaconRoomMessageHint": "Напишите сообщение…",
   "beaconRoomMessageReadOnlyHint": "Это обсуждение доступно только для чтения",
@@ -4806,7 +4533,6 @@
       }
     }
   },
-  "beaconFactsOpenTooltip": "Закреплённые факты",
   "beaconRoomFactProvenanceEdited": "изменён",
   "beaconRoomFactProvenanceEditedBy": "изменил(а) {name}",
   "@beaconRoomFactProvenanceEditedBy": {
@@ -4944,7 +4670,6 @@
   "beaconRoomMessageEdited": "Изменено",
   "beaconRoomMessageEditedAt": "Изменено в {time}",
   "beaconRoomNeedInfoPickTarget": "Кому адресовано?",
-  "beaconPeopleSectionTitle": "Люди и роли",
   "beaconPeopleParticipantUpdated": "Обновлено {when}",
   "@beaconPeopleParticipantUpdated": {
     "placeholders": {
@@ -5374,8 +5099,6 @@
   "authRecoveryResetSeedWarning": "После сброса вход с этого устройства может быть невозможен без seed восстановления или привязанного Google/email.",
   "buttonDismiss": "Закрыть",
   "beaconCreateFromAction": "Создать на основе этого запроса",
-  "beaconLineageSuggestionsAction": "Предложения пересылки по родословной",
-  "beaconLineageSuggestionsLinkSemantics": "Просмотреть предложения пересылки из похожих прошлых запросов",
   "beaconLineageParentLinkLabel": "Создано на основе предыдущего запроса",
   "beaconLineageParentLinkSemantics": "Открыть предыдущий запрос, на основе которого создан этот",
   "beaconLineageForwardSectionTitle": "Из ваших похожих прошлых запросов",
@@ -5428,22 +5151,6 @@
   "inboxDismissTooltip": "Убрать из активности",
   "@inboxDismissTooltip": {
     "description": "Tooltip for the inbox card dismiss (X) control."
-  },
-  "beaconPublishBlockedHint": "Заполните выделенные поля, чтобы опубликовать.",
-  "@beaconPublishBlockedHint": {
-    "description": "Inline banner when Publish is disabled on create-beacon form."
-  },
-  "beaconPublishBlockedTitle": "Добавьте заголовок (не менее 3 символов).",
-  "@beaconPublishBlockedTitle": {
-    "description": "Publish blocker detail when title is missing or too short."
-  },
-  "beaconPublishBlockedDescription": "Добавьте описание.",
-  "@beaconPublishBlockedDescription": {
-    "description": "Publish blocker detail when description is empty."
-  },
-  "beaconPublishBlockedNeedSummary": "Опишите, что нужно (не менее 16 символов).",
-  "@beaconPublishBlockedNeedSummary": {
-    "description": "Publish blocker detail when need summary is too short."
   },
   "profileDisplayNameNudgeTitle": "Добавьте отображаемое имя",
   "@profileDisplayNameNudgeTitle": {
