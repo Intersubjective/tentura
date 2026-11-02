@@ -921,7 +921,9 @@ ORDER BY created_at, id
 
     group('close preserves existing effects', () {
       test('pending offer gets unansweredAtClose; supersede runs', () async {
-        await member(_aId);
+        for (final helper in [_aId, _bId, _cId]) {
+          await member(helper);
+        }
         await helpOffers.upsert(beaconId: _beaconId, userId: _pendingId);
         await commitments.record(
           beaconId: _beaconId,
@@ -941,7 +943,10 @@ ORDER BY created_at, id
           contains(CommitmentEventKind.unansweredAtClose),
         );
         expect(settlement.supersededBeacons, [_beaconId]);
-        expect((await members()).map((m) => m.userId), [_aId]);
+        expect(
+          (await members()).map((m) => m.userId),
+          unorderedEquals([_aId, _bId, _cId]),
+        );
       }, skip: skipReason);
 
       test('child request close records the lifecycle effect', () async {
@@ -1007,17 +1012,19 @@ INSERT INTO public.beacon (id, user_id, title, description, parent_beacon_id)
 VALUES ('$_childId', '$_authorId', 'child', '', '$_beaconId')
 ''');
         if (withMember) {
-          await helpOffers.upsert(beaconId: _childId, userId: _aId);
-          for (final (actor, kind) in [
-            (_aId, CommitmentEventKind.offered),
-            (_authorId, CommitmentEventKind.acknowledged),
-          ]) {
-            await commitments.record(
-              beaconId: _childId,
-              userId: _aId,
-              actorUserId: actor,
-              kind: kind,
-            );
+          for (final helper in [_aId, _bId, _cId]) {
+            await helpOffers.upsert(beaconId: _childId, userId: helper);
+            for (final (actor, kind) in [
+              (helper, CommitmentEventKind.offered),
+              (_authorId, CommitmentEventKind.acknowledged),
+            ]) {
+              await commitments.record(
+                beaconId: _childId,
+                userId: helper,
+                actorUserId: actor,
+                kind: kind,
+              );
+            }
           }
           await writer.execute('''
 UPDATE public.beacon_commitment_event
@@ -1045,16 +1052,23 @@ SET created_at = created_at - interval '1 day' WHERE beacon_id = '$_childId'
         skip: skipReason,
       );
 
-      test('effect order on review-open close of a child with a member and '
-          'a pending offer', () async {
-        await seedChild(withMember: true);
-        await expectOrderedEffects(closedBeaconId: _childId, withMember: true);
-      }, skip: skipReason);
+      test(
+        'effect order on review-open close of a child with three members and '
+        'a pending offer',
+        () async {
+          await seedChild(withMember: true);
+          await expectOrderedEffects(
+            closedBeaconId: _childId,
+            withMember: true,
+          );
+        },
+        skip: skipReason,
+      );
 
       test(
-        'reviewOpen transition records lifecycle effect with members',
+        'reviewOpen transition records lifecycle effect with three members',
         () async {
-          await openWith([_aId]);
+          await openWith([_aId, _bId, _cId]);
           expect(
             outbox.recordedEvents.single.toStatus,
             BeaconStatus.reviewOpen,

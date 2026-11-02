@@ -142,42 +142,6 @@ final class ClosureCase extends UseCaseBase {
         if (state.member) states[userId] = state;
       }
       final opensEpoch = states.isNotEmpty;
-      final target = opensEpoch ? BeaconStatus.reviewOpen : BeaconStatus.closed;
-
-      await _beacons.recordBeaconStatusTransition(
-        beaconId: beaconId,
-        fromStatus: beacon.status,
-        toStatus: target,
-        reason: opensEpoch
-            ? BeaconLifecycleChangeReason.closureOpened
-            : BeaconLifecycleChangeReason.directClose,
-        actorId: authorId,
-      );
-      await _lifecycleEffects.recordEligibleSourceTransition(
-        sourceBeaconId: beaconId,
-        fromStatus: beacon.status,
-        toStatus: target,
-        occurredAt: now,
-        actorUserId: authorId,
-        reason: opensEpoch
-            ? BeaconStatusTransitionReason.closureOpened
-            : BeaconStatusTransitionReason.directClose,
-      );
-      await _recordUnansweredAtCloseOffers(
-        beaconId: beaconId,
-        authorId: authorId,
-      );
-      // D04: a closed Request cannot still owe an answer to an offer.
-      await _settlement.supersedeAuthorHelpOfferObligationsOnBeaconClose(
-        beaconId,
-      );
-      // Review ends step obligations, closed ends all plan obligations (P21).
-      await _planAttention?.onRequestStatusChanged(
-        beaconId: beaconId,
-        actorId: authorId,
-      );
-      if (!opensEpoch) return;
-
       final offers = {
         for (final o in await _helpOffers.fetchAllByBeaconId(beaconId))
           o.userId: o,
@@ -201,6 +165,50 @@ final class ClosureCase extends UseCaseBase {
           ),
         );
       }
+
+      final settlesImmediately = opensEpoch && !canAnyoneVote(inserts);
+      final target = opensEpoch ? BeaconStatus.reviewOpen : BeaconStatus.closed;
+
+      // An immediately settled epoch is closed by the finalizer below. It
+      // records the original status -> closed once, including lifecycle and
+      // attention effects, without publishing an intermediate Final check.
+      if (!settlesImmediately) {
+        await _beacons.recordBeaconStatusTransition(
+          beaconId: beaconId,
+          fromStatus: beacon.status,
+          toStatus: target,
+          reason: opensEpoch
+              ? BeaconLifecycleChangeReason.closureOpened
+              : BeaconLifecycleChangeReason.directClose,
+          actorId: authorId,
+        );
+        await _lifecycleEffects.recordEligibleSourceTransition(
+          sourceBeaconId: beaconId,
+          fromStatus: beacon.status,
+          toStatus: target,
+          occurredAt: now,
+          actorUserId: authorId,
+          reason: opensEpoch
+              ? BeaconStatusTransitionReason.closureOpened
+              : BeaconStatusTransitionReason.directClose,
+        );
+      }
+      await _recordUnansweredAtCloseOffers(
+        beaconId: beaconId,
+        authorId: authorId,
+      );
+      if (!settlesImmediately) {
+        // D04: a closed Request cannot still owe an answer to an offer.
+        await _settlement.supersedeAuthorHelpOfferObligationsOnBeaconClose(
+          beaconId,
+        );
+        // Review ends step obligations, closed ends all plan obligations (P21).
+        await _planAttention?.onRequestStatusChanged(
+          beaconId: beaconId,
+          actorId: authorId,
+        );
+      }
+      if (!opensEpoch) return;
 
       final epochNumber = await _repo.maxEpoch(beaconId) + 1;
       await _repo.createEpoch(
@@ -234,7 +242,7 @@ final class ClosureCase extends UseCaseBase {
       // #733 (Vadim, A): with nobody able to vote — fewer than three members,
       // or no voter among them — a final check would only be a week of
       // waiting. Settle the epoch now, as «Finish now» would.
-      if (!canAnyoneVote(inserts)) {
+      if (settlesImmediately) {
         await _finalizer.finalize(
           beaconId: beaconId,
           epoch: epochNumber,
