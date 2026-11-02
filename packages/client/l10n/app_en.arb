@@ -577,18 +577,6 @@
   "@setDisplayPeriod": {
     "context": "BeaconCreateScreen"
   },
-  "beaconTitleRequired": "Request title (required)",
-  "@beaconTitleRequired": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconNeedsTitle": "Required capabilities",
-  "@beaconNeedsTitle": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconNeedsHelper": "Optional. Tag what this request needs so forwarders can match recipients.",
-  "@beaconNeedsHelper": {
-    "context": "BeaconCreateScreen"
-  },
   "buttonPublish": "Publish",
   "@buttonPublish": {
     "context": "BeaconCreateScreen"
@@ -610,14 +598,6 @@
   "@removeAll": {
     "context": "BeaconCreateScreen"
   },
-  "beaconInfo": "Info",
-  "@beaconInfo": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconImage": "Image",
-  "@beaconImage": {
-    "context": "BeaconCreateScreen"
-  },
   "beaconRecipients": "Recipients",
   "@beaconRecipients": {
     "context": "BeaconCreateScreen"
@@ -632,10 +612,6 @@
   },
   "beaconRecipientsBlockedBannerBody": "Add a title and description before choosing recipients or inviting a new person.",
   "@beaconRecipientsBlockedBannerBody": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconSendRequest": "Send request",
-  "@beaconSendRequest": {
     "context": "BeaconCreateScreen"
   },
   "beaconSendRequestBlockedRecipients": "Choose at least one recipient, or save as draft.",
@@ -654,15 +630,6 @@
   "@beaconSendConfirmationTitle": {
     "context": "BeaconCreateScreen"
   },
-  "beaconSendConfirmationDelivered": "Delivered to {count, plural, =1{1 person} other{{count} people}}.",
-  "@beaconSendConfirmationDelivered": {
-    "context": "BeaconCreateScreen",
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
   "beaconSendConfirmationFailed": "The request was published but delivery failed. Open it from Requests to send again.",
   "@beaconSendConfirmationFailed": {
     "context": "BeaconCreateScreen"
@@ -679,42 +646,8 @@
   "@beaconCoverSourceSymbol": {
     "context": "BeaconCreateScreen"
   },
-  "beaconCoverSymbolNeedsCapability": "Add a capability first.",
-  "@beaconCoverSymbolNeedsCapability": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconCoverHintPhotoPick": "Tap the preview to add a cover photo.",
-  "@beaconCoverHintPhotoPick": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconCoverHintPhotoSelected": "Tap the preview to choose or replace the cover photo.",
-  "@beaconCoverHintPhotoSelected": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconCoverHintNoPhotoUsingSymbol": "No cover photo yet — showing the {capability} symbol.",
-  "@beaconCoverHintNoPhotoUsingSymbol": {
-    "context": "BeaconCreateScreen",
-    "placeholders": {
-      "capability": {
-        "type": "String"
-      }
-    }
-  },
-  "beaconCoverHintSymbolSelected": "Showing the {capability} symbol.",
-  "@beaconCoverHintSymbolSelected": {
-    "context": "BeaconCreateScreen",
-    "placeholders": {
-      "capability": {
-        "type": "String"
-      }
-    }
-  },
   "beaconCoverPreviewSemantics": "Request cover preview",
   "@beaconCoverPreviewSemantics": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconCoverChangeSymbol": "Change symbol",
-  "@beaconCoverChangeSymbol": {
     "context": "BeaconCreateScreen"
   },
   "beaconCoverSymbolSheetTitle": "Choose a symbol",
@@ -747,10 +680,6 @@
   },
   "beaconCoverThumbReset": "Reset card thumbnail",
   "@beaconCoverThumbReset": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconCoverHintThumbOnCard": "The full photo stays on the request; cropping affects only the small card.",
-  "@beaconCoverHintThumbOnCard": {
     "context": "BeaconCreateScreen"
   },
   "beaconCoverStatusAddCover": "Add cover",
@@ -895,18 +824,6 @@
   },
   "createBeaconErrorTooShortQuestion": "Too short question",
   "@createBeaconErrorTooShortQuestion": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconCreateSuccess": "Request created successfully!",
-  "@beaconCreateSuccess": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconCreateError": "Something went wrong, request was not created.",
-  "@beaconCreateError": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconViewButton": "View request",
-  "@beaconViewButton": {
     "context": "BeaconCreateScreen"
   },
   "confirmBeaconPublishing": "Are you sure you want to publish this request?",
@@ -2684,15 +2601,6 @@
   "@inboxCategoryGeneral": {
     "context": "InboxItemTile"
   },
-  "beaconCardHelpOfferCount": "{count}",
-  "@beaconCardHelpOfferCount": {
-    "context": "Beacon list card meta strip (icon conveys help offers)",
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
   "forwardBeaconTitle": "Forward request",
   "@forwardBeaconTitle": {
     "context": "ForwardBeaconScreen"
@@ -3435,19 +3343,6 @@
       }
     }
   },
-  "beaconCardScheduleEndedAgo": "Ended {ago}",
-  "@beaconCardScheduleEndedAgo": {
-    "description": "Screen reader label for beacon schedule finished relative time",
-    "placeholders": {
-      "ago": {
-        "type": "String"
-      }
-    }
-  },
-  "beaconCardScheduleInProgress": "In progress",
-  "@beaconCardScheduleInProgress": {
-    "description": "Screen reader label when beacon is in progress without an end date"
-  },
   "beaconCardScheduleScheduledFor": "Scheduled for {date}",
   "@beaconCardScheduleScheduledFor": {
     "description": "Screen reader label for an upcoming event shown as an absolute date/range",
@@ -3863,10 +3758,6 @@
   "@beaconViewRoomAccessUnavailableBanner": {
     "context": "BeaconViewScreen"
   },
-  "beaconViewSurfaceStatusAction": "Status",
-  "@beaconViewSurfaceStatusAction": {
-    "context": "BeaconViewScreen"
-  },
   "beaconViewBannerDismiss": "Dismiss",
   "@beaconViewBannerDismiss": {
     "context": "BeaconViewScreen"
@@ -4019,25 +3910,10 @@
     "context": "BeaconViewScreen",
     "description": "Tab title for forward trail / notes to the viewer"
   },
-  "beaconPeopleShowForwards": "Show forwards",
-  "@beaconPeopleShowForwards": {
-    "context": "BeaconViewScreen",
-    "description": "CTA button in People tab to lazy-load the forwards subsection"
-  },
   "beaconForwardsEmpty": "No forward trail for you on this request yet.",
   "@beaconForwardsEmpty": {
     "context": "BeaconViewScreen",
     "description": "Empty state when the viewer has no inbox forward provenance"
-  },
-  "beaconForwardsCount": "{count} forwards",
-  "@beaconForwardsCount": {
-    "context": "BeaconViewScreen",
-    "description": "Tab header pill: number of distinct forwarders to the viewer",
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
   },
   "myForwardDeclined": "Dismissed",
   "@myForwardDeclined": {
@@ -4302,42 +4178,9 @@
       }
     }
   },
-  "beaconPromotionAlreadyExists": "This message was already promoted to a child request",
   "beaconChildFooterUnavailable": "Request unavailable",
-  "beaconChildCardWithHelper": "With {name}",
-  "@beaconChildCardWithHelper": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    },
-    "description": "Child request card: one admitted helper display name"
-  },
   "threadGeneralTitle": "Discussion",
   "beaconItemsEmptyPlaceholder": "No coordination items yet",
-  "beaconItemsActiveFoldTitle": "Active ({count})",
-  "@beaconItemsActiveFoldTitle": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "beaconItemsActiveFoldTitleFiltered": "Active ({filtered} of {total})",
-  "@beaconItemsActiveFoldTitleFiltered": {
-    "placeholders": {
-      "filtered": {
-        "type": "int"
-      },
-      "total": {
-        "type": "int"
-      }
-    }
-  },
-  "beaconItemsActiveForMeFilter": "For me",
-  "beaconItemsActiveForMeFilterSemantics": "Show only items where you are the source or target",
-  "beaconItemsActiveForMeEmpty": "No active items for you",
-  "beaconItemsFactsFoldTitle": "Pinned facts",
   "beaconHudNowLabel": "NOW",
   "beaconHudYouLabel": "YOU",
   "beaconHudPeopleRowSemantics": "People involved",
@@ -4386,21 +4229,11 @@
     "description": "YOU line fallback when non-author has no personal coordination items"
   },
   "beaconYouClosed": "Closed",
-  "beaconYouActionReply": "Reply",
-  "beaconYouActionDone": "Done",
-  "beaconYouActionDecline": "Decline",
-  "beaconYouActionUpdate": "Update",
-  "beaconYouActionWithdraw": "Withdraw",
-  "beaconYouActionResolve": "Resolve",
   "beaconHudNoCurrentLine": "No next step yet",
   "beaconHudEditCurrentLineTitle": "Next step",
   "beaconHudEditNowLine": "Edit next step",
-  "beaconSituationStateLabel": "State",
   "beaconSituationCurrentLineLabel": "Next step",
-  "beaconSituationBlockerLabel": "Blocker",
-  "beaconSituationLastChangeLabel": "Last",
   "beaconSituationOpenRoom": "Open discussion",
-  "beaconBlockersPanelTitle": "Blockers / questions",
   "beaconBlockersPanelAskInRoom": "Ask in discussion",
   "beaconHudYouAuthorReview": "{count, plural, =1{Review 1 offer} other{Review {count} offers}}",
   "@beaconHudYouAuthorReview": {
@@ -4444,7 +4277,6 @@
   "beaconHudYouAuthorReadyToClose": "Close the loop",
   "beaconHudYouAuthorCoordinationActive": "Coordination still active — update or forward",
   "beaconCloseSheetReadyTitle": "Close request?",
-  "beaconCloseSheetReadyBody": "This marks the request complete and opens contribution acknowledgement.",
   "beaconCloseSheetReviewTitle": "Close after review?",
   "beaconCloseSheetReviewBody": "This request may be ready, but some items still need your judgment.",
   "beaconCloseSheetPrematureTitle": "Close now?",
@@ -4507,7 +4339,6 @@
   "beaconReviewReopenAction": "Reopen",
   "beaconReviewCloseNowAction": "Close now",
   "beaconReviewExtendSuccess": "Final check extended",
-  "beaconReviewCloseNowSuccess": "Request closed",
   "beaconReviewReopenTitle": "Reopen request?",
   "beaconReviewReopenBodyNoSent": "The final check stops; saved answers stay drafts. A request can be reopened only once.",
   "beaconReviewReopenConfirm": "Reopen",
@@ -4544,15 +4375,9 @@
   },
   "myWorkFinishedHint": "Finished requests stay here until you archive them.",
   "myWorkStatusWrappingUp": "Final check",
-  "beaconPeopleLensAuthorHeading": "Author",
-  "beaconPeopleLensStewardsHeading": "Steward",
-  "beaconPeopleLensRoomMembersHeading": "Discussion participants",
   "beaconPeopleLensActiveHelpersHeading": "Active helpers",
   "beaconPeopleLensWillingToHelpHeading": "Willing to help",
   "beaconPeopleLensNotFittingHeading": "Declined offers",
-  "beaconPeopleLensWithdrawnHeading": "Withdrawn",
-  "beaconPeopleLensNeedsAttentionHeading": "Needs coordination",
-  "beaconCtaUpdateStatus": "Update status",
   "beaconHudActMarkEnoughHelp": "We have enough help",
   "beaconHudActWrapUpForReview": "Start final check",
   "beaconReviewCloseNowBody": "Reviews become visible to their recipients and can no longer be changed.",
@@ -4603,81 +4428,11 @@
   "beaconHudNeedsResponse": "Needs response",
   "beaconHudWaitingForReviews": "Waiting on the final check",
   "beaconCtaEditHelpOffer": "Edit help offer",
-  "beaconCtaViewChain": "View chain",
   "beaconCtaReadOnly": "Read only",
-  "beaconChipHelpOffersCount": "{count} help offers",
-  "@beaconChipHelpOffersCount": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "beaconChipUsefulCount": "{count} useful",
-  "@beaconChipUsefulCount": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "beaconChipForwardedBy": "Forwarded by {count}",
-  "@beaconChipForwardedBy": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "beaconChipYouForwarded": "You forwarded ×{count}",
-  "@beaconChipYouForwarded": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "beaconChipMoreHelpNeeded": "More help needed",
-  "beaconChipReviewingHelpOffers": "Reviewing help offers",
   "beaconChipEnoughHelp": "Enough help",
-  "beaconChipHelpTypeCommitted": "{type}",
-  "@beaconChipHelpTypeCommitted": {
-    "placeholders": {
-      "type": {
-        "type": "String"
-      }
-    }
-  },
-  "beaconChipDeadlineOn": "Ends {date}",
-  "@beaconChipDeadlineOn": {
-    "placeholders": {
-      "date": {
-        "type": "String"
-      }
-    }
-  },
-  "beaconHeaderNoHelpOffers": "No help offers",
-  "beaconHeaderHelpOffersCount": "{count} offered help",
-  "@beaconHeaderHelpOffersCount": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "beaconHeaderRoomCount": "Discussion · {count}",
-  "@beaconHeaderRoomCount": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
   "beaconHeaderWatch": "Follow",
   "beaconHeaderStopWatching": "Unfollow",
   "beaconHeaderUpdateHelpOffer": "Update help offer",
-  "beaconNeedSummaryTitle": "Need",
-  "beaconCoordinationCardTitle": "Coordination",
   "beaconStatusSheetTitle": "Request status",
   "beaconStatusRowDraft": "Draft",
   "beaconStatusRowOpen": "Open",
@@ -4703,26 +4458,7 @@
   "beaconStatusCancelTitle": "Cancel request?",
   "beaconStatusCancelBody": "This request will be marked cancelled. You can still view it, but it will no longer accept help.",
   "beaconStatusCancelConfirm": "Cancel request",
-  "beaconHelpOfferSnapshotTitle": "Help offers",
-  "beaconViewAllHelpOffers": "View all help offers",
-  "beaconForwardChainPreview": "Forward chain",
-  "beaconForwardChainTapHint": "Tap for full graph",
-  "beaconDescriptionAttachmentsTitle": "Description & attachments",
-  "beaconNeedCardTitle": "Need",
-  "beaconDefinitionSectionTitle": "Definition",
-  "beaconDefinitionLastPublicChangeLabel": "Last update",
   "beaconDefinitionLastRoomChangeLabel": "Last in discussion",
-  "beaconNeedAndContextTitle": "Need & context",
-  "beaconContextAttachmentsTitle": "Context & attachments",
-  "beaconNeedBriefPrefix": "Need:",
-  "beaconDoneWhenTitle": "Done when",
-  "beaconNeedSummaryFieldLabel": "What is needed?",
-  "beaconNeedSummaryHelper": "Aim for 160–240 characters.",
-  "beaconNeedSummaryTooShortError": "Describe the need in at least 16 characters.",
-  "beaconNeedSummaryTooLongError": "Need summary must be 280 characters or fewer.",
-  "beaconSuccessCriteriaTooLongError": "Success criteria must be 240 characters or fewer.",
-  "beaconSuccessCriteriaFieldLabel": "What counts as done? (optional)",
-  "beaconAddContextHint": "Add description",
   "beaconDescriptionRequired": "Description is required",
   "@beaconDescriptionRequired": {},
   "beaconDescriptionTooLong": "Description must be {max} characters or fewer",
@@ -4886,15 +4622,6 @@
       }
     }
   },
-  "beaconViaChain": "via {chain}",
-  "@beaconViaChain": {
-    "placeholders": {
-      "chain": {
-        "type": "String"
-      }
-    }
-  },
-  "beaconRelationNoTrail": "No forward chain recorded for you.",
   "beaconRoomTitle": "Discussion",
   "beaconRoomMessageHint": "Write a message…",
   "beaconRoomMessageReadOnlyHint": "This discussion is read-only",
@@ -5200,7 +4927,6 @@
       }
     }
   },
-  "beaconFactsOpenTooltip": "Pinned facts",
   "beaconRoomFactProvenanceEdited": "edited",
   "beaconRoomFactProvenanceEditedBy": "edited by {name}",
   "@beaconRoomFactProvenanceEditedBy": {
@@ -5473,7 +5199,6 @@
     }
   },
   "beaconRoomNeedInfoPickTarget": "Who is this for?",
-  "beaconPeopleSectionTitle": "People & roles",
   "beaconPeopleParticipantUpdated": "Updated {when}",
   "@beaconPeopleParticipantUpdated": {
     "placeholders": {
@@ -5996,8 +5721,6 @@
     "description": "Dismiss a non-blocking banner without taking action"
   },
   "beaconCreateFromAction": "Create from this request",
-  "beaconLineageSuggestionsAction": "Lineage forward suggestions",
-  "beaconLineageSuggestionsLinkSemantics": "Preview forward suggestions from your similar requests",
   "beaconLineageParentLinkLabel": "Created from a previous request",
   "beaconLineageParentLinkSemantics": "Open the previous request this was created from",
   "beaconLineageForwardSectionTitle": "From your previous similar requests",
@@ -6116,22 +5839,6 @@
   "inboxDismissTooltip": "Remove from Activity",
   "@inboxDismissTooltip": {
     "description": "Tooltip for the inbox card dismiss (X) control."
-  },
-  "beaconPublishBlockedHint": "Complete the highlighted fields to publish.",
-  "@beaconPublishBlockedHint": {
-    "description": "Inline banner when Publish is disabled on create-beacon form."
-  },
-  "beaconPublishBlockedTitle": "Add a title (at least 3 characters).",
-  "@beaconPublishBlockedTitle": {
-    "description": "Publish blocker detail when title is missing or too short."
-  },
-  "beaconPublishBlockedDescription": "Add a description.",
-  "@beaconPublishBlockedDescription": {
-    "description": "Publish blocker detail when description is empty."
-  },
-  "beaconPublishBlockedNeedSummary": "Describe what is needed (at least 16 characters).",
-  "@beaconPublishBlockedNeedSummary": {
-    "description": "Publish blocker detail when need summary is too short."
   },
   "profileDisplayNameNudgeTitle": "Add your display name",
   "@profileDisplayNameNudgeTitle": {
