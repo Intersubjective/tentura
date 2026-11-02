@@ -53,7 +53,8 @@ class TenturaGraphQL extends GraphQL {
 
   /// Prefer stock lookup (keeps introspection types like `__Type`). Only when
   /// that fails for a Hasura-stitched `v2_*` name, fall back to the bare
-  /// server type (`v2_Upload` → `Upload`).
+  /// server type (`v2_Upload` → `Upload`). Unknown named types are client
+  /// validation errors, handled by the controller's GraphQL error response.
   @override
   GraphQLType<dynamic, dynamic> convertType(
     TypeContext ctx, {
@@ -69,12 +70,12 @@ class TenturaGraphQL extends GraphQL {
       // ignore: avoid_catching_errors -- graphql_server2 signals unknown types via ArgumentError
     } on ArgumentError catch (_) {
       final name = ctx.typeName?.name;
-      if (name == null || !name.startsWith('v2_') || name.length <= 3) {
-        rethrow;
+      if (name == null) rethrow;
+      if (name.startsWith('v2_') && name.length > 3) {
+        final resolved = resolveStitchedV2Type(name, customTypes);
+        if (resolved != null) return resolved;
       }
-      final resolved = resolveStitchedV2Type(name, customTypes);
-      if (resolved != null) return resolved;
-      rethrow;
+      throw GraphQLException.fromMessage('Unknown GraphQL type: "$name".');
     }
   }
 
