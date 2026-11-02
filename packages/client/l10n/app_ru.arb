@@ -2103,11 +2103,6 @@
     "context": "DebugSettingsScreen",
     "description": "Section heading for first-run orientation debug controls"
   },
-  "settingsDebugOrientationOverride": "Показ панели",
-  "@settingsDebugOrientationOverride": {
-    "context": "DebugSettingsScreen",
-    "description": "Label for the orientation panel visibility override control"
-  },
   "settingsDebugOrientationAuto": "Автоматически",
   "@settingsDebugOrientationAuto": {
     "context": "DebugSettingsScreen",
@@ -2144,11 +2139,6 @@
     "context": "DebugSettingsScreen",
     "description": "Clears per-user activation and dismiss latches for the signed-in account"
   },
-  "settingsDebugOrientationResetDone": "Состояние первого запуска сброшено",
-  "@settingsDebugOrientationResetDone": {
-    "context": "DebugSettingsScreen",
-    "description": "Snackbar after resetting first-run orientation latches"
-  },
   "settingsFcmRegistration": "Регистрация FCM",
   "settingsFcmToken": "Токен FCM",
   "settingsFcmTokenUnavailable": "Недоступен (проверьте разрешение на уведомления и конфигурацию Firebase)",
@@ -2165,25 +2155,6 @@
   "settingsRefresh": "Обновить",
   "settingsNotificationsTest": "Тест уведомлений",
   "settingsEmailTest": "Тест email",
-  "settingsNotificationsTestSent": "Отправлено на {sent} из {devices} устройств",
-  "@settingsNotificationsTestSent": {
-    "placeholders": {
-      "sent": {
-        "type": "int"
-      },
-      "devices": {
-        "type": "int"
-      }
-    }
-  },
-  "settingsNotificationsTestNoDevices": "Нет зарегистрированных устройств",
-  "settingsNotificationsTestRateLimited": "Подождите 10 секунд перед повторной тестовой push-рассылкой",
-  "settingsNotificationsTestMock": "FCM на сервере не настроен (режим mock)",
-  "settingsEmailTestSent": "Тестовое письмо отправлено",
-  "settingsEmailTestNoEmail": "Нет подтверждённой почты в этом аккаунте",
-  "settingsEmailTestRateLimited": "Подождите 10 секунд перед повторной тестовой рассылкой",
-  "settingsEmailTestMock": "Почта на сервере не настроена",
-  "settingsEmailTestFailed": "Не удалось отправить тестовое письмо",
   "settingsRecalculateCounters": "Пересчитать счётчики",
   "@settingsRecalculateCounters": {
     "context": "DebugSettingsScreen"
@@ -2194,10 +2165,6 @@
   },
   "signInMethodsEmpty": "Способы входа ещё не привязаны",
   "@signInMethodsEmpty": {
-    "context": "CredentialsScreen"
-  },
-  "credentialDeviceKey": "Ключ устройства",
-  "@credentialDeviceKey": {
     "context": "CredentialsScreen"
   },
   "removeCredentialTitle": "Удалить способ входа?",
@@ -2373,18 +2340,6 @@
   },
   "notifications": "Уведомления",
   "@notifications": {
-    "context": "NotificationCenter"
-  },
-  "notificationsEmpty": "Всё просмотрено",
-  "@notificationsEmpty": {
-    "context": "NotificationCenter"
-  },
-  "notificationsEmptyHint": "Здесь появятся обновления, требующие вашего внимания",
-  "@notificationsEmptyHint": {
-    "context": "NotificationCenter"
-  },
-  "notificationsMarkAllRead": "Отметить все как прочитанные",
-  "@notificationsMarkAllRead": {
     "context": "NotificationCenter"
   },
   "realtimeUpdatesPausedBanner": "Онлайн-обновления приостановлены. Изменения появятся после восстановления соединения.",
@@ -3959,11 +3914,6 @@
   "@dialogWithdrawHelpOfferTitle": {
     "context": "BeaconViewScreen",
     "description": "Title for withdraw dialog"
-  },
-  "dialogUpdateHelpOfferTitle": "Изменить предложение помощи",
-  "@dialogUpdateHelpOfferTitle": {
-    "context": "BeaconViewScreen",
-    "description": "Title for edit help offer dialog"
   },
   "hintOfferHelpMessage": "Чем вы поможете?",
   "@hintOfferHelpMessage": {
@@ -5781,7 +5731,6 @@
       }
     }
   },
-  "inviteSeedPromptSubmit": "Отправить",
   "inviteSeedPromptSkip": "Пропустить",
   "inviteSeedPromptLoadError": "Не удалось загрузить подсказку.",
   "inviteAcceptedSetupAddDetails": "Добавить детали",
