@@ -2328,14 +2328,6 @@
   "@shareLink": {
     "context": "ShareCodeDialog"
   },
-  "addPollOption": "Добавить голосование",
-  "@addPollOption": {
-    "context": "BeaconCreateScreen"
-  },
-  "pollSectionTitle": "Опрос",
-  "@pollSectionTitle": {
-    "context": "PollEditor"
-  },
   "pollQuestionFieldLabel": "Формулировка вопроса",
   "@pollQuestionFieldLabel": {
     "context": "PollEditor"
@@ -2354,38 +2346,6 @@
   "addOptionButton": "Добавить вариант",
   "@addOptionButton": {
     "context": "PollEditor"
-  },
-  "showPollButton": "Показать голосование",
-  "@showPollButton": {
-    "context": "PollButton"
-  },
-  "pollDialogTitle": "Результаты голосования",
-  "@pollDialogTitle": {
-    "context": "PollDialog"
-  },
-  "votedCountText": "Проголосовало {percentage}% окружения ({count} чел.)",
-  "@votedCountText": {
-    "context": "PollDialog",
-    "placeholders": {
-      "percentage": {},
-      "count": {}
-    }
-  },
-  "immediateLabel": "Мнение окружения",
-  "@immediateLabel": {
-    "context": "OptionTile"
-  },
-  "finalLabel": "Результат",
-  "@finalLabel": {
-    "context": "OptionTile"
-  },
-  "changeVoteButton": "Изменить мнение",
-  "@changeVoteButton": {
-    "context": "PollDialog"
-  },
-  "voteButton": "Проголосовать",
-  "@voteButton": {
-    "context": "PollDialog"
   },
   "closeButton": "Закрыть",
   "@closeButton": {

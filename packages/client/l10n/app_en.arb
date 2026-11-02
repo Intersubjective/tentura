@@ -2420,14 +2420,6 @@
   "@shareLink": {
     "context": "ShareCodeDialog"
   },
-  "addPollOption": "Add poll",
-  "@addPollOption": {
-    "context": "BeaconCreateScreen"
-  },
-  "pollSectionTitle": "Poll",
-  "@pollSectionTitle": {
-    "context": "PollEditor"
-  },
   "pollQuestionFieldLabel": "Poll question",
   "@pollQuestionFieldLabel": {
     "context": "PollEditor"
@@ -2446,38 +2438,6 @@
   "addOptionButton": "Add option",
   "@addOptionButton": {
     "context": "PollEditor"
-  },
-  "showPollButton": "Show poll",
-  "@showPollButton": {
-    "context": "PollButton"
-  },
-  "pollDialogTitle": "Poll results",
-  "@pollDialogTitle": {
-    "context": "PollDialog"
-  },
-  "votedCountText": "Voted by {percentage}% of your network ({count} users)",
-  "@votedCountText": {
-    "context": "PollDialog",
-    "placeholders": {
-      "percentage": {},
-      "count": {}
-    }
-  },
-  "immediateLabel": "Immediate",
-  "@immediateLabel": {
-    "context": "OptionTile"
-  },
-  "finalLabel": "Final",
-  "@finalLabel": {
-    "context": "OptionTile"
-  },
-  "changeVoteButton": "Change vote",
-  "@changeVoteButton": {
-    "context": "PollDialog"
-  },
-  "voteButton": "Vote",
-  "@voteButton": {
-    "context": "PollDialog"
   },
   "closeButton": "Close",
   "@closeButton": {
