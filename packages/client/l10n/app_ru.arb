@@ -850,74 +850,6 @@
   "@beaconCreateCoverRow": {
     "context": "BeaconCreateScreen"
   },
-  "beaconIdentityCategoryMeta": "Координация",
-  "@beaconIdentityCategoryMeta": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconIdentityCategoryCommunity": "Сообщество",
-  "@beaconIdentityCategoryCommunity": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconIdentityCategoryEssentials": "Быт",
-  "@beaconIdentityCategoryEssentials": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconIdentityCategoryHome": "Дом",
-  "@beaconIdentityCategoryHome": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconIdentityCategoryMobility": "Передвижение",
-  "@beaconIdentityCategoryMobility": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconIdentityCategoryCommunication": "Связь",
-  "@beaconIdentityCategoryCommunication": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconIdentityCategoryMoney": "Деньги",
-  "@beaconIdentityCategoryMoney": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconIdentityCategoryHealth": "Здоровье",
-  "@beaconIdentityCategoryHealth": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconIdentityCategorySafety": "Безопасность",
-  "@beaconIdentityCategorySafety": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconIdentityCategoryWork": "Работа",
-  "@beaconIdentityCategoryWork": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconIdentityCategoryTech": "Техника",
-  "@beaconIdentityCategoryTech": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconIdentityCategoryNature": "Природа",
-  "@beaconIdentityCategoryNature": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconIdentityCategoryWeather": "Погода",
-  "@beaconIdentityCategoryWeather": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconIdentityCategoryCulture": "Культура",
-  "@beaconIdentityCategoryCulture": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconIdentityCategoryEducation": "Образование",
-  "@beaconIdentityCategoryEducation": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconIdentityCategoryAnimals": "Животные",
-  "@beaconIdentityCategoryAnimals": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconIdentityCategoryCivic": "Гражданское",
-  "@beaconIdentityCategoryCivic": {
-    "context": "BeaconCreateScreen"
-  },
   "createBeaconErrorTooShortQuestion": "слишком короткий вопрос",
   "@createBeaconErrorTooShortQuestion": {
     "context": "BeaconCreateScreen"
@@ -4139,7 +4071,6 @@
   "beaconHudNoCurrentLine": "Следующего шага пока нет",
   "beaconHudEditCurrentLineTitle": "Следующий шаг",
   "beaconHudEditNowLine": "Изменить следующий шаг",
-  "beaconHudSituationPanelTitle": "Ситуация",
   "beaconSituationStateLabel": "Статус",
   "beaconSituationCurrentLineLabel": "Следующий шаг",
   "beaconSituationBlockerLabel": "Блокер",
@@ -4147,7 +4078,6 @@
   "beaconSituationOpenRoom": "Открыть обсуждение",
   "beaconBlockersPanelTitle": "Блокеры / Вопросы",
   "beaconBlockersPanelAskInRoom": "Спросить в обсуждении",
-  "beaconHudYourRolePanelTitle": "Ваша роль",
   "beaconHudYouAuthorReview": "{count, plural, one{Проверить {count} предложение} few{Проверить {count} предложения} other{Проверить {count} предложений}}",
   "@beaconHudYouAuthorReview": {
     "placeholders": {
@@ -4163,11 +4093,7 @@
   "beaconHudYouWatching": "Слежу",
   "beaconHudYouCanOfferHelp": "Можете предложить помощь",
   "beaconHudYouNoAction": "Нет текущего действия",
-  "beaconHudLifecycleActive": "АКТИВЕН",
-  "beaconHudLifecycleClosed": "ЗАКРЫТ",
   "beaconHudEnoughHelp": "ПОМОЩИ ХВАТАЕТ",
-  "beaconHudLifecycleDeleted": "УДАЛЁН",
-  "beaconHudBlocked": "БЛОКИРОВКА",
   "beaconHudNowBlocked": "Блокер: {title}",
   "@beaconHudNowBlocked": {
     "placeholders": {
@@ -4181,22 +4107,6 @@
   "beaconHudYouForward": "Можете переслать",
   "beaconHudYouForwardAfterDecline": "Все отказались — перешлите кому-нибудь ещё",
   "beaconHudReviewOpen": "ПОДВОДИМ ИТОГИ",
-  "beaconHudTokenHelpOfferedCount": "{count} предложений",
-  "@beaconHudTokenHelpOfferedCount": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "beaconHudTokenNeedCoordCount": "{count} нужна координация",
-  "@beaconHudTokenNeedCoordCount": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
   "beaconHudNextMovePrefix": "Дальше: {text}",
   "@beaconHudNextMovePrefix": {
     "placeholders": {
@@ -4207,13 +4117,8 @@
   },
   "beaconHudClosedSummary": "Закрыт",
   "beaconHudOverflowMore": "Ещё действия",
-  "beaconHudOverflowCloseBeacon": "Закрыть запрос…",
   "beaconHudYouAuthorReadyToClose": "Завершите цикл",
   "beaconHudYouAuthorCoordinationActive": "Координация активна — обновите или перешлите",
-  "beaconHudTokenReadyToClose": "ГОТОВ К ЗАКРЫТИЮ",
-  "beaconHudTokenReviewBeforeClose": "ПРОВЕРКА ПЕРЕД ЗАКРЫТИЕМ",
-  "beaconHudTokenClosureBlocked": "ЗАКРЫТИЕ ЗАБЛОКИРОВАНО",
-  "beaconHudCtaOpenLog": "Журнал",
   "beaconCloseSheetReadyTitle": "Закрыть запрос?",
   "beaconCloseSheetReadyBody": "Запрос будет отмечен завершённым и откроется подтверждение вклада.",
   "beaconCloseSheetReviewTitle": "Закрыть после проверки?",
@@ -4307,15 +4212,6 @@
   "@myWorkUnarchive": {
     "context": "MyWorkScreen"
   },
-  "beaconClosurePanelTitleReady": "Завершите цикл",
-  "beaconClosurePanelTitleReview": "Проверка перед закрытием",
-  "beaconClosurePanelTitlePremature": "Закрытие ещё не готово",
-  "beaconClosurePanelTitleBlocked": "Сначала снимите блокеры",
-  "beaconClosurePanelBodyReady": "По сигналам координации запрос выглядит готовым к закрытию.",
-  "beaconClosurePanelBodyReview": "Закрытие возможно — сначала проверьте участия и обсуждение.",
-  "beaconClosurePanelBodyPremature": "Недостаточно явных сигналов завершения.",
-  "beaconClosurePanelBodyBlocked": "Закрытие заблокировано незавершённой координацией.",
-  "beaconClosurePanelEvidenceHeading": "Сигналы",
   "beaconPeopleLensAuthorHeading": "Автор",
   "beaconPeopleLensStewardsHeading": "Стюард",
   "beaconPeopleLensRoomMembersHeading": "Участники обсуждения",
@@ -4333,7 +4229,6 @@
   "beaconHudActEffectMarkEnoughHelp": "Сигнал помощникам; запрос остаётся открытым",
   "beaconHudActEffectWrapUpForReview": "Начинает подведение итогов: помощники отметят, чья помощь была важной",
   "beaconHudActEffectCloseNow": "Закрывает запрос сейчас, не дожидаясь подведения итогов",
-  "beaconHudActEffectForward": "Делится запросом; доступ к обсуждению не меняется",
   "beaconHudYouChangeStatusInOverflow": "Измените статус запроса в меню ⋮",
   "beaconHudConfirmMarkEnoughHelpTitle": "Отметить, что помощи хватает?",
   "beaconHudConfirmMarkEnoughHelpBody": "Помощники увидят, что помощи хватает. Запрос остаётся открытым, пока вы не подведёте итоги или не закроете его.",
