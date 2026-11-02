@@ -242,7 +242,7 @@ abstract class Beacon with _$Beacon implements Likable, Scorable {
   /// addressed without a fully hydrated [author] (create/edit form previews).
   String urlForImage(ImageEntity image) {
     final owner = image.authorId.isNotEmpty ? image.authorId : author.id;
-    return '$kImageServer/$kImagesPath/$owner/${image.id}.$kImageExt';
+    return serverImageUrl(authorId: owner, imageId: image.id);
   }
 
   static final empty = Beacon(

@@ -124,6 +124,6 @@ abstract class Profile with _$Profile implements Likable, Scorable {
   bool get hasNoAvatar => !hasAvatar;
 
   String get avatarUrl => hasAvatar
-      ? '$kImageServer/$kImagesPath/$id/${image!.id}.$kImageExt'
+      ? serverImageUrl(authorId: id, imageId: image!.id)
       : kAvatarPlaceholderUrl;
 }
