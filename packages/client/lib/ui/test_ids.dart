@@ -98,6 +98,10 @@ abstract final class TestIds {
   /// Desktop hover-toolbar heart that opens the reaction picker.
   static const roomMessageReactionPickerButton =
       'room.message.reaction_picker_button';
+
+  /// Message actions: the hint / meaning line under the reaction grid (#945).
+  static const roomReactionPickerPreviewLine =
+      'room.reaction_picker.preview_line';
   static const roomAuthorCommitmentGlyphs =
       'room.message.author_commitment_glyphs';
 
