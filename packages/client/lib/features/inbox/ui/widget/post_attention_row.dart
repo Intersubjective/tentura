@@ -167,7 +167,10 @@ class PostAttentionRow extends StatelessWidget {
                           children: [
                             if (showThumbnail) ...[
                               _RootThumbnail(
-                                url: _imageUrl(authorId, rootImageId),
+                                url: serverImageUrl(
+                                  authorId: authorId,
+                                  imageId: rootImageId,
+                                ),
                               ),
                               SizedBox(width: tt.iconTextGap),
                             ],
@@ -279,9 +282,6 @@ class _RootThumbnail extends StatelessWidget {
     );
   }
 }
-
-String _imageUrl(String authorId, String imageId) =>
-    '$kImageServer/$kImagesPath/$authorId/$imageId.$kImageExt';
 
 ImageEntity? _imageOf(String? imageId, String authorId) {
   if (imageId == null || imageId.isEmpty || imageId == 'null') return null;
