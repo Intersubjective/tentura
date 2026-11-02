@@ -110,6 +110,10 @@ class GraphqlRoundTripServer {
     throw TimeoutException('GraphQL load did not settle:\n${describe()}');
   }
 
+  /// Answers the requests waiting now as one round, without waiting for the
+  /// client to go quiet, so a test can act between two rounds.
+  void answerPending() => _releaseRound();
+
   void _releaseRound() {
     _round++;
     final gate = _gate;
