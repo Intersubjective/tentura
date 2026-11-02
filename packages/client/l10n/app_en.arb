@@ -2690,15 +2690,6 @@
   "@forwardDeclined": {
     "context": "ForwardBeaconScreen"
   },
-  "forwardedCount": "{count}x forwarded",
-  "@forwardedCount": {
-    "context": "InboxItemTile",
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
   "beaconLifecycleOpen": "Open",
   "@beaconLifecycleOpen": {
     "context": "InboxItemTile"
@@ -3015,36 +3006,8 @@
     "context": "ForwardBeaconScreen",
     "description": "Helper line under the disabled send button on a recipients step while nobody is picked (#720)."
   },
-  "forwardFilterAll": "All",
-  "@forwardFilterAll": {
-    "context": "ForwardBeaconScreen"
-  },
-  "forwardFilterBestNext": "Best next",
-  "@forwardFilterBestNext": {
-    "context": "ForwardBeaconScreen"
-  },
   "forwardFilterUnseen": "Unseen",
   "@forwardFilterUnseen": {
-    "context": "ForwardBeaconScreen"
-  },
-  "forwardFilterInvolved": "Already involved",
-  "@forwardFilterInvolved": {
-    "context": "ForwardBeaconScreen"
-  },
-  "forwardSectionRecommended": "Recommended",
-  "@forwardSectionRecommended": {
-    "context": "ForwardBeaconScreen"
-  },
-  "forwardSectionOthers": "Others",
-  "@forwardSectionOthers": {
-    "context": "ForwardBeaconScreen"
-  },
-  "forwardSectionNotReachable": "Not reachable",
-  "@forwardSectionNotReachable": {
-    "context": "ForwardBeaconScreen"
-  },
-  "forwardSectionUnavailable": "Cannot forward",
-  "@forwardSectionUnavailable": {
     "context": "ForwardBeaconScreen"
   },
   "forwardAlreadyForwarded": "Already forwarded by others",
@@ -3096,15 +3059,6 @@
   "@forwardBeaconAuthorLabel": {
     "context": "ForwardBeaconScreen"
   },
-  "forwardPersonalizeNotes": "Personalize notes ({count})",
-  "@forwardPersonalizeNotes": {
-    "context": "ForwardBeaconScreen",
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
   "forwardRecipientNoteHint": "Add a note for {name} (optional)",
   "@forwardRecipientNoteHint": {
     "context": "ForwardBeaconScreen",
@@ -3116,14 +3070,6 @@
   },
   "forwardSharedNoteHint": "Shared note (optional)",
   "@forwardSharedNoteHint": {
-    "context": "ForwardBeaconScreen"
-  },
-  "forwardSortedByMr": "Sorted by MR score",
-  "@forwardSortedByMr": {
-    "context": "ForwardBeaconScreen"
-  },
-  "forwardCompactSearchHint": "search or type @name",
-  "@forwardCompactSearchHint": {
     "context": "ForwardBeaconScreen"
   },
   "forwardOverlaySearchHint": "search recipients",
@@ -3158,18 +3104,6 @@
   "forwardInviteCreatedHint": "Invite saved — find it in the Invitations tab",
   "@forwardInviteCreatedHint": {
     "context": "ForwardBeaconScreen"
-  },
-  "forwardAddSharedNoteCommand": "Add shared note",
-  "@forwardAddSharedNoteCommand": {
-    "context": "ForwardBeaconScreen"
-  },
-  "forwardAddPersonalizedNote": "Add personalized note",
-  "@forwardAddPersonalizedNote": {
-    "context": "ForwardBeaconScreen recipient row"
-  },
-  "forwardHidePersonalizedNote": "Hide personalized note",
-  "@forwardHidePersonalizedNote": {
-    "context": "ForwardBeaconScreen recipient row"
   },
   "forwardNotePlaceholder": "Add an optional note",
   "@forwardNotePlaceholder": {
@@ -3212,27 +3146,6 @@
   "@forwardUncoveredSharedNoteFieldHint": {
     "context": "ForwardBeaconScreen uncovered recipients sheet field hint"
   },
-  "forwardSendWithoutSharedNote": "Send without a shared note",
-  "@forwardSendWithoutSharedNote": {
-    "context": "Deprecated — removed from uncovered sheet in #172; keep key until callers are gone"
-  },
-  "forwardMrSortShort": "MR sort",
-  "@forwardMrSortShort": {
-    "context": "ForwardBeaconScreen"
-  },
-  "forwardContactsCount": "{count} contacts",
-  "@forwardContactsCount": {
-    "context": "ForwardBeaconScreen",
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "forwardScopeBestShort": "best",
-  "@forwardScopeBestShort": {
-    "context": "ForwardBeaconScreen"
-  },
   "forwardScopeUnseenShort": "Not yet seen",
   "@forwardScopeUnseenShort": {
     "context": "ForwardBeaconScreen"
@@ -3258,10 +3171,6 @@
   "@forwardScopeInvolvedHintPost": {
     "context": "ForwardBeaconScreen",
     "description": "Tooltip of the «Already involved» recipients tab when the item is a post."
-  },
-  "forwardHidePersonalizedNotes": "Hide personalized notes",
-  "@forwardHidePersonalizedNotes": {
-    "context": "ForwardBeaconScreen"
   },
   "myWorkFilterAll": "All",
   "@myWorkFilterAll": {
@@ -5851,9 +5760,6 @@
       }
     }
   },
-  "forwardIncludePublicNote": "Include public status note in message",
-  "forwardAttachFacts": "Attach public facts to message",
-  "forwardFactChipAttach": "Attach",
   "beaconRoomAttachMenuTooltip": "Attach",
   "beaconRoomAttachPickImages": "Photos",
   "beaconRoomAttachPickFiles": "Files",
@@ -6031,7 +5937,6 @@
   "capabilityTagContact": "Contact",
   "capabilityTagOther": "Other",
   "forwardReasonPrompt": "Why are you forwarding to this person?",
-  "forwardReasonApplyToAll": "Apply same reasons to all",
   "capabilityCueForwardedFor": "Often forwarded for: {tags}",
   "@capabilityCueForwardedFor": {
     "placeholders": {
@@ -6473,10 +6378,6 @@
     "description": "STATUS slot2 cue for a helper whose own offer still waits for the author (#636)"
   },
   "beaconYouOfferSent": "Waiting for author to review your offer",
-  "forwardReasonAheadHint": "After selecting someone, you can explain why you're forwarding and add a personal note.",
-  "@forwardReasonAheadHint": {
-    "description": "Hint above forward composer before recipients are selected."
-  },
   "inboxDismissDialogTitle": "Remove from Activity?",
   "@inboxDismissDialogTitle": {
     "description": "Title for the inbox dismiss (X) dialog — not the same as Can't help."
@@ -7113,7 +7014,6 @@
   "@availabilityDatePickerTitle": {
     "description": "Title for the pause resume date picker."
   },
-  "forwardCandidateDetailsTitle": "Candidate details",
   "forwardCandidateRelevanceHeading": "Why they may be relevant",
   "forwardCandidateConnectionHeading": "How you're connected",
   "forwardCandidateDirectConnection": "Direct connection",
