@@ -202,11 +202,6 @@ BeaconIdentity resolveRequestPreviewIdentity(
   return const BeaconIdentityNeutral();
 }
 
-String requestPreviewImageUrl({
-  required String ownerId,
-  required String imageId,
-}) => '$kImageServer/$kImagesPath/$ownerId/$imageId.$kImageExt';
-
 /// Shared request-list identity: tile, title, status, named people, face pile.
 ///
 /// Desk wrappers supply [trailing] (overflow menu). Child cards pass
@@ -407,7 +402,7 @@ class _PreviewIdentityTile extends StatelessWidget {
         ? image.authorId
         : (data.author?.id ?? '');
     return Image.network(
-      requestPreviewImageUrl(ownerId: ownerId, imageId: image.id),
+      serverImageUrl(authorId: ownerId, imageId: image.id),
       fit: BoxFit.cover,
       width: size,
       height: size,
