@@ -268,9 +268,11 @@ class RoomMessageTile extends StatelessWidget {
         return null;
       }
       final reason = decoded['admissionReason'];
+      final offerNote = decoded['offerNote'];
       return {
         'joinedUserId': joinedUserId.trim(),
         'admissionReason': reason is String ? reason.trim() : '',
+        'offerNote': offerNote is String ? offerNote.trim() : '',
       };
     } on Object {
       return null;
@@ -880,15 +882,10 @@ class RoomMessageTile extends StatelessWidget {
                       actorName,
                     ));
         // #527: what the helper offered, quoted under the line that says
-        // they joined, so the team sees it without opening their card. The
-        // room's participant list carries the offer note.
-        final offerNote =
-            participants
-                .where((p) => p.userId == joinedId)
-                .firstOrNull
-                ?.offerNote
-                .trim() ??
-            '';
+        // they joined. A snapshot the server stored in the line at admission,
+        // so it neither depends on the live participant list nor changes when
+        // the offer is edited or withdrawn.
+        final offerNote = payload['offerNote'] ?? '';
         final joinedRow = Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -927,12 +924,10 @@ class RoomMessageTile extends StatelessWidget {
                   children: [
                     joinedRow,
                     SizedBox(height: tt.tightGap),
-                    Text(
-                      l10n.beaconRoomParticipantJoinedOfferQuote(offerNote),
-                      key: const Key('room-participant-joined-offer-quote'),
-                      textAlign: TextAlign.center,
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
+                    _FoldableOfferQuote(
+                      text: l10n.beaconRoomParticipantJoinedOfferQuote(
+                        offerNote,
+                      ),
                       style: theme.textTheme.labelSmall?.copyWith(
                         color: scheme.onSurfaceVariant,
                         fontStyle: FontStyle.italic,
@@ -3018,6 +3013,36 @@ class _ReactorAvatarStrip extends StatelessWidget {
       },
     );
   }
+}
+
+/// The helper's quoted offer under an admission line: folded to two lines,
+/// a tap shows all of it and another folds it again.
+class _FoldableOfferQuote extends StatefulWidget {
+  const _FoldableOfferQuote({required this.text, required this.style});
+
+  final String text;
+  final TextStyle? style;
+
+  @override
+  State<_FoldableOfferQuote> createState() => _FoldableOfferQuoteState();
+}
+
+class _FoldableOfferQuoteState extends State<_FoldableOfferQuote> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    behavior: HitTestBehavior.opaque,
+    onTap: () => setState(() => _expanded = !_expanded),
+    child: Text(
+      widget.text,
+      key: const Key('room-participant-joined-offer-quote'),
+      textAlign: TextAlign.center,
+      maxLines: _expanded ? null : 2,
+      overflow: _expanded ? TextOverflow.visible : TextOverflow.ellipsis,
+      style: widget.style,
+    ),
+  );
 }
 
 /// Pointer-adaptive interaction wrapper for a message bubble.

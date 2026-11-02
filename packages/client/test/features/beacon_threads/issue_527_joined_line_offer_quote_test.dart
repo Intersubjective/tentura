@@ -2,6 +2,8 @@
 // in their offer was only on their People card. The room now quotes it under
 // the line that says they joined, so the team sees what each person offered.
 
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
@@ -53,7 +55,9 @@ BeaconParticipant _omar({String offerNote = ''}) => BeaconParticipant(
   offerNote: offerNote,
 );
 
-final _joinedLine = RoomMessage(
+/// The admission line as the server stores it: the offer quote is a snapshot
+/// in the line's own payload (`offerNote`).
+RoomMessage _joinedLine({String? offerNote}) => RoomMessage(
   id: 'R-joined',
   beaconId: 'B1',
   authorId: _author.id,
@@ -61,12 +65,17 @@ final _joinedLine = RoomMessage(
   body: '',
   createdAt: DateTime.utc(2026, 10, 21, 9),
   semanticMarker: BeaconRoomSemanticMarker.participantJoined,
-  systemPayloadJson: '{"joinedUserId":"u-omar","actorUserId":"u-alice"}',
+  systemPayloadJson: jsonEncode({
+    'joinedUserId': 'u-omar',
+    'actorUserId': 'u-alice',
+    'offerNote': ?offerNote,
+  }),
 );
 
 Future<void> _pump(
   WidgetTester tester,
   List<BeaconParticipant> participants, {
+  String? offerNote,
   Locale locale = const Locale('en'),
 }) async {
   await tester.pumpWidget(
@@ -87,7 +96,7 @@ Future<void> _pump(
             child: Scaffold(
               body: SingleChildScrollView(
                 child: RoomMessageTile(
-                  message: _joinedLine,
+                  message: _joinedLine(offerNote: offerNote),
                   myProfile: _viewer,
                   participants: participants,
                   onToggleReaction: (_, _) async {},
@@ -106,7 +115,7 @@ void main() {
   testWidgets('quotes the helper\u2019s offer under the joined line', (
     tester,
   ) async {
-    await _pump(tester, [_omar(offerNote: '  I have a van, free 10-12.  ')]);
+    await _pump(tester, [_omar()], offerNote: '  I have a van, free 10-12.  ');
 
     expect(
       find.text('Omar Dinner was admitted to the discussion by Alice'),
@@ -132,9 +141,12 @@ void main() {
   });
 
   testWidgets('quotes it the Russian way in Russian', (tester) async {
-    await _pump(tester, [
-      _omar(offerNote: 'Есть машина'),
-    ], locale: const Locale('ru'));
+    await _pump(
+      tester,
+      [_omar()],
+      offerNote: 'Есть машина',
+      locale: const Locale('ru'),
+    );
 
     expect(
       tester.widget<Text>(find.byKey(_quoteKey)).data,
@@ -144,7 +156,7 @@ void main() {
 
   // Guards: nothing to quote, nothing shown.
   testWidgets('shows no quote when the offer had no text', (tester) async {
-    await _pump(tester, [_omar(offerNote: '   ')]);
+    await _pump(tester, [_omar()], offerNote: '   ');
 
     expect(
       find.text('Omar Dinner was admitted to the discussion by Alice'),
@@ -153,10 +165,8 @@ void main() {
     expect(find.byKey(_quoteKey), findsNothing);
   });
 
-  testWidgets('shows no quote when the helper is not in the list', (
-    tester,
-  ) async {
-    await _pump(tester, const []);
+  testWidgets('shows no quote when the line has no snapshot', (tester) async {
+    await _pump(tester, [_omar(offerNote: 'live note, not the snapshot')]);
 
     expect(find.byKey(_quoteKey), findsNothing);
   });

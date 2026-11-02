@@ -24,7 +24,27 @@ void main() {
       {
         'joinedUserId': 'Uhelper',
         'admissionReason': 'autoAdmit',
+        'offerNote': '',
       },
+    );
+  });
+
+  test('participantJoinedPayload trims a present offerNote', () {
+    final message = RoomMessage(
+      id: 'R2',
+      beaconId: 'B1',
+      authorId: 'Uauth',
+      body: '',
+      createdAt: DateTime.utc(2025),
+      semanticMarker: BeaconRoomSemanticMarker.participantJoined,
+      systemPayloadJson:
+          '{"joinedUserId":"Uhelper","admissionReason":"accept","offerNote":"  a van  "}',
+      author: Profile(id: 'Uauth', displayName: 'Author'),
+    );
+
+    expect(
+      RoomMessageTile.participantJoinedPayload(message)?['offerNote'],
+      'a van',
     );
   });
 }

@@ -13,6 +13,18 @@ Future<void> recordBeaconRoomParticipantJoined({
   required String actorUserId,
   required String admissionReason,
 }) async {
+  // Snapshot of the helper's offer at admission time, stored in the line
+  // itself so later edits or a withdrawal never change the quote.
+  final offer = await db.managers.beaconHelpOffers
+      .filter((o) => o.beaconId.id(beaconId) & o.userId.id(joinedUserId))
+      .getSingleOrNull();
+  final participant = await db.managers.beaconParticipants
+      .filter((o) => o.beaconId.id(beaconId) & o.userId.id(joinedUserId))
+      .getSingleOrNull();
+  final offerNote = [offer?.message, participant?.offerNote]
+      .map((t) => t?.trim())
+      .firstWhere((t) => t != null && t.isNotEmpty, orElse: () => null);
+
   final message = await db.managers.beaconRoomMessages.createReturning(
     (o) => o(
       id: generateId('R'),
@@ -24,6 +36,7 @@ Future<void> recordBeaconRoomParticipantJoined({
         'joinedUserId': joinedUserId,
         'actorUserId': actorUserId,
         'admissionReason': admissionReason,
+        'offerNote': ?offerNote,
       }),
       createdAt: const Value.absent(),
     ),
