@@ -2195,11 +2195,6 @@
     "context": "DebugSettingsScreen",
     "description": "Section heading for first-run orientation debug controls"
   },
-  "settingsDebugOrientationOverride": "Orientation panel",
-  "@settingsDebugOrientationOverride": {
-    "context": "DebugSettingsScreen",
-    "description": "Label for the orientation panel visibility override control"
-  },
   "settingsDebugOrientationAuto": "Automatic",
   "@settingsDebugOrientationAuto": {
     "context": "DebugSettingsScreen",
@@ -2236,11 +2231,6 @@
     "context": "DebugSettingsScreen",
     "description": "Clears per-user activation and dismiss latches for the signed-in account"
   },
-  "settingsDebugOrientationResetDone": "First-run state reset for this account",
-  "@settingsDebugOrientationResetDone": {
-    "context": "DebugSettingsScreen",
-    "description": "Snackbar after resetting first-run orientation latches"
-  },
   "settingsFcmRegistration": "FCM registration",
   "settingsFcmToken": "FCM token",
   "settingsFcmTokenUnavailable": "Not available (check notification permission and Firebase config)",
@@ -2257,25 +2247,6 @@
   "settingsRefresh": "Refresh",
   "settingsNotificationsTest": "Notifications test",
   "settingsEmailTest": "Email test",
-  "settingsNotificationsTestSent": "Sent to {sent} of {devices} device(s)",
-  "@settingsNotificationsTestSent": {
-    "placeholders": {
-      "sent": {
-        "type": "int"
-      },
-      "devices": {
-        "type": "int"
-      }
-    }
-  },
-  "settingsNotificationsTestNoDevices": "No registered devices",
-  "settingsNotificationsTestRateLimited": "Please wait 10 seconds before sending another test notification",
-  "settingsNotificationsTestMock": "Server FCM not configured (mock mode)",
-  "settingsEmailTestSent": "Test email sent",
-  "settingsEmailTestNoEmail": "No verified email on this account",
-  "settingsEmailTestRateLimited": "Please wait 10 seconds before sending another test email",
-  "settingsEmailTestMock": "Server email not configured",
-  "settingsEmailTestFailed": "Failed to send test email",
   "settingsRecalculateCounters": "Recalculate counters",
   "@settingsRecalculateCounters": {
     "context": "DebugSettingsScreen"
@@ -2286,10 +2257,6 @@
   },
   "signInMethodsEmpty": "No sign-in methods linked yet",
   "@signInMethodsEmpty": {
-    "context": "CredentialsScreen"
-  },
-  "credentialDeviceKey": "Device key",
-  "@credentialDeviceKey": {
     "context": "CredentialsScreen"
   },
   "removeCredentialTitle": "Remove sign-in method?",
@@ -2465,18 +2432,6 @@
   },
   "notifications": "Notifications",
   "@notifications": {
-    "context": "NotificationCenter"
-  },
-  "notificationsEmpty": "You're all caught up",
-  "@notificationsEmpty": {
-    "context": "NotificationCenter"
-  },
-  "notificationsEmptyHint": "Updates that need you will appear here",
-  "@notificationsEmptyHint": {
-    "context": "NotificationCenter"
-  },
-  "notificationsMarkAllRead": "Mark all read",
-  "@notificationsMarkAllRead": {
     "context": "NotificationCenter"
   },
   "realtimeUpdatesPausedBanner": "Live updates are paused. Changes will catch up when the connection returns.",
@@ -4213,11 +4168,6 @@
   "@dialogWithdrawHelpOfferTitle": {
     "context": "BeaconViewScreen",
     "description": "Title for withdraw dialog"
-  },
-  "dialogUpdateHelpOfferTitle": "Update help offer",
-  "@dialogUpdateHelpOfferTitle": {
-    "context": "BeaconViewScreen",
-    "description": "Title for edit help offer dialog"
   },
   "hintOfferHelpMessage": "How will you help?",
   "@hintOfferHelpMessage": {
@@ -6599,7 +6549,6 @@
       }
     }
   },
-  "inviteSeedPromptSubmit": "Submit",
   "inviteSeedPromptSkip": "Skip",
   "inviteSeedPromptLoadError": "Couldn't load this prompt.",
   "inviteAcceptedSetupAddDetails": "Add details",
