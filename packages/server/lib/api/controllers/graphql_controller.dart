@@ -12,6 +12,8 @@ import 'package:tentura_server/data/service/main_db_scope_admission.dart';
 import 'package:tentura_server/domain/entity/jwt_entity.dart';
 import 'package:tentura_server/domain/request_context.dart';
 import 'package:tentura_server/domain/exception.dart';
+import 'package:tentura_server/domain/exception_codes.dart';
+import 'package:tentura_server/utils/postgres_sql_state.dart';
 
 import 'graphql/input/_input_types.dart';
 import 'graphql/schema.dart';
@@ -131,6 +133,20 @@ final class GraphqlController extends BaseController {
         }),
       );
     } catch (e, st) {
+      // A statement that outwaited `lock_timeout` is contention, not a fault:
+      // the client retries, as after admission saturation.
+      if (isPostgresLockTimeout(e)) {
+        return Response.ok(
+          jsonEncode({
+            'errors': [
+              ConstellationException(
+                constellationCode: ConstellationExceptionCode.retryLater,
+                retryAfter: _lockTimeoutRetryAfter,
+              ).toMap,
+            ],
+          }),
+        );
+      }
       await sentryContext?.captureException(
         e,
         stackTrace: st,
@@ -147,4 +163,6 @@ final class GraphqlController extends BaseController {
   }
 
   static final _graphqlSchema = graphqlSchema;
+
+  static const _lockTimeoutRetryAfter = Duration(seconds: 2);
 }
