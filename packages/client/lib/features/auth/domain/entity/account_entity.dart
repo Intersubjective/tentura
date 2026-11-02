@@ -18,6 +18,6 @@ abstract class AccountEntity with _$AccountEntity {
   bool get hasAvatar => image != null && image!.id.isNotEmpty;
 
   String get avatarUrl => hasAvatar
-      ? '$kImageServer/$kImagesPath/$id/${image!.id}.$kImageExt'
+      ? serverImageUrl(authorId: id, imageId: image!.id)
       : kAvatarPlaceholderUrl;
 }
