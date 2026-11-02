@@ -9,6 +9,7 @@ import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
 import 'package:tentura_root/domain/entity/beacon_status.dart';
+import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
 import 'package:tentura_server/data/repository/attention_dispatch_repository.dart';
@@ -20,6 +21,7 @@ import 'package:tentura_server/data/repository/beacon_room_notification_context_
 import 'package:tentura_server/data/repository/beacon_room_repository.dart';
 import 'package:tentura_server/data/repository/commitment_repository.dart';
 import 'package:tentura_server/data/repository/coordination_repository.dart';
+import 'package:tentura_server/data/repository/coordination_item_repository.dart';
 import 'package:tentura_server/data/repository/help_offer_repository.dart';
 import 'package:tentura_server/data/repository/inbox_repository.dart';
 import 'package:tentura_server/data/repository/mock/invite_seed_prompt_repository_mock.dart';
@@ -29,6 +31,7 @@ import 'package:tentura_server/data/repository/user_availability_repository.dart
 import 'package:tentura_server/data/repository/user_profile_batch_lookup.dart';
 import 'package:tentura_server/data/repository/user_repository.dart';
 import 'package:tentura_server/data/repository/vote_user_friendship_lookup.dart';
+import 'package:tentura_server/domain/entity/beacon_thread_record.dart';
 import 'package:tentura_server/domain/port/invite_genealogy_repository_port.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 import 'package:tentura_server/domain/use_case/capability_case.dart';
@@ -95,6 +98,173 @@ Future<void> main() async {
         actorUserId: _authorId,
       );
     }
+
+    group('membership lines leave unread unchanged', () {
+      for (final counter in [
+        'Request card',
+        'room watermark',
+        'Discussion badge',
+      ]) {
+        for (final departure in ['withdrawal with a note', 'removal']) {
+          test(
+            '$counter ignores joins and $departure but counts member replies',
+            () async {
+              final room = BeaconRoomRepository(database);
+              final items = CoordinationItemRepository(database);
+              // A second admitted helper observes another member joining/leaving.
+              await harness.helpOfferCase.offerHelp(
+                beaconId: _beaconId,
+                userId: _helper2Id,
+              );
+              await harness.coordinationCase.acceptHelpOffer(
+                beaconId: _beaconId,
+                offerUserId: _helper2Id,
+                actorUserId: _authorId,
+              );
+              var seenAt = await room.markBeaconRoomSeen(
+                userId: _helper2Id,
+                beaconId: _beaconId,
+                threadItemId: null,
+                at: DateTime.timestamp(),
+              );
+
+              Future<BeaconThreadRecord> discussion() async =>
+                  (await items.listThreads(
+                    beaconId: _beaconId,
+                    viewerUserId: _helper2Id,
+                    includeGeneral: true,
+                    itemParticipantsOnly: false,
+                    excerptCharacters: 140,
+                  )).singleWhere((row) => row.threadId == 'general');
+
+              Future<int> unread() async {
+                switch (counter) {
+                  case 'Request card':
+                    final counts = await room.unreadMainRoomMessageCounts(
+                      [_beaconId],
+                      viewerUserId: _helper2Id,
+                    );
+                    // Missing results must not masquerade as a zero count.
+                    expect(counts, contains(_beaconId));
+                    return counts[_beaconId]!;
+                  case 'room watermark':
+                    return room.countRoomMessagesAfter(
+                      beaconId: _beaconId,
+                      after: seenAt,
+                      excludeAuthorId: _helper2Id,
+                    );
+                  default:
+                    return (await discussion()).unreadCount;
+                }
+              }
+
+              expect(
+                await unread(),
+                0,
+                reason: 'The observer has read the room',
+              );
+              await admitHelper();
+              final joined = await discussion();
+              expect(joined.lastMessageAuthorId, _authorId);
+              expect(
+                joined.lastMessagePreview?.kind,
+                ThreadMessagePreviewKind.join,
+              );
+              expect(joined.lastMessagePreview?.joinedUserId, _helperId);
+              expect(
+                await unread(),
+                0,
+                reason: 'A join remains a preview, not unread',
+              );
+
+              await room.insertRoomMessage(
+                beaconId: _beaconId,
+                authorId: _helperId,
+                body: 'I can bring the van',
+              );
+              expect(
+                await unread(),
+                1,
+                reason: 'Ordinary NULL-marker messages count',
+              );
+              await room.insertRoomMessage(
+                beaconId: _beaconId,
+                authorId: _helper2Id,
+                body: 'I will meet you there',
+              );
+              expect(
+                await unread(),
+                1,
+                reason: 'The observer never counts their own reply',
+              );
+              await room.insertRoomMessage(
+                beaconId: _beaconId,
+                authorId: _helperId,
+                body: 'Meet at nine',
+                semanticMarker: BeaconRoomSemanticMarker.updatePlan,
+              );
+              expect(
+                await unread(),
+                2,
+                reason: 'Non-membership semantic messages count',
+              );
+              seenAt = await room.markBeaconRoomSeen(
+                userId: _helper2Id,
+                beaconId: _beaconId,
+                threadItemId: null,
+                at: DateTime.timestamp(),
+              );
+              expect(await unread(), 0);
+
+              if (departure == 'withdrawal with a note') {
+                await harness.helpOfferCase.withdraw(
+                  beaconId: _beaconId,
+                  userId: _helperId,
+                  withdrawReason: 'timing',
+                  message: 'Saturday fell through',
+                );
+              } else {
+                await harness.coordinationCase.releaseCommitment(
+                  beaconId: _beaconId,
+                  offerUserId: _helperId,
+                  authorUserId: _authorId,
+                  reason: 'Plans changed',
+                );
+              }
+
+              // The same latest membership line still supplies the preview.
+              final latest = (await room.listMessages(
+                beaconId: _beaconId,
+              )).first;
+              expect(
+                latest.semanticMarker,
+                departure == 'withdrawal with a note'
+                    ? BeaconRoomSemanticMarker.participantLeft
+                    : BeaconRoomSemanticMarker.participantRemoved,
+              );
+              expect(latest.systemMessageKind, isNull);
+              if (departure == 'withdrawal with a note') {
+                expect(
+                  (latest.systemPayload! as Map)['note'],
+                  'Saturday fell through',
+                );
+              }
+              final departed = await discussion();
+              expect(departed.lastMessageAuthorId, _helperId);
+              expect(
+                departed.lastMessagePreview?.kind,
+                ThreadMessagePreviewKind.participantStatus,
+              );
+              expect(
+                await unread(),
+                0,
+                reason: 'A membership line must not make a read Request unread',
+              );
+            },
+          );
+        }
+      }
+    });
 
     Future<void> setNextStep(String text) async {
       final repo = BeaconRoomRepository(database);

@@ -1965,8 +1965,8 @@ WHERE b.id = ANY($1::text[])
     if (ids.isEmpty) return {};
     // Same rule as [countRoomMessagesAfter]: the viewer's own messages are
     // never unread (`<>` also leaves out authorless rows).
-    // Admission notices predate system_message_kind, so also exclude their
-    // semantic marker without dropping non-system plan-updated messages.
+    // Membership lines have no system_message_kind, so also exclude their
+    // semantic markers without dropping non-system plan-updated messages.
     final rows = await _db
         .customSelect(
           r'''
@@ -1976,7 +1976,7 @@ SELECT ids.beacon_id,
       AND m.thread_item_id IS NULL
       AND m.author_id <> $2
       AND m.system_message_kind IS NULL
-      AND m.semantic_marker IS DISTINCT FROM $3
+      AND (m.semantic_marker IS NULL OR m.semantic_marker <> ALL($3::integer[]))
       AND (seen.last_seen_at IS NULL OR m.created_at > seen.last_seen_at)
   )::int AS unread
 FROM unnest($1::text[]) AS ids(beacon_id)
@@ -1987,7 +1987,12 @@ LEFT JOIN public.beacon_room_seen seen
           variables: [
             Variable(TypedValue(Type.textArray, ids)),
             Variable<String>(viewerUserId),
-            const Variable<int>(BeaconRoomSemanticMarker.participantJoined),
+            Variable(
+              TypedValue(
+                Type.integerArray,
+                kBeaconRoomMembershipLineMarkers.toList(),
+              ),
+            ),
           ],
         )
         .get();
@@ -2568,9 +2573,9 @@ CROSS JOIN LATERAL (
                   m.threadItemId.isNull() &
                   m.systemMessageKind.isNull() &
                   (m.semanticMarker.isNull() |
-                      m.semanticMarker
-                          .equals(BeaconRoomSemanticMarker.participantJoined)
-                          .not());
+                      m.semanticMarker.isNotIn(
+                        kBeaconRoomMembershipLineMarkers,
+                      ));
               if (after != null) {
                 cond = cond & m.createdAt.isBiggerThanValue(PgDateTime(after));
               }

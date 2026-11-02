@@ -1015,7 +1015,7 @@ LEFT JOIN LATERAL (
       m.author_id <> $2
       AND (tb.item_id IS NOT NULL OR (
         m.system_message_kind IS NULL
-        AND m.semantic_marker IS DISTINCT FROM $7
+        AND (m.semantic_marker IS NULL OR m.semantic_marker <> ALL($7::integer[]))
       ))
       AND (s.last_seen_at IS NULL OR m.created_at > s.last_seen_at)
       AND (tb.item_id IS NULL OR tb.item_kind <> $6)
@@ -1054,7 +1054,12 @@ ORDER BY (tb.thread_id = 'general') DESC,
         Variable<bool>(includeGeneral),
         Variable<int>(excerptCharacters),
         const Variable<int>(coordinationItemKindPlan),
-        const Variable<int>(BeaconRoomSemanticMarker.participantJoined),
+        Variable(
+          TypedValue(
+            Type.integerArray,
+            kBeaconRoomMembershipLineMarkers.toList(),
+          ),
+        ),
       ],
     ).get();
 

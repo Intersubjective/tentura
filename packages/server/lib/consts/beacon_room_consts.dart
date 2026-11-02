@@ -74,6 +74,13 @@ abstract final class BeaconRoomSemanticMarker {
   static const participantRemoved = 19;
 }
 
+/// Membership lines remain visible in previews but never count as unread.
+const kBeaconRoomMembershipLineMarkers = {
+  BeaconRoomSemanticMarker.participantJoined,
+  BeaconRoomSemanticMarker.participantLeft,
+  BeaconRoomSemanticMarker.participantRemoved,
+};
+
 /// `beacon_participant.next_move_status` (sparse UX enum).
 abstract final class BeaconNextMoveStatusBits {
   static const active = 0;
