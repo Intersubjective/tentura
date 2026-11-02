@@ -1106,7 +1106,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     try {
       final replacement = await _case.adjustCoverCrop(
         image: image,
-        imageUrl: _serverImageUrl(image),
+        imageUrl: serverImageUrl(authorId: image.authorId, imageId: image.id),
         cropUi: cropUi,
       );
       if (isClosed || replacement == null) return;
@@ -1116,9 +1116,6 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
       _emitSnackError(e);
     }
   }
-
-  static String _serverImageUrl(ImageEntity image) =>
-      '$kImageServer/$kImagesPath/${image.authorId}/${image.id}.$kImageExt';
 
   ///
   ///
