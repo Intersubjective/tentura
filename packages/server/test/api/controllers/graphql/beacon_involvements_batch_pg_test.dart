@@ -1,4 +1,4 @@
-@Tags(['pg'])
+@Tags(['pg', 'multi-connection'])
 @Timeout(Duration(minutes: 3))
 library;
 
