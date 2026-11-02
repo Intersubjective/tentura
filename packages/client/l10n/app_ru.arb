@@ -2534,15 +2534,6 @@
   "@forwardDeclined": {
     "context": "ForwardBeaconScreen"
   },
-  "forwardedCount": "{count}x переслано",
-  "@forwardedCount": {
-    "context": "InboxItemTile",
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
   "beaconLifecycleOpen": "Открыт",
   "@beaconLifecycleOpen": {
     "context": "InboxItemTile"
@@ -2857,36 +2848,8 @@
   "@selectRecipients": {
     "context": "ForwardBeaconScreen"
   },
-  "forwardFilterAll": "Все",
-  "@forwardFilterAll": {
-    "context": "ForwardBeaconScreen"
-  },
-  "forwardFilterBestNext": "Лучшие дальше",
-  "@forwardFilterBestNext": {
-    "context": "ForwardBeaconScreen"
-  },
   "forwardFilterUnseen": "Не видели",
   "@forwardFilterUnseen": {
-    "context": "ForwardBeaconScreen"
-  },
-  "forwardFilterInvolved": "Уже вовлечены",
-  "@forwardFilterInvolved": {
-    "context": "ForwardBeaconScreen"
-  },
-  "forwardSectionRecommended": "Рекомендуемые",
-  "@forwardSectionRecommended": {
-    "context": "ForwardBeaconScreen"
-  },
-  "forwardSectionOthers": "Остальные",
-  "@forwardSectionOthers": {
-    "context": "ForwardBeaconScreen"
-  },
-  "forwardSectionNotReachable": "Недоступны",
-  "@forwardSectionNotReachable": {
-    "context": "ForwardBeaconScreen"
-  },
-  "forwardSectionUnavailable": "Нельзя переслать",
-  "@forwardSectionUnavailable": {
     "context": "ForwardBeaconScreen"
   },
   "forwardAlreadyForwarded": "Уже переслано другими",
@@ -2938,15 +2901,6 @@
   "@forwardBeaconAuthorLabel": {
     "context": "ForwardBeaconScreen"
   },
-  "forwardPersonalizeNotes": "Персональные заметки ({count})",
-  "@forwardPersonalizeNotes": {
-    "context": "ForwardBeaconScreen",
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
   "forwardRecipientNoteHint": "Добавьте заметку для {name} (необязательно)",
   "@forwardRecipientNoteHint": {
     "context": "ForwardBeaconScreen",
@@ -2958,14 +2912,6 @@
   },
   "forwardSharedNoteHint": "Общая заметка (необязательно)",
   "@forwardSharedNoteHint": {
-    "context": "ForwardBeaconScreen"
-  },
-  "forwardSortedByMr": "Сортировка по MR",
-  "@forwardSortedByMr": {
-    "context": "ForwardBeaconScreen"
-  },
-  "forwardCompactSearchHint": "поиск или @имя",
-  "@forwardCompactSearchHint": {
     "context": "ForwardBeaconScreen"
   },
   "forwardOverlaySearchHint": "поиск получателей",
@@ -3000,18 +2946,6 @@
   "forwardInviteCreatedHint": "Приглашение создано — найдёте его во вкладке «Приглашения»",
   "@forwardInviteCreatedHint": {
     "context": "ForwardBeaconScreen"
-  },
-  "forwardAddSharedNoteCommand": "Добавить общую заметку",
-  "@forwardAddSharedNoteCommand": {
-    "context": "ForwardBeaconScreen"
-  },
-  "forwardAddPersonalizedNote": "Персональная заметка",
-  "@forwardAddPersonalizedNote": {
-    "context": "ForwardBeaconScreen recipient row"
-  },
-  "forwardHidePersonalizedNote": "Скрыть заметку",
-  "@forwardHidePersonalizedNote": {
-    "context": "ForwardBeaconScreen recipient row"
   },
   "forwardNotePlaceholder": "Добавьте заметку (необязательно)",
   "@forwardNotePlaceholder": {
@@ -3054,27 +2988,6 @@
   "@forwardUncoveredSharedNoteFieldHint": {
     "context": "ForwardBeaconScreen uncovered recipients sheet field hint"
   },
-  "forwardSendWithoutSharedNote": "Отправить без общей заметки",
-  "@forwardSendWithoutSharedNote": {
-    "context": "Deprecated — removed from uncovered sheet in #172; keep key until callers are gone"
-  },
-  "forwardMrSortShort": "MR сорт.",
-  "@forwardMrSortShort": {
-    "context": "ForwardBeaconScreen"
-  },
-  "forwardContactsCount": "{count} контактов",
-  "@forwardContactsCount": {
-    "context": "ForwardBeaconScreen",
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "forwardScopeBestShort": "лучшие",
-  "@forwardScopeBestShort": {
-    "context": "ForwardBeaconScreen"
-  },
   "forwardScopeUnseenShort": "Пока не видели",
   "@forwardScopeUnseenShort": {
     "context": "ForwardBeaconScreen"
@@ -3097,10 +3010,6 @@
   },
   "forwardScopeInvolvedHintPost": "Люди, уже участвующие в цепочке пересылки поста",
   "@forwardScopeInvolvedHintPost": {
-    "context": "ForwardBeaconScreen"
-  },
-  "forwardHidePersonalizedNotes": "Скрыть персональные заметки",
-  "@forwardHidePersonalizedNotes": {
     "context": "ForwardBeaconScreen"
   },
   "myWorkFilterAll": "Все",
@@ -5315,9 +5224,6 @@
       }
     }
   },
-  "forwardIncludePublicNote": "Включить публичный статус в текст сообщения",
-  "forwardAttachFacts": "Прикрепить публичные факты к сообщению",
-  "forwardFactChipAttach": "В текст",
   "beaconRoomAttachMenuTooltip": "Вложение",
   "beaconRoomAttachPickImages": "Фото",
   "beaconRoomAttachPickFiles": "Файлы",
@@ -5459,7 +5365,6 @@
   "capabilityTagContact": "Контакт",
   "capabilityTagOther": "Другое",
   "forwardReasonPrompt": "Почему вы пересылаете этому человеку?",
-  "forwardReasonApplyToAll": "Применить те же причины ко всем",
   "capabilityCueForwardedFor": "Часто пересылаю для: {tags}",
   "@capabilityCueForwardedFor": {
     "placeholders": {
@@ -5728,10 +5633,6 @@
   "beaconPhaseOffersToReview": "{count, plural, one{{count} предложение к рассмотрению} few{{count} предложения к рассмотрению} many{{count} предложений к рассмотрению} other{{count} предложения к рассмотрению}}",
   "beaconPhaseOfferSent": "Предложение отправлено",
   "beaconYouOfferSent": "Ждём, пока автор рассмотрит ваше предложение",
-  "forwardReasonAheadHint": "После выбора человека можно указать причину пересылки и добавить личную заметку.",
-  "@forwardReasonAheadHint": {
-    "description": "Hint above forward composer before recipients are selected."
-  },
   "inboxDismissDialogTitle": "Убрать из активности?",
   "@inboxDismissDialogTitle": {
     "description": "Title for the inbox dismiss (X) dialog — not the same as Can't help."
@@ -6295,7 +6196,6 @@
   "@availabilityDatePickerTitle": {
     "description": "Title for the pause resume date picker."
   },
-  "forwardCandidateDetailsTitle": "Сведения о получателе",
   "forwardCandidateRelevanceHeading": "Почему это может быть уместно",
   "forwardCandidateConnectionHeading": "Как вы связаны",
   "forwardCandidateDirectConnection": "Прямая связь",
