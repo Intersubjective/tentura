@@ -176,14 +176,6 @@
   "@buttonSave": {
     "context": "Utils"
   },
-  "buttonCrop": "Обрезать",
-  "@buttonCrop": {
-    "context": "Utils"
-  },
-  "buttonSaveAvatar": "Сохранить",
-  "@buttonSaveAvatar": {
-    "context": "ProfileEditScreen"
-  },
   "titleCropAvatar": "Обрезка фото профиля",
   "@titleCropAvatar": {
     "context": "Utils"
@@ -195,10 +187,6 @@
   "profilePhotoCrop": "Обрезать",
   "@profilePhotoCrop": {
     "context": "ProfileEditScreen"
-  },
-  "titleUploadProfilePhoto": "Загрузить фото профиля",
-  "@titleUploadProfilePhoto": {
-    "context": "Utils"
   },
   "cropRotateLeftTooltip": "Повернуть против часовой стрелки",
   "@cropRotateLeftTooltip": {
@@ -276,10 +264,6 @@
   "@pleaseEnterCode": {
     "context": "AccountAddDialog"
   },
-  "pleaseFillTitle": "Пожалуйста, укажите название",
-  "@pleaseFillTitle": {
-    "context": "Utils"
-  },
   "confirmAccountRemoval": "Вы уверены, что хотите удалить этот аккаунт?",
   "@confirmAccountRemoval": {
     "context": "AccountRemoveDialog"
@@ -299,10 +283,6 @@
   "recoverFromClipboard": "Восстановить из буфера",
   "@recoverFromClipboard": {
     "context": "AuthLoginScreen"
-  },
-  "recoverFromSeedTitle": "Восстановить из seed",
-  "@recoverFromSeedTitle": {
-    "context": "RecoverScreen"
   },
   "recoverFromSeedHint": "Отсканируйте QR из резервной копии или вставьте сохранённый seed ниже.",
   "@recoverFromSeedHint": {
@@ -370,10 +350,6 @@
   },
   "friendsInviteMore": "Пригласить того, кому доверяете",
   "@friendsInviteMore": {
-    "context": "FriendsScreen"
-  },
-  "invitationsShowMenuItem": "Посмотреть приглашения",
-  "@invitationsShowMenuItem": {
     "context": "FriendsScreen"
   },
   "friendsScanInviteCode": "Сканировать код приглашения",
@@ -537,15 +513,7 @@
   "@buttonSaveDraft": {
     "context": "BeaconCreateScreen"
   },
-  "buttonMakeLive": "Запустить",
   "beaconMakeLiveWithoutSending": "Опубликовать без отправки",
-  "@buttonMakeLive": {
-    "context": "BeaconCreateScreen"
-  },
-  "buttonMakeLiveBlockedHint": "Заполните выделенные поля, чтобы запустить запрос.",
-  "@buttonMakeLiveBlockedHint": {
-    "context": "BeaconCreateScreen"
-  },
   "liveRequestTitle": "Открытый запрос",
   "@liveRequestTitle": {
     "context": "BeaconCreateScreen"
@@ -565,18 +533,6 @@
   "editBeacon": "Редактировать запрос",
   "@editBeacon": {
     "context": "BeaconOverflowMenu"
-  },
-  "draftSavedMessage": "Черновик сохранён",
-  "@draftSavedMessage": {
-    "context": "BeaconCreateScreen"
-  },
-  "setDisplayPeriod": "Укажите период",
-  "@setDisplayPeriod": {
-    "context": "BeaconCreateScreen"
-  },
-  "buttonPublish": "Опубликовать",
-  "@buttonPublish": {
-    "context": "BeaconCreateScreen"
   },
   "addLocation": "Добавить место",
   "@addLocation": {
@@ -779,10 +735,6 @@
   "@beaconCreateCoverRow": {
     "context": "BeaconCreateScreen"
   },
-  "createBeaconErrorTooShortQuestion": "слишком короткий вопрос",
-  "@createBeaconErrorTooShortQuestion": {
-    "context": "BeaconCreateScreen"
-  },
   "confirmBeaconPublishing": "Вы уверены, что хотите опубликовать этот запрос?",
   "@confirmBeaconPublishing": {
     "context": "BeaconPublishDialog"
@@ -790,10 +742,6 @@
   "confirmBeaconPublishingHint": "После публикации запроса изменения будут невозможны. Вы уверены, что хотите опубликовать этот запрос?",
   "@confirmBeaconPublishingHint": {
     "context": "BeaconPublishDialog"
-  },
-  "writeComment": "Написать комментарий",
-  "@writeComment": {
-    "context": "Comments"
   },
   "submitComplaint": "Отправить жалобу",
   "@submitComplaint": {
@@ -837,10 +785,6 @@
       }
     }
   },
-  "provideDetails": "Пожалуйста, укажите подробности",
-  "@provideDetails": {
-    "context": "ComplaintScreen"
-  },
   "feedbackEmail": "Email для обратной связи (необязательно)",
   "@feedbackEmail": {
     "context": "ComplaintScreen"
@@ -864,10 +808,6 @@
   "buttonSubmitAccountDeletionRequest": "ОТПРАВИТЬ ЗАПРОС",
   "@buttonSubmitAccountDeletionRequest": {
     "context": "ComplaintScreen"
-  },
-  "filterByTag": "Фильтр по тегу",
-  "@filterByTag": {
-    "context": "MyFieldScreen"
   },
   "writeCodeHere": "Если у вас есть код, введите его здесь:",
   "@writeCodeHere": {
@@ -972,14 +912,6 @@
   "@chooseLocationConfirm": {
     "context": "ChooseLocationDialog"
   },
-  "goToEgo": "Перейти к Эго",
-  "@goToEgo": {
-    "context": "GraphScreen"
-  },
-  "showNegative": "Показать негативные",
-  "@showNegative": {
-    "context": "GraphScreen"
-  },
   "hideNegative": "Скрыть негативные",
   "@hideNegative": {
     "context": "GraphScreen"
@@ -1042,10 +974,6 @@
   },
   "graphLegendEdgeNegative": "Отрицательная связь",
   "@graphLegendEdgeNegative": {
-    "context": "GraphScreen"
-  },
-  "graphLegendEdgeUndirected": "Линии показывают соседство, а не направление голоса",
-  "@graphLegendEdgeUndirected": {
     "context": "GraphScreen"
   },
   "graphLegendEdgeForwardOther": "Другие пересылки",
@@ -1456,17 +1384,9 @@
   "@constellationViewModeMap": {
     "context": "ConstellationBody"
   },
-  "constellationViewModeText": "Текст",
-  "@constellationViewModeText": {
-    "context": "ConstellationBody"
-  },
   "constellationSelectionUnavailable": "Выбранного запроса больше нет в этом снимке.",
   "@constellationSelectionUnavailable": {
     "context": "ConstellationBody"
-  },
-  "constellationTextViewSemantics": "Список запросов по людям",
-  "@constellationTextViewSemantics": {
-    "context": "ConstellationTextView"
   },
   "constellationTextEmptyField": "В этом снимке нет активных запросов.",
   "@constellationTextEmptyField": {
@@ -1548,10 +1468,6 @@
   "constellationPlacementSaving": "Сохраняем…",
   "@constellationPlacementSaving": {
     "context": "Cue on a constellation node whose new position is still being sent to the server"
-  },
-  "graphLegendConstellationRequestStatusTitle": "Статус запроса",
-  "@graphLegendConstellationRequestStatusTitle": {
-    "description": "Constellation legend section for request lifecycle markers"
   },
   "graphLegendConstellationRequestStatusOpen": "Открыт",
   "@graphLegendConstellationRequestStatusOpen": {
@@ -1719,10 +1635,6 @@
   "communityFeedback": "Отзывы сообщества",
   "@communityFeedback": {
     "context": "Profile"
-  },
-  "addToMyField": "Доверять этому пользователю",
-  "@addToMyField": {
-    "context": "ProfileViewBody"
   },
   "profileSendRequestTo": "Отправить запрос",
   "@profileSendRequestTo": {
@@ -2167,26 +2079,6 @@
   "@closeButton": {
     "context": "PollDialog"
   },
-  "newStuffBadge": "Новое",
-  "@newStuffBadge": {
-    "context": "NewStuff indicators (Inbox / My Work)"
-  },
-  "newStuffUpdatedBadge": "Обновлено",
-  "@newStuffUpdatedBadge": {
-    "context": "NewStuff indicators — beacon edited since last visit (Inbox / My Work)"
-  },
-  "newStuffReasonNewForward": "Запрос переслан вам",
-  "@newStuffReasonNewForward": {
-    "context": "NewStuff dot — Inbox row reason"
-  },
-  "newStuffReasonBeaconUpdated": "Запрос обновлён",
-  "@newStuffReasonBeaconUpdated": {
-    "context": "NewStuff dot — beacon content/lifecycle change"
-  },
-  "newStuffReasonCoordinationStatusChanged": "Изменён статус координации запроса",
-  "@newStuffReasonCoordinationStatusChanged": {
-    "context": "NewStuff dot — beacon-level coordination status"
-  },
   "notifications": "Уведомления",
   "@notifications": {
     "context": "NotificationCenter"
@@ -2265,15 +2157,6 @@
   "@inboxWatchingEmptyHint": {
     "context": "InboxScreen"
   },
-  "activityTriageRequestsNeedResponse": "{count, plural, one{1 запрос ждёт вашего ответа} few{{count} запроса ждут вашего ответа} many{{count} запросов ждут вашего ответа} other{{count} запросов ждут вашего ответа}}",
-  "@activityTriageRequestsNeedResponse": {
-    "context": "InboxScreen",
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
   "activityNavBadgeNewActivity": "Новая активность",
   "@activityNavBadgeNewActivity": {
     "context": "InboxNavbarItem",
@@ -2330,10 +2213,6 @@
   "@rejectionDialogHint": {
     "context": "RejectionDialog"
   },
-  "timelineDeclined": "Отклонено",
-  "@timelineDeclined": {
-    "context": "BeaconViewScreen"
-  },
   "forwardDeclined": "Убрал(а) этот запрос",
   "@forwardDeclined": {
     "context": "ForwardBeaconScreen"
@@ -2372,10 +2251,6 @@
   },
   "actionWatch": "Следить за запросом",
   "@actionWatch": {
-    "context": "InboxItemTile"
-  },
-  "actionHide": "Скрыть",
-  "@actionHide": {
     "context": "InboxItemTile"
   },
   "inboxProvenanceCollapse": "Свернуть",
@@ -2614,20 +2489,8 @@
   "@forwardRecipientCapabilityMatchesNeed": {
     "context": "ForwardRecipientRow capability chip (tooltip / accessibility)"
   },
-  "searchContacts": "Поиск контактов...",
-  "@searchContacts": {
-    "context": "ForwardBeaconScreen"
-  },
-  "noReachableContacts": "Нет доступных контактов",
-  "@noReachableContacts": {
-    "context": "ForwardBeaconScreen"
-  },
   "notReachable": "Недоступен",
   "@notReachable": {
-    "context": "ForwardBeaconScreen"
-  },
-  "addNoteOptional": "Добавить заметку (необязательно)",
-  "@addNoteOptional": {
     "context": "ForwardBeaconScreen"
   },
   "forwardToCount": "Переслать ({count})",
@@ -3546,22 +3409,6 @@
   "@labelTimeline": {
     "context": "BeaconViewScreen"
   },
-  "noActivityYet": "Пока нет активности",
-  "@noActivityYet": {
-    "context": "BeaconViewScreen"
-  },
-  "timelineForwarded": "{sender} переслал(а) для {recipient}",
-  "@timelineForwarded": {
-    "context": "BeaconViewScreen",
-    "placeholders": {
-      "sender": {
-        "type": "String"
-      },
-      "recipient": {
-        "type": "String"
-      }
-    }
-  },
   "timelineHelpOffered": "{user} предложил(а) помощь",
   "@timelineHelpOffered": {
     "context": "BeaconViewScreen",
@@ -3621,32 +3468,6 @@
         "type": "String"
       },
       "label": {
-        "type": "String"
-      }
-    }
-  },
-  "timelineBeaconLifecycleChanged": "{author} изменил(а) статус запроса на: {status}",
-  "@timelineBeaconLifecycleChanged": {
-    "context": "BeaconViewScreen",
-    "description": "Timeline: beacon lifecycle/state changed",
-    "placeholders": {
-      "author": {
-        "type": "String"
-      },
-      "status": {
-        "type": "String"
-      }
-    }
-  },
-  "timelineBeaconCoordinationStatusChanged": "{author} изменил(а) координационный статус на: {status}",
-  "@timelineBeaconCoordinationStatusChanged": {
-    "context": "BeaconViewScreen",
-    "description": "Timeline: beacon-level coordination status changed",
-    "placeholders": {
-      "author": {
-        "type": "String"
-      },
-      "status": {
         "type": "String"
       }
     }
@@ -3732,11 +3553,6 @@
   "@hintWithdrawReason": {
     "context": "BeaconViewScreen",
     "description": "Hint text for withdraw reason input"
-  },
-  "noHelpOffersYet": "Пока никто не предложил помощь",
-  "@noHelpOffersYet": {
-    "context": "BeaconViewScreen",
-    "description": "Empty state for help offers tab"
   },
   "labelEdited": "изменено",
   "@labelEdited": {
@@ -4146,7 +3962,6 @@
   "helpOfferAuthorSeenAtTooltip": "Просмотрено {when}",
   "helpOfferAdmissionAccept": "Принять",
   "helpOfferAdmissionDecline": "Отклонить",
-  "helpOfferAdmissionRemove": "Убрать из обсуждения",
   "helpOfferAdmittedLabel": "Допущен(а)",
   "helpOfferCanReadChat": "Может читать это обсуждение",
   "helpOfferAdmittedAutomaticallyLabel": "Допущен(а) автоматически",
@@ -4201,12 +4016,6 @@
   },
   "helpOfferDeclineDialogTitle": "Отклонить предложение",
   "helpOfferDeclineDialogHint": "Напишите причину. Это обязательно",
-  "helpOfferRemoveDialogTitle": "Убрать из обсуждения",
-  "helpOfferRemoveDialogHint": "Напишите причину. Это обязательно",
-  "helpOfferRemoveKeepsParticipationNote": "Только доступ к обсуждению — участие сохраняется.",
-  "@helpOfferRemoveKeepsParticipationNote": {
-    "description": "Пояснение: убрать из чата не завершает участие"
-  },
   "helpOfferReleaseCommitment": "Завершить участие",
   "@helpOfferReleaseCommitment": {
     "description": "Действие автора — завершить зафиксированное участие"
@@ -4261,22 +4070,6 @@
   },
   "helpOffersTabActionEdit": "Правка",
   "helpOffersTabActionWithdraw": "Снять",
-  "helpOffersTabSummaryUseful": "{n} полезн.",
-  "@helpOffersTabSummaryUseful": {
-    "placeholders": {
-      "n": {
-        "type": "int"
-      }
-    }
-  },
-  "helpOffersTabSummaryNeedCoordination": "{n} — нужна коорд.",
-  "@helpOffersTabSummaryNeedCoordination": {
-    "placeholders": {
-      "n": {
-        "type": "int"
-      }
-    }
-  },
   "beaconRoomTitle": "Обсуждение",
   "beaconRoomMessageHint": "Напишите сообщение…",
   "beaconRoomMessageReadOnlyHint": "Это обсуждение доступно только для чтения",
@@ -4804,7 +4597,6 @@
   },
   "capabilityDialogTitle": "Чем может помочь {name}?",
   "capabilityDialogOnlyYou": "Новые метки — ваши заметки, их видите только вы",
-  "capabilityEditCapabilities": "Редактировать способности",
   "capabilityCueMyLabels": "Мои метки: {tags}",
   "@capabilityCueMyLabels": {
     "placeholders": {
@@ -4893,7 +4685,6 @@
       }
     }
   },
-  "helpOfferRolePrompt": "Как вы помогаете?",
   "helpOfferRoleLabelField": "Роль",
   "@helpOfferRoleLabelField": {
     "description": "Editable short role label on People help-offer card and chat peek sheet"
@@ -4915,7 +4706,6 @@
       }
     }
   },
-  "helpOfferSelectionLimit": "Выберите до 4 способов помочь.",
   "helpOfferSearchLabel": "Поиск способов помочь",
   "helpOfferSubmit": "Предложить помощь ({count}/{limit})",
   "@helpOfferSubmit": {
@@ -4945,7 +4735,6 @@
       }
     }
   },
-  "closeAckPrompt": "Чем реально помог этот человек?",
   "capabilityCueAcknowledged": "Помог с: {tags}",
   "@capabilityCueAcknowledged": {
     "placeholders": {
@@ -5181,12 +4970,10 @@
   "updatesMarkDone": "Отметить выполненным",
   "updatesMarkAllSeen": "Прочитать всё",
   "updatesRefreshFailedBanner": "Не удалось обновить ленту. Список может быть устаревшим.",
-  "updatesEmptyTitle": "Ничего нового",
   "updatesEmptyAllHint": "Всё прочитано. Новые обновления появятся здесь.",
   "updatesEmptyUnreadHint": "Всё прочитано. Новые обновления появятся здесь.",
   "updatesEmptyNeedsYouHint": "Нет открытых задач, требующих вашего участия.",
   "updatesSearchNoResults": "Ничего не найдено по запросу «{query}»",
-  "updatesNextStepMarkDoneHint": "Отметьте выполненным, когда закончите задачу.",
   "updatesFallbackTitleGeneric": "Обновление",
   "updatesFallbackBodyGeneric": "Откройте «Новое», чтобы посмотреть изменения.",
   "updatesFallbackTitleRelayReceived": "Запрос переслан",
@@ -5516,14 +5303,6 @@
   "@unblockUserMenuItem": {
     "description": "Unblock action label on profile menu and blocked-users list."
   },
-  "blockErrorRateLimited": "Вы недавно заблокировали слишком много людей. Попробуйте позже.",
-  "@blockErrorRateLimited": {
-    "description": "Shown when the server rejects a block for rate limiting."
-  },
-  "errorBlockedByUser": "Этот человек недоступен.",
-  "@errorBlockedByUser": {
-    "description": "Generic error when an action is rejected because of a block."
-  },
   "availabilityLimitedTitle": "Только важные запросы",
   "@availabilityLimitedTitle": {
     "description": "Neutral availability label when another person accepts only important requests."
@@ -5703,8 +5482,6 @@
   "forwardCandidateViewProfile": "Открыть полный профиль",
   "forwardCandidateUnavailableMessage": "Этот человек больше недоступен.",
   "attentionCardQuotedTitle": "«{title}»",
-  "attentionCardTitleByForwarder": "«{title}» · от {name}",
-  "attentionCardClearAll": "Очистить всё",
   "attentionCardA11yRequest": "Запрос «{title}», от {author}",
   "attentionCardA11yEvents": "{count, plural, one{{count} новое событие} few{{count} новых события} many{{count} новых событий} other{{count} новых событий}}",
   "attentionCardMoreForwarded": "{count, plural, one{Переслали ещё {count}} few{Переслали ещё {count}} many{Переслали ещё {count}} other{Переслали ещё {count}}}",
@@ -5826,19 +5603,7 @@
   "postConversationAddressed": "{author} · вам",
   "postConversationForwarded": "{author} · через {sender}",
   "postConversationMuted": "Звук выключен",
-  "postViewTitle": "{author}: {excerpt}",
-  "@postViewTitle": {
-    "placeholders": {
-      "author": {
-        "type": "String"
-      },
-      "excerpt": {
-        "type": "String"
-      }
-    }
-  },
   "postMenuParticipants": "Участники",
-  "postMenuShowOnField": "Показать на поле",
   "postMenuAllowForwarding": "Разрешить пересылку",
   "postMenuDelete": "Удалить пост",
   "postAllowForwardingTitle": "Разрешить пересылку?",
@@ -5917,7 +5682,6 @@
       }
     }
   },
-  "postParticipantsForwardingOpen": "Можно пересылать",
   "postParticipantsInvite": "Позвать",
   "postParticipantsInviteSemantics": "Позвать кого-нибудь в этот пост",
   "postParticipantsForwardsGraph": "Как пост дошёл до людей",
@@ -5947,14 +5711,12 @@
   "constellationComposerRecipients": "Получат · {count}",
   "constellationOpenPost": "Открыть пост",
   "constellationComposerAddPerson": "Выбирать людей на карте",
-  "constellationComposerList": "Списком ›",
   "constellationComposerDetails": "Подробнее",
   "constellationComposerCreate": "Создать",
   "constellationComposerRemoveRecipient": "Убрать: {name}",
   "postMenuPin": "Закрепить в «Постах»",
   "postMenuUnpin": "Открепить",
   "postMenuMute": "Заглушить",
-  "postMenuUnmute": "Включить звук",
   "postMuteHour": "На 1 час",
   "postMuteThreeHours": "На 3 часа",
   "postMuteDay": "На день",
@@ -6000,7 +5762,6 @@
   "postMenuUnmuteForever": "Включить звук · заглушено навсегда",
   "postInfoForwardingOpen": "Можно пересылать: любой участник может позвать других",
   "postInfoForwardingClosed": "Пересылать может только автор",
-  "postInfoPinned": "Закреплён в «Постах» и не затихнет",
   "postInfoMutedUntil": "Звук выключен до {time}",
   "@postInfoMutedUntil": {
     "placeholders": {
@@ -6239,7 +6000,6 @@
   "attentionCardNotesSheetTitle": "Записки к пересылкам",
   "attentionCardDismissRow": "Убрать: {name}",
   "postBudAction": "Оформить запрос",
-  "postBudPickMessageTitle": "Из какого сообщения оформить запрос?",
   "postBudInviteTitle": "Кого позвать",
   "postBudInviteExplanation": "Позванные получат приглашение и сами решат, участвовать ли. Остальные участники поста увидят запрос и смогут предложить помощь сами.",
   "postBudInviteLoadFailed": "Не удалось загрузить участников поста.",
@@ -6739,7 +6499,6 @@
   "beaconLobbyRemoveConfirmBody": "Этот человек не сможет читать и писать в вопросах, пока вы не вернёте ему доступ. На его предложение помощи, если оно было, это не повлияет.",
   "graphLegendConstellationMutualTrust": "Доверяют друг другу",
   "graphLegendConstellationMutualTrustHint": "Видно, пока выбран человек: двойная линия соединяет его с каждым на «Поле», с кем у него взаимное доверие.",
-  "peopleTagsNameTaken": "Такой тег уже есть",
   "peopleTagsUndo": "Отменить",
   "peopleTagsAddToTag": "В тег…",
   "peopleTagsNewTag": "+ Тег",
