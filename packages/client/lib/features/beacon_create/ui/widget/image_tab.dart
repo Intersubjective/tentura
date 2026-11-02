@@ -169,7 +169,7 @@ class _ImageCard extends StatelessWidget {
               )
             else if (image.id.isNotEmpty && image.authorId.isNotEmpty)
               Image.network(
-                '$kImageServer/$kImagesPath/${image.authorId}/${image.id}.$kImageExt',
+                serverImageUrl(authorId: image.authorId, imageId: image.id),
                 fit: BoxFit.cover,
                 errorBuilder: (_, _, _) => Center(
                   child: Icon(
