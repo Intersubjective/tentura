@@ -229,6 +229,11 @@ const kAvatarPlaceholderUrl =
 const kBeaconPlaceholderUrl =
     '$kImageServer/$kImagesPath/placeholder/beacon.$kImageExt';
 
+/// Public URL of an uploaded image:
+/// `$kImageServer/$kImagesPath/<authorId>/<imageId>.$kImageExt`.
+String serverImageUrl({required String authorId, required String imageId}) =>
+    '$kImageServer/$kImagesPath/$authorId/$imageId.$kImageExt';
+
 // Others
 
 final kInvitationCodeRegExp = RegExp('I[a-f0-9]{0,12}');
