@@ -164,3 +164,47 @@ flutter build web --profile --wasm --base-href=/ -o /tmp/web927 \
 cd ../../scripts/e2e_focus
 E2E_LOCAL_BUILD_DIR=/tmp/web927 node cold_graph_tab.mjs
 ```
+
+## Standalone pin: `semantics_push_null_check.mjs` — #746 / #916: flushSemantics null check after push/back/push
+
+On web with semantics on, pushing a route, popping it with browser Back and
+pushing again with a pointer tap throws `Null check operator used on a null
+value` in `_RenderObjectSemantics._buildSemantics` ←
+`PipelineOwner.flushSemantics` (Sentry 4J/4V/5P; #746 on BeaconCreateRoute,
+#916 on ForwardBeaconRoute, same frames). This is a Flutter framework bug,
+[flutter/flutter#195316](https://github.com/flutter/flutter/issues/195316);
+the upstream fix is
+[flutter/flutter#192724](https://github.com/flutter/flutter/pull/192724),
+carried as a patch in `Dockerfile.builder` (see
+`scripts/flutter_patches/README.md`). Nothing in the app changes.
+
+The script signs in, opens My work (`#/home/work`) at 1280x800 and runs
+`E2E_CYCLES` cycles (default 5) of:
+
+1. reload `#/home/work`, wait for the semantics tree
+2. pointer click on «+» in the top bar (the semantics button labelled
+   "New request")
+3. `history.back()`
+4. pointer click on «+» again
+
+A cycle is a hit when the console carries `Null check operator`,
+`Another exception was thrown` or `EXCEPTION CAUGHT BY`, or the page throws
+(`pageerror`). It prints each cycle and `null-check hits: X of N cycles`.
+Keyboard activation, a URL push for the second push, and the phone layout
+(375x667) do not reproduce, so the script uses the mouse at desktop size.
+
+Expected: before the patched builder image, hits in most cycles (14/14 on
+dev 7.60.18); after it, `0 of N`. QA runs it after deploy-dev.
+
+Exit code: `0` no hits, `1` any hit, `2` setup failed (sign-in, app did not
+boot, «+» not found).
+
+Env: `E2E_BASE_URL`, `E2E_EMAIL`, `E2E_USER_DATA_DIR`, `E2E_HEADED`,
+`E2E_IGNORE_HTTPS_ERRORS` as above, plus `E2E_CYCLES` (default `5`).
+
+```bash
+cd scripts/e2e_focus
+npm install
+node semantics_push_null_check.mjs            # against dev
+E2E_CYCLES=10 E2E_BASE_URL=https://dev.lvh.me:9443 E2E_IGNORE_HTTPS_ERRORS=1 node semantics_push_null_check.mjs
+```

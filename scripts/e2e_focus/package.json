@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "test": "bash run.sh all",
-    "cold-graph-tab": "node cold_graph_tab.mjs"
+    "cold-graph-tab": "node cold_graph_tab.mjs",
+    "semantics-push-null-check": "node semantics_push_null_check.mjs"
   },
   "dependencies": { "playwright": "^1.51.0" }
 }
