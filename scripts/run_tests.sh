@@ -207,6 +207,9 @@ gates() {
   # multi-threaded skwasm.
   if [[ "$pkg" == packages/client ]]; then
     (cd "$ROOT" && bash scripts/check_skwasm_single_thread.sh)
+    # #746: warns (never fails) when a Flutter upgrade should re-check the
+    # flutter#195316 patch in Dockerfile.builder.
+    (cd "$ROOT" && bash scripts/check_flutter_semantics_patch.sh)
   fi
 }
 
