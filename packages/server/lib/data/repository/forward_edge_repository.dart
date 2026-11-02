@@ -186,11 +186,15 @@ class ForwardEdgeRepository implements ForwardEdgeRepositoryPort {
 
   @override
   Future<List<ForwardEdgeEntity>> fetchByBeaconId(String beaconId) =>
-      _database.managers.beaconForwardEdges
-          .filter((e) => e.beaconId.id(beaconId) & e.cancelledAt.isNull())
-          .orderBy((e) => e.createdAt.desc())
-          .get()
-          .then((rows) => rows.map(_toEntity).toList());
+      fetchByBeaconIds([beaconId]);
+
+  Future<List<ForwardEdgeEntity>> fetchByBeaconIds(
+    Iterable<String> beaconIds,
+  ) => _database.managers.beaconForwardEdges
+      .filter((e) => e.beaconId.id.isIn(beaconIds) & e.cancelledAt.isNull())
+      .orderBy((e) => e.createdAt.desc())
+      .get()
+      .then((rows) => rows.map(_toEntity).toList());
 
   @override
   Future<List<ForwardEdgeEntity>> fetchHelpOffererPathChain({

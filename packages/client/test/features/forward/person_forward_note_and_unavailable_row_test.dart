@@ -59,6 +59,14 @@ class _ForwardRepository implements ForwardRepository {
   Stream<String> get forwardChanges => _forwardChanges.stream;
 
   @override
+  Future<Map<String, BeaconInvolvementData>> fetchInvolvementForBeacons(
+    Iterable<Beacon> beacons,
+  ) async => {
+    for (final beacon in beacons)
+      beacon.id: await fetchInvolvementForBeacon(beacon),
+  };
+
+  @override
   Future<BeaconInvolvementData> fetchInvolvementForBeacon(Beacon beacon) async {
     if (involvementFailures.contains(beacon.id)) {
       throw StateError('involvement unavailable for ${beacon.id}');

@@ -1,0 +1,17 @@
+fragment BeaconInvolvementFields on v2_BeaconInvolvement {
+  forwardedToIds
+  helpOfferedIds
+  withdrawnIds
+  declinedOfferIds
+  rejectedIds
+  watchingIds
+  onwardForwarderIds
+  myForwardedRecipients {
+    edgeId
+    recipientId
+    note
+    readAt
+    hasOnwardChild
+    recipientRejected
+  }
+}

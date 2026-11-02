@@ -881,6 +881,7 @@ final gqlTypeMyForwardRecipient = GraphQLObjectType('MyForwardRecipient', null)
 /// List fields are nullable in GraphQL to match Hasura remote-schema merge; resolver always returns lists.
 final gqlTypeBeaconInvolvement = GraphQLObjectType('BeaconInvolvement', null)
   ..fields.addAll([
+    field('beaconId', graphQLString),
     field(
       'forwardedToIds',
       GraphQLListType(graphQLString.nonNullable()),

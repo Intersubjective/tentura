@@ -41,6 +41,14 @@ class _FakeForwardRepository implements ForwardRepository {
   void emitForwardCompleted(String beaconId) => _forwardChanges.add(beaconId);
 
   @override
+  Future<Map<String, BeaconInvolvementData>> fetchInvolvementForBeacons(
+    Iterable<Beacon> beacons,
+  ) async => {
+    for (final beacon in beacons)
+      beacon.id: await fetchInvolvementForBeacon(beacon),
+  };
+
+  @override
   Future<BeaconInvolvementData> fetchInvolvementForBeacon(
     Beacon beacon,
   ) async =>

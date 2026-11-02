@@ -4804,6 +4804,7 @@ type query_root {
   beaconHelpOffererForwardPath(helpOffererId: String!, id: String!): v2_ForwardGraphResult!
   beaconHierarchyCapabilities(beaconId: String!): v2_BeaconHierarchyCapabilities!
   beaconInvolvement(id: String!): v2_BeaconInvolvement!
+  beaconInvolvements(ids: [String!]!): [v2_BeaconInvolvement!]!
   beaconLineageForwardSuggestions(id: String!): v2_BeaconLineageForwardSuggestions!
   beaconParentReference(beaconId: String!): v2_BeaconParentReference!
   beaconPlan(beaconId: String!): String!
@@ -7939,6 +7940,7 @@ type v2_BeaconImageStaged {
 }
 
 type v2_BeaconInvolvement {
+  beaconId: String
   forwardedToIds: [String!]
   helpOfferedIds: [String!]
   myForwardedRecipients: [v2_MyForwardRecipient!]

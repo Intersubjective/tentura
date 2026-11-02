@@ -56,24 +56,42 @@ final class PersonForwardCase extends UseCaseBase {
     if (person == null) {
       throw ProfileFetchException(personId);
     }
-    final beacons = await _beaconRepository.fetchBeacons(
+    final beacons = (await _beaconRepository.fetchBeacons(
       profileId: myId,
       offset: 0,
       lifecycleStates: BeaconStatus.openFamilyValues.toList(),
       // TODO(pagination): add paging if authored open requests can exceed 50.
       limit: 50,
-    );
-    final rows = await Future.wait(
-      beacons.map((beacon) async {
-        try {
-          final inv = await _forwardRepository.fetchInvolvementForBeacon(
-            beacon,
+    )).toList();
+    final rows = <PersonForwardRow>[];
+    for (var offset = 0; offset < beacons.length; offset += 50) {
+      final chunk = beacons.skip(offset).take(50).toList();
+      var involvement = <String, BeaconInvolvementData>{};
+      try {
+        involvement = await _forwardRepository.fetchInvolvementForBeacons(
+          chunk,
+        );
+      } catch (e) {
+        logger.warning('PersonForward: involvement batch failed: $e');
+      }
+      for (final beacon in chunk) {
+        final inv = involvement[beacon.id];
+        if (inv == null) {
+          rows.add(
+            PersonForwardRow(
+              beacon: beacon,
+              involvement: null,
+              block: PersonForwardBlock.involvementUnavailable,
+            ),
           );
-          final involvement = ForwardCase.computeInvolvement(personId, inv);
-          return PersonForwardRow(
+          continue;
+        }
+        final candidate = ForwardCase.computeInvolvement(personId, inv);
+        rows.add(
+          PersonForwardRow(
             beacon: beacon,
-            involvement: involvement,
-            block: PersonForwardRow.blockFor(involvement, beacon.status),
+            involvement: candidate,
+            block: PersonForwardRow.blockFor(candidate, beacon.status),
             forwardEdgeId: inv.myForwardedRecipientEdgeIds[personId],
             recipientReadAt: inv.myForwardedRecipientReadAts[personId],
             hasOnwardChild:
@@ -82,19 +100,10 @@ final class PersonForwardCase extends UseCaseBase {
                 inv.rejectedIds.contains(personId) ||
                 (inv.myForwardedRecipientRejected[personId] ?? false),
             recipientHasActiveHelpOffer: inv.helpOfferedIds.contains(personId),
-          );
-        } catch (e) {
-          logger.warning(
-            'PersonForward: involvement failed for ${beacon.id}: $e',
-          );
-          return PersonForwardRow(
-            beacon: beacon,
-            involvement: null,
-            block: PersonForwardBlock.involvementUnavailable,
-          );
-        }
-      }),
-    );
+          ),
+        );
+      }
+    }
     rows.sort(_compareRows);
     return (
       person: applyContactOverlay(person),

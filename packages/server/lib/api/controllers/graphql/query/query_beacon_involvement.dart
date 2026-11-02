@@ -12,11 +12,14 @@ import '../mappers/gql_v2_dto_maps.dart';
 final class QueryBeaconInvolvement extends GqlNodeBase {
   QueryBeaconInvolvement({BeaconInvolvementCase? beaconInvolvementCase})
     : _beaconInvolvementCase =
-           beaconInvolvementCase ?? GetIt.I<BeaconInvolvementCase>();
+          beaconInvolvementCase ?? GetIt.I<BeaconInvolvementCase>();
 
   final BeaconInvolvementCase _beaconInvolvementCase;
 
-  List<GraphQLObjectField<dynamic, dynamic>> get all => [beaconInvolvement];
+  List<GraphQLObjectField<dynamic, dynamic>> get all => [
+    beaconInvolvement,
+    beaconInvolvements,
+  ];
 
   GraphQLObjectField<dynamic, dynamic> get beaconInvolvement =>
       GraphQLObjectField(
@@ -25,10 +28,35 @@ final class QueryBeaconInvolvement extends GqlNodeBase {
         arguments: [InputFieldId.field],
         resolve: (_, args) {
           final creds = getCredentials(args);
-          return _beaconInvolvementCase.asMap(
-            beaconId: InputFieldId.fromArgsNonNullable(args),
+          return _beaconInvolvementCase
+              .asMap(
+                beaconId: InputFieldId.fromArgsNonNullable(args),
+                currentUserId: creds.sub,
+              )
+              .then(beaconInvolvementResultToGqlMap);
+        },
+      );
+  static final _ids = InputFieldStringList(fieldName: 'ids');
+
+  /// Unknown and unreadable ids are omitted, never represented as empty data.
+  GraphQLObjectField<dynamic, dynamic> get beaconInvolvements =>
+      GraphQLObjectField(
+        'beaconInvolvements',
+        GraphQLListType(gqlTypeBeaconInvolvement.nonNullable()),
+        arguments: [_ids.field],
+        resolve: (_, args) async {
+          final creds = getCredentials(args);
+          final rows = await _beaconInvolvementCase.asBatch(
+            beaconIds: _ids.fromArgsNonNullable(args),
             currentUserId: creds.sub,
-          ).then(beaconInvolvementResultToGqlMap);
+          );
+          return [
+            for (final entry in rows.entries)
+              {
+                'beaconId': entry.key,
+                ...beaconInvolvementResultToGqlMap(entry.value),
+              },
+          ];
         },
       );
 }

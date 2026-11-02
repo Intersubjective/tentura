@@ -309,6 +309,14 @@ class _RecordingForwardRepository implements ForwardRepository {
   Stream<String> get forwardChanges => const Stream.empty();
 
   @override
+  Future<Map<String, BeaconInvolvementData>> fetchInvolvementForBeacons(
+    Iterable<Beacon> beacons,
+  ) async => {
+    for (final beacon in beacons)
+      beacon.id: await fetchInvolvementForBeacon(beacon),
+  };
+
+  @override
   Future<BeaconInvolvementData> fetchInvolvementForBeacon(
     Beacon beacon,
   ) async => (

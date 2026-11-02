@@ -1,0 +1,8 @@
+# import '/features/forward/data/gql/beacon_involvement_fields.graphql'
+
+query BeaconInvolvementsData($ids: [String!]!) {
+  beaconInvolvements(ids: $ids) {
+    beaconId
+    ...BeaconInvolvementFields
+  }
+}

@@ -32,6 +32,14 @@ class InboxRepository implements InboxRepositoryPort {
       .get(limit: limit, offset: offset)
       .then((rows) => rows.map(_toEntity).toList());
 
+  /// Involvement statuses for a whole candidate list, in one set-based read.
+  Future<List<InboxItemEntity>> fetchInvolvementByBeaconIds(
+    Iterable<String> beaconIds,
+  ) => _database.managers.inboxItems
+      .filter((e) => e.beaconId.id.isIn(beaconIds) & e.status.isIn([1, 2]))
+      .get()
+      .then((rows) => rows.map(_toEntity).toList());
+
   /// User ids who rejected this beacon (inbox_item.status == 2), any context.
   @override
   Future<List<String>> fetchRejectedUserIdsByBeacon(String beaconId) =>

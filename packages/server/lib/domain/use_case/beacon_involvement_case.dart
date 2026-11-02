@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:injectable/injectable.dart';
 import 'package:tentura_server/domain/entity/gql_public/beacon_involvement_result.dart';
 import 'package:tentura_server/domain/port/beacon_access_guard.dart';
+import 'package:tentura_server/domain/port/beacon_involvement_read_port.dart';
 import 'package:tentura_server/domain/port/help_offer_admission_repository_port.dart';
 import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
@@ -29,6 +30,7 @@ final class BeaconInvolvementCase extends UseCaseBase {
     this._guard, {
     required super.env,
     required super.logger,
+    this.batchReads,
   });
 
   final ForwardEdgeRepositoryPort _forwardEdgeRepository;
@@ -36,6 +38,7 @@ final class BeaconInvolvementCase extends UseCaseBase {
   final HelpOfferAdmissionRepositoryPort _helpOfferAdmissionRepository;
   final InboxRepositoryPort _inboxRepository;
   final BeaconAccessGuard _guard;
+  final BeaconInvolvementReadPort? batchReads;
 
   /// [currentUserId] identifies the requesting user so the response can
   /// distinguish "forwarded by me" from "forwarded by others".
@@ -63,12 +66,67 @@ final class BeaconInvolvementCase extends UseCaseBase {
 
     final edges = results[0] as List<ForwardEdgeEntity>;
     final helpOffers = results[1] as List<HelpOfferEntity>;
-    final latestAdmissions =
-        results[2] as Map<String, HelpOfferAdmissionEvent>;
+    final latestAdmissions = results[2] as Map<String, HelpOfferAdmissionEvent>;
     final rejectedIds = results[3] as List<String>;
     final watchingIds = results[4] as List<String>;
     final onwardForwarderIds = results[5] as List<String>;
 
+    for (final edge in edges) {
+      if (edge.recipientId == currentUserId && edge.recipientReadAt == null) {
+        unawaited(_forwardEdgeRepository.markAsRead(edge.id, currentUserId));
+      }
+    }
+    return _project(
+      currentUserId: currentUserId,
+      records: (
+        edges: edges,
+        helpOffers: helpOffers,
+        latestAdmissions: latestAdmissions,
+        rejectedIds: rejectedIds,
+        watchingIds: watchingIds,
+        onwardForwarderIds: onwardForwarderIds,
+      ),
+    );
+  }
+
+  /// Listing candidates does not mark a Request as read. Inaccessible ids are
+  /// omitted so callers can distinguish unknown involvement from unseen.
+  Future<Map<String, BeaconInvolvementResult>> asBatch({
+    required List<String> beaconIds,
+    required String currentUserId,
+  }) async {
+    final reads = batchReads;
+    if (reads == null) {
+      throw StateError('Batch involvement reader is not configured');
+    }
+    if (beaconIds.length > reads.maxBatchSize) {
+      throw const PayloadTooLargeException(
+        description: 'At most 50 involvement ids are allowed',
+      );
+    }
+    if (beaconIds.isEmpty) return {};
+    final records = await reads.fetchReadableBatch(
+      beaconIds: beaconIds.toSet().toList(),
+      viewerId: currentUserId,
+    );
+    return {
+      for (final entry in records.entries)
+        entry.key: _project(currentUserId: currentUserId, records: entry.value),
+    };
+  }
+
+  static BeaconInvolvementResult _project({
+    required String currentUserId,
+    required BeaconInvolvementRecords records,
+  }) {
+    final (
+      :edges,
+      :helpOffers,
+      :latestAdmissions,
+      :rejectedIds,
+      :watchingIds,
+      :onwardForwarderIds,
+    ) = records;
     final forwardedToIds = edges.map((e) => e.recipientId).toSet().toList();
     final helpOfferedIds = helpOffers
         .where((c) => c.status == 0)
@@ -92,7 +150,6 @@ final class BeaconInvolvementCase extends UseCaseBase {
     };
 
     final myForwardedRecipients = <MyForwardRecipientResult>[];
-    final edgesToMarkRead = <ForwardEdgeEntity>[];
     for (final edge in edges) {
       if (edge.senderId == currentUserId) {
         myForwardedRecipients.add(
@@ -106,14 +163,6 @@ final class BeaconInvolvementCase extends UseCaseBase {
           ),
         );
       }
-      if (edge.recipientId == currentUserId && edge.recipientReadAt == null) {
-        edgesToMarkRead.add(edge);
-      }
-    }
-    for (final edge in edgesToMarkRead) {
-      unawaited(
-        _forwardEdgeRepository.markAsRead(edge.id, currentUserId),
-      );
     }
 
     return BeaconInvolvementResult(

@@ -3,6 +3,7 @@
 // to pin the variables each operation sends, the response mapping, and the
 // typed exceptions the shared error link throws for server error codes.
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
@@ -25,12 +26,16 @@ Map<String, dynamic> wireCodeError(int code) => {
 /// recorded in [sent].
 /// [responseFor] can route by variables and delay individual HTTP responses
 /// when a test needs to control concurrent requests' completion order.
+/// [errorFor] can reject a read based on its variables or the test's current
+/// server state, without coupling the fixture to an operation name. It may
+/// also hold an error response until the test releases a synchronization gate.
 Future<void> withRemoteWire(
   Map<String, Map<String, dynamic>> responses,
   List<WireSent> sent,
   Future<void> Function(RemoteApiService remote) body, {
   Map<String, Map<String, dynamic>> errors = const {},
   Future<Map<String, dynamic>> Function(WireSent request)? responseFor,
+  FutureOr<Map<String, dynamic>?> Function(WireSent request)? errorFor,
 }) => http.runWithClient(
   () async {
     final remote = RemoteApiService(
@@ -58,12 +63,13 @@ Future<void> withRemoteWire(
     }
     final json = jsonDecode(request.body) as Map<String, dynamic>;
     final name = json['operationName'] as String;
-    sent.add((
+    final wireRequest = (
       operationName: name,
       variables: ((json['variables'] as Map?) ?? const {})
           .cast<String, dynamic>(),
-    ));
-    final error = errors[name];
+    );
+    sent.add(wireRequest);
+    final error = errors[name] ?? await errorFor?.call(wireRequest);
     return http.Response(
       jsonEncode(
         error != null
@@ -74,7 +80,7 @@ Future<void> withRemoteWire(
             : {
                 'data': responseFor == null
                     ? responses[name]
-                    : await responseFor(sent.last),
+                    : await responseFor(wireRequest),
               },
       ),
       200,

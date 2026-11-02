@@ -21,6 +21,8 @@ import '../../domain/entity/forward_graph.dart';
 import '../../domain/entity/forward_inbound_source.dart';
 import '../gql/_g/beacon_involvement_data.data.gql.dart';
 import '../gql/_g/beacon_involvement_data.req.gql.dart';
+import '../gql/_g/beacon_involvement_fields.data.gql.dart';
+import '../gql/_g/beacon_involvements_data.req.gql.dart';
 import '../gql/_g/beacon_forward_graph.req.gql.dart';
 import '../gql/_g/beacon_help_offerer_forward_path.req.gql.dart';
 import '../gql/_g/forward_beacon.req.gql.dart';
@@ -266,11 +268,33 @@ class ForwardRepository {
             ),
           );
 
+  /// Omitted ids remain absent: callers must not infer unseen involvement.
+  Future<Map<String, BeaconInvolvementData>> fetchInvolvementForBeacons(
+    Iterable<Beacon> beacons,
+  ) async {
+    final byId = {for (final beacon in beacons) beacon.id: beacon};
+    if (byId.isEmpty) return {};
+    final response = await _remoteApiService
+        .request(
+          GBeaconInvolvementsDataReq((r) => r.vars.ids.replace(byId.keys)),
+        )
+        .firstWhere((e) => e.dataSource == DataSource.Link);
+    final result = <String, BeaconInvolvementData>{};
+    for (final inv in response.dataOrThrow(label: _label).beaconInvolvements) {
+      final beacon = byId[inv.beaconId];
+      if (beacon == null || result.containsKey(beacon.id)) {
+        throw const FormatException('Unexpected or duplicate involvement id');
+      }
+      result[beacon.id] = mapBeaconInvolvement(beacon: beacon, inv: inv);
+    }
+    return result;
+  }
+
   /// Maps V2 `beaconInvolvement` GraphQL payload into [BeaconInvolvementData].
   @visibleForTesting
   static BeaconInvolvementData mapBeaconInvolvement({
     required Beacon beacon,
-    required GBeaconInvolvementDataData_beaconInvolvement inv,
+    required GBeaconInvolvementFields inv,
   }) {
     final myForwardedRecipientNotes = <String, String>{};
     final myForwardedRecipientEdgeIds = <String, String>{};

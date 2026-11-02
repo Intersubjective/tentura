@@ -320,6 +320,7 @@ class _V2RoutingLink extends Link {
     'BeaconForwardGraph',
     'BeaconHelpOffererForwardPath',
     'BeaconInvolvementData',
+    'BeaconInvolvementsData',
     'BeaconDeleteById',
     'BeaconRemoveImage',
     'BeaconReorderImages',

@@ -1,4 +1,5 @@
 import 'package:injectable/injectable.dart';
+import 'package:drift_postgres/drift_postgres.dart';
 
 import 'package:tentura_server/domain/entity/help_offer_admission_event.dart';
 import 'package:tentura_server/domain/port/help_offer_admission_repository_port.dart';
@@ -77,30 +78,31 @@ class HelpOfferAdmissionRepository implements HelpOfferAdmissionRepositoryPort {
   @override
   Future<Map<String, HelpOfferAdmissionEvent>> latestForBeacon(
     String beaconId,
+  ) async => {
+    for (final event in await latestForBeacons([beaconId]))
+      event.offerUserId: event,
+  };
+
+  Future<List<HelpOfferAdmissionEvent>> latestForBeacons(
+    Iterable<String> beaconIds,
   ) async {
     final rows = await _database
         .customSelect(
           r'''
 SELECT DISTINCT ON (beacon_id, offer_user_id)
-  id,
-  seq,
-  beacon_id,
-  offer_user_id,
-  actor_user_id,
-  action,
-  reason,
+  id, seq, beacon_id, offer_user_id, actor_user_id, action, reason,
   created_at::text AS created_at
 FROM public.beacon_help_offer_admission_event
-WHERE beacon_id = $1
+WHERE beacon_id = ANY($1::text[])
 ORDER BY beacon_id, offer_user_id, seq DESC
 ''',
-          variables: [Variable<String>(beaconId)],
+          variables: [
+            Variable<List<String>>(beaconIds.toList(), PgTypes.textArray),
+          ],
           readsFrom: {_database.beaconHelpOfferAdmissionEvents},
         )
         .get();
-    return {
-      for (final row in rows) row.read<String>('offer_user_id'): _mapRow(row),
-    };
+    return rows.map(_mapRow).toList();
   }
 
   Future<List<QueryRow>> _latestRows({

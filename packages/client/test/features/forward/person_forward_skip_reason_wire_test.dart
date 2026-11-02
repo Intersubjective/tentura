@@ -7,7 +7,7 @@
 // «Something went wrong» bar and a Sentry report.
 //
 // These tests run the real path: the `ForwardBeacon` and
-// `BeaconInvolvementData` responses travel through the real Ferry link chain
+// `BeaconInvolvementsData` responses travel through the real Ferry link chain
 // (only HTTP is faked), the real `ForwardRepository` mapper, the real
 // `PersonForwardCase` and the real `PersonForwardCubit`.
 
@@ -100,17 +100,20 @@ class _DaveProfileRepository implements ProfileRepositoryPort {
 /// (yet) among this sender's recipients, so the Request is offered.
 Map<String, dynamic> _involvementResponse() => {
   '__typename': 'query_root',
-  'beaconInvolvement': {
-    '__typename': 'v2_BeaconInvolvement',
-    'forwardedToIds': <String>[],
-    'helpOfferedIds': <String>[],
-    'withdrawnIds': <String>[],
-    'rejectedIds': <String>[],
-    'watchingIds': <String>[],
-    'onwardForwarderIds': <String>[],
-    'declinedOfferIds': <String>[],
-    'myForwardedRecipients': <Map<String, dynamic>>[],
-  },
+  'beaconInvolvements': [
+    {
+      'beaconId': _beaconId,
+      '__typename': 'v2_BeaconInvolvement',
+      'forwardedToIds': <String>[],
+      'helpOfferedIds': <String>[],
+      'withdrawnIds': <String>[],
+      'rejectedIds': <String>[],
+      'watchingIds': <String>[],
+      'onwardForwarderIds': <String>[],
+      'declinedOfferIds': <String>[],
+      'myForwardedRecipients': <Map<String, dynamic>>[],
+    },
+  ],
 };
 
 Map<String, dynamic> _forwardResponse({
@@ -198,7 +201,7 @@ _sendToDaveOverWire(Map<String, dynamic> forwardResponse) async {
   final contacts = await _signedInContacts();
   await withRemoteWire(
     {
-      'BeaconInvolvementData': _involvementResponse(),
+      'BeaconInvolvementsData': _involvementResponse(),
       'ForwardBeacon': forwardResponse,
     },
     <WireSent>[],
@@ -350,7 +353,7 @@ void main() {
         addTearDown(() => tester.runAsync(contacts.contactsCase.dispose));
         await withRemoteWire(
           {
-            'BeaconInvolvementData': _involvementResponse(),
+            'BeaconInvolvementsData': _involvementResponse(),
             'ForwardBeacon': _forwardResponse(alreadyForwarded: [_dave]),
           },
           <WireSent>[],
