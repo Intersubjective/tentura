@@ -4382,24 +4382,6 @@
     "description": "Child request card: one admitted helper display name"
   },
   "threadGeneralTitle": "Discussion",
-  "threadClosedFoldTitle": "Closed ({count})",
-  "@threadClosedFoldTitle": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "threadDraftsFoldTitle": "Drafts ({count})",
-  "@threadDraftsFoldTitle": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "threadDraftBadge": "Draft — not a thread yet",
-  "threadNoActiveItems": "No active threads yet",
   "beaconItemsEmptyPlaceholder": "No coordination items yet",
   "beaconItemsActiveFoldTitle": "Active ({count})",
   "@beaconItemsActiveFoldTitle": {
@@ -4423,9 +4405,7 @@
   "beaconItemsActiveForMeFilter": "For me",
   "beaconItemsActiveForMeFilterSemantics": "Show only items where you are the source or target",
   "beaconItemsActiveForMeEmpty": "No active items for you",
-  "itemsTabCreatePlanCta": "Create a plan",
   "beaconItemsFactsFoldTitle": "Pinned facts",
-  "itemsTabCreatePlanSheetPrompt": "What is the plan?",
   "beaconHudNowLabel": "NOW",
   "beaconHudYouLabel": "YOU",
   "beaconHudPeopleRowSemantics": "People involved",
@@ -5058,9 +5038,6 @@
   "beaconRoomSemanticSystem": "System",
   "beaconRoomSemanticParticipantJoined": "Joined the discussion",
   "beaconRoomSemanticParticipantLeft": "Left the discussion",
-  "beaconRoomSemanticFactEdited": "Fact edited",
-  "beaconRoomSemanticFactUnpinned": "Fact unpinned",
-  "beaconRoomSemanticFactQuoted": "Fact",
   "beaconRoomFactEditedOwnLine": "{actor} edited a fact",
   "@beaconRoomFactEditedOwnLine": {
     "description": "Centered discussion line when someone edits a fact they pinned themselves.",
@@ -5390,13 +5367,8 @@
   "beaconRoomFactQuoteDiff": "Diff ›",
   "beaconRoomFactQuoteUnpinned": "(unpinned)",
   "beaconRoomFactManageSheetTitle": "Manage fact",
-  "beaconRoomFactManageTooltip": "Manage pinned fact",
-  "beaconRoomFactOverflowTooltip": "Manage this fact",
   "labelBeaconTabPeople": "People",
-  "beaconRoomStripNowTitle": "Now",
   "beaconRoomStripCurrentLineLabel": "What the team does next",
-  "beaconRoomStripLastPrivateFactLabel": "Pinned facts",
-  "beaconRoomStripMeaningfulChangeLabel": "Latest change",
   "beaconRoomStripOpenBlockerHint": "A blocker is open in the discussion (details in the thread).",
   "coordinationCreatePromiseAction": "Make a promise…",
   "beaconRoomUnreadDividerCount": "Unread · {count}",
@@ -5408,10 +5380,6 @@
     }
   },
   "beaconRoomScrollToLatestTooltip": "Jump to latest messages",
-  "beaconRoomNowExpandTooltip": "Expand Now",
-  "beaconRoomNowCollapseTooltip": "Collapse Now",
-  "beaconRoomYouExpandTooltip": "Expand You",
-  "beaconRoomYouCollapseTooltip": "Collapse You",
   "beaconActivityPlanUpdated": "Plan updated",
   "beaconActivityFactPinned": "Fact pinned",
   "beaconActivityFactVisibilityChanged": "Fact visibility changed",
@@ -5549,10 +5517,6 @@
   "@beaconRoomReactionPickerHint": {
     "description": "Placeholder under the reaction picker before an emoji is hovered or focused"
   },
-  "beaconRoomReactionPickerSemantic": "Reaction picker",
-  "@beaconRoomReactionPickerSemantic": {
-    "description": "Accessibility label for the floating emoji reaction popup"
-  },
   "beaconRoomReactionSendersSheetTitle": "Reactions",
   "@beaconRoomReactionSendersSheetTitle": {
     "description": "Title for the bottom sheet listing people who reacted to a room message"
@@ -5564,18 +5528,6 @@
   "roomAuthorCommitmentSheetTitle": "Commitment details",
   "@roomAuthorCommitmentSheetTitle": {
     "description": "Accessibility label for the read-only author commitment sheet opened from chat glyphs"
-  },
-  "roomAuthorCommitmentGlyphsSemantic": "Commitment details for {name}: {tags}",
-  "@roomAuthorCommitmentGlyphsSemantic": {
-    "description": "Accessibility / tooltip for the capability glyph cluster under a chat avatar",
-    "placeholders": {
-      "name": {
-        "type": "String"
-      },
-      "tags": {
-        "type": "String"
-      }
-    }
   },
   "beaconRoomActionReply": "Reply",
   "beaconRoomReplyingTo": "Reply to {name}",
@@ -5598,17 +5550,10 @@
       }
     }
   },
-  "beaconRoomReplyTargetNotLoaded": "Original message could not be loaded",
-  "@beaconRoomReplyTargetNotLoaded": {
-    "description": "Snack shown when jump-to-reply cannot fetch the original message"
-  },
   "beaconRoomActionUpdatePlan": "Update plan…",
   "beaconRoomActionPinFact": "Pin as fact",
-  "beaconRoomActionMarkBlocker": "Mark blocker…",
   "beaconRoomActionTurnInto": "Turn into…",
-  "beaconRoomActionOpenThread": "Open thread",
   "beaconRoomActionJumpToPlan": "Jump to plan",
-  "beaconRoomActionResolveBlocker": "Resolve this blocker",
   "beaconRoomActionCopyText": "Copy text",
   "beaconRoomCopiedToClipboard": "Copied",
   "beaconRoomActionEditMessage": "Edit message",
@@ -5632,7 +5577,6 @@
       }
     }
   },
-  "beaconRoomBlockerTitleHint": "Blocker title",
   "beaconRoomNeedInfoPickTarget": "Who is this for?",
   "beaconPeopleSectionTitle": "People & roles",
   "beaconPeopleParticipantUpdated": "Updated {when}",
@@ -5746,7 +5690,6 @@
   },
   "beaconRoomAttachmentUntitled": "File",
   "beaconRoomAttachmentOpenFailed": "Could not open attachment.",
-  "beaconRoomAttachmentOpenShare": "Share file",
   "profileTrustNotYet": "You don't trust them yet",
   "profileEyeOpen": "You see each other and can forward to each other",
   "profileEyeClosed": "You don't see each other yet",
@@ -6070,7 +6013,6 @@
   "coordinationSemanticPromiseResolved": "Promise fulfilled",
   "coordinationSemanticPromiseCancelled": "Promise cancelled",
   "coordinationSemanticAskCancelled": "Ask cancelled",
-  "beaconRoomActionMarkAsk": "Create ask…",
   "coordinationPlanCardLabel": "Plan",
   "coordinationPlanStepCardLabel": "Plan step",
   "coordinationSemanticPlanOpened": "Plan updated",
@@ -6122,69 +6064,9 @@
       }
     }
   },
-  "itemNeedsAttention": "Remind",
-  "@itemNeedsAttention": {
-    "description": "Remind menu fallback when the responsible person has no display name"
-  },
-  "itemStaleMinutes": "Stale {minutes}m",
-  "@itemStaleMinutes": {
-    "description": "Coordination item card label when stale for less than one hour",
-    "placeholders": {
-      "minutes": {
-        "type": "int"
-      }
-    }
-  },
-  "itemStaleHours": "Stale {hours}h",
-  "@itemStaleHours": {
-    "description": "Coordination item card label when stale for at least one hour but less than one day",
-    "placeholders": {
-      "hours": {
-        "type": "int"
-      }
-    }
-  },
-  "itemStaleDays": "{days, plural, one{Stale 1 day} other{Stale {days} days}}",
-  "@itemStaleDays": {
-    "description": "Coordination item card label when stale for at least one day",
-    "placeholders": {
-      "days": {
-        "type": "int"
-      }
-    }
-  },
-  "itemStaleOverdue": "Needs attention",
-  "@itemStaleOverdue": {
-    "description": "Deprecated alias — use itemNeedsAttention"
-  },
-  "remindAction": "Remind {name}",
-  "@remindAction": {
-    "description": "Item card menu action to nudge the responsible person",
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
-  "reminderSent": "Reminder sent",
-  "@reminderSent": {
-    "description": "Snackbar after a successful remind mutation"
-  },
-  "remindThrottled": "Reminder was sent recently — try again later",
-  "@remindThrottled": {
-    "description": "Error when remind cooldown has not elapsed"
-  },
-  "remindForbidden": "You can't send this reminder",
-  "@remindForbidden": {
-    "description": "Error when viewer is the responsible person or lacks access"
-  },
   "itemShowMore": "show more",
   "@itemShowMore": {
     "description": "Expand coordination item body on Items tab card"
-  },
-  "itemShowLess": "show less",
-  "@itemShowLess": {
-    "description": "Collapse coordination item body on Items tab card"
   },
   "authSessionProblemBanner": "We couldn't verify your session. Sign in again.",
   "@authSessionProblemBanner": {
@@ -10316,21 +10198,6 @@
     "description": "Request Questions (internally the lobby, U088 / #526)",
     "context": "BeaconLobbyScreen"
   },
-  "beaconLobbyEmpty": "No questions yet",
-  "@beaconLobbyEmpty": {
-    "description": "Request Questions: empty-state title",
-    "context": "BeaconLobbyScreen"
-  },
-  "beaconLobbyComposerHint": "Ask a question",
-  "@beaconLobbyComposerHint": {
-    "description": "Request Questions (internally the lobby, U088 / #526)",
-    "context": "BeaconLobbyScreen"
-  },
-  "beaconLobbySend": "Send",
-  "@beaconLobbySend": {
-    "description": "Request Questions (internally the lobby, U088 / #526)",
-    "context": "BeaconLobbyScreen"
-  },
   "beaconLobbyUnavailable": "Questions are for the people this request was sent to.",
   "@beaconLobbyUnavailable": {
     "description": "Request Questions (internally the lobby, U088 / #526)",
@@ -10366,11 +10233,6 @@
     "description": "Request Questions (internally the lobby, U088 / #526): stands for a removed person whose name is unknown",
     "context": "BeaconLobbyScreen"
   },
-  "beaconLobbyEmptyBody": "Ask what you need to know before offering help: when, where, what to bring. Everyone this request was sent to will see the answer.",
-  "@beaconLobbyEmptyBody": {
-    "description": "Request Questions: empty-state body",
-    "context": "BeaconLobbyScreen"
-  },
   "beaconLobbyReadOnly": "You can read the questions and answers here, but not write.",
   "@beaconLobbyReadOnly": {
     "description": "Request Questions: shown instead of the composer when the viewer may read but not post",
@@ -10395,11 +10257,6 @@
         "type": "int"
       }
     }
-  },
-  "beaconLobbyLoadOlder": "Show earlier messages",
-  "@beaconLobbyLoadOlder": {
-    "description": "Request Questions: pages back",
-    "context": "BeaconLobbyScreen"
   },
   "beaconLobbyBannedCountSemantics": "{count, plural, =1{Removed from Questions: 1 person} other{Removed from Questions: {count} people}}",
   "@beaconLobbyBannedCountSemantics": {
@@ -10874,16 +10731,6 @@
   "beaconLobbyEntrySubtitleAuthorClosed": "This request no longer takes offers. Everyone you sent it to can still read the questions and your answers.",
   "@beaconLobbyEntrySubtitleAuthorClosed": {
     "description": "Request Questions entry and screen intro for the author once the Request no longer takes help offers (Final check or closed) (#657)",
-    "context": "Request Questions"
-  },
-  "beaconLobbyComposerHintAuthor": "Write an answer",
-  "@beaconLobbyComposerHintAuthor": {
-    "description": "Request Questions composer hint for the Request author (#657)",
-    "context": "Request Questions"
-  },
-  "beaconLobbyEmptyBodyAuthor": "When someone asks, the question appears here. Everyone this request was sent to sees your answers.",
-  "@beaconLobbyEmptyBodyAuthor": {
-    "description": "Request Questions empty state for the Request author (#657)",
     "context": "Request Questions"
   },
   "beaconLobbyReadOnlyClosed": "This request is closed. You can read the questions and answers, but not write.",

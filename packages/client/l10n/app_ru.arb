@@ -4089,24 +4089,6 @@
     "description": "Child request card: one admitted helper display name"
   },
   "threadGeneralTitle": "Обсуждение",
-  "threadClosedFoldTitle": "Закрытые ({count})",
-  "@threadClosedFoldTitle": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "threadDraftsFoldTitle": "Черновики ({count})",
-  "@threadDraftsFoldTitle": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "threadDraftBadge": "Черновик — темы ещё нет",
-  "threadNoActiveItems": "Активных тем пока нет",
   "beaconItemsEmptyPlaceholder": "Элементов координации пока нет",
   "beaconItemsActiveFoldTitle": "Активные ({count})",
   "@beaconItemsActiveFoldTitle": {
@@ -4130,9 +4112,7 @@
   "beaconItemsActiveForMeFilter": "Для меня",
   "beaconItemsActiveForMeFilterSemantics": "Показать только пункты, где вы источник или получатель",
   "beaconItemsActiveForMeEmpty": "Нет активных пунктов для вас",
-  "itemsTabCreatePlanCta": "Создать план",
   "beaconItemsFactsFoldTitle": "Закреплённые факты",
-  "itemsTabCreatePlanSheetPrompt": "Какой план?",
   "beaconHudNowLabel": "СЕЙЧАС",
   "beaconHudYouLabel": "ВЫ",
   "beaconHudPeopleRowSemantics": "Участники",
@@ -4713,9 +4693,6 @@
   "beaconRoomSemanticSystem": "Системное",
   "beaconRoomSemanticParticipantJoined": "Вступил(а) в обсуждение",
   "beaconRoomSemanticParticipantLeft": "Вышел(а) из обсуждения",
-  "beaconRoomSemanticFactEdited": "Факт изменён",
-  "beaconRoomSemanticFactUnpinned": "Факт откреплён",
-  "beaconRoomSemanticFactQuoted": "Факт",
   "beaconRoomFactEditedOwnLine": "{actor} изменил(а) факт",
   "beaconRoomFactEditedOtherLine": "{actor} изменил(а) факт {pinner}",
   "beaconRoomFactUnpinnedOwnLine": "{actor} открепил(а) факт",
@@ -4996,13 +4973,8 @@
   "beaconRoomFactQuoteDiff": "Diff ›",
   "beaconRoomFactQuoteUnpinned": "(откреплено)",
   "beaconRoomFactManageSheetTitle": "Управление фактом",
-  "beaconRoomFactManageTooltip": "Управлять закреплённым фактом",
-  "beaconRoomFactOverflowTooltip": "Действия с фактом",
   "labelBeaconTabPeople": "Люди",
-  "beaconRoomStripNowTitle": "Сейчас",
   "beaconRoomStripCurrentLineLabel": "Что команда делает дальше",
-  "beaconRoomStripLastPrivateFactLabel": "Закреплённые факты",
-  "beaconRoomStripMeaningfulChangeLabel": "Последнее изменение",
   "beaconRoomStripOpenBlockerHint": "Открыт блокер в обсуждении (подробности в теме).",
   "coordinationCreatePromiseAction": "Дать обещание…",
   "beaconRoomUnreadDividerCount": "Непрочитанные · {count}",
@@ -5014,10 +4986,6 @@
     }
   },
   "beaconRoomScrollToLatestTooltip": "К последним сообщениям",
-  "beaconRoomNowExpandTooltip": "Развернуть «Сейчас»",
-  "beaconRoomNowCollapseTooltip": "Свернуть «Сейчас»",
-  "beaconRoomYouExpandTooltip": "Развернуть «Вы»",
-  "beaconRoomYouCollapseTooltip": "Свернуть «Вы»",
   "beaconActivityPlanUpdated": "План обновлён",
   "beaconActivityFactPinned": "Факт закреплён",
   "beaconActivityFactVisibilityChanged": "Изменена видимость факта",
@@ -5059,34 +5027,18 @@
   "beaconRoomReactionMeaningAwkward": "Неловко",
   "beaconRoomReactionMeaningDisappointed": "Жаль",
   "beaconRoomReactionPickerHint": "Наведите или удерживайте эмодзи, чтобы увидеть его значение",
-  "beaconRoomReactionPickerSemantic": "Выбор реакции",
   "beaconRoomReactionSendersSheetTitle": "Реакции",
   "beaconRoomReactionSendersSheetSemantic": "Кто отреагировал",
   "roomAuthorCommitmentSheetTitle": "Детали обязательства",
-  "roomAuthorCommitmentGlyphsSemantic": "Детали обязательства — {name}: {tags}",
-  "@roomAuthorCommitmentGlyphsSemantic": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      },
-      "tags": {
-        "type": "String"
-      }
-    }
-  },
   "beaconRoomActionReply": "Ответить",
   "beaconRoomReplyingTo": "Ответ: {name}",
   "beaconRoomReplyAttachmentExcerpt": "Вложение",
   "beaconRoomReplyOriginalUnavailable": "Исходное сообщение недоступно",
   "beaconRoomReplyQuoteA11yLabel": "Ответ на сообщение {name}, открывает оригинал",
-  "beaconRoomReplyTargetNotLoaded": "Не удалось загрузить исходное сообщение",
   "beaconRoomActionUpdatePlan": "Обновить план…",
   "beaconRoomActionPinFact": "Закрепить как факт",
-  "beaconRoomActionMarkBlocker": "Пометить блокер…",
   "beaconRoomActionTurnInto": "Преобразовать в…",
-  "beaconRoomActionOpenThread": "Открыть тему",
   "beaconRoomActionJumpToPlan": "Перейти к плану",
-  "beaconRoomActionResolveBlocker": "Снять этот блокер",
   "beaconRoomActionCopyText": "Скопировать текст",
   "beaconRoomCopiedToClipboard": "Скопировано",
   "beaconRoomActionEditMessage": "Изменить сообщение",
@@ -5096,7 +5048,6 @@
   "beaconRoomDeleteMessageConfirmAction": "Удалить",
   "beaconRoomMessageEdited": "Изменено",
   "beaconRoomMessageEditedAt": "Изменено в {time}",
-  "beaconRoomBlockerTitleHint": "Заголовок блокера",
   "beaconRoomNeedInfoPickTarget": "Кому адресовано?",
   "beaconPeopleSectionTitle": "Люди и роли",
   "beaconPeopleParticipantUpdated": "Обновлено {when}",
@@ -5202,7 +5153,6 @@
   },
   "beaconRoomAttachmentUntitled": "Файл",
   "beaconRoomAttachmentOpenFailed": "Не удалось открыть вложение.",
-  "beaconRoomAttachmentOpenShare": "Поделиться файлом",
   "profileTrustNotYet": "Вы пока не доверяете этому человеку",
   "profileEyeOpen": "Вы видите друг друга и можете пересылать друг другу",
   "profileEyeClosed": "Пока не видите друг друга",
@@ -5497,7 +5447,6 @@
   "coordinationSemanticPromiseResolved": "Обещание выполнено",
   "coordinationSemanticPromiseCancelled": "Обещание отменено",
   "coordinationSemanticAskCancelled": "Просьба отменена",
-  "beaconRoomActionMarkAsk": "Создать просьбу…",
   "coordinationPlanCardLabel": "План",
   "coordinationPlanStepCardLabel": "Шаг плана",
   "coordinationSemanticPlanOpened": "План обновлён",
@@ -5520,17 +5469,7 @@
   "beaconRoomFactPinLine": "{author} закрепил(а) факт · {visibility}",
   "beaconRoomPlanAnnounceLine": "{author} обновил(а) план",
   "beaconRoomPlanAnnounceLineWithTitle": "{author} обновил(а) план · {title}",
-  "itemNeedsAttention": "Напомнить",
-  "itemStaleMinutes": "Просрочено {minutes} мин",
-  "itemStaleHours": "Просрочено {hours} ч",
-  "itemStaleDays": "{days, plural, one{Просрочено 1 день} few{Просрочено {days} дня} many{Просрочено {days} дней} other{Просрочено {days} дней}}",
-  "itemStaleOverdue": "Нужно внимание",
-  "remindAction": "Напомнить {name}",
-  "reminderSent": "Напоминание отправлено",
-  "remindThrottled": "Напоминание недавно отправлялось — попробуйте позже",
-  "remindForbidden": "Вы не можете отправить это напоминание",
   "itemShowMore": "ещё",
-  "itemShowLess": "свернуть",
   "authSessionProblemBanner": "Не удалось проверить вашу сессию. Войдите снова.",
   "authSessionProblemFixAction": "Исправить вход",
   "authRecoveryHubTitle": "Восстановление сессии",
@@ -7041,20 +6980,15 @@
   "beaconRoutingBannerChild": "Пока вы его не отправите, этот запрос увидят только участники запроса, к которому он относится.",
   "beaconLobbyTitle": "Вопросы",
   "beaconLobbyEntrySubtitle": "Спросите автора до того, как предложить помощь. Вопросы и ответы видят все, кому отправлен этот запрос.",
-  "beaconLobbyEmpty": "Вопросов пока нет",
-  "beaconLobbyComposerHint": "Задать вопрос",
-  "beaconLobbySend": "Отправить",
   "beaconLobbyUnavailable": "Вопросы доступны тем, кому отправлен этот запрос.",
   "beaconLobbyBanAction": "Закрыть доступ к вопросам",
   "beaconLobbyBanConfirmTitle": "Закрыть доступ к вопросам: {name}?",
   "beaconLobbyBannedHeading": "Без доступа к вопросам",
   "beaconLobbyUnbanAction": "Вернуть доступ",
   "beaconLobbySomeone": "Кто-то",
-  "beaconLobbyEmptyBody": "Спросите то, что нужно знать до предложения помощи: когда, где, что взять с собой. Ответ увидят все, кому отправлен этот запрос.",
   "beaconLobbyReadOnly": "Вы можете читать вопросы и ответы, но не писать здесь.",
   "beaconLobbyEntryCount": "{count, plural, =0{Вопросов пока нет} one{{count} сообщение} few{{count} сообщения} many{{count} сообщений} other{{count} сообщения}}",
   "beaconLobbyEntryUnread": "{count, plural, one{{count} новое} few{{count} новых} many{{count} новых} other{{count} новых}}",
-  "beaconLobbyLoadOlder": "Показать более ранние сообщения",
   "beaconLobbyBannedCountSemantics": "{count, plural, one{Без доступа к вопросам: {count} человек} few{Без доступа к вопросам: {count} человека} many{Без доступа к вопросам: {count} человек} other{Без доступа к вопросам: {count} человека}}",
   "beaconRoomEmptyTitle": "Сообщений пока нет",
   "beaconRoomEmptyBody": "Здесь вы и помощники договариваетесь. Те, кому вы отправили запрос, могут задать вам вопросы в разделе «Вопросы» до того, как предложат помощь.",
@@ -7165,8 +7099,6 @@
   "beaconLobbyEntrySubtitleHelper": "Вопросы и ответы по этому запросу. Их видят все, кому он отправлен.",
   "beaconLobbyEntrySubtitleClosed": "Запрос больше не принимает предложения помощи. Все, кому он отправлен, по-прежнему могут читать вопросы и ответы.",
   "beaconLobbyEntrySubtitleAuthorClosed": "Запрос больше не принимает предложения помощи. Все, кому вы его отправили, по-прежнему могут читать вопросы и ваши ответы.",
-  "beaconLobbyComposerHintAuthor": "Написать ответ",
-  "beaconLobbyEmptyBodyAuthor": "Когда кто-то задаст вопрос, он появится здесь. Ваши ответы видят все, кому отправлен этот запрос.",
   "beaconLobbyReadOnlyClosed": "Этот запрос закрыт. Вы можете читать вопросы и ответы, но не писать.",
   "beaconLobbyReadOnlyCantHelp": "Вы ответили, что не можете помочь, поэтому можете только читать. Чтобы снова задавать вопросы, предложите помощь.",
   "beaconLobbyReadOnlyWithdrew": "Вы отозвали предложение помощи, поэтому можете только читать. Чтобы снова задавать вопросы, предложите помощь ещё раз.",
