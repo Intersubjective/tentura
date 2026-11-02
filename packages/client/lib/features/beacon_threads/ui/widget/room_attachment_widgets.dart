@@ -19,7 +19,7 @@ double roomMessageInlineImageAlbumHeight(BuildContext context) =>
     };
 
 String roomAttachmentImageUrl(RoomMessageAttachment a) =>
-    '$kImageServer/$kImagesPath/${a.imageAuthorId}/${a.imageId}.$kImageExt';
+    serverImageUrl(authorId: a.imageAuthorId, imageId: a.imageId);
 
 /// Letterboxed thumbnail for the inline image album (BoxFit.contain, no crop).
 Widget roomAttachmentAlbumThumbnail(
