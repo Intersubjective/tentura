@@ -796,6 +796,10 @@ AND (
     variables.add(Variable<int>(boundedLimit + 1));
     final limitParameter = '\$${variables.length}';
 
+    String unreadReceiptPredicate(String alias) =>
+        '(${AttentionDismissibleSql.activeAttention(alias)} '
+        'AND ${AttentionDismissibleSql.postLifecycleExcluded(alias)})';
+
     final pageCte = surface == AttentionSurface.activity
         ? '''
 $_activityPageStreamCte,
@@ -829,7 +833,7 @@ page AS (
   FROM visible
   WHERE (
     \$2 = 'all'
-    OR (\$2 = 'unread' AND ${AttentionDismissibleSql.activeAttention('visible')})
+    OR (\$2 = 'unread' AND ${unreadReceiptPredicate('visible')})
     OR (\$2 = 'needsYou' AND ${AttentionDismissibleSql.liveObligation('visible')})
   )
   AND (
@@ -855,8 +859,7 @@ page AS (
 WITH $_visibleWithSurfaceCte,
 summary AS (
   SELECT COUNT(*) FILTER (
-    WHERE ${AttentionDismissibleSql.activeAttention('v')}
-      AND ${AttentionDismissibleSql.postLifecycleExcluded('v')}
+    WHERE ${unreadReceiptPredicate('v')}
       AND (\$4::text IS NULL OR v.surface = \$4)
   )::int AS unread_total,
   COUNT(*) FILTER (

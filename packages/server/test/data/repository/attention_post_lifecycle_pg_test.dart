@@ -194,6 +194,110 @@ UPDATE public.beacon SET status = 6 WHERE id = '$_post'
     'dismissAllEnabled': false,
   };
 
+  group('Unread list and badge exclude inactive Post receipts', () {
+    for (final lifecycle in ['expired while open', 'closed before expiry']) {
+      test(
+        '$lifecycle keeps only the unread Request on both surfaces',
+        () async {
+          await writer.execute('''
+INSERT INTO public.beacon
+  (id, user_id, title, description, kind, status, published_at)
+VALUES ('$_request', '$_member', 'Request', '', 0, 0, now())
+''');
+          await writer.execute('''
+INSERT INTO public.beacon_forward_edge
+  (id, beacon_id, sender_id, recipient_id)
+VALUES ('Fattnttl01', '$_request', '$_member', '$_author')
+''');
+          await writer.execute('''
+UPDATE public.inbox_item SET status = 2
+WHERE user_id = '$_author' AND beacon_id = '$_request'
+''');
+          await record(
+            _intent(
+              beaconId: _request,
+              sourceKey: _requestKey,
+              beaconKind: BeaconKind.request,
+            ),
+          );
+
+          // Prove all three real dispatched receipts are readable and unread
+          // before changing the Post. One Request receipt avoids conflating
+          // activity's grouping of multiple events with lifecycle filtering.
+          final before = await query.attentionFeed(
+            accountId: _author,
+            view: AttentionFeedView.unread,
+          );
+          expect(before.summary.unreadTotal, 3);
+          expect(
+            before.page.items.map((r) => r.sourceEventKey),
+            unorderedEquals([_warningKey, _replyKey, _requestKey]),
+          );
+          if (lifecycle == 'expired while open') {
+            await expire();
+          } else {
+            // Keep the future expiry from seedFixture: status alone must
+            // remove the Post from Unread, before its TTL elapses.
+            await closeExpired();
+          }
+
+          final actual = <String, Object?>{};
+          final expected = <String, Object?>{};
+          for (final surface in <AttentionSurface?>[
+            null,
+            AttentionSurface.activity,
+          ]) {
+            final feed = await query.attentionFeed(
+              accountId: _author,
+              view: AttentionFeedView.unread,
+              surface: surface,
+              limit: 100,
+            );
+            final label = surface?.name ?? 'all surfaces';
+            actual[label] = {
+              'unread total': feed.summary.unreadTotal,
+              'row count': feed.page.items.length,
+              'beacons': feed.page.items.map((r) => r.beaconId).toList(),
+              'next cursor': feed.page.nextCursor,
+            };
+            expected[label] = {
+              'unread total': 1,
+              'row count': 1,
+              'beacons': [_request],
+              'next cursor': null,
+            };
+          }
+
+          // Lifecycle exclusion is specific to Unread; account-wide All and
+          // personal Post history must keep both Post receipts readable.
+          final all = await query.attentionFeed(
+            accountId: _author,
+            view: AttentionFeedView.all,
+          );
+          expect(
+            all.page.items.map((r) => r.sourceEventKey),
+            unorderedEquals([_warningKey, _replyKey, _requestKey]),
+          );
+          final history = await query.attentionRequestHistory(
+            accountId: _author,
+            beaconId: _post,
+          );
+          expect(
+            history.items.map((r) => r.sourceEventKey),
+            unorderedEquals([_warningKey, _replyKey]),
+          );
+          expect(
+            actual,
+            expected,
+            reason:
+                'Unread rows and the badge must exclude the same Post '
+                'receipts, while preserving the unread Request',
+          );
+        },
+      );
+    }
+  });
+
   group('For You Post lifecycle', () {
     test('expiry removes the warning and member reply from every projection '
         'before closure and keeps them absent after closure', () async {
