@@ -1,6 +1,9 @@
 @Tags(['pg'])
 library;
 
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:graphql_server2/graphql_server2.dart' show GraphQL;
 import 'package:injectable/injectable.dart' show Environment;
 import 'package:postgres/postgres.dart';
@@ -12,14 +15,34 @@ import 'package:tentura_server/app/di.dart';
 import 'package:tentura_server/domain/entity/jwt_entity.dart';
 import 'package:tentura_server/env.dart';
 
+import 'package:logging/logging.dart';
+import 'package:mockito/mockito.dart' show Fake;
+
+import 'package:tentura_root/domain/entity/auth_request_intent.dart';
+
+import 'package:tentura_server/api/controllers/websocket/path_handler/websocket_path_entity_changes.dart';
+import 'package:tentura_server/api/controllers/websocket/session/qa_realtime_socket_gate.dart';
+import 'package:tentura_server/api/controllers/websocket/session/websocket_session_handler_base.dart';
+import 'package:tentura_server/domain/entity/user_presence_entity.dart';
+import 'package:tentura_server/domain/port/beacon_room_co_participant_lookup_port.dart';
+import 'package:tentura_server/domain/port/invitation_repository_port.dart';
+import 'package:tentura_server/domain/port/room_message_snapshot_lookup_port.dart';
+import 'package:tentura_server/domain/port/user_presence_repository_port.dart';
+import 'package:tentura_server/domain/port/user_repository_port.dart';
+import 'package:tentura_server/domain/port/vote_user_friendship_lookup_port.dart';
+import 'package:tentura_server/domain/use_case/auth_case.dart';
+import 'package:tentura_server/domain/use_case/user_presence_case.dart';
+
 import '../../../support/disposable_pg_target.dart';
 
 const _beaconId = 'Bupdseenby001';
-const _authorId = 'Uupdseenauth1';
-const _stewardId = 'Uupdseenstew1';
-const _helperId = 'Uupdseenhelp1';
-const _otherHelperId = 'Uupdseenhelp2';
-const _outsiderId = 'Uupdseenout01';
+// Socket authentication validates real user-id syntax, unlike the direct
+// GraphQL credentials used by the older tests in this suite.
+const _authorId = 'Ua00000000001';
+const _stewardId = 'Ua00000000002';
+const _helperId = 'Ua00000000003';
+const _otherHelperId = 'Ua00000000004';
+const _outsiderId = 'Ua00000000005';
 
 /// The member opens the Request view: records that they have seen the
 /// Request's latest next-step / status update.
@@ -340,5 +363,172 @@ INSERT INTO public.beacon_participant (
       expect(readers, isNot(contains(_helperId)));
       expect(readers, contains(_otherHelperId));
     });
+
+    test('an admitted viewer is recorded and the author receives a live '
+        'Request invalidation for each further viewer', () async {
+      await setNextStep(_authorId, 'Bring the ladder on Saturday');
+      final dependencies = _Dependencies();
+      final handler = _Harness(Env.test(), dependencies);
+      addTearDown(handler.disposeEntityChanges);
+      final authorSocket = _RecordingSession();
+      final outsiderSocket = _RecordingSession();
+      await dependencies.authenticate(handler, authorSocket, _authorId);
+      await dependencies.authenticate(handler, outsiderSocket, _outsiderId);
+      authorSocket.sent.clear();
+      outsiderSocket.sent.clear();
+
+      final listener = await Connection.open(
+        target.databaseEnv.pgEndpoint,
+        settings: target.databaseEnv.pgEndpointSettings,
+      );
+      addTearDown(listener.close);
+      await listener.execute('LISTEN entity_changes');
+      final notifications = <Map<String, dynamic>>[];
+      final subscription = listener.channels['entity_changes'].listen(
+        (payload) =>
+            notifications.add(jsonDecode(payload) as Map<String, dynamic>),
+      );
+      addTearDown(subscription.cancel);
+      // Drain any hints from creating the next step before the tested action.
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+      notifications.clear();
+
+      await expectLater(
+        run(_outsiderId, _markUpdateSeen, {'beaconId': _beaconId}),
+        throwsA(
+          predicate<Object>(
+            (error) => error.toString().contains('Room access required'),
+          ),
+        ),
+        reason: 'a non-admitted recipient must still be refused',
+      );
+      expect(await seenBy(_authorId), isEmpty);
+
+      final expectedReaders = <String>[];
+      for (final viewer in [_helperId, _otherHelperId, _stewardId]) {
+        notifications.clear();
+        authorSocket.sent.clear();
+        await openRequest(viewer);
+        expectedReaders.add(viewer);
+        expect(await seenBy(_authorId), unorderedEquals(expectedReaders));
+
+        final deadline = DateTime.now().add(const Duration(seconds: 2));
+        while (DateTime.now().isBefore(deadline)) {
+          final pending = List<Map<String, dynamic>>.of(notifications);
+          notifications.clear();
+          for (final notification in pending) {
+            await handler.fanOutEntityChange(notification);
+          }
+          if (authorSocket.sent.isNotEmpty) break;
+          await Future<void>.delayed(const Duration(milliseconds: 20));
+        }
+        final frames = authorSocket.sent
+            .whereType<String>()
+            .map((raw) => jsonDecode(raw) as Map<String, dynamic>)
+            .where(
+              (frame) =>
+                  frame['path'] == 'entity_changes' &&
+                  (frame['payload'] as Map)['entity'] == 'beacon' &&
+                  (frame['payload'] as Map)['event'] == 'update',
+            )
+            .toList();
+        expect(
+          frames,
+          isNotEmpty,
+          reason: 'recording $viewer must notify the author without a reload',
+        );
+        expect(
+          frames.any((frame) => (frame['payload'] as Map)['id'] == _beaconId),
+          isTrue,
+        );
+        expect(outsiderSocket.sent, isEmpty);
+      }
+    });
   }, skip: skipReason);
 }
+
+final class _Dependencies {
+  _Dependencies() {
+    final logger = Logger('RoomBatonFanoutTest');
+    authCase = AuthCase(
+      _UnusedUserRepository(),
+      _UnusedInvitationRepository(),
+      env: env,
+      logger: logger,
+    );
+    userPresenceCase = UserPresenceCase(
+      _FakePresenceRepository(),
+      env: env,
+      logger: logger,
+    );
+  }
+
+  final env = Env.test();
+  late final AuthCase authCase;
+  late final UserPresenceCase userPresenceCase;
+  final qaRealtimeSocketGate = QaRealtimeSocketGate();
+  final friendshipLookup = _FakeFriendshipLookup();
+  final coParticipantLookup = _FakeCoParticipantLookup();
+  final roomMessageSnapshotLookup = _FakeSnapshotLookup();
+
+  Future<void> authenticate(
+    WebsocketSessionHandlerBase handler,
+    WebSocketSession session,
+    String userId,
+  ) async {
+    final token = authCase.issueAccessToken(userId).rawToken;
+    await handler.onAuth(session, {
+      'intent': AuthRequestIntent.cnameSignIn,
+      'token': token,
+    });
+  }
+}
+
+final class _Harness extends WebsocketSessionHandlerBase
+    with WebsocketPathEntityChanges {
+  _Harness(Env env, _Dependencies dependencies)
+    : super(
+        env,
+        Logger('RoomBatonFanoutHarness'),
+        dependencies.authCase,
+        dependencies.userPresenceCase,
+        dependencies.friendshipLookup,
+        dependencies.coParticipantLookup,
+        dependencies.roomMessageSnapshotLookup,
+        dependencies.qaRealtimeSocketGate,
+      );
+}
+
+final class _RecordingSession extends WebSocketSession {
+  final sent = <Object?>[];
+
+  @override
+  void send(Object? data) => sent.add(data);
+}
+
+final class _UnusedUserRepository extends Fake implements UserRepositoryPort {}
+
+final class _UnusedInvitationRepository extends Fake
+    implements InvitationRepositoryPort {}
+
+final class _FakePresenceRepository implements UserPresenceRepositoryPort {
+  @override
+  Future<UserPresenceEntity?> get(String userId) async => null;
+
+  @override
+  Future<void> update(
+    String userId, {
+    DateTime? lastSeenAt,
+    DateTime? lastNotifiedAt,
+    UserPresenceStatus? status,
+  }) async {}
+}
+
+final class _FakeFriendshipLookup extends Fake
+    implements VoteUserFriendshipLookupPort {}
+
+final class _FakeCoParticipantLookup extends Fake
+    implements BeaconRoomCoParticipantLookupPort {}
+
+final class _FakeSnapshotLookup extends Fake
+    implements RoomMessageSnapshotLookupPort {}

@@ -583,7 +583,9 @@ class BasicChatBodyState extends State<BasicChatBody> {
     // Same length but the newest row changed: e.g. an own send's images arrive
     // with the server row after the caption-only optimistic row was shown.
     final newestChanged = newLen == oldLen && newest != oldWidget.messages.last;
-    if (newLen == oldLen && !newestChanged) return;
+    final typingLineChanged =
+        (widget.aboveComposer == null) != (oldWidget.aboveComposer == null);
+    if (newLen == oldLen && !newestChanged && !typingLineChanged) return;
 
     final mine = newest.authorId == widget.myProfile.id;
     final nearBottom =
@@ -591,7 +593,7 @@ class BasicChatBodyState extends State<BasicChatBody> {
         (_scrollController.position.maxScrollExtent -
                 _scrollController.position.pixels) <=
             56;
-    if (!nearBottom && (newestChanged || !mine)) return;
+    if (!nearBottom && (newLen == oldLen || !mine)) return;
     _followLatestAfterLayout();
   }
 

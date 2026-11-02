@@ -194,6 +194,9 @@ base class BeaconThreadsCase extends UseCaseBase {
     String beaconId,
   ) => _room.fetchMainRoomReadWatermarks(beaconId);
 
+  Future<void> markBeaconUpdateSeen(String beaconId) =>
+      _room.markBeaconUpdateSeen(beaconId);
+
   Future<List<RoomReadWatermark>> fetchLatestUpdateReaders(
     String beaconId,
   ) => _room.fetchLatestUpdateReaders(beaconId);

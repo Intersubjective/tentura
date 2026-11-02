@@ -8,6 +8,7 @@ import 'package:tentura/domain/entity/beacon_activity_event.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
+import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/beacon_room_state.dart';
 import 'package:tentura/domain/entity/room_read_watermark.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
@@ -100,6 +101,9 @@ final class BeaconViewCase extends UseCaseBase {
 
   /// In-process seen cursors keyed by `userId\\tbeaconId`.
   final Map<String, DateTime> _pinnedFactsSeenAt = {};
+
+  final _seenUpdates =
+      <({String beaconId, String userId, DateTime updatedAt, int revision})>{};
 
   /// The Request's hierarchy (nesting) parent, for the access banner
   /// (#724); no parent when no hierarchy repository is wired.
@@ -601,6 +605,46 @@ final class BeaconViewCase extends UseCaseBase {
       return await _beaconRoomCase.fetchBeaconRoomState(beaconId);
     } on Object catch (_) {
       return null;
+    }
+  }
+
+  /// A loaded Request exposes its current update. Reserve the update before
+  /// the request so concurrent refreshes and the receipt's own echo cannot
+  /// mark it twice. Failed writes can be retried by a later normal refresh.
+  Future<void> markLatestUpdateSeen({
+    required Beacon beacon,
+    required String viewerId,
+    required BeaconRoomState update,
+    required List<BeaconParticipant> participants,
+  }) async {
+    if (!beacon.isRequest ||
+        beacon.author.id == viewerId ||
+        update.updatedBy == null ||
+        update.updatedBy == viewerId ||
+        !participants.any(
+          (p) =>
+              p.userId == viewerId &&
+              (p.roomAccess == RoomAccessBits.admitted ||
+                  p.role == BeaconParticipantRoleBits.steward),
+        )) {
+      return;
+    }
+    final key = (
+      beaconId: beacon.id,
+      userId: viewerId,
+      updatedAt: update.updatedAt,
+      revision: update.currentLineRevision,
+    );
+    if (!_seenUpdates.add(key)) return;
+    try {
+      await _beaconRoomCase.markBeaconUpdateSeen(beacon.id);
+    } on Object catch (error, stackTrace) {
+      _seenUpdates.remove(key);
+      logger.warning(
+        'Could not record the viewed Request update',
+        error,
+        stackTrace,
+      );
     }
   }
 

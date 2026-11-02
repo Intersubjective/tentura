@@ -35,6 +35,7 @@ import '../gql/_g/beacon_room_read_watermarks.req.gql.dart';
 import '../gql/_g/beacon_update_seen_by.req.gql.dart';
 import '../gql/_g/beacon_threads_list.req.gql.dart';
 import '../gql/_g/mark_thread_seen.req.gql.dart';
+import '../gql/_g/mark_beacon_update_seen.req.gql.dart';
 import '../gql/_g/room_message_mark_semantic_done.req.gql.dart';
 import '../gql/_g/beacon_participant_offer_help.req.gql.dart';
 import '../gql/_g/beacon_room_state_get.req.gql.dart';
@@ -630,6 +631,13 @@ class BeaconThreadsRepository {
           ),
         )
         .toList();
+  }
+
+  Future<void> markBeaconUpdateSeen(String beaconId) async {
+    final response = await _remoteApiService
+        .request(GMarkBeaconUpdateSeenReq((b) => b.vars.beaconId = beaconId))
+        .firstLinkResponse(label: _label);
+    response.dataOrThrow(label: _label);
   }
 
   /// #766: who has seen the Request's latest next step / status update.

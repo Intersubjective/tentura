@@ -1226,6 +1226,19 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
     }
   }
 
+  void _markLatestUpdateSeen() {
+    final update = state.beaconRoomCue;
+    if (update == null) return;
+    unawaited(
+      _case.markLatestUpdateSeen(
+        beacon: state.beacon,
+        viewerId: state.myProfile.id,
+        update: update,
+        participants: state.roomParticipants,
+      ),
+    );
+  }
+
   Future<void> _refreshBeaconRoomCue(String beaconId) async {
     unawaited(_refreshLatestUpdateReaders(beaconId));
     final cue = await _case.fetchRoomStateIfAllowed(beaconId);
@@ -1235,6 +1248,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
           beaconRoomCue: newestRoomState(state.beaconRoomCue, cue),
         ),
       );
+      _markLatestUpdateSeen();
     }
   }
 
@@ -1885,6 +1899,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
           status: StateStatus.isSuccess,
         ),
       );
+      _markLatestUpdateSeen();
       if (updateReaders != null) {
         unawaited(
           _refreshLatestUpdateReaders(beaconId, pending: updateReaders),

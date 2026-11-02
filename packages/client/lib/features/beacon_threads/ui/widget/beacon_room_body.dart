@@ -162,10 +162,14 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
       padding: kPaddingH,
       child: Align(
         alignment: AlignmentDirectional.centerStart,
-        child: Text(
-          text,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
+        // A live region, so screen readers announce who started typing.
+        child: Semantics(
+          liveRegion: true,
+          child: Text(
+            text,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
         ),
       ),

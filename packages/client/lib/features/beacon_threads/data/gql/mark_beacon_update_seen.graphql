@@ -1,0 +1,6 @@
+mutation MarkBeaconUpdateSeen($beaconId: String!) {
+  MarkBeaconUpdateSeen(beaconId: $beaconId) {
+    beaconId
+    seenAt
+  }
+}

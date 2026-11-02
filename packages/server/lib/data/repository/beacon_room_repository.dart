@@ -2143,6 +2143,14 @@ RETURNING last_seen_at
           variables: [Variable<String>(userId), Variable<String>(beaconId)],
         )
         .getSingle();
+    await _db.customStatement(
+      r'''
+SELECT public.emit_realtime_entity_change(
+  'beacon', $1, 'update', public.realtime_beacon_recipients($1)
+)
+''',
+      [beaconId],
+    );
     return DateTime.parse(row.read<String>('last_seen_at')).toUtc();
   });
 

@@ -3809,6 +3809,7 @@ type mutation_root {
   BeaconStewardPromote(beaconId: String!, stewardUserId: String!): Boolean!
   DismissOfferAccepted(beaconId: String!): v2_OfferAcceptedDismissals!
   MarkBeaconPeopleSeen(beaconId: String!, readThroughAt: String): v2_BeaconPeopleSeenResult!
+  MarkBeaconUpdateSeen(beaconId: String!): v2_BeaconUpdateSeenResult!
   MarkThreadSeen(beaconId: String!, readThroughAt: String, threadId: String!): v2_BeaconRoomSeenResult!
   RoomMessageAttachmentAdd(beaconId: String!, file: v2_Upload = {}, messageId: String!): Boolean!
   RoomMessageCreate(beaconId: String!, body: String!, clientMessageId: String, explicitMentionLengths: [Int!], explicitMentionOffsets: [Int!], explicitMentionUserIds: [String!], file: v2_Upload, quotedFactCardId: String, quotedFactRevisionSeq: Int, replyToMessageId: String, threadItemId: String): v2_RoomMessageCreatePayload!
@@ -8001,6 +8002,11 @@ type v2_BeaconPromotionSource {
   sourceBeaconId: String!
   sourceMessageId: String!
   textPreview: String!
+}
+
+type v2_BeaconUpdateSeenResult {
+  beaconId: String!
+  seenAt: String!
 }
 
 type v2_BeaconUpdateReader {
