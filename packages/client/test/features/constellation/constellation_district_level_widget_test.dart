@@ -1,4 +1,6 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -22,6 +24,7 @@ import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
 import '../../support/fake_people_tags_repository.dart';
+import '../../support/phone_surface.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'fixtures/constellation_reference_fixture.dart';
 
@@ -239,6 +242,7 @@ void main() {
     required Map<String, Offset> at,
     double scale = 0.6,
     String? selectedId,
+    bool phoneRu = false,
   }) async {
     final cubit = await loadReferenceCubit(field: _field(people));
     final zoom = ConstellationZoomLevelController();
@@ -247,12 +251,15 @@ void main() {
       await cubit.close();
       zoom.dispose();
     });
-    const size = Size(1200, 900);
-    await tester.binding.setSurfaceSize(size);
-    addTearDown(() => tester.binding.setSurfaceSize(null));
+    if (phoneRu) {
+      await usePhoneSurface(tester);
+    } else {
+      await tester.binding.setSurfaceSize(const Size(1200, 900));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+    }
     await tester.pumpWidget(
       MaterialApp(
-        locale: const Locale('en'),
+        locale: Locale(phoneRu ? 'ru' : 'en'),
         theme: TenturaTheme.light(),
         localizationsDelegates: L10n.localizationsDelegates,
         supportedLocales: L10n.supportedLocales,
@@ -302,6 +309,203 @@ void main() {
   }
 
   group('district markers', () {
+    for (final trackpad in [false, true]) {
+      testWidgets(
+        'keep initials font size and screen diameter stable during '
+        '${trackpad ? 'trackpad scaling on a Russian phone surface' : 'wheel zoom'}',
+        (tester) async {
+          const markerPeople = [
+            _Person('alice', name: 'Анна Борисова'),
+            _Person('bob', name: 'Борис Сергеев'),
+            _Person('cara', name: 'Вера Иванова'),
+            _Person('dan', name: 'Денис Петров'),
+          ];
+          const letteringById = {
+            'alice': 'АБ',
+            'bob': 'БС',
+            'cara': 'ВИ',
+            'dan': 'ДП',
+          };
+          final (:cubit, :holder) = await mount(
+            tester,
+            markerPeople,
+            at: const {
+              'ego': Offset(80, 550),
+              'alice': Offset(110, 220),
+              'bob': Offset(210, 220),
+              'cara': Offset(110, 370),
+              'dan': Offset(210, 370),
+            },
+            phoneRu: trackpad,
+          );
+          Future<void> expectTapReach() async {
+            for (final id in letteringById.keys) {
+              final target = holder.frame!.tapTargets['fp:$id']!;
+              expect(target.width, closeTo(kMinInteractiveDimension, 0.01));
+              expect(target.height, closeTo(kMinInteractiveDimension, 0.01));
+              for (final direction in const [
+                Offset(1, 0),
+                Offset(-1, 0),
+                Offset(0, 1),
+                Offset(0, -1),
+              ]) {
+                cubit.selectPerson(null);
+                await tester.pumpAndSettle();
+                final centre = tester.getCenter(_graphNode(id));
+                // The 48 dp round hit target extends beyond the 20 dp paint.
+                await tester.tapAt(centre + direction * 23);
+                await tester.pumpAndSettle();
+                expect(
+                  cubit.state.selectedPersonId,
+                  id,
+                  reason: '$id must remain selectable at $direction',
+                );
+                expect(
+                  constellationTapTargetContains(
+                    target,
+                    target.center + direction * 25,
+                  ),
+                  isFalse,
+                  reason: 'zoom must not enlarge the round hit target',
+                );
+              }
+            }
+            cubit.selectPerson(null);
+            await tester.pumpAndSettle();
+          }
+
+          await expectTapReach();
+          Finder initialsFor(String id) => find.descendant(
+            of: _graphNode(id),
+            matching: find.text(letteringById[id]!),
+          );
+          Finder paragraphFor(String id) => find.descendant(
+            of: initialsFor(id),
+            matching: find.byType(RichText),
+          );
+          final paragraphs = <String, RenderParagraph>{};
+          final initialFonts = <String, double>{};
+          final initialBounds = <String, Rect>{};
+          final initialConstraints = <String, BoxConstraints>{};
+          final initialText = <String, InlineSpan>{};
+          for (final id in letteringById.keys) {
+            final initials = initialsFor(id);
+            expect(initials, findsOneWidget, reason: id);
+            final paragraph = tester.renderObject<RenderParagraph>(
+              paragraphFor(id),
+            );
+            paragraphs[id] = paragraph;
+            initialFonts[id] = tester.widget<Text>(initials).style!.fontSize!;
+            expect(initialFonts[id], greaterThan(0));
+            initialBounds[id] = _screenRect(tester, initials);
+            initialConstraints[id] = paragraph.constraints;
+            initialText[id] = paragraph.text;
+          }
+          expect(paragraphs.values.toSet(), hasLength(markerPeople.length));
+          final startScale = cubit.graphController.cameraScale;
+          final fontsAcrossTicks = <String, List<double>>{
+            for (final id in letteringById.keys) id: [],
+          };
+          final constraintsAcrossTicks = <String, List<BoxConstraints>>{
+            for (final id in letteringById.keys) id: [],
+          };
+          final textComparisons = <RenderComparison>[];
+          // Zoom about the middle of the four markers, keeping all visible.
+          final focalPoint =
+              (tester.getCenter(_graphNode('alice')) +
+                  tester.getCenter(_graphNode('dan'))) /
+              2;
+          final pad = TestPointer(9, PointerDeviceKind.trackpad);
+          if (trackpad) {
+            await tester.sendEventToBinding(pad.panZoomStart(focalPoint));
+          }
+          for (var tick = 1; tick <= 3; tick++) {
+            if (trackpad) {
+              await tester.sendEventToBinding(
+                pad.panZoomUpdate(focalPoint, scale: 1 + tick * 0.04),
+              );
+            } else {
+              await tester.sendEventToBinding(
+                PointerScrollEvent(
+                  position: focalPoint,
+                  scrollDelta: const Offset(0, -12),
+                ),
+              );
+            }
+            await tester.pump();
+            expect(holder.frame!.detail, ConstellationDetailLevel.district);
+            expect(cubit.graphController.cameraScale, greaterThan(startScale));
+            for (final id in letteringById.keys) {
+              final initials = initialsFor(id);
+              expect(initials, findsOneWidget, reason: id);
+              final paragraph = tester.renderObject<RenderParagraph>(
+                paragraphFor(id),
+              );
+              expect(
+                paragraph,
+                same(paragraphs[id]),
+                reason: '$id must retain its paragraph across camera ticks',
+              );
+              // Equal widget configurations may rebuild: only paragraph reuse
+              // and unchanged layout inputs matter, not Text build counts.
+              constraintsAcrossTicks[id]!.add(paragraph.constraints);
+              textComparisons.add(paragraph.text.compareTo(initialText[id]!));
+              fontsAcrossTicks[id]!.add(
+                tester.widget<Text>(initials).style!.fontSize!,
+              );
+              final marker = _screenRect(tester, _graphNode(id));
+              expect(marker.width, closeTo(20, 0.5), reason: id);
+              expect(marker.height, closeTo(20, 0.5), reason: id);
+              final lettering = _screenRect(tester, initials);
+              final before = initialBounds[id]!;
+              expect(lettering.width, closeTo(before.width, 0.5), reason: id);
+              expect(lettering.height, closeTo(before.height, 0.5), reason: id);
+              expect(
+                marker.inflate(0.5).contains(lettering.topLeft),
+                isTrue,
+                reason: id,
+              );
+              expect(
+                marker.inflate(0.5).contains(lettering.bottomRight),
+                isTrue,
+                reason: id,
+              );
+            }
+            expect(tester.takeException(), isNull);
+          }
+          if (trackpad) {
+            await tester.sendEventToBinding(pad.panZoomEnd());
+            await tester.pumpAndSettle();
+          }
+          await expectTapReach();
+          expect(
+            fontsAcrossTicks,
+            {
+              for (final id in letteringById.keys)
+                id: everyElement(closeTo(initialFonts[id]!, 0.000001)),
+            },
+            reason:
+                'every district marker must keep its text layout font size '
+                'across camera ticks',
+          );
+          expect(
+            constraintsAcrossTicks,
+            {
+              for (final id in letteringById.keys)
+                id: everyElement(initialConstraints[id]),
+            },
+            reason: 'camera ticks must not change initials layout constraints',
+          );
+          expect(
+            textComparisons,
+            everyElement(RenderComparison.identical),
+            reason:
+                'rebuilt configurations must preserve paragraph layout inputs',
+          );
+        },
+      );
+    }
+
     const people = [
       _Person('alice', name: 'Alice Brown'),
       _Person('bob', name: 'Bob Stone'),

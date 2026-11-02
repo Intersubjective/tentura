@@ -2610,11 +2610,8 @@ class _OverviewDot extends StatelessWidget {
 /// screen whatever the camera scale, ringed in the first own-tag colour (no
 /// ring without a tag), centred in the node's own scene box.
 ///
-/// #808: these markers re-lay out ~30 initials paragraphs per zoom frame, which
-/// is what triggers the multi-threaded skwasm FreeType race; the web build runs
-/// skwasm single-threaded for now (see kForceSingleThreadedSkwasm in
-/// hook/build/versioned_web_assets.dart). Re-test fast zoom here after a
-/// Flutter upgrade.
+/// Lay out the initials at a fixed size and counter-scale their paint with the
+/// camera, avoiding per-frame text layout during zoom (#808).
 class _DistrictMarker extends StatelessWidget {
   const _DistrictMarker({
     required this.spec,
@@ -2636,31 +2633,31 @@ class _DistrictMarker extends StatelessWidget {
     child: Center(
       child: ListenableBuilder(
         listenable: spec.camera,
-        builder: (_, _) {
-          final scale = spec.scale();
-          final diameter = kConstellationDistrictMarkerDiameter / scale;
-          final ringColor = this.ringColor;
-          return SizedBox.square(
-            key: markerKey,
-            dimension: diameter,
-            child: DecoratedBox(
-              position: DecorationPosition.foreground,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: ringColor == null
-                    ? null
-                    : Border.all(color: ringColor, width: _ringWidth / scale),
-              ),
-              child: ClipOval(
-                child: ProfileAvatarInitials(
-                  lettering: TenturaAvatar.initialsForProfile(person),
-                  size: diameter,
-                  hueKey: person.id,
-                ),
+        builder: (_, child) => Transform.scale(
+          scale: 1 / spec.scale(),
+          child: child,
+        ),
+        child: SizedBox.square(
+          key: markerKey,
+          dimension: kConstellationDistrictMarkerDiameter,
+          child: DecoratedBox(
+            position: DecorationPosition.foreground,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: switch (ringColor) {
+                final color? => Border.all(color: color, width: _ringWidth),
+                null => null,
+              },
+            ),
+            child: ClipOval(
+              child: ProfileAvatarInitials(
+                lettering: TenturaAvatar.initialsForProfile(person),
+                size: kConstellationDistrictMarkerDiameter,
+                hueKey: person.id,
               ),
             ),
-          );
-        },
+          ),
+        ),
       ),
     ),
   );
