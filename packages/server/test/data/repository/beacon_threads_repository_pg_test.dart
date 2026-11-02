@@ -5,6 +5,7 @@ import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
 import 'package:tentura_server/consts/beacon_room_consts.dart';
+import 'package:tentura_server/consts/beacon_hierarchy_consts.dart';
 import 'package:tentura_server/consts/coordination_item_consts.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
@@ -551,6 +552,125 @@ ON CONFLICT DO NOTHING
       },
       skip: skipReason,
     );
+
+    // Coverage: the Discussion badge and both adapter-count branches must
+    // agree with Request-card unread counts for every room-member role.
+    // The existing plan-updated and latest-activity tests remain safeguards;
+    // the in-room client divider is outside this server-count contract.
+    for (final role in ['author', 'admitted helper', 'steward']) {
+      for (final counter in [
+        'Discussion badge',
+        'without watermark',
+        'after watermark',
+      ]) {
+        test(
+          '$counter counts real and plan-updated messages but skips system '
+          'lines for an $role',
+          () async {
+            await seedBaseUsersAndBeacon();
+            if (role != 'author') {
+              await writer.execute('''
+UPDATE public.beacon SET user_id = '$targetId' WHERE id = '$beaconId'
+''');
+              await writer.execute('''
+UPDATE public.beacon_participant SET role = ${role == 'steward' ? 1 : 2}
+WHERE beacon_id = '$beaconId' AND user_id = '$memberId'
+''');
+              if (role == 'steward') {
+                await writer.execute('''
+INSERT INTO public.beacon_steward (beacon_id, user_id)
+VALUES ('$beaconId', '$memberId')
+''');
+                addTearDown(
+                  () => writer.execute(
+                    "DELETE FROM public.beacon_steward WHERE beacon_id = '$beaconId'",
+                  ),
+                );
+              }
+            }
+            final seenAt = DateTime.utc(2026, 1, 4, 12);
+            await writer.execute('''
+INSERT INTO public.beacon_room_seen (user_id, beacon_id, last_seen_at)
+VALUES ('$memberId', '$beaconId', '${seenAt.toIso8601String()}')
+''');
+            await insertMessage(
+              id: 'Rthpgreadold',
+              authorId: otherId,
+              body: 'Already read',
+              createdAt: seenAt.subtract(const Duration(hours: 1)),
+            );
+            await insertMessage(
+              id: 'Rthpgreadnew',
+              authorId: otherId,
+              body: 'Meet at the entrance',
+              createdAt: seenAt.add(const Duration(hours: 1)),
+            );
+            await insertMessage(
+              id: 'Rthpgreadplan',
+              authorId: otherId,
+              semanticMarker: BeaconRoomSemanticMarker.updatePlan,
+              createdAt: seenAt.add(const Duration(hours: 2)),
+            );
+            await insertMessage(
+              id: 'Rthpgreadown',
+              authorId: memberId,
+              body: 'My reply',
+              createdAt: seenAt.add(const Duration(hours: 3)),
+            );
+            await writer.execute('''
+INSERT INTO public.beacon_room_message
+  (id, beacon_id, author_id, body, system_message_kind, system_payload, created_at)
+VALUES ('Rthpgreadsys', '$beaconId', '$otherId', '',
+  ${BeaconRoomSystemMessageKind.statusChanged},
+  '{"version":1,"fromStatus":0,"toStatus":8,"reason":"enoughHelp"}',
+  '2026-01-04T16:00:00Z'),
+  ('Rthpgreadselfsys', '$beaconId', '$memberId', '',
+  ${BeaconRoomSystemMessageKind.statusChanged},
+  '{"version":1,"fromStatus":8,"toStatus":0,"reason":"reopened"}',
+  '2026-01-04T17:00:00Z')
+''');
+            // Each entry point has an independent expectation: comparing two
+            // equally inflated counters would let this regression pass.
+            if (counter == 'Discussion badge') {
+              final threads = await items.listThreads(
+                beaconId: beaconId,
+                viewerUserId: memberId,
+                includeGeneral: true,
+                itemParticipantsOnly: false,
+                excerptCharacters: 140,
+              );
+              expect(rowFor(threads, 'general')!.unreadCount, 2);
+            } else {
+              // Exercise author exclusion independently of membership role.
+              // Both authors have system lines, so excluding either author
+              // cannot accidentally hide the missing system-line filter.
+              final after = counter == 'after watermark' ? seenAt : null;
+              final counts = <String, int>{};
+              for (final (label, excludedAuthor) in [
+                ('all authors', null),
+                ('exclude viewer', memberId),
+                ('exclude other author', otherId),
+              ]) {
+                counts[label] = await room.countRoomMessagesAfter(
+                  beaconId: beaconId,
+                  after: after,
+                  excludeAuthorId: excludedAuthor,
+                );
+              }
+              expect(
+                counts,
+                {
+                  'all authors': after == null ? 4 : 3,
+                  'exclude viewer': after == null ? 3 : 2,
+                  'exclude other author': 1,
+                },
+              );
+            }
+          },
+          skip: skipReason,
+        );
+      }
+    }
 
     test(
       'General unread matches countRoomMessagesAfter',

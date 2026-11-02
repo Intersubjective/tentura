@@ -1965,6 +1965,8 @@ WHERE b.id = ANY($1::text[])
     if (ids.isEmpty) return {};
     // Same rule as [countRoomMessagesAfter]: the viewer's own messages are
     // never unread (`<>` also leaves out authorless rows).
+    // Admission notices predate system_message_kind, so also exclude their
+    // semantic marker without dropping non-system plan-updated messages.
     final rows = await _db
         .customSelect(
           r'''
@@ -1973,6 +1975,8 @@ SELECT ids.beacon_id,
     WHERE m.beacon_id = ids.beacon_id
       AND m.thread_item_id IS NULL
       AND m.author_id <> $2
+      AND m.system_message_kind IS NULL
+      AND m.semantic_marker IS DISTINCT FROM $3
       AND (seen.last_seen_at IS NULL OR m.created_at > seen.last_seen_at)
   )::int AS unread
 FROM unnest($1::text[]) AS ids(beacon_id)
@@ -1983,6 +1987,7 @@ LEFT JOIN public.beacon_room_seen seen
           variables: [
             Variable(TypedValue(Type.textArray, ids)),
             Variable<String>(viewerUserId),
+            const Variable<int>(BeaconRoomSemanticMarker.participantJoined),
           ],
         )
         .get();
@@ -2548,26 +2553,19 @@ CROSS JOIN LATERAL (
     final exclude = excludeAuthorId?.trim();
     final excludeSelf = exclude != null && exclude.isNotEmpty;
 
-    if (after == null) {
-      final rows =
-          await (_db.select(_db.beaconRoomMessages)..where((m) {
-                var cond =
-                    m.beaconId.equals(beaconId) & m.threadItemId.isNull();
-                if (excludeSelf) {
-                  // Postgres rejects Drift's `IS NOT $n` from [isNotValue]; use NOT (=).
-                  cond = cond & m.authorId.equals(exclude).not();
-                }
-                return cond;
-              }))
-              .get();
-      return rows.length;
-    }
     final rows =
         await (_db.select(_db.beaconRoomMessages)..where((m) {
               var cond =
                   m.beaconId.equals(beaconId) &
                   m.threadItemId.isNull() &
-                  m.createdAt.isBiggerThanValue(PgDateTime(after));
+                  m.systemMessageKind.isNull() &
+                  (m.semanticMarker.isNull() |
+                      m.semanticMarker
+                          .equals(BeaconRoomSemanticMarker.participantJoined)
+                          .not());
+              if (after != null) {
+                cond = cond & m.createdAt.isBiggerThanValue(PgDateTime(after));
+              }
               if (excludeSelf) {
                 // Postgres rejects Drift's `IS NOT $n` from [isNotValue]; use NOT (=).
                 cond = cond & m.authorId.equals(exclude).not();

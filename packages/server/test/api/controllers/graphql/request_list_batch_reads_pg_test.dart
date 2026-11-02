@@ -19,11 +19,16 @@ import 'package:tentura_server/api/http/request_context_io_adapter.dart';
 import 'package:tentura_server/app/di.dart';
 import 'package:tentura_server/app/sentry/sentry_event_scrub.dart';
 import 'package:tentura_server/app/sentry/sentry_request_tracing.dart';
+import 'package:tentura_server/consts/beacon_hierarchy_consts.dart';
+import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/data/database/main_db_pool.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
 import 'package:tentura_server/domain/entity/jwt_entity.dart';
 import 'package:tentura_server/domain/request_context.dart';
+import 'package:tentura_server/domain/use_case/beacon_room_case.dart';
+import 'package:tentura_server/domain/use_case/coordination_case.dart';
+import 'package:tentura_server/domain/use_case/help_offer_case.dart';
 import 'package:tentura_server/env.dart';
 
 import '../../../support/disposable_pg_target.dart';
@@ -326,6 +331,176 @@ Future<void> main() async {
       capture.reset();
       await rows(document, operation, field, ids);
       return List.of(capture.statements);
+    }
+
+    // Coverage map: issue item 1 and its QA sequence use the production
+    // Request-card batch shared by My desk, Watching and Activity. The QA
+    // sequence below covers an admitted helper; the role-parameterized batch
+    // tests cover real, system and non-system plan-updated lines for authors,
+    // admitted helpers and stewards through the same GraphQL operation.
+    // The client in-room unread divider is out of scope. No UI is changed,
+    // so phone/locale/input checks are n/a for this server-only regression.
+    test(
+      'an admitted helper sees only real messages as unread through admissions '
+      'declines and Enough help in the Request card batch',
+      () async {
+        const id = 'Bunreadbatch1';
+        await session.writer.execute('''
+INSERT INTO public.beacon (id, user_id, title, description, status, published_at)
+VALUES ('$id', '$_author', 'Entrance help', '', 0, now())
+''');
+        await session.writer.execute('''
+INSERT INTO public.beacon_forward_edge (beacon_id, sender_id, recipient_id)
+VALUES ('$id', '$_author', '$_viewer')
+''');
+        final offers = getIt<HelpOfferCase>();
+        final coordination = getIt<CoordinationCase>();
+        final counts = <Object?>[];
+
+        // This Request is forwarded to the viewer, who has never opened it.
+        await offers.offerHelp(beaconId: id, userId: _viewer);
+        await coordination.acceptHelpOffer(
+          beaconId: id,
+          offerUserId: _viewer,
+          actorUserId: _author,
+        );
+        Future<Map<String, Object?>> card() async => (await rows(
+          _inboxDocument,
+          'InboxRoomContextBatch',
+          'InboxRoomContextBatch',
+          [id],
+        )).single;
+
+        final admitted = await card();
+        expect(admitted['isRoomMember'], isTrue);
+        expect(admitted['lastSeenAt'], isNull);
+        expect(admitted['lastMessageText'], isNull);
+        counts.add(admitted['roomUnreadCount']);
+
+        await getIt<BeaconRoomCase>().createMessage(
+          beaconId: id,
+          userId: _author,
+          body: 'Meet at the entrance',
+        );
+        final withMessage = await card();
+        expect(withMessage['lastMessageText'], 'Meet at the entrance');
+        counts.add(withMessage['roomUnreadCount']);
+
+        // Set up two more readable offers, then use the real admission,
+        // decline and status commands rather than inventing system rows.
+        for (final user in [_helper, _crowdAuthor]) {
+          await session.writer.execute(
+            pg.Sql.named('''
+INSERT INTO public.beacon_forward_edge
+  (beacon_id, sender_id, recipient_id) VALUES (@id, @author, @user)
+'''),
+            parameters: {'id': id, 'author': _author, 'user': user},
+          );
+          await offers.offerHelp(beaconId: id, userId: user);
+        }
+        await coordination.acceptHelpOffer(
+          beaconId: id,
+          offerUserId: _helper,
+          actorUserId: _author,
+        );
+        await coordination.declineHelpOffer(
+          beaconId: id,
+          offerUserId: _crowdAuthor,
+          actorUserId: _author,
+          reason: 'We have enough helpers',
+        );
+        await coordination.setBeaconStatus(
+          beaconId: id,
+          authorUserId: _author,
+          status: 8,
+        );
+        final afterSystemActivity = await card();
+        expect(afterSystemActivity['lastMessageText'], 'Meet at the entrance');
+        expect(afterSystemActivity['lastSeenAt'], isNull);
+        counts.add(afterSystemActivity['roomUnreadCount']);
+        expect(
+          counts,
+          [0, 1, 1],
+          reason:
+              'Admission and status activity must '
+              'not inflate the count beside the real-message preview',
+        );
+      },
+      skip: unavailable,
+    );
+
+    for (final (role, roleBits) in [
+      ('author', BeaconParticipantRoleBits.author),
+      ('admitted helper', BeaconParticipantRoleBits.helper),
+      ('steward', BeaconParticipantRoleBits.steward),
+    ]) {
+      test(
+        'Request card batch counts real and plan-updated messages but skips '
+        'system lines for viewer role $role',
+        () async {
+          final id = 'Bbatchrole$roleBits';
+          final authorId = role == 'author' ? _viewer : _author;
+          await session.writer.execute(
+            pg.Sql.named('''
+INSERT INTO public.beacon
+  (id, user_id, title, description, status, published_at)
+VALUES (@id, @author, 'Entrance help', '', 0, now())
+'''),
+            parameters: {'id': id, 'author': authorId},
+          );
+          await session.writer.execute(
+            pg.Sql.named('''
+INSERT INTO public.beacon_participant
+  (beacon_id, user_id, role, status, room_access)
+VALUES (@id, @viewer, @role, 0, 3)
+'''),
+            parameters: {'id': id, 'viewer': _viewer, 'role': roleBits},
+          );
+          if (role == 'steward') {
+            await session.writer.execute(
+              pg.Sql.named('''
+INSERT INTO public.beacon_steward (beacon_id, user_id)
+VALUES (@id, @viewer)
+'''),
+              parameters: {'id': id, 'viewer': _viewer},
+            );
+          }
+          await session.writer.execute(
+            pg.Sql.named('''
+INSERT INTO public.beacon_room_message
+  (beacon_id, author_id, body, semantic_marker, system_message_kind, created_at)
+VALUES
+  (@id, @sender, 'Meet at the entrance', NULL, NULL, '2026-01-04T13:00:00Z'),
+  (@id, @sender, '', @planMarker, NULL, '2026-01-04T14:00:00Z'),
+  (@id, @sender, '', NULL, @systemKind, '2026-01-04T15:00:00Z')
+'''),
+            parameters: {
+              'id': id,
+              'sender': _helper,
+              'planMarker': BeaconRoomSemanticMarker.updatePlan,
+              'systemKind': BeaconRoomSystemMessageKind.statusChanged,
+            },
+          );
+
+          final card = (await rows(
+            _inboxDocument,
+            'InboxRoomContextBatch',
+            'InboxRoomContextBatch',
+            [id],
+          )).single;
+          expect(card['isRoomMember'], isTrue);
+          expect(card['lastSeenAt'], isNull);
+          expect(card['lastMessageText'], 'Meet at the entrance');
+          // System activity still moves Recent ordering, even though it
+          // neither becomes the preview nor contributes to unread counts.
+          expect(
+            DateTime.parse(card['lastActivityAt']! as String),
+            DateTime.utc(2026, 1, 4, 15),
+          );
+          expect(card['roomUnreadCount'], 2);
+        },
+        skip: unavailable,
+      );
     }
 
     test(
