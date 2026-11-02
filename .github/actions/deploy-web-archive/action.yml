@@ -88,6 +88,13 @@ runs:
             deploy@"$VPS_HOST" \
             "cd /opt/tentura && { [ ! -f compose.prod.yaml ] || cp -p compose.prod.yaml compose.prod.yaml.prev; } && { diff -u compose.prod.yaml.prev compose.prod.yaml.new || true; } && mv compose.prod.yaml.new compose.prod.yaml"
 
+        # Landing font routes ship with the static landing and web cleanup.
+        scp -i ~/.ssh/deploy_key \
+            -o StrictHostKeyChecking=accept-new \
+            -o LogLevel=ERROR \
+            Caddyfile \
+            deploy@"$VPS_HOST":/opt/tentura/Caddyfile
+
     - name: Deploy to VPS
       shell: bash
       env:

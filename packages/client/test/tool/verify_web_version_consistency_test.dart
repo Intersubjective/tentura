@@ -7,12 +7,15 @@ import '../../hook/build/web_build_version.dart';
 
 Directory _clientPackageRoot() {
   final cwd = Directory.current;
-  if (File('${cwd.path}/tool/verify_web_version_consistency.dart').existsSync()) {
+  if (File(
+    '${cwd.path}/tool/verify_web_version_consistency.dart',
+  ).existsSync()) {
     return cwd;
   }
   final nested = Directory('${cwd.path}/packages/client');
-  if (File('${nested.path}/tool/verify_web_version_consistency.dart')
-      .existsSync()) {
+  if (File(
+    '${nested.path}/tool/verify_web_version_consistency.dart',
+  ).existsSync()) {
     return nested;
   }
   throw StateError(
@@ -100,6 +103,88 @@ void _writeConsistentBuildWeb({
 }
 
 void main() {
+  group('non-control preload URLs belong to the expected immutable build', () {
+    const assetsByGroup = {
+      'sharedPreload': [
+        'assets/packages/sqlite3.wasm',
+        'assets/packages/drift_worker.js',
+      ],
+      'wasmPreload': ['main.dart.wasm', 'canvaskit/canvaskit.wasm'],
+      'jsPreload': ['main.dart.js'],
+    };
+    for (final group in assetsByGroup.entries) {
+      for (final asset in group.value) {
+        test(
+          '${group.key} rejects /$asset despite an existing root copy',
+          () async {
+            final clientRoot = _clientPackageRoot();
+            final version = resolveWebBuildVersion(
+              buildId: '',
+              pubspecPath: '${clientRoot.path}/pubspec.yaml',
+            );
+            final dir = Directory.systemTemp.createTempSync(
+              'versioned_preload_',
+            );
+            addTearDown(() => dir.deleteSync(recursive: true));
+            final prefix = '/app-assets/$version/';
+            File('${dir.path}/index.html').writeAsStringSync(
+              '<script src="flutter_bootstrap.js?v=$version"></script>',
+            );
+            File(
+              '${dir.path}/flutter_bootstrap.js',
+            ).writeAsStringSync('bootstrap');
+            File('${dir.path}/manifest.json').writeAsStringSync(
+              jsonEncode({'version': version}),
+            );
+            File('${dir.path}/tentura-app-cache-sw.js').writeAsStringSync(
+              "const CACHE_VERSION = '$version';",
+            );
+            final manifest = <String, Object>{
+              'version': version,
+              for (final entry in assetsByGroup.entries)
+                entry.key: [
+                  if (entry.key == 'sharedPreload')
+                    '/flutter_bootstrap.js?v=$version',
+                  for (final name in entry.value) '$prefix$name',
+                ],
+            };
+            for (final names in assetsByGroup.values) {
+              for (final name in names) {
+                File('${dir.path}$prefix$name')
+                  ..createSync(recursive: true)
+                  ..writeAsStringSync('current asset');
+              }
+            }
+            final preload = File('${dir.path}/wasm-preload-manifest.json');
+            preload.writeAsStringSync(jsonEncode(manifest));
+            final valid = await _runBuildDirVerify(clientRoot, dir.path);
+            expect(
+              valid.exitCode,
+              0,
+              reason: '${valid.stdout}\n${valid.stderr}',
+            );
+
+            // This is an existing stale file, not a missing-file fixture.
+            File('${dir.path}/$asset')
+              ..createSync(recursive: true)
+              ..writeAsStringSync('stale asset');
+            (manifest[group.key]! as List<String>).add('/$asset');
+            preload.writeAsStringSync(jsonEncode(manifest));
+            final invalid = await _runBuildDirVerify(clientRoot, dir.path);
+            expect(
+              invalid.exitCode,
+              1,
+              reason:
+                  '/$asset must be rejected outside $prefix, even if it exists.\n'
+                  '${invalid.stdout}\n${invalid.stderr}',
+            );
+            expect(invalid.stderr, contains('/$asset'));
+          },
+        );
+      }
+    }
+  });
+
   test(
     'default verify passes when pubspec and tracked web/index.html agree '
     'even if build/web is stale',

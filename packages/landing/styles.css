@@ -4,31 +4,31 @@
    packages/client/lib/design_system/tentura_colors.dart
    (TenturaColorPalette.light / .dark). */
 
-/* Inter ships with the app build on the same origin; if it is absent the
+/* Inter ships with this static landing; if it is absent the
    system stack below takes over silently. */
 @font-face {
   font-family: 'Inter';
   font-weight: 400;
   font-display: swap;
-  src: url('/assets/fonts/Inter-Regular.ttf') format('truetype');
+  src: url('fonts/Inter-Regular.ttf') format('truetype');
 }
 @font-face {
   font-family: 'Inter';
   font-weight: 500;
   font-display: swap;
-  src: url('/assets/fonts/Inter-Medium.ttf') format('truetype');
+  src: url('fonts/Inter-Medium.ttf') format('truetype');
 }
 @font-face {
   font-family: 'Inter';
   font-weight: 600;
   font-display: swap;
-  src: url('/assets/fonts/Inter-SemiBold.ttf') format('truetype');
+  src: url('fonts/Inter-SemiBold.ttf') format('truetype');
 }
 @font-face {
   font-family: 'Inter';
   font-weight: 700;
   font-display: swap;
-  src: url('/assets/fonts/Inter-Bold.ttf') format('truetype');
+  src: url('fonts/Inter-Bold.ttf') format('truetype');
 }
 
 :root {

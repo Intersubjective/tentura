@@ -96,9 +96,11 @@ void _verifyBuildWeb(String buildWebDir) {
         } else if (!File('$buildWebDir${uri.path}').existsSync()) {
           problems.add('$group: missing asset "$asset"');
         }
-        if (uri.path.startsWith('/app-assets/') &&
+        if (uri.path != '/flutter_bootstrap.js' &&
             !uri.path.startsWith('/app-assets/$expected/')) {
-          problems.add('$group: stale versioned asset "$asset"');
+          problems.add(
+            '$group: asset must use /app-assets/$expected/: "$asset"',
+          );
         }
       }
     }

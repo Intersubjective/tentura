@@ -34,10 +34,9 @@ cleanup_tmp_archive() {
   fi
 }
 
-# Every web build adds app-assets/<version>-<sha>/ (~150 MB) and nothing removed
-# them (42 GB on dev by 2026-11-01). Keep the newest APP_ASSETS_KEEP builds, so
-# clients still on a recent cached build can load its files, and always the
-# build the new bootstrap references. Best-effort: never fails the deploy.
+# Bound storage use while keeping recent cached builds and the live build,
+# even when the current archive carries an older directory timestamp.
+# Run only after publishing entries so the bootstrap selects the new build.
 prune_app_assets() {
   local assets_dir="$WEB_DIR/app-assets"
   local keep="${APP_ASSETS_KEEP:-20}"
@@ -200,11 +199,14 @@ echo "Deploying from archive: $ARCHIVE_PATH"
 # Ensure web directory exists
 mkdir -p "$WEB_DIR"
 
-# Extract web archive to web directory
-echo "Extracting web archive to $WEB_DIR..."
-tar -xzf "$ARCHIVE_PATH" -C "$WEB_DIR/"
-echo "Web archive extracted successfully"
-prune_app_assets
+# Stage the complete archive without exposing its entry-file enumeration order.
+WEB_STAGE="$(mktemp -d "$DEPLOY_DIR/.web-stage.XXXXXX")"
+trap 'rm -rf "$WEB_STAGE"' EXIT
+tar -xzf "$ARCHIVE_PATH" -C "$WEB_STAGE/"
+if [[ ! -d "$WEB_STAGE/app-assets" || ! -f "$WEB_STAGE/index.html" || ! -f "$WEB_STAGE/flutter_bootstrap.js" ]]; then
+  echo 'Error: web archive is missing versioned assets or entry files' >&2
+  exit 1
+fi
 
 # Extract landing archive (optional) — static landing served at {$LANDING_ROOT}.
 # Prefer LANDING_ARCHIVE from CI; fallback only when unset (e.g. manual deploy).
@@ -231,6 +233,52 @@ if [ -z "$(find "$LANDING_DIR" -mindepth 1 -maxdepth 1 2>/dev/null | head -1)" ]
 <body><p>Landing is being deployed. Please try again shortly.</p></body></html>
 EOF
 fi
+
+# Keep the bind-mounted web directory in place. Root synchronization must
+# not remove app-assets; retention runs separately after entry publication.
+# Landing fonts are installed before stale root assets disappear. Entry
+# files become visible only after all payloads are ready.
+mkdir -p "$WEB_DIR/app-assets"
+for version_dir in "$WEB_STAGE"/app-assets/*; do
+  [[ -d "$version_dir" ]] || continue
+  version_target="$WEB_DIR/app-assets/${version_dir##*/}"
+  if [[ -d "$version_target" ]]; then
+    cp -a "$version_dir/." "$version_target/"
+  else
+    mv "$version_dir" "$version_target"
+  fi
+done
+WEB_ENTRY_FILES=(flutter_bootstrap.js tentura-app-cache-sw.js firebase-messaging-sw.js
+  google_maps_config.js manifest.json wasm-preload-manifest.json version.json index.html)
+WEB_EXCLUDES=(-path "$WEB_DIR/app-assets")
+STAGE_EXCLUDES=(-name app-assets)
+for entry in "${WEB_ENTRY_FILES[@]}"; do
+  WEB_EXCLUDES+=(-o -path "$WEB_DIR/$entry")
+  STAGE_EXCLUDES+=(-o -name "$entry")
+done
+# Finish discovery before deleting directories, so find never traverses a
+# directory while we remove it. Excluded version trees are not traversed.
+mapfile -d '' -t WEB_ROOT_PATHS < <(
+  find "$WEB_DIR" -mindepth 1 \( "${WEB_EXCLUDES[@]}" \) -prune -o -print0
+)
+for root_path in "${WEB_ROOT_PATHS[@]}"; do
+  relative_path="${root_path#"$WEB_DIR/"}"
+  if [[ ! -e "$WEB_STAGE/$relative_path" && ! -L "$WEB_STAGE/$relative_path" ]]; then
+    rm -rf -- "$root_path"
+  fi
+done
+while IFS= read -r -d '' staged_path; do
+  cp -a "$staged_path" "$WEB_DIR/"
+done < <(find "$WEB_STAGE" -mindepth 1 -maxdepth 1 \( "${STAGE_EXCLUDES[@]}" \) -prune -o -print0)
+for entry in "${WEB_ENTRY_FILES[@]}"; do
+  if [[ -f "$WEB_STAGE/$entry" ]]; then
+    mv -f "$WEB_STAGE/$entry" "$WEB_DIR/$entry"
+  else
+    rm -f "$WEB_DIR/$entry"
+  fi
+done
+echo 'Web archive published successfully'
+prune_app_assets
 
 # --- Assets ready; restart stack (pull/down/up) -------------------------------
 cleanup_tmp_archive "$ARCHIVE_PATH"

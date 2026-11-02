@@ -104,7 +104,7 @@ void main() {
     }
   });
   test(
-    'finished artifact pipeline repairs inconsistent versions and passes verifier',
+    'finished artifact pipeline versions database files and rejects root SQLite leftovers',
     () async {
       final dir = Directory.systemTemp.createTempSync('tentura_web_pipeline');
       addTearDown(() => dir.deleteSync(recursive: true));
@@ -112,6 +112,11 @@ void main() {
       final version = resolveWebBuildVersion(buildId: buildId);
       for (final name in ['main.dart.js', 'main.dart.wasm', 'main.dart.mjs']) {
         File('${dir.path}/$name').writeAsStringSync('fixture');
+      }
+      for (final name in ['sqlite3.wasm', 'drift_worker.js']) {
+        File('${dir.path}/assets/packages/$name')
+          ..createSync(recursive: true)
+          ..writeAsStringSync('database fixture');
       }
       File(
         '${dir.path}/flutter_bootstrap.js',
@@ -146,10 +151,43 @@ void main() {
       );
       final result = await verify();
       expect(result.exitCode, 0, reason: '${result.stdout}\n${result.stderr}');
+      expect(Directory('${dir.path}/assets').existsSync(), isFalse);
+      final manifestFile = File('${dir.path}/wasm-preload-manifest.json');
+      final manifest = jsonDecode(manifestFile.readAsStringSync()) as Map;
+      final sw = File('${dir.path}/tentura-app-cache-sw.js').readAsStringSync();
+      for (final name in ['sqlite3.wasm', 'drift_worker.js']) {
+        final path = '/app-assets/$version/assets/packages/$name';
+        expect(File('${dir.path}$path').readAsStringSync(), 'database fixture');
+        expect(manifest['sharedPreload'] as List, contains(path));
+        expect(sw, contains(path));
+      }
       File('${dir.path}/app-assets/$version/main.dart.js').deleteSync();
       final missingAsset = await verify();
       expect(missingAsset.exitCode, isNot(0));
       expect(missingAsset.stderr, contains('missing asset'));
+      File(
+        '${dir.path}/app-assets/$version/main.dart.js',
+      ).writeAsStringSync('fixture');
+
+      const rootSqlite = '/assets/packages/sqlite3.wasm';
+      File('${dir.path}$rootSqlite')
+        ..createSync(recursive: true)
+        ..writeAsStringSync('old SQLite');
+      final shared = manifest['sharedPreload'] as List;
+      shared[shared.indexOf(
+            '/app-assets/$version/assets/packages/sqlite3.wasm',
+          )] =
+          rootSqlite;
+      manifestFile.writeAsStringSync(jsonEncode(manifest));
+      final rootAsset = await verify();
+      expect(
+        rootAsset.exitCode,
+        1,
+        reason:
+            'Root SQLite URLs must fail even when the leftover exists.\n'
+            '${rootAsset.stdout}\n${rootAsset.stderr}',
+      );
+      expect(rootAsset.stderr, contains(rootSqlite));
     },
   );
   // Issue #622: a CacheStorage failure (Cache.put() rejecting for the 22 MB

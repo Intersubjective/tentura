@@ -1,4 +1,5 @@
 import 'dart:js_interop';
+import 'dart:ui_web' as ui_web;
 
 import 'package:drift/drift.dart';
 import 'package:drift/wasm.dart';
@@ -57,8 +58,12 @@ final class _WebOpenAttempt extends QueryInterceptor {
   Future<QueryExecutor> connect() async {
     _probe = await WasmDatabase.probe(
       databaseName: opener.name,
-      sqlite3Uri: Uri.parse('/assets/packages/sqlite3.wasm'),
-      driftWorkerUri: Uri.parse('/assets/packages/drift_worker.js'),
+      sqlite3Uri: Uri.parse(web.document.baseURI).resolve(
+        ui_web.assetManager.getAssetUrl('packages/sqlite3.wasm'),
+      ),
+      driftWorkerUri: Uri.parse(web.document.baseURI).resolve(
+        ui_web.assetManager.getAssetUrl('packages/drift_worker.js'),
+      ),
     );
     final storage =
         _probe.availableStorages.contains(

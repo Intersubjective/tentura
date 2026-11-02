@@ -183,9 +183,9 @@
 		file_server
 	}
 
-	# Signed-out `/` serves landing index.html with relative *.js / *.css at site root.
+	# Signed-out `/` serves landing index.html with its scripts, styles and fonts.
 	@landing_static_file {
-		path *.js *.css
+		path *.js *.css /fonts/*
 		not path /config.js /config.local.js
 		file {
 			root {$LANDING_ROOT:/srv/landing}
