@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/widget/tentura_focus_semantics.dart';
 
 /// Human-readable meaning of a quick-picker reaction emoji, or `null` for
@@ -26,6 +27,10 @@ String? reactionEmojiMeaning(L10n l10n, String emoji) => switch (emoji) {
   '\u{1F614}' => l10n.beaconRoomReactionMeaningDisappointed,
   _ => null,
 };
+
+/// Lines the hint / meaning line under the grid wraps to and always reserves
+/// (#945).
+const _kPreviewLines = 2;
 
 /// Slack-style reaction grid: hovering (desktop), focusing (keyboard) or
 /// long-pressing (touch) an emoji previews its meaning in the line below;
@@ -70,6 +75,16 @@ class _ReactionQuickPickerState extends State<ReactionQuickPicker> {
     final previewMeaning = preview == null
         ? null
         : reactionEmojiMeaning(l10n, preview);
+    // One style and one forced strut for both states (hint and meaning), so
+    // every line is the same height whatever glyphs (an emoji) it carries.
+    final lineStyle = theme.textTheme.bodyMedium?.copyWith(
+      color: previewMeaning == null
+          ? theme.colorScheme.onSurfaceVariant
+          : theme.colorScheme.onSurface,
+    );
+    final lineStrut = lineStyle == null
+        ? null
+        : StrutStyle.fromTextStyle(lineStyle, forceStrutHeight: true);
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -126,18 +141,35 @@ class _ReactionQuickPickerState extends State<ReactionQuickPicker> {
         Padding(
           padding: EdgeInsets.only(top: tt.rowGap),
           child: ExcludeSemantics(
-            child: Text(
-              previewMeaning == null
-                  ? l10n.beaconRoomReactionPickerHint
-                  : '$preview  $previewMeaning',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              // Same text style both ways so the line never changes height.
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: previewMeaning == null
-                    ? theme.colorScheme.onSurfaceVariant
-                    : theme.colorScheme.onSurface,
-              ),
+            // #945: the line wraps to [_kPreviewLines] lines (a RU hint does
+            // not fit one at 375 px) and always reserves that height: an
+            // invisible two-line slot in the same style and strut sits under
+            // the text, so the sheet never moves when the hint turns into a
+            // meaning and back. Ellipsis only beyond two lines.
+            child: Stack(
+              children: [
+                Visibility.maintain(
+                  visible: false,
+                  child: Text(
+                    '\n' * (_kPreviewLines - 1),
+                    maxLines: _kPreviewLines,
+                    style: lineStyle,
+                    strutStyle: lineStrut,
+                  ),
+                ),
+                Positioned.fill(
+                  child: Text(
+                    previewMeaning == null
+                        ? l10n.beaconRoomReactionPickerHint
+                        : '$preview  $previewMeaning',
+                    key: TestIds.key(TestIds.roomReactionPickerPreviewLine),
+                    maxLines: _kPreviewLines,
+                    overflow: TextOverflow.ellipsis,
+                    style: lineStyle,
+                    strutStyle: lineStrut,
+                  ),
+                ),
+              ],
             ),
           ),
         ),
