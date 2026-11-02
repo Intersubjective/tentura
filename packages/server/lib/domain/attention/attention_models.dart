@@ -671,6 +671,9 @@ abstract class AttentionFeed with _$AttentionFeed {
 @freezed
 abstract class AttentionSurfaceSummary with _$AttentionSurfaceSummary {
   const factory AttentionSurfaceSummary({
+    /// Account-wide History totals, independent of the navigation indicators.
+    @Default(AttentionSummary(unreadTotal: 0)) AttentionSummary historySummary,
+
     /// §6 `my desk.count` — the sum of `request.count` over owned Requests:
     /// live obligations on the myWork surface.
     ///
@@ -678,7 +681,7 @@ abstract class AttentionSurfaceSummary with _$AttentionSurfaceSummary {
     /// `needsYouTotal`, which fused the dot and the number into one total and
     /// carried a name ("unread") that named the read axis while meaning
     /// active attention. Two defects came out of that name; §6's four rules
-    /// are now the only fields this summary has.
+    /// remain independent of History's account-wide totals.
     ///
     /// Independent of [myDeskDot] (D09): a Request with both contributes to
     /// both, and neither is derived from the other.

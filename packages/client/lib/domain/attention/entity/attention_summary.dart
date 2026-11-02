@@ -13,6 +13,9 @@ abstract class AttentionSummary with _$AttentionSummary {
 @freezed
 abstract class AttentionSurfaceSummary with _$AttentionSurfaceSummary {
   const factory AttentionSurfaceSummary({
+    /// Unscoped, search-free History totals; absent on older responses.
+    AttentionSummary? historySummary,
+
     /// §6 `my desk.dot` — an owned Request has an uncleared optional event or
     /// uncleared outcome. Computed by the server from the same predicates its
     /// lists compose (M1); never re-derived here from a total.

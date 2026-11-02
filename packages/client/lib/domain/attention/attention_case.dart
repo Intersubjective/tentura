@@ -345,7 +345,6 @@ final class AttentionCase implements AttentionReconcilePort {
     if (mutationSerial != _mutationSerial) return;
     if (summarySerial != _surfaceSummaryRequestSerial) return;
     final next = <String, AttentionFeedSession>{};
-    AttentionSummary? feedSummary;
     for (var i = 0; i < requested.length; i++) {
       final request = requested[i];
       final landed = _feedSessions.session(request.destinationId);
@@ -353,18 +352,15 @@ final class AttentionCase implements AttentionReconcilePort {
         continue;
       }
       next[request.destinationId] = _composePage(
+        request.destinationId,
         landed,
         feeds[i],
         view: request.session.activeView,
         replaceHead: true,
       );
-      feedSummary ??= feeds[i].summary;
     }
     _feedSessions.updateAll(next);
-    if (!_surfaceSummarySubject.isClosed) {
-      _surfaceSummarySubject.add(summary);
-    }
-    if (feedSummary != null) _emitFeedSummary(feedSummary);
+    _adoptSurfaceSummary(summary);
   }
 
   void _onAccountChanged(String accountId) {
@@ -704,20 +700,24 @@ final class AttentionCase implements AttentionReconcilePort {
     if (pending.isEmpty) return;
     final generation = _accountGeneration;
     final adoption = _adoptionSerial;
-    final returning = pending.where(_displaysClearedOptional).length;
+    final returning = {
+      for (final id in pending.where(_displaysClearedOptional)) id: 1,
+    };
     final ackToken = _acks.markUnseen(pending);
     final token = ++_unclearClock;
     for (final id in pending) {
       _unclears[id] = (token: token, committed: false);
     }
-    _applyOptimisticAcks(unreadDelta: returning);
+    _applyOptimisticAcks(unreadDeltas: returning);
 
     void rollback(Iterable<String> rolled) {
       _acks.discard(rolled, token: ackToken);
       for (final id in rolled) {
         if (_unclears[id]?.token == token) _unclears.remove(id);
       }
-      _applyOptimisticAcks(unreadDelta: -returning);
+      _applyOptimisticAcks(
+        unreadDeltas: {for (final id in returning.keys) id: -1},
+      );
     }
 
     try {
@@ -1095,9 +1095,7 @@ final class AttentionCase implements AttentionReconcilePort {
       // overlay left to stamp on it. The zero delta is the point: no total is
       // adjusted here, only the projection is rebuilt.
       _applyOptimisticAcks();
-      if (!_surfaceSummarySubject.isClosed) {
-        _surfaceSummarySubject.add(result.summary);
-      }
+      _adoptSurfaceSummary(result.summary);
       return result;
     } finally {
       _mutationSerial++;
@@ -1132,12 +1130,16 @@ final class AttentionCase implements AttentionReconcilePort {
     // what happens to look unread. A receipt the user already read still
     // counts on every server total until it is cleared, so clearing it is
     // exactly the moment those totals move.
-    final unreadDelta = _activeOptionalCount(members);
+    final unreadDeltas = {
+      for (final id in members)
+        if (_knownReceipt(id) case final receipt?)
+          if (isActiveOptional(_overlay(receipt))) id: -1,
+    };
     if (members.isNotEmpty) {
       // A clear supersedes an earlier Mark unread on the same rows (#601).
       members.forEach(_unclears.remove);
       _clears.begin(operationId, members);
-      _applyOptimisticAcks(unreadDelta: -unreadDelta);
+      _applyOptimisticAcks(unreadDeltas: unreadDeltas);
     }
     try {
       final result = await run();
@@ -1153,7 +1155,10 @@ final class AttentionCase implements AttentionReconcilePort {
       final withdrawn = members.difference(applied);
       _clears.commit(operationId, applied);
       _applyOptimisticAcks(
-        unreadDelta: withdrawn.isEmpty ? 0 : _activeOptionalCount(withdrawn),
+        unreadDeltas: {
+          for (final id in withdrawn)
+            if (unreadDeltas.containsKey(id)) id: 1,
+        },
       );
       return result;
     } catch (error, stackTrace) {
@@ -1161,7 +1166,9 @@ final class AttentionCase implements AttentionReconcilePort {
           adoption == _adoptionSerial &&
           members.isNotEmpty) {
         _clears.discard(operationId);
-        _applyOptimisticAcks(unreadDelta: unreadDelta);
+        _applyOptimisticAcks(
+          unreadDeltas: {for (final id in unreadDeltas.keys) id: 1},
+        );
       }
       // Destructive-looking gestures fail out loud; nothing is queued (D14).
       _logger.warning('Attention clear failed', error, stackTrace);
@@ -1184,9 +1191,7 @@ final class AttentionCase implements AttentionReconcilePort {
       if (accountGeneration != _accountGeneration) return;
       if (mutationSerial != _mutationSerial) return;
       if (requestSerial != _surfaceSummaryRequestSerial) return;
-      if (!_surfaceSummarySubject.isClosed) {
-        _surfaceSummarySubject.add(summary);
-      }
+      _adoptSurfaceSummary(summary);
     } catch (error, stackTrace) {
       if (accountGeneration != _accountGeneration) return;
       if (requestSerial != _surfaceSummaryRequestSerial) return;
@@ -1202,15 +1207,6 @@ final class AttentionCase implements AttentionReconcilePort {
 
   void _requestHeadRefreshForAllAttached() {
     final attached = _feedSessions.attachedDestinationIds.toList();
-    if (attached.isEmpty) {
-      // The account-wide summary (unread badge) must keep converging even
-      // when no feed screen is mounted to attach a destination — nothing
-      // else refreshes `snapshot.summary`. Route through the default
-      // destination so its session exists and gets pre-warmed for when it
-      // is later attached.
-      unawaited(_requestHeadRefresh(AttentionFeedDestinationId.activityStream));
-      return;
-    }
     for (final destinationId in attached) {
       unawaited(_requestHeadRefresh(destinationId));
     }
@@ -1274,9 +1270,17 @@ final class AttentionCase implements AttentionReconcilePort {
     final session = _feedSessions.session(destinationId);
     _feedSessions.update(
       destinationId,
-      _composePage(session, feed, view: view, replaceHead: replaceHead),
+      _composePage(
+        destinationId,
+        session,
+        feed,
+        view: view,
+        replaceHead: replaceHead,
+      ),
     );
-    _emitFeedSummary(feed.summary);
+    // Feed consumers also invalidate projections on page changes. Preserve
+    // that notification without assigning this page's scoped total globally.
+    _emit(snapshot);
     if (replaceHead) {
       _recordQaHeadRefreshLatency(
         _feedSessions.session(destinationId).pages[view]?.items ?? const [],
@@ -1288,6 +1292,7 @@ final class AttentionCase implements AttentionReconcilePort {
   /// Builds the next session for one destination **without** committing it,
   /// so several destinations can be committed together.
   AttentionFeedSession _composePage(
+    String destinationId,
     AttentionFeedSession session,
     AttentionFeed feed, {
     required AttentionView view,
@@ -1309,20 +1314,25 @@ final class AttentionCase implements AttentionReconcilePort {
         items: items,
         nextCursor: feed.page.nextCursor,
       );
+    // History's badge stays independent of pagination and search. Scoped
+    // destinations own the totals returned with their own pages.
+    final adoptSummary =
+        surfaceForDestination(destinationId) != null ||
+        (replaceHead && session.normalizedSearch == null);
     return session.copyWith(
+      summary: adoptSummary ? feed.summary : session.summary,
       pages: pages,
       headRefreshError: null,
     );
   }
 
-  void _emitFeedSummary(AttentionSummary summary) {
-    // U17b/§3 — `unreadTotal` is the server's **active attention** total
-    // (`NOT requires_action AND cleared_at IS NULL`, union live obligations),
-    // not a count of unread rows. A pending read-axis ack is therefore not a
-    // delta on it: folding one in made History's own "mark unread" raise the
-    // badge for a row that had already been cleared, which is exactly the
-    // resurrection §3 forbids. The server's number is emitted as given.
-    _emit(snapshot.copyWith(summary: summary));
+  void _adoptSurfaceSummary(AttentionSurfaceSummary summary) {
+    if (!_surfaceSummarySubject.isClosed) {
+      _surfaceSummarySubject.add(summary);
+    }
+    _emit(
+      snapshot.copyWith(summary: summary.historySummary ?? snapshot.summary),
+    );
   }
 
   Future<void> _runAfterAckBarriers(
@@ -1403,17 +1413,6 @@ final class AttentionCase implements AttentionReconcilePort {
     return _knownReceipt(id)?.isSeen ?? false;
   }
 
-  /// Active optional attention among [ids] — the clear axis (`activeOptional`
-  /// in the server's SQL), deliberately blind to `seenAt`.
-  int _activeOptionalCount(Iterable<String> ids) {
-    var n = 0;
-    for (final id in ids) {
-      final receipt = _knownReceipt(id);
-      if (receipt != null && isActiveOptional(_overlay(receipt))) n++;
-    }
-    return n;
-  }
-
   // No optimistic §6 summary deltas: home nav indicators are server-composed
   // from scope / obligation predicates the client does not hold locally, so
   // guessing them during ack would reintroduce M1 drift. The optimistic frame
@@ -1422,8 +1421,7 @@ final class AttentionCase implements AttentionReconcilePort {
   // queues.
 
   void _applyOptimisticAcks({
-    int unreadDelta = 0,
-    int? unreadTotal,
+    Map<String, int> unreadDeltas = const {},
   }) {
     for (final destinationId in _feedSessions.attachedDestinationIds) {
       final session = _feedSessions.session(destinationId);
@@ -1448,12 +1446,28 @@ final class AttentionCase implements AttentionReconcilePort {
                     .toList(growable: false),
           ),
       };
-      _feedSessions.update(destinationId, session.copyWith(pages: pages));
+      final surface = surfaceForDestination(destinationId);
+      final delta = unreadDeltas.entries
+          .where(
+            (entry) =>
+                surface == null || _knownReceipt(entry.key)?.surface == surface,
+          )
+          .fold<int>(0, (sum, entry) => sum + entry.value);
+      _feedSessions.update(
+        destinationId,
+        session.copyWith(
+          pages: pages,
+          summary: session.summary.copyWith(
+            unreadTotal: math.max(0, session.summary.unreadTotal + delta),
+          ),
+        ),
+      );
     }
     _publishOfferGroups();
     final unread = math.max(
       0,
-      unreadTotal ?? snapshot.summary.unreadTotal + unreadDelta,
+      snapshot.summary.unreadTotal +
+          unreadDeltas.values.fold<int>(0, (sum, delta) => sum + delta),
     );
     _emit(
       snapshot.copyWith(

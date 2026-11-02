@@ -48,6 +48,16 @@ final class AttentionRepository implements AttentionRepositoryPort {
   static const _label = 'Attention';
   static final _log = Logger('AttentionRepository');
 
+  static AttentionSummary? _historySummary(
+    int? unreadTotal,
+    int? needsYouTotal,
+  ) => unreadTotal == null
+      ? null
+      : AttentionSummary(
+          unreadTotal: unreadTotal,
+          needsYouTotal: needsYouTotal ?? 0,
+        );
+
   @override
   Future<AttentionFeed> fetch({
     required AttentionView view,
@@ -432,6 +442,10 @@ final class AttentionRepository implements AttentionRepositoryPort {
         .then((response) => response.dataOrThrow(label: _label));
     final summary = data.attentionSurfaceSummary;
     return AttentionSurfaceSummary(
+      historySummary: _historySummary(
+        summary.unreadTotal,
+        summary.needsYouTotal,
+      ),
       myDeskDot: summary.myDeskDot,
       myDeskCount: summary.myDeskCount,
       forYouDot: summary.forYouDot,
@@ -718,6 +732,10 @@ final class AttentionRepository implements AttentionRepositoryPort {
     final result = data.attentionReconcile;
     return AttentionReconcileResult(
       summary: AttentionSurfaceSummary(
+        historySummary: _historySummary(
+          result.summary.unreadTotal,
+          result.summary.needsYouTotal,
+        ),
         // D15 step 6 — every §6 indicator the server recomputed, relayed as
         // given. A field left unread here defaults to false/0, and the
         // adoption downstream would blank a dot the account still owes.

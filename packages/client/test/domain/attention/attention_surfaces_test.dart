@@ -213,7 +213,8 @@ void main() {
         unread: 3,
         items: [attentionCaseTestReceipt(id: 'refreshed-receipt')],
       );
-      final refreshedSummary = _surfaceSummary(deskCount: 4, myDeskDot: true);
+      final refreshedSummary = _surfaceSummary(deskCount: 4, myDeskDot: true)
+          .copyWith(historySummary: const AttentionSummary(unreadTotal: 7));
       final page = Completer<AttentionFeed>();
       final summary = Completer<AttentionSurfaceSummary>();
       repository.pendingFetches.add(page);
@@ -281,7 +282,8 @@ void main() {
         attention.feedSession(destination).pages[AttentionView.all],
         refreshedFeed.page,
       );
-      expect(attention.snapshot.summary, refreshedFeed.summary);
+      expect(attention.snapshot.summary, refreshedSummary.historySummary);
+      expect(attention.feedSession(destination).summary, refreshedFeed.summary);
       expect(
         repository.fetches.skip(fetchCallsBefore).map((fetch) => fetch.surface),
         everyElement(AttentionSurface.activity),

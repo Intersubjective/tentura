@@ -146,7 +146,7 @@ void main() {
         ..unread = {beaconId};
       await attention.refresh();
       await _settle();
-      expect(attention.snapshot.summary.unreadTotal, 1);
+      expect(attention.feedSession(AttentionFeedDestinationId.activityStream).summary.unreadTotal, 1);
 
       roomRepo.emitRoomInvalidation(
         const BeaconRoomInvalidation(

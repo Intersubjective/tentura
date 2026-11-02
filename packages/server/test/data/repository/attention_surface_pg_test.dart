@@ -76,6 +76,28 @@ VALUES
       await tearDownDisposablePgWriter(session: session, drift: database);
     });
 
+    test('account summary counts History across both destination surfaces', () async {
+      await _insertBeaconReceipt(
+        writer,
+        id: 'NsummaryOwned',
+        beaconId: _ownedBeaconId,
+      );
+      await _insertProfileReceipt(writer, id: 'NsummaryActivity');
+      final summary = await query.surfaceSummary(accountId: _viewerId);
+      final history = await query.attentionFeed(
+        accountId: _viewerId,
+        view: AttentionFeedView.all,
+      );
+      final activity = await query.attentionFeed(
+        accountId: _viewerId,
+        view: AttentionFeedView.all,
+        surface: AttentionSurface.activity,
+      );
+      expect(history.summary.unreadTotal, 2);
+      expect(activity.summary.unreadTotal, 1);
+      expect(summary.historySummary, history.summary);
+    });
+
     test('authored open receipt is myWork', () async {
       await _insertBeaconReceipt(
         writer,

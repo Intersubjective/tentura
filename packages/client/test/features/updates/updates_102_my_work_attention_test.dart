@@ -108,7 +108,7 @@ void main() {
       FeedSessionRegistry(),
       Logger('updates-102-attention-test'),
     );
-    attention.attachFeedSession(AttentionFeedDestinationId.activityStream);
+    attention.attachFeedSession(AttentionFeedDestinationId.history);
     home = HomeAttentionCubit(
       attention,
       accounts,
@@ -143,10 +143,13 @@ void main() {
       await attention.refresh();
       await _settle();
 
-      expect(attention.snapshot.summary.unreadTotal, 1);
+      expect(
+        attention.feedSession(AttentionFeedDestinationId.history).summary.unreadTotal,
+        1,
+      );
       expect(
         attention
-            .feedSession(AttentionFeedDestinationId.activityStream)
+            .feedSession(AttentionFeedDestinationId.history)
             .pages[AttentionView.all]!
             .items
             .single

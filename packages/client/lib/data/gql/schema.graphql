@@ -7735,6 +7735,8 @@ type v2_AttentionSummary {
 }
 
 type v2_AttentionSurfaceSummary {
+  unreadTotal: Int
+  needsYouTotal: Int
   forYouDot: Boolean!
   forYouSweepEligible: Boolean!
   myDeskCount: Int!

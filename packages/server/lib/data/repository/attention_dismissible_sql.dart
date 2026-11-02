@@ -143,10 +143,13 @@ eligible_pinned AS (
   /// as `my_desk_dot` / `for_you_dot`. Until U18c the summary also returned
   /// three legacy totals built from this union (`activity_unread_total`,
   /// `my_work_unread_total`, `needs_you_total`); they are retired, and this
-  /// predicate now reaches the surface summary only through those §6 rules.
-  /// It still spells the `unread` view of the History feed, which §3 keeps.
+  /// predicate also spells the `unread` view of History, which §3 keeps.
   static String activeAttention(String alias) =>
       '((${activeOptional(alias)}) OR (${liveObligation(alias)}))';
+
+  /// The History unread view, also used by its account-wide summary.
+  static String historyAttention(String alias) =>
+      '(${activeAttention(alias)} AND ${postLifecycleExcluded(alias)})';
 
   /// U11 / D16 — the *placement* filter: does this receipt speak on a primary
   /// surface at all?

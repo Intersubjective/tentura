@@ -251,7 +251,7 @@ for_you_dot AS (
   SELECT (${AttentionDismissibleSql.forYouDotExpression}) AS value
 ),
 -- §6 `my desk.count`. Also one definition. U18c retired the three legacy
--- totals this used to sit beside; §6's four rules are all that is left.
+-- totals this used to sit beside. History has separate account-wide totals.
 my_desk_count AS (
   ${AttentionDismissibleSql.myDeskCountExpression}
 ),
@@ -259,18 +259,30 @@ my_desk_count AS (
 -- composed rather than restated, so the control and the action cannot drift.
 for_you_sweep_eligible AS (
   SELECT (${AttentionDismissibleSql.forYouSweepEligibleExpression}) AS value
+),
+history_summary AS (
+  SELECT
+    COUNT(*) FILTER (WHERE ${AttentionDismissibleSql.historyAttention('v')})::int AS unread_total,
+    COUNT(*) FILTER (WHERE ${AttentionDismissibleSql.liveObligation('v')})::int AS needs_you_total
+  FROM visible v
 )
 SELECT
+  history_summary.unread_total,
+  history_summary.needs_you_total,
   my_desk_dot.value AS my_desk_dot,
   for_you_dot.value AS for_you_dot,
   my_desk_count.value AS my_desk_count,
   for_you_sweep_eligible.value AS for_you_sweep_eligible
-FROM my_desk_dot, for_you_dot, my_desk_count, for_you_sweep_eligible
+FROM my_desk_dot, for_you_dot, my_desk_count, for_you_sweep_eligible, history_summary
 ''',
           variables: [Variable<String>(accountId)],
         )
         .getSingle();
     return AttentionSurfaceSummary(
+      historySummary: AttentionSummary(
+        unreadTotal: row.read<int>('unread_total'),
+        needsYouTotal: row.read<int>('needs_you_total'),
+      ),
       myDeskDot: row.read<bool>('my_desk_dot'),
       myDeskCount: row.read<int>('my_desk_count'),
       forYouDot: row.read<bool>('for_you_dot'),
@@ -796,10 +808,6 @@ AND (
     variables.add(Variable<int>(boundedLimit + 1));
     final limitParameter = '\$${variables.length}';
 
-    String unreadReceiptPredicate(String alias) =>
-        '(${AttentionDismissibleSql.activeAttention(alias)} '
-        'AND ${AttentionDismissibleSql.postLifecycleExcluded(alias)})';
-
     final pageCte = surface == AttentionSurface.activity
         ? '''
 $_activityPageStreamCte,
@@ -833,7 +841,7 @@ page AS (
   FROM visible
   WHERE (
     \$2 = 'all'
-    OR (\$2 = 'unread' AND ${unreadReceiptPredicate('visible')})
+    OR (\$2 = 'unread' AND ${AttentionDismissibleSql.historyAttention('visible')})
     OR (\$2 = 'needsYou' AND ${AttentionDismissibleSql.liveObligation('visible')})
   )
   AND (
@@ -859,7 +867,7 @@ page AS (
 WITH $_visibleWithSurfaceCte,
 summary AS (
   SELECT COUNT(*) FILTER (
-    WHERE ${unreadReceiptPredicate('v')}
+    WHERE ${AttentionDismissibleSql.historyAttention('v')}
       AND (\$4::text IS NULL OR v.surface = \$4)
   )::int AS unread_total,
   COUNT(*) FILTER (

@@ -235,7 +235,9 @@ void main() {
       expect(repository.fetchCalls, 2);
       second.complete(_feed(unread: 2));
       await _settle();
-      expect(attention.snapshot.summary.unreadTotal, 2);
+      expect(_feedSession(attention).summary.unreadTotal, 2);
+      expect(attention.snapshot.summary, const AttentionSummary(),
+          reason: 'a scoped page cannot supply the account-wide total');
     });
 
     test('catch-up keeps one UI receipt for each stable receipt id', () async {
@@ -401,7 +403,7 @@ void main() {
         // CHANGES IN U15R-c: was `0`. `unreadTotal` is the server's
         // active-attention count, not a read count — a read leaves it alone
         // (R2/D02).
-        expect(attention.snapshot.summary.unreadTotal, 1);
+        expect(_feedSession(attention).summary.unreadTotal, 1);
 
         mark.complete(1);
         await command;
@@ -442,7 +444,7 @@ void main() {
         unawaited(attention.markSeen(['r0']));
         await _settle();
 
-        expect(attention.snapshot.summary.unreadTotal, 100);
+        expect(_feedSession(attention).summary.unreadTotal, 100);
         expect(
           _feedSession(attention).pages[AttentionView.unread]!.items.map(
             (receipt) => receipt.id,
@@ -493,7 +495,7 @@ void main() {
         );
         // CHANGES IN U15R-c: was `0`. "Read all" clears nothing, so it must
         // not announce an empty surface (R2, §4).
-        expect(attention.snapshot.summary.unreadTotal, 2);
+        expect(_feedSession(attention).summary.unreadTotal, 2);
 
         rejected.completeError(StateError('offline'));
         await expectLater(command, throwsStateError);
@@ -503,7 +505,7 @@ void main() {
           ),
           isTrue,
         );
-        expect(attention.snapshot.summary.unreadTotal, 2);
+        expect(_feedSession(attention).summary.unreadTotal, 2);
       },
     );
 
@@ -524,7 +526,7 @@ void main() {
         isFalse,
       );
       // CHANGES IN U15R-c: was `1`. Marking unread is the read axis too.
-      expect(attention.snapshot.summary.unreadTotal, 0);
+      expect(_feedSession(attention).summary.unreadTotal, 0);
 
       rejected.completeError(StateError('offline'));
       await expectLater(command, throwsStateError);
@@ -532,7 +534,7 @@ void main() {
         _feedSession(attention).pages[AttentionView.all]!.items.single.isSeen,
         isTrue,
       );
-      expect(attention.snapshot.summary.unreadTotal, 0);
+      expect(_feedSession(attention).summary.unreadTotal, 0);
     });
 
     test('queued unsee runs after in-flight markSeen', () async {
@@ -598,7 +600,7 @@ void main() {
         _feedSession(attention).pages[AttentionView.all]!.items.single.isSeen,
         isTrue,
       );
-      expect(attention.snapshot.summary.unreadTotal, 0);
+      expect(_feedSession(attention).summary.unreadTotal, 0);
     });
 
     // U17b — the *overlay* is the read axis and survives a mid-flight
@@ -635,7 +637,7 @@ void main() {
         await _settle();
         unawaited(attention.markUnseen(['receipt-1']));
         await _settle();
-        expect(attention.snapshot.summary.unreadTotal, 1);
+        expect(_feedSession(attention).summary.unreadTotal, 1);
         expect(
           _feedSession(attention).pages[AttentionView.all]!.items.single.isSeen,
           isFalse,
@@ -653,7 +655,7 @@ void main() {
         midRefresh.complete(_feed(unread: 0, items: [_seenReceipt()]));
         await _settle();
         expect(
-          attention.snapshot.summary.unreadTotal,
+          _feedSession(attention).summary.unreadTotal,
           0,
           reason: "the total is the server's active-attention count, and a "
               'queued read-axis ack is not a delta on it (§3)',
@@ -670,7 +672,7 @@ void main() {
         afterUnsee.complete(_feed());
         await _settle();
         expect(
-          attention.snapshot.summary.unreadTotal,
+          _feedSession(attention).summary.unreadTotal,
           1,
           reason: 'and it follows the server back up when the server says so',
         );
@@ -744,7 +746,7 @@ void main() {
         _feedSession(attention).pages[AttentionView.all]!.items.single.isSeen,
         isTrue,
       );
-      expect(attention.snapshot.summary.unreadTotal, 0);
+      expect(_feedSession(attention).summary.unreadTotal, 0);
 
       unsee.complete(1);
       afterUnsee.complete(_feed());
@@ -757,7 +759,7 @@ void main() {
         _feedSession(attention).pages[AttentionView.all]!.items.single.isSeen,
         isTrue,
       );
-      expect(attention.snapshot.summary.unreadTotal, 0);
+      expect(_feedSession(attention).summary.unreadTotal, 0);
     });
 
     test(
@@ -815,14 +817,14 @@ void main() {
         expect(repository.settles, [
           (receiptId: 'receipt-1', kind: 'resolved'),
         ]);
-        expect(attention.snapshot.summary.unreadTotal, 1);
+        expect(_feedSession(attention).summary.unreadTotal, 1);
 
         settle.complete(1);
         await _settle();
         expect(repository.fetchCalls, 2);
         refresh.complete(_feed(items: const []));
         await command;
-        expect(attention.snapshot.summary.unreadTotal, 1);
+        expect(_feedSession(attention).summary.unreadTotal, 1);
       },
     );
 
@@ -930,7 +932,7 @@ void main() {
         remoteRefresh.complete(_feed(unread: 0, items: [_seenReceipt()]));
         await _settle();
 
-        expect(secondAttention.snapshot.summary.unreadTotal, 0);
+        expect(_feedSession(secondAttention).summary.unreadTotal, 0);
         expect(
           _feedSession(secondAttention)
               .pages[AttentionView.all]!

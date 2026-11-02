@@ -81,6 +81,8 @@ final class MutationAttention extends GqlNodeBase {
             'settledObligationCount': result.settledObligationCount,
             'unrepairableObligationCount': result.unrepairableObligationCount,
             'summary': {
+              'unreadTotal': result.summary.historySummary.unreadTotal,
+              'needsYouTotal': result.summary.historySummary.needsYouTotal,
               'myDeskDot': result.summary.myDeskDot,
               'myDeskCount': result.summary.myDeskCount,
               'forYouDot': result.summary.forYouDot,

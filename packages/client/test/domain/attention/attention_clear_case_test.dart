@@ -130,13 +130,16 @@ void main() {
 
   test('a page fetch started before a clear cannot overwrite its result',
       () async {
-    // Both the sign-in summary fetch and a head refresh are left in flight,
-    // so that they land only after the clear has committed.
-    repository.holdSummaries = true;
+    // Seed the account total independently, then hold a stale summary and
+    // page until after the clear commits.
+    repository.historySummary = const AttentionSummary(unreadTotal: 3);
     await signIn(attention);
     expect(attention.snapshot.summary.unreadTotal, 3);
+    repository.holdSummaries = true;
     unawaited(attention.refresh(destinationId: attentionCaseTestFeedDest));
+    await attention.reconcile();
     await attentionCaseTestSettle();
+    expect(repository._pendingSummaries, hasLength(1));
 
     repository.snapshot = const AttentionClearSnapshot(
       snapshotToken: 'snap-1',
@@ -485,6 +488,7 @@ final class _ClearRepository extends AttentionRepositoryFake {
 
   final List<Completer<AttentionSurfaceSummary>> _pendingSummaries = [];
   bool holdSummaries = false;
+  AttentionSummary? historySummary;
 
   /// Completes exactly one in-flight fetch, leaving any later one pending —
   /// which is how a stale response is made to land *after* a mutation.
@@ -503,7 +507,11 @@ final class _ClearRepository extends AttentionRepositoryFake {
 
   @override
   Future<AttentionSurfaceSummary> surfaceSummary() {
-    if (!holdSummaries) return super.surfaceSummary();
+    if (!holdSummaries) {
+      return super.surfaceSummary().then(
+        (summary) => summary.copyWith(historySummary: historySummary),
+      );
+    }
     final completer = Completer<AttentionSurfaceSummary>();
     _pendingSummaries.add(completer);
     return completer.future;

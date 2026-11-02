@@ -40,11 +40,10 @@ class _FakeReconciliation implements ObligationReconciliationRunner {
       createdObligationCount: 1,
       settledObligationCount: 2,
       unrepairableObligationCount: 3,
-      // U18c: the three legacy totals are retired, so the reconcile result
-      // carries only §6's rules. Every one is set away from its default, so a
-      // resolver that emitted the constructor defaults instead of copying
-      // this object fails here rather than passing on coincidence.
+      // Account-wide History totals and navigation indicators are independent.
+      // Distinct values catch a resolver that substitutes constructor defaults.
       summary: AttentionSurfaceSummary(
+        historySummary: AttentionSummary(unreadTotal: 23, needsYouTotal: 3),
         myDeskCount: 6,
         myDeskDot: true,
         forYouDot: true,
@@ -109,6 +108,7 @@ class _FakeQuery implements AttentionQueryPort {
   }) async {
     this.accountId = accountId;
     return const AttentionSurfaceSummary(
+      historySummary: AttentionSummary(unreadTotal: 17, needsYouTotal: 2),
       myDeskCount: 3,
       myDeskDot: true,
       forYouDot: false,
@@ -608,18 +608,17 @@ void main() {
   });
 
   test(
-    'attentionSurfaceSummary exposes the §6 indicators and nothing else',
+    'surface summary exposes navigation indicators and account-wide History totals',
     () async {
       final query = _FakeQuery();
       final field = QueryAttention(
         query: query,
       ).all.singleWhere((field) => field.name == 'attentionSurfaceSummary');
 
-      // An exact map, so this is also the assertion that the retired totals
-      // are gone from the wire: CHANGES IN U18c — `activityUnreadTotal`,
-      // `myWorkUnreadTotal` and `needsYouTotal` used to head this map, and a
-      // resolver that still emitted any of them fails here.
+      // Exact membership keeps retired per-surface totals off the wire.
       expect(await field.resolve!(null, auth), {
+        'unreadTotal': 17,
+        'needsYouTotal': 2,
         // §6 `my desk.dot`, `for you.dot` and — CHANGES IN U15R-e — the fourth
         // rule, `my desk.count`. There is no `forYouCount` key: §6 says
         // `for you.count = never`, so the wire has nowhere to put one.
@@ -633,19 +632,12 @@ void main() {
     },
   );
 
-  // U18c. The resolver map assertion above catches a resolver that still
-  // *emits* a retired total; it cannot catch the schema still *declaring*
-  // one, because a declared field with no resolver simply resolves to null
-  // and no test looks. A field left on the type is a field a client can
-  // still select, which is the whole of what the retirement had to remove.
-  test('the AttentionSurfaceSummary type declares §6 and nothing else', () {
+  test('surface summary declares account totals separately from navigation', () {
     expect(
       gqlTypeAttentionSurfaceSummary.fields.map((f) => f.name).toList(),
-      ['myDeskDot', 'myDeskCount', 'forYouDot', 'forYouSweepEligible'],
-      reason:
-          'CHANGES IN U18c: `activityUnreadTotal`, `myWorkUnreadTotal` and '
-          '`needsYouTotal` are retired from this type. There is no '
-          '`forYouCount` either — §6: `for you.count = never`.',
+      ['unreadTotal', 'needsYouTotal', 'myDeskDot', 'myDeskCount',
+       'forYouDot', 'forYouSweepEligible'],
+      reason: 'the retired per-surface totals and forYouCount stay absent',
     );
   });
 
@@ -800,8 +792,10 @@ void main() {
         // indicator fields (`my desk.dot`, `for you.dot`, `my desk.count`),
         // and the reconcile result carries the same object, so its wire shape
         // gains them too.
-        // CHANGES IN U18c: the three legacy totals are gone from this map.
+        // Account-wide History totals accompany the navigation indicators.
         'summary': {
+          'unreadTotal': 23,
+          'needsYouTotal': 3,
           'myDeskDot': true,
           'forYouDot': true,
           'myDeskCount': 6,

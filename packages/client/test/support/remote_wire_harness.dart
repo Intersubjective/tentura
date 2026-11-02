@@ -23,11 +23,14 @@ Map<String, dynamic> wireCodeError(int code) => {
 /// GraphQL operation (keyed by operation name) with [responses] `data`, or
 /// with [errors] when the operation is listed there. Every request is
 /// recorded in [sent].
+/// [responseFor] can route by variables and delay individual HTTP responses
+/// when a test needs to control concurrent requests' completion order.
 Future<void> withRemoteWire(
   Map<String, Map<String, dynamic>> responses,
   List<WireSent> sent,
   Future<void> Function(RemoteApiService remote) body, {
   Map<String, Map<String, dynamic>> errors = const {},
+  Future<Map<String, dynamic>> Function(WireSent request)? responseFor,
 }) => http.runWithClient(
   () async {
     final remote = RemoteApiService(
@@ -68,7 +71,11 @@ Future<void> withRemoteWire(
                 'data': null,
                 'errors': [error],
               }
-            : {'data': responses[name]},
+            : {
+                'data': responseFor == null
+                    ? responses[name]
+                    : await responseFor(sent.last),
+              },
       ),
       200,
       headers: {'content-type': 'application/json'},

@@ -8,7 +8,6 @@ import 'package:tentura/app/platform/tab_attention_indicator.dart';
 import 'package:tentura/design_system/tentura_tab_indicator.dart';
 import 'package:tentura/domain/attention/attention_case.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
-import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/attention/feed_session_registry.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';
@@ -94,7 +93,7 @@ final class ControllableAttentionAccounts implements AttentionAccountPort {
 }
 
 final class ControllableAttentionRepository extends AttentionRepositoryFake {
-  final List<Completer<AttentionFeed>> pendingFetches = [];
+  final List<Completer<AttentionSurfaceSummary>> pendingSummaries = [];
 
   @override
   Future<AttentionFeed> fetch({
@@ -103,7 +102,11 @@ final class ControllableAttentionRepository extends AttentionRepositoryFake {
     String? search,
     int limit = 50,
     AttentionSurface? surface,
-  }) => pendingFetches.removeAt(0).future;
+  }) => throw StateError('Feed pages cannot set tab attention');
+
+  @override
+  Future<AttentionSurfaceSummary> surfaceSummary() =>
+      pendingSummaries.removeAt(0).future;
 
   @override
   Future<Set<String>> unreadForBeacons(Set<String> beaconIds) async =>
@@ -128,26 +131,8 @@ final class ControllableAttentionRepository extends AttentionRepositoryFake {
   }) async => 0;
 }
 
-AttentionFeed buildAttentionFeed({int unread = 1}) => AttentionFeed(
-  summary: AttentionSummary(unreadTotal: unread),
-  page: AttentionFeedPage(
-    items: [
-      AttentionReceipt(
-        id: 'receipt-$unread',
-        category: 'asksOfMe',
-        kind: 'needsMe',
-        priority: 'normal',
-        title: 'Title',
-        body: 'Body',
-        actionUrl: '/#/',
-        createdAt: DateTime.utc(2026),
-        collapsedCount: 1,
-        presentationPayloadJson: '{}',
-        surface: AttentionSurface.activity,
-      ),
-    ],
-  ),
-);
+AttentionSurfaceSummary buildAccountSummary({required int unread}) =>
+    AttentionSurfaceSummary(historySummary: AttentionSummary(unreadTotal: unread));
 
 /// Same real-async microtask drain as [updates_feed_cubit_test.dart].
 Future<void> settle([int turns = 8]) async {
@@ -165,11 +150,11 @@ Future<void> seedUnread({
   required int unread,
   String accountId = 'account-a',
 }) async {
-  final completer = Completer<AttentionFeed>();
-  repository.pendingFetches.add(completer);
+  final completer = Completer<AttentionSurfaceSummary>();
+  repository.pendingSummaries.add(completer);
   accounts.emit(accountId);
   await settle();
-  completer.complete(buildAttentionFeed(unread: unread));
+  completer.complete(buildAccountSummary(unread: unread));
   await settle();
 }
 
@@ -178,11 +163,11 @@ Future<void> pushUnread({
   required RealtimeSyncCase realtimeCase,
   required int unread,
 }) async {
-  final completer = Completer<AttentionFeed>();
-  repository.pendingFetches.add(completer);
+  final completer = Completer<AttentionSurfaceSummary>();
+  repository.pendingSummaries.add(completer);
   realtimeCase.requestCatchUp(RealtimeCatchUpReason.appResumed);
   await settle();
-  completer.complete(buildAttentionFeed(unread: unread));
+  completer.complete(buildAccountSummary(unread: unread));
   await settle();
 }
 
@@ -401,11 +386,11 @@ void main() {
         unread: 9,
       );
 
-      final clearCompleter = Completer<AttentionFeed>();
-      repository.pendingFetches.add(clearCompleter);
+      final clearCompleter = Completer<AttentionSurfaceSummary>();
+      repository.pendingSummaries.add(clearCompleter);
       accounts.emit('account-b');
       await settle();
-      clearCompleter.complete(buildAttentionFeed(unread: 0));
+      clearCompleter.complete(buildAccountSummary(unread: 0));
       await settle();
 
       await waitThrottleWindow();

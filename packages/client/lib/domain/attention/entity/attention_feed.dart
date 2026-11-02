@@ -104,6 +104,7 @@ abstract class AttentionFeed with _$AttentionFeed {
 @freezed
 abstract class AttentionFeedSession with _$AttentionFeedSession {
   const factory AttentionFeedSession({
+    @Default(AttentionSummary()) AttentionSummary summary,
     @Default(AttentionView.all) AttentionView activeView,
     @Default('') String searchText,
     @Default(<AttentionView, AttentionFeedPage>{})

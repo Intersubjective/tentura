@@ -29,15 +29,13 @@ final class FeedSessionRegistry {
   }
 
   void resetForAccount() {
-    final attached = attachedDestinationIds.toList(growable: false);
-    for (final controller in _streams.values) {
-      controller.close();
-    }
-    _sessions.clear();
-    _streams.clear();
-    for (final destinationId in attached) {
-      _ensureSession(destinationId, const AttentionFeedSession());
-    }
+    // Mounted cubits keep their subscriptions across sign-in/account changes.
+    // Reset every session before notifying any listener; replacing controllers
+    // here would leave those listeners attached to closed streams.
+    updateAll({
+      for (final destinationId in _sessions.keys)
+        destinationId: const AttentionFeedSession(),
+    });
   }
 
   AttentionFeedSession session(String destinationId) =>

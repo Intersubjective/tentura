@@ -130,12 +130,12 @@ void main() {
     await attention.refresh();
     await Future<void>.delayed(Duration.zero);
 
-    expect(attention.snapshot.summary.unreadTotal, 1);
+    expect(attention.feedSession(AttentionFeedDestinationId.activityStream).summary.unreadTotal, 1);
     await attention.markSeen([receiptId]);
     // CHANGES IN U15R-c: was `0`. `unreadTotal` counts active attention, and
     // a read receipt is still uncleared (R2/D02). What this test is actually
     // about — the read state surviving a refresh — is asserted below.
-    expect(attention.snapshot.summary.unreadTotal, 1);
+    expect(attention.feedSession(AttentionFeedDestinationId.activityStream).summary.unreadTotal, 1);
 
     repository.feed = AttentionFeed(
       summary: const AttentionSummary(unreadTotal: 1),
@@ -151,7 +151,7 @@ void main() {
     // unread" raise the badge for an already-cleared row (§3). It now reports
     // what the server reported, which is the same `1` the comment fifteen
     // lines above already states for a read-but-uncleared receipt.
-    expect(attention.snapshot.summary.unreadTotal, 1);
+    expect(attention.feedSession(AttentionFeedDestinationId.activityStream).summary.unreadTotal, 1);
     expect(
       attention
           .feedSession(AttentionFeedDestinationId.activityStream)
@@ -163,11 +163,11 @@ void main() {
     );
   });
 
-  test('receipts tab label uses AttentionCase unread total like Updates nav', () {
+  test('receipts tab label uses the destination unread total', () {
     expect(formatInboxReceiptsTabLabel('Receipts', 3), 'Receipts (3)');
     expect(formatInboxReceiptsTabLabel('Receipts', 0), 'Receipts');
     expect(
-      attention.snapshot.summary.unreadTotal,
+      attention.feedSession(AttentionFeedDestinationId.activityStream).summary.unreadTotal,
       repository.feed.summary.unreadTotal,
     );
   });

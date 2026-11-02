@@ -97,6 +97,10 @@ void main() {
       );
       summary.complete(
         AttentionSurfaceSummary(
+          historySummary: AttentionSummary(
+            unreadTotal: activityTotal + myWorkTotal,
+            needsYouTotal: needsYouTotal,
+          ),
           forYouDot: activityTotal > 0,
           forYouSweepEligible: activityTotal > 0,
           myDeskDot: myWorkTotal > 0,

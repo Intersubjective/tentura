@@ -85,6 +85,8 @@ final class QueryAttention extends GqlNodeBase {
             accountId: getCredentials(args).sub,
           );
           return {
+            'unreadTotal': summary.historySummary.unreadTotal,
+            'needsYouTotal': summary.historySummary.needsYouTotal,
             'myDeskDot': summary.myDeskDot,
             'myDeskCount': summary.myDeskCount,
             'forYouDot': summary.forYouDot,

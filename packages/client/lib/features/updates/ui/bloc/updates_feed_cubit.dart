@@ -92,7 +92,7 @@ final class UpdatesFeedCubit extends Cubit<UpdatesFeedState> {
       state.copyWith(
         view: session.activeView,
         searchText: session.searchText,
-        summary: _attention.snapshot.summary,
+        summary: session.summary,
         sweepEligible: _attention.surfaceSummarySnapshot.forYouSweepEligible,
         items: items,
         hasNextPage: page?.nextCursor?.isNotEmpty ?? false,
