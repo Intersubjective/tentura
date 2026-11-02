@@ -893,74 +893,6 @@
   "@beaconCreateCoverRow": {
     "context": "BeaconCreateScreen"
   },
-  "beaconIdentityCategoryMeta": "Coordination",
-  "@beaconIdentityCategoryMeta": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconIdentityCategoryCommunity": "Community",
-  "@beaconIdentityCategoryCommunity": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconIdentityCategoryEssentials": "Essentials",
-  "@beaconIdentityCategoryEssentials": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconIdentityCategoryHome": "Home",
-  "@beaconIdentityCategoryHome": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconIdentityCategoryMobility": "Mobility",
-  "@beaconIdentityCategoryMobility": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconIdentityCategoryCommunication": "Communication",
-  "@beaconIdentityCategoryCommunication": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconIdentityCategoryMoney": "Money",
-  "@beaconIdentityCategoryMoney": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconIdentityCategoryHealth": "Health",
-  "@beaconIdentityCategoryHealth": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconIdentityCategorySafety": "Safety",
-  "@beaconIdentityCategorySafety": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconIdentityCategoryWork": "Work",
-  "@beaconIdentityCategoryWork": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconIdentityCategoryTech": "Tech",
-  "@beaconIdentityCategoryTech": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconIdentityCategoryNature": "Nature",
-  "@beaconIdentityCategoryNature": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconIdentityCategoryWeather": "Weather",
-  "@beaconIdentityCategoryWeather": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconIdentityCategoryCulture": "Culture",
-  "@beaconIdentityCategoryCulture": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconIdentityCategoryEducation": "Education",
-  "@beaconIdentityCategoryEducation": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconIdentityCategoryAnimals": "Animals",
-  "@beaconIdentityCategoryAnimals": {
-    "context": "BeaconCreateScreen"
-  },
-  "beaconIdentityCategoryCivic": "Civic",
-  "@beaconIdentityCategoryCivic": {
-    "context": "BeaconCreateScreen"
-  },
   "createBeaconErrorTooShortQuestion": "Too short question",
   "@createBeaconErrorTooShortQuestion": {
     "context": "BeaconCreateScreen"
@@ -4463,7 +4395,6 @@
   "beaconHudNoCurrentLine": "No next step yet",
   "beaconHudEditCurrentLineTitle": "Next step",
   "beaconHudEditNowLine": "Edit next step",
-  "beaconHudSituationPanelTitle": "Situation",
   "beaconSituationStateLabel": "State",
   "beaconSituationCurrentLineLabel": "Next step",
   "beaconSituationBlockerLabel": "Blocker",
@@ -4471,7 +4402,6 @@
   "beaconSituationOpenRoom": "Open discussion",
   "beaconBlockersPanelTitle": "Blockers / questions",
   "beaconBlockersPanelAskInRoom": "Ask in discussion",
-  "beaconHudYourRolePanelTitle": "Your role",
   "beaconHudYouAuthorReview": "{count, plural, =1{Review 1 offer} other{Review {count} offers}}",
   "@beaconHudYouAuthorReview": {
     "placeholders": {
@@ -4487,11 +4417,7 @@
   "beaconHudYouWatching": "Following",
   "beaconHudYouCanOfferHelp": "You can offer help",
   "beaconHudYouNoAction": "No current action",
-  "beaconHudLifecycleActive": "ACTIVE",
-  "beaconHudLifecycleClosed": "CLOSED",
   "beaconHudEnoughHelp": "ENOUGH HELP",
-  "beaconHudLifecycleDeleted": "DELETED",
-  "beaconHudBlocked": "BLOCKED",
   "beaconHudNowBlocked": "Blocked: {title}",
   "@beaconHudNowBlocked": {
     "placeholders": {
@@ -4505,22 +4431,6 @@
   "beaconHudYouForward": "You can forward",
   "beaconHudYouForwardAfterDecline": "Everyone declined — forward to someone else",
   "beaconHudReviewOpen": "REVIEW OPEN",
-  "beaconHudTokenHelpOfferedCount": "{count} offered help",
-  "@beaconHudTokenHelpOfferedCount": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "beaconHudTokenNeedCoordCount": "{count} need coordination",
-  "@beaconHudTokenNeedCoordCount": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
   "beaconHudNextMovePrefix": "Next: {text}",
   "@beaconHudNextMovePrefix": {
     "placeholders": {
@@ -4531,13 +4441,8 @@
   },
   "beaconHudClosedSummary": "Closed",
   "beaconHudOverflowMore": "More actions",
-  "beaconHudOverflowCloseBeacon": "Close request…",
   "beaconHudYouAuthorReadyToClose": "Close the loop",
   "beaconHudYouAuthorCoordinationActive": "Coordination still active — update or forward",
-  "beaconHudTokenReadyToClose": "READY TO CLOSE",
-  "beaconHudTokenReviewBeforeClose": "REVIEW BEFORE CLOSE",
-  "beaconHudTokenClosureBlocked": "CLOSURE BLOCKED",
-  "beaconHudCtaOpenLog": "Log",
   "beaconCloseSheetReadyTitle": "Close request?",
   "beaconCloseSheetReadyBody": "This marks the request complete and opens contribution acknowledgement.",
   "beaconCloseSheetReviewTitle": "Close after review?",
@@ -4639,15 +4544,6 @@
   },
   "myWorkFinishedHint": "Finished requests stay here until you archive them.",
   "myWorkStatusWrappingUp": "Final check",
-  "beaconClosurePanelTitleReady": "Close the loop",
-  "beaconClosurePanelTitleReview": "Review before closing",
-  "beaconClosurePanelTitlePremature": "Closure not ready",
-  "beaconClosurePanelTitleBlocked": "Resolve before closing",
-  "beaconClosurePanelBodyReady": "The request looks ready to close from coordination signals.",
-  "beaconClosurePanelBodyReview": "Closure may be plausible — check commitments and discussion state first.",
-  "beaconClosurePanelBodyPremature": "There is not enough completion evidence yet.",
-  "beaconClosurePanelBodyBlocked": "Closure is blocked until unresolved coordination clears.",
-  "beaconClosurePanelEvidenceHeading": "Signals",
   "beaconPeopleLensAuthorHeading": "Author",
   "beaconPeopleLensStewardsHeading": "Steward",
   "beaconPeopleLensRoomMembersHeading": "Discussion participants",
@@ -4665,7 +4561,6 @@
   "beaconHudActEffectMarkEnoughHelp": "Signals helpers; request stays open",
   "beaconHudActEffectWrapUpForReview": "Starts the final check; helpers can acknowledge",
   "beaconHudActEffectCloseNow": "Closes the request now, without waiting for the final check",
-  "beaconHudActEffectForward": "Shares request; does not change discussion access",
   "beaconHudYouChangeStatusInOverflow": "Change request state in ⋮ menu",
   "beaconHudConfirmMarkEnoughHelpTitle": "Mark enough help?",
   "beaconHudConfirmMarkEnoughHelpBody": "Helpers see that help is sufficient. The request stays open until you start the final check or close.",
