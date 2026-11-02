@@ -289,7 +289,8 @@ void main() {
       },
     );
 
-    test('degrades failed involvement fetch to eligible unseen row', () async {
+    test('a failed involvement fetch leaves the Request unsendable, not '
+        'eligible unseen', () async {
       final harness = await _buildHarness(beacons: [_beacon('B-flaky')]);
       addTearDown(() async {
         await harness.forwardRepo.dispose();
@@ -300,9 +301,14 @@ void main() {
 
       final load = await harness.personForwardCase.load('U-target');
 
-      expect(load.rows.single.involvement, CandidateInvolvement.unseen);
-      expect(load.rows.single.block, PersonForwardBlock.none);
-      expect(load.rows.single.isEligible, isTrue);
+      expect(load.rows.single.beacon.id, 'B-flaky');
+      expect(
+        load.rows.single.involvement,
+        isNot(CandidateInvolvement.unseen),
+        reason: 'an unknown involvement must not be reported as unseen',
+      );
+      expect(load.rows.single.isEligible, isFalse);
+      expect(load.rows.single.block, isNot(PersonForwardBlock.none));
     });
 
     test('send forwards one selected request with trimmed note', () async {

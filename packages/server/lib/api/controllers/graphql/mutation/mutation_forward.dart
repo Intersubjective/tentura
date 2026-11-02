@@ -147,4 +147,6 @@ Map<String, dynamic> _forwardDeliveryResultToGqlMap(
   'batchId': result.batchId,
   'deliveredRecipientIds': result.deliveredRecipientIds,
   'availabilitySkippedRecipientIds': result.availabilitySkippedRecipientIds,
+  'alreadyForwardedRecipientIds': result.alreadyForwardedRecipientIds,
+  'blockedSkippedRecipientIds': result.blockedSkippedRecipientIds,
 };

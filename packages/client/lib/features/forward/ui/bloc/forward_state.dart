@@ -46,12 +46,20 @@ class ForwardDeliveryOutcome {
     required this.requestedRecipientIds,
     required this.deliveredRecipientIds,
     required this.availabilitySkippedRecipientIds,
+    this.alreadyForwardedRecipientIds = const [],
+    this.blockedSkippedRecipientIds = const [],
     this.failed = false,
   });
 
   final List<String> requestedRecipientIds;
   final List<String> deliveredRecipientIds;
   final List<String> availabilitySkippedRecipientIds;
+
+  /// Skipped by the server: this sender already forwarded to them.
+  final List<String> alreadyForwardedRecipientIds;
+
+  /// Skipped by the server: blocked by or hidden from the sender.
+  final List<String> blockedSkippedRecipientIds;
   final bool failed;
 
   int get requestedCount => requestedRecipientIds.length;

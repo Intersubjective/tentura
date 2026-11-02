@@ -215,18 +215,22 @@ class PersonForwardCubit extends Cubit<PersonForwardState> {
             ),
           );
         }
-      } else if (result.availabilitySkippedRecipientIds.contains(person.id)) {
+      } else {
+        // Not delivered is an expected outcome, never an error: ShowError is
+        // the generic error bar and a Sentry report.
+        final name = person.shownName;
         _effects.emit(
           ShowMessage(
-            PersonForwardAvailabilitySkippedMessage(person.shownName),
-          ),
-        );
-      } else {
-        _effects.emit(
-          ShowError(
-            StateError(
-              'Forward did not deliver to ${person.id}',
-            ),
+            result.availabilitySkippedRecipientIds.contains(person.id)
+                ? PersonForwardAvailabilitySkippedMessage(name)
+                : result.alreadyForwardedRecipientIds.contains(person.id)
+                ? PersonForwardAlreadySentMessage(
+                    name,
+                    isPost: row.beacon.kind == BeaconKind.post,
+                  )
+                : result.blockedSkippedRecipientIds.contains(person.id)
+                ? PersonForwardBlockedMessage(name)
+                : PersonForwardNotDeliveredMessage(name),
           ),
         );
       }

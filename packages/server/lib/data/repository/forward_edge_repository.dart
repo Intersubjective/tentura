@@ -97,7 +97,8 @@ class ForwardEdgeRepository implements ForwardEdgeRepositoryPort {
   /// availability advisory locks are taken in sorted id order before inserts.
   /// Each insert is conditional on the recipient not being availability-paused
   /// (`resume_on` strictly after today's UTC calendar date). Active-edge dedup
-  /// is separate and is not reported as an availability skip.
+  /// is separate and is reported as already forwarded, not as an availability
+  /// skip.
   ///
   /// [onAfterEdgesInserted] runs inside the same transaction when at least one
   /// edge is inserted (e.g. sender inbox → watching when not committed).
@@ -152,8 +153,8 @@ class ForwardEdgeRepository implements ForwardEdgeRepositoryPort {
             recipientId: recipientId,
           ),
     ];
-    // Not inserted: either an active edge already exists (deduplicated, not
-    // reported) or the recipient is availability-paused (skipped).
+    // Not inserted: either an active edge already exists (already forwarded)
+    // or the recipient is availability-paused (skipped).
     final notInserted = [
       for (final recipientId in orderedUniqueRecipients)
         if (!insertedRecipientIds.contains(recipientId)) recipientId,
@@ -176,6 +177,10 @@ class ForwardEdgeRepository implements ForwardEdgeRepositoryPort {
     return ForwardBatchCreateResult(
       createdEdges: inserted,
       availabilitySkippedRecipientIds: availabilitySkipped,
+      alreadyForwardedRecipientIds: [
+        for (final recipientId in notInserted)
+          if (alreadyActive.contains(recipientId)) recipientId,
+      ],
     );
   });
 

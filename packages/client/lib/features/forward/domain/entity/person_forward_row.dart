@@ -16,13 +16,19 @@ enum PersonForwardBlock {
   declined,
   withdrawn,
   theirOwn,
+
+  /// Whether this person already has the beacon could not be loaded, so it
+  /// is not offered (it may already have been sent to them).
+  involvementUnavailable,
 }
 
 @freezed
 abstract class PersonForwardRow with _$PersonForwardRow {
   const factory PersonForwardRow({
     required Beacon beacon,
-    required CandidateInvolvement involvement,
+
+    /// Null when the involvement could not be loaded.
+    required CandidateInvolvement? involvement,
     @Default(PersonForwardBlock.none) PersonForwardBlock block,
     String? forwardEdgeId,
     DateTime? recipientReadAt,

@@ -362,21 +362,25 @@ class ForwardCubit extends Cubit<ForwardState> {
     required List<String> requestedRecipientIds,
     required List<String> deliveredRecipientIds,
     required List<String> availabilitySkippedRecipientIds,
+    List<String> alreadyForwardedRecipientIds = const [],
+    List<String> blockedSkippedRecipientIds = const [],
     bool failed = false,
   }) => ForwardDeliveryOutcome(
     requestedRecipientIds: requestedRecipientIds,
     deliveredRecipientIds: deliveredRecipientIds,
     availabilitySkippedRecipientIds: availabilitySkippedRecipientIds,
+    alreadyForwardedRecipientIds: alreadyForwardedRecipientIds,
+    blockedSkippedRecipientIds: blockedSkippedRecipientIds,
     failed: failed,
   );
 
-  String _availabilitySkippedDisplayName(String skippedId) {
-    final candidate = _findCandidate(skippedId);
+  String _recipientDisplayName(String recipientId) {
+    final candidate = _findCandidate(recipientId);
     final shownName = candidate?.profile.shownName.trim();
     if (shownName != null && shownName.isNotEmpty) {
       return shownName;
     }
-    return skippedId;
+    return recipientId;
   }
 
   Future<void> _emitDeliveryMessage(ForwardDeliveryOutcome outcome) async {
@@ -386,6 +390,32 @@ class ForwardCubit extends Cubit<ForwardState> {
     final delivered = outcome.deliveredCount;
     final requested = outcome.requestedCount;
     final skipped = outcome.availabilitySkippedCount;
+    final alreadyForwardedNames = outcome.alreadyForwardedRecipientIds
+        .map(_recipientDisplayName)
+        .toList();
+    final blockedNames = outcome.blockedSkippedRecipientIds
+        .map(_recipientDisplayName)
+        .toList();
+    final pausedOnly = alreadyForwardedNames.isEmpty && blockedNames.isEmpty;
+    if (delivered == 0 && (!pausedOnly || skipped == 0)) {
+      // Nobody received it: say why, or that no reason was given. Never
+      // silence and never an error.
+      _effects.emit(
+        ShowMessage(
+          ForwardNotDeliveredMessage(
+            skippedName: skipped == 1
+                ? _recipientDisplayName(
+                    outcome.availabilitySkippedRecipientIds.single,
+                  )
+                : null,
+            skippedCount: skipped > 1 ? skipped : null,
+            alreadyForwardedNames: alreadyForwardedNames,
+            blockedNames: blockedNames,
+          ),
+        ),
+      );
+      return;
+    }
     if (delivered == 0) {
       if (skipped == 1) {
         final skippedId = outcome.availabilitySkippedRecipientIds.single;
@@ -394,30 +424,28 @@ class ForwardCubit extends Cubit<ForwardState> {
             ForwardPartialDeliveryMessage(
               deliveredCount: delivered,
               requestedCount: requested,
-              skippedName: _availabilitySkippedDisplayName(skippedId),
+              skippedName: _recipientDisplayName(skippedId),
             ),
           ),
         );
         return;
       }
-      if (skipped > 1) {
-        _effects.emit(
-          ShowMessage(
-            ForwardPartialDeliveryManyMessage(
-              deliveredCount: delivered,
-              requestedCount: requested,
-              skippedCount: skipped,
-            ),
+      _effects.emit(
+        ShowMessage(
+          ForwardPartialDeliveryManyMessage(
+            deliveredCount: delivered,
+            requestedCount: requested,
+            skippedCount: skipped,
           ),
-        );
-      }
+        ),
+      );
       return;
     }
 
     String? skippedName;
     int? skippedCount;
     if (skipped == 1) {
-      skippedName = _availabilitySkippedDisplayName(
+      skippedName = _recipientDisplayName(
         outcome.availabilitySkippedRecipientIds.single,
       );
     } else if (skipped > 1) {
@@ -430,6 +458,8 @@ class ForwardCubit extends Cubit<ForwardState> {
           ForwardPostSentMessage(
             skippedName: skippedName,
             skippedCount: skippedCount,
+            alreadyForwardedNames: alreadyForwardedNames,
+            blockedNames: blockedNames,
           ),
         ),
       );
@@ -461,20 +491,24 @@ class ForwardCubit extends Cubit<ForwardState> {
             beaconId: state.beaconId,
             skippedName: skippedName,
             skippedCount: skippedCount,
+            alreadyForwardedNames: alreadyForwardedNames,
+            blockedNames: blockedNames,
           )
         : tagCandidates.isEmpty || !suggestionsEnabled
         ? ForwardLocationMyWorkMessage(
             skippedName: skippedName,
             skippedCount: skippedCount,
+            alreadyForwardedNames: alreadyForwardedNames,
+            blockedNames: blockedNames,
           )
         : ForwardLocationMyWorkAddToTagMessage(
             beaconId: state.beaconId,
             recipientIds: tagCandidates,
-            recipientNames: tagCandidates
-                .map(_availabilitySkippedDisplayName)
-                .join(', '),
+            recipientNames: tagCandidates.map(_recipientDisplayName).join(', '),
             skippedName: skippedName,
             skippedCount: skippedCount,
+            alreadyForwardedNames: alreadyForwardedNames,
+            blockedNames: blockedNames,
           );
     _effects.emit(ShowMessage(message));
   }
@@ -865,6 +899,8 @@ class ForwardCubit extends Cubit<ForwardState> {
         requestedRecipientIds: requestedRecipientIds,
         deliveredRecipientIds: result.deliveredRecipientIds,
         availabilitySkippedRecipientIds: availabilitySkippedRecipientIds,
+        alreadyForwardedRecipientIds: result.alreadyForwardedRecipientIds,
+        blockedSkippedRecipientIds: result.blockedSkippedRecipientIds,
       );
       if (!isClosed) {
         emit(

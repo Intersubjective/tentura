@@ -3004,6 +3004,14 @@
   "@beaconForwardPersonReasonTheirOwn": {
     "context": "PersonForwardScreen row disabled reason"
   },
+  "beaconForwardPersonReasonUnavailable": "Couldn't check whether they already have it",
+  "@beaconForwardPersonReasonUnavailable": {
+    "context": "PersonForwardScreen row disabled reason: whether the person already has this request could not be loaded"
+  },
+  "beaconForwardPersonRetry": "Try again",
+  "@beaconForwardPersonRetry": {
+    "context": "PersonForwardScreen row action: reload a row whose status could not be loaded"
+  },
   "beaconRecipientsPreselectDropped": "{name} can't receive requests from you yet and was not added.",
   "@beaconRecipientsPreselectDropped": {
     "description": "Banner shown when a profile-preselected recipient is no longer eligible on the new-request recipients tab.",

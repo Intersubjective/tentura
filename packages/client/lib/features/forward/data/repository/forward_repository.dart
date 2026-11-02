@@ -177,6 +177,10 @@ class ForwardRepository {
           deliveredRecipientIds: payload.deliveredRecipientIds.toList(),
           availabilitySkippedRecipientIds:
               payload.availabilitySkippedRecipientIds.toList(),
+          alreadyForwardedRecipientIds:
+              payload.alreadyForwardedRecipientIds.toList(),
+          blockedSkippedRecipientIds:
+              payload.blockedSkippedRecipientIds.toList(),
         );
         if (!_forwardChangesController.isClosed) {
           _forwardChangesController.add(beaconId);

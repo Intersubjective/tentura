@@ -8458,8 +8458,10 @@ type v2_ForwardCandidateContext {
 }
 
 type v2_ForwardDeliveryResult {
+  alreadyForwardedRecipientIds: [String!]!
   availabilitySkippedRecipientIds: [String!]!
   batchId: String!
+  blockedSkippedRecipientIds: [String!]!
   deliveredRecipientIds: [String!]!
 }
 

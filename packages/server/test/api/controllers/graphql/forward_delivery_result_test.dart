@@ -1,7 +1,6 @@
 @Tags(['pg'])
 library;
 
-
 import 'package:graphql_schema2/graphql_schema2.dart';
 import 'package:graphql_server2/graphql_server2.dart';
 import 'package:injectable/injectable.dart' show Environment;
@@ -19,6 +18,7 @@ import 'package:tentura_server/data/database/tentura_db.dart'
 import 'package:tentura_server/data/repository/beacon_repository.dart';
 import 'package:tentura_server/data/repository/forward_edge_repository.dart';
 import 'package:tentura_server/data/repository/help_offer_repository.dart';
+import 'package:tentura_server/data/repository/user_block_repository.dart';
 import 'package:tentura_server/data/repository/user_availability_repository.dart';
 import 'package:tentura_server/domain/entity/jwt_entity.dart';
 import 'package:tentura_server/domain/port/capability_evidence_port.dart';
@@ -124,41 +124,50 @@ Future<void> main() async {
       mutation = MutationForward(forwardCase: forwardCase);
     });
 
-    test('beaconForward is non-null ForwardDeliveryResult with three fields', () {
-      final field = mutation.forward;
-      expect(field.name, 'beaconForward');
-      expect(field.type, isA<GraphQLNonNullableType<dynamic, dynamic>>());
-      final resultType =
-          (field.type as GraphQLNonNullableType).ofType as GraphQLObjectType;
-      expect(resultType.name, 'ForwardDeliveryResult');
-      expect(resultType, same(gqlTypeForwardDeliveryResult));
+    test(
+      'beaconForward is non-null ForwardDeliveryResult with delivered and '
+      'per-reason skipped recipient lists',
+      () {
+        final field = mutation.forward;
+        expect(field.name, 'beaconForward');
+        expect(field.type, isA<GraphQLNonNullableType<dynamic, dynamic>>());
+        final resultType =
+            (field.type as GraphQLNonNullableType).ofType as GraphQLObjectType;
+        expect(resultType.name, 'ForwardDeliveryResult');
+        expect(resultType, same(gqlTypeForwardDeliveryResult));
 
-      final fieldNames = resultType.fields.map((f) => f.name).toSet();
-      expect(
-        fieldNames,
-        {
-          'batchId',
-          'deliveredRecipientIds',
-          'availabilitySkippedRecipientIds',
-        },
-      );
-      for (final graphField in resultType.fields) {
-        expect(graphField.type, isA<GraphQLNonNullableType<dynamic, dynamic>>());
-        if (graphField.name == 'batchId') {
-          expect(_baseTypeName(graphField.type), 'String');
-        } else {
-          expect(_baseTypeName(graphField.type), 'String');
+        final fieldNames = resultType.fields.map((f) => f.name).toSet();
+        expect(
+          fieldNames,
+          {
+            'batchId',
+            'deliveredRecipientIds',
+            'availabilitySkippedRecipientIds',
+            'alreadyForwardedRecipientIds',
+            'blockedSkippedRecipientIds',
+          },
+        );
+        for (final graphField in resultType.fields) {
           expect(
-            (graphField.type as GraphQLNonNullableType).ofType,
-            isA<GraphQLListType<dynamic, dynamic>>(),
+            graphField.type,
+            isA<GraphQLNonNullableType<dynamic, dynamic>>(),
           );
-          final listType =
-              (graphField.type as GraphQLNonNullableType).ofType
-                  as GraphQLListType;
-          expect(_isNonNullable(listType.ofType), isTrue);
+          if (graphField.name == 'batchId') {
+            expect(_baseTypeName(graphField.type), 'String');
+          } else {
+            expect(_baseTypeName(graphField.type), 'String');
+            expect(
+              (graphField.type as GraphQLNonNullableType).ofType,
+              isA<GraphQLListType<dynamic, dynamic>>(),
+            );
+            final listType =
+                (graphField.type as GraphQLNonNullableType).ofType
+                    as GraphQLListType;
+            expect(_isNonNullable(listType.ofType), isTrue);
+          }
         }
-      }
-    });
+      },
+    );
   });
 
   group('beaconForward document execution — ForwardDeliveryResult parity', () {
@@ -178,6 +187,7 @@ Future<void> main() async {
     const limitedRecipient = 'Ufwdrglim0001';
     const pausedRecipient2 = 'Ufwdrgpauz002';
     const dedupRecipient = 'Ufwdrgdup0001';
+    const blockedRecipient = 'Ufwdrgblk0001';
     final todayUtc = DateTime.now().toUtc();
     final futureResumeOn = DateTime.utc(
       todayUtc.year,
@@ -214,7 +224,7 @@ Future<void> main() async {
         _NoopInbox(),
         _NoopCapabilityEvidence(),
         beaconRepo,
-        FakeUserBlockRepository(),
+        UserBlockRepository(target.databaseEnv, db),
         _AllVisiblePeers(),
         FakeBeaconAccessGuard(),
         attentionIntents: attention.intents,
@@ -235,6 +245,10 @@ Future<void> main() async {
       );
       await writer.execute(
         "DELETE FROM public.user_availability WHERE user_id LIKE 'Ufwdrg%'",
+      );
+      await writer.execute(
+        "DELETE FROM public.user_block WHERE blocker_id LIKE 'Ufwdrg%' "
+        "OR blocked_id LIKE 'Ufwdrg%'",
       );
       await writer.execute(
         "DELETE FROM public.beacon WHERE id = '$beaconId'",
@@ -419,6 +433,126 @@ WHERE beacon_id = @beaconId
       },
       skip: skipReason,
     );
+
+    test(
+      'beaconForward reports an already-forwarded recipient and a blocked '
+      'recipient instead of dropping them silently',
+      () async {
+        final preexisting = await forwardRepo.createBatch(
+          beaconId: beaconId,
+          senderId: senderId,
+          recipientIds: [dedupRecipient],
+          batchId: 'batch-fwdrgql-skip-reasons-preexisting',
+          noteForRecipient: (_) => 'preexisting edge',
+        );
+        expect(preexisting.createdEdges, hasLength(1));
+        await writer.execute(
+          Sql.named('''
+INSERT INTO public.user_block (blocker_id, blocked_id, origin_id)
+VALUES (@sender, @blocked, @sender)
+'''),
+          parameters: {'sender': senderId, 'blocked': blockedRecipient},
+        );
+        attention.recorded.clear();
+
+        final result = await _executeDocument(
+          graphQL: graphQL,
+          document: r'''
+            mutation ForwardSkipReasons(
+              $id: String!
+              $recipientIds: [String!]!
+            ) {
+              beaconForward(id: $id, recipientIds: $recipientIds) {
+                batchId
+                deliveredRecipientIds
+                availabilitySkippedRecipientIds
+                alreadyForwardedRecipientIds
+                blockedSkippedRecipientIds
+              }
+            }
+          ''',
+          variables: {
+            'id': beaconId,
+            'recipientIds': [openRecipient, dedupRecipient, blockedRecipient],
+          },
+          jwt: const JwtEntity(sub: senderId),
+          operationName: 'ForwardSkipReasons',
+        );
+
+        final payload = result['beaconForward'] as Map<String, dynamic>?;
+        expect(payload, isNotNull, reason: 'errors: ${result['errors']}');
+        expect(
+          List<String>.from(payload!['deliveredRecipientIds'] as List),
+          [openRecipient],
+        );
+        expect(
+          List<String>.from(payload['alreadyForwardedRecipientIds'] as List),
+          [dedupRecipient],
+        );
+        expect(
+          List<String>.from(payload['blockedSkippedRecipientIds'] as List),
+          [blockedRecipient],
+        );
+        expect(
+          List<String>.from(payload['availabilitySkippedRecipientIds'] as List),
+          isEmpty,
+        );
+        expect(
+          await activeEdgeCount(sender: senderId, recipient: dedupRecipient),
+          1,
+        );
+        expect(
+          await activeEdgeCount(sender: senderId, recipient: blockedRecipient),
+          0,
+        );
+      },
+      skip: skipReason,
+    );
+
+    test(
+      'beaconForward to only an already-forwarded recipient delivers nothing '
+      'and names that recipient as already forwarded',
+      () async {
+        await forwardRepo.createBatch(
+          beaconId: beaconId,
+          senderId: senderId,
+          recipientIds: [dedupRecipient],
+          batchId: 'batch-fwdrgql-only-dup-preexisting',
+          noteForRecipient: (_) => 'preexisting edge',
+        );
+
+        final result = await _executeDocument(
+          graphQL: graphQL,
+          document: r'''
+            mutation ForwardOnlyDuplicate(
+              $id: String!
+              $recipientIds: [String!]!
+            ) {
+              beaconForward(id: $id, recipientIds: $recipientIds) {
+                deliveredRecipientIds
+                availabilitySkippedRecipientIds
+                alreadyForwardedRecipientIds
+                blockedSkippedRecipientIds
+              }
+            }
+          ''',
+          variables: {
+            'id': beaconId,
+            'recipientIds': [dedupRecipient],
+          },
+          jwt: const JwtEntity(sub: senderId),
+          operationName: 'ForwardOnlyDuplicate',
+        );
+
+        final payload = result['beaconForward'] as Map<String, dynamic>?;
+        expect(payload, isNotNull, reason: 'errors: ${result['errors']}');
+        expect(payload!['deliveredRecipientIds'], isEmpty);
+        expect(payload['availabilitySkippedRecipientIds'], isEmpty);
+        expect(payload['blockedSkippedRecipientIds'], isEmpty);
+        expect(payload['alreadyForwardedRecipientIds'], [dedupRecipient]);
+      },
+      skip: skipReason,
+    );
   });
 }
 
@@ -430,6 +564,7 @@ Future<void> _seedFixture(Connection writer) async {
   final keyLimited = pgTestPublicKey('fwdrgql', 5);
   final keyPaused2 = pgTestPublicKey('fwdrgql', 6);
   final keyDedup = pgTestPublicKey('fwdrgql', 7);
+  final keyBlocked = pgTestPublicKey('fwdrgql', 8);
 
   await writer.execute(
     Sql.named(r'''
@@ -441,7 +576,8 @@ VALUES
   ('Ufwdrgpauz001', 'Paused recipient 1', @keyPaused1, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'),
   ('Ufwdrglim0001', 'Limited recipient', @keyLimited, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'),
   ('Ufwdrgpauz002', 'Paused recipient 2', @keyPaused2, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'),
-  ('Ufwdrgdup0001', 'Dedup recipient', @keyDedup, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')
+  ('Ufwdrgdup0001', 'Dedup recipient', @keyDedup, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'),
+  ('Ufwdrgblk0001', 'Blocked recipient', @keyBlocked, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')
 ON CONFLICT (id) DO UPDATE SET
   display_name = EXCLUDED.display_name,
   public_key = EXCLUDED.public_key
@@ -454,6 +590,7 @@ ON CONFLICT (id) DO UPDATE SET
       'keyLimited': keyLimited,
       'keyPaused2': keyPaused2,
       'keyDedup': keyDedup,
+      'keyBlocked': keyBlocked,
     },
   );
   await writer.execute(r'''
@@ -472,9 +609,8 @@ ON CONFLICT (id) DO NOTHING
 }
 
 Future<bool> _hasUserAvailabilityTable(TenturaDb db) async {
-  final row = await db
-      .customSelect(
-        '''
+  final row = await db.customSelect(
+    '''
 SELECT EXISTS (
   SELECT 1
   FROM information_schema.tables
@@ -482,8 +618,7 @@ SELECT EXISTS (
     AND table_name = 'user_availability'
 ) AS present
 ''',
-      )
-      .getSingle();
+  ).getSingle();
   return row.read<bool>('present');
 }
 
@@ -493,8 +628,7 @@ class _AllVisiblePeers extends Fake implements PersonVisibilityRepositoryPort {
     required String viewerId,
     required Iterable<String> peerIds,
     required String context,
-  }) async =>
-      peerIds.toSet();
+  }) async => peerIds.toSet();
 }
 
 class _NoopForwardAttribution extends Fake
@@ -529,4 +663,3 @@ class _NoopCapabilityEvidence extends Fake implements CapabilityEvidencePort {
     required List<String> slugs,
   }) async {}
 }
-

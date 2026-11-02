@@ -627,7 +627,8 @@ void main() {
   });
 
   group('beaconForward GraphQL signature', () {
-    test('returns non-null ForwardDeliveryResult with three list fields', () {
+    test('returns non-null ForwardDeliveryResult with delivered and '
+        'per-reason skipped list fields', () {
       final field = MutationForward(forwardCase: case_).forward;
       expect(field.name, 'beaconForward');
       expect(field.type, isA<GraphQLNonNullableType<dynamic, dynamic>>());
@@ -643,6 +644,8 @@ void main() {
           'batchId',
           'deliveredRecipientIds',
           'availabilitySkippedRecipientIds',
+          'alreadyForwardedRecipientIds',
+          'blockedSkippedRecipientIds',
         },
       );
       for (final graphField in resultType.fields) {

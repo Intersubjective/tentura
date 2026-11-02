@@ -11,7 +11,6 @@ import 'package:tentura/features/profile/domain/exception.dart';
 import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
 
 import '../../data/repository/forward_repository.dart';
-import '../entity/candidate_involvement.dart';
 import '../entity/forward_delivery_result.dart';
 import '../entity/person_forward_row.dart';
 import 'forward_case.dart';
@@ -90,11 +89,8 @@ final class PersonForwardCase extends UseCaseBase {
           );
           return PersonForwardRow(
             beacon: beacon,
-            involvement: CandidateInvolvement.unseen,
-            block: PersonForwardRow.blockFor(
-              CandidateInvolvement.unseen,
-              beacon.status,
-            ),
+            involvement: null,
+            block: PersonForwardBlock.involvementUnavailable,
           );
         }
       }),
@@ -132,6 +128,7 @@ final class PersonForwardCase extends UseCaseBase {
     PersonForwardBlock.declined => 1,
     PersonForwardBlock.withdrawn => 1,
     PersonForwardBlock.theirOwn => 1,
+    PersonForwardBlock.involvementUnavailable => 1,
     PersonForwardBlock.notOpen => 2,
   };
 }

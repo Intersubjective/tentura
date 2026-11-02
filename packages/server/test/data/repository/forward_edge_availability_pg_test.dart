@@ -406,7 +406,8 @@ WHERE user_id = @userId
     );
 
     test(
-      'in-batch dedupe is silent and does not become an availability skip',
+      'in-batch dedupe is silent; a repeat forward is already-forwarded, '
+      'never an availability skip',
       () async {
         const openRecipient = 'Ufwdarecip02';
 
@@ -421,6 +422,7 @@ WHERE user_id = @userId
         expect(result.createdEdges, hasLength(1));
         expect(result.createdEdges.single.recipientId, openRecipient);
         expect(result.availabilitySkippedRecipientIds, isEmpty);
+        expect(result.alreadyForwardedRecipientIds, isEmpty);
         expect(
           await activeEdgeCount(sender: senderId, recipient: openRecipient),
           1,
@@ -438,6 +440,7 @@ WHERE user_id = @userId
           const ForwardBatchCreateResult(
             createdEdges: [],
             availabilitySkippedRecipientIds: [],
+            alreadyForwardedRecipientIds: [openRecipient],
           ),
         );
       },

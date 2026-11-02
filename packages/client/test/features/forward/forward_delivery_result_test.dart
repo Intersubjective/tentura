@@ -568,7 +568,7 @@ void main() {
     cubit.emit(
       cubit.state.copyWith(
         selectedIds: {'U-alice', 'U-bob'},
-          note: 'shared coverage',
+        note: 'shared coverage',
         beacon: _openBeacon(),
       ),
     );
@@ -752,5 +752,238 @@ void main() {
 
     // Successful send reloads candidates once; the change stream must not add another.
     expect(harness.forwardRepo.fetchCandidatesCalls, callsBefore + 1);
+  });
+
+  group('multi-recipient forward explains recipients the server skipped', () {
+    Future<FakeUiEffectPort> forwardToAliceAndBob(
+      ForwardDeliveryResult result,
+    ) async {
+      final effects = FakeUiEffectPort();
+      final harness = await _buildHarness(
+        involvement: _involvement(_openBeacon()),
+        candidates: [
+          _profile(id: 'U-alice', name: 'Alice'),
+          _profile(id: 'U-bob', name: 'Bob'),
+        ],
+        forwardResult: result,
+      );
+      final cubit = _cubit(
+        forwardCase: harness.forwardCase,
+        effects: effects,
+        clock: clock,
+      );
+      // Some tests compare two sends; each disposes its harness (and the
+      // ContactNameStore singleton) before the next one is built.
+      try {
+        await _waitReady(cubit);
+        cubit.emit(
+          cubit.state.copyWith(
+            selectedIds: {'U-alice', 'U-bob'},
+            beacon: _openBeacon(),
+            note: 'shared coverage',
+          ),
+        );
+        expect(await cubit.forward(), isTrue);
+        expect(harness.forwardRepo.forwardBeaconCalls, 1);
+      } finally {
+        await cubit.close();
+        await _disposeHarness(harness);
+      }
+      return effects;
+    }
+
+    test(
+      'nothing delivered because both were already forwarded: one message '
+      'saying so, never silence or an error',
+      () async {
+        final effects = await forwardToAliceAndBob(
+          const ForwardDeliveryResult(
+            batchId: 'batch-already',
+            deliveredRecipientIds: [],
+            availabilitySkippedRecipientIds: [],
+            alreadyForwardedRecipientIds: ['U-alice', 'U-bob'],
+          ),
+        );
+
+        expect(effects.emitted.whereType<ShowError>(), isEmpty);
+        final messages = effects.emitted.whereType<ShowMessage>().toList();
+        expect(messages, hasLength(1));
+        final message = messages.single.message;
+        expect(
+          message.toEn,
+          matches(RegExp('already', caseSensitive: false)),
+          reason: 'EN: ${message.toEn}',
+        );
+        expect(
+          message.toRu,
+          matches(RegExp('уже', caseSensitive: false)),
+          reason: 'RU: ${message.toRu}',
+        );
+      },
+    );
+
+    test(
+      'one delivered and one already forwarded: the confirmation names the '
+      'already-forwarded recipient',
+      () async {
+        final effects = await forwardToAliceAndBob(
+          const ForwardDeliveryResult(
+            batchId: 'batch-mixed-already',
+            deliveredRecipientIds: ['U-alice'],
+            availabilitySkippedRecipientIds: [],
+            alreadyForwardedRecipientIds: ['U-bob'],
+          ),
+        );
+
+        expect(effects.emitted.whereType<ShowError>(), isEmpty);
+        final message = effects.emitted.whereType<ShowMessage>().single.message;
+        expect(message.toEn, contains('Bob'), reason: 'EN: ${message.toEn}');
+        expect(message.toRu, contains('Bob'), reason: 'RU: ${message.toRu}');
+      },
+    );
+
+    LocalizableMessage onlyMessage(FakeUiEffectPort effects) {
+      expect(
+        effects.emitted.whereType<ShowError>(),
+        isEmpty,
+        reason:
+            'a skipped recipient is not an error (no generic bar, no '
+            'Sentry report)',
+      );
+      final messages = effects.emitted.whereType<ShowMessage>().toList();
+      expect(messages, hasLength(1), reason: 'the sender must be told');
+      return messages.single.message;
+    }
+
+    final cyrillic = RegExp('[А-Яа-яЁё]');
+    final mentionsAlready = RegExp('already', caseSensitive: false);
+    final mentionsAlreadyRu = RegExp('уже', caseSensitive: false);
+
+    test(
+      'nothing delivered and no reason given: a localized message that '
+      'neither claims success nor blames a known skip reason',
+      () async {
+        final message = onlyMessage(
+          await forwardToAliceAndBob(
+            const ForwardDeliveryResult(
+              batchId: 'batch-empty',
+              deliveredRecipientIds: [],
+              availabilitySkippedRecipientIds: [],
+            ),
+          ),
+        );
+        final alreadyMessage = onlyMessage(
+          await forwardToAliceAndBob(
+            const ForwardDeliveryResult(
+              batchId: 'batch-empty-already',
+              deliveredRecipientIds: [],
+              availabilitySkippedRecipientIds: [],
+              alreadyForwardedRecipientIds: ['U-alice', 'U-bob'],
+            ),
+          ),
+        );
+
+        expect(message.toEn.trim(), isNotEmpty);
+        expect(message.toEn, isNot(matches(cyrillic)), reason: message.toEn);
+        expect(message.toRu, matches(cyrillic), reason: message.toRu);
+        expect(message.toRu, isNot(message.toEn));
+        expect(
+          message.toEn,
+          isNot(mentionsAlready),
+          reason:
+              'no reason was given, so it must not say «already»: '
+              '${message.toEn}',
+        );
+        expect(message.toEn, isNot(alreadyMessage.toEn));
+        expect(message.toRu, isNot(alreadyMessage.toRu));
+        expect(
+          message.toEn,
+          isNot(const ForwardLocationMyWorkMessage().toEn),
+          reason: 'nobody received it, so it must not read as sent',
+        );
+      },
+    );
+
+    test(
+      'one delivered and one blocked: the confirmation names the blocked '
+      'recipient with copy of its own, not the already-sent or paused copy',
+      () async {
+        final blocked = onlyMessage(
+          await forwardToAliceAndBob(
+            const ForwardDeliveryResult(
+              batchId: 'batch-mixed-blocked',
+              deliveredRecipientIds: ['U-alice'],
+              availabilitySkippedRecipientIds: [],
+              blockedSkippedRecipientIds: ['U-bob'],
+            ),
+          ),
+        );
+        final already = onlyMessage(
+          await forwardToAliceAndBob(
+            const ForwardDeliveryResult(
+              batchId: 'batch-mixed-already-ref',
+              deliveredRecipientIds: ['U-alice'],
+              availabilitySkippedRecipientIds: [],
+              alreadyForwardedRecipientIds: ['U-bob'],
+            ),
+          ),
+        );
+        final paused = onlyMessage(
+          await forwardToAliceAndBob(
+            const ForwardDeliveryResult(
+              batchId: 'batch-mixed-paused-ref',
+              deliveredRecipientIds: ['U-alice'],
+              availabilitySkippedRecipientIds: ['U-bob'],
+            ),
+          ),
+        );
+
+        expect(blocked.toEn, contains('Bob'), reason: 'EN: ${blocked.toEn}');
+        expect(blocked.toRu, contains('Bob'), reason: 'RU: ${blocked.toRu}');
+        expect(blocked.toEn, isNot(mentionsAlready), reason: blocked.toEn);
+        expect(blocked.toRu, isNot(mentionsAlreadyRu), reason: blocked.toRu);
+        expect(blocked.toEn, isNot(already.toEn));
+        expect(blocked.toEn, isNot(paused.toEn));
+        expect(blocked.toRu, isNot(paused.toRu));
+        expect(blocked.toRu, matches(cyrillic));
+      },
+    );
+
+    test(
+      'nothing delivered because both are blocked: a blocked-specific '
+      'message, never silence, an error, or the no-reason copy',
+      () async {
+        final blocked = onlyMessage(
+          await forwardToAliceAndBob(
+            const ForwardDeliveryResult(
+              batchId: 'batch-all-blocked',
+              deliveredRecipientIds: [],
+              availabilitySkippedRecipientIds: [],
+              blockedSkippedRecipientIds: ['U-alice', 'U-bob'],
+            ),
+          ),
+        );
+        final noReason = onlyMessage(
+          await forwardToAliceAndBob(
+            const ForwardDeliveryResult(
+              batchId: 'batch-all-empty-ref',
+              deliveredRecipientIds: [],
+              availabilitySkippedRecipientIds: [],
+            ),
+          ),
+        );
+
+        expect(blocked.toEn.trim(), isNotEmpty);
+        expect(blocked.toEn, isNot(matches(cyrillic)), reason: blocked.toEn);
+        expect(blocked.toRu, matches(cyrillic), reason: blocked.toRu);
+        expect(blocked.toEn, isNot(mentionsAlready), reason: blocked.toEn);
+        expect(
+          blocked.toEn,
+          isNot(noReason.toEn),
+          reason: 'a known reason must not fall back to the generic copy',
+        );
+        expect(blocked.toRu, isNot(noReason.toRu));
+      },
+    );
   });
 }

@@ -18,6 +18,7 @@ import 'package:tentura_server/env.dart';
 import '../../support/pg_test_public_keys.dart';
 
 import '../../support/disposable_pg_target.dart';
+
 /// Postgres integration — skipped when DB or m0100 dedup index is unavailable.
 Future<void> main() async {
   final postgresReachable = await canReachPostgresAdmin(_target);
@@ -116,7 +117,8 @@ WHERE beacon_id = 'Bfwdedup01'
   }
 
   test(
-    'createBatch skips duplicate sender/recipient and allows another sender',
+    'createBatch skips a duplicate sender/recipient, reports it as already '
+    'forwarded, and allows another sender',
     () async {
       await seedFixture();
       const beaconId = 'Bfwdedup01';
@@ -156,6 +158,7 @@ WHERE beacon_id = 'Bfwdedup01'
         const ForwardBatchCreateResult(
           createdEdges: [],
           availabilitySkippedRecipientIds: [],
+          alreadyForwardedRecipientIds: [recipient],
         ),
       );
       expect(
@@ -181,6 +184,7 @@ WHERE beacon_id = 'Bfwdedup01'
       );
       expect(thirdPartyInserted.createdEdges.length, 1);
       expect(thirdPartyInserted.createdEdges.single.recipientId, recipient);
+      expect(thirdPartyInserted.alreadyForwardedRecipientIds, isEmpty);
       expect(
         await countActiveEdges(senderId: sender2, recipientId: recipient),
         1,
@@ -274,7 +278,9 @@ ON CONFLICT (id) DO NOTHING
     }
 
     test(
-      'concurrent createBatch for same active edge completes without unique violation',
+      'concurrent createBatch for same active edge completes without unique '
+      'violation and the losing call reports the recipient as already '
+      'forwarded',
       () async {
         await seedDisposableFixture();
         const beaconId = 'Bfwdedup02';
@@ -311,6 +317,14 @@ ON CONFLICT (id) DO NOTHING
           for (final result in results) {
             expect(result.availabilitySkippedRecipientIds, isEmpty);
           }
+          final winner = results.singleWhere(
+            (result) => result.createdEdges.isNotEmpty,
+          );
+          final loser = results.singleWhere(
+            (result) => result.createdEdges.isEmpty,
+          );
+          expect(winner.alreadyForwardedRecipientIds, isEmpty);
+          expect(loser.alreadyForwardedRecipientIds, [recipient]);
 
           final countRows = await writer.execute(r'''
 SELECT COUNT(*)::int
@@ -364,6 +378,7 @@ ON CONFLICT (user_id) DO UPDATE SET
           const ForwardBatchCreateResult(
             createdEdges: [],
             availabilitySkippedRecipientIds: ['Ufwdeduprecip'],
+            alreadyForwardedRecipientIds: [],
           ),
         );
 

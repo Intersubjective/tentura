@@ -557,7 +557,8 @@ void main() {
       expect(effects.emitted.whereType<ShowError>(), isEmpty);
     });
 
-    test('neither delivered nor skipped is treated as error', () async {
+    test('neither delivered nor skipped tells the sender with a localized '
+        'message, never an error', () async {
       final harness = await _buildHarness(beacons: [_beacon('B-open')]);
       harness.forwardRepo.nextResult = const ForwardDeliveryResult(
         batchId: 'batch-1',
@@ -582,9 +583,15 @@ void main() {
       cubit.skipNote();
       await cubit.send();
 
-      expect(effects.emitted.whereType<ShowError>(), hasLength(1));
+      // ShowError shows the generic error bar and is reported to Sentry; an
+      // empty delivery is an expected outcome, not a crash.
+      expect(effects.emitted.whereType<ShowError>(), isEmpty);
       expect(effects.emitted.whereType<NavigateBack>(), isEmpty);
-      expect(effects.emitted.whereType<ShowMessage>(), isEmpty);
+      final message = effects.emitted.whereType<ShowMessage>().single.message;
+      expect(message, isNot(isA<PersonForwardSentMessage>()));
+      expect(message.toEn, isNotEmpty);
+      expect(message.toRu, isNotEmpty);
+      expect(message.toRu, isNot(message.toEn));
     });
 
     test('pause race after load skips mutation before send', () async {

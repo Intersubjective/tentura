@@ -8,69 +8,103 @@ import 'package:tentura/features/people_tags/domain/use_case/people_tag_suggesti
 import 'package:tentura/features/people_tags/ui/widget/tag_suggestion_card.dart';
 import 'package:tentura/ui/message/action_message_base.dart';
 
-String _forwardLocationPauseSuffixEn({
+/// « — who was skipped, and why.» after a forward line, or '' when nobody
+/// was skipped. One person per reason is named; more are counted. A pause
+/// is [skippedName] / [skippedCount].
+String _forwardSkipSuffixEn({
   String? skippedName,
   int? skippedCount,
+  List<String> alreadyForwardedNames = const [],
+  List<String> blockedNames = const [],
 }) {
-  if (skippedName != null) {
-    return " — $skippedName isn't taking new requests right now.";
-  }
-  if (skippedCount != null) {
-    return " — $skippedCount people aren't taking new requests right now.";
-  }
-  return '';
+  final parts = [
+    if (skippedName != null)
+      "$skippedName isn't taking new requests right now"
+    else if (skippedCount != null)
+      "$skippedCount people aren't taking new requests right now",
+    if (alreadyForwardedNames.length == 1)
+      'you already sent it to ${alreadyForwardedNames.single}'
+    else if (alreadyForwardedNames.length > 1)
+      'you already sent it to ${alreadyForwardedNames.length} people',
+    if (blockedNames.length == 1)
+      "${blockedNames.single} can't receive it from you"
+    else if (blockedNames.length > 1)
+      "${blockedNames.length} people can't receive it from you",
+  ];
+  return parts.isEmpty ? '' : ' — ${parts.join('; ')}.';
 }
 
-String _forwardLocationPauseSuffixRu({
+String _forwardSkipSuffixRu({
   String? skippedName,
   int? skippedCount,
+  List<String> alreadyForwardedNames = const [],
+  List<String> blockedNames = const [],
 }) {
-  if (skippedName != null) {
-    return ' — $skippedName сейчас не принимает новые запросы.';
-  }
-  if (skippedCount != null) {
-    return ' — $skippedCount получателей сейчас не принимают новые запросы.';
-  }
-  return '';
+  final parts = [
+    if (skippedName != null)
+      '$skippedName сейчас не принимает новые запросы'
+    else if (skippedCount != null)
+      '$skippedCount получателей сейчас не принимают новые запросы',
+    if (alreadyForwardedNames.length == 1)
+      'вы уже отправили его: ${alreadyForwardedNames.single}'
+    else if (alreadyForwardedNames.length > 1)
+      'вы уже отправили его ${alreadyForwardedNames.length} получателям',
+    if (blockedNames.length == 1)
+      '${blockedNames.single} не может получить его от вас'
+    else if (blockedNames.length > 1)
+      '${blockedNames.length} получателей не могут получить его от вас',
+  ];
+  return parts.isEmpty ? '' : ' — ${parts.join('; ')}.';
 }
 
 String forwardLocationCopyEn({
   required bool inWatching,
   String? skippedName,
   int? skippedCount,
+  List<String> alreadyForwardedNames = const [],
+  List<String> blockedNames = const [],
 }) {
   final base = inWatching
       ? "Request forwarded. It's in Following."
       : "Request forwarded. It's in My Work.";
-  return '$base${_forwardLocationPauseSuffixEn(skippedName: skippedName, skippedCount: skippedCount)}';
+  return '$base${_forwardSkipSuffixEn(skippedName: skippedName, skippedCount: skippedCount, alreadyForwardedNames: alreadyForwardedNames, blockedNames: blockedNames)}';
 }
 
 String forwardLocationCopyRu({
   required bool inWatching,
   String? skippedName,
   int? skippedCount,
+  List<String> alreadyForwardedNames = const [],
+  List<String> blockedNames = const [],
 }) {
   final base = inWatching
       ? 'Запрос переслан. Он во вкладке «Слежу».'
       : 'Запрос переслан. Он в «Моей работе».';
-  return '$base${_forwardLocationPauseSuffixRu(skippedName: skippedName, skippedCount: skippedCount)}';
+  return '$base${_forwardSkipSuffixRu(skippedName: skippedName, skippedCount: skippedCount, alreadyForwardedNames: alreadyForwardedNames, blockedNames: blockedNames)}';
 }
 
 /// Standalone forward of a Post (#501): a Post is not a request and has no
 /// Following / My Work home, so the line names the Post and stops there.
 final class ForwardPostSentMessage extends LocalizableMessage {
-  const ForwardPostSentMessage({this.skippedName, this.skippedCount});
+  const ForwardPostSentMessage({
+    this.skippedName,
+    this.skippedCount,
+    this.alreadyForwardedNames = const [],
+    this.blockedNames = const [],
+  });
 
   final String? skippedName;
   final int? skippedCount;
+  final List<String> alreadyForwardedNames;
+  final List<String> blockedNames;
 
   @override
   String get toEn =>
-      'Post forwarded.${_forwardLocationPauseSuffixEn(skippedName: skippedName, skippedCount: skippedCount)}';
+      'Post forwarded.${_forwardSkipSuffixEn(skippedName: skippedName, skippedCount: skippedCount, alreadyForwardedNames: alreadyForwardedNames, blockedNames: blockedNames)}';
 
   @override
   String get toRu =>
-      'Пост переслан.${_forwardLocationPauseSuffixRu(skippedName: skippedName, skippedCount: skippedCount)}';
+      'Пост переслан.${_forwardSkipSuffixRu(skippedName: skippedName, skippedCount: skippedCount, alreadyForwardedNames: alreadyForwardedNames, blockedNames: blockedNames)}';
 }
 
 final class ForwardSentMessage extends LocalizableMessage {
@@ -131,23 +165,71 @@ final class ForwardPartialDeliveryManyMessage extends LocalizableMessage {
       'Отправлено $deliveredCount из $requestedCount — $skippedCount получателей сейчас не принимают новые запросы.';
 }
 
+/// Nobody received the forward and at least one recipient was skipped as
+/// already forwarded or blocked, or the server gave no reason at all.
+final class ForwardNotDeliveredMessage extends LocalizableMessage {
+  const ForwardNotDeliveredMessage({
+    this.skippedName,
+    this.skippedCount,
+    this.alreadyForwardedNames = const [],
+    this.blockedNames = const [],
+  });
+
+  final String? skippedName;
+  final int? skippedCount;
+  final List<String> alreadyForwardedNames;
+  final List<String> blockedNames;
+
+  @override
+  String get toEn {
+    final why = _forwardSkipSuffixEn(
+      skippedName: skippedName,
+      skippedCount: skippedCount,
+      alreadyForwardedNames: alreadyForwardedNames,
+      blockedNames: blockedNames,
+    );
+    return why.isEmpty
+        ? 'Not delivered to anyone. Try again later.'
+        : 'Not delivered$why';
+  }
+
+  @override
+  String get toRu {
+    final why = _forwardSkipSuffixRu(
+      skippedName: skippedName,
+      skippedCount: skippedCount,
+      alreadyForwardedNames: alreadyForwardedNames,
+      blockedNames: blockedNames,
+    );
+    return why.isEmpty
+        ? 'Никому не доставлено. Попробуйте позже.'
+        : 'Не доставлено$why';
+  }
+}
+
 /// Standalone forward success: ego home is Inbox Watching (not author, no help offer).
 final class ForwardLocationMessage extends LocalizableActionMessage {
   const ForwardLocationMessage({
     required this.beaconId,
     this.skippedName,
     this.skippedCount,
+    this.alreadyForwardedNames = const [],
+    this.blockedNames = const [],
   });
 
   final String beaconId;
   final String? skippedName;
   final int? skippedCount;
+  final List<String> alreadyForwardedNames;
+  final List<String> blockedNames;
 
   @override
   String get toEn => forwardLocationCopyEn(
     inWatching: true,
     skippedName: skippedName,
     skippedCount: skippedCount,
+    alreadyForwardedNames: alreadyForwardedNames,
+    blockedNames: blockedNames,
   );
 
   @override
@@ -155,6 +237,8 @@ final class ForwardLocationMessage extends LocalizableActionMessage {
     inWatching: true,
     skippedName: skippedName,
     skippedCount: skippedCount,
+    alreadyForwardedNames: alreadyForwardedNames,
+    blockedNames: blockedNames,
   );
 
   @override
@@ -185,16 +269,22 @@ base class ForwardLocationMyWorkMessage extends LocalizableMessage {
   const ForwardLocationMyWorkMessage({
     this.skippedName,
     this.skippedCount,
+    this.alreadyForwardedNames = const [],
+    this.blockedNames = const [],
   });
 
   final String? skippedName;
   final int? skippedCount;
+  final List<String> alreadyForwardedNames;
+  final List<String> blockedNames;
 
   @override
   String get toEn => forwardLocationCopyEn(
     inWatching: false,
     skippedName: skippedName,
     skippedCount: skippedCount,
+    alreadyForwardedNames: alreadyForwardedNames,
+    blockedNames: blockedNames,
   );
 
   @override
@@ -202,6 +292,8 @@ base class ForwardLocationMyWorkMessage extends LocalizableMessage {
     inWatching: false,
     skippedName: skippedName,
     skippedCount: skippedCount,
+    alreadyForwardedNames: alreadyForwardedNames,
+    blockedNames: blockedNames,
   );
 }
 
@@ -216,6 +308,8 @@ final class ForwardLocationMyWorkAddToTagMessage
     required this.recipientNames,
     super.skippedName,
     super.skippedCount,
+    super.alreadyForwardedNames,
+    super.blockedNames,
   });
 
   final String beaconId;

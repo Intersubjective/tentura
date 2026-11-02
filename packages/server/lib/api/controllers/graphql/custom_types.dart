@@ -928,6 +928,14 @@ final gqlTypeForwardDeliveryResult =
           'availabilitySkippedRecipientIds',
           GraphQLListType(graphQLString.nonNullable()).nonNullable(),
         ),
+        field(
+          'alreadyForwardedRecipientIds',
+          GraphQLListType(graphQLString.nonNullable()).nonNullable(),
+        ),
+        field(
+          'blockedSkippedRecipientIds',
+          GraphQLListType(graphQLString.nonNullable()).nonNullable(),
+        ),
       ]);
 
 /// One forward edge for the forwards-graph view (V2 `beaconForwardGraph`).

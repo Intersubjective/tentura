@@ -313,7 +313,12 @@ final class ForwardCase extends UseCaseBase {
 
     // Requests: checks run before the transaction. Posts: every mutable check
     // runs after the post lock, inside the transaction.
-    ({List<String> recipients, String? parentEdgeId, BeaconEntity beacon})?
+    ({
+      List<String> recipients,
+      List<String> blocked,
+      String? parentEdgeId,
+      BeaconEntity beacon,
+    })?
     preChecked;
     if (!isPost) {
       preChecked = await _checkForward(
@@ -427,15 +432,25 @@ final class ForwardCase extends UseCaseBase {
           ],
           availabilitySkippedRecipientIds:
               batchResult.availabilitySkippedRecipientIds,
+          alreadyForwardedRecipientIds:
+              batchResult.alreadyForwardedRecipientIds,
+          blockedSkippedRecipientIds: checked.blocked,
         );
       },
     );
   }
 
   /// Block filter, read gate, forward policy, mutual visibility and parent
-  /// edge. With [rejectBlocked] a hidden recipient fails the forward instead of
-  /// being dropped silently.
-  Future<({List<String> recipients, String? parentEdgeId, BeaconEntity beacon})>
+  /// edge. A hidden recipient is dropped and returned in `blocked`; with
+  /// [rejectBlocked] it fails the forward instead.
+  Future<
+    ({
+      List<String> recipients,
+      List<String> blocked,
+      String? parentEdgeId,
+      BeaconEntity beacon,
+    })
+  >
   _checkForward({
     required String senderId,
     required String beaconId,
@@ -456,6 +471,10 @@ final class ForwardCase extends UseCaseBase {
     final recipients = nonSelfRecipients
         .where((id) => !hidden.contains(id))
         .toList();
+    final blocked = {
+      for (final id in nonSelfRecipients)
+        if (hidden.contains(id)) id,
+    }.toList();
 
     if (!await _guard.canReadContent(
       beaconId: beaconId,
@@ -518,6 +537,7 @@ final class ForwardCase extends UseCaseBase {
 
     return (
       recipients: recipients,
+      blocked: blocked,
       parentEdgeId: resolvedParentEdgeId,
       beacon: beacon,
     );

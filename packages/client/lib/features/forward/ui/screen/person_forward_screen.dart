@@ -372,26 +372,35 @@ class _PersonForwardRowTile extends StatelessWidget {
                     ),
                   ),
                 ],
-                IconButton(
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(
-                    minWidth: 44,
-                    minHeight: 44,
+                if (row.block == PersonForwardBlock.involvementUnavailable)
+                  TextButton(
+                    onPressed: () => unawaited(
+                      context.read<PersonForwardCubit>().load(),
+                    ),
+                    child: Text(l10n.beaconForwardPersonRetry),
+                  )
+                else
+                  IconButton(
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(
+                      minWidth: 44,
+                      minHeight: 44,
+                    ),
+                    tooltip: enabled ? l10n.beaconForwardPersonSend : subtitle,
+                    onPressed: enabled
+                        ? () => context.read<PersonForwardCubit>().selectBeacon(
+                            row.beacon.id,
+                          )
+                        : null,
+                    icon: Icon(
+                      state.selectedBeaconId == row.beacon.id
+                          ? Icons.radio_button_checked
+                          : Icons.radio_button_unchecked,
+                      color: enabled
+                          ? Theme.of(context).colorScheme.primary
+                          : null,
+                    ),
                   ),
-                  tooltip: enabled ? l10n.beaconForwardPersonSend : subtitle,
-                  onPressed: enabled
-                      ? () => context.read<PersonForwardCubit>().selectBeacon(
-                          row.beacon.id,
-                        )
-                      : null,
-                  icon: Icon(
-                    state.selectedBeaconId == row.beacon.id
-                        ? Icons.radio_button_checked
-                        : Icons.radio_button_unchecked,
-                    color:
-                        enabled ? Theme.of(context).colorScheme.primary : null,
-                  ),
-                ),
               ],
             ),
           ),
@@ -401,10 +410,32 @@ class _PersonForwardRowTile extends StatelessWidget {
   }
 }
 
-class _NoteAndSend extends StatelessWidget {
+class _NoteAndSend extends StatefulWidget {
   const _NoteAndSend({required this.state});
 
   final PersonForwardState state;
+
+  @override
+  State<_NoteAndSend> createState() => _NoteAndSendState();
+}
+
+class _NoteAndSendState extends State<_NoteAndSend> {
+  late final _note = TextEditingController(text: widget.state.note);
+
+  @override
+  void didUpdateWidget(covariant _NoteAndSend oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // The field shows the cubit's note: a reset (e.g. after a send) clears it.
+    if (_note.text != widget.state.note) {
+      _note.text = widget.state.note;
+    }
+  }
+
+  @override
+  void dispose() {
+    _note.dispose();
+    super.dispose();
+  }
 
   Future<void> _handleSend(BuildContext context) async {
     await context.read<PersonForwardCubit>().send();
@@ -414,6 +445,7 @@ class _NoteAndSend extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
+    final state = widget.state;
     final todayUtc = context.select<PersonForwardCubit, DateTime>(
       (cubit) => cubit.todayUtc,
     );
@@ -422,6 +454,7 @@ class _NoteAndSend extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         TextField(
+          controller: _note,
           enabled: canSend,
           onChanged: context.read<PersonForwardCubit>().setNote,
           decoration: InputDecoration(
@@ -512,6 +545,8 @@ String _rowSubtitle(L10n l10n, PersonForwardRow row) => switch (row.block) {
   PersonForwardBlock.declined => l10n.beaconForwardPersonReasonDeclined,
   PersonForwardBlock.withdrawn => l10n.beaconForwardPersonReasonWithdrawn,
   PersonForwardBlock.theirOwn => l10n.beaconForwardPersonReasonTheirOwn,
+  PersonForwardBlock.involvementUnavailable =>
+    l10n.beaconForwardPersonReasonUnavailable,
 };
 
 String _lifecycleLabel(L10n l10n, Beacon beacon) => switch (beacon.status) {

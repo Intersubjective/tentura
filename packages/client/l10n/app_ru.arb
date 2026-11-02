@@ -2847,6 +2847,14 @@
   "@beaconForwardPersonReasonTheirOwn": {
     "context": "PersonForwardScreen row disabled reason"
   },
+  "beaconForwardPersonReasonUnavailable": "Не удалось проверить, есть ли он у них",
+  "@beaconForwardPersonReasonUnavailable": {
+    "context": "PersonForwardScreen row disabled reason: whether the person already has this request could not be loaded"
+  },
+  "beaconForwardPersonRetry": "Повторить",
+  "@beaconForwardPersonRetry": {
+    "context": "PersonForwardScreen row action: reload a row whose status could not be loaded"
+  },
   "beaconRecipientsPreselectDropped": "{name} пока не может получать от вас запросы и не добавлен.",
   "@beaconRecipientsPreselectDropped": {
     "description": "Banner shown when a profile-preselected recipient is no longer eligible on the new-request recipients tab.",
