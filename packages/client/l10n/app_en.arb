@@ -176,14 +176,6 @@
   "@buttonSave": {
     "context": "Utils"
   },
-  "buttonCrop": "Crop",
-  "@buttonCrop": {
-    "context": "Utils"
-  },
-  "buttonSaveAvatar": "Save avatar",
-  "@buttonSaveAvatar": {
-    "context": "ProfileEditScreen"
-  },
   "titleCropAvatar": "Crop profile photo",
   "@titleCropAvatar": {
     "context": "Utils"
@@ -195,10 +187,6 @@
   "profilePhotoCrop": "Crop",
   "@profilePhotoCrop": {
     "context": "ProfileEditScreen"
-  },
-  "titleUploadProfilePhoto": "Upload profile photo",
-  "@titleUploadProfilePhoto": {
-    "context": "Utils"
   },
   "cropRotateLeftTooltip": "Rotate counter-clockwise",
   "@cropRotateLeftTooltip": {
@@ -268,10 +256,6 @@
   "@firstTimeHereSuffix": {
     "context": "AuthLoginScreen"
   },
-  "pleaseFillTitle": "Please fill title",
-  "@pleaseFillTitle": {
-    "context": "Utils"
-  },
   "labelInvitationCode": "Invitation code",
   "@labelInvitationCode": {
     "context": "AccountAddDialog"
@@ -299,10 +283,6 @@
   "recoverFromClipboard": "Recover from clipboard",
   "@recoverFromClipboard": {
     "context": "AuthLoginScreen"
-  },
-  "recoverFromSeedTitle": "Recover from seed",
-  "@recoverFromSeedTitle": {
-    "context": "RecoverScreen"
   },
   "recoverFromSeedHint": "Scan the QR code from your backup or paste your saved seed below.",
   "@recoverFromSeedHint": {
@@ -370,10 +350,6 @@
   },
   "friendsInviteMore": "Invite someone you trust",
   "@friendsInviteMore": {
-    "context": "FriendsScreen"
-  },
-  "invitationsShowMenuItem": "Show invitations",
-  "@invitationsShowMenuItem": {
     "context": "FriendsScreen"
   },
   "friendsScanInviteCode": "Scan invite code",
@@ -537,17 +513,9 @@
   "@buttonSaveDraft": {
     "context": "BeaconCreateScreen"
   },
-  "buttonMakeLive": "Make live",
   "beaconMakeLiveWithoutSending": "Publish without sending",
   "@beaconMakeLiveWithoutSending": {
     "description": "Secondary action on the recipients step: publish the request without forwarding it to anyone yet."
-  },
-  "@buttonMakeLive": {
-    "context": "BeaconCreateScreen"
-  },
-  "buttonMakeLiveBlockedHint": "Complete the highlighted fields to make this request live.",
-  "@buttonMakeLiveBlockedHint": {
-    "context": "BeaconCreateScreen"
   },
   "liveRequestTitle": "Live request",
   "@liveRequestTitle": {
@@ -568,18 +536,6 @@
   "editBeacon": "Edit request",
   "@editBeacon": {
     "context": "BeaconOverflowMenu"
-  },
-  "draftSavedMessage": "Draft saved",
-  "@draftSavedMessage": {
-    "context": "BeaconCreateScreen"
-  },
-  "setDisplayPeriod": "Set period",
-  "@setDisplayPeriod": {
-    "context": "BeaconCreateScreen"
-  },
-  "buttonPublish": "Publish",
-  "@buttonPublish": {
-    "context": "BeaconCreateScreen"
   },
   "addLocation": "Add location",
   "@addLocation": {
@@ -822,10 +778,6 @@
   "@beaconCreateCoverRow": {
     "context": "BeaconCreateScreen"
   },
-  "createBeaconErrorTooShortQuestion": "Too short question",
-  "@createBeaconErrorTooShortQuestion": {
-    "context": "BeaconCreateScreen"
-  },
   "confirmBeaconPublishing": "Are you sure you want to publish this request?",
   "@confirmBeaconPublishing": {
     "context": "BeaconPublishDialog"
@@ -833,10 +785,6 @@
   "confirmBeaconPublishingHint": "Once the request is published, it will not be possible to make changes. Are you sure you want to publish this request?",
   "@confirmBeaconPublishingHint": {
     "context": "BeaconPublishDialog"
-  },
-  "writeComment": "Write a comment",
-  "@writeComment": {
-    "context": "Comments"
   },
   "submitComplaint": "Submit complaint",
   "@submitComplaint": {
@@ -880,10 +828,6 @@
       }
     }
   },
-  "provideDetails": "Please provide details",
-  "@provideDetails": {
-    "context": "ComplaintScreen"
-  },
   "feedbackEmail": "Email for feedback (optional)",
   "@feedbackEmail": {
     "context": "ComplaintScreen"
@@ -907,10 +851,6 @@
   "buttonSubmitAccountDeletionRequest": "Submit deletion request",
   "@buttonSubmitAccountDeletionRequest": {
     "context": "ComplaintScreen"
-  },
-  "filterByTag": "Filter by tag",
-  "@filterByTag": {
-    "context": "MyFieldScreen"
   },
   "writeCodeHere": "Have an invite or profile code? Enter it here:",
   "@writeCodeHere": {
@@ -1021,14 +961,6 @@
     "context": "ChooseLocationDialog",
     "description": "Button that confirms the picked point."
   },
-  "goToEgo": "Go to Ego",
-  "@goToEgo": {
-    "context": "GraphScreen"
-  },
-  "showNegative": "Show negative",
-  "@showNegative": {
-    "context": "GraphScreen"
-  },
   "hideNegative": "Hide negative",
   "@hideNegative": {
     "context": "GraphScreen"
@@ -1091,10 +1023,6 @@
   },
   "graphLegendEdgeNegative": "Negative connection",
   "@graphLegendEdgeNegative": {
-    "context": "GraphScreen"
-  },
-  "graphLegendEdgeUndirected": "Lines show neighborhood links, not vote direction",
-  "@graphLegendEdgeUndirected": {
     "context": "GraphScreen"
   },
   "graphLegendEdgeForwardOther": "Other forwards",
@@ -1548,17 +1476,9 @@
   "@constellationViewModeMap": {
     "context": "ConstellationBody"
   },
-  "constellationViewModeText": "Text",
-  "@constellationViewModeText": {
-    "context": "ConstellationBody"
-  },
   "constellationSelectionUnavailable": "The selected request is no longer in this snapshot.",
   "@constellationSelectionUnavailable": {
     "context": "ConstellationBody"
-  },
-  "constellationTextViewSemantics": "Request list grouped by person",
-  "@constellationTextViewSemantics": {
-    "context": "ConstellationTextView"
   },
   "constellationTextEmptyField": "No active requests in this snapshot.",
   "@constellationTextEmptyField": {
@@ -1640,10 +1560,6 @@
   "constellationPlacementSaving": "Saving…",
   "@constellationPlacementSaving": {
     "context": "Cue on a constellation node whose new position is still being sent to the server"
-  },
-  "graphLegendConstellationRequestStatusTitle": "Request status",
-  "@graphLegendConstellationRequestStatusTitle": {
-    "description": "Constellation legend section for request lifecycle markers"
   },
   "graphLegendConstellationRequestStatusOpen": "Open",
   "@graphLegendConstellationRequestStatusOpen": {
@@ -1811,10 +1727,6 @@
   "communityFeedback": "Community feedback",
   "@communityFeedback": {
     "context": "Profile"
-  },
-  "addToMyField": "Trust this user",
-  "@addToMyField": {
-    "context": "ProfileViewBody"
   },
   "profileSendRequestTo": "Send a request",
   "@profileSendRequestTo": {
@@ -2259,26 +2171,6 @@
   "@closeButton": {
     "context": "PollDialog"
   },
-  "newStuffBadge": "New",
-  "@newStuffBadge": {
-    "context": "NewStuff indicators (Inbox / My Work)"
-  },
-  "newStuffUpdatedBadge": "Updated",
-  "@newStuffUpdatedBadge": {
-    "context": "NewStuff indicators — beacon edited since last visit (Inbox / My Work)"
-  },
-  "newStuffReasonNewForward": "Someone forwarded this request to you",
-  "@newStuffReasonNewForward": {
-    "context": "NewStuff dot — Inbox row reason"
-  },
-  "newStuffReasonBeaconUpdated": "The request was updated",
-  "@newStuffReasonBeaconUpdated": {
-    "context": "NewStuff dot — beacon content/lifecycle change"
-  },
-  "newStuffReasonCoordinationStatusChanged": "Request coordination status changed",
-  "@newStuffReasonCoordinationStatusChanged": {
-    "context": "NewStuff dot — beacon-level coordination status"
-  },
   "notifications": "Notifications",
   "@notifications": {
     "context": "NotificationCenter"
@@ -2421,15 +2313,6 @@
   "@inboxWatchingEmptyHint": {
     "context": "InboxScreen"
   },
-  "activityTriageRequestsNeedResponse": "{count, plural, one{1 request needs your response} other{{count} requests need your response}}",
-  "@activityTriageRequestsNeedResponse": {
-    "context": "InboxScreen",
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
   "activityNavBadgeNewActivity": "New activity",
   "@activityNavBadgeNewActivity": {
     "context": "InboxNavbarItem",
@@ -2486,10 +2369,6 @@
   "@rejectionDialogHint": {
     "context": "RejectionDialog"
   },
-  "timelineDeclined": "Declined",
-  "@timelineDeclined": {
-    "context": "BeaconViewScreen"
-  },
   "forwardDeclined": "Dismissed this request",
   "@forwardDeclined": {
     "context": "ForwardBeaconScreen"
@@ -2528,10 +2407,6 @@
   },
   "actionWatch": "Follow this request",
   "@actionWatch": {
-    "context": "InboxItemTile"
-  },
-  "actionHide": "Hide",
-  "@actionHide": {
     "context": "InboxItemTile"
   },
   "inboxProvenanceCollapse": "Collapse",
@@ -2771,20 +2646,8 @@
   "@forwardRecipientCapabilityMatchesNeed": {
     "context": "ForwardRecipientRow capability chip (tooltip / accessibility)"
   },
-  "searchContacts": "Search contacts...",
-  "@searchContacts": {
-    "context": "ForwardBeaconScreen"
-  },
-  "noReachableContacts": "No reachable contacts",
-  "@noReachableContacts": {
-    "context": "ForwardBeaconScreen"
-  },
   "notReachable": "Not reachable",
   "@notReachable": {
-    "context": "ForwardBeaconScreen"
-  },
-  "addNoteOptional": "Add a note (optional)",
-  "@addNoteOptional": {
     "context": "ForwardBeaconScreen"
   },
   "forwardToCount": "Forward to {count}",
@@ -3797,22 +3660,6 @@
   "@labelTimeline": {
     "context": "BeaconViewScreen"
   },
-  "noActivityYet": "No activity yet",
-  "@noActivityYet": {
-    "context": "BeaconViewScreen"
-  },
-  "timelineForwarded": "{sender} forwarded to {recipient}",
-  "@timelineForwarded": {
-    "context": "BeaconViewScreen",
-    "placeholders": {
-      "sender": {
-        "type": "String"
-      },
-      "recipient": {
-        "type": "String"
-      }
-    }
-  },
   "timelineHelpOffered": "{user} offered help",
   "@timelineHelpOffered": {
     "context": "BeaconViewScreen",
@@ -3875,32 +3722,6 @@
         "type": "String"
       },
       "label": {
-        "type": "String"
-      }
-    }
-  },
-  "timelineBeaconLifecycleChanged": "{author} changed request status to {status}",
-  "@timelineBeaconLifecycleChanged": {
-    "context": "BeaconViewScreen",
-    "description": "Timeline: beacon lifecycle/state changed",
-    "placeholders": {
-      "author": {
-        "type": "String"
-      },
-      "status": {
-        "type": "String"
-      }
-    }
-  },
-  "timelineBeaconCoordinationStatusChanged": "{author} changed coordination status to {status}",
-  "@timelineBeaconCoordinationStatusChanged": {
-    "context": "BeaconViewScreen",
-    "description": "Timeline: beacon-level coordination status changed",
-    "placeholders": {
-      "author": {
-        "type": "String"
-      },
-      "status": {
         "type": "String"
       }
     }
@@ -3986,11 +3807,6 @@
   "@hintWithdrawReason": {
     "context": "BeaconViewScreen",
     "description": "Hint text for withdraw reason input"
-  },
-  "noHelpOffersYet": "No help offers yet",
-  "@noHelpOffersYet": {
-    "context": "BeaconViewScreen",
-    "description": "Empty state for help offers tab"
   },
   "labelEdited": "edited",
   "@labelEdited": {
@@ -4491,7 +4307,6 @@
   },
   "helpOfferAdmissionAccept": "Accept",
   "helpOfferAdmissionDecline": "Decline",
-  "helpOfferAdmissionRemove": "Remove from the discussion",
   "helpOfferAdmittedLabel": "Admitted",
   "helpOfferCanReadChat": "Can read this discussion",
   "helpOfferAdmittedAutomaticallyLabel": "Admitted automatically",
@@ -4546,12 +4361,6 @@
   },
   "helpOfferDeclineDialogTitle": "Decline this offer",
   "helpOfferDeclineDialogHint": "Let them know why. This is required",
-  "helpOfferRemoveDialogTitle": "Remove from the discussion",
-  "helpOfferRemoveDialogHint": "Let them know why. This is required",
-  "helpOfferRemoveKeepsParticipationNote": "Discussion access only — participation stays recorded.",
-  "@helpOfferRemoveKeepsParticipationNote": {
-    "description": "Explains that removing from chat does not end recorded participation"
-  },
   "helpOfferReleaseCommitment": "End participation",
   "@helpOfferReleaseCommitment": {
     "description": "Author action to end a helper's recorded participation"
@@ -4606,22 +4415,6 @@
   },
   "helpOffersTabActionEdit": "Edit",
   "helpOffersTabActionWithdraw": "Withdraw",
-  "helpOffersTabSummaryUseful": "{n} useful",
-  "@helpOffersTabSummaryUseful": {
-    "placeholders": {
-      "n": {
-        "type": "int"
-      }
-    }
-  },
-  "helpOffersTabSummaryNeedCoordination": "{n} needs coordination",
-  "@helpOffersTabSummaryNeedCoordination": {
-    "placeholders": {
-      "n": {
-        "type": "int"
-      }
-    }
-  },
   "beaconRoomTitle": "Discussion",
   "beaconRoomMessageHint": "Write a message…",
   "beaconRoomMessageReadOnlyHint": "This discussion is read-only",
@@ -5369,7 +5162,6 @@
     }
   },
   "capabilityDialogOnlyYou": "New labels are your notes, only you see them",
-  "capabilityEditCapabilities": "Edit capabilities",
   "capabilityCueMyLabels": "My labels: {tags}",
   "@capabilityCueMyLabels": {
     "placeholders": {
@@ -5458,7 +5250,6 @@
       }
     }
   },
-  "helpOfferRolePrompt": "How are you helping?",
   "helpOfferRoleLabelField": "Role",
   "@helpOfferRoleLabelField": {
     "description": "Editable short role label on People help-offer card and chat peek sheet"
@@ -5480,7 +5271,6 @@
       }
     }
   },
-  "helpOfferSelectionLimit": "Choose up to 4 ways you can help.",
   "helpOfferSearchLabel": "Search ways to help",
   "helpOfferSubmit": "Offer help ({count}/{limit})",
   "@helpOfferSubmit": {
@@ -5510,7 +5300,6 @@
       }
     }
   },
-  "closeAckPrompt": "What did this person actually help with?",
   "capabilityCueAcknowledged": "Helped with: {tags}",
   "@capabilityCueAcknowledged": {
     "placeholders": {
@@ -5896,7 +5685,6 @@
   "@updatesRefreshFailedBanner": {
     "description": "Non-blocking banner when the Updates feed refresh fails."
   },
-  "updatesEmptyTitle": "Nothing new",
   "updatesEmptyAllHint": "All caught up. New updates will appear here.",
   "updatesEmptyUnreadHint": "All caught up. New updates will appear here.",
   "updatesEmptyNeedsYouHint": "You have no open items that need you.",
@@ -5909,7 +5697,6 @@
       }
     }
   },
-  "updatesNextStepMarkDoneHint": "Mark this done when you finish the task.",
   "updatesFallbackTitleGeneric": "Update",
   "updatesFallbackBodyGeneric": "Open Updates to see what changed.",
   "updatesFallbackTitleRelayReceived": "Request forwarded",
@@ -6277,14 +6064,6 @@
   "@unblockUserMenuItem": {
     "description": "Unblock action label on profile menu and blocked-users list."
   },
-  "blockErrorRateLimited": "You have blocked too many people recently. Try again later.",
-  "@blockErrorRateLimited": {
-    "description": "Shown when the server rejects a block for rate limiting."
-  },
-  "errorBlockedByUser": "This person is not available.",
-  "@errorBlockedByUser": {
-    "description": "Generic error when an action is rejected because of a block."
-  },
   "availabilityLimitedTitle": "Only important requests",
   "@availabilityLimitedTitle": {
     "description": "Neutral availability label when another person accepts only important requests."
@@ -6472,24 +6251,6 @@
         "type": "String"
       }
     }
-  },
-  "attentionCardTitleByForwarder": "“{title}” · from {name}",
-  "@attentionCardTitleByForwarder": {
-    "context": "RequestAttentionCard",
-    "description": "Tombstone header line: quoted title attributed to the last forwarder (spec 8).",
-    "placeholders": {
-      "title": {
-        "type": "String"
-      },
-      "name": {
-        "type": "String"
-      }
-    }
-  },
-  "attentionCardClearAll": "Clear all",
-  "@attentionCardClearAll": {
-    "context": "RequestAttentionCard",
-    "description": "Footer action clearing every optional event on a Request card (spec 6.2)."
   },
   "attentionCardA11yRequest": "Request “{title}”, by {author}",
   "@attentionCardA11yRequest": {
@@ -7114,25 +6875,9 @@
   "@postConversationMuted": {
     "description": "Semantic label of the muted icon on a conversations row."
   },
-  "postViewTitle": "{author}: {excerpt}",
-  "@postViewTitle": {
-    "description": "App bar title of the Post screen: author and root message excerpt.",
-    "placeholders": {
-      "author": {
-        "type": "String"
-      },
-      "excerpt": {
-        "type": "String"
-      }
-    }
-  },
   "postMenuParticipants": "Participants",
   "@postMenuParticipants": {
     "description": "Post overflow: open the participants list."
-  },
-  "postMenuShowOnField": "Show on the field",
-  "@postMenuShowOnField": {
-    "description": "Post overflow: open the field map."
   },
   "postMenuAllowForwarding": "Allow forwarding",
   "@postMenuAllowForwarding": {
@@ -7244,10 +6989,6 @@
       }
     }
   },
-  "postParticipantsForwardingOpen": "Forwarding is open",
-  "@postParticipantsForwardingOpen": {
-    "description": "Participants screen row shown when the Post can be forwarded."
-  },
   "postParticipantsInvite": "Invite",
   "@postParticipantsInvite": {
     "description": "Participants screen button that opens the forward flow."
@@ -7350,10 +7091,6 @@
   },
   "constellationOpenPost": "Open post",
   "constellationComposerAddPerson": "Choose people on the map",
-  "constellationComposerList": "List ›",
-  "@constellationComposerList": {
-    "description": "Graph composer button that opens the recipient list picker"
-  },
   "constellationComposerDetails": "Details",
   "@constellationComposerDetails": {
     "description": "Graph composer button that opens the full Request create form"
@@ -7382,10 +7119,6 @@
   "postMenuMute": "Mute",
   "@postMenuMute": {
     "description": "Post overflow: opens the mute durations."
-  },
-  "postMenuUnmute": "Turn sound on",
-  "@postMenuUnmute": {
-    "description": "Post overflow (muted): clear the mute."
   },
   "postMuteHour": "For 1 hour",
   "@postMuteHour": {
@@ -7502,7 +7235,6 @@
   "postMenuUnmuteForever": "Turn sound on · muted for good",
   "postInfoForwardingOpen": "Can be forwarded: any participant can bring others in",
   "postInfoForwardingClosed": "Only the author can forward",
-  "postInfoPinned": "Pinned in Posts, so it won't go quiet",
   "postInfoMutedUntil": "Muted until {time}",
   "@postInfoMutedUntil": {
     "placeholders": {
@@ -8225,10 +7957,6 @@
   "postBudAction": "Make a request",
   "@postBudAction": {
     "description": "Room message action and Post ⋯ menu entry that buds a Request from a Post message; also the submit button of the bud form."
-  },
-  "postBudPickMessageTitle": "Which message should the request come from?",
-  "@postBudPickMessageTitle": {
-    "description": "Title of the source picker a non-author sees from the Post ⋯ menu."
   },
   "postBudInviteTitle": "Who to invite",
   "@postBudInviteTitle": {
@@ -10576,10 +10304,6 @@
   "graphLegendConstellationMutualTrustHint": "Shown while someone is selected: a double line joins them to each person on the Field they trust both ways.",
   "@graphLegendConstellationMutualTrustHint": {
     "description": "Field legend tooltip for «Trust each other»."
-  },
-  "peopleTagsNameTaken": "You already have this tag",
-  "@peopleTagsNameTaken": {
-    "description": "Inline error when a tag name is already used by the viewer"
   },
   "peopleTagsUndo": "Undo",
   "@peopleTagsUndo": {
