@@ -308,6 +308,8 @@ Future<_Harness> _mount(
     ),
   );
   await _settle(tester);
+  selection.enterArranging();
+  await tester.pump();
   return (server: server, cubit: cubit, selection: selection);
 }
 

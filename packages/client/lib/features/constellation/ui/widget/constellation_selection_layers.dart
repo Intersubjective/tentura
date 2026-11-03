@@ -1591,7 +1591,7 @@ class ConstellationSelectionBar extends StatelessWidget {
   /// «Add to tag…» is offered for the selected people.
   final bool peopleTagsEnabled;
 
-  /// Rendered inside [ConstellationArrangingToolbar] without outer chrome.
+  /// Rendered inside the arranging toolbar row without outer chrome (#938).
   final bool arrangingEmbedded;
 
   /// One turn of the rotate buttons.

@@ -128,7 +128,9 @@ final class ArrangeAnchorRepository
   }) async {
     resets.add((clientOpId: clientOpId, saveHistory: saveHistory));
     final error = resetError;
-    if (error != null) throw error;
+    if (error != null) {
+      throw StateError('$error');
+    }
     final before = _revision;
     if (saveHistory) {
       final snapshotId = 'LS-reset-${++_snapshotSeq}';
@@ -153,11 +155,7 @@ final class ArrangeAnchorRepository
 
   /// Puts a saved layout back in one step; the layout it replaces is saved
   /// first and its id returned, so the restore can itself be undone.
-  ///
-  /// How the client learns the id of the reset snapshot is left to the
-  /// implementation (a field of the reset result or a snapshot listing): an
-  /// id this fake does not know stands for the newest saved layout. Not an
-  /// override today: the port gains this method with the unit under test.
+  @override
   Future<String> restoreLayoutSnapshot({
     required String snapshotId,
     required String clientOpId,

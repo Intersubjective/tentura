@@ -216,8 +216,6 @@ final class ConstellationMultiSelection {
   ConstellationMultiSelection clearedTargets() => ConstellationMultiSelection(
     arranging: arranging,
     selecting: selecting,
-    targets: const {},
-    sector: null,
   );
 
   ConstellationMultiSelection withSector(ConstellationSectorDraft? sector) =>

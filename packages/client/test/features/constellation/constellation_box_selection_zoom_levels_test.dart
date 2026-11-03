@@ -143,6 +143,9 @@ Future<Set<String>> _boxAround(
   await tester.pumpAndSettle();
   expect(holder.frame!.detail, level);
 
+  selection.setSelecting(true);
+  await tester.pump();
+
   final controller = cubit.graphController;
   final snapshot = controller.renderSnapshot;
   Offset centreOf(String id) {

@@ -6,7 +6,6 @@ import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../bloc/constellation_cubit.dart';
 import 'constellation_layout_history_sheet.dart';
-import 'constellation_tidied_snack_bar.dart';
 
 /// Shared Arrange actions for the overflow menu (#938 toolbar ⋯).
 class ConstellationArrangeActions {

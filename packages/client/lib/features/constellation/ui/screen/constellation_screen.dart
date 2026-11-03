@@ -47,8 +47,6 @@ import '../scene/constellation_scene_controller.dart';
 import '../util/constellation_focus_request.dart';
 import '../widget/constellation_camera_controls.dart';
 import '../widget/constellation_app_bar.dart';
-import '../widget/constellation_selection_layers.dart'
-    show maybeConstellationSelection;
 import '../widget/constellation_body.dart';
 import '../widget/constellation_create_entry.dart';
 
@@ -375,41 +373,51 @@ class _ConstellationScreenState extends State<ConstellationScreen> {
           },
         ),
       ],
-      child: BlocBuilder<ConstellationSelectionCubit, ConstellationMultiSelection>(
-        builder: (context, selectionState) => PopScope(
-          canPop: !selectionState.arranging,
-          onPopInvokedWithResult: (didPop, result) {
-            if (didPop) return;
-            if (selectionState.arranging) {
-              context.read<ConstellationSelectionCubit>().exitArranging();
-            }
-          },
-          child: Scaffold(
-        appBar: TenturaTopBar.of(
-          context,
-          title: const SizedBox.shrink(),
-          row: ConstellationAppBarRow(
-            legendExpanded: _legendExpanded,
-            onToggleLegend: _toggleLegend,
-          ),
-          account: homeTopBarAccount(context),
+      child: _buildScaffold(context),
+    );
+  }
+
+  Widget _buildScaffold(BuildContext context) {
+    final selectionCubit = maybeConstellationSelection(context);
+    final scaffold = Scaffold(
+      appBar: TenturaTopBar.of(
+        context,
+        title: const SizedBox.shrink(),
+        row: ConstellationAppBarRow(
+          legendExpanded: _legendExpanded,
+          onToggleLegend: _toggleLegend,
         ),
-        body: GraphTrustWriteNotices(
-          child: LazyWriteTimeoutNotice(
-            notices: context.read<ConstellationCubit>().lazyWriteNotices,
-            child: RepositoryProvider<ConstellationZoomLevelController>.value(
-              value: _zoomLevel,
-              child: TenturaFullBleed(
-                child: ConstellationBody(
-                  legendExpanded: _legendExpanded,
-                  onToggleLegend: _toggleLegend,
-                ),
+        account: homeTopBarAccount(context),
+      ),
+      body: GraphTrustWriteNotices(
+        child: LazyWriteTimeoutNotice(
+          notices: context.read<ConstellationCubit>().lazyWriteNotices,
+          child: RepositoryProvider<ConstellationZoomLevelController>.value(
+            value: _zoomLevel,
+            child: TenturaFullBleed(
+              child: ConstellationBody(
+                legendExpanded: _legendExpanded,
+                onToggleLegend: _toggleLegend,
               ),
             ),
           ),
         ),
-          ),
-        ),
+      ),
+    );
+    if (selectionCubit == null) {
+      return scaffold;
+    }
+    return BlocBuilder<ConstellationSelectionCubit, ConstellationMultiSelection>(
+      bloc: selectionCubit,
+      builder: (context, selectionState) => PopScope(
+        canPop: !selectionState.arranging,
+        onPopInvokedWithResult: (didPop, result) {
+          if (didPop) return;
+          if (selectionState.arranging) {
+            selectionCubit.exitArranging();
+          }
+        },
+        child: scaffold,
       ),
     );
   }
