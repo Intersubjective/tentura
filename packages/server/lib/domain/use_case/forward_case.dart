@@ -182,6 +182,25 @@ final class ForwardCase extends UseCaseBase {
     );
   }
 
+  /// Stamps the viewer's own inbound forward edges for the Request as read,
+  /// whatever their involvement access. Idempotent; the m0283 trigger tells
+  /// only the sender.
+  Future<bool> markForwardRead({
+    required String beaconId,
+    required String userId,
+  }) async {
+    final edges = await _forwardEdgeRepository.fetchActiveInboundEdges(
+      beaconId: beaconId,
+      recipientId: userId,
+    );
+    for (final edge in edges) {
+      if (edge.recipientReadAt == null) {
+        await _forwardEdgeRepository.markAsRead(edge.id, userId);
+      }
+    }
+    return true;
+  }
+
   /// #486 — the recipient's «Can't help» answer to a forwarded Request.
   ///
   /// Sets the viewer's Activity row to declined with their [message] (the

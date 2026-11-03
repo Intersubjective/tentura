@@ -1,0 +1,5 @@
+# #952: the viewer's first open of a Request they received by forward stamps
+# their own forward edge(s) as read, whatever their involvement access.
+mutation BeaconForwardMarkRead($id: String!) {
+  beaconForwardMarkRead(id: $id)
+}

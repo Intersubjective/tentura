@@ -155,6 +155,10 @@ final class BeaconViewCase extends UseCaseBase {
   Future<bool> cantHelp({required String beaconId, String message = ''}) =>
       _inboxRepository.cantHelp(beaconId: beaconId, message: message);
 
+  /// #952: stamps the viewer's own forward edge(s) as read for the sender.
+  Future<bool> markForwardRead(String beaconId) =>
+      _forwardRepository.markForwardRead(beaconId);
+
   Future<void> setInboxStatus({
     required String beaconId,
     required InboxItemStatus status,

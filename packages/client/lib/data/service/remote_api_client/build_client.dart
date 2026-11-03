@@ -341,6 +341,8 @@ class _V2RoutingLink extends Link {
     'BeaconWithdraw',
     // #486: «Can't help» tells the author (server `ForwardCase.cantHelp`).
     'InboxCantHelp',
+    // #952: a plain recipient's first open stamps the sender's read receipt.
+    'BeaconForwardMarkRead',
     'HelpOffersWithCoordination',
     'MyHelpOffer',
     'SetCoordinationResponse',

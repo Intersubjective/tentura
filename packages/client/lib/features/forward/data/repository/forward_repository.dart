@@ -28,8 +28,11 @@ import '../gql/_g/beacon_help_offerer_forward_path.req.gql.dart';
 import '../gql/_g/forward_beacon.req.gql.dart';
 import '../gql/_g/forward_inbound_sources.req.gql.dart';
 import 'package:tentura/data/gql/_g/schema.schema.gql.dart'
-    show Gv2_ForwardRecipientBandProvenanceInput, Gv2_ForwardRecipientReasonInput;
+    show
+        Gv2_ForwardRecipientBandProvenanceInput,
+        Gv2_ForwardRecipientReasonInput;
 import '../gql/_g/forward_cancel.req.gql.dart';
+import '../gql/_g/forward_mark_read.req.gql.dart';
 import '../gql/_g/forward_update.req.gql.dart';
 import '../gql/_g/forward_candidates_fetch.req.gql.dart';
 import '../gql/_g/forward_edges_fetch.req.gql.dart';
@@ -124,8 +127,7 @@ class ForwardRepository {
     String? context,
     String? parentEdgeId,
     List<String>? attributionParentEdgeIds,
-    Map<String, ({String? tier, bool isExploration})>?
-    recipientBandProvenance,
+    Map<String, ({String? tier, bool isExploration})>? recipientBandProvenance,
   }) => _remoteApiService
       .request(
         GForwardBeaconReq(
@@ -177,12 +179,13 @@ class ForwardRepository {
         final result = ForwardDeliveryResult(
           batchId: payload.batchId,
           deliveredRecipientIds: payload.deliveredRecipientIds.toList(),
-          availabilitySkippedRecipientIds:
-              payload.availabilitySkippedRecipientIds.toList(),
-          alreadyForwardedRecipientIds:
-              payload.alreadyForwardedRecipientIds.toList(),
-          blockedSkippedRecipientIds:
-              payload.blockedSkippedRecipientIds.toList(),
+          availabilitySkippedRecipientIds: payload
+              .availabilitySkippedRecipientIds
+              .toList(),
+          alreadyForwardedRecipientIds: payload.alreadyForwardedRecipientIds
+              .toList(),
+          blockedSkippedRecipientIds: payload.blockedSkippedRecipientIds
+              .toList(),
         );
         if (!_forwardChangesController.isClosed) {
           _forwardChangesController.add(beaconId);
@@ -511,6 +514,12 @@ class ForwardRepository {
             )
             .toList(),
       );
+
+  /// Tells the sender the viewer opened the Request they were sent.
+  Future<bool> markForwardRead(String beaconId) => _remoteApiService
+      .request(GBeaconForwardMarkReadReq((r) => r..vars.id = beaconId))
+      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .then((r) => r.dataOrThrow(label: _label).beaconForwardMarkRead);
 
   Future<bool> cancelForward(String edgeId) => _remoteApiService
       .request(GForwardCancelReq((r) => r..vars.id = edgeId))

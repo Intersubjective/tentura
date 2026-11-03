@@ -36,6 +36,7 @@ final class MutationForward extends GqlNodeBase {
     forwardCancel,
     forwardUpdate,
     cantHelp,
+    forwardMarkRead,
   ];
 
   /// #486 — «Can't help» on a forwarded Request; the author is told.
@@ -50,16 +51,27 @@ final class MutationForward extends GqlNodeBase {
     ),
   );
 
-  GraphQLObjectField<dynamic, dynamic> get forwardCancel =>
+  /// Stamps the caller's own forward edge(s) for the Request as read.
+  GraphQLObjectField<dynamic, dynamic> get forwardMarkRead =>
       GraphQLObjectField(
-        'beaconForwardCancel',
+        'beaconForwardMarkRead',
         graphQLBoolean.nonNullable(),
         arguments: [InputFieldId.field],
-        resolve: (_, args) => _forwardCase.cancelForward(
-          edgeId: InputFieldId.fromArgsNonNullable(args),
-          senderId: getCredentials(args).sub,
+        resolve: (_, args) => _forwardCase.markForwardRead(
+          beaconId: InputFieldId.fromArgsNonNullable(args),
+          userId: getCredentials(args).sub,
         ),
       );
+
+  GraphQLObjectField<dynamic, dynamic> get forwardCancel => GraphQLObjectField(
+    'beaconForwardCancel',
+    graphQLBoolean.nonNullable(),
+    arguments: [InputFieldId.field],
+    resolve: (_, args) => _forwardCase.cancelForward(
+      edgeId: InputFieldId.fromArgsNonNullable(args),
+      senderId: getCredentials(args).sub,
+    ),
+  );
 
   GraphQLObjectField<dynamic, dynamic> get forwardUpdate => GraphQLObjectField(
     'beaconForwardUpdate',
@@ -93,49 +105,47 @@ final class MutationForward extends GqlNodeBase {
       InputFieldForwardRecipientBandProvenance.field,
     ],
     resolve: (_, args) {
-      final recipientReasonsList =
-          InputFieldForwardRecipientReasons.fromArgs(args);
-      final perRecipientReasonSlugs =
-          recipientReasonsList == null
-              ? null
-              : {
-                  for (final r in recipientReasonsList)
-                    r.recipientId: r.slugs,
-                };
+      final recipientReasonsList = InputFieldForwardRecipientReasons.fromArgs(
+        args,
+      );
+      final perRecipientReasonSlugs = recipientReasonsList == null
+          ? null
+          : {
+              for (final r in recipientReasonsList) r.recipientId: r.slugs,
+            };
       final recipientBandProvenanceList =
           InputFieldForwardRecipientBandProvenance.fromArgs(args);
-      final perRecipientBandProvenance =
-          recipientBandProvenanceList == null
-              ? null
-              : {
-                  for (final p in recipientBandProvenanceList)
-                    p.recipientId: (
-                      tier: p.tier,
-                      isExploration: p.isExploration,
-                    ),
-                };
+      final perRecipientBandProvenance = recipientBandProvenanceList == null
+          ? null
+          : {
+              for (final p in recipientBandProvenanceList)
+                p.recipientId: (
+                  tier: p.tier,
+                  isExploration: p.isExploration,
+                ),
+            };
       return _forwardCase
           .forward(
-        senderId: getCredentials(args).sub,
-        beaconId: InputFieldId.fromArgsNonNullable(args),
-        recipientIds: InputFieldRecipientIds.fromArgs(args),
-        sharedNote: _note.fromArgs(args) ?? '',
-        context: _context.fromArgs(args),
-        parentEdgeId: _parentEdgeId.fromArgs(args),
-        attributionParentEdgeIds:
-            InputFieldAttributionParentEdgeIds.fromArgs(args),
-        sharedReasonSlugs: _reasonsFromArgs(args),
-        perRecipientReasonSlugs: perRecipientReasonSlugs,
-        perRecipientBandProvenance: perRecipientBandProvenance,
-        perRecipientNotes: switch (_perRecipientNotes.fromArgs(args)) {
-          final String s when s.isNotEmpty => Map<String, String>.from(
-            (json.decode(s) as Map).map(
-              (k, v) => MapEntry(k.toString(), v?.toString() ?? ''),
-            ),
-          ),
-          _ => null,
-        },
-      )
+            senderId: getCredentials(args).sub,
+            beaconId: InputFieldId.fromArgsNonNullable(args),
+            recipientIds: InputFieldRecipientIds.fromArgs(args),
+            sharedNote: _note.fromArgs(args) ?? '',
+            context: _context.fromArgs(args),
+            parentEdgeId: _parentEdgeId.fromArgs(args),
+            attributionParentEdgeIds:
+                InputFieldAttributionParentEdgeIds.fromArgs(args),
+            sharedReasonSlugs: _reasonsFromArgs(args),
+            perRecipientReasonSlugs: perRecipientReasonSlugs,
+            perRecipientBandProvenance: perRecipientBandProvenance,
+            perRecipientNotes: switch (_perRecipientNotes.fromArgs(args)) {
+              final String s when s.isNotEmpty => Map<String, String>.from(
+                (json.decode(s) as Map).map(
+                  (k, v) => MapEntry(k.toString(), v?.toString() ?? ''),
+                ),
+              ),
+              _ => null,
+            },
+          )
           .then(_forwardDeliveryResultToGqlMap);
     },
   );

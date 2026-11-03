@@ -1663,6 +1663,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
         );
       }
       unawaited(_loadAccessParent(beacon));
+      _markForwardReadOnFirstOpen(beacon);
 
       // Involvement (offers / Plan activity) stays behind canReadInvolvement.
       // Room participants / room state / Chat-adjacent APIs are member/author only.
@@ -1995,6 +1996,30 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
   /// #484: the silent author forward-status read runs at most once per cubit
   /// (success or failure); later content reloads don't re-fire it.
   bool _authorForwardStatusTried = false;
+
+  bool _forwardReadSent = false;
+
+  /// #952: a recipient without involvement access never triggers the server's
+  /// involvement read, which used to be the only thing stamping the sender's
+  /// read receipt. Sent once per open; failure is retried on the next open.
+  void _markForwardReadOnFirstOpen(Beacon beacon) {
+    if (_forwardReadSent ||
+        beacon.canReadInvolvement ||
+        !BeaconAccessReason.decode(
+          beacon.accessReasons,
+        ).contains(BeaconAccessReason.forwarded)) {
+      return;
+    }
+    _forwardReadSent = true;
+    unawaited(
+      _case
+          .markForwardRead(beacon.id)
+          .then<void>(
+            (_) {},
+            onError: (_) {},
+          ),
+    );
+  }
 
   /// Lazy-load forwards subsection (People tab). Cached for cubit lifetime.
   Future<void> loadForwards() => _loadForwards(silent: false);
