@@ -212,11 +212,11 @@ class _BeaconRoomSurfaceState extends State<BeaconRoomSurface> {
       builder: (context, threadsState) {
         if (threadsState.status is StateIsLoading &&
             threadsState.threads.isEmpty) {
-          return const Center(child: CircularProgressIndicator.adaptive());
+          return const Center(child: TenturaCircularProgress(adaptive: true));
         }
 
         if (!threadsState.isSuccess) {
-          return const Center(child: CircularProgressIndicator.adaptive());
+          return const Center(child: TenturaCircularProgress(adaptive: true));
         }
 
         return StreamBuilder<void>(
@@ -257,7 +257,7 @@ class _BeaconRoomSurfaceState extends State<BeaconRoomSurface> {
                     !_roomReady ||
                     _generalThread == null) {
                   return const Center(
-                    child: CircularProgressIndicator.adaptive(),
+                    child: TenturaCircularProgress(adaptive: true),
                   );
                 }
 

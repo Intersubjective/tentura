@@ -162,10 +162,7 @@ class _ChildGroupSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final tt = context.tt;
     if (slice.loading && slice.items.isEmpty) {
-      return Padding(
-        padding: EdgeInsets.only(top: tt.rowGap),
-        child: const Center(child: CircularProgressIndicator.adaptive()),
-      );
+      return SizedBox(height: tt.rowGap * 3);
     }
     if (slice.error != null && slice.items.isEmpty) {
       return Padding(
@@ -219,7 +216,7 @@ class _ChildGroupSection extends StatelessWidget {
             Padding(
               padding: EdgeInsets.only(top: tt.cardGap),
               child: const Center(
-                child: CircularProgressIndicator.adaptive(),
+                child: TenturaCircularProgress(adaptive: true),
               ),
             ),
         ],
