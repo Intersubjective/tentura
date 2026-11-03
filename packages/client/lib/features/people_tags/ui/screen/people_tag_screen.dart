@@ -4,7 +4,9 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
+import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/ui/widget/auto_leading_with_fallback.dart';
 import 'package:tentura/features/people_tags/domain/entity/people_tags_entities.dart';
 import 'package:tentura/features/people_tags/domain/use_case/people_tags_case.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -105,6 +107,9 @@ class _PeopleTagScreenState extends State<PeopleTagScreen> {
         return Scaffold(
           appBar: TenturaTopBar.of(
             context,
+            leading: const AutoLeadingWithFallback(
+              fallbackPath: kPathPeopleTags,
+            ),
             title: Text(tag?.name ?? ''),
             actions: [
               if (tag != null)

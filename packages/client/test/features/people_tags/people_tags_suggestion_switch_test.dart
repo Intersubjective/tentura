@@ -14,6 +14,7 @@ import 'package:tentura/features/people_tags/domain/use_case/people_tags_case.da
 import 'package:tentura/features/people_tags/ui/screen/people_tags_screen.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../support/mock_stack_router_scope.dart';
 import '../../support/test_realtime_sync.dart';
 
 const _switch = Key('people-tags-suggestions-switch');
@@ -127,7 +128,9 @@ void main() {
         theme: TenturaTheme.light(),
         localizationsDelegates: L10n.localizationsDelegates,
         supportedLocales: L10n.supportedLocales,
-        home: const TenturaResponsiveScope(child: PeopleTagsScreen()),
+        home: wrapWithMockStackRouter(
+          const TenturaResponsiveScope(child: PeopleTagsScreen()),
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -183,7 +186,9 @@ void main() {
             theme: TenturaTheme.light(),
             localizationsDelegates: L10n.localizationsDelegates,
             supportedLocales: L10n.supportedLocales,
-            home: const TenturaResponsiveScope(child: PeopleTagsScreen()),
+            home: wrapWithMockStackRouter(
+              const TenturaResponsiveScope(child: PeopleTagsScreen()),
+            ),
           ),
         );
         await tester.pump();
