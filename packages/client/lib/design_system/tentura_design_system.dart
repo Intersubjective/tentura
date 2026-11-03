@@ -8,6 +8,7 @@ export 'components/tentura_attention_summary_row.dart';
 export 'components/tentura_modal_bottom_sheet_route.dart';
 export 'components/tentura_capability_glyph.dart';
 export 'components/tentura_command_button.dart';
+export 'components/tentura_circular_progress.dart';
 export 'components/tentura_change_highlight.dart';
 export 'components/tentura_confirm_dialog.dart';
 export 'components/tentura_empty_state.dart';

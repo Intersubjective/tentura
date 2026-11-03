@@ -47,32 +47,32 @@ void main() {
 
       await tester.pump(const Duration(milliseconds: 100));
       expect(find.text(_content), findsNothing);
-      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.byType(TenturaCircularProgress), findsNothing);
       expect(find.byType(ScreenLoadErrorPanel), findsNothing);
 
       await tester.pump(const Duration(milliseconds: 49)); // 149 ms
-      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.byType(TenturaCircularProgress), findsNothing);
       expect(find.text(_content), findsNothing);
 
       await tester.pump(const Duration(milliseconds: 2)); // 151 ms
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.byType(TenturaCircularProgress), findsOneWidget);
       expect(find.text(_content), findsNothing);
 
       await tester.pump(const Duration(milliseconds: 49)); // 200 ms
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.byType(TenturaCircularProgress), findsOneWidget);
       expect(find.text(_content), findsNothing);
 
       await tester.pump(const Duration(milliseconds: 2299)); // 2499 ms
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.byType(TenturaCircularProgress), findsOneWidget);
       expect(find.text(_content), findsNothing);
 
       await tester.pump(const Duration(milliseconds: 2)); // 2501 ms
       expect(find.text(_content), findsOneWidget);
-      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.byType(TenturaCircularProgress), findsNothing);
 
       await tester.pump(const Duration(milliseconds: 99)); // 2600 ms
       expect(find.text(_content), findsOneWidget);
-      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.byType(TenturaCircularProgress), findsNothing);
     });
 
     testWidgets('reveals available content even when readiness never arrives', (
@@ -84,7 +84,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 2));
 
       expect(find.text(_content), findsOneWidget);
-      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.byType(TenturaCircularProgress), findsNothing);
       expect(find.byType(ScreenLoadErrorPanel), findsNothing);
     });
 
@@ -101,7 +101,7 @@ void main() {
 
       expect(find.byType(ScreenLoadErrorPanel), findsOneWidget);
       expect(find.text(_content), findsNothing);
-      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.byType(TenturaCircularProgress), findsNothing);
       final context = tester.element(find.byType(ScreenLoadErrorPanel));
       final l10n = L10n.of(context)!;
       expect(find.text(l10n.screenLoadErrorNetworkTitle), findsOneWidget);
@@ -120,19 +120,19 @@ void main() {
       readiness.value = true;
       await tester.pump();
       expect(find.text(_content), findsOneWidget);
-      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.byType(TenturaCircularProgress), findsNothing);
 
       readiness.value = false;
       await tester.pump();
 
       expect(find.text(_content), findsOneWidget);
-      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.byType(TenturaCircularProgress), findsNothing);
       await tester.pump(const Duration(milliseconds: 200));
       expect(find.text(_content), findsOneWidget);
-      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.byType(TenturaCircularProgress), findsNothing);
       await tester.pump(const Duration(milliseconds: 2600));
       expect(find.text(_content), findsOneWidget);
-      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.byType(TenturaCircularProgress), findsNothing);
     });
   });
 }
