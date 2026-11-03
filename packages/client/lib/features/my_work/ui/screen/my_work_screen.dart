@@ -125,57 +125,57 @@ class _MyWorkScreenState extends State<MyWorkScreen> {
         : null;
 
     Widget buildBar({required bool isPaused}) => Scaffold(
-          backgroundColor: scheme.surface,
-          appBar: TenturaTopBar.of(
-            context,
-            tone: TenturaTopBarTone.primary,
-            alignment: useExpandedPane
-                ? TenturaTopBarAlignment.fullWidth
-                : TenturaTopBarAlignment.content,
-            title: useCompactTopBar
-                ? const SizedBox.shrink()
-                : LayoutBuilder(
-                    builder: (context, constraints) {
-                      // NavigationToolbar can leave the title slot narrower
-                      // than one control while its leading and actions are
-                      // being measured. Keep the compact custom row unchanged;
-                      // on this transient non-compact path, omit controls that
-                      // cannot retain their tap target instead of overflowing.
-                      if (constraints.maxWidth < tt.buttonHeight) {
-                        return const SizedBox.shrink();
-                      }
-                      return const _MyWorkTitleControls();
-                    },
-                  ),
-            actions: useCompactTopBar ? null : [createButton],
-            // NavigationToolbar balances its middle against the full trailing
-            // action width. With filter + sort in the middle and two actions at
-            // 390px, that can leave only a few pixels for the middle Row. The
-            // compact bar is one explicit flex row so the filter owns the
-            // shrinkable remainder while sort and icon actions keep tap targets.
-            row: useCompactTopBar
-                ? Row(
-                    children: [
-                      const Expanded(child: _MyWorkTitleControls()),
-                      createButton,
-                    ],
-                  )
-                : null,
-            account: useCompactTopBar
-                ? const HomeAccountAvatarButton()
-                : homeTopBarAccount(context),
-            bottom: useCompactTopBar && isPaused
-                ? const _MyWorkTopBarPausedBottom()
-                : null,
-          ),
-          body: SafeArea(
-            minimum: EdgeInsets.symmetric(horizontal: tt.screenHPadding),
-            child: _MyWorkBody(
-              listScrollController: _listScrollController,
-              cardKey: _cardKey,
-            ),
-          ),
-        );
+      backgroundColor: scheme.surface,
+      appBar: TenturaTopBar.of(
+        context,
+        tone: TenturaTopBarTone.primary,
+        alignment: useExpandedPane
+            ? TenturaTopBarAlignment.fullWidth
+            : TenturaTopBarAlignment.content,
+        title: useCompactTopBar
+            ? const SizedBox.shrink()
+            : LayoutBuilder(
+                builder: (context, constraints) {
+                  // NavigationToolbar can leave the title slot narrower
+                  // than one control while its leading and actions are
+                  // being measured. Keep the compact custom row unchanged;
+                  // on this transient non-compact path, omit controls that
+                  // cannot retain their tap target instead of overflowing.
+                  if (constraints.maxWidth < tt.buttonHeight) {
+                    return const SizedBox.shrink();
+                  }
+                  return const _MyWorkTitleControls();
+                },
+              ),
+        actions: useCompactTopBar ? null : [createButton],
+        // NavigationToolbar balances its middle against the full trailing
+        // action width. With filter + sort in the middle and two actions at
+        // 390px, that can leave only a few pixels for the middle Row. The
+        // compact bar is one explicit flex row so the filter owns the
+        // shrinkable remainder while sort and icon actions keep tap targets.
+        row: useCompactTopBar
+            ? Row(
+                children: [
+                  const Expanded(child: _MyWorkTitleControls()),
+                  createButton,
+                ],
+              )
+            : null,
+        account: useCompactTopBar
+            ? const HomeAccountAvatarButton()
+            : homeTopBarAccount(context),
+        bottom: useCompactTopBar && isPaused
+            ? const _MyWorkTopBarPausedBottom()
+            : null,
+      ),
+      body: SafeArea(
+        minimum: EdgeInsets.symmetric(horizontal: tt.screenHPadding),
+        child: _MyWorkBody(
+          listScrollController: _listScrollController,
+          cardKey: _cardKey,
+        ),
+      ),
+    );
 
     final content = profileCubit == null
         ? buildBar(isPaused: false)
@@ -185,8 +185,7 @@ class _MyWorkScreenState extends State<MyWorkScreen> {
               final availability = state.profile.availability;
               final todayUtc = availabilityTodayUtc();
               return availability.resumeOn != null &&
-                  availability.effectiveOn(todayUtc) ==
-                      AvailabilityView.paused;
+                  availability.effectiveOn(todayUtc) == AvailabilityView.paused;
             },
             builder: (context, isPaused) => buildBar(isPaused: isPaused),
           );
@@ -541,7 +540,7 @@ class _MyWorkListBody extends StatelessWidget {
         !state.archivedDataFetched &&
         state.archivedFetchInProgress) {
       return const Center(
-        child: CircularProgressIndicator.adaptive(),
+        child: TenturaCircularProgress(adaptive: true),
       );
     }
     final cards = state.visibleCards;
@@ -622,12 +621,13 @@ class _MyWorkListBody extends StatelessWidget {
                               cubit.setFilter(MyWorkFilter.archived),
                         ),
                       ),
-                      OrientationDecision.undecided => const SliverFillRemaining(
-                        hasScrollBody: false,
-                        child: Center(
-                          child: CircularProgressIndicator.adaptive(),
+                      OrientationDecision.undecided =>
+                        const SliverFillRemaining(
+                          hasScrollBody: false,
+                          child: Center(
+                            child: TenturaCircularProgress(adaptive: true),
+                          ),
                         ),
-                      ),
                     },
                   ],
                 ),
