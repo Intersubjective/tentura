@@ -544,7 +544,13 @@ class _BoxSelectState extends State<_BoxSelect> {
 
   void _down(PointerEvent event) {
     _session.down(event);
-    if (_session.multi) _clearBox();
+    if (_session.multi) {
+      _clearBox();
+      return;
+    }
+    if (_accepts(event.localPosition)) {
+      widget.cubit.graphController.setCameraInteractionGated(true);
+    }
   }
 
   /// A cancelled pointer abandons the box.
@@ -552,6 +558,7 @@ class _BoxSelectState extends State<_BoxSelect> {
     _session
       ..up(event)
       ..multi = true;
+    widget.cubit.graphController.setCameraInteractionGated(false);
     _clearBox();
   }
 
@@ -569,6 +576,7 @@ class _BoxSelectState extends State<_BoxSelect> {
       _camera.start(details);
       return;
     }
+    widget.cubit.graphController.setCameraInteractionGated(true);
     setState(() {
       _start = details.localFocalPoint;
       _end = details.localFocalPoint;
@@ -585,6 +593,7 @@ class _BoxSelectState extends State<_BoxSelect> {
 
   void _onEnd(ScaleEndDetails _) {
     _camera.end();
+    widget.cubit.graphController.setCameraInteractionGated(false);
     final start = _start;
     final end = _end;
     // A finger joining or leaving ends the scale gesture, not the session:
