@@ -1231,14 +1231,21 @@ class _ConstellationBodyState extends State<ConstellationBody>
             builder: (context, _) =>
                 BlocBuilder<ConstellationTagLensCubit, ConstellationTagFilter>(
                   bloc: lensCubit,
-                  builder: (context, filter) => ConstellationTagHullLayer(
-                    controller: cubit.graphController,
-                    tags: [
-                      for (final tag in store.tags)
-                        if (filter.selectedOwn.contains(tag.id)) tag,
-                    ],
-                    peopleOf: store.peopleInTag,
-                  ),
+                  builder: (context, filter) {
+                    final fieldIds = {
+                      for (final person in cubit.fieldPeople) person.id,
+                    };
+                    return ConstellationTagHullLayer(
+                      controller: cubit.graphController,
+                      tags: [
+                        for (final tag in store.tags)
+                          if (store.peopleInTag(tag.id).any(fieldIds.contains))
+                            tag,
+                      ],
+                      selectedTagIds: filter.selectedOwn,
+                      peopleOf: store.peopleInTag,
+                    );
+                  },
                 ),
           ),
         BlocBuilder<ConstellationCubit, ConstellationState>(

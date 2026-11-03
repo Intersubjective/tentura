@@ -1,6 +1,6 @@
-// The tag lens paints a soft hull around the people of every selected own
-// tag, between the edges and the nodes. Automatic tags have no hull, and
-// painting one never moves a node.
+// The tag lens paints a soft hull around the people of every own tag that has
+// someone on the Field. Selecting a tag highlights its hull; automatic tags
+// have no hull, and painting one never moves a node.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -11,8 +11,8 @@ import 'package:tentura/features/constellation/ui/widget/constellation_tag_hull_
 import 'package:tentura/ui/test_ids.dart';
 
 import '../../support/constellation_tag_lens_body_harness.dart';
+import '../../support/phone_surface.dart';
 
-/// Every hull on screen, whichever tag it belongs to.
 Finder _anyHull() => find.byWidgetPredicate((widget) {
   final key = widget.key;
   return key is ValueKey<String> &&
@@ -27,24 +27,45 @@ Finder _node(String personId) =>
 
 /// What the keyed hull widget draws: its first `drawPath` call. The widget
 /// must paint the hull path itself, so the path is in its own local space.
-({Path path, Paint paint, RenderObject box}) _drawnHull(
+({Path path, Paint fill, Paint? stroke, RenderObject box}) _drawnHull(
   WidgetTester tester,
-  String tagId,
-) {
+  String tagId, {
+  bool expectStroke = false,
+}) {
   Path? path;
-  Paint? paint;
+  Paint? fill;
+  Paint? stroke;
   final box = tester.renderObject(_hullOf(tagId));
-  expect(
-    box,
-    paints..something((name, arguments) {
-      if (name != #drawPath) return false;
-      path = arguments[0] as Path;
-      paint = arguments[1] as Paint;
-      return true;
-    }),
-    reason: 'the hull of $tagId draws a path',
-  );
-  return (path: path!, paint: paint!, box: box);
+  if (expectStroke) {
+    expect(
+      box,
+      paints
+        ..something((name, arguments) {
+          if (name != #drawPath) return false;
+          path = arguments[0] as Path;
+          fill = arguments[1] as Paint;
+          return fill!.style == PaintingStyle.fill;
+        })
+        ..something((name, arguments) {
+          if (name != #drawPath) return false;
+          stroke = arguments[1] as Paint;
+          return stroke!.style == PaintingStyle.stroke;
+        }),
+      reason: 'the hull of $tagId draws fill then outline',
+    );
+  } else {
+    expect(
+      box,
+      paints..something((name, arguments) {
+        if (name != #drawPath) return false;
+        path = arguments[0] as Path;
+        fill = arguments[1] as Paint;
+        return fill!.style == PaintingStyle.fill;
+      }),
+      reason: 'the hull of $tagId draws a fill path',
+    );
+  }
+  return (path: path!, fill: fill!, stroke: stroke, box: box);
 }
 
 /// The centre of person [personId]'s node in the hull's own space.
@@ -85,11 +106,11 @@ void main() {
       final swatch = Theme.of(
         tester.element(_hullOf(tagLensNeighbour.id)),
       ).extension<TenturaTagColors>()!.swatches[tagLensNeighbour.color];
-      expect(hull.paint.style, PaintingStyle.fill);
-      expect(hull.paint.color.a, greaterThan(0));
-      expect(hull.paint.color.a, lessThan(1), reason: 'a soft hull');
+      expect(hull.fill.style, PaintingStyle.fill);
+      expect(hull.fill.color.a, greaterThan(0));
+      expect(hull.fill.color.a, lessThan(1), reason: 'a soft hull');
       expect(
-        _rgb(hull.paint.color),
+        _rgb(hull.fill.color),
         anyOf(_rgb(swatch.container), _rgb(swatch.accent)),
       );
     });
@@ -102,8 +123,8 @@ void main() {
         ..toggleOwn(tagLensWorkshop.id);
       await settleTagLensBody(tester);
 
-      final neighbour = _drawnHull(tester, tagLensNeighbour.id).paint.color;
-      final workshop = _drawnHull(tester, tagLensWorkshop.id).paint.color;
+      final neighbour = _drawnHull(tester, tagLensNeighbour.id).fill.color;
+      final workshop = _drawnHull(tester, tagLensWorkshop.id).fill.color;
       expect(_rgb(neighbour), isNot(_rgb(workshop)));
     });
 
@@ -177,6 +198,25 @@ void main() {
       }
     });
 
+    testWidgets('selected tag hull paints above overlapping unselected hulls', (
+      tester,
+    ) async {
+      final m = await mountTagLensBody(tester);
+
+      m.lens.toggleOwn(tagLensGarden.id);
+      await settleTagLensBody(tester);
+
+      final order = _paintOrder(tester);
+      final gardenAt = order[tester.renderObject(_hullOf(tagLensGarden.id))]!;
+      final workshopAt =
+          order[tester.renderObject(_hullOf(tagLensWorkshop.id))]!;
+      expect(
+        gardenAt,
+        greaterThan(workshopAt),
+        reason: 'the highlighted hull paints on top',
+      );
+    });
+
     testWidgets('a person under the hull can still be tapped', (tester) async {
       final m = await mountTagLensBody(tester);
       m.lens.toggleOwn(tagLensGarden.id);
@@ -191,23 +231,45 @@ void main() {
   });
 
   group('tag lens hull presence', () {
-    testWidgets('no hull is painted while no tag is selected', (tester) async {
+    testWidgets('every own tag with field people has a hull before selection', (
+      tester,
+    ) async {
       await mountTagLensBody(tester);
 
-      expect(_anyHull(), findsNothing);
+      expect(_hullOf(tagLensNeighbour.id), findsOneWidget);
+      expect(_hullOf(tagLensWorkshop.id), findsOneWidget);
+      expect(_hullOf(tagLensGarden.id), findsOneWidget);
+      expect(_hullOf(tagLensEmpty.id), findsNothing);
+      expect(_anyHull(), findsNWidgets(3));
     });
 
-    testWidgets('a selected own tag gets one hull', (tester) async {
+    testWidgets('a selected own tag keeps every hull and highlights its own', (
+      tester,
+    ) async {
       final m = await mountTagLensBody(tester);
 
       m.lens.toggleOwn(tagLensNeighbour.id);
       await settleTagLensBody(tester);
 
       expect(_hullOf(tagLensNeighbour.id), findsOneWidget);
-      expect(_anyHull(), findsOneWidget);
+      expect(_hullOf(tagLensWorkshop.id), findsOneWidget);
+      expect(_hullOf(tagLensGarden.id), findsOneWidget);
+      expect(_anyHull(), findsNWidgets(3));
+
+      final selected = _drawnHull(
+        tester,
+        tagLensNeighbour.id,
+        expectStroke: true,
+      );
+      final dim = _drawnHull(tester, tagLensWorkshop.id);
+      expect(selected.stroke, isNotNull);
+      expect(dim.stroke, isNull);
+      expect(selected.fill.color.a, greaterThan(dim.fill.color.a));
     });
 
-    testWidgets('every selected own tag gets its own hull', (tester) async {
+    testWidgets('every selected own tag gets a highlighted hull', (
+      tester,
+    ) async {
       final m = await mountTagLensBody(tester);
 
       m.lens
@@ -217,10 +279,21 @@ void main() {
 
       expect(_hullOf(tagLensNeighbour.id), findsOneWidget);
       expect(_hullOf(tagLensWorkshop.id), findsOneWidget);
-      expect(_anyHull(), findsNWidgets(2));
+      expect(_anyHull(), findsNWidgets(3));
+      expect(
+        _drawnHull(tester, tagLensNeighbour.id, expectStroke: true).stroke,
+        isNotNull,
+      );
+      expect(
+        _drawnHull(tester, tagLensWorkshop.id, expectStroke: true).stroke,
+        isNotNull,
+      );
+      expect(_drawnHull(tester, tagLensGarden.id).stroke, isNull);
     });
 
-    testWidgets('deselecting a tag removes only its hull', (tester) async {
+    testWidgets('deselecting a tag dims its hull but keeps it visible', (
+      tester,
+    ) async {
       final m = await mountTagLensBody(tester);
       m.lens
         ..toggleOwn(tagLensNeighbour.id)
@@ -230,31 +303,48 @@ void main() {
       m.lens.toggleOwn(tagLensNeighbour.id);
       await settleTagLensBody(tester);
 
-      expect(_hullOf(tagLensNeighbour.id), findsNothing);
+      expect(_hullOf(tagLensNeighbour.id), findsOneWidget);
       expect(_hullOf(tagLensWorkshop.id), findsOneWidget);
+      expect(_drawnHull(tester, tagLensNeighbour.id).stroke, isNull);
+      expect(
+        _drawnHull(tester, tagLensWorkshop.id, expectStroke: true).stroke,
+        isNotNull,
+      );
     });
 
-    testWidgets('clearing the selection removes every hull', (tester) async {
-      final m = await mountTagLensBody(tester);
-      m.lens
-        ..toggleOwn(tagLensNeighbour.id)
-        ..toggleOwn(tagLensGarden.id);
-      await settleTagLensBody(tester);
-      expect(_anyHull(), findsNWidgets(2), reason: 'positive control');
+    testWidgets(
+      'clearing the selection dims every hull but keeps them visible',
+      (
+        tester,
+      ) async {
+        final m = await mountTagLensBody(tester);
+        m.lens
+          ..toggleOwn(tagLensNeighbour.id)
+          ..toggleOwn(tagLensGarden.id);
+        await settleTagLensBody(tester);
+        expect(
+          _drawnHull(tester, tagLensNeighbour.id, expectStroke: true).stroke,
+          isNotNull,
+        );
 
-      m.lens.clear();
-      await settleTagLensBody(tester);
+        m.lens.clear();
+        await settleTagLensBody(tester);
 
-      expect(_anyHull(), findsNothing);
-    });
+        expect(_anyHull(), findsNWidgets(3));
+        expect(_drawnHull(tester, tagLensNeighbour.id).stroke, isNull);
+        expect(_drawnHull(tester, tagLensGarden.id).stroke, isNull);
+      },
+    );
 
-    testWidgets('a selected automatic tag has no hull', (tester) async {
+    testWidgets('a selected automatic tag has no hull of its own', (
+      tester,
+    ) async {
       final m = await mountTagLensBody(tester);
 
       m.lens.toggleAuto(ConstellationAutoTagKind.mutualContact);
       await settleTagLensBody(tester);
 
-      expect(_anyHull(), findsNothing);
+      expect(_anyHull(), findsNWidgets(3));
     });
 
     testWidgets('an automatic tag selected beside an own tag adds no hull', (
@@ -268,7 +358,7 @@ void main() {
       await settleTagLensBody(tester);
 
       expect(_hullOf(tagLensNeighbour.id), findsOneWidget);
-      expect(_anyHull(), findsOneWidget);
+      expect(_anyHull(), findsNWidgets(3));
     });
 
     testWidgets(
@@ -282,7 +372,8 @@ void main() {
         await settleTagLensBody(tester);
 
         expect(m.lens.state.selectedOwn, {tagLensEmpty.id});
-        expect(_anyHull(), findsNothing);
+        expect(_hullOf(tagLensEmpty.id), findsNothing);
+        expect(_anyHull(), findsNWidgets(3));
       },
     );
 
@@ -323,6 +414,29 @@ void main() {
           reason: id,
         );
       }
+    });
+  });
+
+  group('tag lens hull highlight at phone width', () {
+    testWidgets('RU 375x667 keeps every hull visible without overflow', (
+      tester,
+    ) async {
+      final m = await mountTagLensBody(
+        tester,
+        locale: const Locale('ru'),
+        surfaceSize: kPhoneSurface,
+      );
+
+      expect(_anyHull(), findsNWidgets(3));
+
+      m.lens.toggleOwn(tagLensGarden.id);
+      await settleTagLensBody(tester);
+
+      expect(
+        _drawnHull(tester, tagLensGarden.id, expectStroke: true).stroke,
+        isNotNull,
+      );
+      expect(tester.takeException(), isNull);
     });
   });
 }
