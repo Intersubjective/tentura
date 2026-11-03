@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
+import 'package:tentura/domain/contacts/contact_name_overlay.dart';
+import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/capability/capability_tag.dart';
 import 'package:tentura/domain/entity/beacon.dart';
@@ -99,11 +101,15 @@ String? constellationHeldAnnotation(L10n l10n, ConstellationRequest request) {
     ConstellationHeldState.mine => l10n.constellationHeldMine,
     ConstellationHeldState.offered => l10n.constellationHeldOffered,
     ConstellationHeldState.participant => l10n.constellationHeldParticipant,
-    ConstellationHeldState.forwarded => switch (request.forwardedBy?.displayName
-        ?.trim()) {
-      final String name when name.isNotEmpty => l10n.attentionCardForwardedBy(
-        name,
-      ),
+    ConstellationHeldState.forwarded => switch (request.forwardedBy) {
+      final fwd? when fwd.id.isNotEmpty => () {
+        final name = profileWithContactOverlay(
+          Profile(id: fwd.id, displayName: fwd.displayName ?? ''),
+        ).shownName.trim();
+        return name.isNotEmpty
+            ? l10n.attentionCardForwardedBy(name)
+            : l10n.constellationHeldForwarded;
+      }(),
       _ => l10n.constellationHeldForwarded,
     },
     ConstellationHeldState.none => null,
