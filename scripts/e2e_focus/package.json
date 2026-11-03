@@ -5,7 +5,8 @@
   "scripts": {
     "test": "bash run.sh all",
     "cold-graph-tab": "node cold_graph_tab.mjs",
-    "semantics-push-null-check": "node semantics_push_null_check.mjs"
+    "semantics-push-null-check": "node semantics_push_null_check.mjs",
+    "sheet-search-keeps-typing": "node sheet_search_keeps_typing.mjs"
   },
   "dependencies": { "playwright": "^1.51.0" }
 }
