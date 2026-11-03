@@ -101,7 +101,10 @@ class _PersonSuggestion extends StatelessWidget {
     return ListTile(
       key: Key('constellation.search.person.${person.id}'),
       leading: profile == null ? null : TenturaAvatar.small(profile: profile),
-      title: Text(person.name, overflow: TextOverflow.ellipsis),
+      title: Text(
+        profile?.shownName ?? person.name,
+        overflow: TextOverflow.ellipsis,
+      ),
       onTap: onTap,
     );
   }

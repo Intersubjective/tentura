@@ -1,5 +1,8 @@
 import 'package:meta/meta.dart';
 
+import 'package:tentura/domain/contacts/contact_name_overlay.dart';
+import 'package:tentura/domain/entity/profile.dart';
+
 import 'constellation_anchor_composition.dart';
 import 'entity/constellation_field.dart';
 
@@ -89,8 +92,13 @@ bool constellationPersonMatches(ConstellationFieldPerson person, String query) {
 }
 
 String? _nameOf(ConstellationPerson? peer) {
-  final name = peer?.displayName?.trim();
-  return name == null || name.isEmpty ? null : name;
+  if (peer == null) {
+    return null;
+  }
+  final shown = profileWithContactOverlay(
+    Profile(id: peer.id, displayName: peer.displayName ?? ''),
+  ).shownName.trim();
+  return shown.isEmpty ? null : shown;
 }
 
 String _fold(String text) =>
