@@ -403,13 +403,7 @@ eligible_forward AS (
       ii.status <> 0
       OR ii.beacon_id IN (SELECT scope.beacon_id FROM scope)
     )
-    AND (
-      public.beacon_can_read_content(ii.beacon_id, \$1)
-      OR (
-        ii.status IN (3, 4)
-        AND public.beacon_can_read_tombstone(ii.beacon_id, \$1)
-      )
-    )
+    AND ${AttentionDismissibleSql.outcomeReadabilityGuard}
 ),
 -- U15R-a / R1 — *representative* now means "an attention object that owns
 -- this Request's children", and only the pinned zone is one. An outcome row
