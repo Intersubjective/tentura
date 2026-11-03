@@ -16,13 +16,19 @@ import 'package:tentura_server/domain/attention/attention_policy.dart';
 ///
 /// Every fragment takes the viewer's account id as `$1`.
 abstract final class AttentionDismissibleSql {
+  /// Content readability for a trusted SQL row alias and viewer `$1`.
+  /// Tombstone-only access is deliberately a separate policy branch.
+  static String contentReadability(String alias) =>
+      'public.beacon_can_read_content($alias.beacon_id, \$1)';
+
   /// Outcome visibility for inbox row `ii` and viewer `$1`, shared by the
   /// Activity feed, Dismiss all and undo (including refusal classification).
-  static const outcomeReadabilityGuard = r'''(
-      public.beacon_can_read_content(ii.beacon_id, $1)
+  static final outcomeReadabilityGuard =
+      '''(
+      ${contentReadability('ii')}
       OR (
         ii.status IN (3, 4)
-        AND public.beacon_can_read_tombstone(ii.beacon_id, $1)
+        AND public.beacon_can_read_tombstone(ii.beacon_id, \$1)
       )
     )''';
 
@@ -389,7 +395,7 @@ OR EXISTS (SELECT 1 FROM activity_outcome_dismissible)''';
   /// unanswered forwards (here) and obligations (Set R). A prompt that later
   /// gains a live feed row must be excluded explicitly; it will not fall out
   /// of these predicates by itself.
-  static const dismissibleOutcomes =
+  static final dismissibleOutcomes =
       '''
 activity_outcome_dismissible AS (
   SELECT

@@ -7,6 +7,7 @@ import 'package:test/test.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
 import 'package:tentura_server/data/repository/attention_repository.dart';
+import 'package:tentura_server/data/repository/author_invite_repository.dart';
 import 'package:tentura_server/data/repository/attention_sweep_repository.dart';
 import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/attention/attention_undo_models.dart';
@@ -92,6 +93,38 @@ Future<void> main() async {
           item.id.substring('inbox:'.length),
     };
   }
+
+  test(
+    'pending invites require content access even when tombstones are readable',
+    () async {
+      await _blockAuthor(writer);
+      await _dropForward(writer, _unreadableBeaconId);
+      for (final beaconId in _allBeaconIds) {
+        await writer.execute(
+          Sql.named('''
+INSERT INTO public.beacon_author_invite
+  (id, beacon_id, inviter_id, invitee_id, warm)
+SELECT @id, id, user_id, @viewer, false
+FROM public.beacon WHERE id = @beacon
+'''),
+          parameters: {
+            'id': 'BI$beaconId',
+            'viewer': _viewerId,
+            'beacon': beaconId,
+          },
+        );
+      }
+
+      final pending = await AuthorInviteRepository(
+        database,
+      ).listPendingForInvitee(_viewerId);
+      expect(pending.map((invite) => invite.beaconId).toSet(), {
+        _readableBeaconId,
+      });
+      expect(await feedOutcomes(), {_readableBeaconId, _tombstoneBeaconId});
+    },
+    skip: skipReason,
+  );
 
   group('feed and Dismiss all agree before a sweep', () {
     test('the feed shows exactly the outcomes Dismiss all hides', () async {
