@@ -48,6 +48,7 @@ import 'room_baton_create_sheet.dart';
 import 'room_baton_plan_step_sheet.dart';
 import 'room_file_attachment_open.dart';
 import 'room_readers_sheet.dart';
+import 'post_root_pin_card.dart';
 
 /// Body-only room UI (message list + composer); expects [RoomCubit] above.
 class BeaconRoomBody extends StatefulWidget {
@@ -63,6 +64,9 @@ class BeaconRoomBody extends StatefulWidget {
     this.batonEnabled = kBatonEnabled,
     this.postBuddingEnabled = kPostBuddingEnabled,
     this.postArchived = false,
+    this.postExpiresAt,
+    this.postForwardPolicyOpen = true,
+    this.postNow,
     this.header,
     this.readOnlyHint,
     this.onRemoveAuthor,
@@ -86,6 +90,15 @@ class BeaconRoomBody extends StatefulWidget {
   /// Post rooms only: the host's Post is closed or past its `expiresAt`. The
   /// room is read-only and offers «Оформить запрос» instead of the composer.
   final bool postArchived;
+
+  /// Post rooms: deadline for [PostRootPinCard] lifetime label.
+  final DateTime? postExpiresAt;
+
+  /// Post rooms: whether the meta line says the Post can be shared.
+  final bool postForwardPolicyOpen;
+
+  /// Wall clock for the Post card lifetime; defaults to [DateTime.now].
+  final DateTime Function()? postNow;
 
   /// Offers «Оформить запрос» on the viewer's own messages in a room whose
   /// capabilities allow own-message promotion; defaults to
@@ -132,6 +145,106 @@ String _readWatermarksFingerprint(Map<String, RoomReadWatermark> watermarks) {
 
 class _BeaconRoomBodyState extends State<BeaconRoomBody> {
   final _basicChatKey = GlobalKey<BasicChatBodyState>();
+  var _postRootCollapsed = false;
+
+  static const _postRootCollapseScrollThreshold = 12.0;
+
+  DateTime _postClock() => widget.postNow?.call() ?? DateTime.now();
+
+  void _onPostListScroll(double pixels) {
+    if (!_isPostRoom) return;
+    final collapsed = pixels > _postRootCollapseScrollThreshold;
+    if (collapsed != _postRootCollapsed && mounted) {
+      setState(() => _postRootCollapsed = collapsed);
+    }
+  }
+
+  void _expandPostRootCard() {
+    setState(() => _postRootCollapsed = false);
+    _basicChatKey.currentState?.scrollToTop();
+  }
+
+  RoomMessage? _rootMessage(RoomState state) {
+    final rootId = widget.postRoot?.messageId;
+    if (rootId == null || rootId.isEmpty) return null;
+    for (final m in state.messages) {
+      if (m.id == rootId) return m;
+    }
+    return null;
+  }
+
+  List<RoomMessage> _visibleDiscussionMessages(RoomState state) {
+    final base = _filterDiscussionMessages(state.messages);
+    if (!_isPostRoom) return base;
+    final rootId = widget.postRoot?.messageId;
+    if (rootId == null || rootId.isEmpty) return base;
+    return base.where((m) => m.id != rootId).toList();
+  }
+
+  int _postPeopleCount(RoomState state) {
+    if (!state.participantsLoaded) return 0;
+    final ids = <String>{};
+    if (widget.beaconAuthorId.isNotEmpty) ids.add(widget.beaconAuthorId);
+    for (final p in state.participants) {
+      if (p.roomAccess == RoomAccessBits.admitted) ids.add(p.userId);
+    }
+    return ids.length;
+  }
+
+  int _postReplyCount(RoomState state) =>
+      _visibleDiscussionMessages(state).length;
+
+  Widget? _postRepliesHeader(L10n l10n) {
+    if (!_isPostRoom || widget.postRoot?.hasStrip != true) return null;
+    final tt = context.tt;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        tt.screenHPadding,
+        tt.sectionGap,
+        tt.screenHPadding,
+        tt.tightGap,
+      ),
+      child: Text(
+        l10n.postRepliesSection,
+        key: const Key('PostRoom.RepliesHeader'),
+        style: TenturaText.labelLarge(context.tt.textMuted),
+      ),
+    );
+  }
+
+  Widget? _postRootHeader(
+    BuildContext context,
+    RoomCubit cubit,
+    L10n l10n,
+    Profile myProfile,
+    RoomState state,
+  ) {
+    if (!_isPostRoom || widget.postRoot?.hasStrip != true) return null;
+    final pin = widget.postRoot!;
+    final root = _rootMessage(state);
+    return PostRootPinCard(
+      pin: pin,
+      collapsed: _postRootCollapsed,
+      onTap: _expandPostRootCard,
+      now: _postClock(),
+      rootMessage: root,
+      author: widget.beaconAuthor ?? root?.author,
+      expiresAt: widget.postExpiresAt,
+      archived: widget.postArchived,
+      peopleCount: state.participantsLoaded ? _postPeopleCount(state) : null,
+      replyCount: _postReplyCount(state),
+      forwardPolicyOpen: widget.postForwardPolicyOpen,
+      onRootMessageActions: root == null
+          ? null
+          : () => _onMessageActionsPressed(
+              context,
+              cubit,
+              l10n,
+              myProfile,
+              root,
+            ),
+    );
+  }
 
   /// «Ben is typing…» / «N people are typing…» above the composer; null when
   /// nobody is typing. A typist without a name on hand (the Request's author
@@ -455,12 +568,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
             key: _basicChatKey,
             receiptIndex: receiptIndex,
             header: showPostRoot
-                ? _PinnedPostRootRow(
-                    pin: widget.postRoot!,
-                    onTap: () => cubit.requestScrollToMessage(
-                      widget.postRoot!.messageId,
-                    ),
-                  )
+                ? _postRootHeader(context, cubit, l10n, myProfile, state)
                 : showPinnedBlocker
                 ? _PinnedBlockerRow(state: state)
                 : widget.header,
@@ -486,7 +594,12 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                       ),
                     ),
                   ),
-            messages: _filterDiscussionMessages(state.messages),
+            messages: _visibleDiscussionMessages(state),
+            messageListHeader: _postRepliesHeader(l10n),
+            onListScrollPixelsChanged: showPostRoot ? _onPostListScroll : null,
+            composerWriteHint: showPostRoot && canWrite
+                ? l10n.postComposerReplyHint
+                : null,
             myProfile: myProfile,
             participants: state.participants,
             isLoading: state.isLoading,
@@ -1936,82 +2049,6 @@ class _ArchivedPostComposerBar extends StatelessWidget {
               ),
             ],
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _PinnedPostRootRow extends StatelessWidget {
-  const _PinnedPostRootRow({required this.pin, required this.onTap});
-
-  final RoomPostRootPin pin;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = L10n.of(context)!;
-    final tt = context.tt;
-    final forwardedLine = pin.startedBy.isNotEmpty
-        ? pin.forwardNote.isEmpty
-              ? l10n.postStartedByLine(pin.startedBy)
-              : l10n.postStartedByLineWithNote(pin.startedBy, pin.forwardNote)
-        : pin.forwardedBy.isEmpty
-        ? null
-        : pin.forwardNote.isEmpty
-        ? l10n.postForwardedByLineNoNote(pin.forwardedBy)
-        : l10n.postForwardedByLine(pin.forwardedBy, pin.forwardNote);
-    // #667: the author's own opening message is the first bubble; the strip
-    // names who started the chat and does not repeat it (tap still jumps).
-    final showExcerpt = pin.excerpt.isNotEmpty && pin.startedBy.isEmpty;
-
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-        tt.screenHPadding,
-        tt.rowGap,
-        tt.screenHPadding,
-        tt.rowGap,
-      ),
-      child: Material(
-        color: tt.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(tt.cardRadius),
-          side: BorderSide(color: tt.borderSubtle),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          child: Padding(
-            padding: tt.cardPadding,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(Icons.push_pin_outlined, size: tt.iconSize),
-                SizedBox(width: tt.iconTextGap),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (showExcerpt)
-                        Text(
-                          pin.excerpt,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: TenturaText.bodySmall(tt.text),
-                        ),
-                      if (forwardedLine != null)
-                        Text(
-                          forwardedLine,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: TenturaText.bodySmall(tt.textMuted),
-                        ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
         ),
       ),
     );

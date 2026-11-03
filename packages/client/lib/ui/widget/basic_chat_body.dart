@@ -117,6 +117,9 @@ class BasicChatBody extends StatefulWidget {
     this.requestAuthorId = '',
     this.pollsClosed = false,
     this.hideUntilViewportPositioned = false,
+    this.messageListHeader,
+    this.composerWriteHint,
+    this.onListScrollPixelsChanged,
     super.key,
   });
 
@@ -218,6 +221,15 @@ class BasicChatBody extends StatefulWidget {
   onSendWithMentions;
 
   final Widget? header;
+
+  /// Inserted as the first row of the message list (below [header]).
+  final Widget? messageListHeader;
+
+  /// When the composer is writable, replaces the default room composer hint.
+  final String? composerWriteHint;
+
+  /// Notified when the message [ScrollController] pixel offset changes.
+  final ValueChanged<double>? onListScrollPixelsChanged;
 
   final Widget? emptyPlaceholder;
 
@@ -351,6 +363,12 @@ class BasicChatBodyState extends State<BasicChatBody> {
   /// sheet closes) so the user can keep typing without clicking.
   void focusComposer() => _composerKey.currentState?.requestComposerFocus();
 
+  /// Scrolls the reply list to the top (Post card expand, #248).
+  void scrollToTop() {
+    if (!_scrollController.hasClients) return;
+    _scrollController.jumpTo(_scrollController.position.minScrollExtent);
+  }
+
   Future<bool> scrollToMessage(String id) async {
     for (var pass = 0; pass < _kScrollToMessageMaxPasses; pass++) {
       if (!mounted) {
@@ -411,6 +429,7 @@ class BasicChatBodyState extends State<BasicChatBody> {
   void _onMessageListScroll() {
     if (!mounted || !_scrollController.hasClients) return;
     final pos = _scrollController.position;
+    widget.onListScrollPixelsChanged?.call(pos.pixels);
     final fromBottom = pos.maxScrollExtent - pos.pixels;
     final showJump = fromBottom > 56;
     if (showJump != _showJumpFab) {
@@ -667,6 +686,9 @@ class BasicChatBodyState extends State<BasicChatBody> {
       }
     }
 
+    final listHeader = widget.messageListHeader;
+    final listHeaderCount = listHeader == null ? 0 : 1;
+
     return TenturaChatColumn(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -694,13 +716,19 @@ class BasicChatBodyState extends State<BasicChatBody> {
                           // poll) doesn't sit flush against the composer, which
                           // made its tap target compete with the text field.
                           padding: const EdgeInsets.only(bottom: kSpacingSmall),
-                          itemCount: visibleMessages.length,
+                          itemCount: visibleMessages.length + listHeaderCount,
                           itemBuilder: (context, i) {
-                            final m = visibleMessages[i];
-                            final prev = i == 0 ? null : visibleMessages[i - 1];
-                            final next = i + 1 >= visibleMessages.length
+                            if (listHeader != null && i == 0) {
+                              return listHeader;
+                            }
+                            final msgIndex = i - listHeaderCount;
+                            final m = visibleMessages[msgIndex];
+                            final prev = msgIndex == 0
                                 ? null
-                                : visibleMessages[i + 1];
+                                : visibleMessages[msgIndex - 1];
+                            final next = msgIndex + 1 >= visibleMessages.length
+                                ? null
+                                : visibleMessages[msgIndex + 1];
                             final dateChanged =
                                 prev == null ||
                                 !roomMessageSameLocalDay(
@@ -865,6 +893,7 @@ class BasicChatBodyState extends State<BasicChatBody> {
                         enableParticipantMentions:
                             widget.enableParticipantMentions,
                         readOnlyHint: widget.composerReadOnlyHint,
+                        writeHint: widget.composerWriteHint,
                         sendEnabled: widget.composerSendEnabled,
                         sendFailedOffline: widget.composerSendFailedOffline,
                         sendUnconfirmed: widget.composerSendUnconfirmed,
@@ -903,6 +932,7 @@ class BeaconRoomComposer extends StatefulWidget {
     this.enableAttachments = true,
     this.enableParticipantMentions = true,
     this.readOnlyHint,
+    this.writeHint,
     this.sendEnabled = true,
     this.sendFailedOffline = false,
     this.sendUnconfirmed = false,
@@ -945,6 +975,9 @@ class BeaconRoomComposer extends StatefulWidget {
 
   /// Non-null ⇒ composer is locked; also used as the disabled field hint.
   final String? readOnlyHint;
+
+  /// Writable composer hint; defaults to [L10n.beaconRoomMessageHint].
+  final String? writeHint;
 
   /// Host gate: false disables Send (and the Enter key) without locking the
   /// field.
@@ -1747,7 +1780,9 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer>
                     // the bare underline field.
                     decoration: InputDecoration(
                       hintText:
-                          widget.readOnlyHint ?? l10n.beaconRoomMessageHint,
+                          widget.readOnlyHint ??
+                          widget.writeHint ??
+                          l10n.beaconRoomMessageHint,
                       filled: true,
                       fillColor: theme.colorScheme.surfaceContainerHigh,
                       isDense: true,

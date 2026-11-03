@@ -54,6 +54,7 @@ class ForwardRecipientPicker extends StatefulWidget {
     this.promptUncoveredNotes = true,
     this.copyProfile,
     this.debugOnRowBuild,
+    this.header,
     super.key,
   });
 
@@ -101,6 +102,9 @@ class ForwardRecipientPicker extends StatefulWidget {
   /// Test hook (#807): called when a recipient row entry rebuilds.
   @visibleForTesting
   final void Function(String candidateId)? debugOnRowBuild;
+
+  /// Optional block above the search field and recipient list (Post composer).
+  final Widget? header;
 
   /// «Your connections» header (#440).
   static const directSectionKey = Key('ForwardRecipientPicker.directSection');
@@ -776,6 +780,8 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                           child: CustomScrollView(
                             controller: _scrollController,
                             slivers: [
+                              if (widget.header case final header?)
+                                SliverToBoxAdapter(child: header),
                               if (inviteNewPersonEnabled(
                                 beaconId: widget.beaconId,
                                 allowsForward:

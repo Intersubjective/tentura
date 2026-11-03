@@ -27,6 +27,9 @@ class BeaconRoomSurface extends StatefulWidget {
     this.onOpenCoordinationItem,
     this.postRoot,
     this.postArchived = false,
+    this.postExpiresAt,
+    this.postForwardPolicyOpen = true,
+    this.postNow,
     this.closureHadNoFinalCheck,
     super.key,
   });
@@ -47,6 +50,12 @@ class BeaconRoomSurface extends StatefulWidget {
 
   /// Post rooms only: the Post is closed or past its `expiresAt`.
   final bool postArchived;
+
+  final DateTime? postExpiresAt;
+
+  final bool postForwardPolicyOpen;
+
+  final DateTime Function()? postNow;
 
   /// When the loaded closure skipped Final check (#825).
   final bool? closureHadNoFinalCheck;
@@ -268,6 +277,9 @@ class _BeaconRoomSurfaceState extends State<BeaconRoomSurface> {
                   capabilities: host.capabilities,
                   postRoot: widget.postRoot,
                   postArchived: widget.postArchived,
+                  postExpiresAt: widget.postExpiresAt,
+                  postForwardPolicyOpen: widget.postForwardPolicyOpen,
+                  postNow: widget.postNow,
                   closureHadNoFinalCheck: widget.closureHadNoFinalCheck,
                   onCoordinationSaved: widget.onCoordinationSaved,
                   onOpenCoordinationItem: widget.onOpenCoordinationItem,
