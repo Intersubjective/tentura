@@ -29,6 +29,7 @@ typedef NodeDragStartCallback<N> = void Function(
 typedef NodeDragUpdateCallback<N> = void Function(
   N node,
   Offset scenePosition,
+  Offset globalPosition,
 );
 
 /// Optional transform applied to a proposed drag centre before presentation.

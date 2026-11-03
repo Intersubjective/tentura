@@ -173,7 +173,7 @@ Future<void> _pumpMinimalGraph(
           onNodeDragCancel: onNodeDragCancel,
           onNodeDragEnd: onNodeDragEnd,
           onNodeDragStart: (_, __) {},
-          onNodeDragUpdate: (_, __) {},
+          onNodeDragUpdate: (_, __, ___) {},
           nodeBuilder: (context, node) => SizedBox(
             width: node.size,
             height: node.size,

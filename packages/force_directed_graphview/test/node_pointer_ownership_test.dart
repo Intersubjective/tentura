@@ -247,7 +247,7 @@ Future<_Harness> _pump(WidgetTester tester) async {
             h.dragStarts.add(node);
             h.dragStartPosition = position;
           },
-          onNodeDragUpdate: (_, position) {
+          onNodeDragUpdate: (_, position, ___) {
             h.dragUpdates++;
             h.dragPositions.add(position);
           },

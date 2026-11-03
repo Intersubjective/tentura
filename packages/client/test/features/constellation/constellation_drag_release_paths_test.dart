@@ -232,6 +232,7 @@ Future<_Harness> _mount(
     size: size,
     locale: locale,
     presentationFrameHolder: frameHolder,
+    withSelectionCubit: true,
   );
   await _settleFrames(tester);
   // The scene starts on the real layout, so every node is reachable by a

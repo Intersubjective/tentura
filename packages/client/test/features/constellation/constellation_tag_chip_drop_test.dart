@@ -123,6 +123,9 @@ Future<void> _dragTo(
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 400));
   await tester.pump(const Duration(milliseconds: 400));
+  await tester.runAsync(() async {
+    await Future<void>.delayed(Duration.zero);
+  });
 }
 
 Future<void> _dropOnChip(

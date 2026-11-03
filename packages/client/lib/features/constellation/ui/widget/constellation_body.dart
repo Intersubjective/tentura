@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -152,6 +153,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
 
   // Where the pointer last was, to tell a drop on a tag chip from a pin.
   Offset? _lastPointerGlobal;
+  String? _lastTagChipDropHint;
   StreamSubscription<void>? _magnetTagsSubscription;
 
   late final GraphController<NodeDetails, EdgeDetails> _graphController;
@@ -615,9 +617,6 @@ class _ConstellationBodyState extends State<ConstellationBody>
   ) async {
     final requestId = request.id;
     await _dismissRequestPreview(cubit);
-    if (!context.mounted) {
-      return;
-    }
     final reShow = await _runOfferFlow(context, cubit, request);
     if (reShow != null && context.mounted) {
       cubit.selectRequest(requestId);
@@ -854,13 +853,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
               context,
             )!.constellationSelectionUnavailable;
             setState(() => _selectionUnavailableMessage = message);
-            unawaited(
-              SemanticsService.sendAnnouncement(
-                View.of(context),
-                message,
-                TextDirection.ltr,
-              ),
-            );
+            SemanticsService.announce(message, TextDirection.ltr);
             cubit.selectRequest(null);
           },
         ),
@@ -1037,7 +1030,10 @@ class _ConstellationBodyState extends State<ConstellationBody>
                         ),
                   },
                   child: Listener(
-                    onPointerDown: (e) => _lastPointerGlobal = e.position,
+                    onPointerDown: (e) {
+                      _lastPointerGlobal = e.position;
+                      _lastTagChipDropHint = null;
+                    },
                     onPointerMove: (e) => _lastPointerGlobal = e.position,
                     child: Focus(
                       focusNode: _mapFocus,
@@ -1050,7 +1046,6 @@ class _ConstellationBodyState extends State<ConstellationBody>
                             const ConstellationEmptyFilterBanner(),
                             const ConstellationNoContactsBanner(),
                             const ConstellationVisibilityBar(),
-                            _ConstellationFieldHoldHintBanner(cubit: cubit),
                           ],
                           if (_selectionUnavailableMessage != null)
                             Material(
@@ -1383,7 +1378,9 @@ class _ConstellationBodyState extends State<ConstellationBody>
     if (store == null || pointer == null || node.person.id == cubit.viewerId) {
       return false;
     }
-    final tagId = constellationTagChipDropAt(context, pointer);
+    final tagId =
+        _lastTagChipDropHint ?? constellationTagChipDropAt(context, pointer);
+    _lastTagChipDropHint = null;
     if (tagId == null) return false;
     cubit.cancelPlacement(suppressLateGestureEnd: false);
     unawaited(_addDroppedToTag(context, store, tagId, node.person.id));
@@ -1482,404 +1479,15 @@ class _ConstellationBodyState extends State<ConstellationBody>
     }
 
     final mapSelectionCubit = maybeConstellationSelection(context);
-
-    Widget mapGraph(ConstellationMultiSelection selectionState) {
-                final arranging = selectionState.arranging;
-                final touchNodeDragLocked =
-                    !arranging && !cubit.state.isComposing;
-                bool canDragNode(NodeDetails node) {
-                  if (cubit.state.isComposing && !arranging) {
-                    return cubit.isComposerDrag(node);
-                  }
-                  return cubit.canDragNode(node);
-                }
-
-                return GraphView<NodeDetails, EdgeDetails>(
-                  controller: cubit.graphController,
-                  canvasSize: ConstellationBody._canvasSize,
-                  canvasBackgroundBuilder: (context) =>
-                      _buildCanvasBackground(context, cubit, composer),
-                  // A click on an empty spot clears the selection (#680); a pan
-                  // or a long press never counts as one. The Field screen always
-                  // provides a composer, so only a composing session turns it off.
-                  onCanvasTap: composer == null || composer.createCubit == null
-                      ? (_) => _onEmptyMapTap(context, cubit)
-                      : null,
-                  onCanvasSecondaryTap:
-                      composer == null || composer.createCubit != null
-                      ? null
-                      : offerCreate,
-                  onCanvasLongPress:
-                      composer == null || composer.createCubit != null
-                      ? null
-                      : offerCreate,
-                  minScale: 0.1,
-                  maxScale: 3,
-                  layoutAlgorithm: layoutAlgorithm,
-                  // New Requests spring out from under their author along this
-                  // transition; reduced motion lands every node at once.
-                  layoutTransitionDuration:
-                      MediaQuery.disableAnimationsOf(context)
-                      ? Duration.zero
-                      : cubit.tagViewMotionActive
-                      ? _tagViewTransitionDuration
-                      : cubit.semanticZoomEnabled
-                      ? _overviewTransitionDuration
-                      : _layoutTransitionDuration,
-                  layoutTransitionStages: cubit.layoutTransitionStages,
-                  touchNodeDragLocked: touchNodeDragLocked,
-                  canDragNode: canDragNode,
-                  transformNodeDragPosition: cubit.clampClusterDragPosition,
-                  onNodeLongPress: mapSelectionCubit == null
-                      ? null
-                      : (node, position) {
-                          if (cubit.state.tagView != null) {
-                            return false;
-                          }
-                          if (!cubit.canDragNode(node)) {
-                            return false;
-                          }
-                          if (cubit.state.isComposing) {
-                            return node is FieldPersonNode &&
-                                cubit.isComposerDrag(node);
-                          }
-                          mapSelectionCubit.enterArranging();
-                          return true;
-                        },
-                  onNodeDragStart: (node, position) {
-                    // The tag view only looks; a drag there writes nothing.
-                    if (cubit.state.tagView != null) {
-                      return;
-                    }
-                    // While composing a person is only moved for the session.
-                    if (node is FieldPersonNode && cubit.isComposerDrag(node)) {
-                      cubit.beginComposerDrag(node);
-                      return;
-                    }
-                    final target = cubit.anchorTargetForNode(node);
-                    if (target == null) {
-                      return;
-                    }
-                    // A node of the selection takes the rest of it along; any
-                    // other node moves alone and the selection stays.
-                    final group =
-                        maybeConstellationSelection(
-                          context,
-                        )?.state.dragGroupFor(target) ??
-                        const <ConstellationAnchorTarget>{};
-                    if (cubit.isAnchored(target)) {
-                      cubit.beginDragExisting(target: target, group: group);
-                    } else {
-                      cubit.beginDragNew(target: target, group: group);
-                    }
-                  },
-                  onNodeDragUpdate: (node, position) {
-                    cubit.updateDragPresentation(
-                      nodeId: node.id,
-                      sceneCentre: position,
-                    );
-                    _syncComposerPersonPositions(cubit, composer);
-                  },
-                  onNodeDragEnd: (node, position, globalPosition) {
-                    if (cubit.state.tagView != null) {
-                      cubit.endTagViewDrag(node);
-                      return;
-                    }
-                    if (node is FieldPersonNode && cubit.isComposerDragActive) {
-                      cubit.endComposerDrag(node, position);
-                      _syncComposerPersonPositions(cubit, composer);
-                      composer?.personDropped(node.id);
-                      return;
-                    }
-                    final target = cubit.anchorTargetForNode(node);
-                    if (target == null) {
-                      return;
-                    }
-                    void finishPersonDrop() {
-                      if (!context.mounted) {
-                        return;
-                      }
-                      if (node is FieldPersonNode &&
-                          _dropOnTagChip(
-                            context,
-                            cubit,
-                            node,
-                            globalPosition: globalPosition,
-                          )) {
-                        return;
-                      }
-                      switch (cubit.state.placementPhase) {
-                        case ConstellationPlacementPhase.draggingExisting:
-                        case ConstellationPlacementPhase.draggingNew:
-                          unawaited(
-                            cubit
-                                .onExistingNodeDrop(
-                                  target: target,
-                                  sceneCentre: position,
-                                )
-                                .then(
-                                  (_) => _syncComposerPersonPositions(
-                                    cubit,
-                                    composer,
-                                  ),
-                                ),
-                          );
-                        case ConstellationPlacementPhase.idle:
-                        case ConstellationPlacementPhase.composing:
-                          break;
-                      }
-                    }
-
-                    if (node is FieldPersonNode &&
-                        (cubit.state.placementPhase ==
-                                ConstellationPlacementPhase.draggingExisting ||
-                            cubit.state.placementPhase ==
-                                ConstellationPlacementPhase.draggingNew)) {
-                      scheduleMicrotask(finishPersonDrop);
-                      return;
-                    }
-                    finishPersonDrop();
-                  },
-                  onNodeDragCancel: (_) {
-                    cubit.onPointerCancelDuringDrag();
-                    _syncComposerPersonPositions(cubit, composer);
-                  },
-                  onNodeTap: (node) => _onNodeTap(context, cubit, node),
-                  nodePaintOrder: cubit.orderedNodeIdsForPaint(),
-                  nodeTapHitTester: (scenePosition, orderedIds) {
-                    if (cubit.state.isComposing) {
-                      final person = cubit.mapNodeAtSceneCentre(
-                        scenePosition,
-                        peopleOnly: true,
-                      );
-                      if (person is FieldPersonNode) return person.graphNodeId;
-                    }
-                    final frame = _frameHolder.frame;
-                    final controller = cubit.graphController;
-                    if (frame == null ||
-                        (frame.snapshot
-                                    as GraphSceneSnapshot<
-                                      NodeDetails,
-                                      EdgeDetails
-                                    >)
-                                .sceneRevision !=
-                            controller.sceneRevision) {
-                      return null;
-                    }
-                    // A finger that lands right after the camera moved is a frame
-                    // ahead of the painted frame: resolve on the map it sees now.
-                    return resolveConstellationTap(
-                      frame.cameraRevision == controller.cameraRevision.value
-                          ? frame
-                          : frame.recentredOn(
-                              cameraRevision: controller.cameraRevision.value,
-                              centreOf: (id) {
-                                final scene = controller.getPositionOrNullForId(
-                                  id,
-                                );
-                                return scene == null
-                                    ? null
-                                    : controller.sceneToViewportLocal(scene);
-                              },
-                            ),
-                      controller.sceneToViewportLocal(scenePosition),
-                    );
-                  },
-                  edgePainter: ConstellationEdgePainter(
-                    overview: _detail == ConstellationDetailLevel.overview,
-                    edgeKindByPair: cubit.edgeKindByPair,
-                    edgeFadeBySemanticId: cubit.edgeFadeBySemanticId,
-                    tt: context.tt,
-                    scheme: Theme.of(context).colorScheme,
-                    repaint: _edgeStrokeScale,
-                    cameraScale: () => cubit.graphController.cameraScale,
-                  ),
-                  nodeBuilder: (_, node) {
-                    final l10n = L10n.of(context)!;
-                    final tt = context.tt;
-                    final scheme = Theme.of(context).colorScheme;
-                    final personPinState = node is FieldPersonNode
-                        ? cubit.fieldPersonById(node.person.id)?.pinState
-                        : null;
-                    final mapNode = switch (node) {
-                      FieldPersonNode(:final ring, :final person) =>
-                        _ConstellationMapNode(
-                          detail: _detail,
-                          statusBadge: personPinState != null
-                              ? ExcludeSemantics(
-                                  child: ConstellationMarkerBadge.pinState(
-                                    pinState: personPinState == 'tombstone'
-                                        ? 'accountDeleted'
-                                        : personPinState,
-                                    l10n: l10n,
-                                    tt: tt,
-                                    scheme: scheme,
-                                  ),
-                                )
-                              : null,
-                          dot: ring == 0
-                              ? null
-                              : _OverviewDotSpec(
-                                  sceneSize: node.size,
-                                  camera: cubit.graphController.cameraRevision,
-                                  scale: () =>
-                                      cubit.graphController.cameraScale,
-                                ),
-                          districtPerson: ring == 0 ? null : person,
-                          temporaryOutline:
-                              widget.fieldMembershipV2Enabled &&
-                                  cubit
-                                          .fieldPersonById(person.id)
-                                          ?.fieldMembership ==
-                                      ConstellationFieldMembership.temporary
-                              ? ConstellationTemporaryOutline(
-                                  key: TestIds.key(
-                                    TestIds.constellationTemporaryOutline(
-                                      person.id,
-                                    ),
-                                  ),
-                                  color: tt.graphEdgePath,
-                                  dash: tt.tightGap * 1.5,
-                                  gap: tt.tightGap,
-                                  strokeWidth: tt.tightGap / 2,
-                                )
-                              : null,
-                          pinBadge:
-                              cubit.isAnchored(
-                                ConstellationAnchorTarget.person(person.id),
-                              )
-                              ? ExcludeSemantics(
-                                  child: ConstellationMarkerBadge.pin(
-                                    l10n: l10n,
-                                    tt: tt,
-                                    scheme: scheme,
-                                  ),
-                                )
-                              : null,
-                          child: GraphNodeWidget(
-                            key: TestIds.key(TestIds.graphNode(node.id)),
-                            nodeDetails: node,
-                            isOrigin: ring == 0,
-                            isFocused:
-                                panelVisible &&
-                                node.id == state.selectedPersonId,
-                          ),
-                        ),
-                      FieldBeaconNode(request: final request?) =>
-                        _ConstellationMapNode(
-                          detail: _detail,
-                          pinBadge:
-                              cubit.isAnchored(
-                                ConstellationAnchorTarget.beacon(request.id),
-                              )
-                              ? ExcludeSemantics(
-                                  child: ConstellationMarkerBadge.pin(
-                                    l10n: l10n,
-                                    tt: tt,
-                                    scheme: scheme,
-                                  ),
-                                )
-                              : null,
-                          statusBadge: request.isPlaceholder
-                              ? ExcludeSemantics(
-                                  child: ConstellationMarkerBadge.pinState(
-                                    pinState: request.pinState,
-                                    l10n: l10n,
-                                    tt: tt,
-                                    scheme: scheme,
-                                  ),
-                                )
-                              : constellationRequestStatusPresentation(
-                                      rawStatus: request.status,
-                                      l10n: l10n,
-                                      tt: tt,
-                                    ) ==
-                                    null
-                              ? null
-                              : ExcludeSemantics(
-                                  child: ConstellationMarkerBadge.status(
-                                    rawStatus: request.status,
-                                    l10n: l10n,
-                                    tt: tt,
-                                    scheme: scheme,
-                                  ),
-                                ),
-                          child: GraphNodeWidget(
-                            key: TestIds.key(TestIds.graphNode(node.id)),
-                            nodeDetails: node,
-                            isFocused: state.selectedRequestId == request.id,
-                          ),
-                        ),
-                      FieldBeaconNode(post: final post?) =>
-                        _ConstellationMapNode(
-                          detail: _detail,
-                          pinBadge:
-                              cubit.isAnchored(
-                                ConstellationAnchorTarget.beacon(post.id),
-                              )
-                              ? ExcludeSemantics(
-                                  child: ConstellationMarkerBadge.pin(
-                                    l10n: l10n,
-                                    tt: tt,
-                                    scheme: scheme,
-                                  ),
-                                )
-                              : null,
-                          child: GraphNodeWidget(
-                            key: TestIds.key(TestIds.graphNode(node.id)),
-                            nodeDetails: node,
-                            isFocused: state.selectedRequestId == post.id,
-                          ),
-                        ),
-                      _ => const SizedBox.shrink(),
-                    };
-                    if (mapNode is! _ConstellationMapNode) {
-                      return mapNode;
-                    }
-                    // The semantics label changes only with the pin state, so a
-                    // move or a phase change leaves the node subtree alone.
-                    final anchorTarget = cubit.anchorTargetForNode(node);
-                    Widget build(
-                      List<PersonTag> ownTags,
-                    ) =>
-                        BlocSelector<
-                          ConstellationCubit,
-                          ConstellationState,
-                          bool
-                        >(
-                          bloc: cubit,
-                          selector: (_) =>
-                              anchorTarget != null &&
-                              cubit.isAnchored(anchorTarget),
-                          builder: (context, _) =>
-                              ConstellationPersonPresenceBuilder(
-                                personId: node is FieldPersonNode
-                                    ? node.person.id
-                                    : null,
-                                builder: (context, online) =>
-                                    _wrapConstellationMapNodeSemantics(
-                                      context: context,
-                                      cubit: cubit,
-                                      state: state,
-                                      node: node,
-                                      panelVisible: panelVisible,
-                                      mapNode: mapNode.withOwnTags(ownTags),
-                                      online: online,
-                                      ownTags: ownTags,
-                                    ),
-                              ),
-                        );
-                    final store = _peopleTags;
-                    if (store == null || node is! FieldPersonNode) {
-                      return build(const []);
-                    }
-                    return StreamBuilder<void>(
-                      stream: store.changes,
-                      builder: (_, _) =>
-                          build(_ownTagsOf(store, node.person.id)),
-                    );
-                  },
-                );
+    final mapArranging = mapSelectionCubit?.state.arranging ?? false;
+    final touchNodeDragLocked = mapSelectionCubit != null &&
+        !mapArranging &&
+        !cubit.state.isComposing;
+    bool canDragNode(NodeDetails node) {
+      if (cubit.state.isComposing && !mapArranging) {
+        return cubit.isComposerDrag(node);
+      }
+      return cubit.canDragNode(node);
     }
 
     return Stack(
@@ -1890,11 +1498,11 @@ class _ConstellationBodyState extends State<ConstellationBody>
         Listener(
           onPointerDown: (event) {
             _lastPointerGlobal = event.position;
+            _lastTagChipDropHint = null;
             _pointersDown++;
             _stopReveal();
             _takeMapFocus();
           },
-          onPointerMove: (event) => _lastPointerGlobal = event.position,
           onPointerUp: (_) => _onPointerReleased(),
           onPointerCancel: (_) => _onPointerReleased(),
           onPointerSignal: (_) => _stopReveal(),
@@ -1902,16 +1510,363 @@ class _ConstellationBodyState extends State<ConstellationBody>
           // Tab enters on one marker, the arrow keys move between markers.
           child: FocusTraversalGroup(
             policy: _mapTraversalPolicy,
-            child: mapSelectionCubit == null
-                ? mapGraph(ConstellationMultiSelection.empty)
-                : BlocBuilder<
-                    ConstellationSelectionCubit,
-                    ConstellationMultiSelection
-                  >(
-                    bloc: mapSelectionCubit,
-                    builder: (context, selectionState) =>
-                        mapGraph(selectionState),
+            child: GraphView<NodeDetails, EdgeDetails>(
+              controller: cubit.graphController,
+              canvasSize: ConstellationBody._canvasSize,
+              canvasBackgroundBuilder: (context) =>
+                  _buildCanvasBackground(context, cubit, composer),
+              // A click on an empty spot clears the selection (#680); a pan
+              // or a long press never counts as one. The Field screen always
+              // provides a composer, so only a composing session turns it off.
+              onCanvasTap: composer == null || composer.createCubit == null
+                  ? (_) => _onEmptyMapTap(context, cubit)
+                  : null,
+              onCanvasSecondaryTap:
+                  composer == null || composer.createCubit != null
+                  ? null
+                  : offerCreate,
+              onCanvasLongPress:
+                  composer == null || composer.createCubit != null
+                  ? null
+                  : offerCreate,
+              minScale: 0.1,
+              maxScale: 3,
+              layoutAlgorithm: layoutAlgorithm,
+              // New Requests spring out from under their author along this
+              // transition; reduced motion lands every node at once.
+              layoutTransitionDuration: MediaQuery.disableAnimationsOf(context)
+                  ? Duration.zero
+                  : cubit.tagViewMotionActive
+                  ? _tagViewTransitionDuration
+                  : cubit.semanticZoomEnabled
+                  ? _overviewTransitionDuration
+                  : _layoutTransitionDuration,
+              layoutTransitionStages: cubit.layoutTransitionStages,
+              touchNodeDragLocked: touchNodeDragLocked,
+              canDragNode: canDragNode,
+              transformNodeDragPosition: cubit.clampClusterDragPosition,
+              onNodeLongPress: mapSelectionCubit == null
+                  ? null
+                  : (node, position) {
+                      if (cubit.state.tagView != null) {
+                        return false;
+                      }
+                      if (!cubit.canDragNode(node)) {
+                        return false;
+                      }
+                      if (cubit.state.isComposing) {
+                        return node is FieldPersonNode &&
+                            cubit.isComposerDrag(node);
+                      }
+                      mapSelectionCubit.enterArranging();
+                      return true;
+                    },
+              onNodeDragStart: (node, position) {
+                // The tag view only looks; a drag there writes nothing.
+                if (cubit.state.tagView != null) {
+                  return;
+                }
+                // While composing a person is only moved for the session.
+                if (node is FieldPersonNode && cubit.isComposerDrag(node)) {
+                  cubit.beginComposerDrag(node);
+                  return;
+                }
+                final target = cubit.anchorTargetForNode(node);
+                if (target == null) {
+                  return;
+                }
+                // A node of the selection takes the rest of it along; any
+                // other node moves alone and the selection stays.
+                final group =
+                    maybeConstellationSelection(
+                      context,
+                    )?.state.dragGroupFor(target) ??
+                    const <ConstellationAnchorTarget>{};
+                if (cubit.isAnchored(target)) {
+                  cubit.beginDragExisting(target: target, group: group);
+                } else {
+                  cubit.beginDragNew(target: target, group: group);
+                }
+              },
+              onNodeDragUpdate: (node, position, globalPosition) {
+                cubit.updateDragPresentation(
+                  nodeId: node.id,
+                  sceneCentre: position,
+                );
+                _syncComposerPersonPositions(cubit, composer);
+                _lastPointerGlobal = globalPosition;
+                if (_peopleTags != null &&
+                    !cubit.state.isComposing &&
+                    cubit.state.tagView == null) {
+                  _lastTagChipDropHint =
+                      constellationTagChipDropAt(context, globalPosition);
+                }
+              },
+              onNodeDragEnd: (node, position, globalPosition) {
+                if (cubit.state.tagView != null) {
+                  cubit.endTagViewDrag(node);
+                  return;
+                }
+                if (node is FieldPersonNode && cubit.isComposerDragActive) {
+                  cubit.endComposerDrag(node, position);
+                  _syncComposerPersonPositions(cubit, composer);
+                  composer?.personDropped(node.id);
+                  return;
+                }
+                if (node is FieldPersonNode &&
+                    _dropOnTagChip(
+                      context,
+                      cubit,
+                      node,
+                      globalPosition: globalPosition,
+                    )) {
+                  return;
+                }
+                final target = cubit.anchorTargetForNode(node);
+                if (target == null) {
+                  return;
+                }
+                switch (cubit.state.placementPhase) {
+                  case ConstellationPlacementPhase.draggingExisting:
+                  case ConstellationPlacementPhase.draggingNew:
+                    unawaited(
+                      cubit
+                          .onExistingNodeDrop(
+                            target: target,
+                            sceneCentre: position,
+                          )
+                          .then(
+                            (_) =>
+                                _syncComposerPersonPositions(cubit, composer),
+                          ),
+                    );
+                  case ConstellationPlacementPhase.idle:
+                  case ConstellationPlacementPhase.composing:
+                    break;
+                }
+              },
+              onNodeDragCancel: (_) {
+                cubit.onPointerCancelDuringDrag();
+                _syncComposerPersonPositions(cubit, composer);
+              },
+              onNodeTap: (node) => _onNodeTap(context, cubit, node),
+              nodePaintOrder: cubit.orderedNodeIdsForPaint(),
+              nodeTapHitTester: (scenePosition, orderedIds) {
+                if (cubit.state.isComposing) {
+                  final person = cubit.mapNodeAtSceneCentre(
+                    scenePosition,
+                    peopleOnly: true,
+                  );
+                  if (person is FieldPersonNode) return person.graphNodeId;
+                }
+                final frame = _frameHolder.frame;
+                final controller = cubit.graphController;
+                if (frame == null ||
+                    (frame.snapshot
+                                as GraphSceneSnapshot<NodeDetails, EdgeDetails>)
+                            .sceneRevision !=
+                        controller.sceneRevision) {
+                  return null;
+                }
+                // A finger that lands right after the camera moved is a frame
+                // ahead of the painted frame: resolve on the map it sees now.
+                return resolveConstellationTap(
+                  frame.cameraRevision == controller.cameraRevision.value
+                      ? frame
+                      : frame.recentredOn(
+                          cameraRevision: controller.cameraRevision.value,
+                          centreOf: (id) {
+                            final scene = controller.getPositionOrNullForId(id);
+                            return scene == null
+                                ? null
+                                : controller.sceneToViewportLocal(scene);
+                          },
+                        ),
+                  controller.sceneToViewportLocal(scenePosition),
+                );
+              },
+              edgePainter: ConstellationEdgePainter(
+                overview: _detail == ConstellationDetailLevel.overview,
+                edgeKindByPair: cubit.edgeKindByPair,
+                edgeFadeBySemanticId: cubit.edgeFadeBySemanticId,
+                tt: context.tt,
+                scheme: Theme.of(context).colorScheme,
+                repaint: _edgeStrokeScale,
+                cameraScale: () => cubit.graphController.cameraScale,
+              ),
+              nodeBuilder: (_, node) {
+                final l10n = L10n.of(context)!;
+                final tt = context.tt;
+                final scheme = Theme.of(context).colorScheme;
+                final personPinState = node is FieldPersonNode
+                    ? cubit.fieldPersonById(node.person.id)?.pinState
+                    : null;
+                final mapNode = switch (node) {
+                  FieldPersonNode(:final ring, :final person) =>
+                    _ConstellationMapNode(
+                      detail: _detail,
+                      statusBadge: personPinState != null
+                          ? ExcludeSemantics(
+                              child: ConstellationMarkerBadge.pinState(
+                                pinState: personPinState == 'tombstone'
+                                    ? 'accountDeleted'
+                                    : personPinState,
+                                l10n: l10n,
+                                tt: tt,
+                                scheme: scheme,
+                              ),
+                            )
+                          : null,
+                      dot: ring == 0
+                          ? null
+                          : _OverviewDotSpec(
+                              sceneSize: node.size,
+                              camera: cubit.graphController.cameraRevision,
+                              scale: () => cubit.graphController.cameraScale,
+                            ),
+                      districtPerson: ring == 0 ? null : person,
+                      temporaryOutline:
+                          widget.fieldMembershipV2Enabled &&
+                              cubit
+                                      .fieldPersonById(person.id)
+                                      ?.fieldMembership ==
+                                  ConstellationFieldMembership.temporary
+                          ? ConstellationTemporaryOutline(
+                              key: TestIds.key(
+                                TestIds.constellationTemporaryOutline(
+                                  person.id,
+                                ),
+                              ),
+                              color: tt.graphEdgePath,
+                              dash: tt.tightGap * 1.5,
+                              gap: tt.tightGap,
+                              strokeWidth: tt.tightGap / 2,
+                            )
+                          : null,
+                      pinBadge:
+                          cubit.isAnchored(
+                            ConstellationAnchorTarget.person(person.id),
+                          )
+                          ? ExcludeSemantics(
+                              child: ConstellationMarkerBadge.pin(
+                                l10n: l10n,
+                                tt: tt,
+                                scheme: scheme,
+                              ),
+                            )
+                          : null,
+                      child: GraphNodeWidget(
+                        key: TestIds.key(TestIds.graphNode(node.id)),
+                        nodeDetails: node,
+                        isOrigin: ring == 0,
+                        isFocused:
+                            panelVisible && node.id == state.selectedPersonId,
+                      ),
+                    ),
+                  FieldBeaconNode(request: final request?) =>
+                    _ConstellationMapNode(
+                      detail: _detail,
+                      pinBadge:
+                          cubit.isAnchored(
+                            ConstellationAnchorTarget.beacon(request.id),
+                          )
+                          ? ExcludeSemantics(
+                              child: ConstellationMarkerBadge.pin(
+                                l10n: l10n,
+                                tt: tt,
+                                scheme: scheme,
+                              ),
+                            )
+                          : null,
+                      statusBadge: request.isPlaceholder
+                          ? ExcludeSemantics(
+                              child: ConstellationMarkerBadge.pinState(
+                                pinState: request.pinState,
+                                l10n: l10n,
+                                tt: tt,
+                                scheme: scheme,
+                              ),
+                            )
+                          : constellationRequestStatusPresentation(
+                                  rawStatus: request.status,
+                                  l10n: l10n,
+                                  tt: tt,
+                                ) ==
+                                null
+                          ? null
+                          : ExcludeSemantics(
+                              child: ConstellationMarkerBadge.status(
+                                rawStatus: request.status,
+                                l10n: l10n,
+                                tt: tt,
+                                scheme: scheme,
+                              ),
+                            ),
+                      child: GraphNodeWidget(
+                        key: TestIds.key(TestIds.graphNode(node.id)),
+                        nodeDetails: node,
+                        isFocused: state.selectedRequestId == request.id,
+                      ),
+                    ),
+                  FieldBeaconNode(post: final post?) => _ConstellationMapNode(
+                    detail: _detail,
+                    pinBadge:
+                        cubit.isAnchored(
+                          ConstellationAnchorTarget.beacon(post.id),
+                        )
+                        ? ExcludeSemantics(
+                            child: ConstellationMarkerBadge.pin(
+                              l10n: l10n,
+                              tt: tt,
+                              scheme: scheme,
+                            ),
+                          )
+                        : null,
+                    child: GraphNodeWidget(
+                      key: TestIds.key(TestIds.graphNode(node.id)),
+                      nodeDetails: node,
+                      isFocused: state.selectedRequestId == post.id,
+                    ),
                   ),
+                  _ => const SizedBox.shrink(),
+                };
+                if (mapNode is! _ConstellationMapNode) {
+                  return mapNode;
+                }
+                // The semantics label changes only with the pin state, so a
+                // move or a phase change leaves the node subtree alone.
+                final anchorTarget = cubit.anchorTargetForNode(node);
+                Widget build(
+                  List<PersonTag> ownTags,
+                ) => BlocSelector<ConstellationCubit, ConstellationState, bool>(
+                  bloc: cubit,
+                  selector: (_) =>
+                      anchorTarget != null && cubit.isAnchored(anchorTarget),
+                  builder: (context, _) => ConstellationPersonPresenceBuilder(
+                    personId: node is FieldPersonNode ? node.person.id : null,
+                    builder: (context, online) =>
+                        _wrapConstellationMapNodeSemantics(
+                          context: context,
+                          cubit: cubit,
+                          state: state,
+                          node: node,
+                          panelVisible: panelVisible,
+                          mapNode: mapNode.withOwnTags(ownTags),
+                          online: online,
+                          ownTags: ownTags,
+                        ),
+                  ),
+                );
+                final store = _peopleTags;
+                if (store == null || node is! FieldPersonNode) {
+                  return build(const []);
+                }
+                return StreamBuilder<void>(
+                  stream: store.changes,
+                  builder: (_, _) => build(_ownTagsOf(store, node.person.id)),
+                );
+              },
+            ),
           ),
         ),
         Positioned.fill(
@@ -1970,6 +1925,12 @@ class _ConstellationBodyState extends State<ConstellationBody>
                     ),
                   ),
           ),
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          child: _ConstellationFieldHoldHintBanner(cubit: cubit),
+        ),
         Positioned(
           top: 0,
           left: 0,
@@ -3195,40 +3156,35 @@ class _ConstellationFieldHoldHintBanner extends StatelessWidget {
         if (selection?.state.arranging ?? false) {
           return const SizedBox.shrink();
         }
-        return ListenableBuilder(
-          listenable: RendererBinding.instance.mouseTracker,
-          builder: (context, _) {
-            if (RendererBinding.instance.mouseTracker.mouseIsConnected) {
-              return const SizedBox.shrink();
-            }
-            final l10n = L10n.of(context)!;
-            final tt = context.tt;
-            final theme = Theme.of(context);
-            return Material(
-              key: const Key('constellation.field_hold_hint'),
-              color: theme.colorScheme.surfaceContainerHighest,
-              child: Padding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: tt.screenHPadding,
-                  vertical: tt.tightGap,
+        if (RendererBinding.instance.mouseTracker.mouseIsConnected) {
+          return const SizedBox.shrink();
+        }
+        final l10n = L10n.of(context)!;
+        final tt = context.tt;
+        final theme = Theme.of(context);
+        return Material(
+          key: const Key('constellation.field_hold_hint'),
+          color: theme.colorScheme.surfaceContainerHighest,
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: tt.screenHPadding,
+              vertical: tt.tightGap,
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    l10n.constellationFieldHoldHint,
+                    style: theme.textTheme.bodySmall,
+                  ),
                 ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        l10n.constellationFieldHoldHint,
-                        style: theme.textTheme.bodySmall,
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: cubit.dismissFieldHoldHint,
-                      child: Text(l10n.buttonOk),
-                    ),
-                  ],
+                TextButton(
+                  onPressed: cubit.dismissFieldHoldHint,
+                  child: Text(l10n.buttonOk),
                 ),
-              ),
-            );
-          },
+              ],
+            ),
+          ),
         );
       },
     );

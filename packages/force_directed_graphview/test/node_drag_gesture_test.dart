@@ -68,7 +68,7 @@ void main() {
     await _pumpGraph(
       tester,
       controller: controller,
-      onNodeDragUpdate: (_, __) => dragUpdates++,
+      onNodeDragUpdate: (_, __, ___) => dragUpdates++,
     );
 
     final viewer =
@@ -131,7 +131,7 @@ void main() {
     await _pumpGraph(
       tester,
       controller: controller,
-      onNodeDragUpdate: (_, position) => updates.add(position),
+      onNodeDragUpdate: (_, position, ___) => updates.add(position),
     );
     final viewer0 =
         tester.widget<InteractiveViewer>(find.byType(InteractiveViewer));
@@ -183,7 +183,7 @@ void main() {
     await _pumpGraph(
       tester,
       controller: controller,
-      onNodeDragUpdate: (_, position) => updates.add(position),
+      onNodeDragUpdate: (_, position, ___) => updates.add(position),
     );
 
     final nodeCentre = _nodeCenter(tester, _TestHarness.bottom);
@@ -215,7 +215,7 @@ void main() {
     await _pumpGraph(
       tester,
       controller: controller,
-      onNodeDragUpdate: (_, __) {},
+      onNodeDragUpdate: (_, __, ___) {},
     );
     final viewer =
         tester.widget<InteractiveViewer>(find.byType(InteractiveViewer));
@@ -245,7 +245,7 @@ void main() {
     await _pumpGraph(
       tester,
       controller: controller,
-      onNodeDragUpdate: (_, position) => updates.add(position),
+      onNodeDragUpdate: (_, position, ___) => updates.add(position),
       transformNodeDragPosition: (_, proposed) {
         // Cap x at the node's start scene x + 20.
         final start = testNodePosition(controller, _TestHarness.bottom);
@@ -276,7 +276,7 @@ void main() {
     await _pumpGraph(
       tester,
       controller: controller,
-      onNodeDragUpdate: (_, __) {},
+      onNodeDragUpdate: (_, __, ___) {},
       onNodeTap: (_) => taps++,
     );
     final gesture = await tester.createGesture(kind: PointerDeviceKind.touch);
@@ -320,7 +320,7 @@ void main() {
       (tester) async {
     final controller = _TestHarness.newController();
     await _pumpGraph(tester,
-        controller: controller, onNodeDragUpdate: (_, __) {});
+        controller: controller, onNodeDragUpdate: (_, __, ___) {});
     final viewer =
         tester.widget<InteractiveViewer>(find.byType(InteractiveViewer));
     viewer.transformationController!.value = Matrix4.identity()
@@ -352,7 +352,7 @@ void main() {
       tester,
       controller: controller,
       onNodeDragStart: (node, _) => dragged = node,
-      onNodeDragUpdate: (_, __) => dragUpdates++,
+      onNodeDragUpdate: (_, __, ___) => dragUpdates++,
     );
 
     final nodeCentre = _nodeCenter(tester, _TestHarness.bottom);
@@ -380,7 +380,7 @@ void main() {
       tester,
       controller: controller,
       onNodeDragStart: (node, _) => dragged = node,
-      onNodeDragUpdate: (_, __) => dragUpdates++,
+      onNodeDragUpdate: (_, __, ___) => dragUpdates++,
     );
 
     final nodeCentre = _nodeCenter(tester, _TestHarness.bottom);
@@ -415,7 +415,7 @@ void main() {
     await _pumpGraph(
       tester,
       controller: controller,
-      onNodeDragUpdate: (_, position) => updates.add(position),
+      onNodeDragUpdate: (_, position, ___) => updates.add(position),
     );
 
     final nodeCentre = _nodeCenter(tester, _TestHarness.bottom);
@@ -672,7 +672,7 @@ void main() {
       controller: controller,
       edgePainter: recorder,
       onNodeDragStart: (_, __) {},
-      onNodeDragUpdate: (_, __) {},
+      onNodeDragUpdate: (_, __, ___) {},
     );
 
     final unrelatedBefore = recorder.snapshotFor(_TestHarness.unrelatedEdge);
@@ -820,7 +820,7 @@ void main() {
       tester,
       controller: controller,
       touchNodeDragLocked: true,
-      onNodeDragUpdate: (_, __) => dragUpdates++,
+      onNodeDragUpdate: (_, __, ___) => dragUpdates++,
     );
 
     final viewer =
@@ -853,7 +853,7 @@ void main() {
       tester,
       controller: controller,
       touchNodeDragLocked: true,
-      onNodeDragUpdate: (_, __) {},
+      onNodeDragUpdate: (_, __, ___) {},
       onNodeTap: (_) => taps++,
     );
 
@@ -877,7 +877,7 @@ void main() {
       controller: controller,
       touchNodeDragLocked: true,
       onNodeDragStart: (node, _) => dragged = node,
-      onNodeDragUpdate: (_, __) {},
+      onNodeDragUpdate: (_, __, ___) {},
     );
 
     final nodeCentre = _nodeCenter(tester, _TestHarness.bottom);
@@ -917,7 +917,7 @@ void main() {
         return true;
       },
       onNodeDragStart: (node, _) => dragStarted = node,
-      onNodeDragUpdate: (_, position) => updates.add(position),
+      onNodeDragUpdate: (_, position, ___) => updates.add(position),
     );
 
     final nodeCentre = _nodeCenter(tester, _TestHarness.bottom);

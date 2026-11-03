@@ -623,7 +623,14 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
       } else {
         _controller.updateNodePresentationDrag(token, centre);
       }
-      _configuration.onNodeDragUpdate?.call(payload, centre);
+      final globalForCallback = _grabGlobal;
+      if (globalForCallback != null) {
+        _configuration.onNodeDragUpdate?.call(
+          payload,
+          centre,
+          globalForCallback,
+        );
+      }
     } catch (_) {
       _releaseCapture(notifyCancel: true);
       rethrow;

@@ -405,7 +405,7 @@ Future<_Harness> _pump(WidgetTester tester, {bool resizable = false}) async {
                   '4': ScenePoint(x: 400, y: 400),
                 }),
                 onNodeDragStart: (node, position) => h.dragStarts.add(node),
-                onNodeDragUpdate: (_, position) {
+                onNodeDragUpdate: (_, position, ___) {
                   h.dragUpdates++;
                   h.dragPositions.add(position);
                 },

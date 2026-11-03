@@ -14,11 +14,15 @@ import 'package:tentura/features/beacon_create/ui/bloc/beacon_create_cubit.dart'
 import 'package:tentura/features/constellation/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
+import 'package:tentura/features/constellation/domain/radius_recipient_selection.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_composer_cubit.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_composer_radius.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
+import 'package:tentura/features/graph/domain/entity/edge_details.dart';
+import 'package:tentura/features/graph/domain/entity/node_details.dart';
+import 'package:force_directed_graphview/force_directed_graphview.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_person_context_cubit.dart';
 import 'package:tentura/domain/entity/lazy_write_notice.dart';
 import 'package:tentura/features/graph/domain/use_case/graph_trust_write_case.dart';
@@ -110,6 +114,23 @@ ConstellationComposerCubit _buildComposerCubit({
   forwardCubitFactory: (beaconId) =>
       ForwardCubit(beaconId: beaconId, embedded: true),
 );
+
+Offset _handleGlobal(
+  WidgetTester tester,
+  ConstellationCubit cubit,
+  RadiusRecipientSelection selection,
+) {
+  final canvas = tester.getRect(find.byType(GraphView<NodeDetails, EdgeDetails>));
+  final controller = cubit.graphController;
+  final centre = controller.sceneToViewportLocal(selection.center.offset);
+  final reach = selection.radius * controller.cameraScale;
+  final hit = tester.element(find.byType(ConstellationBody)).tt.buttonHeight;
+  final left = centre + Offset(-reach, 0);
+  final at = left.dx >= hit / 2 || centre.dx + reach > canvas.width - hit / 2
+      ? left
+      : centre + Offset(reach, 0);
+  return canvas.topLeft + at;
+}
 
 void main() {
   testWidgets(
@@ -451,19 +472,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 400));
 
       final handleFinder = find.byType(ConstellationComposerHandle);
-      final handleOrigin = tester.getTopLeft(handleFinder);
-      final handleBox = tester
-          .widgetList<Positioned>(
-            find.descendant(
-              of: handleFinder,
-              matching: find.byType(Positioned),
-            ),
-          )
-          .first;
-      final handleLocal = Offset(
-        handleBox.left! + handleBox.width! / 2,
-        handleBox.top! + handleBox.height! / 2,
-      );
+      final handleGlobal = _handleGlobal(tester, cubit, composer.selection);
       final regions = tester.widgetList<MouseRegion>(
         find.descendant(
           of: handleFinder,
@@ -483,7 +492,7 @@ void main() {
         RendererBinding.instance.mouseTracker.debugDeviceActiveCursor(1),
         isNot(SystemMouseCursors.resizeLeftRight),
       );
-      await mouse.moveTo(handleOrigin + handleLocal);
+      await mouse.moveTo(handleGlobal);
       await tester.pump();
       expect(
         RendererBinding.instance.mouseTracker.debugDeviceActiveCursor(1),
