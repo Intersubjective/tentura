@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:get_it/get_it.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/app/router/root_router.dart';
@@ -10,6 +9,8 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/domain/port/capability_repository_port.dart';
+import 'package:tentura/features/beacon_create/ui/bloc/beacon_create_cubit.dart';
+import 'package:tentura/features/context/ui/bloc/context_cubit.dart';
 import 'package:tentura/features/capability/ui/widget/capability_chip_set.dart';
 import 'package:tentura/features/forward/domain/entity/forward_candidate.dart';
 import 'package:tentura/features/forward/domain/invite_new_person_enabled.dart';
@@ -459,6 +460,24 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
 
   Future<void> _inviteNewPerson(BuildContext context) async {
     if (_inviteFlowActive) return;
+
+    if (_needsMakeLiveBeforeInvite(context)) {
+      final l10n = L10n.of(context)!;
+      final confirmed = await TenturaConfirmDialog.show(
+        context: context,
+        title: l10n.beaconCreateInviteMakeLiveConfirmTitle,
+        content: l10n.beaconCreateInviteMakeLiveConfirmBody,
+        confirmLabel: l10n.beaconMakeLiveWithoutSending,
+      );
+      if (confirmed != true || !context.mounted) return;
+
+      final createCubit = context.read<BeaconCreateCubit>();
+      final contextName = context.read<ContextCubit>().state.selected;
+      await createCubit.makeLive(context: contextName);
+      if (!context.mounted) return;
+      if (!createCubit.state.isLive) return;
+    }
+
     _inviteFlowActive = true;
     try {
       await runBeaconInviteFlow(
@@ -483,17 +502,39 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
   ForwardTargetProfile _profile(ForwardState state) =>
       widget.copyProfile ?? state.profile;
 
-  bool _inviteEnabled(ForwardState state) => inviteNewPersonEnabled(
-    beaconId: widget.beaconId,
-    allowsForward: state.beacon?.viewerCanForward == true,
-    isLive: widget.isLive,
-  );
+  /// Embedded new-Request recipients step: draft must go live before minting.
+  bool _needsMakeLiveBeforeInvite(BuildContext context) =>
+      _embeddedDraftInCreateFlow(context);
+
+  BeaconCreateCubit? _readCreateCubit(BuildContext context) {
+    try {
+      return context.read<BeaconCreateCubit>();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  bool _embeddedDraftInCreateFlow(BuildContext context) {
+    if (!widget.embedded || widget.isLive || widget.beaconId.isEmpty) {
+      return false;
+    }
+    final createCubit = _readCreateCubit(context);
+    return createCubit != null && !createCubit.state.isLive;
+  }
+
+  bool _inviteEnabled(BuildContext context, ForwardState state) =>
+      inviteNewPersonEnabled(
+        beaconId: widget.beaconId,
+        allowsForward: state.beacon?.viewerCanForward == true,
+        isLive: widget.isLive,
+        embeddedDraftInCreateFlow: _embeddedDraftInCreateFlow(context),
+      );
 
   /// The empty-state invite may leave for People › Invitations only from the
   /// standalone forward route: inside a create flow that would abandon the
   /// draft (a new Post's text is not saved yet).
-  bool _canInviteFromEmptyState(ForwardState state) =>
-      _inviteEnabled(state) || !widget.embedded;
+  bool _canInviteFromEmptyState(BuildContext context, ForwardState state) =>
+      _inviteEnabled(context, state) || !widget.embedded;
 
   /// Empty-state invite: a request-tied invite where the picker may mint one,
   /// otherwise the People › Invitations tab.
@@ -501,7 +542,7 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
     BuildContext context,
     ForwardState state,
   ) async {
-    if (_inviteEnabled(state)) {
+    if (_inviteEnabled(context, state)) {
       await _inviteNewPerson(context);
     } else {
       await GetIt.I<RootRouter>().openInvitations();
@@ -787,6 +828,8 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                                 allowsForward:
                                     state.beacon?.viewerCanForward == true,
                                 isLive: widget.isLive,
+                                embeddedDraftInCreateFlow:
+                                    _embeddedDraftInCreateFlow(context),
                               ))
                                 SliverPersistentHeader(
                                   pinned: true,
@@ -913,7 +956,10 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                                               ForwardFilter.alreadyInvolved
                                         ? _PickerEmptyKind.noOneInvolved
                                         : _PickerEmptyKind.everyoneInvolved,
-                                    onInvite: _canInviteFromEmptyState(state)
+                                    onInvite: _canInviteFromEmptyState(
+                                          context,
+                                          state,
+                                        )
                                         ? () => unawaited(
                                             _inviteFromEmptyState(
                                               context,
