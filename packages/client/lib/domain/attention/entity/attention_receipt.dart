@@ -68,6 +68,8 @@ abstract class AttentionReceipt with _$AttentionReceipt {
     // "read": a cleared receipt no longer asks for attention.
     DateTime? clearedAt,
     AttentionClearReason? clearReason,
+    // History projects lifecycle eligibility; other surfaces are prefiltered.
+    @Default(true) bool historyLifecycleEligible,
     // §0.1a — the verbatim `inbox_provenance_data` document on grouped
     // `beacon:` rows. Parsed with `InboxProvenance.parse`; there is no second
     // provenance model.

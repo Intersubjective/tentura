@@ -4,7 +4,7 @@ fragment AttentionReceiptFields on v2_AttentionReceipt {
   destinationKind targetEntityId presentationKey presentationPayloadJson
   inAppPreferenceClass
   requiresAction attentionThreadKey settlementKind settledAt
-  clearedAt clearReason
+  clearedAt clearReason historyLifecycleEligible
   surface itemKind forwardOutcome forwardCount digestCount
   eventTotal eventUnseenCount
   provenanceJson

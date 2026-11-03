@@ -166,8 +166,7 @@ void main() {
   final fixedNow = DateTime.utc(2026, 8, 14, 12);
   DateTime clock() => fixedNow;
   final todayUtc = availabilityTodayUtc(clock);
-  // Far future: the pill reads the real clock, a near date expires (CI went red on 2026-11-03).
-  final resumeOn = DateTime.utc(2036, 11, 3);
+  final resumeOn = addUtcCalendarDays(availabilityTodayUtc(), 30);
 
   setUp(() {
     if (!GetIt.I.isRegistered<Logger>()) {

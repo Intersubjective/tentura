@@ -757,7 +757,9 @@ final class AttentionCase implements AttentionReconcilePort {
     final receipt = _knownReceipt(id);
     if (receipt == null) return false;
     final shown = _overlay(receipt);
-    return shown.isCleared && !shown.requiresAction;
+    return shown.isCleared &&
+        !shown.requiresAction &&
+        isInUnreadView(shown.copyWith(clearedAt: null, clearReason: null));
   }
 
   Future<void> markSeenForBeacon(String beaconId) async {
@@ -1133,7 +1135,9 @@ final class AttentionCase implements AttentionReconcilePort {
     final unreadDeltas = {
       for (final id in members)
         if (_knownReceipt(id) case final receipt?)
-          if (isActiveOptional(_overlay(receipt))) id: -1,
+          if (isActiveOptional(_overlay(receipt)) &&
+              isInUnreadView(_overlay(receipt)))
+            id: -1,
     };
     if (members.isNotEmpty) {
       // A clear supersedes an earlier Mark unread on the same rows (#601).

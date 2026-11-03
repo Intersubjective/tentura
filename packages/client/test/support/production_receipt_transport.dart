@@ -24,11 +24,16 @@ final class ProductionReceiptTransport {
   late final StreamSubscription<String> _stderr;
   Stream<({String viewer, Object frame})> get frames => _frames.stream;
 
-  static Future<ProductionReceiptTransport> start() async {
+  static Future<ProductionReceiptTransport> start({
+    String? postLifecycleFixture,
+  }) async {
     final process = await Process.start(
       'dart',
       ['run', 'test/support/request_update_seen_transport.dart'],
       workingDirectory: '../server',
+      environment: {
+        'TENTURA_RECEIPT_POST_LIFECYCLE_FIXTURE': ?postLifecycleFixture,
+      },
     );
     final bridge = ProductionReceiptTransport._(process);
     bridge._output = process.stdout

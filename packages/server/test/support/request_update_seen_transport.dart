@@ -31,6 +31,7 @@ import 'package:tentura_server/domain/use_case/auth_case.dart';
 import 'package:tentura_server/domain/use_case/user_presence_case.dart';
 
 import 'disposable_pg_target.dart';
+import 'post_lifecycle_receipt_fixture.dart';
 
 const _beaconId = 'Bseenby000001';
 // Socket authentication uses production-valid user ids.
@@ -118,6 +119,15 @@ INSERT INTO public.beacon_participant (
           'u': id,
           'r': role,
         },
+      );
+    }
+    final postFixture =
+        Platform.environment['TENTURA_RECEIPT_POST_LIFECYCLE_FIXTURE'];
+    if (postFixture != null) {
+      await seedPostLifecycleReceipts(
+        writer,
+        closedOnly: postFixture == 'closedOnly',
+        clearedClosed: postFixture == 'clearedClosed',
       );
     }
     final schema = graphqlSchema;

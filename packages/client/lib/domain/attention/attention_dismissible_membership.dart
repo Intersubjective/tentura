@@ -24,7 +24,7 @@ bool isOptimisticallySweepable(AttentionReceipt receipt) {
   // Set R, clause by clause.
   if (receipt.surface != AttentionSurface.activity) return false;
   if (receipt.requiresAction) return false;
-  if (receipt.isCleared) return false;
+  if (!isInUnreadView(receipt)) return false;
   if (receipt.presentationKey == 'relay_received') return false;
   return true;
 }
@@ -38,7 +38,7 @@ bool isOptimisticallySweepable(AttentionReceipt receipt) {
 ///
 /// | item kind         | server expression                                |
 /// | ----------------- | ------------------------------------------------ |
-/// | `receipt`         | `activeAttention(v) AND primaryPlacement(v)`      |
+/// | `receipt`         | `activeAttention(v) AND historyLifecycleEligible`      |
 /// | `requestActivity` | `stats.event_unseen_count > 0`                    |
 /// | `forward`         | `false` — an outcome row never carries the dot    |
 /// | `watchingDigest`  | `true`                                            |
@@ -47,7 +47,8 @@ bool isOptimisticallySweepable(AttentionReceipt receipt) {
 /// non-primary row, so mirroring it here would be a predicate with no input.
 bool isInUnreadView(AttentionReceipt receipt) => switch (receipt.itemKind) {
   AttentionItemKind.receipt =>
-    isActiveOptional(receipt) || receipt.isLiveObligation,
+    receipt.historyLifecycleEligible &&
+        (isActiveOptional(receipt) || receipt.isLiveObligation),
   AttentionItemKind.requestActivity => (receipt.eventUnseenCount ?? 0) > 0,
   AttentionItemKind.forward => false,
   AttentionItemKind.watchingDigest => true,
