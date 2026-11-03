@@ -1375,10 +1375,11 @@ class _ConstellationBodyState extends State<ConstellationBody>
   bool _dropOnTagChip(
     BuildContext context,
     ConstellationCubit cubit,
-    FieldPersonNode node,
-  ) {
+    FieldPersonNode node, {
+    Offset? globalPosition,
+  }) {
     final store = _peopleTags;
-    final pointer = _lastPointerGlobal;
+    final pointer = globalPosition ?? _lastPointerGlobal;
     if (store == null || pointer == null || node.person.id == cubit.viewerId) {
       return false;
     }
@@ -1579,7 +1580,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
                     );
                     _syncComposerPersonPositions(cubit, composer);
                   },
-                  onNodeDragEnd: (node, position) {
+                  onNodeDragEnd: (node, position, globalPosition) {
                     if (cubit.state.tagView != null) {
                       cubit.endTagViewDrag(node);
                       return;
@@ -1590,34 +1591,54 @@ class _ConstellationBodyState extends State<ConstellationBody>
                       composer?.personDropped(node.id);
                       return;
                     }
-                    if (node is FieldPersonNode &&
-                        _dropOnTagChip(context, cubit, node)) {
-                      return;
-                    }
                     final target = cubit.anchorTargetForNode(node);
                     if (target == null) {
                       return;
                     }
-                    switch (cubit.state.placementPhase) {
-                      case ConstellationPlacementPhase.draggingExisting:
-                      case ConstellationPlacementPhase.draggingNew:
-                        unawaited(
-                          cubit
-                              .onExistingNodeDrop(
-                                target: target,
-                                sceneCentre: position,
-                              )
-                              .then(
-                                (_) => _syncComposerPersonPositions(
-                                  cubit,
-                                  composer,
+                    void finishPersonDrop() {
+                      if (!context.mounted) {
+                        return;
+                      }
+                      if (node is FieldPersonNode &&
+                          _dropOnTagChip(
+                            context,
+                            cubit,
+                            node,
+                            globalPosition: globalPosition,
+                          )) {
+                        return;
+                      }
+                      switch (cubit.state.placementPhase) {
+                        case ConstellationPlacementPhase.draggingExisting:
+                        case ConstellationPlacementPhase.draggingNew:
+                          unawaited(
+                            cubit
+                                .onExistingNodeDrop(
+                                  target: target,
+                                  sceneCentre: position,
+                                )
+                                .then(
+                                  (_) => _syncComposerPersonPositions(
+                                    cubit,
+                                    composer,
+                                  ),
                                 ),
-                              ),
-                        );
-                      case ConstellationPlacementPhase.idle:
-                      case ConstellationPlacementPhase.composing:
-                        break;
+                          );
+                        case ConstellationPlacementPhase.idle:
+                        case ConstellationPlacementPhase.composing:
+                          break;
+                      }
                     }
+
+                    if (node is FieldPersonNode &&
+                        (cubit.state.placementPhase ==
+                                ConstellationPlacementPhase.draggingExisting ||
+                            cubit.state.placementPhase ==
+                                ConstellationPlacementPhase.draggingNew)) {
+                      scheduleMicrotask(finishPersonDrop);
+                      return;
+                    }
+                    finishPersonDrop();
                   },
                   onNodeDragCancel: (_) {
                     cubit.onPointerCancelDuringDrag();
@@ -1867,11 +1888,13 @@ class _ConstellationBodyState extends State<ConstellationBody>
       children: [
         // A new touch or wheel on the map cancels a running reveal pan.
         Listener(
-          onPointerDown: (_) {
+          onPointerDown: (event) {
+            _lastPointerGlobal = event.position;
             _pointersDown++;
             _stopReveal();
             _takeMapFocus();
           },
+          onPointerMove: (event) => _lastPointerGlobal = event.position,
           onPointerUp: (_) => _onPointerReleased(),
           onPointerCancel: (_) => _onPointerReleased(),
           onPointerSignal: (_) => _stopReveal(),

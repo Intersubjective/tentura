@@ -32,11 +32,7 @@ String? constellationTagChipDropAt(
   Offset globalPosition,
 ) {
   final result = HitTestResult();
-  WidgetsBinding.instance.hitTestInView(
-    result,
-    globalPosition,
-    View.of(context).viewId,
-  );
+  WidgetsBinding.instance.hitTest(result, globalPosition);
   for (final entry in result.path) {
     final target = entry.target;
     if (target is RenderMetaData &&

@@ -93,7 +93,7 @@ void main() {
       tester,
       controller: controller,
       onNodeDragCancel: (_) => cancelCount++,
-      onNodeDragEnd: (_, __) => endCount++,
+      onNodeDragEnd: (_, __, ___) => endCount++,
     );
 
     const node = Node<int>(data: 7, size: 80);

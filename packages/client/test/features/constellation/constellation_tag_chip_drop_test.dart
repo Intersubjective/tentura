@@ -109,14 +109,14 @@ Future<void> _dragTo(
   String personId,
   Offset target,
 ) async {
+  final start = tester.getCenter(_node(personId));
   final gesture = await tester.startGesture(
-    tester.getCenter(_node(personId)),
+    start,
     kind: PointerDeviceKind.mouse,
   );
-  final delta = target - tester.getCenter(_node(personId));
   const steps = 12;
-  for (var i = 0; i < steps; i++) {
-    await gesture.moveBy(delta / steps.toDouble());
+  for (var i = 1; i <= steps; i++) {
+    await gesture.moveTo(Offset.lerp(start, target, i / steps)!);
     await tester.pump(const Duration(milliseconds: 16));
   }
   await gesture.up();

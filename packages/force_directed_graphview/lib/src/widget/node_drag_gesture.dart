@@ -427,6 +427,9 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
     }
 
     if (_capturedNodeId != null) {
+      if (event.pointer == _capturePointer) {
+        _grabGlobal = event.position;
+      }
       if (_activePointers.isEmpty) {
         _finishCapture();
       }
@@ -635,6 +638,15 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
 
     final payload = _controller.nodePayloadForId(nodeId);
     final position = _controller.getPositionOrNullForId(nodeId);
+    final global = _grabGlobal ??
+        (() {
+          final box = context.findRenderObject();
+          if (box is! RenderBox || position == null) {
+            return null;
+          }
+          final viewport = _controller.sceneToViewportLocal(position);
+          return box.localToGlobal(viewport);
+        })();
 
     _capturedNodeId = null;
     _captureToken = null;
@@ -643,8 +655,9 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
     _grabGlobal = null;
 
     try {
-      if (payload != null && position != null) {
-        _configuration.onNodeDragEnd?.call(payload, position);
+      _controller.setCameraInteractionGated(false);
+      if (payload != null && position != null && global != null) {
+        _configuration.onNodeDragEnd?.call(payload, position, global);
       }
     } finally {
       _controller.setCameraInteractionGated(false);

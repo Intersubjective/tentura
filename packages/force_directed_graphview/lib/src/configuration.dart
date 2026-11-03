@@ -44,6 +44,7 @@ typedef NodeDragPositionTransform<N> = Offset Function(
 typedef NodeDragEndCallback<N> = void Function(
   N node,
   Offset scenePosition,
+  Offset globalPosition,
 );
 
 /// Called when a node drag is cancelled without a successful drop write.

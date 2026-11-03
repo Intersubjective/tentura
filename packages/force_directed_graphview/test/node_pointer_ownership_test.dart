@@ -251,7 +251,7 @@ Future<_Harness> _pump(WidgetTester tester) async {
             h.dragUpdates++;
             h.dragPositions.add(position);
           },
-          onNodeDragEnd: (_, __) => h.dragEnds++,
+          onNodeDragEnd: (_, __, ___) => h.dragEnds++,
           onNodeDragCancel: (_) => h.dragCancels++,
           nodeBuilder: (context, node) => SizedBox(
             width: node.size,

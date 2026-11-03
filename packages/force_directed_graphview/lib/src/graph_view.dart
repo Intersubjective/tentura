@@ -240,7 +240,8 @@ class _GraphViewState<N, E> extends State<GraphView<N, E>>
             : (node, position) => widget.onNodeDragUpdate!(node as N, position),
         onNodeDragEnd: widget.onNodeDragEnd == null
             ? null
-            : (node, position) => widget.onNodeDragEnd!(node as N, position),
+            : (node, position, global) =>
+                widget.onNodeDragEnd!(node as N, position, global),
         onNodeDragCancel: widget.onNodeDragCancel == null
             ? null
             : (node) => widget.onNodeDragCancel!(node as N),

@@ -487,7 +487,7 @@ void main() {
       tester,
       controller: controller,
       onNodeDragCancel: (node) => cancelled = node,
-      onNodeDragEnd: (_, __) => endCount++,
+      onNodeDragEnd: (_, __, ___) => endCount++,
     );
 
     final nodeCentre = _nodeCenter(tester, _TestHarness.bottom);
