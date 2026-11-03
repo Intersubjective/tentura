@@ -22,6 +22,7 @@ import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import '../../support/constellation_store_fixture.dart';
 import '../../support/fake_people_tags_repository.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
+import 'fixtures/constellation_field_test_harness.dart';
 
 const _ego = Profile(id: 'ego', displayName: 'Ego');
 
@@ -242,6 +243,9 @@ void main() {
           child: MultiBlocProvider(
             providers: [
               BlocProvider<ConstellationCubit>.value(value: cubit),
+              BlocProvider(
+                create: (_) => constellationSelectionForFieldBodyTests(),
+              ),
               BlocProvider<ConstellationTagLensCubit>.value(value: lens),
               BlocProvider<GraphPersonContextCubit>(
                 create: (_) => _StubContextCubit(),

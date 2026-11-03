@@ -18,6 +18,7 @@ import '../../support/constellation_store_fixture.dart';
 import '../../support/fake_clock_port.dart';
 import '../../support/fake_wake_up_port.dart';
 import '../../support/test_realtime_sync.dart';
+import 'fixtures/constellation_field_test_harness.dart';
 import 'fixtures/constellation_reference_fixture.dart';
 
 const _people = ['a', 'b', 'c', 'd', 'e', 'f'];
@@ -196,6 +197,7 @@ Future<_MapHarness> _mount(
     size: const Size(1200, 900),
     disableAnimations: reducedMotion,
     presentationFrameHolder: holder,
+    withSelectionCubit: true,
   );
   await tester.pumpAndSettle();
   await _zoom(tester, cubit, 1);
@@ -430,7 +432,10 @@ void main() {
         find.byType(ConstellationViewportOverlay),
       );
       final dot = m.holder.frame!.bodies['fp:b']!.center;
-      final gesture = await tester.startGesture(overlayOrigin + dot);
+      final gesture = await startConstellationFieldGesture(
+        tester,
+        overlayOrigin + dot,
+      );
       await tester.pump();
       await gesture.moveBy(const Offset(80, 50));
       await tester.pump(const Duration(milliseconds: 16));

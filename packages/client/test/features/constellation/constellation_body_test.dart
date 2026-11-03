@@ -9,6 +9,7 @@ import 'package:tentura/features/constellation/domain/port/constellation_reposit
 import 'package:tentura/features/constellation/domain/use_case/constellation_field_store_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_selection_cubit.dart';
+import 'fixtures/constellation_field_test_harness.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_person_context_cubit.dart';
 import 'package:tentura/domain/entity/lazy_write_notice.dart';
@@ -221,7 +222,7 @@ Future<void> _pumpWithContext(
             child: MultiBlocProvider(
               providers: [
                 BlocProvider<ConstellationCubit>.value(value: cubit),
-                BlocProvider(create: (_) => ConstellationSelectionCubit()),
+                BlocProvider(create: (_) => constellationSelectionForFieldBodyTests()),
                 BlocProvider<GraphPersonContextCubit>.value(
                   value: contextCubit,
                 ),

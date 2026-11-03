@@ -19,6 +19,7 @@ import 'package:tentura/ui/test_ids.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'fixtures/constellation_reference_fixture.dart';
+import 'fixtures/constellation_field_test_harness.dart';
 
 class _ContextCubit extends Cubit<GraphPersonContextState>
     implements GraphPersonContextCubit {
@@ -106,6 +107,9 @@ void main() {
             child: MultiBlocProvider(
               providers: [
                 BlocProvider<ConstellationCubit>.value(value: cubit),
+                BlocProvider(
+                  create: (_) => constellationSelectionForFieldBodyTests(),
+                ),
                 BlocProvider<GraphPersonContextCubit>(
                   create: (_) => _ContextCubit(),
                 ),

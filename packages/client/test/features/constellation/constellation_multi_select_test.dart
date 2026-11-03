@@ -37,6 +37,7 @@ import '../../support/fake_wake_up_port.dart';
 import '../../support/test_realtime_sync.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../../support/people_tags_widget_harness.dart';
+import 'fixtures/constellation_field_test_harness.dart';
 
 // Field multi-select (#642): the rubber-band box is the main tool — with the
 // select tool on a one-finger or mouse drag on empty map draws it and two
@@ -305,7 +306,7 @@ Future<_Harness> _mount(
     placementCase: placement,
     viewer: _ego,
   );
-  final selection = ConstellationSelectionCubit();
+  final selection = constellationSelectionForFieldBodyTests();
   addTearDown(() async {
     await selection.close();
     await cubit.close();
@@ -403,10 +404,13 @@ Future<void> _drag(
   Offset from,
   Offset to, {
   PointerDeviceKind kind = PointerDeviceKind.mouse,
+  ConstellationSelectionCubit? selection,
 }) async {
-  final gesture = await tester.startGesture(
+  final gesture = await startConstellationFieldGesture(
+    tester,
     from,
     kind: kind,
+    selection: selection,
   );
   await _frames(tester);
   for (var i = 1; i <= 8; i++) {
@@ -532,6 +536,7 @@ void main() {
       _emptyCorner(tester),
       _farCorner(tester),
       kind: PointerDeviceKind.touch,
+      selection: h.selection,
     );
     expect(h.selected, containsAll([_ann, _bob]));
   });
@@ -693,13 +698,18 @@ void main() {
 
   group('box merge by pointer', () {
     /// A box around Bob alone, starting on empty map up-left of him.
-    Future<void> boxBob(WidgetTester tester, PointerDeviceKind kind) async {
+    Future<void> boxBob(
+      WidgetTester tester,
+      PointerDeviceKind kind,
+      ConstellationSelectionCubit selection,
+    ) async {
       final bob = tester.getRect(_node('b'));
       await _drag(
         tester,
         bob.topLeft - const Offset(30, 30),
         bob.bottomRight + const Offset(4, 4),
         kind: kind,
+        selection: selection,
       );
     }
 
@@ -710,7 +720,7 @@ void main() {
         ..toggle(_ann);
       await _frames(tester);
 
-      await boxBob(tester, PointerDeviceKind.touch);
+      await boxBob(tester, PointerDeviceKind.touch, h.selection);
 
       expect(h.selected, containsAll([_ann, _bob]));
     });
@@ -722,7 +732,7 @@ void main() {
         ..toggle(_ann);
       await _frames(tester);
 
-      await boxBob(tester, PointerDeviceKind.mouse);
+      await boxBob(tester, PointerDeviceKind.mouse, h.selection);
 
       expect(h.selected, contains(_bob));
       expect(h.selected, isNot(contains(_ann)));

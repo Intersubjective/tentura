@@ -36,6 +36,7 @@ import '../beacon_create/fake_beacon_ports.dart';
 import 'package:tentura/features/constellation/ui/util/layout_geometry_adapters.dart';
 
 import '../../support/constellation_store_fixture.dart';
+import 'fixtures/constellation_field_test_harness.dart';
 
 const _ego = Profile(id: 'ego', displayName: 'Ego');
 
@@ -139,6 +140,9 @@ void main() {
             child: MultiBlocProvider(
               providers: [
                 BlocProvider<ConstellationCubit>.value(value: cubit),
+                BlocProvider(
+                  create: (_) => constellationSelectionForFieldBodyTests(),
+                ),
                 BlocProvider<GraphPersonContextCubit>(
                   create: (_) => _StubContextCubit(),
                 ),

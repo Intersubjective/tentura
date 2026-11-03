@@ -28,6 +28,7 @@ import '../../support/fake_people_tags_repository.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'fixtures/constellation_reference_fixture.dart';
 import 'fixtures/synthetic_field.dart';
+import 'fixtures/constellation_field_test_harness.dart';
 
 // Colour index 4 for the first own tag, 6 for the second: a person in both
 // must take the first (by tag order), never the second.
@@ -202,6 +203,9 @@ void main() {
                 value: zoom,
               ),
               BlocProvider<ConstellationCubit>.value(value: cubit),
+              BlocProvider(
+                create: (_) => constellationSelectionForFieldBodyTests(),
+              ),
               BlocProvider<ConstellationTagLensCubit>.value(value: lens),
               BlocProvider<GraphPersonContextCubit>(
                 create: (_) => _StubContextCubit(),

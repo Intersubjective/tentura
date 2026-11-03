@@ -11,7 +11,7 @@ import 'fixtures/constellation_arrange_harness.dart';
 
 final _en = L10nEn();
 
-Finder _arrangeButton() => find.byTooltip(_en.constellationArrange);
+Finder _arrangeButton() => find.byKey(const Key('constellation.camera.arrange'));
 Finder _oldRearrangeButton() =>
     find.byKey(TestIds.key(TestIds.constellationRearrange));
 Finder _oldResetButton() =>

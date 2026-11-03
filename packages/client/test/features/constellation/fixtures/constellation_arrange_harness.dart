@@ -29,6 +29,7 @@ import '../../../support/fake_wake_up_port.dart';
 import '../../../support/test_forward_case.dart';
 import '../../../support/test_realtime_sync.dart';
 import '../../../ui/effect/fake_ui_effect_port.dart';
+import 'constellation_field_test_harness.dart';
 
 /// A Field whose server side (anchors, layout snapshots) is modelled by
 /// [ArrangeAnchorRepository], for the Arrange menu, undoable reset and undo
@@ -308,7 +309,11 @@ Widget _shell(
       providers: [
         BlocProvider<ConstellationCubit>.value(value: cubit),
         if (selection != null)
-          BlocProvider<ConstellationSelectionCubit>.value(value: selection),
+          BlocProvider<ConstellationSelectionCubit>.value(value: selection)
+        else
+          BlocProvider(
+            create: (_) => constellationSelectionForFieldBodyTests(),
+          ),
         BlocProvider<GraphPersonContextCubit>(
           create: (_) => _StubContextCubit(),
         ),
@@ -356,7 +361,8 @@ Future<void> pumpArrangeControls(
   ConstellationSelectionCubit? selection,
   Locale locale = const Locale('en'),
 }) async {
-  final selectionCubit = selection ?? ConstellationSelectionCubit();
+  final selectionCubit =
+      selection ?? constellationSelectionForFieldBodyTests();
   await tester.binding.setSurfaceSize(const Size(1200, 900));
   addTearDown(() => tester.binding.setSurfaceSize(null));
   await tester.pumpWidget(

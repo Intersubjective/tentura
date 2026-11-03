@@ -22,6 +22,7 @@ import '../../support/fake_clock_port.dart';
 import '../../support/fake_wake_up_port.dart';
 import '../../support/phone_surface.dart';
 import '../../support/test_realtime_sync.dart';
+import 'fixtures/constellation_field_test_harness.dart';
 import 'fixtures/constellation_reference_fixture.dart';
 
 final _pinnedPerson = ConstellationAnchorTarget.person('am');
@@ -219,7 +220,13 @@ Future<_Harness> _mount(
   if (cubit.state.status is! StateIsSuccess) {
     await cubit.stream.firstWhere((state) => state.status is StateIsSuccess);
   }
-  await pumpConstellationBody(tester, cubit, size: size, locale: locale);
+  await pumpConstellationBody(
+    tester,
+    cubit,
+    size: size,
+    locale: locale,
+    withSelectionCubit: true,
+  );
   await _settleFrames(tester);
   // The scene starts on the real layout, so every node is reachable by a
   // pointer; layouts after this point are the counted ones.
@@ -259,7 +266,8 @@ Future<TestGesture> _pickUpFreePerson(
   _Harness harness, {
   PointerDeviceKind kind = PointerDeviceKind.mouse,
 }) async {
-  final gesture = await tester.startGesture(
+  final gesture = await startConstellationFieldGesture(
+    tester,
     tester.getCenter(_nodeFinder(_freePerson)),
     kind: kind,
   );

@@ -11,6 +11,7 @@ import 'package:tentura/features/constellation/domain/port/constellation_reposit
 import 'package:tentura/features/constellation/ui/bloc/constellation_composer_cubit.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_selection_cubit.dart';
+import 'fixtures/constellation_field_test_harness.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_app_bar.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -96,7 +97,7 @@ void main() {
   late ConstellationSelectionCubit selection;
 
   setUp(() {
-    selection = ConstellationSelectionCubit();
+    selection = constellationSelectionForFieldBodyTests();
     addTearDown(selection.close);
   });
 

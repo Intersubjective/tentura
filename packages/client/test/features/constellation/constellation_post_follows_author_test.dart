@@ -12,6 +12,7 @@ import 'package:tentura/features/constellation/domain/port/constellation_reposit
 import 'package:tentura/features/constellation/domain/use_case/constellation_placement_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_selection_cubit.dart';
+import 'fixtures/constellation_field_test_harness.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
 import 'package:tentura/features/graph/domain/use_case/graph_trust_write_case.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_person_context_cubit.dart';
@@ -286,7 +287,7 @@ Future<_Harness> _mount(
     placementCase: placement,
     viewer: _ego,
   );
-  final selection = ConstellationSelectionCubit();
+  final selection = constellationSelectionForFieldBodyTests();
   addTearDown(() async {
     await selection.close();
     await cubit.close();
@@ -606,7 +607,11 @@ void main() {
     final postScreen = tester.getCenter(_node('post-a'));
     final ann = tester.getCenter(_node('a'));
     // A touch pointer, the default.
-    final gesture = await tester.startGesture(ann);
+    final gesture = await startConstellationFieldGesture(
+      tester,
+      ann,
+      selection: h.selection,
+    );
     await _frames(tester);
     for (var i = 1; i <= 8; i++) {
       await gesture.moveTo(ann + const Offset(80, 40) * (i / 8));

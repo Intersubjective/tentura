@@ -34,6 +34,7 @@ import '../../support/constellation_store_fixture.dart';
 import '../../support/fake_clock_port.dart';
 import '../../support/fake_wake_up_port.dart';
 import '../../support/test_forward_case.dart';
+import 'fixtures/constellation_field_test_harness.dart';
 
 const _ego = Profile(id: 'ego', displayName: 'Ego');
 final _loadedAt = DateTime.utc(2026, 9, 11, 12);
@@ -277,6 +278,9 @@ Future<void> _pumpConstellationMap(
         child: MultiBlocProvider(
           providers: [
             BlocProvider<ConstellationCubit>.value(value: cubit),
+            BlocProvider(
+              create: (_) => constellationSelectionForFieldBodyTests(),
+            ),
             BlocProvider<GraphPersonContextCubit>(
               create: (_) => _StubContextCubit(),
             ),

@@ -23,6 +23,8 @@ import '../../../ui/effect/fake_ui_effect_port.dart';
 import '../../../support/constellation_store_fixture.dart';
 import '../../../support/people_tags_widget_harness.dart';
 
+import 'constellation_field_test_harness.dart';
+
 const kRefEgo = Profile(id: 'ego', displayName: 'Vadim');
 
 const _refPeers = [
@@ -238,6 +240,8 @@ Future<FakeUiEffectPort> pumpConstellationBody(
   TextDirection textDirection = TextDirection.ltr,
   ConstellationPresenceCubit? presence,
   bool disableAnimations = false,
+  bool withSelectionCubit = false,
+  bool touchNodeDragLocked = false,
 }) async {
   final resolvedScaler = textScaler ?? TextScaler.linear(textScale);
   await tester.binding.setSurfaceSize(size);
@@ -261,7 +265,20 @@ Future<FakeUiEffectPort> pumpConstellationBody(
             child: MultiBlocProvider(
               providers: [
                 BlocProvider<ConstellationCubit>.value(value: cubit),
-                BlocProvider(create: (_) => ConstellationSelectionCubit()),
+                if (withSelectionCubit)
+                  BlocProvider(
+                    create: (_) {
+                      final selection =
+                          constellationSelectionForFieldBodyTests();
+                      if (touchNodeDragLocked) {
+                        applyConstellationTouchDragTestPolicy(
+                          selection,
+                          touchNodeDragLocked: true,
+                        );
+                      }
+                      return selection;
+                    },
+                  ),
                 BlocProvider<GraphPersonContextCubit>(
                   create: (_) => _StubContextCubit(),
                 ),

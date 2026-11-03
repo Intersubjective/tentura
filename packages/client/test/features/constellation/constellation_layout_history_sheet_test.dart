@@ -4,6 +4,7 @@ import 'package:force_directed_graphview/force_directed_graphview.dart';
 import 'package:tentura/features/constellation/domain/constellation_layout.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_selection_cubit.dart';
+import 'fixtures/constellation_field_test_harness.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_layout_history_sheet.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
@@ -91,7 +92,7 @@ Future<void> _tap(WidgetTester tester, String label) async {
 }
 
 Future<void> _arrange(WidgetTester tester, String action) async {
-  await tester.tap(find.byTooltip('Arrange'));
+  await tester.tap(find.byKey(const Key('constellation.camera.arrange')));
   await tester.pumpAndSettle();
   await _tap(tester, action);
 }
@@ -102,7 +103,7 @@ Future<ConstellationSelectionCubit> _mount(
   WidgetTester tester,
   LayoutHistoryHarness h,
 ) async {
-  final selection = ConstellationSelectionCubit();
+  final selection = constellationSelectionForFieldBodyTests();
   addTearDown(selection.close);
   await pumpArrangeBody(
     tester,

@@ -16,6 +16,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../../support/constellation_store_fixture.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
+import 'fixtures/constellation_field_test_harness.dart';
 
 const _ego = Profile(id: 'ego', displayName: 'Ego');
 const _neighbour = 'T-neighbour';
@@ -156,6 +157,9 @@ Future<_Mounted> _mount(
         child: MultiBlocProvider(
           providers: [
             BlocProvider<ConstellationCubit>.value(value: cubit),
+            BlocProvider(
+              create: (_) => constellationSelectionForFieldBodyTests(),
+            ),
             BlocProvider<ConstellationTagLensCubit>.value(value: lens),
             BlocProvider<GraphPersonContextCubit>(
               create: (_) => _StubContextCubit(),
