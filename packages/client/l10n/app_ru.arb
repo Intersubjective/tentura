@@ -5700,6 +5700,14 @@
   "postCreateLifetime3d": "3 дня",
   "postCreateLifetimeHint": "Потом пост уйдёт в архив. Продлить нельзя, сократить можно.",
   "postCreateTextHint": "О чём ваш пост?",
+  "postCreateReplyLifetimeHint": "Все, кому вы отправите, смогут ответить под постом. Он проживёт до {lifetime}.",
+  "@postCreateReplyLifetimeHint": {
+    "placeholders": {
+      "lifetime": {
+        "type": "String"
+      }
+    }
+  },
   "postComposerReplyHint": "Ответить…",
   "postRepliesSection": "Ответы",
   "postCardMetaCanShare": "{peopleCount, plural, one{{peopleCount} человек} few{{peopleCount} человека} many{{peopleCount} человек} other{{peopleCount} человека}} · {replyCount, plural, one{{replyCount} ответ} few{{replyCount} ответа} many{{replyCount} ответов} other{{replyCount} ответа}} · можно делиться",

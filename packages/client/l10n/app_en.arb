@@ -7038,6 +7038,15 @@
   "@postCreateTextHint": {
     "description": "Hint of the text field on the first step of the new-Post form."
   },
+  "postCreateReplyLifetimeHint": "Everyone you send it to can reply under it. It lives up to {lifetime}.",
+  "@postCreateReplyLifetimeHint": {
+    "description": "Helper under the post card on the new-Post form; {lifetime} is the selected segment label.",
+    "placeholders": {
+      "lifetime": {
+        "type": "String"
+      }
+    }
+  },
   "postComposerReplyHint": "Reply…",
   "@postComposerReplyHint": {
     "description": "Composer hint in a Post room (replies under the card, #248)."
