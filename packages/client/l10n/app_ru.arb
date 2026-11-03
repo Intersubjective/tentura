@@ -514,6 +514,8 @@
     "context": "BeaconCreateScreen"
   },
   "beaconMakeLiveWithoutSending": "Опубликовать без отправки",
+  "beaconCreateInviteMakeLiveConfirmTitle": "Опубликовать запрос?",
+  "beaconCreateInviteMakeLiveConfirmBody": "Чтобы пригласить человека, которого ещё нет в Tentura, запрос нужно сначала опубликовать. Отправки выбранным здесь людям не будет — только публикация.",
   "liveRequestTitle": "Открытый запрос",
   "@liveRequestTitle": {
     "context": "BeaconCreateScreen"

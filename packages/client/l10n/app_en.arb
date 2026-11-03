@@ -517,6 +517,14 @@
   "@beaconMakeLiveWithoutSending": {
     "description": "Secondary action on the recipients step: publish the request without forwarding it to anyone yet."
   },
+  "beaconCreateInviteMakeLiveConfirmTitle": "Publish this request?",
+  "@beaconCreateInviteMakeLiveConfirmTitle": {
+    "description": "Title before make-live when inviting someone new from the new-Request recipients step on a draft."
+  },
+  "beaconCreateInviteMakeLiveConfirmBody": "Inviting someone who is not on Tentura yet requires a live request. It will be published without sending to anyone you select on this step.",
+  "@beaconCreateInviteMakeLiveConfirmBody": {
+    "description": "Body for the make-live confirm when starting the invite flow from a draft on the recipients step."
+  },
   "liveRequestTitle": "Live request",
   "@liveRequestTitle": {
     "context": "BeaconCreateScreen"
