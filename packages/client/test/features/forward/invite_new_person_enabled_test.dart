@@ -14,6 +14,16 @@ void main() {
     expect(inviteNewPersonEnabled(beaconId: 'B1'), isFalse);
   });
 
+  test('invite is on for an embedded create-flow draft before make live', () {
+    expect(
+      inviteNewPersonEnabled(
+        beaconId: 'B1',
+        embeddedDraftInCreateFlow: true,
+      ),
+      isTrue,
+    );
+  });
+
   test('invite is on when the request allows forwarding', () {
     expect(
       inviteNewPersonEnabled(beaconId: 'B1', allowsForward: true),
