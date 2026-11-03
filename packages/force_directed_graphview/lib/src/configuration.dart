@@ -52,6 +52,14 @@ typedef NodeDragCancelCallback<N> = void Function(N node);
 /// Called when a pointer releases over a node without starting a drag.
 typedef NodeTapCallback<N> = void Function(N node);
 
+/// Called after a touch/stylus hold on a draggable node within [kTouchSlop].
+///
+/// Return true to lift the node and continue the same pointer as a drag.
+typedef NodeLongPressCallback<N> = bool Function(
+  N node,
+  Offset scenePosition,
+);
+
 /// Optional override for which node a tap resolves to (scene coordinates).
 typedef NodeTapHitTester = GraphNodeId? Function(
   Offset scenePosition,
@@ -83,8 +91,10 @@ class GraphViewConfiguration {
     this.onCanvasTap,
     this.onCanvasSecondaryTap,
     this.onCanvasLongPress,
+    this.onNodeLongPress,
     this.nodeTapHitTester,
     this.nodePaintOrder,
+    this.touchNodeDragLocked = false,
   });
 
   /// { @nodoc }
@@ -133,6 +143,14 @@ class GraphViewConfiguration {
   /// Called for a primary long press that hits no node, in scene coordinates.
   final void Function(Offset scenePosition)? onCanvasLongPress;
 
+  /// Touch/stylus long press on a draggable node; never fires with canvas long
+  /// press for the same gesture.
+  final NodeLongPressCallback<dynamic>? onNodeLongPress;
+
+  /// When true, touch and stylus presses on nodes pan the camera instead of
+  /// capturing the node. Mouse and trackpad drags are unchanged.
+  final bool touchNodeDragLocked;
+
   /// Optional tap target resolver; defaults to the body hit-test result.
   final NodeTapHitTester? nodeTapHitTester;
 
@@ -152,7 +170,8 @@ class GraphViewConfiguration {
       onNodeTap != null ||
       onCanvasTap != null ||
       onCanvasSecondaryTap != null ||
-      onCanvasLongPress != null;
+      onCanvasLongPress != null ||
+      onNodeLongPress != null;
 
   /// Returns whether [node] may be dragged.
   bool isNodeDraggable(dynamic node) =>

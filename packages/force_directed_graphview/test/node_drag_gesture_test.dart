@@ -756,7 +756,8 @@ void main() {
     final tapScene = Offset(centre.dx, bodyBottom + 30);
     final tapGlobal = _globalForScene(tester, tapScene);
 
-    final tapGesture = await tester.createGesture(kind: PointerDeviceKind.touch);
+    final tapGesture =
+        await tester.createGesture(kind: PointerDeviceKind.touch);
     await tapGesture.down(tapGlobal);
     await tapGesture.up();
     await tester.pump();
@@ -800,12 +801,166 @@ void main() {
       nodeTapHitTester: (_, __) => null,
     );
 
-    final tapGesture = await tester.createGesture(kind: PointerDeviceKind.touch);
+    final tapGesture =
+        await tester.createGesture(kind: PointerDeviceKind.touch);
     await tapGesture.down(_nodeCenter(tester, _TestHarness.bottom));
     await tapGesture.up();
     await tester.pump();
 
     expect(tapped, _TestHarness.bottom);
+    controller.dispose();
+  });
+
+  testWidgets('touchNodeDragLocked pans the camera from a draggable node',
+      (tester) async {
+    final controller = _TestHarness.newController();
+    var dragUpdates = 0;
+
+    await _pumpGraph(
+      tester,
+      controller: controller,
+      touchNodeDragLocked: true,
+      onNodeDragUpdate: (_, __) => dragUpdates++,
+    );
+
+    final viewer =
+        tester.widget<InteractiveViewer>(find.byType(InteractiveViewer));
+    viewer.transformationController!.value = Matrix4.identity()
+      ..translateByDouble(-100, -100, 0, 1)
+      ..scaleByDouble(2, 2, 1, 1);
+    await tester.pump();
+    final cameraBefore = viewer.transformationController!.value.clone();
+    final gesture = await tester.createGesture(kind: PointerDeviceKind.touch);
+    await gesture.down(_nodeCenter(tester, _TestHarness.bottom));
+    await gesture.moveBy(const Offset(70, 30));
+    await gesture.moveBy(const Offset(50, 20));
+    await tester.pump();
+
+    expect(dragUpdates, 0);
+    expect(controller.isCameraGated, isFalse);
+    expect(viewer.transformationController!.value, isNot(cameraBefore));
+
+    await gesture.up();
+    controller.dispose();
+  });
+
+  testWidgets('touchNodeDragLocked still fires node tap without movement',
+      (tester) async {
+    final controller = _TestHarness.newController();
+    var taps = 0;
+
+    await _pumpGraph(
+      tester,
+      controller: controller,
+      touchNodeDragLocked: true,
+      onNodeDragUpdate: (_, __) {},
+      onNodeTap: (_) => taps++,
+    );
+
+    final gesture = await tester.createGesture(kind: PointerDeviceKind.touch);
+    await gesture.down(_nodeCenter(tester, _TestHarness.bottom));
+    await gesture.up();
+    await tester.pump();
+
+    expect(taps, 1);
+    controller.dispose();
+  });
+
+  testWidgets(
+      'touchNodeDragLocked second finger pinch does not capture the node',
+      (tester) async {
+    final controller = _TestHarness.newController();
+    Node<int>? dragged;
+
+    await _pumpGraph(
+      tester,
+      controller: controller,
+      touchNodeDragLocked: true,
+      onNodeDragStart: (node, _) => dragged = node,
+      onNodeDragUpdate: (_, __) {},
+    );
+
+    final nodeCentre = _nodeCenter(tester, _TestHarness.bottom);
+    final gestureA = await tester.createGesture(kind: PointerDeviceKind.touch);
+    await gestureA.down(nodeCentre);
+    await gestureA.moveBy(const Offset(50, 0));
+    await tester.pump();
+
+    final gestureB = await tester.createGesture(kind: PointerDeviceKind.touch);
+    await gestureB.down(nodeCentre + const Offset(40, 0));
+    final initialScale = controller.currentScale;
+    await gestureA.moveBy(const Offset(-50, 0));
+    await gestureB.moveBy(const Offset(50, 0));
+    await tester.pump();
+
+    expect(dragged, isNull);
+    expect(controller.isCameraGated, isFalse);
+    expect(controller.currentScale, greaterThan(initialScale));
+
+    await gestureA.up();
+    await gestureB.up();
+    controller.dispose();
+  });
+
+  testWidgets('onNodeLongPress lift continues as one node drag',
+      (tester) async {
+    final controller = _TestHarness.newController();
+    Node<int>? dragStarted;
+    final updates = <Offset>[];
+    var longPressCalls = 0;
+
+    await _pumpGraph(
+      tester,
+      controller: controller,
+      onNodeLongPress: (node, _) {
+        longPressCalls++;
+        return true;
+      },
+      onNodeDragStart: (node, _) => dragStarted = node,
+      onNodeDragUpdate: (_, position) => updates.add(position),
+    );
+
+    final nodeCentre = _nodeCenter(tester, _TestHarness.bottom);
+    final gesture = await tester.createGesture(kind: PointerDeviceKind.touch);
+    await gesture.down(nodeCentre);
+    await tester.pump(kLongPressTimeout + const Duration(milliseconds: 1));
+
+    expect(longPressCalls, 1);
+    expect(dragStarted, _TestHarness.bottom);
+    expect(controller.isCameraGated, isTrue);
+
+    await gesture.moveBy(const Offset(40, 0));
+    await tester.pump();
+    expect(updates, isNotEmpty);
+
+    await gesture.up();
+    controller.dispose();
+  });
+
+  testWidgets('node long press does not call onCanvasLongPress',
+      (tester) async {
+    final controller = _TestHarness.newController();
+    final canvasHolds = <Offset>[];
+    var nodeLongPress = 0;
+
+    await _pumpGraph(
+      tester,
+      controller: controller,
+      onCanvasLongPress: canvasHolds.add,
+      onNodeLongPress: (_, __) {
+        nodeLongPress++;
+        return false;
+      },
+    );
+
+    final gesture = await tester.createGesture(kind: PointerDeviceKind.touch);
+    await gesture.down(_nodeCenter(tester, _TestHarness.bottom));
+    await tester.pump(kLongPressTimeout + const Duration(milliseconds: 1));
+    await gesture.up();
+    await tester.pump();
+
+    expect(nodeLongPress, 1);
+    expect(canvasHolds, isEmpty);
     controller.dispose();
   });
 }
@@ -843,6 +998,9 @@ Future<void> _pumpGraph(
   NodeTapCallback<Node<int>>? onNodeTap,
   NodeTapHitTester? nodeTapHitTester,
   List<GraphNodeId>? nodePaintOrder,
+  bool touchNodeDragLocked = false,
+  NodeLongPressCallback<Node<int>>? onNodeLongPress,
+  void Function(Offset scenePosition)? onCanvasLongPress,
 }) async {
   tester.view.physicalSize = const Size(800, 600);
   tester.view.devicePixelRatio = 1.0;
@@ -867,6 +1025,9 @@ Future<void> _pumpGraph(
           transformNodeDragPosition: transformNodeDragPosition,
           onNodeTap: onNodeTap,
           nodeTapHitTester: nodeTapHitTester,
+          touchNodeDragLocked: touchNodeDragLocked,
+          onNodeLongPress: onNodeLongPress,
+          onCanvasLongPress: onCanvasLongPress,
           nodeBuilder: (context, node) => SizedBox(
             width: node.size,
             height: node.size,

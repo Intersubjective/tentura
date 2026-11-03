@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/gestures.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
 import 'package:force_directed_graphview/src/widget/inherited_configuration.dart';
@@ -28,6 +29,9 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
   int? _canvasButtons;
   Timer? _canvasLongPressTimer;
   var _canvasLongPressed = false;
+
+  Timer? _nodeLongPressTimer;
+  var _nodeLongPressed = false;
 
   GraphNodeId? _pendingNodeId;
   GraphNodeId? _pendingTapNodeId;
@@ -99,6 +103,7 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
 
   void _abortActiveGestures() {
     _cancelCanvasPress();
+    _cancelNodeLongPress();
     _cancelPendingCapture();
     _releaseCapture(notifyCancel: true);
   }
@@ -205,6 +210,46 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
         event.buttons == kPrimaryMouseButton) {
       return;
     }
+
+    _maybeStartNodeLongPress(event, bodyId);
+  }
+
+  bool _isTouchLike(PointerDeviceKind? kind) =>
+      kind == PointerDeviceKind.touch || kind == PointerDeviceKind.stylus;
+
+  void _maybeStartNodeLongPress(PointerDownEvent event, GraphNodeId? bodyId) {
+    if (bodyId == null ||
+        _configuration.onNodeLongPress == null ||
+        !_isTouchLike(event.kind)) {
+      return;
+    }
+    final payload = _controller.nodePayloadForId(bodyId);
+    if (payload == null || !_configuration.isNodeDraggable(payload)) {
+      return;
+    }
+    _nodeLongPressTimer?.cancel();
+    _nodeLongPressed = false;
+    final pointer = event.pointer;
+    final downScene = event.localPosition;
+    _nodeLongPressTimer = Timer(kLongPressTimeout, () {
+      _nodeLongPressTimer = null;
+      if (_pendingPointer != pointer || _pendingNodeId != bodyId) {
+        return;
+      }
+      _nodeLongPressed = true;
+      final pass = _captureDragPassSnapshot();
+      final point = pass.snapshot.resolvePosition(bodyId);
+      if (point == null) {
+        return;
+      }
+      final scenePosition = Offset(point.x, point.y);
+      final lift = _configuration.onNodeLongPress!(payload, scenePosition);
+      if (lift) {
+        HapticFeedback.mediumImpact();
+        _captureNode(bodyId, pointer, downScene);
+        _updateCapturedPosition(downScene);
+      }
+    });
   }
 
   /// An additional touch must not turn a touch or stylus node press that has
@@ -212,6 +257,9 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
   /// becomes the owner right away, and the recognizer then wins the extra
   /// pointers. A press that has not moved stays a pinch.
   bool _claimPendingNodeForOwner() {
+    if (_configuration.touchNodeDragLocked && _isTouchLike(_pendingKind)) {
+      return false;
+    }
     final nodeId = _pendingNodeId;
     final pointer = _pendingPointer;
     final down = _pendingDownScene;
@@ -249,6 +297,9 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
     if (!_configuration.nodeDragEnabled ||
         _scaleBlocked ||
         _activePointers.length >= 2) {
+      return false;
+    }
+    if (_configuration.touchNodeDragLocked && _isTouchLike(event.kind)) {
       return false;
     }
     final nodeId = _pendingNodeId;
@@ -316,14 +367,22 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
     }
     _pendingLastScene = event.localPosition;
 
-    if (_activePointers.length >= 2) {
-      _cancelPendingCapture();
-      _scaleBlocked = true;
+    final down = _pendingDownScene;
+    if (down == null) {
       return;
     }
 
-    final down = _pendingDownScene;
-    if (down == null) {
+    if ((event.localPosition - down).distance >= kTouchSlop) {
+      _cancelNodeLongPress();
+      if (_configuration.touchNodeDragLocked && _isTouchLike(_pendingKind)) {
+        _cancelPendingCapture();
+        return;
+      }
+    }
+
+    if (_activePointers.length >= 2) {
+      _cancelPendingCapture();
+      _scaleBlocked = true;
       return;
     }
 
@@ -365,9 +424,12 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
     if (_pendingPointer == event.pointer) {
       final nodeId = _pendingTapNodeId ?? _pendingNodeId;
       final dragged = _pendingDragged;
+      final longPressed = _nodeLongPressed;
       _cancelPendingCapture();
+      _cancelNodeLongPress();
       if (nodeId != null &&
           !dragged &&
+          !longPressed &&
           _configuration.onNodeTap != null &&
           _capturedNodeId == null) {
         final payload = _controller.nodePayloadForId(nodeId);
@@ -429,6 +491,12 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
     _canvasLongPressed = false;
   }
 
+  void _cancelNodeLongPress() {
+    _nodeLongPressTimer?.cancel();
+    _nodeLongPressTimer = null;
+    _nodeLongPressed = false;
+  }
+
   _DragPassSnapshot _captureDragPassSnapshot() {
     final snapshot = _controller.renderSnapshot;
     return _DragPassSnapshot(
@@ -473,6 +541,7 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
   }
 
   void _captureNode(GraphNodeId nodeId, int pointer, Offset downScene) {
+    _cancelNodeLongPress();
     _pendingNodeId = null;
     _pendingPointer = null;
     _pendingDownScene = null;
@@ -598,6 +667,7 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
   }
 
   void _cancelPendingCapture() {
+    _cancelNodeLongPress();
     _pendingNodeId = null;
     _pendingTapNodeId = null;
     _pendingPointer = null;

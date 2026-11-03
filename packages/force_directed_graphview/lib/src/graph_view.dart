@@ -47,8 +47,10 @@ class GraphView<N, E> extends StatefulWidget {
     this.onCanvasTap,
     this.onCanvasSecondaryTap,
     this.onCanvasLongPress,
+    this.onNodeLongPress,
     this.nodeTapHitTester,
     this.nodePaintOrder,
+    this.touchNodeDragLocked = false,
     super.key,
   });
 
@@ -136,6 +138,12 @@ class GraphView<N, E> extends StatefulWidget {
 
   /// Called for a primary long press that hits no node, in scene coordinates.
   final void Function(Offset scenePosition)? onCanvasLongPress;
+
+  /// Touch/stylus long press on a draggable node within slop.
+  final NodeLongPressCallback<N>? onNodeLongPress;
+
+  /// When true, touch on nodes pans the camera; mouse drags nodes as today.
+  final bool touchNodeDragLocked;
 
   /// Optional tap target resolver; defaults to the body hit-test result.
   final NodeTapHitTester? nodeTapHitTester;
@@ -246,8 +254,12 @@ class _GraphViewState<N, E> extends State<GraphView<N, E>>
         onCanvasTap: widget.onCanvasTap,
         onCanvasSecondaryTap: widget.onCanvasSecondaryTap,
         onCanvasLongPress: widget.onCanvasLongPress,
+        onNodeLongPress: widget.onNodeLongPress == null
+            ? null
+            : (node, position) => widget.onNodeLongPress!(node as N, position),
         nodeTapHitTester: widget.nodeTapHitTester,
         nodePaintOrder: widget.nodePaintOrder,
+        touchNodeDragLocked: widget.touchNodeDragLocked,
       ),
       child: _CameraGatedInteractiveViewer(
         controller: widget.controller,
