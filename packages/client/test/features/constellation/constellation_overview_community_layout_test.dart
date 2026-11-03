@@ -353,7 +353,7 @@ void main() {
       final runs = m.cubit.graphController.relayoutInvocationCount;
       final topology = m.cubit.graphController.topologyRevision.value;
 
-      // The 4096 px canvas must still cover the viewport; stay above its
+      // The widened canvas must still cover the viewport; stay above its
       // minimum fit scale while exercising several overview zoom values.
       for (final scale in [0.34, 0.38, 0.4]) {
         await _zoom(tester, m.cubit, scale);

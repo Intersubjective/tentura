@@ -42,6 +42,157 @@ class _ConstellationTagViewHeaderState
   var _finding = false;
   var _query = '';
 
+  static const _othersChoices = [
+    (
+      'constellation-tag-view-hide',
+      ConstellationTagViewOthers.hide,
+    ),
+    (
+      'constellation-tag-view-dots',
+      ConstellationTagViewOthers.dots,
+    ),
+    (
+      'constellation-tag-view-as-is',
+      ConstellationTagViewOthers.asIs,
+    ),
+  ];
+
+  List<Widget> _othersChips(L10n l10n) => [
+    for (final (key, others) in _othersChoices)
+      ChoiceChip(
+        key: Key(key),
+        label: Text(switch (others) {
+          ConstellationTagViewOthers.hide =>
+            l10n.constellationTagViewOthersHide,
+          ConstellationTagViewOthers.dots =>
+            l10n.constellationTagViewOthersDots,
+          ConstellationTagViewOthers.asIs =>
+            l10n.constellationTagViewOthersAsIs,
+        }),
+        selected: widget.others == others,
+        onSelected: (_) => widget.onOthers(others),
+      ),
+  ];
+
+  Widget _othersRow(L10n l10n, TenturaTokens tt) {
+    final chips = _othersChips(l10n);
+    final windowClass = windowClassForWidth(MediaQuery.sizeOf(context).width);
+    if (windowClass == WindowClass.compact) {
+      return TenturaEdgeFadedRow(
+        fadeKeyPrefix: 'constellation.tag_view.others',
+        color: context.tagColors.swatchFor(widget.colorIndex).container,
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              for (var i = 0; i < chips.length; i++) ...[
+                if (i > 0) SizedBox(width: tt.tightGap),
+                chips[i],
+              ],
+            ],
+          ),
+        ),
+      );
+    }
+    return Wrap(spacing: tt.tightGap, children: chips);
+  }
+
+  Widget _findResults(
+    List<ConstellationFieldPerson> matches,
+    TenturaTokens tt,
+  ) {
+    final list = Column(
+      key: const Key('constellation-tag-view-find-results'),
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (final person in matches)
+          ListTile(
+            dense: true,
+            title: Text(person.name),
+            onTap: () => widget.onFound(person.id),
+          ),
+      ],
+    );
+    final windowClass = windowClassForWidth(MediaQuery.sizeOf(context).width);
+    if (windowClass != WindowClass.compact) return list;
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxHeight: tt.fieldFindResultsMaxHeight),
+      child: SingleChildScrollView(child: list),
+    );
+  }
+
+  Widget _titleRow(
+    BuildContext context,
+    L10n l10n,
+    Color onContainer,
+  ) {
+    final windowClass = windowClassForWidth(MediaQuery.sizeOf(context).width);
+    final titleStyle = Theme.of(context).textTheme.titleSmall?.copyWith(
+      color: onContainer,
+    );
+    if (windowClass != WindowClass.compact) {
+      return Row(
+        children: [
+          Expanded(child: Text(widget.title, style: titleStyle)),
+          TextButton(
+            onPressed: () => setState(() => _finding = !_finding),
+            child: Text(l10n.constellationTagViewFind),
+          ),
+          TextButton(
+            onPressed: widget.onForward,
+            child: Text(l10n.constellationTagLensForward),
+          ),
+          TextButton(
+            key: const Key('constellation-tag-view-exit'),
+            onPressed: widget.onExit,
+            child: Text(l10n.constellationTagViewExit),
+          ),
+        ],
+      );
+    }
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            widget.title,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: titleStyle,
+          ),
+        ),
+        IconButton(
+          key: const Key('constellation-tag-view-exit'),
+          onPressed: widget.onExit,
+          tooltip: l10n.constellationTagViewExit,
+          icon: const Icon(Icons.close),
+        ),
+        MenuAnchor(
+          menuChildren: [
+            MenuItemButton(
+              onPressed: () => setState(() => _finding = !_finding),
+              child: Text(l10n.constellationTagViewFind),
+            ),
+            MenuItemButton(
+              onPressed: widget.onForward,
+              child: Text(l10n.constellationTagLensForward),
+            ),
+          ],
+          builder: (context, controller, child) => IconButton(
+            key: const Key('constellation-tag-view-overflow'),
+            onPressed: () {
+              if (controller.isOpen) {
+                controller.close();
+              } else {
+                controller.open();
+              }
+            },
+            icon: const Icon(Icons.more_vert),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
@@ -62,59 +213,8 @@ class _ConstellationTagViewHeaderState
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    widget.title,
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      color: swatch.onContainer,
-                    ),
-                  ),
-                ),
-                TextButton(
-                  onPressed: () => setState(() => _finding = !_finding),
-                  child: Text(l10n.constellationTagViewFind),
-                ),
-                TextButton(
-                  onPressed: widget.onForward,
-                  child: Text(l10n.constellationTagLensForward),
-                ),
-                TextButton(
-                  key: const Key('constellation-tag-view-exit'),
-                  onPressed: widget.onExit,
-                  child: Text(l10n.constellationTagViewExit),
-                ),
-              ],
-            ),
-            Wrap(
-              spacing: tt.tightGap,
-              children: [
-                for (final (key, others, label) in [
-                  (
-                    'constellation-tag-view-hide',
-                    ConstellationTagViewOthers.hide,
-                    l10n.constellationTagViewOthersHide,
-                  ),
-                  (
-                    'constellation-tag-view-dots',
-                    ConstellationTagViewOthers.dots,
-                    l10n.constellationTagViewOthersDots,
-                  ),
-                  (
-                    'constellation-tag-view-as-is',
-                    ConstellationTagViewOthers.asIs,
-                    l10n.constellationTagViewOthersAsIs,
-                  ),
-                ])
-                  ChoiceChip(
-                    key: Key(key),
-                    label: Text(label),
-                    selected: widget.others == others,
-                    onSelected: (_) => widget.onOthers(others),
-                  ),
-              ],
-            ),
+            _titleRow(context, l10n, swatch.onContainer),
+            _othersRow(l10n, tt),
             if (_finding) ...[
               TextField(
                 key: const Key('constellation-tag-view-find-field'),
@@ -124,18 +224,7 @@ class _ConstellationTagViewHeaderState
                 ),
                 onChanged: (value) => setState(() => _query = value),
               ),
-              Column(
-                key: const Key('constellation-tag-view-find-results'),
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  for (final person in matches)
-                    ListTile(
-                      dense: true,
-                      title: Text(person.name),
-                      onTap: () => widget.onFound(person.id),
-                    ),
-                ],
-              ),
+              _findResults(matches, tt),
             ],
           ],
         ),

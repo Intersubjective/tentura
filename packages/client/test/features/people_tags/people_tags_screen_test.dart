@@ -12,6 +12,7 @@ import 'package:tentura/features/people_tags/ui/screen/people_tags_screen.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../../support/test_realtime_sync.dart';
+import '../../support/mock_stack_router_scope.dart';
 
 const _tagA = PersonTag(
   id: 'Ta',
@@ -106,7 +107,11 @@ final class _FakePeopleTagsRepository implements PeopleTagsRepositoryPort {
       for (final t in tagList)
         if (t.id != id) t,
     ];
-    return PersonTagSnapshot(tag: tag, memberIds: const ['Uann'], sources: const [0]);
+    return PersonTagSnapshot(
+      tag: tag,
+      memberIds: const ['Uann'],
+      sources: const [0],
+    );
   }
 
   @override
@@ -115,7 +120,8 @@ final class _FakePeopleTagsRepository implements PeopleTagsRepositoryPort {
     required String clientOpId,
   }) async {
     restoredTagIds.add(snapshot.tag.id);
-    tagList = [...tagList, snapshot.tag]..sort((a, b) => a.ord.compareTo(b.ord));
+    tagList = [...tagList, snapshot.tag]
+      ..sort((a, b) => a.ord.compareTo(b.ord));
     return snapshot.tag;
   }
 
@@ -169,7 +175,9 @@ void main() {
         theme: TenturaTheme.light(),
         localizationsDelegates: L10n.localizationsDelegates,
         supportedLocales: L10n.supportedLocales,
-        home: const TenturaResponsiveScope(child: PeopleTagsScreen()),
+        home: wrapWithMockStackRouter(
+          const TenturaResponsiveScope(child: PeopleTagsScreen()),
+        ),
       ),
     );
     await tester.pumpAndSettle();

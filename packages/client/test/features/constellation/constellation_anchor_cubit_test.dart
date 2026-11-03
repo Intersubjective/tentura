@@ -6,6 +6,7 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
+import 'package:tentura/features/constellation/domain/constellation_consts.dart';
 import 'package:tentura/features/constellation/domain/constellation_layout.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
@@ -310,7 +311,7 @@ _harness({
 
 void main() {
   group('Composer person pin settlement', () {
-    const dropCentre = Offset(640, 480);
+    const dropCentre = Offset(6784, 6624);
     final target = ConstellationAnchorTarget.person('p1');
     final expectedPosition = constellationPointToV1Anchor(
       (x: dropCentre.dx, y: dropCentre.dy),
@@ -395,12 +396,12 @@ void main() {
         cubit.beginDragExisting(target: target);
         cubit.updateDragPresentation(
           nodeId: 'fp:p1',
-          sceneCentre: const Offset(640, 480),
+          sceneCentre: const Offset(6784, 6624),
         );
         expect(cubit.state.isComposing, isTrue);
         await cubit.onExistingNodeDrop(
           target: target,
-          sceneCentre: const Offset(640, 480),
+          sceneCentre: const Offset(6784, 6624),
         );
         expect(cubit.state.isComposing, isTrue);
         expect(cubit.graphController.nodePayloadForId('fd:draft'), isNotNull);
@@ -430,7 +431,7 @@ void main() {
       cubit.beginDragNew(target: ConstellationAnchorTarget.person('p1'));
       cubit.updateDragPresentation(
         nodeId: 'fp:p1',
-        sceneCentre: const Offset(640, 480),
+        sceneCentre: const Offset(6784, 6624),
       );
       cubit.onPointerCancelDuringDrag();
       expect(cubit.state.isComposing, isTrue);
@@ -476,7 +477,7 @@ void main() {
         final target = ConstellationAnchorTarget.person('p1');
         final drop = harness.cubit.onExistingNodeDrop(
           target: target,
-          sceneCentre: const Offset(2100, 2100),
+          sceneCentre: const Offset(8244, 8244),
         );
         await Future<void>.delayed(Duration.zero);
 
@@ -679,7 +680,7 @@ void main() {
 
       await harness.cubit.onExistingNodeDrop(
         target: target,
-        sceneCentre: const Offset(2100, 2100),
+        sceneCentre: const Offset(8244, 8244),
       );
 
       expect(harness.anchorRepo.upsertCount, 1);
@@ -848,7 +849,7 @@ void main() {
         harness.anchorRepo.upsertGate = Completer<void>();
         final drop = harness.cubit.onExistingNodeDrop(
           target: ConstellationAnchorTarget.person('p1'),
-          sceneCentre: const Offset(2100, 2100),
+          sceneCentre: const Offset(8244, 8244),
         );
         await harness.cubit.close();
         harness.anchorRepo.upsertGate.complete();
@@ -1204,7 +1205,10 @@ void main() {
         harness.cubit.beginDragExisting(target: target);
         await harness.cubit.onExistingNodeDrop(
           target: target,
-          sceneCentre: const Offset(2048 + 510, 2048 + 510),
+          sceneCentre: const Offset(
+            kConstellationCanvasCentre + 510,
+            kConstellationCanvasCentre + 510,
+          ),
         );
 
         await pumpEventQueue();
@@ -1258,7 +1262,7 @@ void main() {
 
       await harness.cubit.onExistingNodeDrop(
         target: target,
-        sceneCentre: const Offset(2100, 2100),
+        sceneCentre: const Offset(8244, 8244),
       );
 
       expect(harness.anchorRepo.upsertCount, 1);
@@ -1292,7 +1296,7 @@ void main() {
       harness.cubit.beginDragExisting(target: target);
       final drop = harness.cubit.onExistingNodeDrop(
         target: target,
-        sceneCentre: const Offset(2100, 2100),
+        sceneCentre: const Offset(8244, 8244),
       );
       await Future<void>.delayed(Duration.zero);
 

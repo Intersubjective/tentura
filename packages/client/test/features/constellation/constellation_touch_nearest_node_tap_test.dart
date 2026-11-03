@@ -24,7 +24,7 @@ const _devicePixelRatio = 2.0;
 const _mouseDevicePixelRatios = [1.0, 2.0];
 
 /// Screen pixels per anchor unit on the phone's zoom floor.
-const _pxPerUnit = 25.5;
+const _pxPerUnit = 17.0;
 
 const _cluster = ['p0', 'p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7'];
 

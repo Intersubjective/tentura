@@ -7,6 +7,7 @@ import 'package:force_directed_graphview/force_directed_graphview.dart';
 import 'package:get_it/get_it.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
+import 'package:tentura/domain/contacts/contact_name_overlay.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/lazy_write_notice.dart';
 import 'package:tentura/features/forward/domain/use_case/forward_case.dart';
@@ -1175,13 +1176,20 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   }
 
   String composerPersonName(String id) {
-    final candidate = _composerPeople[id];
-    if (candidate?.displayName?.isNotEmpty ?? false) {
-      return candidate!.displayName!;
+    final fromField = profileForPersonId(id);
+    if (fromField != null) {
+      final name = fromField.shownName.trim();
+      if (name.isNotEmpty) {
+        return name;
+      }
     }
-    for (final person in state.field?.peers ?? const <ConstellationPerson>[]) {
-      if (person.id == id && (person.displayName?.isNotEmpty ?? false)) {
-        return person.displayName!;
+    final candidate = _composerPeople[id];
+    if (candidate != null) {
+      final name = profileWithContactOverlay(
+        Profile(id: candidate.id, displayName: candidate.displayName ?? ''),
+      ).shownName.trim();
+      if (name.isNotEmpty) {
+        return name;
       }
     }
     return id;
@@ -4361,13 +4369,15 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     }
     final viewerTrustsSubject = _viewerTrustsIds.contains(peer.id);
     final subjectTrustsViewer = _trustsViewerIds.contains(peer.id);
-    return Profile(
-      id: peer.id,
-      displayName: peer.displayName ?? '',
-      handle: peer.handle ?? '',
-      image: peer.image,
-      myVote: viewerTrustsSubject ? 1 : 0,
-      subjectExplicitlyTrustsViewer: subjectTrustsViewer,
+    return profileWithContactOverlay(
+      Profile(
+        id: peer.id,
+        displayName: peer.displayName ?? '',
+        handle: peer.handle ?? '',
+        image: peer.image,
+        myVote: viewerTrustsSubject ? 1 : 0,
+        subjectExplicitlyTrustsViewer: subjectTrustsViewer,
+      ),
     );
   }
 

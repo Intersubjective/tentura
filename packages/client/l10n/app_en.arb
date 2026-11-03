@@ -10478,6 +10478,31 @@
   "@constellationTagRowAdd": {
     "description": "Field tag row: opens the tag editor"
   },
+  "constellationTagAllTags": "All tags",
+  "@constellationTagAllTags": {
+    "description": "Field tag row: opens the full tag list sheet"
+  },
+  "constellationTagAllTagsSelected": "All tags, {count} selected",
+  "@constellationTagAllTagsSelected": {
+    "description": "Field tag row all-tags control when tags are selected",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "constellationTagsSection": "Tags",
+  "@constellationTagsSection": {
+    "description": "Accessibility label for the Field tag chip row"
+  },
+  "constellationTagsSheetTitle": "Tags",
+  "@constellationTagsSheetTitle": {
+    "description": "Title of the Field all-tags sheet"
+  },
+  "constellationTagsManage": "Manage tags",
+  "@constellationTagsManage": {
+    "description": "Field all-tags sheet: opens people tag settings"
+  },
   "constellationTagModeOr": "Any of them",
   "@constellationTagModeOr": {
     "description": "Field tag row switch: people with any selected tag stay bright"
