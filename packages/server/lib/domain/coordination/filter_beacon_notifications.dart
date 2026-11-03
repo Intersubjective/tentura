@@ -30,6 +30,7 @@ Future<List<NotificationOutboxItemEntity>> filterBeaconNotifications({
     if (await guard.canReadTombstone(beaconId: beaconId, viewerId: viewerId)) {
       out.add(
         item.copyWith(
+          digestPost: null,
           title: kBeaconUnavailableNotificationTitle,
           body: kBeaconUnavailableNotificationBody,
         ),

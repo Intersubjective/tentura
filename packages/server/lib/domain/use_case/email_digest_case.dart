@@ -9,6 +9,7 @@ import 'package:tentura_server/domain/port/email_link_port.dart';
 import 'package:tentura_server/domain/entity/digest_cadence.dart';
 import 'package:tentura_server/domain/entity/email_notification_content.dart';
 import 'package:tentura_server/domain/entity/notification_category.dart';
+import 'package:tentura_server/domain/entity/notification_kind.dart';
 import 'package:tentura_server/domain/entity/notification_outbox_item_entity.dart';
 import 'package:tentura_server/domain/entity/notification_preferences_entity.dart';
 import 'package:tentura_server/domain/port/email_sender_port.dart';
@@ -140,16 +141,49 @@ class EmailDigestCase {
         c == NotificationCategory.asksOfMe ||
         c == NotificationCategory.unblocksMe;
 
+    final postGroups =
+        <NotificationKind, Map<String, List<NotificationOutboxItemEntity>>>{};
+    final ordinary = <NotificationOutboxItemEntity>[];
+    for (final item in items) {
+      final id = item.beaconId;
+      if (item.digestPost != null &&
+          id != null &&
+          (item.kind == NotificationKind.newRelay ||
+              item.kind == NotificationKind.postFirstResponse ||
+              item.kind == NotificationKind.postExpiringSoon)) {
+        final byPost = postGroups.putIfAbsent(item.kind, () => {});
+        byPost.putIfAbsent(id, () => []).add(item);
+      } else {
+        ordinary.add(item);
+      }
+    }
     final waitingItems = [
-      for (final i in items)
+      for (final i in ordinary)
         if (waiting(i.category)) toItem(i),
     ];
     final movedItems = [
-      for (final i in items)
+      for (final i in ordinary)
         if (!waiting(i.category)) toItem(i),
     ];
 
     return [
+      for (final (kind, heading) in [
+        (NotificationKind.newRelay, headings.postsShared),
+        (NotificationKind.postFirstResponse, headings.postReplies),
+        (NotificationKind.postExpiringSoon, headings.postsExpiring),
+      ])
+        if (postGroups[kind] case final groups?)
+          EmailDigestSection(
+            heading: heading,
+            items: [
+              for (final receipts in groups.values)
+                _copyBuilder.digestPostItem(
+                  receipts: receipts,
+                  locale: locale,
+                  url: _links.absolute(receipts.first.actionUrl),
+                ),
+            ],
+          ),
       if (waitingItems.isNotEmpty)
         EmailDigestSection(heading: headings.waiting, items: waitingItems),
       if (movedItems.isNotEmpty)
