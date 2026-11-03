@@ -267,21 +267,28 @@ void main() {
       );
     });
 
-    testWidgets('375×667 RU: reply lifetime hint uses «Срок жизни» copy', (
+    testWidgets('375×667 RU: reply lifetime hint uses segment label, chip stays separate', (
       tester,
     ) async {
       await usePhoneSurface(tester);
       await _pumpPostCreate(tester);
 
+      const defaultHint =
+          'Все, кому вы отправите, смогут ответить под постом. '
+          'Срок жизни: 3 дня.';
+      expect(find.text(defaultHint), findsOneWidget);
+      expect(find.textContaining('⏳', findRichText: true), findsOneWidget);
+      expect(defaultHint, isNot(contains('⏳')));
+
+      await tester.tap(find.text('24 часа'));
+      await _settle(tester);
       expect(
-        find.textContaining(
-          'ответить под постом. Срок жизни:',
-          findRichText: true,
+        find.text(
+          'Все, кому вы отправите, смогут ответить под постом. '
+          'Срок жизни: 24 часа.',
         ),
         findsOneWidget,
       );
-      expect(find.textContaining('до 3 дня', findRichText: true), findsNothing);
-      expect(find.textContaining('до 24 часа', findRichText: true), findsNothing);
     });
   });
 }

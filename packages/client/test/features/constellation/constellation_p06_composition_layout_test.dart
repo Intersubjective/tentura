@@ -95,7 +95,10 @@ void main() {
       );
       final projection = ConstellationAnchorProjection(
         revision: ConstellationAnchorRevision.zero,
-        anchors: [_personAnchor('pinned-a', 1, 1), _personAnchor('pinned-b', -1, 0)],
+        anchors: [
+          _personAnchor('pinned-a', 1, 1),
+          _personAnchor('pinned-b', -1, 0),
+        ],
         pinnedPeers: const [
           ConstellationPerson(id: 'pinned-a'),
           ConstellationPerson(id: 'pinned-b'),
@@ -104,7 +107,11 @@ void main() {
         supportPeers: const [ConstellationPerson(id: 'support-x')],
         supportEdges: const [
           ConstellationTrustEdgeEntity(src: _ego, dst: 'support-x', tier: 1),
-          ConstellationTrustEdgeEntity(src: 'support-x', dst: 'pinned-a', tier: 1),
+          ConstellationTrustEdgeEntity(
+            src: 'support-x',
+            dst: 'pinned-a',
+            tier: 1,
+          ),
         ],
         serverFilteredBeaconIds: const [],
         serverFilteredBeaconCount: 0,
@@ -129,9 +136,18 @@ void main() {
         labelBudget: (perPerson: 3, total: 150),
       );
 
-      expect(composed.eligiblePersonIds, containsAll(['pinned-a', 'pinned-b', 'support-x']));
-      expect(composed.keptPeerIds.length, lessThanOrEqualTo(constellationRenderPeerCap() + 3));
-      expect(composed.keptPeerIds, containsAll(['pinned-a', 'pinned-b', 'support-x']));
+      expect(
+        composed.eligiblePersonIds,
+        containsAll(['pinned-a', 'pinned-b', 'support-x']),
+      );
+      expect(
+        composed.keptPeerIds.length,
+        lessThanOrEqualTo(constellationRenderPeerCap() + 3),
+      );
+      expect(
+        composed.keptPeerIds,
+        containsAll(['pinned-a', 'pinned-b', 'support-x']),
+      );
     });
 
     test('pinned requests bypass label density budget', () {
@@ -319,7 +335,12 @@ void main() {
         anchors: [_beaconAnchor('B1', 0, 0)],
         pinnedPeers: const [],
         pinnedRequests: const [
-          ConstellationRequest(id: 'B1', authorId: 'author', title: 'Pinned', status: 0),
+          ConstellationRequest(
+            id: 'B1',
+            authorId: 'author',
+            title: 'Pinned',
+            status: 0,
+          ),
         ],
         supportPeers: const [ConstellationPerson(id: 'author')],
         supportEdges: const [
@@ -333,7 +354,12 @@ void main() {
         field: _fieldWithPins(
           automaticPeers: [const ConstellationPerson(id: 'author')],
           automaticRequests: [
-            const ConstellationRequest(id: 'B2', authorId: 'author', title: 'Auto', status: 0),
+            const ConstellationRequest(
+              id: 'B2',
+              authorId: 'author',
+              title: 'Auto',
+              status: 0,
+            ),
           ],
           projection: projection,
         ),
@@ -350,118 +376,138 @@ void main() {
       expect(composed.eligibleRequestIds, composed.labelPlan.drawnRequestIds);
     });
 
-    test('locally filtered pinned beacon releases support not needed elsewhere', () {
-      final projection = ConstellationAnchorProjection(
-        revision: ConstellationAnchorRevision.zero,
-        anchors: [
-          _beaconAnchor('B-hidden', 1, 1),
-          _beaconAnchor('B-visible', 2, 2),
-        ],
-        pinnedPeers: const [],
-        pinnedRequests: const [
-          ConstellationRequest(
-            id: 'B-hidden',
-            authorId: 'author-hidden',
-            title: 'Hidden',
-            status: 0,
-            needs: ['alpha'],
+    test(
+      'locally filtered pinned beacon releases support not needed elsewhere',
+      () {
+        final projection = ConstellationAnchorProjection(
+          revision: ConstellationAnchorRevision.zero,
+          anchors: [
+            _beaconAnchor('B-hidden', 1, 1),
+            _beaconAnchor('B-visible', 2, 2),
+          ],
+          pinnedPeers: const [],
+          pinnedRequests: const [
+            ConstellationRequest(
+              id: 'B-hidden',
+              authorId: 'author-hidden',
+              title: 'Hidden',
+              status: 0,
+              needs: ['alpha'],
+            ),
+            ConstellationRequest(
+              id: 'B-visible',
+              authorId: 'author-visible',
+              title: 'Visible',
+              status: 0,
+            ),
+          ],
+          supportPeers: const [
+            ConstellationPerson(id: 'author-hidden'),
+            ConstellationPerson(id: 'author-visible'),
+            ConstellationPerson(id: 'bridge'),
+          ],
+          supportEdges: const [
+            ConstellationTrustEdgeEntity(src: _ego, dst: 'bridge', tier: 1),
+            ConstellationTrustEdgeEntity(
+              src: 'bridge',
+              dst: 'author-hidden',
+              tier: 1,
+            ),
+            ConstellationTrustEdgeEntity(
+              src: _ego,
+              dst: 'author-visible',
+              tier: 1,
+            ),
+          ],
+          serverFilteredBeaconIds: const [],
+          serverFilteredBeaconCount: 0,
+        );
+
+        final composed = composeConstellationPresentation(
+          viewerId: _ego,
+          field: _fieldWithPins(
+            automaticPeers: const [],
+            automaticRequests: const [],
+            projection: projection,
           ),
-          ConstellationRequest(
-            id: 'B-visible',
-            authorId: 'author-visible',
-            title: 'Visible',
-            status: 0,
+          localFilters: (
+            capabilitySlugs: {'beta'},
+            location: LocationFilter.any,
+            timing: const TimingFilterAny(),
+            includeUnspecified: true,
           ),
-        ],
-        supportPeers: const [
-          ConstellationPerson(id: 'author-hidden'),
-          ConstellationPerson(id: 'author-visible'),
-          ConstellationPerson(id: 'bridge'),
-        ],
-        supportEdges: const [
-          ConstellationTrustEdgeEntity(src: _ego, dst: 'bridge', tier: 1),
-          ConstellationTrustEdgeEntity(src: 'bridge', dst: 'author-hidden', tier: 1),
-          ConstellationTrustEdgeEntity(src: _ego, dst: 'author-visible', tier: 1),
-        ],
-        serverFilteredBeaconIds: const [],
-        serverFilteredBeaconCount: 0,
-      );
+          asOfUtc: DateTime.utc(2026, 9, 11),
+          labelBudget: (perPerson: 3, total: 150),
+        );
 
-      final composed = composeConstellationPresentation(
-        viewerId: _ego,
-        field: _fieldWithPins(
-          automaticPeers: const [],
-          automaticRequests: const [],
-          projection: projection,
-        ),
-        localFilters: (
-          capabilitySlugs: {'beta'},
-          location: LocationFilter.any,
-          timing: const TimingFilterAny(),
-          includeUnspecified: true,
-        ),
-        asOfUtc: DateTime.utc(2026, 9, 11),
-        labelBudget: (perPerson: 3, total: 150),
-      );
+        expect(composed.locallyFilteredPinnedBeaconIds, {'B-hidden'});
+        expect(
+          composed.anchorOverlay.supportPeers.map((p) => p.id),
+          isNot(contains('author-hidden')),
+        );
+        expect(
+          composed.anchorOverlay.supportPeers.map((p) => p.id),
+          isNot(contains('bridge')),
+        );
+        expect(
+          composed.anchorOverlay.supportPeers.map((p) => p.id),
+          contains('author-visible'),
+        );
+        expect(composed.eligibleRequestIds, contains('B-visible'));
+      },
+    );
 
-      expect(composed.locallyFilteredPinnedBeaconIds, {'B-hidden'});
-      expect(
-        composed.anchorOverlay.supportPeers.map((p) => p.id),
-        isNot(contains('author-hidden')),
-      );
-      expect(
-        composed.anchorOverlay.supportPeers.map((p) => p.id),
-        isNot(contains('bridge')),
-      );
-      expect(
-        composed.anchorOverlay.supportPeers.map((p) => p.id),
-        contains('author-visible'),
-      );
-      expect(composed.eligibleRequestIds, contains('B-visible'));
-    });
+    test(
+      'connected pinned Request author stays in overlay support without automatic peers',
+      () {
+        final projection = ConstellationAnchorProjection(
+          revision: ConstellationAnchorRevision.zero,
+          anchors: [_beaconAnchor('B-pin', 1, 1)],
+          pinnedPeers: const [],
+          pinnedRequests: const [
+            ConstellationRequest(
+              id: 'B-pin',
+              authorId: 'author-capped',
+              title: 'Pinned',
+              status: 0,
+            ),
+          ],
+          supportPeers: const [ConstellationPerson(id: 'author-capped')],
+          supportEdges: const [
+            ConstellationTrustEdgeEntity(
+              src: _ego,
+              dst: 'author-capped',
+              tier: 1,
+            ),
+          ],
+          serverFilteredBeaconIds: const [],
+          serverFilteredBeaconCount: 0,
+        );
 
-    test('connected pinned Request author stays in overlay support without automatic peers', () {
-      final projection = ConstellationAnchorProjection(
-        revision: ConstellationAnchorRevision.zero,
-        anchors: [_beaconAnchor('B-pin', 1, 1)],
-        pinnedPeers: const [],
-        pinnedRequests: const [
-          ConstellationRequest(
-            id: 'B-pin',
-            authorId: 'author-capped',
-            title: 'Pinned',
-            status: 0,
+        final composed = composeConstellationPresentation(
+          viewerId: _ego,
+          field: _fieldWithPins(
+            automaticPeers: const [],
+            automaticRequests: const [],
+            projection: projection,
           ),
-        ],
-        supportPeers: const [ConstellationPerson(id: 'author-capped')],
-        supportEdges: const [
-          ConstellationTrustEdgeEntity(src: _ego, dst: 'author-capped', tier: 1),
-        ],
-        serverFilteredBeaconIds: const [],
-        serverFilteredBeaconCount: 0,
-      );
+          localFilters: const (
+            capabilitySlugs: {},
+            location: LocationFilter.any,
+            timing: TimingFilterAny(),
+            includeUnspecified: true,
+          ),
+          asOfUtc: DateTime.utc(2026, 9, 11),
+          labelBudget: (perPerson: 3, total: 150),
+        );
 
-      final composed = composeConstellationPresentation(
-        viewerId: _ego,
-        field: _fieldWithPins(
-          automaticPeers: const [],
-          automaticRequests: const [],
-          projection: projection,
-        ),
-        localFilters: const (
-          capabilitySlugs: {},
-          location: LocationFilter.any,
-          timing: TimingFilterAny(),
-          includeUnspecified: true,
-        ),
-        asOfUtc: DateTime.utc(2026, 9, 11),
-        labelBudget: (perPerson: 3, total: 150),
-      );
-
-      expect(composed.anchorOverlay.supportPeers.map((p) => p.id), ['author-capped']);
-      expect(composed.keptPeerIds, contains('author-capped'));
-      expect(composed.eligibleRequestIds, contains('B-pin'));
-    });
+        expect(composed.anchorOverlay.supportPeers.map((p) => p.id), [
+          'author-capped',
+        ]);
+        expect(composed.keptPeerIds, contains('author-capped'));
+        expect(composed.eligibleRequestIds, contains('B-pin'));
+      },
+    );
   });
 
   group('computeConstellationPlacedLayout', () {
@@ -498,7 +544,9 @@ void main() {
           },
           priorHints: null,
           nodeSizes: const {},
-          satelliteRequestIdsByAuthor: {'peer-a': ['B-auto']},
+          satelliteRequestIdsByAuthor: {
+            'peer-a': ['B-auto'],
+          },
           requestAuthorById: {'B-auto': 'peer-a'},
           egoOwnRequestIds: const {},
           spacing: _spacing,
@@ -674,28 +722,31 @@ void main() {
 
       ConstellationPlacedLayoutInput inputFor(
         ConstellationPathResolution paths,
-      ) =>
-          (
-            egoId: _ego,
-            paths: paths,
-            automaticKeptPeerIds: paths.keep,
-            pinnedPersonIds: {'peer-a'},
-            pinnedRequestIds: const {},
-            supportPersonIds: const {},
-            anchorByNodeId: {'peer-a': anchor},
-            priorHints: null,
-            nodeSizes: const {},
-            satelliteRequestIdsByAuthor: const {},
-            requestAuthorById: const <String, String>{},
-            egoOwnRequestIds: const {},
-            spacing: _spacing,
-            maxHops: 3,
-            viewportClass: ConstellationViewportClass.expanded,
-            footprints: const <String, ConstellationFootprint>{},
-          );
+      ) => (
+        egoId: _ego,
+        paths: paths,
+        automaticKeptPeerIds: paths.keep,
+        pinnedPersonIds: {'peer-a'},
+        pinnedRequestIds: const {},
+        supportPersonIds: const {},
+        anchorByNodeId: {'peer-a': anchor},
+        priorHints: null,
+        nodeSizes: const {},
+        satelliteRequestIdsByAuthor: const {},
+        requestAuthorById: const <String, String>{},
+        egoOwnRequestIds: const {},
+        spacing: _spacing,
+        maxHops: 3,
+        viewportClass: ConstellationViewportClass.expanded,
+        footprints: const <String, ConstellationFootprint>{},
+      );
 
-      final before = computeConstellationPlacedLayout(input: inputFor(beforePaths));
-      final after = computeConstellationPlacedLayout(input: inputFor(afterPaths));
+      final before = computeConstellationPlacedLayout(
+        input: inputFor(beforePaths),
+      );
+      final after = computeConstellationPlacedLayout(
+        input: inputFor(afterPaths),
+      );
 
       expect(after.positions['peer-a'], before.positions['peer-a']);
       expect(after.positions['peer-a'], constellationV1AnchorToPoint(anchor));
@@ -871,60 +922,66 @@ void main() {
       }
     });
 
-    test('two automatic people do not stack when collision-free space exists', () {
-      final paths = resolveConstellationPaths(
-        egoId: _ego,
-        visiblePeerIds: {'peer-a', 'peer-b'},
-        holderIds: {'peer-a', 'peer-b'},
-        edges: [
-          (src: _ego, dst: 'peer-a', tier: 1),
-          (src: _ego, dst: 'peer-b', tier: 1),
-        ],
-      );
-
-      final layout = computeConstellationPlacedLayout(
-        input: (
+    test(
+      'two automatic people do not stack when collision-free space exists',
+      () {
+        final paths = resolveConstellationPaths(
           egoId: _ego,
-          paths: paths,
-          automaticKeptPeerIds: {'peer-a', 'peer-b'},
-          pinnedPersonIds: const {},
-          pinnedRequestIds: const {},
-          supportPersonIds: const {},
-          anchorByNodeId: const {},
-          priorHints: null,
-          nodeSizes: const {
-            'peer-a': _nodeSize,
-            'peer-b': _nodeSize,
-          },
-          satelliteRequestIdsByAuthor: const {},
-          requestAuthorById: const <String, String>{},
-          egoOwnRequestIds: const {},
-          spacing: _spacing,
-          maxHops: 3,
-          viewportClass: ConstellationViewportClass.expanded,
-          footprints: const <String, ConstellationFootprint>{},
-        ),
-      );
+          visiblePeerIds: {'peer-a', 'peer-b'},
+          holderIds: {'peer-a', 'peer-b'},
+          edges: [
+            (src: _ego, dst: 'peer-a', tier: 1),
+            (src: _ego, dst: 'peer-b', tier: 1),
+          ],
+        );
 
-      final a = layout.positions['peer-a'];
-      final b = layout.positions['peer-b'];
-      expect(a, isNotNull);
-      expect(b, isNotNull);
-      expect(a, isNot(equals(b)));
-      expect(
-        _intersectionAreaForTest(
-          aCentre: a!,
-          aSize: _nodeSize,
-          bCentre: b!,
-          bSize: _nodeSize,
-        ),
-        0,
-      );
-    });
+        final layout = computeConstellationPlacedLayout(
+          input: (
+            egoId: _ego,
+            paths: paths,
+            automaticKeptPeerIds: {'peer-a', 'peer-b'},
+            pinnedPersonIds: const {},
+            pinnedRequestIds: const {},
+            supportPersonIds: const {},
+            anchorByNodeId: const {},
+            priorHints: null,
+            nodeSizes: const {
+              'peer-a': _nodeSize,
+              'peer-b': _nodeSize,
+            },
+            satelliteRequestIdsByAuthor: const {},
+            requestAuthorById: const <String, String>{},
+            egoOwnRequestIds: const {},
+            spacing: _spacing,
+            maxHops: 3,
+            viewportClass: ConstellationViewportClass.expanded,
+            footprints: const <String, ConstellationFootprint>{},
+          ),
+        );
+
+        final a = layout.positions['peer-a'];
+        final b = layout.positions['peer-b'];
+        expect(a, isNotNull);
+        expect(b, isNotNull);
+        expect(a, isNot(equals(b)));
+        expect(
+          _intersectionAreaForTest(
+            aCentre: a!,
+            aSize: _nodeSize,
+            bCentre: b!,
+            bSize: _nodeSize,
+          ),
+          0,
+        );
+      },
+    );
 
     test('prior hint applies only when viewport class matches', () {
       final paths = simplePaths();
-      const hintPoint = (x: 2200.0, y: 2100.0);
+      const hintPoint = (
+        x: kConstellationCanvasCentre + 152.0,
+        y: kConstellationCanvasCentre + 52.0,
+      );
       final withHint = computeConstellationPlacedLayout(
         input: (
           egoId: _ego,
@@ -936,7 +993,7 @@ void main() {
           anchorByNodeId: const {},
           priorHints: (
             positions: {'peer-a': hintPoint},
-            ring: { 'peer-a': 1},
+            ring: {'peer-a': 1},
             viewportClass: ConstellationViewportClass.compact,
           ),
           nodeSizes: const {'peer-a': (width: 64, height: 64)},
@@ -989,9 +1046,15 @@ void main() {
           edges: [(src: _ego, dst: 'peer-a', tier: 1)],
         );
         // Prior session: author near ego ring, satellite just outside author.
-        const priorAuthor = (x: 2048.0 + 170.0, y: 2048.0);
-        const priorSatellite = (x: 2048.0 + 170.0 + 56.0, y: 2048.0);
-        // Author now hard-pinned far away (xUnits=5 → 2048+850).
+        const priorAuthor = (
+          x: kConstellationCanvasCentre + 170.0,
+          y: kConstellationCanvasCentre,
+        );
+        const priorSatellite = (
+          x: kConstellationCanvasCentre + 170.0 + 56.0,
+          y: kConstellationCanvasCentre,
+        );
+        // Author now hard-pinned far away (xUnits=5 → centre+850).
         const pinnedAuthorPos = ConstellationAnchorPosition(
           xUnits: 5,
           yUnits: 0,
@@ -1152,68 +1215,78 @@ void main() {
       expect(pin?.yUnits, -1);
     });
 
-    test('density-excluded beacon gets fallback without moving other nodes', () {
-      const author = 'author-a';
-      const hiddenBeacon = 'B-z-hidden';
-      final field = _fieldWithPins(
-        automaticPeers: [const ConstellationPerson(id: author)],
-        automaticRequests: [
-          const ConstellationRequest(
-            id: 'B-a-visible',
-            authorId: author,
-            title: 'Visible on map',
-            status: 0,
+    test(
+      'density-excluded beacon gets fallback without moving other nodes',
+      () {
+        const author = 'author-a';
+        const hiddenBeacon = 'B-z-hidden';
+        final field = _fieldWithPins(
+          automaticPeers: [const ConstellationPerson(id: author)],
+          automaticRequests: [
+            const ConstellationRequest(
+              id: 'B-a-visible',
+              authorId: author,
+              title: 'Visible on map',
+              status: 0,
+            ),
+            const ConstellationRequest(
+              id: hiddenBeacon,
+              authorId: author,
+              title: 'Hidden by density',
+              status: 0,
+            ),
+          ],
+          projection: ConstellationAnchorProjection.empty,
+        );
+
+        final composed = composeConstellationPresentation(
+          viewerId: _ego,
+          field: field,
+          localFilters: const (
+            capabilitySlugs: {},
+            location: LocationFilter.any,
+            timing: TimingFilterAny(),
+            includeUnspecified: true,
           ),
-          const ConstellationRequest(
-            id: hiddenBeacon,
-            authorId: author,
-            title: 'Hidden by density',
-            status: 0,
-          ),
-        ],
-        projection: ConstellationAnchorProjection.empty,
-      );
+          asOfUtc: field.loadedAt,
+          labelBudget: (perPerson: 1, total: 1),
+        );
 
-      final composed = composeConstellationPresentation(
-        viewerId: _ego,
-        field: field,
-        localFilters: const (
-          capabilitySlugs: {},
-          location: LocationFilter.any,
-          timing: TimingFilterAny(),
-          includeUnspecified: true,
-        ),
-        asOfUtc: field.loadedAt,
-        labelBudget: (perPerson: 1, total: 1),
-      );
+        expect(composed.labelPlan.drawnRequestIds, contains('B-a-visible'));
+        expect(
+          composed.labelPlan.drawnRequestIds,
+          isNot(contains(hiddenBeacon)),
+        );
 
-      expect(composed.labelPlan.drawnRequestIds, contains('B-a-visible'));
-      expect(composed.labelPlan.drawnRequestIds, isNot(contains(hiddenBeacon)));
+        final layoutInput = layoutInputFromComposition(
+          viewerId: _ego,
+          composition: composed,
+          labelPlan: composed.labelPlan,
+          nodeSizes: {
+            author: (width: 72.0, height: 72.0),
+            'B-a-visible': (width: 72.0, height: 72.0),
+            hiddenBeacon: (width: 72.0, height: 72.0),
+          },
+          spacing: _spacing,
+          viewportClass: ConstellationViewportClass.compact,
+        );
 
-      final layoutInput = layoutInputFromComposition(
-        viewerId: _ego,
-        composition: composed,
-        labelPlan: composed.labelPlan,
-        nodeSizes: {
-          author: (width: 72.0, height: 72.0),
-          'B-a-visible': (width: 72.0, height: 72.0),
-          hiddenBeacon: (width: 72.0, height: 72.0),
-        },
-        spacing: _spacing,
-        viewportClass: ConstellationViewportClass.compact,
-      );
+        final beforeLayout = computeConstellationPlacedLayout(
+          input: layoutInput,
+        );
+        final fallback = computeConstellationPinPosition(
+          target: ConstellationAnchorTarget.beacon(hiddenBeacon),
+          layoutInput: layoutInput,
+        );
+        final afterLayout = computeConstellationPlacedLayout(
+          input: layoutInput,
+        );
 
-      final beforeLayout = computeConstellationPlacedLayout(input: layoutInput);
-      final fallback = computeConstellationPinPosition(
-        target: ConstellationAnchorTarget.beacon(hiddenBeacon),
-        layoutInput: layoutInput,
-      );
-      final afterLayout = computeConstellationPlacedLayout(input: layoutInput);
-
-      expect(fallback, isNotNull);
-      expect(afterLayout.positions, beforeLayout.positions);
-      expect(composed.anchorOverlay.anchors, isEmpty);
-    });
+        expect(fallback, isNotNull);
+        expect(afterLayout.positions, beforeLayout.positions);
+        expect(composed.anchorOverlay.anchors, isEmpty);
+      },
+    );
 
     test('compact and expanded viewport round-trip normalized coordinates', () {
       const anchor = ConstellationAnchorPosition(

@@ -387,7 +387,7 @@ void main() {
         expect(viewer().panEnabled, isFalse);
         expect(viewer().scaleEnabled, isFalse);
 
-        const drop = Offset(2100, 2100);
+        const drop = Offset(8244, 8244);
         final pending = isNew
             ? cubit.onNewNodeDrop(target: target, sceneCentre: drop)
             : cubit.onExistingNodeDrop(target: target, sceneCentre: drop);
@@ -423,7 +423,7 @@ void main() {
       final target = ConstellationAnchorTarget.person('p1');
       await harness.cubit.onNewNodeDrop(
         target: target,
-        sceneCentre: const Offset(2100, 2100),
+        sceneCentre: const Offset(8244, 8244),
       );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 50));
@@ -445,7 +445,7 @@ void main() {
       await _pumpShell(tester, harness.cubit);
 
       final original = _requireNodeCentre(harness.cubit, 'p1');
-      const drop = Offset(2800, 1600);
+      const drop = Offset(8944, 7744);
       expect((original - drop).distance, greaterThan(200));
 
       final target = ConstellationAnchorTarget.person('p1');
@@ -476,7 +476,7 @@ void main() {
       await _pumpShell(tester, harness.cubit);
 
       final original = _requireNodeCentre(harness.cubit, 'p1');
-      const drop = Offset(2800, 1600);
+      const drop = Offset(8944, 7744);
       expect((original - drop).distance, greaterThan(200));
 
       final target = ConstellationAnchorTarget.person('p1');
@@ -675,7 +675,7 @@ void main() {
       final controller = harness.cubit.graphController;
       expect(controller.canLayout, isTrue);
 
-      const panTarget = Offset(2800, 2200);
+      const panTarget = Offset(8344, 8344);
       controller.jumpToPosition(panTarget);
       await tester.pump();
 
@@ -719,7 +719,7 @@ void main() {
       addTearDown(harness.cubit.close);
       await _pumpShell(tester, harness.cubit);
 
-      const drop = Offset(2800, 1600);
+      const drop = Offset(8944, 7744);
       final target = ConstellationAnchorTarget.person('p1');
       harness.anchorRepo.upsertHold = Completer<void>();
       final pending = harness.cubit.onNewNodeDrop(
@@ -753,7 +753,7 @@ void main() {
       addTearDown(harness.cubit.close);
       await _pumpShell(tester, harness.cubit);
 
-      const drop = Offset(2800, 1600);
+      const drop = Offset(8944, 7744);
       harness.anchorRepo.upsertHold = Completer<void>();
       final pending = harness.cubit.onNewNodeDrop(
         target: ConstellationAnchorTarget.person('p1'),

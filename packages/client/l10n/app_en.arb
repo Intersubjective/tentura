@@ -1407,7 +1407,7 @@
       }
     }
   },
-  "constellationMorePosts": "+{count} more posts",
+  "constellationMorePosts": "{count, plural, one{+{count} more post} other{+{count} more posts}}",
   "@constellationMorePosts": {
     "placeholders": {
       "count": {
