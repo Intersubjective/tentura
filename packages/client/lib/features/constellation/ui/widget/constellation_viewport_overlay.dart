@@ -52,6 +52,31 @@ Size measureConstellationLabelPlate({
   );
 }
 
+/// One visual line for a map label plate; keeps a reserved second line free (#248).
+String ellipsizeConstellationLabelLine(
+  String text, {
+  required TextStyle style,
+  required double maxWidth,
+  required TextScaler textScaler,
+  required TextDirection direction,
+}) {
+  if (text.isEmpty) return text;
+  final painter = TextPainter(
+    textDirection: direction,
+    textScaler: textScaler,
+    maxLines: 1,
+    ellipsis: '…',
+  );
+  for (var end = text.length; end >= 0; end--) {
+    final candidate = end == text.length ? text : '${text.substring(0, end)}…';
+    painter
+      ..text = TextSpan(text: candidate, style: style)
+      ..layout(maxWidth: maxWidth);
+    if (!painter.didExceedMaxLines) return candidate;
+  }
+  return '…';
+}
+
 class ConstellationViewportOverlay extends StatefulWidget {
   const ConstellationViewportOverlay({
     required this.cubit,
@@ -234,7 +259,10 @@ class _ConstellationViewportOverlayState
     NodeDetails node,
     L10n l10n,
     TenturaTokens tt,
-  ) => switch (node) {
+    BuildContext context, {
+    required TextStyle labelStyle,
+    required EdgeInsets labelPadding,
+  }) => switch (node) {
     FieldPersonNode(:final person) => (
       widget.cubit.fieldPersonById(person.id)?.pinState == 'tombstone'
           ? l10n.constellationPinAccountDeleted
@@ -247,7 +275,14 @@ class _ConstellationViewportOverlayState
       l10n,
       tt,
     ),
-    FieldBeaconNode(post: final post?) => _postLabelSpec(post, l10n, tt),
+    FieldBeaconNode(post: final post?) => _postLabelSpec(
+      post,
+      l10n,
+      tt,
+      context,
+      labelStyle: labelStyle,
+      labelPadding: labelPadding,
+    ),
     _ => ('', 1, tt.graphLabelMaxWidthPerson),
   };
 
@@ -255,9 +290,13 @@ class _ConstellationViewportOverlayState
     ConstellationPost post,
     L10n l10n,
     TenturaTokens tt,
-  ) {
+    BuildContext context, {
+    required TextStyle labelStyle,
+    required EdgeInsets labelPadding,
+  }) {
     final now = RelativeTimestampTicker.now();
-    final excerpt = post.rootExcerpt;
+    final plateWidth = tt.graphLabelMaxWidthRequest;
+    final maxLineWidth = plateWidth - labelPadding.horizontal;
     final lifetime = post.expiresAt == null
         ? ''
         : postLifetimeLineForDeadline(
@@ -266,10 +305,20 @@ class _ConstellationViewportOverlayState
             expiresAt: post.expiresAt,
             archived: !constellationPostActive(post, now),
           );
+    final rawExcerpt = post.rootExcerpt;
+    final excerpt = lifetime.isEmpty
+        ? rawExcerpt
+        : ellipsizeConstellationLabelLine(
+            rawExcerpt,
+            style: labelStyle,
+            maxWidth: maxLineWidth,
+            textScaler: MediaQuery.textScalerOf(context),
+            direction: Directionality.of(context),
+          );
     if (lifetime.isEmpty) {
-      return (excerpt, 2, tt.graphLabelMaxWidthRequest);
+      return (excerpt, 2, plateWidth);
     }
-    return ('$excerpt\n$lifetime', 2, tt.graphLabelMaxWidthRequest);
+    return ('$excerpt\n$lifetime', 2, plateWidth);
   }
 
   (String, int, double) _requestLabelSpec(
@@ -513,6 +562,9 @@ class _ConstellationViewportOverlayState
                 node,
                 l10n,
                 tt,
+                context,
+                labelStyle: labelStyle,
+                labelPadding: labelPadding,
               );
 
               final labelSize = labelText.isEmpty
@@ -581,9 +633,14 @@ class _ConstellationViewportOverlayState
               final expanded = widget.cubit.isSatelliteOverflowExpanded(
                 authorId,
               );
-              final chipLabel = expanded
-                  ? l10n.constellationFewerRequests
-                  : l10n.constellationMoreRequests(hidden);
+              final overflowCopy = constellationOverflowChipCopy(
+                cubit: widget.cubit,
+                authorId: authorId,
+                hiddenCount: hidden,
+                expanded: expanded,
+                l10n: l10n,
+              );
+              final chipLabel = overflowCopy.chipLabel;
               final chipSize = constellationOverflowChipSize(
                 context,
                 chipLabel,
@@ -702,7 +759,14 @@ class _ConstellationViewportOverlayState
                 if (node == null) {
                   continue;
                 }
-                final (text, maxLines, plateWidth) = _labelSpec(node, l10n, tt);
+                final (text, maxLines, plateWidth) = _labelSpec(
+                  node,
+                  l10n,
+                  tt,
+                  context,
+                  labelStyle: labelStyle,
+                  labelPadding: labelPadding,
+                );
                 final plateKey = (
                   text,
                   maxLines,
@@ -915,7 +979,14 @@ class _ConstellationViewportOverlayState
                         selectedGraphId: rings.selected,
                         dimmedGraphIds: dimmedGraphIds,
                         hiddenLabelOf: (id) => switch (nodeByGraphId[id]) {
-                          final node? => _labelSpec(node, l10n, tt).$1,
+                          final node? => _labelSpec(
+                            node,
+                            l10n,
+                            tt,
+                            context,
+                            labelStyle: labelStyle,
+                            labelPadding: labelPadding,
+                          ).$1,
                           null => null,
                         },
                       ),

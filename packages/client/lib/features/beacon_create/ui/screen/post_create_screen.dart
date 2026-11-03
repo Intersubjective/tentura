@@ -308,7 +308,11 @@ class _PostCreateScreenState extends State<PostCreateScreen>
         ),
         SizedBox(height: tt.rowGap),
         Text(
-          l10n.postCreateReplyLifetimeHint(_lifetimeSegmentLabel(l10n)),
+          l10n.postCreateReplyLifetimeHint(
+            Localizations.localeOf(context).languageCode == 'ru'
+                ? _draftLifetimeVisibleLabel(l10n)
+                : _lifetimeSegmentLabel(l10n),
+          ),
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
             color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),

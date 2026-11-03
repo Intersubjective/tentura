@@ -15,7 +15,10 @@ const _longExcerpt =
     'three flights of stairs, then across the courtyard and into the van '
     'that is waiting in the back lane behind the bakery?';
 
-ConstellationField _fieldWithPosts(Map<String, String> excerptByPostId) =>
+ConstellationField _fieldWithPosts(
+  Map<String, String> excerptByPostId, {
+  DateTime? expiresAt,
+}) =>
     ConstellationField(
       loadedAt: DateTime.utc(2026, 10, 28),
       context: '',
@@ -30,6 +33,7 @@ ConstellationField _fieldWithPosts(Map<String, String> excerptByPostId) =>
             authorId: 'a',
             rootExcerpt: entry.value,
             lastActivityAt: DateTime.utc(2026, 10, 28),
+            expiresAt: expiresAt,
           ),
       ],
     );
@@ -38,18 +42,21 @@ void main() {
   group('Constellation post labels at the closest detail level', () {
     Future<ConstellationPresentationFrame> mountClose(
       WidgetTester tester,
-      Map<String, String> excerptByPostId,
-    ) async {
+      Map<String, String> excerptByPostId, {
+      DateTime? expiresAt,
+      Locale locale = const Locale('en'),
+      Size size = const Size(1200, 900),
+    }) async {
       final cubit = await loadReferenceCubit(
-        field: _fieldWithPosts(excerptByPostId),
+        field: _fieldWithPosts(excerptByPostId, expiresAt: expiresAt),
       );
       addTearDown(cubit.close);
       final holder = ConstellationPresentationFrameHolder();
       await pumpConstellationBody(
         tester,
         cubit,
-        size: const Size(1200, 900),
-        locale: const Locale('en'),
+        size: size,
+        locale: locale,
         presentationFrameHolder: holder,
       );
       await tester.pumpAndSettle();

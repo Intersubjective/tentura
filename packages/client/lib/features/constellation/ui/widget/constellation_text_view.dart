@@ -96,9 +96,13 @@ class _ConstellationTextViewState extends State<ConstellationTextView> {
           if (cubit.isSatelliteOverflowExpanded(authorId) &&
               _announcedOverflowAuthors.add(authorId)) {
             SemanticsService.announce(
-              L10n.of(context)!.constellationMoreRequests(
-                cubit.overflowHiddenCountByAuthor[authorId] ?? 0,
-              ),
+              constellationOverflowChipCopy(
+                cubit: cubit,
+                authorId: authorId,
+                hiddenCount: cubit.overflowHiddenCountByAuthor[authorId] ?? 0,
+                expanded: true,
+                l10n: L10n.of(context)!,
+              ).chipLabel,
               TextDirection.ltr,
             );
           }

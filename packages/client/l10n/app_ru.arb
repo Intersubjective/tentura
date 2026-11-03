@@ -1308,6 +1308,29 @@
       }
     }
   },
+  "constellationMorePosts": "ещё {count} постов",
+  "@constellationMorePosts": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "constellationFewerPosts": "Свернуть посты",
+  "@constellationFewerPosts": {
+    "context": "ConstellationOverflowGroup"
+  },
+  "constellationMorePostsByAuthor": "{count, plural, one{Ещё {count} пост от {name}} few{Ещё {count} поста от {name}} many{Ещё {count} постов от {name}} other{Ещё {count} поста от {name}}}",
+  "@constellationMorePostsByAuthor": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "constellationIncludeUnspecified": "Включать запросы без навыка или даты",
   "@constellationIncludeUnspecified": {
     "context": "ConstellationFilterBar"
@@ -3677,6 +3700,7 @@
   "beaconRoomWaitingForApproval": "Ожидает решения",
   "beaconRoomNoAdmission": "Нет доступа к обсуждению",
   "beaconRoomEmptyState": "Сообщений пока нет. Здесь вы и помощники договариваетесь.",
+  "postRoomEmptyReplies": "Ответов пока нет",
   "withdrawCantDoIt": "Больше не могу",
   "withdrawTimingChanged": "Не сходится по времени",
   "withdrawWrongFit": "Не мой формат",
@@ -5700,7 +5724,7 @@
   "postCreateLifetime3d": "3 дня",
   "postCreateLifetimeHint": "Потом пост уйдёт в архив. Продлить нельзя, сократить можно.",
   "postCreateTextHint": "О чём ваш пост?",
-  "postCreateReplyLifetimeHint": "Все, кому вы отправите, смогут ответить под постом. Он проживёт до {lifetime}.",
+  "postCreateReplyLifetimeHint": "Все, кому вы отправите, смогут ответить под постом. Срок жизни: {lifetime}.",
   "@postCreateReplyLifetimeHint": {
     "placeholders": {
       "lifetime": {
