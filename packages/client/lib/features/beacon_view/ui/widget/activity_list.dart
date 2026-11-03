@@ -173,24 +173,26 @@ class _LogActivityTile extends StatelessWidget {
         lead,
         const SizedBox(width: kSpacingSmall),
         Expanded(
-          child: Text(
-            bodySnippet,
-            // One neutral body style for all rows (#449); tier colour stays
-            // on the icon only.
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurface,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                bodySnippet,
+                // One neutral body style for all rows (#449); tier colour stays
+                // on the icon only.
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurface,
+                ),
+              ),
+              Text(
+                coordinationLogTimestampLabel(
+                  event.createdAt,
+                  localeName: L10n.of(context)!.localeName,
+                ),
+                style: theme.textTheme.labelSmall,
+              ),
+            ],
           ),
-        ),
-        const SizedBox(width: 4),
-        Text(
-          coordinationLogTimestampLabel(
-            event.createdAt,
-            localeName: L10n.of(context)!.localeName,
-          ),
-          style: theme.textTheme.labelSmall,
         ),
         if (onTap != null) ...[
           const SizedBox(width: 2),

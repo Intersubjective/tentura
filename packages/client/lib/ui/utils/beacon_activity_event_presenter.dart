@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_activity_event.dart';
@@ -260,7 +261,10 @@ String beaconLifecycleEventLabel(L10n l10n, BeaconActivityEvent e) {
       l10n.beaconLifecycleReviewOpen,
     BeaconLifecycleChangeReason.directClose => l10n.beaconLifecycleClosed,
     BeaconLifecycleChangeReason.authorCloseNow =>
-      l10n.beaconActivityLifecycleClosedAfterReview,
+      _lifecycleDiffValue(e, 'fromState') ==
+              BeaconStatus.reviewOpen.smallintValue
+          ? l10n.beaconActivityLifecycleClosedAfterReview
+          : l10n.beaconLifecycleClosed,
     BeaconLifecycleChangeReason.closureExpired ||
     BeaconLifecycleChangeReason.reviewExpired =>
       l10n.beaconActivityLifecycleReviewExpired,
