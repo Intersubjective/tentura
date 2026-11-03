@@ -6453,6 +6453,7 @@
   "constellationShowDegreeFurther": "3-й круг и дальше",
   "constellationShowDegreeFurtherHint": "Люди в трёх и более шагах доверия или без видимой вам цепочки доверия, с их запросами и постами",
   "constellationSelectMany": "Выбрать несколько",
+  "constellationArrangeEntry": "Расположить…",
   "constellationSelectionCount": "Выбрано: {count}",
   "constellationSelectionHint": "Обведите рамкой или нажмите на людей, запросы и посты. Поле двигается двумя пальцами.",
   "constellationSelectionHintMouse": "Обведите рамкой или щёлкните по людям, запросам и постам. Без этого режима рамку можно обвести с зажатым Shift.",

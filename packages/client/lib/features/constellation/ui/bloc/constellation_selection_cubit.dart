@@ -22,6 +22,20 @@ class ConstellationSelectionCubit extends Cubit<ConstellationMultiSelection> {
         keyboard.isMetaPressed;
   }
 
+  /// Field «Arranging» (#938): touch node moves; pan on empty space.
+  void enterArranging() {
+    if (isClosed) return;
+    emit(state.withArranging(true));
+  }
+
+  /// Leaves arranging; keeps the current selection and select tool as they are.
+  void exitArranging() {
+    if (isClosed || !state.arranging) return;
+    emit(
+      state.withSector(null).withArranging(false).withSelecting(false),
+    );
+  }
+
   /// The select tool (toolbar toggle, «Done»). Turning it off keeps what
   /// is selected for the bulk actions.
   void setSelecting(bool selecting) {
@@ -48,7 +62,7 @@ class ConstellationSelectionCubit extends Cubit<ConstellationMultiSelection> {
     emit(state.applyBox(inside, merge));
   }
 
-  /// «Clear selection»: nothing selected and the toolbar toggle off.
+  /// «Clear selection»: nothing selected, arranging off, tool off.
   void clear() {
     if (isClosed) return;
     emit(ConstellationMultiSelection.empty);
@@ -82,6 +96,10 @@ class ConstellationSelectionCubit extends Cubit<ConstellationMultiSelection> {
   /// False when there was nothing to undo.
   bool escape() {
     if (isClosed) return false;
+    if (state.arranging) {
+      exitArranging();
+      return true;
+    }
     if (state.sector != null) {
       cancelSector();
       return true;

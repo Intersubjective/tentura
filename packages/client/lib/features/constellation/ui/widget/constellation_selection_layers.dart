@@ -47,7 +47,11 @@ bool constellationSelectionTap(
     return false;
   }
   final byModifier = ConstellationSelectionCubit.modifierHeld;
-  if (!selection.state.selecting && !byModifier) return false;
+  if (selection.state.arranging) {
+    if (!selection.state.selecting && !byModifier) return false;
+  } else if (!selection.state.selecting && !byModifier) {
+    return false;
+  }
   final target = cubit.anchorTargetForNode(node);
   if (target != null) selection.toggle(target);
   // In select mode a tap on yourself does nothing rather than open.
@@ -120,6 +124,10 @@ class ConstellationSelectionLayers extends StatelessWidget {
       builder: (context, state) => Stack(
         fit: StackFit.expand,
         children: [
+          if (state.arranging)
+            IgnorePointer(
+              child: _ArrangingLiftRings(cubit: cubit),
+            ),
           if (!state.isEmpty)
             IgnorePointer(
               child: _SelectionRings(cubit: cubit, targets: state.targets),
@@ -179,16 +187,65 @@ class _SelectionRings extends StatelessWidget {
   }
 }
 
+class _ArrangingLiftRings extends StatelessWidget {
+  const _ArrangingLiftRings({required this.cubit});
+
+  final ConstellationCubit cubit;
+
+  @override
+  Widget build(BuildContext context) {
+    final disableMotion = MediaQuery.disableAnimationsOf(context);
+    if (disableMotion) {
+      return const SizedBox.shrink();
+    }
+    final controller = cubit.graphController;
+    final scheme = Theme.of(context).colorScheme;
+    final tt = context.tt;
+    return ListenableBuilder(
+      listenable: Listenable.merge([controller, controller.cameraRevision]),
+      builder: (context, _) {
+        final snapshot = controller.renderSnapshot;
+        final scale = controller.cameraScale;
+        final rings = <(Offset, double)>[];
+        for (final entry in snapshot.topology.nodesById.entries) {
+          final node = entry.value.payload;
+          if (!cubit.canDragNode(node)) continue;
+          final point = snapshot.resolvePosition(entry.key);
+          if (point == null) continue;
+          rings.add((
+            controller.sceneToViewportLocal(Offset(point.x, point.y)),
+            math.max(entry.value.size.width, entry.value.size.height) *
+                    scale /
+                    2 +
+                tt.tightGap * 2,
+          ));
+        }
+        return CustomPaint(
+          key: const Key('constellation.arranging.lift_rings'),
+          painter: _RingsPainter(
+            rings: rings,
+            color: scheme.primary,
+            stroke: TenturaSpacing.focusRing * 1.5,
+            dashed: true,
+          ),
+        );
+      },
+    );
+  }
+}
+
 class _RingsPainter extends CustomPainter {
   const _RingsPainter({
     required this.rings,
     required this.color,
     required this.stroke,
+    this.dashed = false,
   });
 
   final List<(Offset, double)> rings;
   final Color color;
   final double stroke;
+  final bool dashed;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -201,9 +258,37 @@ class _RingsPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = stroke;
     for (final (centre, radius) in rings) {
-      canvas
-        ..drawCircle(centre, radius + stroke, halo)
-        ..drawCircle(centre, radius, ring);
+      canvas.drawCircle(centre, radius + stroke, halo);
+      if (dashed) {
+        _drawDashedCircle(canvas, centre, radius, ring);
+      } else {
+        canvas.drawCircle(centre, radius, ring);
+      }
+    }
+  }
+
+  static void _drawDashedCircle(
+    Canvas canvas,
+    Offset centre,
+    double radius,
+    Paint paint,
+  ) {
+    const dash = 6.0;
+    const gap = 5.0;
+    final circumference = 2 * math.pi * radius;
+    var distance = 0.0;
+    while (distance < circumference) {
+      final sweep = math.min(dash, circumference - distance);
+      final startAngle = distance / radius;
+      final sweepAngle = sweep / radius;
+      canvas.drawArc(
+        Rect.fromCircle(center: centre, radius: radius),
+        startAngle,
+        sweepAngle,
+        false,
+        paint,
+      );
+      distance += dash + gap;
     }
   }
 
@@ -211,6 +296,7 @@ class _RingsPainter extends CustomPainter {
   bool shouldRepaint(_RingsPainter old) =>
       old.color != color ||
       old.stroke != stroke ||
+      old.dashed != dashed ||
       old.rings.length != rings.length ||
       !_sameRings(old.rings, rings);
 
@@ -445,7 +531,10 @@ class _BoxSelectState extends State<_BoxSelect> {
       return false;
     }
     // Read now, not from the last build: the tool may have just turned on.
-    if (!widget.selection.state.selecting &&
+    final arranging = widget.selection.state.arranging;
+    if (arranging) {
+      if (!widget.selection.state.selecting) return false;
+    } else if (!widget.selection.state.selecting &&
         !HardwareKeyboard.instance.isShiftPressed) {
       return false;
     }

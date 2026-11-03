@@ -9973,6 +9973,10 @@
   "@constellationSelectMany": {
     "context": "Field map: toolbar toggle for the select tool (#642). While on, dragging on empty map draws a selection box and a tap adds or removes a person, Request or Post instead of opening it; two fingers move the map. On a computer Shift-drag and Shift/Ctrl/Cmd-click work without the toggle"
   },
+  "constellationArrangeEntry": "Arrange…",
+  "@constellationArrangeEntry": {
+    "context": "Field map overflow: enter Arranging mode (#938)"
+  },
   "constellationSelectionCount": "{count} selected",
   "@constellationSelectionCount": {
     "context": "Field map: how many nodes are selected (#642)",

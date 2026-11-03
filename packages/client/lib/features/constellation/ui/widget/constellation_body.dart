@@ -998,7 +998,8 @@ class _ConstellationBodyState extends State<ConstellationBody>
                                 cubit.state.placementPhase ==
                                     ConstellationPlacementPhase.idle &&
                                 selection != null &&
-                                (selection.state.selecting ||
+                                (selection.state.arranging ||
+                                    selection.state.selecting ||
                                     selection.state.sector != null ||
                                     !panelOpen) &&
                                 selection.escape()) {
@@ -1486,7 +1487,23 @@ class _ConstellationBodyState extends State<ConstellationBody>
           // Tab enters on one marker, the arrow keys move between markers.
           child: FocusTraversalGroup(
             policy: _mapTraversalPolicy,
-            child: GraphView<NodeDetails, EdgeDetails>(
+            child: BlocBuilder<
+              ConstellationSelectionCubit,
+              ConstellationMultiSelection
+            >(
+              bloc: maybeConstellationSelection(context),
+              builder: (context, selectionState) {
+                final arranging = selectionState.arranging;
+                final touchNodeDragLocked =
+                    !arranging && !cubit.state.isComposing;
+                bool canDragNode(NodeDetails node) {
+                  if (cubit.state.isComposing && !arranging) {
+                    return cubit.isComposerDrag(node);
+                  }
+                  return cubit.canDragNode(node);
+                }
+
+                return GraphView<NodeDetails, EdgeDetails>(
               controller: cubit.graphController,
               canvasSize: ConstellationBody._canvasSize,
               canvasBackgroundBuilder: (context) =>
@@ -1518,8 +1535,22 @@ class _ConstellationBodyState extends State<ConstellationBody>
                   ? _overviewTransitionDuration
                   : _layoutTransitionDuration,
               layoutTransitionStages: cubit.layoutTransitionStages,
-              canDragNode: cubit.canDragNode,
+              touchNodeDragLocked: touchNodeDragLocked,
+              canDragNode: canDragNode,
               transformNodeDragPosition: cubit.clampClusterDragPosition,
+              onNodeLongPress: (node, position) {
+                if (cubit.state.tagView != null) {
+                  return false;
+                }
+                if (!cubit.canDragNode(node)) {
+                  return false;
+                }
+                if (cubit.state.isComposing) {
+                  return node is FieldPersonNode && cubit.isComposerDrag(node);
+                }
+                maybeConstellationSelection(context)?.enterArranging();
+                return true;
+              },
               onNodeDragStart: (node, position) {
                 // The tag view only looks; a drag there writes nothing.
                 if (cubit.state.tagView != null) {
@@ -1812,6 +1843,8 @@ class _ConstellationBodyState extends State<ConstellationBody>
                   stream: store.changes,
                   builder: (_, _) => build(_ownTagsOf(store, node.person.id)),
                 );
+              },
+            );
               },
             ),
           ),

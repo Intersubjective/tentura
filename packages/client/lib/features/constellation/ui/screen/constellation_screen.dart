@@ -47,6 +47,8 @@ import '../scene/constellation_scene_controller.dart';
 import '../util/constellation_focus_request.dart';
 import '../widget/constellation_camera_controls.dart';
 import '../widget/constellation_app_bar.dart';
+import '../widget/constellation_selection_layers.dart'
+    show maybeConstellationSelection;
 import '../widget/constellation_body.dart';
 import '../widget/constellation_create_entry.dart';
 
@@ -289,6 +291,7 @@ class _ConstellationScreenState extends State<ConstellationScreen> {
 
   @override
   void deactivate() {
+    maybeConstellationSelection(context)?.exitArranging();
     final cubit = context.read<ConstellationCubit>();
     if (!cubit.state.isComposing) {
       cubit.onRouteLeave();
@@ -318,6 +321,7 @@ class _ConstellationScreenState extends State<ConstellationScreen> {
                 );
                 unawaited(constellation.load());
               } else {
+                context.read<ConstellationSelectionCubit>().exitArranging();
                 constellation.enterComposing(
                   draftCentre: selection.center.offset,
                   candidateIds: selection.eligible,
@@ -371,7 +375,16 @@ class _ConstellationScreenState extends State<ConstellationScreen> {
           },
         ),
       ],
-      child: Scaffold(
+      child: BlocBuilder<ConstellationSelectionCubit, ConstellationMultiSelection>(
+        builder: (context, selectionState) => PopScope(
+          canPop: !selectionState.arranging,
+          onPopInvokedWithResult: (didPop, result) {
+            if (didPop) return;
+            if (selectionState.arranging) {
+              context.read<ConstellationSelectionCubit>().exitArranging();
+            }
+          },
+          child: Scaffold(
         appBar: TenturaTopBar.of(
           context,
           title: const SizedBox.shrink(),
@@ -393,6 +406,8 @@ class _ConstellationScreenState extends State<ConstellationScreen> {
                 ),
               ),
             ),
+          ),
+        ),
           ),
         ),
       ),

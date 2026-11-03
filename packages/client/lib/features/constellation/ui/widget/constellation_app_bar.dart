@@ -451,8 +451,8 @@ class _ConstellationOverflowMenu extends StatelessWidget {
             menuContext,
             action: _ConstellationOverflowAction.select,
             icon: Icons.select_all,
-            label: l10n.constellationSelectMany,
-            checked: selection.state.selecting,
+            label: l10n.constellationArrangeEntry,
+            checked: selection.state.arranging,
           ),
         if (composer != null)
           item(
@@ -474,7 +474,7 @@ class _ConstellationOverflowMenu extends StatelessWidget {
           case _ConstellationOverflowAction.legend:
             onToggleLegend();
           case _ConstellationOverflowAction.select:
-            selection?.setSelecting(!selection.state.selecting);
+            selection?.enterArranging();
           case _ConstellationOverflowAction.createHere:
             unawaited(_offerCreate(context, cubit: cubit, composer: composer));
           case _ConstellationOverflowAction.filters:

@@ -18,6 +18,22 @@ void main() {
   setUp(() => cubit = ConstellationSelectionCubit());
   tearDown(() => cubit.close());
 
+  test('enter and exit arranging', () {
+    cubit.enterArranging();
+    expect(cubit.state.arranging, isTrue);
+    expect(cubit.state.isActive, isTrue);
+
+    cubit.exitArranging();
+    expect(cubit.state.arranging, isFalse);
+    expect(cubit.state.selecting, isFalse);
+  });
+
+  test('escape leaves arranging first', () {
+    cubit.enterArranging();
+    expect(cubit.escape(), isTrue);
+    expect(cubit.state.arranging, isFalse);
+  });
+
   test('starts empty, tool off, no bar', () {
     expect(cubit.state.isEmpty, isTrue);
     expect(cubit.state.selecting, isFalse);
