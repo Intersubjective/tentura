@@ -362,7 +362,10 @@ void main() {
         final dir = rimDirection(step);
         final down = globalOf(tester, start.center.offset + dir * start.radius);
         if (!canvas(tester).deflate(8).contains(down)) continue;
-        final g = await tester.startGesture(down);
+        final g = await tester.startGesture(
+          down,
+          kind: PointerDeviceKind.mouse,
+        );
         await g.moveTo(down + dir * 120);
         await tester.pump();
         final grew = composer.selection.radius > start.radius;
@@ -386,7 +389,10 @@ void main() {
         before.center.offset + dir! * before.radius,
       );
 
-      final g = await tester.startGesture(down);
+      final g = await tester.startGesture(
+        down,
+        kind: PointerDeviceKind.mouse,
+      );
       await g.moveTo(down + dir * 60);
       await tester.pump();
       final mid = composer.selection.radius;
@@ -420,7 +426,10 @@ void main() {
       final miss = handle + dir * 150;
       expect(canvas(tester).contains(miss), isTrue);
 
-      final g = await tester.startGesture(miss);
+      final g = await tester.startGesture(
+        miss,
+        kind: PointerDeviceKind.mouse,
+      );
       await g.moveTo(miss + dir * 300);
       await tester.pump();
       await g.up();

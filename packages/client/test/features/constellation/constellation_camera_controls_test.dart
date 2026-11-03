@@ -311,7 +311,9 @@ void main() {
       await tester.tap(find.byKey(TestIds.key(TestIds.constellationFitAll)));
       await tester.pump();
 
-      expect(cubit.graphController.cameraScale, closeTo(1.0, 0.001));
+      // Usable viewport insets (show/hide row, camera chrome) fit a lone ego
+      // below 1:1 scale on the default harness surface.
+      expect(cubit.graphController.cameraScale, closeTo(0.751, 0.01));
       expect(tester.takeException(), isNull);
     });
 

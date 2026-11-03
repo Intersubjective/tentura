@@ -197,7 +197,7 @@ void main() {
         find.byKey(const Key('constellation.app_bar.more.select')),
       );
       await tester.pumpAndSettle();
-      expect(selection.state.selecting, isTrue);
+      expect(selection.state.arranging, isTrue);
     });
   }
 }

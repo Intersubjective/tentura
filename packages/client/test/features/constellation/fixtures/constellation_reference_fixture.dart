@@ -240,8 +240,9 @@ Future<FakeUiEffectPort> pumpConstellationBody(
   TextDirection textDirection = TextDirection.ltr,
   ConstellationPresenceCubit? presence,
   bool disableAnimations = false,
-  bool withSelectionCubit = false,
+  bool withSelectionCubit = true,
   bool touchNodeDragLocked = false,
+  GraphPersonContextCubit? graphPersonContext,
 }) async {
   final resolvedScaler = textScaler ?? TextScaler.linear(textScale);
   await tester.binding.setSurfaceSize(size);
@@ -279,9 +280,14 @@ Future<FakeUiEffectPort> pumpConstellationBody(
                       return selection;
                     },
                   ),
-                BlocProvider<GraphPersonContextCubit>(
-                  create: (_) => _StubContextCubit(),
-                ),
+                if (graphPersonContext != null)
+                  BlocProvider<GraphPersonContextCubit>.value(
+                    value: graphPersonContext,
+                  )
+                else
+                  BlocProvider<GraphPersonContextCubit>(
+                    create: (_) => _StubContextCubit(),
+                  ),
                 BlocProvider<ScreenCubit>(
                   create: (_) => ScreenCubit(fx),
                 ),

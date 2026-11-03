@@ -5,6 +5,7 @@ import 'package:tentura/features/constellation/domain/constellation_layout.dart'
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_selection_cubit.dart';
 import 'fixtures/constellation_field_test_harness.dart';
+import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_layout_history_sheet.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
@@ -92,9 +93,13 @@ Future<void> _tap(WidgetTester tester, String label) async {
 }
 
 Future<void> _arrange(WidgetTester tester, String action) async {
-  await tester.tap(find.byKey(const Key('constellation.camera.arrange')));
+  enterConstellationArrangingForTests(
+    tester
+        .element(find.byType(ConstellationBody))
+        .read<ConstellationSelectionCubit>(),
+  );
   await tester.pumpAndSettle();
-  await _tap(tester, action);
+  await tapConstellationArrangeOverflowAction(tester, action);
 }
 
 /// Keep the actual Field, camera controls and selection bar mounted so layout

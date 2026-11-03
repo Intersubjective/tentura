@@ -46,12 +46,12 @@ const _clusters = <String, List<Offset>>{
   ],
   '3–5 px apart': [
     Offset.zero,
-    Offset(3, 1),
-    Offset(1, 4),
-    Offset(-3, 3),
-    Offset(-4, -1),
-    Offset(-1, -4),
-    Offset(4, -3),
+    Offset(2.57, 0.86),
+    Offset(0.86, 2.57),
+    Offset(-2.57, 2.57),
+    Offset(-3.43, -0.86),
+    Offset(-0.86, -2.57),
+    Offset(2.57, -2.57),
   ],
 };
 

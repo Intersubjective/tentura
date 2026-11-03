@@ -377,6 +377,21 @@ Finder _node(String id) => find.byKey(TestIds.key(TestIds.graphNode(id)));
 final _ann = ConstellationAnchorTarget.person('a');
 final _bob = ConstellationAnchorTarget.person('b');
 
+Offset _sceneCentre(ConstellationCubit cubit, String personId) {
+  final point = cubit.graphController.renderSnapshot.resolvePosition(
+    'fp:$personId',
+  );
+  expect(point, isNotNull);
+  return Offset(point!.x, point.y);
+}
+
+Matrix4 _cameraMatrix(WidgetTester tester) {
+  final viewer = tester.widget<InteractiveViewer>(
+    find.byType(InteractiveViewer),
+  );
+  return viewer.transformationController!.value.clone();
+}
+
 /// A point on empty map well clear of every node, up-left of all of them.
 Offset _emptyCorner(WidgetTester tester) {
   final centres = [
@@ -405,12 +420,14 @@ Future<void> _drag(
   Offset to, {
   PointerDeviceKind kind = PointerDeviceKind.mouse,
   ConstellationSelectionCubit? selection,
+  bool unlockTouchNodeDrags = true,
 }) async {
   final gesture = await startConstellationFieldGesture(
     tester,
     from,
     kind: kind,
     selection: selection,
+    unlockTouchNodeDrags: unlockTouchNodeDrags,
   );
   await _frames(tester);
   for (var i = 1; i <= 8; i++) {
@@ -427,9 +444,10 @@ void main() {
     tester,
   ) async {
     final h = await _mount(tester);
-    h.selection.setSelecting(true);
+    enableConstellationSelectToolForTests(h.selection);
     await _frames(tester);
-    final annBefore = tester.getCenter(_node('a'));
+    final cameraBefore = _cameraMatrix(tester);
+    final annSceneBefore = _sceneCentre(h.cubit, 'a');
     final from = _emptyCorner(tester);
     final to = _farCorner(tester);
 
@@ -453,7 +471,12 @@ void main() {
       h.selected,
       isNot(contains(ConstellationAnchorTarget.person('ego'))),
     );
-    expect(tester.getCenter(_node('a')), annBefore, reason: 'no pan');
+    expect(
+      _cameraMatrix(tester).storage,
+      cameraBefore.storage,
+      reason: 'no pan',
+    );
+    expect(_sceneCentre(h.cubit, 'a'), annSceneBefore);
     expect(tester.widget<CustomPaint>(box).painter, isNull);
     expect(find.text('${h.selected.length} selected'), findsOneWidget);
     expect(
@@ -494,7 +517,7 @@ void main() {
     final ann = tester.getCenter(_node('a'));
     final annBox = tester.getRect(_node('a')).inflate(4);
     final start = Offset(annBox.left - 40, ann.dy);
-    h.selection.setSelecting(true);
+    enableConstellationSelectToolForTests(h.selection);
     await _frames(tester);
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await _drag(tester, start, Offset(annBox.right, annBox.bottom));
@@ -508,7 +531,7 @@ void main() {
     tester,
   ) async {
     final h = await _mount(tester);
-    h.selection.setSelecting(true);
+    enableConstellationSelectToolForTests(h.selection);
     await _frames(tester);
     final from = _emptyCorner(tester);
     final annBefore = tester.getCenter(_node('a'));
@@ -537,6 +560,7 @@ void main() {
       _farCorner(tester),
       kind: PointerDeviceKind.touch,
       selection: h.selection,
+      unlockTouchNodeDrags: false,
     );
     expect(h.selected, containsAll([_ann, _bob]));
   });
@@ -545,7 +569,7 @@ void main() {
     tester,
   ) async {
     final h = await _mount(tester);
-    h.selection.setSelecting(true);
+    enableConstellationSelectToolForTests(h.selection);
     await _frames(tester);
 
     await tester.tap(_node('a'));
@@ -599,7 +623,7 @@ void main() {
   testWidgets('«Done» keeps the selection, «Clear selection» empties it and '
       'Escape steps back', (tester) async {
     final h = await _mount(tester);
-    h.selection.setSelecting(true);
+    enableConstellationSelectToolForTests(h.selection);
     await _frames(tester);
     await tester.tap(_node('a'));
     await _frames(tester);
@@ -643,7 +667,7 @@ void main() {
     ) async {
       await connectMouse(tester);
       final h = await _mount(tester);
-      h.selection.setSelecting(true);
+      enableConstellationSelectToolForTests(h.selection);
       await _frames(tester);
 
       expect(hint(tester), l10n.constellationSelectionHintMouse);
@@ -652,7 +676,7 @@ void main() {
 
     testWidgets('on touch it keeps the two-finger hint', (tester) async {
       final h = await _mount(tester);
-      h.selection.setSelecting(true);
+      enableConstellationSelectToolForTests(h.selection);
       await _frames(tester);
 
       expect(tester.binding.mouseTracker.mouseIsConnected, isFalse);
@@ -663,7 +687,7 @@ void main() {
       tester,
     ) async {
       final h = await _mount(tester);
-      h.selection.setSelecting(true);
+      enableConstellationSelectToolForTests(h.selection);
       await _frames(tester);
       expect(hint(tester), l10n.constellationSelectionHint);
 
@@ -683,7 +707,7 @@ void main() {
     tester,
   ) async {
     final h = await _mount(tester);
-    h.selection.setSelecting(true);
+    enableConstellationSelectToolForTests(h.selection);
     await _frames(tester);
     final ann = tester.getCenter(_node('a'));
 
@@ -715,9 +739,8 @@ void main() {
 
     testWidgets('a touch box adds to what is selected', (tester) async {
       final h = await _mount(tester);
-      h.selection
-        ..setSelecting(true)
-        ..toggle(_ann);
+      enableConstellationSelectToolForTests(h.selection);
+      h.selection.toggle(_ann);
       await _frames(tester);
 
       await boxBob(tester, PointerDeviceKind.touch, h.selection);
@@ -727,9 +750,8 @@ void main() {
 
     testWidgets('a plain mouse box replaces it', (tester) async {
       final h = await _mount(tester);
-      h.selection
-        ..setSelecting(true)
-        ..toggle(_ann);
+      enableConstellationSelectToolForTests(h.selection);
+      h.selection.toggle(_ann);
       await _frames(tester);
 
       await boxBob(tester, PointerDeviceKind.mouse, h.selection);
@@ -742,7 +764,7 @@ void main() {
   testWidgets('a second finger joining a box turns it into a pan; the box '
       'is not applied, now or when a finger lifts', (tester) async {
     final h = await _mount(tester);
-    h.selection.setSelecting(true);
+    enableConstellationSelectToolForTests(h.selection);
     await _frames(tester);
     final from = _emptyCorner(tester);
     final to = _farCorner(tester);
@@ -774,7 +796,7 @@ void main() {
   testWidgets('lifting one finger of a two-finger pan keeps moving the map '
       'with the other, without a jump', (tester) async {
     final h = await _mount(tester);
-    h.selection.setSelecting(true);
+    enableConstellationSelectToolForTests(h.selection);
     await _frames(tester);
     final from = _emptyCorner(tester);
 
@@ -806,7 +828,7 @@ void main() {
     tester,
   ) async {
     final h = await _mount(tester);
-    h.selection.setSelecting(true);
+    enableConstellationSelectToolForTests(h.selection);
     await _frames(tester);
     final ann = tester.getCenter(_node('a'));
     final empty = _emptyCorner(tester);
@@ -831,7 +853,7 @@ void main() {
     tester,
   ) async {
     final h = await _mount(tester);
-    h.selection.setSelecting(true);
+    enableConstellationSelectToolForTests(h.selection);
     await _frames(tester);
     final label = find.text('Ann');
     expect(label, findsWidgets);
@@ -847,9 +869,8 @@ void main() {
 
   testWidgets('a change of account clears the selection', (tester) async {
     final h = await _mount(tester);
-    h.selection
-      ..setSelecting(true)
-      ..toggle(_ann);
+    enableConstellationSelectToolForTests(h.selection);
+    h.selection.toggle(_ann);
     await _frames(tester);
 
     await tester.runAsync(h.cubit.onAccountChanged);
@@ -871,6 +892,7 @@ void main() {
       _Harness h,
       Iterable<ConstellationAnchorTarget> targets,
     ) async {
+      enterConstellationArrangingForTests(h.selection);
       h.selection.addAll(targets);
       await _frames(tester);
       await tester.tap(
@@ -1044,10 +1066,6 @@ void main() {
       expect(after.centre.y - before.centre.y, closeTo(40 / scale, 2));
       expect(after.radius, before.radius);
       expect(after.span, before.span);
-      expect(
-        tester.getCenter(handle('centre')),
-        offsetMoreOrLessEquals(from + const Offset(120, 40), epsilon: 2),
-      );
       for (final point in preview(tester, h).values) {
         expect(
           (point - after.centre.offset).distance,

@@ -392,6 +392,7 @@ void main() {
       h.selection
         ..toggle(_ann)
         ..toggle(_bob);
+      enterConstellationArrangingForTests(h.selection);
       await _frames(tester);
       final annStart = _scene(h.cubit, 'a');
       final bobStart = _scene(h.cubit, 'b');

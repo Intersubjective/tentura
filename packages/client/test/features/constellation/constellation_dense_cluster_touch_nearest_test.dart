@@ -47,17 +47,13 @@ const _pxPerUnit = 25.5;
 /// Dot centres in screen px at the zoom floor, relative to the first dot.
 const _cluster = <String, Offset>{
   'a1': Offset.zero,
-  // Overlaps a1: 2.5 px apart.
-  'a2': Offset(2.5, 0),
-  // 4.3 px from a2.
-  'b': Offset(5, 3.5),
-  // About 10 px from its nearest neighbour (g).
-  'c': Offset(12.5, -5),
-  'd': Offset(-6, 3),
-  // Around the gap at (0, -9): 6.5, 4.5 and 3.3 px from it.
-  'e': Offset(0, -15.5),
-  'f': Offset(-4.5, -9),
-  'g': Offset(3.3, -9),
+  'a2': Offset(1.5, 0),
+  'b': Offset(3.1, 2.1),
+  'c': Offset(7.6, -3.1),
+  'd': Offset(-3.6, 1.8),
+  'e': Offset(0.0, -9.4),
+  'f': Offset(-2.7, -5.4),
+  'g': Offset(2.0, -5.4),
 };
 
 /// Largest gap (px) allowed between a dot's laid-out offset from a1 and its

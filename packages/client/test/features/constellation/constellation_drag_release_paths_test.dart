@@ -225,7 +225,6 @@ Future<_Harness> _mount(
     cubit,
     size: size,
     locale: locale,
-    withSelectionCubit: true,
   );
   await _settleFrames(tester);
   // The scene starts on the real layout, so every node is reachable by a
@@ -266,11 +265,18 @@ Future<TestGesture> _pickUpFreePerson(
   _Harness harness, {
   PointerDeviceKind kind = PointerDeviceKind.mouse,
 }) async {
-  final gesture = await startConstellationFieldGesture(
-    tester,
-    tester.getCenter(_nodeFinder(_freePerson)),
-    kind: kind,
-  );
+  final selection = tester.constellationSelectionUnderTest();
+  if (kind == PointerDeviceKind.touch || kind == PointerDeviceKind.stylus) {
+    enableConstellationTouchNodeDragsForTests(selection);
+    await tester.pumpAndSettle(const Duration(milliseconds: 300));
+  }
+  final node = _nodeFinder(_freePerson);
+  await tester.ensureVisible(node);
+  final center = tester.getCenter(node);
+  final gesture = await tester.startGesture(center, kind: kind);
+  await tester.pump();
+  await gesture.moveBy(const Offset(8, 8));
+  await tester.pump();
   await gesture.moveBy(const Offset(40, 30));
   await tester.pump();
   await gesture.moveBy(const Offset(40, 30));
