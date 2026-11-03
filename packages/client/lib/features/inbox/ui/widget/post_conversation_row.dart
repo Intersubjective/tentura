@@ -30,6 +30,16 @@ class PostConversationRow extends StatelessWidget {
   /// Open in the list-detail pane beside the list (Material 3 list-detail).
   final bool selected;
 
+  /// Time left for an open Post (with ⏳, #248), «в архиве» once past deadline,
+  /// «закрыт» when closed; null when there is no deadline and not archived.
+  String? _lifetimeMarker(L10n l10n) {
+    if (post.isClosed) return l10n.postClosedMarker;
+    if (post.isArchivedAt(now)) return l10n.postArchivedMarker;
+    final expiresAt = post.expiresAt;
+    if (expiresAt == null) return null;
+    return postRemainingVisibleLabel(l10n, expiresAt.difference(now));
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
@@ -45,19 +55,12 @@ class PostConversationRow extends StatelessWidget {
     // the row names it once and keeps the age.
     final lastMessageText = post.lastMessageIsRoot ? '' : lastMessage;
     final muted = post.isMutedAt(now);
-    final showLifetime =
-        !post.isClosed && (post.expiresAt != null || post.isArchivedAt(now));
+    final lifetime = _lifetimeMarker(l10n);
 
     return Semantics(
       label: [
         addressing,
-        if (showLifetime)
-          postLifetimeLineForDeadline(
-            l10n,
-            now: now,
-            expiresAt: post.expiresAt,
-            archived: post.isClosed || post.isArchivedAt(now),
-          ),
+        ?lifetime,
         post.rootExcerpt,
         if (lastMessageText.isNotEmpty) lastMessageText,
       ].join(', '),
@@ -93,22 +96,11 @@ class PostConversationRow extends StatelessWidget {
                               ).copyWith(fontWeight: FontWeight.w500),
                             ),
                           ),
-                          if (showLifetime) ...[
+                          if (lifetime != null) ...[
                             SizedBox(width: tt.tightGap),
-                            PostLifetimeTicker(
-                              expiresAt: post.expiresAt,
-                              archived: post.isClosed || post.isArchivedAt(now),
-                              builder: (context, label) {
-                                if (label.isEmpty) {
-                                  return const SizedBox.shrink();
-                                }
-                                return TenturaStatusText(
-                                  label,
-                                  key: const Key(
-                                    'PostConversation.Lifetime',
-                                  ),
-                                );
-                              },
+                            TenturaStatusText(
+                              lifetime,
+                              key: const Key('PostConversation.Lifetime'),
                             ),
                           ],
                           if (muted) ...[

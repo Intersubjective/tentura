@@ -160,8 +160,13 @@ class RoomPostRootPin {
   final String forwardNote;
   final String startedBy;
 
+  /// #248: the root card is shown for every Post with a root message id; excerpt
+  /// and forward lines are optional (inbox summary may not be loaded yet).
   bool get hasStrip =>
-      excerpt.isNotEmpty || forwardedBy.isNotEmpty || startedBy.isNotEmpty;
+      messageId.isNotEmpty ||
+      excerpt.isNotEmpty ||
+      forwardedBy.isNotEmpty ||
+      startedBy.isNotEmpty;
 }
 
 /// What the room surface reads from the screen that hosts it.

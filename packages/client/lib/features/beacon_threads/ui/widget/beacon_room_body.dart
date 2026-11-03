@@ -212,7 +212,13 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     );
   }
 
-  Widget? _postRootHeader(RoomState state) {
+  Widget? _postRootHeader(
+    BuildContext context,
+    RoomCubit cubit,
+    L10n l10n,
+    Profile myProfile,
+    RoomState state,
+  ) {
     if (!_isPostRoom || widget.postRoot?.hasStrip != true) return null;
     final pin = widget.postRoot!;
     final root = _rootMessage(state);
@@ -228,6 +234,15 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
       peopleCount: state.participantsLoaded ? _postPeopleCount(state) : null,
       replyCount: _postReplyCount(state),
       forwardPolicyOpen: widget.postForwardPolicyOpen,
+      onRootMessageActions: root == null
+          ? null
+          : () => _onMessageActionsPressed(
+              context,
+              cubit,
+              l10n,
+              myProfile,
+              root,
+            ),
     );
   }
 
@@ -553,7 +568,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
             key: _basicChatKey,
             receiptIndex: receiptIndex,
             header: showPostRoot
-                ? _postRootHeader(state)
+                ? _postRootHeader(context, cubit, l10n, myProfile, state)
                 : showPinnedBlocker
                 ? _PinnedBlockerRow(state: state)
                 : widget.header,

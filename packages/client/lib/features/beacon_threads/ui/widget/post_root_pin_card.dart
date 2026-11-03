@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -30,6 +31,7 @@ class PostRootPinCard extends StatelessWidget {
     this.forwardPolicyOpen = true,
     this.editorBody,
     this.editorLifetimeLabel = '',
+    this.onRootMessageActions,
     super.key,
   });
 
@@ -47,6 +49,7 @@ class PostRootPinCard extends StatelessWidget {
   final bool forwardPolicyOpen;
   final Widget? editorBody;
   final String editorLifetimeLabel;
+  final VoidCallback? onRootMessageActions;
 
   bool get _isEditor => editorBody != null;
 
@@ -81,6 +84,7 @@ class PostRootPinCard extends StatelessWidget {
               peopleCount: peopleCount,
               replyCount: replyCount,
               forwardPolicyOpen: forwardPolicyOpen,
+              onMessageActions: onRootMessageActions,
             );
       body = AnimatedSize(
         duration: reduceMotion
@@ -240,6 +244,7 @@ class _ExpandedBody extends StatelessWidget {
     this.peopleCount,
     this.replyCount,
     this.forwardPolicyOpen = true,
+    this.onMessageActions,
   });
 
   final RoomPostRootPin pin;
@@ -251,6 +256,7 @@ class _ExpandedBody extends StatelessWidget {
   final int? peopleCount;
   final int? replyCount;
   final bool forwardPolicyOpen;
+  final VoidCallback? onMessageActions;
 
   @override
   Widget build(BuildContext context) {
@@ -275,80 +281,135 @@ class _ExpandedBody extends StatelessWidget {
       textScaler: MediaQuery.textScalerOf(context),
     );
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            TenturaAvatar.small(profile: author),
-            SizedBox(width: tt.avatarTextGap),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          author.shownName,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TenturaText.titleSmall(tt.text),
-                        ),
-                      ),
-                      if (lifetime.isNotEmpty) ...[
-                        SizedBox(width: tt.tightGap),
-                        Flexible(
+    return _PostRootMessageActionsHost(
+      onActions: onMessageActions,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TenturaAvatar.small(profile: author),
+              SizedBox(width: tt.avatarTextGap),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
                           child: Text(
-                            lifetime,
+                            author.shownName,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: metaStyle,
+                            style: TenturaText.titleSmall(tt.text),
                           ),
                         ),
+                        if (lifetime.isNotEmpty) ...[
+                          SizedBox(width: tt.tightGap),
+                          Flexible(
+                            child: Text(
+                              lifetime,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: metaStyle,
+                            ),
+                          ),
+                        ],
                       ],
-                    ],
-                  ),
-                  Text(age, style: metaStyle),
-                ],
+                    ),
+                    Text(age, style: metaStyle),
+                  ],
+                ),
               ),
+            ],
+          ),
+          if (body.isNotEmpty) ...[
+            SizedBox(height: tt.rowGap),
+            RoomMessageTextBody(
+              display: body,
+              dateLine: '',
+              bodyStyle: TenturaText.bodyMedium(tt.text),
+              metaStyle: metaStyle,
+              metrics: metrics,
             ),
           ],
-        ),
-        if (body.isNotEmpty) ...[
-          SizedBox(height: tt.rowGap),
-          RoomMessageTextBody(
-            display: body,
-            dateLine: '',
-            bodyStyle: TenturaText.bodyMedium(tt.text),
-            metaStyle: metaStyle,
-            metrics: metrics,
-          ),
+          if (message.attachments.isNotEmpty) ...[
+            SizedBox(height: tt.rowGap),
+            RoomPinnedStyleAttachments(
+              attachments: message.attachments,
+              l10n: l10n,
+              onOpenFileAttachment: (a) =>
+                  openRoomFileAttachment(context, l10n, a),
+            ),
+          ],
+          if (forwardedLine != null) ...[
+            SizedBox(height: tt.rowGap),
+            Text(forwardedLine, style: metaStyle),
+          ],
+          if (peopleCount != null && replyCount != null) ...[
+            SizedBox(height: tt.rowGap),
+            Text(
+              forwardPolicyOpen
+                  ? l10n.postCardMetaCanShare(peopleCount!, replyCount!)
+                  : l10n.postCardMetaInviteOnly(peopleCount!, replyCount!),
+              style: metaStyle,
+            ),
+          ],
         ],
-        if (message.attachments.isNotEmpty) ...[
-          SizedBox(height: tt.rowGap),
-          RoomPinnedStyleAttachments(
-            attachments: message.attachments,
-            l10n: l10n,
-            onOpenFileAttachment: (a) =>
-                openRoomFileAttachment(context, l10n, a),
-          ),
-        ],
-        if (forwardedLine != null) ...[
-          SizedBox(height: tt.rowGap),
-          Text(forwardedLine, style: metaStyle),
-        ],
-        if (peopleCount != null && replyCount != null) ...[
-          SizedBox(height: tt.rowGap),
-          Text(
-            forwardPolicyOpen
-                ? l10n.postCardMetaCanShare(peopleCount!, replyCount!)
-                : l10n.postCardMetaInviteOnly(peopleCount!, replyCount!),
-            style: metaStyle,
-          ),
-        ],
-      ],
+      ),
+    );
+  }
+}
+
+/// Long-press and secondary-tap on the expanded root open the same sheet as a
+/// reply bubble (#248 keeps delete/bud on the card).
+class _PostRootMessageActionsHost extends StatefulWidget {
+  const _PostRootMessageActionsHost({
+    required this.child,
+    this.onActions,
+  });
+
+  final Widget child;
+  final VoidCallback? onActions;
+
+  @override
+  State<_PostRootMessageActionsHost> createState() =>
+      _PostRootMessageActionsHostState();
+}
+
+class _PostRootMessageActionsHostState extends State<_PostRootMessageActionsHost> {
+  int? _secondaryPointer;
+
+  void _onPointerDown(PointerDownEvent event) {
+    _secondaryPointer = event.buttons & kSecondaryMouseButton != 0
+        ? event.pointer
+        : null;
+  }
+
+  void _onPointerUp(PointerUpEvent event) {
+    if (_secondaryPointer != event.pointer) return;
+    _secondaryPointer = null;
+    widget.onActions?.call();
+  }
+
+  void _onPointerCancel(PointerCancelEvent event) {
+    if (_secondaryPointer == event.pointer) _secondaryPointer = null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final onActions = widget.onActions;
+    if (onActions == null) return widget.child;
+    return Listener(
+      onPointerDown: _onPointerDown,
+      onPointerUp: _onPointerUp,
+      onPointerCancel: _onPointerCancel,
+      child: GestureDetector(
+        onLongPress: onActions,
+        behavior: HitTestBehavior.translucent,
+        child: widget.child,
+      ),
     );
   }
 }
