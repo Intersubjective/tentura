@@ -88,7 +88,7 @@ final class _FakeOrientationPrefs implements HomeOrientationPreferencesPort {
 final class _TestProfileCubit extends Cubit<ProfileState>
     implements ProfileCubit {
   _TestProfileCubit({required Profile profile})
-      : super(ProfileState(profile: profile));
+    : super(ProfileState(profile: profile));
 
   int resumeCalls = 0;
 
@@ -120,11 +120,11 @@ final class _TestProfileCubit extends Cubit<ProfileState>
 }
 
 Beacon _beacon(String id, String title) => Beacon.empty.copyWith(
-      id: id,
-      title: title,
-      updatedAt: DateTime.utc(2026, 9, 5),
-      status: BeaconStatus.open,
-    );
+  id: id,
+  title: title,
+  updatedAt: DateTime.utc(2026, 9, 5),
+  status: BeaconStatus.open,
+);
 
 Future<void> _drain([int turns = 12]) async {
   for (var i = 0; i < turns; i++) {
@@ -166,7 +166,8 @@ void main() {
   final fixedNow = DateTime.utc(2026, 8, 14, 12);
   DateTime clock() => fixedNow;
   final todayUtc = availabilityTodayUtc(clock);
-  final resumeOn = DateTime.utc(2026, 11, 3);
+  // Far future: the pill reads the real clock, a near date expires (CI went red on 2026-11-03).
+  final resumeOn = DateTime.utc(2036, 11, 3);
 
   setUp(() {
     if (!GetIt.I.isRegistered<Logger>()) {
@@ -273,9 +274,11 @@ void main() {
                     providers: [
                       BlocProvider<MyWorkCubit>.value(value: myWorkCubit),
                       BlocProvider<HomeActivationCubit>.value(
-                          value: homeActivation),
+                        value: homeActivation,
+                      ),
                       BlocProvider<HomeAttentionCubit>.value(
-                          value: homeAttention),
+                        value: homeAttention,
+                      ),
                       BlocProvider<InboxOperationalCubit>.value(
                         value: inboxOperational,
                       ),
@@ -314,7 +317,9 @@ void main() {
           await tester.tap(pill);
           await tester.pumpAndSettle();
           expect(
-              find.text(l10n.availabilityResumeConfirmTitle), findsOneWidget);
+            find.text(l10n.availabilityResumeConfirmTitle),
+            findsOneWidget,
+          );
 
           // 5. Confirming resume updates ProfileCubit and hides the paused pill.
           await tester.tap(find.text(l10n.availabilityResumeNow));

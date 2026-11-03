@@ -45,7 +45,7 @@ final _paused = ForwardCandidate(
     displayName: 'Dave',
     rScore: 1,
     score: 30,
-    availability: Availability(resumeOn: DateTime.utc(2026, 11, 18)),
+    availability: Availability(resumeOn: DateTime.utc(2036, 11, 18)),
   ),
 );
 
