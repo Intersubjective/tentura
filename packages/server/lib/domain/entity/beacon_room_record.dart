@@ -82,6 +82,15 @@ final class BeaconRoomStateRecord {
   final int currentLineRevision;
 }
 
+enum ParticipantArrivalHow { invite, forward }
+
+/// The first recorded path into a Post, absent for its author or an unknown path.
+typedef ParticipantArrival = ({
+  String userId,
+  String displayName,
+  ParticipantArrivalHow how,
+});
+
 /// Domain projection of [`beacon_participant`].
 final class BeaconParticipantRecord {
   const BeaconParticipantRecord({
@@ -99,9 +108,11 @@ final class BeaconParticipantRecord {
     required this.createdAt,
     required this.updatedAt,
     this.opened = false,
+    this.arrival,
   });
 
   final bool opened;
+  final ParticipantArrival? arrival;
   final String id;
   final String beaconId;
   final String userId;

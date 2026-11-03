@@ -1697,6 +1697,15 @@ class BeaconRoomCase extends UseCaseBase {
             'id': r.id,
             'beaconId': r.beaconId,
             'userId': r.userId,
+            'broughtById': r.arrival?.userId,
+            'broughtBy': switch (r.arrival) {
+              final arrival? => {
+                'userId': arrival.userId,
+                'displayName': arrival.displayName,
+              },
+              null => null,
+            },
+            'broughtHow': r.arrival?.how.name,
             'userTitle': profileByUserId[r.userId]?.title ?? '',
             'userHandle': profileByUserId[r.userId]?.handle ?? '',
             'userHasPicture': profileByUserId[r.userId]?.hasPicture ?? false,

@@ -69,6 +69,7 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeRoomMessageRow,
   gqlTypeBeaconRoomStateRow,
   gqlTypeBeaconParticipantRow,
+  gqlTypeParticipantBroughtBy,
   gqlTypeRoomReadWatermark,
   gqlTypeBeaconUpdateReader,
   gqlTypeBeaconFactCardRow,
@@ -630,6 +631,13 @@ final gqlTypeBeaconRoomStateRow = GraphQLObjectType('BeaconRoomStateRow', null)
     field('currentLineRevision', graphQLInt.nonNullable()),
   ]);
 
+final gqlTypeParticipantBroughtBy =
+    GraphQLObjectType('ParticipantBroughtBy', null)
+      ..fields.addAll([
+        field('userId', graphQLString.nonNullable()),
+        field('displayName', graphQLString.nonNullable()),
+      ]);
+
 /// Participant row for BeaconParticipantList (selection via V2 only).
 final gqlTypeBeaconParticipantRow =
     GraphQLObjectType('BeaconParticipantRow', null)
@@ -644,6 +652,9 @@ final gqlTypeBeaconParticipantRow =
         field('userBlurHash', graphQLString.nonNullable()),
         field('userImageId', graphQLString.nonNullable()),
         field('userHandle', graphQLString),
+        field('broughtById', graphQLString),
+        field('broughtBy', gqlTypeParticipantBroughtBy),
+        field('broughtHow', graphQLString),
         field('role', graphQLInt.nonNullable()),
         field('status', graphQLInt.nonNullable()),
         field('roomAccess', graphQLInt.nonNullable()),

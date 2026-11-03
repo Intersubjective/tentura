@@ -72,23 +72,26 @@ extension BeaconRoomStateRowMapper on db.BeaconRoomState {
 }
 
 extension BeaconParticipantRowMapper on db.BeaconParticipant {
-  BeaconParticipantRecord toRecord({bool opened = false}) =>
-      BeaconParticipantRecord(
-        opened: opened,
-        id: id,
-        beaconId: beaconId,
-        userId: userId,
-        role: role,
-        status: status,
-        roomAccess: roomAccess,
-        nextMoveText: nextMoveText,
-        nextMoveStatus: nextMoveStatus,
-        nextMoveSource: nextMoveSource,
-        linkedMessageId: linkedMessageId,
-        offerNote: offerNote,
-        createdAt: createdAt.dateTime,
-        updatedAt: updatedAt.dateTime,
-      );
+  BeaconParticipantRecord toRecord({
+    bool opened = false,
+    ParticipantArrival? arrival,
+  }) => BeaconParticipantRecord(
+    opened: opened,
+    arrival: arrival,
+    id: id,
+    beaconId: beaconId,
+    userId: userId,
+    role: role,
+    status: status,
+    roomAccess: roomAccess,
+    nextMoveText: nextMoveText,
+    nextMoveStatus: nextMoveStatus,
+    nextMoveSource: nextMoveSource,
+    linkedMessageId: linkedMessageId,
+    offerNote: offerNote,
+    createdAt: createdAt.dateTime,
+    updatedAt: updatedAt.dateTime,
+  );
 }
 
 extension BeaconRoomMessageAttachmentRowMapper
