@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:ui';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
@@ -13,6 +14,9 @@ import 'package:tentura/features/constellation/domain/port/constellation_reposit
 import 'package:tentura/features/constellation/domain/use_case/constellation_field_store_case.dart';
 import 'package:tentura/features/constellation/domain/use_case/constellation_placement_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
+import 'package:tentura/features/constellation/ui/utils/constellation_tap_resolver.dart';
+import 'package:tentura/features/graph/domain/entity/edge_details.dart';
+import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
@@ -151,6 +155,7 @@ typedef _Harness = ({
   _SilentAnchorRepository server,
   _CountingAlgorithm algorithm,
   _Counters counters,
+  ConstellationPresentationFrameHolder frameHolder,
 });
 
 /// What the scene did since [reset]: how many presentations were composed and
@@ -220,11 +225,13 @@ Future<_Harness> _mount(
   if (cubit.state.status is! StateIsSuccess) {
     await cubit.stream.firstWhere((state) => state.status is StateIsSuccess);
   }
+  final frameHolder = ConstellationPresentationFrameHolder();
   await pumpConstellationBody(
     tester,
     cubit,
     size: size,
     locale: locale,
+    presentationFrameHolder: frameHolder,
   );
   await _settleFrames(tester);
   // The scene starts on the real layout, so every node is reachable by a
@@ -241,6 +248,7 @@ Future<_Harness> _mount(
     server: server,
     algorithm: algorithm,
     counters: counters,
+    frameHolder: frameHolder,
   );
 }
 
@@ -259,6 +267,21 @@ void _expectNoTrustRingCaption() {
 Finder _nodeFinder(ConstellationAnchorTarget target) =>
     find.byKey(TestIds.key(TestIds.graphNode(target.graphNodeId)));
 
+Offset _globalGraphNodeCenter(
+  WidgetTester tester,
+  ConstellationPresentationFrameHolder frameHolder,
+  String graphNodeId,
+) {
+  final frame = frameHolder.frame;
+  expect(frame, isNotNull, reason: 'presentation frame must be ready');
+  final target = frame!.tapTargets[graphNodeId] ?? frame.bodies[graphNodeId];
+  expect(target, isNotNull, reason: '$graphNodeId must be on the frame');
+  final graphBox = tester.renderObject<RenderBox>(
+    find.byType(GraphView<NodeDetails, EdgeDetails>),
+  );
+  return graphBox.localToGlobal(target!.center);
+}
+
 /// Picks the free person up with a real pointer and moves it past the slop.
 Future<TestGesture> _pickUpFreePerson(
   WidgetTester tester,
@@ -266,21 +289,38 @@ Future<TestGesture> _pickUpFreePerson(
   PointerDeviceKind kind = PointerDeviceKind.mouse,
 }) async {
   final selection = tester.constellationSelectionUnderTest();
-  if (kind == PointerDeviceKind.touch || kind == PointerDeviceKind.stylus) {
-    enableConstellationTouchNodeDragsForTests(selection);
-    await tester.pumpAndSettle(const Duration(milliseconds: 300));
-  }
   final node = _nodeFinder(_freePerson);
   await tester.ensureVisible(node);
-  final center = tester.getCenter(node);
-  final gesture = await tester.startGesture(center, kind: kind);
-  await tester.pump();
-  await gesture.moveBy(const Offset(8, 8));
-  await tester.pump();
-  await gesture.moveBy(const Offset(40, 30));
-  await tester.pump();
-  await gesture.moveBy(const Offset(40, 30));
-  await tester.pump();
+  final center = _globalGraphNodeCenter(
+    tester,
+    harness.frameHolder,
+    _freeNodeId,
+  );
+  if (kind == PointerDeviceKind.touch || kind == PointerDeviceKind.stylus) {
+    applyConstellationTouchDragTestPolicy(
+      selection,
+      touchNodeDragLocked: true,
+    );
+    await _settleFrames(tester);
+  }
+  final gesture = await startConstellationFieldGesture(
+    tester,
+    center,
+    kind: kind,
+    selection: selection,
+    unlockTouchNodeDrags: false,
+  );
+  if (kind == PointerDeviceKind.touch || kind == PointerDeviceKind.stylus) {
+    await tester.pump(kLongPressTimeout);
+    await tester.pump();
+  } else {
+    await tester.pump();
+  }
+  final target = center + const Offset(88, 68);
+  for (var i = 1; i <= 8; i++) {
+    await gesture.moveTo(Offset.lerp(center, target, i / 8)!);
+    await tester.pump(const Duration(milliseconds: 16));
+  }
   expect(
     harness.cubit.state.placementPhase,
     ConstellationPlacementPhase.draggingNew,

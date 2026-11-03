@@ -302,7 +302,19 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
     if (_configuration.touchNodeDragLocked && _isTouchLike(event.kind)) {
       return false;
     }
-    final nodeId = _pendingNodeId;
+    var nodeId = _pendingNodeId;
+    if (nodeId == null) {
+      // Pan eligibility runs in the same pointer dispatch as [_onPointerDown];
+      // hit-test here when pending is not set yet.
+      final hitPos =
+          _controller.globalToScene(event.position) ?? event.localPosition;
+      final pass = _captureDragPassSnapshot();
+      nodeId = _hitTestTopmostNodeIdInSnapshot(
+        hitPos,
+        pass,
+        draggableOnly: true,
+      );
+    }
     final payload =
         nodeId == null ? null : _controller.nodePayloadForId(nodeId);
     return payload != null && _configuration.isNodeDraggable(payload);

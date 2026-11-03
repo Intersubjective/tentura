@@ -49,12 +49,18 @@ class ConstellationArrangingToolbar extends StatelessWidget {
               constraints: const BoxConstraints(
                 maxWidth: TenturaSpacing.listPaneWidth,
               ),
-              child: Material(
+              child: DecoratedBox(
                 key: const Key('constellation.arranging.toolbar'),
-                color: theme.colorScheme.surfaceContainerHigh,
-                elevation: 3,
-                shape: RoundedRectangleBorder(
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainerHigh,
                   borderRadius: BorderRadius.circular(tt.cardRadius),
+                  boxShadow: [
+                    BoxShadow(
+                      color: theme.shadowColor.withValues(alpha: 0.18),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
                 ),
                 child: Padding(
                   padding: EdgeInsets.symmetric(
