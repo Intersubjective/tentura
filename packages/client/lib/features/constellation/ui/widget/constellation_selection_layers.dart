@@ -1582,6 +1582,7 @@ class ConstellationSelectionBar extends StatelessWidget {
   const ConstellationSelectionBar({
     required this.cubit,
     this.peopleTagsEnabled = kPeopleTagsEnabled,
+    this.arrangingEmbedded = false,
     super.key,
   });
 
@@ -1589,6 +1590,9 @@ class ConstellationSelectionBar extends StatelessWidget {
 
   /// «Add to tag…» is offered for the selected people.
   final bool peopleTagsEnabled;
+
+  /// Rendered inside [ConstellationArrangingToolbar] without outer chrome.
+  final bool arrangingEmbedded;
 
   /// One turn of the rotate buttons.
   static const rotateStep = math.pi / 12;
@@ -1671,10 +1675,25 @@ class ConstellationSelectionBar extends StatelessWidget {
           BlocBuilder<ConstellationSelectionCubit, ConstellationMultiSelection>(
             bloc: selection,
             builder: (context, state) {
-              if (!state.isActive || cubit.state.isComposing) {
+              if (cubit.state.isComposing) {
+                return const SizedBox.shrink();
+              }
+              if (state.arranging && !arrangingEmbedded) {
+                return const SizedBox.shrink();
+              }
+              if (!state.isActive && !arrangingEmbedded) {
+                return const SizedBox.shrink();
+              }
+              if (arrangingEmbedded && state.isEmpty && state.sector == null) {
                 return const SizedBox.shrink();
               }
               final tt = context.tt;
+              final inner = state.sector == null
+                  ? _selectionRow(context, selection, state)
+                  : _sectorControls(context, selection, state);
+              if (arrangingEmbedded) {
+                return inner;
+              }
               return Padding(
                 padding: EdgeInsets.all(tt.rowGap),
                 child: Center(
@@ -1767,7 +1786,9 @@ class ConstellationSelectionBar extends StatelessWidget {
             IconButton(
               key: const Key('constellation.selection.clear'),
               tooltip: l10n.constellationSelectionClear,
-              onPressed: selection.clear,
+              onPressed: state.arranging
+                  ? selection.clearTargets
+                  : selection.clear,
               icon: const Icon(Icons.deselect),
             ),
             if (state.selecting)

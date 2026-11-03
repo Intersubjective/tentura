@@ -212,6 +212,14 @@ final class ConstellationMultiSelection {
   ConstellationMultiSelection withArranging(bool arranging) =>
       _with(arranging: arranging);
 
+  /// Drops selected nodes and any sector draft; keeps [arranging] / [selecting].
+  ConstellationMultiSelection clearedTargets() => ConstellationMultiSelection(
+    arranging: arranging,
+    selecting: selecting,
+    targets: const {},
+    sector: null,
+  );
+
   ConstellationMultiSelection withSector(ConstellationSectorDraft? sector) =>
       ConstellationMultiSelection(
         arranging: arranging,

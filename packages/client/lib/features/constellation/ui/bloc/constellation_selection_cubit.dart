@@ -62,10 +62,23 @@ class ConstellationSelectionCubit extends Cubit<ConstellationMultiSelection> {
     emit(state.applyBox(inside, merge));
   }
 
-  /// «Clear selection»: nothing selected, arranging off, tool off.
+  /// «Clear selection»: nothing selected; arranging stays on when active.
   void clear() {
     if (isClosed) return;
+    if (state.arranging) {
+      emit(state.clearedTargets());
+      return;
+    }
     emit(ConstellationMultiSelection.empty);
+  }
+
+  /// Clears picked nodes during arranging and returns to the main toolbar row.
+  void clearTargets() {
+    if (isClosed || !state.arranging) {
+      clear();
+      return;
+    }
+    emit(state.clearedTargets());
   }
 
   /// Starts editing «Arrange in sector» at [draft].

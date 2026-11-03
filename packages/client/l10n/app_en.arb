@@ -9977,6 +9977,26 @@
   "@constellationArrangeEntry": {
     "context": "Field map overflow: enter Arranging mode (#938)"
   },
+  "constellationArrangingTitle": "Arranging",
+  "@constellationArrangingTitle": {
+    "context": "Field map app bar while Arranging mode is active (#938)"
+  },
+  "constellationArrangingSelect": "Select",
+  "@constellationArrangingSelect": {
+    "context": "Field arranging toolbar: toggle box-select (#938)"
+  },
+  "constellationArrangingHintTouch": "Drag a node to move it · drag empty space to pan",
+  "@constellationArrangingHintTouch": {
+    "context": "Field arranging mode hint on touch devices (#938)"
+  },
+  "constellationArrangingHintMouse": "Drag a node to move it",
+  "@constellationArrangingHintMouse": {
+    "context": "Field arranging mode hint when a mouse is connected (#938)"
+  },
+  "constellationFieldHoldHint": "Hold a person or a Request to move it. Hold empty space to create something here.",
+  "@constellationFieldHoldHint": {
+    "context": "One-time Field map hint on first touch visit after #938 (#938)"
+  },
   "constellationSelectionCount": "{count} selected",
   "@constellationSelectionCount": {
     "context": "Field map: how many nodes are selected (#642)",

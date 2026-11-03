@@ -13,6 +13,7 @@ import 'package:tentura/features/constellation/domain/use_case/constellation_anc
 import 'package:tentura/features/constellation/domain/use_case/constellation_placement_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_selection_cubit.dart';
+import 'package:tentura/features/constellation/ui/widget/constellation_arranging_toolbar.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_camera_controls.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
@@ -298,8 +299,9 @@ Widget _shell(
   ConstellationCubit cubit,
   Widget child, {
   ConstellationSelectionCubit? selection,
+  Locale locale = const Locale('en'),
 }) => MaterialApp(
-  locale: const Locale('en'),
+  locale: locale,
   theme: TenturaTheme.light(),
   localizationsDelegates: L10n.localizationsDelegates,
   supportedLocales: L10n.supportedLocales,
@@ -327,6 +329,7 @@ Future<void> pumpArrangeBody(
   ConstellationCubit cubit, {
   required bool arrangeV2Enabled,
   ConstellationSelectionCubit? selection,
+  Locale locale = const Locale('en'),
 }) async {
   await tester.binding.setSurfaceSize(const Size(1200, 900));
   addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -339,6 +342,7 @@ Future<void> pumpArrangeBody(
         arrangeV2Enabled: arrangeV2Enabled,
       ),
       selection: selection,
+      locale: locale,
     ),
   );
   await tester.pump();
@@ -351,21 +355,32 @@ Future<void> pumpArrangeControls(
   ConstellationCubit cubit, {
   required bool arrangeV2Enabled,
   bool tagViewActive = false,
+  ConstellationSelectionCubit? selection,
+  Locale locale = const Locale('en'),
 }) async {
+  final selectionCubit = selection ?? ConstellationSelectionCubit();
   await tester.binding.setSurfaceSize(const Size(1200, 900));
   addTearDown(() => tester.binding.setSurfaceSize(null));
   await tester.pumpWidget(
     _shell(
       cubit,
-      Align(
-        alignment: Alignment.topRight,
-        child: ConstellationCameraControls(
-          cubit: cubit,
-          viewportInsets: EdgeInsets.zero,
-          arrangeV2Enabled: arrangeV2Enabled,
-          tagViewActive: tagViewActive,
-        ),
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Align(
+            alignment: Alignment.topRight,
+            child: ConstellationCameraControls(
+              cubit: cubit,
+              viewportInsets: EdgeInsets.zero,
+              arrangeV2Enabled: arrangeV2Enabled,
+              tagViewActive: tagViewActive,
+            ),
+          ),
+          ConstellationArrangingToolbar(cubit: cubit),
+        ],
       ),
+      selection: selectionCubit,
+      locale: locale,
     ),
   );
   await tester.pump();
