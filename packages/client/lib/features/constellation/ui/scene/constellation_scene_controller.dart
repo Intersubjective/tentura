@@ -1019,8 +1019,9 @@ class ConstellationSceneController {
   /// or cannot be measured.
   ({Offset from, Offset to})? revealPan(
     GraphNodeId graphId,
-    EdgeInsets insets,
-  ) {
+    EdgeInsets insets, {
+    bool centreVertically = false,
+  }) {
     final pixel = graphController.viewportSize;
     if (!graphController.canLayout || pixel == null) {
       return null;
@@ -1060,9 +1061,18 @@ class ConstellationSceneController {
       return 0;
     }
 
+    double shiftY(double lo, double hi, double min, double max) {
+      if (centreVertically || hi - lo > max - min) {
+        return (min + max) / 2 - (lo + hi) / 2;
+      }
+      if (lo < min) return min - lo;
+      if (hi > max) return max - hi;
+      return 0;
+    }
+
     final delta = Offset(
       shift(topLeft.dx, bottomRight.dx, usable.left, usable.right),
-      shift(topLeft.dy, bottomRight.dy, usable.top, usable.bottom),
+      shiftY(topLeft.dy, bottomRight.dy, usable.top, usable.bottom),
     );
     if (delta == Offset.zero) {
       return null;
@@ -1079,6 +1089,21 @@ class ConstellationSceneController {
   /// Centres the full viewport on [sceneCentre] at the current scale.
   void panCameraTo(Offset sceneCentre) {
     graphController.jumpToPosition(sceneCentre);
+  }
+
+  /// Keeps scene nodes visually stable when the map viewport height changes
+  /// (Field top chrome hidden for the context sheet).
+  void compensateViewportHeightDelta(double viewportDeltaY) {
+    final pixel = graphController.viewportSize;
+    if (pixel == null || !graphController.canLayout || viewportDeltaY == 0) {
+      return;
+    }
+    final scale = graphController.cameraScale;
+    final viewportCentre = pixel.center(Offset.zero);
+    final sceneCentre = graphController.viewportLocalToScene(viewportCentre);
+    graphController.jumpToPosition(
+      sceneCentre - Offset(0, viewportDeltaY / scale),
+    );
   }
 
   void centreOnEgo(String viewerId, EdgeInsets insets) =>

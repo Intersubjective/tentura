@@ -277,11 +277,19 @@ class _ConstellationScreenState extends State<ConstellationScreen> {
     // A frame later, so a field that has just loaded is laid out.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      final tt = context.tt;
+      final mapBodyHeight =
+          MediaQuery.sizeOf(context).height -
+          tt.appBarHeight -
+          tt.bottomNavHeight;
       cubit.focusBeacon(
         beaconId,
         insets: ConstellationCameraControls.cameraViewportInsets(
           context,
           contextPanelVisible: true,
+          compactSheetHeight: context.windowClass == WindowClass.compact
+              ? mapBodyHeight * tt.fieldSheetPeekFraction
+              : 0,
         ),
       );
     });

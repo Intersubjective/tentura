@@ -33,6 +33,7 @@ class ConstellationCameraControls extends StatelessWidget {
   static EdgeInsets cameraViewportInsets(
     BuildContext context, {
     required bool contextPanelVisible,
+    double compactSheetHeight = 0,
   }) {
     final tt = context.tt;
     final media = MediaQuery.of(context);
@@ -44,9 +45,7 @@ class ConstellationCameraControls extends StatelessWidget {
     var bottom = padding.bottom;
 
     if (contextPanelVisible && context.windowClass == WindowClass.compact) {
-      bottom +=
-          media.size.height * tt.graphPersonContextCompactMaxHeightFraction +
-          tt.rowGap * 2;
+      bottom += compactSheetHeight + tt.sectionGap;
     }
     if (contextPanelVisible && context.windowClass != WindowClass.compact) {
       right += tt.graphPersonContextWidth + tt.screenHPadding;

@@ -2359,11 +2359,23 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   ({Offset from, Offset to})? revealPanFor(
     NodeDetails node, {
     required EdgeInsets insets,
+    bool centreVertically = false,
   }) {
     if (isClosed || state.placementPhase != ConstellationPlacementPhase.idle) {
       return null;
     }
-    return _scene.revealPan(tenturaGraphNodeId(node), insets);
+    return _scene.revealPan(
+      tenturaGraphNodeId(node),
+      insets,
+      centreVertically: centreVertically,
+    );
+  }
+
+  void compensateViewportHeightDelta(double viewportDeltaY) {
+    if (isClosed) {
+      return;
+    }
+    _scene.compensateViewportHeightDelta(viewportDeltaY);
   }
 
   /// Centres the viewport on [sceneCentre] at the current zoom.
