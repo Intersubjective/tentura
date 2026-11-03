@@ -38,7 +38,8 @@ class ForwardEdgeRepository implements ForwardEdgeRepositoryPort {
             (e) =>
                 e.id.equals(edgeId) &
                 e.senderId.id(senderId) &
-                e.cancelledAt.isNull(),
+                e.cancelledAt.isNull() &
+                e.recipientReadAt.isNull(),
           )
           .update(
             (o) => o(cancelledAt: Value(PgDateTime(DateTime.timestamp()))),
@@ -62,7 +63,8 @@ class ForwardEdgeRepository implements ForwardEdgeRepositoryPort {
             (e) =>
                 e.id.equals(edgeId) &
                 e.recipientId.id(recipientId) &
-                e.recipientReadAt.isNull(),
+                e.recipientReadAt.isNull() &
+                e.cancelledAt.isNull(),
           )
           .update(
             (o) => o(
