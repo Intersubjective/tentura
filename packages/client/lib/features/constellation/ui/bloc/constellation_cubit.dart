@@ -3247,6 +3247,17 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     _recomposeAndLayout();
   }
 
+  /// Persists dismissal of the one-time touch hold hint (#938).
+  void dismissFieldHoldHint() {
+    if (isClosed || state.visibility.fieldHoldHintDismissed) {
+      return;
+    }
+    final next = state.visibility.copyWith(fieldHoldHintDismissed: true);
+    emit(state.copyWith(visibility: next));
+    _visibilityTouched = true;
+    _keepVisibility();
+  }
+
   Future<void> _restoreVisibility() async {
     final visibilityCase = _visibilityCase;
     if (visibilityCase == null) return;

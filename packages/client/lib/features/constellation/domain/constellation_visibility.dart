@@ -32,6 +32,7 @@ class ConstellationVisibility {
     this.firstDegree = true,
     this.secondDegree = true,
     this.furtherDegrees = true,
+    this.fieldHoldHintDismissed = false,
   });
 
   /// Restores a stored value; anything missing or malformed shows.
@@ -50,6 +51,7 @@ class ConstellationVisibility {
       firstDegree: read('first'),
       secondDegree: read('second'),
       furtherDegrees: read('further'),
+      fieldHoldHintDismissed: json['fieldHoldHintDismissed'] == true,
     );
   }
 
@@ -60,6 +62,9 @@ class ConstellationVisibility {
   final bool firstDegree;
   final bool secondDegree;
   final bool furtherDegrees;
+
+  /// One-time #938 touch hint on the Field map dismissed on this device.
+  final bool fieldHoldHintDismissed;
 
   bool get showsEverything =>
       requests && posts && firstDegree && secondDegree && furtherDegrees;
@@ -87,12 +92,15 @@ class ConstellationVisibility {
     bool? firstDegree,
     bool? secondDegree,
     bool? furtherDegrees,
+    bool? fieldHoldHintDismissed,
   }) => ConstellationVisibility(
     requests: requests ?? this.requests,
     posts: posts ?? this.posts,
     firstDegree: firstDegree ?? this.firstDegree,
     secondDegree: secondDegree ?? this.secondDegree,
     furtherDegrees: furtherDegrees ?? this.furtherDegrees,
+    fieldHoldHintDismissed:
+        fieldHoldHintDismissed ?? this.fieldHoldHintDismissed,
   );
 
   Map<String, Object?> toJson() => {
@@ -101,6 +109,7 @@ class ConstellationVisibility {
     'first': firstDegree,
     'second': secondDegree,
     'further': furtherDegrees,
+    'fieldHoldHintDismissed': fieldHoldHintDismissed,
   };
 
   @override
@@ -110,11 +119,18 @@ class ConstellationVisibility {
       other.posts == posts &&
       other.firstDegree == firstDegree &&
       other.secondDegree == secondDegree &&
-      other.furtherDegrees == furtherDegrees;
+      other.furtherDegrees == furtherDegrees &&
+      other.fieldHoldHintDismissed == fieldHoldHintDismissed;
 
   @override
-  int get hashCode =>
-      Object.hash(requests, posts, firstDegree, secondDegree, furtherDegrees);
+  int get hashCode => Object.hash(
+    requests,
+    posts,
+    firstDegree,
+    secondDegree,
+    furtherDegrees,
+    fieldHoldHintDismissed,
+  );
 }
 
 /// Ids of the contact nodes without content in [field] (#246): identity only,

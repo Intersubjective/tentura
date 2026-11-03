@@ -69,6 +69,7 @@ import 'constellation_text_view.dart';
 import 'constellation_trust_chain_line.dart';
 import 'constellation_visibility_bar.dart';
 import 'constellation_placement_marker_layer.dart';
+import 'constellation_arranging_toolbar.dart';
 import 'constellation_selection_layers.dart';
 import 'constellation_tag_hull_layer.dart';
 import 'constellation_tag_lens_panel.dart';
@@ -1040,6 +1041,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
                             const ConstellationEmptyFilterBanner(),
                             const ConstellationNoContactsBanner(),
                             const ConstellationVisibilityBar(),
+                            _ConstellationFieldHoldHintBanner(cubit: cubit),
                           ],
                           if (_selectionUnavailableMessage != null)
                             Material(
@@ -1987,6 +1989,10 @@ class _ConstellationBodyState extends State<ConstellationBody>
               mainAxisSize: MainAxisSize.min,
               children: [
                 _buildTagLensPanel(context, cubit),
+                ConstellationArrangingToolbar(
+                  cubit: cubit,
+                  peopleTagsEnabled: widget.peopleTagsEnabled,
+                ),
                 ConstellationSelectionBar(
                   cubit: cubit,
                   peopleTagsEnabled: widget.peopleTagsEnabled,
@@ -3101,6 +3107,68 @@ class _ConstellationMapReadingOrderPolicy extends FocusTraversalPolicy
       start = end;
     }
     return sorted;
+  }
+}
+
+/// One-time touch hold hint (#938), stored in field visibility (#645).
+class _ConstellationFieldHoldHintBanner extends StatelessWidget {
+  const _ConstellationFieldHoldHintBanner({required this.cubit});
+
+  final ConstellationCubit cubit;
+
+  @override
+  Widget build(BuildContext context) {
+    final selection = maybeConstellationSelection(context);
+    return BlocBuilder<ConstellationCubit, ConstellationState>(
+      bloc: cubit,
+      buildWhen: (previous, current) =>
+          previous.visibility.fieldHoldHintDismissed !=
+          current.visibility.fieldHoldHintDismissed,
+      builder: (context, state) {
+        if (state.visibility.fieldHoldHintDismissed ||
+            state.viewMode != ConstellationViewMode.map) {
+          return const SizedBox.shrink();
+        }
+        if (selection?.state.arranging ?? false) {
+          return const SizedBox.shrink();
+        }
+        return ListenableBuilder(
+          listenable: RendererBinding.instance.mouseTracker,
+          builder: (context, _) {
+            if (RendererBinding.instance.mouseTracker.mouseIsConnected) {
+              return const SizedBox.shrink();
+            }
+            final l10n = L10n.of(context)!;
+            final tt = context.tt;
+            final theme = Theme.of(context);
+            return Material(
+              key: const Key('constellation.field_hold_hint'),
+              color: theme.colorScheme.surfaceContainerHighest,
+              child: Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: tt.screenHPadding,
+                  vertical: tt.tightGap,
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        l10n.constellationFieldHoldHint,
+                        style: theme.textTheme.bodySmall,
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: cubit.dismissFieldHoldHint,
+                      child: Text(l10n.buttonOk),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 }
 
