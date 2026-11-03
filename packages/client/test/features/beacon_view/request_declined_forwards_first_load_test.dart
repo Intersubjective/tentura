@@ -196,7 +196,7 @@ Map<String, dynamic> _pendingHelperOffer() => {
 int _gateSpinners() => find
     .descendant(
       of: find.byType(TenturaFirstLoadGate),
-      matching: find.byType(CircularProgressIndicator),
+      matching: find.byType(TenturaCircularProgress),
     )
     .evaluate()
     .where((element) {
@@ -846,10 +846,8 @@ void main() {
         );
         expect(barText('Looking for helpers'), findsNothing);
         expect(barText('no offers yet'), findsNothing);
-        final titleShown =
-            barText(_request.title).evaluate().isNotEmpty ||
-            barText('Request').evaluate().isNotEmpty;
-        expect(titleShown, isTrue, reason: 'the bar keeps its load-time title');
+        expect(barText(_request.title), findsNothing);
+        expect(barText('Request'), findsNothing);
 
         forwards.release();
         var revealed = false;
