@@ -4,6 +4,7 @@ import 'package:force_directed_graphview/src/widget/graph_layout_view.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
+import 'package:tentura/features/constellation/domain/constellation_consts.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
@@ -150,7 +151,10 @@ void main() {
       expect(viewport.bottom, nav.top);
       expect(controller.viewportSize, viewport.size);
       expect(controller.viewportSize!.height, lessThan(height));
-      const scene = Offset(2473, 2473);
+      const scene = Offset(
+        kConstellationCanvasCentre + 425,
+        kConstellationCanvasCentre + 425,
+      );
       final graphId = constellationGraphNodeIdForTarget(request);
       final pin = controller.renderSnapshot.resolvePosition(graphId)!;
       expect(Offset(pin.x, pin.y), scene);
@@ -161,7 +165,12 @@ void main() {
 
       // Pan horizontally only so the fixed pin is within the compact width.
       // At 1x it remains 425 pixels below the initially centered ego.
-      controller.jumpToPosition(const Offset(2473, 2048));
+      controller.jumpToPosition(
+        const Offset(
+          kConstellationCanvasCentre + 425,
+          kConstellationCanvasCentre,
+        ),
+      );
       await tester.pumpAndSettle();
       Offset globalPin() => tester
           .renderObject<RenderBox>(
