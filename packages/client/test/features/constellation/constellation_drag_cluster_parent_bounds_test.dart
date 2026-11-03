@@ -1,8 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tentura/features/constellation/domain/constellation_consts.dart';
 import 'package:tentura/features/constellation/domain/constellation_drag_cluster.dart';
 
 /// Canvas centre and one envelope unit in scene pixels (10 units = 1700 px).
-const _centre = 2048.0;
+const _centre = kConstellationCanvasCentre;
 const _unit = 170.0;
 
 void main() {
@@ -15,12 +16,12 @@ void main() {
         const companionStart = (x: _centre, y: _centre - 9.9 * _unit);
         final limited = constellationLimitClusterDelta(
           parentStart: (x: _centre, y: _centre),
-          proposedParent: (x: _centre, y: 600),
+          proposedParent: (x: _centre, y: _centre - 1448),
           companionStarts: const [companionStart],
         );
 
         expect(limited.x, closeTo(0, 1e-6));
-        expect(limited.y, closeTo(600 - _centre, 1e-6));
+        expect(limited.y, closeTo(-1448, 1e-6));
       },
     );
 
@@ -47,7 +48,7 @@ void main() {
         const companionStart = (x: _centre, y: _centre - 9.9 * _unit);
         final limited = constellationLimitClusterDelta(
           parentStart: (x: _centre, y: _centre),
-          proposedParent: (x: _centre, y: 0),
+          proposedParent: (x: _centre, y: _centre - 10 * _unit),
           companionStarts: const [companionStart],
         );
 
@@ -60,15 +61,15 @@ void main() {
       'a person without companions slides along the top wall instead of '
       'stopping when the pointer moves past it diagonally',
       () {
-        const parentStart = (x: _centre, y: 360.0);
+        const parentStart = (x: _centre, y: _centre - 10 * _unit + 12);
         final limited = constellationLimitClusterDelta(
           parentStart: parentStart,
-          proposedParent: (x: _centre + 400, y: 100),
+          proposedParent: (x: _centre + 400, y: _centre - 10 * _unit - 248),
           companionStarts: const [],
         );
 
         expect(limited.x, closeTo(400, 1e-6));
-        expect(limited.y, closeTo(348 - 360, 1e-3));
+        expect(limited.y, closeTo(-12, 1e-3));
       },
     );
   });

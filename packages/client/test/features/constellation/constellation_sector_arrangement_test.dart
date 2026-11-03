@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tentura/features/constellation/domain/constellation_consts.dart';
 import 'package:tentura/features/constellation/domain/constellation_sector_arrangement.dart';
 import 'package:tentura/features/constellation/domain/layout/layout_geometry.dart';
 
@@ -11,7 +12,10 @@ import 'package:tentura/features/constellation/domain/layout/layout_geometry.dar
 // inner ring and everyone keeping their order around the centre. The band is
 // kept exactly as asked, however tight.
 
-const LPoint _centre = (x: 2048, y: 2048);
+const LPoint _centre = (
+  x: kConstellationCanvasCentre,
+  y: kConstellationCanvasCentre,
+);
 const double _spacing = 100;
 
 LPoint _polar(double angle, double radius, [LPoint centre = _centre]) => (
@@ -506,13 +510,18 @@ void main() {
     });
 
     test('lists the targets that fall outside the bounds', () {
-      const bounds = (left: 0.0, top: 1850.0, right: 4096.0, bottom: 4096.0);
+      final bounds = (
+        left: 0.0,
+        top: kConstellationCanvasCentre - 198,
+        right: kConstellationCanvasExtent,
+        bottom: kConstellationCanvasExtent,
+      );
       final layout = _arrange(
         _scatter(6),
         innerRadius: 200,
         bounds: bounds,
       );
-      // Pointing up from y=2048: everything beyond 248 is above the top.
+      // Pointing up from the field centre: everything above [top] is outside.
       expect(layout.outside, isNotEmpty);
       for (final MapEntry(key: id, value: point) in layout.targets.entries) {
         expect(layout.outside.contains(id), point.y < bounds.top);

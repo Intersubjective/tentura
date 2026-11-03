@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tentura/features/constellation/domain/constellation_consts.dart';
 import 'package:tentura/features/constellation/domain/constellation_drag_cluster.dart';
 import 'package:tentura/features/constellation/domain/constellation_layout.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
@@ -71,24 +72,33 @@ void main() {
   });
 
   group('constellationClampToDragBounds', () {
-    const min = 2048 - 10 * 170.0;
-    const max = 2048 + 10 * 170.0;
+    final min = kConstellationCanvasCentre - 10 * 170.0;
+    final max = kConstellationCanvasCentre + 10 * 170.0;
 
     test('keeps a point already inside', () {
-      const inside = (x: 2100.0, y: 1900.0);
+      final inside = (
+        x: kConstellationCanvasCentre + 52.0,
+        y: kConstellationCanvasCentre - 148.0,
+      );
       expect(constellationClampToDragBounds(inside), inside);
     });
 
     test('puts a point outside the envelope just inside its edge, moving '
         'only the axes that are out', () {
-      final left = constellationClampToDragBounds((x: 100, y: 2000));
+      final left = constellationClampToDragBounds((
+        x: 100,
+        y: kConstellationCanvasCentre,
+      ));
       expect(
         left.x,
         closeTo(min + kConstellationEnvelopeClampInsetPixels, 1e-9),
       );
-      expect(left.y, 2000);
+      expect(left.y, kConstellationCanvasCentre);
 
-      final corner = constellationClampToDragBounds((x: 5000, y: -300));
+      final corner = constellationClampToDragBounds((
+        x: max + 1252,
+        y: min - 648,
+      ));
       expect(
         corner.x,
         closeTo(max - kConstellationEnvelopeClampInsetPixels, 1e-9),
@@ -111,25 +121,37 @@ void main() {
 
   group('constellationLimitClusterDelta', () {
     test('does not limit the parent by a companion near the envelope', () {
-      const parentStart = (x: 2048.0, y: 2048.0);
-      // Companion near +10 units edge (2048 + 10*170 = 3748).
-      const companionStart = (x: 3700.0, y: 2048.0);
+      final parentStart = (
+        x: kConstellationCanvasCentre,
+        y: kConstellationCanvasCentre,
+      );
+      // Companion near +10 units edge.
+      final companionStart = (
+        x: kConstellationCanvasCentre + 1652.0,
+        y: kConstellationCanvasCentre,
+      );
       final limited = constellationLimitClusterDelta(
         parentStart: parentStart,
-        proposedParent: (x: 2048 + 500, y: 2048),
-        companionStarts: const [companionStart],
+        proposedParent: (
+          x: kConstellationCanvasCentre + 500,
+          y: kConstellationCanvasCentre,
+        ),
+        companionStarts: [companionStart],
       );
       expect(limited.x, closeTo(500, 1e-6));
     });
 
     test('a companion follows the parent but stops inside the envelope', () {
-      const companionStart = (x: 3700.0, y: 2048.0);
+      final companionStart = (
+        x: kConstellationCanvasCentre + 1652.0,
+        y: kConstellationCanvasCentre,
+      );
       final next = constellationCompanionPosition(
         companionStart: companionStart,
         parentDelta: (x: 500.0, y: 100.0),
       );
-      expect((next.x - 2048) / 170, closeTo(10, 1e-3));
-      expect(next.y, closeTo(2148, 1e-6));
+      expect((next.x - kConstellationCanvasCentre) / 170, closeTo(10, 1e-3));
+      expect(next.y, closeTo(kConstellationCanvasCentre + 100, 1e-6));
     });
   });
 
@@ -175,7 +197,7 @@ void main() {
   });
 
   group('constellationLimitGroupDelta (group drag)', () {
-    const centre = 2048.0;
+    const centre = kConstellationCanvasCentre;
     const unit = 170.0;
 
     test('a group well inside the envelope moves by the full delta', () {

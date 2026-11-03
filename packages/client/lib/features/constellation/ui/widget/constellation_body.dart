@@ -35,6 +35,7 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
+import '../../domain/constellation_consts.dart';
 import '../../domain/constellation_trust_chain.dart';
 import '../../domain/entity/constellation_field.dart';
 import '../../domain/radius_recipient_selection.dart';
@@ -121,7 +122,9 @@ class ConstellationBody extends StatefulWidget {
   /// When set (tests only), the viewport overlay writes its frame here.
   final ConstellationPresentationFrameHolder? presentationFrameHolder;
 
-  static const _canvasSize = GraphCanvasSize.fixed(Size(4096, 4096));
+  static const _canvasSize = GraphCanvasSize.fixed(
+    Size(kConstellationCanvasExtent, kConstellationCanvasExtent),
+  );
 
   @override
   State<ConstellationBody> createState() => _ConstellationBodyState();

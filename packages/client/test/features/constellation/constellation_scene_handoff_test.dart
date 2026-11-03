@@ -415,7 +415,7 @@ void main() {
       final controller = cubit.graphController;
       expect(controller.canLayout, isTrue);
 
-      const dragCentre = Offset(3000, 2800);
+      const dragCentre = Offset(9144, 8944);
       cubit.beginDragExisting(target: target);
       cubit.updateDragPresentation(
         nodeId: target.graphNodeId,
@@ -474,7 +474,7 @@ void main() {
       final node = controller.nodePayloadForId(graphId);
       expect(node, isNotNull);
 
-      const dragCentre = Offset(2500, 2600);
+      const dragCentre = Offset(8644, 8744);
       final token = controller.beginNodePresentationDragForId(
         graphId,
         dragCentre,
@@ -507,7 +507,7 @@ void main() {
         ConstellationAnchorTarget.person('p1'),
       );
       final controller = cubit.graphController;
-      const dragCentre = Offset(2400, 2500);
+      const dragCentre = Offset(8544, 8644);
       final token = controller.beginNodePresentationDragForId(
         graphId,
         dragCentre,
@@ -531,7 +531,7 @@ void main() {
       expect(controller.activePresentationTokenForNode(graphId), token);
       expect(
         controller.renderSnapshot.presentation.overrides[graphId],
-        ScenePoint(x: 2400, y: 2500),
+        ScenePoint(x: 8544, y: 8644),
       );
 
       expect(controller.cancelNodePresentationDrag(token), isTrue);
@@ -550,7 +550,7 @@ void main() {
         await _pumpConstellationMap(tester, cubit);
 
         final controller = cubit.graphController;
-        const panTarget = Offset(2800, 2200);
+        const panTarget = Offset(8344, 8344);
         controller.jumpToPosition(panTarget);
         await tester.pump();
 
@@ -560,7 +560,7 @@ void main() {
         cubit.beginDragExisting(target: target);
         cubit.updateDragPresentation(
           nodeId: target.graphNodeId,
-          sceneCentre: const Offset(3000, 2900),
+          sceneCentre: const Offset(9144, 9044),
         );
         await tester.pump();
         expect(controller.activePresentationTokenForNode(graphId), isNotNull);
