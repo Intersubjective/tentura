@@ -62,6 +62,8 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
     required this.graphLabelMaxWidthPerson,
     required this.graphLabelMaxWidthRequest,
     required this.tabCompactWidth,
+    required this.fieldTopChromeMaxFraction,
+    required this.fieldFindResultsMaxHeight,
   });
 
   final Color bg;
@@ -172,6 +174,12 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
   /// Fixed width for icon-only compact tabs at the end of a tab row.
   final double tabCompactWidth;
 
+  /// Max height fraction for Field chrome above the map (notices, tags, tag view).
+  final double fieldTopChromeMaxFraction;
+
+  /// Max height for tag-view find results (about three dense list rows).
+  final double fieldFindResultsMaxHeight;
+
   /// Light preset (compact density); colours from [TenturaColorPalette.light].
   static final TenturaTokens light = TenturaTokens.fromPalette(
     TenturaColorPalette.light,
@@ -235,6 +243,8 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
     graphLabelMaxWidthPerson: 120,
     graphLabelMaxWidthRequest: 144,
     tabCompactWidth: TenturaSpacing.tabCompact,
+    fieldTopChromeMaxFraction: 0.40,
+    fieldFindResultsMaxHeight: 144,
   );
 
   /// Mine / secondary info on cards (sky-tinted border emphasis).
@@ -410,6 +420,8 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
     double? graphLabelMaxWidthPerson,
     double? graphLabelMaxWidthRequest,
     double? tabCompactWidth,
+    double? fieldTopChromeMaxFraction,
+    double? fieldFindResultsMaxHeight,
   }) {
     return TenturaTokens(
       bg: bg ?? this.bg,
@@ -470,6 +482,10 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
       graphLabelMaxWidthRequest:
           graphLabelMaxWidthRequest ?? this.graphLabelMaxWidthRequest,
       tabCompactWidth: tabCompactWidth ?? this.tabCompactWidth,
+      fieldTopChromeMaxFraction:
+          fieldTopChromeMaxFraction ?? this.fieldTopChromeMaxFraction,
+      fieldFindResultsMaxHeight:
+          fieldFindResultsMaxHeight ?? this.fieldFindResultsMaxHeight,
     );
   }
 
@@ -575,6 +591,16 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
         t,
       )!,
       tabCompactWidth: lerpDouble(tabCompactWidth, other.tabCompactWidth, t)!,
+      fieldTopChromeMaxFraction: lerpDouble(
+        fieldTopChromeMaxFraction,
+        other.fieldTopChromeMaxFraction,
+        t,
+      )!,
+      fieldFindResultsMaxHeight: lerpDouble(
+        fieldFindResultsMaxHeight,
+        other.fieldFindResultsMaxHeight,
+        t,
+      )!,
     );
   }
 }
