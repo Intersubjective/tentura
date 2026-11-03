@@ -43,10 +43,14 @@ scripts/run_tests.sh client-files test/features/constellation/constellation_arra
 → 13 passed
 
 scripts/run_tests.sh client-gates
-→ custom lints OK; check-analyze-baseline reported 1970 vs baseline 1964 (+6; investigate on merge — changed lib files analyze clean individually)
+→ OK (custom lints 23/23; analyze baseline 1959)
 
 scripts/run_tests.sh client-affected
-→ not run (time); recommend on merge
+→ partial: ~33 failures remain (box selection with shift, some body tap/R06, camera_controls); group-drag mouse passes with `enterArranging()` in harness. Follow-up commit `f79518d96` fixes ProviderNotFound in tests without selection cubit.
+
+## Follow-up commit
+
+5. `fix(client): #938 selection provider safety, analyzer, test harness`
 ```
 
 ## Commits
