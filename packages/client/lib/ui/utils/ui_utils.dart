@@ -244,8 +244,19 @@ ScaffoldFeatureController<SnackBar, SnackBarClosedReason>? showSnackBar(
   SnackBar build(double clearance, Duration shownFor) {
     final lifted = clearance > 0;
     final floating = isFloating || isError || lifted;
+    final message = RichText(
+      text: TextSpan(
+        text: text,
+        children: textSpans,
+        style: isError
+            ? theme.snackBarTheme.contentTextStyle?.copyWith(
+                color: theme.colorScheme.onErrorContainer,
+              )
+            : theme.snackBarTheme.contentTextStyle,
+      ),
+    );
     return SnackBar(
-      action: effectiveAction,
+      action: isError ? null : effectiveAction,
       duration: shownFor,
       persist: persist,
       // Action and close icon coexist (M3); users can dismiss without using the action.
@@ -273,17 +284,21 @@ ScaffoldFeatureController<SnackBar, SnackBarClosedReason>? showSnackBar(
       backgroundColor: isError
           ? theme.colorScheme.errorContainer
           : color ?? theme.snackBarTheme.backgroundColor,
-      content: RichText(
-        text: TextSpan(
-          text: text,
-          children: textSpans,
-          style: isError
-              ? theme.snackBarTheme.contentTextStyle?.copyWith(
-                  color: theme.colorScheme.onErrorContainer,
-                )
-              : theme.snackBarTheme.contentTextStyle,
-        ),
-      ),
+      // SnackBar's trailing action Row is unconstrained even when it moves
+      // below the message. Constrain error actions so localized labels wrap.
+      content: isError && effectiveAction != null
+          ? Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                message,
+                Align(
+                  alignment: AlignmentDirectional.centerEnd,
+                  child: effectiveAction,
+                ),
+              ],
+            )
+          : message,
     );
   }
 
