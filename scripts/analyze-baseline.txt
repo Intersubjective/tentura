@@ -1,8 +1,4 @@
 # Ratcheting analyze issue counts (may only go down). See check-analyze-baseline.sh.
-<<<<<<< HEAD
 packages/client 1963
-=======
-packages/client 1959
->>>>>>> f79518d96 (fix(client): #938 selection provider safety, analyzer, test harness)
 packages/server 1835
 packages/client:lib/features/beacon_view 2
