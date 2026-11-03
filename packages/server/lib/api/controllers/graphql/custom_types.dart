@@ -1410,6 +1410,7 @@ final gqlTypeUserPublic = GraphQLObjectType('user', null)
     field('is_mutual_friend', graphQLBoolean.nonNullable()),
     field('trusts_viewer', graphQLBoolean.nonNullable()),
     field('shares_active_context', graphQLBoolean),
+    field('mutual_since', graphQLDate),
     field('image', gqlTypeImagePublic),
     field(
       'scores',
