@@ -7704,6 +7704,7 @@ type v2_AttentionReceipt {
   eventsPreview: [v2_AttentionReceipt!]!
   forwardCount: Int
   forwardOutcome: String
+  historyLifecycleEligible: Boolean
   id: String!
   inAppPreferenceClass: String
   itemKind: String!

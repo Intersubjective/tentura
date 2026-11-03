@@ -542,6 +542,7 @@ final class QueryAttention extends GqlNodeBase {
       'allowsForward': receipt.allowsForward,
       'beaconTitle': receipt.beaconTitle,
       'beaconKind': receipt.beaconKind?.value,
+      'historyLifecycleEligible': receipt.historyLifecycleEligible,
       'postRootExcerpt': receipt.postRootExcerpt,
       'postRootImageId': receipt.postRootImageId,
     };

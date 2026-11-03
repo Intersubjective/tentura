@@ -541,6 +541,10 @@ abstract class AttentionReceipt with _$AttentionReceipt {
     /// so a non-null [clearedAt] always carries a [clearReason].
     DateTime? clearedAt,
     String? clearReason,
+
+    /// Lifecycle eligibility projected by History, independent of clearing,
+    /// settlement and placement. Null on other attention projections.
+    bool? historyLifecycleEligible,
     required AttentionSurface surface,
     @Default(AttentionItemKind.receipt) AttentionItemKind itemKind,
     String? forwardOutcome,

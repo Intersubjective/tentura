@@ -837,7 +837,8 @@ page AS (
 )'''
         : '''
 page AS (
-  SELECT visible.*
+  SELECT visible.*,
+    ${AttentionDismissibleSql.postLifecycleExcluded('visible')} AS history_lifecycle_eligible
   FROM visible
   WHERE (
     \$2 = 'all'
@@ -982,6 +983,10 @@ ORDER BY page.created_at DESC NULLS LAST, page.id DESC NULLS LAST
       clearedAt: _readTimestamp(row, 'cleared_at'),
       clearReason: row.data.containsKey('clear_reason')
           ? row.readNullable<String>('clear_reason')
+          : null,
+      historyLifecycleEligible:
+          row.data.containsKey('history_lifecycle_eligible')
+          ? row.read<bool>('history_lifecycle_eligible')
           : null,
       surface: attentionSurfaceFromWireName(row.read<String>('surface')),
       itemKind: row.data['item_kind'] == null

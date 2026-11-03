@@ -201,6 +201,7 @@ final GraphQLObjectType gqlTypeAttentionReceipt = () {
     field('settledAt', graphQLString),
     field('clearedAt', graphQLString),
     field('clearReason', graphQLString),
+    field('historyLifecycleEligible', graphQLBoolean),
     field('surface', graphQLString.nonNullable()),
     field('itemKind', graphQLString.nonNullable()),
     field('forwardOutcome', graphQLString),
