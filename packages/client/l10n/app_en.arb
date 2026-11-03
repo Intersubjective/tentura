@@ -1407,6 +1407,29 @@
       }
     }
   },
+  "constellationMorePosts": "+{count} more posts",
+  "@constellationMorePosts": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "constellationFewerPosts": "Show fewer posts",
+  "@constellationFewerPosts": {
+    "context": "ConstellationOverflowGroup"
+  },
+  "constellationMorePostsByAuthor": "{count, plural, one{1 more post by {name}} other{{count} more posts by {name}}}",
+  "@constellationMorePostsByAuthor": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "constellationIncludeUnspecified": "Include requests without a capability or date",
   "@constellationIncludeUnspecified": {
     "context": "ConstellationFilterBar"
@@ -3940,7 +3963,11 @@
   "beaconRoomNoAdmission": "No discussion admission",
   "beaconRoomEmptyState": "No messages yet. This is where you and your helpers coordinate.",
   "@beaconRoomEmptyState": {
-    "description": "One-line empty state shown in a request room chat with no messages yet."
+    "description": "Legacy one-line empty chat copy; Request rooms use beaconRoomEmptyTitle/Body instead."
+  },
+  "postRoomEmptyReplies": "No replies yet",
+  "@postRoomEmptyReplies": {
+    "description": "Empty Post room when the root card is shown but there are no replies yet (#248 QA)."
   },
   "withdrawCantDoIt": "Cannot do it anymore",
   "withdrawTimingChanged": "Timing no longer works",

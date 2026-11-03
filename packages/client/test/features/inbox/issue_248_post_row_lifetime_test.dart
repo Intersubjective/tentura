@@ -49,4 +49,49 @@ void main() {
     expect(find.textContaining('⏳', findRichText: true), findsOneWidget);
     expect(find.textContaining('осталось', findRichText: true), findsOneWidget);
   });
+
+  testWidgets('375×667 RU: gap between addressee line and hourglass lifetime', (
+    tester,
+  ) async {
+    await usePhoneSurface(tester);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: TenturaTheme.light(),
+        localizationsDelegates: L10n.localizationsDelegates,
+        supportedLocales: L10n.supportedLocales,
+        locale: const Locale('ru'),
+        home: Scaffold(
+          body: TenturaResponsiveScope(
+            child: Builder(
+              builder: (context) {
+                return PostConversationRow(
+                  post: PostSummary(
+                    id: 'P248gap',
+                    authorId: 'U1',
+                    authorName: 'Олег',
+                    rootExcerpt: 'Кто в субботу?',
+                    lastMessageExcerpt: 'Я могу',
+                    lastActivityAt: now,
+                    expiresAt: expiresAt,
+                  ),
+                  now: now,
+                  onOpen: () {},
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final addressing = find.textContaining('· вам', findRichText: true);
+    final lifetime = find.byKey(const Key('PostConversation.Lifetime'));
+    expect(addressing, findsOneWidget);
+    expect(lifetime, findsOneWidget);
+    final gap =
+        tester.getTopLeft(lifetime).dx - tester.getTopRight(addressing).dx;
+    final tt = tester.element(find.byType(TenturaResponsiveScope)).tt;
+    expect(gap, greaterThanOrEqualTo(tt.iconTextGap - 1));
+  });
 }

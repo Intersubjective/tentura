@@ -97,7 +97,7 @@ class PostConversationRow extends StatelessWidget {
                             ),
                           ),
                           if (lifetime != null) ...[
-                            SizedBox(width: tt.tightGap),
+                            SizedBox(width: tt.iconTextGap),
                             TenturaStatusText(
                               lifetime,
                               key: const Key('PostConversation.Lifetime'),

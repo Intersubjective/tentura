@@ -28,6 +28,7 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../support/phone_surface.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'fake_beacon_ports.dart';
 
@@ -264,6 +265,23 @@ void main() {
         lessThanOrEqualTo(16),
         reason: 'no other control sits between the hint and the switch',
       );
+    });
+
+    testWidgets('375×667 RU: reply lifetime hint uses «Срок жизни» copy', (
+      tester,
+    ) async {
+      await usePhoneSurface(tester);
+      await _pumpPostCreate(tester);
+
+      expect(
+        find.textContaining(
+          'ответить под постом. Срок жизни:',
+          findRichText: true,
+        ),
+        findsOneWidget,
+      );
+      expect(find.textContaining('до 3 дня', findRichText: true), findsNothing);
+      expect(find.textContaining('до 24 часа', findRichText: true), findsNothing);
     });
   });
 }
