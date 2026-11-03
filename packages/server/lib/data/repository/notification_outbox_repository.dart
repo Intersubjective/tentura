@@ -95,7 +95,18 @@ in_app_preference_class, suppression_class, access_policy
   @override
   Future<List<NotificationOutboxItemEntity>> pendingForAccount(
     String accountId,
-  ) async {
+  ) => _pending(accountId);
+
+  @override
+  Future<List<NotificationOutboxItemEntity>> pendingForChannelCollapseKey({
+    required String accountId,
+    required String channelCollapseKey,
+  }) => _pending(accountId, channelCollapseKey: channelCollapseKey);
+
+  Future<List<NotificationOutboxItemEntity>> _pending(
+    String accountId, {
+    String? channelCollapseKey,
+  }) async {
     final rows = await _database
         .customSelect(
           '''
@@ -105,6 +116,21 @@ SELECT pending.*,
 FROM (
   SELECT $_columns FROM public.notification_outbox
   WHERE account_id = \$1 AND emailed_at IS NULL
+    AND (\$2::text IS NULL OR dedup_key = \$2)
+    AND NOT (
+      kind = 'newRelay'
+      AND EXISTS (SELECT 1 FROM public.beacon post
+                  WHERE post.id = beacon_id AND post.kind = 1)
+      AND (
+        public.block_hides(account_id, actor_user_id)
+        OR EXISTS (
+          SELECT 1 FROM public.notification_beacon_mute mute
+          WHERE mute.account_id = notification_outbox.account_id
+            AND mute.beacon_id = notification_outbox.beacon_id
+            AND (mute.muted_until IS NULL OR mute.muted_until > now())
+        )
+      )
+    )
 ) pending
 LEFT JOIN public.beacon b ON b.id = pending.beacon_id AND b.kind = 1
   AND public.beacon_can_read_content(b.id, pending.account_id)
@@ -118,7 +144,10 @@ LEFT JOIN LATERAL (
 ) share ON true
 ORDER BY pending.created_at DESC, pending.id
 ''',
-          variables: [Variable<String>(accountId)],
+          variables: [
+            Variable<String>(accountId),
+            Variable<String>(channelCollapseKey),
+          ],
         )
         .get();
     return [for (final row in rows) _mapRow(row)];

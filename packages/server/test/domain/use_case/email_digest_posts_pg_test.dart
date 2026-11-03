@@ -192,7 +192,7 @@ VALUES (@id, @reader, 'coordination', @kind, 'normal', @name, @body, @url,
       Sql.named('''
 INSERT INTO public.notification_preference
 (account_id, locale, email_categories, email_digest)
-VALUES (@reader, @locale, ARRAY['asksOfMe', 'connections', 'coordination'], 'daily')
+VALUES (@reader, @locale, ARRAY['asksOfMe', 'connections', 'coordination', 'postsSharedWithMe'], 'daily')
 ON CONFLICT (account_id) DO UPDATE SET locale = EXCLUDED.locale
 '''),
       parameters: {'reader': _reader, 'locale': locale},

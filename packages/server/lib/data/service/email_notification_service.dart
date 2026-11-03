@@ -5,6 +5,7 @@ import 'package:tentura_server/domain/port/email_link_port.dart';
 import 'package:tentura_server/domain/entity/email_notification_content.dart';
 import 'package:tentura_server/domain/entity/beacon_notification_intent.dart';
 import 'package:tentura_server/domain/entity/notification_priority.dart';
+import 'package:tentura_server/domain/entity/notification_outbox_item_entity.dart';
 import 'package:tentura_server/domain/notification/beacon_notification_copy_builder.dart';
 import 'package:tentura_server/domain/entity/notification_category.dart';
 import 'package:tentura_server/domain/entity/notification_channel.dart';
@@ -57,9 +58,27 @@ class EmailNotificationService implements EmailNotificationPort {
     required String actionUrl,
     required bool pushDelivered,
   }) async {
-    final category = categoryOf(kind);
-    // Immediate email is reserved for the highest-stakes category.
-    if (category != NotificationCategory.asksOfMe) {
+    final shares = kind == NotificationKind.newRelay
+        ? (await _outbox.pendingForChannelCollapseKey(
+                accountId: recipientUserId,
+                channelCollapseKey: channelCollapseKey,
+              ))
+              .where(
+                (item) =>
+                    item.category == NotificationCategory.postsSharedWithMe &&
+                    item.digestPost != null,
+              )
+              .toList()
+        : const <NotificationOutboxItemEntity>[];
+    if (kind == NotificationKind.newRelay &&
+        !shares.any(
+          (item) => item.digestPost?.senderNote.trim().isNotEmpty ?? false,
+        )) {
+      return;
+    }
+    final category = shares.isEmpty ? categoryOf(kind) : shares.first.category;
+    if (category != NotificationCategory.asksOfMe &&
+        category != NotificationCategory.postsSharedWithMe) {
       return;
     }
     if (kNoImmediateEmailKinds.contains(kind)) {
@@ -101,14 +120,20 @@ class EmailNotificationService implements EmailNotificationPort {
       scope: category.name,
     );
     final content = EmailNotificationContent(
-      item: _localizedItem(
-        kind: kind,
-        beaconId: beaconId,
-        title: title,
-        body: body,
-        actionUrl: actionUrl,
-        locale: prefs.locale,
-      ),
+      item: shares.isNotEmpty
+          ? _copyBuilder.digestPostItem(
+              receipts: shares,
+              locale: prefs.locale,
+              url: _links.absolute(actionUrl),
+            )
+          : _localizedItem(
+              kind: kind,
+              beaconId: beaconId,
+              title: title,
+              body: body,
+              actionUrl: actionUrl,
+              locale: prefs.locale,
+            ),
       unsubscribeUrl: unsubscribeUrl,
       managePrefsUrl: _links.manageUrl(),
     );
@@ -150,7 +175,8 @@ class EmailNotificationService implements EmailNotificationPort {
       return false;
     }
     // Keep asks-of-me's conservative policy routed through `considerImmediate`.
-    if (category == NotificationCategory.asksOfMe) {
+    if (category == NotificationCategory.asksOfMe ||
+        category == NotificationCategory.postsSharedWithMe) {
       return false;
     }
 

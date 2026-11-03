@@ -578,6 +578,10 @@ class BeaconNotificationCopyBuilder {
         'New connection activity',
       ),
       NotificationCategory.ambient => ('Tentura', 'New activity'),
+      NotificationCategory.postsSharedWithMe => (
+        'Tentura',
+        'A post was shared with you',
+      ),
     };
     return BeaconNotificationCopy(
       title: title,

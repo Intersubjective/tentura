@@ -2142,6 +2142,7 @@
   "notificationCatAsksOfMeDesc": "Ждут вашего ответа; вы блокируете других",
   "notificationCatUnblocksMe": "Разблокировки",
   "notificationCatUnblocksMeDesc": "Обновления, позволяющие двигаться дальше",
+  "notificationCatPostsSharedWithMe": "Посты, которыми поделились со мной",
   "notificationCatCoordination": "Координация",
   "notificationCatCoordinationDesc": "Активность в обсуждениях запросов, где вы участвуете, включая @упоминания",
   "notificationCatConnections": "Связи",

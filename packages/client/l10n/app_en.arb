@@ -2287,6 +2287,7 @@
   "notificationCatAsksOfMeDesc": "Things waiting on you; you're blocking others",
   "notificationCatUnblocksMe": "Resolutions",
   "notificationCatUnblocksMeDesc": "Updates that let you move forward",
+  "notificationCatPostsSharedWithMe": "Posts shared with me",
   "notificationCatCoordination": "Coordination",
   "notificationCatCoordinationDesc": "Activity in request discussions you're part of, including @mentions",
   "notificationCatConnections": "Connections",

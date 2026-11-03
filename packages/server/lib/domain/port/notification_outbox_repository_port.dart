@@ -27,6 +27,13 @@ abstract interface class NotificationOutboxRepositoryPort {
     String accountId,
   );
 
+  /// Pending, readable email content for one delivery family. Applies the
+  /// same Post and sender suppression as the digest read path.
+  Future<List<NotificationOutboxItemEntity>> pendingForChannelCollapseKey({
+    required String accountId,
+    required String channelCollapseKey,
+  });
+
   /// How many emails were sent to [accountId] for [category] within [window]
   /// (cooldown / anti-flood).
   Future<int> countRecentEmailsByCategory({
