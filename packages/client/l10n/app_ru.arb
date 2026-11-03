@@ -1314,7 +1314,7 @@
       }
     }
   },
-  "constellationMorePosts": "ещё {count} постов",
+  "constellationMorePosts": "{count, plural, one{ещё {count} пост} few{ещё {count} поста} many{ещё {count} постов} other{ещё {count} постов}}",
   "@constellationMorePosts": {
     "placeholders": {
       "count": {
