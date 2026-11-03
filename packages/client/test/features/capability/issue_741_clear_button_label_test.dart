@@ -65,7 +65,8 @@ void main() {
       await tester.tap(find.byTooltip(clear));
       await tester.pump();
       expect(query, isEmpty);
-      expect(find.byTooltip(clear), findsNothing);
+      // Stays mounted, disabled, once the field is empty (#741 round 3).
+      expect(find.byTooltip(clear), findsOneWidget);
       semantics.dispose();
     });
 
