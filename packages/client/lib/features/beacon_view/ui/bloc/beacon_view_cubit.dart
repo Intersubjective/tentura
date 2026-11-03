@@ -1999,12 +1999,14 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
 
   bool _forwardReadSent = false;
 
-  /// #952: a recipient without involvement access never triggers the server's
-  /// involvement read, which used to be the only thing stamping the sender's
-  /// read receipt. Sent once per open; failure is retried on the next open.
+  /// #952: a recipient's first open tells the server they read it, so the
+  /// sender's read receipt no longer depends on the involvement read (which
+  /// forward recipients are allowed to make, m0280, but the screen loads
+  /// lazily). The server stamp is idempotent and scoped to the viewer's own
+  /// edge, so it is sent for every forward recipient, whatever their
+  /// involvement access. Sent once per open; failure is retried next open.
   void _markForwardReadOnFirstOpen(Beacon beacon) {
     if (_forwardReadSent ||
-        beacon.canReadInvolvement ||
         !BeaconAccessReason.decode(
           beacon.accessReasons,
         ).contains(BeaconAccessReason.forwarded)) {

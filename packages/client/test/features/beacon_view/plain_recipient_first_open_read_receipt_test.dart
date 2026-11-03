@@ -133,18 +133,19 @@ List<GraphqlRoundTripCall> _markReadCalls(GraphqlRoundTripServer server) => [
 void main() {
   group('Opening a Request received by forward', () {
     test(
-      'a recipient without involvement access tells the server once that '
+      'a forward recipient (who can read involvement) tells the server once that '
       'they read it',
       () async {
         final opened = await _open(
           accessLevel: 2, // observer
           accessReasons: _forwarded,
-          canReadInvolvement: false,
+          // Production policy (m0280): a forward recipient can read involvement.
+          canReadInvolvement: true,
         );
         final trace = opened.server.describe();
 
         expect(opened.state.beaconContentLoaded, isTrue, reason: trace);
-        expect(opened.state.beacon.canReadInvolvement, isFalse, reason: trace);
+        expect(opened.state.beacon.canReadInvolvement, isTrue, reason: trace);
 
         final calls = _markReadCalls(opened.server);
         expect(
@@ -171,7 +172,7 @@ void main() {
         final opened = await _open(
           accessLevel: 2,
           accessReasons: _forwarded,
-          canReadInvolvement: false,
+          canReadInvolvement: true,
           backgroundRefreshes: 2,
         );
         final trace = opened.server.describe();
@@ -187,17 +188,9 @@ void main() {
     for (final (name, level, reasons) in [
       ('an author', 0, _author),
       ('an admitted helper', 1, _admitted),
-      // Forwarded to them first, then admitted: the involvement read still
-      // owns the stamp, so the screen must not also send its own receipt.
-      (
-        'an admitted helper who also received it by forward',
-        1,
-        _admitted | _forwarded,
-      ),
-      ('an author who also received it by forward', 0, _author | _forwarded),
     ]) {
       test(
-        '$name with involvement access sends no separate read receipt',
+        '$name who did not receive it by forward sends no read receipt',
         () async {
           final opened = await _open(
             accessLevel: level,
@@ -210,6 +203,29 @@ void main() {
           expect(_markReadCalls(opened.server), isEmpty, reason: trace);
         },
       );
+    }
+
+    // Forwarded to them as well: the receipt is idempotent on the server, so
+    // one extra call is harmless and keeps the stamp independent of the
+    // lazily-loaded involvement read.
+    for (final (name, level, reasons) in [
+      (
+        'an admitted helper who also received it by forward',
+        1,
+        _admitted | _forwarded,
+      ),
+    ]) {
+      test('$name sends exactly one read receipt per open', () async {
+        final opened = await _open(
+          accessLevel: level,
+          accessReasons: reasons,
+          canReadInvolvement: true,
+          backgroundRefreshes: 1,
+        );
+        final trace = opened.server.describe();
+        expect(opened.state.beaconContentLoaded, isTrue, reason: trace);
+        expect(_markReadCalls(opened.server), hasLength(1), reason: trace);
+      });
     }
 
     test(
