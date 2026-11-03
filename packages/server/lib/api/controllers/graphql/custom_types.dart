@@ -64,6 +64,7 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeRoomMessageCreatePayload,
   gqlTypePostPublishResult,
   gqlTypePostSummary,
+  gqlTypePostParticipantPreview,
   gqlTypeRoomMessageQuotedFact,
   gqlTypeRoomMessageRow,
   gqlTypeBeaconRoomStateRow,
@@ -651,6 +652,7 @@ final gqlTypeBeaconParticipantRow =
         field('nextMoveStatus', graphQLInt),
         field('nextMoveSource', graphQLInt),
         field('linkedMessageId', graphQLString),
+        field('opened', graphQLBoolean.nonNullable()),
         field('lastSeenRoomAt', graphQLString),
         field('helpType', graphQLString),
         field('roleLabel', graphQLString),
@@ -2088,6 +2090,14 @@ final gqlTypeClosureToggleResult = GraphQLObjectType(
 )..fields.add(field('released', graphQLString));
 
 /// Open or closed Post conversation preview for the authenticated viewer.
+final gqlTypePostParticipantPreview =
+    GraphQLObjectType('PostParticipantPreview', null)
+      ..fields.addAll([
+        field('id', graphQLString.nonNullable()),
+        field('displayName', graphQLString.nonNullable()),
+        field('avatar', graphQLString.nonNullable()),
+      ]);
+
 final gqlTypePostSummary = GraphQLObjectType('PostSummary', null)
   ..fields.addAll([
     field('id', graphQLString.nonNullable()),
@@ -2106,6 +2116,15 @@ final gqlTypePostSummary = GraphQLObjectType('PostSummary', null)
     field('mutedUntil', graphQLString),
     field('mutedForever', graphQLBoolean.nonNullable()),
     field('unreadCount', graphQLInt.nonNullable()),
+    field('participantCount', graphQLInt.nonNullable()),
+    field('notOpenedCount', graphQLInt.nonNullable()),
+    field('myDeclinedForwardCount', graphQLInt.nonNullable()),
+    field(
+      'previewParticipants',
+      GraphQLListType(
+        gqlTypePostParticipantPreview.nonNullable(),
+      ).nonNullable(),
+    ),
     field('isAuthor', graphQLBoolean.nonNullable()),
     // `beacon.status` smallint: 0 open, 6 closed by budding.
     field('status', graphQLInt.nonNullable()),

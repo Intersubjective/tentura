@@ -1712,6 +1712,7 @@ class BeaconRoomCase extends UseCaseBase {
             'nextMoveStatus': r.nextMoveStatus,
             'nextMoveSource': r.nextMoveSource,
             'linkedMessageId': r.linkedMessageId,
+            'opened': r.opened,
             'lastSeenRoomAt': lastSeenByUserId[r.userId]
                 ?.toUtc()
                 .toIso8601String(),

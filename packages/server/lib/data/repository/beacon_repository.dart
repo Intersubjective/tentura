@@ -29,6 +29,7 @@ import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import '../database/tentura_db.dart';
 import '../mapper/beacon_mapper.dart';
 import 'post_lock_repository.dart';
+import 'participant_activity_sql.dart';
 
 export 'package:tentura_server/domain/entity/beacon_entity.dart';
 
@@ -94,6 +95,11 @@ SELECT posts.*, cover.image_id::text AS root_image_id,
        cover.author_id AS root_image_author_id,
        COALESCE(posts.last_message_id = b.post_root_message_id, false)
          AS last_message_is_root,
+       members.participant_count, members.not_opened_count,
+       members.preview_participants,
+       (SELECT count(*)::int FROM public.beacon_forward_edge e
+        WHERE e.beacon_id = posts.id AND e.sender_id = \$1
+          AND e.recipient_rejected) AS my_declined_forward_count,
        forwarder.sender_id AS forwarded_by_id,
        forwarder.display_name AS forwarded_by_name,
        EXISTS (
@@ -104,6 +110,26 @@ SELECT posts.*, cover.image_id::text AS root_image_id,
        ) AS muted_forever
 FROM public.post_my_posts(\$1) posts
 JOIN public.beacon b ON b.id = posts.id
+LEFT JOIN LATERAL (
+  WITH activity AS MATERIALIZED (
+    ${participantActivitySql(beaconIdsSql: 'ARRAY[posts.id]')}
+  ), peers AS MATERIALIZED (
+    SELECT bp.user_id, u.display_name, u.image_id, activity.active_at
+    FROM public.beacon_participant bp
+    JOIN public."user" u ON u.id = bp.user_id
+    LEFT JOIN activity ON activity.beacon_id = bp.beacon_id
+                      AND activity.user_id = bp.user_id
+    WHERE bp.beacon_id = posts.id AND bp.room_access = 3
+      AND bp.user_id <> \$1
+  )
+  SELECT count(*)::int AS participant_count,
+         (count(*) FILTER (WHERE active_at IS NULL))::int AS not_opened_count,
+         (SELECT COALESCE(jsonb_agg(to_jsonb(preview) ORDER BY preview.active_at DESC NULLS LAST, preview.user_id), '[]'::jsonb)::text
+          FROM (SELECT * FROM peers
+                ORDER BY active_at DESC NULLS LAST, user_id LIMIT 4) preview)
+           AS preview_participants
+  FROM peers
+) members ON true
 LEFT JOIN LATERAL (
   SELECT e.sender_id, u.display_name
   FROM public.beacon_forward_edge e
@@ -136,6 +162,12 @@ ${beaconId == null ? '' : r'WHERE posts.id = $2'}''',
       final authorId = row.read<String>('author_id');
       final imageId = row.readNullable<String>('author_image_id');
       return PostSummary(
+        participantCount: row.read<int>('participant_count'),
+        notOpenedCount: row.read<int>('not_opened_count'),
+        myDeclinedForwardCount: row.read<int>('my_declined_forward_count'),
+        previewParticipants: _parseParticipantPreviews(
+          row.read<String>('preview_participants'),
+        ),
         id: row.read<String>('id'),
         authorId: authorId,
         authorName: row.read<String>('author_name'),
@@ -1068,13 +1100,17 @@ WHERE user_id = $1 AND created_at >= $2
   /// Lock order hierarchy scope -> beacon row, the same as deletion/erasure;
   /// the draft status is checked only after both are held.
   Future<void> _lockHierarchyThenBeacon(String beaconId) async {
-    await _database.customSelect(
-      "SELECT pg_advisory_xact_lock(hashtextextended('tentura.beacon_hierarchy.v1', 0))",
-    ).get();
-    await _database.customSelect(
-      r'SELECT id FROM public.beacon WHERE id = $1 FOR UPDATE',
-      variables: [Variable<String>(beaconId)],
-    ).get();
+    await _database
+        .customSelect(
+          "SELECT pg_advisory_xact_lock(hashtextextended('tentura.beacon_hierarchy.v1', 0))",
+        )
+        .get();
+    await _database
+        .customSelect(
+          r'SELECT id FROM public.beacon WHERE id = $1 FOR UPDATE',
+          variables: [Variable<String>(beaconId)],
+        )
+        .get();
   }
 
   Future<void> _insertBeaconPublishedEvent({
@@ -1342,4 +1378,29 @@ LIMIT $2
     final value = row.data[column];
     return value is UuidValue ? value.uuid : value.toString();
   }
+}
+
+List<PostParticipantPreview> _parseParticipantPreviews(String json) {
+  final decoded = jsonDecode(json);
+  if (decoded is! List) {
+    throw const FormatException('Expected Post participant previews');
+  }
+  return [
+    for (final value in decoded)
+      switch (value) {
+        {
+          'user_id': final String id,
+          'display_name': final String name,
+          'image_id': final String? imageId,
+        } =>
+          PostParticipantPreview(
+            id: id,
+            displayName: name,
+            avatar: imageId == null
+                ? kAvatarPlaceholderUrl
+                : '$kImageServer/$kImagesPath/$id/$imageId.$kImageExt',
+          ),
+        _ => throw const FormatException('Invalid Post participant preview'),
+      },
+  ];
 }

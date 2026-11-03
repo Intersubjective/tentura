@@ -25,6 +25,7 @@ import 'package:tentura_server/utils/id.dart';
 
 import '../database/tentura_db.dart';
 import 'beacon_room_participant_join_recorder.dart';
+import 'participant_activity_sql.dart';
 import 'mappers/coordination_row_mappers.dart';
 import 'offer_accepted_dismissal_repository.dart';
 
@@ -1205,12 +1206,29 @@ RETURNING *
   listParticipantsByBeaconIds(Iterable<String> beaconIds) async {
     final ids = beaconIds.toSet().toList();
     if (ids.isEmpty) return {};
-    final rows = await (_db.select(
-      _db.beaconParticipants,
-    )..where((r) => r.beaconId.isIn(ids))).get();
+    final rows = await _db
+        .customSelect(
+          '''
+WITH activity AS MATERIALIZED (
+  ${participantActivitySql(beaconIdsSql: r'$1::text[]')}
+)
+SELECT bp.*, activity.active_at IS NOT NULL AS opened
+FROM public.beacon_participant bp
+LEFT JOIN activity ON activity.beacon_id = bp.beacon_id
+                  AND activity.user_id = bp.user_id
+WHERE bp.beacon_id = ANY(\$1::text[])
+''',
+          variables: [Variable<List<String>>(ids, PgTypes.textArray)],
+        )
+        .get();
     final out = <String, List<BeaconParticipantRecord>>{};
-    for (final row in rows) {
-      out.putIfAbsent(row.beaconId, () => []).add(row.toRecord());
+    for (final result in rows) {
+      final row = _db.beaconParticipants.map(result.data);
+      out
+          .putIfAbsent(row.beaconId, () => [])
+          .add(
+            row.toRecord(opened: result.read<bool>('opened')),
+          );
     }
     return out;
   }

@@ -98,8 +98,10 @@ final class BeaconParticipantRecord {
     this.offerNote,
     required this.createdAt,
     required this.updatedAt,
+    this.opened = false,
   });
 
+  final bool opened;
   final String id;
   final String beaconId;
   final String userId;
