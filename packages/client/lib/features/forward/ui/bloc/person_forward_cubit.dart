@@ -3,10 +3,14 @@ import 'dart:async';
 import 'package:get_it/get_it.dart';
 
 import 'package:tentura/domain/entity/beacon_kind.dart';
+import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/domain/exception/generic_exception.dart';
 import 'package:tentura/domain/util/availability_presets.dart';
+import 'package:tentura/features/profile/domain/exception.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 
+import '../../domain/entity/person_forward_row.dart';
 import '../../domain/use_case/person_forward_case.dart';
 import '../message/person_forward_messages.dart';
 import 'person_forward_state.dart';
@@ -105,6 +109,53 @@ class PersonForwardCubit extends Cubit<PersonForwardState> {
         ),
       );
     } catch (e) {
+      if (isClosed) return;
+      if (e is ProfileFetchException) {
+        // A missing profile means the recipient is no longer readable. Keep
+        // their known identity, but remove stale reachability and selection.
+        final person = state.person ?? Profile(id: state.personId);
+        emit(
+          state.copyWith(
+            person: person.copyWith(
+              myVote: 0,
+              score: 0,
+              rScore: 0,
+              subjectExplicitlyTrustsViewer: false,
+              isMutualFriend: false,
+              sharesActiveContext: false,
+            ),
+            selectedBeaconId: null,
+            status: const StateIsSuccess(),
+            loadError: null,
+          ),
+        );
+        return;
+      }
+      if (state.person != null &&
+          (e is ConnectionUplinkException ||
+              e is RequestTimeoutException ||
+              e is RemoteApiException ||
+              e is RemoteApiRetryLaterException)) {
+        // A failed read says nothing about current eligibility. Reuse the
+        // unavailable row and its Retry action instead of replacing a send
+        // result with a global error or leaving stale rows sendable.
+        emit(
+          state.copyWith(
+            rows: [
+              for (final row in state.rows)
+                PersonForwardRow(
+                  beacon: row.beacon,
+                  involvement: null,
+                  block: PersonForwardBlock.involvementUnavailable,
+                ),
+            ],
+            selectedBeaconId: null,
+            status: const StateIsSuccess(),
+            loadError: null,
+          ),
+        );
+        return;
+      }
       _effects.emit(ShowError(e));
       if (!isClosed) {
         emit(state.copyWith(status: const StateIsSuccess(), loadError: e));
