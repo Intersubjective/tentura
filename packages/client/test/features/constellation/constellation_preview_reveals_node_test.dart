@@ -8,10 +8,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
+import 'package:tentura/features/constellation/ui/widget/constellation_camera_controls.dart';
+import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura/features/graph/ui/utils/graph_scene_ids.dart';
 import 'package:tentura/features/graph/ui/widget/graph_person_context_panel.dart';
 import 'package:tentura/ui/test_ids.dart';
 
+import '../../support/phone_surface.dart';
 import 'fixtures/constellation_reference_fixture.dart';
 
 const _wide = Size(1280, 800);
@@ -292,6 +295,48 @@ void main() {
           closeTo(scaleBefore, 0.001),
           reason: 'the animated reveal pans; it must never zoom',
         );
+      }
+    });
+
+    testWidgets('375×667 and 360×640 revealPanFor succeeds at peek', (
+      tester,
+    ) async {
+      for (final size in [kPhoneSurface, const Size(360, 640)]) {
+        await tester.binding.setSurfaceSize(size);
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+        final cubit = await _pump(tester, size: size);
+        final compactNode = _nodeFinder(_compactRequestId);
+        if (compactNode.evaluate().isEmpty) {
+          cubit.graphController.jumpToPosition(
+            _sceneOf(cubit, _compactRequestGraphId),
+          );
+          await tester.pumpAndSettle();
+        }
+        await tester.tap(compactNode);
+        await tester.pumpAndSettle();
+        final context = tester.element(find.byType(ConstellationBody));
+        final tt = context.tt;
+        final mapH = size.height - tt.appBarHeight - tt.bottomNavHeight;
+        final insets = ConstellationCameraControls.cameraViewportInsets(
+          context,
+          contextPanelVisible: true,
+          compactSheetHeight: mapH * tt.fieldSheetPeekFraction,
+        );
+        final payload = cubit
+            .graphController
+            .renderSnapshot
+            .topology
+            .nodesById
+            .values
+            .map((n) => n.payload)
+            .whereType<FieldBeaconNode>()
+            .firstWhere((b) => b.request?.id == _compactRequestId);
+        expect(
+          cubit.revealPanFor(payload, insets: insets, centreVertically: true),
+          isNotNull,
+        );
+        cubit.selectRequest(null);
+        await tester.pumpAndSettle();
       }
     });
 

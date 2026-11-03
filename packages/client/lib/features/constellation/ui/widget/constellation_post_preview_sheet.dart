@@ -29,74 +29,103 @@ class ConstellationPostPreviewSheet extends StatelessWidget {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final footer = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        FilledButton(
+          onPressed: onOpen,
+          child: Text(l10n.constellationOpenPost),
+        ),
+        SizedBox(height: tt.rowGap),
+        ConstellationAnchorTargetButton(
+          target: ConstellationAnchorTarget.beacon(post.id),
+        ),
+      ],
+    );
+    final body = Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                l10n.postCreateMenuPost,
+                style: theme.textTheme.titleMedium,
+              ),
+            ),
+            IconButton(
+              tooltip: l10n.buttonClose,
+              onPressed: onClose,
+              icon: const Icon(Icons.close),
+            ),
+          ],
+        ),
+        if (post.rootExcerpt.trim().isNotEmpty) ...[
+          SizedBox(height: tt.sectionGap),
+          Text(post.rootExcerpt, style: theme.textTheme.bodyMedium),
+        ],
+        if (post.expiresAt != null) ...[
+          SizedBox(height: tt.tightGap),
+          PostLifetimeTicker(
+            expiresAt: post.expiresAt,
+            archived: !constellationPostActive(
+              post,
+              RelativeTimestampTicker.now(),
+            ),
+            builder: (context, label) {
+              if (label.isEmpty) return const SizedBox.shrink();
+              return Text(
+                label,
+                key: const Key('constellation.post_preview.lifetime'),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              );
+            },
+          ),
+        ],
+        SizedBox(height: tt.sectionGap),
+        Text(
+          l10n.constellationPreviewAuthorLine(authorDisplayName),
+          style: theme.textTheme.bodySmall,
+        ),
+      ],
+    );
+
     return Material(
       key: const Key('constellation.post_preview'),
-      color: theme.colorScheme.surfaceContainerHigh,
+      color: scheme.surfaceContainerHigh,
       elevation: 4,
       borderRadius: BorderRadius.circular(tt.cardRadius),
       clipBehavior: Clip.antiAlias,
       child: Padding(
         padding: tt.cardPadding,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final scroll = SingleChildScrollView(child: body);
+            if (!constraints.maxHeight.isFinite) {
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Expanded(
-                    child: Text(
-                      l10n.postCreateMenuPost,
-                      style: theme.textTheme.titleMedium,
-                    ),
-                  ),
-                  IconButton(
-                    tooltip: l10n.buttonClose,
-                    onPressed: onClose,
-                    icon: const Icon(Icons.close),
-                  ),
+                  scroll,
+                  SizedBox(height: tt.rowGap),
+                  footer,
                 ],
-              ),
-              if (post.rootExcerpt.trim().isNotEmpty) ...[
-                SizedBox(height: tt.sectionGap),
-                Text(post.rootExcerpt, style: theme.textTheme.bodyMedium),
+              );
+            }
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(child: scroll),
+                SizedBox(height: tt.rowGap),
+                footer,
               ],
-              if (post.expiresAt != null) ...[
-                SizedBox(height: tt.tightGap),
-                PostLifetimeTicker(
-                  expiresAt: post.expiresAt,
-                  archived: !constellationPostActive(
-                    post,
-                    RelativeTimestampTicker.now(),
-                  ),
-                  builder: (context, label) {
-                    if (label.isEmpty) return const SizedBox.shrink();
-                    return Text(
-                      label,
-                      key: const Key('constellation.post_preview.lifetime'),
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    );
-                  },
-                ),
-              ],
-              SizedBox(height: tt.sectionGap),
-              Text(
-                l10n.constellationPreviewAuthorLine(authorDisplayName),
-                style: theme.textTheme.bodySmall,
-              ),
-              SizedBox(height: tt.sectionGap),
-              FilledButton(
-                onPressed: onOpen,
-                child: Text(l10n.constellationOpenPost),
-              ),
-              SizedBox(height: tt.rowGap),
-              ConstellationAnchorTargetButton(
-                target: ConstellationAnchorTarget.beacon(post.id),
-              ),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );
