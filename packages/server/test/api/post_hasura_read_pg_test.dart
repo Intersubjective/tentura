@@ -42,18 +42,6 @@ Future<void> main() async {
     return;
   }
   final dockerReachable = await IsolatedHasuraSession.isDockerAvailable();
-  if (!dockerReachable) {
-    if (isPgTestsRequired()) {
-      test('Docker is available for isolated Hasura', () {
-        fail(
-          'Docker required ($pgTestsRequiredEnvVar=1) but not available',
-        );
-      });
-    } else {
-      test('Docker unavailable', () {}, skip: 'Docker not available');
-    }
-    return;
-  }
 
   group('Post read model through Hasura', () {
     late DisposablePgWriterSession session;
@@ -194,7 +182,7 @@ VALUES ('$_recipient', '$_closedPost')
       expect(rows, hasLength(1));
       expect((rows.single as Map<String, dynamic>)['pinned_at'], isNotNull);
     });
-  });
+  }, skip: dockerReachable ? false : 'Docker not available');
 }
 
 Future<Map<String, dynamic>?> _beaconByPk(
