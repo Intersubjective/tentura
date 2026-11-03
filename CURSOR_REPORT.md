@@ -81,7 +81,7 @@ cd packages/client && ../../scripts/run_with_test_cleanup.sh --timeout 25m -- \
 # → all passed
 
 scripts/run_tests.sh client-affected
-# → started job 1103-132551-88761 (see wait output when complete)
+# → exit 0 (twice); profile logged «no affected client tests» vs current merge base
 ```
 
 ## Reuse contract
