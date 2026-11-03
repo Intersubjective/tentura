@@ -9,6 +9,7 @@ import 'package:tentura/data/repository/clipboard_image_repository.dart';
 import 'package:tentura/data/repository/image_repository.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_kind.dart';
+import 'package:tentura/features/beacon_threads/domain/room_host.dart';
 import 'package:tentura/features/forward/domain/forward_target_profile.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
 import 'package:tentura/features/forward/ui/widget/forward_recipient_picker.dart';
@@ -19,6 +20,8 @@ import 'package:tentura/ui/widget/pending_attachments.dart';
 
 import '../bloc/beacon_create_cubit.dart';
 import 'beacon_create_screen.dart' show popCreateAndOpenLiveBeacon;
+import 'package:tentura/features/beacon_threads/ui/widget/post_root_pin_card.dart';
+import 'package:tentura/features/post_view/ui/post_remaining_label.dart';
 
 /// «Новый пост» (a new Post, #248, #720): a short form in two steps, like a
 /// simplified Request form.
@@ -257,28 +260,57 @@ class _PostCreateScreenState extends State<PostCreateScreen>
     );
   }
 
+  String _lifetimeSegmentLabel(L10n l10n) => switch (_lifetimeHours) {
+    6 => l10n.postCreateLifetime6h,
+    24 => l10n.postCreateLifetime24h,
+    _ => l10n.postCreateLifetime3d,
+  };
+
+  String _draftLifetimeVisibleLabel(L10n l10n) {
+    final duration = Duration(hours: _lifetimeHours);
+    return postRemainingVisibleLabel(l10n, duration);
+  }
+
   Widget _formStep(BuildContext context, L10n l10n, {required bool busy}) {
     final tt = context.tt;
     final canAttach = !busy && remainingAttachmentSlots > 0;
+    final profile = context.read<ProfileCubit>().state.profile;
+    final pin = RoomPostRootPin(messageId: '', excerpt: _text.text.trim());
     return ListView(
       padding: EdgeInsets.symmetric(
         horizontal: tt.screenHPadding,
         vertical: tt.sectionGap,
       ),
       children: [
-        TextField(
-          key: PostCreateScreen.textFieldKey,
-          controller: _text,
-          focusNode: _textFocus,
-          enabled: !busy,
-          autofocus: true,
-          minLines: 6,
-          maxLines: null,
-          keyboardType: TextInputType.multiline,
-          textCapitalization: TextCapitalization.sentences,
-          decoration: InputDecoration(
-            hintText: l10n.postCreateTextHint,
-            border: const OutlineInputBorder(),
+        PostRootPinCard(
+          pin: pin,
+          collapsed: false,
+          onTap: null,
+          now: DateTime.now(),
+          author: profile,
+          editorLifetimeLabel: _draftLifetimeVisibleLabel(l10n),
+          editorBody: TextField(
+            key: PostCreateScreen.textFieldKey,
+            controller: _text,
+            focusNode: _textFocus,
+            enabled: !busy,
+            autofocus: true,
+            minLines: 6,
+            maxLines: null,
+            keyboardType: TextInputType.multiline,
+            textCapitalization: TextCapitalization.sentences,
+            decoration: InputDecoration(
+              hintText: l10n.postCreateTextHint,
+              border: InputBorder.none,
+              filled: false,
+            ),
+          ),
+        ),
+        SizedBox(height: tt.rowGap),
+        Text(
+          l10n.postCreateReplyLifetimeHint(_lifetimeSegmentLabel(l10n)),
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
         ),
         if (pendingUploads.isNotEmpty) ...[
@@ -383,6 +415,10 @@ class _PostCreateScreenState extends State<PostCreateScreen>
         copyProfile: ForwardTargetProfile.post,
         recipientNoteHint: l10n.beaconCreateRecipientNoteHint,
         onSendPressed: () => unawaited(_send()),
+        header: PostRootDraftPreviewCard(
+          excerpt: _text.text.trim(),
+          onTap: _showForm,
+        ),
       ),
     ),
   );

@@ -32,6 +32,7 @@ import 'package:tentura/features/beacon_threads/ui/bloc/threads_state.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/beacon_room_body.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/reaction_quick_picker.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_baton_card.dart';
+import 'package:tentura/features/beacon_threads/ui/widget/room_message_text_body.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 import 'package:tentura/features/forward/domain/entity/forward_edge.dart';
 import 'package:tentura/features/inbox/domain/entity/post_summary.dart';
@@ -398,9 +399,13 @@ Future<void> _closeMenu(WidgetTester tester) async {
 
 /// Opens the actions of the author's root message with a secondary click.
 Future<void> _openMessageActions(WidgetTester tester) async {
-  final body = find.textContaining('Кто в субботу на велопрогулку?');
+  final body = find.descendant(
+    of: find.byKey(const Key('PostRootPinCard.expanded')),
+    matching: find.byType(RoomMessageTextBody),
+  );
+  expect(body, findsOneWidget);
   await tester.tapAt(
-    tester.getTopLeft(body.last) + const Offset(8, 8),
+    tester.getTopLeft(body) + const Offset(8, 8),
     buttons: kSecondaryMouseButton,
     kind: PointerDeviceKind.mouse,
   );
@@ -409,8 +414,19 @@ Future<void> _openMessageActions(WidgetTester tester) async {
 
 /// Opens the actions of a message by its body text with a secondary click.
 Future<void> _openActionsOf(WidgetTester tester, String body) async {
+  final onRoot = body.contains('Кто в субботу');
+  final target = onRoot
+      ? find.descendant(
+          of: find.byKey(const Key('PostRootPinCard.expanded')),
+          matching: find.byType(RoomMessageTextBody),
+        )
+      : find.descendant(
+          of: find.byType(ListView),
+          matching: find.textContaining(body, findRichText: true),
+        );
+  expect(target, findsOneWidget);
   await tester.tapAt(
-    tester.getTopLeft(find.textContaining(body).last) + const Offset(8, 8),
+    tester.getTopLeft(target) + const Offset(8, 8),
     buttons: kSecondaryMouseButton,
     kind: PointerDeviceKind.mouse,
   );

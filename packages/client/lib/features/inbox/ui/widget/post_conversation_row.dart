@@ -30,15 +30,14 @@ class PostConversationRow extends StatelessWidget {
   /// Open in the list-detail pane beside the list (Material 3 list-detail).
   final bool selected;
 
-  /// Time left for an open Post, «в архиве» once it is past its deadline
-  /// (pinned rows included), «закрыт» once it was closed; null when the Post
-  /// carries no deadline.
+  /// Time left for an open Post (with ⏳, #248), «в архиве» once past deadline,
+  /// «закрыт» when closed; null when there is no deadline and not archived.
   String? _lifetimeMarker(L10n l10n) {
     if (post.isClosed) return l10n.postClosedMarker;
     if (post.isArchivedAt(now)) return l10n.postArchivedMarker;
     final expiresAt = post.expiresAt;
     if (expiresAt == null) return null;
-    return postRemainingLabel(l10n, expiresAt.difference(now));
+    return postRemainingVisibleLabel(l10n, expiresAt.difference(now));
   }
 
   @override
@@ -101,7 +100,7 @@ class PostConversationRow extends StatelessWidget {
                             SizedBox(width: tt.tightGap),
                             TenturaStatusText(
                               lifetime,
-                              key: const Key('PostConversation.ClosedMarker'),
+                              key: const Key('PostConversation.Lifetime'),
                             ),
                           ],
                           if (muted) ...[

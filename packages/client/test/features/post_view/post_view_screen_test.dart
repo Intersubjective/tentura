@@ -553,8 +553,11 @@ Finder _stripExcerptText() => find.descendant(
 );
 
 Finder _rootBubbleText() => find.descendant(
-  of: find.byType(RoomMessageTextBody),
-  matching: find.textContaining(_rootText, findRichText: true),
+  of: find.byType(ListView),
+  matching: find.descendant(
+    of: find.byType(RoomMessageTextBody),
+    matching: find.textContaining(_rootText, findRichText: true),
+  ),
 );
 
 void main() {
@@ -1311,14 +1314,16 @@ void main() {
   });
 
   group('pinned root strip', () {
-    testWidgets('shows the root excerpt above the messages', (tester) async {
+    testWidgets('shows the root excerpt in the card, not as a bubble', (
+      tester,
+    ) async {
       await _pumpPost(tester, beacon: _post(), viewer: _reader);
 
-      // One match is the root bubble itself; the second is the pinned strip.
-      expect(_stripExcerptText(), findsNWidgets(2));
+      expect(_stripExcerptText(), findsOneWidget);
+      expect(_rootBubbleText(), findsNothing);
     });
 
-    testWidgets('tapping it scrolls the root message into view', (
+    testWidgets('tapping the collapsed strip expands the card at the top', (
       tester,
     ) async {
       await _pumpPost(
@@ -1339,20 +1344,17 @@ void main() {
         await tester.pump(const Duration(seconds: 2));
       }
 
-      // The root is far above the visible tail, so the only excerpt on screen
-      // is the pinned strip.
       expect(_rootBubbleText(), findsNothing);
-      expect(_stripExcerptText(), findsOneWidget);
+      expect(
+        find.byKey(const Key('PostRootPinCard.collapsed')),
+        findsOneWidget,
+      );
 
-      await tester.tap(_stripExcerptText());
-      for (var i = 0; i < 60; i++) {
-        await tester.pump(const Duration(milliseconds: 50));
-      }
+      await tester.tap(find.byKey(const Key('PostRootPinCard.collapsed')));
+      await tester.pumpAndSettle();
 
-      expect(_rootBubbleText(), findsOneWidget);
-      final viewport = tester.getRect(find.byType(BasicChatBody));
-      final bubble = tester.getRect(_rootBubbleText());
-      expect(viewport.overlaps(bubble), isTrue);
+      expect(find.byKey(const Key('PostRootPinCard.expanded')), findsOneWidget);
+      expect(_rootBubbleText(), findsNothing);
     });
 
     testWidgets('names who forwarded the Post to the viewer and their note', (
@@ -1396,7 +1398,7 @@ void main() {
         ],
       );
 
-      expect(_stripExcerptText(), findsNWidgets(2));
+      expect(_stripExcerptText(), findsOneWidget);
       expect(find.textContaining('переслал(а) вам'), findsNothing);
     });
 
@@ -1410,7 +1412,7 @@ void main() {
         ],
       );
 
-      expect(_stripExcerptText(), findsNWidgets(2));
+      expect(_stripExcerptText(), findsOneWidget);
       expect(find.textContaining('переслал(а) вам'), findsNothing);
     });
 
@@ -1438,8 +1440,7 @@ void main() {
         findsOneWidget,
       );
       expect(find.textContaining('переслал(а)'), findsNothing);
-      // The first message is shown once: as the root bubble only.
-      expect(_rootBubbleText(), findsOneWidget);
+      expect(_rootBubbleText(), findsNothing);
       expect(_stripExcerptText(), findsOneWidget);
     });
 
@@ -1525,7 +1526,7 @@ void main() {
       expect(find.textContaining('forwarded'), findsNothing);
     });
 
-    testWidgets('the started line still scrolls the root into view', (
+    testWidgets('tapping the started line expands the card at the top', (
       tester,
     ) async {
       await _pumpPost(
@@ -1559,14 +1560,10 @@ void main() {
           ),
         ),
       );
-      for (var i = 0; i < 60; i++) {
-        await tester.pump(const Duration(milliseconds: 50));
-      }
+      await tester.pumpAndSettle();
 
-      expect(_rootBubbleText(), findsOneWidget);
-      final viewport = tester.getRect(find.byType(BasicChatBody));
-      final bubble = tester.getRect(_rootBubbleText());
-      expect(viewport.overlaps(bubble), isTrue);
+      expect(find.byKey(const Key('PostRootPinCard.expanded')), findsOneWidget);
+      expect(_rootBubbleText(), findsNothing);
     });
 
     testWidgets('a real forward after the author still says who forwarded it', (
@@ -1584,7 +1581,7 @@ void main() {
 
       expect(find.textContaining('Дима переслал(а) вам'), findsOneWidget);
       expect(find.textContaining('отправил(а) вам этот пост'), findsNothing);
-      expect(_stripExcerptText(), findsNWidgets(2));
+      expect(_stripExcerptText(), findsOneWidget);
     });
   });
 

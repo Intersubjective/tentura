@@ -47,6 +47,9 @@ PostSummary _post(
 
 DateTime _in(Duration d) => _start.add(d);
 
+Finder _lifetime(String fragment) =>
+    find.textContaining(fragment, findRichText: true);
+
 final class _FakePostsRepository implements PostsRepositoryPort {
   List<PostSummary> posts = const [];
   int myPostsCalls = 0;
@@ -399,7 +402,7 @@ void main() {
       );
       await tester.pumpAndSettle();
       final callsBefore = repository.myPostsCalls;
-      expect(find.text('осталось 1 ч'), findsOneWidget);
+      expect(_lifetime('осталось 1 ч'), findsOneWidget);
       expect(find.text('в архиве'), findsNothing);
 
       now = _in(const Duration(hours: 1, minutes: 1));
@@ -447,7 +450,7 @@ void main() {
         _start,
       );
 
-      expect(find.text('осталось 5 ч'), findsOneWidget);
+      expect(_lifetime('осталось 5 ч'), findsOneWidget);
       expect(find.text('в архиве'), findsNothing);
     });
 
@@ -458,7 +461,7 @@ void main() {
         _start,
       );
 
-      expect(find.text('осталось 59 мин'), findsOneWidget);
+      expect(_lifetime('осталось 59 мин'), findsOneWidget);
     });
 
     testWidgets('an expired Post shows «в архиве» and no time left', (
@@ -482,7 +485,7 @@ void main() {
         pinnedAt: _in(const Duration(minutes: -5)),
       );
       await pumpRow(tester, pinned, _start);
-      expect(find.text('осталось 2 ч'), findsOneWidget);
+      expect(_lifetime('осталось 2 ч'), findsOneWidget);
       expect(find.text('в архиве'), findsNothing);
 
       await pumpRow(tester, pinned, _in(const Duration(hours: 2, minutes: 1)));
@@ -619,8 +622,10 @@ void main() {
       await tester.pumpAndSettle();
       final callsBefore = repository.myPostsCalls;
 
-      Finder marker(String id, String text) =>
-          find.descendant(of: rowOf(id), matching: find.text(text));
+      Finder marker(String id, String text) => find.descendant(
+        of: rowOf(id),
+        matching: find.textContaining(text, findRichText: true),
+      );
       double top(Finder f) => tester.getTopLeft(f.first).dy;
 
       expect(marker('Ppin', 'осталось 2 ч'), findsOneWidget);

@@ -146,6 +146,10 @@ class _PostViewScreenState extends State<PostViewScreen> {
           roomLease: _roomLease,
           postRoot: _postRoot(state),
           postArchived: state.beacon.isPostArchivedAt(cubit.now()),
+          postExpiresAt: state.beacon.expiresAt,
+          postForwardPolicyOpen:
+              state.beacon.forwardPolicy == BeaconForwardPolicyValue.open,
+          postNow: cubit.now,
         ),
       ),
     );
@@ -556,7 +560,6 @@ class _MembersLine extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Flexible(
-          fit: FlexFit.loose,
           child: Text(
             who,
             maxLines: 1,
