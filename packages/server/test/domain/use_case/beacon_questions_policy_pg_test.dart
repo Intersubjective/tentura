@@ -157,6 +157,8 @@ Future<void> main() async {
   const blockedByAuthor = 'Uqblockd0001';
   // Cross-recipient block: peer blocked forwardee.
   const peer = 'Uqpeer000001';
+  // Member of the parent Post of a budded Request, never invited by hand.
+  const postMember = 'Uqpostmem001';
 
   const matrix = <_Case>[
     (name: 'author', id: author, expected: QuestionsAccess.write),
@@ -336,6 +338,7 @@ Future<void> main() async {
         blocksAuthor,
         blockedByAuthor,
         peer,
+        postMember,
       ];
       await sql(
         'INSERT INTO public."user" (id, display_name, handle, public_key) '
@@ -1131,6 +1134,174 @@ Future<void> main() async {
         ),
         throwsA(isA<ServerException>()),
       );
+    });
+
+    group('a Request budded from a Post: members of the parent Post', () {
+      // `postId` is the parent Post of `buddedId`. `postMember` belongs to the
+      // Post and was snapshotted as a bud observer, but nobody ticked them
+      // under "Who to invite": no forward edge, offer or participant row.
+      const buddedId = 'Bquestbud001';
+      // A sub-request of the main Request (`beaconId`), whose participants
+      // read it through the parent but were never addressed on it.
+      const subRequestId = 'Bquestsub001';
+
+      Future<void> seedBuddedRequest() async {
+        await sql(
+          'INSERT INTO public.beacon (id, user_id, title, description, '
+          'status, kind, is_discoverable, parent_beacon_id, published_at, '
+          'created_at, updated_at) VALUES '
+          "('$buddedId', '$author', 'Budded move', 'desc', 0, 0, true, "
+          "'$postId', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z', "
+          "'2026-01-01T00:00:00Z'), "
+          "('$subRequestId', '$author', 'Sub move', 'desc', 0, 0, false, "
+          "'$beaconId', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z', "
+          "'2026-01-01T00:00:00Z')",
+        );
+        await sql(
+          'INSERT INTO public.beacon_bud_observer (beacon_id, user_id) '
+          "VALUES ('$buddedId', '$author'), ('$buddedId', '$postMember')",
+        );
+      }
+
+      Future<bool> canReadContent(String beacon, String viewer) async =>
+          (await writer.execute(
+                "SELECT public.beacon_can_read_content('$beacon', '$viewer')",
+              )).first.first!
+              as bool;
+
+      Future<QuestionsAccess> levelOf(String beacon, String userId) async =>
+          (await lobby.accessLevels(
+            beaconId: beacon,
+            userIds: [userId],
+          ))[userId]!;
+
+      Future<Map<String, int>> audienceOf(String beacon) async => {
+        for (final r in await writer.execute(
+          "SELECT user_id, access FROM public.questions_audience('$beacon')",
+        ))
+          r[0]! as String: r[1]! as int,
+      };
+
+      setUp(() async {
+        if (skipReason != null) return;
+        await seedBuddedRequest();
+        // Precondition of every case below: the Post member reads the
+        // Request, so only the Questions standing is under test.
+        expect(await canReadContent(buddedId, postMember), isTrue);
+      });
+
+      test('an uninvited Post member of an open Request may ask', () async {
+        expect(await levelOf(buddedId, postMember), QuestionsAccess.write);
+      });
+
+      test('the Post member is in the audience; the Post author, who '
+          'budded it, is too', () async {
+        final audience = await audienceOf(buddedId);
+        expect(audience[postMember], QuestionsAccess.write.index);
+        expect(audience[author], QuestionsAccess.write.index);
+      });
+
+      test('the entry-row probe, opening and asking follow the policy for '
+          'the Post member', () async {
+        final lobbyId =
+            (await rooms.beaconLobby(
+                  beaconId: buddedId,
+                  userId: author,
+                ))['lobbyId']!
+                as String;
+        final probe = await rooms.beaconLobbyAccess(
+          beaconId: buddedId,
+          userId: postMember,
+        );
+        expect(probe['canRead'], isTrue);
+        expect(probe['canPost'], isTrue);
+        final opened = await rooms.beaconLobby(
+          beaconId: buddedId,
+          userId: postMember,
+        );
+        expect(opened['canPost'], isTrue);
+        await rooms.createMessage(
+          beaconId: buddedId,
+          userId: postMember,
+          body: 'Is the van big enough?',
+          threadItemId: lobbyId,
+        );
+        expect(
+          [
+            for (final m in await rooms.listMessages(
+              beaconId: buddedId,
+              userId: author,
+              threadItemId: lobbyId,
+            ))
+              m['body'],
+          ],
+          contains('Is the van big enough?'),
+        );
+      });
+
+      test('a withdrawn offer turns the Post member read-only; offering '
+          'again restores asking', () async {
+        expect(await levelOf(buddedId, postMember), QuestionsAccess.write);
+        await sql(
+          'INSERT INTO public.beacon_help_offer (beacon_id, user_id, '
+          "message, status) VALUES ('$buddedId', '$postMember', 'I can', 1)",
+        );
+        expect(await levelOf(buddedId, postMember), QuestionsAccess.read);
+        await sql(
+          'UPDATE public.beacon_help_offer SET status = 0 '
+          "WHERE beacon_id = '$buddedId' AND user_id = '$postMember'",
+        );
+        expect(await levelOf(buddedId, postMember), QuestionsAccess.write);
+      });
+
+      test('a closed Request leaves the Post member read-only', () async {
+        expect(await levelOf(buddedId, postMember), QuestionsAccess.write);
+        await sql("UPDATE public.beacon SET status = 6 WHERE id = '$buddedId'");
+        expect(await levelOf(buddedId, postMember), QuestionsAccess.read);
+      });
+
+      test('a Post member who blocked the author has no Questions', () async {
+        expect(await levelOf(buddedId, postMember), QuestionsAccess.write);
+        await block(postMember, author);
+        expect(await levelOf(buddedId, postMember), QuestionsAccess.none);
+        expect((await audienceOf(buddedId)).keys, isNot(contains(postMember)));
+      });
+
+      test('a Post member the author blocked has no Questions', () async {
+        expect(await levelOf(buddedId, postMember), QuestionsAccess.write);
+        await block(author, postMember);
+        expect(await levelOf(buddedId, postMember), QuestionsAccess.none);
+      });
+
+      test('a Post member removed from Questions has none, and drops out of '
+          'the audience', () async {
+        expect(await levelOf(buddedId, postMember), QuestionsAccess.write);
+        await sql(
+          'INSERT INTO public.beacon_lobby_ban (beacon_id, user_id, '
+          "banned_by) VALUES ('$buddedId', '$postMember', '$author')",
+        );
+        expect(await levelOf(buddedId, postMember), QuestionsAccess.none);
+        expect((await audienceOf(buddedId)).keys, isNot(contains(postMember)));
+      });
+
+      test('a participant of the parent Request gets no Questions standing '
+          'on its sub-request', () async {
+        // The only difference from the Post member is how they got in: the
+        // helper reads the sub-request through the parent Request.
+        expect(await canReadContent(subRequestId, helper), isTrue);
+        expect(await levelOf(subRequestId, helper), QuestionsAccess.none);
+        expect((await audienceOf(subRequestId)).keys, isNot(contains(helper)));
+        // Positive control: the same Post-member rule is live on the sibling
+        // budded Request.
+        expect(await levelOf(buddedId, postMember), QuestionsAccess.write);
+      });
+
+      test('a discovery-only reader of the budded Request has none', () async {
+        expect(await levelOf(buddedId, discovery), QuestionsAccess.none);
+        expect((await audienceOf(buddedId)).keys, isNot(contains(discovery)));
+        // Positive control: the Post member next to them has standing.
+        expect(await levelOf(buddedId, postMember), QuestionsAccess.write);
+      });
     });
   }, skip: skipReason ?? false);
 }

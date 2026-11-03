@@ -106,7 +106,7 @@ COMMENT ON TABLE public.beacon_lobby_ban IS
   // declined) — it also turns addressed standing read-only; offering again
   // restores writing.
   // Never standing: cancelled forwards, historical inbox items, discovery or
-  // hierarchy readability (Q3).
+  // hierarchy readability (Q3); except bud-snapshot Post members (m0284).
   // Then: banned (never the author) -> none; Request content not readable
   // (blocks with the author, deleted, draft, ... via
   // beacon_can_read_content) -> none; write standing on a Request whose

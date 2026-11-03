@@ -46,7 +46,8 @@ A person has access when **all** of these hold:
    | Withdrawn or declined help offer, no other standing | read-only (Q4); offering again restores writing |
    | Cancelled forward, historical inbox item only | **none** |
    | Discovery-only reader (could read a discoverable Request, nobody sent it) | **none** (Q3) |
-   | Hierarchy / context readers (parent or child Requests) | **none** |
+   | Member of the parent Post of a budded Request (bud snapshot, m0284) | **write** (read-only after a withdrawn offer or on a closed Request) |
+   | Other hierarchy / context readers (parent or child Requests) | **none** |
 
 3. The author has not **removed** them from Questions (`beacon_lobby_ban`;
    the author can never be removed). A removal outlives withdrawing and
