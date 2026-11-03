@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:tentura/design_system/tentura_design_system.dart';
 
 import 'package:tentura/app/router/beacon_view_route_normalizer.dart';
 import 'package:tentura/app/router/root_router.dart';
@@ -127,7 +128,7 @@ class _BeaconKindGateState extends State<_BeaconKindGate> {
     builder: (context, snapshot) => snapshot.hasData
         ? widget.builder(snapshot.requireData)
         : const Scaffold(
-            body: Center(child: CircularProgressIndicator.adaptive()),
+            body: Center(child: TenturaCircularProgress(adaptive: true)),
           ),
   );
 }

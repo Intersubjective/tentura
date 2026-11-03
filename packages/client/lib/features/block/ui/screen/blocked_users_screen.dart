@@ -55,7 +55,7 @@ class BlockedUsersBody extends StatelessWidget {
     return BlocBuilder<BlockedUsersCubit, BlockedUsersState>(
       builder: (context, state) {
         if (state.isLoading) {
-          return const Center(child: CircularProgressIndicator());
+          return const Center(child: TenturaCircularProgress());
         }
         if (state.blocks.isEmpty) {
           return TenturaContentColumn(
@@ -141,7 +141,7 @@ class _BlockedListEntry extends StatelessWidget {
           if (state.expandedLoading)
             Padding(
               padding: EdgeInsets.all(context.tt.rowGap),
-              child: const Center(child: CircularProgressIndicator()),
+              child: const Center(child: TenturaCircularProgress()),
             )
           else
             for (final profile in state.expandedInherited)

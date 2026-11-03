@@ -82,7 +82,7 @@ class _PersonForwardBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final tt = context.tt;
     if (state.person == null && state.isLoading) {
-      return const Center(child: CircularProgressIndicator.adaptive());
+      return const Center(child: TenturaCircularProgress(adaptive: true));
     }
     if (state.loadError != null && state.person == null) {
       return Center(

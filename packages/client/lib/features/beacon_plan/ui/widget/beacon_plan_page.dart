@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:tentura/design_system/tentura_design_system.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -203,7 +204,7 @@ class _BeaconPlanPageViewState extends State<BeaconPlanPageView> {
   );
 
   Widget _loading() => const Scaffold(
-    body: Center(child: CircularProgressIndicator.adaptive()),
+    body: Center(child: TenturaCircularProgress(adaptive: true)),
   );
 
   /// Nothing to edit (no plan, or not the viewer's to edit): back to the plan.

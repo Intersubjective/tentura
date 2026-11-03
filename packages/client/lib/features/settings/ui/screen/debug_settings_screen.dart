@@ -66,7 +66,7 @@ class DebugSettingsScreen extends StatelessWidget implements AutoRouteWrapper {
             child: BlocBuilder<DebugSettingsCubit, DebugSettingsState>(
               builder: (context, state) {
                 if (state.isLoadingFcmInfo) {
-                  return const Center(child: CircularProgressIndicator());
+                  return const Center(child: TenturaCircularProgress());
                 }
                 final cubit = context.read<DebugSettingsCubit>();
                 return SingleChildScrollView(

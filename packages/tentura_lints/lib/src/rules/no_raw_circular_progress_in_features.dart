@@ -31,9 +31,10 @@ final class NoRawCircularProgressInFeatures extends AnalysisRule {
     RuleVisitorRegistry registry,
     RuleContext context,
   ) {
+    final visitor = _Visitor(this, context);
     registry
-      ..addInstanceCreationExpression(this, _Visitor(this, context))
-      ..addMethodInvocation(this, _Visitor(this, context));
+      ..addInstanceCreationExpression(this, visitor)
+      ..addMethodInvocation(this, visitor);
   }
 }
 
@@ -70,11 +71,14 @@ final class _Visitor extends SimpleAstVisitor<void> {
 }
 
 bool _inScope(String path) {
-  if (!path.contains('packages/client/lib/features/')) {
+  if (!path.contains('packages/client/lib/')) {
     return false;
   }
-  if (path.contains('/test/')) {
+  if (path.contains('/design_system/')) {
     return false;
   }
-  return true;
+  if (path.contains('packages/client/test/')) {
+    return false;
+  }
+  return path.contains('/features/') || path.contains('/ui/');
 }

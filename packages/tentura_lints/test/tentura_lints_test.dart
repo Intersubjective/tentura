@@ -487,17 +487,25 @@ class NoRawCircularProgressInFeaturesTest extends AnalysisRuleTest {
     await assertDiagnostics(
       '''
 const w = CircularProgressIndicator();
+class CircularProgressIndicator {
+  const CircularProgressIndicator();
+}
 ''',
-      [lint(10, 25)],
+      [lint(10, 27)],
     );
   }
 
   Future<void> test_reports_adaptive_progress() async {
     await assertDiagnostics(
       '''
-const w = CircularProgressIndicator.adaptive();
+final w = CircularProgressIndicator.adaptive();
+class CircularProgressIndicator {
+  const CircularProgressIndicator();
+  static CircularProgressIndicator adaptive() => _cpi as CircularProgressIndicator;
+}
+const _cpi = Object();
 ''',
-      [lint(10, 25)],
+      [lint(10, 36)],
     );
   }
 

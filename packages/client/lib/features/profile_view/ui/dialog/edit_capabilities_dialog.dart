@@ -136,7 +136,7 @@ class _EditCapabilitiesDialogState extends State<EditCapabilitiesDialog> {
                     child: _saving
                         ? const SizedBox.square(
                             dimension: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
+                            child: TenturaCircularProgress(strokeWidth: 2),
                           )
                         : Text(l10n.buttonSave),
                   ),

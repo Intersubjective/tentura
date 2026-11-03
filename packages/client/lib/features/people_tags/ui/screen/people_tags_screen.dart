@@ -143,7 +143,7 @@ class _PeopleTagsScreenState extends State<PeopleTagsScreen> {
                         : const SizedBox.square(
                             key: Key('people-tags-suggestions-loading'),
                             dimension: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
+                            child: TenturaCircularProgress(strokeWidth: 2),
                           ),
                   ),
                   SizedBox(height: tt.rowGap),

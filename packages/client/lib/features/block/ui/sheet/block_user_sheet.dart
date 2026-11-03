@@ -172,7 +172,7 @@ class _BlockUserSheetBodyState extends State<BlockUserSheetBody> {
             ],
             SizedBox(height: tt.sectionGap),
             if (_previewLoading)
-              const Center(child: CircularProgressIndicator.adaptive())
+              const Center(child: TenturaCircularProgress(adaptive: true))
             else if (preview != null) ...[
               if (_cascadeEnabled) ...[
                 Text(

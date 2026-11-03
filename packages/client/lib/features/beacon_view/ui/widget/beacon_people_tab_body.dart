@@ -618,7 +618,7 @@ class BeaconPeopleTabBody extends StatelessWidget {
         Center(
           child: Padding(
             padding: kPaddingSmallV,
-            child: CircularProgressIndicator.adaptive(),
+            child: TenturaCircularProgress(adaptive: true),
           ),
         ),
       ];

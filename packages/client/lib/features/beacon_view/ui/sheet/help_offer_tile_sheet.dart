@@ -66,7 +66,7 @@ class _HelpOfferTileSheetBody extends StatelessWidget {
             if (state.isLoading && state.offer == null) {
               return const SizedBox(
                 height: 160,
-                child: Center(child: CircularProgressIndicator()),
+                child: Center(child: TenturaCircularProgress()),
               );
             }
             if (state.loadError != null && state.offer == null) {

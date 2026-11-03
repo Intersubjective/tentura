@@ -141,6 +141,9 @@ BeaconViewState _authorBeaconState({
     ),
   ],
   roomActivityEvents: roomActivityEvents,
+  firstLoadDone: true,
+  beaconContextLoaded: true,
+  forwardsLoaded: true,
 );
 
 BeaconActivityEvent _coordinationEvent({
@@ -462,6 +465,12 @@ Future<void> _pumpBeaconViewScreen(
 
 Future<void> _openActivityFromOverflow(WidgetTester tester) async {
   final l10n = await L10n.delegate.load(const Locale('en'));
+  for (var i = 0; i < 120; i++) {
+    await tester.pump(const Duration(milliseconds: 16));
+    if (find.byKey(TestIds.key(TestIds.beaconOverflowMenu)).evaluate().isNotEmpty) {
+      break;
+    }
+  }
   await tester.tap(find.byKey(TestIds.key(TestIds.beaconOverflowMenu)));
   await tester.pumpAndSettle();
   await tester.tap(find.text(l10n.labelBeaconTabLog).last);

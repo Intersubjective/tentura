@@ -66,7 +66,7 @@ class PostBudInviteStep extends StatelessWidget {
               Padding(
                 padding: EdgeInsets.symmetric(vertical: tt.sectionGap),
                 child: const Center(
-                  child: CircularProgressIndicator.adaptive(),
+                  child: TenturaCircularProgress(adaptive: true),
                 ),
               ),
             for (final candidate in invitable)

@@ -249,7 +249,7 @@ class _UpdatesFeedPaneState extends State<UpdatesFeedPane>
               );
               if (state.isLoading && state.isEmpty && !hasScrollBody) {
                 return const Center(
-                  child: CircularProgressIndicator.adaptive(),
+                  child: TenturaCircularProgress(adaptive: true),
                 );
               }
               if (!hasScrollBody) {
@@ -553,7 +553,7 @@ class _LoadMoreIndicator extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
     padding: context.tt.cardPadding,
-    child: const Center(child: CircularProgressIndicator.adaptive()),
+    child: const Center(child: TenturaCircularProgress(adaptive: true)),
   );
 }
 

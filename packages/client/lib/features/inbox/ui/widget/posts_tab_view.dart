@@ -36,7 +36,7 @@ class PostsTabView extends StatelessWidget {
     return BlocBuilder<PostsCubit, PostsState>(
       builder: (context, state) {
         if (!state.loaded) {
-          return const Center(child: CircularProgressIndicator());
+          return const Center(child: TenturaCircularProgress());
         }
         if (state.isEmpty) {
           return TenturaEmptyState(

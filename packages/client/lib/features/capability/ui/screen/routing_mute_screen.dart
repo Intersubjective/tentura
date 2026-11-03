@@ -50,7 +50,7 @@ class RoutingMuteScreen extends StatelessWidget implements AutoRouteWrapper {
         body: BlocBuilder<RoutingMuteCubit, RoutingMuteState>(
           builder: (context, state) {
             if (state.isLoading) {
-              return const Center(child: CircularProgressIndicator());
+              return const Center(child: TenturaCircularProgress());
             }
             final cubit = context.read<RoutingMuteCubit>();
             final theme = Theme.of(context);

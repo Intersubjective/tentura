@@ -611,7 +611,7 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
                               state.forkSourceTitle.isEmpty) &&
                       state.isLoading) {
                     return const Center(
-                      child: CircularProgressIndicator.adaptive(),
+                      child: TenturaCircularProgress(adaptive: true),
                     );
                   }
                   return Form(
@@ -957,7 +957,7 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const CircularProgressIndicator.adaptive(),
+              const TenturaCircularProgress(adaptive: true),
               SizedBox(height: context.tt.rowGap),
               Text(
                 l10n.beaconRecipientsPreparing,
@@ -1022,7 +1022,7 @@ class _BusyLabel extends StatelessWidget {
       children: [
         SizedBox.square(
           dimension: tt.iconSize,
-          child: const CircularProgressIndicator.adaptive(strokeWidth: 2),
+          child: const TenturaCircularProgress(adaptive: true, strokeWidth: 2),
         ),
         SizedBox(width: tt.rowGap),
         Flexible(child: Text(label, overflow: TextOverflow.ellipsis)),

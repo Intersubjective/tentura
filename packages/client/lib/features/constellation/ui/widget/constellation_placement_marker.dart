@@ -140,7 +140,7 @@ class _PlacementBadge extends StatelessWidget {
               if (busy)
                 SizedBox.square(
                   dimension: tt.iconSize * 0.85,
-                  child: CircularProgressIndicator(
+                  child: TenturaCircularProgress(
                     strokeWidth: 2,
                     color: color,
                   ),

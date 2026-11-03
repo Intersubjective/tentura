@@ -170,7 +170,7 @@ class _TenturaFullscreenImageViewerState
                   loadingBuilder: (_, child, progress) {
                     if (progress == null) return child;
                     final indicator = Center(
-                      child: CircularProgressIndicator(
+                      child: TenturaCircularProgress(
                         value: progress.expectedTotalBytes != null
                             ? progress.cumulativeBytesLoaded /
                                 progress.expectedTotalBytes!

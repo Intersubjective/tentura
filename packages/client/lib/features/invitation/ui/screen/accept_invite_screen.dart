@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 
@@ -58,7 +59,7 @@ class _AcceptInviteScreenState extends State<AcceptInviteScreen> {
           body: SafeArea(
             child: Center(
               child: state.isLoading || state.needsConfirmation
-                  ? const CircularProgressIndicator.adaptive()
+                  ? const TenturaCircularProgress(adaptive: true)
                   : const SizedBox.shrink(),
             ),
           ),

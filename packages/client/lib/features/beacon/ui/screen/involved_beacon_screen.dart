@@ -88,7 +88,7 @@ class _InvolvedBeaconScreenState extends State<InvolvedBeaconScreen> {
             builder: (context, state) {
               if (state.isLoading && state.beacons.isEmpty) {
                 return const Center(
-                  child: CircularProgressIndicator.adaptive(),
+                  child: TenturaCircularProgress(adaptive: true),
                 );
               }
               if (state.hasError && state.beacons.isEmpty) {

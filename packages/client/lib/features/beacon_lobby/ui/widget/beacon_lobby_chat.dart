@@ -47,7 +47,7 @@ class BeaconLobbyChat extends StatelessWidget {
           );
         }
         if (info == null) {
-          return const Center(child: CircularProgressIndicator.adaptive());
+          return const Center(child: TenturaCircularProgress(adaptive: true));
         }
         // A new standing (may post or not) starts the chat over.
         return BlocProvider<RoomCubit>(

@@ -43,7 +43,7 @@ class ClosureHelperView extends StatelessWidget {
           if (state.data == null) {
             return Center(
               child: state.loadError == null
-                  ? const CircularProgressIndicator.adaptive()
+                  ? const TenturaCircularProgress(adaptive: true)
                   : IconButton(
                       onPressed: context.read<ClosureHelperCubit>().fetch,
                       icon: const Icon(Icons.refresh),

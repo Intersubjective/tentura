@@ -213,7 +213,7 @@ Future<bool> showBeaconCloseConfirmSheet({
                 ],
                 SizedBox(height: tt.sectionGap),
                 if (isLoading)
-                  const Center(child: CircularProgressIndicator.adaptive())
+                  const Center(child: TenturaCircularProgress(adaptive: true))
                 else ...[
                   if (r == BeaconClosureReadiness.readyToClose) ...[
                     Semantics(

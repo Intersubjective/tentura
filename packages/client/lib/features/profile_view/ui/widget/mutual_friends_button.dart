@@ -96,7 +96,7 @@ class _MutualFriendsButtonState extends State<MutualFriendsButton> {
       trailing: _loading
           ? SizedBox.square(
               dimension: tt.iconSize,
-              child: const CircularProgressIndicator.adaptive(strokeWidth: 2),
+              child: const TenturaCircularProgress(adaptive: true, strokeWidth: 2),
             )
           : null,
     );

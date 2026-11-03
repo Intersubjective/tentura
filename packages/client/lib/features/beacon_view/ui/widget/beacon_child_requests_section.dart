@@ -57,6 +57,12 @@ class BeaconChildRequestsSection extends StatelessWidget {
             !hierarchyState.finished.loading &&
             !hierarchyState.deleted.loading &&
             !hasAnyChild;
+        final showEmptyLabel =
+            !hasAnyChild &&
+            !hierarchyState.finished.loading &&
+            !hierarchyState.deleted.loading &&
+            (!hierarchyState.active.loading ||
+                hierarchyState.active.items.isEmpty);
 
         // A closed Request with no children has nothing to show here; the
         // header and the closed banner already say it is closed.
@@ -111,7 +117,7 @@ class BeaconChildRequestsSection extends StatelessWidget {
                     ),
                 ],
               ),
-            if (allEmpty)
+            if (showEmptyLabel)
               Padding(
                 padding: EdgeInsets.only(top: tt.rowGap),
                 child: Text(

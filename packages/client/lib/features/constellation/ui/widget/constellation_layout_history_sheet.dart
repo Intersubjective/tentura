@@ -55,7 +55,7 @@ class _HistoryState extends State<ConstellationLayoutHistorySheet> {
                   }
                   final snapshots = result.data;
                   if (snapshots == null) {
-                    return const Center(child: CircularProgressIndicator());
+                    return const Center(child: TenturaCircularProgress());
                   }
                   final ordered = [...snapshots]
                     ..sort((a, b) {

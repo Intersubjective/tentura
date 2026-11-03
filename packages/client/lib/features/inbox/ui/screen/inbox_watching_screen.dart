@@ -113,7 +113,7 @@ class _InboxWatchingScreenState extends State<InboxWatchingScreen> {
               builder: (_, state) {
                 if (state.isLoading && !state.projectionLoaded) {
                   return const Center(
-                    child: CircularProgressIndicator.adaptive(),
+                    child: TenturaCircularProgress(adaptive: true),
                   );
                 }
                 final items = state.watching;

@@ -71,7 +71,7 @@ class ConstellationScreen extends StatefulWidget implements AutoRouteWrapper {
       builder: (context, profileState) {
         final viewer = profileState.profile;
         if (viewer.id.isEmpty) {
-          return const Center(child: CircularProgressIndicator());
+          return const Center(child: TenturaCircularProgress());
         }
         return BlocProvider(
           create: (_) => ConstellationCubit(
