@@ -151,7 +151,7 @@ void main() {
       expect(viewport.bottom, nav.top);
       expect(controller.viewportSize, viewport.size);
       expect(controller.viewportSize!.height, lessThan(height));
-      final scene = Offset(
+      const scene = Offset(
         kConstellationCanvasCentre + 425,
         kConstellationCanvasCentre + 425,
       );
@@ -166,7 +166,10 @@ void main() {
       // Pan horizontally only so the fixed pin is within the compact width.
       // At 1x it remains 425 pixels below the initially centered ego.
       controller.jumpToPosition(
-        Offset(kConstellationCanvasCentre + 425, kConstellationCanvasCentre),
+        const Offset(
+          kConstellationCanvasCentre + 425,
+          kConstellationCanvasCentre,
+        ),
       );
       await tester.pumpAndSettle();
       Offset globalPin() => tester

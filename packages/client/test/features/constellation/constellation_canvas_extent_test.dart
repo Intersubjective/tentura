@@ -61,7 +61,7 @@ void main() {
       expect(graph.canvasSize.width, kConstellationCanvasExtent);
       expect(graph.canvasSize.height, kConstellationCanvasExtent);
       graph.fitToRect(
-        Rect.fromLTWH(
+        const Rect.fromLTWH(
           0,
           0,
           kConstellationCanvasExtent,
@@ -84,7 +84,6 @@ void main() {
         tester,
         cubit,
         size: kPhoneSurface,
-        locale: const Locale('ru'),
       );
       expect(find.byType(ConstellationBody), findsOneWidget);
       expect(tester.takeException(), isNull);

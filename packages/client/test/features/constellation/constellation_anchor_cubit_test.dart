@@ -1205,7 +1205,7 @@ void main() {
         harness.cubit.beginDragExisting(target: target);
         await harness.cubit.onExistingNodeDrop(
           target: target,
-          sceneCentre: Offset(
+          sceneCentre: const Offset(
             kConstellationCanvasCentre + 510,
             kConstellationCanvasCentre + 510,
           ),

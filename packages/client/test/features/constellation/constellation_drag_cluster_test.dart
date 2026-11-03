@@ -72,11 +72,11 @@ void main() {
   });
 
   group('constellationClampToDragBounds', () {
-    final min = kConstellationCanvasCentre - 10 * 170.0;
-    final max = kConstellationCanvasCentre + 10 * 170.0;
+    const min = kConstellationCanvasCentre - 10 * 170.0;
+    const max = kConstellationCanvasCentre + 10 * 170.0;
 
     test('keeps a point already inside', () {
-      final inside = (
+      const inside = (
         x: kConstellationCanvasCentre + 52.0,
         y: kConstellationCanvasCentre - 148.0,
       );
@@ -121,12 +121,12 @@ void main() {
 
   group('constellationLimitClusterDelta', () {
     test('does not limit the parent by a companion near the envelope', () {
-      final parentStart = (
+      const parentStart = (
         x: kConstellationCanvasCentre,
         y: kConstellationCanvasCentre,
       );
       // Companion near +10 units edge.
-      final companionStart = (
+      const companionStart = (
         x: kConstellationCanvasCentre + 1652.0,
         y: kConstellationCanvasCentre,
       );
@@ -142,7 +142,7 @@ void main() {
     });
 
     test('a companion follows the parent but stops inside the envelope', () {
-      final companionStart = (
+      const companionStart = (
         x: kConstellationCanvasCentre + 1652.0,
         y: kConstellationCanvasCentre,
       );

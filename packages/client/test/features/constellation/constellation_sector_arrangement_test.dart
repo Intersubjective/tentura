@@ -510,7 +510,7 @@ void main() {
     });
 
     test('lists the targets that fall outside the bounds', () {
-      final bounds = (
+      const bounds = (
         left: 0.0,
         top: kConstellationCanvasCentre - 198,
         right: kConstellationCanvasExtent,

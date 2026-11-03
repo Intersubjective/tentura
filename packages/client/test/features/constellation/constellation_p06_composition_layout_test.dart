@@ -1046,11 +1046,11 @@ void main() {
           edges: [(src: _ego, dst: 'peer-a', tier: 1)],
         );
         // Prior session: author near ego ring, satellite just outside author.
-        final priorAuthor = (
+        const priorAuthor = (
           x: kConstellationCanvasCentre + 170.0,
           y: kConstellationCanvasCentre,
         );
-        final priorSatellite = (
+        const priorSatellite = (
           x: kConstellationCanvasCentre + 170.0 + 56.0,
           y: kConstellationCanvasCentre,
         );
