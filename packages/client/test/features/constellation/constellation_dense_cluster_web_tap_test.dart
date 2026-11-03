@@ -30,7 +30,7 @@ const _phone = Size(375, 667);
 const _devicePixelRatio = 2.0;
 
 /// Screen pixels per anchor unit on the phone's zoom floor.
-const _pxPerUnit = 25.5;
+const _pxPerUnit = 17.0;
 
 /// Dense clusters shaped like the one QA found failing: seven dots around a
 /// point, offsets in screen px at the zoom floor.

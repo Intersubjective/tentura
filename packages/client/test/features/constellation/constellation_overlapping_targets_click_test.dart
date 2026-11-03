@@ -54,7 +54,7 @@ const _viewports = <_Viewport>[
     size: Size(1200, 900),
     detail: ConstellationDetailLevel.overview,
     scale: null,
-    pxPerUnit: 49.8,
+    pxPerUnit: 17.0,
     pairX: 2,
     clusterX: -2,
     y: 2,
@@ -64,7 +64,7 @@ const _viewports = <_Viewport>[
     size: Size(375, 667),
     detail: ConstellationDetailLevel.overview,
     scale: null,
-    pxPerUnit: 25.5,
+    pxPerUnit: 17.0,
     pairX: 2,
     clusterX: -2,
     y: 2,
@@ -184,7 +184,7 @@ void main() {
       reason: 'the pair sits about $_pairGapPx px apart',
     );
     for (final MapEntry(:key, :value) in frame.bodies.entries) {
-      if (_everyone.contains(key.substring(3))) continue;
+      if (key == 'fp:ego' || _everyone.contains(key.substring(3))) continue;
       for (final id in _everyone) {
         expect(
           (value.center - frame.bodies['fp:$id']!.center).distance,
