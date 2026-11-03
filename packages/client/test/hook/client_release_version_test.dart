@@ -9,7 +9,7 @@ import '../../hook/build/web_build_version.dart';
 
 // Observed before this release task began, not a prescribed next version.
 // Keep this floor fixed so later releases pass and main never compares to itself.
-const _previousRelease = [7, 60, 23];
+const _previousRelease = [7, 60, 29];
 
 void _expectReleaseAdvanced(String version) {
   expect(version, matches(RegExp(r'^\d+\.\d+\.\d+$')));
@@ -23,7 +23,7 @@ void _expectReleaseAdvanced(String version) {
     comparison,
     greaterThan(0),
     reason:
-        'Release metadata must advance beyond the shipped 7.60.23 baseline; '
+        'Release metadata must advance beyond the shipped 7.60.29 baseline; '
         'got $version',
   );
 }
