@@ -140,7 +140,7 @@ class _SheetBody extends StatelessWidget {
   String _nameOf(String id) {
     final candidates = composer.forwardCubit?.state.candidates ?? const [];
     for (final c in candidates) {
-      if (c.id == id) return c.profile.displayName;
+      if (c.id == id) return c.profile.shownName;
     }
     return composer.personName?.call(id) ?? id;
   }

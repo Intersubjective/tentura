@@ -84,7 +84,7 @@ String? _presenceReason(ConstellationCubit cubit, L10n l10n) {
   switch (person?.fieldMembership) {
     case ConstellationFieldMembership.temporary
         when person!.temporaryBeaconId != null:
-      final name = person.displayName?.trim() ?? '';
+      final name = cubit.profileForPersonId(personId)?.shownName.trim() ?? '';
       return name.isEmpty
           ? l10n.constellationTrustChainForwardedUnnamed
           : l10n.constellationTrustChainForwarded(name);
