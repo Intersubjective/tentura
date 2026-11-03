@@ -15,11 +15,15 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 ///
 /// Shared by the Forward picker and a Post's participants «Позвать» (#715),
 /// which opens this dialog directly instead of the Forward screen.
+///
+/// [offerViewInvitations] adds «View invitations» to the closing snack bar;
+/// off over an unsaved composer, which that would leave (#252).
 Future<void> runBeaconInviteFlow(
   BuildContext context, {
   required InvitationCubit invitations,
   required String beaconId,
   required bool isPost,
+  bool offerViewInvitations = true,
 }) async {
   final l10n = L10n.of(context)!;
 
@@ -63,9 +67,11 @@ Future<void> runBeaconInviteFlow(
   showSnackBar(
     context,
     text: l10n.forwardInviteCreatedHint,
-    action: SnackBarAction(
-      label: l10n.forwardViewInvitations,
-      onPressed: () => unawaited(GetIt.I<RootRouter>().openInvitations()),
-    ),
+    action: offerViewInvitations
+        ? SnackBarAction(
+            label: l10n.forwardViewInvitations,
+            onPressed: () => unawaited(GetIt.I<RootRouter>().openInvitations()),
+          )
+        : null,
   );
 }
