@@ -206,6 +206,7 @@ Future<TagLensBodyHarness> mountTagLensBody(
   ConstellationPlacementCase Function(ConstellationFieldStoreCase store)?
   placementFor,
   ConstellationField? field,
+  List<PersonTag>? tagList,
 
   /// Hosts the body in a router that knows the forward route, so a push to
   /// it can be observed on the returned router.
@@ -217,12 +218,14 @@ Future<TagLensBodyHarness> mountTagLensBody(
 }) async {
   final rig = await PeopleTagsTestRig.create(
     FakePeopleTagsRepository(
-      tagList: const [
-        tagLensNeighbour,
-        tagLensWorkshop,
-        tagLensGarden,
-        tagLensEmpty,
-      ],
+      tagList:
+          tagList ??
+          const [
+            tagLensNeighbour,
+            tagLensWorkshop,
+            tagLensGarden,
+            tagLensEmpty,
+          ],
       memberList: tagLensMemberships,
     ),
   );
