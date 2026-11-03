@@ -167,6 +167,10 @@ void main() {
   DateTime clock() => fixedNow;
   final todayUtc = availabilityTodayUtc(clock);
   final resumeOn = DateTime.utc(2026, 11, 3);
+  // MyWorkScreen and its dense OwnPausedChip decide "paused" with the wall
+  // clock (no clock seam on the route), so the Requests-tab test pauses
+  // until a date relative to the real today, not a fixed one that expires.
+  final wallClockResumeOn = addUtcCalendarDays(availabilityTodayUtc(), 365);
 
   setUp(() {
     if (!GetIt.I.isRegistered<Logger>()) {
@@ -217,7 +221,7 @@ void main() {
           final pausedProfile = Profile(
             id: _accountId,
             displayName: 'Me',
-            availability: Availability(resumeOn: resumeOn),
+            availability: Availability(resumeOn: wallClockResumeOn),
           );
 
           final myWorkRepo = FakeMyWorkRepository()
@@ -332,7 +336,7 @@ void main() {
           expect(find.text(l10n.myWorkFilterActive), findsOneWidget);
 
           // 8. Pausing again while open dynamically expands AppBar height back to 84px with chip.
-          profileCubit.pauseUntil(resumeOn);
+          profileCubit.pauseUntil(wallClockResumeOn);
           await tester.pumpAndSettle();
 
           expect(find.byKey(OwnPausedChip.chipKey), findsOneWidget);
