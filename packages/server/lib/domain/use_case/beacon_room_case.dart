@@ -40,6 +40,7 @@ import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_root/domain/entity/beacon_parent_reference.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_root/utils/infer_image_mime_from_bytes.dart';
+import 'package:tentura_root/utils/attachment_mime.dart';
 import 'package:tentura_root/domain/mention_span_validation.dart';
 
 import 'package:tentura_server/domain/util/attachment_filename.dart';
@@ -2378,18 +2379,8 @@ class BeaconRoomCase extends UseCaseBase {
   }
 
   static bool _attachmentLooksLikeImage(String mime, String fileLabel) {
-    final m = mime.toLowerCase().trim();
-    if (m.startsWith('image/')) {
-      return true;
-    }
-    final lower = fileLabel.toLowerCase();
-    return lower.endsWith('.jpg') ||
-        lower.endsWith('.jpeg') ||
-        lower.endsWith('.png') ||
-        lower.endsWith('.webp') ||
-        lower.endsWith('.gif') ||
-        lower.endsWith('.heic') ||
-        lower.endsWith('.heif');
+    return mime.toLowerCase().trim().startsWith('image/') ||
+        _normalizeAttachmentMime(null, fileLabel).startsWith('image/');
   }
 
   static String _normalizeAttachmentMime(String? rawMime, String fileLabel) {
@@ -2397,17 +2388,10 @@ class BeaconRoomCase extends UseCaseBase {
     if (t != null && t.isNotEmpty) {
       return t;
     }
-    final lower = fileLabel.toLowerCase();
-    if (lower.endsWith('.pdf')) {
-      return 'application/pdf';
-    }
-    if (lower.endsWith('.txt')) {
-      return 'text/plain';
-    }
-    if (_attachmentLooksLikeImage('application/octet-stream', fileLabel)) {
-      return 'image/jpeg';
-    }
-    return 'application/octet-stream';
+    final dot = fileLabel.lastIndexOf('.');
+    return attachmentMimeFromExtension(
+      dot < 0 ? '' : fileLabel.substring(dot + 1),
+    );
   }
 
   Future<Map<String, Object?>> createPoll({
