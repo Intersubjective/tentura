@@ -926,8 +926,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
           coordinationItemId: _roomScrollCoordinationItemId,
           onCoordinationSaved: _refreshThreadsTab,
           onOpenCoordinationItem: _onOpenCoordinationItemFromThread,
-          closureHadNoFinalCheck:
-              beaconState.closureState?.hadNoFinalCheck,
+          closureHadNoFinalCheck: beaconState.closureState?.hadNoFinalCheck,
         );
       case BeaconSurface.people:
         return BeaconPeopleSurface(
@@ -1362,6 +1361,12 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                         required Widget frameBody,
                         required bool phaseStatusVisible,
                       }) {
+                        final loadingShell = gateTheBody && !phaseStatusVisible;
+                        const minPaneWidth = 360.0;
+                        const splitHandleWidth = TenturaSpacing.row;
+                        final wideViewport =
+                            constraints.maxWidth >=
+                            minPaneWidth * 2 + splitHandleWidth;
                         // A status too long for the title's line goes under
                         // the bar row (#486). On a phone that line stays out
                         // until the body gate reveals, so it and the body
@@ -1442,7 +1447,8 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                                 appBar: TenturaTopBar.of(
                                   context,
                                   bottom: statusBottom,
-                                  alignment: isSplit
+                                  alignment:
+                                      isSplit || (loadingShell && wideViewport)
                                       ? TenturaTopBarAlignment.edgeToEdge
                                       : TenturaTopBarAlignment.content,
                                   leading: isSplit
@@ -1456,6 +1462,8 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                                   // cover; the bar keeps only back and ⋮.
                                   title: showcase
                                       ? const SizedBox.shrink()
+                                      : loadingShell
+                                      ? const SizedBox.shrink()
                                       : _buildAppBarTitle(
                                           isSplit: isSplit,
                                           showStatus:
@@ -1465,7 +1473,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                                           showBeaconContent: showBeaconContent,
                                           l10n: l10n,
                                         ),
-                                  actions: isSplit
+                                  actions: isSplit || loadingShell
                                       ? null
                                       : [
                                           if (showBeaconContent)
@@ -1639,10 +1647,13 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                                           },
                                         )
                                       : null,
-                                  progress: TenturaTopBar.loadingBar(
-                                    context,
-                                    state.isLoading,
-                                  ),
+                                  progress: loadingShell
+                                      ? null
+                                      : TenturaTopBar.loadingBar(
+                                          context,
+                                          state.isLoading &&
+                                              state.firstLoadDone,
+                                        ),
                                 ),
                                 body: SafeArea(child: contentColumn),
                               ),

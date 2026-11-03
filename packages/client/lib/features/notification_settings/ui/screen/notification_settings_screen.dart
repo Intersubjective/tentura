@@ -44,7 +44,7 @@ class NotificationSettingsScreen extends StatelessWidget
         body: BlocBuilder<NotificationSettingsCubit, NotificationSettingsState>(
           builder: (context, state) {
             if (state.isLoading) {
-              return const Center(child: CircularProgressIndicator());
+              return const Center(child: TenturaCircularProgress());
             }
             final cubit = context.read<NotificationSettingsCubit>();
             final s = state.settings;

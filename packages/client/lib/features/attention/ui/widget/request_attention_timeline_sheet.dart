@@ -143,7 +143,7 @@ class _RequestAttentionTimelineSheetState
 
   Widget _body(L10n l10n, TenturaTokens tt) {
     if (_loading) {
-      return const Center(child: CircularProgressIndicator.adaptive());
+      return const Center(child: TenturaCircularProgress(adaptive: true));
     }
     if (_failed && _items.isEmpty) {
       return Center(

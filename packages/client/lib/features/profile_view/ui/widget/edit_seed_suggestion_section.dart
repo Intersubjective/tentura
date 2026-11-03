@@ -162,7 +162,7 @@ class _EditSeedSuggestionSectionState extends State<EditSeedSuggestionSection> {
                 child: _submitting
                     ? SizedBox.square(
                         dimension: tt.iconSize * 0.75,
-                        child: const CircularProgressIndicator.adaptive(
+                        child: const TenturaCircularProgress(adaptive: true, 
                           strokeWidth: 2,
                         ),
                       )
@@ -174,7 +174,7 @@ class _EditSeedSuggestionSectionState extends State<EditSeedSuggestionSection> {
                   child: _withdrawing
                       ? SizedBox.square(
                           dimension: tt.iconSize * 0.75,
-                          child: const CircularProgressIndicator.adaptive(
+                          child: const TenturaCircularProgress(adaptive: true, 
                             strokeWidth: 2,
                           ),
                         )

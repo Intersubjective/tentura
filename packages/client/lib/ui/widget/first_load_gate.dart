@@ -2,10 +2,18 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/screen_load_error_panel.dart';
 
 /// Gates initial screen content until it is ready, fails, or optionally times out.
+///
+/// **Screen contract:** each screen cubit exposes a `firstLoadDone` flag that
+/// turns true once primary slices have arrived and **never goes back** —
+/// background refreshes update in place and must not re-open this gate. While
+/// `ready` is false, the gate shows `TenturaCircularProgress` only after 150 ms,
+/// `ScreenLoadErrorPanel` on a first-load error, and optionally reveals the
+/// child after 2.5 s when `revealOnTimeout` is true.
 class TenturaFirstLoadGate extends StatefulWidget {
   const TenturaFirstLoadGate({
     required this.ready,
@@ -105,7 +113,7 @@ class _TenturaFirstLoadGateState extends State<TenturaFirstLoadGate> {
             onSignInAgain: widget.onSignInAgain,
           )
         else if (!revealed && _showSpinner)
-          const Center(child: CircularProgressIndicator()),
+          const Center(child: TenturaCircularProgress()),
       ],
     );
     final frame = widget.frameBuilder;

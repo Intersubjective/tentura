@@ -597,7 +597,7 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
             switch (state.candidatesLoad) {
               case ForwardCandidatesLoading():
                 return const Center(
-                  child: CircularProgressIndicator.adaptive(),
+                  child: TenturaCircularProgress(adaptive: true),
                 );
               case ForwardCandidatesError(:final error):
                 final details = describeScreenLoadError(
@@ -1004,7 +1004,7 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                   if (actionLoading)
                     const Positioned.fill(
                       child: Center(
-                        child: CircularProgressIndicator.adaptive(),
+                        child: TenturaCircularProgress(adaptive: true),
                       ),
                     ),
                 ],

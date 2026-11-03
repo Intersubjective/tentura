@@ -390,7 +390,7 @@ class _ConnectionSectionState extends State<_ConnectionSection> {
               SizedBox(
                 width: tt.iconSize,
                 height: tt.iconSize,
-                child: const CircularProgressIndicator(),
+                child: const TenturaCircularProgress(),
               ),
               SizedBox(width: tt.iconTextGap),
               Expanded(

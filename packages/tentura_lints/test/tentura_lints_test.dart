@@ -4,6 +4,7 @@ import 'package:tentura_lints/src/rules/cubit_requires_use_case_for_multi_repos.
 import 'package:tentura_lints/src/rules/no_cubit_to_data_service_imports.dart';
 import 'package:tentura_lints/src/rules/no_domain_to_data_imports.dart';
 import 'package:tentura_lints/src/rules/no_raw_border_radius.dart';
+import 'package:tentura_lints/src/rules/no_raw_circular_progress_in_features.dart';
 import 'package:tentura_lints/src/rules/no_raw_edge_insets.dart';
 import 'package:tentura_lints/src/rules/no_raw_graphql_in_dart.dart';
 import 'package:tentura_lints/src/rules/no_request_domain_entity.dart';
@@ -470,6 +471,56 @@ class TenturaTopBar {
   }
 }
 
+@reflectiveTest
+class NoRawCircularProgressInFeaturesTest extends AnalysisRuleTest {
+  @override
+  String get testFileName =>
+      'packages/client/lib/features/foo/ui/widget/foo.dart';
+
+  @override
+  void setUp() {
+    rule = NoRawCircularProgressInFeatures();
+    super.setUp();
+  }
+
+  Future<void> test_reports_raw_progress() async {
+    await assertDiagnostics(
+      '''
+const w = CircularProgressIndicator();
+class CircularProgressIndicator {
+  const CircularProgressIndicator();
+}
+''',
+      [lint(10, 27)],
+    );
+  }
+
+  Future<void> test_reports_adaptive_progress() async {
+    await assertDiagnostics(
+      '''
+final w = CircularProgressIndicator.adaptive();
+class CircularProgressIndicator {
+  const CircularProgressIndicator();
+  static CircularProgressIndicator adaptive() => _cpi as CircularProgressIndicator;
+}
+const _cpi = Object();
+''',
+      [lint(10, 36)],
+    );
+  }
+
+  Future<void> test_allows_design_system_progress() async {
+    await assertNoDiagnostics(
+      '''
+const w = TenturaCircularProgress();
+class TenturaCircularProgress {
+  const TenturaCircularProgress();
+}
+''',
+    );
+  }
+}
+
 void main() {
   defineReflectiveSuite(() {
     defineReflectiveTests(NoDomainToDataImportsTest);
@@ -480,6 +531,7 @@ void main() {
     defineReflectiveTests(NoRawGraphqlInDartClientTestScopeTest);
     defineReflectiveTests(NoRawEdgeInsetsTest);
     defineReflectiveTests(NoRawBorderRadiusTest);
+    defineReflectiveTests(NoRawCircularProgressInFeaturesTest);
     defineReflectiveTests(NoRequestDomainEntityTest);
     defineReflectiveTests(UseTenturaTopBarTest);
   });

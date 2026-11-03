@@ -90,7 +90,7 @@ class _PlanHistoryScreenState extends State<PlanHistoryScreen> {
         String nameOf(String? id) => named.nameOf(id, l10n);
         final Widget body;
         if (state.isLoading && state.items.isEmpty) {
-          body = const Center(child: CircularProgressIndicator.adaptive());
+          body = const Center(child: TenturaCircularProgress(adaptive: true));
         } else if (state.loadError != null && state.items.isEmpty) {
           body = TenturaEmptyState(
             icon: Icons.error_outline,
@@ -248,7 +248,7 @@ class _RevisionPreview extends StatelessWidget {
                 Padding(
                   padding: tt.cardPadding,
                   child: const Center(
-                    child: CircularProgressIndicator.adaptive(),
+                    child: TenturaCircularProgress(adaptive: true),
                   ),
                 )
               else

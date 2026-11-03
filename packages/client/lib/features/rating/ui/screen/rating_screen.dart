@@ -109,7 +109,7 @@ class _RatingScreenState extends State<RatingScreen> {
 
         late final Widget body;
         if (isInitialLoading) {
-          body = const Center(child: CircularProgressIndicator.adaptive());
+          body = const Center(child: TenturaCircularProgress(adaptive: true));
         } else if (_isScatterView) {
           body = RatingScatterView(profiles: items);
         } else {

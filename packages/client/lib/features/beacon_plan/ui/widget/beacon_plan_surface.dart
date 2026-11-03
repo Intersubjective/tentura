@@ -222,7 +222,7 @@ class _BeaconPlanViewState extends State<BeaconPlanView> {
         _maybeOpenInitialStep(plan);
         if (plan == null) {
           if (state.isLoading) {
-            return const Center(child: CircularProgressIndicator.adaptive());
+            return const Center(child: TenturaCircularProgress(adaptive: true));
           }
           return TenturaEmptyState(
             icon: Icons.error_outline,

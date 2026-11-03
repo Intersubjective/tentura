@@ -93,7 +93,7 @@ class _PreviewBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (state.isLoading) {
-      return const Center(child: CircularProgressIndicator.adaptive());
+      return const Center(child: TenturaCircularProgress(adaptive: true));
     }
     if (state.hasError) {
       return Center(

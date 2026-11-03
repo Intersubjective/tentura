@@ -56,7 +56,7 @@ class InboxRejectedScreen extends StatelessWidget implements AutoRouteWrapper {
               builder: (_, state) {
                 if (state.isLoading && !state.projectionLoaded) {
                   return const Center(
-                    child: CircularProgressIndicator.adaptive(),
+                    child: TenturaCircularProgress(adaptive: true),
                   );
                 }
                 final items = state.rejected;

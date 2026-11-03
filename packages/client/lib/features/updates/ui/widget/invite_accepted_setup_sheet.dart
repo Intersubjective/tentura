@@ -410,7 +410,7 @@ class _InviteAcceptedSetupSheetState extends State<InviteAcceptedSetupSheet>
                               ? SizedBox.square(
                                   dimension: tt.iconSize,
                                   child:
-                                      const CircularProgressIndicator.adaptive(
+                                      const TenturaCircularProgress(adaptive: true, 
                                         strokeWidth: 2,
                                       ),
                                 )

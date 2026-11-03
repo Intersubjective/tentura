@@ -1389,6 +1389,6 @@ class _ActivityLoadMoreIndicator extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
     padding: context.tt.cardPadding,
-    child: const Center(child: CircularProgressIndicator.adaptive()),
+    child: const Center(child: TenturaCircularProgress(adaptive: true)),
   );
 }

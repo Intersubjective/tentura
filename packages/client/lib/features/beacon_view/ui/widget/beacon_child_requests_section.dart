@@ -57,6 +57,12 @@ class BeaconChildRequestsSection extends StatelessWidget {
             !hierarchyState.finished.loading &&
             !hierarchyState.deleted.loading &&
             !hasAnyChild;
+        final showEmptyLabel =
+            !hasAnyChild &&
+            !hierarchyState.finished.loading &&
+            !hierarchyState.deleted.loading &&
+            (!hierarchyState.active.loading ||
+                hierarchyState.active.items.isEmpty);
 
         // A closed Request with no children has nothing to show here; the
         // header and the closed banner already say it is closed.
@@ -111,7 +117,7 @@ class BeaconChildRequestsSection extends StatelessWidget {
                     ),
                 ],
               ),
-            if (allEmpty)
+            if (showEmptyLabel)
               Padding(
                 padding: EdgeInsets.only(top: tt.rowGap),
                 child: Text(
@@ -162,10 +168,7 @@ class _ChildGroupSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final tt = context.tt;
     if (slice.loading && slice.items.isEmpty) {
-      return Padding(
-        padding: EdgeInsets.only(top: tt.rowGap),
-        child: const Center(child: CircularProgressIndicator.adaptive()),
-      );
+      return SizedBox(height: tt.rowGap * 3);
     }
     if (slice.error != null && slice.items.isEmpty) {
       return Padding(
@@ -219,7 +222,7 @@ class _ChildGroupSection extends StatelessWidget {
             Padding(
               padding: EdgeInsets.only(top: tt.cardGap),
               child: const Center(
-                child: CircularProgressIndicator.adaptive(),
+                child: TenturaCircularProgress(adaptive: true),
               ),
             ),
         ],

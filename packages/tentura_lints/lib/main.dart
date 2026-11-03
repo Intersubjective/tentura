@@ -10,6 +10,7 @@ import 'src/rules/no_operational_pill_widgets.dart';
 import 'src/rules/no_operational_raw_color.dart';
 import 'src/rules/no_operational_raw_text_style.dart';
 import 'src/rules/no_raw_border_radius.dart';
+import 'src/rules/no_raw_circular_progress_in_features.dart';
 import 'src/rules/no_raw_edge_insets.dart';
 import 'src/rules/no_raw_graphql_in_dart.dart';
 import 'src/rules/no_request_domain_entity.dart';
@@ -35,6 +36,7 @@ class TenturaLintsPlugin extends Plugin {
       ..registerLintRule(NoOperationalPillWidgetsInBeaconView())
       ..registerLintRule(NoRawEdgeInsets())
       ..registerLintRule(NoRawBorderRadius())
+      ..registerLintRule(NoRawCircularProgressInFeatures())
       ..registerLintRule(NoRequestDomainEntity())
       ..registerLintRule(UseTenturaTopBar());
   }

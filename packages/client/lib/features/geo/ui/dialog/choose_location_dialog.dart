@@ -277,7 +277,7 @@ class _ChooseLocationDialogState extends State<ChooseLocationDialog> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 if (waitingForScript)
-                  const CircularProgressIndicator.adaptive()
+                  const TenturaCircularProgress(adaptive: true)
                 else
                   Icon(
                     !_mapsConfigured
@@ -563,7 +563,7 @@ class _LocationSearchBar extends StatelessWidget {
                 ? ListTile(
                     leading: const SizedBox.square(
                       dimension: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
+                      child: TenturaCircularProgress(strokeWidth: 2),
                     ),
                     title: Text(l10n.chooseLocationSearching),
                   )

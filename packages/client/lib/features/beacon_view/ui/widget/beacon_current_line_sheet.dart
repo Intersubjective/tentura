@@ -275,7 +275,7 @@ class _BeaconCurrentLineSheetBodyState
                   ? const SizedBox(
                       height: 22,
                       width: 22,
-                      child: CircularProgressIndicator(strokeWidth: 2),
+                      child: TenturaCircularProgress(strokeWidth: 2),
                     )
                   : Text(MaterialLocalizations.of(context).saveButtonLabel),
             ),

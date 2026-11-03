@@ -699,7 +699,7 @@ class BasicChatBodyState extends State<BasicChatBody> {
                 ? Center(child: Text(widget.errorText))
                 : widget.isLoading && messages.isEmpty
                 ? const Center(
-                    child: CircularProgressIndicator.adaptive(),
+                    child: TenturaCircularProgress(adaptive: true),
                   )
                 : messages.isEmpty && widget.emptyPlaceholder != null
                 ? widget.emptyPlaceholder!

@@ -8,7 +8,7 @@ import 'package:tentura_root/domain/entity/beacon_hierarchy_child_group.dart';
 import 'package:tentura_root/domain/entity/beacon_hierarchy_page.dart';
 
 import 'package:tentura/data/repository/image_repository.dart';
-import 'package:tentura/design_system/tentura_theme.dart';
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/port/beacon_write_port.dart';
 import 'package:tentura/domain/use_case/beacon_create_case.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/beacon_hierarchy_cubit.dart';
@@ -35,7 +35,7 @@ class _UnusedImageRepository implements ImageRepository {
 int _gateSpinners() => find
     .descendant(
       of: find.byType(TenturaFirstLoadGate),
-      matching: find.byType(CircularProgressIndicator),
+      matching: find.byType(TenturaCircularProgress),
     )
     .evaluate()
     .where((element) {

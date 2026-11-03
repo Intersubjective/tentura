@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:tentura/design_system/tentura_design_system.dart';
 
 import '../bloc/thread_host_cubit.dart';
 import '../bloc/thread_host_state.dart';
@@ -16,7 +17,7 @@ class ThreadHost extends StatelessWidget {
     return BlocBuilder<ThreadHostCubit, ThreadHostState>(
       builder: (context, hostState) {
         if (hostState.switching) {
-          return const Center(child: CircularProgressIndicator.adaptive());
+          return const Center(child: TenturaCircularProgress(adaptive: true));
         }
         final roomCubit = context.read<ThreadHostCubit>().roomCubit;
         if (roomCubit == null) {

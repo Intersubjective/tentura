@@ -909,7 +909,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
                 return Stack(
                   fit: StackFit.expand,
                   children: [
-                    const Center(child: CircularProgressIndicator()),
+                    const Center(child: TenturaCircularProgress()),
                     Positioned(
                       top: 0,
                       left: 0,
