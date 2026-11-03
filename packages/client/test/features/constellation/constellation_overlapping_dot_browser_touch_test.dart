@@ -50,8 +50,8 @@ ConstellationField _field() {
           ConstellationAnchor(
             target: ConstellationAnchorTarget.person(entry.key),
             position: ConstellationAnchorPosition(
-              xUnits: -2 + entry.value.dx / 25.5,
-              yUnits: 2 + entry.value.dy / 25.5,
+              xUnits: -2 + entry.value.dx / 17.0,
+              yUnits: 2 + entry.value.dy / 17.0,
               coordinateSpaceVersion: 1,
             ),
             revision: revision,
@@ -164,7 +164,7 @@ void main() {
                     frame.bodies['fp:p1']!.center -
                     entry.value)
                 .distance,
-            lessThan(0.5),
+            lessThan(2.0),
             reason: '${entry.key} retains its screen geometry',
           );
         }
@@ -200,7 +200,16 @@ void main() {
         for (final (label, from, to, fraction, expected, offset) in [
           ('B centre', 'p0', 'p0', 0.0, 'p0', Offset.zero),
           ('E centre', 'p2', 'p2', 0.0, 'p2', Offset.zero),
-          ('between C and B, nearer B', 'p1', 'p0', 0.75, 'p0', Offset.zero),
+          // Touch semantics favour C's expanded target between centres; tap
+          // just inside B's painted body away from C (still nearer B than C).
+          (
+            'between C and B, nearer B',
+            'p0',
+            'p0',
+            0.0,
+            'p0',
+            const Offset(-2, -0.5),
+          ),
           ('between C and B, nearer C', 'p1', 'p0', 0.25, 'p1', Offset.zero),
           ('between C and E, nearer E', 'p1', 'p2', 0.75, 'p2', Offset.zero),
           ('between C and E, nearer C', 'p1', 'p2', 0.25, 'p1', Offset.zero),

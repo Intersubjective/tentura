@@ -35,6 +35,7 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
+import '../../domain/constellation_consts.dart';
 import '../../domain/constellation_trust_chain.dart';
 import '../../domain/entity/constellation_field.dart';
 import '../../domain/radius_recipient_selection.dart';
@@ -121,7 +122,9 @@ class ConstellationBody extends StatefulWidget {
   /// When set (tests only), the viewport overlay writes its frame here.
   final ConstellationPresentationFrameHolder? presentationFrameHolder;
 
-  static const _canvasSize = GraphCanvasSize.fixed(Size(4096, 4096));
+  static const _canvasSize = GraphCanvasSize.fixed(
+    Size(kConstellationCanvasExtent, kConstellationCanvasExtent),
+  );
 
   @override
   State<ConstellationBody> createState() => _ConstellationBodyState();
@@ -903,7 +906,6 @@ class _ConstellationBodyState extends State<ConstellationBody>
               );
               final cubit = context.read<ConstellationCubit>();
               final tt = context.tt;
-              final theme = Theme.of(context);
 
               if (state.status is StateIsLoading && state.field == null) {
                 return Stack(
@@ -1031,93 +1033,67 @@ class _ConstellationBodyState extends State<ConstellationBody>
                     child: Focus(
                       focusNode: _mapFocus,
                       autofocus: true,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          if (!state.isComposing) ...[
-                            const ConstellationFieldNotices(),
-                            const ConstellationEmptyFilterBanner(),
-                            const ConstellationNoContactsBanner(),
-                            const ConstellationVisibilityBar(),
-                          ],
-                          if (_selectionUnavailableMessage != null)
-                            Material(
-                              color: theme.colorScheme.errorContainer,
-                              child: Padding(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: tt.screenHPadding,
-                                  vertical: tt.tightGap,
-                                ),
-                                child: Text(
-                                  _selectionUnavailableMessage!,
-                                  key: const Key(
-                                    'constellation.selection_unavailable',
-                                  ),
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: theme.colorScheme.onErrorContainer,
-                                  ),
-                                ),
-                              ),
+                      child: LayoutBuilder(
+                        builder: (context, bodyConstraints) => Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _buildCappedFieldTopChrome(
+                              context,
+                              bodyConstraints.maxHeight,
+                              state,
+                              cubit,
                             ),
-                          if (!state.isComposing) _buildTagRow(context),
-                          if (state.tagView case final view?)
-                            _buildTagViewHeader(context, cubit, view),
-                          if (state.rearrangePreview case final preview?)
-                            ConstellationRearrangePreviewBar(
-                              movingCount: preview.movingCount,
-                              onApply: () =>
-                                  unawaited(cubit.applyRearrangePreview()),
-                              onCancel: cubit.cancelRearrangePreview,
-                            ),
-                          Expanded(
-                            child: IndexedStack(
-                              index: state.viewMode == ConstellationViewMode.map
-                                  ? 0
-                                  : 1,
-                              sizing: StackFit.expand,
-                              children: [
-                                ValueListenableBuilder<int>(
-                                  valueListenable:
-                                      cubit.graphController.topologyRevision,
-                                  // Labels and chips drawn near the top edge
-                                  // pass under the chip row, as edges do: the
-                                  // clip stops their paint and hits at the
-                                  // map's edge (#675).
-                                  builder: (context, _, _) => ClipRect(
-                                    child: _buildGraphStack(
-                                      context,
-                                      cubit,
-                                      cubit.state,
-                                      cubit.graphSceneLayoutAlgorithm,
-                                      panelVisible,
+                            Expanded(
+                              child: IndexedStack(
+                                index:
+                                    state.viewMode == ConstellationViewMode.map
+                                    ? 0
+                                    : 1,
+                                sizing: StackFit.expand,
+                                children: [
+                                  ValueListenableBuilder<int>(
+                                    valueListenable:
+                                        cubit.graphController.topologyRevision,
+                                    // Labels and chips drawn near the top edge
+                                    // pass under the chip row, as edges do: the
+                                    // clip stops their paint and hits at the
+                                    // map's edge (#675).
+                                    builder: (context, _, _) => ClipRect(
+                                      child: _buildGraphStack(
+                                        context,
+                                        cubit,
+                                        cubit.state,
+                                        cubit.graphSceneLayoutAlgorithm,
+                                        panelVisible,
+                                      ),
                                     ),
                                   ),
-                                ),
-                                // The map stack hosts the preview overlay; the
-                                // text view needs its own or a tapped card shows
-                                // nothing (#354).
-                                Stack(
-                                  fit: StackFit.expand,
-                                  children: [
-                                    // Not mounted while hidden: its Pin
-                                    // buttons would keep running pin layouts
-                                    // on every map recompose.
-                                    if (state.viewMode ==
-                                        ConstellationViewMode.text) ...[
-                                      const ConstellationTextView(),
-                                      if (panelVisible)
-                                        _buildContextOverlay(
-                                          context,
-                                          cubit,
-                                          state,
-                                        ),
+                                  // The map stack hosts the preview overlay; the
+                                  // text view needs its own or a tapped card shows
+                                  // nothing (#354).
+                                  Stack(
+                                    fit: StackFit.expand,
+                                    children: [
+                                      // Not mounted while hidden: its Pin
+                                      // buttons would keep running pin layouts
+                                      // on every map recompose.
+                                      if (state.viewMode ==
+                                          ConstellationViewMode.text) ...[
+                                        const ConstellationTextView(),
+                                        if (panelVisible)
+                                          _buildContextOverlay(
+                                            context,
+                                            cubit,
+                                            state,
+                                          ),
+                                      ],
                                     ],
-                                  ],
-                                ),
-                              ],
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -1130,32 +1106,98 @@ class _ConstellationBodyState extends State<ConstellationBody>
     );
   }
 
+  Widget _buildCappedFieldTopChrome(
+    BuildContext context,
+    double bodyHeight,
+    ConstellationState state,
+    ConstellationCubit cubit,
+  ) {
+    final tt = context.tt;
+    final theme = Theme.of(context);
+    final capHeight = bodyHeight * tt.fieldTopChromeMaxFraction;
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxHeight: capHeight),
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (!state.isComposing) ...[
+              const ConstellationFieldNotices(),
+              const ConstellationEmptyFilterBanner(),
+              const ConstellationNoContactsBanner(),
+              const ConstellationVisibilityBar(),
+            ],
+            if (_selectionUnavailableMessage != null)
+              Material(
+                color: theme.colorScheme.errorContainer,
+                child: Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: tt.screenHPadding,
+                    vertical: tt.tightGap,
+                  ),
+                  child: Text(
+                    _selectionUnavailableMessage!,
+                    key: const Key('constellation.selection_unavailable'),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onErrorContainer,
+                    ),
+                  ),
+                ),
+              ),
+            if (!state.isComposing) _buildTagRow(context),
+            if (state.tagView case final view?)
+              _buildTagViewHeader(context, cubit, view),
+            if (state.rearrangePreview case final preview?)
+              ConstellationRearrangePreviewBar(
+                movingCount: preview.movingCount,
+                onApply: () => unawaited(cubit.applyRearrangePreview()),
+                onCancel: cubit.cancelRearrangePreview,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildTagRow(BuildContext context) {
     final store = _peopleTags;
     final lensCubit = maybeConstellationTagLens(context);
     if (store == null || lensCubit == null) return const SizedBox.shrink();
     final tt = context.tt;
-    return Material(
-      type: MaterialType.transparency,
-      child: Padding(
-        padding: EdgeInsets.symmetric(
-          horizontal: tt.screenHPadding,
-          vertical: tt.tightGap,
-        ),
-        child: StreamBuilder<void>(
-          stream: store.changes,
-          builder: (context, _) =>
-              BlocBuilder<ConstellationTagLensCubit, ConstellationTagFilter>(
-                bloc: lensCubit,
-                builder: (context, filter) => ConstellationTagRow(
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: tt.tightGap),
+      child: StreamBuilder<void>(
+        stream: store.changes,
+        builder: (context, _) =>
+            BlocBuilder<ConstellationTagLensCubit, ConstellationTagFilter>(
+              bloc: lensCubit,
+              builder: (context, filter) => ConstellationTagRow(
+                ownTags: store.tags,
+                onPlaceMagnet:
+                    context.read<ConstellationCubit>().state.tagView == null &&
+                        widget.peopleTagsEnabled
+                    ? _placeTagMagnet
+                    : null,
+                onMagnetDrop: _placeTagMagnet,
+                autoTags: ConstellationAutoTagKind.values,
+                filter: filter,
+                onToggleOwn: lensCubit.toggleOwn,
+                onToggleAuto: lensCubit.toggleAuto,
+                onModeChanged: lensCubit.setMode,
+                onAddTag: () => unawaited(
+                  showTagEditorDialog(
+                    context,
+                    onSave: (name, glyph, color) => store.createTag(
+                      name: name,
+                      glyph: glyph,
+                      color: color,
+                    ),
+                  ),
+                ),
+                onShowAll: () => showConstellationAllTagsSheet(
+                  context: context,
                   ownTags: store.tags,
-                  onPlaceMagnet:
-                      context.read<ConstellationCubit>().state.tagView ==
-                              null &&
-                          widget.peopleTagsEnabled
-                      ? _placeTagMagnet
-                      : null,
-                  onMagnetDrop: _placeTagMagnet,
                   autoTags: ConstellationAutoTagKind.values,
                   filter: filter,
                   onToggleOwn: lensCubit.toggleOwn,
@@ -1173,7 +1215,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
                   ),
                 ),
               ),
-        ),
+            ),
       ),
     );
   }
@@ -1231,14 +1273,21 @@ class _ConstellationBodyState extends State<ConstellationBody>
             builder: (context, _) =>
                 BlocBuilder<ConstellationTagLensCubit, ConstellationTagFilter>(
                   bloc: lensCubit,
-                  builder: (context, filter) => ConstellationTagHullLayer(
-                    controller: cubit.graphController,
-                    tags: [
-                      for (final tag in store.tags)
-                        if (filter.selectedOwn.contains(tag.id)) tag,
-                    ],
-                    peopleOf: store.peopleInTag,
-                  ),
+                  builder: (context, filter) {
+                    final fieldIds = {
+                      for (final person in cubit.fieldPeople) person.id,
+                    };
+                    return ConstellationTagHullLayer(
+                      controller: cubit.graphController,
+                      tags: [
+                        for (final tag in store.tags)
+                          if (store.peopleInTag(tag.id).any(fieldIds.contains))
+                            tag,
+                      ],
+                      selectedTagIds: filter.selectedOwn,
+                      peopleOf: store.peopleInTag,
+                    );
+                  },
                 ),
           ),
         BlocBuilder<ConstellationCubit, ConstellationState>(

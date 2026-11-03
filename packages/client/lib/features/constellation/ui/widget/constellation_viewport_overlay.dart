@@ -28,7 +28,6 @@ import 'constellation_overflow_group.dart';
 import 'constellation_presence_halo_layer.dart';
 import 'constellation_request_status_marker.dart';
 import 'constellation_request_label.dart';
-import 'constellation_overview_layer.dart';
 
 Size measureConstellationLabelPlate({
   required String text,
@@ -942,14 +941,6 @@ class _ConstellationViewportOverlayState
 
                 return Stack(
                   children: [
-                    if (_detail == ConstellationDetailLevel.overview)
-                      Positioned.fill(
-                        child: ConstellationOverviewLayer(
-                          frame: frame,
-                          viewerId: viewerId,
-                          peopleTags: widget.peopleTags,
-                        ),
-                      ),
                     // Presence halos under the trust rings; they repaint on
                     // their own, never with the rings or the labels.
                     if (presence != null)

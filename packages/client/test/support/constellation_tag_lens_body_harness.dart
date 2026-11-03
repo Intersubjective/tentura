@@ -206,6 +206,7 @@ Future<TagLensBodyHarness> mountTagLensBody(
   ConstellationPlacementCase Function(ConstellationFieldStoreCase store)?
   placementFor,
   ConstellationField? field,
+  List<PersonTag>? tagList,
 
   /// Hosts the body in a router that knows the forward route, so a push to
   /// it can be observed on the returned router.
@@ -214,15 +215,20 @@ Future<TagLensBodyHarness> mountTagLensBody(
   /// Replaces the default [ConstellationBody], e.g. to turn feature flags on
   /// or wrap it in a media query.
   Widget Function()? bodyBuilder,
+
+  Locale locale = const Locale('en'),
+  Size surfaceSize = const Size(1200, 1400),
 }) async {
   final rig = await PeopleTagsTestRig.create(
     FakePeopleTagsRepository(
-      tagList: const [
-        tagLensNeighbour,
-        tagLensWorkshop,
-        tagLensGarden,
-        tagLensEmpty,
-      ],
+      tagList:
+          tagList ??
+          const [
+            tagLensNeighbour,
+            tagLensWorkshop,
+            tagLensGarden,
+            tagLensEmpty,
+          ],
       memberList: tagLensMemberships,
     ),
   );
@@ -250,7 +256,7 @@ Future<TagLensBodyHarness> mountTagLensBody(
     ownTagIdsOf: rig.peopleTags.tagsOfPerson,
   );
   addTearDown(lens.close);
-  await tester.binding.setSurfaceSize(const Size(1200, 1400));
+  await tester.binding.setSurfaceSize(surfaceSize);
   addTearDown(() => tester.binding.setSurfaceSize(null));
   Widget scoped(Widget child) => TenturaResponsiveScope(
     child: MultiBlocProvider(
@@ -292,7 +298,7 @@ Future<TagLensBodyHarness> mountTagLensBody(
     addTearDown(router.dispose);
     await tester.pumpWidget(
       MaterialApp.router(
-        locale: const Locale('en'),
+        locale: locale,
         theme: TenturaTheme.light(),
         localizationsDelegates: L10n.localizationsDelegates,
         supportedLocales: L10n.supportedLocales,
@@ -303,7 +309,7 @@ Future<TagLensBodyHarness> mountTagLensBody(
   } else {
     await tester.pumpWidget(
       MaterialApp(
-        locale: const Locale('en'),
+        locale: locale,
         theme: TenturaTheme.light(),
         localizationsDelegates: L10n.localizationsDelegates,
         supportedLocales: L10n.supportedLocales,

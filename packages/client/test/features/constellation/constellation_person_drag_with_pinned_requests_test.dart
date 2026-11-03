@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
 import 'package:tentura/env.dart';
+import 'package:tentura/features/constellation/domain/constellation_consts.dart';
 import 'package:tentura/features/constellation/domain/constellation_layout.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
@@ -28,7 +29,7 @@ const _satelliteGraphId = 'fr:req-in-2';
 /// One envelope unit in scene pixels and the canvas centre (10 units = 1700 px
 /// on each side of the centre).
 const _unit = 170.0;
-const _centre = 2048.0;
+const _centre = kConstellationCanvasCentre;
 
 /// The pinned Request sits just inside the top envelope edge, so the first
 /// few pixels of upward travel already push it against the wall.
@@ -36,7 +37,7 @@ const _satelliteYUnits = -9.9;
 const _envelopeTopY = _centre - 10 * _unit;
 
 /// Pointer target well inside the envelope for the person's own body.
-const _targetY = 600.0;
+const _targetY = _centre - 1448;
 const _sidewaysShift = 100.0;
 
 ConstellationAnchor _anchor(
