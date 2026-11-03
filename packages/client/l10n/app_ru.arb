@@ -5700,6 +5700,30 @@
   "postCreateLifetime3d": "3 дня",
   "postCreateLifetimeHint": "Потом пост уйдёт в архив. Продлить нельзя, сократить можно.",
   "postCreateTextHint": "О чём ваш пост?",
+  "postComposerReplyHint": "Ответить…",
+  "postRepliesSection": "Ответы",
+  "postCardMetaCanShare": "{peopleCount, plural, one{{peopleCount} человек} few{{peopleCount} человека} many{{peopleCount} человек} other{{peopleCount} человека}} · {replyCount, plural, one{{replyCount} ответ} few{{replyCount} ответа} many{{replyCount} ответов} other{{replyCount} ответа}} · можно делиться",
+  "@postCardMetaCanShare": {
+    "placeholders": {
+      "peopleCount": {
+        "type": "int"
+      },
+      "replyCount": {
+        "type": "int"
+      }
+    }
+  },
+  "postCardMetaInviteOnly": "{peopleCount, plural, one{{peopleCount} человек} few{{peopleCount} человека} many{{peopleCount} человек} other{{peopleCount} человека}} · {replyCount, plural, one{{replyCount} ответ} few{{replyCount} ответа} many{{replyCount} ответов} other{{replyCount} ответа}} · только приглашённые",
+  "@postCardMetaInviteOnly": {
+    "placeholders": {
+      "peopleCount": {
+        "type": "int"
+      },
+      "replyCount": {
+        "type": "int"
+      }
+    }
+  },
   "postCreateSendToCount": "Отправить ({count})",
   "beaconCreateSendToCount": "Отправить ({count})",
   "beaconCreateRecipientNoteHint": "Добавьте заметку для этого человека (необязательно)",

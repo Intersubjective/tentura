@@ -159,6 +159,11 @@ Future<RoomBodyHarnessCubit> pumpBeaconRoomBody(
   RoomBodyHarnessCubit? cubit,
   RoomCapabilities capabilities = const RoomCapabilities.request(),
   bool? closureHadNoFinalCheck,
+  RoomPostRootPin? postRoot,
+  DateTime? postExpiresAt,
+  String beaconAuthorId = '',
+  Profile? beaconAuthor,
+  DateTime Function()? postNow,
 }) async {
   final getIt = GetIt.I;
   await getIt.reset();
@@ -196,6 +201,11 @@ Future<RoomBodyHarnessCubit> pumpBeaconRoomBody(
                 enableComposer: enableComposer,
                 capabilities: capabilities,
                 closureHadNoFinalCheck: closureHadNoFinalCheck,
+                postRoot: postRoot,
+                postExpiresAt: postExpiresAt,
+                postNow: postNow,
+                beaconAuthorId: beaconAuthorId,
+                beaconAuthor: beaconAuthor,
               ),
             ),
           ),

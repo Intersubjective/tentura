@@ -7038,6 +7038,38 @@
   "@postCreateTextHint": {
     "description": "Hint of the text field on the first step of the new-Post form."
   },
+  "postComposerReplyHint": "Reply…",
+  "@postComposerReplyHint": {
+    "description": "Composer hint in a Post room (replies under the card, #248)."
+  },
+  "postRepliesSection": "Replies",
+  "@postRepliesSection": {
+    "description": "Divider label above reply messages in a Post room."
+  },
+  "postCardMetaCanShare": "{peopleCount, plural, one{{peopleCount} person} other{{peopleCount} people}} · {replyCount, plural, one{{replyCount} reply} other{{replyCount} replies}} · can be shared",
+  "@postCardMetaCanShare": {
+    "description": "Meta line under an expanded Post card when forwarding is allowed.",
+    "placeholders": {
+      "peopleCount": {
+        "type": "int"
+      },
+      "replyCount": {
+        "type": "int"
+      }
+    }
+  },
+  "postCardMetaInviteOnly": "{peopleCount, plural, one{{peopleCount} person} other{{peopleCount} people}} · {replyCount, plural, one{{replyCount} reply} other{{replyCount} replies}} · only people invited",
+  "@postCardMetaInviteOnly": {
+    "description": "Meta line under an expanded Post card when forwarding is off.",
+    "placeholders": {
+      "peopleCount": {
+        "type": "int"
+      },
+      "replyCount": {
+        "type": "int"
+      }
+    }
+  },
   "postCreateSendToCount": "Send to {count}",
   "@postCreateSendToCount": {
     "description": "Send button on the recipients step of the new-Post form.",
