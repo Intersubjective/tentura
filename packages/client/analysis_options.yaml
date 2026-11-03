@@ -24,6 +24,7 @@ plugins:
       no_operational_pill_widgets_in_beacon_view: true
       no_raw_edge_insets: true
       no_raw_border_radius: true
+      no_raw_circular_progress_in_features: true
       no_request_domain_entity: true
       use_tentura_top_bar: true
       cubit_requires_use_case_for_multi_repos: true
