@@ -26,6 +26,53 @@ class BeaconNotificationCopy {
 class BeaconNotificationCopyBuilder {
   const BeaconNotificationCopyBuilder();
 
+  ({String waiting, String moved}) digestHeadings(String locale) =>
+      locale.toLowerCase().startsWith('ru')
+      ? (waiting: 'Ждёт вашего ответа', moved: 'Изменилось, пока вас не было')
+      : (waiting: 'Waiting on you', moved: 'Moved while you were away');
+
+  /// Translate only recognized fixed copy; preserve excerpts, names and URLs.
+  BeaconNotificationCopy localizeStored({
+    required BeaconNotificationIntent intent,
+    required String title,
+    required String body,
+    required String actionUrl,
+    required String locale,
+    String actorDisplayName = '',
+  }) {
+    if (!locale.toLowerCase().startsWith('ru')) {
+      return BeaconNotificationCopy(
+        title: title,
+        body: body,
+        actionUrl: actionUrl,
+      );
+    }
+    final english = build(intent: intent, actorDisplayName: actorDisplayName);
+    final russian = build(
+      intent: intent,
+      actorDisplayName: actorDisplayName,
+      locale: locale,
+    );
+    final localizedBody = intent.kind == NotificationKind.inviteAccepted
+        ? switch (body) {
+            'Created an account via your invitation. You are now connected.' =>
+              'Создал(а) аккаунт по вашему приглашению. Теперь вы связаны.',
+            'Already had a Tentura account. You are now connected.' =>
+              'Уже был аккаунт в Tentura. Теперь вы связаны.',
+            'You are now connected on Tentura.' =>
+              'Вы теперь связаны в Tentura.',
+            _ => english.body == body ? russian.body : body,
+          }
+        : english.body == body
+        ? russian.body
+        : body;
+    return BeaconNotificationCopy(
+      title: english.title == title ? russian.title : title,
+      body: localizedBody,
+      actionUrl: actionUrl,
+    );
+  }
+
   BeaconNotificationCopy build({
     required BeaconNotificationIntent intent,
     required String actorDisplayName,

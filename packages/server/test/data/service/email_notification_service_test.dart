@@ -4,6 +4,7 @@ import 'package:test/test.dart';
 import 'package:tentura_root/domain/enums.dart';
 
 import 'package:tentura_server/data/service/email/email_link_builder.dart';
+import 'package:tentura_server/data/service/email/templates/email_template_renderer.dart';
 import 'package:tentura_server/data/service/email_notification_service.dart';
 import 'package:tentura_server/domain/entity/email_notification_content.dart';
 import 'package:tentura_server/domain/entity/notification_category.dart';
@@ -65,8 +66,7 @@ class _FakeOutbox implements NotificationOutboxRepositoryPort {
     required String accountId,
     required NotificationCategory category,
     required Duration window,
-  }) async =>
-      recentCount;
+  }) async => recentCount;
 
   @override
   Future<int> markEmailedByChannelCollapseKey({
@@ -85,6 +85,8 @@ class _FakeOutbox implements NotificationOutboxRepositoryPort {
 class _CapturingEmail implements EmailSenderPort {
   int notificationCount = 0;
   String? lastTo;
+  String? lastLocale;
+  RenderedEmail? lastRendered;
 
   @override
   Future<void> sendNotificationEmail({
@@ -95,6 +97,11 @@ class _CapturingEmail implements EmailSenderPort {
   }) async {
     notificationCount++;
     lastTo = to;
+    lastLocale = locale;
+    lastRendered = const EmailTemplateRenderer().renderNotification(
+      content: content,
+      locale: locale,
+    );
   }
 
   @override
@@ -112,8 +119,7 @@ void main() {
 
   NotificationPreferencesEntity prefs({
     Set<NotificationCategory> email = const {NotificationCategory.asksOfMe},
-  }) =>
-      NotificationPreferencesEntity(accountId: 'u1', emailCategories: email);
+  }) => NotificationPreferencesEntity(accountId: 'u1', emailCategories: email);
 
   // A present, already-notified user (clearly-past timestamps → shouldNotify
   // false under the real wall clock).
@@ -131,33 +137,102 @@ void main() {
     required _FakeOutbox outbox,
     UserPresenceEntity? presence,
     String? email = 'u1@example.com',
-  }) =>
-      EmailNotificationService(
-        _FakePrefs(p),
-        _FakePresence(presence),
-        sender,
-        _FakeContacts(email),
-        outbox,
-        links,
-        env,
-        Logger('test'),
-      );
+  }) => EmailNotificationService(
+    _FakePrefs(p),
+    _FakePresence(presence),
+    sender,
+    _FakeContacts(email),
+    outbox,
+    links,
+    env,
+    Logger('test'),
+  );
 
   Future<void> consider(
     EmailNotificationService service, {
     NotificationKind kind = NotificationKind.needsMe,
     bool pushDelivered = false,
-  }) =>
-      service.considerImmediate(
-        recipientUserId: 'u1',
-        kind: kind,
-        beaconId: 'b1',
-        channelCollapseKey: 'u1|asksOfMe|b1|',
-        title: 'Asked of you',
-        body: 'Please respond',
-        actionUrl: '/#/beacon/view?id=b1&dest=room',
-        pushDelivered: pushDelivered,
-      );
+  }) => service.considerImmediate(
+    recipientUserId: 'u1',
+    kind: kind,
+    beaconId: 'b1',
+    channelCollapseKey: 'u1|asksOfMe|b1|',
+    title: 'Asked of you',
+    body: 'Please respond',
+    actionUrl: '/#/beacon/view?id=b1&dest=room',
+    pushDelivered: pushDelivered,
+  );
+
+  test(
+    'immediate request emails localize fixed copy and preserve user text',
+    () async {
+      const userText = 'Hikes <&> — bring the Asked of you checklist';
+      for (final locale in ['en', 'ru']) {
+        Future<RenderedEmail> deliver(String body) async {
+          final sender = _CapturingEmail();
+          final outbox = _FakeOutbox();
+          await build(
+            p: prefs().copyWith(locale: locale),
+            sender: sender,
+            outbox: outbox,
+          ).considerImmediate(
+            recipientUserId: 'u1',
+            kind: NotificationKind.needsMe,
+            beaconId: 'b1',
+            channelCollapseKey: 'u1|asksOfMe|b1|',
+            title: 'Asked of you',
+            body: body,
+            actionUrl: '/#/beacon/view?id=b1&dest=room',
+            pushDelivered: false,
+          );
+          expect(sender.notificationCount, 1);
+          expect(sender.lastTo, 'u1@example.com');
+          expect(sender.lastLocale, locale);
+          expect(outbox.markedEmailed, ['u1::u1|asksOfMe|b1|']);
+          expect(sender.lastRendered, isNotNull);
+          return sender.lastRendered!;
+        }
+
+        final fixed = await deliver('Action needed in the request discussion');
+        final custom = await deliver(userText);
+        expect(custom.text, contains(userText));
+        expect(
+          custom.html,
+          contains('Hikes &lt;&amp;&gt; — bring the Asked of you checklist'),
+        );
+        final expectedTitle = locale == 'ru' ? 'Вас просят' : 'Asked of you';
+        final expectedBody = locale == 'ru'
+            ? 'В обсуждении запроса нужен ваш ответ'
+            : 'Action needed in the request discussion';
+        for (final email in [fixed, custom]) {
+          expect(email.subject, expectedTitle);
+          for (final part in [email.html, email.text]) {
+            expect(part, contains(expectedTitle));
+            expect(
+              part,
+              contains(
+                locale == 'ru' ? 'Открыть в Tentura' : 'Open in Tentura',
+              ),
+            );
+            expect(
+              part,
+              contains(
+                locale == 'ru'
+                    ? 'Настройки уведомлений'
+                    : 'Manage notifications',
+              ),
+            );
+            expect(
+              part,
+              contains(locale == 'ru' ? 'Отписаться' : 'Unsubscribe'),
+            );
+          }
+        }
+        expect(fixed.html, contains(expectedBody));
+        expect(fixed.text, contains(expectedBody));
+      }
+    },
+  );
 
   test('sends + marks emailed for absent asksOfMe recipient', () async {
     final sender = _CapturingEmail();
@@ -181,7 +256,13 @@ void main() {
 
   test('no email when category email-disabled', () async {
     final sender = _CapturingEmail();
-    await consider(build(p: prefs(email: {}), sender: sender, outbox: _FakeOutbox()));
+    await consider(
+      build(
+        p: prefs(email: {}),
+        sender: sender,
+        outbox: _FakeOutbox(),
+      ),
+    );
     expect(sender.notificationCount, 0);
   });
 
@@ -204,7 +285,12 @@ void main() {
   test('present user with delivered push gets no email', () async {
     final sender = _CapturingEmail();
     await consider(
-      build(p: prefs(), presence: presentUser, sender: sender, outbox: _FakeOutbox()),
+      build(
+        p: prefs(),
+        presence: presentUser,
+        sender: sender,
+        outbox: _FakeOutbox(),
+      ),
       pushDelivered: true,
     );
     expect(sender.notificationCount, 0);

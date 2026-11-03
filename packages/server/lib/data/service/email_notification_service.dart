@@ -3,6 +3,9 @@ import 'package:logging/logging.dart';
 
 import 'package:tentura_server/domain/port/email_link_port.dart';
 import 'package:tentura_server/domain/entity/email_notification_content.dart';
+import 'package:tentura_server/domain/entity/beacon_notification_intent.dart';
+import 'package:tentura_server/domain/entity/notification_priority.dart';
+import 'package:tentura_server/domain/notification/beacon_notification_copy_builder.dart';
 import 'package:tentura_server/domain/entity/notification_category.dart';
 import 'package:tentura_server/domain/entity/notification_channel.dart';
 import 'package:tentura_server/domain/entity/notification_kind.dart';
@@ -41,6 +44,7 @@ class EmailNotificationService implements EmailNotificationPort {
   final Logger _logger;
 
   static const _gate = NotificationPreferenceGate();
+  static const _copyBuilder = BeaconNotificationCopyBuilder();
 
   @override
   Future<void> considerImmediate({
@@ -97,10 +101,13 @@ class EmailNotificationService implements EmailNotificationPort {
       scope: category.name,
     );
     final content = EmailNotificationContent(
-      item: EmailNotificationItem(
+      item: _localizedItem(
+        kind: kind,
+        beaconId: beaconId,
         title: title,
         body: body,
-        url: _links.absolute(actionUrl),
+        actionUrl: actionUrl,
+        locale: prefs.locale,
       ),
       unsubscribeUrl: unsubscribeUrl,
       managePrefsUrl: _links.manageUrl(),
@@ -179,10 +186,14 @@ class EmailNotificationService implements EmailNotificationPort {
       scope: category.name,
     );
     final content = EmailNotificationContent(
-      item: EmailNotificationItem(
+      item: _localizedItem(
+        kind: category == NotificationCategory.connections
+            ? NotificationKind.inviteAccepted
+            : null,
         title: title,
         body: body,
-        url: _links.absolute(actionUrl),
+        actionUrl: actionUrl,
+        locale: prefs.locale,
       ),
       unsubscribeUrl: unsubscribeUrl,
       managePrefsUrl: _links.manageUrl(),
@@ -208,5 +219,34 @@ class EmailNotificationService implements EmailNotificationPort {
       );
       return false;
     }
+  }
+
+  EmailNotificationItem _localizedItem({
+    required NotificationKind? kind,
+    required String title,
+    required String body,
+    required String actionUrl,
+    required String locale,
+    String beaconId = '',
+  }) {
+    final copy = kind == null
+        ? BeaconNotificationCopy(title: title, body: body, actionUrl: actionUrl)
+        : _copyBuilder.localizeStored(
+            intent: BeaconNotificationIntent(
+              kind: kind,
+              priority: NotificationPriority.high,
+              beaconId: beaconId,
+              actorUserId: '',
+            ),
+            title: title,
+            body: body,
+            actionUrl: actionUrl,
+            locale: locale,
+          );
+    return EmailNotificationItem(
+      title: copy.title,
+      body: copy.body,
+      url: _links.absolute(copy.actionUrl),
+    );
   }
 }

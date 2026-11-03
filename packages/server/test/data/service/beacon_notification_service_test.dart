@@ -3,6 +3,9 @@ import 'package:test/test.dart';
 import 'package:uuid/uuid.dart';
 
 import 'package:tentura_server/data/service/beacon_notification_service.dart';
+import 'package:tentura_server/data/service/email/templates/email_template_renderer.dart';
+import 'package:tentura_server/domain/entity/email_notification_content.dart';
+import 'package:tentura_server/domain/entity/invite_accepted_notification_intent.dart';
 import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/data/service/push_action_token_service.dart';
 import 'package:tentura_server/domain/notification/plan_push_policy.dart';
@@ -662,6 +665,74 @@ void main() {
       expect(sent.title, 'Приглашение принято');
       expect(sent.body, 'Anna принял(а) ваше приглашение');
     });
+
+    for (final origin in ['new_account', 'existing_account']) {
+      test(
+        'invitation acceptance from $origin emails its origin explanation in the recipient language',
+        () async {
+          final produced = await TestAttentionHarness().intents.inviteAccepted(
+            notification: InviteAcceptedNotificationIntent(
+              inviterUserId: 'recipient-1',
+              accepterUserId: 'actor',
+              accepterDisplayName: 'Anna',
+              accepterHandle: 'anna',
+              actionUrl: '/#/profile/actor',
+              inviteOrigin: origin,
+            ),
+            sourceEventKey: 'accepted-$origin',
+          );
+          for (final locale in ['en', 'ru']) {
+            final sent = await emailFor(
+              decision(
+                kind: produced.kind,
+                title: produced.title,
+                body: produced.body,
+                actorDisplayName: produced.actorDisplayName,
+              ),
+              preferences: locale == 'ru' ? _RuPrefs() : _FakePrefs(),
+            );
+            final email = const EmailTemplateRenderer().renderNotification(
+              content: EmailNotificationContent(
+                item: EmailNotificationItem(
+                  title: sent.title,
+                  body: sent.body,
+                  url: 'https://t.example/profile/actor',
+                ),
+                unsubscribeUrl: 'https://t.example/unsubscribe',
+                managePrefsUrl: 'https://t.example/preferences',
+              ),
+              locale: locale,
+            );
+            expect(
+              email.subject,
+              'Anna · @anna',
+              reason: 'names and handles are user content',
+            );
+            for (final part in [email.html, email.text]) {
+              if (locale == 'en') {
+                final expectedExplanation = origin == 'new_account'
+                    ? 'Created an account via your invitation. You are now connected.'
+                    : 'Already had a Tentura account. You are now connected.';
+                expect(sent.body, expectedExplanation);
+                expect(part, contains(expectedExplanation));
+                expect(part, contains('Open in Tentura'));
+                expect(part, contains('Unsubscribe'));
+              } else {
+                expect(part, contains('Открыть в Tentura'));
+                expect(part, contains('Отписаться'));
+                // Use the established RU explanation from the product's
+                // updates copy, including the account-origin distinction.
+                final expectedExplanation = origin == 'new_account'
+                    ? 'Создал(а) аккаунт по вашему приглашению. Теперь вы связаны.'
+                    : 'Уже был аккаунт в Tentura. Теперь вы связаны.';
+                expect(part, contains(expectedExplanation));
+                expect(sent.body, expectedExplanation);
+              }
+            }
+          }
+        },
+      );
+    }
 
     test('an English reader is emailed the stored copy', () async {
       final sent = await emailFor(

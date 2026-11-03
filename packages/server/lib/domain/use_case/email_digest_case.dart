@@ -2,6 +2,8 @@ import 'package:injectable/injectable.dart';
 import 'package:logging/logging.dart';
 
 import 'package:tentura_server/domain/coordination/filter_beacon_notifications.dart';
+import 'package:tentura_server/domain/entity/beacon_notification_intent.dart';
+import 'package:tentura_server/domain/notification/beacon_notification_copy_builder.dart';
 import 'package:tentura_server/domain/port/beacon_access_guard.dart';
 import 'package:tentura_server/domain/port/email_link_port.dart';
 import 'package:tentura_server/domain/entity/digest_cadence.dart';
@@ -41,6 +43,8 @@ class EmailDigestCase {
   final Env _env;
   final Logger _logger;
   final BeaconAccessGuard _guard;
+
+  static const _copyBuilder = BeaconNotificationCopyBuilder();
 
   /// Runs one pass over accounts with pending email, sending digests to those
   /// that are due. Safe to call frequently — it self-gates per account.
@@ -84,7 +88,7 @@ class EmailDigestCase {
       return;
     }
 
-    final sections = _buildSections(eligible);
+    final sections = _buildSections(eligible, prefs.locale);
     if (sections.isEmpty) {
       return;
     }
@@ -108,13 +112,29 @@ class EmailDigestCase {
 
   List<EmailDigestSection> _buildSections(
     List<NotificationOutboxItemEntity> items,
+    String locale,
   ) {
-    EmailNotificationItem toItem(NotificationOutboxItemEntity i) =>
-        EmailNotificationItem(
-          title: i.title,
-          body: i.body,
-          url: _links.absolute(i.actionUrl),
-        );
+    final headings = _copyBuilder.digestHeadings(locale);
+    EmailNotificationItem toItem(NotificationOutboxItemEntity i) {
+      final copy = _copyBuilder.localizeStored(
+        intent: BeaconNotificationIntent(
+          kind: i.kind,
+          priority: i.priority,
+          beaconId: i.beaconId ?? '',
+          actorUserId: i.actorUserId ?? '',
+          coordinationItemId: i.coordinationItemId,
+        ),
+        title: i.title,
+        body: i.body,
+        actionUrl: i.actionUrl,
+        locale: locale,
+      );
+      return EmailNotificationItem(
+        title: copy.title,
+        body: copy.body,
+        url: _links.absolute(copy.actionUrl),
+      );
+    }
 
     bool waiting(NotificationCategory c) =>
         c == NotificationCategory.asksOfMe ||
@@ -131,10 +151,10 @@ class EmailDigestCase {
 
     return [
       if (waitingItems.isNotEmpty)
-        EmailDigestSection(heading: 'Waiting on you', items: waitingItems),
+        EmailDigestSection(heading: headings.waiting, items: waitingItems),
       if (movedItems.isNotEmpty)
         EmailDigestSection(
-          heading: 'Moved while you were away',
+          heading: headings.moved,
           items: movedItems,
         ),
     ];
