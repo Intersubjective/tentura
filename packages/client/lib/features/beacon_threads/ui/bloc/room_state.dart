@@ -145,6 +145,14 @@ abstract class RoomState extends StateBase with _$RoomState {
       (beaconStatus?.allowsCoordination ?? false) && isPlanEditor;
 
   bool _isUnreadForViewer(RoomMessage m, DateTime? anchor) {
+    if (m.systemMessageKind != null ||
+        const {
+          BeaconRoomSemanticMarker.participantJoined,
+          BeaconRoomSemanticMarker.participantLeft,
+          BeaconRoomSemanticMarker.participantRemoved,
+        }.contains(m.semanticMarker)) {
+      return false;
+    }
     if (pinnedJumpMessageIds.contains(m.id)) {
       return false;
     }

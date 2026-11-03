@@ -868,10 +868,30 @@ void main() {
             reason: 'The reader is reading older messages, not the bottom',
           );
           final before = _reads(o);
-          final at = await _deliverStatusChange(tester, o, scope: scope);
+          final statusAt = await _deliverStatusChange(tester, o, scope: scope);
+          final at = statusAt.add(const Duration(minutes: 1));
+          const memberMessageId = 'member-1';
+          o.server.messageRows = [
+            ...o.server.messageRows,
+            {
+              ...roomHintWireMessageRow(
+                id: memberMessageId,
+                authorId: kReplayAuthorId,
+                authorTitle: 'Автор',
+                body: 'Встречаемся завтра',
+                createdAt: at.toIso8601String(),
+              ),
+              'semanticMarker': null,
+              'systemMessageKind': null,
+              'threadItemId': scope,
+            },
+          ];
+          o.repo.wireServerMessageCount++;
           await _wait(tester, const Duration(milliseconds: 2800));
           expect(
-            o.client.room.state.messages.last.systemPayloadJson,
+            o.client.room.state.messages
+                .singleWhere((message) => message.id == 'notice-1')
+                .systemPayloadJson,
             jsonEncode(_statusPayload),
           );
           expect(
@@ -880,8 +900,9 @@ void main() {
             reason: 'A scrolled-up reader is not auto-followed to the line',
           );
           expect(o.client.room.state.unreadCount, 1);
+          expect(o.client.room.state.firstUnreadMessageId, memberMessageId);
           expect(scroll.pixels, moreOrLessEquals(readingAt, epsilon: 1));
-          // The same reader reads the line in another tab: the server
+          // The same reader reads the member message in another tab: the server
           // persists the cursor and fans it out to this tab as well.
           o.wire.socket.frames.add(
             jsonEncode(
