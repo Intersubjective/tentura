@@ -254,44 +254,106 @@ Future<void> _pumpBody(WidgetTester tester, ConstellationCubit cubit) async {
 
 void main() {
   group('trust path edges (#964)', () {
-    test('draws no tier path edges until someone is focused', () async {
+    test(
+      'selecting a person draws their trust edges and viewer chain',
+      () async {
+        final cubit = await _loadCubit();
+        addTearDown(cubit.close);
+
+        cubit.selectPerson('bob');
+        expect(
+          _tierPathSemanticIds(cubit),
+          {
+            _edgeId(cubit, 'ego', 'ann', 'tier1Path'),
+            _edgeId(cubit, 'ann', 'bob', 'tier1Path'),
+            _edgeId(cubit, 'bob', 'cid', 'tier1Path'),
+          },
+        );
+
+        cubit.selectPerson('ann');
+        expect(
+          _tierPathSemanticIds(cubit),
+          {
+            _edgeId(cubit, 'ego', 'ann', 'tier1Path'),
+            _edgeId(cubit, 'ann', 'bob', 'tier1Path'),
+          },
+        );
+
+        cubit.selectPerson(null);
+        expect(_tierPathSemanticIds(cubit), isEmpty);
+      },
+    );
+
+    test(
+      'selecting a Request draws its author connections and chain',
+      () async {
+        final cubit = await _loadCubit();
+        addTearDown(cubit.close);
+
+        cubit.selectRequest('req-bob');
+        expect(
+          _tierPathSemanticIds(cubit),
+          {
+            _edgeId(cubit, 'ego', 'ann', 'tier1Path'),
+            _edgeId(cubit, 'ann', 'bob', 'tier1Path'),
+            _edgeId(cubit, 'bob', 'cid', 'tier1Path'),
+          },
+        );
+        expect(
+          cubit.edgeKindByPair.keys.where(
+            (id) => id.contains('quiet') && id.endsWith('#tier1Path'),
+          ),
+          isEmpty,
+        );
+      },
+    );
+
+    test('a person with no field trust edges shows no tier paths', () async {
       final cubit = await _loadCubit();
       addTearDown(cubit.close);
 
       expect(_tierPathSemanticIds(cubit), isEmpty);
-
-      cubit.selectPerson('bob');
-      expect(
-        _tierPathSemanticIds(cubit),
-        {
-          _edgeId(cubit, 'ego', 'ann', 'tier1Path'),
-          _edgeId(cubit, 'ann', 'bob', 'tier1Path'),
-        },
-      );
-
-      cubit.selectPerson(null);
+      cubit.selectPerson('far');
+      expect(cubit.selectedTrustChain, isA<ConstellationTrustChainNone>());
       expect(_tierPathSemanticIds(cubit), isEmpty);
     });
 
-    test('selecting a Request draws its author trust chain only', () async {
+    test('selecting quiet shows only the direct edge from ego', () async {
       final cubit = await _loadCubit();
       addTearDown(cubit.close);
 
-      cubit.selectRequest('req-bob');
+      cubit.selectPerson('quiet');
       expect(
         _tierPathSemanticIds(cubit),
-        {
-          _edgeId(cubit, 'ego', 'ann', 'tier1Path'),
-          _edgeId(cubit, 'ann', 'bob', 'tier1Path'),
-        },
-      );
-      expect(
-        cubit.edgeKindByPair.keys.where(
-          (id) => id.contains('quiet') && id.endsWith('#tier1Path'),
-        ),
-        isEmpty,
+        {_edgeId(cubit, 'ego', 'quiet', 'tier1Path')},
       );
     });
+
+    test(
+      'selecting ego shows every trust edge touching ego on the capped field',
+      () async {
+        final cubit = await _loadCubit();
+        addTearDown(cubit.close);
+
+        cubit.selectPerson('ego');
+        expect(
+          _tierPathSemanticIds(cubit),
+          {
+            _edgeId(cubit, 'ego', 'quiet', 'tier1Path'),
+            _edgeId(cubit, 'ego', 'ann', 'tier1Path'),
+          },
+        );
+        expect(
+          cubit.edgeKindByPair.keys.where(
+            (id) =>
+                id.contains('ann') &&
+                id.contains('bob') &&
+                id.endsWith('#tier1Path'),
+          ),
+          isEmpty,
+        );
+      },
+    );
 
     testWidgets('RU phone surface keeps the chain view within bounds', (
       tester,
