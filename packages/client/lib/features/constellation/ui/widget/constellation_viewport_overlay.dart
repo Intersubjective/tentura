@@ -10,9 +10,12 @@ import 'package:tentura/features/graph/domain/entity/edge_details.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura/features/graph/ui/utils/graph_scene_ids.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/features/post_view/ui/post_remaining_label.dart';
+import 'package:tentura/ui/widget/relative_timestamp_ticker.dart';
 import 'package:tentura/features/people_tags/domain/use_case/people_tags_case.dart';
 
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
+import '../../domain/constellation_post_fade.dart';
 import '../../domain/constellation_trust_badge.dart';
 import '../../domain/constellation_trust_chain.dart';
 import '../../domain/entity/constellation_field.dart';
@@ -114,6 +117,11 @@ class _ConstellationViewportOverlayState
     controller.addListener(_onController);
     _lens = maybeConstellationTagLens(context);
     _lensSubscription = _lens?.stream.listen((_) => _structure.value++);
+    RelativeTimeClock.instance.addListener(_onRelativeClock);
+  }
+
+  void _onRelativeClock() {
+    if (mounted) setState(() {});
   }
 
   ConstellationTagLensCubit? _lens;
@@ -139,6 +147,7 @@ class _ConstellationViewportOverlayState
     _structure.dispose();
     _frameTick.dispose();
     _transitionTick.dispose();
+    RelativeTimeClock.instance.removeListener(_onRelativeClock);
     super.dispose();
   }
 
@@ -238,13 +247,30 @@ class _ConstellationViewportOverlayState
       l10n,
       tt,
     ),
-    FieldBeaconNode(post: final post?) => (
-      post.rootExcerpt,
-      2,
-      tt.graphLabelMaxWidthRequest,
-    ),
+    FieldBeaconNode(post: final post?) => _postLabelSpec(post, l10n, tt),
     _ => ('', 1, tt.graphLabelMaxWidthPerson),
   };
+
+  (String, int, double) _postLabelSpec(
+    ConstellationPost post,
+    L10n l10n,
+    TenturaTokens tt,
+  ) {
+    final now = RelativeTimestampTicker.now();
+    final excerpt = post.rootExcerpt;
+    final lifetime = post.expiresAt == null
+        ? ''
+        : postLifetimeLineForDeadline(
+            l10n,
+            now: now,
+            expiresAt: post.expiresAt,
+            archived: !constellationPostActive(post, now),
+          );
+    if (lifetime.isEmpty) {
+      return (excerpt, 2, tt.graphLabelMaxWidthRequest);
+    }
+    return ('$excerpt\n$lifetime', 2, tt.graphLabelMaxWidthRequest);
+  }
 
   (String, int, double) _requestLabelSpec(
     ConstellationRequest request,

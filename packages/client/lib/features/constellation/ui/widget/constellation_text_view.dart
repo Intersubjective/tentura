@@ -6,11 +6,14 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/people_tags/domain/entity/people_tags_entities.dart';
 import 'package:tentura/features/people_tags/domain/use_case/people_tags_case.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/features/post_view/ui/post_remaining_label.dart';
+import 'package:tentura/ui/widget/relative_timestamp_ticker.dart';
 import 'package:tentura/ui/test_ids.dart';
 
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import '../../domain/constellation_people.dart';
+import '../../domain/constellation_post_fade.dart';
 import '../../domain/entity/constellation_field.dart';
 import '../bloc/constellation_cubit.dart';
 import '../bloc/constellation_tag_lens_cubit.dart';
@@ -600,11 +603,35 @@ class _PostTile extends StatelessWidget {
                 ),
                 SizedBox(width: tt.iconTextGap),
                 Expanded(
-                  child: Text(
-                    post.rootExcerpt,
-                    style: theme.textTheme.bodyMedium,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        post.rootExcerpt,
+                        style: theme.textTheme.bodyMedium,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (post.expiresAt != null) ...[
+                        SizedBox(height: tt.tightGap),
+                        PostLifetimeTicker(
+                          expiresAt: post.expiresAt,
+                          archived: !constellationPostActive(
+                            post,
+                            RelativeTimestampTicker.now(),
+                          ),
+                          builder: (context, label) {
+                            if (label.isEmpty) return const SizedBox.shrink();
+                            return Text(
+                              label,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+                    ],
                   ),
                 ),
               ],

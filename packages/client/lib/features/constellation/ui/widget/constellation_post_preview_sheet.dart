@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/features/post_view/ui/post_remaining_label.dart';
+import 'package:tentura/ui/widget/relative_timestamp_ticker.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
+import '../../domain/constellation_post_fade.dart';
 import '../../domain/entity/constellation_field.dart';
 import 'constellation_anchor_controls.dart';
 
@@ -57,6 +60,26 @@ class ConstellationPostPreviewSheet extends StatelessWidget {
               if (post.rootExcerpt.trim().isNotEmpty) ...[
                 SizedBox(height: tt.sectionGap),
                 Text(post.rootExcerpt, style: theme.textTheme.bodyMedium),
+              ],
+              if (post.expiresAt != null) ...[
+                SizedBox(height: tt.tightGap),
+                PostLifetimeTicker(
+                  expiresAt: post.expiresAt,
+                  archived: !constellationPostActive(
+                    post,
+                    RelativeTimestampTicker.now(),
+                  ),
+                  builder: (context, label) {
+                    if (label.isEmpty) return const SizedBox.shrink();
+                    return Text(
+                      label,
+                      key: const Key('constellation.post_preview.lifetime'),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    );
+                  },
+                ),
               ],
               SizedBox(height: tt.sectionGap),
               Text(
