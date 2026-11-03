@@ -2227,7 +2227,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   /// none, once per person. An answer for someone deselected is only kept; the
   /// scene is redrawn only while that person is still the selected one.
   void _ensureServerTrustChain() {
-    final personId = state.selectedPersonId;
+    final personId = _trustChainFocusPersonId;
     final case_ = _trustChainCase;
     if (case_ == null ||
         personId == null ||
@@ -2266,7 +2266,11 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     } finally {
       _serverTrustChainInFlight.remove(personId);
     }
-    if (state.selectedPersonId == personId &&
+    final selectedRequestId = state.selectedRequestId;
+    if ((state.selectedPersonId == personId ||
+            (state.selectedPersonId == null &&
+                selectedRequestId != null &&
+                requestById(selectedRequestId)?.authorId == personId)) &&
         _serverTrustChains[personId]!.isNotEmpty) {
       _mutualTrustRedrawPending = true;
       _drainMutualTrustRedraw();
@@ -3319,6 +3323,20 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     };
   }
 
+  /// Person whose trust chain the field highlights: the selected person, or the
+  /// author of the selected Request/Post when only that is selected (#964).
+  String? get _trustChainFocusPersonId {
+    final personId = state.selectedPersonId;
+    if (personId != null) {
+      return personId;
+    }
+    final requestId = state.selectedRequestId;
+    if (requestId == null) {
+      return null;
+    }
+    return requestById(requestId)?.authorId ?? postById(requestId)?.authorId;
+  }
+
   /// How the selected person is reached from the viewer (#641), or null when
   /// no person is selected (or the field is not composed yet).
   ///
@@ -3329,7 +3347,11 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (local is! ConstellationTrustChainNone) {
       return local;
     }
-    final served = _serverTrustChains[state.selectedPersonId];
+    final personId = _trustChainFocusPersonId;
+    if (personId == null) {
+      return local;
+    }
+    final served = _serverTrustChains[personId];
     if (served == null || served.length < 2) {
       return local;
     }
@@ -3365,7 +3387,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
 
   /// The chain of visible trust edges the field itself shows.
   ConstellationTrustChain? get _localTrustChain {
-    final personId = state.selectedPersonId;
+    final personId = _trustChainFocusPersonId;
     final field = shownField;
     final composition = state.composition;
     if (personId == null ||

@@ -365,9 +365,9 @@ class ConstellationSceneController {
     return footprints;
   }
 
-  /// Draws the hops of the selected person's trust chain the tree does not
-  /// draw, and fades every other edge (#641). Hops keep the tree's edge kinds:
-  /// a chain step is a trust edge like any other, only brighter than the rest.
+  /// Draws the selected focus person's trust-chain hops and fades every other
+  /// edge (#641, #964). Hops use tier1/tier2 path kinds like before; only
+  /// chain steps are drawn, not the full keep tree.
   void _highlightTrustChain({
     required ConstellationTrustChainFound chain,
     required Set<EdgeDetails> edges,
@@ -383,17 +383,7 @@ class ConstellationSceneController {
     final hopKeys = <String>{};
     for (final (src, dst) in chain.hops) {
       hopKeys.add('$src->$dst');
-      final drawn = edges.any(
-        (edge) =>
-            edge.source.id == src &&
-            edge.destination.id == dst &&
-            switch (edgeKindByPair[edge.semanticId]) {
-              ConstellationEdgeKind.tier1Path ||
-              ConstellationEdgeKind.tier2Path => true,
-              _ => false,
-            },
-      );
-      if (!drawn && nodeById.containsKey(src) && nodeById.containsKey(dst)) {
+      if (nodeById.containsKey(src) && nodeById.containsKey(dst)) {
         addEdge(
           srcId: src,
           dstId: dst,
@@ -658,22 +648,6 @@ class ConstellationSceneController {
       focusPersonId: selectedPersonId ?? nodeById[selectedRequestId]?.userId,
     );
 
-    for (final child in paths.keep.intersection(keptPeerIds)) {
-      final parentId = paths.parent[child];
-      if (parentId == null ||
-          (parentId == viewer.id && !egoEdgeTargets.contains(child))) {
-        continue;
-      }
-      final tier = paths.parentTier[child] ?? 1;
-      addEdge(
-        srcId: parentId,
-        dstId: child,
-        kind: tier == 1
-            ? ConstellationEdgeKind.tier1Path
-            : ConstellationEdgeKind.tier2Path,
-      );
-    }
-
     for (final ringPeer in paths.ring.intersection(
       keptPeerIds.intersection(egoEdgeTargets),
     )) {
@@ -807,6 +781,8 @@ class ConstellationSceneController {
       }
     }
 
+    final focusPersonId =
+        selectedPersonId ?? nodeById[selectedRequestId]?.userId;
     if (trustChain is ConstellationTrustChainFound) {
       _highlightTrustChain(
         chain: trustChain,
@@ -814,6 +790,21 @@ class ConstellationSceneController {
         nodeById: nodeById,
         addEdge: addEdge,
       );
+    } else if (trustChain is ConstellationTrustChainDirect &&
+        focusPersonId != null &&
+        focusPersonId != viewer.id) {
+      final parentId = paths.parent[focusPersonId];
+      if (parentId != null &&
+          !(parentId == viewer.id && !egoEdgeTargets.contains(focusPersonId))) {
+        final tier = paths.parentTier[focusPersonId] ?? 1;
+        addEdge(
+          srcId: parentId,
+          dstId: focusPersonId,
+          kind: tier == 1
+              ? ConstellationEdgeKind.tier1Path
+              : ConstellationEdgeKind.tier2Path,
+        );
+      }
     }
 
     // After the chain highlight, so the chain's fade never reaches them.
