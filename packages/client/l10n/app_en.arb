@@ -7107,9 +7107,18 @@
       }
     }
   },
-  "postParticipantBroughtBy": "invited by {name}",
-  "@postParticipantBroughtBy": {
-    "description": "Label next to a Post participant naming who forwarded the Post to them.",
+  "postParticipantInvitedBy": "invited by {name}",
+  "@postParticipantInvitedBy": {
+    "description": "Post participant row note when they were invited by someone.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "postParticipantVia": "via {name}",
+  "@postParticipantVia": {
+    "description": "Post participant row note when the Post reached them through someone.",
     "placeholders": {
       "name": {
         "type": "String"

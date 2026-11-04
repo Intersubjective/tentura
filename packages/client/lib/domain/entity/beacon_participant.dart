@@ -38,7 +38,18 @@ abstract class BeaconParticipant with _$BeaconParticipant {
 
     /// Active help-offer role label. `null` = no active offer; `''` = offer, unset.
     String? roleLabel,
+
+    /// Who brought this participant into the Post (`invite` / `forward`), when known.
+    String? broughtById,
+    String? broughtByName,
+    String? broughtHow,
   }) = _BeaconParticipant;
+}
+
+/// Server `broughtHow` values on [BeaconParticipant].
+abstract final class BeaconParticipantBroughtHow {
+  static const invite = 'invite';
+  static const forward = 'forward';
 }
 
 extension BeaconParticipantDisplay on BeaconParticipant {
