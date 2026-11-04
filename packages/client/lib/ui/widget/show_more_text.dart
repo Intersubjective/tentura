@@ -5,6 +5,14 @@ import 'package:tentura/consts.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 class ShowMoreText extends StatelessWidget {
+  static const String _noBreakSpace = '\u00A0';
+
+  /// Leading separator and word-internal no-break spaces for the expanded trim link.
+  static String formatExpandedTrimText(String trimText) {
+    final words = trimText.replaceAll(' ', _noBreakSpace);
+    return '$_noBreakSpace$words';
+  }
+
   static TextStyle buildTextStyle(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     return TextStyle(
@@ -40,6 +48,8 @@ class ShowMoreText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final expandedTrim =
+        trimExpandedText ?? L10n.of(context)!.beaconShowcaseShowLess;
     return ReadMoreText(
       data,
       // readmore only merges [style] when inherit is true.
@@ -48,8 +58,7 @@ class ShowMoreText extends StatelessWidget {
       annotations: annotations,
       trimCollapsedText:
           trimCollapsedText ?? L10n.of(context)!.beaconShowcaseReadMore,
-      trimExpandedText:
-          trimExpandedText ?? L10n.of(context)!.beaconShowcaseShowLess,
+      trimExpandedText: formatExpandedTrimText(expandedTrim),
       trimLines: trimLines,
       trimMode: trimMode,
       textAlign: textAlign,
