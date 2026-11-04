@@ -16,6 +16,22 @@ import 'package:tentura_server/domain/attention/attention_policy.dart';
 ///
 /// Every fragment takes the viewer's account id as `$1`.
 abstract final class AttentionDismissibleSql {
+  /// Content readability for a trusted SQL row alias and viewer `$1`.
+  /// Tombstone-only access is deliberately a separate policy branch.
+  static String contentReadability(String alias) =>
+      'public.beacon_can_read_content($alias.beacon_id, \$1)';
+
+  /// Outcome visibility for inbox row `ii` and viewer `$1`, shared by the
+  /// Activity feed, Dismiss all and undo (including refusal classification).
+  static final outcomeReadabilityGuard =
+      '''(
+      ${contentReadability('ii')}
+      OR (
+        ii.status IN (3, 4)
+        AND public.beacon_can_read_tombstone(ii.beacon_id, \$1)
+      )
+    )''';
+
   /// #189 — For You carries only what can be skipped (owner rule). A reminder
   /// about the viewer's *own* duty is not skippable, so it never speaks on
   /// For You: not as a card row, not in a card's count, not in the tab's dot
@@ -379,7 +395,8 @@ OR EXISTS (SELECT 1 FROM activity_outcome_dismissible)''';
   /// unanswered forwards (here) and obligations (Set R). A prompt that later
   /// gains a live feed row must be excluded explicitly; it will not fall out
   /// of these predicates by itself.
-  static const dismissibleOutcomes = r'''
+  static final dismissibleOutcomes =
+      '''
 activity_outcome_dismissible AS (
   SELECT
     ii.beacon_id,
@@ -389,11 +406,11 @@ activity_outcome_dismissible AS (
   JOIN public.beacon b ON b.id = ii.beacon_id
   LEFT JOIN public.attention_request_state ars
     ON ars.account_id = ii.user_id AND ars.beacon_id = ii.beacon_id
-  WHERE ii.user_id = $1
+  WHERE ii.user_id = \$1
     AND b.kind = 0
     -- #412: the author's own Request has no Activity outcome row (see
     -- `eligible_forward`), so it must not be a sweep member either.
-    AND b.user_id <> $1
+    AND b.user_id <> \$1
     AND ii.tombstone_dismissed_at IS NULL
     AND ii.beacon_id NOT IN (SELECT beacon_id FROM eligible_pinned)
     -- #400: an answered Request's tombstone has no outcome row (see
@@ -405,16 +422,10 @@ activity_outcome_dismissible AS (
         SELECT 1
         FROM public.beacon_help_offer ho
         WHERE ho.beacon_id = ii.beacon_id
-          AND ho.user_id = $1
+          AND ho.user_id = \$1
       )
     )
-    AND (
-      public.beacon_can_read_content(ii.beacon_id, $1)
-      OR (
-        ii.status IN (3, 4)
-        AND public.beacon_can_read_tombstone(ii.beacon_id, $1)
-      )
-    )
+    AND $outcomeReadabilityGuard
 )''';
 
   /// Everything above, ready to follow a `WITH`.

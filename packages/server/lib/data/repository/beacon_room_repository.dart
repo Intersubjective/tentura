@@ -25,6 +25,7 @@ import 'package:tentura_server/utils/id.dart';
 
 import '../database/tentura_db.dart';
 import 'beacon_room_participant_join_recorder.dart';
+import 'participant_activity_sql.dart';
 import 'mappers/coordination_row_mappers.dart';
 import 'offer_accepted_dismissal_repository.dart';
 
@@ -1205,12 +1206,68 @@ RETURNING *
   listParticipantsByBeaconIds(Iterable<String> beaconIds) async {
     final ids = beaconIds.toSet().toList();
     if (ids.isEmpty) return {};
-    final rows = await (_db.select(
-      _db.beaconParticipants,
-    )..where((r) => r.beaconId.isIn(ids))).get();
+    final rows = await _db
+        .customSelect(
+          '''
+WITH activity AS MATERIALIZED (
+  ${participantActivitySql(beaconIdsSql: r'$1::text[]')}
+)
+SELECT bp.*, activity.active_at IS NOT NULL AS opened,
+       arrival.sender_id AS brought_by_id,
+       bringer.display_name AS brought_by_name,
+       arrival.via_invite AS brought_via_invite
+FROM public.beacon_participant bp
+JOIN public.beacon b ON b.id = bp.beacon_id
+LEFT JOIN activity ON activity.beacon_id = bp.beacon_id
+                  AND activity.user_id = bp.user_id
+LEFT JOIN LATERAL (
+  SELECT source.sender_id, source.via_invite
+  FROM (
+    SELECT e.sender_id, e.created_at AS arrived_at, e.id,
+           EXISTS (
+             SELECT 1 FROM public.invitation i
+             WHERE i.beacon_id = e.beacon_id AND i.user_id = e.sender_id
+               AND i.invited_id = e.recipient_id
+               AND i.invite_origin = 'new_account' AND i.accepted_at IS NOT NULL
+           ) AS via_invite
+    FROM public.beacon_forward_edge e
+    WHERE e.beacon_id = bp.beacon_id AND e.recipient_id = bp.user_id
+    UNION ALL
+    SELECT i.user_id, i.accepted_at, i.id, i.invite_origin = 'new_account'
+    FROM public.invitation i
+    WHERE i.beacon_id = bp.beacon_id AND i.invited_id = bp.user_id
+      AND i.accepted_at IS NOT NULL
+  ) source
+  WHERE b.kind = 1 AND bp.user_id <> b.user_id
+  ORDER BY source.arrived_at, source.id
+  LIMIT 1
+) arrival ON true
+LEFT JOIN public."user" bringer ON bringer.id = arrival.sender_id
+WHERE bp.beacon_id = ANY(\$1::text[])
+''',
+          variables: [Variable<List<String>>(ids, PgTypes.textArray)],
+        )
+        .get();
     final out = <String, List<BeaconParticipantRecord>>{};
-    for (final row in rows) {
-      out.putIfAbsent(row.beaconId, () => []).add(row.toRecord());
+    for (final result in rows) {
+      final row = _db.beaconParticipants.map(result.data);
+      final broughtById = result.readNullable<String>('brought_by_id');
+      out
+          .putIfAbsent(row.beaconId, () => [])
+          .add(
+            row.toRecord(
+              opened: result.read<bool>('opened'),
+              arrival: broughtById == null
+                  ? null
+                  : (
+                      userId: broughtById,
+                      displayName: result.read<String>('brought_by_name'),
+                      how: result.read<bool>('brought_via_invite')
+                          ? ParticipantArrivalHow.invite
+                          : ParticipantArrivalHow.forward,
+                    ),
+            ),
+          );
     }
     return out;
   }

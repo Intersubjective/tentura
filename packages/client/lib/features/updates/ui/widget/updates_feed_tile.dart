@@ -127,9 +127,8 @@ class UpdatesFeedTile extends StatefulWidget {
   /// obligation, whose way out is «Mark done»).
   final VoidCallback? onDismiss;
 
-  /// #736: the row sits on the Unread view, whose count is every row on it
-  /// (the clear axis). A row there keeps its dot until it is cleared, even
-  /// once it has been opened, so the dots add up to the count.
+  /// Whether the row sits on the Unread view. Dot membership is the same
+  /// on both All and Unread: every counted row keeps its dot after opening.
   final bool unreadView;
 
   static const requestTitleKey = Key('updates-feed-tile-request-title');
@@ -147,12 +146,8 @@ class _UpdatesFeedTileState extends State<UpdatesFeedTile> {
   /// The read axis: bold title, mark toggle and the overflow menu.
   bool get _isUnread => !widget.receipt.isSeen;
 
-  /// #736: the dot. On the Unread view a read row that is not cleared keeps
-  /// its dot, so the dots add up to the count; nothing else changes for it.
-  /// A row off Unread (e.g. cleared by opening its Request, but never read)
-  /// has no dot on All either: a dot always means "on Unread and counted".
-  bool get _showDot =>
-      isInUnreadView(widget.receipt) && (_isUnread || widget.unreadView);
+  /// A dot means "on Unread and counted" on both filters, even after reading.
+  bool get _showDot => isInUnreadView(widget.receipt);
 
   /// #711: a read optional row can still be on Unread (it is not cleared), so
   /// its menu offers the clear too, not only "Mark unread".

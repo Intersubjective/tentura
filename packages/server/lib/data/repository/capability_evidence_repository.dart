@@ -248,13 +248,15 @@ class CapabilityEvidenceRepository implements CapabilityEvidencePort {
           SET deleted_at = now()
           WHERE observer_user_id = $1
             AND subject_user_id = $2
-            AND source_type = $3
+            AND source_type IN ($3, $4)
+            AND is_negative = false
             AND deleted_at IS NULL
-            AND NOT (tag_slug = ANY($4::text[]))
+            AND NOT (tag_slug = ANY($5::text[]))
           ''',
           [
             observerId,
             subjectId,
+            CapabilityEventSource.privateLabel.dbValue,
             CapabilityEventSource.seedRoutingAttestation.dbValue,
             TypedValue(Type.textArray, slugs),
           ],
@@ -274,7 +276,7 @@ class CapabilityEvidenceRepository implements CapabilityEvidencePort {
               subjectId,
               observerId,
               slug,
-              CapabilityEventSource.seedRoutingAttestation.dbValue,
+              CapabilityEventSource.privateLabel.dbValue,
               CapabilityEventVisibility.private.dbValue,
             ],
           );
@@ -380,7 +382,7 @@ class CapabilityEvidenceRepository implements CapabilityEvidencePort {
           FROM public.person_capability_event
           WHERE observer_user_id = $1
             AND subject_user_id = $2
-            AND source_type = $3
+            AND source_type IN ($3, $4)
             AND deleted_at IS NULL
             AND is_negative = false
           ORDER BY tag_slug
@@ -388,6 +390,7 @@ class CapabilityEvidenceRepository implements CapabilityEvidencePort {
           variables: [
             Variable.withString(observerId),
             Variable.withString(subjectId),
+            Variable.withInt(CapabilityEventSource.privateLabel.dbValue),
             Variable.withInt(
               CapabilityEventSource.seedRoutingAttestation.dbValue,
             ),

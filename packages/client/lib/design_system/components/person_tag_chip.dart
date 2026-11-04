@@ -29,9 +29,8 @@ class TagGlyph extends StatelessWidget {
         child: Center(
           child: Text(
             glyph,
-            style: TenturaText.labelSmall(
-              swatch.container,
-            ).copyWith(fontSize: size * 0.55, height: 1),
+            style: TenturaText.labelSmall(swatch.container)
+                .copyWith(fontSize: size * 0.55, height: 1),
           ),
         ),
       ),
@@ -48,6 +47,7 @@ class PersonTagChip extends StatelessWidget {
     required this.name,
     required this.colorIndex,
     this.onRemove,
+    this.maxWidth,
     super.key,
   });
 
@@ -56,58 +56,76 @@ class PersonTagChip extends StatelessWidget {
   final int colorIndex;
   final VoidCallback? onRemove;
 
+  /// When set (e.g. in a wrapped tag list), the name ellipsizes instead of
+  /// overflowing the line.
+  final double? maxWidth;
+
   @override
   Widget build(BuildContext context) {
     final tt = context.tt;
     final swatch = context.tagColors.swatchFor(colorIndex);
     final onRemove = this.onRemove;
+    final maxWidth = this.maxWidth;
     final chipSemantics =
         L10n.of(context)?.peopleTagsPersonChipSemantics(name) ?? '$name, tag';
+    Widget namePart = Text(
+      name,
+      style: TenturaText.labelSmall(swatch.onContainer),
+    );
+    if (maxWidth != null) {
+      namePart = Expanded(
+        child: Text(
+          name,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TenturaText.labelSmall(swatch.onContainer),
+        ),
+      );
+    }
+    final labelRow = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        TagGlyph(glyph: glyph, colorIndex: colorIndex),
+        SizedBox(width: tt.iconTextGap),
+        namePart,
+        SizedBox(width: tt.iconTextGap),
+      ],
+    );
+    final labelSemantics = Semantics(
+      container: true,
+      label: chipSemantics,
+      excludeSemantics: true,
+      child: labelRow,
+    );
+    Widget row = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (maxWidth != null)
+          Expanded(child: labelSemantics)
+        else
+          labelSemantics,
+        if (onRemove != null)
+          Semantics(
+            button: true,
+            label: MaterialLocalizations.of(context).deleteButtonTooltip,
+            excludeSemantics: true,
+            child: InkResponse(
+              onTap: onRemove,
+              radius: 14,
+              child: Icon(Icons.close, size: 16, color: swatch.onContainer),
+            ),
+          ),
+      ],
+    );
+    if (maxWidth != null) {
+      row = SizedBox(width: maxWidth, child: row);
+    }
     return DecoratedBox(
       decoration: BoxDecoration(
         color: swatch.container,
         borderRadius: BorderRadius.circular(TenturaRadii.avatar),
       ),
-      child: Padding(
-        padding: EdgeInsets.all(tt.tightGap * 2),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Semantics(
-              container: true,
-              label: chipSemantics,
-              excludeSemantics: true,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TagGlyph(glyph: glyph, colorIndex: colorIndex),
-                  SizedBox(width: tt.iconTextGap),
-                  Text(
-                    name,
-                    style: TenturaText.labelSmall(swatch.onContainer),
-                  ),
-                  SizedBox(width: tt.iconTextGap),
-                ],
-              ),
-            ),
-            if (onRemove != null)
-              Semantics(
-                button: true,
-                label: MaterialLocalizations.of(context).deleteButtonTooltip,
-                excludeSemantics: true,
-                child: InkResponse(
-                  onTap: onRemove,
-                  radius: 14,
-                  child: Icon(
-                    Icons.close,
-                    size: 16,
-                    color: swatch.onContainer,
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
+      child: Padding(padding: EdgeInsets.all(tt.tightGap * 2), child: row),
     );
   }
 }
@@ -115,11 +133,7 @@ class PersonTagChip extends StatelessWidget {
 /// A tag the app derives on its own: outlined chip with a ✦ mark, never
 /// removable. The outline turns dashed while the tag is switched off.
 class AutoTagChip extends StatelessWidget {
-  const AutoTagChip({
-    required this.name,
-    this.enabled = true,
-    super.key,
-  });
+  const AutoTagChip({required this.name, this.enabled = true, super.key});
 
   final String name;
   final bool enabled;

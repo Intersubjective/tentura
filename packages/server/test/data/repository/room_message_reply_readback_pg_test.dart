@@ -265,6 +265,45 @@ ON CONFLICT DO NOTHING
     skip: skipReason,
   );
 
+  // Real-path coverage for the shared excerpt contract: persisted parent ->
+  // repository snapshot mapper -> user-visible replyToBodyExcerpt. The parent
+  // combines ASCII/Cyrillic/emoji before a combining sequence at rune 160.
+  test(
+    'reply snapshots omit a combining sequence crossing the rune limit',
+    () async {
+      await seedBaseRoom();
+      const prefix =
+          'aя😀aя😀aя😀aя😀aя😀aя😀aя😀aя😀aя😀aя😀aя😀aя😀aя😀aя😀aя😀aя😀aя😀aя😀'
+          'aя😀aя😀aя😀aя😀aя😀aя😀aя😀aя😀aя😀aя😀aя😀aя😀aя😀aя😀aя😀aя😀aя😀aя😀'
+          'aя😀aя😀aя😀aя😀aя😀aя😀aя😀aя😀aя😀aя😀aя😀aя😀aя😀aя😀aя😀aя😀aя😀';
+      final parent = await room.insertRoomMessage(
+        beaconId: beaconId,
+        authorId: parentAuthorId,
+        body: '${prefix}e\u0301tail',
+      );
+      final reply = await room.insertRoomMessage(
+        beaconId: beaconId,
+        authorId: replyAuthorId,
+        body: 'Ответ',
+        replyToMessageId: parent.id,
+      );
+      final rows = await room.listMessagesEnriched(
+        beaconId: beaconId,
+        viewerUserId: viewerId,
+        limit: 10,
+      );
+      expectReplyFields(
+        rows.singleWhere((row) => row['id'] == reply.id),
+        replyToMessageId: parent.id,
+        replyToAuthorId: parentAuthorId,
+        replyToAuthorTitle: parentAuthorId,
+        replyToBodyExcerpt: '$prefix…',
+        replyToHasAttachments: false,
+      );
+    },
+    skip: skipReason,
+  );
+
   // #377: replying to a poll quoted "Original message is unavailable".
   test(
     'a reply to a poll quotes the poll question',

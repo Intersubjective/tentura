@@ -7,6 +7,7 @@ import 'package:tentura_server/domain/port/person_capability_event_repository_po
 import 'package:tentura_server/utils/id.dart';
 
 import '../database/tentura_db.dart';
+import 'capability_evidence_repository.dart';
 
 @Injectable(
   as: PersonCapabilityEventRepositoryPort,
@@ -19,51 +20,18 @@ class PersonCapabilityEventRepository
 
   final TenturaDb _database;
 
+  /// Delegates to the one label write path, which keeps evidence cells in
+  /// step (ADR 0012 D5: every label is a routing seed).
   @override
   Future<void> upsertPrivateLabels({
     required String observerId,
     required String subjectId,
     required List<String> slugs,
-  }) => _database.withMutatingUser(observerId, () async {
-    // Soft-delete slugs no longer in the set
-    await _database.customStatement(
-      r'''
-      UPDATE public.person_capability_event
-      SET deleted_at = now()
-      WHERE observer_user_id = $1
-        AND subject_user_id  = $2
-        AND source_type = $3
-        AND deleted_at IS NULL
-        AND NOT (tag_slug = ANY($4::text[]))
-      ''',
-      [
-        observerId,
-        subjectId,
-        CapabilityEventSource.privateLabel.dbValue,
-        TypedValue(Type.textArray, slugs),
-      ],
-    );
-
-    // Insert new slugs (conflict on pce_private_label_uq → ignore)
-    for (final slug in slugs) {
-      await _database.customStatement(
-        r'''
-        INSERT INTO public.person_capability_event
-          (id, subject_user_id, observer_user_id, tag_slug, source_type, visibility)
-        VALUES ($1, $2, $3, $4, $5, $6)
-        ON CONFLICT DO NOTHING
-        ''',
-        [
-          generateId('CE'),
-          subjectId,
-          observerId,
-          slug,
-          CapabilityEventSource.privateLabel.dbValue,
-          CapabilityEventVisibility.private.dbValue,
-        ],
-      );
-    }
-  });
+  }) => CapabilityEvidenceRepository(_database).upsertSeedAttestation(
+    observerId: observerId,
+    subjectId: subjectId,
+    slugs: slugs,
+  );
 
   @override
   Future<List<String>> fetchPrivateLabels({
@@ -76,6 +44,7 @@ class PersonCapabilityEventRepository
         WHERE observer_user_id = $1
           AND subject_user_id  = $2
           AND source_type = $3
+          AND is_negative = false
           AND deleted_at IS NULL
         ORDER BY tag_slug
         ''',
@@ -202,25 +171,10 @@ class PersonCapabilityEventRepository
     required String subjectId,
   }) async {
     // Private labels: only rows where viewer is the observer (never self-label)
-    final privateLabelRows = await _database
-        .customSelect(
-          r'''
-          SELECT tag_slug FROM public.person_capability_event
-          WHERE observer_user_id = $1
-            AND subject_user_id  = $2
-            AND source_type = $3
-            AND deleted_at IS NULL
-          ORDER BY tag_slug
-          ''',
-          variables: [
-            Variable.withString(viewerId),
-            Variable.withString(subjectId),
-            Variable.withInt(CapabilityEventSource.privateLabel.dbValue),
-          ],
-        )
-        .get();
-    final privateLabels =
-        privateLabelRows.map((r) => r.read<String>('tag_slug')).toList();
+    final privateLabels = await fetchPrivateLabels(
+      observerId: viewerId,
+      subjectId: subjectId,
+    );
 
     // Forward reasons by viewer about subject
     final forwardRows = await _database

@@ -9,6 +9,7 @@ class ForwardCandidatePeerRow {
     required this.reverseMr,
     required this.viewerTrusts,
     required this.trustsViewer,
+    this.mutualSince,
   });
 
   final String peerId;
@@ -16,4 +17,7 @@ class ForwardCandidatePeerRow {
   final double reverseMr;
   final bool viewerTrusts;
   final bool trustsViewer;
+
+  /// Start of the current pair of trust edges, or null for one-way trust.
+  final DateTime? mutualSince;
 }

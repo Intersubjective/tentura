@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:tentura_root/consts.dart' show kDecimalRevisionPattern;
+
 import '../session/websocket_session_handler_base.dart';
 import 'package:tentura_server/consts/realtime_consts.dart';
 import 'package:tentura_server/domain/entity/room_message_snapshot.dart';
@@ -14,8 +16,6 @@ base mixin WebsocketPathEntityChanges on WebsocketSessionHandlerBase {
     'constellation_anchor': {'revision'},
     'person_tag': {'revision'},
   };
-
-  static final _decimalRevision = RegExp(r'^[0-9]+$');
 
   Timer? _globalFieldBroadcastTimer;
   int _globalFieldDirtyGeneration = 0;
@@ -94,7 +94,8 @@ base mixin WebsocketPathEntityChanges on WebsocketSessionHandlerBase {
       final bool valid;
       if (entity == 'constellation_anchor' || entity == 'person_tag') {
         final revision = data['revision'];
-        valid = revision is String && _decimalRevision.hasMatch(revision);
+        valid =
+            revision is String && kDecimalRevisionPattern.hasMatch(revision);
       } else {
         final seenUserId = data['seen_user_id'];
         final threadItemId = data['thread_item_id'];

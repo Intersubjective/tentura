@@ -7980,6 +7980,7 @@ type v2_BeaconParticipantRow {
   createdAt: String!
   helpType: String
   id: String!
+  opened: Boolean!
   lastSeenRoomAt: String
   linkedMessageId: String
   nextMoveSource: Int
@@ -8457,6 +8458,7 @@ type v2_ForwardCandidateConnectionNode {
 }
 
 type v2_ForwardCandidateContext {
+  candidate_joined_at: v2_Date
   nodes: [v2_ForwardCandidateConnectionNode!]!
   status: String!
 }
@@ -9486,6 +9488,12 @@ type v2_PostPublishResult {
   rootMessageId: String!
 }
 
+type v2_PostParticipantPreview {
+  id: String!
+  displayName: String!
+  avatar: String!
+}
+
 type v2_PostSummary {
   id: String!
   authorId: String!
@@ -9502,6 +9510,10 @@ type v2_PostSummary {
   mutedUntil: String
   mutedForever: Boolean!
   unreadCount: Int!
+  participantCount: Int!
+  notOpenedCount: Int!
+  myDeclinedForwardCount: Int!
+  previewParticipants: [v2_PostParticipantPreview!]!
   isAuthor: Boolean!
   status: Int!
   expiresAt: String

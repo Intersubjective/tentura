@@ -20,16 +20,18 @@ abstract interface class CapabilityEvidencePort {
     required String slug,
   });
 
-  /// Provenance is the (inviter, invitee) pair, not an invitation id — the
-  /// invitation row is deleted during acceptance (C4).
+  /// Replaces [observerId]'s complete tag set for [subjectId]: the one write
+  /// path for private labels (ADR 0012 D5 — every label is a routing seed),
+  /// used by the profile and the invite-accepted sheet alike. Legacy
+  /// `seedRoutingAttestation` rows outside the set are retired with it.
   Future<void> upsertSeedAttestation({
     required String observerId,
     required String subjectId,
     required List<String> slugs,
   });
 
-  /// Active seed-routing slugs for one (observer, subject) pair.
-  /// Authz is the caller's job — [InviteSeedAttestationCase] only.
+  /// Active tags (labels and legacy seed attestations) for one
+  /// (observer, subject) pair. Authz is the caller's job.
   Future<Set<String>> activeSeedSlugs({
     required String observerId,
     required String subjectId,

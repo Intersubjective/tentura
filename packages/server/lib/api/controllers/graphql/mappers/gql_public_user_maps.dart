@@ -36,7 +36,9 @@ List<Map<String, dynamic>> mutualScoresToGqlList(List<MutualScoreRecord> s) => s
     )
     .toList();
 
-Map<String, dynamic>? userAvailabilityToGqlMap(UserAvailabilityRecord? availability) {
+Map<String, dynamic>? userAvailabilityToGqlMap(
+  UserAvailabilityRecord? availability,
+) {
   if (availability == null) {
     return null;
   }
@@ -51,13 +53,12 @@ Map<String, dynamic>? userAvailabilityToGqlMap(UserAvailabilityRecord? availabil
 Map<String, dynamic>? userAvailabilityEntityToGqlMap({
   required UserAvailabilityEntity? entity,
   required DateTime todayUtc,
-}) =>
-    userAvailabilityToGqlMap(
-      userAvailabilityEntityToPublicRecord(
-        entity: entity,
-        todayUtc: todayUtc,
-      ),
-    );
+}) => userAvailabilityToGqlMap(
+  userAvailabilityEntityToPublicRecord(
+    entity: entity,
+    todayUtc: todayUtc,
+  ),
+);
 
 Map<String, dynamic> userPublicToGqlMap(UserPublicRecord u) => {
   'id': u.id,
@@ -68,6 +69,7 @@ Map<String, dynamic> userPublicToGqlMap(UserPublicRecord u) => {
   'is_mutual_friend': u.isMutualFriend,
   'trusts_viewer': u.subjectExplicitlyTrustsViewer,
   'shares_active_context': u.sharesActiveContext,
+  'mutual_since': ?u.mutualSince?.toUtc(),
   'image': u.image == null ? null : imagePublicToGqlMap(u.image!),
   'scores': mutualScoresToGqlList(u.scores),
   'user_presence': userPresenceToGqlMap(u.userPresence),

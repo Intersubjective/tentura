@@ -6,6 +6,7 @@ Map<String, dynamic> forwardCandidateContextToGqlMap(
   ForwardCandidateContext context,
 ) => {
   'status': context.status.name,
+  'candidate_joined_at': ?context.candidateJoinedAt?.toUtc(),
   'nodes': context.nodes.map(_nodeToGqlMap).toList(growable: false),
 };
 

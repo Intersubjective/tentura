@@ -532,20 +532,51 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
 
   /// The empty-state invite may leave for People › Invitations only from the
   /// standalone forward route: inside a create flow that would abandon the
-  /// draft (a new Post's text is not saved yet).
+  /// draft (a new Post's text is not saved yet). The new-Post picker instead
+  /// opens the invite-link dialog over the composer (#252).
   bool _canInviteFromEmptyState(BuildContext context, ForwardState state) =>
-      _inviteEnabled(context, state) || !widget.embedded;
+      _inviteEnabled(context, state) ||
+      !widget.embedded ||
+      _invitesOverComposer(context, state);
+
+  /// The embedded new-Post picker (#252): a plain invite link in a dialog
+  /// over the composer, so the unsaved Post stays as written. A draft
+  /// Request instead takes the request-tied invite above (#960).
+  bool _invitesOverComposer(BuildContext context, ForwardState state) =>
+      widget.embedded && !_inviteEnabled(context, state) && _isPost(state);
 
   /// Empty-state invite: a request-tied invite where the picker may mint one,
-  /// otherwise the People › Invitations tab.
+  /// a plain invite link over the new-Post composer, otherwise the People ›
+  /// Invitations tab.
   Future<void> _inviteFromEmptyState(
     BuildContext context,
     ForwardState state,
   ) async {
     if (_inviteEnabled(context, state)) {
       await _inviteNewPerson(context);
+    } else if (_invitesOverComposer(context, state)) {
+      await _invitePlainOverComposer(context);
     } else {
       await GetIt.I<RootRouter>().openInvitations();
+    }
+  }
+
+  /// The same invite-link dialog as «Invite new person», with no request
+  /// attached (a new Post has no beacon yet), and no «View invitations»
+  /// shortcut afterwards: that leaves the composer (#252).
+  Future<void> _invitePlainOverComposer(BuildContext context) async {
+    if (_inviteFlowActive) return;
+    _inviteFlowActive = true;
+    try {
+      await runBeaconInviteFlow(
+        context,
+        invitations: _invitationCubit,
+        beaconId: '',
+        isPost: true,
+        offerViewInvitations: false,
+      );
+    } finally {
+      _inviteFlowActive = false;
     }
   }
 
@@ -915,21 +946,25 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                                   showForwardNote: profile.showsReasons,
                                 ),
                               ),
-                              SliverPersistentHeader(
-                                pinned: true,
-                                delegate: ForwardPinnedSliverHeaderDelegate(
-                                  height: ForwardScopeLinks.preferredHeight(
-                                    tt,
-                                    MediaQuery.textScalerOf(context),
-                                  ),
-                                  child: ForwardScopeLinks(
-                                    activeFilter: state.activeFilter,
-                                    counts: counts,
-                                    onScopeChanged: cubit.setFilter,
-                                    profile: profile,
+                              // No one at all to send to: only the empty
+                              // state, no «Not yet seen 0 / Already
+                              // involved 0» row (#252).
+                              if (!showGenuineEmptyMessage)
+                                SliverPersistentHeader(
+                                  pinned: true,
+                                  delegate: ForwardPinnedSliverHeaderDelegate(
+                                    height: ForwardScopeLinks.preferredHeight(
+                                      tt,
+                                      MediaQuery.textScalerOf(context),
+                                    ),
+                                    child: ForwardScopeLinks(
+                                      activeFilter: state.activeFilter,
+                                      counts: counts,
+                                      onScopeChanged: cubit.setFilter,
+                                      profile: profile,
+                                    ),
                                   ),
                                 ),
-                              ),
                               if (lineage.isNotEmpty)
                                 SliverToBoxAdapter(
                                   child: Column(

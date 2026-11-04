@@ -1,10 +1,11 @@
-/// The four notification categories, in display order (mirrors the server).
+/// Notification categories, in display order (mirrors the server).
 enum NotificationSettingsCategory {
   asksOfMe,
   unblocksMe,
   coordination,
   connections,
   ambient,
+  postsSharedWithMe,
 }
 
 /// Email digest cadence (mirrors the server `DigestCadence`).

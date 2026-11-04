@@ -357,14 +357,34 @@ VALUES (@id, @beacon, @user, 0, 0, @admitted, now(), now())
             );
           }
 
-          // Cancel an active, unrejected edge through the repository API.
-          final beforeCancel = (await edges.fetchById(ids.first))!;
+          // Read edges cannot be cancelled. Replace the receipt fixture with
+          // a fresh unread edge to exercise cancellation notification fan-out.
+          await session.writer.execute(
+            Sql.named('DELETE FROM public.beacon_forward_edge WHERE id = @id'),
+            parameters: {'id': ids.first},
+          );
+          await edges.create(
+            beaconId: _beacon,
+            senderId: _sender,
+            recipientId: _reader,
+            note: 'Could you help again?',
+            parentEdgeId: parentId,
+          );
+          final beforeCancel = (await edges.findActiveEdge(
+            beaconId: _beacon,
+            senderId: _sender,
+            recipientId: _reader,
+          ))!;
           expect(beforeCancel.cancelledAt, isNull);
+          expect(beforeCancel.recipientReadAt, isNull);
           expect(beforeCancel.recipientRejected, isFalse);
           await recorder.drain(sendBarrier: barrier);
-          await edges.cancel(ids.first, _sender);
+          await edges.cancel(beforeCancel.id, _sender);
           await recorder.flush(sendBarrier: barrier);
-          expect((await edges.fetchById(ids.first))!.cancelledAt, isNotNull);
+          expect(
+            (await edges.fetchById(beforeCancel.id))!.cancelledAt,
+            isNotNull,
+          );
           expect(hints(), hasLength(1), reason: 'Cancellation emits one hint');
           expect(hints().single['event'], 'update');
           expect(

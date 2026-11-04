@@ -18,6 +18,7 @@ class UserPublicRecord {
     this.isMutualFriend = false,
     this.subjectExplicitlyTrustsViewer = false,
     this.sharesActiveContext = false,
+    this.mutualSince,
     this.image,
     this.scores = const [],
     this.userPresence,
@@ -44,6 +45,10 @@ class UserPublicRecord {
   /// Viewer and subject share an active request (co-participant bond, m0173).
   /// Only set by forward candidates; other producers leave it false.
   final bool sharesActiveContext;
+
+  /// Later creation time of the two current trust edges, if both exist.
+  /// Populated by forward candidates; unrelated user projections omit it.
+  final DateTime? mutualSince;
   final ImagePublicRecord? image;
   final List<MutualScoreRecord> scores;
   final UserPresenceRecord? userPresence;

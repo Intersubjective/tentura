@@ -59,8 +59,8 @@ class NotificationPreferenceGate {
 
   /// Decide how (if at all) email should handle this event for the recipient.
   ///
-  /// Immediate email is reserved for [NotificationCategory.asksOfMe] when the
-  /// user is absent or push was not delivered; everything else that is
+  /// Immediate email for asks and noted Post shares requires the user to be
+  /// absent or push not delivered; everything else that is
   /// email-enabled flows into the digest (when a cadence is configured).
   EmailDecision decideEmail({
     required NotificationCategory category,
@@ -82,7 +82,9 @@ class NotificationPreferenceGate {
     }
 
     final userAbsent = presence == null || presence.shouldNotify;
-    final immediateEligible = category == NotificationCategory.asksOfMe &&
+    final immediateEligible =
+        (category == NotificationCategory.asksOfMe ||
+            category == NotificationCategory.postsSharedWithMe) &&
         (!pushDelivered || userAbsent);
 
     if (immediateEligible && !prefs.isWithinQuietHours(now)) {

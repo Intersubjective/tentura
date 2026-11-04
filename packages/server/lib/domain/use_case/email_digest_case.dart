@@ -2,11 +2,14 @@ import 'package:injectable/injectable.dart';
 import 'package:logging/logging.dart';
 
 import 'package:tentura_server/domain/coordination/filter_beacon_notifications.dart';
+import 'package:tentura_server/domain/entity/beacon_notification_intent.dart';
+import 'package:tentura_server/domain/notification/beacon_notification_copy_builder.dart';
 import 'package:tentura_server/domain/port/beacon_access_guard.dart';
 import 'package:tentura_server/domain/port/email_link_port.dart';
 import 'package:tentura_server/domain/entity/digest_cadence.dart';
 import 'package:tentura_server/domain/entity/email_notification_content.dart';
 import 'package:tentura_server/domain/entity/notification_category.dart';
+import 'package:tentura_server/domain/entity/notification_kind.dart';
 import 'package:tentura_server/domain/entity/notification_outbox_item_entity.dart';
 import 'package:tentura_server/domain/entity/notification_preferences_entity.dart';
 import 'package:tentura_server/domain/port/email_sender_port.dart';
@@ -41,6 +44,8 @@ class EmailDigestCase {
   final Env _env;
   final Logger _logger;
   final BeaconAccessGuard _guard;
+
+  static const _copyBuilder = BeaconNotificationCopyBuilder();
 
   /// Runs one pass over accounts with pending email, sending digests to those
   /// that are due. Safe to call frequently — it self-gates per account.
@@ -84,7 +89,7 @@ class EmailDigestCase {
       return;
     }
 
-    final sections = _buildSections(eligible);
+    final sections = _buildSections(eligible, prefs.locale);
     if (sections.isEmpty) {
       return;
     }
@@ -108,33 +113,82 @@ class EmailDigestCase {
 
   List<EmailDigestSection> _buildSections(
     List<NotificationOutboxItemEntity> items,
+    String locale,
   ) {
-    EmailNotificationItem toItem(NotificationOutboxItemEntity i) =>
-        EmailNotificationItem(
-          title: i.title,
-          body: i.body,
-          url: _links.absolute(i.actionUrl),
-        );
+    final headings = _copyBuilder.digestHeadings(locale);
+    EmailNotificationItem toItem(NotificationOutboxItemEntity i) {
+      final copy = _copyBuilder.localizeStored(
+        intent: BeaconNotificationIntent(
+          kind: i.kind,
+          priority: i.priority,
+          beaconId: i.beaconId ?? '',
+          actorUserId: i.actorUserId ?? '',
+          coordinationItemId: i.coordinationItemId,
+        ),
+        title: i.title,
+        body: i.body,
+        actionUrl: i.actionUrl,
+        locale: locale,
+      );
+      return EmailNotificationItem(
+        title: copy.title,
+        body: copy.body,
+        url: _links.absolute(copy.actionUrl),
+      );
+    }
 
     bool waiting(NotificationCategory c) =>
         c == NotificationCategory.asksOfMe ||
         c == NotificationCategory.unblocksMe;
 
+    final postGroups =
+        <NotificationKind, Map<String, List<NotificationOutboxItemEntity>>>{};
+    final ordinary = <NotificationOutboxItemEntity>[];
+    for (final item in items) {
+      final id = item.beaconId;
+      if (item.digestPost != null &&
+          id != null &&
+          (item.kind == NotificationKind.newRelay ||
+              item.kind == NotificationKind.postFirstResponse ||
+              item.kind == NotificationKind.postExpiringSoon)) {
+        final byPost = postGroups.putIfAbsent(item.kind, () => {});
+        byPost.putIfAbsent(id, () => []).add(item);
+      } else {
+        ordinary.add(item);
+      }
+    }
     final waitingItems = [
-      for (final i in items)
+      for (final i in ordinary)
         if (waiting(i.category)) toItem(i),
     ];
     final movedItems = [
-      for (final i in items)
+      for (final i in ordinary)
         if (!waiting(i.category)) toItem(i),
     ];
 
     return [
+      for (final (kind, heading) in [
+        (NotificationKind.newRelay, headings.postsShared),
+        (NotificationKind.postFirstResponse, headings.postReplies),
+        (NotificationKind.postExpiringSoon, headings.postsExpiring),
+      ])
+        if (postGroups[kind] case final groups?)
+          EmailDigestSection(
+            heading: heading,
+            items: [
+              for (final receipts in groups.values)
+                _copyBuilder.digestPostItem(
+                  receipts: receipts,
+                  locale: locale,
+                  url: _links.absolute(receipts.first.actionUrl),
+                ),
+            ],
+          ),
       if (waitingItems.isNotEmpty)
-        EmailDigestSection(heading: 'Waiting on you', items: waitingItems),
+        EmailDigestSection(heading: headings.waiting, items: waitingItems),
       if (movedItems.isNotEmpty)
         EmailDigestSection(
-          heading: 'Moved while you were away',
+          heading: headings.moved,
           items: movedItems,
         ),
     ];

@@ -39,7 +39,7 @@ abstract class NotificationPreferencesEntity
   const NotificationPreferencesEntity._();
 
   /// Conservative defaults: push for everything except ambient; email for
-  /// asksOfMe / connections / coordination (covers @mentions); digest daily.
+  /// asksOfMe / connections / coordination / shared Posts; digest daily.
   factory NotificationPreferencesEntity.defaults(String accountId) =>
       NotificationPreferencesEntity(
         accountId: accountId,
@@ -53,6 +53,7 @@ abstract class NotificationPreferencesEntity
           NotificationCategory.asksOfMe,
           NotificationCategory.connections,
           NotificationCategory.coordination,
+          NotificationCategory.postsSharedWithMe,
         },
         emailDigest: DigestCadence.daily,
       );

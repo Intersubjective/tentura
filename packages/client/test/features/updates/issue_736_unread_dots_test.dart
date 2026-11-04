@@ -18,22 +18,27 @@ import 'package:tentura/ui/test_ids.dart';
 import '../block/support/controllable_block_case.dart';
 import '../../support/noop_attention_actor_profiles.dart';
 import '../../support/test_realtime_sync.dart';
+import '../../support/phone_surface.dart';
 import 'support/mark_unread_server_fake.dart';
 import 'support/noop_invite_setup_port.dart';
 
-/// #736b (Vadim: option A) — "Unread 7" while only 2 rows had a dot. The
-/// Unread view and its count are the clear axis (every row not cleared); the
-/// dot was the read axis, so a row that had been opened but not cleared sat
-/// on Unread with no dot. On the Unread view every row now carries the dot,
-/// so the dots add up to the count. All keeps the read-axis dot.
+/// A dot means the row contributes to Unread, on either filter.
 void main() {
-  testWidgets('on Unread every row has a dot and the dots equal the count', (
+  testWidgets('All and Unread show the same counted rows with dots', (
     tester,
   ) async {
     final server = MarkUnreadServerFake([
-      markUnreadTestReceipt('r1', minute: 4),
+      markUnreadTestReceipt(
+        'r1',
+        minute: 4,
+        seen: false,
+      ).copyWith(presentationKey: 'trust_given_changed_up'),
       markUnreadTestReceipt('r2', minute: 3, seen: false),
-      markUnreadTestReceipt('r3', minute: 2),
+      markUnreadTestReceipt(
+        'r3',
+        minute: 2,
+        seen: false,
+      ).copyWith(presentationKey: 'invite_accepted'),
       markUnreadTestReceipt('r4', minute: 1, cleared: true),
     ]);
     final accounts = _Accounts();
@@ -54,6 +59,12 @@ void main() {
       logger: Logger('updates-unread-dots-736-cubit'),
       actorProfiles: buildNoopAttentionActorProfiles(),
     );
+    addTearDown(() async {
+      await cubit.close();
+      await attention.dispose();
+      await sync.port.dispose();
+      await accounts.close();
+    });
     accounts.emit('viewer');
     await _drain();
 
@@ -65,13 +76,23 @@ void main() {
     await _drain();
     await tester.pumpAndSettle();
 
-    // Guard: All keeps the read axis — only the row never opened has a dot.
+    await cubit.markRead('r1');
+    await cubit.markRead('r3');
+    await tester.pumpAndSettle();
+    expect(
+      cubit.state.items
+          .where((r) => r.id == 'r1' || r.id == 'r3')
+          .every((r) => r.isSeen && !r.isCleared),
+      isTrue,
+    );
+
+    // Cleared rows remain visible on All but do not contribute a dot.
     expect(cubit.state.view, AttentionView.all);
     expect(
       find.bySemanticsIdentifier(TestIds.updatesReceipt('r4')),
       findsOneWidget,
     );
-    expect(find.byKey(UpdatesFeedTile.unreadDotKey), findsOneWidget);
+    final allDots = find.byKey(UpdatesFeedTile.unreadDotKey).evaluate().length;
 
     await tester.tap(find.byKey(const ValueKey<String>('updates-unread')));
     await _drain();
@@ -103,43 +124,92 @@ void main() {
       findsNWidgets(cubit.state.summary.unreadTotal),
     );
 
-    unawaited(cubit.close());
-    unawaited(attention.dispose());
-    unawaited(sync.port.dispose());
-    unawaited(accounts.close());
+    expect(
+      allDots,
+      cubit.state.summary.unreadTotal,
+      reason: 'All dots must equal the count, including seen optional rows',
+    );
   });
 
-  testWidgets('a read, uncleared row has a dot only on the Unread view', (
-    tester,
-  ) async {
-    final receipt = markUnreadTestReceipt('r1', minute: 1);
-    await tester.pumpWidget(
-      _wrap(
-        UpdatesFeedTile(
-          receipt: receipt,
-          onTap: () {},
-          onMarkSeen: () {},
-          onMarkUnseen: () {},
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-    expect(find.byKey(UpdatesFeedTile.unreadDotKey), findsNothing);
-
-    await tester.pumpWidget(
-      _wrap(
-        UpdatesFeedTile(
-          receipt: receipt,
-          onTap: () {},
-          onMarkSeen: () {},
-          onMarkUnseen: () {},
-          unreadView: true,
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-    expect(find.byKey(UpdatesFeedTile.unreadDotKey), findsOneWidget);
-  });
+  for (final phone in [true, false]) {
+    for (final (label, key, obligation) in [
+      ('forward receipt', 'relay_received', false),
+      ('author help offer', 'help_offer_submitted', true),
+      ('assignee plan obligation', 'plan_step_due', true),
+      ('trust change', 'trust_given_changed_up', false),
+      ('accepted invite', 'invite_accepted', false),
+    ]) {
+      testWidgets(
+        'seen $label keeps its counted dot and normal title on both filters as a RU tile at ${phone ? 'phone' : 'desktop'}',
+        (tester) async {
+          if (phone) {
+            await usePhoneSurface(tester);
+          } else {
+            await tester.binding.setSurfaceSize(const Size(1280, 900));
+            addTearDown(() => tester.binding.setSurfaceSize(null));
+          }
+          final receipt = markUnreadTestReceipt('seen', minute: 1).copyWith(
+            presentationKey: key,
+            requiresAction: obligation,
+            presentationPayloadJson: key == 'plan_step_due'
+                ? '{"eventType":"planStepDue","excerpt":"Подготовить лестницу"}'
+                : '{}',
+            title: 'Алиса',
+            body: key == 'plan_step_due'
+                ? 'Подготовить лестницу'
+                : 'Новое событие',
+          );
+          final visible = <String, Object>{};
+          for (final unread in [false, true]) {
+            await tester.pumpWidget(
+              _wrap(
+                UpdatesFeedTile(
+                  receipt: receipt,
+                  onTap: () {},
+                  onMarkSeen: () {},
+                  onMarkUnseen: () {},
+                  unreadView: unread,
+                ),
+              ),
+            );
+            await tester.pumpAndSettle();
+            visible[unread ? 'Unread' : 'All'] = {
+              'dots': find
+                  .byKey(UpdatesFeedTile.unreadDotKey)
+                  .evaluate()
+                  .length,
+              'bold titles': _boldTitle.evaluate().length,
+            };
+            final l10n = L10n.of(tester.element(find.byType(UpdatesFeedTile)))!;
+            if (key == 'trust_given_changed_up') {
+              expect(
+                find.text(l10n.attentionEventTrustGivenUp),
+                findsOneWidget,
+              );
+            } else if (key == 'plan_step_due') {
+              expect(find.text('Подготовить лестницу'), findsOneWidget);
+              final tile = tester.widget<UpdatesFeedTile>(
+                find.byType(UpdatesFeedTile),
+              );
+              expect(tile.receipt.isLiveObligation, isTrue);
+              expect(tile.receipt.isSeen, isTrue);
+            } else {
+              expect(
+                find.textContaining('Алиса', findRichText: true),
+                findsWidgets,
+              );
+            }
+            expect(find.byType(UpdatesFeedTile), findsOneWidget);
+            expect(tester.takeException(), isNull);
+          }
+          expect(visible, {
+            'All': {'dots': 1, 'bold titles': 0},
+            'Unread': {'dots': 1, 'bold titles': 0},
+          });
+        },
+      );
+    }
+  }
 
   testWidgets('an unread row has the bold title', (tester) async {
     await tester.pumpWidget(
@@ -213,10 +283,14 @@ Future<void> _drain([int turns = 12]) async {
 }
 
 Widget _wrap(Widget child) => MediaQuery(
-  data: const MediaQueryData(size: Size(800, 800)),
+  data: MediaQueryData.fromView(
+    WidgetsBinding.instance.platformDispatcher.views.first,
+  ),
   child: TenturaResponsiveScope(
     child: MaterialApp(
       theme: TenturaTheme.light(),
+      locale: const Locale('ru'),
+      supportedLocales: L10n.supportedLocales,
       localizationsDelegates: L10n.localizationsDelegates,
       home: Scaffold(body: child),
     ),

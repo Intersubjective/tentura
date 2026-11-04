@@ -128,7 +128,7 @@ WHERE observer_user_id LIKE 'Ucapb2a%'
     );
 
     test(
-      'upsertSeedAttestation writes source-4 ledger and rebuilds seed cell',
+      'upsertSeedAttestation writes the tags as private labels and rebuilds seed cell',
       () async {
         await repo.upsertSeedAttestation(
           observerId: _obs1,
@@ -145,7 +145,7 @@ WHERE observer_user_id = 'Ucapb2aobs01'
 ORDER BY tag_slug
 ''');
         expect(rows.map((r) => r[0]), ['manual_labour']);
-        expect(rows.single[1], 4);
+        expect(rows.single[1], 0, reason: 'every tag given is a private label');
 
         expect(await _generation(writer, _obs1, _sub, 'manual_labour'), 1);
         expect(
@@ -711,7 +711,8 @@ SELECT tag_slug
 FROM public.person_capability_event
 WHERE observer_user_id = 'Ucapb2aobs01'
   AND subject_user_id = 'Ucapb2asub01'
-  AND source_type = 4
+  AND source_type = 0
+  AND is_negative = false
   AND deleted_at IS NULL
 ORDER BY tag_slug
 ''');
@@ -830,4 +831,3 @@ class _CellRow {
   final double sOut;
   final double sSeed;
 }
-

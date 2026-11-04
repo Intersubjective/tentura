@@ -34,6 +34,9 @@ final RegExp kUserHandleRegExp = RegExp(
 bool isValidUserHandleFormat(String trimmedLowercase) =>
     kUserHandleRegExp.hasMatch(trimmedLowercase);
 
+/// Decimal revision strings on realtime invalidation hints (no sign or spaces).
+final RegExp kDecimalRevisionPattern = RegExp(r'^[0-9]+$');
+
 /// Beacon `title` only (user/profile [kTitleMaxLength] remains shorter).
 const kBeaconTitleMaxLength = 60;
 

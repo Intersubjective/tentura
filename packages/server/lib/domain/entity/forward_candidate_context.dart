@@ -16,18 +16,24 @@ enum ForwardCandidateConnectionNodeKind {
 /// statement about recommendation logic or the complete network.
 @immutable
 class ForwardCandidateContext {
-  const ForwardCandidateContext({required this.status, required this.nodes});
+  const ForwardCandidateContext({
+    required this.status,
+    required this.nodes,
+    this.candidateJoinedAt,
+  });
 
-  const ForwardCandidateContext.longPath()
+  const ForwardCandidateContext.longPath({this.candidateJoinedAt})
     : status = ForwardCandidateContextStatus.longPath,
       nodes = const [];
 
   const ForwardCandidateContext.unavailable()
     : status = ForwardCandidateContextStatus.unavailable,
-      nodes = const [];
+      nodes = const [],
+      candidateJoinedAt = null;
 
   final ForwardCandidateContextStatus status;
   final List<ForwardCandidateConnectionNode> nodes;
+  final DateTime? candidateJoinedAt;
 }
 
 @immutable
