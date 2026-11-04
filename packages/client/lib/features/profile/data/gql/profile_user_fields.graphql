@@ -1,0 +1,5 @@
+# Profile-only user fields (keep off shared UserModel so other wire fixtures stay minimal).
+
+fragment ProfileUserFields on user {
+  created_at
+}

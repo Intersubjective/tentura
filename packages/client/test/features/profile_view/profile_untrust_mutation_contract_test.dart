@@ -233,6 +233,7 @@ void main() {
                 'user_by_pk': {
                   '__typename': 'user',
                   'id': _bob.id,
+                  'created_at': '2020-01-01T00:00:00Z',
                   'display_name': _bob.displayName,
                   'description': '',
                   'my_vote': viewerTrustsBob ? 1 : 0,

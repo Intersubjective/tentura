@@ -18,6 +18,7 @@ import 'package:tentura_root/domain/enums.dart';
 
 import '../bloc/profile_cubit.dart';
 import '../sheet/availability_sheet.dart';
+import 'profile_member_since_line.dart';
 
 TenturaTone _ownAvailabilityPrimaryTone(
   Availability availability,
@@ -155,6 +156,8 @@ class ProfileBody extends StatelessWidget {
                 ),
               ),
             ),
+
+            ProfileMemberSinceLine(profile: profile, now: clock?.call()),
 
             Padding(
               padding: sectionTop,
