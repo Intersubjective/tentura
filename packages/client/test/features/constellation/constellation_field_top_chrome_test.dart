@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
-import 'package:tentura/features/constellation/domain/constellation_tag_filter.dart';
+import 'package:tentura/features/constellation/ui/bloc/constellation_tag_lens_cubit.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_tag_row.dart';
 import 'package:tentura/features/graph/domain/entity/edge_details.dart';
@@ -161,7 +162,8 @@ void main() {
       tester,
     ) async {
       await usePhoneSurface(tester);
-      var filter = const ConstellationTagFilter();
+      final lens = ConstellationTagLensCubit();
+      addTearDown(lens.close);
       final shortTags = [
         for (var i = 0; i < 5; i++)
           PersonTag(
@@ -178,27 +180,21 @@ void main() {
           theme: TenturaTheme.light(),
           localizationsDelegates: L10n.localizationsDelegates,
           supportedLocales: L10n.supportedLocales,
-          home: StatefulBuilder(
-            builder: (context, setState) => Scaffold(
-              body: Center(
-                child: TextButton(
-                  onPressed: () => showConstellationAllTagsSheet(
-                    context: context,
-                    ownTags: shortTags,
-                    autoTags: const [],
-                    filter: filter,
-                    onToggleOwn: (id) => setState(
-                      () => filter = ConstellationTagFilter(
-                        selectedOwn: {...filter.selectedOwn, id},
-                        selectedAuto: filter.selectedAuto,
-                        mode: filter.mode,
-                      ),
+          home: BlocProvider.value(
+            value: lens,
+            child: Builder(
+              builder: (context) => Scaffold(
+                body: Center(
+                  child: TextButton(
+                    onPressed: () => showConstellationAllTagsSheet(
+                      context: context,
+                      lensCubit: lens,
+                      ownTags: shortTags,
+                      autoTags: const [],
+                      onAddTag: () {},
                     ),
-                    onToggleAuto: (_) {},
-                    onModeChanged: (_) {},
-                    onAddTag: () {},
+                    child: const Text('open'),
                   ),
-                  child: const Text('open'),
                 ),
               ),
             ),
@@ -212,7 +208,7 @@ void main() {
       expect(find.text('Управлять тегами'), findsOneWidget);
       await tester.tap(find.text('Тег 2'));
       await tester.pumpAndSettle();
-      expect(filter.selectedOwn, contains('tag-2'));
+      expect(lens.state.selectedOwn, contains('tag-2'));
     });
   });
 

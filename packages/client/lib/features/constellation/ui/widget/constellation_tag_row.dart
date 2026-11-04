@@ -3,14 +3,15 @@ import 'dart:async';
 import 'package:flutter/gestures.dart' show HitTestResult;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show RenderMetaData;
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/people_tags/domain/entity/people_tags_entities.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
-import '../../domain/constellation_tag_filter.dart';
 import '../../domain/entity/constellation_field.dart';
+import '../bloc/constellation_tag_lens_cubit.dart';
 import 'constellation_tag_magnet_control.dart';
 
 String constellationAutoTagName(L10n l10n, ConstellationAutoTagKind kind) =>
@@ -86,7 +87,7 @@ class ConstellationTagRow extends StatelessWidget {
   final ConstellationTagRowLayout layout;
   final VoidCallback? onShowAll;
 
-  Widget _ownChip(PersonTag tag) {
+  Widget _ownChip(PersonTag tag, {double? maxChipWidth}) {
     final chip = _Toggle(
       selected: filter.selectedOwn.contains(tag.id),
       onTap: () => onToggleOwn(tag.id),
@@ -94,6 +95,7 @@ class ConstellationTagRow extends StatelessWidget {
         glyph: tag.glyph,
         name: tag.name,
         colorIndex: tag.color,
+        maxWidth: maxChipWidth,
       ),
     );
     final place = onPlaceMagnet;
@@ -108,7 +110,46 @@ class ConstellationTagRow extends StatelessWidget {
     );
   }
 
-  List<Widget> _chipChildren(BuildContext context) {
+  List<Widget> _wrapChipChildren(BuildContext context) {
+    final l10n = L10n.of(context)!;
+    final tt = context.tt;
+    final maxChipWidth =
+        MediaQuery.sizeOf(context).width - 2 * tt.screenHPadding;
+    final chips = <Widget>[];
+    if (ownTags.isEmpty) {
+      chips.add(
+        TextButton(
+          onPressed: onAddTag,
+          child: Text(l10n.constellationTagRowAdd),
+        ),
+      );
+    } else {
+      for (final tag in ownTags) {
+        chips.add(
+          MetaData(
+            metaData: ConstellationTagChipDrop(tag.id),
+            behavior: HitTestBehavior.translucent,
+            child: _ownChip(tag, maxChipWidth: maxChipWidth),
+          ),
+        );
+      }
+    }
+    for (final kind in autoTags) {
+      chips.add(
+        _Toggle(
+          selected: filter.selectedAuto.contains(kind),
+          onTap: () => onToggleAuto(kind),
+          child: AutoTagChip(
+            name: constellationAutoTagName(l10n, kind),
+            enabled: filter.selectedAuto.contains(kind),
+          ),
+        ),
+      );
+    }
+    return chips;
+  }
+
+  List<Widget> _scrollChipChildren(BuildContext context) {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
     final gap = SizedBox(width: tt.iconTextGap * 2);
@@ -124,15 +165,7 @@ class ConstellationTagRow extends StatelessWidget {
       for (final tag in ownTags) {
         if (chips.isNotEmpty) chips.add(gap);
         chips.add(
-          Focus(
-            onFocusChange: (focused) {
-              if (focused) {
-                Scrollable.ensureVisible(
-                  context,
-                  alignment: 0.5,
-                );
-              }
-            },
+          _scrollFocusChip(
             child: MetaData(
               metaData: ConstellationTagChipDrop(tag.id),
               behavior: HitTestBehavior.translucent,
@@ -145,15 +178,7 @@ class ConstellationTagRow extends StatelessWidget {
     for (final kind in autoTags) {
       if (chips.isNotEmpty) chips.add(gap);
       chips.add(
-        Focus(
-          onFocusChange: (focused) {
-            if (focused) {
-              Scrollable.ensureVisible(
-                context,
-                alignment: 0.5,
-              );
-            }
-          },
+        _scrollFocusChip(
           child: _Toggle(
             selected: filter.selectedAuto.contains(kind),
             onTap: () => onToggleAuto(kind),
@@ -167,6 +192,20 @@ class ConstellationTagRow extends StatelessWidget {
     }
     return chips;
   }
+
+  Widget _scrollFocusChip({required Widget child}) => Builder(
+    builder: (chipContext) => Focus(
+      onFocusChange: (focused) {
+        if (focused) {
+          Scrollable.ensureVisible(
+            chipContext,
+            alignment: 0.5,
+          );
+        }
+      },
+      child: child,
+    ),
+  );
 
   Widget _modeToggle(BuildContext context) {
     final l10n = L10n.of(context)!;
@@ -222,13 +261,13 @@ class ConstellationTagRow extends StatelessWidget {
         runSpacing: tt.tightGap * 2,
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
-          ..._chipChildren(context),
+          ..._wrapChipChildren(context),
           if (selectedCount >= 2) _modeToggle(context),
         ],
       );
     }
 
-    final scrollChips = _chipChildren(context);
+    final scrollChips = _scrollChipChildren(context);
     return Material(
       color: theme.colorScheme.surface,
       child: Semantics(
@@ -271,12 +310,9 @@ class ConstellationTagRow extends StatelessWidget {
 
 Future<void> showConstellationAllTagsSheet({
   required BuildContext context,
+  required ConstellationTagLensCubit lensCubit,
   required List<PersonTag> ownTags,
   required List<ConstellationAutoTagKind> autoTags,
-  required ConstellationTagFilter filter,
-  required ValueChanged<String> onToggleOwn,
-  required ValueChanged<ConstellationAutoTagKind> onToggleAuto,
-  required ValueChanged<ConstellationTagFilterMode> onModeChanged,
   required VoidCallback onAddTag,
 }) {
   final l10n = L10n.of(context)!;
@@ -284,43 +320,47 @@ Future<void> showConstellationAllTagsSheet({
     context: context,
     builder: (sheetContext) {
       final tt = sheetContext.tt;
-      return SingleChildScrollView(
-        child: Padding(
-          padding: EdgeInsets.all(tt.screenHPadding),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                l10n.constellationTagsSheetTitle,
-                style: Theme.of(sheetContext).textTheme.titleMedium,
-              ),
-              SizedBox(height: tt.sectionGap),
-              ConstellationTagRow(
-                layout: ConstellationTagRowLayout.wrap,
-                ownTags: ownTags,
-                autoTags: autoTags,
-                filter: filter,
-                onToggleOwn: onToggleOwn,
-                onToggleAuto: onToggleAuto,
-                onModeChanged: onModeChanged,
-                onAddTag: onAddTag,
-              ),
-              SizedBox(height: tt.sectionGap),
-              Align(
-                alignment: AlignmentDirectional.centerStart,
-                child: TextButton(
-                  key: const Key('constellation-tags-manage'),
-                  onPressed: () {
-                    Navigator.of(sheetContext).pop();
-                    unawaited(
-                      sheetContext.router.push(const PeopleTagsRoute()),
-                    );
-                  },
-                  child: Text(l10n.constellationTagsManage),
+      return BlocBuilder<ConstellationTagLensCubit, ConstellationTagFilter>(
+        bloc: lensCubit,
+        builder: (context, filter) => SingleChildScrollView(
+          key: const Key('constellation-all-tags-sheet-scroll'),
+          child: Padding(
+            padding: EdgeInsets.all(tt.screenHPadding),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  l10n.constellationTagsSheetTitle,
+                  style: Theme.of(sheetContext).textTheme.titleMedium,
                 ),
-              ),
-            ],
+                SizedBox(height: tt.sectionGap),
+                ConstellationTagRow(
+                  layout: ConstellationTagRowLayout.wrap,
+                  ownTags: ownTags,
+                  autoTags: autoTags,
+                  filter: filter,
+                  onToggleOwn: lensCubit.toggleOwn,
+                  onToggleAuto: lensCubit.toggleAuto,
+                  onModeChanged: lensCubit.setMode,
+                  onAddTag: onAddTag,
+                ),
+                SizedBox(height: tt.sectionGap),
+                Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: TextButton(
+                    key: const Key('constellation-tags-manage'),
+                    onPressed: () {
+                      Navigator.of(sheetContext).pop();
+                      unawaited(
+                        sheetContext.router.push(const PeopleTagsRoute()),
+                      );
+                    },
+                    child: Text(l10n.constellationTagsManage),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       );

@@ -47,6 +47,7 @@ class PersonTagChip extends StatelessWidget {
     required this.name,
     required this.colorIndex,
     this.onRemove,
+    this.maxWidth,
     super.key,
   });
 
@@ -55,11 +56,57 @@ class PersonTagChip extends StatelessWidget {
   final int colorIndex;
   final VoidCallback? onRemove;
 
+  /// When set (e.g. in a wrapped tag list), the name ellipsizes instead of
+  /// overflowing the line.
+  final double? maxWidth;
+
   @override
   Widget build(BuildContext context) {
     final tt = context.tt;
     final swatch = context.tagColors.swatchFor(colorIndex);
     final onRemove = this.onRemove;
+    final maxWidth = this.maxWidth;
+    Widget namePart = Text(
+      name,
+      style: TenturaText.labelSmall(swatch.onContainer),
+    );
+    if (maxWidth != null) {
+      namePart = Expanded(
+        child: Text(
+          name,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TenturaText.labelSmall(swatch.onContainer),
+        ),
+      );
+    }
+    Widget row = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        TagGlyph(glyph: glyph, colorIndex: colorIndex),
+        SizedBox(width: tt.iconTextGap),
+        namePart,
+        SizedBox(width: tt.iconTextGap),
+        if (onRemove != null)
+          Semantics(
+            button: true,
+            label: MaterialLocalizations.of(context).deleteButtonTooltip,
+            excludeSemantics: true,
+            child: InkResponse(
+              onTap: onRemove,
+              radius: 14,
+              child: Icon(
+                Icons.close,
+                size: 16,
+                color: swatch.onContainer,
+              ),
+            ),
+          ),
+      ],
+    );
+    if (maxWidth != null) {
+      row = SizedBox(width: maxWidth, child: row);
+    }
     return DecoratedBox(
       decoration: BoxDecoration(
         color: swatch.container,
@@ -67,42 +114,11 @@ class PersonTagChip extends StatelessWidget {
       ),
       child: Padding(
         padding: EdgeInsets.all(tt.tightGap * 2),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Semantics(
-              container: true,
-              label: '$name, tag',
-              excludeSemantics: true,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TagGlyph(glyph: glyph, colorIndex: colorIndex),
-                  SizedBox(width: tt.iconTextGap),
-                  Text(
-                    name,
-                    style: TenturaText.labelSmall(swatch.onContainer),
-                  ),
-                  SizedBox(width: tt.iconTextGap),
-                ],
-              ),
-            ),
-            if (onRemove != null)
-              Semantics(
-                button: true,
-                label: MaterialLocalizations.of(context).deleteButtonTooltip,
-                excludeSemantics: true,
-                child: InkResponse(
-                  onTap: onRemove,
-                  radius: 14,
-                  child: Icon(
-                    Icons.close,
-                    size: 16,
-                    color: swatch.onContainer,
-                  ),
-                ),
-              ),
-          ],
+        child: Semantics(
+          container: true,
+          label: '$name, tag',
+          excludeSemantics: true,
+          child: row,
         ),
       ),
     );
