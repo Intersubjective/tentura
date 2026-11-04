@@ -301,6 +301,13 @@ class _InviteAcceptedSetupSheetState extends State<InviteAcceptedSetupSheet>
                             l10n.inviteSeedPromptQuestion(displayName),
                             style: TenturaText.body(colors.onSurface),
                           ),
+                          SizedBox(height: tt.tightGap),
+                          Text(
+                            l10n.capabilityTagsDisclosure(displayName),
+                            style: TenturaText.bodySmall(
+                              colors.onSurfaceVariant,
+                            ),
+                          ),
                           SizedBox(height: tt.rowGap),
                           CapabilityChipSet(
                             selectedSlugs: _selectedSlugs,
@@ -409,10 +416,10 @@ class _InviteAcceptedSetupSheetState extends State<InviteAcceptedSetupSheet>
                           child: _busy
                               ? SizedBox.square(
                                   dimension: tt.iconSize,
-                                  child:
-                                      const TenturaCircularProgress(adaptive: true, 
-                                        strokeWidth: 2,
-                                      ),
+                                  child: const TenturaCircularProgress(
+                                    adaptive: true,
+                                    strokeWidth: 2,
+                                  ),
                                 )
                               : Text(l10n.inviteAcceptedSetupSave),
                         ),
