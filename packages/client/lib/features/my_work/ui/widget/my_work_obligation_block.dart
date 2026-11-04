@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
+import 'package:tentura/domain/attention/request_card_room_attention.dart';
 import 'package:tentura/features/inbox/ui/widget/activity_event_subcard_block.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
 import 'package:tentura/features/my_work/domain/group_my_work_obligations.dart';
@@ -49,7 +50,6 @@ class MyWorkObligationBlock extends StatelessWidget {
     this.onOpenTimeline,
     this.onReviewHelpOffers,
     this.onRespondHelpOffer,
-    this.onOpenQuestions,
     this.suppressReviewHelpOffersFallback = false,
     this.planRows,
     super.key,
@@ -75,10 +75,6 @@ class MyWorkObligationBlock extends StatelessWidget {
 
   /// Opens the People help-offer sheet for [offererId].
   final void Function(String offererId)? onRespondHelpOffer;
-
-  /// Opens the Request's Questions: what a Questions message row does when
-  /// tapped (#656). Other rows stay as they were.
-  final VoidCallback? onOpenQuestions;
 
   /// When true, do not show the aggregate Review-offers tonal CTA (footer
   /// already provides that destination).
@@ -108,9 +104,13 @@ class MyWorkObligationBlock extends StatelessWidget {
     final showAggregateReviewOffers =
         vm.showReviewHelpOffersCta && !suppressReviewHelpOffersFallback;
 
+    final optionalRows = requestCardVisibleAttentionEvents(
+      optionalEvents,
+    ).toList();
+
     final rows = <AttentionReceipt>[
       for (final group in groups) group.primary,
-      ...optionalEvents,
+      ...optionalRows,
     ];
 
     final planRows = this.planRows;
@@ -129,7 +129,7 @@ class MyWorkObligationBlock extends StatelessWidget {
     // reachable in the collapsed state without expanding or navigating.
     final visibleCap =
         math.min(groups.length, kMyWorkVisibleObligationGroups) +
-        (optionalEvents.isEmpty ? 0 : 1);
+        (optionalRows.isEmpty ? 0 : 1);
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -166,10 +166,6 @@ class MyWorkObligationBlock extends StatelessWidget {
             canDismiss: attentionRowIsDismissible,
             onClearEvent: onClearEvent,
             onOpenTimeline: onOpenTimeline,
-            onEventTap: onOpenQuestions == null
-                ? null
-                : (_) => onOpenQuestions!(),
-            canTapEvent: isQuestionsAttentionReceipt,
             quotedBodyOf: (receipt) => _quotedBody(l10n, receipt),
             // The header names the event; each offer row is the person, the
             // age and «Ответить» on one line.

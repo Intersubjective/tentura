@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'attention_event_classification.dart';
 import 'entity/attention_receipt.dart';
+import 'request_card_room_attention.dart';
 
 /// Whether the server marked [receipt] *personal* (#189 rev 2): a person
 /// addressed this to the viewer by name — a message to you, an ask aimed at
@@ -54,7 +55,7 @@ class RequestCardZones {
 
   factory RequestCardZones.fromPreview(Iterable<AttentionReceipt> preview) {
     final events = [
-      for (final event in preview)
+      for (final event in requestCardVisibleAttentionEvents(preview))
         if (!event.requiresAction) event,
     ]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 

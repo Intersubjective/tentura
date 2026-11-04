@@ -9,9 +9,12 @@ part 'inbox_room_card_hints.freezed.dart';
 @freezed
 abstract class InboxRoomCardHints with _$InboxRoomCardHints {
   const factory InboxRoomCardHints({
-    @Default('') String postRootExcerpt,
     required bool isRoomMember,
     required int roomUnreadCount,
+    @Default('') String postRootExcerpt,
+
+    /// #904 — oldest unread room slug from the server (`questions` / `discussion`).
+    String? unreadRoom,
     DateTime? lastSeenAt,
     @Default('') String currentLineSnippet,
     @Default('') String lastRoomMeaningfulChange,

@@ -32,6 +32,7 @@ import 'package:tentura/features/beacon_threads/domain/use_case/beacon_threads_c
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_tile.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_unread_divider.dart';
 import 'package:tentura/features/closure/data/repository/closure_repository.dart';
+import 'package:tentura/features/inbox/domain/entity/inbox_room_card_hints.dart';
 import 'package:tentura/features/inbox/ui/widget/attention_mini_card.dart';
 import 'package:tentura/features/my_work/ui/bloc/my_work_cubit.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_cards.dart';
@@ -125,6 +126,7 @@ Future<_Desk> _pumpCard(
   WidgetTester tester, {
   required AttentionReceipt newestUpdate,
   required Locale locale,
+  FakeRoomHints? roomHints,
 }) async {
   final beacon = Beacon.empty.copyWith(
     id: _beaconId,
@@ -150,7 +152,11 @@ Future<_Desk> _pumpCard(
     ];
   final cubit = MyWorkCubit(
     userId: _viewerId,
-    myWorkCase: buildTestMyWorkCase(repo: repo, attentionRepository: attention),
+    myWorkCase: buildTestMyWorkCase(
+      repo: repo,
+      attentionRepository: attention,
+      roomHints: roomHints ?? FakeRoomHints(),
+    ),
   );
   addTearDown(cubit.close);
   await cubit.stream.firstWhere((s) => s.isSuccess && s.attentionLoaded);
@@ -405,31 +411,36 @@ void main() {
 
   for (final locale in [const Locale('en'), const Locale('ru')]) {
     testWidgets(
-      'Questions update names its location and keeps its time visible in ${locale.languageCode} at 375 px',
+      'Questions unread count on the card stays visible in ${locale.languageCode} at 375 px',
       (tester) async {
         RelativeTimestampTicker.debugClock = () => _now;
         addTearDown(() => RelativeTimestampTicker.debugClock = null);
+        final hints = FakeRoomHints()
+          ..hintsByBeaconId = {
+            _beaconId: InboxRoomCardHints(
+              isRoomMember: true,
+              roomUnreadCount: 1,
+              unreadRoom: 'questions',
+              lastMessageText: 'When can we move the shed?',
+              lastMessageAuthorName: 'Bob R7',
+              lastMessageAuthorId: 'bob',
+              lastMessageAt: _now,
+            ),
+          };
         await _pumpCard(
           tester,
           newestUpdate: _questionsMessage('Bob R7'),
           locale: locale,
+          roomHints: hints,
         );
-        final row = find.byType(AttentionMiniCard);
-        final headline = locale.languageCode == 'ru'
-            ? 'Bob R7 · Новое сообщение в вопросах'
-            : 'Bob R7 · New message in Questions';
-        final time = locale.languageCode == 'ru' ? 'Только что' : 'Just now';
+        expect(find.byType(AttentionMiniCard), findsNothing);
+        final l10n = lookupL10n(locale);
+        final unread = find.text(l10n.myWorkUnreadCount(1));
         _expectFullyVisible(
           tester,
-          find.descendant(of: row, matching: find.text(headline)),
-          headline,
-          within: row,
-        );
-        _expectFullyVisible(
-          tester,
-          find.descendant(of: row, matching: find.text(time)),
-          time,
-          within: row,
+          unread,
+          '${locale.languageCode} unread count',
+          within: find.byType(MyWorkCardRouter),
         );
       },
     );

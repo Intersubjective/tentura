@@ -8743,6 +8743,7 @@ type v2_InboxRoomContextRow {
   planSliceJson: String
   publicFactSnippet: String
   roomUnreadCount: Int!
+  unreadRoom: String
 }
 
 type v2_Invitation {
