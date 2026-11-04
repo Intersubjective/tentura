@@ -91,6 +91,7 @@ class _TrustWire {
   Map<String, dynamic> user(String id) => {
     '__typename': 'user',
     'id': id,
+    'created_at': '2020-01-01T00:00:00Z',
     'display_name': switch (id) {
       _annaId => 'Анна',
       _borisId => 'Борис',

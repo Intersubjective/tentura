@@ -2,6 +2,7 @@
 
 fragment UserModel on user {
   id
+  created_at
   display_name
   handle
   description
