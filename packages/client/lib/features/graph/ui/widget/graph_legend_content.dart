@@ -6,6 +6,7 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/domain/constellation_trust_badge.dart';
 import 'package:tentura/features/constellation/ui/utils/constellation_edge_style.dart';
+import 'package:tentura/features/constellation/ui/widget/constellation_field_new_ring_layer.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_node_ring_layer.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_presence_halo_layer.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_request_status_marker.dart';
@@ -286,6 +287,15 @@ class GraphLegendContent extends StatelessWidget {
               swatch: const ConstellationPresenceHaloSwatch(),
               label: l10n.constellationPresenceOnline,
               hint: l10n.constellationPresenceOnlineHint,
+            ),
+          ),
+          Padding(
+            padding: EdgeInsets.only(bottom: tt.tightGap),
+            child: _LegendRow(
+              key: const ValueKey('constellation.legend.fieldNew'),
+              swatch: const ConstellationFieldNewRingSwatch(),
+              label: l10n.constellationFieldNewLegend,
+              hint: l10n.constellationFieldNewLegendHint,
             ),
           ),
           row(

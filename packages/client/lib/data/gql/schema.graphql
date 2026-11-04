@@ -3888,6 +3888,7 @@ type mutation_root {
   complaintCreate(details: String!, email: String!, id: String!, type: String!): Boolean!
   constellationAnchorsApply(ops: [v2_ConstellationAnchorOpInput!]!): v2_ConstellationAnchorsApplyResult!
   constellationAnchorsReset(clientOpId: String!, saveHistory: Boolean): v2_ConstellationAnchorsResetResult!
+  constellationAcknowledgeNew(peerIds: [String!]!): Boolean!
   constellationLayoutSnapshotRestore(clientOpId: String, snapshotId: String): v2_ConstellationLayoutSnapshot!
   constellationTagMagnetRemove(clientOpId: String, tagId: String): Boolean!
   constellationTagMagnetUpsert(clientOpId: String, tagId: String, xUnits: Float!, yUnits: Float!): v2_ConstellationTagMagnet!
@@ -8300,8 +8301,9 @@ type v2_ConstellationPeer {
   displayName: String
   handle: String
   id: String!
-  pinState: String
   image: v2_image
+  isNew: Boolean
+  pinState: String
   presence: String!
   temporaryBeaconId: String
   visible: Boolean!

@@ -15,6 +15,7 @@ import 'package:tentura/ui/widget/relative_timestamp_ticker.dart';
 import 'package:tentura/features/people_tags/domain/use_case/people_tags_case.dart';
 
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
+import '../../domain/constellation_new_on_field.dart';
 import '../../domain/constellation_post_fade.dart';
 import '../../domain/constellation_trust_badge.dart';
 import '../../domain/constellation_trust_chain.dart';
@@ -23,6 +24,7 @@ import '../bloc/constellation_cubit.dart';
 import '../bloc/constellation_presence_cubit.dart';
 import '../utils/constellation_presentation_frame.dart';
 import '../utils/constellation_tap_resolver.dart';
+import 'constellation_field_new_ring_layer.dart';
 import 'constellation_node_ring_layer.dart';
 import 'constellation_overflow_group.dart';
 import 'constellation_presence_halo_layer.dart';
@@ -963,6 +965,19 @@ class _ConstellationViewportOverlayState
                                   ),
                             ),
                       ),
+                    Positioned.fill(
+                      child: ConstellationFieldNewRingLayer(
+                        frame: frame,
+                        newGraphIds: constellationNewOnFieldGraphIds(
+                          nodeByGraphId: nodeByGraphId,
+                          viewerId: widget.cubit.viewerId,
+                          isNewOnField: (id) =>
+                              widget.cubit.fieldPersonById(id)?.isNew ?? false,
+                        ),
+                        dimmedGraphIds: dimmedGraphIds,
+                        accentColor: Theme.of(context).colorScheme.secondary,
+                      ),
+                    ),
                     Positioned.fill(
                       child: ConstellationNodeRingLayer(
                         frame: frame,

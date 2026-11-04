@@ -340,6 +340,25 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
     ], readMark());
   }
 
+  /// Opening a person on the Field clears their «new» highlight at once (#898).
+  void applyAcknowledgedNew(Iterable<String> peerIds) {
+    final field = _state.field;
+    if (field == null || _accountId.isEmpty) {
+      return;
+    }
+    final patched = patchAcknowledgedNew(field, peerIds);
+    if (identical(patched, field)) {
+      return;
+    }
+    _emit(
+      ConstellationFieldStoreState(
+        field: patched,
+        coveredRevision: _state.coveredRevision,
+        generation: _state.generation,
+      ),
+    );
+  }
+
   /// Relations read for [mark] (#672). Ignored when a FULL that started after
   /// [mark] has landed already (it is at least as new), and per direction
   /// when something newer was learned meanwhile.
