@@ -11,6 +11,7 @@ import 'package:tentura/ui/utils/post_expiry_clock.dart';
 
 import '../bloc/post_view_cubit.dart';
 import 'post_view_screen.dart';
+import '../widget/post_participants_sheet_opener.dart';
 
 /// A Post's cubits around its [PostViewScreen].
 ///
@@ -22,6 +23,7 @@ class PostViewScope extends StatelessWidget {
     required this.id,
     required this.myProfile,
     this.onClose,
+    this.openParticipantsWhenReady = false,
     super.key,
   });
 
@@ -31,6 +33,9 @@ class PostViewScope extends StatelessWidget {
 
   /// Non-null in a list-detail pane: the screen drops its back button.
   final VoidCallback? onClose;
+
+  /// Scroll «О посте» to participants once the Post has loaded (#899).
+  final bool openParticipantsWhenReady;
 
   @override
   Widget build(BuildContext context) => BlocProvider(
@@ -61,7 +66,11 @@ class PostViewScope extends StatelessWidget {
         ),
       ],
       child: _RoomLifecycleSync(
-        child: PostViewScreen(id: id, inPane: onClose != null),
+        child: PostParticipantsSheetOpener(
+          postId: id,
+          openWhenReady: openParticipantsWhenReady,
+          child: PostViewScreen(id: id, inPane: onClose != null),
+        ),
       ),
     ),
   );
