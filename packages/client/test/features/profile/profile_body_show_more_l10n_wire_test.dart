@@ -73,6 +73,23 @@ void _tapShowMoreLink(WidgetTester tester, String label) {
   recognizer!.onTap!();
 }
 
+String? _trimLinkSpanText(WidgetTester tester) {
+  String? linkText;
+  tester.widget<Text>(_profileDescriptionText()).textSpan!.visitChildren((
+    span,
+  ) {
+    if (span is TextSpan &&
+        span.recognizer is TapGestureRecognizer &&
+        span.text != null &&
+        span.text!.isNotEmpty &&
+        !span.text!.startsWith('\u2026')) {
+      linkText = span.text;
+    }
+    return true;
+  });
+  return linkText;
+}
+
 void main() {
   late _FakePlatformRepository platform;
 
@@ -170,6 +187,10 @@ void main() {
       expect(
         find.textContaining(l10nRu.beaconShowcaseShowLess),
         findsOneWidget,
+      );
+      expect(
+        _trimLinkSpanText(tester),
+        ShowMoreText.formatExpandedTrimText(l10nRu.beaconShowcaseShowLess),
       );
     },
   );

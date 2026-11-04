@@ -40,6 +40,7 @@ const _outside = 'Profile text';
 const _room = 'Room text';
 const _showMore = 'Show more';
 const _showLess = 'Show less';
+String get _formattedShowLess => ShowMoreText.formatExpandedTrimText(_showLess);
 // Longer than ShowMoreText's three lines at the test window's width (about
 // eleven lines in the test font), yet short enough that the expanded text
 // still fits the 600 px window with a room under it.
@@ -283,7 +284,7 @@ void main() {
       expect(shownDescription(tester), contains(_showMore));
       tapDescriptionLink(tester, _showMore);
       await tester.pump();
-      expect(shownDescription(tester), contains(_showLess));
+      expect(shownDescription(tester), contains(_formattedShowLess));
       final state = tester.state<ReadMoreTextState>(find.byType(ReadMoreText));
       final regionBefore = regionOf(tester, 'Profile description');
 
@@ -307,7 +308,7 @@ void main() {
       );
       expect(
         shownDescription(tester),
-        contains(_showLess),
+        contains(_formattedShowLess),
         reason: 'opening a room must not collapse the description',
       );
 
@@ -329,12 +330,12 @@ void main() {
       );
       expect(
         shownDescription(tester),
-        contains(_showLess),
+        contains(_formattedShowLess),
         reason: 'closing the last room must not collapse the description',
       );
 
       // Still the same live widget: it collapses on request.
-      tapDescriptionLink(tester, _showLess);
+      tapDescriptionLink(tester, _formattedShowLess);
       await tester.pump();
       expect(shownDescription(tester), contains(_showMore));
       expectNoCrash(tester);
@@ -347,8 +348,9 @@ void main() {
     (tester) async {
       await pumpHome(tester, outside: description());
       final paragraphFinder = descriptionParagraph();
-      final paragraph =
-          tester.renderObjectList<RenderParagraph>(paragraphFinder).first;
+      final paragraph = tester
+          .renderObjectList<RenderParagraph>(paragraphFinder)
+          .first;
       regionOf(
         tester,
         'Profile description',
