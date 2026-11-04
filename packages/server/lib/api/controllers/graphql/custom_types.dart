@@ -1029,6 +1029,8 @@ final gqlTypeConstellationPeer =
         // the viewer's visible set; identity only, no handle, and no edge
         // but the viewer's own.
         field('contactOnly', graphQLBoolean.nonNullable()),
+        // Deleted-person tombstones carry identity only, with no New flag.
+        field('isNew', graphQLBoolean),
         field('presence', graphQLString.nonNullable()),
         field('temporaryBeaconId', graphQLString),
         field(
