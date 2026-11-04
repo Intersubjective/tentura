@@ -230,24 +230,35 @@ class ConstellationRequestPreviewSheet extends StatelessWidget {
         padding: tt.cardPadding,
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final scroll = SingleChildScrollView(child: body);
             if (!constraints.maxHeight.isFinite) {
               return Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  scroll,
+                  SingleChildScrollView(child: body),
                   SizedBox(height: tt.rowGap),
                   footer,
                 ],
               );
             }
+            // Peek-height compact sheets: footer may exceed the cap; keep
+            // actions reachable by scrolling rather than overflowing (#974).
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Expanded(child: scroll),
-                SizedBox(height: tt.rowGap),
-                footer,
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        body,
+                        SizedBox(height: tt.rowGap),
+                        footer,
+                      ],
+                    ),
+                  ),
+                ),
               ],
             );
           },

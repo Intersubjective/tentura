@@ -149,6 +149,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
   final _graphStackKey = GlobalKey();
   final _mapFocus = FocusNode(debugLabel: 'ConstellationMap');
   final _fieldTopChromeKey = GlobalKey();
+  double _fieldTopChromeHeight = 0;
   double _mapStackHeight = 0;
   double _compactSheetHeight = 0;
   bool _wasCompactPanelOpen = false;
@@ -309,12 +310,9 @@ class _ConstellationBodyState extends State<ConstellationBody>
     bool contextPanelVisible = true,
   }) {
     _stopReveal();
-    final compactPanel =
-        contextPanelVisible && context.windowClass == WindowClass.compact;
     final pan = cubit.revealPanFor(
       node,
       insets: _cameraViewportInsets(context, contextPanelVisible),
-      centreVertically: compactPanel,
     );
     if (pan == null) {
       return;
@@ -826,6 +824,36 @@ class _ConstellationBodyState extends State<ConstellationBody>
     _wasCompactPanelOpen = compactOpen;
   }
 
+  void _noteMapStackHeight(double height) {
+    if ((_mapStackHeight - height).abs() < 0.5) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || (_mapStackHeight - height).abs() < 0.5) {
+        return;
+      }
+      setState(() => _mapStackHeight = height);
+    });
+  }
+
+  void _measureFieldTopChromeHeight() {
+    final box = _fieldTopChromeKey.currentContext?.findRenderObject();
+    if (box is! RenderBox || !box.hasSize) {
+      return;
+    }
+    final height = box.size.height;
+    if ((_fieldTopChromeHeight - height).abs() < 0.5) {
+      return;
+    }
+    _fieldTopChromeHeight = height;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {});
+    });
+  }
+
   Widget _wrapAdaptiveContextOverlay(
     BuildContext context,
     ConstellationCubit cubit,
@@ -1203,8 +1231,9 @@ class _ConstellationBodyState extends State<ConstellationBody>
                                     // map's edge (#675).
                                     builder: (context, _, _) => LayoutBuilder(
                                       builder: (context, mapConstraints) {
-                                        _mapStackHeight =
-                                            mapConstraints.maxHeight;
+                                        _noteMapStackHeight(
+                                          mapConstraints.maxHeight,
+                                        );
                                         return ClipRect(
                                           child: _buildGraphStack(
                                             context,
@@ -1267,6 +1296,16 @@ class _ConstellationBodyState extends State<ConstellationBody>
     final tt = context.tt;
     final theme = Theme.of(context);
     final capHeight = bodyHeight * tt.fieldTopChromeMaxFraction;
+    if (hideMapChrome) {
+      final box = _fieldTopChromeKey.currentContext?.findRenderObject();
+      if (box is RenderBox &&
+          box.hasSize &&
+          (_fieldTopChromeHeight - box.size.height).abs() >= 0.5) {
+        _fieldTopChromeHeight = box.size.height;
+      }
+      return SizedBox(height: _fieldTopChromeHeight);
+    }
+    _measureFieldTopChromeHeight();
     return ConstrainedBox(
       constraints: BoxConstraints(maxHeight: capHeight),
       child: SingleChildScrollView(
@@ -1275,7 +1314,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (!hideMapChrome && !state.isComposing) ...[
+            if (!state.isComposing) ...[
               const ConstellationFieldNotices(),
               const ConstellationEmptyFilterBanner(),
               const ConstellationNoContactsBanner(),
@@ -1298,10 +1337,9 @@ class _ConstellationBodyState extends State<ConstellationBody>
                   ),
                 ),
               ),
-            if (!hideMapChrome && !state.isComposing) _buildTagRow(context),
-            if (!hideMapChrome)
-              if (state.tagView case final view?)
-                _buildTagViewHeader(context, cubit, view),
+            if (!state.isComposing) _buildTagRow(context),
+            if (state.tagView case final view?)
+              _buildTagViewHeader(context, cubit, view),
             if (state.rearrangePreview case final preview?)
               ConstellationRearrangePreviewBar(
                 movingCount: preview.movingCount,
