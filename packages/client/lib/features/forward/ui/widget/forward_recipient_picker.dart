@@ -113,6 +113,9 @@ class ForwardRecipientPicker extends StatefulWidget {
   /// «Others you can reach» header (#440).
   static const othersSectionKey = Key('ForwardRecipientPicker.othersSection');
 
+  /// «New» mutual-trust-this-week header (#894).
+  static const newSectionKey = Key('ForwardRecipientPicker.newSection');
+
   @override
   State<ForwardRecipientPicker> createState() => _ForwardRecipientPickerState();
 }
@@ -180,6 +183,30 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
   Widget _buildSearchField({
     required TenturaTokens tt,
     required L10n l10n,
+    bool autofocus = true,
+  }) {
+    return Row(
+      children: [
+        Icon(Icons.search, size: 20, color: tt.textMuted),
+        SizedBox(width: tt.iconTextGap),
+        Expanded(
+          child: TextField(
+            controller: _searchController,
+            autofocus: autofocus,
+            style: TenturaText.body(tt.text),
+            decoration: InputDecoration.collapsed(
+              hintText: l10n.forwardOverlaySearchHint,
+              hintStyle: TenturaText.bodySmall(tt.textFaint),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTopBarSearchField({
+    required TenturaTokens tt,
+    required L10n l10n,
   }) {
     // Mounted only while searching: Android/system back closes the search,
     // as the header back arrow does, instead of leaving Forward (#453).
@@ -188,23 +215,7 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop) _closeSearch();
       },
-      child: Row(
-        children: [
-          Icon(Icons.search, size: 20, color: tt.textMuted),
-          SizedBox(width: tt.iconTextGap),
-          Expanded(
-            child: TextField(
-              controller: _searchController,
-              autofocus: true,
-              style: TenturaText.body(tt.text),
-              decoration: InputDecoration.collapsed(
-                hintText: l10n.forwardOverlaySearchHint,
-                hintStyle: TenturaText.bodySmall(tt.textFaint),
-              ),
-            ),
-          ),
-        ],
-      ),
+      child: _buildSearchField(tt: tt, l10n: l10n),
     );
   }
 
@@ -686,7 +697,9 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
             }
 
             final beacon = state.beacon;
-            final searchQuery = _searchActive ? _searchController.text : '';
+            final searchQuery = (widget.embedded || _searchActive)
+                ? _searchController.text
+                : '';
             final isFiltering = searchQuery.trim().isNotEmpty;
             final shownIds = state.visibleRecipients.map((c) => c.id).toSet();
             final tagMemberIds = {
@@ -773,7 +786,7 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                     },
                   );
             final topBarTitle = _searchActive
-                ? _buildSearchField(tt: tt, l10n: l10n)
+                ? _buildTopBarSearchField(tt: tt, l10n: l10n)
                 : Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -946,6 +959,26 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                                   showForwardNote: profile.showsReasons,
                                 ),
                               ),
+                              if (widget.embedded)
+                                SliverPersistentHeader(
+                                  pinned: true,
+                                  delegate: ForwardPinnedSliverHeaderDelegate(
+                                    height: tt.buttonHeight + tt.rowGap * 2,
+                                    child: Padding(
+                                      padding: EdgeInsets.fromLTRB(
+                                        tt.screenHPadding,
+                                        tt.rowGap,
+                                        tt.screenHPadding,
+                                        tt.rowGap,
+                                      ),
+                                      child: _buildSearchField(
+                                        tt: tt,
+                                        l10n: l10n,
+                                        autofocus: false,
+                                      ),
+                                    ),
+                                  ),
+                                ),
                               // No one at all to send to: only the empty
                               // state, no «Not yet seen 0 / Already
                               // involved 0» row (#252).
@@ -991,7 +1024,8 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                                               ForwardFilter.alreadyInvolved
                                         ? _PickerEmptyKind.noOneInvolved
                                         : _PickerEmptyKind.everyoneInvolved,
-                                    onInvite: _canInviteFromEmptyState(
+                                    onInvite:
+                                        _canInviteFromEmptyState(
                                           context,
                                           state,
                                         )
@@ -1012,6 +1046,8 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                                         _planVisibleRecipientSlots(
                                           state: state,
                                           visible: visible,
+                                          flattenGroups: isFiltering,
+                                          now: cubit.now,
                                         );
                                     return SliverList.list(
                                       children: [
@@ -1182,34 +1218,65 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
   List<_RecipientListSlot> _planVisibleRecipientSlots({
     required ForwardState state,
     required List<ForwardCandidate> visible,
+    required bool flattenGroups,
+    required DateTime now,
   }) {
-    final grouped = state.activeFilter != ForwardFilter.alreadyInvolved;
-    final ordered = grouped
-        ? [
-            ...visible.where((c) => c.profile.isFriend),
-            ...visible.where((c) => !c.profile.isFriend),
-          ]
-        : visible;
-    final firstOtherIndex = grouped
-        ? ordered.indexWhere((c) => !c.profile.isFriend)
-        : -1;
-    final hasDirect =
-        grouped && ordered.isNotEmpty && ordered.first.profile.isFriend;
+    final grouped =
+        state.activeFilter != ForwardFilter.alreadyInvolved && !flattenGroups;
+
+    if (!grouped) {
+      final slots = <_RecipientListSlot>[];
+      for (var i = 0; i < visible.length; i++) {
+        if (i > 0) slots.add(const _RecipientListDivider());
+        final candidate = visible[i];
+        slots.add(_RecipientListRow(candidate));
+        if (state.editingRecipientId == candidate.id) {
+          slots.add(const _RecipientListEditPanel());
+        }
+      }
+      return slots;
+    }
+
+    final newMutual =
+        visible.where((c) => ForwardState.isNewMutualCandidate(c, now)).toList()
+          ..sort(ForwardState.compareNewMutualNewestFirst);
+    final newIds = newMutual.map((c) => c.id).toSet();
+    final rest = visible.where((c) => !newIds.contains(c.id)).toList();
+    final directRest = rest.where((c) => c.profile.isFriend).toList();
+    final otherRest = rest.where((c) => !c.profile.isFriend).toList();
 
     final slots = <_RecipientListSlot>[];
 
-    if (hasDirect) {
-      slots.add(const _RecipientListDirectHeader());
+    if (newMutual.isNotEmpty) {
+      slots.add(const _RecipientListNewHeader());
+    }
+    for (var i = 0; i < newMutual.length; i++) {
+      if (i > 0) slots.add(const _RecipientListDivider());
+      final candidate = newMutual[i];
+      slots.add(_RecipientListRow(candidate));
+      if (state.editingRecipientId == candidate.id) {
+        slots.add(const _RecipientListEditPanel());
+      }
     }
 
-    for (var i = 0; i < ordered.length; i++) {
-      final startsOthers = grouped && i == firstOtherIndex;
-      if (startsOthers) {
-        slots.add(const _RecipientListOthersHeader());
-      } else if (i > 0) {
-        slots.add(const _RecipientListDivider());
+    if (directRest.isNotEmpty) {
+      slots.add(const _RecipientListDirectHeader());
+    }
+    for (var i = 0; i < directRest.length; i++) {
+      if (i > 0) slots.add(const _RecipientListDivider());
+      final candidate = directRest[i];
+      slots.add(_RecipientListRow(candidate));
+      if (state.editingRecipientId == candidate.id) {
+        slots.add(const _RecipientListEditPanel());
       }
-      final candidate = ordered[i];
+    }
+
+    if (otherRest.isNotEmpty) {
+      slots.add(const _RecipientListOthersHeader());
+    }
+    for (var i = 0; i < otherRest.length; i++) {
+      if (i > 0) slots.add(const _RecipientListDivider());
+      final candidate = otherRest[i];
       slots.add(_RecipientListRow(candidate));
       if (state.editingRecipientId == candidate.id) {
         slots.add(const _RecipientListEditPanel());
@@ -1229,6 +1296,31 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
     final tt = context.tt;
     final l10n = L10n.of(context)!;
     return switch (slot) {
+      _RecipientListNewHeader() => Padding(
+        key: ForwardRecipientPicker.newSectionKey,
+        padding: EdgeInsets.symmetric(horizontal: tt.screenHPadding),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: TenturaSectionHeader(
+                    label: l10n.forwardSectionNewMutual,
+                    helperText: l10n.forwardSectionNewMutualHint,
+                  ),
+                ),
+                TextButton(
+                  key: const Key('ForwardRecipientPicker.newSelectAll'),
+                  onPressed: cubit.selectNewMutualCandidates,
+                  child: Text(l10n.forwardSectionNewMutualSelectAll),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
       _RecipientListDirectHeader() => Padding(
         key: ForwardRecipientPicker.directSectionKey,
         padding: EdgeInsets.symmetric(horizontal: tt.screenHPadding),
@@ -1276,6 +1368,10 @@ sealed class _RecipientListSlot {
 
 final class _RecipientListDirectHeader extends _RecipientListSlot {
   const _RecipientListDirectHeader();
+}
+
+final class _RecipientListNewHeader extends _RecipientListSlot {
+  const _RecipientListNewHeader();
 }
 
 final class _RecipientListOthersHeader extends _RecipientListSlot {

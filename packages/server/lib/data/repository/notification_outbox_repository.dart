@@ -248,6 +248,12 @@ WHERE seen_at IS NOT NULL
       },
       coordinationItemId: row.readNullable<String>('coordination_item_id'),
       actorUserId: row.readNullable<String>('actor_user_id'),
+      // Prefer the receipt's event-time name so recognized English copy still
+      // matches after a profile rename. Older receipts use the joined profile.
+      actorDisplayName: switch (payload['actorName']) {
+        final String name when name.isNotEmpty => name,
+        _ => row.readNullable<String>('sender_name') ?? '',
+      },
       seenAt: _readTimestamp(row, 'seen_at'),
       sourceEventKey: row.readNullable<String>('source_event_key'),
       destinationKind: row.readNullable<String>('destination_kind'),

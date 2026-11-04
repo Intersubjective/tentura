@@ -104,6 +104,23 @@ void _expectPersonalNoteEditorPrimaryFocus(WidgetTester tester) {
   expect(tester.testTextInput.hasAnyClients, isTrue);
 }
 
+/// Embedded pickers always show the pinned recipient search field (#894).
+Finder _embeddedRecipientSearchField() => find.descendant(
+  of: find.byType(ForwardRecipientPicker),
+  matching: find.byWidgetPredicate(
+    (w) => w is TextField && (w.decoration?.isCollapsed ?? false),
+  ),
+);
+
+void _expectOnlyEmbeddedSearchField(WidgetTester tester) {
+  expect(_embeddedRecipientSearchField(), findsOneWidget);
+}
+
+void _expectEmbeddedSearchAndPersonalNoteFields(WidgetTester tester) {
+  expect(_embeddedRecipientSearchField(), findsOneWidget);
+  expect(find.byType(PerRecipientNoteInput), findsOneWidget);
+}
+
 Future<void> _pumpPickerSurface(
   WidgetTester tester, {
   required ForwardCubit cubit,
@@ -794,12 +811,12 @@ void main() {
         surfaceSize: const Size(1280, 800),
       );
 
-      expect(find.byType(TextField), findsNothing);
+      _expectOnlyEmbeddedSearchField(tester);
       await _tapAddNoteAndPumpForFocus(
         tester,
         find.byTooltip('Add a note for Alex'),
       );
-      expect(find.byType(TextField), findsOneWidget);
+      _expectEmbeddedSearchAndPersonalNoteFields(tester);
       _expectPersonalNoteEditorPrimaryFocus(tester);
 
       const typed = 'hello without enterText';
@@ -811,7 +828,7 @@ void main() {
       // open (#893 r4); an outside tap is the blur that collapses it.
       await tester.tapAt(const Offset(180, 12));
       await tester.pumpAndSettle();
-      expect(find.byType(TextField), findsNothing);
+      _expectOnlyEmbeddedSearchField(tester);
       expect(find.text(typed), findsOneWidget);
 
       await _tapAddNoteAndPumpForFocus(tester, find.text(typed));
@@ -857,7 +874,7 @@ void main() {
       // An outside tap, not a bare unfocus, collapses a non-empty note (#893 r4).
       await tester.tapAt(const Offset(180, 12));
       await tester.pumpAndSettle();
-      expect(find.byType(TextField), findsNothing);
+      _expectOnlyEmbeddedSearchField(tester);
       expect(find.text('заметка'), findsOneWidget);
     });
 
@@ -982,10 +999,10 @@ void main() {
 
     await pumpPicker(tester, cubit: cubit, embedded: true);
 
-    expect(find.byType(TextField), findsNothing);
+    _expectOnlyEmbeddedSearchField(tester);
     await tester.tap(find.byTooltip('Add a note for Alex'));
     await tester.pumpAndSettle();
-    expect(find.byType(TextField), findsOneWidget);
+    _expectEmbeddedSearchAndPersonalNoteFields(tester);
   });
 
   testWidgets('submit with one selected recipient proceeds without sheet', (
