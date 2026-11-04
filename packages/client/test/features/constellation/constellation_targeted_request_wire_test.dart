@@ -42,6 +42,7 @@ Map<String, dynamic> _response() => {
       'coverSource': 0,
       'coverThumb': null,
       'parentBeaconId': null,
+      'has_unread': false,
     },
   ],
 };

@@ -112,6 +112,7 @@ Map<String, Object?> _fieldPayload({
       'coverSource': 0,
       'coverThumb': null,
       'parentBeaconId': parentBeaconId,
+      'has_unread': false,
     },
   ],
   if (includeAnchorProjection)

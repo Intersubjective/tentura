@@ -18,6 +18,7 @@ import 'package:tentura/features/inbox/domain/port/posts_repository_port.dart';
 import 'package:tentura/features/post_view/data/repository/post_membership_repository.dart';
 import 'package:tentura/features/post_view/data/repository/post_mute_repository.dart';
 import 'package:tentura/features/post_view/domain/use_case/post_view_case.dart';
+import 'package:tentura/features/constellation/domain/use_case/constellation_field_store_case.dart';
 import 'package:tentura/features/post_view/ui/message/post_messages.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
@@ -209,6 +210,7 @@ class PostViewCubit extends Cubit<PostViewState> implements RoomHost {
       beaconId: beaconId,
       mutedUntil: duration == null ? null : _clock().add(duration),
     );
+    GetIt.I<ConstellationFieldStoreCase>().noteBeaconMuted(beaconId);
     await _fetchExtras();
   });
 
@@ -216,6 +218,7 @@ class PostViewCubit extends Cubit<PostViewState> implements RoomHost {
     await (muteRepository ??= GetIt.I<PostMuteRepository>()).clearMute(
       beaconId,
     );
+    GetIt.I<ConstellationFieldStoreCase>().noteBeaconUnmuted(beaconId);
     await _fetchExtras();
   });
 

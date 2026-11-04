@@ -62,6 +62,7 @@ Map<String, Object?> _post(String id, String excerpt) => {
   'rootExcerpt': excerpt,
   'isPinned': false,
   'hiddenReachCount': 0,
+  'has_unread': false,
   'expiresAt': null,
   'status': 0,
 };

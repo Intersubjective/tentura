@@ -182,6 +182,7 @@ void main() {
                     'rootExcerpt': 'Who has a ladder?',
                     'isPinned': true,
                     'hiddenReachCount': 3,
+                    'has_unread': false,
                   },
                 ],
                 'memberWebs': [

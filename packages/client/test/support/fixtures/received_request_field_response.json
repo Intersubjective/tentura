@@ -72,7 +72,8 @@
         "coverSource": 0,
         "coverThumb": null,
         "forwardedById": "Uforwardbob01",
-        "forwardedByName": "Bob"
+        "forwardedByName": "Bob",
+        "has_unread": false
       }
     ],
     "posts": [],
