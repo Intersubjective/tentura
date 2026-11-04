@@ -880,7 +880,8 @@ WHERE b.user_id = ANY(\$2::text[])
   AND NOT public.block_hides(\$1, b.user_id)
   AND NOT (b.id = ANY(\$4::text[]))
   ${participation == null ? '' : 'AND ($participation)'}
-  ${after == null ? '' : '''AND ($constellationLastActivitySql < \$6::timestamptz
+  ${after == null ? '' : '''
+  AND ($constellationLastActivitySql < \$6::timestamptz
     OR ($constellationLastActivitySql = \$6::timestamptz AND b.id > \$7))'''}
 ORDER BY $constellationLastActivitySql DESC, b.id
 LIMIT \$5
