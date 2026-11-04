@@ -18,7 +18,6 @@ extension type const UserModel(GUserModel i) implements GUserModel {
     }
     return Profile(
       id: i.id,
-      joinedAt: i.created_at.toUtc(),
       displayName: i.display_name,
       contactName: contactNameOf(i.id),
       handle: i.handle ?? '',

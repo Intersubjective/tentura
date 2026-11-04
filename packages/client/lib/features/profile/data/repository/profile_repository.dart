@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura/data/gql/tentura_v2_upload.dart';
-import 'package:tentura/data/model/user_model.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -17,6 +16,7 @@ import '../gql/_g/profile_delete.req.gql.dart';
 import '../gql/_g/profile_update.req.gql.dart';
 import '../gql/_g/user_fetch_by_id.req.gql.dart';
 import '../gql/_g/users_fetch_by_ids.req.gql.dart';
+import '../model/profile_user_mapper.dart';
 
 @Singleton(
   as: ProfileRepositoryPort,
@@ -44,7 +44,7 @@ class ProfileRepository implements ProfileRepositoryPort {
         .request(request)
         .firstWhere((e) => e.dataSource == DataSource.Link)
         .then((r) => r.dataOrThrow(label: _label).user_by_pk)
-        .then((r) => (r as UserModel?)?.toEntity());
+        .then((r) => r == null ? null : profileFromUserFetchRow(r));
     if (response == null) throw ProfileFetchException(id);
     _controller.add(RepositoryEventFetch(response));
     return response;
@@ -53,12 +53,14 @@ class ProfileRepository implements ProfileRepositoryPort {
   @override
   Future<List<Profile>> fetchProfilesByIds(Set<String> ids) async {
     if (ids.isEmpty) return const [];
-    final request = GUsersFetchByIdsReq((b) => b.vars.ids.replace(ids.toList()));
+    final request = GUsersFetchByIdsReq(
+      (b) => b.vars.ids.replace(ids.toList()),
+    );
     final rows = await _remoteApiService
         .request(request)
         .firstWhere((e) => e.dataSource == DataSource.Link)
         .then((r) => r.dataOrThrow(label: _label).user);
-    return rows.map((row) => (row as UserModel).toEntity()).toList();
+    return rows.map(profileFromUsersFetchRow).toList();
   }
 
   //
