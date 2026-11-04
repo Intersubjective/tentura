@@ -24,6 +24,8 @@ import 'package:tentura_server/domain/util/room_reply_excerpt.dart';
 import 'package:tentura_server/utils/id.dart';
 
 import '../database/tentura_db.dart';
+import '../database/sql/request_unread_sql.dart'
+    show discussionUnreadMessageSql;
 import 'room_unread_sql.dart';
 import 'beacon_room_participant_join_recorder.dart';
 import 'participant_activity_sql.dart';
@@ -2039,6 +2041,62 @@ FROM unnest(\$1::text[]) AS ids(beacon_id)
     return {
       for (final row in rows)
         row.read<String>('beacon_id'): row.read<int>('unread'),
+    };
+  }
+
+  @override
+  Future<Map<String, String>> oldestUnreadRoomByBeacon(
+    Iterable<String> beaconIds, {
+    required String viewerUserId,
+  }) async {
+    final ids = beaconIds.where((id) => id.isNotEmpty).toSet().toList();
+    if (ids.isEmpty) return {};
+    final rows = await _db
+        .customSelect(
+          '''
+SELECT ids.beacon_id, oldest.room
+FROM unnest(\$1::text[]) AS ids(beacon_id)
+CROSS JOIN LATERAL (
+  SELECT c.room FROM (
+    SELECT m.created_at, 'discussion' AS room
+    FROM public.beacon_room_message m
+    LEFT JOIN public.beacon_room_seen seen
+      ON seen.beacon_id = m.beacon_id AND seen.user_id = \$2
+      AND seen.thread_item_id IS NULL
+    WHERE m.beacon_id = ids.beacon_id AND m.thread_item_id IS NULL
+      AND public.beacon_effective_admission(ids.beacon_id, \$2)
+      AND ${discussionUnreadMessageSql(r'$2')}
+    UNION ALL
+    SELECT m.created_at, 'questions' AS room
+    FROM public.coordination_item ci
+    JOIN public.beacon_room_message m ON m.thread_item_id = ci.id
+    LEFT JOIN public.beacon_room_seen seen
+      ON seen.thread_item_id = m.thread_item_id AND seen.user_id = \$2
+      AND seen.beacon_id = m.beacon_id
+    WHERE ci.beacon_id = ids.beacon_id AND ci.kind = $coordinationItemKindLobby
+      AND m.author_id <> \$2
+      AND m.system_message_kind IS NULL
+      AND (seen.last_seen_at IS NULL OR m.created_at > seen.last_seen_at)
+      AND NOT public.block_hides(m.author_id, \$2)
+      AND EXISTS (
+        SELECT 1 FROM public.questions_access_levels(
+          ci.beacon_id, ARRAY[\$2]::text[]
+        ) access WHERE access.access > 0
+      )
+  ) c
+  ORDER BY c.created_at
+  LIMIT 1
+) oldest
+''',
+          variables: [
+            Variable(TypedValue(Type.textArray, ids)),
+            Variable<String>(viewerUserId),
+          ],
+        )
+        .get();
+    return {
+      for (final row in rows)
+        row.read<String>('beacon_id'): row.read<String>('room'),
     };
   }
 

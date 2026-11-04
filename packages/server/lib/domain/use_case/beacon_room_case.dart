@@ -880,18 +880,21 @@ class BeaconRoomCase extends UseCaseBase {
           inThread && threadItem?.kind == coordinationItemKindLobby
           ? await _room.beaconAuthorUserId(beaconId)
           : null;
-      final otherDirectedIds = await _onlyLobbyMembersIn(
-        beaconId: beaconId,
-        threadScopeId: inThread ? tid : null,
-        userIds:
-            <String>{
-                ?repliedMessage?.authorId,
-                ?threadItem?.targetPersonId,
-                ?questionsAuthorId,
-              }
-              ..removeWhere((id) => id.isEmpty || id == userId)
-              ..removeAll(mentionRecipientIds),
-      );
+      // Questions is plain chat: its messages raise the unread counter only,
+      // never a per-message card update (#904).
+      final otherDirectedIds = questionsAuthorId != null
+          ? const <String>{}
+          : await _onlyLobbyMembersIn(
+              beaconId: beaconId,
+              threadScopeId: inThread ? tid : null,
+              userIds:
+                  <String>{
+                      ?repliedMessage?.authorId,
+                      ?threadItem?.targetPersonId,
+                    }
+                    ..removeWhere((id) => id.isEmpty || id == userId)
+                    ..removeAll(mentionRecipientIds),
+            );
 
       final hasDirected =
           mentionRecipientIds.isNotEmpty || otherDirectedIds.isNotEmpty;
@@ -968,7 +971,6 @@ class BeaconRoomCase extends UseCaseBase {
                 recipientUserIds: otherDirectedIds,
                 excerpt: excerpt,
                 threadItemId: inThread ? tid : null,
-                questionsScope: questionsAuthorId != null,
                 sourceEventKey: 'room_message:${row.id}',
               ),
             );
@@ -1358,6 +1360,10 @@ class BeaconRoomCase extends UseCaseBase {
       slice,
       viewerUserId: userId,
     );
+    final unreadRooms = await _room.oldestUnreadRoomByBeacon(
+      slice,
+      viewerUserId: userId,
+    );
     final blockers = await _items.openBlockersByBeaconIds(
       members.keys,
       viewerUserId: userId,
@@ -1385,6 +1391,7 @@ class BeaconRoomCase extends UseCaseBase {
           'lastRoomMeaningfulChange': null,
           'nextMoveText': null,
           'roomUnreadCount': unread[bid] ?? 0,
+          'unreadRoom': unreadRooms[bid],
           'lastSeenAt': null,
           'openBlockerTitle': null,
           ..._emptyOpenBlockerBatchFields(),
@@ -1404,6 +1411,7 @@ class BeaconRoomCase extends UseCaseBase {
         'lastRoomMeaningfulChange': member.lastRoomMeaningfulChange,
         'nextMoveText': member.nextMoveText,
         'roomUnreadCount': unread[bid] ?? 0,
+        'unreadRoom': unreadRooms[bid],
         'lastSeenAt': member.lastSeenAt?.toUtc().toIso8601String(),
         'openBlockerTitle': openBlocker?.title,
         ..._openBlockerBatchFields(

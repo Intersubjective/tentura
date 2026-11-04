@@ -773,6 +773,8 @@ final gqlTypeInboxRoomContextRow =
         field('lastRoomMeaningfulChange', graphQLString),
         field('nextMoveText', graphQLString),
         field('roomUnreadCount', graphQLInt.nonNullable()),
+        // Room holding the oldest unread message: discussion | questions.
+        field('unreadRoom', graphQLString),
         field('lastSeenAt', graphQLString),
         field('openBlockerTitle', graphQLString),
         field('openBlockerCreatorId', graphQLString),

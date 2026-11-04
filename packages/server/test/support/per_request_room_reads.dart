@@ -57,6 +57,13 @@ mixin RoomReadsFromPerRequestStubs implements BeaconRoomRepositoryPort {
         excludeAuthorId: viewerUserId,
       ),
   };
+
+  // Stubs hold no Questions room, so no card has a Questions tap target.
+  @override
+  Future<Map<String, String>> oldestUnreadRoomByBeacon(
+    Iterable<String> beaconIds, {
+    required String viewerUserId,
+  }) async => {};
 }
 
 /// For item fakes that stub [listByBeacon]: answers the batched open-blocker

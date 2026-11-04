@@ -749,8 +749,8 @@ Future<void> main() async {
       }
     });
 
-    test('mentions reach exactly the audience; the author hears every '
-        'question', () async {
+    test('mentions reach exactly the audience; a plain question raises no '
+        'per-message notice', () async {
       final lobbyId = await openAsAuthor();
       final everyone = matrix.map((c) => '@${c.id.substring(2, 8)}').join(' ');
       await rooms.createMessage(
@@ -771,7 +771,7 @@ Future<void> main() async {
         body: 'Which Saturday?',
         threadItemId: lobbyId,
       );
-      expect(intents.directed, {author});
+      expect(intents.directed, isEmpty);
     });
 
     test('realtime: the audience outside the General room gets the hint, '
