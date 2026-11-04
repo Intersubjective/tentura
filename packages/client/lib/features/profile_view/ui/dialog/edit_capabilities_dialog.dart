@@ -108,64 +108,55 @@ class _EditCapabilitiesDialogState extends State<EditCapabilitiesDialog> {
         initialChildSize: 0.75,
         minChildSize: 0.4,
         maxChildSize: 0.95,
-        builder: (_, scrollController) => Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          l10n.capabilityDialogTitle(widget.subjectName),
-                          style: theme.textTheme.titleMedium,
-                        ),
-                        Text(
-                          l10n.capabilityDialogOnlyYou,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  FilledButton(
-                    onPressed: _saving ? null : _save,
-                    child: _saving
-                        ? const SizedBox.square(
-                            dimension: 18,
-                            child: TenturaCircularProgress(strokeWidth: 2),
-                          )
-                        : Text(l10n.buttonSave),
-                  ),
-                ],
-              ),
+        builder: (_, scrollController) {
+          final tt = context.tt;
+          return ListView(
+            controller: scrollController,
+            padding: EdgeInsets.fromLTRB(
+              tt.screenHPadding,
+              tt.sectionGap,
+              tt.screenHPadding,
+              tt.sectionGap * 2,
             ),
-            Expanded(
-              child: ListView(
-                controller: scrollController,
-                // Room above the search field for its floating label, which
-                // sits half above the field's box and was clipped by the
-                // scroll view's top edge (#741).
-                padding: EdgeInsets.fromLTRB(16, context.tt.sectionGap, 16, 32),
-                children: [
-                  CapabilitySearchField(
-                    onChanged: (q) => setState(() => _query = q),
-                  ),
-                  SizedBox(height: context.tt.rowGap),
-                  CapabilityChipSet(
-                    selectedSlugs: _selected,
-                    automaticSlugs: widget.automaticSlugs,
-                    query: _query,
-                    onChanged: (s) => setState(() => _selected = s),
-                  ),
-                ],
+            children: [
+              Text(
+                l10n.profileYourTagsFor(widget.subjectName),
+                style: theme.textTheme.titleMedium,
               ),
-            ),
-          ],
-        ),
+              SizedBox(height: tt.tightGap),
+              Text(
+                l10n.capabilityTagsDisclosure(widget.subjectName),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              SizedBox(height: tt.rowGap),
+              Align(
+                alignment: Alignment.centerRight,
+                child: FilledButton(
+                  onPressed: _saving ? null : _save,
+                  child: _saving
+                      ? SizedBox.square(
+                          dimension: tt.iconSize,
+                          child: const TenturaCircularProgress(strokeWidth: 2),
+                        )
+                      : Text(l10n.buttonSave),
+                ),
+              ),
+              SizedBox(height: tt.sectionGap),
+              CapabilitySearchField(
+                onChanged: (q) => setState(() => _query = q),
+              ),
+              SizedBox(height: tt.rowGap),
+              CapabilityChipSet(
+                selectedSlugs: _selected,
+                automaticSlugs: widget.automaticSlugs,
+                query: _query,
+                onChanged: (s) => setState(() => _selected = s),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

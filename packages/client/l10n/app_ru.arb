@@ -4603,7 +4603,23 @@
   "profileEyeTrustNote": "Доверие — ваш собственный выбор. Глаз показывает итог: он может открыться и без прямого доверия — через тех, кому вы доверяете.",
   "profileMyLabelsLine": "Вы связываете с этим человеком: {tags}",
   "profileMarkCapabilities": "Отметить, чем помогает {name}",
-  "profileEditLabels": "Изменить метки",
+  "profileYourTagsFor": "Ваши теги для {name}",
+  "@profileYourTagsFor": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "capabilityTagsDisclosure": "Теги, которые вы ставите, помогают другим находить {name} для запросов. Никто не видит, кто какую метку поставил.",
+  "@capabilityTagsDisclosure": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "profileEditLabels": "Изменить",
   "profileLabelsInfoTitle": "Метки об этом человеке",
   "profileLabelsInfoPrivate": "Заметки с замком видите только вы: по ним Tentura подсказывает вам этого человека при пересылке.",
   "profileLabelsInfoShared": "Метки с людьми — из ваших пересылок и отметок о помощи. Их видит {name}, и они помогают людям, которые вам доверяют, найти этого человека для похожих запросов.",
@@ -6390,6 +6406,9 @@
   "graphLegendConstellationWiderNetworkReachHint": "Вы и этот человек видите друг друга через сеть доверия, но «Поле» не может показать путь между вами.",
   "ratingColumnsInfoLabel": "Что значат эти числа",
   "forwardSectionDirectContacts": "Ваши связи",
+  "forwardSectionNewMutual": "Новые",
+  "forwardSectionNewMutualHint": "Взаимное доверие за последнюю неделю",
+  "forwardSectionNewMutualSelectAll": "Выбрать все",
   "forwardSectionOthersReachable": "Другие, кому можно отправить",
   "forwardSectionOthersReachableHint": "Не ваши прямые связи: вы видите друг друга через сеть доверия или общий запрос.",
   "beaconPublishWithoutSendingDiscoverableHint": "Его могут найти в «Поле» те, кто видит вас. Напрямую его никто не получит, пока вы его не отправите.",
