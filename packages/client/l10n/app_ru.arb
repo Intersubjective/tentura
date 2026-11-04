@@ -6614,6 +6614,8 @@
   "constellationTagsSection": "Теги",
   "constellationTagsSheetTitle": "Теги",
   "constellationTagsManage": "Управлять тегами",
+  "constellationTagsClearAll": "Снять все",
+  "constellationTagsSelectAll": "Выбрать все",
   "constellationTagModeOr": "Любой из них",
   "constellationTagModeAnd": "Все сразу",
   "constellationAutoTagMutualContact": "Взаимный контакт",

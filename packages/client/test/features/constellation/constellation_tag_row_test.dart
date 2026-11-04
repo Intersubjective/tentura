@@ -91,6 +91,24 @@ void main() {
       expect(toggled, ['T2']);
     });
 
+    testWidgets('selected own tag shows a check mark in the scroll row', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        ownTags: const [_neighbour, _helped],
+        filter: const ConstellationTagFilter(selectedOwn: {'T1'}),
+      );
+
+      expect(
+        find.descendant(
+          of: find.byType(PersonTagChip),
+          matching: find.byIcon(Icons.check),
+        ),
+        findsOneWidget,
+      );
+    });
+
     testWidgets('the and/or switch appears only with two tags selected', (
       tester,
     ) async {
