@@ -459,6 +459,7 @@ void main() {
       "You and this person see each other through the trust network, but the Field can't show the path between you.",
       'Shown while someone is selected: a double line joins them to each person on the Field they trust both ways.',
       'A soft green pulse around a friend means they are online now.',
+      'Someone who appeared on your Field in the last week and you have not opened yet.',
     ]);
 
     await tester.ensureVisible(find.text('Wider network reach'));

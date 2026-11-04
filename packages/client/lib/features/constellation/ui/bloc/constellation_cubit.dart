@@ -45,6 +45,7 @@ import '../../domain/entity/constellation_trust_chain_person.dart';
 import '../util/layout_geometry_adapters.dart';
 import '../../domain/use_case/constellation_member_webs_case.dart';
 import '../../domain/use_case/constellation_mutual_trust_case.dart';
+import '../../domain/use_case/constellation_new_people_case.dart';
 import '../../domain/use_case/constellation_trust_chain_case.dart';
 import '../../domain/entity/placement_outbox.dart';
 import '../../domain/placement_overlay.dart';
@@ -148,6 +149,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     this._visibilityCase,
     this._mutualTrustCase,
     this._trustChainCase,
+    this._newPeopleCase,
     this._tagMagnetCase,
     Set<String> Function(String personId)? ownTagIdsOf,
     ForwardCase? forwardCase,
@@ -201,6 +203,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   final ConstellationVisibilityCase? _visibilityCase;
   final ConstellationMutualTrustCase? _mutualTrustCase;
   final ConstellationTrustChainCase? _trustChainCase;
+  final ConstellationNewPeopleCase? _newPeopleCase;
   final ConstellationTagMagnetCase? _tagMagnetCase;
   final Profile _viewer;
 
@@ -3750,6 +3753,11 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   void selectPerson(String? personId) {
     if (isClosed) {
       return;
+    }
+    if (personId != null &&
+        personId != viewerId &&
+        (fieldPersonById(personId)?.isNew ?? false)) {
+      unawaited(_newPeopleCase?.acknowledgeOpened([personId]));
     }
     _cancelPersonFocus();
     final previousRequestId = state.selectedRequestId;

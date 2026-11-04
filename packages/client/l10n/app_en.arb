@@ -9962,6 +9962,28 @@
   "@constellationPresenceOnlineHint": {
     "context": "Field legend: one-sentence hint for the online presence halo; only friends and people you share a Request chat with show it"
   },
+  "constellationFieldNewChip": "New",
+  "@constellationFieldNewChip": {
+    "context": "Field list: chip on a person who is new on your Field until you open them (#898)"
+  },
+  "constellationFieldNewLegend": "New on your Field",
+  "@constellationFieldNewLegend": {
+    "context": "Field legend: accent ring for a person who recently appeared on your Field (#898)"
+  },
+  "constellationFieldNewLegendHint": "Someone who appeared on your Field in the last week and you have not opened yet.",
+  "@constellationFieldNewLegendHint": {
+    "context": "Field legend: one-sentence hint for the «new on your Field» ring (#898)"
+  },
+  "constellationFieldNewSemantics": "{name}, new on your Field",
+  "@constellationFieldNewSemantics": {
+    "context": "Field map/list semantics for a person who is new on your Field (#898)",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "Maria"
+      }
+    }
+  },
   "constellationTrustChainThrough": "Through {chain}",
   "@constellationTrustChainThrough": {
     "context": "Field map: person panel line naming the people on the shortest chain of trust from the viewer to the selected person, joined with arrows, e.g. 'Through Dima → Raf' (#641)",

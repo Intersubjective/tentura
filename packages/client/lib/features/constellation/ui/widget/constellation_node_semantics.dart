@@ -33,9 +33,12 @@ String constellationNodeSemanticLabel({
               viewerId: cubit.viewerId,
             )[person.id];
       final pinState = cubit.fieldPersonById(person.id)?.pinState;
+      final isNewOnField = cubit.fieldPersonById(person.id)?.isNew ?? false;
       final base = [
         if (pinState == 'tombstone')
           l10n.constellationPinAccountDeleted
+        else if (isNewOnField)
+          l10n.constellationFieldNewSemantics(person.shownName)
         else
           person.shownName,
         if (pinState == 'blockedByMe') l10n.constellationPinBlocked,

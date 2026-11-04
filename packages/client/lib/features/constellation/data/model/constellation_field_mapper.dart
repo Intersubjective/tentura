@@ -130,6 +130,7 @@ ConstellationPerson _mapPersonFields({
   String? presence,
   String? temporaryBeaconId,
   Iterable<({String beaconId, String title})> bondContexts = const [],
+  bool isNew = false,
 }) => ConstellationPerson(
   id: id,
   pinState: pinState,
@@ -147,6 +148,7 @@ ConstellationPerson _mapPersonFields({
   displayName: displayName,
   handle: handle,
   image: image?.asEntity,
+  isNew: isNew,
 );
 
 ConstellationFieldMembership _membershipFromWire(String? presence) =>
@@ -171,6 +173,7 @@ ConstellationPerson _mapFieldFetchPerson(
   displayName: peer.displayName,
   handle: peer.handle,
   image: peer.image as ImageModelV2?,
+  isNew: peer.isNew ?? false,
 );
 
 ConstellationPerson _mapAnchorsFetchPerson(
@@ -327,6 +330,7 @@ ConstellationAnchorProjection _mapFieldFetchAnchorProjection(
         displayName: peer.displayName,
         handle: peer.handle,
         image: peer.image as ImageModelV2?,
+        isNew: peer.isNew ?? false,
       ),
   ],
   pinnedRequests: [

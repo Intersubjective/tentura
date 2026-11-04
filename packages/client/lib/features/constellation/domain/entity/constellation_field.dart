@@ -101,6 +101,10 @@ abstract class ConstellationPerson with _$ConstellationPerson {
     @Default({}) Set<ConstellationAutoTagKind> autoTagKinds,
     DateTime? firstSeenAt,
 
+    /// The person appeared on the viewer's Field recently and has not been
+    /// opened yet (#898).
+    @Default(false) bool isNew,
+
     /// The Request that made a temporary person visible.
     String? temporaryBeaconId,
 
