@@ -1,13 +1,10 @@
 // The Post participants list (a section of «О посте») lists who is in the
 // conversation («В ПОСТЕ») and who has not opened it yet («ЕЩЁ НЕ
-// ОТКРЫЛИ»), marks contacts, offers a trust toggle (was «[+ В контакты]»)
-// shortcut that reuses `ProfileViewCubit.addFriend`, shows who brought a
-// member in from the forward edges, opens a profile on tap, offers «Позвать»
-// to a member who may forward and links to the forwarding graph. Rows are located by what they show and where they sit, not
-// by keys, so any layout that renders the M5 mockup passes.
+// ОТКРЫЛИ»), shows who brought a member in from the forward edges, opens a
+// profile on tap, offers «Позвать» to a member who may forward and links to
+// the forwarding graph. Rows are located by what they show and where they sit,
+// not by keys, so any layout that renders the M5 mockup passes.
 // UI copy is asserted verbatim in Russian (docs/plans/post-ux-mockups.md, M5).
-
-import 'dart:async';
 
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
@@ -21,10 +18,10 @@ import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/forward/domain/entity/forward_edge.dart';
 import 'package:tentura/features/post_view/ui/widget/post_participants_list.dart';
-import 'package:tentura/features/profile_view/ui/bloc/profile_view_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../support/phone_surface.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 
 const _postId = 'Bpostparticipants01';
@@ -85,43 +82,6 @@ List<ForwardEdge> _edges() => [
   ),
 ];
 
-/// Stands in for the per-person [ProfileViewCubit]: holds a fixed profile and
-/// records `addFriend`, which flips the profile to a contact like the real one.
-class _FakeProfileViewCubit extends Mock implements ProfileViewCubit {
-  _FakeProfileViewCubit(this.id, {required bool isFriend})
-    : _state = ProfileViewState(
-        profile: Profile(id: id, myVote: isFriend ? 1 : 0),
-      );
-
-  final String id;
-  final _controller = StreamController<ProfileViewState>.broadcast();
-  ProfileViewState _state;
-  int addFriendCalls = 0;
-  bool _closed = false;
-
-  @override
-  ProfileViewState get state => _state;
-
-  @override
-  Stream<ProfileViewState> get stream => _controller.stream;
-
-  @override
-  bool get isClosed => _closed;
-
-  @override
-  Future<void> addFriend() async {
-    addFriendCalls++;
-    _state = ProfileViewState(profile: _state.profile.copyWith(myVote: 1));
-    _controller.add(_state);
-  }
-
-  @override
-  Future<void> close() async {
-    _closed = true;
-    await _controller.close();
-  }
-}
-
 /// Records pushed routes; `root` is the router itself.
 class _RecordingRouter extends Mock implements RootStackRouter {
   final List<PageRouteInfo> pushed = [];
@@ -154,7 +114,6 @@ class _Harness {
     required this.tester,
     required this.router,
     required this.effects,
-    required this.cubits,
   });
 
   final WidgetTester tester;
@@ -164,53 +123,25 @@ class _Harness {
   int graphTaps = 0;
   int inviteTaps = 0;
 
-  /// Profile cubits created by the screen, by user id.
-  final Map<String, _FakeProfileViewCubit> cubits;
-
-  Rect _rect(Element e) {
-    final box = e.renderObject! as RenderBox;
-    return box.localToGlobal(Offset.zero) & box.size;
-  }
-
-  /// The widgets matching [label] drawn on the same line as the person [name].
-  List<Element> beside(String name, Finder label) {
-    final nameRect = tester.getRect(find.text(name));
-    return label.evaluate().where((e) {
-      final r = _rect(e);
-      return (r.center.dy - nameRect.center.dy).abs() < nameRect.height;
-    }).toList();
-  }
-
-  bool hasBeside(String name, Finder label) => beside(name, label).isNotEmpty;
-
-  Future<void> tapBeside(String name, Finder label) async {
-    final matches = beside(name, label);
-    expect(matches, hasLength(1), reason: '$label beside $name');
-    await tester.tapAt(_rect(matches.single).center);
-    await tester.pump();
-  }
-
   double top(Finder f) => tester.getRect(f).top;
 }
 
 Future<_Harness> _pump(
   WidgetTester tester, {
-  Set<String> contactIds = const {'Umaria'},
   List<BeaconParticipant>? participants,
   List<ForwardEdge>? forwardEdges,
   bool canInvite = true,
+  Size surface = const Size(420, 1000),
 }) async {
   final router = _RecordingRouter();
   final effects = FakeUiEffectPort();
-  final cubits = <String, _FakeProfileViewCubit>{};
   final harness = _Harness(
     tester: tester,
     router: router,
     effects: effects,
-    cubits: cubits,
   );
 
-  await tester.binding.setSurfaceSize(const Size(420, 1000));
+  await tester.binding.setSurfaceSize(surface);
   addTearDown(() => tester.binding.setSurfaceSize(null));
 
   await tester.pumpWidget(
@@ -223,7 +154,7 @@ Future<_Harness> _pump(
         supportedLocales: L10n.supportedLocales,
         locale: const Locale('ru'),
         home: MediaQuery(
-          data: const MediaQueryData(size: Size(420, 1000)),
+          data: MediaQueryData(size: surface),
           child: TenturaResponsiveScope(
             child: BlocProvider<ScreenCubit>(
               create: (_) => ScreenCubit(effects),
@@ -235,11 +166,6 @@ Future<_Harness> _pump(
                     forwardEdges: forwardEdges ?? _edges(),
                     onForwardsGraph: () => harness.graphTaps++,
                     onInvite: canInvite ? () => harness.inviteTaps++ : null,
-                    profileViewCubitFactory: (id) =>
-                        cubits[id] ??= _FakeProfileViewCubit(
-                          id,
-                          isFriend: contactIds.contains(id),
-                        ),
                   ),
                 ),
               ),
@@ -252,12 +178,6 @@ Future<_Harness> _pump(
   await tester.pump(const Duration(milliseconds: 100));
   return harness;
 }
-
-/// The trust toggle in the off position (its tooltip offers trust, #140).
-final _addToContacts = find.byTooltip('Доверять этому пользователю');
-
-/// The trust toggle in the on position.
-final _inContacts = find.byTooltip('Перестать доверять');
 
 void main() {
   group('Post participants screen', () {
@@ -285,7 +205,8 @@ void main() {
     ) async {
       final h = await _pump(tester);
 
-      expect(h.hasBeside('Олег', find.text('автор')), isTrue);
+      expect(find.text('автор'), findsOneWidget);
+      expect(h.top(find.text('автор')), closeTo(h.top(find.text('Олег')), 24));
       expect(find.text('Вы'), findsOneWidget);
       expect(find.text(_viewer.displayName), findsNothing);
     });
@@ -378,69 +299,21 @@ void main() {
       expect(find.textContaining('ЕЩЁ НЕ ОТКРЫЛИ'), findsNothing);
     });
 
-    testWidgets('shows the trust toggle on for a member who is a contact', (
-      tester,
-    ) async {
-      final h = await _pump(tester);
-
-      expect(h.hasBeside('Мария', _inContacts), isTrue);
-      expect(h.hasBeside('Мария', _addToContacts), isFalse);
-    });
-
     testWidgets('names who brought a member in, from the forward edges', (
       tester,
     ) async {
-      final h = await _pump(tester);
+      await _pump(tester);
 
-      expect(
-        h.hasBeside(
-          'Света',
-          find.text('позвал(а): Мария'),
-        ),
-        isTrue,
-      );
+      expect(find.text('позвал(а): Мария'), findsOneWidget);
     });
 
-    testWidgets(
-      'offers the trust toggle off beside a member who is not a contact',
-      (
-        tester,
-      ) async {
-        final h = await _pump(tester);
-
-        expect(h.hasBeside('Дима', _addToContacts), isTrue);
-        expect(h.hasBeside('Света', _addToContacts), isTrue);
-        expect(h.hasBeside('Вы', _addToContacts), isFalse);
-      },
-    );
-
-    testWidgets('the trust toggle adds that member through the profile cubit', (
+    testWidgets('participant rows offer no inline trust control', (
       tester,
     ) async {
-      final h = await _pump(tester);
-      expect(h.hasBeside('Дима', _addToContacts), isTrue);
+      await _pump(tester);
 
-      await h.tapBeside('Дима', _addToContacts);
-
-      expect(h.cubits['Udima']!.addFriendCalls, 1);
-      expect(
-        h.cubits.entries
-            .where((e) => e.key != 'Udima')
-            .map((e) => e.value.addFriendCalls),
-        everyElement(0),
-      );
-    });
-
-    testWidgets('a member added from the list shows the toggle on', (
-      tester,
-    ) async {
-      final h = await _pump(tester);
-
-      await h.tapBeside('Дима', _addToContacts);
-      await tester.pump();
-
-      expect(h.hasBeside('Дима', _inContacts), isTrue);
-      expect(h.hasBeside('Дима', _addToContacts), isFalse);
+      expect(find.byType(Switch), findsNothing);
+      expect(find.byType(SwitchListTile), findsNothing);
     });
 
     testWidgets('tapping a person opens their profile', (tester) async {
@@ -518,5 +391,21 @@ void main() {
 
       expect(find.textContaining('Позвать'), findsNothing);
     });
+
+    testWidgets(
+      '375×667 RU: headings and brought-by line fit without overflow',
+      (
+        tester,
+      ) async {
+        await usePhoneSurface(tester);
+        await _pump(tester, surface: kPhoneSurface);
+
+        expect(tester.takeException(), isNull);
+        expect(find.text('Участники · 7'), findsOneWidget);
+        expect(find.text('В ПОСТЕ · 5'), findsOneWidget);
+        expect(find.text('позвал(а): Мария'), findsOneWidget);
+        expect(find.byType(Switch), findsNothing);
+      },
+    );
   });
 }

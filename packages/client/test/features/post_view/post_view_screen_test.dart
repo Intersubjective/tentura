@@ -1103,6 +1103,15 @@ void main() {
       );
     });
 
+    testWidgets('«О посте» participant rows have no inline trust switch', (
+      tester,
+    ) async {
+      await _pumpPost(tester, beacon: _post(), viewer: _reader);
+      await _openInfo(tester);
+
+      expect(find.byType(Switch), findsNothing);
+    });
+
     testWidgets('«Как пост дошёл до людей» opens the forwarding graph', (
       tester,
     ) async {
