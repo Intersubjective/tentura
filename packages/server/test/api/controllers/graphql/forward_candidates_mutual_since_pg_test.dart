@@ -16,6 +16,8 @@ import 'package:tentura_server/data/database/tentura_db.dart'
 import 'package:tentura_server/data/repository/forward_candidates_repository.dart';
 import 'package:tentura_server/data/repository/meritrank_repository.dart';
 import 'package:tentura_server/data/repository/person_visibility_repository.dart';
+import 'package:tentura_server/data/repository/trust_publish_repository.dart';
+import 'package:tentura_server/data/repository/user_trust_edge_repository.dart';
 import 'package:tentura_server/data/repository/user_availability_repository.dart';
 import 'package:tentura_server/data/repository/user_profile_batch_lookup.dart';
 import 'package:tentura_server/domain/entity/jwt_entity.dart';
@@ -209,6 +211,90 @@ VALUES (@subject, @object, 1, 1, @at, @updated)
           final replacement = newer.add(const Duration(days: 37));
           await edge(subject, object, replacement);
           expect(await caseMutualSince(), replacement);
+        },
+      );
+    }
+  });
+
+  group('Forward candidate mutual trust renewal before publication', () {
+    for (final outgoing in [true, false]) {
+      test(
+        outgoing
+            ? 'restoring viewer trust restarts mutual_since before zero publication'
+            : 'restoring peer trust restarts mutual_since before zero publication',
+        () async {
+          final votes = UserTrustEdgeRepository(db, meritRank);
+          final publisher = TrustPublishRepository(db);
+          Future<void> trust(String subject, String object, int amount) =>
+              votes.setVoteAmountAndApplyEvidence(
+                subjectUserId: subject,
+                objectUserId: object,
+                newAmount: amount,
+              );
+          Future<DateTime> databaseTime() async {
+            final rows = await session.writer.execute(
+              'SELECT clock_timestamp()',
+            );
+            return (rows.single.single! as DateTime).toUtc();
+          }
+
+          // Use the production vote/evidence projection path, never insert or
+          // delete user_trust_edge rows to manufacture a relationship change.
+          await trust(_viewer, _peer, 1);
+          await trust(_peer, _viewer, 1);
+          final original = await mutualSince();
+          expect(original, isNotNull);
+
+          // Acknowledge actual positive publication so withdrawing trust retains
+          // the projection row until the queued zero reaches the publisher.
+          final token = await publisher.acquireLease('mutual-since-renewal');
+          expect(token, isNotNull);
+          final batch = await publisher.readBatch(100);
+          expect(batch, hasLength(2));
+          for (final row in batch) {
+            expect(row.target, greaterThan(0));
+            await publisher.publish(row);
+          }
+          await publisher.sync();
+          await publisher.ack(token!, batch);
+          expect(await publisher.readBatch(100), isEmpty);
+
+          final subject = outgoing ? _viewer : _peer;
+          final object = outgoing ? _peer : _viewer;
+          await trust(subject, object, 1);
+          expect(await mutualSince(), original);
+          await trust(subject, object, 0);
+          expect(await mutualSince(), isNull);
+          final retained = await session.writer.execute(
+            Sql.named(
+              'SELECT target_w, prev_sent_weight FROM public.user_trust_edge '
+              'WHERE subject = @subject AND object = @object',
+            ),
+            parameters: {'subject': subject, 'object': object},
+          );
+          expect(retained, hasLength(1));
+          expect(retained.single[0], 0);
+          expect(retained.single[1], greaterThan(0));
+          final pending = await publisher.readBatch(100);
+          expect(pending, hasLength(1));
+          expect(pending.single.target, 0);
+
+          // Leave the zero unpublished: restoration must still begin a new
+          // mutual relationship as observed by the authenticated picker query.
+          final restoreStarted = await databaseTime();
+          expect(restoreStarted.isAfter(original!), isTrue);
+          await trust(subject, object, 1);
+          final restoreFinished = await databaseTime();
+          final restored = await mutualSince();
+          expect(restored, isNotNull);
+          expect(
+            restored!.isBefore(restoreStarted),
+            isFalse,
+            reason:
+                'mutual_since must start with restored trust, even when '
+                'the publisher has not yet processed the withdrawal',
+          );
+          expect(restored.isAfter(restoreFinished), isFalse);
         },
       );
     }

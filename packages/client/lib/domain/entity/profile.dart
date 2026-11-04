@@ -32,6 +32,9 @@ abstract class Profile with _$Profile implements Likable, Scorable {
     @Default(false) bool subjectExplicitlyTrustsViewer,
     @Default(false) bool isMutualFriend,
 
+    /// When explicit mutual trust began (later of the two trust edges), if any.
+    DateTime? mutualSince,
+
     /// Viewer and subject share an active Request (co-participant bond).
     @Default(false) bool sharesActiveContext,
     ImageEntity? image,

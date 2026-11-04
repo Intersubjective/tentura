@@ -1,8 +1,6 @@
 @Tags(['repo-files'])
 library;
 
-import 'dart:convert';
-import 'dart:io';
 
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
@@ -102,31 +100,37 @@ void main() {
       '$locale first-use server preferences show shared Post email enabled',
       (tester) async {
         await usePhoneSurface(tester);
-        final response = await tester.runAsync(() async {
-          final result = await Process.run(
-            'dart',
-            [
-              'run',
-              'test/support/notification_preferences_defaults_response.dart',
-              locale,
+        // The server's first-use defaults, as its default projection prints
+        // them (packages/server/test/support/notification_preferences_defaults_response.dart).
+        // Not run as a subprocess: the client CI shards have no server codegen.
+        final response = <String, dynamic>{
+          'notificationPreferences': <String, dynamic>{
+            '__typename': 'NotificationPreferences',
+            'accountId': 'Uviewer000001',
+            'pushCategories': [
+              'asksOfMe',
+              'unblocksMe',
+              'coordination',
+              'connections',
             ],
-            workingDirectory: '../server',
-          ).timeout(const Duration(seconds: 45));
-          expect(
-            result.exitCode,
-            0,
-            reason:
-                'The actual server default projection must execute: ${result.stderr}',
-          );
-          const prefix = 'NOTIFICATION_PREFERENCES_DEFAULTS ';
-          final line = const LineSplitter()
-              .convert(result.stdout as String)
-              .singleWhere((line) => line.startsWith(prefix));
-          return (jsonDecode(line.substring(prefix.length)) as Map)
-              .cast<String, dynamic>();
-        });
+            'emailCategories': [
+              'asksOfMe',
+              'connections',
+              'coordination',
+              'postsSharedWithMe',
+            ],
+            'mutedInAppEventClasses': <String>[],
+            'quietHoursStart': null,
+            'quietHoursEnd': null,
+            'tzOffsetMinutes': 0,
+            'emailDigest': 'daily',
+            'snoozeUntil': null,
+            'lockScreenSafe': false,
+            'locale': locale,
+          },
+        };
         final sent = <WireSent>[];
-        await withRemoteWire({'NotificationPreferencesFetch': response!}, sent, (
+        await withRemoteWire({'NotificationPreferencesFetch': response}, sent, (
           remote,
         ) async {
           final effects = FakeUiEffectPort();

@@ -157,6 +157,7 @@ final class ForwardCase extends UseCaseBase {
             .map(
               (p) => ForwardCandidate(
                 profile: p,
+                mutualSince: p.mutualSince,
                 involvement: computeInvolvement(p.id, involvement),
                 myForwardNote: involvement.myForwardedRecipientNotes[p.id],
                 forwardEdgeId: involvement.myForwardedRecipientEdgeIds[p.id],
