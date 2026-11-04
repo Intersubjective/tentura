@@ -705,6 +705,7 @@ class BeaconThreadsRepository {
                 p.lastSeenRoomAt == null || p.lastSeenRoomAt!.isEmpty
                 ? null
                 : DateTime.parse(p.lastSeenRoomAt!),
+            opened: p.opened,
           ),
         )
         .toList();

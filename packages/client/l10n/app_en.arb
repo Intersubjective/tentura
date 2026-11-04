@@ -6911,6 +6911,41 @@
   "@postConversationMuted": {
     "description": "Semantic label of the muted icon on a conversations row."
   },
+  "postConversationOnlyYou": "Only you",
+  "@postConversationOnlyYou": {
+    "description": "Participants line on a Post conversations row when the viewer is alone."
+  },
+  "postConversationPeople": "{count, plural, one{1 person} other{{count} people}}",
+  "@postConversationPeople": {
+    "description": "Participants count on a Post conversations row.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "postConversationNotOpened": "{count, plural, one{1 hasn't opened} other{{count} haven't opened}}",
+  "@postConversationNotOpened": {
+    "description": "Not-opened count on a Post conversations row; omitted when zero.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "postConversationDeclined": "{count, plural, one{1 declined} other{{count} declined}}",
+  "@postConversationDeclined": {
+    "description": "Declined-forward count on a Post conversations row; omitted when zero.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "postConversationParticipantsSemantics": "Post participants",
+  "@postConversationParticipantsSemantics": {
+    "description": "Screen reader label for the tappable participants line on a Post row (#899)."
+  },
   "postMenuParticipants": "Participants",
   "@postMenuParticipants": {
     "description": "Post overflow: open the participants list."
