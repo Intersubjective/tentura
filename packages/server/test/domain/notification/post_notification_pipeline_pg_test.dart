@@ -496,6 +496,81 @@ Future<void> main() async {
       );
 
       test(
+        'a share arriving during immediate email delivery remains available for the digest',
+        () async {
+          const firstNote = 'Read this before Saturday';
+          const laterNote = 'Bob recommends reading this on Sunday';
+          await share();
+          var sharedDuringSend = false;
+          sender.beforeNotificationCompletes = () async {
+            // The first message has been rendered, but SMTP has not yet
+            // acknowledged it. Commit another sender's share in that window.
+            await share(from: _bob, note: laterNote);
+            final receipts = await writer.execute(
+              Sql.named('''
+                SELECT actor_user_id, dedup_key, emailed_at
+                FROM public.notification_outbox
+                WHERE account_id = @account AND beacon_id = @beacon
+              '''),
+              parameters: {'account': _carol, 'beacon': _beacon},
+            );
+            expect(
+              receipts.map((row) => row[0]),
+              unorderedEquals([_author, _bob]),
+            );
+            expect(receipts.map((row) => row[1]).toSet(), hasLength(1));
+            expect(receipts.every((row) => row[2] == null), isTrue);
+            sharedDuringSend = true;
+          };
+
+          await deliver();
+
+          expect(sharedDuringSend, isTrue);
+          expect(sender.immediate, hasLength(1));
+          expect(sender.immediate.single.to, '$_carol@example.com');
+          for (final part in [
+            sender.immediate.single.rendered.text,
+            sender.immediate.single.rendered.html,
+          ]) {
+            expect(part, contains(firstNote));
+            expect(part, isNot(contains(laterNote)));
+          }
+
+          await digest();
+
+          expect(
+            sender.digests,
+            hasLength(1),
+            reason:
+                'SMTP completion must only consume the rendered receipts; '
+                'the concurrent share has not been emailed yet',
+          );
+          expect(sender.digests.single.to, '$_carol@example.com');
+          // Assert the complete rendered item set, not just matching text
+          // somewhere in a digest that might also contain other shares.
+          expect(
+            sender.digests.single.rendered.text
+                .split('\n')
+                .where((line) => line.startsWith('- ')),
+            ['- Bob — A neighbourhood story — Bob: $laterNote'],
+          );
+          expect(
+            RegExp('<li>').allMatches(sender.digests.single.rendered.html),
+            hasLength(1),
+          );
+          for (final part in [
+            sender.digests.single.rendered.text,
+            sender.digests.single.rendered.html,
+          ]) {
+            expect(part, contains('Bob'));
+            expect(part, contains(laterNote));
+            expect(part, contains('/beacon/view/$_beacon'));
+            expect(part, isNot(contains(firstNote)));
+          }
+        },
+      );
+
+      test(
         'a later sender sharing the same Post within cooldown sends no second email',
         () async {
           await expectFirstEmail();
@@ -1255,6 +1330,7 @@ typedef _PostEmail = ({String to, String locale, RenderedEmail rendered});
 final class _PostEmailSender extends Fake implements EmailSenderPort {
   final immediate = <_PostEmail>[];
   final digests = <_PostEmail>[];
+  Future<void> Function()? beforeNotificationCompletes;
 
   @override
   Future<void> sendNotificationEmail({
@@ -1271,6 +1347,7 @@ final class _PostEmailSender extends Fake implements EmailSenderPort {
         locale: locale,
       ),
     ));
+    await beforeNotificationCompletes?.call();
   }
 
   @override

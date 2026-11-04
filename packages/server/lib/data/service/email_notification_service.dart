@@ -145,13 +145,15 @@ class EmailNotificationService implements EmailNotificationPort {
         content: content,
         listUnsubscribeUrl: unsubscribeUrl,
       );
-      // Prevent the digest from re-sending this collapse family. One send
-      // covers the family because U05b coalesces the family into one
-      // delivery job.
-      await _outbox.markEmailedByChannelCollapseKey(
-        accountId: recipientUserId,
-        channelCollapseKey: channelCollapseKey,
-      );
+      if (shares.isNotEmpty) {
+        // Shares arriving during SMTP were not rendered in this email.
+        await _outbox.markEmailed([for (final share in shares) share.id]);
+      } else {
+        await _outbox.markEmailedByChannelCollapseKey(
+          accountId: recipientUserId,
+          channelCollapseKey: channelCollapseKey,
+        );
+      }
     } on Object catch (e, s) {
       _logger.warning(
         '[Email] immediate send failed for $recipientUserId',
