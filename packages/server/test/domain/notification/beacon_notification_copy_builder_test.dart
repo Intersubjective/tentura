@@ -2,6 +2,7 @@ import 'package:test/test.dart';
 
 import 'package:tentura_server/consts/coordination_item_consts.dart';
 import 'package:tentura_server/consts.dart';
+import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/entity/beacon_notification_intent.dart';
 import 'package:tentura_server/domain/entity/notification_kind.dart';
 import 'package:tentura_server/domain/entity/notification_priority.dart';
@@ -286,6 +287,19 @@ void main() {
       expect(safe.title, 'Tentura');
       // Deep link is preserved (not shown on the lock screen).
       expect(safe.actionUrl, full.actionUrl);
+    });
+
+    test('a Post share reads as a shared post, not a request thread', () {
+      final safe = builder.lockScreenSafe(
+        BeaconNotificationIntent(
+          kind: NotificationKind.newRelay,
+          priority: NotificationPriority.normal,
+          beaconId: 'post-1',
+          actorUserId: 'actor-1',
+          beaconKind: BeaconKind.post,
+        ),
+      );
+      expect(safe.body, 'A post was shared with you');
     });
 
     test('uses category-level summary for an unblocking kind', () {

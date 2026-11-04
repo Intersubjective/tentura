@@ -51,9 +51,12 @@ final class ForwardCandidateContextRepository
     }
     return ForwardCandidateGraphSnapshot(
       candidateEligible: true,
-      candidateJoinedAt: DateTime.parse(
-        rows.first.read<String>('candidate_joined_at'),
-      ).toUtc(),
+      candidateJoinedAt: switch (rows.first.readNullable<String>(
+        'candidate_joined_at',
+      )) {
+        final joined? => DateTime.parse(joined).toUtc(),
+        null => null,
+      },
       edges: edges,
       people: people,
     );

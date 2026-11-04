@@ -560,7 +560,10 @@ class BeaconNotificationCopyBuilder {
   /// generic, category-level summary with no excerpts, actor names, or beacon
   /// titles. The deep link is preserved (not shown on the lock screen).
   BeaconNotificationCopy lockScreenSafe(BeaconNotificationIntent intent) {
-    final (title, body) = switch (categoryOf(intent.kind)) {
+    final (title, body) = switch (categoryOf(
+      intent.kind,
+      beaconKind: intent.beaconKind,
+    )) {
       NotificationCategory.asksOfMe => (
         'Tentura',
         'Something needs your response',
