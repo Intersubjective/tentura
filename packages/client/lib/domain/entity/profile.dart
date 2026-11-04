@@ -16,6 +16,10 @@ part 'profile.freezed.dart';
 abstract class Profile with _$Profile implements Likable, Scorable {
   const factory Profile({
     @Default('') String id,
+
+    /// Account creation time from Hasura `user.created_at` (UTC).
+    DateTime? joinedAt,
+
     @Default('') String displayName,
 
     /// Subjective profiles: the viewer's private name for this user (from

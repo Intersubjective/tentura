@@ -163,6 +163,7 @@ class _RecipientWire {
               {
                 '__typename': 'user',
                 'id': _dave,
+                'created_at': '2020-01-01T00:00:00Z',
                 'display_name': 'Dave',
                 'handle': null,
                 'description': '',
