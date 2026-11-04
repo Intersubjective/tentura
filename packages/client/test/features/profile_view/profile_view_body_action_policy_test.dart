@@ -34,6 +34,7 @@ import '../../support/test_realtime_sync.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../auth/auth_test_helpers.dart';
 import '../block/support/controllable_block_case.dart';
+import '../../support/phone_surface.dart';
 import '../contacts/contacts_case_test.dart';
 import '../../support/people_tags_widget_harness.dart';
 
@@ -61,6 +62,7 @@ void main() {
       List<PersonSharedContext> sharedContexts = const [],
       PersonCapabilityCues cues = PersonCapabilityCues.empty,
       Locale locale = const Locale('en'),
+      bool peopleTagsEnabled = true,
     }) async {
       harness.start(id: subject.id, autoFetch: false);
       harness.cubit.emit(
@@ -88,9 +90,14 @@ void main() {
                   ),
                   BlocProvider<ScreenCubit>.value(value: screenCubit),
                 ],
-                child: const Scaffold(
+                child: Scaffold(
                   body: CustomScrollView(
-                    slivers: [ProfileViewBody()],
+                    slivers: [
+                      if (peopleTagsEnabled)
+                        const ProfileViewBody()
+                      else
+                        const ProfileViewBody(peopleTagsEnabled: false),
+                    ],
                   ),
                 ),
               ),
@@ -167,9 +174,9 @@ void main() {
       expect(find.text(l10n.profileEyeOpen), findsOneWidget);
       expect(countFilledButtons(tester), 1);
       expect(find.text(l10n.profileSendRequestTo), findsOneWidget);
-      expect(find.text(l10n.profileMarkCapabilities('Peer')), findsOneWidget);
-      expect(find.byTooltip(l10n.profileEditLabels), findsOneWidget);
-      expect(find.text(l10n.profileLabelsInfoPrivate), findsNothing);
+      expect(find.text(l10n.profileYourTagsFor('Peer')), findsOneWidget);
+      expect(find.text(l10n.profileEditLabels), findsOneWidget);
+      expect(find.text(l10n.capabilityTagsDisclosure('Peer')), findsNothing);
 
       await openEyeInfo(tester, l10n);
       expect(find.text(l10n.profileEyeReasonMutualTrust), findsOneWidget);
@@ -179,13 +186,14 @@ void main() {
 
     for (final locale in const [Locale('en'), Locale('ru')]) {
       testWidgets(
-        'labels: one line with source icons, explanation behind ⓘ (${locale.languageCode})',
+        'tags: section title, chips, and Edit (${locale.languageCode})',
         (tester) async {
           const viewer = Profile(id: 'U-viewer', displayName: 'Viewer');
           const subject = Profile(
             id: 'U-peer',
             displayName: 'Peer',
             myVote: 1,
+            isMutualFriend: true,
           );
           await pumpBody(
             tester,
@@ -200,25 +208,11 @@ void main() {
             ),
           );
           final l10n = lookupL10n(locale);
-          expect(
-            find.bySemanticsLabel(
-              l10n.profileMyLabelsLine(
-                '${l10n.capabilityTagTransport}, ${l10n.capabilityTagStorage}',
-              ),
-            ),
-            findsOneWidget,
-          );
-          expect(find.byTooltip(l10n.profileLabelPrivate), findsOneWidget);
-          expect(find.byTooltip(l10n.profileLabelShared), findsOneWidget);
+          expect(find.text(l10n.profileYourTagsFor('Peer')), findsOneWidget);
+          expect(find.text(l10n.profileEditLabels), findsOneWidget);
+          expect(find.text(l10n.capabilityTagTransport), findsOneWidget);
+          expect(find.text(l10n.capabilityTagStorage), findsOneWidget);
           expect(find.text(l10n.profileLabelsInfoPrivate), findsNothing);
-
-          await tester.tap(find.byTooltip(l10n.profileLabelsInfoTitle));
-          await tester.pumpAndSettle();
-          expect(find.text(l10n.profileLabelsInfoPrivate), findsOneWidget);
-          expect(
-            find.text(l10n.profileLabelsInfoShared('Peer')),
-            findsOneWidget,
-          );
         },
       );
     }
@@ -237,6 +231,40 @@ void main() {
         find.text(l10n.profileVisibilitySharedContextNote),
         findsNothing,
       );
+    });
+
+    testWidgets('375×667 RU: one Your tags section with chips and Edit', (
+      tester,
+    ) async {
+      await usePhoneSurface(tester);
+      const viewer = Profile(id: 'U-viewer', displayName: 'Viewer');
+      const subject = Profile(
+        id: 'U-peer',
+        displayName: 'Алиса Длинное Имя Для Проверки Переноса',
+        myVote: 1,
+        isMutualFriend: true,
+      );
+      await pumpBody(
+        tester,
+        subject: subject,
+        viewer: viewer,
+        locale: const Locale('ru'),
+        peopleTagsEnabled: false,
+        cues: const PersonCapabilityCues(
+          viewerVisible: [
+            CapabilityWithSource(slug: 'transport', hasManualLabel: true),
+          ],
+        ),
+      );
+      final l10n = lookupL10n(const Locale('ru'));
+      expect(
+        find.text(l10n.profileYourTagsFor(subject.shownName)),
+        findsOneWidget,
+      );
+      expect(find.text(l10n.profileEditLabels), findsOneWidget);
+      expect(find.text(l10n.capabilityTagTransport), findsOneWidget);
+      expect(find.textContaining('только вы'), findsNothing);
+      expect(tester.takeException(), isNull);
     });
 
     testWidgets('self profile hides policy actions', (tester) async {

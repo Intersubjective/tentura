@@ -5163,7 +5163,23 @@
       }
     }
   },
-  "profileEditLabels": "Edit labels",
+  "profileYourTagsFor": "Your tags for {name}",
+  "@profileYourTagsFor": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "capabilityTagsDisclosure": "Tags you give help others find {name} for requests. Others never see who gave which tag.",
+  "@capabilityTagsDisclosure": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "profileEditLabels": "Edit",
   "profileLabelsInfoTitle": "Labels about this person",
   "profileLabelsInfoPrivate": "Notes marked with a lock are visible only to you: Tentura uses them to suggest this person to you when you forward.",
   "profileLabelsInfoShared": "Labels marked with people come from your forwards and help acknowledgements. {name} sees them, and they help people who trust you find this person for similar requests.",
