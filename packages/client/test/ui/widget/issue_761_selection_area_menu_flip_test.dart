@@ -169,18 +169,32 @@ void main() {
   );
 
   Finder descriptionText() => find.descendant(
-    of: find.byType(ShowMoreText),
-    matching: find.byType(RichText),
+    of: find.descendant(
+      of: find.byType(ShowMoreText),
+      matching: find.byType(ReadMoreText),
+    ),
+    matching: find.byWidgetPredicate(
+      (w) => w is Text && w.textSpan != null,
+    ),
   );
 
   String shownDescription(WidgetTester tester) =>
-      tester.widget<RichText>(descriptionText()).text.toPlainText();
+      tester.widget<Text>(descriptionText()).textSpan!.toPlainText();
+
+  Finder descriptionParagraph() => find.descendant(
+    of: find.byType(ShowMoreText),
+    matching: find.byElementPredicate((element) {
+      final renderObject = element.renderObject;
+      if (renderObject is! RenderParagraph) return false;
+      return renderObject.text.toPlainText().contains('Profile description');
+    }),
+  );
 
   // Taps the ShowMoreText link through its own recognizer, the way a click on
   // it ends up, without depending on gesture arena details.
   void tapDescriptionLink(WidgetTester tester, String label) {
     TapGestureRecognizer? recognizer;
-    tester.widget<RichText>(descriptionText()).text.visitChildren((span) {
+    tester.widget<Text>(descriptionText()).textSpan!.visitChildren((span) {
       if (span is TextSpan &&
           span.text == label &&
           span.recognizer is TapGestureRecognizer) {
@@ -270,7 +284,7 @@ void main() {
       tapDescriptionLink(tester, _showMore);
       await tester.pump();
       expect(shownDescription(tester), contains(_showLess));
-      final state = tester.state<ReadMoreTextState>(find.byType(ShowMoreText));
+      final state = tester.state<ReadMoreTextState>(find.byType(ReadMoreText));
       final regionBefore = regionOf(tester, 'Profile description');
 
       menuOffAtOnce = true;
@@ -285,7 +299,7 @@ void main() {
       );
       expect(
         identical(
-          tester.state<ReadMoreTextState>(find.byType(ShowMoreText)),
+          tester.state<ReadMoreTextState>(find.byType(ReadMoreText)),
           state,
         ),
         isTrue,
@@ -308,7 +322,7 @@ void main() {
       );
       expect(
         identical(
-          tester.state<ReadMoreTextState>(find.byType(ShowMoreText)),
+          tester.state<ReadMoreTextState>(find.byType(ReadMoreText)),
           state,
         ),
         isTrue,
@@ -332,9 +346,9 @@ void main() {
     '#761 moved text selects in the fresh region, with no stale highlight',
     (tester) async {
       await pumpHome(tester, outside: description());
-      final paragraph = tester.renderObject<RenderParagraph>(
-        descriptionText(),
-      );
+      final paragraphFinder = descriptionParagraph();
+      final paragraph =
+          tester.renderObjectList<RenderParagraph>(paragraphFinder).first;
       regionOf(
         tester,
         'Profile description',
@@ -348,7 +362,7 @@ void main() {
       expectNoCrash(tester);
       expect(
         identical(
-          tester.renderObject<RenderParagraph>(descriptionText()),
+          tester.renderObjectList<RenderParagraph>(paragraphFinder).first,
           paragraph,
         ),
         isTrue,
