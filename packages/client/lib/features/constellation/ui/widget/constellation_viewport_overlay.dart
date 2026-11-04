@@ -15,7 +15,6 @@ import 'package:tentura/ui/widget/relative_timestamp_ticker.dart';
 import 'package:tentura/features/people_tags/domain/use_case/people_tags_case.dart';
 
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
-import '../../domain/constellation_new_on_field.dart';
 import '../../domain/constellation_post_fade.dart';
 import '../../domain/constellation_trust_badge.dart';
 import '../../domain/constellation_trust_chain.dart';
@@ -969,10 +968,32 @@ class _ConstellationViewportOverlayState
                       child: ConstellationFieldNewRingLayer(
                         frame: frame,
                         newGraphIds: constellationNewOnFieldGraphIds(
-                          nodeByGraphId: nodeByGraphId,
+                          newPersonIds: {
+                            for (final peer
+                                in widget.cubit.state.field?.peers ??
+                                    const <ConstellationPerson>[])
+                              if (peer.isNew) peer.id,
+                            for (final peer
+                                in widget
+                                        .cubit
+                                        .state
+                                        .field
+                                        ?.resolvedAnchorProjection
+                                        .pinnedPeers ??
+                                    const <ConstellationPerson>[])
+                              if (peer.isNew) peer.id,
+                            for (final peer
+                                in widget
+                                        .cubit
+                                        .state
+                                        .field
+                                        ?.resolvedAnchorProjection
+                                        .supportPeers ??
+                                    const <ConstellationPerson>[])
+                              if (peer.isNew) peer.id,
+                          },
                           viewerId: widget.cubit.viewerId,
-                          isNewOnField: (id) =>
-                              widget.cubit.fieldPersonById(id)?.isNew ?? false,
+                          isOnMap: nodeByGraphId.containsKey,
                         ),
                         dimmedGraphIds: dimmedGraphIds,
                         accentColor: Theme.of(context).colorScheme.secondary,

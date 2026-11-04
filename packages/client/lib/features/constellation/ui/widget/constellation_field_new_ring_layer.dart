@@ -13,6 +13,17 @@ import 'constellation_node_ring_layer.dart';
 /// One short pulse when a «new on your Field» ring first appears (#898).
 const kConstellationFieldNewPulseDuration = Duration(milliseconds: 450);
 
+/// Graph ids of people in [newPersonIds] who are on the map (`fp:<id>`).
+Set<GraphNodeId> constellationNewOnFieldGraphIds({
+  required Set<String> newPersonIds,
+  required String viewerId,
+  required bool Function(GraphNodeId id) isOnMap,
+}) => {
+  for (final personId in newPersonIds)
+    if (personId != viewerId)
+      if ('fp:$personId' case final graphId when isOnMap(graphId)) graphId,
+};
+
 /// Viewport-space accent rings for people new on the viewer's Field (#898).
 class ConstellationFieldNewRingLayer extends StatefulWidget {
   const ConstellationFieldNewRingLayer({
