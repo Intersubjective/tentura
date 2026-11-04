@@ -50,6 +50,7 @@ import '../widget/constellation_camera_controls.dart';
 import '../widget/constellation_app_bar.dart';
 import '../widget/constellation_body.dart';
 import '../widget/constellation_create_entry.dart';
+import '../widget/field_collapsing_app_bar.dart';
 
 @RoutePage()
 class ConstellationScreen extends StatefulWidget implements AutoRouteWrapper {
@@ -168,8 +169,16 @@ class ConstellationScreen extends StatefulWidget implements AutoRouteWrapper {
 
 class _ConstellationScreenState extends State<ConstellationScreen> {
   bool _legendExpanded = false;
+  bool _fieldContextSheetExpanded = false;
 
   void _toggleLegend() => setState(() => _legendExpanded = !_legendExpanded);
+
+  void _onFieldContextSheetExpanded(bool expanded) {
+    if (_fieldContextSheetExpanded == expanded) {
+      return;
+    }
+    setState(() => _fieldContextSheetExpanded = expanded);
+  }
 
   final _focusRequest = ConstellationFocusRequest.instance;
 
@@ -279,11 +288,22 @@ class _ConstellationScreenState extends State<ConstellationScreen> {
     // A frame later, so a field that has just loaded is laid out.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      final tt = context.tt;
+      final compact = context.windowClass == WindowClass.compact;
+      final effectiveAppBarHeight =
+          compact && _fieldContextSheetExpanded ? 0.0 : tt.appBarHeight;
+      final mapBodyHeight =
+          MediaQuery.sizeOf(context).height -
+          effectiveAppBarHeight -
+          tt.bottomNavHeight;
       cubit.focusBeacon(
         beaconId,
         insets: ConstellationCameraControls.cameraViewportInsets(
           context,
           contextPanelVisible: true,
+          compactSheetHeight: context.windowClass == WindowClass.compact
+              ? mapBodyHeight * tt.fieldSheetPeekFraction
+              : 0,
         ),
       );
     });
@@ -381,15 +401,21 @@ class _ConstellationScreenState extends State<ConstellationScreen> {
 
   Widget _buildScaffold(BuildContext context) {
     final selectionCubit = maybeConstellationSelection(context);
+    final compact = context.windowClass == WindowClass.compact;
+    final topBar = TenturaTopBar.of(
+      context,
+      title: const SizedBox.shrink(),
+      row: ConstellationAppBarRow(
+        legendExpanded: _legendExpanded,
+        onToggleLegend: _toggleLegend,
+      ),
+      account: homeTopBarAccount(context),
+    );
     final scaffold = Scaffold(
-      appBar: TenturaTopBar.of(
-        context,
-        title: const SizedBox.shrink(),
-        row: ConstellationAppBarRow(
-          legendExpanded: _legendExpanded,
-          onToggleLegend: _toggleLegend,
-        ),
-        account: homeTopBarAccount(context),
+      appBar: FieldCollapsingAppBar(
+        key: const Key('field.context_sheet.app_bar'),
+        collapsed: compact && _fieldContextSheetExpanded,
+        bar: topBar,
       ),
       body: GraphTrustWriteNotices(
         child: LazyWriteTimeoutNotice(
@@ -400,6 +426,9 @@ class _ConstellationScreenState extends State<ConstellationScreen> {
               child: ConstellationBody(
                 legendExpanded: _legendExpanded,
                 onToggleLegend: _toggleLegend,
+                onFieldContextSheetExpandedChanged: compact
+                    ? _onFieldContextSheetExpanded
+                    : null,
               ),
             ),
           ),

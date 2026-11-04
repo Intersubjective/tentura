@@ -99,6 +99,7 @@ class ConstellationBody extends StatefulWidget {
     required this.legendExpanded,
     required this.onToggleLegend,
     this.presentationFrameHolder,
+    this.onFieldContextSheetExpandedChanged,
     this.arrangeV2Enabled = kFieldArrangeV2Enabled,
     this.peopleTagsEnabled = kPeopleTagsEnabled,
     this.fieldMembershipV2Enabled = kFieldMembershipV2Enabled,
@@ -119,6 +120,10 @@ class ConstellationBody extends StatefulWidget {
   /// A temporary person's dashed outline and the bond / temporary line in the
   /// person panel (`kFieldMembershipV2Enabled`).
   final bool fieldMembershipV2Enabled;
+
+  /// When set (Field screen on compact widths), true while the map context
+  /// sheet is on its expanded detent, not peek.
+  final ValueChanged<bool>? onFieldContextSheetExpandedChanged;
 
   /// When set (tests only), the viewport overlay writes its frame here.
   final ConstellationPresentationFrameHolder? presentationFrameHolder;
@@ -149,6 +154,19 @@ class _ConstellationBodyState extends State<ConstellationBody>
   final _internalFrameHolder = ConstellationPresentationFrameHolder();
   final _graphStackKey = GlobalKey();
   final _mapFocus = FocusNode(debugLabel: 'ConstellationMap');
+  final _fieldTopChromeKey = GlobalKey();
+  double _fieldTopChromeHeight = 0;
+  double _mapStackHeight = 0;
+  /// Latest [LayoutBuilder] max height for the map stack; updated during
+  /// layout so sheet detent math stays in sync when the scaffold app bar
+  /// collapses (#974).
+  double _layoutMapStackHeight = 0;
+  double _compactSheetHeight = 0;
+  bool _compactSheetDetentExpanded = false;
+  bool _wasCompactPanelOpen = false;
+
+  double get _effectiveMapStackHeight =>
+      _layoutMapStackHeight > 0 ? _layoutMapStackHeight : _mapStackHeight;
 
   /// Kept across builds: it remembers which marker is the map's Tab stop.
   final _mapTraversalPolicy = _ConstellationMapReadingOrderPolicy();
@@ -309,10 +327,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
     _stopReveal();
     final pan = cubit.revealPanFor(
       node,
-      insets: ConstellationCameraControls.cameraViewportInsets(
-        context,
-        contextPanelVisible: contextPanelVisible,
-      ),
+      insets: _cameraViewportInsets(context, contextPanelVisible),
     );
     if (pan == null) {
       return;
@@ -732,28 +747,215 @@ class _ConstellationBodyState extends State<ConstellationBody>
     showSnackBar(context, text: message);
   }
 
-  Widget _buildContextOverlay(
+  EdgeInsets _cameraViewportInsets(
     BuildContext context,
+    bool contextPanelVisible,
+  ) {
+    final tt = context.tt;
+    final compactSheet =
+        contextPanelVisible && context.windowClass == WindowClass.compact;
+    final sheetHeight = compactSheet
+        ? (_compactSheetHeight > 0
+              ? _compactSheetHeight
+              : _effectiveMapStackHeight * tt.fieldSheetPeekFraction)
+        : 0.0;
+    return ConstellationCameraControls.cameraViewportInsets(
+      context,
+      contextPanelVisible: contextPanelVisible,
+      compactSheetHeight: sheetHeight,
+    );
+  }
+
+  bool _compactContextPanelOpen(
+    BuildContext context,
+    bool panelVisible,
+  ) => panelVisible && context.windowClass == WindowClass.compact;
+
+  void _onCompactSheetExtentChanged(double height) {
+    if ((_compactSheetHeight - height).abs() < 0.5) {
+      return;
+    }
+    setState(() => _compactSheetHeight = height);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      final cubit = context.read<ConstellationCubit>();
+      final state = cubit.state;
+      final node = _selectedMapNode(cubit, state);
+      if (node != null) {
+        _revealNode(context, cubit, node);
+      }
+    });
+  }
+
+  void _onCompactSheetDetentExpanded(bool expanded) {
+    if (_compactSheetDetentExpanded == expanded) {
+      return;
+    }
+    setState(() => _compactSheetDetentExpanded = expanded);
+    final report = widget.onFieldContextSheetExpandedChanged;
+    if (report == null) {
+      return;
+    }
+    final state = context.read<ConstellationCubit>().state;
+    final panelVisible =
+        state.selectedPersonId != null || state.selectedRequestId != null;
+    if (!_compactContextPanelOpen(context, panelVisible)) {
+      report(false);
+      return;
+    }
+    report(expanded);
+  }
+
+  NodeDetails? _selectedMapNode(
     ConstellationCubit cubit,
     ConstellationState state,
   ) {
+    for (final node
+        in cubit.graphController.renderSnapshot.topology.nodesById.values) {
+      final payload = node.payload;
+      if (payload is FieldPersonNode) {
+        if (payload.person.id == state.selectedPersonId) {
+          return payload;
+        }
+      } else if (payload is FieldBeaconNode) {
+        if (payload.request?.id == state.selectedRequestId ||
+            payload.post?.id == state.selectedRequestId) {
+          return payload;
+        }
+      }
+    }
+    return null;
+  }
+
+  void _dismissCompactContextPanel(ConstellationCubit cubit) {
+    final state = cubit.state;
+    if (state.selectedPersonId != null) {
+      cubit.selectPerson(null);
+    } else if (state.selectedRequestId != null) {
+      unawaited(_dismissRequestPreview(cubit));
+    }
+  }
+
+  void _syncCompactPanelSideEffects(
+    BuildContext context,
+    ConstellationCubit cubit,
+    bool panelVisible,
+  ) {
+    final compactOpen = _compactContextPanelOpen(context, panelVisible);
+    if (!compactOpen && _wasCompactPanelOpen && _compactSheetHeight != 0) {
+      setState(() {
+        _compactSheetHeight = 0;
+        _compactSheetDetentExpanded = false;
+      });
+    }
+    _wasCompactPanelOpen = compactOpen;
+  }
+
+  void _scheduleFieldContextSheetExpandedReport() {
+    if (widget.onFieldContextSheetExpandedChanged == null) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      _reportFieldContextSheetExpanded();
+    });
+  }
+
+  void _reportFieldContextSheetExpanded() {
+    final report = widget.onFieldContextSheetExpandedChanged;
+    if (report == null) {
+      return;
+    }
+    final state = context.read<ConstellationCubit>().state;
+    final panelVisible =
+        state.selectedPersonId != null || state.selectedRequestId != null;
+    if (!_compactContextPanelOpen(context, panelVisible)) {
+      report(false);
+      return;
+    }
+    report(_compactSheetDetentExpanded);
+  }
+
+  void _noteMapStackHeight(double height) {
+    if ((_mapStackHeight - height).abs() < 0.5) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || (_mapStackHeight - height).abs() < 0.5) {
+        return;
+      }
+      setState(() => _mapStackHeight = height);
+    });
+  }
+
+  void _measureFieldTopChromeHeight() {
+    final box = _fieldTopChromeKey.currentContext?.findRenderObject();
+    if (box is! RenderBox || !box.hasSize) {
+      return;
+    }
+    final height = box.size.height;
+    if ((_fieldTopChromeHeight - height).abs() < 0.5) {
+      return;
+    }
+    _fieldTopChromeHeight = height;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {});
+    });
+  }
+
+  Widget _wrapAdaptiveContextOverlay(
+    BuildContext context,
+    ConstellationCubit cubit,
+    Widget child, {
+    required double mapStackHeight,
+  }) {
+    final useDetents = context.windowClass == WindowClass.compact;
+    return AdaptiveContextOverlay(
+      compactDetents: useDetents,
+      mapStackHeight: useDetents ? mapStackHeight : null,
+      onDismiss: useDetents ? () => _dismissCompactContextPanel(cubit) : null,
+      onCompactExtentChanged: useDetents ? _onCompactSheetExtentChanged : null,
+      onCompactDetentExpandedChanged:
+          useDetents ? _onCompactSheetDetentExpanded : null,
+      child: child,
+    );
+  }
+
+  Widget _buildContextOverlay(
+    BuildContext context,
+    ConstellationCubit cubit,
+    ConstellationState state, {
+    required double mapStackHeight,
+  }) {
     final personId = state.selectedPersonId;
     if (personId != null && personId != cubit.viewerId) {
       if (cubit.fieldPersonById(personId)?.pinState == 'tombstone') {
-        return AdaptiveContextOverlay(
-          child: ConstellationPinPlaceholderSheet(
+        return _wrapAdaptiveContextOverlay(
+          context,
+          cubit,
+          ConstellationPinPlaceholderSheet(
             target: ConstellationAnchorTarget.person(personId),
             pinState: 'accountDeleted',
             onClose: () => cubit.selectPerson(null),
           ),
+          mapStackHeight: mapStackHeight,
         );
       }
       final profile = cubit.profileForPersonId(personId);
       if (profile == null) {
         return const SizedBox.shrink();
       }
-      return AdaptiveContextOverlay(
-        child: GraphPersonContextPanel(
+      return _wrapAdaptiveContextOverlay(
+        context,
+        cubit,
+        GraphPersonContextPanel(
           profile: profile,
           isBlocked: cubit.fieldPersonById(personId)?.pinState == 'blockedByMe',
           onUnblock: () => unawaited(_unblockPerson(context, personId)),
@@ -782,6 +984,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
             target: ConstellationAnchorTarget.person(personId),
           ),
         ),
+        mapStackHeight: mapStackHeight,
       );
     }
 
@@ -793,14 +996,17 @@ class _ConstellationBodyState extends State<ConstellationBody>
     if (request == null) {
       final post = cubit.postById(requestId);
       if (post != null) {
-        return AdaptiveContextOverlay(
-          child: ConstellationPostPreviewSheet(
+        return _wrapAdaptiveContextOverlay(
+          context,
+          cubit,
+          ConstellationPostPreviewSheet(
             post: post,
             authorDisplayName:
                 cubit.profileForPersonId(post.authorId)?.shownName ?? '',
             onOpen: () => _openBeacon(context, post.id),
             onClose: () => cubit.selectRequest(null),
           ),
+          mapStackHeight: mapStackHeight,
         );
       }
       return const SizedBox.shrink();
@@ -820,8 +1026,10 @@ class _ConstellationBodyState extends State<ConstellationBody>
         ? null
         : cubit.profileForPersonId(throughPeerId)?.shownName;
 
-    return AdaptiveContextOverlay(
-      child: ConstellationRequestPreviewSheet(
+    return _wrapAdaptiveContextOverlay(
+      context,
+      cubit,
+      ConstellationRequestPreviewSheet(
         request: request,
         authorDisplayName: authorDisplayName,
         connectionThroughName: connectionThroughName,
@@ -832,6 +1040,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
             : null,
         onClose: () => unawaited(_dismissRequestPreview(cubit)),
       ),
+      mapStackHeight: mapStackHeight,
     );
   }
 
@@ -880,6 +1089,19 @@ class _ConstellationBodyState extends State<ConstellationBody>
               current.dismissedFocusId != null,
           listener: (context, state) {
             context.read<ConstellationCubit>().selectPerson(null);
+          },
+        ),
+        BlocListener<ConstellationCubit, ConstellationState>(
+          listenWhen: (previous, current) =>
+              previous.selectedPersonId != current.selectedPersonId ||
+              previous.selectedRequestId != current.selectedRequestId,
+          listener: (context, state) {
+            final cubit = context.read<ConstellationCubit>();
+            final panelVisible =
+                state.selectedPersonId != null ||
+                state.selectedRequestId != null;
+            _syncCompactPanelSideEffects(context, cubit, panelVisible);
+            _scheduleFieldContextSheetExpandedReport();
           },
         ),
       ],
@@ -950,6 +1172,11 @@ class _ConstellationBodyState extends State<ConstellationBody>
               final panelVisible =
                   state.selectedPersonId != null ||
                   state.selectedRequestId != null;
+              final compactPanel = _compactContextPanelOpen(
+                context,
+                panelVisible,
+              );
+              final compactSheetExpanded = _compactSheetDetentExpanded;
 
               return Shortcuts(
                 shortcuts: {
@@ -1052,6 +1279,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
                               bodyConstraints.maxHeight,
                               state,
                               cubit,
+                              hideMapChrome: compactPanel,
                             ),
                             Expanded(
                               child: IndexedStack(
@@ -1068,17 +1296,28 @@ class _ConstellationBodyState extends State<ConstellationBody>
                                     // pass under the chip row, as edges do: the
                                     // clip stops their paint and hits at the
                                     // map's edge (#675).
-                                    // [touchNodeDragLocked] must track Arranging.
                                     builder: (context, _, _) {
-                                      Widget graphStack() => ClipRect(
-                                        child: _buildGraphStack(
-                                          context,
-                                          cubit,
-                                          cubit.state,
-                                          cubit.graphSceneLayoutAlgorithm,
-                                          panelVisible,
-                                        ),
+                                      Widget graphStack() => LayoutBuilder(
+                                        builder: (context, mapConstraints) {
+                                          _layoutMapStackHeight =
+                                              mapConstraints.maxHeight;
+                                          _noteMapStackHeight(
+                                            mapConstraints.maxHeight,
+                                          );
+                                          return ClipRect(
+                                            child: _buildGraphStack(
+                                              context,
+                                              cubit,
+                                              cubit.state,
+                                              cubit
+                                                  .graphSceneLayoutAlgorithm,
+                                              panelVisible,
+                                              compactSheetExpanded,
+                                            ),
+                                          );
+                                        },
                                       );
+                                      // [touchNodeDragLocked] must track Arranging.
                                       final selection =
                                           maybeConstellationSelection(context);
                                       if (selection == null) {
@@ -1113,6 +1352,8 @@ class _ConstellationBodyState extends State<ConstellationBody>
                                             context,
                                             cubit,
                                             state,
+                                            mapStackHeight:
+                                                _effectiveMapStackHeight,
                                           ),
                                       ],
                                     ],
@@ -1138,15 +1379,27 @@ class _ConstellationBodyState extends State<ConstellationBody>
     BuildContext context,
     double bodyHeight,
     ConstellationState state,
-    ConstellationCubit cubit,
-  ) {
+    ConstellationCubit cubit, {
+    required bool hideMapChrome,
+  }) {
     final tt = context.tt;
     final theme = Theme.of(context);
     final capHeight = bodyHeight * tt.fieldTopChromeMaxFraction;
+    if (hideMapChrome) {
+      final box = _fieldTopChromeKey.currentContext?.findRenderObject();
+      if (box is RenderBox &&
+          box.hasSize &&
+          (_fieldTopChromeHeight - box.size.height).abs() >= 0.5) {
+        _fieldTopChromeHeight = box.size.height;
+      }
+      return SizedBox(height: _fieldTopChromeHeight);
+    }
+    _measureFieldTopChromeHeight();
     return ConstrainedBox(
       constraints: BoxConstraints(maxHeight: capHeight),
       child: SingleChildScrollView(
         child: Column(
+          key: _fieldTopChromeKey,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -1515,13 +1768,12 @@ class _ConstellationBodyState extends State<ConstellationBody>
     ConstellationState state,
     SceneLayoutAlgorithm layoutAlgorithm,
     bool panelVisible,
+    bool compactSheetExpanded,
   ) {
     _mountedLayoutAlgorithm = layoutAlgorithm;
-    final cameraInsets = ConstellationCameraControls.cameraViewportInsets(
-      context,
-      contextPanelVisible: panelVisible,
-    );
+    final cameraInsets = _cameraViewportInsets(context, panelVisible);
     final tt = context.tt;
+    final compactPanel = _compactContextPanelOpen(context, panelVisible);
     final cameraRightInset =
         panelVisible && context.windowClass != WindowClass.compact
         ? tt.screenHPadding + tt.graphPersonContextWidth + tt.screenHPadding
@@ -1703,8 +1955,10 @@ class _ConstellationBodyState extends State<ConstellationBody>
                             sceneCentre: position,
                           )
                           .then(
-                            (_) =>
-                                _syncComposerPersonPositions(cubit, composer),
+                            (_) => _syncComposerPersonPositions(
+                              cubit,
+                              composer,
+                            ),
                           ),
                     );
                   case ConstellationPlacementPhase.idle:
@@ -1743,7 +1997,9 @@ class _ConstellationBodyState extends State<ConstellationBody>
                       : frame.recentredOn(
                           cameraRevision: controller.cameraRevision.value,
                           centreOf: (id) {
-                            final scene = controller.getPositionOrNullForId(id);
+                            final scene = controller.getPositionOrNullForId(
+                              id,
+                            );
                             return scene == null
                                 ? null
                                 : controller.sceneToViewportLocal(scene);
@@ -2018,11 +2274,13 @@ class _ConstellationBodyState extends State<ConstellationBody>
                 top: tt.rowGap,
                 right: cameraRightInset,
               ),
-              child: ConstellationCameraControls(
-                cubit: cubit,
-                viewportInsets: cameraInsets,
-                arrangeV2Enabled: widget.arrangeV2Enabled,
-              ),
+              child: compactPanel && compactSheetExpanded
+                  ? const SizedBox.shrink()
+                  : ConstellationCameraControls(
+                      cubit: cubit,
+                      viewportInsets: cameraInsets,
+                      arrangeV2Enabled: widget.arrangeV2Enabled,
+                    ),
             ),
           ),
         ),
@@ -2043,25 +2301,23 @@ class _ConstellationBodyState extends State<ConstellationBody>
               ),
             ),
           ),
-        if (widget.legendExpanded && !state.isComposing)
+        if (widget.legendExpanded &&
+            !state.isComposing &&
+            !(compactPanel && compactSheetExpanded))
           Positioned(
             left: 0,
-            bottom: panelVisible && context.windowClass == WindowClass.compact
-                ? null
-                : 0,
-            top: panelVisible && context.windowClass == WindowClass.compact
-                ? 0
-                : null,
+            bottom: compactPanel ? null : 0,
+            top: compactPanel ? 0 : null,
             child: SafeArea(
-              top: panelVisible && context.windowClass == WindowClass.compact,
-              bottom:
-                  !(panelVisible && context.windowClass == WindowClass.compact),
+              top: compactPanel,
+              bottom: !compactPanel,
               right: false,
               child: Padding(
                 padding: EdgeInsets.all(tt.rowGap),
                 child: _buildLegendPanel(
                   context,
                   panelVisible: panelVisible,
+                  compactSheetHeight: _compactSheetHeight,
                 ),
               ),
             ),
@@ -2069,17 +2325,13 @@ class _ConstellationBodyState extends State<ConstellationBody>
         Positioned(
           left: 0,
           right: 0,
-          top: panelVisible && context.windowClass == WindowClass.compact
-              ? 0
-              : null,
-          bottom: panelVisible && context.windowClass == WindowClass.compact
-              ? null
-              : 0,
+          top: compactPanel ? 0 : null,
+          bottom: compactPanel ? null : 0,
           child: SafeArea(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                _buildTagLensPanel(context, cubit),
+                if (!compactPanel) _buildTagLensPanel(context, cubit),
                 ConstellationArrangingToolbar(
                   cubit: cubit,
                   peopleTagsEnabled: widget.peopleTagsEnabled,
@@ -2092,9 +2344,13 @@ class _ConstellationBodyState extends State<ConstellationBody>
             ),
           ),
         ),
-        // Text mode draws its own copy over the text view (#354).
         if (panelVisible && state.viewMode == ConstellationViewMode.map)
-          _buildContextOverlay(context, cubit, state),
+          _buildContextOverlay(
+            context,
+            cubit,
+            state,
+            mapStackHeight: _effectiveMapStackHeight,
+          ),
       ],
     );
   }
@@ -2250,6 +2506,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
   Widget _buildLegendPanel(
     BuildContext context, {
     required bool panelVisible,
+    double compactSheetHeight = 0,
   }) {
     final tt = context.tt;
     final legend = GraphLegendPanel(
@@ -2260,15 +2517,15 @@ class _ConstellationBodyState extends State<ConstellationBody>
     if (!panelVisible || context.windowClass != WindowClass.compact) {
       return legend;
     }
+    final peek = _effectiveMapStackHeight > 0
+        ? _effectiveMapStackHeight * tt.fieldSheetPeekFraction
+        : compactSheetHeight;
+    final sheet = compactSheetHeight > 0 ? compactSheetHeight : peek;
     final media = MediaQuery.of(context);
     final maxHeight =
-        media.size.height *
-            (1 - tt.graphPersonContextCompactMaxHeightFraction) -
-        media.padding.top -
-        media.padding.bottom -
-        tt.rowGap * 4;
+        _effectiveMapStackHeight - sheet - media.padding.top - tt.rowGap * 2;
     return ConstrainedBox(
-      constraints: BoxConstraints(maxHeight: maxHeight),
+      constraints: BoxConstraints(maxHeight: math.max(0, maxHeight)),
       child: SingleChildScrollView(child: legend),
     );
   }

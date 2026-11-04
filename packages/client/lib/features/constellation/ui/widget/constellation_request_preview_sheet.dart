@@ -97,6 +97,38 @@ class ConstellationRequestPreviewSheet extends StatelessWidget {
         onOpen != null &&
         (onPrimaryAction == null || primaryLabel != l10n.openBeacon);
 
+    final footer = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (showOpenButton)
+          OutlinedButton(
+            onPressed: onOpen,
+            child: Text(l10n.openBeacon),
+          ),
+        if (onPrimaryAction != null) ...[
+          if (showOpenButton) SizedBox(height: tt.rowGap),
+          FilledButton(
+            key: const Key('constellation.request_preview.primary'),
+            onPressed: onPrimaryAction,
+            child: Text(primaryLabel),
+          ),
+        ],
+        if (showForward) ...[
+          SizedBox(height: tt.rowGap),
+          OutlinedButton.icon(
+            onPressed: onForward,
+            icon: const Icon(Icons.send_outlined),
+            label: Text(l10n.labelForward),
+          ),
+        ],
+        SizedBox(height: tt.rowGap),
+        ConstellationAnchorTargetButton(
+          target: ConstellationAnchorTarget.beacon(request.id),
+        ),
+      ],
+    );
+
     final body = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
@@ -185,33 +217,6 @@ class ConstellationRequestPreviewSheet extends StatelessWidget {
             color: scheme.onSurfaceVariant,
           ),
         ),
-        SizedBox(height: tt.sectionGap),
-        // Drop outlined Open when primary already is Open (mine /
-        // participant / forwarded) — same destination, duplicate CTA.
-        if (showOpenButton)
-          OutlinedButton(
-            onPressed: onOpen,
-            child: Text(l10n.openBeacon),
-          ),
-        if (onPrimaryAction != null) ...[
-          if (showOpenButton) SizedBox(height: tt.rowGap),
-          FilledButton(
-            onPressed: onPrimaryAction,
-            child: Text(primaryLabel),
-          ),
-        ],
-        if (showForward) ...[
-          SizedBox(height: tt.rowGap),
-          OutlinedButton.icon(
-            onPressed: onForward,
-            icon: const Icon(Icons.send_outlined),
-            label: Text(l10n.labelForward),
-          ),
-        ],
-        SizedBox(height: tt.rowGap),
-        ConstellationAnchorTargetButton(
-          target: ConstellationAnchorTarget.beacon(request.id),
-        ),
       ],
     );
 
@@ -223,7 +228,41 @@ class ConstellationRequestPreviewSheet extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: Padding(
         padding: tt.cardPadding,
-        child: SingleChildScrollView(child: body),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            if (!constraints.maxHeight.isFinite) {
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SingleChildScrollView(child: body),
+                  SizedBox(height: tt.rowGap),
+                  footer,
+                ],
+              );
+            }
+            // Peek-height compact sheets: footer may exceed the cap; keep
+            // actions reachable by scrolling rather than overflowing (#974).
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        body,
+                        SizedBox(height: tt.rowGap),
+                        footer,
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }

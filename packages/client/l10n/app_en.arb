@@ -1253,6 +1253,26 @@
     "description": "Tooltip for the Field map control that fits every visible node into view",
     "context": "ConstellationScreen"
   },
+  "fieldContextSheetExpand": "Expand panel",
+  "@fieldContextSheetExpand": {
+    "description": "Accessibility label for the Field map context sheet drag handle when collapsed",
+    "context": "ConstellationScreen"
+  },
+  "fieldContextSheetCollapse": "Collapse panel",
+  "@fieldContextSheetCollapse": {
+    "description": "Accessibility label for the Field map context sheet drag handle when expanded",
+    "context": "ConstellationScreen"
+  },
+  "fieldContextSheetExpandedAnnouncement": "Panel expanded",
+  "@fieldContextSheetExpandedAnnouncement": {
+    "description": "Screen reader announcement when the Field context sheet snaps to expanded",
+    "context": "ConstellationScreen"
+  },
+  "fieldContextSheetCollapsedAnnouncement": "Panel collapsed",
+  "@fieldContextSheetCollapsedAnnouncement": {
+    "description": "Screen reader announcement when the Field context sheet snaps to peek",
+    "context": "ConstellationScreen"
+  },
   "constellationRearrange": "Re-arrange",
   "@constellationRearrange": {
     "description": "Tooltip for the Field map control that re-lays out the nodes the user has not placed by hand",

@@ -1156,6 +1156,10 @@
     "description": "Tooltip for the Field map control that fits every visible node into view",
     "context": "ConstellationScreen"
   },
+  "fieldContextSheetExpand": "Развернуть панель",
+  "fieldContextSheetCollapse": "Свернуть панель",
+  "fieldContextSheetExpandedAnnouncement": "Панель развёрнута",
+  "fieldContextSheetCollapsedAnnouncement": "Панель свёрнута",
   "constellationRearrange": "Перестроить",
   "@constellationRearrange": {
     "description": "Tooltip for the Field map control that re-lays out the nodes the user has not placed by hand",

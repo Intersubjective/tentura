@@ -64,6 +64,11 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
     required this.tabCompactWidth,
     required this.fieldTopChromeMaxFraction,
     required this.fieldFindResultsMaxHeight,
+    required this.fieldSheetPeekFraction,
+    required this.fieldSheetMinMapHeight,
+    required this.fieldSheetDragHandleWidth,
+    required this.fieldSheetDragHandleHeight,
+    required this.fieldSheetDragHandleHitSize,
   });
 
   final Color bg;
@@ -180,6 +185,21 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
   /// Max height for tag-view find results (about three dense list rows).
   final double fieldFindResultsMaxHeight;
 
+  /// Field map context sheet peek height as a fraction of the map stack height.
+  final double fieldSheetPeekFraction;
+
+  /// Minimum map strip kept visible when the Field context sheet is expanded.
+  final double fieldSheetMinMapHeight;
+
+  /// M3 drag-handle pill width on the Field context sheet (visual).
+  final double fieldSheetDragHandleWidth;
+
+  /// M3 drag-handle pill height on the Field context sheet (visual).
+  final double fieldSheetDragHandleHeight;
+
+  /// Touch/keyboard target around the Field context sheet drag handle.
+  final double fieldSheetDragHandleHitSize;
+
   /// Light preset (compact density); colours from [TenturaColorPalette.light].
   static final TenturaTokens light = TenturaTokens.fromPalette(
     TenturaColorPalette.light,
@@ -245,6 +265,11 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
     tabCompactWidth: TenturaSpacing.tabCompact,
     fieldTopChromeMaxFraction: 0.40,
     fieldFindResultsMaxHeight: 144,
+    fieldSheetPeekFraction: 0.45,
+    fieldSheetMinMapHeight: 144,
+    fieldSheetDragHandleWidth: 32,
+    fieldSheetDragHandleHeight: 4,
+    fieldSheetDragHandleHitSize: 48,
   );
 
   /// Mine / secondary info on cards (sky-tinted border emphasis).
@@ -422,6 +447,11 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
     double? tabCompactWidth,
     double? fieldTopChromeMaxFraction,
     double? fieldFindResultsMaxHeight,
+    double? fieldSheetPeekFraction,
+    double? fieldSheetMinMapHeight,
+    double? fieldSheetDragHandleWidth,
+    double? fieldSheetDragHandleHeight,
+    double? fieldSheetDragHandleHitSize,
   }) {
     return TenturaTokens(
       bg: bg ?? this.bg,
@@ -486,6 +516,16 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
           fieldTopChromeMaxFraction ?? this.fieldTopChromeMaxFraction,
       fieldFindResultsMaxHeight:
           fieldFindResultsMaxHeight ?? this.fieldFindResultsMaxHeight,
+      fieldSheetPeekFraction:
+          fieldSheetPeekFraction ?? this.fieldSheetPeekFraction,
+      fieldSheetMinMapHeight:
+          fieldSheetMinMapHeight ?? this.fieldSheetMinMapHeight,
+      fieldSheetDragHandleWidth:
+          fieldSheetDragHandleWidth ?? this.fieldSheetDragHandleWidth,
+      fieldSheetDragHandleHeight:
+          fieldSheetDragHandleHeight ?? this.fieldSheetDragHandleHeight,
+      fieldSheetDragHandleHitSize:
+          fieldSheetDragHandleHitSize ?? this.fieldSheetDragHandleHitSize,
     );
   }
 
@@ -599,6 +639,31 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
       fieldFindResultsMaxHeight: lerpDouble(
         fieldFindResultsMaxHeight,
         other.fieldFindResultsMaxHeight,
+        t,
+      )!,
+      fieldSheetPeekFraction: lerpDouble(
+        fieldSheetPeekFraction,
+        other.fieldSheetPeekFraction,
+        t,
+      )!,
+      fieldSheetMinMapHeight: lerpDouble(
+        fieldSheetMinMapHeight,
+        other.fieldSheetMinMapHeight,
+        t,
+      )!,
+      fieldSheetDragHandleWidth: lerpDouble(
+        fieldSheetDragHandleWidth,
+        other.fieldSheetDragHandleWidth,
+        t,
+      )!,
+      fieldSheetDragHandleHeight: lerpDouble(
+        fieldSheetDragHandleHeight,
+        other.fieldSheetDragHandleHeight,
+        t,
+      )!,
+      fieldSheetDragHandleHitSize: lerpDouble(
+        fieldSheetDragHandleHitSize,
+        other.fieldSheetDragHandleHitSize,
         t,
       )!,
     );
