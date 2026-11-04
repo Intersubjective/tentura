@@ -50,6 +50,7 @@ class ConstellationPostRecord {
     required this.hiddenReachCount,
     required this.expiresAt,
     required this.status,
+    this.hasUnread = false,
   });
 
   final String id;
@@ -59,6 +60,7 @@ class ConstellationPostRecord {
   final bool isPinned;
   final DateTime? expiresAt;
   final int status;
+  final bool hasUnread;
 
   /// Members of the Post outside the viewer's visible peer set.
   final int hiddenReachCount;
@@ -331,6 +333,7 @@ class ConstellationRequestRecord {
     this.viewerParticipates,
     this.pinState,
     this.parentBeaconId,
+    this.hasUnread = false,
   });
 
   /// Placeholder for a pinned Request that was deleted: identity only.
@@ -360,7 +363,8 @@ class ConstellationRequestRecord {
        coverSource = 0,
        coverThumb = null,
        viewerParticipates = null,
-       parentBeaconId = null;
+       parentBeaconId = null,
+       hasUnread = false;
 
   final String id;
   final String authorId;
@@ -402,6 +406,7 @@ class ConstellationRequestRecord {
 
   /// The Post this Request budded from, only when the viewer can read it.
   final String? parentBeaconId;
+  final bool hasUnread;
 
   @override
   bool operator ==(Object other) =>
@@ -428,7 +433,8 @@ class ConstellationRequestRecord {
           other.coverThumb == coverThumb &&
           other.viewerParticipates == viewerParticipates &&
           other.pinState == pinState &&
-          other.parentBeaconId == parentBeaconId;
+          other.parentBeaconId == parentBeaconId &&
+          other.hasUnread == hasUnread;
 
   @override
   int get hashCode => Object.hashAll([
@@ -454,6 +460,7 @@ class ConstellationRequestRecord {
     viewerParticipates,
     pinState,
     parentBeaconId,
+    hasUnread,
   ]);
 }
 

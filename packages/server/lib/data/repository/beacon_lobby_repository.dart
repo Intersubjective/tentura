@@ -8,6 +8,7 @@ import 'package:tentura_server/domain/port/beacon_lobby_repository_port.dart';
 import 'package:tentura_server/utils/id.dart';
 
 import '../database/tentura_db.dart';
+import 'room_unread_sql.dart';
 
 /// Request Questions (internally: the Request lobby, U088): the scope item
 /// (`coordination_item` kind 7), `beacon_lobby_ban`, and the access policy
@@ -182,15 +183,7 @@ class BeaconLobbyRepository implements BeaconLobbyRepositoryPort {
   }) async {
     final row = await _db
         .customSelect(
-          'SELECT count(*)::integer AS message_count, '
-          r'count(*) FILTER (WHERE m.author_id <> $2 '
-          'AND (s.last_seen_at IS NULL OR m.created_at > s.last_seen_at))'
-          '::integer AS unread_count FROM public.beacon_room_message m '
-          'LEFT JOIN public.beacon_room_seen s '
-          r'ON s.thread_item_id = m.thread_item_id AND s.user_id = $2 '
-          'AND s.beacon_id = m.beacon_id '
-          r'WHERE m.thread_item_id = $1 '
-          r'AND (m.author_id IS NULL OR NOT public.block_hides(m.author_id, $2))',
+          questionsMessageCountsSql(lobbyId: r'$1', viewer: r'$2'),
           variables: [
             Variable.withString(lobbyId),
             Variable.withString(viewerId),

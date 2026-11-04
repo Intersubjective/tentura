@@ -159,6 +159,7 @@ Map<String, dynamic> _liveRequestToGqlMap(ConstellationRequestRecord request) =>
       'forwardedByName': request.forwardedBy?.displayName,
       'helpOfferCount': request.helpOfferCount,
       'kind': request.kind,
+      'has_unread': request.isPlaceholder ? null : request.hasUnread,
       'coverSource': request.coverSource,
       'coverThumb': request.coverThumb == null
           ? null
@@ -172,6 +173,7 @@ Map<String, dynamic> _postToGqlMap(ConstellationPostRecord post) => {
   'lastActivityAt': post.lastActivityAt.toIso8601String(),
   'expiresAt': post.expiresAt?.toIso8601String(),
   'status': post.status,
+  'has_unread': post.hasUnread,
   'rootExcerpt': post.rootExcerpt,
   'isPinned': post.isPinned,
   'hiddenReachCount': post.hiddenReachCount,

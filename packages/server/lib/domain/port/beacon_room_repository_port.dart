@@ -51,9 +51,9 @@ abstract class BeaconRoomRepositoryPort {
     required String viewerUserId,
   });
 
-  /// Main-room messages by others after [viewerUserId]'s watermark (all of
-  /// them without one), keyed by beacon id, read in one query; the batch
-  /// form of [countRoomMessagesAfter].
+  /// Unread messages for Request cards, keyed by beacon id, in one query.
+  /// Includes discussion and Questions the viewer may read, each with its own
+  /// watermark. Posts have only discussion. Self and system lines add nothing.
   Future<Map<String, int>> unreadMainRoomMessageCounts(
     Iterable<String> beaconIds, {
     required String viewerUserId,

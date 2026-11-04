@@ -167,3 +167,168 @@ End-to-end on the same data with cache 1,200 (server via `scripts/perf/run_serve
 - Warming every user's `mr_mutual_scores` (one read each, read-only) took 2 s cold and under 1 s on a second pass. The largest mutual set is 48. No over-capacity warnings.
 - MR memory rose from 226 MiB (fresh) to **543 MiB** with all frames resident, about 1 MB per frame at 10k walks. The host has 7.8 GiB RAM with 6.2 GiB available.
 - `postgres-tentura:v0.8.3` is pinned in compose and CI (`5cee8c14e`). Locally, `ALTER EXTENSION pgmer2 UPDATE` gives 0.8.3 in `postgres`, `tentura_devcopy` and `tentura_perfsynth`.
+
+## Bead notes: tentura-xdle.1 / #256 — Field unread read budget (2026-11-04)
+
+**Result:** both affected reads remain within the **after ≤ 1.10 × before**
+limit. These are the real `constellationField` FULL and
+`constellationFieldRequests` resolver → use case → repository → PostgreSQL →
+GraphQL-map/JSON paths, not the 100-user smoke fixture. No HTTP server,
+background trust jobs, mocked readability, or replacement dataset was used.
+
+| Read | Measure | Parent, ms | With unread flag, ms | Change |
+|---|---|---:|---:|---:|
+| FULL snapshot | mean | 133.556775 | 142.133295 | +6.42% |
+| FULL snapshot | p50 | 131.708000 | 141.179000 | +7.19% |
+| FULL snapshot | p95 | 148.051000 | 155.275000 | +4.88% |
+| Requests refresh (20 IDs) | mean | 4.336620 | 4.400190 | +1.47% |
+| Requests refresh (20 IDs) | p50 | 4.173500 | 4.256500 | +1.99% |
+| Requests refresh (20 IDs) | p95 | 5.251000 | 5.221000 | −0.57% |
+
+Every measured FULL issued **22 SQL statements** on both trees; every refresh
+issued **1** on both trees. FULL payload was 150,298–150,301 bytes before and
+152,998–153,001 after; refresh payload was 8,863 before and 9,223 after.
+
+**Sources and fixture.** The parent is commit
+`0fab26ec0cadce351ad6b6bc920683e646ff5ffb`, without this bead's working diff.
+Every tracked `packages/server/lib` file was extracted from that commit and
+byte-checked against its git object. Identical ignored codegen artifacts were
+copied for compilation; only `tentura_server`'s package root was redirected to
+the parent source directory. The after run resolves that package to the primary
+checkout. The reports record both resolved library URIs.
+
+The reachable local database was **`tentura_perfsynth`** on PostgreSQL 17.11:
+3,348 users, 89,433 trust edges, 14,245 beacons (14,239 Requests / 6 Posts),
+224 room messages. Viewer `U66728b9dba8d`, context `''`, had 1,004 cached visible
+peers (MR epoch 127 / trust generation 3). With `showClosed=false` and
+`participatedOnly=false`, **both trees returned the identical 400 peers /
+150 Requests / 0 Posts shape and Request IDs**. The refresh used the same frozen
+20 non-own Request IDs from the parent's FULL result, the endpoint's cap; both
+returned all 20. This fixture does not measure a Post-heavy Field.
+
+**Protocol and evidence.** Dart 3.13.0, Linux x64; sequential processes, one
+connection-pool instance per process; 20 warm-up reads then 200 measured reads
+for each operation, FULL followed by refresh. Each wall-clock sample includes
+resolver execution, database I/O, mapping, and JSON encoding. Process startup
+and fixture/ID discovery are outside the samples. The cleanup wrapper's
+machine-wide lock keeps test suites out of these measurements. No samples were
+discarded after warm-up. Parent and current raw samples, payload sizes, SQL
+counts, input IDs, timestamps, and source URIs are committed as
+[`field-unread-parent.json`](../measurements/field-unread-parent.json) and
+[`field-unread-current.json`](../measurements/field-unread-current.json).
+The shared harness is
+[`field_unread_read_benchmark.dart`](../../packages/server/tool/field_unread_read_benchmark.dart).
+
+**SQL optimization.** The first after measurement passed FULL but failed the
+refresh budget (mean 5.1478 ms vs 4.3366 ms, +18.71%). `EXPLAIN ANALYZE` showed
+that the unread branches were not executed for these unopened Requests, while
+median planning time grew from 0.577 to 0.838 ms. Migration **m0289** puts the
+*unchanged* shared Request count expression in
+`public.request_unread_message_count(text, text)`. Its function-local
+`search_path` prevents inlining of all room subplans into each caller. Both
+card and Field call that same count inside their existing SQL statements;
+there are no per-item transport calls or additional queries. The only database
+upgrade for this optimization was additive function m0289 (schema 0288 → 0289);
+no fixture data, access policy, existing function definition, unread behavior,
+or passing test was changed.
+
+### Reproduction
+
+From the repository root, prepare the exact parent libraries and package config:
+
+```bash
+python3 - <<'PY'
+import io, json, pathlib, shutil, subprocess, tarfile
+from urllib.parse import urljoin
+revision = '0fab26ec0cadce351ad6b6bc920683e646ff5ffb'
+base = pathlib.Path('/tmp/tentura-xdle-1-parent-' + revision[:12])
+base.mkdir(exist_ok=True)
+archive = subprocess.check_output(['git', 'archive', revision, 'packages/server/lib'])
+with tarfile.open(fileobj=io.BytesIO(archive)) as bundle:
+    bundle.extractall(base, filter='data')
+ignored = subprocess.check_output([
+    'git', 'ls-files', '--others', '--ignored', '--exclude-standard', '-z',
+    '--', 'packages/server/lib',
+]).decode().split('\0')
+for name in filter(None, ignored):
+    target = base / name
+    target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(name, target)
+source = pathlib.Path('.dart_tool/package_config.json').resolve()
+config = json.loads(source.read_text())
+for package in config['packages']:
+    package['rootUri'] = (
+        (base / 'packages/server').as_uri() + '/'
+        if package['name'] == 'tentura_server'
+        else urljoin(source.as_uri(), package['rootUri'])
+    )
+(base / 'package_config.json').write_text(json.dumps(config))
+paths = subprocess.check_output([
+    'git', 'ls-tree', '-r', '--name-only', revision, 'packages/server/lib',
+], text=True).splitlines()
+for path in paths:
+    expected = subprocess.check_output(['git', 'show', revision + ':' + path])
+    assert (base / path).read_bytes() == expected, path
+PY
+```
+
+Use the already migrated local performance database (m0289 is required by the
+current tree); do not run a development server that would prune synthetic
+trust data. Run the two commands sequentially and wait for each exit code:
+
+```bash
+alloy job start -- scripts/run_with_test_cleanup.sh --timeout 10m -- dart --packages=/tmp/tentura-xdle-1-parent-0fab26ec0cad/package_config.json packages/server/tool/field_unread_read_benchmark.dart parent-0fab26ec0cad docs/measurements/field-unread-parent.json
+alloy job start -- scripts/run_with_test_cleanup.sh --timeout 10m -- dart --packages=.dart_tool/package_config.json packages/server/tool/field_unread_read_benchmark.dart working-tree-optimized docs/measurements/field-unread-current.json docs/measurements/field-unread-parent.json
+```
+
+Verify all three statistics and the SQL budgets, without substituting inputs:
+
+```bash
+python3 - <<'PY'
+import json
+before = json.load(open('docs/measurements/field-unread-parent.json'))
+after = json.load(open('docs/measurements/field-unread-current.json'))
+assert before['refresh_ids'] == after['refresh_ids']
+assert before['shape'] == after['shape']
+for operation in ('full', 'requests_refresh'):
+    assert before[operation]['sql_statements'] == after[operation]['sql_statements']
+    for metric in ('mean_ms', 'p50_ms', 'p95_ms'):
+        assert after[operation][metric] <= 1.10 * before[operation][metric]
+PY
+```
+
+**Verification after m0289 and the final paired measurement:**
+
+- `scripts/run_tests.sh server-gates` — exit 0; custom lints 0/0 and analyzer
+  budget 1,834 ≤ 1,835. No baseline changed.
+- `scripts/run_tests.sh server-unit` — exit 0; 3,304 tests passed.
+- `scripts/run_tests.sh server-pg` — exit 0; 3,366 tests passed, including the
+  final isolated suite.
+- Focused Field unread/schema and Request-card Questions suites — exit 0;
+  51 tests passed before the full profiles. **Tests edited this iteration: none.**
+
+### Landing follow-up: identity-only pins and read-wall reuse
+
+The `server-affected` landing gate includes MR-tagged pin suites that the
+routine `server-pg` profile excludes. Its 37 failures exposed two integration
+regressions: 34 cases rejected the new `has_unread: false` on content-free
+placeholders; three cases observed repeated read-wall calls for the pinned
+own Request (FULL: 3 instead of 1; ANCHORS: 2 instead of 1).
+
+The Request wire mapping now emits `has_unread: null` for identity-only
+placeholders, with a nullable Request field in both schemas. Readable Request
+values remain booleans, and the Post field remains non-nullable. The Questions
+policy's beacon argument now references the actual `ci.beacon_id` row, rather
+than only the outer beacon parameter. This prevents an eager policy initplan
+from calling the read wall when no Questions item exists; for a real scope,
+the existing `questions_access_levels` policy and unread counts are unchanged.
+
+Both failure categories were reproduced before repair. The tombstone,
+placeholder, pinned-readability-reuse, concurrent anchor-apply, Field unread,
+schema, and Request-card Questions suites passed after repair. No tests,
+assertions, tags, or verification selectors were changed.
+
+Final landing verification: `./scripts/run_tests.sh server-affected` exited 0
+with **3,000 passing tests**, including all MR-tagged pin invariants and the
+isolated admission suite. `scripts/run_tests.sh server-gates` also exited 0
+(custom lints 0; analyzer budget 1,834 ≤ 1,835). Tests edited: none.

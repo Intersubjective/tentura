@@ -24,6 +24,7 @@ import 'package:tentura_server/domain/util/room_reply_excerpt.dart';
 import 'package:tentura_server/utils/id.dart';
 
 import '../database/tentura_db.dart';
+import 'room_unread_sql.dart';
 import 'beacon_room_participant_join_recorder.dart';
 import 'participant_activity_sql.dart';
 import 'mappers/coordination_row_mappers.dart';
@@ -2020,36 +2021,18 @@ WHERE b.id = ANY($1::text[])
   }) async {
     final ids = beaconIds.where((id) => id.isNotEmpty).toSet().toList();
     if (ids.isEmpty) return {};
-    // Same rule as [countRoomMessagesAfter]: the viewer's own messages are
-    // never unread (`<>` also leaves out authorless rows).
-    // Membership lines have no system_message_kind, so also exclude their
-    // semantic markers without dropping non-system plan-updated messages.
+    // One statement for every card, including Questions-only readers. Room
+    // authorization is part of the shared count, not a filter on its callers.
     final rows = await _db
         .customSelect(
-          r'''
+          '''
 SELECT ids.beacon_id,
-  (SELECT count(*) FROM public.beacon_room_message m
-    WHERE m.beacon_id = ids.beacon_id
-      AND m.thread_item_id IS NULL
-      AND m.author_id <> $2
-      AND m.system_message_kind IS NULL
-      AND (m.semantic_marker IS NULL OR m.semantic_marker <> ALL($3::integer[]))
-      AND (seen.last_seen_at IS NULL OR m.created_at > seen.last_seen_at)
-  )::int AS unread
-FROM unnest($1::text[]) AS ids(beacon_id)
-LEFT JOIN public.beacon_room_seen seen
-  ON seen.beacon_id = ids.beacon_id AND seen.user_id = $2
-  AND seen.thread_item_id IS NULL
+  ${requestUnreadMessageCountSql(viewer: r'$2', beaconId: 'ids.beacon_id')} AS unread
+FROM unnest(\$1::text[]) AS ids(beacon_id)
 ''',
           variables: [
             Variable(TypedValue(Type.textArray, ids)),
             Variable<String>(viewerUserId),
-            Variable(
-              TypedValue(
-                Type.integerArray,
-                kBeaconRoomMembershipLineMarkers.toList(),
-              ),
-            ),
           ],
         )
         .get();

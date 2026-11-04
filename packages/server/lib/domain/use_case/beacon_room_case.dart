@@ -1355,7 +1355,7 @@ class BeaconRoomCase extends UseCaseBase {
           f.beaconId: f,
     };
     final unread = await _room.unreadMainRoomMessageCounts(
-      members.keys,
+      slice,
       viewerUserId: userId,
     );
     final blockers = await _items.openBlockersByBeaconIds(
@@ -1384,7 +1384,7 @@ class BeaconRoomCase extends UseCaseBase {
           'currentLine': null,
           'lastRoomMeaningfulChange': null,
           'nextMoveText': null,
-          'roomUnreadCount': 0,
+          'roomUnreadCount': unread[bid] ?? 0,
           'lastSeenAt': null,
           'openBlockerTitle': null,
           ..._emptyOpenBlockerBatchFields(),

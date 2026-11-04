@@ -14,17 +14,24 @@ import 'package:tentura_server/domain/port/user_profile_batch_lookup_port.dart';
 import '../database/tentura_db.dart';
 import 'constellation_field_snapshot_reader.dart';
 import 'constellation_new_people_repository.dart';
+import 'room_unread_sql.dart';
 
 /// Columns of one [ConstellationRequestRecord] row; `$1` is the viewer.
 /// `parent_beacon_id` is set only when the parent is a Post the viewer can
 /// read (budding C8, Arch §8.2).
-final constellationRequestSelectColumns =
+final constellationRequestSelectColumns = _constellationRequestSelectColumns();
+final constellationPinnedItemSelectColumns = _constellationRequestSelectColumns(
+  includePosts: true,
+);
+
+String _constellationRequestSelectColumns({bool includePosts = false}) =>
     '''
   b.id,
   b.user_id AS author_id,
   b.title,
   b.status,
   b.kind,
+  ${fieldHasUnreadSql(includePosts: includePosts)} AS has_unread,
   b.needs,
   b.primary_need_slug,
   b.cover_source,
@@ -370,6 +377,7 @@ ConstellationRequestRecord readConstellationRequestRow(
     },
     helpOfferCount: row.read<int>('help_offer_count'),
     kind: row.read<int>('kind'),
+    hasUnread: row.read<bool>('has_unread'),
     coverSource: row.read<int>('cover_source'),
     coverThumb: coverThumb,
     viewerParticipates: viewerParticipates,

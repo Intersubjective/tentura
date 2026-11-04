@@ -11,6 +11,7 @@ import 'package:tentura_server/domain/port/user_profile_batch_lookup_port.dart';
 import '../database/tentura_db.dart' hide ConstellationAnchor;
 import 'constellation_anchor_projection_reader.dart';
 import 'constellation_field_repository.dart';
+import 'room_unread_sql.dart';
 
 /// Builds [ConstellationFieldSnapshot] inside an existing read snapshot transaction.
 final class ConstellationFieldSnapshotReader {
@@ -483,6 +484,7 @@ SELECT
   b.user_id AS author_id,
   b.expires_at,
   b.status,
+  ${fieldPostHasUnreadSql()} AS has_unread,
   COALESCE(b.last_activity_at, b.published_at, b.created_at) AS last_activity_at,
   left(COALESCE(root.body, ''), \$2::int) AS root_excerpt,
   EXISTS (
@@ -600,6 +602,7 @@ ORDER BY m.beacon_id, m.person_id
             hiddenReachCount: hiddenByPost[row.read<String>('id')] ?? 0,
             expiresAt: readCustomSelectTimestamptz(row.data['expires_at']),
             status: row.read<int>('status'),
+            hasUnread: row.read<bool>('has_unread'),
           ),
       ],
       memberWebs: memberWebs,

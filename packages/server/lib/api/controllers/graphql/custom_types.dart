@@ -1072,6 +1072,7 @@ final gqlTypeConstellationRequest =
         null,
       )
       ..fields.addAll([
+        field('has_unread', graphQLBoolean),
         field('id', graphQLString.nonNullable()),
         field('authorId', graphQLString),
         field('title', graphQLString),
@@ -1110,6 +1111,7 @@ final gqlTypeConstellationPost =
         null,
       )
       ..fields.addAll([
+        field('has_unread', graphQLBoolean.nonNullable()),
         field('id', graphQLString.nonNullable()),
         field('authorId', graphQLString.nonNullable()),
         field('lastActivityAt', graphQLString.nonNullable()),

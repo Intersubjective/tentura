@@ -621,7 +621,7 @@ WHERE b.id = ANY($2::text[])
     final rows = await _database
         .customSelect(
           '''
-SELECT $constellationRequestSelectColumns
+SELECT $constellationPinnedItemSelectColumns
   , ($participation) AS viewer_participates
 FROM public.beacon b
 LEFT JOIN public.image cover ON cover.id = b.cover_thumb_image_id

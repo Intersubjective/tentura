@@ -8,7 +8,7 @@ part of '_migrations.dart';
 /// predicate; the return type is unchanged, so `CREATE OR REPLACE` suffices.
 /// The in-room unread anchor is a separate read and is not touched.
 final m0278 = Migration('0278', [
-  r'''
+  '''
 CREATE OR REPLACE FUNCTION public.post_my_posts(p_viewer text)
 RETURNS TABLE (
   id text, author_id text, author_name text, author_image_id text,
@@ -19,15 +19,12 @@ RETURNS TABLE (
   unread_count integer, is_author boolean, status smallint,
   expires_at timestamp with time zone, last_message_id text
 )
-LANGUAGE sql STABLE AS $$
+LANGUAGE sql STABLE AS \$\$
   SELECT b.id, b.user_id, u.display_name, u.image_id::text,
          left(root.body, 280), left(latest.body, 280), latest.created_at,
          b.last_activity_at, pin.pinned_at, mute.muted_until,
          (SELECT count(*)::integer FROM public.beacon_room_message m
-          WHERE m.beacon_id = b.id AND m.thread_item_id IS NULL
-            AND m.author_id <> p_viewer
-            AND m.system_message_kind IS NULL
-            AND (seen.last_seen_at IS NULL OR m.created_at > seen.last_seen_at)),
+          WHERE m.beacon_id = b.id AND ${postUnreadMessageSql('p_viewer')}),
          b.user_id = p_viewer,
          b.status, b.expires_at, latest.id
   FROM public.beacon b
@@ -54,7 +51,7 @@ LANGUAGE sql STABLE AS $$
         AND bp.role = 6 AND bp.room_access = 3
     ))
     AND public.beacon_can_read_content(b.id, p_viewer)
-$$
+\$\$
 
 ''',
 ]);

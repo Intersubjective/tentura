@@ -8318,6 +8318,7 @@ type v2_ConstellationPeer {
 }
 
 type v2_ConstellationPost {
+  has_unread: Boolean!
   authorId: String!
   hiddenReachCount: Int!
   id: String!
@@ -8334,6 +8335,7 @@ enum v2_ConstellationProjection {
 }
 
 type v2_ConstellationRequest {
+  has_unread: Boolean
   addressLabel: String
   authorId: String!
   coverSource: Int!
