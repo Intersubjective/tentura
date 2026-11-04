@@ -442,6 +442,7 @@ class _PersonRequestGroup extends StatelessWidget {
             person: person,
             profile: profile,
             selected: selectedPersonId == authorId,
+            isNewOnField: cubit.fieldPersonById(authorId)?.isNew ?? false,
             onTap: person.isViewer ? null : () => cubit.selectPerson(authorId),
           ),
           if (person.contactOnly)
@@ -516,22 +517,30 @@ class _PersonRow extends StatelessWidget {
     required this.person,
     required this.profile,
     required this.selected,
+    required this.isNewOnField,
     required this.onTap,
   });
 
   final ConstellationFieldPerson person;
   final Profile? profile;
   final bool selected;
+  final bool isNewOnField;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final tt = context.tt;
     final theme = Theme.of(context);
+    final l10n = L10n.of(context)!;
     final profile = this.profile;
     return Semantics(
       button: onTap != null,
       selected: selected,
+      label: isNewOnField
+          ? l10n.constellationFieldNewSemantics(
+              profile?.shownName ?? person.name,
+            )
+          : null,
       child: Material(
         type: MaterialType.transparency,
         child: InkWell(
@@ -555,6 +564,14 @@ class _PersonRow extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
+                if (isNewOnField) ...[
+                  SizedBox(width: tt.avatarTextGap),
+                  TenturaStatusText(
+                    l10n.constellationFieldNewChip,
+                    tone: TenturaTone.info,
+                    key: Key('constellation.text.new_chip.${person.id}'),
+                  ),
+                ],
               ],
             ),
           ),

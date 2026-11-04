@@ -3,6 +3,7 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/data/service/remote_api_service.dart';
 
+import '../../domain/entity/post_participant_preview.dart';
 import '../../domain/entity/post_summary.dart';
 import '../../domain/port/posts_repository_port.dart';
 import '../gql/_g/my_posts.req.gql.dart';
@@ -51,6 +52,17 @@ class PostsRepository implements PostsRepositoryPort {
     mutedUntil: _parse(row.mutedUntil),
     mutedForever: row.mutedForever,
     unreadCount: row.unreadCount,
+    participantCount: row.participantCount,
+    notOpenedCount: row.notOpenedCount,
+    myDeclinedForwardCount: row.myDeclinedForwardCount,
+    previewParticipants: [
+      for (final peer in row.previewParticipants)
+        PostParticipantPreview(
+          id: peer.id,
+          displayName: peer.displayName,
+          avatar: peer.avatar,
+        ),
+    ],
     isAuthor: row.isAuthor,
     status: BeaconStatus.fromSmallint(row.status),
     expiresAt: _parse(row.expiresAt),

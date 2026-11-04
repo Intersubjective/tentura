@@ -4603,7 +4603,23 @@
   "profileEyeTrustNote": "Доверие — ваш собственный выбор. Глаз показывает итог: он может открыться и без прямого доверия — через тех, кому вы доверяете.",
   "profileMyLabelsLine": "Вы связываете с этим человеком: {tags}",
   "profileMarkCapabilities": "Отметить, чем помогает {name}",
-  "profileEditLabels": "Изменить метки",
+  "profileYourTagsFor": "Ваши теги для {name}",
+  "@profileYourTagsFor": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "capabilityTagsDisclosure": "Теги, которые вы ставите, помогают другим находить {name} для запросов. Никто не видит, кто какую метку поставил.",
+  "@capabilityTagsDisclosure": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "profileEditLabels": "Изменить",
   "profileLabelsInfoTitle": "Метки об этом человеке",
   "profileLabelsInfoPrivate": "Заметки с замком видите только вы: по ним Tentura подсказывает вам этого человека при пересылке.",
   "profileLabelsInfoShared": "Метки с людьми — из ваших пересылок и отметок о помощи. Их видит {name}, и они помогают людям, которые вам доверяют, найти этого человека для похожих запросов.",
@@ -5630,6 +5646,11 @@
   "postConversationAddressed": "{author} · вам",
   "postConversationForwarded": "{author} · через {sender}",
   "postConversationMuted": "Звук выключен",
+  "postConversationOnlyYou": "Только вы",
+  "postConversationPeople": "{count, plural, one{1 человек} few{{count} человека} many{{count} человек} other{{count} человека}}",
+  "postConversationNotOpened": "{count, plural, one{1 не открыл} few{{count} не открыли} many{{count} не открыли} other{{count} не открыли}}",
+  "postConversationDeclined": "{count, plural, one{1 отказался} few{{count} отказались} many{{count} отказались} other{{count} отказались}}",
+  "postConversationParticipantsSemantics": "Участники поста",
   "postMenuParticipants": "Участники",
   "postMenuAllowForwarding": "Разрешить пересылку",
   "postMenuDelete": "Удалить пост",
@@ -6385,6 +6406,9 @@
   "graphLegendConstellationWiderNetworkReachHint": "Вы и этот человек видите друг друга через сеть доверия, но «Поле» не может показать путь между вами.",
   "ratingColumnsInfoLabel": "Что значат эти числа",
   "forwardSectionDirectContacts": "Ваши связи",
+  "forwardSectionNewMutual": "Новые",
+  "forwardSectionNewMutualHint": "Взаимное доверие за последнюю неделю",
+  "forwardSectionNewMutualSelectAll": "Выбрать все",
   "forwardSectionOthersReachable": "Другие, кому можно отправить",
   "forwardSectionOthersReachableHint": "Не ваши прямые связи: вы видите друг друга через сеть доверия или общий запрос.",
   "beaconPublishWithoutSendingDiscoverableHint": "Его могут найти в «Поле» те, кто видит вас. Напрямую его никто не получит, пока вы его не отправите.",
@@ -6458,6 +6482,10 @@
   "constellationTrustContactOnlyHint": "Вы доверяете этому человеку, но вы пока не видите друг друга через сеть доверия, поэтому на поле — только его имя и фото.",
   "constellationPresenceOnline": "Сейчас в сети",
   "constellationPresenceOnlineHint": "Мягкое зелёное свечение вокруг друга значит, что он сейчас в сети.",
+  "constellationFieldNewChip": "Новый",
+  "constellationFieldNewLegend": "Новый на вашем поле",
+  "constellationFieldNewLegendHint": "Человек, который появился на вашем поле за последнюю неделю и которого вы ещё не открывали.",
+  "constellationFieldNewSemantics": "{name}, новый на вашем поле",
   "constellationTrustChainThrough": "Через: {chain}",
   "constellationTrustChainNone": "Ни одна видимая вам цепочка доверия не ведёт к этому человеку.",
   "constellationTrustChainHidden": "Среди показанных людей нет цепочки доверия к этому человеку. Часть людей скрыта.",

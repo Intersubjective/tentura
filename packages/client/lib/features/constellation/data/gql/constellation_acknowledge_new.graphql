@@ -1,0 +1,3 @@
+mutation ConstellationAcknowledgeNew($peerIds: [String!]!) {
+  constellationAcknowledgeNew(peerIds: $peerIds)
+}

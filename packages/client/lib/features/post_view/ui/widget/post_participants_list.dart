@@ -94,7 +94,7 @@ class PostParticipantsList extends StatelessWidget {
 
   /// The author and the viewer are always in the conversation.
   bool _hasNotOpened(BeaconParticipant p) =>
-      p.lastSeenRoomAt == null &&
+      !p.opened &&
       p.role != BeaconParticipantRoleBits.author &&
       p.userId != viewerId;
 

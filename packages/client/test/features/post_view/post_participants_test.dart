@@ -36,6 +36,7 @@ BeaconParticipant _participant(
   int role = BeaconParticipantRoleBits.addressee,
   int roomAccess = RoomAccessBits.admitted,
   DateTime? lastSeenRoomAt,
+  bool? opened,
 }) => BeaconParticipant(
   id: 'P-$userId',
   beaconId: _postId,
@@ -47,6 +48,7 @@ BeaconParticipant _participant(
   createdAt: _createdAt,
   updatedAt: _createdAt,
   lastSeenRoomAt: lastSeenRoomAt,
+  opened: opened ?? lastSeenRoomAt != null,
 );
 
 /// The M5 mockup: five in the conversation (author, a contact, a stranger,

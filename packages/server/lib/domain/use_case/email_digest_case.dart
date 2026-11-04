@@ -129,6 +129,7 @@ class EmailDigestCase {
         body: i.body,
         actionUrl: i.actionUrl,
         locale: locale,
+        actorDisplayName: i.actorDisplayName,
       );
       return EmailNotificationItem(
         title: copy.title,
