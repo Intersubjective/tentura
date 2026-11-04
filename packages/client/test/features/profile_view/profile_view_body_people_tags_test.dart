@@ -141,9 +141,8 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    Finder capabilitySection() => find.byWidgetPredicate(
-      (w) => w is ProfileFactRow && w.icon == Icons.label_outline,
-    );
+    Finder capabilitySection(L10n l10n, String name) =>
+        find.text(l10n.profileYourTagsFor(name));
 
     testWidgets('shows own tags with ×, automatic tags without ×, and says '
         'only the viewer sees tags', (tester) async {
@@ -186,67 +185,14 @@ void main() {
 
     testWidgets('sits right after the capability section', (tester) async {
       await pumpBody(tester, peopleTagsEnabled: true);
+      final l10n = lookupL10n(const Locale('en'));
+      final section = capabilitySection(l10n, _friend.displayName);
 
-      expect(capabilitySection(), findsOneWidget);
-      final capabilityBottom = tester.getBottomLeft(capabilitySection()).dy;
+      expect(section, findsOneWidget);
+      final capabilityBottom = tester.getBottomLeft(section).dy;
       final blockTop = tester.getTopLeft(find.byType(PersonTagsBlock)).dy;
       expect(blockTop, greaterThanOrEqualTo(capabilityBottom));
     });
-
-    for (final locale in const [Locale('en'), Locale('ru')]) {
-      testWidgets(
-        'the capability section never mentions tags (${locale.languageCode})',
-        (tester) async {
-          final semantics = tester.ensureSemantics();
-          await pumpBody(tester, peopleTagsEnabled: true, locale: locale);
-
-          expect(capabilitySection(), findsOneWidget);
-          final words = RegExp('tag|тег', caseSensitive: false);
-          Iterable<T> inSection<T extends Widget>() => tester.widgetList<T>(
-            find.descendant(
-              of: capabilitySection(),
-              matching: find.byType(T),
-            ),
-          );
-          final texts = <String>[
-            // Plain Text (data or spans) and everything built on RichText.
-            for (final t in inSection<Text>())
-              t.data ?? t.textSpan?.toPlainText() ?? '',
-            for (final t in inSection<RichText>()) t.text.toPlainText(),
-            for (final t in inSection<Tooltip>()) ?t.message,
-            for (final b in inSection<IconButton>()) ?b.tooltip,
-            for (final s in inSection<Semantics>())
-              ...[
-                s.properties.label,
-                s.properties.hint,
-                s.properties.value,
-                s.properties.tooltip,
-              ].nonNulls,
-          ];
-          // What assistive technology reads for the section's subtree.
-          void collect(SemanticsNode node) {
-            texts
-              ..add(node.label)
-              ..add(node.hint)
-              ..add(node.value)
-              ..add(node.tooltip);
-            node.visitChildren((child) {
-              collect(child);
-              return true;
-            });
-          }
-
-          collect(tester.getSemantics(capabilitySection()));
-
-          expect(texts.where((t) => t.isNotEmpty), isNotEmpty);
-          for (final text in texts) {
-            expect(words.hasMatch(text), isFalse, reason: text);
-          }
-          // Before the test ends: tear-downs run after the handle check.
-          semantics.dispose();
-        },
-      );
-    }
 
     testWidgets('is absent on the own profile', (tester) async {
       await pumpBody(

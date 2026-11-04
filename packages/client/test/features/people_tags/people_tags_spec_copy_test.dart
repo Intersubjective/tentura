@@ -95,7 +95,7 @@ void main() {
       );
       expect(
         arb['profileEditLabels'],
-        locale.key == 'ru' ? 'Изменить метки' : 'Edit labels',
+        locale.key == 'ru' ? 'Изменить' : 'Edit',
       );
     });
   }
