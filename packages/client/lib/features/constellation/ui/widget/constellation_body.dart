@@ -70,6 +70,7 @@ import 'constellation_text_view.dart';
 import 'constellation_trust_chain_line.dart';
 import 'constellation_visibility_bar.dart';
 import 'constellation_placement_marker_layer.dart';
+import 'constellation_arranging_toolbar.dart';
 import 'constellation_selection_layers.dart';
 import 'constellation_tag_hull_layer.dart';
 import 'constellation_tag_lens_panel.dart';
@@ -154,6 +155,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
 
   // Where the pointer last was, to tell a drop on a tag chip from a pin.
   Offset? _lastPointerGlobal;
+  String? _lastTagChipDropHint;
   StreamSubscription<void>? _magnetTagsSubscription;
 
   late final GraphController<NodeDetails, EdgeDetails> _graphController;
@@ -853,7 +855,11 @@ class _ConstellationBodyState extends State<ConstellationBody>
               context,
             )!.constellationSelectionUnavailable;
             setState(() => _selectionUnavailableMessage = message);
-            SemanticsService.announce(message, TextDirection.ltr);
+            SemanticsService.sendAnnouncement(
+              View.of(context),
+              message,
+              TextDirection.ltr,
+            );
             cubit.selectRequest(null);
           },
         ),
@@ -1000,7 +1006,8 @@ class _ConstellationBodyState extends State<ConstellationBody>
                                 cubit.state.placementPhase ==
                                     ConstellationPlacementPhase.idle &&
                                 selection != null &&
-                                (selection.state.selecting ||
+                                (selection.state.arranging ||
+                                    selection.state.selecting ||
                                     selection.state.sector != null ||
                                     !panelOpen) &&
                                 selection.escape()) {
@@ -1028,7 +1035,10 @@ class _ConstellationBodyState extends State<ConstellationBody>
                         ),
                   },
                   child: Listener(
-                    onPointerDown: (e) => _lastPointerGlobal = e.position,
+                    onPointerDown: (e) {
+                      _lastPointerGlobal = e.position;
+                      _lastTagChipDropHint = null;
+                    },
                     onPointerMove: (e) => _lastPointerGlobal = e.position,
                     child: Focus(
                       focusNode: _mapFocus,
@@ -1058,15 +1068,33 @@ class _ConstellationBodyState extends State<ConstellationBody>
                                     // pass under the chip row, as edges do: the
                                     // clip stops their paint and hits at the
                                     // map's edge (#675).
-                                    builder: (context, _, _) => ClipRect(
-                                      child: _buildGraphStack(
-                                        context,
-                                        cubit,
-                                        cubit.state,
-                                        cubit.graphSceneLayoutAlgorithm,
-                                        panelVisible,
-                                      ),
-                                    ),
+                                    // [touchNodeDragLocked] must track Arranging.
+                                    builder: (context, _, _) {
+                                      Widget graphStack() => ClipRect(
+                                        child: _buildGraphStack(
+                                          context,
+                                          cubit,
+                                          cubit.state,
+                                          cubit.graphSceneLayoutAlgorithm,
+                                          panelVisible,
+                                        ),
+                                      );
+                                      final selection =
+                                          maybeConstellationSelection(context);
+                                      if (selection == null) {
+                                        return graphStack();
+                                      }
+                                      return BlocBuilder<
+                                        ConstellationSelectionCubit,
+                                        ConstellationMultiSelection
+                                      >(
+                                        bloc: selection,
+                                        buildWhen: (previous, current) =>
+                                            previous.arranging !=
+                                            current.arranging,
+                                        builder: (context, _) => graphStack(),
+                                      );
+                                    },
                                   ),
                                   // The map stack hosts the preview overlay; the
                                   // text view needs its own or a tapped card shows
@@ -1409,14 +1437,17 @@ class _ConstellationBodyState extends State<ConstellationBody>
   bool _dropOnTagChip(
     BuildContext context,
     ConstellationCubit cubit,
-    FieldPersonNode node,
-  ) {
+    FieldPersonNode node, {
+    Offset? globalPosition,
+  }) {
     final store = _peopleTags;
-    final pointer = _lastPointerGlobal;
+    final pointer = globalPosition ?? _lastPointerGlobal;
     if (store == null || pointer == null || node.person.id == cubit.viewerId) {
       return false;
     }
-    final tagId = constellationTagChipDropAt(context, pointer);
+    final tagId =
+        _lastTagChipDropHint ?? constellationTagChipDropAt(context, pointer);
+    _lastTagChipDropHint = null;
     if (tagId == null) return false;
     cubit.cancelPlacement(suppressLateGestureEnd: false);
     unawaited(_addDroppedToTag(context, store, tagId, node.person.id));
@@ -1514,13 +1545,27 @@ class _ConstellationBodyState extends State<ConstellationBody>
       );
     }
 
+    final mapSelectionCubit = maybeConstellationSelection(context);
+    final mapArranging = mapSelectionCubit?.state.arranging ?? false;
+    final touchNodeDragLocked = mapSelectionCubit != null &&
+        !mapArranging &&
+        !cubit.state.isComposing;
+    bool canDragNode(NodeDetails node) {
+      if (cubit.state.isComposing && !mapArranging) {
+        return cubit.isComposerDrag(node);
+      }
+      return cubit.canDragNode(node);
+    }
+
     return Stack(
       key: _graphStackKey,
       fit: StackFit.expand,
       children: [
         // A new touch or wheel on the map cancels a running reveal pan.
         Listener(
-          onPointerDown: (_) {
+          onPointerDown: (event) {
+            _lastPointerGlobal = event.position;
+            _lastTagChipDropHint = null;
             _pointersDown++;
             _stopReveal();
             _takeMapFocus();
@@ -1564,8 +1609,25 @@ class _ConstellationBodyState extends State<ConstellationBody>
                   ? _overviewTransitionDuration
                   : _layoutTransitionDuration,
               layoutTransitionStages: cubit.layoutTransitionStages,
-              canDragNode: cubit.canDragNode,
+              touchNodeDragLocked: touchNodeDragLocked,
+              canDragNode: canDragNode,
               transformNodeDragPosition: cubit.clampClusterDragPosition,
+              onNodeLongPress: mapSelectionCubit == null
+                  ? null
+                  : (node, position) {
+                      if (cubit.state.tagView != null) {
+                        return false;
+                      }
+                      if (!cubit.canDragNode(node)) {
+                        return false;
+                      }
+                      if (cubit.state.isComposing) {
+                        return node is FieldPersonNode &&
+                            cubit.isComposerDrag(node);
+                      }
+                      mapSelectionCubit.enterArranging();
+                      return true;
+                    },
               onNodeDragStart: (node, position) {
                 // The tag view only looks; a drag there writes nothing.
                 if (cubit.state.tagView != null) {
@@ -1593,14 +1655,21 @@ class _ConstellationBodyState extends State<ConstellationBody>
                   cubit.beginDragNew(target: target, group: group);
                 }
               },
-              onNodeDragUpdate: (node, position) {
+              onNodeDragUpdate: (node, position, globalPosition) {
                 cubit.updateDragPresentation(
                   nodeId: node.id,
                   sceneCentre: position,
                 );
                 _syncComposerPersonPositions(cubit, composer);
+                _lastPointerGlobal = globalPosition;
+                if (_peopleTags != null &&
+                    !cubit.state.isComposing &&
+                    cubit.state.tagView == null) {
+                  _lastTagChipDropHint =
+                      constellationTagChipDropAt(context, globalPosition);
+                }
               },
-              onNodeDragEnd: (node, position) {
+              onNodeDragEnd: (node, position, globalPosition) {
                 if (cubit.state.tagView != null) {
                   cubit.endTagViewDrag(node);
                   return;
@@ -1612,7 +1681,12 @@ class _ConstellationBodyState extends State<ConstellationBody>
                   return;
                 }
                 if (node is FieldPersonNode &&
-                    _dropOnTagChip(context, cubit, node)) {
+                    _dropOnTagChip(
+                      context,
+                      cubit,
+                      node,
+                      globalPosition: globalPosition,
+                    )) {
                   return;
                 }
                 final target = cubit.anchorTargetForNode(node);
@@ -1873,9 +1947,6 @@ class _ConstellationBodyState extends State<ConstellationBody>
           ),
         ),
         Positioned.fill(
-          child: ConstellationPlacementMarkerLayer(cubit: cubit),
-        ),
-        Positioned.fill(
           child: ConstellationSelectionLayers(
             cubit: cubit,
             hitsNode: (local) => _hitsMapNode(cubit, local),
@@ -1918,6 +1989,15 @@ class _ConstellationBodyState extends State<ConstellationBody>
                     ),
                   ),
           ),
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          child: _ConstellationFieldHoldHintBanner(cubit: cubit),
+        ),
+        Positioned.fill(
+          child: ConstellationPlacementMarkerLayer(cubit: cubit),
+        ),
         Positioned(
           top: 0,
           left: 0,
@@ -2000,6 +2080,10 @@ class _ConstellationBodyState extends State<ConstellationBody>
               mainAxisSize: MainAxisSize.min,
               children: [
                 _buildTagLensPanel(context, cubit),
+                ConstellationArrangingToolbar(
+                  cubit: cubit,
+                  peopleTagsEnabled: widget.peopleTagsEnabled,
+                ),
                 ConstellationSelectionBar(
                   cubit: cubit,
                   peopleTagsEnabled: widget.peopleTagsEnabled,
@@ -3114,6 +3198,63 @@ class _ConstellationMapReadingOrderPolicy extends FocusTraversalPolicy
       start = end;
     }
     return sorted;
+  }
+}
+
+/// One-time touch hold hint (#938), stored in field visibility (#645).
+class _ConstellationFieldHoldHintBanner extends StatelessWidget {
+  const _ConstellationFieldHoldHintBanner({required this.cubit});
+
+  final ConstellationCubit cubit;
+
+  @override
+  Widget build(BuildContext context) {
+    final selection = maybeConstellationSelection(context);
+    return BlocBuilder<ConstellationCubit, ConstellationState>(
+      bloc: cubit,
+      buildWhen: (previous, current) =>
+          previous.visibility.fieldHoldHintDismissed !=
+          current.visibility.fieldHoldHintDismissed,
+      builder: (context, state) {
+        if (state.visibility.fieldHoldHintDismissed ||
+            state.viewMode != ConstellationViewMode.map) {
+          return const SizedBox.shrink();
+        }
+        if (selection?.state.arranging ?? false) {
+          return const SizedBox.shrink();
+        }
+        if (RendererBinding.instance.mouseTracker.mouseIsConnected) {
+          return const SizedBox.shrink();
+        }
+        final l10n = L10n.of(context)!;
+        final tt = context.tt;
+        final theme = Theme.of(context);
+        return Material(
+          key: const Key('constellation.field_hold_hint'),
+          color: theme.colorScheme.surfaceContainerHighest,
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: tt.screenHPadding,
+              vertical: tt.tightGap,
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    l10n.constellationFieldHoldHint,
+                    style: theme.textTheme.bodySmall,
+                  ),
+                ),
+                TextButton(
+                  onPressed: cubit.dismissFieldHoldHint,
+                  child: Text(l10n.buttonOk),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 }
 

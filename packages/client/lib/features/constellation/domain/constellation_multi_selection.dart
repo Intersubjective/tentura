@@ -132,6 +132,7 @@ double _clampSpan(double span) =>
 @immutable
 final class ConstellationMultiSelection {
   const ConstellationMultiSelection({
+    this.arranging = false,
     this.selecting = false,
     this.targets = const {},
     this.sector,
@@ -139,7 +140,10 @@ final class ConstellationMultiSelection {
 
   static const empty = ConstellationMultiSelection();
 
-  /// The toolbar toggle is on: a plain tap selects instead of opening.
+  /// Field «Arranging» mode (#938): touch may move saved nodes; pan elsewhere.
+  final bool arranging;
+
+  /// Box-select and tap-to-toggle inside [arranging]; legacy «Select several».
   final bool selecting;
 
   /// Selected nodes in the order they were picked.
@@ -152,8 +156,8 @@ final class ConstellationMultiSelection {
 
   bool get isEmpty => targets.isEmpty;
 
-  /// The selection bar is shown.
-  bool get isActive => selecting || targets.isNotEmpty;
+  /// The selection bar or arranging chrome is shown.
+  bool get isActive => arranging || selecting || targets.isNotEmpty;
 
   bool contains(ConstellationAnchorTarget target) => targets.contains(target);
 
@@ -205,8 +209,18 @@ final class ConstellationMultiSelection {
   ConstellationMultiSelection withSelecting(bool selecting) =>
       _with(selecting: selecting);
 
+  ConstellationMultiSelection withArranging(bool arranging) =>
+      _with(arranging: arranging);
+
+  /// Drops selected nodes and any sector draft; keeps [arranging] / [selecting].
+  ConstellationMultiSelection clearedTargets() => ConstellationMultiSelection(
+    arranging: arranging,
+    selecting: selecting,
+  );
+
   ConstellationMultiSelection withSector(ConstellationSectorDraft? sector) =>
       ConstellationMultiSelection(
+        arranging: arranging,
         selecting: selecting,
         targets: targets,
         sector: sector,
@@ -214,11 +228,13 @@ final class ConstellationMultiSelection {
 
   /// A changed selection drops a sector being aimed at the old one.
   ConstellationMultiSelection _with({
+    bool? arranging,
     bool? selecting,
     Set<ConstellationAnchorTarget>? targets,
   }) {
     final nextTargets = targets ?? this.targets;
     return ConstellationMultiSelection(
+      arranging: arranging ?? this.arranging,
       selecting: selecting ?? this.selecting,
       targets: Set.unmodifiable(nextTargets),
       sector: _sameTargets(nextTargets) ? sector : null,
@@ -231,6 +247,7 @@ final class ConstellationMultiSelection {
   @override
   bool operator ==(Object other) =>
       other is ConstellationMultiSelection &&
+      other.arranging == arranging &&
       other.selecting == selecting &&
       other.sector == sector &&
       const ListEquality<ConstellationAnchorTarget>().equals(
@@ -239,7 +256,8 @@ final class ConstellationMultiSelection {
       );
 
   @override
-  int get hashCode => Object.hash(selecting, sector, Object.hashAll(targets));
+  int get hashCode =>
+      Object.hash(arranging, selecting, sector, Object.hashAll(targets));
 }
 
 double _normalize(double angle) {

@@ -7,6 +7,7 @@ import 'package:tentura/domain/entity/lazy_write_notice.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_selection_cubit.dart';
+import 'fixtures/constellation_field_test_harness.dart';
 import 'package:tentura/features/constellation/ui/scene/constellation_zoom_level_controller.dart';
 import 'package:tentura/features/constellation/ui/utils/constellation_presentation_frame.dart';
 import 'package:tentura/features/constellation/ui/utils/constellation_tap_resolver.dart';
@@ -96,7 +97,8 @@ Future<Set<String>> _boxAround(
     semanticZoomEnabled: true,
   );
   await cubit.stream.firstWhere((state) => state.status is StateIsSuccess);
-  final selection = ConstellationSelectionCubit();
+  final selection = constellationSelectionForFieldBodyTests()
+    ..enterArranging();
   final zoom = ConstellationZoomLevelController();
   final holder = ConstellationPresentationFrameHolder();
   addTearDown(() async {
@@ -142,6 +144,9 @@ Future<Set<String>> _boxAround(
   cubit.graphController.zoomBy(scale / cubit.graphController.cameraScale);
   await tester.pumpAndSettle();
   expect(holder.frame!.detail, level);
+
+  selection.setSelecting(true);
+  await tester.pump();
 
   final controller = cubit.graphController;
   final snapshot = controller.renderSnapshot;

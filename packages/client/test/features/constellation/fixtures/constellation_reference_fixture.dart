@@ -8,6 +8,7 @@ import 'package:tentura/features/constellation/domain/entity/constellation_field
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
 import 'package:tentura/features/constellation/domain/use_case/constellation_field_store_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
+import 'package:tentura/features/constellation/ui/bloc/constellation_selection_cubit.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_presence_cubit.dart';
 import 'package:tentura/features/constellation/ui/utils/constellation_tap_resolver.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
@@ -21,6 +22,8 @@ import '../../../ui/effect/fake_ui_effect_port.dart';
 
 import '../../../support/constellation_store_fixture.dart';
 import '../../../support/people_tags_widget_harness.dart';
+
+import 'constellation_field_test_harness.dart';
 
 const kRefEgo = Profile(id: 'ego', displayName: 'Vadim');
 
@@ -237,6 +240,9 @@ Future<FakeUiEffectPort> pumpConstellationBody(
   TextDirection textDirection = TextDirection.ltr,
   ConstellationPresenceCubit? presence,
   bool disableAnimations = false,
+  bool withSelectionCubit = true,
+  bool touchNodeDragLocked = false,
+  GraphPersonContextCubit? graphPersonContext,
 }) async {
   final resolvedScaler = textScaler ?? TextScaler.linear(textScale);
   await tester.binding.setSurfaceSize(size);
@@ -260,9 +266,28 @@ Future<FakeUiEffectPort> pumpConstellationBody(
             child: MultiBlocProvider(
               providers: [
                 BlocProvider<ConstellationCubit>.value(value: cubit),
-                BlocProvider<GraphPersonContextCubit>(
-                  create: (_) => _StubContextCubit(),
-                ),
+                if (withSelectionCubit)
+                  BlocProvider(
+                    create: (_) {
+                      final selection =
+                          constellationSelectionForFieldBodyTests();
+                      if (touchNodeDragLocked) {
+                        applyConstellationTouchDragTestPolicy(
+                          selection,
+                          touchNodeDragLocked: true,
+                        );
+                      }
+                      return selection;
+                    },
+                  ),
+                if (graphPersonContext != null)
+                  BlocProvider<GraphPersonContextCubit>.value(
+                    value: graphPersonContext,
+                  )
+                else
+                  BlocProvider<GraphPersonContextCubit>(
+                    create: (_) => _StubContextCubit(),
+                  ),
                 BlocProvider<ScreenCubit>(
                   create: (_) => ScreenCubit(fx),
                 ),

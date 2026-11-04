@@ -4,6 +4,8 @@ import 'package:force_directed_graphview/force_directed_graphview.dart';
 import 'package:tentura/features/constellation/domain/constellation_layout.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_selection_cubit.dart';
+import 'fixtures/constellation_field_test_harness.dart';
+import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_layout_history_sheet.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
@@ -91,9 +93,18 @@ Future<void> _tap(WidgetTester tester, String label) async {
 }
 
 Future<void> _arrange(WidgetTester tester, String action) async {
-  await tester.tap(find.byTooltip('Arrange'));
+  enterConstellationArrangingForTests(
+    tester
+        .element(find.byType(ConstellationBody))
+        .read<ConstellationSelectionCubit>(),
+  );
   await tester.pumpAndSettle();
-  await _tap(tester, action);
+  if (action == 'Tidy up') {
+    await tester.tap(find.byKey(const Key('constellation.arranging.tidy')));
+    await tester.pumpAndSettle();
+    return;
+  }
+  await tapConstellationArrangeOverflowAction(tester, action);
 }
 
 /// Keep the actual Field, camera controls and selection bar mounted so layout
@@ -102,7 +113,7 @@ Future<ConstellationSelectionCubit> _mount(
   WidgetTester tester,
   LayoutHistoryHarness h,
 ) async {
-  final selection = ConstellationSelectionCubit();
+  final selection = constellationSelectionForFieldBodyTests();
   addTearDown(selection.close);
   await pumpArrangeBody(
     tester,

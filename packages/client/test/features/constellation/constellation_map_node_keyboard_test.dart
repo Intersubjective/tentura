@@ -33,6 +33,7 @@ import 'package:tentura/features/constellation/domain/port/constellation_reposit
 import 'package:tentura/features/constellation/ui/bloc/constellation_composer_cubit.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_selection_cubit.dart';
+import 'fixtures/constellation_field_test_harness.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_selection_layers.dart'
     show ConstellationSelectionToggle;
@@ -1597,7 +1598,7 @@ void main() {
     ) async {
       final cubit = await _loadCubit();
       addTearDown(cubit.close);
-      final selection = ConstellationSelectionCubit();
+      final selection = constellationSelectionForFieldBodyTests();
       addTearDown(selection.close);
       await _pumpBody(tester, cubit, selection: selection);
       await tester.pumpAndSettle();
@@ -1700,7 +1701,7 @@ void main() {
         'the panel first and then clears them', (tester) async {
       final cubit = await _loadCubit();
       addTearDown(cubit.close);
-      final selection = ConstellationSelectionCubit()
+      final selection = constellationSelectionForFieldBodyTests()
         ..toggle(ConstellationAnchorTarget.person('a'));
       addTearDown(selection.close);
       final composer = _idleComposer();
@@ -1735,7 +1736,7 @@ void main() {
         'empty map closes the panel', (tester) async {
       final cubit = await _loadCubit();
       addTearDown(cubit.close);
-      final selection = ConstellationSelectionCubit()
+      final selection = constellationSelectionForFieldBodyTests()
         ..toggle(ConstellationAnchorTarget.person('a'));
       addTearDown(selection.close);
       final composer = _idleComposer();
@@ -1766,7 +1767,7 @@ void main() {
         'it', (tester) async {
       final cubit = await _loadCubit();
       addTearDown(cubit.close);
-      final selection = ConstellationSelectionCubit();
+      final selection = constellationSelectionForFieldBodyTests();
       addTearDown(selection.close);
       final composer = _idleComposer();
       addTearDown(composer.close);
@@ -1798,7 +1799,7 @@ void main() {
     ) async {
       final cubit = await _loadCubit();
       addTearDown(cubit.close);
-      final selection = ConstellationSelectionCubit();
+      final selection = constellationSelectionForFieldBodyTests();
       addTearDown(selection.close);
       final field = FocusNode(debugLabel: 'outside text field');
       addTearDown(field.dispose);

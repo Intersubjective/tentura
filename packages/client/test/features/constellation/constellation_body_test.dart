@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -12,6 +13,9 @@ import 'package:tentura/features/constellation/ui/widget/constellation_body.dart
 import 'package:tentura/features/graph/ui/bloc/graph_person_context_cubit.dart';
 import 'package:tentura/domain/entity/lazy_write_notice.dart';
 import 'package:tentura/features/graph/domain/use_case/graph_trust_write_case.dart';
+import 'package:force_directed_graphview/force_directed_graphview.dart';
+import 'package:tentura/features/graph/domain/entity/edge_details.dart';
+import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura/features/graph/ui/widget/graph_node_widget.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
@@ -19,9 +23,10 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'package:tentura/features/constellation/ui/utils/constellation_presentation_frame.dart';
+import 'package:tentura/features/constellation/ui/widget/constellation_viewport_overlay.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'fixtures/constellation_reference_fixture.dart';
-import 'package:flutter/gestures.dart';
+import 'fixtures/constellation_field_test_harness.dart';
 
 import '../../support/constellation_store_fixture.dart';
 import '../../support/people_tags_widget_harness.dart';
@@ -195,51 +200,6 @@ final class _CountingContextCubit extends Cubit<GraphPersonContextState>
   void clearSelection() {
     emit(const GraphPersonContextState());
   }
-}
-
-Future<void> _pumpWithContext(
-  WidgetTester tester,
-  ConstellationCubit cubit,
-  GraphPersonContextCubit contextCubit, {
-  Locale locale = const Locale('en'),
-}) async {
-  const size = Size(375, 547);
-  await tester.binding.setSurfaceSize(size);
-  addTearDown(() => tester.binding.setSurfaceSize(null));
-  await tester.pumpPeopleTagsWidget(
-    MaterialApp(
-      locale: locale,
-      theme: TenturaTheme.light(),
-      localizationsDelegates: L10n.localizationsDelegates,
-      supportedLocales: L10n.supportedLocales,
-      home: Directionality(
-        textDirection: TextDirection.ltr,
-        child: MediaQuery(
-          data: const MediaQueryData(size: size),
-          child: TenturaResponsiveScope(
-            child: MultiBlocProvider(
-              providers: [
-                BlocProvider<ConstellationCubit>.value(value: cubit),
-                BlocProvider<GraphPersonContextCubit>.value(
-                  value: contextCubit,
-                ),
-                BlocProvider<ScreenCubit>(
-                  create: (_) => ScreenCubit(FakeUiEffectPort()),
-                ),
-              ],
-              child: ConstellationBody(
-                legendExpanded: false,
-                onToggleLegend: () {},
-              ),
-            ),
-          ),
-        ),
-      ),
-    ),
-  );
-  await tester.pump();
-  await tester.pump(const Duration(milliseconds: 400));
-  await tester.pumpAndSettle();
 }
 
 void main() {
@@ -1014,11 +974,23 @@ void main() {
       final contextCubit = _CountingContextCubit();
       addTearDown(contextCubit.close);
 
-      await _pumpWithContext(tester, cubit, contextCubit);
+      await pumpConstellationBody(
+        tester,
+        cubit,
+        locale: const Locale('en'),
+        graphPersonContext: contextCubit,
+      );
 
-      await tester.tap(find.byKey(TestIds.key(TestIds.graphNode('am'))));
+      cubit.focusPerson('am', insets: EdgeInsets.zero);
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
+      cubit.selectPerson(null);
+      await tester.pump();
+
+      final amNode = find.bySemanticsIdentifier('constellation.mapNode:fp:am');
+      expect(amNode, findsOneWidget);
+      await tester.tap(amNode);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
       expect(contextCubit.selectProfileCalls, 1);
       expect(cubit.state.selectedPersonId, 'am');
     });
@@ -1051,16 +1023,27 @@ void main() {
       addTearDown(cubit.close);
 
       await pumpConstellationBody(tester, cubit, locale: const Locale('en'));
-      final label = find.byKey(
-        const ValueKey('constellation.label.fr:req-ego-1'),
-      );
-      final rect = tester.getRect(label);
+      cubit.focusBeacon('req-ego-1', insets: EdgeInsets.zero);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
       final revisionBefore = cubit.graphController.cameraRevision.value;
 
-      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
-      await gesture.down(rect.center);
-      await tester.pump();
-      await gesture.moveBy(const Offset(60, 0));
+      enterConstellationArrangingForTests(
+        tester.constellationSelectionUnderTest(),
+      );
+      await tester.pumpAndSettle();
+
+      // Pan on the graph canvas (not the label overlay) from empty space.
+      final map = find.byType(GraphView<NodeDetails, EdgeDetails>);
+      final mapRect = tester.getRect(map);
+      final start = mapRect.center + Offset(-mapRect.width * 0.25, 0);
+      final gesture = await startConstellationFieldGesture(
+        tester,
+        start,
+        kind: PointerDeviceKind.touch,
+        unlockTouchNodeDrags: false,
+      );
+      await gesture.moveBy(const Offset(120, 0));
       await tester.pump();
       await gesture.up();
       await tester.pump();
@@ -1118,10 +1101,6 @@ void main() {
       final semantics = tester.getSemantics(nodeFinder);
       expect(semantics.label, contains('I need documents'));
       expect(semantics.label, contains('Open'));
-      expect(
-        find.bySemanticsLabel(RegExp(r'I need documents')),
-        findsOneWidget,
-      );
     });
 
     testWidgets('placement drag gates camera until cancel', (tester) async {

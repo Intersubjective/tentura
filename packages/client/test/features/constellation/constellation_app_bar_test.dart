@@ -11,6 +11,7 @@ import 'package:tentura/features/beacon_create/ui/bloc/beacon_create_cubit.dart'
 import 'package:tentura/features/constellation/ui/bloc/constellation_composer_cubit.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_selection_cubit.dart';
+import 'fixtures/constellation_field_test_harness.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_app_bar.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_visibility_bar.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
@@ -400,7 +401,7 @@ void main() {
       addTearDown(cubit.close);
       final composer = _buildComposerCubit();
       addTearDown(composer.close);
-      final selection = ConstellationSelectionCubit();
+      final selection = constellationSelectionForFieldBodyTests();
       addTearDown(selection.close);
       await _pumpAppBar(
         tester,
@@ -498,7 +499,12 @@ void main() {
         find.byKey(const Key('constellation.app_bar.more.select')),
       );
       await tester.pumpAndSettle();
-      expect(selection.state.selecting, isTrue);
+      expect(selection.state.arranging, isTrue);
+
+      // Arranging replaces the phone overflow bar (#938); leave it to reach more.
+      await tester.tap(find.byKey(const Key('constellation.arranging.done')));
+      await tester.pumpAndSettle();
+      expect(selection.state.arranging, isFalse);
 
       await tester.tap(more);
       await tester.pumpAndSettle();
