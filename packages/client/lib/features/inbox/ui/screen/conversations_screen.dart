@@ -8,6 +8,7 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/home/ui/bloc/home_tab_reselect_cubit.dart';
 import 'package:tentura/features/home/ui/widget/home_account_avatar_button.dart';
 import 'package:tentura/features/post_view/ui/screen/post_view_scope.dart';
+import 'package:tentura/features/post_view/ui/util/post_participants_sheet_request.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -63,6 +64,11 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
     } else {
       unawaited(context.router.push(BeaconViewRoute(id: id)));
     }
+  }
+
+  void _openPostParticipants(String id) {
+    PostParticipantsSheetRequest.instance.pending = id;
+    _openPost(id);
   }
 
   void _closePost() {
@@ -174,6 +180,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
             canCreatePost: canCreatePost,
             onCreatePost: () => context.read<ScreenCubit>().showPostCreate(),
             onOpenPost: _openPost,
+            onOpenPostParticipants: _openPostParticipants,
             scrollController: _scrollController,
           ),
         ),

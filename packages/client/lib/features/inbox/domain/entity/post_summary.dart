@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:tentura_root/domain/entity/beacon_post_lifetime.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
+import 'post_participant_preview.dart';
+
 /// One Post the viewer is in, as the «Разговоры» tab lists it.
 @immutable
 final class PostSummary {
@@ -20,6 +22,10 @@ final class PostSummary {
     this.mutedUntil,
     this.mutedForever = false,
     this.unreadCount = 0,
+    this.participantCount = 0,
+    this.notOpenedCount = 0,
+    this.myDeclinedForwardCount = 0,
+    this.previewParticipants = const [],
     this.isAuthor = false,
     this.status = BeaconStatus.open,
     this.expiresAt,
@@ -45,6 +51,19 @@ final class PostSummary {
   /// Muted with no expiry ([mutedUntil] is null then).
   final bool mutedForever;
   final int unreadCount;
+
+  /// Admitted members except the viewer (MyPosts participantCount).
+  final int participantCount;
+
+  /// Admitted members who have not opened the Post yet.
+  final int notOpenedCount;
+
+  /// The viewer's forwards of this Post that were declined.
+  final int myDeclinedForwardCount;
+
+  /// Up to four peers for the row avatar stack (most recently active first).
+  final List<PostParticipantPreview> previewParticipants;
+
   final bool isAuthor;
 
   /// [BeaconStatus.open], or [BeaconStatus.closed] once the Post was closed

@@ -15,6 +15,7 @@ class PostsTabView extends StatelessWidget {
     this.canCreatePost = kPostsEnabled,
     this.onCreatePost,
     this.onOpenPost,
+    this.onOpenPostParticipants,
     this.scrollController,
     super.key,
   });
@@ -27,6 +28,9 @@ class PostsTabView extends StatelessWidget {
   /// Opens a Post; null pushes its route. Inbox's list-detail passes one that
   /// shows the Post beside this list.
   final ValueChanged<String>? onOpenPost;
+
+  /// Opens «О посте» at participants for the given post id (#899).
+  final ValueChanged<String>? onOpenPostParticipants;
 
   final ScrollController? scrollController;
 
@@ -56,6 +60,9 @@ class PostsTabView extends StatelessWidget {
           onOpen: () => onOpenPost == null
               ? context.router.push(BeaconViewRoute(id: post.id))
               : onOpenPost!(post.id),
+          onOpenParticipants: onOpenPostParticipants == null
+              ? null
+              : () => onOpenPostParticipants!(post.id),
         );
         return ListView(
           controller: scrollController,

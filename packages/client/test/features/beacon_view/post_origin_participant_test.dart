@@ -612,6 +612,7 @@ void main() {
                     'nextMoveSource': null,
                     'linkedMessageId': null,
                     'lastSeenRoomAt': null,
+                    'opened': false,
                     'helpType': null,
                     'roleLabel': null,
                     'createdAt': '2026-10-01T10:00:00.000Z',
