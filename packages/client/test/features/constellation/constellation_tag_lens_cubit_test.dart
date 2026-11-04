@@ -59,6 +59,34 @@ void main() {
       expect(cubit.state.mode, ConstellationTagFilterMode.or);
     });
 
+    test('clearAll matches clear', () {
+      cubit
+        ..toggleOwn('T1')
+        ..toggleAuto(ConstellationAutoTagKind.iTrust)
+        ..clearAll();
+
+      expect(cubit.state.isEmpty, isTrue);
+    });
+
+    test('selectAll selects every own and auto tag but keeps mode', () {
+      cubit
+        ..setMode(ConstellationTagFilterMode.and)
+        ..selectAll(
+          ownTagIds: const ['a', 'b'],
+          autoKinds: const [
+            ConstellationAutoTagKind.mutualContact,
+            ConstellationAutoTagKind.iTrust,
+          ],
+        );
+
+      expect(cubit.state.selectedOwn, {'a', 'b'});
+      expect(cubit.state.selectedAuto, {
+        ConstellationAutoTagKind.mutualContact,
+        ConstellationAutoTagKind.iTrust,
+      });
+      expect(cubit.state.mode, ConstellationTagFilterMode.and);
+    });
+
     test('a no-op does not emit', () async {
       final emitted = <ConstellationTagFilter>[];
       final sub = cubit.stream.listen(emitted.add);

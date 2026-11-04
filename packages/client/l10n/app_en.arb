@@ -10589,6 +10589,14 @@
   "@constellationTagsManage": {
     "description": "Field all-tags sheet: opens people tag settings"
   },
+  "constellationTagsClearAll": "Clear all",
+  "@constellationTagsClearAll": {
+    "description": "Field all-tags sheet: clears the tag lens selection"
+  },
+  "constellationTagsSelectAll": "Select all",
+  "@constellationTagsSelectAll": {
+    "description": "Field all-tags sheet: selects every tag in the sheet"
+  },
   "constellationTagModeOr": "Any of them",
   "@constellationTagModeOr": {
     "description": "Field tag row switch: people with any selected tag stay bright"
