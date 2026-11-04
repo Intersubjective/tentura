@@ -486,7 +486,7 @@ SELECT
   b.expires_at,
   b.status,
   ${fieldPostHasUnreadSql()} AS has_unread,
-  COALESCE(b.last_activity_at, b.published_at, b.created_at) AS last_activity_at,
+  $constellationLastActivitySql AS last_activity_at,
   left(COALESCE(root.body, ''), \$2::int) AS root_excerpt,
   EXISTS (
     SELECT 1 FROM public.beacon_pinned pin
@@ -858,18 +858,18 @@ ORDER BY b.id
     );
     final peersVariable = Variable(TypedValue(Type.textArray, visiblePeerIds));
 
-    // Keyset scan over `(user_id, id)`: each batch of candidates passing the
-    // cheap row predicates is checked for readability set-wise, and the key
+    // Keyset scan by activity DESC, id ASC: each batch passing the cheap
+    // row predicates is checked for readability set-wise, and the key
     // advances past every examined candidate, readable or not, so each one is
     // asked about at most once and the scan stops at cap + 1 eligible rows.
     final eligible = <ConstellationRequestRecord>[];
-    String? lastUserId;
-    String? lastId;
+    ({DateTime activityAt, String id})? cursor;
     while (eligible.length <= cap) {
+      final after = cursor;
       final candidates = await _database
           .customSelect(
             '''
-SELECT b.user_id AS user_id, b.id AS id
+SELECT b.id, $constellationLastActivitySql::text AS activity_at
 FROM public.beacon b
 WHERE b.user_id = ANY(\$2::text[])
   AND public.field_item_visible(\$1, b.kind, b.id)
@@ -880,8 +880,9 @@ WHERE b.user_id = ANY(\$2::text[])
   AND NOT public.block_hides(\$1, b.user_id)
   AND NOT (b.id = ANY(\$4::text[]))
   ${participation == null ? '' : 'AND ($participation)'}
-  ${lastId == null ? '' : r'AND (b.user_id, b.id) > ($6, $7)'}
-ORDER BY b.user_id, b.id
+  ${after == null ? '' : '''AND ($constellationLastActivitySql < \$6::timestamptz
+    OR ($constellationLastActivitySql = \$6::timestamptz AND b.id > \$7))'''}
+ORDER BY $constellationLastActivitySql DESC, b.id
 LIMIT \$5
 ''',
             variables: [
@@ -890,9 +891,9 @@ LIMIT \$5
               statusVariable,
               excludedVariable,
               Variable.withInt(kConstellationDiscoverableScanBatch),
-              if (lastId != null) ...[
-                Variable.withString(lastUserId!),
-                Variable.withString(lastId),
+              if (after != null) ...[
+                Variable(TypedValue(Type.timestampTz, after.activityAt)),
+                Variable.withString(after.id),
               ],
             ],
           )
@@ -901,8 +902,12 @@ LIMIT \$5
         break;
       }
       final batchIds = [for (final row in candidates) row.read<String>('id')];
-      lastUserId = candidates.last.read<String>('user_id');
-      lastId = batchIds.last;
+      cursor = (
+        activityAt: DateTime.parse(
+          candidates.last.read<String>('activity_at'),
+        ).toUtc(),
+        id: batchIds.last,
+      );
 
       final rows = await _database
           .customSelect(
@@ -911,7 +916,7 @@ SELECT $constellationRequestSelectColumns
 FROM public.beacon b
 LEFT JOIN public.image cover ON cover.id = b.cover_thumb_image_id
 WHERE b.id IN (SELECT public.beacon_readable_ids(\$1, \$2::text[]))
-ORDER BY b.user_id, b.id
+ORDER BY last_activity_at DESC, b.id
 ''',
             variables: [
               Variable.withString(viewerId),

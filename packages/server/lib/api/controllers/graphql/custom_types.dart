@@ -1089,6 +1089,7 @@ final gqlTypeConstellationRequest =
         field('authorId', graphQLString),
         field('title', graphQLString),
         field('status', graphQLInt),
+        field('lastActivityAt', graphQLString),
         field(
           'needs',
           GraphQLListType(graphQLString.nonNullable()),

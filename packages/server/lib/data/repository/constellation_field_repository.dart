@@ -16,6 +16,10 @@ import 'constellation_field_snapshot_reader.dart';
 import 'constellation_new_people_repository.dart';
 import 'room_unread_sql.dart';
 
+/// Effective activity of beacon alias `b` in Field reads.
+const constellationLastActivitySql =
+    'COALESCE(b.last_activity_at, b.published_at, b.created_at)';
+
 /// Columns of one [ConstellationRequestRecord] row; `$1` is the viewer.
 /// `parent_beacon_id` is set only when the parent is a Post the viewer can
 /// read (budding C8, Arch §8.2).
@@ -31,6 +35,7 @@ String _constellationRequestSelectColumns({bool includePosts = false}) =>
   b.title,
   b.status,
   b.kind,
+  $constellationLastActivitySql AS last_activity_at,
   ${fieldHasUnreadSql(includePosts: includePosts)} AS has_unread,
   b.needs,
   b.primary_need_slug,
@@ -378,6 +383,7 @@ ConstellationRequestRecord readConstellationRequestRow(
     helpOfferCount: row.read<int>('help_offer_count'),
     kind: row.read<int>('kind'),
     hasUnread: row.read<bool>('has_unread'),
+    lastActivityAt: readCustomSelectTimestamptz(row.data['last_activity_at']),
     coverSource: row.read<int>('cover_source'),
     coverThumb: coverThumb,
     viewerParticipates: viewerParticipates,

@@ -145,6 +145,7 @@ Map<String, dynamic> _liveRequestToGqlMap(ConstellationRequestRecord request) =>
       'authorId': request.authorId,
       'title': request.title,
       'status': request.status,
+      'lastActivityAt': request.lastActivityAt?.toUtc().toIso8601String(),
       'needs': request.needs,
       'primaryNeedSlug': request.primaryNeedSlug,
       'startAt': request.startAt?.toIso8601String(),

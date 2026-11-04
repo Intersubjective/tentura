@@ -334,6 +334,7 @@ class ConstellationRequestRecord {
     this.pinState,
     this.parentBeaconId,
     this.hasUnread = false,
+    this.lastActivityAt,
   });
 
   /// Placeholder for a pinned Request that was deleted: identity only.
@@ -364,7 +365,8 @@ class ConstellationRequestRecord {
        coverThumb = null,
        viewerParticipates = null,
        parentBeaconId = null,
-       hasUnread = false;
+       hasUnread = false,
+       lastActivityAt = null;
 
   final String id;
   final String authorId;
@@ -408,6 +410,10 @@ class ConstellationRequestRecord {
   final String? parentBeaconId;
   final bool hasUnread;
 
+  /// Latest activity, falling back to publication or creation. Absent on
+  /// identity-only placeholders.
+  final DateTime? lastActivityAt;
+
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -434,7 +440,8 @@ class ConstellationRequestRecord {
           other.viewerParticipates == viewerParticipates &&
           other.pinState == pinState &&
           other.parentBeaconId == parentBeaconId &&
-          other.hasUnread == hasUnread;
+          other.hasUnread == hasUnread &&
+          other.lastActivityAt == lastActivityAt;
 
   @override
   int get hashCode => Object.hashAll([
@@ -461,6 +468,7 @@ class ConstellationRequestRecord {
     pinState,
     parentBeaconId,
     hasUnread,
+    lastActivityAt,
   ]);
 }
 
