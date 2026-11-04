@@ -214,6 +214,33 @@ void main() {
     });
 
     for (final brightness in [Brightness.light, Brightness.dark]) {
+      testWidgets('$brightness: selected shows check and primary border', (
+        tester,
+      ) async {
+        await _pump(
+          tester,
+          const PersonTagChip(
+            glyph: 'N',
+            name: 'Neighbour',
+            colorIndex: 2,
+            selected: true,
+          ),
+          theme: brightness == Brightness.light
+              ? TenturaTheme.light()
+              : TenturaTheme.dark(),
+        );
+
+        expect(
+          find.descendant(
+            of: find.byType(PersonTagChip),
+            matching: find.byIcon(Icons.check),
+          ),
+          findsOneWidget,
+        );
+      });
+    }
+
+    for (final brightness in [Brightness.light, Brightness.dark]) {
       testWidgets('$brightness: fill and name use the swatch of its colour', (
         tester,
       ) async {
@@ -356,6 +383,24 @@ void main() {
         findsOneWidget,
       );
       handle.dispose();
+    });
+
+    testWidgets('selected auto tag shows check and solid primary outline', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        const AutoTagChip(name: 'Mutual contact', selected: true),
+      );
+
+      expect(
+        find.descendant(
+          of: find.byType(AutoTagChip),
+          matching: find.byIcon(Icons.check),
+        ),
+        findsOneWidget,
+      );
+      expect(await _classifyOutline(tester), _Outline.solid);
     });
 
     testWidgets('is outlined with a solid border while enabled', (
