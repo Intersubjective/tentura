@@ -10,6 +10,7 @@ final gqlTypeConstellationTrustChainPerson =
       ]);
 
 List<GraphQLType<dynamic, dynamic>> get customTypes => [
+  gqlTypeFieldHiddenItem,
   InputFieldCoordinates.type,
   InputFieldForwardRecipientBandProvenance.type,
   InputFieldForwardRecipientReasons.type,
@@ -148,6 +149,15 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypePersonAutoTagOf,
   gqlTypePersonTagSuggestionState,
 ];
+
+final gqlTypeFieldHiddenItem = GraphQLObjectType('FieldHiddenItem', null)
+  ..fields.addAll([
+    field('targetKind', graphQLInt.nonNullable()),
+    field('targetId', graphQLString.nonNullable()),
+    field('title', graphQLString.nonNullable()),
+    field('authorId', graphQLString.nonNullable()),
+    field('hiddenAt', graphQLString.nonNullable()),
+  ]);
 
 /// Account notification preferences (channel × category matrix + controls).
 final gqlTypeNotificationPreferences =

@@ -26,6 +26,7 @@ import 'query_constellation_mutual_trust.dart';
 import 'query_constellation_trust_chain.dart';
 import 'query_forward_candidate_context.dart';
 import 'query_forward_graph.dart';
+import 'query_field_hidden_items.dart';
 import 'query_forward_inbound.dart';
 import 'query_forward_reasons.dart';
 import 'query_invite_genealogy.dart';
@@ -71,6 +72,7 @@ List<GraphQLObjectField<dynamic, dynamic>> get queriesAll => [
   ...QueryConstellationTrustChain().all,
   ...QueryForwardCandidateContext().all,
   ...QueryForwardGraph().all,
+  ...QueryFieldHiddenItems().all,
   ...QueryForwardInbound().all,
   ...QueryForwardReasons().all,
   ...QueryMutualFriends().all,

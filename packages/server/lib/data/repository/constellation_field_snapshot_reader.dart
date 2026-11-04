@@ -342,6 +342,7 @@ FROM public.beacon b
 LEFT JOIN public.image cover ON cover.id = b.cover_thumb_image_id
 WHERE b.id IN (SELECT public.beacon_readable_ids(\$1, \$2::text[]))
   AND b.status = ANY(\$3::int[])
+  AND public.field_item_visible(\$1, b.kind, b.id)
 ORDER BY b.user_id, b.id
 ''',
           variables: [
@@ -494,6 +495,7 @@ SELECT
 FROM public.beacon b
 LEFT JOIN public.beacon_room_message root ON root.id = b.post_root_message_id
 WHERE b.kind = 1
+  AND public.field_item_visible(\$1, b.kind, b.id)
   AND b.status IN (0, 6)
   AND CASE
     WHEN b.id = ANY(\$3::text[]) THEN true
@@ -815,6 +817,7 @@ SELECT $constellationRequestSelectColumns
 FROM public.beacon b
 LEFT JOIN public.image cover ON cover.id = b.cover_thumb_image_id
 WHERE b.user_id = \$1
+  AND public.field_item_visible(\$1, b.kind, b.id)
   AND b.kind = 0
   AND b.status = ANY(\$2::int[])
   AND b.published_at IS NOT NULL
@@ -869,6 +872,7 @@ ORDER BY b.id
 SELECT b.user_id AS user_id, b.id AS id
 FROM public.beacon b
 WHERE b.user_id = ANY(\$2::text[])
+  AND public.field_item_visible(\$1, b.kind, b.id)
   AND b.is_discoverable
   AND b.kind = 0
   AND b.status = ANY(\$3::int[])

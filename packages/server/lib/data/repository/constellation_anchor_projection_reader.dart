@@ -571,6 +571,7 @@ SELECT b.id, b.user_id AS author_id, b.status,
          AND public.beacon_can_read_content(b.id, $1)) AS readable
 FROM public.beacon b
 WHERE b.id = ANY($2::text[])
+  AND public.field_item_visible($1, b.kind, b.id)
 ''',
           variables: [
             Variable.withString(viewerId),

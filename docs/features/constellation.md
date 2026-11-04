@@ -71,7 +71,7 @@ These are contracts from the [Post + Constellation plan](../plans/post-and-const
 - **Session draft (A6):** the composer draft node is the sole exception to persisted pin placement. It is session-local, writes no anchor until publish, and suspends person drag-to-pin while composing. Publish creates the object first, then saves its anchor; anchor failure leaves the published object intact and reports the failure.
 - **Post preview and refresh:** tapping a Post shows its excerpt, author, open and pin controls. The field reloads after returning from Post/Request creation or viewing, and on realtime beacon, forwarding, participant, room-message and room-seen changes or reconnect catch-up. Bursts are coalesced.
 - **Composer placement:** people remain draggable and pinnable while composing; dragging a person inside the circle moves that person rather than the circle. Automatic radius recipients follow the moved positions, while explicit recipient overrides persist. Cancelled or failed placement restores the previous position and keeps the composition session.
-- **Post presence (A5):** `last_activity_at` gives a 72-hour active window, fading over the final 24 hours and then leaving the active field. History remains; pinned Posts retain their anchor. Recency controls presence only, never ranking, sort order, people geometry, or Request prominence.
+- **Post presence (A5):** `expires_at` ends the active window, at most 72 hours from publication; the Post fades over the final 24 hours and then leaves the active field. Chat activity does not extend its lifetime. History remains; pinned Posts retain their anchor. Recency controls presence only, never ranking, sort order, people geometry, or Request prominence.
 - **No membership bond (A7):** being in a Post does not create `person_bond`, forwarding eligibility, or shared-context visibility.
 
 ## Home navigation
@@ -242,3 +242,26 @@ Shipped behavior deliberately excludes or narrows the following. Do not "fix" th
 
 - Interactive architecture (#235): [`../plans/issue-235-constellation-interactive-architecture.md`](../plans/issue-235-constellation-interactive-architecture.md)
 - Interactive acceptance evidence and remaining device checks: [`../plans/issue-235-constellation-interactive-journal.md`](../plans/issue-235-constellation-interactive-journal.md)
+
+## Personal Field exclusions
+
+A viewer can hide any readable Request or Post, including their own and pinned
+items, with `fieldHide(targetKind, targetId)` (0 = Request, 1 = Post), and restore
+it with `fieldUnhide`. Both operations are idempotent and affect only the caller.
+An effective hide wins over a pin and applies to ordinary and pinned Field
+reads, including targeted Request refreshes. It does not change read permission,
+write a For-you inbox row, or notify the author.
+
+A hide stops being effective when a newer event is addressed to that viewer on
+the item: a new forward to them, the author's acceptance or decline of their
+help offer, or admission to the discussion or Post room. Ordinary chat and
+updates to the offer do not restore an item. This is computed from the existing
+event timestamps on read; event mutations do not write hide rows. Hiding an
+item again after it returned starts a new hide.
+
+`fieldHiddenItems(cursor)` returns the caller's still-effective, readable hides,
+newest first, with target kind/id, title (Post root text), author id and hide
+time. The optional ISO timestamp cursor restricts results to hides older than
+that time; results are not truncated, so equal-time hides are returned together.
+Requests rejected in For you (`inbox_item.status = 2`) are also absent from the
+Field, including its pinned projection. Field hiding never changes that stance.

@@ -56,6 +56,7 @@ WITH candidates AS (
   WHERE b.id = ANY(\$2::text[])
     AND b.user_id <> \$1
     AND b.is_discoverable
+    AND public.field_item_visible(\$1, b.kind, b.id)
     AND b.kind = 0
     AND b.status = ANY(\$3::int[])
     AND b.published_at IS NOT NULL

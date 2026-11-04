@@ -3796,6 +3796,8 @@ enum invitation_update_column {
 
 """mutation root"""
 type mutation_root {
+  fieldHide(targetKind: Int!, targetId: String!): Boolean!
+  fieldUnhide(targetKind: Int!, targetId: String!): Boolean!
   BeaconLobbyBan(beaconId: String!, userId: String!): Boolean!
   BeaconLobbyUnban(beaconId: String!, userId: String!): Boolean!
   BeaconFactCardCorrect(attachmentsJson: String, baseRevisionSeq: Int!, beaconId: String!, factCardId: String!, newText: String!): Int!
@@ -4758,6 +4760,7 @@ input polling_variant_stream_cursor_value_input {
 }
 
 type query_root {
+  fieldHiddenItems(cursor: String): [v2_FieldHiddenItem!]
   BeaconLobby(beaconId: String!): v2_BeaconLobby!
   BeaconLobbyAccess(beaconId: String!): v2_BeaconLobbyAccess!
   BeaconActivityEventList(beaconId: String!): [v2_BeaconActivityEventRow!]
@@ -9613,4 +9616,12 @@ input post_first_response_stream_cursor_value_input {
   source_id: String
   source_kind: smallint
   user_id: String
+}
+
+type v2_FieldHiddenItem {
+  targetKind: Int!
+  targetId: String!
+  title: String!
+  authorId: String!
+  hiddenAt: String!
 }
