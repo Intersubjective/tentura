@@ -51,7 +51,20 @@ void main() {
         ],
         'edges': <dynamic>[],
         'requests': <dynamic>[],
-        'posts': <dynamic>[],
+        'posts': [
+          {
+            '__typename': 'v2_ConstellationPost',
+            'id': 'post-unread',
+            'authorId': 'author',
+            'rootExcerpt': 'Unread excerpt',
+            'lastActivityAt': '2026-11-04T12:00:00.000Z',
+            'expiresAt': null,
+            'status': 0,
+            'isPinned': false,
+            'hiddenReachCount': 0,
+            'has_unread': true,
+          },
+        ],
         'memberWebs': <dynamic>[],
         'anchorProjection': {
           '__typename': 'v2_ConstellationAnchorProjection',
@@ -73,6 +86,7 @@ void main() {
     final byId = {for (final p in mapped.peers) p.id: p.isNew};
     expect(byId['peer-new'], isTrue);
     expect(byId['peer-old'], isFalse);
+    expect(mapped.posts.single.hasUnread, isTrue);
   });
 
   test('ConstellationAcknowledgeNew sends peerIds on the wire', () async {

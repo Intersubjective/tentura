@@ -126,6 +126,7 @@ Map<String, Object?> _wire(
           'coverSource': 0,
           'coverThumb': null,
           'parentBeaconId': null,
+          'has_unread': false,
         },
       ],
       'supportPeers': <Object>[],

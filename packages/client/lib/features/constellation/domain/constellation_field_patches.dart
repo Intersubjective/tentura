@@ -1,5 +1,6 @@
 import 'package:meta/meta.dart';
 import 'package:tentura/consts.dart';
+import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
 import 'entity/constellation_anchor_projection.dart';
@@ -394,4 +395,147 @@ ConstellationField patchAcknowledgedNew(
           )
         : field.anchorProjection,
   );
+}
+
+/// Sets [hasUnread] on a Request or Post on [field] when [beaconId] matches.
+ConstellationField patchFieldBeaconHasUnread(
+  ConstellationField field,
+  String beaconId, {
+  required bool hasUnread,
+}) {
+  var changed = false;
+  final requests = _patchRequestHasUnread(
+    field.requests,
+    beaconId,
+    hasUnread,
+    onChanged: () => changed = true,
+  );
+  final posts = _patchPostHasUnread(
+    field.posts,
+    beaconId,
+    hasUnread,
+    onChanged: () => changed = true,
+  );
+  final projection = field.resolvedAnchorProjection;
+  final pinnedRequests = _patchRequestHasUnread(
+    projection.pinnedRequests,
+    beaconId,
+    hasUnread,
+    onChanged: () => changed = true,
+  );
+  if (!changed) {
+    return field;
+  }
+  return field.copyWith(
+    requests: identical(requests, field.requests) ? field.requests : requests,
+    posts: identical(posts, field.posts) ? field.posts : posts,
+    anchorProjection: identical(pinnedRequests, projection.pinnedRequests)
+        ? field.anchorProjection
+        : ConstellationAnchorProjection(
+            revision: projection.revision,
+            anchors: projection.anchors,
+            pinnedPeers: projection.pinnedPeers,
+            pinnedRequests: pinnedRequests,
+            supportPeers: projection.supportPeers,
+            supportEdges: projection.supportEdges,
+            serverFilteredBeaconIds: projection.serverFilteredBeaconIds,
+            serverFilteredBeaconCount: projection.serverFilteredBeaconCount,
+          ),
+  );
+}
+
+List<ConstellationRequest> _patchRequestHasUnread(
+  List<ConstellationRequest> source,
+  String beaconId,
+  bool hasUnread, {
+  required void Function() onChanged,
+}) {
+  var changed = false;
+  final out = <ConstellationRequest>[];
+  for (final request in source) {
+    if (request.id == beaconId) {
+      if (request.hasUnread != hasUnread) {
+        changed = true;
+        onChanged();
+        out.add(request.copyWith(hasUnread: hasUnread));
+      } else {
+        out.add(request);
+      }
+    } else {
+      out.add(request);
+    }
+  }
+  return changed ? out : source;
+}
+
+List<ConstellationPost> _patchPostHasUnread(
+  List<ConstellationPost> source,
+  String beaconId,
+  bool hasUnread, {
+  required void Function() onChanged,
+}) {
+  var changed = false;
+  final out = <ConstellationPost>[];
+  for (final post in source) {
+    if (post.id == beaconId) {
+      if (post.hasUnread != hasUnread) {
+        changed = true;
+        onChanged();
+        out.add(post.copyWith(hasUnread: hasUnread));
+      } else {
+        out.add(post);
+      }
+    } else {
+      out.add(post);
+    }
+  }
+  return changed ? out : source;
+}
+
+/// Applies a room message or room seen invalidation to unread flags on
+/// [field], or returns null when the change does not affect unread state.
+ConstellationField? patchFieldHasUnreadFromRealtime(
+  ConstellationField field,
+  RealtimeEntityChange change, {
+  required String viewerId,
+  required bool Function(String beaconId) isBeaconMuted,
+}) {
+  final beaconId = change.aggregateId;
+  if (change.kind == RealtimeEntityKind.roomSeen) {
+    if (change.readCursor == null) {
+      return null;
+    }
+    final cleared = patchFieldBeaconHasUnread(
+      field,
+      beaconId,
+      hasUnread: false,
+    );
+    return identical(cleared, field) ? null : cleared;
+  }
+  if (change.kind == RealtimeEntityKind.roomMessage) {
+    if (viewerId.isEmpty) {
+      return null;
+    }
+    final actor = change.actorUserId;
+    if (actor == null || actor == viewerId) {
+      return null;
+    }
+    if (isBeaconMuted(beaconId)) {
+      return null;
+    }
+    final paint = change.roomMessagePaint;
+    if (paint?.systemMessageKind != null) {
+      return null;
+    }
+    if (change.operation != RealtimeOperation.insert && paint == null) {
+      return null;
+    }
+    final marked = patchFieldBeaconHasUnread(
+      field,
+      beaconId,
+      hasUnread: true,
+    );
+    return identical(marked, field) ? null : marked;
+  }
+  return null;
 }

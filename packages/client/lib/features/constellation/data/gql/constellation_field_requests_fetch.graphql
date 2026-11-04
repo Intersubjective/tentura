@@ -34,5 +34,6 @@ query ConstellationFieldRequestsFetch(
     coverThumb {
       ...ImageModelV2
     }
+    has_unread
   }
 }
