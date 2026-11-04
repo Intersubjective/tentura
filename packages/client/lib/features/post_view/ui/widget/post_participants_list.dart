@@ -100,14 +100,10 @@ class PostParticipantsList extends StatelessWidget {
 
   Widget _row(BuildContext context, BeaconParticipant p) {
     final isViewer = p.userId == viewerId;
-    final edge = forwardEdges
-        .where((e) => e.recipient.id == p.userId)
-        .firstOrNull;
     return _PersonRow(
       participant: p,
       profile: profileForParticipant(participants, p.userId),
       isViewer: isViewer,
-      broughtBy: edge?.sender.shownName ?? '',
       hasPersonMenu: peopleTagsEnabled && !isViewer,
     );
   }
@@ -138,18 +134,29 @@ class _PersonRow extends StatelessWidget {
     required this.participant,
     required this.profile,
     required this.isViewer,
-    required this.broughtBy,
     required this.hasPersonMenu,
   });
 
   final BeaconParticipant participant;
   final Profile profile;
   final bool isViewer;
-  final String broughtBy;
 
   /// Offers the person menu ("Add to tag…"): not for the viewer, not with
   /// the feature off.
   final bool hasPersonMenu;
+
+  String? _arrivalNote(L10n l10n) {
+    if (isViewer || participant.role == BeaconParticipantRoleBits.author) {
+      return null;
+    }
+    final name = participant.broughtByName?.trim();
+    if (name == null || name.isEmpty) return null;
+    return switch (participant.broughtHow) {
+      BeaconParticipantBroughtHow.invite => l10n.postParticipantInvitedBy(name),
+      BeaconParticipantBroughtHow.forward => l10n.postParticipantVia(name),
+      _ => null,
+    };
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -159,9 +166,7 @@ class _PersonRow extends StatelessWidget {
     final isAuthor = participant.role == BeaconParticipantRoleBits.author;
     final note = isAuthor
         ? l10n.postParticipantAuthor
-        : broughtBy.isNotEmpty && !isViewer
-        ? l10n.postParticipantBroughtBy(broughtBy)
-        : '';
+        : _arrivalNote(l10n) ?? '';
     final row = InkWell(
       onTap: () => context.router.root.push(
         ProfileViewRoute(id: participant.userId),

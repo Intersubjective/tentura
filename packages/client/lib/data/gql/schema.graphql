@@ -8001,6 +8001,14 @@ type v2_BeaconParticipantRow {
   userPicHeight: Int!
   userPicWidth: Int!
   userTitle: String!
+  broughtById: String
+  broughtBy: v2_ParticipantBroughtBy
+  broughtHow: String
+}
+
+type v2_ParticipantBroughtBy {
+  displayName: String!
+  userId: String!
 }
 
 type v2_BeaconPromotionSource {

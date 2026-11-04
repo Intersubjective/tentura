@@ -5722,8 +5722,16 @@
       }
     }
   },
-  "postParticipantBroughtBy": "позвал(а): {name}",
-  "@postParticipantBroughtBy": {
+  "postParticipantInvitedBy": "приглашён(а) {name}",
+  "@postParticipantInvitedBy": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "postParticipantVia": "через {name}",
+  "@postParticipantVia": {
     "placeholders": {
       "name": {
         "type": "String"
