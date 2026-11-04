@@ -20,6 +20,7 @@ import 'package:tentura/features/constellation/domain/entity/constellation_field
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_presence_cubit.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_selection_cubit.dart';
+import 'fixtures/constellation_field_test_harness.dart';
 import 'package:tentura/features/constellation/ui/screen/constellation_screen.dart';
 import 'package:tentura/features/graph/domain/use_case/graph_trust_write_case.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_person_context_cubit.dart';
@@ -191,7 +192,7 @@ Future<_Harness> _mount(WidgetTester tester) async {
         .map(watchIdsOf),
     repository: presence,
   );
-  final selection = ConstellationSelectionCubit();
+  final selection = constellationSelectionForFieldBodyTests();
   final reselect = HomeTabReselectCubit();
   final router = _router();
   addTearDown(() async {

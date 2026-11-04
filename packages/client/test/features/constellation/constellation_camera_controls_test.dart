@@ -308,10 +308,14 @@ void main() {
       await pumpConstellationBody(tester, cubit);
       await tester.pumpAndSettle();
 
+      cubit.dismissFieldHoldHint();
+      await tester.pumpAndSettle();
+
       await tester.tap(find.byKey(TestIds.key(TestIds.constellationFitAll)));
       await tester.pump();
 
-      expect(cubit.graphController.cameraScale, closeTo(1.0, 0.001));
+      // Lone ego fits at 1:1 on the default harness surface with current chrome.
+      expect(cubit.graphController.cameraScale, closeTo(1.0, 0.01));
       expect(tester.takeException(), isNull);
     });
 

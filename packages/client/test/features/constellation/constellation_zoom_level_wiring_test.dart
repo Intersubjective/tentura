@@ -20,6 +20,7 @@ import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'fixtures/constellation_reference_fixture.dart';
+import 'fixtures/constellation_field_test_harness.dart';
 
 class _StubContextCubit extends Cubit<GraphPersonContextState>
     implements GraphPersonContextCubit {
@@ -75,6 +76,9 @@ Future<void> _pump(
             providers: [
               RepositoryProvider<ConstellationZoomLevelController>.value(value: zoom),
               BlocProvider<ConstellationCubit>.value(value: cubit),
+              BlocProvider(
+                create: (_) => constellationSelectionForFieldBodyTests(),
+              ),
               BlocProvider<GraphPersonContextCubit>(
                 create: (_) => _StubContextCubit(),
               ),
@@ -309,6 +313,9 @@ void screenOwnershipTests() {
             child: MultiBlocProvider(
               providers: [
                 BlocProvider<ConstellationCubit>.value(value: cubit),
+                BlocProvider(
+                  create: (_) => constellationSelectionForFieldBodyTests(),
+                ),
                 BlocProvider<HomeTabReselectCubit>(
                   create: (_) => HomeTabReselectCubit(),
                 ),

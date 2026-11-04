@@ -8,6 +8,7 @@ import 'package:tentura/features/constellation/domain/entity/constellation_field
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_composer_cubit.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
+import 'package:tentura/features/constellation/ui/bloc/constellation_selection_cubit.dart';
 import 'package:tentura/features/constellation/ui/screen/constellation_screen.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
@@ -19,6 +20,7 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../features/beacon_create/fake_beacon_ports.dart';
+import '../features/constellation/fixtures/constellation_field_test_harness.dart';
 import '../ui/effect/fake_ui_effect_port.dart';
 import 'constellation_store_fixture.dart';
 import 'fake_clock_port.dart';
@@ -216,6 +218,9 @@ Future<void> pumpComposerHarnessScreen(
           child: MultiBlocProvider(
             providers: [
               BlocProvider<ConstellationCubit>.value(value: cubit),
+              BlocProvider(
+                create: (_) => constellationSelectionForFieldBodyTests(),
+              ),
               BlocProvider<ConstellationComposerCubit>.value(value: composer),
               BlocProvider(create: (_) => HomeTabReselectCubit()),
               BlocProvider<GraphPersonContextCubit>(

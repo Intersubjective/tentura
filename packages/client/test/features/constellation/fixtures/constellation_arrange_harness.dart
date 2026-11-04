@@ -13,6 +13,7 @@ import 'package:tentura/features/constellation/domain/use_case/constellation_anc
 import 'package:tentura/features/constellation/domain/use_case/constellation_placement_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_selection_cubit.dart';
+import 'package:tentura/features/constellation/ui/widget/constellation_arranging_toolbar.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_camera_controls.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
@@ -28,6 +29,7 @@ import '../../../support/fake_wake_up_port.dart';
 import '../../../support/test_forward_case.dart';
 import '../../../support/test_realtime_sync.dart';
 import '../../../ui/effect/fake_ui_effect_port.dart';
+import 'constellation_field_test_harness.dart';
 
 /// A Field whose server side (anchors, layout snapshots) is modelled by
 /// [ArrangeAnchorRepository], for the Arrange menu, undoable reset and undo
@@ -127,7 +129,9 @@ final class ArrangeAnchorRepository
   }) async {
     resets.add((clientOpId: clientOpId, saveHistory: saveHistory));
     final error = resetError;
-    if (error != null) throw error;
+    if (error != null) {
+      throw StateError('$error');
+    }
     final before = _revision;
     if (saveHistory) {
       final snapshotId = 'LS-reset-${++_snapshotSeq}';
@@ -152,11 +156,7 @@ final class ArrangeAnchorRepository
 
   /// Puts a saved layout back in one step; the layout it replaces is saved
   /// first and its id returned, so the restore can itself be undone.
-  ///
-  /// How the client learns the id of the reset snapshot is left to the
-  /// implementation (a field of the reset result or a snapshot listing): an
-  /// id this fake does not know stands for the newest saved layout. Not an
-  /// override today: the port gains this method with the unit under test.
+  @override
   Future<String> restoreLayoutSnapshot({
     required String snapshotId,
     required String clientOpId,
@@ -298,8 +298,9 @@ Widget _shell(
   ConstellationCubit cubit,
   Widget child, {
   ConstellationSelectionCubit? selection,
+  Locale locale = const Locale('en'),
 }) => MaterialApp(
-  locale: const Locale('en'),
+  locale: locale,
   theme: TenturaTheme.light(),
   localizationsDelegates: L10n.localizationsDelegates,
   supportedLocales: L10n.supportedLocales,
@@ -308,7 +309,11 @@ Widget _shell(
       providers: [
         BlocProvider<ConstellationCubit>.value(value: cubit),
         if (selection != null)
-          BlocProvider<ConstellationSelectionCubit>.value(value: selection),
+          BlocProvider<ConstellationSelectionCubit>.value(value: selection)
+        else
+          BlocProvider(
+            create: (_) => constellationSelectionForFieldBodyTests(),
+          ),
         BlocProvider<GraphPersonContextCubit>(
           create: (_) => _StubContextCubit(),
         ),
@@ -327,6 +332,7 @@ Future<void> pumpArrangeBody(
   ConstellationCubit cubit, {
   required bool arrangeV2Enabled,
   ConstellationSelectionCubit? selection,
+  Locale locale = const Locale('en'),
 }) async {
   await tester.binding.setSurfaceSize(const Size(1200, 900));
   addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -339,6 +345,7 @@ Future<void> pumpArrangeBody(
         arrangeV2Enabled: arrangeV2Enabled,
       ),
       selection: selection,
+      locale: locale,
     ),
   );
   await tester.pump();
@@ -351,21 +358,33 @@ Future<void> pumpArrangeControls(
   ConstellationCubit cubit, {
   required bool arrangeV2Enabled,
   bool tagViewActive = false,
+  ConstellationSelectionCubit? selection,
+  Locale locale = const Locale('en'),
 }) async {
+  final selectionCubit =
+      selection ?? constellationSelectionForFieldBodyTests();
   await tester.binding.setSurfaceSize(const Size(1200, 900));
   addTearDown(() => tester.binding.setSurfaceSize(null));
   await tester.pumpWidget(
     _shell(
       cubit,
-      Align(
-        alignment: Alignment.topRight,
-        child: ConstellationCameraControls(
-          cubit: cubit,
-          viewportInsets: EdgeInsets.zero,
-          arrangeV2Enabled: arrangeV2Enabled,
-          tagViewActive: tagViewActive,
-        ),
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Align(
+            alignment: Alignment.topRight,
+            child: ConstellationCameraControls(
+              cubit: cubit,
+              viewportInsets: EdgeInsets.zero,
+              arrangeV2Enabled: arrangeV2Enabled,
+              tagViewActive: tagViewActive,
+            ),
+          ),
+          ConstellationArrangingToolbar(cubit: cubit),
+        ],
       ),
+      selection: selectionCubit,
+      locale: locale,
     ),
   );
   await tester.pump();

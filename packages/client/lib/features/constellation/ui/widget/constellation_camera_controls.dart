@@ -6,7 +6,7 @@ import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/utils/ui_utils.dart' show showSnackBar;
 
 import '../bloc/constellation_cubit.dart';
-import 'constellation_arrange_sheet.dart';
+import '../bloc/constellation_selection_cubit.dart';
 
 /// Floating camera recovery actions for the Constellation map (UI-08).
 class ConstellationCameraControls extends StatelessWidget {
@@ -116,10 +116,8 @@ class ConstellationCameraControls extends StatelessWidget {
                   key: const Key('constellation.camera.arrange'),
                   tooltip: l10n.constellationArrange,
                   onPressed: enabled
-                      ? () => showConstellationArrangeSheet(
-                          context,
-                          cubit: cubit,
-                        )
+                      ? () => maybeConstellationSelection(context)
+                          ?.enterArranging()
                       : null,
                   icon: const Icon(Icons.tune),
                   constraints: buttonSize,

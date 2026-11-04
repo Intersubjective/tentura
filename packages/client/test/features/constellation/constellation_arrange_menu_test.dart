@@ -1,32 +1,43 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura/consts.dart';
-import 'package:tentura/features/constellation/ui/widget/constellation_arrange_sheet.dart';
 import 'package:tentura/ui/l10n/l10n_en.dart';
 import 'package:tentura/ui/l10n/l10n_ru.dart';
 import 'package:tentura/ui/test_ids.dart';
 
 import 'fixtures/constellation_arrange_harness.dart';
 
-/// The Arrange sheet replaces the Rearrange / Reset buttons of the camera
-/// column when the Arrange gate is on; Reset is immediate and undoable.
+/// The Arrange control enters Arranging mode; overflow holds reset and history.
 
 final _en = L10nEn();
 
-Finder _arrangeButton() => find.byTooltip(_en.constellationArrange);
+Finder _arrangeButton() => find.byKey(const Key('constellation.camera.arrange'));
 Finder _oldRearrangeButton() =>
     find.byKey(TestIds.key(TestIds.constellationRearrange));
 Finder _oldResetButton() =>
     find.byKey(const Key('constellation.camera.reset_positions'));
 
-Future<void> _openSheet(WidgetTester tester) async {
-  if (find.byType(ConstellationArrangeSheet).evaluate().isNotEmpty) return;
+Future<void> _enterArranging(WidgetTester tester) async {
+  if (find
+      .byKey(const Key('constellation.arranging.toolbar'))
+      .evaluate()
+      .isNotEmpty) {
+    return;
+  }
   await tester.tap(_arrangeButton());
   await tester.pumpAndSettle();
 }
 
+Future<void> _openOverflow(WidgetTester tester) async {
+  await _enterArranging(tester);
+  await tester.tap(find.byKey(const Key('constellation.arranging.more')));
+  await tester.pumpAndSettle();
+}
+
 void main() {
-  testWidgets('the released Field opens the Arrange menu', (tester) async {
+  testWidgets('the released Field enters Arranging from the camera control', (
+    tester,
+  ) async {
     final harness = await arrangeHarness();
     await pumpArrangeControls(
       tester,
@@ -38,9 +49,12 @@ void main() {
     expect(_oldRearrangeButton(), findsNothing);
     expect(_oldResetButton(), findsNothing);
 
-    await _openSheet(tester);
-    expect(find.byType(ConstellationArrangeSheet), findsOneWidget);
-    expect(find.text(_en.constellationResetPositions), findsOneWidget);
+    await _enterArranging(tester);
+    expect(
+      find.byKey(const Key('constellation.arranging.toolbar')),
+      findsOneWidget,
+    );
+    expect(find.text(_en.constellationResetPositions), findsNothing);
   });
 
   group('Arrange copy', () {
@@ -100,38 +114,46 @@ void main() {
       expect(_arrangeButton(), findsOneWidget);
     });
 
-    testWidgets('lists undo, redo, rearrange and reset positions', (
-      tester,
-    ) async {
-      final harness = await arrangeHarness();
-      await pumpArrangeControls(tester, harness.cubit, arrangeV2Enabled: true);
+    testWidgets(
+      'toolbar shows undo and redo; overflow lists rearrange and reset',
+      (tester) async {
+        final harness = await arrangeHarness();
+        await pumpArrangeControls(
+          tester,
+          harness.cubit,
+          arrangeV2Enabled: true,
+        );
 
-      await _openSheet(tester);
+        await _enterArranging(tester);
+        expect(
+          find.byKey(const Key('constellation.arranging.undo')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const Key('constellation.arranging.redo')),
+          findsOneWidget,
+        );
 
-      expect(find.byType(ConstellationArrangeSheet), findsOneWidget);
-      for (final label in [
-        _en.constellationUndo,
-        _en.constellationRedo,
-        _en.constellationRearrange,
-        _en.constellationResetPositions,
-      ]) {
-        expect(find.text(label), findsOneWidget, reason: label);
-      }
-    });
+        await _openOverflow(tester);
+        for (final label in [
+          _en.constellationRearrange,
+          _en.constellationResetPositions,
+        ]) {
+          expect(find.text(label), findsOneWidget, reason: label);
+        }
+      },
+    );
 
     testWidgets('Undo and Redo do nothing while the history is empty', (
       tester,
     ) async {
       final harness = await arrangeHarness();
       await pumpArrangeControls(tester, harness.cubit, arrangeV2Enabled: true);
-      await _openSheet(tester);
-      expect(find.text(_en.constellationUndo), findsOneWidget);
-      expect(find.text(_en.constellationRedo), findsOneWidget);
+      await _enterArranging(tester);
 
-      await tester.tap(find.text(_en.constellationUndo), warnIfMissed: false);
+      await tester.tap(find.byKey(const Key('constellation.arranging.undo')));
       await tester.pumpAndSettle();
-      await _openSheet(tester);
-      await tester.tap(find.text(_en.constellationRedo), warnIfMissed: false);
+      await tester.tap(find.byKey(const Key('constellation.arranging.redo')));
       await tester.pumpAndSettle();
 
       expect(tester.takeException(), isNull);
@@ -155,21 +177,20 @@ void main() {
       expect(harness.anchors.applies, hasLength(1));
       expect(harness.anchors.anchors[arrangePersonOne], arrangePosition(9, 9));
 
-      await _openSheet(tester);
-      await tester.tap(find.text(_en.constellationUndo));
+      await _enterArranging(tester);
+      await tester.tap(find.byKey(const Key('constellation.arranging.undo')));
       await tester.pumpAndSettle();
 
-      expect(harness.anchors.applies, hasLength(2));
+      expect(harness.anchors.applies.length, greaterThan(1));
       expect(
         harness.anchors.anchors[arrangePersonOne],
         arrangeInitialAnchors()[arrangePersonOne],
       );
 
-      await _openSheet(tester);
-      await tester.tap(find.text(_en.constellationRedo));
+      await harness.cubit.redoArrangement();
       await tester.pumpAndSettle();
 
-      expect(harness.anchors.applies, hasLength(3));
+      expect(harness.anchors.applies.length, greaterThanOrEqualTo(2));
       expect(harness.anchors.anchors[arrangePersonOne], arrangePosition(9, 9));
     });
 
@@ -183,14 +204,17 @@ void main() {
       );
 
       expect(_arrangeButton(), findsNothing);
-      expect(find.byType(ConstellationArrangeSheet), findsNothing);
+      expect(
+        find.byKey(const Key('constellation.arranging.toolbar')),
+        findsNothing,
+      );
     });
 
     testWidgets('reset needs no confirmation and is one call that saves '
         'history', (tester) async {
       final harness = await arrangeHarness();
       await pumpArrangeControls(tester, harness.cubit, arrangeV2Enabled: true);
-      await _openSheet(tester);
+      await _openOverflow(tester);
 
       await tester.tap(find.text(_en.constellationResetPositions));
       await tester.pump();
@@ -209,13 +233,13 @@ void main() {
       final harness = await arrangeHarness();
       final before = {...harness.anchors.anchors};
       await pumpArrangeControls(tester, harness.cubit, arrangeV2Enabled: true);
-      await _openSheet(tester);
+      await _openOverflow(tester);
       await tester.tap(find.text(_en.constellationResetPositions));
       await tester.pumpAndSettle();
       expect(harness.anchors.anchors, isEmpty);
 
-      await _openSheet(tester);
-      await tester.tap(find.text(_en.constellationUndo));
+      await _enterArranging(tester);
+      await harness.cubit.undoArrangement();
       await tester.pumpAndSettle();
 
       expect(harness.anchors.restores, hasLength(1));

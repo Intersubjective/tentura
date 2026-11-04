@@ -311,6 +311,7 @@ class _ConstellationScreenState extends State<ConstellationScreen> {
 
   @override
   void deactivate() {
+    maybeConstellationSelection(context)?.exitArranging();
     final cubit = context.read<ConstellationCubit>();
     if (!cubit.state.isComposing) {
       cubit.onRouteLeave();
@@ -321,16 +322,6 @@ class _ConstellationScreenState extends State<ConstellationScreen> {
   @override
   Widget build(BuildContext context) {
     final composer = maybeConstellationComposer(context);
-    final compact = context.windowClass == WindowClass.compact;
-    final topBar = TenturaTopBar.of(
-      context,
-      title: const SizedBox.shrink(),
-      row: ConstellationAppBarRow(
-        legendExpanded: _legendExpanded,
-        onToggleLegend: _toggleLegend,
-      ),
-      account: homeTopBarAccount(context),
-    );
     return MultiBlocListener(
       listeners: [
         if (composer != null)
@@ -350,6 +341,7 @@ class _ConstellationScreenState extends State<ConstellationScreen> {
                 );
                 unawaited(constellation.load());
               } else {
+                context.read<ConstellationSelectionCubit>().exitArranging();
                 constellation.enterComposing(
                   draftCentre: selection.center.offset,
                   candidateIds: selection.eligible,
@@ -403,29 +395,60 @@ class _ConstellationScreenState extends State<ConstellationScreen> {
           },
         ),
       ],
-      child: Scaffold(
-        appBar: FieldCollapsingAppBar(
-          key: const Key('field.context_sheet.app_bar'),
-          collapsed: compact && _fieldContextSheetExpanded,
-          bar: topBar,
-        ),
-        body: GraphTrustWriteNotices(
-          child: LazyWriteTimeoutNotice(
-            notices: context.read<ConstellationCubit>().lazyWriteNotices,
-            child: RepositoryProvider<ConstellationZoomLevelController>.value(
-              value: _zoomLevel,
-              child: TenturaFullBleed(
-                child: ConstellationBody(
-                  legendExpanded: _legendExpanded,
-                  onToggleLegend: _toggleLegend,
-                  onFieldContextSheetExpandedChanged: compact
-                      ? _onFieldContextSheetExpanded
-                      : null,
-                ),
+      child: _buildScaffold(context),
+    );
+  }
+
+  Widget _buildScaffold(BuildContext context) {
+    final selectionCubit = maybeConstellationSelection(context);
+    final compact = context.windowClass == WindowClass.compact;
+    final topBar = TenturaTopBar.of(
+      context,
+      title: const SizedBox.shrink(),
+      row: ConstellationAppBarRow(
+        legendExpanded: _legendExpanded,
+        onToggleLegend: _toggleLegend,
+      ),
+      account: homeTopBarAccount(context),
+    );
+    final scaffold = Scaffold(
+      appBar: FieldCollapsingAppBar(
+        key: const Key('field.context_sheet.app_bar'),
+        collapsed: compact && _fieldContextSheetExpanded,
+        bar: topBar,
+      ),
+      body: GraphTrustWriteNotices(
+        child: LazyWriteTimeoutNotice(
+          notices: context.read<ConstellationCubit>().lazyWriteNotices,
+          child: RepositoryProvider<ConstellationZoomLevelController>.value(
+            value: _zoomLevel,
+            child: TenturaFullBleed(
+              child: ConstellationBody(
+                legendExpanded: _legendExpanded,
+                onToggleLegend: _toggleLegend,
+                onFieldContextSheetExpandedChanged: compact
+                    ? _onFieldContextSheetExpanded
+                    : null,
               ),
             ),
           ),
         ),
+      ),
+    );
+    if (selectionCubit == null) {
+      return scaffold;
+    }
+    return BlocBuilder<ConstellationSelectionCubit, ConstellationMultiSelection>(
+      bloc: selectionCubit,
+      builder: (context, selectionState) => PopScope(
+        canPop: !selectionState.arranging,
+        onPopInvokedWithResult: (didPop, result) {
+          if (didPop) return;
+          if (selectionState.arranging) {
+            selectionCubit.exitArranging();
+          }
+        },
+        child: scaffold,
       ),
     );
   }

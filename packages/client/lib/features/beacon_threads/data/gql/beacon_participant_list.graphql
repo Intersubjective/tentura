@@ -22,6 +22,12 @@ query BeaconParticipantList($beaconId: String!) {
     opened
     helpType
     roleLabel
+    broughtById
+    broughtBy {
+      userId
+      displayName
+    }
+    broughtHow
     createdAt
     updatedAt
   }

@@ -36,6 +36,7 @@ import '../../support/fake_block_case.dart';
 import '../../support/fake_wake_up_port.dart';
 import '../../support/people_tags_widget_harness.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
+import 'fixtures/constellation_field_test_harness.dart';
 
 const _id = 'Bplaceholder';
 const _states = [
@@ -266,6 +267,9 @@ Future<void> _pump(
         child: MultiBlocProvider(
           providers: [
             BlocProvider<ConstellationCubit>.value(value: cubit),
+            BlocProvider(
+              create: (_) => constellationSelectionForFieldBodyTests(),
+            ),
             BlocProvider<GraphPersonContextCubit>(
               create: (_) => ComposerHarnessContextCubit(),
             ),

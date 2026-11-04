@@ -5766,8 +5766,16 @@
       }
     }
   },
-  "postParticipantBroughtBy": "позвал(а): {name}",
-  "@postParticipantBroughtBy": {
+  "postParticipantInvitedBy": "приглашён(а) {name}",
+  "@postParticipantInvitedBy": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "postParticipantVia": "через {name}",
+  "@postParticipantVia": {
     "placeholders": {
       "name": {
         "type": "String"
@@ -6550,6 +6558,12 @@
   "constellationShowDegreeFurther": "3-й круг и дальше",
   "constellationShowDegreeFurtherHint": "Люди в трёх и более шагах доверия или без видимой вам цепочки доверия, с их запросами и постами",
   "constellationSelectMany": "Выбрать несколько",
+  "constellationArrangeEntry": "Расположить…",
+  "constellationArrangingTitle": "Расположение",
+  "constellationArrangingSelect": "Выбор",
+  "constellationArrangingHintTouch": "Перетащите узел, чтобы сдвинуть · пустое место — чтобы двигать карту",
+  "constellationArrangingHintMouse": "Перетащите узел, чтобы сдвинуть",
+  "constellationFieldHoldHint": "Удерживайте человека или запрос, чтобы сдвинуть. Удерживайте пустое место, чтобы создать что-то здесь.",
   "constellationSelectionCount": "Выбрано: {count}",
   "constellationSelectionHint": "Обведите рамкой или нажмите на людей, запросы и посты. Поле двигается двумя пальцами.",
   "constellationSelectionHintMouse": "Обведите рамкой или щёлкните по людям, запросам и постам. Без этого режима рамку можно обвести с зажатым Shift.",

@@ -10,6 +10,7 @@ import 'package:tentura/features/constellation/domain/use_case/constellation_anc
 import 'package:tentura/features/constellation/domain/use_case/constellation_placement_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_selection_cubit.dart';
+import 'fixtures/constellation_field_test_harness.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
@@ -123,7 +124,7 @@ Future<_Gathered> _gatherForty(WidgetTester tester) async {
     await cubit.close();
     await placement.dispose();
   });
-  final selection = ConstellationSelectionCubit();
+  final selection = constellationSelectionForFieldBodyTests();
   addTearDown(selection.close);
   await pumpArrangeBody(
     tester,

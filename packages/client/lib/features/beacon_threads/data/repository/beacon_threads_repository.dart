@@ -701,6 +701,9 @@ class BeaconThreadsRepository {
             linkedMessageId: p.linkedMessageId,
             helpType: p.helpType,
             roleLabel: p.roleLabel,
+            broughtById: p.broughtById,
+            broughtByName: p.broughtBy?.displayName,
+            broughtHow: p.broughtHow,
             lastSeenRoomAt:
                 p.lastSeenRoomAt == null || p.lastSeenRoomAt!.isEmpty
                 ? null

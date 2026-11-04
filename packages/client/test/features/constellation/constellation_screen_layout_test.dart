@@ -23,6 +23,7 @@ import '../../ui/effect/fake_ui_effect_port.dart';
 import '../beacon_create/fake_beacon_ports.dart';
 
 import '../../support/constellation_store_fixture.dart';
+import 'fixtures/constellation_field_test_harness.dart';
 
 const _ego = Profile(id: 'ego', displayName: 'Ego');
 
@@ -128,6 +129,9 @@ Future<void> _pumpScreen(
           child: MultiBlocProvider(
             providers: [
               BlocProvider<ConstellationCubit>.value(value: cubit),
+              BlocProvider(
+                create: (_) => constellationSelectionForFieldBodyTests(),
+              ),
               if (composer != null)
                 BlocProvider<ConstellationComposerCubit>.value(value: composer),
               BlocProvider(create: (_) => HomeTabReselectCubit()),

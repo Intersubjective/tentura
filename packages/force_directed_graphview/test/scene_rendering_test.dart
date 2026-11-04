@@ -93,7 +93,7 @@ void main() {
       tester,
       controller: controller,
       onNodeDragCancel: (_) => cancelCount++,
-      onNodeDragEnd: (_, __) => endCount++,
+      onNodeDragEnd: (_, __, ___) => endCount++,
     );
 
     const node = Node<int>(data: 7, size: 80);
@@ -173,7 +173,7 @@ Future<void> _pumpMinimalGraph(
           onNodeDragCancel: onNodeDragCancel,
           onNodeDragEnd: onNodeDragEnd,
           onNodeDragStart: (_, __) {},
-          onNodeDragUpdate: (_, __) {},
+          onNodeDragUpdate: (_, __, ___) {},
           nodeBuilder: (context, node) => SizedBox(
             width: node.size,
             height: node.size,

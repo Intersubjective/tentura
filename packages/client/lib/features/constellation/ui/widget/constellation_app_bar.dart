@@ -12,6 +12,7 @@ import 'package:tentura/ui/widget/semantics_free_tooltip.dart';
 
 import '../bloc/constellation_composer_cubit.dart';
 import '../bloc/constellation_cubit.dart';
+import '../bloc/constellation_selection_cubit.dart';
 import 'constellation_create_entry.dart';
 import 'constellation_filter_bar.dart';
 import 'constellation_person_search.dart';
@@ -56,197 +57,270 @@ class ConstellationAppBarRow extends StatelessWidget {
         final cubit = context.read<ConstellationCubit>();
         final showLegend = state.viewMode == ConstellationViewMode.map;
         final composer = maybeConstellationComposer(context);
-        if (state.isComposing) {
-          return Row(
-            children: [
-              Expanded(
-                child: Text(
-                  composer?.kind == BeaconKind.post
-                      ? l10n.postsTabNewPost
-                      : l10n.postCreateMenuRequest,
-                  style: theme.textTheme.titleLarge,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              IconButton(
-                key: const Key('constellation.app_bar.cancel_composer'),
-                tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
-                icon: const Icon(Icons.close),
-                onPressed: composer == null
-                    ? null
-                    : () => unawaited(() async {
-                        await composer.cancel();
-                        await composer.finish();
-                      }()),
-              ),
-            ],
-          );
-        }
-
-        // On a phone (#659) the bar keeps the title, the person search and a
-        // full-size Map/List toggle; everything else goes into a menu.
-        if (context.windowClass == WindowClass.compact) {
-          return Row(
-            children: [
-              // Never cut to "F…": a title that does not fit is scaled down
-              // whole instead — but only at the default text size. Under a
-              // larger system text size shrinking it would undo the reader's
-              // choice, so it keeps that size and ellipsizes.
-              Expanded(
-                child:
-                    MediaQuery.textScalerOf(context).scale(1) >
-                        _kTitleShrinkMaxTextScale
-                    ? Text(
-                        l10n.constellationTitle,
+        final selectionCubit = maybeConstellationSelection(context);
+        if (selectionCubit != null) {
+          return BlocBuilder<
+            ConstellationSelectionCubit,
+            ConstellationMultiSelection
+          >(
+            bloc: selectionCubit,
+            buildWhen: (prev, curr) => prev.arranging != curr.arranging,
+            builder: (context, selectionState) {
+              if (selectionState.arranging) {
+                return Row(
+                  children: [
+                    IconButton(
+                      key: const Key('constellation.arranging.close'),
+                      tooltip: MaterialLocalizations.of(
+                        context,
+                      ).closeButtonTooltip,
+                      onPressed: selectionCubit.exitArranging,
+                      icon: const Icon(Icons.close),
+                    ),
+                    Expanded(
+                      child: Text(
+                        l10n.constellationArrangingTitle,
                         style: theme.textTheme.titleLarge,
-                        maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                      )
-                    : FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: AlignmentDirectional.centerStart,
-                        child: Text(
-                          l10n.constellationTitle,
-                          style: theme.textTheme.titleLarge,
-                          maxLines: 1,
-                        ),
                       ),
-              ),
-              Visibility(
-                visible: showLegend,
-                maintainSize: true,
-                maintainAnimation: true,
-                maintainState: true,
-                child: const ConstellationPersonSearchButton(),
-              ),
-              // Not Flexible: the toggle keeps its own (icon-only) size.
-              _ConstellationViewModeToggle(
-                viewMode: state.viewMode,
-                onChanged: cubit.setViewMode,
-              ),
-              _ConstellationOverflowMenu(
-                showMapActions: showLegend,
-                legendExpanded: legendExpanded,
-                onToggleLegend: onToggleLegend,
-              ),
-            ],
+                    ),
+                    TextButton(
+                      key: const Key('constellation.arranging.done'),
+                      onPressed: selectionCubit.exitArranging,
+                      child: Text(l10n.constellationSelectionDone),
+                    ),
+                  ],
+                );
+              }
+              return _defaultAppBarRow(
+                context,
+                l10n: l10n,
+                tt: tt,
+                theme: theme,
+                state: state,
+                cubit: cubit,
+                showLegend: showLegend,
+                composer: composer,
+                selectionCubit: selectionCubit,
+              );
+            },
           );
         }
-
-        final legendLabel = legendExpanded
-            ? l10n.graphLegendClose
-            : l10n.graphLegendOpen;
-        return Row(
-          children: [
-            Expanded(
-              child: Text(
-                l10n.constellationTitle,
-                style: theme.textTheme.titleLarge,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            // Keep a fixed slot so the view-mode toggle does not shift when
-            // map→text hides the legend control (RenderFlex / Flexible reflow).
-            Visibility(
-              visible: showLegend,
-              maintainSize: true,
-              maintainAnimation: true,
-              maintainState: true,
-              // The icon names the button; the hover tooltip adds no
-              // second name (#678).
-              child: SemanticsFreeTooltip(
-                message: legendLabel,
-                child: IconButton(
-                  key: const Key('constellation.app_bar.legend'),
-                  onPressed: onToggleLegend,
-                  icon: Icon(Icons.legend_toggle, semanticLabel: legendLabel),
-                  constraints: BoxConstraints(
-                    minWidth: tt.buttonHeight,
-                    minHeight: tt.buttonHeight,
-                  ),
-                ),
-              ),
-            ),
-            // The list has its own search field; the map's sits in the same
-            // fixed-slot pattern as the legend.
-            Visibility(
-              visible: showLegend,
-              maintainSize: true,
-              maintainAnimation: true,
-              maintainState: true,
-              child: const ConstellationPersonSearchButton(),
-            ),
-            // Multi-select (#642) works on the map only.
-            Visibility(
-              visible: showLegend,
-              maintainSize: true,
-              maintainAnimation: true,
-              maintainState: true,
-              child: const ConstellationSelectionToggle(),
-            ),
-            if (composer != null)
-              PopupMenuButton<BeaconKind>(
-                key: const Key('constellation.app_bar.create_here'),
-                tooltip: l10n.constellationCreateHere,
-                icon: const Icon(Icons.add),
-                popUpAnimationStyle: AnimationStyle.noAnimation,
-                itemBuilder: (_) => constellationCreateMenuItems(l10n),
-                onSelected: (kind) {
-                  final controller = cubit.graphController;
-                  final size = controller.viewportSize;
-                  if (size == null) {
-                    return;
-                  }
-                  composer.start(
-                    kind,
-                    controller.viewportLocalToScene(size.center(Offset.zero)),
-                  );
-                },
-              ),
-            SemanticsFreeTooltip(
-              message: l10n.constellationFiltersOpen,
-              child: IconButton(
-                key: const Key('constellation.app_bar.filters'),
-                onPressed: () => showConstellationFilterSheet(
-                  context,
-                  cubit: cubit,
-                ),
-                icon: Badge(
-                  isLabelVisible: cubit.hasActiveFilters,
-                  smallSize: tt.tightGap,
-                  child: Icon(
-                    Icons.tune,
-                    semanticLabel: l10n.constellationFiltersOpen,
-                  ),
-                ),
-                constraints: BoxConstraints(
-                  minWidth: tt.buttonHeight,
-                  minHeight: tt.buttonHeight,
-                ),
-              ),
-            ),
-            if (peopleTagsEnabled)
-              PopupMenuButton<void>(
-                key: const Key('constellation.app_bar.menu'),
-                popUpAnimationStyle: AnimationStyle.noAnimation,
-                itemBuilder: (_) => [
-                  PopupMenuItem<void>(
-                    key: const Key('constellation.app_bar.people_tags'),
-                    onTap: () =>
-                        unawaited(context.router.push(const PeopleTagsRoute())),
-                    child: Text(l10n.peopleTagsScreenTitle),
-                  ),
-                ],
-              ),
-            Flexible(
-              child: _ConstellationViewModeToggle(
-                viewMode: state.viewMode,
-                onChanged: cubit.setViewMode,
-              ),
-            ),
-          ],
+        return _defaultAppBarRow(
+          context,
+          l10n: l10n,
+          tt: tt,
+          theme: theme,
+          state: state,
+          cubit: cubit,
+          showLegend: showLegend,
+          composer: composer,
+          selectionCubit: null,
         );
       },
+    );
+  }
+
+  Widget _defaultAppBarRow(
+    BuildContext context, {
+    required L10n l10n,
+    required TenturaTokens tt,
+    required ThemeData theme,
+    required ConstellationState state,
+    required ConstellationCubit cubit,
+    required bool showLegend,
+    required ConstellationComposerCubit? composer,
+    required ConstellationSelectionCubit? selectionCubit,
+  }) {
+    if (state.isComposing) {
+      return Row(
+        children: [
+          Expanded(
+            child: Text(
+              composer?.kind == BeaconKind.post
+                  ? l10n.postsTabNewPost
+                  : l10n.postCreateMenuRequest,
+              style: theme.textTheme.titleLarge,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          IconButton(
+            key: const Key('constellation.app_bar.cancel_composer'),
+            tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
+            icon: const Icon(Icons.close),
+            onPressed: composer == null
+                ? null
+                : () => unawaited(() async {
+                    await composer.cancel();
+                    await composer.finish();
+                  }()),
+          ),
+        ],
+      );
+    }
+
+    // On a phone (#659) the bar keeps the title, the person search and a
+    // full-size Map/List toggle; everything else goes into a menu.
+    if (context.windowClass == WindowClass.compact) {
+      return Row(
+        children: [
+          // Never cut to "F…": a title that does not fit is scaled down
+          // whole instead — but only at the default text size. Under a
+          // larger system text size shrinking it would undo the reader's
+          // choice, so it keeps that size and ellipsizes.
+          Expanded(
+            child:
+                MediaQuery.textScalerOf(context).scale(1) >
+                    _kTitleShrinkMaxTextScale
+                ? Text(
+                    l10n.constellationTitle,
+                    style: theme.textTheme.titleLarge,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  )
+                : FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: AlignmentDirectional.centerStart,
+                    child: Text(
+                      l10n.constellationTitle,
+                      style: theme.textTheme.titleLarge,
+                      maxLines: 1,
+                    ),
+                  ),
+          ),
+          Visibility(
+            visible: showLegend,
+            maintainSize: true,
+            maintainAnimation: true,
+            maintainState: true,
+            child: const ConstellationPersonSearchButton(),
+          ),
+          // Not Flexible: the toggle keeps its own (icon-only) size.
+          _ConstellationViewModeToggle(
+            viewMode: state.viewMode,
+            onChanged: cubit.setViewMode,
+          ),
+          _ConstellationOverflowMenu(
+            showMapActions: showLegend,
+            legendExpanded: legendExpanded,
+            onToggleLegend: onToggleLegend,
+          ),
+        ],
+      );
+    }
+
+    final legendLabel = legendExpanded
+        ? l10n.graphLegendClose
+        : l10n.graphLegendOpen;
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            l10n.constellationTitle,
+            style: theme.textTheme.titleLarge,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        // Keep a fixed slot so the view-mode toggle does not shift when
+        // map→text hides the legend control (RenderFlex / Flexible reflow).
+        Visibility(
+          visible: showLegend,
+          maintainSize: true,
+          maintainAnimation: true,
+          maintainState: true,
+          // The icon names the button; the hover tooltip adds no
+          // second name (#678).
+          child: SemanticsFreeTooltip(
+            message: legendLabel,
+            child: IconButton(
+              key: const Key('constellation.app_bar.legend'),
+              onPressed: onToggleLegend,
+              icon: Icon(Icons.legend_toggle, semanticLabel: legendLabel),
+              constraints: BoxConstraints(
+                minWidth: tt.buttonHeight,
+                minHeight: tt.buttonHeight,
+              ),
+            ),
+          ),
+        ),
+        // The list has its own search field; the map's sits in the same
+        // fixed-slot pattern as the legend.
+        Visibility(
+          visible: showLegend,
+          maintainSize: true,
+          maintainAnimation: true,
+          maintainState: true,
+          child: const ConstellationPersonSearchButton(),
+        ),
+        // Multi-select (#642) works on the map only.
+        Visibility(
+          visible: showLegend,
+          maintainSize: true,
+          maintainAnimation: true,
+          maintainState: true,
+          child: const ConstellationSelectionToggle(),
+        ),
+        if (composer != null)
+          PopupMenuButton<BeaconKind>(
+            key: const Key('constellation.app_bar.create_here'),
+            tooltip: l10n.constellationCreateHere,
+            icon: const Icon(Icons.add),
+            popUpAnimationStyle: AnimationStyle.noAnimation,
+            itemBuilder: (_) => constellationCreateMenuItems(l10n),
+            onSelected: (kind) {
+              final controller = cubit.graphController;
+              final size = controller.viewportSize;
+              if (size == null) {
+                return;
+              }
+              composer.start(
+                kind,
+                controller.viewportLocalToScene(size.center(Offset.zero)),
+              );
+            },
+          ),
+        SemanticsFreeTooltip(
+          message: l10n.constellationFiltersOpen,
+          child: IconButton(
+            key: const Key('constellation.app_bar.filters'),
+            onPressed: () => showConstellationFilterSheet(
+              context,
+              cubit: cubit,
+            ),
+            icon: Badge(
+              isLabelVisible: cubit.hasActiveFilters,
+              smallSize: tt.tightGap,
+              child: Icon(
+                Icons.tune,
+                semanticLabel: l10n.constellationFiltersOpen,
+              ),
+            ),
+            constraints: BoxConstraints(
+              minWidth: tt.buttonHeight,
+              minHeight: tt.buttonHeight,
+            ),
+          ),
+        ),
+        if (peopleTagsEnabled)
+          PopupMenuButton<void>(
+            key: const Key('constellation.app_bar.menu'),
+            popUpAnimationStyle: AnimationStyle.noAnimation,
+            itemBuilder: (_) => [
+              PopupMenuItem<void>(
+                key: const Key('constellation.app_bar.people_tags'),
+                onTap: () =>
+                    unawaited(context.router.push(const PeopleTagsRoute())),
+                child: Text(l10n.peopleTagsScreenTitle),
+              ),
+            ],
+          ),
+        Flexible(
+          child: _ConstellationViewModeToggle(
+            viewMode: state.viewMode,
+            onChanged: cubit.setViewMode,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -451,8 +525,8 @@ class _ConstellationOverflowMenu extends StatelessWidget {
             menuContext,
             action: _ConstellationOverflowAction.select,
             icon: Icons.select_all,
-            label: l10n.constellationSelectMany,
-            checked: selection.state.selecting,
+            label: l10n.constellationArrangeEntry,
+            checked: selection.state.arranging,
           ),
         if (composer != null)
           item(
@@ -474,7 +548,7 @@ class _ConstellationOverflowMenu extends StatelessWidget {
           case _ConstellationOverflowAction.legend:
             onToggleLegend();
           case _ConstellationOverflowAction.select:
-            selection?.setSelecting(!selection.state.selecting);
+            selection?.enterArranging();
           case _ConstellationOverflowAction.createHere:
             unawaited(_offerCreate(context, cubit: cubit, composer: composer));
           case _ConstellationOverflowAction.filters:

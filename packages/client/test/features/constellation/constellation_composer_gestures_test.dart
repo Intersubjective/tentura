@@ -36,6 +36,7 @@ import '../beacon_create/fake_beacon_ports.dart';
 import 'package:tentura/features/constellation/ui/util/layout_geometry_adapters.dart';
 
 import '../../support/constellation_store_fixture.dart';
+import 'fixtures/constellation_field_test_harness.dart';
 
 const _ego = Profile(id: 'ego', displayName: 'Ego');
 
@@ -139,6 +140,9 @@ void main() {
             child: MultiBlocProvider(
               providers: [
                 BlocProvider<ConstellationCubit>.value(value: cubit),
+                BlocProvider(
+                  create: (_) => constellationSelectionForFieldBodyTests(),
+                ),
                 BlocProvider<GraphPersonContextCubit>(
                   create: (_) => _StubContextCubit(),
                 ),
@@ -358,7 +362,10 @@ void main() {
         final dir = rimDirection(step);
         final down = globalOf(tester, start.center.offset + dir * start.radius);
         if (!canvas(tester).deflate(8).contains(down)) continue;
-        final g = await tester.startGesture(down);
+        final g = await tester.startGesture(
+          down,
+          kind: PointerDeviceKind.mouse,
+        );
         await g.moveTo(down + dir * 120);
         await tester.pump();
         final grew = composer.selection.radius > start.radius;
@@ -382,7 +389,10 @@ void main() {
         before.center.offset + dir! * before.radius,
       );
 
-      final g = await tester.startGesture(down);
+      final g = await tester.startGesture(
+        down,
+        kind: PointerDeviceKind.mouse,
+      );
       await g.moveTo(down + dir * 60);
       await tester.pump();
       final mid = composer.selection.radius;
@@ -416,7 +426,10 @@ void main() {
       final miss = handle + dir * 150;
       expect(canvas(tester).contains(miss), isTrue);
 
-      final g = await tester.startGesture(miss);
+      final g = await tester.startGesture(
+        miss,
+        kind: PointerDeviceKind.mouse,
+      );
       await g.moveTo(miss + dir * 300);
       await tester.pump();
       await g.up();

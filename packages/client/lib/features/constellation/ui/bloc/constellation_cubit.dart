@@ -182,6 +182,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     _magnetHintSub = _tagMagnetCase?.changes.listen(
       (_) => unawaited(_loadTagMagnets()),
     );
+    // Test hook: [GraphController.scene] is visible for layout-outcome wiring.
     // ignore: invalid_use_of_visible_for_testing_member
     graphController.scene.addListener(_onGraphSceneLayoutOutcomeChanged);
     graphController.addListener(_onGraphControllerChanged);
@@ -662,6 +663,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     _magnetHintSub = null;
     _clearClusterPresentations();
     _finishDropReflowSpans();
+    // Test hook: detach scene listener registered in the constructor.
     // ignore: invalid_use_of_visible_for_testing_member
     graphController.scene.removeListener(_onGraphSceneLayoutOutcomeChanged);
     graphController.removeListener(_onGraphControllerChanged);
@@ -679,7 +681,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (isClosed) return;
     final field = snapshot.field;
     if (field == null) {
-      if (state.field != null) onAccountChanged();
+      if (state.field != null) unawaited(onAccountChanged());
       return;
     }
     if (identical(field, _lastAppliedStoreField)) return;
@@ -743,6 +745,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (isClosed || _dispatchingLayoutRecovery) {
       return;
     }
+    // Test hook: read layout outcome from the package-visible scene handle.
     // ignore: invalid_use_of_visible_for_testing_member
     final outcome = graphController.scene.layoutOutcome;
     if (outcome is GraphLayoutOutcomeRunning) {
@@ -3274,6 +3277,17 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     _recomposeAndLayout();
   }
 
+  /// Persists dismissal of the one-time touch hold hint (#938).
+  void dismissFieldHoldHint() {
+    if (isClosed || state.visibility.fieldHoldHintDismissed) {
+      return;
+    }
+    final next = state.visibility.copyWith(fieldHoldHintDismissed: true);
+    emit(state.copyWith(visibility: next));
+    _visibilityTouched = true;
+    _keepVisibility();
+  }
+
   Future<void> _restoreVisibility() async {
     final visibilityCase = _visibilityCase;
     if (visibilityCase == null) return;
@@ -3658,8 +3672,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     return snapshotOpen && freshCovered;
   }
 
-  /// Body-only hit test for widget tests; production taps use [GraphView.nodeTapHitTester]
-  /// and [resolveConstellationTap].
+  /// Body-only hit test for widget tests; production taps use
+  /// `GraphView.nodeTapHitTester` and `resolveConstellationTap`.
   NodeDetails? mapNodeAtSceneCentre(
     Offset sceneCentre, {
     bool peopleOnly = false,
@@ -4375,7 +4389,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   final _trustsViewerIds = <String>{};
 
   /// [Profile.isMutuallyVisible] (and the "closed eye" copy it drives in the
-  /// reused [GraphPersonContextPanel]) is derived from the *old*,
+  /// reused graph person context panel) is derived from the *old*,
   /// per-direction trust/MeritRank fields (`myVote`, `subjectExplicitlyTrustsViewer`,
   /// `score`/`rScore`) — the exact asymmetric model D14/UNIT04 superseded.
   /// Every peer in `field.peers` is already guaranteed mutually visible by
@@ -4394,8 +4408,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   /// peer's real data in the common case (a direct, explicit connection).
   /// A peer reached only via a tier-2/derived path, or with no edge to the
   /// viewer in `field.edges` at all (e.g. a request-author-only profile),
-  /// still can't honestly be marked "explicit"; the panel's
-  /// [GraphPersonContextCubit] swaps in the server profile on selection, which
+  /// still can't honestly be marked "explicit"; the panel's person-context
+  /// cubit swaps in the server profile on selection, which
   /// carries the real visibility flags.
   Profile _profileFromPeer(ConstellationPerson peer) {
     final field = state.field;

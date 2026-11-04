@@ -20,6 +20,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import '../../support/constellation_store_fixture.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../../support/people_tags_widget_harness.dart';
+import 'fixtures/constellation_field_test_harness.dart';
 
 /// #253: the list shows the map's people (not only Request authors), direct
 /// contacts first, Posts as secondary rows, and a name search that filters
@@ -164,6 +165,9 @@ Future<void> _pumpMap(WidgetTester tester, ConstellationCubit cubit) async {
       MultiBlocProvider(
         providers: [
           BlocProvider<ConstellationCubit>.value(value: cubit),
+          BlocProvider(
+            create: (_) => constellationSelectionForFieldBodyTests(),
+          ),
           BlocProvider<GraphPersonContextCubit>(
             create: (_) => _StubContextCubit(),
           ),

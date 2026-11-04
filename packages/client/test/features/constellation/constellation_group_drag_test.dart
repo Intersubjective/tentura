@@ -17,6 +17,7 @@ import 'package:tentura/features/constellation/domain/port/constellation_reposit
 import 'package:tentura/features/constellation/domain/use_case/constellation_placement_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_selection_cubit.dart';
+import 'fixtures/constellation_field_test_harness.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
 import 'package:tentura/features/graph/domain/use_case/graph_trust_write_case.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_person_context_cubit.dart';
@@ -263,7 +264,7 @@ Future<_Harness> _mount(
     placementCase: placement,
     viewer: _ego,
   );
-  final selection = ConstellationSelectionCubit();
+  final selection = constellationSelectionForFieldBodyTests();
   addTearDown(() async {
     await selection.close();
     await cubit.close();
@@ -309,6 +310,7 @@ Future<_Harness> _mount(
     ),
   );
   await _settle(tester);
+  await tester.pump();
   return (server: server, cubit: cubit, selection: selection);
 }
 
@@ -359,9 +361,15 @@ Future<TestGesture> _press(
   WidgetTester tester,
   Offset from,
   Offset to, {
+  required ConstellationSelectionCubit selection,
   PointerDeviceKind kind = PointerDeviceKind.mouse,
 }) async {
-  final gesture = await tester.startGesture(from, kind: kind);
+  final gesture = await startConstellationFieldGesture(
+    tester,
+    from,
+    kind: kind,
+    selection: selection,
+  );
   await _frames(tester);
   for (var i = 1; i <= 8; i++) {
     await gesture.moveTo(Offset.lerp(from, to, i / 8)!);
@@ -385,6 +393,7 @@ void main() {
       h.selection
         ..toggle(_ann)
         ..toggle(_bob);
+      enterConstellationArrangingForTests(h.selection);
       await _frames(tester);
       final annStart = _scene(h.cubit, 'a');
       final bobStart = _scene(h.cubit, 'b');
@@ -396,6 +405,7 @@ void main() {
         tester,
         ann,
         ann + const Offset(90, 60),
+        selection: h.selection,
         kind: kind,
       );
 
@@ -440,7 +450,12 @@ void main() {
     final bobStart = _scene(h.cubit, 'b');
     final cat = tester.getCenter(_node('c'));
 
-    final gesture = await _press(tester, cat, cat + const Offset(-70, 50));
+    final gesture = await _press(
+      tester,
+      cat,
+      cat + const Offset(-70, 50),
+      selection: h.selection,
+    );
     expectOffset(_scene(h.cubit, 'a'), annStart);
     expectOffset(_scene(h.cubit, 'b'), bobStart);
     await gesture.up();
@@ -463,7 +478,12 @@ void main() {
     final bobStart = _scene(h.cubit, 'b');
     final ann = tester.getCenter(_node('a'));
 
-    final gesture = await _press(tester, ann, ann + const Offset(80, 80));
+    final gesture = await _press(
+      tester,
+      ann,
+      ann + const Offset(80, 80),
+      selection: h.selection,
+    );
     expect((_scene(h.cubit, 'b') - bobStart).distance, greaterThan(40));
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await _frames(tester);
@@ -493,6 +513,7 @@ void main() {
       tester,
       ann,
       ann + const Offset(80, -60),
+      selection: h.selection,
       kind: PointerDeviceKind.touch,
     );
     await gesture.cancel();

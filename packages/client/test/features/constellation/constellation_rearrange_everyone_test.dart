@@ -28,6 +28,7 @@ import '../../support/fake_wake_up_port.dart';
 import '../../support/test_forward_case.dart';
 import '../../support/test_realtime_sync.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
+import 'fixtures/constellation_field_test_harness.dart';
 
 /// «Rearrange everyone, including pinned»: a preview that writes nothing and
 /// counts the people who would move, Cancel that leaves the Field as it was,
@@ -321,6 +322,9 @@ Future<void> _pumpShell(
         child: MultiBlocProvider(
           providers: [
             BlocProvider<ConstellationCubit>.value(value: cubit),
+            BlocProvider(
+              create: (_) => constellationSelectionForFieldBodyTests(),
+            ),
             BlocProvider<GraphPersonContextCubit>(
               create: (_) => _StubContextCubit(),
             ),

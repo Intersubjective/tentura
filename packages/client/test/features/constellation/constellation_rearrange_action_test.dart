@@ -35,10 +35,12 @@ import '../../ui/effect/fake_ui_effect_port.dart';
 import '../../support/constellation_apply_via_writes.dart';
 import '../../support/constellation_store_fixture.dart';
 import '../../support/test_realtime_sync.dart';
+import 'fixtures/constellation_field_test_harness.dart';
 import '../../support/fake_clock_port.dart';
 import '../../support/fake_wake_up_port.dart';
 import '../../support/test_forward_case.dart';
 import '../../support/people_tags_widget_harness.dart';
+import 'fixtures/constellation_field_test_harness.dart';
 
 const _ego = Profile(id: 'ego', displayName: 'Ego');
 final _loadedAt = DateTime.utc(2026, 9, 11, 12);
@@ -350,6 +352,9 @@ Future<void> _pumpShell(
         child: MultiBlocProvider(
           providers: [
             BlocProvider<ConstellationCubit>.value(value: cubit),
+            BlocProvider(
+              create: (_) => constellationSelectionForFieldBodyTests(),
+            ),
             BlocProvider<GraphPersonContextCubit>(
               create: (_) => _StubContextCubit(),
             ),
@@ -471,8 +476,7 @@ Future<Map<String, Offset>> _positionsAfterFreshPlacementAndRearrange(
   try {
     await _pumpShell(tester, harness.cubit);
     await _placeTwoNodes(tester, harness.cubit);
-    await _openArrange(tester);
-    await tester.tap(_rearrangeButton());
+    await _tapRearrange(tester);
     await tester.pump();
     await tester.pumpAndSettle(const Duration(milliseconds: 400));
     return _allNodePositions(harness.cubit);
@@ -482,8 +486,24 @@ Future<Map<String, Offset>> _positionsAfterFreshPlacementAndRearrange(
   }
 }
 
-Future<void> _openArrange(WidgetTester tester) async {
-  await tester.tap(find.byTooltip(L10nEn().constellationArrange));
+Future<void> _openArrange(WidgetTester tester, {bool arrangeV2Enabled = true}) async {
+  if (arrangeV2Enabled) {
+    await openConstellationArrangeOverflowMenu(tester);
+    return;
+  }
+  await tester.tap(find.byKey(const Key('constellation.camera.arrange')));
+  await tester.pumpAndSettle();
+}
+
+Future<void> _tapRearrange(WidgetTester tester, {bool arrangeV2Enabled = true}) async {
+  if (arrangeV2Enabled) {
+    await tapConstellationArrangeOverflowAction(
+      tester,
+      L10nEn().constellationRearrange,
+    );
+    return;
+  }
+  await tester.tap(find.byKey(TestIds.key(TestIds.constellationRearrange)));
   await tester.pumpAndSettle();
 }
 
@@ -795,8 +815,7 @@ void main() {
       final lastPositionBefore = harness.anchorRepo.lastPosition;
       expect(confirmedBefore, hasLength(2));
 
-      await _openArrange(tester);
-      await tester.tap(_rearrangeButton());
+      await _tapRearrange(tester);
       await tester.pump();
       await tester.pumpAndSettle(const Duration(milliseconds: 400));
 
@@ -833,8 +852,7 @@ void main() {
       expect(upserts, greaterThan(0));
       expect(applies, greaterThan(0));
 
-      await _openArrange(tester);
-      await tester.tap(_rearrangeButton());
+      await _tapRearrange(tester);
       await tester.pump();
       await tester.pumpAndSettle(const Duration(milliseconds: 400));
 
@@ -916,14 +934,12 @@ void main() {
       await _pumpShell(tester, harness.cubit);
       await _placeTwoNodes(tester, harness.cubit);
 
-      await _openArrange(tester);
-      await tester.tap(_rearrangeButton());
+      await _tapRearrange(tester);
       await tester.pump();
       await tester.pumpAndSettle(const Duration(milliseconds: 400));
       final first = _allNodePositions(harness.cubit);
 
-      await _openArrange(tester);
-      await tester.tap(_rearrangeButton());
+      await _tapRearrange(tester);
       await tester.pump();
       await tester.pumpAndSettle(const Duration(milliseconds: 400));
       final second = _allNodePositions(harness.cubit);
@@ -954,7 +970,7 @@ void main() {
         tester.element(find.byType(ConstellationBody)),
       )!.constellationRearrange;
 
-      await _openArrange(tester);
+      await openConstellationArrangeOverflowMenu(tester);
       expect(label.trim(), isNotEmpty);
       expect(tester.getSemantics(_rearrangeButton()).label, contains(label));
       // Disposed here: the framework checks for open handles before teardowns.

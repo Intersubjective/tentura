@@ -22,6 +22,7 @@ import '../../ui/effect/fake_ui_effect_port.dart';
 
 import '../../support/constellation_store_fixture.dart';
 import '../../support/people_tags_widget_harness.dart';
+import 'fixtures/constellation_field_test_harness.dart';
 
 class _StubContextCubit extends Cubit<GraphPersonContextState>
     implements GraphPersonContextCubit {
@@ -181,6 +182,9 @@ Future<void> _pumpBody(WidgetTester tester, ConstellationCubit cubit) async {
         child: MultiBlocProvider(
           providers: [
             BlocProvider<ConstellationCubit>.value(value: cubit),
+            BlocProvider(
+              create: (_) => constellationSelectionForFieldBodyTests(),
+            ),
             BlocProvider<GraphPersonContextCubit>(
               create: (_) => _StubContextCubit(),
             ),
