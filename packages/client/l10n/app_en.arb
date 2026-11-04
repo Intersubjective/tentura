@@ -10545,6 +10545,24 @@
   "@peopleTagsYourTags": {
     "description": "Heading of the viewer's own tags on a person"
   },
+  "peopleTagsPersonChipSemantics": "{name}, tag",
+  "@peopleTagsPersonChipSemantics": {
+    "description": "Screen-reader label for one of the viewer's own tag chips",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "peopleTagsAutoChipSemantics": "{name}, automatic tag",
+  "@peopleTagsAutoChipSemantics": {
+    "description": "Screen-reader label for an automatic tag chip",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "peopleTagsAutomatic": "Automatic",
   "@peopleTagsAutomatic": {
     "description": "Heading of the automatic tags on a person"

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../tentura_radii.dart';
 import '../tentura_tag_colors.dart';
@@ -60,6 +61,8 @@ class PersonTagChip extends StatelessWidget {
     final tt = context.tt;
     final swatch = context.tagColors.swatchFor(colorIndex);
     final onRemove = this.onRemove;
+    final chipSemantics =
+        L10n.of(context)?.peopleTagsPersonChipSemantics(name) ?? '$name, tag';
     return DecoratedBox(
       decoration: BoxDecoration(
         color: swatch.container,
@@ -72,7 +75,7 @@ class PersonTagChip extends StatelessWidget {
           children: [
             Semantics(
               container: true,
-              label: '$name, tag',
+              label: chipSemantics,
               excludeSemantics: true,
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -125,8 +128,11 @@ class AutoTagChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final tt = context.tt;
     final foreground = enabled ? tt.text : tt.textMuted;
+    final chipSemantics =
+        L10n.of(context)?.peopleTagsAutoChipSemantics(name) ??
+        '$name, automatic tag';
     return Semantics(
-      label: '$name, automatic tag',
+      label: chipSemantics,
       excludeSemantics: true,
       child: CustomPaint(
         painter: _TagOutlinePainter(color: tt.border, dashed: !enabled),
