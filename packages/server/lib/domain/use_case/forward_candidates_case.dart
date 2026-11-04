@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/entity/forward_candidate_peer_row.dart';
+import 'package:tentura_server/domain/entity/gql_public/forward_reach_record.dart';
 import 'package:tentura_server/domain/entity/gql_public/mutual_score_record.dart';
 import 'package:tentura_server/domain/entity/gql_public/user_public_record.dart';
 import 'package:tentura_server/domain/port/forward_candidates_repository_port.dart';
@@ -109,9 +110,32 @@ final class ForwardCandidatesCase extends UseCaseBase {
             profile,
             sharesActiveContext: bondPeerIds.contains(peer.peerId),
             mutualSince: peer.mutualSince,
+            forwardReach: _reachOf(
+              peer,
+              isBondPeer: bondPeerIds.contains(peer.peerId),
+              profiles: profiles,
+            ),
           ),
     ];
   }
+
+  /// Vouchers are listed candidates, so their profiles are already loaded.
+  static ForwardReachRecord _reachOf(
+    ForwardCandidatePeerRow peer, {
+    required bool isBondPeer,
+    required Map<String, UserPublicRecord> profiles,
+  }) => ForwardReachRecord(
+    kind: peer.viewerTrustsDirectly
+        ? ForwardReachKind.direct
+        : peer.voucherCount > 0
+        ? ForwardReachKind.viaConnection
+        : isBondPeer
+        ? ForwardReachKind.sharedRequest
+        : ForwardReachKind.wider,
+    via: [for (final id in peer.voucherIds) ?profiles[id]],
+    viaCount: peer.voucherCount,
+    sharedRequest: peer.sharedRequest,
+  );
 
   /// `1 − min(0.8, Σ 2^(−age_days))` over forwards within the 7-day window.
   /// Display only: never persisted.
@@ -132,6 +156,7 @@ final class ForwardCandidatesCase extends UseCaseBase {
     UserPublicRecord u, {
     required bool sharesActiveContext,
     required DateTime? mutualSince,
+    required ForwardReachRecord forwardReach,
   }) => UserPublicRecord(
     id: u.id,
     displayName: u.displayName,
@@ -142,6 +167,7 @@ final class ForwardCandidatesCase extends UseCaseBase {
     subjectExplicitlyTrustsViewer: u.subjectExplicitlyTrustsViewer,
     sharesActiveContext: sharesActiveContext,
     mutualSince: mutualSince,
+    forwardReach: forwardReach,
     image: u.image,
     scores: u.scores,
     userPresence: u.userPresence,

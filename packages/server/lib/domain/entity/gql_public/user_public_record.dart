@@ -1,5 +1,6 @@
 import 'package:meta/meta.dart';
 
+import 'forward_reach_record.dart';
 import 'image_public_record.dart';
 import 'mutual_score_record.dart';
 import 'user_availability_record.dart';
@@ -19,6 +20,7 @@ class UserPublicRecord {
     this.subjectExplicitlyTrustsViewer = false,
     this.sharesActiveContext = false,
     this.mutualSince,
+    this.forwardReach,
     this.image,
     this.scores = const [],
     this.userPresence,
@@ -49,6 +51,9 @@ class UserPublicRecord {
   /// Later creation time of the two current trust edges, if both exist.
   /// Populated by forward candidates; unrelated user projections omit it.
   final DateTime? mutualSince;
+
+  /// Why forward candidates suggest this person; null on other producers.
+  final ForwardReachRecord? forwardReach;
   final ImagePublicRecord? image;
   final List<MutualScoreRecord> scores;
   final UserPresenceRecord? userPresence;

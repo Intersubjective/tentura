@@ -1,3 +1,4 @@
+import 'package:tentura_server/domain/entity/gql_public/forward_reach_record.dart';
 import 'package:tentura_server/domain/entity/gql_public/help_offer_with_coordination_row.dart';
 import 'package:tentura_server/domain/entity/gql_public/image_public_record.dart';
 import 'package:tentura_server/domain/entity/gql_public/mutual_score_record.dart';
@@ -60,6 +61,31 @@ Map<String, dynamic>? userAvailabilityEntityToGqlMap({
   ),
 );
 
+Map<String, dynamic>? forwardReachToGqlMap(ForwardReachRecord? reach) =>
+    reach == null
+    ? null
+    : {
+        'kind': switch (reach.kind) {
+          ForwardReachKind.direct => 'direct',
+          ForwardReachKind.viaConnection => 'via_connection',
+          ForwardReachKind.sharedRequest => 'shared_request',
+          ForwardReachKind.wider => 'wider',
+        },
+        'via': [
+          for (final voucher in reach.via)
+            {
+              'id': voucher.id,
+              'displayName': voucher.displayName,
+              'image': voucher.image == null
+                  ? null
+                  : imagePublicToGqlMap(voucher.image!),
+            },
+        ],
+        'via_count': reach.viaCount,
+        'shared_request_id': reach.sharedRequest?.id,
+        'shared_request_title': reach.sharedRequest?.title,
+      };
+
 Map<String, dynamic> userPublicToGqlMap(UserPublicRecord u) => {
   'id': u.id,
   'displayName': u.displayName,
@@ -70,6 +96,7 @@ Map<String, dynamic> userPublicToGqlMap(UserPublicRecord u) => {
   'trusts_viewer': u.subjectExplicitlyTrustsViewer,
   'shares_active_context': u.sharesActiveContext,
   'mutual_since': ?u.mutualSince?.toUtc(),
+  'forward_reach': ?forwardReachToGqlMap(u.forwardReach),
   'image': u.image == null ? null : imagePublicToGqlMap(u.image!),
   'scores': mutualScoresToGqlList(u.scores),
   'user_presence': userPresenceToGqlMap(u.userPresence),

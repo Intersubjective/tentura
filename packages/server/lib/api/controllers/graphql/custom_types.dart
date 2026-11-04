@@ -62,6 +62,9 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeImagePublic,
   gqlTypeUserPresence,
   gqlTypeUserPublic,
+  gqlEnumForwardReachKind,
+  gqlTypeForwardReach,
+  gqlTypeForwardReachVoucher,
   gqlTypeUserContact,
   gqlTypeBlockIntent,
   gqlTypeBlockPreview,
@@ -1437,6 +1440,34 @@ final gqlTypeUserAvailability = GraphQLObjectType('user_availability', null)
     field('resume_on', graphQLString),
   ]);
 
+/// Why `forwardCandidates` lists a person, strongest reason first.
+final gqlEnumForwardReachKind = enumTypeFromStrings(
+  'ForwardReachKind',
+  const ['direct', 'via_connection', 'shared_request', 'wider'],
+);
+
+/// A direct connection of the viewer who trusts the suggested person.
+final gqlTypeForwardReachVoucher =
+    GraphQLObjectType('ForwardReachVoucher', null)
+      ..fields.addAll([
+        field('id', graphQLString.nonNullable()),
+        field('displayName', graphQLString.nonNullable()),
+        field('image', gqlTypeImagePublic),
+      ]);
+
+/// Reach explanation on `forwardCandidates` rows; null on other `user` rows.
+final gqlTypeForwardReach = GraphQLObjectType('ForwardReach', null)
+  ..fields.addAll([
+    field('kind', gqlEnumForwardReachKind.nonNullable()),
+    field(
+      'via',
+      GraphQLListType(gqlTypeForwardReachVoucher.nonNullable()).nonNullable(),
+    ),
+    field('via_count', graphQLInt.nonNullable()),
+    field('shared_request_id', graphQLString),
+    field('shared_request_title', graphQLString),
+  ]);
+
 /// Matches Hasura `user` table shape for `invitationById.issuer` / `UserModel`.
 final gqlTypeUserPublic = GraphQLObjectType('user', null)
   ..fields.addAll([
@@ -1449,6 +1480,7 @@ final gqlTypeUserPublic = GraphQLObjectType('user', null)
     field('trusts_viewer', graphQLBoolean.nonNullable()),
     field('shares_active_context', graphQLBoolean),
     field('mutual_since', graphQLDate),
+    field('forward_reach', gqlTypeForwardReach),
     field('image', gqlTypeImagePublic),
     field(
       'scores',

@@ -8513,6 +8513,27 @@ type v2_ForwardInboundEdge {
   senderName: String!
 }
 
+type v2_ForwardReach {
+  kind: v2_ForwardReachKind!
+  shared_request_id: String
+  shared_request_title: String
+  via: [v2_ForwardReachVoucher!]!
+  via_count: Int!
+}
+
+enum v2_ForwardReachKind {
+  direct
+  via_connection
+  shared_request
+  wider
+}
+
+type v2_ForwardReachVoucher {
+  displayName: String!
+  id: String!
+  image: v2_image
+}
+
 input v2_ForwardRecipientBandProvenanceInput {
   isExploration: Boolean
   recipientId: String!
@@ -8949,6 +8970,7 @@ input v2_Upload {
 type v2_user {
   description: String!
   displayName: String!
+  forward_reach: v2_ForwardReach
   handle: String
   id: String!
   image: v2_image

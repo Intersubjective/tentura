@@ -43,6 +43,16 @@ class ForwardCandidatesRepository implements ForwardCandidatesRepositoryPort {
           viewerTrusts: row.read<bool>('viewer_explicitly_trusts_subject'),
           trustsViewer: row.read<bool>('subject_explicitly_trusts_viewer'),
           mutualSince: readCustomSelectTimestamptz(row.data['mutual_since']),
+          viewerTrustsDirectly: row.read<bool>('viewer_trusts_directly'),
+          voucherIds: row.read<List<dynamic>>('via_ids').cast<String>(),
+          voucherCount: row.read<int>('via_count'),
+          sharedRequest: switch ((
+            row.readNullable<String>('shared_request_id'),
+            row.readNullable<String>('shared_request_title'),
+          )) {
+            (final String id, final String title) => (id: id, title: title),
+            _ => null,
+          },
         ),
     ];
   }
