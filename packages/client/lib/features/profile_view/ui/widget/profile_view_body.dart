@@ -27,6 +27,7 @@ import 'package:tentura/features/friends/ui/dialog/friend_remove_dialog.dart';
 import 'package:tentura/features/people_tags/ui/widget/person_tags_block.dart';
 import 'package:tentura/features/people_tags/ui/widget/mutual_trust_tag_suggestion.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
+import 'package:tentura/features/profile/ui/widget/profile_member_since_line.dart';
 
 import '../../domain/port/person_shared_context_port.dart';
 import '../bloc/profile_view_cubit.dart';
@@ -90,6 +91,7 @@ class ProfileViewBody extends StatelessWidget {
                     ),
                   ),
                 ),
+                ProfileMemberSinceLine(profile: profile),
                 Builder(
                   builder: (ctx) {
                     final line = profilePresenceDisplayLine(

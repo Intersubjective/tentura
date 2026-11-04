@@ -1,7 +1,9 @@
 # import '/data/gql/user_model.graphql'
+# import 'profile_user_fields.graphql'
 
 query UserFetchById($id: String!) {
   user_by_pk(id: $id) {
     ...UserModel
+    ...ProfileUserFields
   }
 }
