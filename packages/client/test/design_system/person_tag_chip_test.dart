@@ -5,6 +5,9 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/ui/l10n/l10n.dart';
+
+import '../support/phone_surface.dart';
 
 /// The × remove affordance, whether drawn as a text glyph or a close icon.
 final _removeControl = find.byWidgetPredicate(
@@ -44,10 +47,14 @@ Future<void> _pump(
   WidgetTester tester,
   Widget chip, {
   ThemeData? theme,
+  Locale locale = const Locale('en'),
 }) async {
   await tester.pumpWidget(
     MaterialApp(
       theme: theme ?? TenturaTheme.light(),
+      locale: locale,
+      localizationsDelegates: L10n.localizationsDelegates,
+      supportedLocales: L10n.supportedLocales,
       home: TenturaResponsiveScope(
         child: Scaffold(
           body: Center(
@@ -241,14 +248,56 @@ void main() {
       });
     }
 
-    testWidgets('speaks "<name>, tag" once', (tester) async {
+    testWidgets('en: speaks "<name>, tag" once', (tester) async {
       final handle = tester.ensureSemantics();
+      final l10n = lookupL10n(const Locale('en'));
       await _pump(
         tester,
         const PersonTagChip(glyph: 'N', name: 'Neighbour', colorIndex: 0),
       );
 
-      expect(find.bySemanticsLabel('Neighbour, tag'), findsOneWidget);
+      expect(
+        find.bySemanticsLabel(l10n.peopleTagsPersonChipSemantics('Neighbour')),
+        findsOneWidget,
+      );
+      handle.dispose();
+    });
+
+    testWidgets('ru: speaks "<name>, тег" once', (tester) async {
+      final handle = tester.ensureSemantics();
+      final l10n = lookupL10n(const Locale('ru'));
+      await _pump(
+        tester,
+        const PersonTagChip(glyph: 'N', name: 'Сосед', colorIndex: 0),
+        locale: const Locale('ru'),
+      );
+
+      expect(
+        find.bySemanticsLabel(l10n.peopleTagsPersonChipSemantics('Сосед')),
+        findsOneWidget,
+      );
+      handle.dispose();
+    });
+
+    testWidgets('375×667 RU: tag name is visible and semantics stay Russian', (
+      tester,
+    ) async {
+      await usePhoneSurface(tester);
+      final handle = tester.ensureSemantics();
+      final l10n = lookupL10n(const Locale('ru'));
+      const tagName = 'Мастерская';
+      await _pump(
+        tester,
+        const PersonTagChip(glyph: 'M', name: tagName, colorIndex: 1),
+        locale: const Locale('ru'),
+      );
+
+      expect(find.text(tagName), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      expect(
+        find.bySemanticsLabel(l10n.peopleTagsPersonChipSemantics(tagName)),
+        findsOneWidget,
+      );
       handle.dispose();
     });
   });
@@ -275,23 +324,39 @@ void main() {
 
         expect(_removeControl, findsNothing);
       });
-
-      testWidgets('enabled=$enabled: speaks "<name>, automatic tag" once', (
-        tester,
-      ) async {
-        final handle = tester.ensureSemantics();
-        await _pump(
-          tester,
-          AutoTagChip(name: 'Mutual contact', enabled: enabled),
-        );
-
-        expect(
-          find.bySemanticsLabel('Mutual contact, automatic tag'),
-          findsOneWidget,
-        );
-        handle.dispose();
-      });
     }
+
+    testWidgets('en: speaks "<name>, automatic tag" once', (tester) async {
+      final handle = tester.ensureSemantics();
+      final l10n = lookupL10n(const Locale('en'));
+      await _pump(tester, const AutoTagChip(name: 'Mutual contact'));
+
+      expect(
+        find.bySemanticsLabel(
+          l10n.peopleTagsAutoChipSemantics('Mutual contact'),
+        ),
+        findsOneWidget,
+      );
+      handle.dispose();
+    });
+
+    testWidgets('ru: speaks "<name>, автоматический тег" once', (tester) async {
+      final handle = tester.ensureSemantics();
+      final l10n = lookupL10n(const Locale('ru'));
+      await _pump(
+        tester,
+        const AutoTagChip(name: 'Взаимный контакт'),
+        locale: const Locale('ru'),
+      );
+
+      expect(
+        find.bySemanticsLabel(
+          l10n.peopleTagsAutoChipSemantics('Взаимный контакт'),
+        ),
+        findsOneWidget,
+      );
+      handle.dispose();
+    });
 
     testWidgets('is outlined with a solid border while enabled', (
       tester,

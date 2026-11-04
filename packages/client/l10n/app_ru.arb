@@ -6593,6 +6593,8 @@
   "constellationNodeOwnTagsSemantics": "теги: {names}",
   "constellationNodeAutoTagsSemantics": "автоматические: {names}",
   "peopleTagsYourTags": "Ваши теги",
+  "peopleTagsPersonChipSemantics": "{name}, тег",
+  "peopleTagsAutoChipSemantics": "{name}, автоматический тег",
   "peopleTagsAutomatic": "Автоматически",
   "peopleTagsAutoHelpedMe": "Помогали мне",
   "peopleTagsAutoIHelped": "Я помогал",

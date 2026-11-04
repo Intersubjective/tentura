@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../tentura_radii.dart';
 import '../tentura_tag_colors.dart';
@@ -28,9 +29,8 @@ class TagGlyph extends StatelessWidget {
         child: Center(
           child: Text(
             glyph,
-            style: TenturaText.labelSmall(
-              swatch.container,
-            ).copyWith(fontSize: size * 0.55, height: 1),
+            style: TenturaText.labelSmall(swatch.container)
+                .copyWith(fontSize: size * 0.55, height: 1),
           ),
         ),
       ),
@@ -66,6 +66,8 @@ class PersonTagChip extends StatelessWidget {
     final swatch = context.tagColors.swatchFor(colorIndex);
     final onRemove = this.onRemove;
     final maxWidth = this.maxWidth;
+    final chipSemantics =
+        L10n.of(context)?.peopleTagsPersonChipSemantics(name) ?? '$name, tag';
     Widget namePart = Text(
       name,
       style: TenturaText.labelSmall(swatch.onContainer),
@@ -80,13 +82,28 @@ class PersonTagChip extends StatelessWidget {
         ),
       );
     }
-    Widget row = Row(
+    final labelRow = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         TagGlyph(glyph: glyph, colorIndex: colorIndex),
         SizedBox(width: tt.iconTextGap),
         namePart,
         SizedBox(width: tt.iconTextGap),
+      ],
+    );
+    final labelSemantics = Semantics(
+      container: true,
+      label: chipSemantics,
+      excludeSemantics: true,
+      child: labelRow,
+    );
+    Widget row = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (maxWidth != null)
+          Expanded(child: labelSemantics)
+        else
+          labelSemantics,
         if (onRemove != null)
           Semantics(
             button: true,
@@ -95,11 +112,7 @@ class PersonTagChip extends StatelessWidget {
             child: InkResponse(
               onTap: onRemove,
               radius: 14,
-              child: Icon(
-                Icons.close,
-                size: 16,
-                color: swatch.onContainer,
-              ),
+              child: Icon(Icons.close, size: 16, color: swatch.onContainer),
             ),
           ),
       ],
@@ -112,15 +125,7 @@ class PersonTagChip extends StatelessWidget {
         color: swatch.container,
         borderRadius: BorderRadius.circular(TenturaRadii.avatar),
       ),
-      child: Padding(
-        padding: EdgeInsets.all(tt.tightGap * 2),
-        child: Semantics(
-          container: true,
-          label: '$name, tag',
-          excludeSemantics: true,
-          child: row,
-        ),
-      ),
+      child: Padding(padding: EdgeInsets.all(tt.tightGap * 2), child: row),
     );
   }
 }
@@ -128,11 +133,7 @@ class PersonTagChip extends StatelessWidget {
 /// A tag the app derives on its own: outlined chip with a ✦ mark, never
 /// removable. The outline turns dashed while the tag is switched off.
 class AutoTagChip extends StatelessWidget {
-  const AutoTagChip({
-    required this.name,
-    this.enabled = true,
-    super.key,
-  });
+  const AutoTagChip({required this.name, this.enabled = true, super.key});
 
   final String name;
   final bool enabled;
@@ -141,8 +142,11 @@ class AutoTagChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final tt = context.tt;
     final foreground = enabled ? tt.text : tt.textMuted;
+    final chipSemantics =
+        L10n.of(context)?.peopleTagsAutoChipSemantics(name) ??
+        '$name, automatic tag';
     return Semantics(
-      label: '$name, automatic tag',
+      label: chipSemantics,
       excludeSemantics: true,
       child: CustomPaint(
         painter: _TagOutlinePainter(color: tt.border, dashed: !enabled),
