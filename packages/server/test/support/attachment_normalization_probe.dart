@@ -24,7 +24,14 @@ class AttachmentNormalizationGraph {
     () => parseString(content: File.fromUri(uri).readAsStringSync()).unit,
   );
 
+  /// A generated file (l10n, codegen) is absent in a clean checkout and in
+  /// the CI server container; an import of it has no owners to follow.
   Uri? _resolve(Uri from, String? value) {
+    final uri = _resolveRaw(from, value);
+    return uri != null && File.fromUri(uri).existsSync() ? uri : null;
+  }
+
+  Uri? _resolveRaw(Uri from, String? value) {
     if (value == null ||
         value.startsWith('dart:') ||
         RegExp(r'\.(g|freezed|gr|config|schema)\.dart$').hasMatch(value)) {

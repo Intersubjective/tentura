@@ -27,6 +27,7 @@ abstract class NotificationOutboxItemEntity
     DigestPostContent? digestPost,
     String? coordinationItemId,
     String? actorUserId,
+    @Default('') String actorDisplayName,
     DateTime? readAt,
     DateTime? seenAt,
     String? sourceEventKey,
