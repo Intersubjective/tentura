@@ -28,7 +28,7 @@ authorized AS MATERIALIZED (
   FROM params p
 ),
 raw_edges AS MATERIALIZED (
-  SELECT g.src::text AS src, g.dst::text AS dst
+  SELECT g.src::text AS src, g.dst::text AS dst, g.weight
   FROM authorized a
   CROSS JOIN LATERAL public.mr_graph(
     a.viewer_id,
@@ -38,10 +38,10 @@ raw_edges AS MATERIALIZED (
     0,
     100
   ) g
-  WHERE a.candidate_eligible
+  WHERE a.candidate_eligible AND g.weight > 0
 ),
 visible_edges AS MATERIALIZED (
-  SELECT DISTINCT e.src, e.dst
+  SELECT DISTINCT e.src, e.dst, e.weight
   FROM raw_edges e
   CROSS JOIN authorized a
   WHERE e.src IS NOT NULL
@@ -51,8 +51,10 @@ visible_edges AS MATERIALIZED (
 )
 SELECT
   a.candidate_eligible,
+  candidate.created_at::text AS candidate_joined_at,
   e.src,
   e.dst,
+  e.weight,
   su.id AS src_user_id,
   su.display_name AS src_display_name,
   si.id::text AS src_image_id,
@@ -70,6 +72,8 @@ SELECT
   di.author_id AS dst_image_author_id,
   di.created_at::text AS dst_image_created_at
 FROM authorized a
+LEFT JOIN public."user" candidate
+  ON a.candidate_eligible AND candidate.id = a.candidate_id
 LEFT JOIN visible_edges e ON a.candidate_eligible
 LEFT JOIN public."user" su ON su.id = e.src
 LEFT JOIN public.image si ON si.id = su.image_id

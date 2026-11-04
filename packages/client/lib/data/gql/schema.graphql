@@ -8458,6 +8458,7 @@ type v2_ForwardCandidateConnectionNode {
 }
 
 type v2_ForwardCandidateContext {
+  candidate_joined_at: v2_Date
   nodes: [v2_ForwardCandidateConnectionNode!]!
   status: String!
 }

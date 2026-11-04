@@ -1003,6 +1003,7 @@ final gqlTypeForwardCandidateContext =
         null,
       )
       ..fields.addAll([
+        field('candidate_joined_at', graphQLDate),
         field('status', graphQLString.nonNullable()),
         field(
           'nodes',

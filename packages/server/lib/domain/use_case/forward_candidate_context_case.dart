@@ -43,10 +43,15 @@ final class ForwardCandidateContextCase extends UseCaseBase {
       candidateId: candidateId,
       edges: snapshot.edges,
     );
-    if (ids == null) return const ForwardCandidateContext.longPath();
+    if (ids == null) {
+      return ForwardCandidateContext.longPath(
+        candidateJoinedAt: snapshot.candidateJoinedAt,
+      );
+    }
 
     return ForwardCandidateContext(
       status: ForwardCandidateContextStatus.path,
+      candidateJoinedAt: snapshot.candidateJoinedAt,
       nodes: [
         for (var index = 0; index < ids.length; index++)
           _toNode(
@@ -65,11 +70,18 @@ List<String>? _findPath({
   required String candidateId,
   required List<ForwardCandidateGraphEdge> edges,
 }) {
-  final adjacent = <String, Set<String>>{};
+  final adjacent = <String, List<ForwardCandidateGraphEdge>>{};
   for (final edge in edges) {
     if (edge.a.isEmpty || edge.b.isEmpty || edge.a == edge.b) continue;
-    adjacent.putIfAbsent(edge.a, () => <String>{}).add(edge.b);
-    adjacent.putIfAbsent(edge.b, () => <String>{}).add(edge.a);
+    adjacent.putIfAbsent(edge.a, () => []).add(edge);
+  }
+  // BFS keeps paths shortest. Ordering each outgoing frontier preserves the
+  // strongest first hop, then incoming trust and ID at each subsequent hop.
+  for (final neighbors in adjacent.values) {
+    neighbors.sort((left, right) {
+      final byTrust = right.weight.compareTo(left.weight);
+      return byTrust != 0 ? byTrust : left.b.compareTo(right.b);
+    });
   }
 
   final queue = Queue<String>()..add(viewerId);
@@ -78,9 +90,9 @@ List<String>? _findPath({
 
   while (queue.isNotEmpty) {
     final current = queue.removeFirst();
-    final neighbors = adjacent[current]?.toList() ?? const <String>[];
-    neighbors.sort();
-    for (final neighbor in neighbors) {
+    for (final edge
+        in adjacent[current] ?? const <ForwardCandidateGraphEdge>[]) {
+      final neighbor = edge.b;
       if (!visited.add(neighbor)) continue;
       parent[neighbor] = current;
       if (neighbor == candidateId) {
