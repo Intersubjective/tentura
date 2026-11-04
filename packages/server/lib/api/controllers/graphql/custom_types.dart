@@ -11,6 +11,9 @@ final gqlTypeConstellationTrustChainPerson =
 
 List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeFieldHiddenItem,
+  gqlTypePersonFieldItemsPage,
+  gqlTypePersonFieldItem,
+  gqlTypePersonFieldCounts,
   gqlTypeFieldSearchResult,
   gqlTypeFieldSearchPerson,
   gqlTypeFieldSearchRequest,
@@ -2427,3 +2430,31 @@ final gqlTypeFieldSearchResult = GraphQLObjectType('FieldSearchResult', null)
     field('requests', GraphQLListType(gqlTypeFieldSearchRequest.nonNullable())),
     field('posts', GraphQLListType(gqlTypeFieldSearchPost.nonNullable())),
   ]);
+
+final gqlTypePersonFieldItem = GraphQLObjectType('PersonFieldItem', null)
+  ..fields.addAll([
+    field('id', graphQLString.nonNullable()),
+    field('kind', graphQLInt.nonNullable()),
+    field('authorId', graphQLString.nonNullable()),
+    field('title', graphQLString.nonNullable()),
+    field('rootExcerpt', graphQLString.nonNullable()),
+    field('status', graphQLInt.nonNullable()),
+    field('hidden', graphQLBoolean.nonNullable()),
+    field('lastActivityAt', graphQLString.nonNullable()),
+    field('expiresAt', graphQLString),
+  ]);
+
+final gqlTypePersonFieldCounts = GraphQLObjectType('PersonFieldCounts', null)
+  ..fields.addAll([
+    field('active', graphQLInt.nonNullable()),
+    field('closed', graphQLInt.nonNullable()),
+    field('hidden', graphQLInt.nonNullable()),
+  ]);
+
+final gqlTypePersonFieldItemsPage =
+    GraphQLObjectType('PersonFieldItemsPage', null)
+      ..fields.addAll([
+        field('items', GraphQLListType(gqlTypePersonFieldItem.nonNullable())),
+        field('nextCursor', graphQLString),
+        field('counts', gqlTypePersonFieldCounts.nonNullable()),
+      ]);

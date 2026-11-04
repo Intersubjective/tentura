@@ -28,6 +28,7 @@ import 'query_forward_candidate_context.dart';
 import 'query_forward_graph.dart';
 import 'query_field_hidden_items.dart';
 import 'query_field_search.dart';
+import 'query_person_field_items.dart';
 import 'query_forward_inbound.dart';
 import 'query_forward_reasons.dart';
 import 'query_invite_genealogy.dart';
@@ -75,6 +76,7 @@ List<GraphQLObjectField<dynamic, dynamic>> get queriesAll => [
   ...QueryForwardGraph().all,
   ...QueryFieldHiddenItems().all,
   ...QueryFieldSearch().all,
+  ...QueryPersonFieldItems().all,
   ...QueryForwardInbound().all,
   ...QueryForwardReasons().all,
   ...QueryMutualFriends().all,

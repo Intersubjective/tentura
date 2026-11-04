@@ -2,6 +2,7 @@ import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/entity/field_hidden_item.dart';
 import 'package:tentura_server/domain/entity/field_search_result.dart';
+import 'package:tentura_server/domain/entity/person_field_items_page.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/field_visibility_repository_port.dart';
 
@@ -23,6 +24,21 @@ final class FieldVisibilityRepository implements FieldVisibilityRepositoryPort {
     viewerId: viewerId,
     context: context,
     words: words,
+  );
+
+  @override
+  Future<PersonFieldItemsPage> personItems({
+    required String viewerId,
+    required String personId,
+    required PersonFieldBucket bucket,
+    required List<String> words,
+    PersonFieldCursor? cursor,
+  }) => FieldSearchReader(_database).readPersonItems(
+    viewerId: viewerId,
+    personId: personId,
+    bucket: bucket,
+    words: words,
+    cursor: cursor,
   );
 
   @override

@@ -3,6 +3,8 @@ import 'package:postgres/postgres.dart' show Type, TypedValue;
 import 'package:tentura_server/consts/constellation_consts.dart';
 import 'package:tentura_server/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura_server/domain/entity/field_search_result.dart';
+import 'package:tentura_server/domain/entity/field_hidden_item.dart';
+import 'package:tentura_server/domain/entity/person_field_items_page.dart';
 
 import '../database/tentura_db.dart';
 import 'constellation_field_repository.dart';
@@ -14,6 +16,110 @@ final class FieldSearchReader {
   const FieldSearchReader(this._database);
 
   final TenturaDb _database;
+
+  Future<PersonFieldItemsPage> readPersonItems({
+    required String viewerId,
+    required String personId,
+    required PersonFieldBucket bucket,
+    required List<String> words,
+    PersonFieldCursor? cursor,
+  }) => _database.withConnectionScope(
+    () async {
+      await _database
+          .customSelect(
+            r'SELECT public.person_visible_peer_ids_tx($1, $2)',
+            variables: [Variable.withString(viewerId), Variable.withString('')],
+          )
+          .get();
+      return _database.withReadSnapshot(() async {
+        await _database.freezeVisibilityMemo();
+        final rows = await _database
+            .customSelect(
+              '''
+WITH candidates AS MATERIALIZED (
+  SELECT b.id, b.user_id AS author_id, b.kind::int, b.title, b.status::int,
+    $constellationLastActivitySql AS activity_at, b.expires_at,
+    left(COALESCE(root.body, ''), $kConstellationPostExcerptLength) AS root_excerpt
+  FROM public.beacon b
+  LEFT JOIN public.beacon_room_message root
+    ON root.id = b.post_root_message_id AND root.beacon_id = b.id
+  WHERE b.user_id = \$2 AND b.published_at IS NOT NULL
+    AND NOT public.block_hides(\$1, b.user_id)
+    AND ((b.kind = 0 AND b.status IN (0, 5, 6, 7, 8))
+      OR (b.kind = 1 AND b.status IN (0, 6)))
+    AND ${_matches("CASE WHEN b.kind = 0 THEN b.title ELSE left(COALESCE(root.body, ''), $kConstellationPostExcerptLength) END")}
+), readable AS MATERIALIZED (
+  SELECT public.beacon_readable_ids(\$1, ARRAY(SELECT id FROM candidates)) AS id
+), bucketed AS MATERIALIZED (
+  SELECT c.*, NOT public.field_item_visible(\$1, c.kind, c.id) AS hidden,
+    CASE WHEN NOT public.field_item_visible(\$1, c.kind, c.id) THEN 'hidden'
+      WHEN (c.kind = 0 AND c.status IN (5, 6))
+        OR (c.kind = 1 AND (c.status = 6 OR c.expires_at <= now())) THEN 'closed'
+      ELSE 'active' END AS bucket
+  FROM candidates c WHERE c.id IN (SELECT id FROM readable)
+), totals AS (
+  SELECT count(*) FILTER (WHERE bucket = 'active')::int AS active_count,
+    count(*) FILTER (WHERE bucket = 'closed')::int AS closed_count,
+    count(*) FILTER (WHERE bucket = 'hidden')::int AS hidden_count
+  FROM bucketed
+), page AS (
+  SELECT * FROM bucketed
+  WHERE bucket = \$4 AND (\$5::timestamptz IS NULL
+    OR (activity_at, id) < (\$5::timestamptz, \$6::text))
+  ORDER BY activity_at DESC, id DESC LIMIT 21
+)
+SELECT totals.*, page.id, page.author_id, page.kind, page.title, page.status,
+  page.root_excerpt, page.hidden, page.activity_at::text AS activity_at,
+  page.expires_at::text AS expires_at
+FROM totals LEFT JOIN page ON true
+ORDER BY page.activity_at DESC, page.id DESC
+''',
+              variables: [
+                Variable.withString(viewerId),
+                Variable.withString(personId),
+                Variable(TypedValue(Type.textArray, words)),
+                Variable.withString(bucket.name),
+                Variable<String>(cursor?.activityAt.toUtc().toIso8601String()),
+                Variable<String>(cursor?.id),
+              ],
+            )
+            .get();
+        final items = <PersonFieldItem>[
+          for (final row in rows)
+            if (row.readNullable<String>('id') case final String id)
+              (
+                id: id,
+                kind: FieldTargetKind.parse(row.read<int>('kind')),
+                authorId: row.read<String>('author_id'),
+                title: row.read<String>('title'),
+                rootExcerpt: row.read<String>('root_excerpt'),
+                status: row.read<int>('status'),
+                hidden: row.read<bool>('hidden'),
+                lastActivityAt: DateTime.parse(
+                  row.read<String>('activity_at'),
+                ).toUtc(),
+                expiresAt: switch (row.readNullable<String>('expires_at')) {
+                  final String at => DateTime.parse(at).toUtc(),
+                  null => null,
+                },
+              ),
+        ];
+        final page = items.take(20).toList();
+        return (
+          items: page,
+          nextCursor: items.length > page.length
+              ? (activityAt: page.last.lastActivityAt, id: page.last.id)
+              : null,
+          counts: (
+            active: rows.first.read<int>('active_count'),
+            closed: rows.first.read<int>('closed_count'),
+            hidden: rows.first.read<int>('hidden_count'),
+          ),
+        );
+      });
+    },
+    actorUserId: viewerId,
+  );
 
   Future<FieldSearchResult> read({
     required String viewerId,

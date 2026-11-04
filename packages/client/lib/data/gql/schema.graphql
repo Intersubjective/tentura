@@ -4760,6 +4760,7 @@ input polling_variant_stream_cursor_value_input {
 }
 
 type query_root {
+  personFieldItems(personId: String!, bucket: String!, query: String, cursor: String): v2_PersonFieldItemsPage!
   fieldSearch(query: String!, context: String!): v2_FieldSearchResult!
   fieldHiddenItems(cursor: String): [v2_FieldHiddenItem!]
   BeaconLobby(beaconId: String!): v2_BeaconLobby!
@@ -9657,4 +9658,28 @@ type v2_FieldSearchResult {
   people: [v2_FieldSearchPerson!]
   requests: [v2_FieldSearchRequest!]
   posts: [v2_FieldSearchPost!]
+}
+
+type v2_PersonFieldItem {
+  id: String!
+  kind: Int!
+  authorId: String!
+  title: String!
+  rootExcerpt: String!
+  status: Int!
+  hidden: Boolean!
+  lastActivityAt: String!
+  expiresAt: String
+}
+
+type v2_PersonFieldCounts {
+  active: Int!
+  closed: Int!
+  hidden: Int!
+}
+
+type v2_PersonFieldItemsPage {
+  items: [v2_PersonFieldItem!]
+  nextCursor: String
+  counts: v2_PersonFieldCounts!
 }

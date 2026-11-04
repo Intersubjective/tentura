@@ -2,6 +2,7 @@ import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/entity/field_hidden_item.dart';
 import 'package:tentura_server/domain/entity/field_search_result.dart';
+import 'package:tentura_server/domain/entity/person_field_items_page.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/field_visibility_repository_port.dart';
 
@@ -16,27 +17,31 @@ final class FieldVisibilityCase {
     required String query,
     required String context,
   }) {
-    final folded = query
-        .toLowerCase()
-        .replaceAll('ё', 'е')
-        .replaceAll('@', '')
-        .trim();
+    final folded = _fold(query);
     if (viewerId.trim().isEmpty || folded.runes.length < 2) {
       return Future.value(emptyFieldSearchResult);
     }
-    // Match every word, as the client's person matcher does. trim() also
-    // recognizes tabs, newlines and Unicode whitespace between words.
-    final words = folded
-        .split('')
-        .map((character) => character.trim().isEmpty ? ' ' : character)
-        .join()
-        .split(' ')
-        .where((word) => word.isNotEmpty)
-        .toList();
     return _repository.search(
       viewerId: viewerId,
       context: context,
-      words: words,
+      words: _words(folded),
+    );
+  }
+
+  Future<PersonFieldItemsPage> personItems({
+    required String viewerId,
+    required String personId,
+    required PersonFieldBucket bucket,
+    String query = '',
+    PersonFieldCursor? cursor,
+  }) {
+    if (personId.trim().isEmpty) throw IdWrongException(id: personId);
+    return _repository.personItems(
+      viewerId: viewerId,
+      personId: personId,
+      bucket: bucket,
+      words: _words(_fold(query)),
+      cursor: cursor,
     );
   }
 
@@ -60,3 +65,15 @@ final class FieldVisibilityCase {
     DateTime? before,
   }) => _repository.hiddenItems(viewerId: viewerId, before: before);
 }
+
+String _fold(String query) =>
+    query.toLowerCase().replaceAll('ё', 'е').replaceAll('@', '').trim();
+
+// Match every word, including words separated by Unicode whitespace.
+List<String> _words(String folded) => folded
+    .split('')
+    .map((character) => character.trim().isEmpty ? ' ' : character)
+    .join()
+    .split(' ')
+    .where((word) => word.isNotEmpty)
+    .toList();
