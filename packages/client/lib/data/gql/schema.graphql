@@ -8936,6 +8936,7 @@ type v2_user {
   id: String!
   image: v2_image
   is_mutual_friend: Boolean!
+  mutual_since: v2_Date
   my_vote: Int
   scores: [v2_mutual_score!]
   shares_active_context: Boolean
