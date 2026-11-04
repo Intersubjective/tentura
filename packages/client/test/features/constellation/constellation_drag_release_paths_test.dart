@@ -885,6 +885,8 @@ void main() {
 
         final harness = await _mountWithTransitionInFlight(tester);
         final cubit = harness.cubit;
+        cubit.graphController.jumpToNodeId(_freeNodeId);
+        await tester.pump();
         final gesture = await _pickUpFreePerson(tester, harness);
         final frozen = _displayedWithout(cubit, _freeNodeId);
         _expectLaidOut(frozen);

@@ -6,6 +6,7 @@ import 'package:tentura_server/domain/port/author_invite_port.dart';
 
 import '../database/tentura_db.dart';
 import 'beacon_hierarchy_repository.dart';
+import 'attention_dismissible_sql.dart';
 import 'post_lock_repository.dart';
 
 /// `beacon_author_invite` through raw SQL (no Drift table class, plan §0).
@@ -67,7 +68,10 @@ class AuthorInviteRepository implements AuthorInvitePort {
           'JOIN public.beacon b ON b.id = i.beacon_id '
           r'WHERE i.invitee_id = $1 AND i.status = 0 '
           '  AND NOT public.block_hides(i.inviter_id, i.invitee_id) '
-          r'  AND public.beacon_can_read_content(i.beacon_id, $1) '
+          // Pending invites require content access to act on the Request.
+          // Unlike attention outcomes, tombstone-only access must not expose
+          // an actionable invitation to a deleted Request.
+          '  AND ${AttentionDismissibleSql.contentReadability('i')} '
           'ORDER BY i.created_at DESC, i.id DESC',
           variables: [Variable.withString(inviteeId)],
         )

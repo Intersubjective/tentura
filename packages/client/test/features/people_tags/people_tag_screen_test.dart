@@ -23,6 +23,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../../support/fake_clock_port.dart';
 import '../../support/fake_wake_up_port.dart';
+import '../../support/mock_stack_router_scope.dart';
 import '../../support/test_realtime_sync.dart';
 
 const _tag = PersonTag(
@@ -199,8 +200,10 @@ void main() {
         theme: TenturaTheme.light(),
         localizationsDelegates: L10n.localizationsDelegates,
         supportedLocales: L10n.supportedLocales,
-        home: const TenturaResponsiveScope(
-          child: PeopleTagScreen(tagId: 'Ta'),
+        home: wrapWithMockStackRouter(
+          const TenturaResponsiveScope(
+            child: PeopleTagScreen(tagId: 'Ta'),
+          ),
         ),
       ),
     );

@@ -3888,6 +3888,7 @@ type mutation_root {
   complaintCreate(details: String!, email: String!, id: String!, type: String!): Boolean!
   constellationAnchorsApply(ops: [v2_ConstellationAnchorOpInput!]!): v2_ConstellationAnchorsApplyResult!
   constellationAnchorsReset(clientOpId: String!, saveHistory: Boolean): v2_ConstellationAnchorsResetResult!
+  constellationAcknowledgeNew(peerIds: [String!]!): Boolean!
   constellationLayoutSnapshotRestore(clientOpId: String, snapshotId: String): v2_ConstellationLayoutSnapshot!
   constellationTagMagnetRemove(clientOpId: String, tagId: String): Boolean!
   constellationTagMagnetUpsert(clientOpId: String, tagId: String, xUnits: Float!, yUnits: Float!): v2_ConstellationTagMagnet!
@@ -7980,6 +7981,7 @@ type v2_BeaconParticipantRow {
   createdAt: String!
   helpType: String
   id: String!
+  opened: Boolean!
   lastSeenRoomAt: String
   linkedMessageId: String
   nextMoveSource: Int
@@ -8299,8 +8301,9 @@ type v2_ConstellationPeer {
   displayName: String
   handle: String
   id: String!
-  pinState: String
   image: v2_image
+  isNew: Boolean
+  pinState: String
   presence: String!
   temporaryBeaconId: String
   visible: Boolean!
@@ -8457,6 +8460,7 @@ type v2_ForwardCandidateConnectionNode {
 }
 
 type v2_ForwardCandidateContext {
+  candidate_joined_at: v2_Date
   nodes: [v2_ForwardCandidateConnectionNode!]!
   status: String!
 }
@@ -8934,6 +8938,7 @@ type v2_user {
   id: String!
   image: v2_image
   is_mutual_friend: Boolean!
+  mutual_since: v2_Date
   my_vote: Int
   scores: [v2_mutual_score!]
   shares_active_context: Boolean
@@ -9486,6 +9491,12 @@ type v2_PostPublishResult {
   rootMessageId: String!
 }
 
+type v2_PostParticipantPreview {
+  id: String!
+  displayName: String!
+  avatar: String!
+}
+
 type v2_PostSummary {
   id: String!
   authorId: String!
@@ -9502,6 +9513,10 @@ type v2_PostSummary {
   mutedUntil: String
   mutedForever: Boolean!
   unreadCount: Int!
+  participantCount: Int!
+  notOpenedCount: Int!
+  myDeclinedForwardCount: Int!
+  previewParticipants: [v2_PostParticipantPreview!]!
   isAuthor: Boolean!
   status: Int!
   expiresAt: String

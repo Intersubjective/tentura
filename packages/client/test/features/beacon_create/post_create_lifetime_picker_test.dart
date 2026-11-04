@@ -28,6 +28,7 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../support/phone_surface.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'fake_beacon_ports.dart';
 
@@ -263,6 +264,30 @@ void main() {
         gap,
         lessThanOrEqualTo(16),
         reason: 'no other control sits between the hint and the switch',
+      );
+    });
+
+    testWidgets('375×667 RU: reply lifetime hint uses segment label, chip stays separate', (
+      tester,
+    ) async {
+      await usePhoneSurface(tester);
+      await _pumpPostCreate(tester);
+
+      const defaultHint =
+          'Все, кому вы отправите, смогут ответить под постом. '
+          'Срок жизни: 3 дня.';
+      expect(find.text(defaultHint), findsOneWidget);
+      expect(find.textContaining('⏳', findRichText: true), findsOneWidget);
+      expect(defaultHint, isNot(contains('⏳')));
+
+      await tester.tap(find.text('24 часа'));
+      await _settle(tester);
+      expect(
+        find.text(
+          'Все, кому вы отправите, смогут ответить под постом. '
+          'Срок жизни: 24 часа.',
+        ),
+        findsOneWidget,
       );
     });
   });

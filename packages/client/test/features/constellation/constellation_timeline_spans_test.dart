@@ -218,7 +218,7 @@ void main() {
       }
       final drop = cubit.onNewNodeDrop(
         target: ConstellationAnchorTarget.person('am'),
-        sceneCentre: const Offset(2800, 1600),
+        sceneCentre: const Offset(8944, 7744),
       );
       await tester.pump();
       final pendingTrace = await tester.runAsync(service.getVMTimeline);

@@ -1,3 +1,4 @@
+import 'beacon_kind.dart';
 import 'notification_kind.dart';
 
 /// Purpose-based grouping of the raw [NotificationKind]s.
@@ -20,10 +21,18 @@ enum NotificationCategory {
 
   /// Background room hum. Lowest priority.
   ambient,
+
+  /// Posts shared with the account, independently controlled for email.
+  postsSharedWithMe,
 }
 
 /// Single source of truth mapping a raw kind to its semantic category.
-NotificationCategory categoryOf(NotificationKind kind) => switch (kind) {
+NotificationCategory categoryOf(
+  NotificationKind kind, {
+  BeaconKind beaconKind = BeaconKind.request,
+}) => switch (kind) {
+  NotificationKind.newRelay when beaconKind == BeaconKind.post =>
+    NotificationCategory.postsSharedWithMe,
   NotificationKind.needsMe ||
   NotificationKind.staleRemind ||
   NotificationKind.roomAccess => NotificationCategory.asksOfMe,

@@ -1,6 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 import 'notification_category.dart';
+import 'digest_post_content.dart';
 import 'notification_kind.dart';
 import 'notification_priority.dart';
 
@@ -23,8 +24,10 @@ abstract class NotificationOutboxItemEntity
     required DateTime createdAt,
     required int collapsedCount,
     String? beaconId,
+    DigestPostContent? digestPost,
     String? coordinationItemId,
     String? actorUserId,
+    @Default('') String actorDisplayName,
     DateTime? readAt,
     DateTime? seenAt,
     String? sourceEventKey,

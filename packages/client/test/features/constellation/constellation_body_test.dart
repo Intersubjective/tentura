@@ -77,8 +77,8 @@ ConstellationEdgeKind? _edgeKindBetween(
   String srcId,
   String dstId,
 ) {
-  for (final entry in cubit.edgeKinds.entries) {
-    if (entry.key.contains(srcId) && entry.key.contains(dstId)) {
+  for (final entry in cubit.edgeKindByPair.entries) {
+    if (RegExp('^[^:]+:$srcId->[^:]+:$dstId#').hasMatch(entry.key)) {
       return entry.value;
     }
   }
@@ -328,8 +328,12 @@ void main() {
 
       expect(egoEdgeIds(), isEmpty);
       expect(
-        _edgeKindBetween(cubit, 'a', 'b'),
-        ConstellationEdgeKind.tier1Path,
+        cubit.edgeKindByPair.values.where(
+          (kind) =>
+              kind == ConstellationEdgeKind.tier1Path ||
+              kind == ConstellationEdgeKind.tier2Path,
+        ),
+        isEmpty,
       );
 
       cubit.selectPerson('b');

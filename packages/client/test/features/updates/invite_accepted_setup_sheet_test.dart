@@ -157,6 +157,14 @@ void main() {
   }
 
   group('selection and private name', () {
+    testWidgets('shows routing disclosure for the invitee', (tester) async {
+      await pumpAndOpen(tester);
+      expect(
+        find.text(l10n.capabilityTagsDisclosure('Carol')),
+        findsOneWidget,
+      );
+    });
+
     testWidgets('selector is capped at three and Save validates empty choice', (
       tester,
     ) async {

@@ -105,9 +105,11 @@ final class ForwardCandidatesCase extends UseCaseBase {
     return [
       for (final peer in peers)
         if (profiles[peer.peerId] case final profile?)
-          bondPeerIds.contains(peer.peerId)
-              ? _withSharedContext(profile)
-              : profile,
+          _withCandidateContext(
+            profile,
+            sharesActiveContext: bondPeerIds.contains(peer.peerId),
+            mutualSince: peer.mutualSince,
+          ),
     ];
   }
 
@@ -126,19 +128,23 @@ final class ForwardCandidatesCase extends UseCaseBase {
     return 1 - math.min(_maxPingDiscount, sum);
   }
 
-  static UserPublicRecord _withSharedContext(UserPublicRecord u) =>
-      UserPublicRecord(
-        id: u.id,
-        displayName: u.displayName,
-        description: u.description,
-        handle: u.handle,
-        myVote: u.myVote,
-        isMutualFriend: u.isMutualFriend,
-        subjectExplicitlyTrustsViewer: u.subjectExplicitlyTrustsViewer,
-        sharesActiveContext: true,
-        image: u.image,
-        scores: u.scores,
-        userPresence: u.userPresence,
-        userAvailability: u.userAvailability,
-      );
+  static UserPublicRecord _withCandidateContext(
+    UserPublicRecord u, {
+    required bool sharesActiveContext,
+    required DateTime? mutualSince,
+  }) => UserPublicRecord(
+    id: u.id,
+    displayName: u.displayName,
+    description: u.description,
+    handle: u.handle,
+    myVote: u.myVote,
+    isMutualFriend: u.isMutualFriend,
+    subjectExplicitlyTrustsViewer: u.subjectExplicitlyTrustsViewer,
+    sharesActiveContext: sharesActiveContext,
+    mutualSince: mutualSince,
+    image: u.image,
+    scores: u.scores,
+    userPresence: u.userPresence,
+    userAvailability: u.userAvailability,
+  );
 }

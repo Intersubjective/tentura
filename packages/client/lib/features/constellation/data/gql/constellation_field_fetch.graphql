@@ -27,6 +27,7 @@ query ConstellationFieldFetch(
       }
       displayName
       handle
+      isNew
       image {
         ...ImageModelV2
       }
@@ -99,6 +100,7 @@ query ConstellationFieldFetch(
         }
         displayName
         handle
+        isNew
         image {
           ...ImageModelV2
         }

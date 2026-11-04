@@ -24,6 +24,7 @@ abstract class ForwardCandidate with _$ForwardCandidate {
     String? lineageReasonCode,
     String? lineageReasonArg,
     @Default(false) bool lineageAutoSelect,
+    DateTime? mutualSince,
   }) = _ForwardCandidate;
 
   const ForwardCandidate._();

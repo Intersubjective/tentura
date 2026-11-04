@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:tentura_root/utils/attachment_mime.dart';
 import 'package:tentura_root/utils/infer_image_mime_from_bytes.dart';
 
 import 'package:tentura/data/repository/clipboard_image_repository.dart';
@@ -87,24 +88,6 @@ mixin PendingAttachmentsMixin<T extends StatefulWidget> on State<T> {
     onPendingUploadsChanged();
   }
 
-  static String _mimeFromExtension(String ext) {
-    switch (ext.toLowerCase()) {
-      case 'pdf':
-        return 'application/pdf';
-      case 'png':
-        return 'image/png';
-      case 'jpg':
-      case 'jpeg':
-        return 'image/jpeg';
-      case 'webp':
-        return 'image/webp';
-      case 'txt':
-        return 'text/plain';
-      default:
-        return 'application/octet-stream';
-    }
-  }
-
   /// file_picker 12 dropped `PlatformFile.extension`; derive from `name`.
   static String? _extensionFromFileName(String name) {
     final dot = name.lastIndexOf('.');
@@ -186,10 +169,9 @@ mixin PendingAttachmentsMixin<T extends StatefulWidget> on State<T> {
         break;
       }
       final bytes = await pf.readAsBytes();
-      final ext = _extensionFromFileName(pf.name);
-      var mime = ext != null && ext.isNotEmpty
-          ? _mimeFromExtension(ext)
-          : 'application/octet-stream';
+      var mime = attachmentMimeFromExtension(
+        _extensionFromFileName(pf.name) ?? '',
+      );
       final sniffed = inferImageMimeFromLeadingBytes(bytes);
       if (sniffed != null) {
         mime = sniffed;

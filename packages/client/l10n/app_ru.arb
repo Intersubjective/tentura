@@ -1310,6 +1310,29 @@
       }
     }
   },
+  "constellationMorePosts": "{count, plural, one{ещё {count} пост} few{ещё {count} поста} many{ещё {count} постов} other{ещё {count} постов}}",
+  "@constellationMorePosts": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "constellationFewerPosts": "Свернуть посты",
+  "@constellationFewerPosts": {
+    "context": "ConstellationOverflowGroup"
+  },
+  "constellationMorePostsByAuthor": "{count, plural, one{Ещё {count} пост от {name}} few{Ещё {count} поста от {name}} many{Ещё {count} постов от {name}} other{Ещё {count} поста от {name}}}",
+  "@constellationMorePostsByAuthor": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "constellationIncludeUnspecified": "Включать запросы без навыка или даты",
   "@constellationIncludeUnspecified": {
     "context": "ConstellationFilterBar"
@@ -2119,6 +2142,7 @@
   "notificationCatAsksOfMeDesc": "Ждут вашего ответа; вы блокируете других",
   "notificationCatUnblocksMe": "Разблокировки",
   "notificationCatUnblocksMeDesc": "Обновления, позволяющие двигаться дальше",
+  "notificationCatPostsSharedWithMe": "Посты, которыми поделились со мной",
   "notificationCatCoordination": "Координация",
   "notificationCatCoordinationDesc": "Активность в обсуждениях запросов, где вы участвуете, включая @упоминания",
   "notificationCatConnections": "Связи",
@@ -3679,6 +3703,7 @@
   "beaconRoomWaitingForApproval": "Ожидает решения",
   "beaconRoomNoAdmission": "Нет доступа к обсуждению",
   "beaconRoomEmptyState": "Сообщений пока нет. Здесь вы и помощники договариваетесь.",
+  "postRoomEmptyReplies": "Ответов пока нет",
   "withdrawCantDoIt": "Больше не могу",
   "withdrawTimingChanged": "Не сходится по времени",
   "withdrawWrongFit": "Не мой формат",
@@ -4578,7 +4603,23 @@
   "profileEyeTrustNote": "Доверие — ваш собственный выбор. Глаз показывает итог: он может открыться и без прямого доверия — через тех, кому вы доверяете.",
   "profileMyLabelsLine": "Вы связываете с этим человеком: {tags}",
   "profileMarkCapabilities": "Отметить, чем помогает {name}",
-  "profileEditLabels": "Изменить метки",
+  "profileYourTagsFor": "Ваши теги для {name}",
+  "@profileYourTagsFor": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "capabilityTagsDisclosure": "Теги, которые вы ставите, помогают другим находить {name} для запросов. Никто не видит, кто какую метку поставил.",
+  "@capabilityTagsDisclosure": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "profileEditLabels": "Изменить",
   "profileLabelsInfoTitle": "Метки об этом человеке",
   "profileLabelsInfoPrivate": "Заметки с замком видите только вы: по ним Tentura подсказывает вам этого человека при пересылке.",
   "profileLabelsInfoShared": "Метки с людьми — из ваших пересылок и отметок о помощи. Их видит {name}, и они помогают людям, которые вам доверяют, найти этого человека для похожих запросов.",
@@ -5605,6 +5646,11 @@
   "postConversationAddressed": "{author} · вам",
   "postConversationForwarded": "{author} · через {sender}",
   "postConversationMuted": "Звук выключен",
+  "postConversationOnlyYou": "Только вы",
+  "postConversationPeople": "{count, plural, one{1 человек} few{{count} человека} many{{count} человек} other{{count} человека}}",
+  "postConversationNotOpened": "{count, plural, one{1 не открыл} few{{count} не открыли} many{{count} не открыли} other{{count} не открыли}}",
+  "postConversationDeclined": "{count, plural, one{1 отказался} few{{count} отказались} many{{count} отказались} other{{count} отказались}}",
+  "postConversationParticipantsSemantics": "Участники поста",
   "postMenuParticipants": "Участники",
   "postMenuAllowForwarding": "Разрешить пересылку",
   "postMenuDelete": "Удалить пост",
@@ -5702,7 +5748,7 @@
   "postCreateLifetime3d": "3 дня",
   "postCreateLifetimeHint": "Потом пост уйдёт в архив. Продлить нельзя, сократить можно.",
   "postCreateTextHint": "О чём ваш пост?",
-  "postCreateReplyLifetimeHint": "Все, кому вы отправите, смогут ответить под постом. Он проживёт до {lifetime}.",
+  "postCreateReplyLifetimeHint": "Все, кому вы отправите, смогут ответить под постом. Срок жизни: {lifetime}.",
   "@postCreateReplyLifetimeHint": {
     "placeholders": {
       "lifetime": {
@@ -6360,6 +6406,9 @@
   "graphLegendConstellationWiderNetworkReachHint": "Вы и этот человек видите друг друга через сеть доверия, но «Поле» не может показать путь между вами.",
   "ratingColumnsInfoLabel": "Что значат эти числа",
   "forwardSectionDirectContacts": "Ваши связи",
+  "forwardSectionNewMutual": "Новые",
+  "forwardSectionNewMutualHint": "Взаимное доверие за последнюю неделю",
+  "forwardSectionNewMutualSelectAll": "Выбрать все",
   "forwardSectionOthersReachable": "Другие, кому можно отправить",
   "forwardSectionOthersReachableHint": "Не ваши прямые связи: вы видите друг друга через сеть доверия или общий запрос.",
   "beaconPublishWithoutSendingDiscoverableHint": "Его могут найти в «Поле» те, кто видит вас. Напрямую его никто не получит, пока вы его не отправите.",
@@ -6433,6 +6482,10 @@
   "constellationTrustContactOnlyHint": "Вы доверяете этому человеку, но вы пока не видите друг друга через сеть доверия, поэтому на поле — только его имя и фото.",
   "constellationPresenceOnline": "Сейчас в сети",
   "constellationPresenceOnlineHint": "Мягкое зелёное свечение вокруг друга значит, что он сейчас в сети.",
+  "constellationFieldNewChip": "Новый",
+  "constellationFieldNewLegend": "Новый на вашем поле",
+  "constellationFieldNewLegendHint": "Человек, который появился на вашем поле за последнюю неделю и которого вы ещё не открывали.",
+  "constellationFieldNewSemantics": "{name}, новый на вашем поле",
   "constellationTrustChainThrough": "Через: {chain}",
   "constellationTrustChainNone": "Ни одна видимая вам цепочка доверия не ведёт к этому человеку.",
   "constellationTrustChainHidden": "Среди показанных людей нет цепочки доверия к этому человеку. Часть людей скрыта.",
@@ -6562,6 +6615,11 @@
   "peopleTagsColorViolet": "Фиолетовый",
   "peopleTagsColorPink": "Розовый",
   "constellationTagRowAdd": "+ Тег",
+  "constellationTagAllTags": "Все теги",
+  "constellationTagAllTagsSelected": "Все теги, выбрано: {count}",
+  "constellationTagsSection": "Теги",
+  "constellationTagsSheetTitle": "Теги",
+  "constellationTagsManage": "Управлять тегами",
   "constellationTagModeOr": "Любой из них",
   "constellationTagModeAnd": "Все сразу",
   "constellationAutoTagMutualContact": "Взаимный контакт",
@@ -6570,6 +6628,8 @@
   "constellationNodeOwnTagsSemantics": "теги: {names}",
   "constellationNodeAutoTagsSemantics": "автоматические: {names}",
   "peopleTagsYourTags": "Ваши теги",
+  "peopleTagsPersonChipSemantics": "{name}, тег",
+  "peopleTagsAutoChipSemantics": "{name}, автоматический тег",
   "peopleTagsAutomatic": "Автоматически",
   "peopleTagsAutoHelpedMe": "Помогали мне",
   "peopleTagsAutoIHelped": "Я помогал",

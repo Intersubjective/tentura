@@ -59,7 +59,11 @@ class NotificationSettingsScreen extends StatelessWidget
                   children: [
                     _SectionHeader(label: l10n.notificationSettingsPush),
                     const NotificationPermissionDeviceTile(),
-                    for (final c in NotificationSettingsCategory.values)
+                    for (final c in NotificationSettingsCategory.values.where(
+                      (category) =>
+                          category !=
+                          NotificationSettingsCategory.postsSharedWithMe,
+                    ))
                       SwitchListTile(
                         title: Text(_categoryLabel(l10n, c)),
                         subtitle: Text(_categoryDesc(l10n, c)),
@@ -149,6 +153,8 @@ class NotificationSettingsScreen extends StatelessWidget
       l10n.notificationCatCoordination,
     NotificationSettingsCategory.connections => l10n.notificationCatConnections,
     NotificationSettingsCategory.ambient => l10n.notificationCatAmbient,
+    NotificationSettingsCategory.postsSharedWithMe =>
+      l10n.notificationCatPostsSharedWithMe,
   };
 
   static String _categoryDesc(L10n l10n, NotificationSettingsCategory c) =>
@@ -162,6 +168,8 @@ class NotificationSettingsScreen extends StatelessWidget
         NotificationSettingsCategory.connections =>
           l10n.notificationCatConnectionsDesc,
         NotificationSettingsCategory.ambient => l10n.notificationCatAmbientDesc,
+        NotificationSettingsCategory.postsSharedWithMe =>
+          l10n.notificationCatPostsSharedWithMe,
       };
 
   static String _digestLabel(L10n l10n, NotificationDigestCadence c) =>

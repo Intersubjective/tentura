@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/post_view/ui/post_remaining_label.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/relative_time.dart';
 import 'package:tentura/ui/widget/relative_timestamp_ticker.dart';
 
 import '../../domain/entity/post_summary.dart';
+import 'post_conversation_participants_copy.dart';
 
 /// One Post in «Разговоры» (M2): who, the root excerpt, the last message.
 class PostConversationRow extends StatelessWidget {
@@ -14,6 +16,7 @@ class PostConversationRow extends StatelessWidget {
     required this.post,
     required this.now,
     required this.onOpen,
+    this.onOpenParticipants,
     this.selected = false,
     super.key,
   });
@@ -26,6 +29,9 @@ class PostConversationRow extends StatelessWidget {
   final DateTime now;
 
   final VoidCallback onOpen;
+
+  /// Opens «О посте» at participants (#899); defaults to [onOpen] when null.
+  final VoidCallback? onOpenParticipants;
 
   /// Open in the list-detail pane beside the list (Material 3 list-detail).
   final bool selected;
@@ -56,12 +62,19 @@ class PostConversationRow extends StatelessWidget {
     final lastMessageText = post.lastMessageIsRoot ? '' : lastMessage;
     final muted = post.isMutedAt(now);
     final lifetime = _lifetimeMarker(l10n);
+    final participantsLine = postConversationShowsParticipantsLine(post)
+        ? postConversationParticipantsLine(l10n, post)
+        : null;
+    final previewProfiles = [
+      for (final peer in post.previewParticipants) peer.toProfile(),
+    ];
 
     return Semantics(
       label: [
         addressing,
         ?lifetime,
         post.rootExcerpt,
+        ?participantsLine,
         if (lastMessageText.isNotEmpty) lastMessageText,
       ].join(', '),
       selected: selected,
@@ -97,7 +110,7 @@ class PostConversationRow extends StatelessWidget {
                             ),
                           ),
                           if (lifetime != null) ...[
-                            SizedBox(width: tt.tightGap),
+                            SizedBox(width: tt.iconTextGap),
                             TenturaStatusText(
                               lifetime,
                               key: const Key('PostConversation.Lifetime'),
@@ -121,6 +134,14 @@ class PostConversationRow extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TenturaText.bodyMedium(tt.text),
+                        ),
+                      ],
+                      if (participantsLine != null) ...[
+                        SizedBox(height: tt.tightGap),
+                        _ParticipantsLine(
+                          line: participantsLine,
+                          profiles: previewProfiles,
+                          onTap: onOpenParticipants ?? onOpen,
                         ),
                       ],
                       if (lastMessage.isNotEmpty)
@@ -168,6 +189,57 @@ class PostConversationRow extends StatelessWidget {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Key for the tappable participants line under a Post row (#899).
+const postConversationParticipantsKey = Key('PostConversation.Participants');
+
+class _ParticipantsLine extends StatelessWidget {
+  const _ParticipantsLine({
+    required this.line,
+    required this.profiles,
+    required this.onTap,
+  });
+
+  static const lineKey = postConversationParticipantsKey;
+
+  final String line;
+  final List<Profile> profiles;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final tt = context.tt;
+    final l10n = L10n.of(context)!;
+    return Semantics(
+      button: true,
+      label: '${l10n.postConversationParticipantsSemantics}: $line',
+      child: InkWell(
+        key: lineKey,
+        onTap: onTap,
+        child: Row(
+          children: [
+            if (profiles.isNotEmpty) ...[
+              TenturaAvatarStack(
+                profiles: profiles,
+                max: 4,
+                sizeBucket: TenturaAvatarSize.tiny,
+              ),
+              SizedBox(width: tt.iconTextGap),
+            ],
+            Expanded(
+              child: Text(
+                line,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TenturaText.bodySmall(tt.textMuted),
+              ),
+            ),
+          ],
         ),
       ),
     );

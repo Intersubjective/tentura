@@ -12,6 +12,7 @@ export 'components/tentura_circular_progress.dart';
 export 'components/tentura_change_highlight.dart';
 export 'components/tentura_confirm_dialog.dart';
 export 'components/tentura_empty_state.dart';
+export 'components/tentura_edge_faded_row.dart';
 export 'components/tentura_focus_ring.dart';
 export 'components/tentura_identity_tile_frame.dart';
 export 'components/tentura_list_detail_layout.dart';

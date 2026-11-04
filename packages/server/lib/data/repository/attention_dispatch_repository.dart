@@ -424,6 +424,7 @@ WHERE target.job_id IS NULL''',
       recipientReasons: recipient.reasons,
       role: role,
       actorDisplayName: intent.actorDisplayName,
+      beaconKind: intent.beaconKind,
     );
     final collapseKey = recipient.collapseKey ?? intent.collapseKey;
     return (

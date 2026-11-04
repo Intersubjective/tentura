@@ -3,6 +3,8 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/coordination/withdraw_reason.dart';
 import 'package:tentura_server/domain/entity/notification_category.dart';
+import 'package:tentura_server/domain/entity/beacon_kind.dart';
+import 'package:tentura_server/domain/entity/notification_kind.dart';
 
 /// Recipient-specific projection policy. Every output is persisted so reads do
 /// not reconstruct event-time role or relationship state.
@@ -15,6 +17,7 @@ class AttentionPolicy {
     required Set<AttentionRecipientReason> recipientReasons,
     required AttentionRecipientRoleFacts role,
     String? actorDisplayName,
+    BeaconKind beaconKind = BeaconKind.request,
   }) {
     AttentionEventTypeCatalog.assertDeclared(eventType);
 
@@ -48,7 +51,7 @@ class AttentionPolicy {
     );
 
     return AttentionReceiptProjection(
-      category: _category(eventType, suppression),
+      category: _category(eventType, suppression, beaconKind),
       suppressionClass: suppression,
       inAppPreferenceClass: preference,
       accessPolicy: accessPolicy,
@@ -147,7 +150,12 @@ class AttentionPolicy {
   NotificationCategory _category(
     AttentionEventType eventType,
     AttentionSuppressionClass suppression,
+    BeaconKind beaconKind,
   ) => switch (eventType) {
+    AttentionEventType.relayReceived => categoryOf(
+      NotificationKind.newRelay,
+      beaconKind: beaconKind,
+    ),
     AttentionEventType.helpOfferSubmitted ||
     AttentionEventType.offerAccepted ||
     AttentionEventType.offerDeclined ||
@@ -162,7 +170,6 @@ class AttentionPolicy {
     AttentionEventType.commitmentRedirected => NotificationCategory.asksOfMe,
     AttentionEventType.mutualConnectionFormed ||
     AttentionEventType.inviteAccepted => NotificationCategory.connections,
-    AttentionEventType.relayReceived ||
     AttentionEventType.roomMessagePosted ||
     AttentionEventType.postFirstResponse ||
     AttentionEventType.postExpiringSoon ||

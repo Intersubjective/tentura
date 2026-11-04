@@ -11,7 +11,6 @@ import 'package:tentura/domain/entity/post_people.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_state.dart';
-import 'package:tentura/features/profile_view/ui/bloc/profile_view_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
@@ -27,14 +26,12 @@ Future<PostAction?> showPostInfoSheet(
   BuildContext context, {
   required PostViewCubit cubit,
   required ThreadHostCubit host,
-  ProfileViewCubit Function(String id)? profileViewCubitFactory,
   bool scrollToParticipants = false,
 }) => showTenturaAdaptiveSheet<PostAction>(
   context: context,
   builder: (_) => PostInfoSheet(
     cubit: cubit,
     host: host,
-    profileViewCubitFactory: profileViewCubitFactory,
     scrollToParticipants: scrollToParticipants,
   ),
 );
@@ -43,7 +40,6 @@ class PostInfoSheet extends StatelessWidget {
   const PostInfoSheet({
     required this.cubit,
     required this.host,
-    this.profileViewCubitFactory,
     this.scrollToParticipants = false,
     super.key,
   });
@@ -60,7 +56,6 @@ class PostInfoSheet extends StatelessWidget {
   /// Watched, not snapshotted: the room may still be opening when the sheet
   /// is, and its participants and the Leave action appear once it has.
   final ThreadHostCubit host;
-  final ProfileViewCubit Function(String id)? profileViewCubitFactory;
 
   @override
   Widget build(BuildContext context) =>
@@ -246,7 +241,6 @@ class PostInfoSheet extends StatelessWidget {
                 // «Позвать» opens the invite dialog itself (#715).
                 onInvite: canForward ? () => pick(PostAction.invite) : null,
                 onForwardsGraph: () => pick(PostAction.forwardsGraph),
-                profileViewCubitFactory: profileViewCubitFactory,
               ),
             ),
             const Divider(height: 1),

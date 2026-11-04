@@ -104,5 +104,26 @@ void main() {
       expect(find.byKey(const Key('PostRootPinCard.expanded')), findsOneWidget);
       expect(find.textContaining('⏳', findRichText: true), findsWidgets);
     });
+
+    testWidgets('375×667 RU: empty discussion shows «Ответов пока нет»', (
+      tester,
+    ) async {
+      await usePhoneSurface(tester);
+      await pumpBeaconRoomBody(
+        tester,
+        roomState: postRoomState(messages: [rootMessage()]),
+        capabilities: const RoomCapabilities.post(),
+        postRoot: const RoomPostRootPin(messageId: rootId, excerpt: rootText),
+        postExpiresAt: expiresAt,
+        postNow: postNow,
+        beaconAuthorId: author.id,
+        beaconAuthor: author,
+        locale: const Locale('ru'),
+      );
+      await pumpUntilViewportDone(tester);
+
+      expect(find.text('Ответов пока нет'), findsOneWidget);
+      expect(find.textContaining('помощники договариваетесь'), findsNothing);
+    });
   });
 }

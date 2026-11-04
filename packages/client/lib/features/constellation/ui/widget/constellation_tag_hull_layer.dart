@@ -9,15 +9,20 @@ import 'package:tentura/features/people_tags/domain/entity/people_tags_entities.
 /// Scene-space margin the hull keeps around the nodes it encloses.
 const kConstellationTagHullPadding = 56.0;
 
-const _hullAlpha = 0.18;
+const _hullAlphaUnselected = 0.18;
+const _hullAlphaSelected = 0.32;
+const _hullOutlineWidth = 1.0;
 
-/// A soft hull around the Field people of every selected own tag: the
-/// padded convex hull of their nodes in the tag's colour. Sits in the scene
-/// beneath the nodes; reads positions only and never moves a node.
+/// A soft hull around the Field people of every own tag that has someone on
+/// the map: the padded convex hull of their nodes in the tag's colour.
+/// Selected tags are drawn brighter with a thin outline and on top. Sits in
+/// the scene beneath the nodes; reads positions only and never moves a node.
+/// Automatic tags never get a hull (callers pass own tags only).
 class ConstellationTagHullLayer extends StatelessWidget {
   const ConstellationTagHullLayer({
     required this.controller,
     required this.tags,
+    required this.selectedTagIds,
     required this.peopleOf,
     super.key,
   });
@@ -27,8 +32,11 @@ class ConstellationTagHullLayer extends StatelessWidget {
 
   final GraphController<NodeDetails, EdgeDetails> controller;
 
-  /// The selected own tags, in tag order.
+  /// Own tags that have at least one person on the Field, in tag order.
   final List<PersonTag> tags;
+
+  /// Own tags currently selected in the lens; hulls for these ids highlight.
+  final Set<String> selectedTagIds;
 
   /// Ids of the people in the own tag with the given id.
   final Set<String> Function(String tagId) peopleOf;
@@ -38,20 +46,33 @@ class ConstellationTagHullLayer extends StatelessWidget {
     final swatches = Theme.of(
       context,
     ).extension<TenturaTagColors>()!.swatches;
+    final paintOrder = [
+      for (final tag in tags)
+        if (!selectedTagIds.contains(tag.id)) tag,
+      for (final tag in tags)
+        if (selectedTagIds.contains(tag.id)) tag,
+    ];
     return IgnorePointer(
       child: AnimatedBuilder(
         animation: controller,
         builder: (_, _) => Stack(
           fit: StackFit.expand,
           children: [
-            for (final tag in tags)
+            for (final tag in paintOrder)
               if (_centres(tag.id) case final centres when centres.isNotEmpty)
                 CustomPaint(
                   key: hullKey(tag.id),
                   painter: _HullPainter(
                     centres: centres,
-                    color: swatches[tag.color % swatches.length].accent
-                        .withValues(alpha: _hullAlpha),
+                    fillColor: swatches[tag.color % swatches.length].accent
+                        .withValues(
+                          alpha: selectedTagIds.contains(tag.id)
+                              ? _hullAlphaSelected
+                              : _hullAlphaUnselected,
+                        ),
+                    outlineColor: selectedTagIds.contains(tag.id)
+                        ? swatches[tag.color % swatches.length].accent
+                        : null,
                   ),
                 ),
           ],
@@ -67,10 +88,15 @@ class ConstellationTagHullLayer extends StatelessWidget {
 }
 
 class _HullPainter extends CustomPainter {
-  const _HullPainter({required this.centres, required this.color});
+  const _HullPainter({
+    required this.centres,
+    required this.fillColor,
+    this.outlineColor,
+  });
 
   final List<Offset> centres;
-  final Color color;
+  final Color fillColor;
+  final Color? outlineColor;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -82,22 +108,34 @@ class _HullPainter extends CustomPainter {
         Path()..addOval(Rect.fromCircle(center: centre, radius: _padding)),
       );
     }
-    final outline = _convexHull(centres);
-    if (outline.length > 2) {
+    final ring = _convexHull(centres);
+    if (ring.length > 2) {
       hull = Path.combine(
         PathOperation.union,
         hull,
-        Path()..addPolygon(outline, true),
+        Path()..addPolygon(ring, true),
       );
     }
-    canvas.drawPath(hull, Paint()..color = color);
+    canvas.drawPath(hull, Paint()..color = fillColor);
+    final stroke = outlineColor;
+    if (stroke != null) {
+      canvas.drawPath(
+        hull,
+        Paint()
+          ..color = stroke
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = _hullOutlineWidth,
+      );
+    }
   }
 
   static const _padding = kConstellationTagHullPadding;
 
   @override
   bool shouldRepaint(_HullPainter old) =>
-      old.color != color || !_sameCentres(old.centres);
+      old.fillColor != fillColor ||
+      old.outlineColor != outlineColor ||
+      !_sameCentres(old.centres);
 
   bool _sameCentres(List<Offset> other) {
     if (other.length != centres.length) return false;

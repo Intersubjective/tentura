@@ -9,6 +9,7 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/lazy_write_notice.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/env.dart';
+import 'package:tentura/features/constellation/domain/constellation_consts.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_anchor_repository_port.dart';
@@ -72,7 +73,7 @@ ConstellationAnchorRevision _revision(int value) =>
     ConstellationAnchorRevision(BigInt.from(value));
 
 /// Canvas centre and one envelope unit in scene pixels (10 units = 1700 px).
-const _centre = 2048.0;
+const _centre = kConstellationCanvasCentre;
 const _unit = 170.0;
 
 /// The anchor store of the server: applies batches.

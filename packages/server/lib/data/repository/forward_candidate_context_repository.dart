@@ -43,12 +43,20 @@ final class ForwardCandidateContextRepository
       final src = row.readNullable<String>('src');
       final dst = row.readNullable<String>('dst');
       if (src == null || dst == null) continue;
-      edges.add(ForwardCandidateGraphEdge(src, dst));
+      edges.add(
+        ForwardCandidateGraphEdge(src, dst, weight: row.read<double>('weight')),
+      );
       _readPerson(row, 'src', people);
       _readPerson(row, 'dst', people);
     }
     return ForwardCandidateGraphSnapshot(
       candidateEligible: true,
+      candidateJoinedAt: switch (rows.first.readNullable<String>(
+        'candidate_joined_at',
+      )) {
+        final joined? => DateTime.parse(joined).toUtc(),
+        null => null,
+      },
       edges: edges,
       people: people,
     );

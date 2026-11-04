@@ -64,10 +64,12 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeRoomMessageCreatePayload,
   gqlTypePostPublishResult,
   gqlTypePostSummary,
+  gqlTypePostParticipantPreview,
   gqlTypeRoomMessageQuotedFact,
   gqlTypeRoomMessageRow,
   gqlTypeBeaconRoomStateRow,
   gqlTypeBeaconParticipantRow,
+  gqlTypeParticipantBroughtBy,
   gqlTypeRoomReadWatermark,
   gqlTypeBeaconUpdateReader,
   gqlTypeBeaconFactCardRow,
@@ -629,6 +631,13 @@ final gqlTypeBeaconRoomStateRow = GraphQLObjectType('BeaconRoomStateRow', null)
     field('currentLineRevision', graphQLInt.nonNullable()),
   ]);
 
+final gqlTypeParticipantBroughtBy =
+    GraphQLObjectType('ParticipantBroughtBy', null)
+      ..fields.addAll([
+        field('userId', graphQLString.nonNullable()),
+        field('displayName', graphQLString.nonNullable()),
+      ]);
+
 /// Participant row for BeaconParticipantList (selection via V2 only).
 final gqlTypeBeaconParticipantRow =
     GraphQLObjectType('BeaconParticipantRow', null)
@@ -643,6 +652,9 @@ final gqlTypeBeaconParticipantRow =
         field('userBlurHash', graphQLString.nonNullable()),
         field('userImageId', graphQLString.nonNullable()),
         field('userHandle', graphQLString),
+        field('broughtById', graphQLString),
+        field('broughtBy', gqlTypeParticipantBroughtBy),
+        field('broughtHow', graphQLString),
         field('role', graphQLInt.nonNullable()),
         field('status', graphQLInt.nonNullable()),
         field('roomAccess', graphQLInt.nonNullable()),
@@ -651,6 +663,7 @@ final gqlTypeBeaconParticipantRow =
         field('nextMoveStatus', graphQLInt),
         field('nextMoveSource', graphQLInt),
         field('linkedMessageId', graphQLString),
+        field('opened', graphQLBoolean.nonNullable()),
         field('lastSeenRoomAt', graphQLString),
         field('helpType', graphQLString),
         field('roleLabel', graphQLString),
@@ -990,6 +1003,7 @@ final gqlTypeForwardCandidateContext =
         null,
       )
       ..fields.addAll([
+        field('candidate_joined_at', graphQLDate),
         field('status', graphQLString.nonNullable()),
         field(
           'nodes',
@@ -1016,6 +1030,8 @@ final gqlTypeConstellationPeer =
         // the viewer's visible set; identity only, no handle, and no edge
         // but the viewer's own.
         field('contactOnly', graphQLBoolean.nonNullable()),
+        // Deleted-person tombstones carry identity only, with no New flag.
+        field('isNew', graphQLBoolean),
         field('presence', graphQLString.nonNullable()),
         field('temporaryBeaconId', graphQLString),
         field(
@@ -1410,6 +1426,7 @@ final gqlTypeUserPublic = GraphQLObjectType('user', null)
     field('is_mutual_friend', graphQLBoolean.nonNullable()),
     field('trusts_viewer', graphQLBoolean.nonNullable()),
     field('shares_active_context', graphQLBoolean),
+    field('mutual_since', graphQLDate),
     field('image', gqlTypeImagePublic),
     field(
       'scores',
@@ -2087,6 +2104,14 @@ final gqlTypeClosureToggleResult = GraphQLObjectType(
 )..fields.add(field('released', graphQLString));
 
 /// Open or closed Post conversation preview for the authenticated viewer.
+final gqlTypePostParticipantPreview =
+    GraphQLObjectType('PostParticipantPreview', null)
+      ..fields.addAll([
+        field('id', graphQLString.nonNullable()),
+        field('displayName', graphQLString.nonNullable()),
+        field('avatar', graphQLString.nonNullable()),
+      ]);
+
 final gqlTypePostSummary = GraphQLObjectType('PostSummary', null)
   ..fields.addAll([
     field('id', graphQLString.nonNullable()),
@@ -2105,6 +2130,15 @@ final gqlTypePostSummary = GraphQLObjectType('PostSummary', null)
     field('mutedUntil', graphQLString),
     field('mutedForever', graphQLBoolean.nonNullable()),
     field('unreadCount', graphQLInt.nonNullable()),
+    field('participantCount', graphQLInt.nonNullable()),
+    field('notOpenedCount', graphQLInt.nonNullable()),
+    field('myDeclinedForwardCount', graphQLInt.nonNullable()),
+    field(
+      'previewParticipants',
+      GraphQLListType(
+        gqlTypePostParticipantPreview.nonNullable(),
+      ).nonNullable(),
+    ),
     field('isAuthor', graphQLBoolean.nonNullable()),
     // `beacon.status` smallint: 0 open, 6 closed by budding.
     field('status', graphQLInt.nonNullable()),

@@ -253,8 +253,7 @@ Set<ConstellationAutoTagKind>? _patchedAutoTagKinds(
     if (peer.id != relation.personId || peer.contactOnly) continue;
     final old = peer.autoTagKinds;
     final iTrust =
-        relation.viewerTrusts ??
-        old.contains(ConstellationAutoTagKind.iTrust);
+        relation.viewerTrusts ?? old.contains(ConstellationAutoTagKind.iTrust);
     final trustsMe =
         relation.trustsViewer ??
         old.contains(ConstellationAutoTagKind.trustsMe);
@@ -338,3 +337,61 @@ bool _sameEdges(
 
 bool _sameIds(List<String> a, List<String> b) =>
     a.length == b.length && a.toSet().containsAll(b);
+
+List<ConstellationPerson> _clearNewFlags(
+  List<ConstellationPerson> source,
+  Set<String> peerIds,
+) {
+  var changed = false;
+  final out = <ConstellationPerson>[];
+  for (final person in source) {
+    if (peerIds.contains(person.id) && person.isNew) {
+      changed = true;
+      out.add(person.copyWith(isNew: false));
+    } else {
+      out.add(person);
+    }
+  }
+  return changed ? out : source;
+}
+
+/// Clears [peerIds]' «new on your Field» flags after the viewer opens them.
+ConstellationField patchAcknowledgedNew(
+  ConstellationField field,
+  Iterable<String> peerIds,
+) {
+  final ids = peerIds.toSet();
+  if (ids.isEmpty) {
+    return field;
+  }
+  final peers = _clearNewFlags(field.peers, ids);
+  final projection = field.resolvedAnchorProjection;
+  final pinnedPeers = _clearNewFlags(projection.pinnedPeers, ids);
+  final supportPeers = _clearNewFlags(projection.supportPeers, ids);
+  if (identical(peers, field.peers) &&
+      identical(pinnedPeers, projection.pinnedPeers) &&
+      identical(supportPeers, projection.supportPeers)) {
+    return field;
+  }
+  return field.copyWith(
+    peers: identical(peers, field.peers) ? field.peers : peers,
+    anchorProjection:
+        !identical(pinnedPeers, projection.pinnedPeers) ||
+            !identical(supportPeers, projection.supportPeers)
+        ? ConstellationAnchorProjection(
+            revision: projection.revision,
+            anchors: projection.anchors,
+            pinnedPeers: identical(pinnedPeers, projection.pinnedPeers)
+                ? projection.pinnedPeers
+                : pinnedPeers,
+            pinnedRequests: projection.pinnedRequests,
+            supportPeers: identical(supportPeers, projection.supportPeers)
+                ? projection.supportPeers
+                : supportPeers,
+            supportEdges: projection.supportEdges,
+            serverFilteredBeaconIds: projection.serverFilteredBeaconIds,
+            serverFilteredBeaconCount: projection.serverFilteredBeaconCount,
+          )
+        : field.anchorProjection,
+  );
+}

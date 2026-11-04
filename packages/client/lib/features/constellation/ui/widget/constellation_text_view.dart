@@ -96,9 +96,13 @@ class _ConstellationTextViewState extends State<ConstellationTextView> {
           if (cubit.isSatelliteOverflowExpanded(authorId) &&
               _announcedOverflowAuthors.add(authorId)) {
             SemanticsService.announce(
-              L10n.of(context)!.constellationMoreRequests(
-                cubit.overflowHiddenCountByAuthor[authorId] ?? 0,
-              ),
+              constellationOverflowChipCopy(
+                cubit: cubit,
+                authorId: authorId,
+                hiddenCount: cubit.overflowHiddenCountByAuthor[authorId] ?? 0,
+                expanded: true,
+                l10n: L10n.of(context)!,
+              ).chipLabel,
               TextDirection.ltr,
             );
           }
@@ -413,7 +417,7 @@ class _PersonRequestGroup extends StatelessWidget {
     final tt = context.tt;
     final authorId = person.id;
     final profile = cubit.profileForPersonId(authorId);
-    final displayName = person.name;
+    final shownName = profile?.shownName ?? person.name;
 
     final eligible = cubit.discoverableRequestsForPerson(authorId);
     final visibleIds = cubit.isSatelliteOverflowExpanded(authorId)
@@ -429,7 +433,7 @@ class _PersonRequestGroup extends StatelessWidget {
     return Semantics(
       container: true,
       header: true,
-      label: displayName,
+      label: shownName,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         key: Key('constellation.text.person.$authorId'),
@@ -438,6 +442,7 @@ class _PersonRequestGroup extends StatelessWidget {
             person: person,
             profile: profile,
             selected: selectedPersonId == authorId,
+            isNewOnField: cubit.fieldPersonById(authorId)?.isNew ?? false,
             onTap: person.isViewer ? null : () => cubit.selectPerson(authorId),
           ),
           if (person.contactOnly)
@@ -476,7 +481,7 @@ class _PersonRequestGroup extends StatelessWidget {
                 alignment: Alignment.centerLeft,
                 child: ConstellationOverflowGroup(
                   authorId: authorId,
-                  authorName: displayName,
+                  authorName: shownName,
                   hiddenCount: hiddenCount,
                 ),
               ),
@@ -512,22 +517,30 @@ class _PersonRow extends StatelessWidget {
     required this.person,
     required this.profile,
     required this.selected,
+    required this.isNewOnField,
     required this.onTap,
   });
 
   final ConstellationFieldPerson person;
   final Profile? profile;
   final bool selected;
+  final bool isNewOnField;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final tt = context.tt;
     final theme = Theme.of(context);
+    final l10n = L10n.of(context)!;
     final profile = this.profile;
     return Semantics(
       button: onTap != null,
       selected: selected,
+      label: isNewOnField
+          ? l10n.constellationFieldNewSemantics(
+              profile?.shownName ?? person.name,
+            )
+          : null,
       child: Material(
         type: MaterialType.transparency,
         child: InkWell(
@@ -544,13 +557,21 @@ class _PersonRow extends StatelessWidget {
                 ],
                 Expanded(
                   child: Text(
-                    person.name,
+                    profile?.shownName ?? person.name,
                     style: theme.textTheme.titleSmall?.copyWith(
                       color: selected ? theme.colorScheme.primary : null,
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
+                if (isNewOnField) ...[
+                  SizedBox(width: tt.avatarTextGap),
+                  TenturaStatusText(
+                    l10n.constellationFieldNewChip,
+                    tone: TenturaTone.info,
+                    key: Key('constellation.text.new_chip.${person.id}'),
+                  ),
+                ],
               ],
             ),
           ),

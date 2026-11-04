@@ -586,7 +586,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                     child: Padding(
                       padding: EdgeInsets.all(context.tt.screenHPadding),
                       child: Text(
-                        l10n.beaconRoomEmptyState,
+                        l10n.postRoomEmptyReplies,
                         textAlign: TextAlign.center,
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: Theme.of(context).colorScheme.onSurfaceVariant,

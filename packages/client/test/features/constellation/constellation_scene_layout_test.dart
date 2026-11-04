@@ -176,7 +176,7 @@ void main() {
       );
       final farPrevious = sceneLayoutFromPositions({
         tenturaGraphNodeId(egoNode): first[tenturaGraphNodeId(egoNode)]!,
-        tenturaGraphNodeId(peerNode): ScenePoint(x: 500, y: 500),
+        tenturaGraphNodeId(peerNode): ScenePoint(x: 6644, y: 6644),
       });
       final keptFar = await layoutPositionsOnce(
         algorithm,
@@ -192,10 +192,10 @@ void main() {
         previous: farPrevious,
         canvasSize: const Size(4200, 4200),
       );
-      expect(keptFar[tenturaGraphNodeId(peerNode)]!.x, closeTo(500, 1));
+      expect(keptFar[tenturaGraphNodeId(peerNode)]!.x, closeTo(6644, 1));
       expect(
         forgotFar[tenturaGraphNodeId(peerNode)]!.x,
-        isNot(closeTo(500, 1)),
+        isNot(closeTo(6644, 1)),
       );
     });
 

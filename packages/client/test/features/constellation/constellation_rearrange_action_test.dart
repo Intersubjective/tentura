@@ -517,7 +517,7 @@ Future<void> _placeTwoNodes(
 ) async {
   await cubit.onNewNodeDrop(
     target: ConstellationAnchorTarget.person('p1'),
-    sceneCentre: const Offset(2100, 2100),
+    sceneCentre: const Offset(8244, 8244),
   );
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 50));

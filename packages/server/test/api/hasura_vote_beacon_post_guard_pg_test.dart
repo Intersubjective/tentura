@@ -27,10 +27,7 @@ Future<void> main() async {
     test('Postgres unavailable', () {}, skip: skip);
     return;
   }
-  if (!await IsolatedHasuraSession.isDockerAvailable()) {
-    test('Docker unavailable', () {}, skip: 'Docker not available');
-    return;
-  }
+  final dockerReachable = await IsolatedHasuraSession.isDockerAvailable();
 
   group('Hasura user voting respects the Post archive', () {
     late DisposablePgWriterSession session;
@@ -144,7 +141,7 @@ mutation {
         expect(await storedAmount(), 1);
       },
     );
-  });
+  }, skip: dockerReachable ? false : 'Docker not available');
 }
 
 final class _UnusedUserRepository implements UserRepositoryPort {

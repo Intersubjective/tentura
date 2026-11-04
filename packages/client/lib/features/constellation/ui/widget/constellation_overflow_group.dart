@@ -58,6 +58,63 @@ Size _measureChip(
   return Size(width, height);
 }
 
+/// Hidden satellite ids for [authorId] that the label budget did not draw.
+({int posts, int requests}) constellationOverflowHiddenSatelliteBreakdown(
+  ConstellationCubit cubit,
+  String authorId,
+) {
+  final plan = cubit.state.composition?.labelPlan;
+  if (plan == null) return (posts: 0, requests: 0);
+  final allIds = plan.layoutRequestsByAuthor[authorId] ?? const [];
+  var posts = 0;
+  var requests = 0;
+  for (final id in allIds) {
+    if (cubit.displayedRequestIds.contains(id)) continue;
+    if (cubit.isPostId(id)) {
+      posts++;
+    } else {
+      requests++;
+    }
+  }
+  return (posts: posts, requests: requests);
+}
+
+/// Visible chip label and accessibility label for an author's overflow control.
+({String chipLabel, String semanticsLabel}) constellationOverflowChipCopy({
+  required ConstellationCubit cubit,
+  required String authorId,
+  required int hiddenCount,
+  required bool expanded,
+  required L10n l10n,
+  String? authorName,
+}) {
+  final name = authorName ?? authorId;
+  final breakdown = constellationOverflowHiddenSatelliteBreakdown(
+    cubit,
+    authorId,
+  );
+  final postsOnly = breakdown.posts > 0 && breakdown.requests == 0;
+  if (expanded) {
+    final chipLabel = postsOnly
+        ? l10n.constellationFewerPosts
+        : l10n.constellationFewerRequests;
+    return (
+      chipLabel: chipLabel,
+      semanticsLabel: '$chipLabel, $name',
+    );
+  }
+  if (postsOnly) {
+    return (
+      chipLabel: l10n.constellationMorePosts(hiddenCount),
+      semanticsLabel: l10n.constellationMorePostsByAuthor(hiddenCount, name),
+    );
+  }
+  return (
+    chipLabel: l10n.constellationMoreRequests(hiddenCount),
+    semanticsLabel: l10n.constellationMoreRequestsByAuthor(hiddenCount, name),
+  );
+}
+
 /// Labelled expansion control for a person's request satellites hidden by the
 /// label budget. A secondary tap on the author node may toggle the same state.
 class ConstellationOverflowGroup extends StatefulWidget {
@@ -122,12 +179,16 @@ class _ConstellationOverflowGroupState
     final l10n = L10n.of(context)!;
     final tt = context.tt;
     final theme = Theme.of(context);
-    final label = expanded
-        ? l10n.constellationFewerRequests
-        : l10n.constellationMoreRequests(hiddenCount);
-    final semanticsLabel = expanded
-        ? '${l10n.constellationFewerRequests}, $authorName'
-        : l10n.constellationMoreRequestsByAuthor(hiddenCount, authorName);
+    final copy = constellationOverflowChipCopy(
+      cubit: cubit,
+      authorId: authorId,
+      hiddenCount: hiddenCount,
+      expanded: expanded,
+      l10n: l10n,
+      authorName: authorName,
+    );
+    final label = copy.chipLabel;
+    final semanticsLabel = copy.semanticsLabel;
     final chipSize = constellationOverflowChipSize(context, label);
 
     return Semantics(

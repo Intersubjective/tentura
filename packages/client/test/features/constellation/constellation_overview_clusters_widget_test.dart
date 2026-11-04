@@ -9,13 +9,13 @@ import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart'
 import 'package:tentura/features/constellation/ui/utils/constellation_presentation_frame.dart';
 import 'package:tentura/features/constellation/ui/utils/constellation_tap_resolver.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
-import 'package:tentura/features/constellation/ui/widget/constellation_overview_layer.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_viewport_overlay.dart';
 import 'package:tentura/features/people_tags/domain/entity/people_tags_entities.dart';
 import 'package:tentura/features/people_tags/domain/use_case/people_tags_case.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
 import '../../support/fake_people_tags_repository.dart';
+import '../../support/phone_surface.dart';
 import 'fixtures/constellation_reference_fixture.dart';
 
 const _neighbours = PersonTag(
@@ -46,7 +46,6 @@ Map<String, Offset> _positions() {
   var person = 0;
   for (var cell = 0; cell < _counts.length; cell++) {
     for (var i = 0; i < _counts[cell]; i++) {
-      // Balanced jitter: no dot is the cluster centre; all remain in its cell.
       result['p${person++}'] =
           _centres[cell] + Offset(i.isEven ? -3 : 3, i % 4 < 2 ? -3 : 3);
     }
@@ -76,19 +75,23 @@ List<PersonTagMembers> _memberships({bool tied = false}) => [
 void _expectNoClusterCountLabels(WidgetTester tester) {
   expect(
     find.descendant(
-      of: find.byType(ConstellationOverviewLayer),
-      matching: find.byType(Text),
-    ),
-    findsNothing,
-    reason: 'overview must not paint cluster population labels',
-  );
-  expect(
-    find.descendant(
       of: find.byType(ConstellationViewportOverlay),
       matching: find.textContaining(RegExp(r'people|чел\.')),
     ),
     findsNothing,
   );
+}
+
+bool _isEgoToCellBundleStroke(_Stroke stroke) {
+  if ((stroke.source - _ego).distance > 25) {
+    return false;
+  }
+  for (final centre in _centres) {
+    if ((stroke.target - centre).distance < 25) {
+      return true;
+    }
+  }
+  return false;
 }
 
 final class _Overview {
@@ -102,19 +105,16 @@ final class _Overview {
   static Future<_Overview> mount(
     WidgetTester tester, {
     bool tagged = true,
-    bool tied = false,
-    bool reversed = false,
+    Size size = const Size(1200, 900),
+    Locale locale = const Locale('en'),
+    double targetScale = 0.4,
+    bool zoomToMinimum = false,
   }) async {
-    final members = tagged ? _memberships(tied: tied) : <PersonTagMembers>[];
+    final members = tagged ? _memberships() : <PersonTagMembers>[];
     final rig = await PeopleTagsTestRig.create(
       FakePeopleTagsRepository(
-        tagList: reversed ? [_workshop, _neighbours] : [_neighbours, _workshop],
-        memberList: reversed
-            ? [
-                for (final m in members.reversed)
-                  m.copyWith(personIds: m.personIds.reversed.toList()),
-              ]
-            : members,
+        tagList: [_neighbours, _workshop],
+        memberList: members,
       ),
     );
     GetIt.I.registerSingleton<PeopleTagsCase>(rig.peopleTags);
@@ -126,14 +126,10 @@ final class _Overview {
     final field = ConstellationField(
       loadedAt: DateTime.utc(2026, 10, 25),
       context: '',
-      peers: reversed ? peers.reversed.toList() : peers,
-      // Direct contacts and pins are already outside the render cap: this
-      // exercises 400 real dots without enabling the later cap-raising unit.
+      peers: peers,
       directContactIds: [for (final p in peers) p.id],
       edges: [
         const ConstellationTrustEdgeEntity(src: 'ego', dst: 'p0', tier: 1),
-        // A branching tree ensures the current renderer has per-peer edges
-        // to replace. Overview bundles must originate at ego, not this hub.
         for (var i = 1; i < 400; i++)
           ConstellationTrustEdgeEntity(src: 'p0', dst: 'p$i', tier: 1),
       ],
@@ -171,21 +167,28 @@ final class _Overview {
     await pumpConstellationBody(
       tester,
       cubit,
-      size: const Size(1200, 900),
-      locale: const Locale('en'),
+      size: size,
+      locale: locale,
       presentationFrameHolder: holder,
       disableAnimations: true,
     );
     await tester.pumpAndSettle();
-    cubit.graphController.zoomBy(0.4 / cubit.graphController.cameraScale);
-    await tester.pumpAndSettle();
+    final controller = cubit.graphController;
+    if (zoomToMinimum) {
+      for (var i = 0; i < 80; i++) {
+        controller.zoomBy(0.9);
+        await tester.pump();
+      }
+      await tester.pumpAndSettle();
+    } else {
+      controller.zoomBy(targetScale / controller.cameraScale);
+      await tester.pumpAndSettle();
+    }
     await result.place(tester, _positions());
     return result;
   }
 
   Future<void> place(WidgetTester tester, Map<String, Offset> positions) async {
-    // Real presentation overrides put the actual painter in its live layer,
-    // so its Canvas calls can be inspected rather than opaque cached Pictures.
     final controller = cubit.graphController..clearAllPresentationPositions();
     for (final entry in {'ego': _ego, ...positions}.entries) {
       controller.beginNodePresentationDragForId(
@@ -211,17 +214,8 @@ final class _Overview {
   }
 }
 
-Rect _cellAt(Offset centre) => Rect.fromLTWH(
-  (centre.dx / 72).floor() * 72,
-  (centre.dy / 72).floor() * 72,
-  72,
-  72,
-);
-
 typedef _Stroke = ({Offset source, Offset target, double width});
 
-/// Records geometry from the mounted widget's CustomPainters. No screenshots,
-/// golden comparison, or separately constructed domain bundle model is used.
 final class _StrokeCanvas implements Canvas {
   _StrokeCanvas(this.outer, this.origin) {
     _canvas = Canvas(_recorder);
@@ -307,60 +301,92 @@ List<_Stroke> _paintedStrokes(WidgetTester tester) {
 
 void main() {
   group('Overview screen-grid presentation', () {
+    testWidgets('at overview zoom paints no ego-to-cell bundle strokes', (
+      tester,
+    ) async {
+      await _Overview.mount(tester);
+      final bundleStrokes = _paintedStrokes(
+        tester,
+      ).where(_isEgoToCellBundleStroke);
+      expect(
+        bundleStrokes,
+        isEmpty,
+        reason: 'overview must not draw ego-to-cell edge bundles',
+      );
+    });
+
+    testWidgets('overview still draws people as fixed-size dots', (
+      tester,
+    ) async {
+      final overview = await _Overview.mount(tester);
+      final sample = ['fp:p0', 'fp:p50', 'fp:p399'];
+      for (final id in sample) {
+        final body = overview.frame.bodies[id]!;
+        expect(body.width, closeTo(5, 0.01), reason: id);
+        expect(body.height, closeTo(5, 0.01), reason: id);
+      }
+    });
+
     testWidgets(
-      'the mounted overview paints one ego-to-cell stroke instead of per-person edges',
+      'district zoom paints trust edges only for the selected person',
       (tester) async {
-        await _Overview.mount(tester);
+        final overview = await _Overview.mount(tester);
+        expect(
+          _paintedStrokes(tester).where(_isEgoToCellBundleStroke),
+          isEmpty,
+        );
+        overview.cubit.graphController.zoomBy(
+          kConstellationDistrictDetailScale /
+              overview.cubit.graphController.cameraScale *
+              1.05,
+        );
+        await tester.pumpAndSettle();
+        expect(
+          overview.holder.frame!.detail,
+          ConstellationDetailLevel.district,
+        );
+        expect(
+          _paintedStrokes(tester),
+          isEmpty,
+          reason: 'without a selection, district draws no trust path strokes',
+        );
+
+        overview.cubit.selectPerson('p0');
+        await tester.pumpAndSettle();
+
         final strokes = _paintedStrokes(tester);
         expect(
           strokes,
-          hasLength(4),
-          reason: '400 peer edges must collapse into four cell bundles',
+          isNotEmpty,
+          reason: 'district paints the selected person trust connections',
         );
-        for (final centre in _centres) {
-          final bundle = strokes.singleWhere(
-            (s) => _cellAt(centre).contains(s.target),
-          );
-          expect(
-            (bundle.source - _ego).distance,
-            lessThan(20),
-            reason: 'every bundle starts at ego, allowing the marker inset',
-          );
-          expect(
-            (bundle.target - centre).distance,
-            lessThan(20),
-            reason: 'bundles end at the cluster rather than a distant peer',
-          );
-        }
+        expect(strokes.where(_isEgoToCellBundleStroke), isEmpty);
       },
     );
 
     testWidgets(
-      'painted overview widths are proportional to each cell population',
-      (tester) async {
-        await _Overview.mount(tester);
-        final strokes = _paintedStrokes(tester);
-        final widths = <double>[];
-        for (final centre in _centres) {
-          final cell = strokes
-              .where((s) => _cellAt(centre).contains(s.target))
-              .toList();
-          expect(
-            cell,
-            isNotEmpty,
-            reason: 'each populated cell must receive an edge',
-          );
-          widths.add(cell.first.width);
-        }
-        expect(widths.first, greaterThan(0));
-        for (var i = 1; i < widths.length; i++) {
-          expect(
-            widths[i] / widths.first,
-            closeTo(_counts[i] / _counts.first, 0.01),
-            reason:
-                'stroke width must encode people count, not the per-peer edge style',
-          );
-        }
+      '375×667 RU at minimum zoom: overview dots, no bundle strokes',
+      (
+        tester,
+      ) async {
+        await usePhoneSurface(tester);
+        final overview = await _Overview.mount(
+          tester,
+          size: kPhoneSurface,
+          locale: const Locale('ru'),
+          zoomToMinimum: true,
+        );
+        expect(
+          overview.cubit.graphController.cameraScale,
+          lessThan(kConstellationDistrictDetailScale),
+        );
+        expect(overview.frame.detail, ConstellationDetailLevel.overview);
+        expect(
+          _paintedStrokes(tester).where(_isEgoToCellBundleStroke),
+          isEmpty,
+        );
+        expect(overview.frame.bodies['fp:p0']!.width, closeTo(5, 0.01));
+        _expectNoClusterCountLabels(tester);
       },
     );
   });

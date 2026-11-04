@@ -12,6 +12,7 @@ import 'package:tentura/domain/util/availability_presets.dart';
 import 'package:tentura/ui/model/person_action_policy.dart';
 import 'package:tentura/ui/utils/availability_line.dart';
 import 'package:tentura/ui/utils/capability_tag_presenter.dart';
+import 'package:tentura/features/capability/ui/widget/capability_tag_chip.dart';
 import 'package:tentura/ui/utils/profile_presence_line.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/show_more_text.dart';
@@ -30,7 +31,6 @@ import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import '../../domain/port/person_shared_context_port.dart';
 import '../bloc/profile_view_cubit.dart';
 import '../dialog/edit_capabilities_dialog.dart';
-import 'edit_seed_suggestion_section.dart';
 import 'mutual_friends_button.dart';
 import 'profile_info_sheet.dart';
 import 'seen_helping_with_strip.dart';
@@ -137,7 +137,6 @@ class ProfileViewBody extends StatelessWidget {
                   ),
                 ],
                 const _SeenHelpingWithSection(),
-                _EditSeedSuggestionSection(profile: profile),
                 _ProfileCapabilitySection(profile: profile),
                 if (peopleTagsEnabled && !isSelf && profile.id.isNotEmpty)
                   Padding(
@@ -420,58 +419,10 @@ class _ProfileSecondaryActions extends StatelessWidget {
   }
 }
 
-class _EditSeedSuggestionSection extends StatelessWidget {
-  const _EditSeedSuggestionSection({required this.profile});
-
-  final Profile profile;
-
-  @override
-  Widget build(BuildContext context) {
-    final myId = context.read<ProfileCubit>().state.profile.id;
-    if (profile.id.isEmpty || profile.id == myId) {
-      return const SizedBox.shrink();
-    }
-    return EditSeedSuggestionSection(profile: profile);
-  }
-}
-
-class _SeenHelpingWithSection extends StatelessWidget {
-  const _SeenHelpingWithSection();
-
-  @override
-  Widget build(BuildContext context) {
-    return BlocSelector<ProfileViewCubit, ProfileViewState, bool>(
-      selector: (state) => state.subjectiveTags.isNotEmpty,
-      builder: (context, showStrip) {
-        if (!showStrip) return const SizedBox.shrink();
-        return BlocSelector<
-          ProfileViewCubit,
-          ProfileViewState,
-          List<TagProjection>
-        >(
-          selector: (state) => state.subjectiveTags,
-          builder: (context, subjectiveTags) => Padding(
-            padding: kPaddingSmallT,
-            child: SeenHelpingWithStrip(projections: subjectiveTags),
-          ),
-        );
-      },
-    );
-  }
-}
-
-/// Capability labels the viewer links with a friend (#134): one compact
-/// line. Each label carries its source: 🔒 the viewer's own note (only they
-/// see it) or 👥 from forwards / help acknowledgements (the subject sees it
-/// and it feeds suggestions for people who trust the viewer). The
-/// explanation sits behind ⓘ.
 class _ProfileCapabilitySection extends StatelessWidget {
   const _ProfileCapabilitySection({required this.profile});
 
   final Profile profile;
-
-  static const _privateIcon = Icons.lock_outline;
-  static const _sharedIcon = Icons.group_outlined;
 
   void _edit(BuildContext context, List<CapabilityWithSource> viewerVisible) {
     final cubit = context.read<ProfileViewCubit>();
@@ -499,47 +450,11 @@ class _ProfileCapabilitySection extends StatelessWidget {
     );
   }
 
-  static String _labelOf(L10n l10n, CapabilityWithSource c) =>
-      CapabilityTag.fromSlug(c.slug)?.labelOf(l10n) ?? c.slug;
-
-  InlineSpan _labelsSpan(
-    BuildContext context,
-    L10n l10n,
-    List<CapabilityWithSource> viewerVisible,
-  ) {
-    final theme = Theme.of(context);
-    final tt = context.tt;
-    final iconSize = theme.textTheme.bodySmall?.fontSize ?? tt.iconSize;
-    final prefix = l10n.profileMyLabelsLine('');
-    return TextSpan(
-      children: [
-        TextSpan(text: prefix),
-        for (final (i, c) in viewerVisible.indexed) ...[
-          if (i > 0) const TextSpan(text: ', '),
-          WidgetSpan(
-            alignment: PlaceholderAlignment.middle,
-            child: Tooltip(
-              message: c.hasManualLabel
-                  ? l10n.profileLabelPrivate
-                  : l10n.profileLabelShared,
-              child: Icon(
-                c.hasManualLabel ? _privateIcon : _sharedIcon,
-                size: iconSize,
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ),
-          TextSpan(
-            text: ' ${CapabilityTag.fromSlug(c.slug)?.labelOf(l10n) ?? c.slug}',
-          ),
-        ],
-      ],
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
+    final theme = Theme.of(context);
+    final tt = context.tt;
     return BlocSelector<
       ProfileViewCubit,
       ProfileViewState,
@@ -552,45 +467,70 @@ class _ProfileCapabilitySection extends StatelessWidget {
         final isSelf = profile.id == myId;
         if (isSelf || !isFriend) return const SizedBox.shrink();
         final name = profile.shownName;
-        final isEmpty = viewerVisible.isEmpty;
-        // Its own semantics node: what follows the section (the tags block)
-        // must not be read as part of it.
-        return Semantics(
-          container: true,
-          child: ProfileFactRow(
-            icon: Icons.label_outline,
-            text: isEmpty
-                ? l10n.profileMarkCapabilities(name)
-                : l10n.profileMyLabelsLine(
-                    viewerVisible.map((c) => _labelOf(l10n, c)).join(', '),
+        return Padding(
+          padding: kPaddingSmallT,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      l10n.profileYourTagsFor(name),
+                      style: theme.textTheme.titleSmall,
+                    ),
                   ),
-            richText: isEmpty
-                ? null
-                : _labelsSpan(context, l10n, viewerVisible),
-            onTextTap: () => _edit(context, viewerVisible),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  onPressed: () => _edit(context, viewerVisible),
-                  tooltip: l10n.profileEditLabels,
-                  icon: Icon(isEmpty ? Icons.add : Icons.edit_outlined),
-                ),
-                IconButton(
-                  onPressed: () => showProfileInfoSheet(
-                    context,
-                    title: l10n.profileLabelsInfoTitle,
-                    lines: [
-                      l10n.profileLabelsInfoPrivate,
-                      l10n.profileLabelsInfoShared(name),
-                    ],
-                    lineIcons: const [_privateIcon, _sharedIcon],
+                  TextButton(
+                    onPressed: () => _edit(context, viewerVisible),
+                    child: Text(l10n.profileEditLabels),
                   ),
-                  tooltip: l10n.profileLabelsInfoTitle,
-                  icon: const Icon(Icons.info_outline),
+                ],
+              ),
+              if (viewerVisible.isNotEmpty) ...[
+                SizedBox(height: tt.tightGap),
+                Wrap(
+                  spacing: tt.tightGap,
+                  runSpacing: tt.tightGap,
+                  children: [
+                    for (final c in viewerVisible)
+                      if (CapabilityTag.fromSlug(c.slug) case final tag?)
+                        CapabilityTagFilterChip(
+                          tag: tag,
+                          l10n: l10n,
+                          theme: theme,
+                          selected: true,
+                          isAutomatic: !c.hasManualLabel,
+                          onSelected: null,
+                        ),
+                  ],
                 ),
               ],
-            ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _SeenHelpingWithSection extends StatelessWidget {
+  const _SeenHelpingWithSection();
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocSelector<ProfileViewCubit, ProfileViewState, bool>(
+      selector: (state) => state.subjectiveTags.isNotEmpty,
+      builder: (context, showStrip) {
+        if (!showStrip) return const SizedBox.shrink();
+        return BlocSelector<
+          ProfileViewCubit,
+          ProfileViewState,
+          List<TagProjection>
+        >(
+          selector: (state) => state.subjectiveTags,
+          builder: (context, subjectiveTags) => Padding(
+            padding: kPaddingSmallT,
+            child: SeenHelpingWithStrip(projections: subjectiveTags),
           ),
         );
       },

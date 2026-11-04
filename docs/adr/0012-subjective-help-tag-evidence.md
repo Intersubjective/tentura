@@ -31,7 +31,7 @@ Related: user→user trust storage was restructured in m0122; see
 | **D2** | **`commitRole` (source_type 2) is dropped as evidence entirely.** Events keep being written for audit only. Superseded in scope by D18: excluded from *every* projection, self-view included. |
 | **D3** | **Forward ranking uses a reserved context band** above the untouched MR-ordered list — 3 evidence slots + 2 exploration slots. Tag evidence can never reorder the main list. |
 | **D4** | **Subject control is a per-tag routing mute.** Aggregate view, no witness names, no counts. Muting suppresses third-party projection only; it never suppresses a viewer's own first-hand evidence. |
-| **D5** | **Two seed paths:** the `invite_accepted` Update prompt (newcomers) and `forwardReason` on a forward edge (behavioural, already captured). Private labels are **never** seeds. |
+| **D5** | **Every tag a person gives is a seed** (changed 2026-11-03, #897): a private label — set on the profile or on the `invite_accepted` sheet, one write path — and `forwardReason` on a forward edge. The invite sheet's `seedRoutingAttestation` / `inviteSeedPromptAnswer` mutations keep their names and write labels. |
 | **D6** | **Profile shows own evidence + witness-derived outcome only.** Seed-derived tags appear in Forward only. |
 | **D7** | **No sensitive-tag class in v1.** All 37 slugs behave identically. Residual risk documented in architecture §13.6. |
 | **D8** | **Outcome tags** are chosen from `beacon.needs ∪ activeHelpOffer(subject).helpTypes`. (Chooser widened from "the author" to author + co-committers by D21.) |
@@ -45,7 +45,7 @@ Related: user→user trust storage was restructured in m0122; see
 | **D16** | **Outcome evidence is emitted at review *finalization*, not at evaluation submission**, and only for evaluations whose finalized value is `pos1` or `pos2`. Acknowledgement selections are mutable evaluation state until the window closes. |
 | **D17** | **`source_type 4` is invite-only.** The Forward composer writes forward reasons through the Forward mutation alone; it never writes a standing attestation. |
 | **D18** | **`commitRole` is excluded from every projection, including self-view.** D8's candidate set comes from the *active help-offer state*, not from ledger history. |
-| **D19** | **Aggregation eligibility is a source-type rule, not a consent gate.** `privateLabel` and `commitRole` never aggregate; `forwardReason`, `closeAcknowledgement` and `seedRoutingAttestation` always do. Pre-launch (2026-08-12): disclosure-version interlock removed; disclosure wording remains a launch requirement via product review. |
+| **D19** | **Aggregation eligibility is a source-type rule, not a consent gate.** `commitRole` never aggregates; `privateLabel`, `forwardReason`, `closeAcknowledgement` and legacy `seedRoutingAttestation` rows always do (labels under the seed rules: H_seed = 90 d, θ_seed; one observer+subject+tag given as both a label and a seed attestation counts once). Pre-launch (2026-08-12): disclosure-version interlock removed; disclosure wording remains a launch requirement via product review. |
 | **D20** | **Every new operation carries an explicit authorization predicate** (architecture §16.1). Actor identity is JWT-derived; no operation trusts a client-supplied actor. |
 | **D21** | **Author and co-committers may acknowledge; forwarders may not.** Roles `author`, `committer`, `formerCommitter` qualify. Forwarders are excluded because they never observed the work and already express routing judgement through the seed channel. Supersedes D8's "chosen by the author" wording. |
 | **D22** | **Profiles render the outcome channel only, at any tier** (architecture §5.4 matrix). Tier alone does not authorise a surface; the channel does. |
@@ -61,7 +61,7 @@ doc; they are not renumbered D-decisions.
 |---|-----------|
 | **3.1** | **Rebuild-on-write replaces inflate/deflate accumulators in cells.** Every ledger mutation bumps generation and fully rebuilds the cell from the eligible ledger window inside one transaction/lock. `anchor_at` is reset to rebuild time and contributions are deflated to it — algebraically equivalent to fixed-anchor VSIDS but a different storage invariant (architecture §5.1). |
 | **3.2** | **No per-request observation budget** (follows withdrawn D23). Every acknowledgement emits at weight `1.0`; no `weight` column; C2 does no budget arithmetic. |
-| **3.3** | **No disclosure gate** (architecture D19 narrowed at implementation). No `disclosure_version`, client token, or eligibility filter. Source-type rule only: `privateLabel`/`commitRole` never aggregate; `forwardReason`, `closeAcknowledgement`, `seedRoutingAttestation` always do. Witness layer is live when A–F land. |
+| **3.3** | **No disclosure gate** (architecture D19 narrowed at implementation). No `disclosure_version`, client token, or eligibility filter. Source-type rule only: `commitRole` never aggregates; `privateLabel`, `forwardReason`, `closeAcknowledgement`, `seedRoutingAttestation` always do (D19 as changed 2026-11-03). Witness layer is live when A–F land. |
 | **3.4** | **Profile context:** `subjectiveTags` uses canonical default context `''`, not the viewer's selected browsing context. |
 | **3.5** | **Context normalization contract:** `public.cap_normalize_context(text)` in SQL plus a pure Dart twin (not a SQL wrapper), parity-tested. Rule: `NULL` → `''`; trim; length outside 3–32 → `''`; otherwise trimmed value with **case preserved** (no lowercasing). |
 
@@ -89,6 +89,15 @@ result for the current request. Zero-peer egos accept per-request recomputation
   changes should keep read-through on miss or an equivalent populate path.
 - Disclosure copy is still required before real users despite D19/§3.3 removing
   the data-model gate.
+
+## Change log
+
+- **2026-11-03 (#897, m0286):** D5/D19 changed by owner decision — every label
+  a person gives is a routing seed. `cap_cell_rebuild` reads `privateLabel`
+  (source 0) under the seed rules; a label and a seed attestation for the same
+  observer+subject+tag count once (the fresher one). The invite-accepted sheet
+  writes labels; standing seed attestations were copied into labels. Source
+  value 4 stays for history. `commitRole` still never aggregates.
 
 ## References
 

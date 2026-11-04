@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:tentura/features/constellation/domain/constellation_consts.dart';
 import 'package:tentura/features/constellation/domain/constellation_layout.dart';
 import 'package:tentura/features/constellation/domain/layout/layout_geometry.dart';
 import 'package:tentura_root/domain/constellation/constellation_path_resolution.dart';
@@ -34,16 +35,17 @@ void main() {
         egoOwnRequestIds: {'reqE1', 'reqE2'},
       );
 
-      const expected = <String, LPoint>{
-        'ego': (x: 2048.0, y: 2048.0),
-        'a': (x: 2048.0, y: 2218.0),
-        'b': (x: 2048.0, y: 2388.0),
-        'r': (x: 2048.0, y: 1266.0),
-        'req1': (x: 1990.7135888652042, y: 2307.41311095759),
-        'req2': (x: 2105.286411134796, y: 2307.41311095759),
-        'req3': (x: 2048.0, y: 2524.0),
-        'reqE1': (x: 2012.8006098660571, y: 1916.6340876246866),
-        'reqE2': (x: 2111.1947808464383, y: 1930.439886504513),
+      const c = kConstellationCanvasCentre;
+      final expected = <String, LPoint>{
+        'ego': (x: c, y: c),
+        'a': (x: c, y: c + 170.0),
+        'b': (x: c, y: c + 340.0),
+        'r': (x: c, y: c - 782.0),
+        'req1': (x: c - 57.2864111347958, y: c + 259.41311095759),
+        'req2': (x: c + 57.286411134796, y: c + 259.41311095759),
+        'req3': (x: c, y: c + 476.0),
+        'reqE1': (x: c - 35.1993901339429, y: c - 131.3659123753134),
+        'reqE2': (x: c + 63.1947808464383, y: c - 117.5601134954867),
       };
       final Map<String, LPoint> actual = layout.positions;
 

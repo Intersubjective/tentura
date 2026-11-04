@@ -7,24 +7,28 @@ class ForwardCandidateGraphSnapshot {
     required this.candidateEligible,
     required this.edges,
     required this.people,
+    this.candidateJoinedAt,
   });
 
   const ForwardCandidateGraphSnapshot.unavailable()
     : candidateEligible = false,
       edges = const [],
-      people = const {};
+      people = const {},
+      candidateJoinedAt = null;
 
   final bool candidateEligible;
   final List<ForwardCandidateGraphEdge> edges;
   final Map<String, ForwardCandidatePersonProjection> people;
+  final DateTime? candidateJoinedAt;
 }
 
 @immutable
 class ForwardCandidateGraphEdge {
-  const ForwardCandidateGraphEdge(this.a, this.b);
+  const ForwardCandidateGraphEdge(this.a, this.b, {this.weight = 1});
 
   final String a;
   final String b;
+  final double weight;
 }
 
 @immutable

@@ -42,7 +42,7 @@ const _phone = Size(375, 667);
 const _devicePixelRatio = 2.0;
 
 /// Screen pixels per anchor unit on the phone's zoom floor.
-const _pxPerUnit = 25.5;
+const _pxPerUnit = 17.0;
 
 /// Dot centres in screen px at the zoom floor, relative to the first dot.
 const _cluster = <String, Offset>{

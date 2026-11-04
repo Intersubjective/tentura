@@ -383,6 +383,7 @@ class _V2RoutingLink extends Link {
     'ConstellationTrustChainFetch',
     'ConstellationAnchorsApply',
     'ConstellationAnchorsReset',
+    'ConstellationAcknowledgeNew',
     'ConstellationLayoutSnapshotRestore',
     'ConstellationLayoutSnapshotSave',
     'ConstellationLayoutFavouriteRestore',

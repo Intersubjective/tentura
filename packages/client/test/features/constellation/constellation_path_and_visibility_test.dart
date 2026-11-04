@@ -24,6 +24,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
 import '../../support/constellation_store_fixture.dart';
+import '../../support/phone_surface.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../../support/people_tags_widget_harness.dart';
 import 'fixtures/constellation_field_test_harness.dart';
@@ -201,6 +202,15 @@ String _edgeId(ConstellationCubit cubit, String src, String dst, String kind) =>
       (id) => RegExp('^[^:]+:$src->[^:]+:$dst#$kind\$').hasMatch(id),
     );
 
+Set<String> _tierPathSemanticIds(ConstellationCubit cubit) => {
+  for (final edge in cubit.graphController.edges)
+    if ({
+      ConstellationEdgeKind.tier1Path,
+      ConstellationEdgeKind.tier2Path,
+    }.contains(cubit.edgeKindByPair[edge.semanticId]))
+      edge.semanticId,
+};
+
 Set<String> _peopleIds(ConstellationCubit cubit) => {
   for (final person in cubit.fieldPeople) person.id,
 };
@@ -247,6 +257,151 @@ Future<void> _pumpBody(WidgetTester tester, ConstellationCubit cubit) async {
 }
 
 void main() {
+  group('trust path edges (#964)', () {
+    test(
+      'selecting a person draws their trust edges and viewer chain',
+      () async {
+        final cubit = await _loadCubit();
+        addTearDown(cubit.close);
+
+        cubit.selectPerson('bob');
+        expect(
+          _tierPathSemanticIds(cubit),
+          {
+            _edgeId(cubit, 'ego', 'ann', 'tier1Path'),
+            _edgeId(cubit, 'ann', 'bob', 'tier1Path'),
+            _edgeId(cubit, 'bob', 'cid', 'tier1Path'),
+          },
+        );
+
+        cubit.selectPerson('ann');
+        expect(
+          _tierPathSemanticIds(cubit),
+          {
+            _edgeId(cubit, 'ego', 'ann', 'tier1Path'),
+            _edgeId(cubit, 'ann', 'bob', 'tier1Path'),
+          },
+        );
+
+        cubit.selectPerson(null);
+        expect(_tierPathSemanticIds(cubit), isEmpty);
+      },
+    );
+
+    test(
+      'selecting a Request draws its author connections and chain',
+      () async {
+        final cubit = await _loadCubit();
+        addTearDown(cubit.close);
+
+        cubit.selectRequest('req-bob');
+        expect(
+          _tierPathSemanticIds(cubit),
+          {
+            _edgeId(cubit, 'ego', 'ann', 'tier1Path'),
+            _edgeId(cubit, 'ann', 'bob', 'tier1Path'),
+            _edgeId(cubit, 'bob', 'cid', 'tier1Path'),
+          },
+        );
+        expect(
+          cubit.edgeKindByPair.keys.where(
+            (id) => id.contains('quiet') && id.endsWith('#tier1Path'),
+          ),
+          isEmpty,
+        );
+      },
+    );
+
+    test('a person with no field trust edges shows no tier paths', () async {
+      final cubit = await _loadCubit();
+      addTearDown(cubit.close);
+
+      expect(_tierPathSemanticIds(cubit), isEmpty);
+      cubit.selectPerson('far');
+      expect(cubit.selectedTrustChain, isA<ConstellationTrustChainNone>());
+      expect(_tierPathSemanticIds(cubit), isEmpty);
+    });
+
+    test('selecting quiet shows only the direct edge from ego', () async {
+      final cubit = await _loadCubit();
+      addTearDown(cubit.close);
+
+      cubit.selectPerson('quiet');
+      expect(
+        _tierPathSemanticIds(cubit),
+        {_edgeId(cubit, 'ego', 'quiet', 'tier1Path')},
+      );
+    });
+
+    test(
+      'selecting ego shows every trust edge touching ego on the capped field',
+      () async {
+        final cubit = await _loadCubit();
+        addTearDown(cubit.close);
+
+        cubit.selectPerson('ego');
+        expect(
+          _tierPathSemanticIds(cubit),
+          {
+            _edgeId(cubit, 'ego', 'quiet', 'tier1Path'),
+            _edgeId(cubit, 'ego', 'ann', 'tier1Path'),
+          },
+        );
+        expect(
+          cubit.edgeKindByPair.keys.where(
+            (id) =>
+                id.contains('ann') &&
+                id.contains('bob') &&
+                id.endsWith('#tier1Path'),
+          ),
+          isEmpty,
+        );
+      },
+    );
+
+    testWidgets('RU phone surface keeps the chain view within bounds', (
+      tester,
+    ) async {
+      await usePhoneSurface(tester);
+      final cubit = await _loadCubit();
+      addTearDown(cubit.close);
+      await tester.pumpPeopleTagsWidget(
+        MaterialApp(
+          locale: const Locale('ru'),
+          theme: TenturaTheme.light(),
+          localizationsDelegates: L10n.localizationsDelegates,
+          supportedLocales: L10n.supportedLocales,
+          home: TenturaResponsiveScope(
+            child: MultiBlocProvider(
+              providers: [
+                BlocProvider<ConstellationCubit>.value(value: cubit),
+                BlocProvider<GraphPersonContextCubit>(
+                  create: (_) => _StubContextCubit(),
+                ),
+                BlocProvider<ScreenCubit>(
+                  create: (_) => ScreenCubit(FakeUiEffectPort()),
+                ),
+              ],
+              child: Scaffold(
+                body: ConstellationBody(
+                  legendExpanded: false,
+                  onToggleLegend: () {},
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      cubit.selectPerson('bob');
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Ann'), findsWidgets);
+      expect(tester.takeException(), isNull);
+    });
+  });
+
   group('trust chain (#641)', () {
     test('a 2nd-degree person is reached through the shown chain', () async {
       final cubit = await _loadCubit();

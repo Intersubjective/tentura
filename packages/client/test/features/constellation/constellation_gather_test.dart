@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tentura/features/constellation/domain/constellation_consts.dart';
 import 'package:tentura/features/constellation/domain/constellation_gather.dart';
 import 'package:tentura/features/constellation/domain/layout/layout_geometry.dart';
 
@@ -18,8 +19,12 @@ List<_Member> _scattered(int count) => [
     (
       id: 'm$i',
       position: (
-        x: 2048 + math.cos(i * 2.399963) * (200 + 37.0 * i),
-        y: 2048 + math.sin(i * 2.399963) * (200 + 37.0 * i),
+        x:
+            kConstellationCanvasCentre +
+            math.cos(i * 2.399963) * (200 + 37.0 * i),
+        y:
+            kConstellationCanvasCentre +
+            math.sin(i * 2.399963) * (200 + 37.0 * i),
       ),
     ),
 ];

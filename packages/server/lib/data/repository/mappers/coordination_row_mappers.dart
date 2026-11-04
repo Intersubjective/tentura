@@ -72,7 +72,12 @@ extension BeaconRoomStateRowMapper on db.BeaconRoomState {
 }
 
 extension BeaconParticipantRowMapper on db.BeaconParticipant {
-  BeaconParticipantRecord toRecord() => BeaconParticipantRecord(
+  BeaconParticipantRecord toRecord({
+    bool opened = false,
+    ParticipantArrival? arrival,
+  }) => BeaconParticipantRecord(
+    opened: opened,
+    arrival: arrival,
     id: id,
     beaconId: beaconId,
     userId: userId,

@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
 import 'package:tentura/app/router/root_router.dart';
+import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/ui/widget/auto_leading_with_fallback.dart';
 import 'package:tentura/features/people_tags/domain/people_tags_exception.dart';
 import 'package:tentura/features/people_tags/domain/use_case/people_tags_case.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -91,7 +93,11 @@ class _PeopleAutoTagScreenState extends State<PeopleAutoTagScreen> {
     final tt = context.tt;
     final name = personAutoTagName(l10n, widget.kind);
     return Scaffold(
-      appBar: TenturaTopBar.of(context, title: Text(name)),
+      appBar: TenturaTopBar.of(
+        context,
+        leading: const AutoLeadingWithFallback(fallbackPath: kPathPeopleTags),
+        title: Text(name),
+      ),
       body: SafeArea(
         child: TenturaContentColumn(
           child: ListView(
@@ -104,9 +110,16 @@ class _PeopleAutoTagScreenState extends State<PeopleAutoTagScreen> {
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   const Spacer(),
-                  FilledButton(
-                    onPressed: _busy ? null : () => unawaited(_makeMine()),
-                    child: Text(l10n.peopleTagsMakeMine),
+                  Flexible(
+                    child: FilledButton(
+                      onPressed: _busy ? null : () => unawaited(_makeMine()),
+                      child: Text(
+                        l10n.peopleTagsMakeMine,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
                   ),
                 ],
               ),

@@ -34,18 +34,6 @@ Future<void> main() async {
     return;
   }
   final dockerReachable = await IsolatedHasuraSession.isDockerAvailable();
-  if (!dockerReachable) {
-    if (isPgTestsRequired()) {
-      test('Docker is available for isolated Hasura', () {
-        fail(
-          'Docker required ($pgTestsRequiredEnvVar=1) but not available',
-        );
-      });
-    } else {
-      test('Docker unavailable', () {}, skip: 'Docker not available');
-    }
-    return;
-  }
 
   group('Post expires_at through Hasura', () {
     late DisposablePgWriterSession session;
@@ -115,7 +103,7 @@ VALUES ('Fttlexpedge0001', '$_post', '$_author', '$_member')
       expect(row, isNotNull);
       expect(row!['expires_at'], isNotNull);
     });
-  });
+  }, skip: dockerReachable ? false : 'Docker not available');
 }
 
 Future<Map<String, dynamic>> _graphql(

@@ -644,6 +644,22 @@ class ForwardCubit extends Cubit<ForwardState> {
     );
   }
 
+  /// Selects every eligible person in the «New» mutual-trust group (#894).
+  void selectNewMutualCandidates() {
+    final today = _todayUtc();
+    final selected = Set<String>.from(state.selectedIds);
+    for (final c in state.visibleRecipients) {
+      if (!ForwardState.isNewMutualCandidate(c, now)) continue;
+      if (c.canForwardToOn(today)) selected.add(c.id);
+    }
+    emit(
+      state.copyWith(
+        selectedIds: selected,
+        addedByTag: _keepSelected(state.addedByTag, selected),
+      ),
+    );
+  }
+
   void setRecipientReasons(String userId, List<String> slugs) {
     final next = Map<String, List<String>>.from(state.recipientReasons);
     if (slugs.isEmpty) {

@@ -13,11 +13,9 @@ import 'package:tentura/app/router/root_router.gr.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
-import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/forward/domain/entity/forward_edge.dart';
 import 'package:tentura/features/people_tags/domain/use_case/people_tags_case.dart';
 import 'package:tentura/features/post_view/ui/widget/post_participants_list.dart';
-import 'package:tentura/features/profile_view/ui/bloc/profile_view_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
@@ -50,26 +48,7 @@ BeaconParticipant _participant(
   lastSeenRoomAt: lastSeenRoomAt,
 );
 
-/// Stands in for the per-person [ProfileViewCubit] behind the trust toggle.
-class _FakeProfileViewCubit extends Mock implements ProfileViewCubit {
-  _FakeProfileViewCubit(String id)
-    : _state = ProfileViewState(profile: Profile(id: id));
-
-  final ProfileViewState _state;
-
-  @override
-  ProfileViewState get state => _state;
-
-  @override
-  Stream<ProfileViewState> get stream => const Stream.empty();
-
-  @override
-  bool get isClosed => false;
-
-  @override
-  Future<void> close() async {}
-}
-
+/// Records pushed routes; `root` is the router itself.
 class _RecordingRouter extends Mock implements RootStackRouter {
   final pushed = <PageRouteInfo>[];
 
@@ -169,8 +148,6 @@ void main() {
                                 ],
                                 #forwardEdges: const <ForwardEdge>[],
                                 #onForwardsGraph: () {},
-                                #profileViewCubitFactory:
-                                    _FakeProfileViewCubit.new,
                               },
                             )!
                             as Widget,
