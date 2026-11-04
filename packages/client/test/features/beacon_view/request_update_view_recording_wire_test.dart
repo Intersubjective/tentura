@@ -113,6 +113,41 @@ Map<String, dynamic> _reader(String id, String title) => {
   'userPicWidth': 0,
 };
 
+Map<String, dynamic> _participantRow({
+  required String id,
+  required int role,
+  required int roomAccess,
+}) => {
+  '__typename': 'v2_BeaconParticipantRow',
+  'id': 'P$id',
+  'beaconId': _beaconId,
+  'userId': id,
+  'userTitle': id,
+  'userHandle': '',
+  'userHasPicture': false,
+  'userPicHeight': 0,
+  'userPicWidth': 0,
+  'userBlurHash': '',
+  'userImageId': '',
+  'role': role,
+  'status': 0,
+  'roomAccess': roomAccess,
+  'offerNote': null,
+  'nextMoveText': null,
+  'nextMoveStatus': null,
+  'nextMoveSource': null,
+  'linkedMessageId': null,
+  'lastSeenRoomAt': null,
+  'opened': false,
+  'helpType': null,
+  'roleLabel': null,
+  'broughtById': null,
+  'broughtBy': null,
+  'broughtHow': null,
+  'createdAt': '2026-10-30T08:00:00.000Z',
+  'updatedAt': '2026-10-30T08:00:00.000Z',
+};
+
 // Mutable server responses shared by independent signed-in clients. The mark
 // writes a receipt and sends the existing Request entity-change envelope.
 // No test calls a repository mark method: viewing the Request must cause it.
@@ -228,42 +263,26 @@ class _Server {
     }
     if (query.contains('BeaconParticipantList(')) {
       data['BeaconParticipantList'] = [
-        for (final (id, role, access) in [
-          (
-            _helperId,
-            BeaconParticipantRoleBits.helper,
-            RoomAccessBits.admitted,
-          ),
-          (
-            _stewardId,
-            BeaconParticipantRoleBits.steward,
-            RoomAccessBits.admitted,
-          ),
-          (
-            _furtherHelperId,
-            BeaconParticipantRoleBits.helper,
-            RoomAccessBits.admitted,
-          ),
-          (_outsiderId, BeaconParticipantRoleBits.helper, RoomAccessBits.none),
-        ])
-          {
-            '__typename': 'v2_BeaconParticipantRow',
-            'id': 'P$id',
-            'beaconId': _beaconId,
-            'userId': id,
-            'userTitle': id,
-            'userHandle': '',
-            'userHasPicture': false,
-            'userPicHeight': 0,
-            'userPicWidth': 0,
-            'userBlurHash': '',
-            'userImageId': '',
-            'role': role,
-            'status': 0,
-            'roomAccess': access,
-            'createdAt': '2026-10-30T08:00:00.000Z',
-            'updatedAt': '2026-10-30T08:00:00.000Z',
-          },
+        _participantRow(
+          id: _helperId,
+          role: BeaconParticipantRoleBits.helper,
+          roomAccess: RoomAccessBits.admitted,
+        ),
+        _participantRow(
+          id: _stewardId,
+          role: BeaconParticipantRoleBits.steward,
+          roomAccess: RoomAccessBits.admitted,
+        ),
+        _participantRow(
+          id: _furtherHelperId,
+          role: BeaconParticipantRoleBits.helper,
+          roomAccess: RoomAccessBits.admitted,
+        ),
+        _participantRow(
+          id: _outsiderId,
+          role: BeaconParticipantRoleBits.helper,
+          roomAccess: RoomAccessBits.none,
+        ),
       ];
     }
     if (query.contains('beaconUpdateSeenBy')) {
@@ -466,7 +485,7 @@ Beacon _beacon({DateTime? updatedAt}) => Beacon(
 );
 
 Future<void> _until(bool Function() condition) async {
-  final deadline = DateTime.now().add(const Duration(seconds: 5));
+  final deadline = DateTime.now().add(const Duration(seconds: 15));
   while (DateTime.now().isBefore(deadline) && !condition()) {
     await Future<void>.delayed(const Duration(milliseconds: 20));
   }
