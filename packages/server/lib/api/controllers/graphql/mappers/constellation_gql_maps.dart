@@ -102,6 +102,7 @@ Map<String, dynamic> _peerToGqlMap(ConstellationPeerRecord peer) => {
   'pinState': peer.pinState,
   'visible': peer.visible,
   'contactOnly': peer.contactOnly,
+  'isNew': peer.pinState == kConstellationPinStateTombstone ? null : peer.isNew,
   'presence': peer.presence.name,
   'temporaryBeaconId': peer.temporaryBeaconId,
   'bondContexts': [

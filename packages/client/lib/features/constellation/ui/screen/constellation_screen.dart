@@ -29,6 +29,7 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 
 import '../../domain/use_case/constellation_member_webs_case.dart';
 import '../../domain/use_case/constellation_mutual_trust_case.dart';
+import '../../domain/use_case/constellation_new_people_case.dart';
 import '../../domain/use_case/constellation_trust_chain_case.dart';
 import '../../domain/use_case/constellation_tag_magnet_case.dart';
 import '../../domain/use_case/constellation_anchor_case.dart';
@@ -83,6 +84,7 @@ class ConstellationScreen extends StatefulWidget implements AutoRouteWrapper {
             visibilityCase: GetIt.I<ConstellationVisibilityCase>(),
             mutualTrustCase: GetIt.I<ConstellationMutualTrustCase>(),
             trustChainCase: GetIt.I<ConstellationTrustChainCase>(),
+            newPeopleCase: GetIt.I<ConstellationNewPeopleCase>(),
             tagMagnetCase: GetIt.I<ConstellationTagMagnetCase>(),
             ownTagIdsOf: GetIt.I.isRegistered<PeopleTagsCase>()
                 ? GetIt.I<PeopleTagsCase>().tagsOfPerson

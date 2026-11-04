@@ -29,6 +29,10 @@ abstract class BeaconParticipant with _$BeaconParticipant {
     /// When this user last read the beacon room (`beacon_room_seen`).
     DateTime? lastSeenRoomAt,
 
+    /// Server «opened» predicate (#899 / #719): seen row, forward, invite, or
+    /// message in the Post — not only `lastSeenRoomAt`.
+    @Default(false) bool opened,
+
     /// Active help-offer capability wire (`beacon_help_offers.help_type`), when any.
     String? helpType,
 

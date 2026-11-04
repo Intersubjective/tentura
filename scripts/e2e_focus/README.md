@@ -54,6 +54,25 @@ passes only when **all seven rows pass**.
 Run through `alloy job start -- <command>` and bounded `alloy job wait` calls
 when executing interactively. A check handed to Alloy uses the plain command.
 
+### Capability search gate (#741): `sheet_search_keeps_typing.mjs`
+
+The Requirements sheet (request editor) and Edit labels (profile) share
+`CapabilitySearchField`. This gate types, clears via its × or hovers its
+tooltip, and types again with no click on the field, in EN and RU, on a fresh
+browser context against a fresh profile + Wasm build. Selectors are the
+field's accessible names: label `capabilitySearchLabel` («Search» / «Поиск»)
+and clear tooltip `capabilitySearchClear` («Clear search» / «Очистить поиск»).
+It passes only when all eight rows (2 surfaces × clear/hover × EN/RU) pass
+every cycle:
+
+```sh
+./scripts/run_with_test_cleanup.sh --timeout 15m -- bash scripts/e2e_focus/run_sheet_search_test.sh 10
+```
+
+The cycle count is the first argument (default 10). `LOCALES`, `SURFACES`
+and `MODES` (comma lists) select rows for diagnosis only. Exit codes are the
+same as above: 2 lost keys, 1 a prerequisite failed, 0 every checkpoint.
+
 ## Focused diagnostics
 
 An individual row can still be selected with `run.sh close 10` or

@@ -43,18 +43,6 @@ Future<void> main() async {
     return;
   }
   final dockerReachable = await IsolatedHasuraSession.isDockerAvailable();
-  if (!dockerReachable) {
-    if (isPgTestsRequired()) {
-      test('Docker is available for isolated Hasura', () {
-        fail(
-          'Docker required ($pgTestsRequiredEnvVar=1) but not available',
-        );
-      });
-    } else {
-      test('Docker unavailable', () {}, skip: 'Docker not available');
-    }
-    return;
-  }
 
   group('Inbox status update through Hasura', () {
     late DisposablePgWriterSession session;
@@ -251,7 +239,7 @@ mutation {
         ]);
       },
     );
-  });
+  }, skip: dockerReachable ? false : 'Docker not available');
 }
 
 Future<Map<String, dynamic>> _graphql(

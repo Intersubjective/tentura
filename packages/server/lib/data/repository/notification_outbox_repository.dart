@@ -4,6 +4,8 @@ import 'package:drift_postgres/drift_postgres.dart' show PgDateTime;
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/entity/notification_category.dart';
+import 'package:tentura_server/domain/entity/digest_post_content.dart';
+import 'package:tentura_server/domain/notification/notification_excerpt.dart';
 import 'package:tentura_server/domain/entity/notification_kind.dart';
 import 'package:tentura_server/domain/entity/notification_outbox_item_entity.dart';
 import 'package:tentura_server/domain/entity/notification_priority.dart';
@@ -93,13 +95,59 @@ in_app_preference_class, suppression_class, access_policy
   @override
   Future<List<NotificationOutboxItemEntity>> pendingForAccount(
     String accountId,
-  ) async {
+  ) => _pending(accountId);
+
+  @override
+  Future<List<NotificationOutboxItemEntity>> pendingForChannelCollapseKey({
+    required String accountId,
+    required String channelCollapseKey,
+  }) => _pending(accountId, channelCollapseKey: channelCollapseKey);
+
+  Future<List<NotificationOutboxItemEntity>> _pending(
+    String accountId, {
+    String? channelCollapseKey,
+  }) async {
     final rows = await _database
         .customSelect(
-          'SELECT $_columns FROM public.notification_outbox '
-          r'WHERE account_id = $1 AND emailed_at IS NULL '
-          'ORDER BY created_at DESC',
-          variables: [Variable<String>(accountId)],
+          '''
+SELECT pending.*,
+  root.body AS post_body, actor.display_name AS sender_name,
+  share.note AS sender_note
+FROM (
+  SELECT $_columns FROM public.notification_outbox
+  WHERE account_id = \$1 AND emailed_at IS NULL
+    AND (\$2::text IS NULL OR dedup_key = \$2)
+    AND NOT (
+      kind = 'newRelay'
+      AND EXISTS (SELECT 1 FROM public.beacon post
+                  WHERE post.id = beacon_id AND post.kind = 1)
+      AND (
+        public.block_hides(account_id, actor_user_id)
+        OR EXISTS (
+          SELECT 1 FROM public.notification_beacon_mute mute
+          WHERE mute.account_id = notification_outbox.account_id
+            AND mute.beacon_id = notification_outbox.beacon_id
+            AND (mute.muted_until IS NULL OR mute.muted_until > now())
+        )
+      )
+    )
+) pending
+LEFT JOIN public.beacon b ON b.id = pending.beacon_id AND b.kind = 1
+  AND public.beacon_can_read_content(b.id, pending.account_id)
+LEFT JOIN public.beacon_room_message root ON root.id = b.post_root_message_id
+LEFT JOIN public."user" actor ON actor.id = pending.actor_user_id
+LEFT JOIN LATERAL (
+  SELECT edge.note FROM public.beacon_forward_edge edge
+  WHERE edge.beacon_id = b.id AND edge.sender_id = pending.actor_user_id
+    AND edge.recipient_id = pending.account_id AND edge.cancelled_at IS NULL
+  ORDER BY edge.created_at DESC, edge.id DESC LIMIT 1
+) share ON true
+ORDER BY pending.created_at DESC, pending.id
+''',
+          variables: [
+            Variable<String>(accountId),
+            Variable<String>(channelCollapseKey),
+          ],
         )
         .get();
     return [for (final row in rows) _mapRow(row)];
@@ -165,38 +213,60 @@ WHERE seen_at IS NOT NULL
     );
   }
 
-  NotificationOutboxItemEntity _mapRow(QueryRow row) =>
-      NotificationOutboxItemEntity(
-        id: row.read<String>('id'),
-        accountId: row.read<String>('account_id'),
-        category:
-            notificationCategoryFromName(row.read<String>('category')) ??
-            NotificationCategory.coordination,
-        kind: _kindFromName(row.read<String>('kind')),
-        priority: _priorityFromName(row.read<String>('priority')),
-        title: row.read<String>('title'),
-        body: row.read<String>('body'),
-        actionUrl: row.read<String>('action_url'),
-        createdAt: _readTimestamp(row, 'created_at')!,
-        readAt: _readTimestamp(row, 'read_at'),
-        collapsedCount: row.read<int>('collapsed_count'),
-        beaconId: row.readNullable<String>('beacon_id'),
-        coordinationItemId: row.readNullable<String>('coordination_item_id'),
-        actorUserId: row.readNullable<String>('actor_user_id'),
-        seenAt: _readTimestamp(row, 'seen_at'),
-        sourceEventKey: row.readNullable<String>('source_event_key'),
-        destinationKind: row.readNullable<String>('destination_kind'),
-        targetEntityId: row.readNullable<String>('target_entity_id'),
-        presentationKey: row.readNullable<String>('presentation_key'),
-        presentationPayload: Map<String, Object?>.from(
-          jsonDecode(row.read<String>('presentation_payload')) as Map,
+  NotificationOutboxItemEntity _mapRow(QueryRow row) {
+    final payload = Map<String, Object?>.from(
+      jsonDecode(row.read<String>('presentation_payload')) as Map,
+    );
+    final note = switch (payload['excerpt']) {
+      final String value => value,
+      _ => '',
+    };
+    return NotificationOutboxItemEntity(
+      id: row.read<String>('id'),
+      accountId: row.read<String>('account_id'),
+      category:
+          notificationCategoryFromName(row.read<String>('category')) ??
+          NotificationCategory.coordination,
+      kind: _kindFromName(row.read<String>('kind')),
+      priority: _priorityFromName(row.read<String>('priority')),
+      title: row.read<String>('title'),
+      body: row.read<String>('body'),
+      actionUrl: row.read<String>('action_url'),
+      createdAt: _readTimestamp(row, 'created_at')!,
+      readAt: _readTimestamp(row, 'read_at'),
+      collapsedCount: row.read<int>('collapsed_count'),
+      beaconId: row.readNullable<String>('beacon_id'),
+      digestPost: switch (row.readNullable<String>('post_body')) {
+        final body? => DigestPostContent(
+          excerpt: notificationExcerpt(body, maxChars: 140),
+          senderName: row.readNullable<String>('sender_name') ?? '',
+          senderNote: note.isNotEmpty
+              ? note
+              : row.readNullable<String>('sender_note') ?? '',
         ),
-        inAppPreferenceClass: row.readNullable<String>(
-          'in_app_preference_class',
-        ),
-        suppressionClass: row.read<String>('suppression_class'),
-        accessPolicy: row.read<String>('access_policy'),
-      );
+        null => null,
+      },
+      coordinationItemId: row.readNullable<String>('coordination_item_id'),
+      actorUserId: row.readNullable<String>('actor_user_id'),
+      // Prefer the receipt's event-time name so recognized English copy still
+      // matches after a profile rename. Older receipts use the joined profile.
+      actorDisplayName: switch (payload['actorName']) {
+        final String name when name.isNotEmpty => name,
+        _ => row.readNullable<String>('sender_name') ?? '',
+      },
+      seenAt: _readTimestamp(row, 'seen_at'),
+      sourceEventKey: row.readNullable<String>('source_event_key'),
+      destinationKind: row.readNullable<String>('destination_kind'),
+      targetEntityId: row.readNullable<String>('target_entity_id'),
+      presentationKey: row.readNullable<String>('presentation_key'),
+      presentationPayload: payload,
+      inAppPreferenceClass: row.readNullable<String>(
+        'in_app_preference_class',
+      ),
+      suppressionClass: row.read<String>('suppression_class'),
+      accessPolicy: row.read<String>('access_policy'),
+    );
+  }
 
   static DateTime? _readTimestamp(QueryRow row, String column) {
     final value = row.data[column];

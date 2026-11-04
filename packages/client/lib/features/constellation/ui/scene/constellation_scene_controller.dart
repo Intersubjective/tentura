@@ -11,6 +11,7 @@ import '../../domain/constellation_layout.dart';
 import 'package:tentura_root/domain/constellation/constellation_path_resolution.dart';
 import '../../domain/constellation_post_fade.dart';
 import '../../domain/constellation_trust_chain.dart';
+import '../../domain/constellation_visibility.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import '../../domain/entity/constellation_field.dart';
 import '../../../graph/domain/entity/edge_details.dart';
@@ -365,9 +366,40 @@ class ConstellationSceneController {
     return footprints;
   }
 
-  /// Draws the hops of the selected person's trust chain the tree does not
-  /// draw, and fades every other edge (#641). Hops keep the tree's edge kinds:
-  /// a chain step is a trust edge like any other, only brighter than the rest.
+  /// Every visible trust edge on the field that touches [focusPersonId]
+  /// (both directions), between placed people only (#964).
+  void _drawFocusPersonTrustEdges({
+    required String focusPersonId,
+    required Iterable<ConstellationEdgeRef> trustEdges,
+    required Map<String, NodeDetails> nodeById,
+    required void Function({
+      required String srcId,
+      required String dstId,
+      required ConstellationEdgeKind kind,
+      double? fade,
+    })
+    addEdge,
+  }) {
+    for (final edge in trustEdges) {
+      if (edge.src != focusPersonId && edge.dst != focusPersonId) {
+        continue;
+      }
+      if (!nodeById.containsKey(edge.src) || !nodeById.containsKey(edge.dst)) {
+        continue;
+      }
+      addEdge(
+        srcId: edge.src,
+        dstId: edge.dst,
+        kind: edge.tier == 1
+            ? ConstellationEdgeKind.tier1Path
+            : ConstellationEdgeKind.tier2Path,
+      );
+    }
+  }
+
+  /// Draws the selected focus person's trust-chain hops and fades every other
+  /// edge (#641, #964). Chain hops use tier path kinds; the focus person's
+  /// own trust edges are drawn separately.
   void _highlightTrustChain({
     required ConstellationTrustChainFound chain,
     required Set<EdgeDetails> edges,
@@ -383,17 +415,7 @@ class ConstellationSceneController {
     final hopKeys = <String>{};
     for (final (src, dst) in chain.hops) {
       hopKeys.add('$src->$dst');
-      final drawn = edges.any(
-        (edge) =>
-            edge.source.id == src &&
-            edge.destination.id == dst &&
-            switch (edgeKindByPair[edge.semanticId]) {
-              ConstellationEdgeKind.tier1Path ||
-              ConstellationEdgeKind.tier2Path => true,
-              _ => false,
-            },
-      );
-      if (!drawn && nodeById.containsKey(src) && nodeById.containsKey(dst)) {
+      if (nodeById.containsKey(src) && nodeById.containsKey(dst)) {
         addEdge(
           srcId: src,
           dstId: dst,
@@ -410,10 +432,14 @@ class ConstellationSceneController {
           (kind == ConstellationEdgeKind.tier1Path ||
               kind == ConstellationEdgeKind.tier2Path) &&
           hopKeys.contains('${edge.source.id}->${edge.destination.id}');
+      final touchesFocus =
+          (kind == ConstellationEdgeKind.tier1Path ||
+              kind == ConstellationEdgeKind.tier2Path) &&
+          (edge.source.id == personId || edge.destination.id == personId);
       final ownItem =
           kind == ConstellationEdgeKind.attachment &&
           edge.source.id == personId;
-      if (!onChain && !ownItem) {
+      if (!onChain && !touchesFocus && !ownItem) {
         edgeFadeBySemanticId[edge.semanticId] =
             (edgeFadeBySemanticId[edge.semanticId] ?? 1) *
             kConstellationTrustChainEdgeFade;
@@ -635,6 +661,9 @@ class ConstellationSceneController {
         semanticId:
             '${tenturaGraphNodeId(src)}->${tenturaGraphNodeId(dst)}#${kind.name}',
       );
+      if (edgeKindByPair.containsKey(edge.semanticId)) {
+        return;
+      }
       edges.add(edge);
       edgeKinds[constellationSceneEdgeId(
             kindName: kind.name,
@@ -657,22 +686,6 @@ class ConstellationSceneController {
       paths: paths,
       focusPersonId: selectedPersonId ?? nodeById[selectedRequestId]?.userId,
     );
-
-    for (final child in paths.keep.intersection(keptPeerIds)) {
-      final parentId = paths.parent[child];
-      if (parentId == null ||
-          (parentId == viewer.id && !egoEdgeTargets.contains(child))) {
-        continue;
-      }
-      final tier = paths.parentTier[child] ?? 1;
-      addEdge(
-        srcId: parentId,
-        dstId: child,
-        kind: tier == 1
-            ? ConstellationEdgeKind.tier1Path
-            : ConstellationEdgeKind.tier2Path,
-      );
-    }
 
     for (final ringPeer in paths.ring.intersection(
       keptPeerIds.intersection(egoEdgeTargets),
@@ -805,6 +818,24 @@ class ConstellationSceneController {
           kind: ConstellationEdgeKind.draftRecipient,
         );
       }
+    }
+
+    final focusPersonId =
+        selectedPersonId ?? nodeById[selectedRequestId]?.userId;
+    final visibleTrustEdges = [
+      ...constellationVisibleTrustEdges(field),
+      if (overlay != null)
+        for (final edge in overlay.supportEdges)
+          (src: edge.src, dst: edge.dst, tier: edge.tier),
+    ];
+
+    if (focusPersonId != null && nodeById.containsKey(focusPersonId)) {
+      _drawFocusPersonTrustEdges(
+        focusPersonId: focusPersonId,
+        trustEdges: visibleTrustEdges,
+        nodeById: nodeById,
+        addEdge: addEdge,
+      );
     }
 
     if (trustChain is ConstellationTrustChainFound) {

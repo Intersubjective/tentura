@@ -25,6 +25,10 @@ Map<String, dynamic> _row(String id, int status) => {
   'mutedUntil': null,
   'mutedForever': false,
   'unreadCount': 0,
+  'participantCount': 0,
+  'notOpenedCount': 0,
+  'myDeclinedForwardCount': 0,
+  'previewParticipants': <Object>[],
   'isAuthor': false,
   'status': status,
 };

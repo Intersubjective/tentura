@@ -17,6 +17,20 @@ import 'package:tentura/ui/effect/ui_effect_port.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../../support/phone_surface.dart';
 
+Finder _personalNoteField() => find.byType(TextField).last;
+
+void _expectOnlyEmbeddedSearchField(WidgetTester tester) {
+  expect(
+    find.descendant(
+      of: find.byType(ForwardRecipientPicker),
+      matching: find.byWidgetPredicate(
+        (w) => w is TextField && (w.decoration?.isCollapsed ?? false),
+      ),
+    ),
+    findsOneWidget,
+  );
+}
+
 class _MockProfileCubit extends Mock implements ProfileCubit {
   @override
   ProfileState get state => const ProfileState();
@@ -204,7 +218,7 @@ void main() {
 
       await tester.tap(find.byTooltip('Add a note for Alex'));
       await tester.pumpAndSettle();
-      await tester.enterText(find.byType(TextField), 'private hello');
+      await tester.enterText(_personalNoteField(), 'private hello');
       await tester.pump();
       // A bare unfocus can be view/helper parking. Use the intentional
       // outside interaction that commits the note to its collapsed preview.
@@ -212,7 +226,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('private hello'), findsOneWidget);
-      expect(find.byType(TextField), findsNothing);
+      _expectOnlyEmbeddedSearchField(tester);
       expect(cubit.state.perRecipientNotes['u1'], 'private hello');
     },
   );
@@ -236,7 +250,7 @@ void main() {
 
       await tester.tap(find.byTooltip('Добавить заметку для Алекс'));
       await tester.pumpAndSettle();
-      await tester.enterText(find.byType(TextField), 'заметка 893');
+      await tester.enterText(_personalNoteField(), 'заметка 893');
       await tester.pump();
       FocusManager.instance.primaryFocus?.unfocus();
       await tester.pumpAndSettle();
@@ -275,7 +289,7 @@ void main() {
 
       await tester.tap(find.byTooltip('Add a note for Alex'));
       await tester.pumpAndSettle();
-      await tester.enterText(find.byType(TextField), 'desktop note');
+      await tester.enterText(_personalNoteField(), 'desktop note');
       await tester.pump();
       FocusManager.instance.primaryFocus?.unfocus();
       await tester.pumpAndSettle();
@@ -312,7 +326,7 @@ void main() {
 
     await tester.tap(find.byTooltip('Add a note for Alex'));
     await tester.pump();
-    await tester.enterText(find.byType(TextField), 'hello note 893');
+    await tester.enterText(_personalNoteField(), 'hello note 893');
     await tester.pump();
 
     expect(cubit.state.perRecipientNotes['u1'], 'hello note 893');

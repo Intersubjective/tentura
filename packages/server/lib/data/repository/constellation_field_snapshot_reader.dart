@@ -1,4 +1,5 @@
 import 'package:postgres/postgres.dart' show Type, TypedValue;
+import 'package:tentura_root/domain/entity/person_auto_tag_kind.dart';
 
 import 'package:tentura_server/consts/constellation_consts.dart';
 import 'package:tentura_server/domain/constellation/constellation_field_selection.dart';
@@ -238,7 +239,7 @@ final class ConstellationFieldSnapshotReader {
           peer,
     ];
     final peerIds = {for (final peer in peers) peer.id};
-    final taggedPeers = await _withPeopleTags(viewerId, peers);
+    final taggedPeers = await _withPeopleTags(viewerId, peers, loadedAt);
 
     return ConstellationFieldSnapshot(
       loadedAt: loadedAt,
@@ -709,6 +710,7 @@ ORDER BY person_id, tag_id
   Future<List<ConstellationPeerRecord>> _withPeopleTags(
     String viewerId,
     List<ConstellationPeerRecord> peers,
+    DateTime loadedAt,
   ) async {
     final ids = [
       for (final peer in peers)
@@ -767,6 +769,15 @@ SELECT EXISTS (
                   )
                   .getSingle())
               .read<bool>('present');
+    }
+    // The first response already shows later arrivals as New, even though
+    // their first-seen rows are written after this read-only snapshot closes.
+    // The viewer's first-ever population is backfilled and never lights up.
+    if (!firstSeenBackfill) {
+      for (final id in unseenPeerIds) {
+        seen[id] = loadedAt;
+        (auto[id] ??= {}).add(PersonAutoTagKind.newOnField.smallintValue);
+      }
     }
     return [
       for (final peer in peers)

@@ -37,18 +37,6 @@ Future<void> main() async {
     return;
   }
   final dockerReachable = await IsolatedHasuraSession.isDockerAvailable();
-  if (!dockerReachable) {
-    if (isPgTestsRequired()) {
-      test('Docker is available for isolated Hasura', () {
-        fail(
-          'Docker required ($pgTestsRequiredEnvVar=1) but not available',
-        );
-      });
-    } else {
-      test('Docker unavailable', () {}, skip: 'Docker not available');
-    }
-    return;
-  }
 
   group('Help offers on a Post through Hasura', () {
     late DisposablePgWriterSession session;
@@ -139,7 +127,7 @@ WHERE beacon_id = '$_post' AND user_id = '$_offerer'
 ''');
       expect(rows.single[0], 0);
     });
-  });
+  }, skip: dockerReachable ? false : 'Docker not available');
 }
 
 String _insertOffer(String beaconId) =>

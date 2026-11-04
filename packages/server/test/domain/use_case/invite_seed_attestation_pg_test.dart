@@ -15,10 +15,12 @@ import 'package:tentura_server/data/repository/capability_evidence_repository.da
 import 'package:tentura_server/data/repository/invite_genealogy_repository.dart';
 import 'package:tentura_server/data/repository/invite_seed_prompt_repository.dart';
 import 'package:tentura_server/data/repository/mutating_unit_of_work.dart';
+import 'package:tentura_server/data/repository/person_capability_event_repository.dart';
 import 'package:tentura_server/data/repository/user_block_repository.dart';
 import 'package:tentura_server/domain/capability/capability_evidence_models.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/invite_genealogy/invite_genealogy_node_key.dart';
+import 'package:tentura_server/domain/use_case/capability_case.dart';
 import 'package:tentura_server/domain/use_case/invite_seed_attestation_case.dart';
 import 'package:tentura_server/env.dart';
 
@@ -40,6 +42,7 @@ Future<void> main() async {
     late Connection writer;
     late TenturaDb database;
     late InviteSeedAttestationCase case_;
+    late CapabilityCase capabilityCase;
     late Env env;
 
     setUpAll(() async {
@@ -64,6 +67,11 @@ Future<void> main() async {
         CapabilityEvidenceRepository(database),
         FakeUserBlockRepository(),
         MutatingUnitOfWork(database),
+        env: env,
+        logger: Logger('InviteSeedAttestationPgTest'),
+      );
+      capabilityCase = CapabilityCase(
+        PersonCapabilityEventRepository(database),
         env: env,
         logger: Logger('InviteSeedAttestationPgTest'),
       );
@@ -133,38 +141,48 @@ WHERE id LIKE 'Ucapc4%'
       );
     }, skip: skipReason);
 
-    test('re-answer replaces the prior attestation set', () async {
-      await case_.answer(
-        actorId: _inviterId,
-        subjectId: _inviteeId,
-        slugs: const ['transport'],
-      );
-      await case_.answer(
-        actorId: _inviterId,
-        subjectId: _inviteeId,
-        slugs: const ['pets'],
-      );
+    test(
+      're-answer replaces the prior tag set on the sheet and the profile',
+      () async {
+        await case_.answer(
+          actorId: _inviterId,
+          subjectId: _inviteeId,
+          slugs: const ['transport'],
+        );
+        await case_.answer(
+          actorId: _inviterId,
+          subjectId: _inviteeId,
+          slugs: const ['pets'],
+        );
 
-      final rows = await writer.execute(r'''
-SELECT tag_slug
-FROM public.person_capability_event
-WHERE observer_user_id = 'Ucapc4inv01'
-  AND subject_user_id = 'Ucapc4inv02'
-  AND source_type = 4
-  AND deleted_at IS NULL
-ORDER BY tag_slug
-''');
-      expect(rows.map((r) => r[0]), ['pets']);
+        final prompt = await case_.promptStateFor(
+          actorId: _inviterId,
+          subjectId: _inviteeId,
+        );
+        expect(prompt.state, PromptStateValue.answered);
+        expect(prompt.slugs, ['pets']);
 
-      final state = await writer.execute(r'''
+        final profileTags = await capabilityCase.getPrivateLabelsForUser(
+          observerId: _inviterId,
+          subjectId: _inviteeId,
+        );
+        expect(
+          profileTags,
+          ['pets'],
+          reason: 'the re-answered set is the inviter\'s tags on the profile',
+        );
+
+        final state = await writer.execute(r'''
 SELECT state
 FROM public.invite_seed_prompt_state
 WHERE invitee_user_id = 'Ucapc4inv02'
 ''');
-      expect(state.single[0], 1);
-    }, skip: skipReason);
+        expect(state.single[0], 1);
+      },
+      skip: skipReason,
+    );
 
-    test('skip records state 2 and writes no seed attestation', () async {
+    test('skip records state 2 and gives the invitee no tags', () async {
       await case_.skip(actorId: _inviterId, subjectId: _inviteeId);
 
       final state = await writer.execute(r'''
@@ -174,47 +192,72 @@ WHERE invitee_user_id = 'Ucapc4inv02'
 ''');
       expect(state.single[0], 2);
 
+      // Storage-agnostic: no active tag of any source for this pair.
       final ledger = await writer.execute(r'''
 SELECT 1
 FROM public.person_capability_event
 WHERE observer_user_id = 'Ucapc4inv01'
   AND subject_user_id = 'Ucapc4inv02'
-  AND source_type = 4
   AND deleted_at IS NULL
 ''');
       expect(ledger, isEmpty);
+
+      final profileTags = await capabilityCase.getPrivateLabelsForUser(
+        observerId: _inviterId,
+        subjectId: _inviteeId,
+      );
+      expect(profileTags, isEmpty);
     }, skip: skipReason);
 
-    test('answered with zero tags still marks answered and clears ledger',
-        () async {
-      await case_.answer(
-        actorId: _inviterId,
-        subjectId: _inviteeId,
-        slugs: const ['transport'],
-      );
-      await case_.answer(
-        actorId: _inviterId,
-        subjectId: _inviteeId,
-        slugs: const [],
-      );
+    test(
+      'answered with zero tags still marks answered and clears the tags on '
+      'the sheet and the profile',
+      () async {
+        await case_.answer(
+          actorId: _inviterId,
+          subjectId: _inviteeId,
+          slugs: const ['transport'],
+        );
+        expect(
+          await capabilityCase.getPrivateLabelsForUser(
+            observerId: _inviterId,
+            subjectId: _inviteeId,
+          ),
+          ['transport'],
+          reason: 'the first answer gives the tag on the profile',
+        );
+        await case_.answer(
+          actorId: _inviterId,
+          subjectId: _inviteeId,
+          slugs: const [],
+        );
 
-      final rows = await writer.execute(r'''
+        // Storage-agnostic: no active tag of any source for this pair.
+        final rows = await writer.execute(r'''
 SELECT tag_slug
 FROM public.person_capability_event
 WHERE observer_user_id = 'Ucapc4inv01'
   AND subject_user_id = 'Ucapc4inv02'
-  AND source_type = 4
   AND deleted_at IS NULL
 ''');
-      expect(rows, isEmpty);
+        expect(rows, isEmpty);
+        expect(
+          await capabilityCase.getPrivateLabelsForUser(
+            observerId: _inviterId,
+            subjectId: _inviteeId,
+          ),
+          isEmpty,
+        );
 
-      final prompt = await case_.promptStateFor(
-        actorId: _inviterId,
-        subjectId: _inviteeId,
-      );
-      expect(prompt.state, PromptStateValue.answered);
-      expect(prompt.slugs, isEmpty);
-    }, skip: skipReason);
+        final prompt = await case_.promptStateFor(
+          actorId: _inviterId,
+          subjectId: _inviteeId,
+        );
+        expect(prompt.state, PromptStateValue.answered);
+        expect(prompt.slugs, isEmpty);
+      },
+      skip: skipReason,
+    );
 
     test('promptStateFor round-trips ledger slugs after answer', () async {
       await case_.answer(
@@ -230,6 +273,130 @@ WHERE observer_user_id = 'Ucapc4inv01'
       expect(prompt.state, PromptStateValue.answered);
       expect(prompt.slugs, ['transport']);
     }, skip: skipReason);
+
+    // ADR 0012 D5 (issue #897): every tag you give is a seed, so the
+    // invite-accepted sheet and the profile edit one set of tags.
+    group(
+      'the invite-accepted sheet and the profile share one set of tags',
+      () {
+        test(
+          "tags chosen on the invite-accepted sheet are the inviter's tags on "
+          "the invitee's profile",
+          () async {
+            await case_.answer(
+              actorId: _inviterId,
+              subjectId: _inviteeId,
+              slugs: const ['transport'],
+            );
+
+            final profileTags = await capabilityCase.getPrivateLabelsForUser(
+              observerId: _inviterId,
+              subjectId: _inviteeId,
+            );
+            expect(profileTags, ['transport']);
+          },
+          skip: skipReason,
+        );
+
+        test(
+          'editing tags on the profile changes what the invite-accepted sheet '
+          'shows',
+          () async {
+            await case_.answer(
+              actorId: _inviterId,
+              subjectId: _inviteeId,
+              slugs: const ['transport'],
+            );
+            await capabilityCase.setViewerVisible(
+              observerId: _inviterId,
+              subjectId: _inviteeId,
+              slugs: const ['pets'],
+            );
+
+            final prompt = await case_.promptStateFor(
+              actorId: _inviterId,
+              subjectId: _inviteeId,
+            );
+            expect(prompt.slugs, ['pets']);
+          },
+          skip: skipReason,
+        );
+
+        test(
+          'replacing tags through the seed mutation replaces them on both the '
+          'profile and the invite-accepted sheet',
+          () async {
+            // The same tag was given on both surfaces before the replace.
+            await case_.answer(
+              actorId: _inviterId,
+              subjectId: _inviteeId,
+              slugs: const ['transport'],
+            );
+            await capabilityCase.setViewerVisible(
+              observerId: _inviterId,
+              subjectId: _inviteeId,
+              slugs: const ['transport'],
+            );
+            await case_.replaceAttestation(
+              actorId: _inviterId,
+              subjectId: _inviteeId,
+              slugs: const ['pets'],
+            );
+
+            final profileTags = await capabilityCase.getPrivateLabelsForUser(
+              observerId: _inviterId,
+              subjectId: _inviteeId,
+            );
+            expect(profileTags, ['pets']);
+            final prompt = await case_.promptStateFor(
+              actorId: _inviterId,
+              subjectId: _inviteeId,
+            );
+            expect(
+              prompt.slugs,
+              ['pets'],
+              reason: 'the sheet must show the replaced tags, not stale ones',
+            );
+          },
+          skip: skipReason,
+        );
+
+        test(
+          'withdrawing through the seed mutation clears the tags on both the '
+          'profile and the invite-accepted sheet',
+          () async {
+            // The same tag was given on both surfaces before the withdraw.
+            await case_.answer(
+              actorId: _inviterId,
+              subjectId: _inviteeId,
+              slugs: const ['transport'],
+            );
+            await capabilityCase.setViewerVisible(
+              observerId: _inviterId,
+              subjectId: _inviteeId,
+              slugs: const ['transport'],
+            );
+            await case_.withdraw(actorId: _inviterId, subjectId: _inviteeId);
+
+            final profileTags = await capabilityCase.getPrivateLabelsForUser(
+              observerId: _inviterId,
+              subjectId: _inviteeId,
+            );
+            expect(profileTags, isEmpty);
+            final prompt = await case_.promptStateFor(
+              actorId: _inviterId,
+              subjectId: _inviteeId,
+            );
+            expect(
+              prompt.slugs,
+              isEmpty,
+              reason: 'the sheet must not keep showing withdrawn tags',
+            );
+          },
+          skip: skipReason,
+        );
+      },
+    );
   });
 }
 
@@ -237,9 +404,24 @@ Future<void> _seedFixture(Connection writer, Env env) async {
   final inviterCreated = DateTime.utc(2026, 1, 1);
   final inviteeCreated = DateTime.utc(2026, 1, 2);
   for (final row in [
-    (_inviterId, 'Inviter', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', inviterCreated),
-    (_inviteeId, 'Invitee', 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', inviteeCreated),
-    (_otherId, 'Other', 'cccccccccccccccccccccccccccccccccccccccccccc', inviteeCreated),
+    (
+      _inviterId,
+      'Inviter',
+      'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      inviterCreated,
+    ),
+    (
+      _inviteeId,
+      'Invitee',
+      'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+      inviteeCreated,
+    ),
+    (
+      _otherId,
+      'Other',
+      'cccccccccccccccccccccccccccccccccccccccccccc',
+      inviteeCreated,
+    ),
   ]) {
     await writer.execute(
       Sql.named(r'''
@@ -269,8 +451,14 @@ ON CONFLICT (id) DO NOTHING
     },
   );
 
-  final inviterKey = InviteGenealogyNodeKey.derive(userId: _inviterId, env: env);
-  final inviteeKey = InviteGenealogyNodeKey.derive(userId: _inviteeId, env: env);
+  final inviterKey = InviteGenealogyNodeKey.derive(
+    userId: _inviterId,
+    env: env,
+  );
+  final inviteeKey = InviteGenealogyNodeKey.derive(
+    userId: _inviteeId,
+    env: env,
+  );
   await writer.execute(
     Sql.named(r'''
 INSERT INTO public.invite_genealogy (
@@ -345,7 +533,8 @@ class _DisposablePgTarget {
 
   factory _DisposablePgTarget.fromEnvironment() {
     final host = Platform.environment['POSTGRES_HOST'] ?? '127.0.0.1';
-    final port = int.tryParse(Platform.environment['POSTGRES_PORT'] ?? '') ?? 5432;
+    final port =
+        int.tryParse(Platform.environment['POSTGRES_PORT'] ?? '') ?? 5432;
     final password = Platform.environment['POSTGRES_PASSWORD'] ?? 'password';
     final suffix = DateTime.now().microsecondsSinceEpoch;
     final databaseName = 'tentura_c4_${suffix}_test';

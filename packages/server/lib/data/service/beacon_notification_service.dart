@@ -70,7 +70,14 @@ class BeaconNotificationService implements BeaconNotificationPort {
       final preferences = await _preferences.getForAccount(
         decision.recipientId,
       );
-      final fullCopy = _localizedCopy(decision, intent, preferences.locale);
+      final fullCopy = _copyBuilder.localizeStored(
+        intent: intent,
+        title: decision.title,
+        body: decision.body,
+        actionUrl: decision.actionUrl,
+        actorDisplayName: decision.actorDisplayName ?? '',
+        locale: preferences.locale,
+      );
       final muted = decision.beaconId == null
           ? const <String>{}
           : await _preferences.getMutedBeaconIds(decision.recipientId, now);
@@ -145,39 +152,6 @@ class BeaconNotificationService implements BeaconNotificationPort {
         );
       }
     }
-  }
-
-  /// The job's stored English copy, or the recipient-language copy of it when
-  /// the job carries the builder's own default sentence. Text a person wrote
-  /// (an excerpt, a Request title) is never translated. The title is
-  /// translated when it is the builder's title for the actor name stored on
-  /// the job, e.g. "Anna accepted your offer" (#367).
-  BeaconNotificationCopy _localizedCopy(
-    AttentionChannelDecision decision,
-    BeaconNotificationIntent intent,
-    String locale,
-  ) {
-    final stored = BeaconNotificationCopy(
-      title: decision.title,
-      body: decision.body,
-      actionUrl: decision.actionUrl,
-    );
-    if (!locale.toLowerCase().startsWith('ru')) return stored;
-    final actor = decision.actorDisplayName ?? '';
-    final english = _copyBuilder.build(
-      intent: intent,
-      actorDisplayName: actor,
-    );
-    final russian = _copyBuilder.build(
-      intent: intent,
-      actorDisplayName: actor,
-      locale: locale,
-    );
-    return BeaconNotificationCopy(
-      title: english.title == decision.title ? russian.title : decision.title,
-      body: english.body == decision.body ? russian.body : decision.body,
-      actionUrl: decision.actionUrl,
-    );
   }
 
   Future<void> _sendDecisionDirect({

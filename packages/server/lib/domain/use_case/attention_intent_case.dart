@@ -76,6 +76,12 @@ class AttentionIntentCase {
           switch (noteForRecipient(recipient.recipientId)?.trim()) {
             final note? when note.isNotEmpty => recipient.copyWith(
               role: recipient.role.copyWith(excerpt: note),
+              collapseKey: beaconKind == BeaconKind.post
+                  ? AttentionCollapseKey.family('post_shared_note', [
+                      beaconId,
+                      recipient.recipientId,
+                    ])
+                  : recipient.collapseKey,
             ),
             _ => recipient,
           },

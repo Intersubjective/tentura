@@ -58,8 +58,23 @@ class ConstellationTagLensCubit extends Cubit<ConstellationTagFilter> {
     );
   }
 
-  void clear() {
+  void clearAll() {
     _set(const ConstellationTagFilter());
+  }
+
+  void clear() => clearAll();
+
+  void selectAll({
+    required Iterable<String> ownTagIds,
+    required Iterable<ConstellationAutoTagKind> autoKinds,
+  }) {
+    _set(
+      ConstellationTagFilter(
+        selectedOwn: {...ownTagIds},
+        selectedAuto: {...autoKinds},
+        mode: state.mode,
+      ),
+    );
   }
 }
 

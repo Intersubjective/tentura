@@ -654,17 +654,11 @@ RETURNING receipt.id
   /// Authorization, re-asked at undo time in the same words
   /// `AttentionDismissibleSql.dismissibleOutcomes` asks it. Without it, undo
   /// puts back a row the viewer may no longer read.
-  static const undoOutcomeReadabilityGuard = r'''
-   AND (
-     public.beacon_can_read_content(ii.beacon_id, $1)
-     OR (
-       ii.status IN (3, 4)
-       AND public.beacon_can_read_tombstone(ii.beacon_id, $1)
-     )
-   )''';
+  static final undoOutcomeReadabilityGuard =
+      '   AND ${AttentionDismissibleSql.outcomeReadabilityGuard}';
 
   /// The outcome half of undo. `$1` account, `$2` operation, `$3` Request id.
-  static const undoOutcomeSql =
+  static final undoOutcomeSql =
       '''
 UPDATE public.inbox_item AS ii
    SET tombstone_dismissed_at = NULL
@@ -1066,13 +1060,8 @@ SELECT receipt.id AS member_id,
 SELECT ii.beacon_id AS member_id,
        CASE
          WHEN ii.tombstone_dismissed_at IS NULL THEN 'already_restored'
-         WHEN NOT (
-           public.beacon_can_read_content(ii.beacon_id, \$1)
-           OR (
-             ii.status IN (3, 4)
-             AND public.beacon_can_read_tombstone(ii.beacon_id, \$1)
-           )
-         ) THEN 'not_authorized'
+         WHEN NOT ${AttentionDismissibleSql.outcomeReadabilityGuard}
+           THEN 'not_authorized'
          ELSE 'decision_changed'
        END AS reason
   FROM public.inbox_item ii

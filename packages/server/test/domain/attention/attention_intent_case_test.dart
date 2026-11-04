@@ -495,27 +495,33 @@ void main() {
         sourceEventKey: eventKey,
       );
 
-      test('excludes candidate when actor blocked them', () async {
-        final blocks = FakeUserBlockRepository();
-        blocks.blockPair(actor, target);
-        final harness = TestAttentionHarness(userBlocks: blocks);
+      test(
+        'fromBeaconNotification hub: excludes candidate when actor blocked them',
+        () async {
+          final blocks = FakeUserBlockRepository();
+          blocks.blockPair(actor, target);
+          final harness = TestAttentionHarness(userBlocks: blocks);
 
-        final intent = await buildIntent(harness);
+          final intent = await buildIntent(harness);
 
-        expect(await recipientIds(intent), isNot(contains(target)));
-        expect(await recipientIds(intent), contains(unrelated));
-      });
+          expect(await recipientIds(intent), isNot(contains(target)));
+          expect(await recipientIds(intent), contains(unrelated));
+        },
+      );
 
-      test('excludes candidate when they blocked actor', () async {
-        final blocks = FakeUserBlockRepository();
-        blocks.blockPair(target, actor);
-        final harness = TestAttentionHarness(userBlocks: blocks);
+      test(
+        'fromBeaconNotification hub: excludes candidate when they blocked actor',
+        () async {
+          final blocks = FakeUserBlockRepository();
+          blocks.blockPair(target, actor);
+          final harness = TestAttentionHarness(userBlocks: blocks);
 
-        final intent = await buildIntent(harness);
+          final intent = await buildIntent(harness);
 
-        expect(await recipientIds(intent), isNot(contains(target)));
-        expect(await recipientIds(intent), contains(unrelated));
-      });
+          expect(await recipientIds(intent), isNot(contains(target)));
+          expect(await recipientIds(intent), contains(unrelated));
+        },
+      );
     });
 
     group('_directedRoomMessage', () {
@@ -531,27 +537,33 @@ void main() {
         sourceEventKey: eventKey,
       );
 
-      test('excludes candidate when actor blocked them', () async {
-        final blocks = FakeUserBlockRepository();
-        blocks.blockPair(actor, target);
-        final harness = TestAttentionHarness(userBlocks: blocks);
+      test(
+        '_directedRoomMessage: excludes candidate when actor blocked them',
+        () async {
+          final blocks = FakeUserBlockRepository();
+          blocks.blockPair(actor, target);
+          final harness = TestAttentionHarness(userBlocks: blocks);
 
-        final intent = await buildIntent(harness);
+          final intent = await buildIntent(harness);
 
-        expect(await recipientIds(intent), isNot(contains(target)));
-        expect(await recipientIds(intent), contains(unrelated));
-      });
+          expect(await recipientIds(intent), isNot(contains(target)));
+          expect(await recipientIds(intent), contains(unrelated));
+        },
+      );
 
-      test('excludes candidate when they blocked actor', () async {
-        final blocks = FakeUserBlockRepository();
-        blocks.blockPair(target, actor);
-        final harness = TestAttentionHarness(userBlocks: blocks);
+      test(
+        '_directedRoomMessage: excludes candidate when they blocked actor',
+        () async {
+          final blocks = FakeUserBlockRepository();
+          blocks.blockPair(target, actor);
+          final harness = TestAttentionHarness(userBlocks: blocks);
 
-        final intent = await buildIntent(harness);
+          final intent = await buildIntent(harness);
 
-        expect(await recipientIds(intent), isNot(contains(target)));
-        expect(await recipientIds(intent), contains(unrelated));
-      });
+          expect(await recipientIds(intent), isNot(contains(target)));
+          expect(await recipientIds(intent), contains(unrelated));
+        },
+      );
 
       test('a Request Questions notice carries no message text and opens '
           'the Questions screen', () async {
@@ -601,33 +613,39 @@ void main() {
         sourceEventKey: eventKey,
       );
 
-      test('excludes candidate when actor blocked them', () async {
-        final blocks = FakeUserBlockRepository();
-        blocks.blockPair(actor, target);
-        final harness = TestAttentionHarness(
-          context: blockContext,
-          userBlocks: blocks,
-        );
+      test(
+        'requestStatusChanged: excludes candidate when actor blocked them',
+        () async {
+          final blocks = FakeUserBlockRepository();
+          blocks.blockPair(actor, target);
+          final harness = TestAttentionHarness(
+            context: blockContext,
+            userBlocks: blocks,
+          );
 
-        final intent = await buildIntent(harness);
+          final intent = await buildIntent(harness);
 
-        expect(await recipientIds(intent), isNot(contains(target)));
-        expect(await recipientIds(intent), contains(unrelated));
-      });
+          expect(await recipientIds(intent), isNot(contains(target)));
+          expect(await recipientIds(intent), contains(unrelated));
+        },
+      );
 
-      test('excludes candidate when they blocked actor', () async {
-        final blocks = FakeUserBlockRepository();
-        blocks.blockPair(target, actor);
-        final harness = TestAttentionHarness(
-          context: blockContext,
-          userBlocks: blocks,
-        );
+      test(
+        'requestStatusChanged: excludes candidate when they blocked actor',
+        () async {
+          final blocks = FakeUserBlockRepository();
+          blocks.blockPair(target, actor);
+          final harness = TestAttentionHarness(
+            context: blockContext,
+            userBlocks: blocks,
+          );
 
-        final intent = await buildIntent(harness);
+          final intent = await buildIntent(harness);
 
-        expect(await recipientIds(intent), isNot(contains(target)));
-        expect(await recipientIds(intent), contains(unrelated));
-      });
+          expect(await recipientIds(intent), isNot(contains(target)));
+          expect(await recipientIds(intent), contains(unrelated));
+        },
+      );
     });
 
     group('mutualConnectionFormed', () {

@@ -16,6 +16,10 @@ part 'profile.freezed.dart';
 abstract class Profile with _$Profile implements Likable, Scorable {
   const factory Profile({
     @Default('') String id,
+
+    /// Account creation time from Hasura `user.created_at` (UTC).
+    DateTime? joinedAt,
+
     @Default('') String displayName,
 
     /// Subjective profiles: the viewer's private name for this user (from
@@ -31,6 +35,9 @@ abstract class Profile with _$Profile implements Likable, Scorable {
     @Default(0) int myVote,
     @Default(false) bool subjectExplicitlyTrustsViewer,
     @Default(false) bool isMutualFriend,
+
+    /// When explicit mutual trust began (later of the two trust edges), if any.
+    DateTime? mutualSince,
 
     /// Viewer and subject share an active Request (co-participant bond).
     @Default(false) bool sharesActiveContext,

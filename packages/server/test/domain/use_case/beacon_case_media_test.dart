@@ -240,7 +240,7 @@ void main() {
   });
 
   group('BeaconCase.addImage (legacy)', () {
-    test('rejects an unauthorized caller before uploading', () async {
+    test('addImage: rejects an unauthorized caller before uploading', () async {
       await expectLater(
         case_.addImage(
           beaconId: 'B1',
@@ -252,7 +252,7 @@ void main() {
       expect(imageRepo.compensatedUploads, isEmpty);
     });
 
-    test('rejects at the cap and compensates the upload', () async {
+    test('addImage: rejects at the cap and compensates the upload', () async {
       beaconRepo.snapshot = const BeaconMediaSnapshot(
         attachedImageIds: [
           'I1',
@@ -317,7 +317,7 @@ void main() {
     });
 
     test(
-      'succeeds even when post-commit hash scheduling fails (non-fatal)',
+      'addImage: succeeds even when post-commit hash scheduling fails (non-fatal)',
       () async {
         taskRepo.failure = StateError('task queue unavailable');
 
@@ -355,50 +355,56 @@ void main() {
       },
     );
 
-    test('rejects an unauthorized caller before uploading', () async {
-      await expectLater(
-        case_.beaconStageImage(
-          beaconId: 'B1',
-          userId: 'Uother',
-          imageBytes: const Stream.empty(),
-        ),
-        throwsA(isA<StateError>()),
-      );
-      expect(imageRepo.compensatedUploads, isEmpty);
-    });
+    test(
+      'beaconStageImage: rejects an unauthorized caller before uploading',
+      () async {
+        await expectLater(
+          case_.beaconStageImage(
+            beaconId: 'B1',
+            userId: 'Uother',
+            imageBytes: const Stream.empty(),
+          ),
+          throwsA(isA<StateError>()),
+        );
+        expect(imageRepo.compensatedUploads, isEmpty);
+      },
+    );
 
-    test('rejects at the cap and compensates the upload', () async {
-      beaconRepo.snapshot = const BeaconMediaSnapshot(
-        attachedImageIds: [],
-        stagedImageIds: {
-          'I1',
-          'I2',
-          'I3',
-          'I4',
-          'I5',
-          'I6',
-          'I7',
-          'I8',
-          'I9',
-          'I10',
-        },
-      );
-      imageRepo.ownedIds = ['Inew'];
+    test(
+      'beaconStageImage: rejects at the cap and compensates the upload',
+      () async {
+        beaconRepo.snapshot = const BeaconMediaSnapshot(
+          attachedImageIds: [],
+          stagedImageIds: {
+            'I1',
+            'I2',
+            'I3',
+            'I4',
+            'I5',
+            'I6',
+            'I7',
+            'I8',
+            'I9',
+            'I10',
+          },
+        );
+        imageRepo.ownedIds = ['Inew'];
 
-      await expectLater(
-        case_.beaconStageImage(
-          beaconId: 'B1',
-          userId: 'Uauth',
-          imageBytes: const Stream.empty(),
-        ),
-        throwsA(isA<BeaconCreateException>()),
-      );
+        await expectLater(
+          case_.beaconStageImage(
+            beaconId: 'B1',
+            userId: 'Uauth',
+            imageBytes: const Stream.empty(),
+          ),
+          throwsA(isA<BeaconCreateException>()),
+        );
 
-      expect(imageRepo.compensatedUploads, [
-        (authorId: 'Uauth', imageId: 'Inew'),
-      ]);
-      expect(beaconRepo.insertStageCalls, isEmpty);
-    });
+        expect(imageRepo.compensatedUploads, [
+          (authorId: 'Uauth', imageId: 'Inew'),
+        ]);
+        expect(beaconRepo.insertStageCalls, isEmpty);
+      },
+    );
 
     test(
       'rejects when the uploaded image is not owned under the lock and compensates',
@@ -439,7 +445,7 @@ void main() {
     });
 
     test(
-      'succeeds even when post-commit hash scheduling fails (non-fatal)',
+      'beaconStageImage: succeeds even when post-commit hash scheduling fails (non-fatal)',
       () async {
         imageRepo.ownedIds = ['Inew'];
         taskRepo.failure = StateError('task queue unavailable');

@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 
 import 'package:tentura/app/router/root_router.dart';
@@ -9,22 +7,19 @@ import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/forward/domain/entity/forward_edge.dart';
-import 'package:tentura/features/friends/ui/dialog/friend_remove_dialog.dart';
 import 'package:tentura/features/people_tags/ui/widget/person_menu.dart';
-import 'package:tentura/features/profile_view/ui/bloc/profile_view_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/coordination_participant_lookup.dart';
 
 /// Who is in a Post's conversation and who has not opened it yet (M5): a
 /// section of the «О посте» sheet, not a scrollable of its own.
-class PostParticipantsList extends StatefulWidget {
+class PostParticipantsList extends StatelessWidget {
   const PostParticipantsList({
     required this.viewerId,
     required this.participants,
     required this.forwardEdges,
     required this.onForwardsGraph,
     this.onInvite,
-    this.profileViewCubitFactory,
     this.peopleTagsEnabled = kPeopleTagsEnabled,
     super.key,
   });
@@ -39,42 +34,20 @@ class PostParticipantsList extends StatefulWidget {
   /// «Позвать»; null when the viewer may not forward the Post.
   final VoidCallback? onInvite;
 
-  /// Creates the per-person cubit that answers «in contacts» and adds a
-  /// contact; defaults to a real [ProfileViewCubit].
-  final ProfileViewCubit Function(String id)? profileViewCubitFactory;
-
   /// Offers the person menu ("Add to tag…") on other people's rows; off with
   /// the feature gate.
   final bool peopleTagsEnabled;
 
   @override
-  State<PostParticipantsList> createState() => _PostParticipantsListState();
-}
-
-class _PostParticipantsListState extends State<PostParticipantsList> {
-  final _cubits = <String, ProfileViewCubit>{};
-
-  ProfileViewCubit _cubitFor(String id) => _cubits[id] ??=
-      widget.profileViewCubitFactory?.call(id) ?? ProfileViewCubit(id: id);
-
-  @override
-  void dispose() {
-    for (final cubit in _cubits.values) {
-      unawaited(cubit.close());
-    }
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
-    final admitted = widget.participants
+    final admitted = participants
         .where((p) => p.roomAccess == RoomAccessBits.admitted)
         .toList();
     final unopened = admitted.where(_hasNotOpened).toList();
     final inConversation = admitted.where((p) => !_hasNotOpened(p)).toList();
-    final onInvite = widget.onInvite;
+    final onInvite = this.onInvite;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
@@ -104,16 +77,16 @@ class _PostParticipantsListState extends State<PostParticipantsList> {
           ),
         ),
         _Heading(l10n.postParticipantsInConversation(inConversation.length)),
-        for (final p in inConversation) _row(p, showContactState: true),
+        for (final p in inConversation) _row(context, p),
         if (unopened.isNotEmpty) ...[
           _Heading(l10n.postParticipantsUnopened(unopened.length)),
-          for (final p in unopened) _row(p, showContactState: false),
+          for (final p in unopened) _row(context, p),
         ],
         ListTile(
           leading: const Icon(Icons.account_tree_outlined),
           title: Text(l10n.postParticipantsForwardsGraph),
           trailing: const Icon(Icons.chevron_right),
-          onTap: widget.onForwardsGraph,
+          onTap: onForwardsGraph,
         ),
       ],
     );
@@ -121,22 +94,21 @@ class _PostParticipantsListState extends State<PostParticipantsList> {
 
   /// The author and the viewer are always in the conversation.
   bool _hasNotOpened(BeaconParticipant p) =>
-      p.lastSeenRoomAt == null &&
+      !p.opened &&
       p.role != BeaconParticipantRoleBits.author &&
-      p.userId != widget.viewerId;
+      p.userId != viewerId;
 
-  Widget _row(BeaconParticipant p, {required bool showContactState}) {
-    final isViewer = p.userId == widget.viewerId;
-    final edge = widget.forwardEdges
+  Widget _row(BuildContext context, BeaconParticipant p) {
+    final isViewer = p.userId == viewerId;
+    final edge = forwardEdges
         .where((e) => e.recipient.id == p.userId)
         .firstOrNull;
     return _PersonRow(
       participant: p,
-      profile: profileForParticipant(widget.participants, p.userId),
+      profile: profileForParticipant(participants, p.userId),
       isViewer: isViewer,
       broughtBy: edge?.sender.shownName ?? '',
-      cubit: showContactState && !isViewer ? _cubitFor(p.userId) : null,
-      hasPersonMenu: widget.peopleTagsEnabled && !isViewer,
+      hasPersonMenu: peopleTagsEnabled && !isViewer,
     );
   }
 }
@@ -167,7 +139,6 @@ class _PersonRow extends StatelessWidget {
     required this.profile,
     required this.isViewer,
     required this.broughtBy,
-    required this.cubit,
     required this.hasPersonMenu,
   });
 
@@ -175,9 +146,6 @@ class _PersonRow extends StatelessWidget {
   final Profile profile;
   final bool isViewer;
   final String broughtBy;
-
-  /// `null` when the row has no contact state (viewer, not opened yet).
-  final ProfileViewCubit? cubit;
 
   /// Offers the person menu ("Add to tag…"): not for the viewer, not with
   /// the feature off.
@@ -223,28 +191,6 @@ class _PersonRow extends StatelessWidget {
                   style: muted,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            if (cubit case final cubit?)
-              BlocBuilder<ProfileViewCubit, ProfileViewState>(
-                bloc: cubit,
-                // Trust toggle instead of an "add" button (#140).
-                builder: (context, state) => Tooltip(
-                  message: state.profile.isFriend
-                      ? l10n.removeFromMyField
-                      : l10n.trustThisUser,
-                  child: Switch.adaptive(
-                    value: state.profile.isFriend,
-                    onChanged: (on) => on
-                        ? unawaited(cubit.addFriend())
-                        : unawaited(
-                            FriendRemoveDialog.show(
-                              context,
-                              profile: state.profile,
-                              onRemove: cubit.removeFriend,
-                            ),
-                          ),
-                  ),
                 ),
               ),
             if (hasPersonMenu) PersonMenuButton(personId: participant.userId),

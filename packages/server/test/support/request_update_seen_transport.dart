@@ -32,6 +32,7 @@ import 'package:tentura_server/domain/use_case/user_presence_case.dart';
 
 import 'disposable_pg_target.dart';
 import 'post_lifecycle_receipt_fixture.dart';
+import 'counted_receipt_fixture.dart';
 
 const _beaconId = 'Bseenby000001';
 // Socket authentication uses production-valid user ids.
@@ -129,6 +130,14 @@ INSERT INTO public.beacon_participant (
         closedOnly: postFixture == 'closedOnly',
         clearedClosed: postFixture == 'clearedClosed',
       );
+    }
+    if (Platform.environment['TENTURA_RECEIPT_COUNTED_ROWS_FIXTURE'] ==
+        'true') {
+      await seedCountedReceipts(writer);
+    }
+    if (Platform.environment['TENTURA_RECEIPT_COUNTED_SIBLING_FIXTURE'] ==
+        'true') {
+      await seedCountedReceipts(writer, siblings: true);
     }
     final schema = graphqlSchema;
     Future<Object?> execute(String viewer, Map<String, dynamic> body) =>

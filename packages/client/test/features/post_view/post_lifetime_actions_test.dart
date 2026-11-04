@@ -224,7 +224,6 @@ Future<_Harness> _pumpPost(
   await getIt.reset();
   addTearDown(getIt.reset);
   final profileCubit = _ProfileCubit(viewer);
-  // The participants list in «О посте» builds profile cubits from DI.
   final profiles = GraphTrustWriteFixture();
   addTearDown(profiles.dispose);
   getIt

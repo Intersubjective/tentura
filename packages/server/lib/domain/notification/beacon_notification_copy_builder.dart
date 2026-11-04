@@ -1,4 +1,6 @@
 import 'package:tentura_server/consts.dart';
+import 'package:tentura_server/domain/entity/email_notification_content.dart';
+import 'package:tentura_server/domain/entity/notification_outbox_item_entity.dart';
 import 'package:tentura_server/consts/coordination_item_consts.dart';
 import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/entity/beacon_notification_intent.dart';
@@ -25,6 +27,127 @@ class BeaconNotificationCopy {
 
 class BeaconNotificationCopyBuilder {
   const BeaconNotificationCopyBuilder();
+
+  ({
+    String waiting,
+    String moved,
+    String postsShared,
+    String postReplies,
+    String postsExpiring,
+  })
+  digestHeadings(String locale) => locale.toLowerCase().startsWith('ru')
+      ? (
+          waiting: 'Ждёт вашего ответа',
+          moved: 'Изменилось, пока вас не было',
+          postsShared: 'Вам переслали посты',
+          postReplies: 'Ответы на ваши посты',
+          postsExpiring: 'Скоро истекают',
+        )
+      : (
+          waiting: 'Waiting on you',
+          moved: 'Moved while you were away',
+          postsShared: 'Posts shared with you',
+          postReplies: 'Replies to your posts',
+          postsExpiring: 'Expiring soon',
+        );
+
+  /// One readable Post per event section; each note stays beside its sender.
+  EmailNotificationItem digestPostItem({
+    required List<NotificationOutboxItemEntity> receipts,
+    required String locale,
+    required String url,
+  }) {
+    final first = receipts.first;
+    final post = first.digestPost;
+    if (post == null) {
+      throw StateError('Post digest item requires readable Post content');
+    }
+    final ru = locale.toLowerCase().startsWith('ru');
+    final senders = <String, String>{};
+    final notes = <String>{};
+    for (final receipt in receipts) {
+      if (receipt.digestPost case final content?) {
+        final name = content.senderName.isEmpty
+            ? (ru ? 'Кто-то' : 'Someone')
+            : content.senderName;
+        senders[receipt.actorUserId ?? name] = name;
+        if (content.senderNote.isNotEmpty) {
+          notes.add('$name: ${content.senderNote}');
+        }
+      }
+    }
+    final names = senders.values.toList();
+    final joined = names.length < 2
+        ? names.join()
+        : '${names.take(names.length - 1).join(', ')}${ru ? ' и ' : ' and '}${names.last}';
+    final copy = build(
+      intent: BeaconNotificationIntent(
+        kind: first.kind,
+        priority: first.priority,
+        beaconId: first.beaconId ?? '',
+        actorUserId: first.actorUserId ?? '',
+        beaconKind: BeaconKind.post,
+      ),
+      actorDisplayName: post.senderName,
+      locale: locale,
+    );
+    final shared = first.kind == NotificationKind.newRelay;
+    return EmailNotificationItem(
+      title: shared
+          ? (names.length > 1
+                ? '${ru ? 'Поделились' : 'Shared by'} $joined'
+                : joined)
+          : copy.title,
+      body: [
+        if (!shared) copy.body,
+        if (post.excerpt.isNotEmpty) post.excerpt,
+        if (first.kind != NotificationKind.postExpiringSoon) ...notes,
+      ].join(' — '),
+      url: url,
+    );
+  }
+
+  /// Translate only recognized fixed copy; preserve excerpts, names and URLs.
+  BeaconNotificationCopy localizeStored({
+    required BeaconNotificationIntent intent,
+    required String title,
+    required String body,
+    required String actionUrl,
+    required String locale,
+    String actorDisplayName = '',
+  }) {
+    if (!locale.toLowerCase().startsWith('ru')) {
+      return BeaconNotificationCopy(
+        title: title,
+        body: body,
+        actionUrl: actionUrl,
+      );
+    }
+    final english = build(intent: intent, actorDisplayName: actorDisplayName);
+    final russian = build(
+      intent: intent,
+      actorDisplayName: actorDisplayName,
+      locale: locale,
+    );
+    final localizedBody = intent.kind == NotificationKind.inviteAccepted
+        ? switch (body) {
+            'Created an account via your invitation. You are now connected.' =>
+              'Создал(а) аккаунт по вашему приглашению. Теперь вы связаны.',
+            'Already had a Tentura account. You are now connected.' =>
+              'Уже был аккаунт в Tentura. Теперь вы связаны.',
+            'You are now connected on Tentura.' =>
+              'Вы теперь связаны в Tentura.',
+            _ => english.body == body ? russian.body : body,
+          }
+        : english.body == body
+        ? russian.body
+        : body;
+    return BeaconNotificationCopy(
+      title: english.title == title ? russian.title : title,
+      body: localizedBody,
+      actionUrl: actionUrl,
+    );
+  }
 
   BeaconNotificationCopy build({
     required BeaconNotificationIntent intent,
@@ -437,7 +560,10 @@ class BeaconNotificationCopyBuilder {
   /// generic, category-level summary with no excerpts, actor names, or beacon
   /// titles. The deep link is preserved (not shown on the lock screen).
   BeaconNotificationCopy lockScreenSafe(BeaconNotificationIntent intent) {
-    final (title, body) = switch (categoryOf(intent.kind)) {
+    final (title, body) = switch (categoryOf(
+      intent.kind,
+      beaconKind: intent.beaconKind,
+    )) {
       NotificationCategory.asksOfMe => (
         'Tentura',
         'Something needs your response',
@@ -455,6 +581,10 @@ class BeaconNotificationCopyBuilder {
         'New connection activity',
       ),
       NotificationCategory.ambient => ('Tentura', 'New activity'),
+      NotificationCategory.postsSharedWithMe => (
+        'Tentura',
+        'A post was shared with you',
+      ),
     };
     return BeaconNotificationCopy(
       title: title,

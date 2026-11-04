@@ -7,7 +7,8 @@ import 'package:injectable/injectable.dart';
 import 'package:meta/meta.dart';
 import 'package:rxdart/rxdart.dart';
 
-import 'package:tentura/consts.dart' show kQaIntegrationTestMode;
+import 'package:tentura/consts.dart'
+    show kDecimalRevisionPattern, kQaIntegrationTestMode;
 import 'package:tentura/data/service/remote_api_client/realtime_transport_status.dart';
 import 'package:tentura/domain/entity/quoted_fact.dart';
 import 'package:tentura/domain/entity/realtime/realtime_catch_up.dart';
@@ -250,8 +251,6 @@ class InvalidationService implements RealtimeSyncPort {
     );
   }
 
-  static final _decimalRevision = RegExp(r'^[0-9]+$');
-
   static RealtimeReadCursor? _parseReadCursor({
     required Object? threadItemId,
     required Object? lastSeenAtRaw,
@@ -271,7 +270,7 @@ class InvalidationService implements RealtimeSyncPort {
   }
 
   static BigInt? _parseRevision(Object? raw) =>
-      raw is String && _decimalRevision.hasMatch(raw)
+      raw is String && kDecimalRevisionPattern.hasMatch(raw)
       ? BigInt.parse(raw)
       : null;
 

@@ -128,6 +128,12 @@ final class ForwardCase extends UseCaseBase {
         final edge = await eligibleEdge();
         if (edge == null) return false;
         await _forwardEdgeRepository.cancel(edgeId, senderId);
+        // A recipient read can win after eligibility was checked. The
+        // conditional cancel leaves that edge active; preserve its Activity.
+        if ((await _forwardEdgeRepository.fetchById(edgeId))?.recipientReadAt !=
+            null) {
+          return false;
+        }
         await _capabilityEvidence.reconcileForwardReasons(
           forwardEdgeId: edgeId,
           observerId: senderId,

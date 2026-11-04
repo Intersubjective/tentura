@@ -2307,6 +2307,7 @@
   "notificationCatAsksOfMeDesc": "Things waiting on you; you're blocking others",
   "notificationCatUnblocksMe": "Resolutions",
   "notificationCatUnblocksMeDesc": "Updates that let you move forward",
+  "notificationCatPostsSharedWithMe": "Posts shared with me",
   "notificationCatCoordination": "Coordination",
   "notificationCatCoordinationDesc": "Activity in request discussions you're part of, including @mentions",
   "notificationCatConnections": "Connections",
@@ -3939,6 +3940,46 @@
       }
     }
   },
+  "profileMemberSince": "On Tentura since {date} · {tenure}",
+  "@profileMemberSince": {
+    "context": "Profile",
+    "description": "Profile summary: localized join date plus tenure duration (#990).",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      },
+      "tenure": {
+        "type": "String"
+      }
+    }
+  },
+  "profileTenureDays": "{count, plural, =0{0 days} =1{1 day} other{{count} days}}",
+  "@profileTenureDays": {
+    "context": "Profile",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "profileTenureMonths": "{count, plural, =1{1 month} other{{count} months}}",
+  "@profileTenureMonths": {
+    "context": "Profile",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "profileTenureYears": "{count, plural, =1{1 year} other{{count} years}}",
+  "@profileTenureYears": {
+    "context": "Profile",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "durationRemainingDaysHours": "{days}d {hours}h",
   "@durationRemainingDaysHours": {
     "placeholders": {
@@ -5182,7 +5223,23 @@
       }
     }
   },
-  "profileEditLabels": "Edit labels",
+  "profileYourTagsFor": "Your tags for {name}",
+  "@profileYourTagsFor": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "capabilityTagsDisclosure": "Tags you give help others find {name} for requests. Others never see who gave which tag.",
+  "@capabilityTagsDisclosure": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "profileEditLabels": "Edit",
   "profileLabelsInfoTitle": "Labels about this person",
   "profileLabelsInfoPrivate": "Notes marked with a lock are visible only to you: Tentura uses them to suggest this person to you when you forward.",
   "profileLabelsInfoShared": "Labels marked with people come from your forwards and help acknowledgements. {name} sees them, and they help people who trust you find this person for similar requests.",
@@ -6929,6 +6986,41 @@
   "postConversationMuted": "Muted",
   "@postConversationMuted": {
     "description": "Semantic label of the muted icon on a conversations row."
+  },
+  "postConversationOnlyYou": "Only you",
+  "@postConversationOnlyYou": {
+    "description": "Participants line on a Post conversations row when the viewer is alone."
+  },
+  "postConversationPeople": "{count, plural, one{1 person} other{{count} people}}",
+  "@postConversationPeople": {
+    "description": "Participants count on a Post conversations row.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "postConversationNotOpened": "{count, plural, one{1 hasn't opened} other{{count} haven't opened}}",
+  "@postConversationNotOpened": {
+    "description": "Not-opened count on a Post conversations row; omitted when zero.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "postConversationDeclined": "{count, plural, one{1 declined} other{{count} declined}}",
+  "@postConversationDeclined": {
+    "description": "Declined-forward count on a Post conversations row; omitted when zero.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "postConversationParticipantsSemantics": "Post participants",
+  "@postConversationParticipantsSemantics": {
+    "description": "Screen reader label for the tappable participants line on a Post row (#899)."
   },
   "postMenuParticipants": "Participants",
   "@postMenuParticipants": {
@@ -9543,6 +9635,18 @@
   "@forwardSectionDirectContacts": {
     "description": "Recipient picker section: people the viewer trusts directly (#440)."
   },
+  "forwardSectionNewMutual": "New",
+  "@forwardSectionNewMutual": {
+    "description": "Recipient picker section: people who became mutual trust in the last week (#894)."
+  },
+  "forwardSectionNewMutualHint": "Became mutual this week",
+  "@forwardSectionNewMutualHint": {
+    "description": "Helper under the «New» forward picker section (#894)."
+  },
+  "forwardSectionNewMutualSelectAll": "Select all",
+  "@forwardSectionNewMutualSelectAll": {
+    "description": "Select every eligible person in the «New» forward picker section (#894)."
+  },
   "forwardSectionOthersReachable": "Others you can reach",
   "@forwardSectionOthersReachable": {
     "description": "Recipient picker section: reachable people the viewer does not trust directly (#440)."
@@ -9917,6 +10021,28 @@
   "constellationPresenceOnlineHint": "A soft green pulse around a friend means they are online now.",
   "@constellationPresenceOnlineHint": {
     "context": "Field legend: one-sentence hint for the online presence halo; only friends and people you share a Request chat with show it"
+  },
+  "constellationFieldNewChip": "New",
+  "@constellationFieldNewChip": {
+    "context": "Field list: chip on a person who is new on your Field until you open them (#898)"
+  },
+  "constellationFieldNewLegend": "New on your Field",
+  "@constellationFieldNewLegend": {
+    "context": "Field legend: accent ring for a person who recently appeared on your Field (#898)"
+  },
+  "constellationFieldNewLegendHint": "Someone who appeared on your Field in the last week and you have not opened yet.",
+  "@constellationFieldNewLegendHint": {
+    "context": "Field legend: one-sentence hint for the «new on your Field» ring (#898)"
+  },
+  "constellationFieldNewSemantics": "{name}, new on your Field",
+  "@constellationFieldNewSemantics": {
+    "context": "Field map/list semantics for a person who is new on your Field (#898)",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "Maria"
+      }
+    }
   },
   "constellationTrustChainThrough": "Through {chain}",
   "@constellationTrustChainThrough": {
@@ -10523,6 +10649,14 @@
   "@constellationTagsManage": {
     "description": "Field all-tags sheet: opens people tag settings"
   },
+  "constellationTagsClearAll": "Clear all",
+  "@constellationTagsClearAll": {
+    "description": "Field all-tags sheet: clears the tag lens selection"
+  },
+  "constellationTagsSelectAll": "Select all",
+  "@constellationTagsSelectAll": {
+    "description": "Field all-tags sheet: selects every tag in the sheet"
+  },
   "constellationTagModeOr": "Any of them",
   "@constellationTagModeOr": {
     "description": "Field tag row switch: people with any selected tag stay bright"
@@ -10564,6 +10698,24 @@
   "peopleTagsYourTags": "Your tags",
   "@peopleTagsYourTags": {
     "description": "Heading of the viewer's own tags on a person"
+  },
+  "peopleTagsPersonChipSemantics": "{name}, tag",
+  "@peopleTagsPersonChipSemantics": {
+    "description": "Screen-reader label for one of the viewer's own tag chips",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "peopleTagsAutoChipSemantics": "{name}, automatic tag",
+  "@peopleTagsAutoChipSemantics": {
+    "description": "Screen-reader label for an automatic tag chip",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
   },
   "peopleTagsAutomatic": "Automatic",
   "@peopleTagsAutomatic": {

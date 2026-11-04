@@ -5,6 +5,7 @@ import 'package:tentura_server/domain/entity/forward_candidate_peer_row.dart';
 import 'package:tentura_server/domain/port/forward_candidates_repository_port.dart';
 
 import '../database/tentura_db.dart';
+import 'constellation_field_repository.dart' show readCustomSelectTimestamptz;
 import 'forward_candidates_sql.dart';
 import 'mappers/mr_score_value.dart';
 
@@ -41,6 +42,7 @@ class ForwardCandidatesRepository implements ForwardCandidatesRepositoryPort {
           reverseMr: mrScoreAsDouble(row.data['reverse_mr']),
           viewerTrusts: row.read<bool>('viewer_explicitly_trusts_subject'),
           trustsViewer: row.read<bool>('subject_explicitly_trusts_viewer'),
+          mutualSince: readCustomSelectTimestamptz(row.data['mutual_since']),
         ),
     ];
   }

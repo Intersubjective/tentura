@@ -172,15 +172,14 @@ void main() {
     String newText = 'New text',
     int baseSeq = 1,
     String? attachmentsJson,
-  }) =>
-      case_.correct(
-        factCardId: _factId,
-        beaconId: _beaconId,
-        actorUserId: _userId,
-        newText: newText,
-        baseRevisionSeq: baseSeq,
-        attachmentsJson: attachmentsJson,
-      );
+  }) => case_.correct(
+    factCardId: _factId,
+    beaconId: _beaconId,
+    actorUserId: _userId,
+    newText: newText,
+    baseRevisionSeq: baseSeq,
+    attachmentsJson: attachmentsJson,
+  );
 
   Future<int> restore({int fromSeq = 1, int baseSeq = 2}) => case_.restore(
     factCardId: _factId,
@@ -191,23 +190,23 @@ void main() {
   );
 
   group('BeaconFactCardCase.correct — §14.5 outcome map', () {
-    test('FactEditApplied returns the new seq', () async {
+    test('correct: FactEditApplied returns the new seq', () async {
       facts.outcome = const FactEditApplied(newSeq: 7);
       expect(await correct(baseSeq: 6), 7);
       expect(facts.editCalls, hasLength(1));
     });
 
-    test('FactEditNoOp returns the current seq', () async {
+    test('correct: FactEditNoOp returns the current seq', () async {
       facts.outcome = const FactEditNoOp(currentSeq: 4);
       expect(await correct(baseSeq: 4), 4);
     });
 
-    test('FactEditNotFound → IdNotFoundException', () async {
+    test('correct: FactEditNotFound → IdNotFoundException', () async {
       facts.outcome = const FactEditNotFound();
       await expectLater(correct(), throwsA(isA<IdNotFoundException>()));
     });
 
-    test('FactEditRemoved → BeaconFactCardRemovedException', () async {
+    test('correct: FactEditRemoved → BeaconFactCardRemovedException', () async {
       facts.outcome = const FactEditRemoved();
       await expectLater(
         correct(),
@@ -215,50 +214,55 @@ void main() {
       );
     });
 
-    test('FactEditRateLimited → BeaconFactCardRateLimitedException', () async {
-      facts.outcome = const FactEditRateLimited();
-      await expectLater(
-        correct(),
-        throwsA(isA<BeaconFactCardRateLimitedException>()),
-      );
-    });
+    test(
+      'correct: FactEditRateLimited → BeaconFactCardRateLimitedException',
+      () async {
+        facts.outcome = const FactEditRateLimited();
+        await expectLater(
+          correct(),
+          throwsA(isA<BeaconFactCardRateLimitedException>()),
+        );
+      },
+    );
 
-    test('FactEditConflict → BeaconFactCardEditConflictException carrying '
-        'currentSeq', () async {
-      facts.outcome = const FactEditConflict(currentSeq: 9);
-      await expectLater(
-        correct(baseSeq: 3),
-        throwsA(
-          isA<BeaconFactCardEditConflictException>().having(
-            (e) => e.currentSeq,
-            'currentSeq',
-            9,
+    test(
+      'correct: FactEditConflict → BeaconFactCardEditConflictException carrying '
+      'currentSeq',
+      () async {
+        facts.outcome = const FactEditConflict(currentSeq: 9);
+        await expectLater(
+          correct(baseSeq: 3),
+          throwsA(
+            isA<BeaconFactCardEditConflictException>().having(
+              (e) => e.currentSeq,
+              'currentSeq',
+              9,
+            ),
           ),
-        ),
-      );
-    });
-
+        );
+      },
+    );
   });
 
   group('BeaconFactCardCase.restore — §14.5 outcome map', () {
-    test('FactEditApplied returns the new seq', () async {
+    test('restore: FactEditApplied returns the new seq', () async {
       facts.outcome = const FactEditApplied(newSeq: 3);
       expect(await restore(), 3);
       expect(facts.restoreCalls, hasLength(1));
       expect(facts.editCalls, isEmpty);
     });
 
-    test('FactEditNoOp returns the current seq', () async {
+    test('restore: FactEditNoOp returns the current seq', () async {
       facts.outcome = const FactEditNoOp(currentSeq: 2);
       expect(await restore(), 2);
     });
 
-    test('FactEditNotFound → IdNotFoundException', () async {
+    test('restore: FactEditNotFound → IdNotFoundException', () async {
       facts.outcome = const FactEditNotFound();
       await expectLater(restore(), throwsA(isA<IdNotFoundException>()));
     });
 
-    test('FactEditRemoved → BeaconFactCardRemovedException', () async {
+    test('restore: FactEditRemoved → BeaconFactCardRemovedException', () async {
       facts.outcome = const FactEditRemoved();
       await expectLater(
         restore(),
@@ -266,28 +270,34 @@ void main() {
       );
     });
 
-    test('FactEditRateLimited → BeaconFactCardRateLimitedException', () async {
-      facts.outcome = const FactEditRateLimited();
-      await expectLater(
-        restore(),
-        throwsA(isA<BeaconFactCardRateLimitedException>()),
-      );
-    });
+    test(
+      'restore: FactEditRateLimited → BeaconFactCardRateLimitedException',
+      () async {
+        facts.outcome = const FactEditRateLimited();
+        await expectLater(
+          restore(),
+          throwsA(isA<BeaconFactCardRateLimitedException>()),
+        );
+      },
+    );
 
-    test('FactEditConflict → BeaconFactCardEditConflictException carrying '
-        'currentSeq', () async {
-      facts.outcome = const FactEditConflict(currentSeq: 5);
-      await expectLater(
-        restore(),
-        throwsA(
-          isA<BeaconFactCardEditConflictException>().having(
-            (e) => e.currentSeq,
-            'currentSeq',
-            5,
+    test(
+      'restore: FactEditConflict → BeaconFactCardEditConflictException carrying '
+      'currentSeq',
+      () async {
+        facts.outcome = const FactEditConflict(currentSeq: 5);
+        await expectLater(
+          restore(),
+          throwsA(
+            isA<BeaconFactCardEditConflictException>().having(
+              (e) => e.currentSeq,
+              'currentSeq',
+              5,
+            ),
           ),
-        ),
-      );
-    });
+        );
+      },
+    );
 
     test('FactRestoreSourceMissing → IdWrongException', () async {
       facts.outcome = const FactRestoreSourceMissing();
@@ -349,60 +359,68 @@ void main() {
       expect(facts.editCalls.single.attachmentsJson, json);
     });
 
-    test('!canUseRoom → UnauthorizedException(Room access required)', () async {
-      facts.access = facts.access.copyWith(canUseRoom: false);
-      await expectLater(
-        correct(),
-        throwsA(
-          isA<UnauthorizedException>().having(
-            (e) => e.description,
-            'description',
-            'Room access required',
-          ),
-        ),
-      );
-      expect(facts.loadRoomAccessCalls, 1);
-      expect(facts.portWriteCalls, 0);
-    });
-
-    test('unknown beacon → UnauthorizedException(Room access required)',
-        () async {
-      facts.access = facts.access.copyWith(exists: false, canUseRoom: false);
-      await expectLater(
-        correct(),
-        throwsA(
-          isA<UnauthorizedException>().having(
-            (e) => e.description,
-            'description',
-            'Room access required',
-          ),
-        ),
-      );
-      expect(facts.portWriteCalls, 0);
-    });
-
-    for (final status in BeaconStatus.values.where(
-      (s) => !s.allowsDiscussionWrites,
-    )) {
-      test('closed lifecycle $status → BeaconCreateException', () async {
-        facts.access = facts.access.copyWith(
-          beaconStatus: status.smallintValue,
-        );
+    test(
+      'correct: !canUseRoom → UnauthorizedException(Room access required)',
+      () async {
+        facts.access = facts.access.copyWith(canUseRoom: false);
         await expectLater(
           correct(),
           throwsA(
-            isA<BeaconCreateException>().having(
+            isA<UnauthorizedException>().having(
               (e) => e.description,
               'description',
-              'Discussion is read-only for this request',
+              'Room access required',
+            ),
+          ),
+        );
+        expect(facts.loadRoomAccessCalls, 1);
+        expect(facts.portWriteCalls, 0);
+      },
+    );
+
+    test(
+      'correct: unknown beacon → UnauthorizedException(Room access required)',
+      () async {
+        facts.access = facts.access.copyWith(exists: false, canUseRoom: false);
+        await expectLater(
+          correct(),
+          throwsA(
+            isA<UnauthorizedException>().having(
+              (e) => e.description,
+              'description',
+              'Room access required',
             ),
           ),
         );
         expect(facts.portWriteCalls, 0);
-      });
+      },
+    );
+
+    for (final status in BeaconStatus.values.where(
+      (s) => !s.allowsDiscussionWrites,
+    )) {
+      test(
+        'correct: closed lifecycle $status → BeaconCreateException',
+        () async {
+          facts.access = facts.access.copyWith(
+            beaconStatus: status.smallintValue,
+          );
+          await expectLater(
+            correct(),
+            throwsA(
+              isA<BeaconCreateException>().having(
+                (e) => e.description,
+                'description',
+                'Discussion is read-only for this request',
+              ),
+            ),
+          );
+          expect(facts.portWriteCalls, 0);
+        },
+      );
     }
 
-    test('does not infer the base seq from listForBeacon', () async {
+    test('correct: does not infer the base seq from listForBeacon', () async {
       await correct(baseSeq: 3);
       expect(facts.listForBeaconCalls, 0);
       expect(facts.editCalls.single.baseRevisionSeq, 3);
@@ -419,59 +437,67 @@ void main() {
   });
 
   group('BeaconFactCardCase.restore — preflight', () {
-    test('!canUseRoom → UnauthorizedException(Room access required)', () async {
-      facts.access = facts.access.copyWith(canUseRoom: false);
-      await expectLater(
-        restore(),
-        throwsA(
-          isA<UnauthorizedException>().having(
-            (e) => e.description,
-            'description',
-            'Room access required',
-          ),
-        ),
-      );
-      expect(facts.portWriteCalls, 0);
-    });
-
-    for (final status in BeaconStatus.values.where(
-      (s) => !s.allowsDiscussionWrites,
-    )) {
-      test('closed lifecycle $status → BeaconCreateException', () async {
-        facts.access = facts.access.copyWith(
-          beaconStatus: status.smallintValue,
-        );
+    test(
+      'restore: !canUseRoom → UnauthorizedException(Room access required)',
+      () async {
+        facts.access = facts.access.copyWith(canUseRoom: false);
         await expectLater(
           restore(),
           throwsA(
-            isA<BeaconCreateException>().having(
+            isA<UnauthorizedException>().having(
               (e) => e.description,
               'description',
-              'Discussion is read-only for this request',
+              'Room access required',
             ),
           ),
         );
         expect(facts.portWriteCalls, 0);
-      });
+      },
+    );
+
+    for (final status in BeaconStatus.values.where(
+      (s) => !s.allowsDiscussionWrites,
+    )) {
+      test(
+        'restore: closed lifecycle $status → BeaconCreateException',
+        () async {
+          facts.access = facts.access.copyWith(
+            beaconStatus: status.smallintValue,
+          );
+          await expectLater(
+            restore(),
+            throwsA(
+              isA<BeaconCreateException>().having(
+                (e) => e.description,
+                'description',
+                'Discussion is read-only for this request',
+              ),
+            ),
+          );
+          expect(facts.portWriteCalls, 0);
+        },
+      );
     }
 
-    test('unknown beacon → UnauthorizedException(Room access required)',
-        () async {
-      facts.access = facts.access.copyWith(exists: false, canUseRoom: false);
-      await expectLater(
-        restore(),
-        throwsA(
-          isA<UnauthorizedException>().having(
-            (e) => e.description,
-            'description',
-            'Room access required',
+    test(
+      'restore: unknown beacon → UnauthorizedException(Room access required)',
+      () async {
+        facts.access = facts.access.copyWith(exists: false, canUseRoom: false);
+        await expectLater(
+          restore(),
+          throwsA(
+            isA<UnauthorizedException>().having(
+              (e) => e.description,
+              'description',
+              'Room access required',
+            ),
           ),
-        ),
-      );
-      expect(facts.portWriteCalls, 0);
-    });
+        );
+        expect(facts.portWriteCalls, 0);
+      },
+    );
 
-    test('does not infer the base seq from listForBeacon', () async {
+    test('restore: does not infer the base seq from listForBeacon', () async {
       await restore(baseSeq: 3);
       expect(facts.listForBeaconCalls, 0);
       expect(facts.restoreCalls.single.baseRevisionSeq, 3);

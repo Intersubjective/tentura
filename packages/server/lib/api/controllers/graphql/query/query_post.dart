@@ -53,6 +53,13 @@ final class QueryPost extends GqlNodeBase {
     'mutedUntil': post.mutedUntil?.toUtc().toIso8601String(),
     'mutedForever': post.mutedForever,
     'unreadCount': post.unreadCount,
+    'participantCount': post.participantCount,
+    'notOpenedCount': post.notOpenedCount,
+    'myDeclinedForwardCount': post.myDeclinedForwardCount,
+    'previewParticipants': [
+      for (final peer in post.previewParticipants)
+        {'id': peer.id, 'displayName': peer.displayName, 'avatar': peer.avatar},
+    ],
     'isAuthor': post.isAuthor,
     'status': post.status.smallintValue,
     'expiresAt': post.expiresAt?.toUtc().toIso8601String(),

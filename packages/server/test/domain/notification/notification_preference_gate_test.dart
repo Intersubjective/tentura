@@ -21,17 +21,16 @@ void main() {
     int tzOffsetMinutes = 0,
     DigestCadence digest = DigestCadence.off,
     DateTime? snoozeUntil,
-  }) =>
-      NotificationPreferencesEntity(
-        accountId: 'a1',
-        pushCategories: push ?? const {NotificationCategory.asksOfMe},
-        emailCategories: email ?? const {},
-        quietHoursStartMinute: quietStart,
-        quietHoursEndMinute: quietEnd,
-        tzOffsetMinutes: tzOffsetMinutes,
-        emailDigest: digest,
-        snoozeUntil: snoozeUntil,
-      );
+  }) => NotificationPreferencesEntity(
+    accountId: 'a1',
+    pushCategories: push ?? const {NotificationCategory.asksOfMe},
+    emailCategories: email ?? const {},
+    quietHoursStartMinute: quietStart,
+    quietHoursEndMinute: quietEnd,
+    tzOffsetMinutes: tzOffsetMinutes,
+    emailDigest: digest,
+    snoozeUntil: snoozeUntil,
+  );
 
   // A "present" user: online and already notified, not due for re-notify.
   // shouldNotify reads the real wall clock, so use clearly-past timestamps to
@@ -249,6 +248,7 @@ void main() {
           NotificationCategory.asksOfMe,
           NotificationCategory.connections,
           NotificationCategory.coordination,
+          NotificationCategory.postsSharedWithMe,
         },
       );
       expect(p.pushCategories.contains(NotificationCategory.ambient), isFalse);

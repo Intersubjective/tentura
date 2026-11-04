@@ -1,4 +1,5 @@
 import 'package:meta/meta.dart';
+import 'package:tentura_root/domain/entity/person_auto_tag_kind.dart';
 
 import 'constellation_anchor_projection.dart';
 import 'gql_public/image_public_record.dart';
@@ -180,6 +181,10 @@ class ConstellationPeerRecord {
 
   /// Kinds of the automatic people tags the viewer has for this person.
   final List<int> autoTagKinds;
+
+  /// The existing automatic New tag accounts for age and acknowledgement.
+  bool get isNew =>
+      autoTagKinds.contains(PersonAutoTagKind.newOnField.smallintValue);
 
   /// When the viewer first saw this person on the Field; null for people
   /// seen before first-seen tracking began, or not recorded yet.

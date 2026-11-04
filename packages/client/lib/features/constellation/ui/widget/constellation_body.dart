@@ -1449,12 +1449,9 @@ class _ConstellationBodyState extends State<ConstellationBody>
                 ),
                 onShowAll: () => showConstellationAllTagsSheet(
                   context: context,
+                  lensCubit: lensCubit,
                   ownTags: store.tags,
                   autoTags: ConstellationAutoTagKind.values,
-                  filter: filter,
-                  onToggleOwn: lensCubit.toggleOwn,
-                  onToggleAuto: lensCubit.toggleAuto,
-                  onModeChanged: lensCubit.setMode,
                   onAddTag: () => unawaited(
                     showTagEditorDialog(
                       context,

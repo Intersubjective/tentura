@@ -23,6 +23,7 @@ import '../bloc/constellation_cubit.dart';
 import '../bloc/constellation_presence_cubit.dart';
 import '../utils/constellation_presentation_frame.dart';
 import '../utils/constellation_tap_resolver.dart';
+import 'constellation_field_new_ring_layer.dart';
 import 'constellation_node_ring_layer.dart';
 import 'constellation_overflow_group.dart';
 import 'constellation_presence_halo_layer.dart';
@@ -963,6 +964,41 @@ class _ConstellationViewportOverlayState
                                   ),
                             ),
                       ),
+                    Positioned.fill(
+                      child: ConstellationFieldNewRingLayer(
+                        frame: frame,
+                        newGraphIds: constellationNewOnFieldGraphIds(
+                          newPersonIds: {
+                            for (final peer
+                                in widget.cubit.state.field?.peers ??
+                                    const <ConstellationPerson>[])
+                              if (peer.isNew) peer.id,
+                            for (final peer
+                                in widget
+                                        .cubit
+                                        .state
+                                        .field
+                                        ?.resolvedAnchorProjection
+                                        .pinnedPeers ??
+                                    const <ConstellationPerson>[])
+                              if (peer.isNew) peer.id,
+                            for (final peer
+                                in widget
+                                        .cubit
+                                        .state
+                                        .field
+                                        ?.resolvedAnchorProjection
+                                        .supportPeers ??
+                                    const <ConstellationPerson>[])
+                              if (peer.isNew) peer.id,
+                          },
+                          viewerId: widget.cubit.viewerId,
+                          isOnMap: nodeByGraphId.containsKey,
+                        ),
+                        dimmedGraphIds: dimmedGraphIds,
+                        accentColor: Theme.of(context).colorScheme.secondary,
+                      ),
+                    ),
                     Positioned.fill(
                       child: ConstellationNodeRingLayer(
                         frame: frame,

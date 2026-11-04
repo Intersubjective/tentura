@@ -3,6 +3,7 @@ import 'package:logging/logging.dart';
 import 'package:test/test.dart';
 
 import 'package:tentura_server/data/service/email/email_link_builder.dart';
+import 'package:tentura_server/data/service/email/templates/email_template_renderer.dart';
 import 'package:tentura_server/domain/entity/digest_cadence.dart';
 import 'package:tentura_server/domain/entity/email_notification_content.dart';
 import 'package:tentura_server/domain/entity/notification_category.dart';
@@ -41,8 +42,7 @@ class _FakeOutbox implements NotificationOutboxRepositoryPort {
   @override
   Future<List<NotificationOutboxItemEntity>> pendingForAccount(
     String accountId,
-  ) async =>
-      _pending;
+  ) async => _pending;
   @override
   Future<int> markEmailed(List<String> ids) async {
     markedEmailed = ids;
@@ -65,6 +65,7 @@ class _FakeContacts implements VerifiedContactRepositoryPort {
 class _CapturingEmail implements EmailSenderPort {
   EmailDigestContent? lastDigest;
   String? lastTo;
+  String? lastLocale;
   @override
   Future<void> sendDigestEmail({
     required String to,
@@ -72,6 +73,7 @@ class _CapturingEmail implements EmailSenderPort {
     required EmailDigestContent content,
     String? listUnsubscribeUrl,
   }) async {
+    lastLocale = locale;
     lastTo = to;
     lastDigest = content;
   }
@@ -94,19 +96,18 @@ void main() {
   NotificationOutboxItemEntity item(
     String id,
     NotificationCategory category,
-  ) =>
-      NotificationOutboxItemEntity(
-        id: id,
-        accountId: 'u1',
-        category: category,
-        kind: NotificationKind.needsMe,
-        priority: NotificationPriority.high,
-        title: 'T-$id',
-        body: 'B-$id',
-        actionUrl: '/#/x',
-        createdAt: dueNow,
-        collapsedCount: 1,
-      );
+  ) => NotificationOutboxItemEntity(
+    id: id,
+    accountId: 'u1',
+    category: category,
+    kind: NotificationKind.needsMe,
+    priority: NotificationPriority.high,
+    title: 'T-$id',
+    body: 'B-$id',
+    actionUrl: '/#/x',
+    createdAt: dueNow,
+    collapsedCount: 1,
+  );
 
   NotificationPreferencesEntity prefs({
     DigestCadence cadence = DigestCadence.daily,
@@ -114,12 +115,118 @@ void main() {
       NotificationCategory.asksOfMe,
       NotificationCategory.coordination,
     },
-  }) =>
-      NotificationPreferencesEntity(
-        accountId: 'u1',
-        emailCategories: email,
-        emailDigest: cadence,
+  }) => NotificationPreferencesEntity(
+    accountId: 'u1',
+    emailCategories: email,
+    emailDigest: cadence,
+  );
+
+  group('digest follows the recipient language', () {
+    Future<RenderedEmail> render(String locale) async {
+      final sender = _CapturingEmail();
+      final outbox = _FakeOutbox([
+        item('ask', NotificationCategory.asksOfMe).copyWith(
+          title: 'Asked of you',
+          body: 'Action needed in the request discussion',
+        ),
+        item('plan', NotificationCategory.coordination).copyWith(
+          kind: NotificationKind.coordinationChanged,
+          title: 'Plan updated',
+          body: 'Coordination changed',
+        ),
+      ]);
+      await EmailDigestCase(
+        _FakePrefs(prefs().copyWith(locale: locale)),
+        outbox,
+        _FakeContacts('u1@example.com'),
+        sender,
+        links,
+        env,
+        Logger('test'),
+        FakeBeaconAccessGuard(),
+      ).runDue(now: dueNow);
+      expect(sender.lastLocale, locale);
+      expect(sender.lastDigest?.totalItems, 2);
+      return const EmailTemplateRenderer().renderDigest(
+        content: sender.lastDigest!,
+        locale: sender.lastLocale!,
       );
+    }
+
+    test(
+      'both section headings use the recipient language in HTML and text',
+      () async {
+        for (final locale in ['en', 'ru']) {
+          final email = await render(locale);
+          expect(
+            email.subject,
+            locale == 'ru' ? 'Сводка Tentura' : 'Your Tentura summary',
+          );
+          final intro = locale == 'ru'
+              ? 'Вот что ждёт вас и что изменилось, пока вас не было.'
+              : "Here's what's waiting on you and what moved while you were away.";
+          final manage = locale == 'ru'
+              ? 'Настройки уведомлений'
+              : 'Manage notifications';
+          final unsubscribe = locale == 'ru' ? 'Отписаться' : 'Unsubscribe';
+          final unsubscribeUrl = links.unsubscribeUrl(
+            accountId: 'u1',
+            scope: 'all',
+          );
+          expect(
+            email.html,
+            contains('<a href="${links.manageUrl()}">$manage</a>'),
+          );
+          expect(
+            email.html,
+            contains('<a href="$unsubscribeUrl">$unsubscribe</a>'),
+          );
+          expect(email.text, contains('$manage: ${links.manageUrl()}'));
+          expect(email.text, contains('$unsubscribe: $unsubscribeUrl'));
+          final headings = locale == 'ru'
+              ? ['Ждёт вашего ответа', 'Изменилось, пока вас не было']
+              : ['Waiting on you', 'Moved while you were away'];
+          for (final part in [email.html, email.text]) {
+            expect(part, contains(intro));
+            for (final heading in headings) {
+              expect(part, contains(heading));
+            }
+          }
+          expect(
+            RegExp(
+              '<h3>(.*?)</h3>',
+            ).allMatches(email.html).map((match) => match.group(1)).toList(),
+            headings,
+          );
+        }
+      },
+    );
+
+    test('fixed item titles and bodies use the recipient language', () async {
+      for (final locale in ['en', 'ru']) {
+        final email = await render(locale);
+        for (final part in [email.html, email.text]) {
+          for (final copy
+              in locale == 'ru'
+                  ? [
+                      'Вас просят',
+                      'В обсуждении запроса нужен ваш ответ',
+                      'План обновлён',
+                      'Договорённости изменились',
+                    ]
+                  : [
+                      'Asked of you',
+                      'Action needed in the request discussion',
+                      'Plan updated',
+                      'Coordination changed',
+                    ]) {
+            expect(part, contains(copy), reason: 'recipient locale: $locale');
+          }
+          expect(part, contains('https://t.example/'));
+        }
+      }
+    });
+  });
 
   test('sends digest with eligible items and marks them emailed', () async {
     final sender = _CapturingEmail();

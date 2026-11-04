@@ -327,27 +327,42 @@ void main() {
       }
     });
 
-    testWidgets('district zoom still paints trust edges between nodes', (
-      tester,
-    ) async {
-      final overview = await _Overview.mount(tester);
-      expect(
-        _paintedStrokes(tester).where(_isEgoToCellBundleStroke),
-        isEmpty,
-      );
-      overview.cubit.graphController.zoomBy(
-        kConstellationDistrictDetailScale /
-            overview.cubit.graphController.cameraScale *
-            1.05,
-      );
-      await tester.pumpAndSettle();
-      expect(
-        overview.holder.frame!.detail,
-        ConstellationDetailLevel.district,
-      );
-      final strokes = _paintedStrokes(tester);
-      expect(strokes, isNotEmpty, reason: 'district keeps per-edge rendering');
-    });
+    testWidgets(
+      'district zoom paints trust edges only for the selected person',
+      (tester) async {
+        final overview = await _Overview.mount(tester);
+        expect(
+          _paintedStrokes(tester).where(_isEgoToCellBundleStroke),
+          isEmpty,
+        );
+        overview.cubit.graphController.zoomBy(
+          kConstellationDistrictDetailScale /
+              overview.cubit.graphController.cameraScale *
+              1.05,
+        );
+        await tester.pumpAndSettle();
+        expect(
+          overview.holder.frame!.detail,
+          ConstellationDetailLevel.district,
+        );
+        expect(
+          _paintedStrokes(tester),
+          isEmpty,
+          reason: 'without a selection, district draws no trust path strokes',
+        );
+
+        overview.cubit.selectPerson('p0');
+        await tester.pumpAndSettle();
+
+        final strokes = _paintedStrokes(tester);
+        expect(
+          strokes,
+          isNotEmpty,
+          reason: 'district paints the selected person trust connections',
+        );
+        expect(strokes.where(_isEgoToCellBundleStroke), isEmpty);
+      },
+    );
 
     testWidgets(
       '375×667 RU at minimum zoom: overview dots, no bundle strokes',
