@@ -306,6 +306,6 @@ query FieldSearch($query: String!, $context: String!) {
         reason: 'Local Field search p95 target is below 300 ms',
       );
     },
-    tags: ['perf'],
+    tags: ['perf', 'mr'],
   );
 }
