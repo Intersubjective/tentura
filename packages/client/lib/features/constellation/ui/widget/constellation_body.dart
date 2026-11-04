@@ -855,7 +855,11 @@ class _ConstellationBodyState extends State<ConstellationBody>
               context,
             )!.constellationSelectionUnavailable;
             setState(() => _selectionUnavailableMessage = message);
-            SemanticsService.announce(message, TextDirection.ltr);
+            SemanticsService.sendAnnouncement(
+              View.of(context),
+              message,
+              TextDirection.ltr,
+            );
             cubit.selectRequest(null);
           },
         ),
@@ -1943,9 +1947,6 @@ class _ConstellationBodyState extends State<ConstellationBody>
           ),
         ),
         Positioned.fill(
-          child: ConstellationPlacementMarkerLayer(cubit: cubit),
-        ),
-        Positioned.fill(
           child: ConstellationSelectionLayers(
             cubit: cubit,
             hitsNode: (local) => _hitsMapNode(cubit, local),
@@ -1993,6 +1994,9 @@ class _ConstellationBodyState extends State<ConstellationBody>
           left: 0,
           right: 0,
           child: _ConstellationFieldHoldHintBanner(cubit: cubit),
+        ),
+        Positioned.fill(
+          child: ConstellationPlacementMarkerLayer(cubit: cubit),
         ),
         Positioned(
           top: 0,

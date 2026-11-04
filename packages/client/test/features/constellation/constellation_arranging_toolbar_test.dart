@@ -3,7 +3,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura/ui/l10n/l10n_ru.dart';
 
 import '../../support/phone_surface.dart';
-import 'package:tentura/features/constellation/ui/bloc/constellation_selection_cubit.dart';
 import 'fixtures/constellation_field_test_harness.dart';
 import 'fixtures/constellation_arrange_harness.dart';
 

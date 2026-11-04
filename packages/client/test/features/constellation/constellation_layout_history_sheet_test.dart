@@ -99,6 +99,11 @@ Future<void> _arrange(WidgetTester tester, String action) async {
         .read<ConstellationSelectionCubit>(),
   );
   await tester.pumpAndSettle();
+  if (action == 'Tidy up') {
+    await tester.tap(find.byKey(const Key('constellation.arranging.tidy')));
+    await tester.pumpAndSettle();
+    return;
+  }
   await tapConstellationArrangeOverflowAction(tester, action);
 }
 

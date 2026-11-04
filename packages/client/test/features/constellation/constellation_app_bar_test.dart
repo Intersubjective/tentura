@@ -501,6 +501,11 @@ void main() {
       await tester.pumpAndSettle();
       expect(selection.state.arranging, isTrue);
 
+      // Arranging replaces the phone overflow bar (#938); leave it to reach more.
+      await tester.tap(find.byKey(const Key('constellation.arranging.done')));
+      await tester.pumpAndSettle();
+      expect(selection.state.arranging, isFalse);
+
       await tester.tap(more);
       await tester.pumpAndSettle();
       await tester.tap(

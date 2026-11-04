@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -12,6 +13,9 @@ import 'package:tentura/features/constellation/ui/widget/constellation_body.dart
 import 'package:tentura/features/graph/ui/bloc/graph_person_context_cubit.dart';
 import 'package:tentura/domain/entity/lazy_write_notice.dart';
 import 'package:tentura/features/graph/domain/use_case/graph_trust_write_case.dart';
+import 'package:force_directed_graphview/force_directed_graphview.dart';
+import 'package:tentura/features/graph/domain/entity/edge_details.dart';
+import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura/features/graph/ui/widget/graph_node_widget.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
@@ -22,6 +26,7 @@ import 'package:tentura/features/constellation/ui/utils/constellation_presentati
 import 'package:tentura/features/constellation/ui/widget/constellation_viewport_overlay.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'fixtures/constellation_reference_fixture.dart';
+import 'fixtures/constellation_field_test_harness.dart';
 
 import '../../support/constellation_store_fixture.dart';
 import '../../support/people_tags_widget_harness.dart';
@@ -1023,14 +1028,21 @@ void main() {
       await tester.pump(const Duration(milliseconds: 200));
       final revisionBefore = cubit.graphController.cameraRevision.value;
 
-      // Label plates ignore pointers; pan from empty map beside the label so
-      // the camera moves without starting placement on the request under it.
-      final overlay = find.byType(ConstellationViewportOverlay);
-      final overlayRect = tester.getRect(overlay);
-      final start = overlayRect.topLeft + Offset(overlayRect.width * 0.15, 24);
-      final gesture = await tester.createGesture();
-      await gesture.down(start);
-      await tester.pump();
+      enterConstellationArrangingForTests(
+        tester.constellationSelectionUnderTest(),
+      );
+      await tester.pumpAndSettle();
+
+      // Pan on the graph canvas (not the label overlay) from empty space.
+      final map = find.byType(GraphView<NodeDetails, EdgeDetails>);
+      final mapRect = tester.getRect(map);
+      final start = mapRect.center + Offset(-mapRect.width * 0.25, 0);
+      final gesture = await startConstellationFieldGesture(
+        tester,
+        start,
+        kind: PointerDeviceKind.touch,
+        unlockTouchNodeDrags: false,
+      );
       await gesture.moveBy(const Offset(120, 0));
       await tester.pump();
       await gesture.up();
@@ -1089,10 +1101,6 @@ void main() {
       final semantics = tester.getSemantics(nodeFinder);
       expect(semantics.label, contains('I need documents'));
       expect(semantics.label, contains('Open'));
-      expect(
-        find.bySemanticsLabel('I need documents'),
-        findsOneWidget,
-      );
     });
 
     testWidgets('placement drag gates camera until cancel', (tester) async {

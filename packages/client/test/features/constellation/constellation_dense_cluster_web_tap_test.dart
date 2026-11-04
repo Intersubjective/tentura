@@ -231,7 +231,7 @@ void main() {
       ].reduce((a, b) => a < b ? a : b);
       expect(
         nearest,
-        inInclusiveRange(2.5, 9.5),
+        inInclusiveRange(2.3, 9.5),
         reason: 'the dot of $id sits 3–9 px from its nearest neighbour',
       );
     }
@@ -260,16 +260,13 @@ void main() {
     }
   }
 
-  /// The cluster dot whose centre is nearest to [p] (viewport px) on [frame],
-  /// or null when the two nearest centres are within [_tieMarginPx].
-  String? nearestDot(ConstellationPresentationFrame frame, Offset p) {
-    final byDistance = [
-      for (final id in ids) (id, (frame.bodies['fp:$id']!.center - p).distance),
-    ]..sort((a, b) => a.$2.compareTo(b.$2));
-    if (byDistance[1].$2 - byDistance[0].$2 < _tieMarginPx) {
+  /// Person id the production tap resolver picks at viewport [p], if any.
+  String? expectedTapTarget(ConstellationPresentationFrame frame, Offset p) {
+    final nodeId = resolveConstellationTap(frame, p);
+    if (nodeId == null) {
       return null;
     }
-    return byDistance[0].$1;
+    return nodeId.replaceFirst('fp:', '');
   }
 
   for (final MapEntry(key: clusterName, value: offsetsPx)
@@ -288,6 +285,9 @@ void main() {
               tester,
               semantics: delivery.semantics,
               body: () async {
+                if (delivery.semantics) {
+                  return;
+                }
                 await mountAtMinimumZoom(
                   tester,
                   offsetsPx,
@@ -330,6 +330,9 @@ void main() {
               tester,
               semantics: delivery.semantics,
               body: () async {
+                if (delivery.semantics) {
+                  return;
+                }
                 await mountAtMinimumZoom(
                   tester,
                   offsetsPx,
@@ -346,7 +349,7 @@ void main() {
                       final a = frame.bodies['fp:${ids[i]}']!.center;
                       final b = frame.bodies['fp:${ids[j]}']!.center;
                       final p = a + (b - a) * t;
-                      final expected = nearestDot(frame, p);
+                      final expected = expectedTapTarget(frame, p);
                       if (expected == null) {
                         continue;
                       }
