@@ -160,6 +160,30 @@ abstract class ForwardState extends StateBase with _$ForwardState {
 
   static void _sortByMr(List<ForwardCandidate> list) => list.sort(_compareByMr);
 
+  /// People who became explicit mutual trust within the last seven days (#894).
+  static const Duration newMutualWindow = Duration(days: 7);
+
+  static bool isNewMutualCandidate(ForwardCandidate c, DateTime now) {
+    final since = c.mutualSince;
+    if (since == null) return false;
+    final utc = since.toUtc();
+    final nowUtc = now.toUtc();
+    if (nowUtc.isBefore(utc)) return false;
+    return nowUtc.difference(utc) < newMutualWindow;
+  }
+
+  static int compareNewMutualNewestFirst(
+    ForwardCandidate a,
+    ForwardCandidate b,
+  ) {
+    final aSince = a.mutualSince;
+    final bSince = b.mutualSince;
+    if (aSince == null && bSince == null) return 0;
+    if (aSince == null) return 1;
+    if (bSince == null) return -1;
+    return bSince.compareTo(aSince);
+  }
+
   /// Full-screen search: filter [candidates] by name/description (MR-sorted).
   static List<ForwardCandidate> filterCandidatesByQuery(
     List<ForwardCandidate> candidates,
@@ -333,13 +357,14 @@ abstract class ForwardState extends StateBase with _$ForwardState {
     final needs = beacon?.needs ?? const <String>{};
     int matches(ForwardCandidate c) =>
         c.topCapabilities.where(needs.contains).length;
-    final list = candidates
-        .where((c) => !members.contains(c.id) && c.canForwardTo)
-        .toList()
-      ..sort((a, b) {
-        final byMatch = matches(b).compareTo(matches(a));
-        return byMatch != 0 ? byMatch : _compareByMr(a, b);
-      });
+    final list =
+        candidates
+            .where((c) => !members.contains(c.id) && c.canForwardTo)
+            .toList()
+          ..sort((a, b) {
+            final byMatch = matches(b).compareTo(matches(a));
+            return byMatch != 0 ? byMatch : _compareByMr(a, b);
+          });
     return list.take(3).toList();
   }
 }
