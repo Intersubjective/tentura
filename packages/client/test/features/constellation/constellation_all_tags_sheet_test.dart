@@ -9,7 +9,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../../support/phone_surface.dart';
 
-const _longRuName = 'Соседи по даче в Подмосковье';
+const _longRuName = 'Соседи по даче в Подмосковье очень длинное название тега';
 const _sheetScrollKey = Key('constellation-all-tags-sheet-scroll');
 
 List<PersonTag> _manyRuTags(int count) => [
@@ -78,6 +78,48 @@ Finder _sheetWrap() => find.descendant(
 
 void main() {
   group('All tags sheet', () {
+    testWidgets(
+      '375×667 RU: selected chip shows check and sheet bulk actions',
+      (
+        tester,
+      ) async {
+        await usePhoneSurface(tester);
+        final lens = ConstellationTagLensCubit();
+        addTearDown(lens.close);
+        await _openSheet(
+          tester,
+          lens: lens,
+          ownTags: _manyRuTags(6),
+          surface: kPhoneSurface,
+        );
+      expect(find.text('Снять все'), findsOneWidget);
+      expect(find.text('Выбрать все'), findsOneWidget);
+      final selectAllButton = find.byKey(ConstellationTagRow.selectAllKey);
+        await tester.tap(selectAllButton);
+        await tester.pumpAndSettle();
+        expect(lens.state.selectedOwn.length, 6);
+        expect(
+          find.descendant(
+            of: find.byType(PersonTagChip),
+            matching: find.byIcon(Icons.check),
+          ),
+          findsNWidgets(6),
+        );
+        expect(tester.takeException(), isNull);
+
+        await tester.tap(find.byKey(ConstellationTagRow.clearAllKey));
+        await tester.pumpAndSettle();
+        expect(lens.state.isEmpty, isTrue);
+        expect(
+          find.descendant(
+            of: find.byType(PersonTagChip),
+            matching: find.byIcon(Icons.check),
+          ),
+          findsNothing,
+        );
+      },
+    );
+
     testWidgets('375×667 RU: chip tap does not jump sheet scroll', (
       tester,
     ) async {
@@ -143,6 +185,13 @@ void main() {
           (w) => w is Semantics && w.properties.selected == true,
         ),
         findsAtLeast(2),
+      );
+      expect(
+        find.descendant(
+          of: find.byType(PersonTagChip),
+          matching: find.byIcon(Icons.check),
+        ),
+        findsNWidgets(2),
       );
       expect(lens.state.selectedOwn, containsAll(['tag-0', 'tag-1']));
     });

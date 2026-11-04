@@ -770,6 +770,7 @@ final class _WireServer {
   Map<String, Object?> user(String id) => {
     '__typename': 'user',
     'id': id,
+    'created_at': '2020-01-01T00:00:00Z',
     'display_name': id == _bob.id ? 'Bob' : 'Me',
     'description': '',
     'my_vote': id == _bob.id && viewerTrustsBob ? 1 : 0,

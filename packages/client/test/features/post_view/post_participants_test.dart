@@ -1,6 +1,6 @@
 // The Post participants list (a section of «О посте») lists who is in the
 // conversation («В ПОСТЕ») and who has not opened it yet («ЕЩЁ НЕ
-// ОТКРЫЛИ»), shows who brought a member in from the forward edges, opens a
+// ОТКРЫЛИ»), shows who brought a member in from server attribution, opens a
 // profile on tap, offers «Позвать» to a member who may forward and links to
 // the forwarding graph. Rows are located by what they show and where they sit,
 // not by keys, so any layout that renders the M5 mockup passes.
@@ -25,7 +25,9 @@ import '../../support/phone_surface.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 
 const _postId = 'Bpostparticipants01';
-const _viewer = Profile(id: 'Uviewer', displayName: 'Ольга');
+const _viewerId = 'Uviewer';
+const _viewer = Profile(id: _viewerId, displayName: 'Ольга');
+const _aliceViewerId = 'Ualice';
 
 final _createdAt = DateTime.utc(2026, 10, 2, 12);
 final _seenAt = DateTime.utc(2026, 10, 2, 13);
@@ -37,6 +39,9 @@ BeaconParticipant _participant(
   int roomAccess = RoomAccessBits.admitted,
   DateTime? lastSeenRoomAt,
   bool? opened,
+  String? broughtByName,
+  String? broughtHow,
+  String? broughtById,
 }) => BeaconParticipant(
   id: 'P-$userId',
   beaconId: _postId,
@@ -49,6 +54,9 @@ BeaconParticipant _participant(
   updatedAt: _createdAt,
   lastSeenRoomAt: lastSeenRoomAt,
   opened: opened ?? lastSeenRoomAt != null,
+  broughtByName: broughtByName,
+  broughtHow: broughtHow,
+  broughtById: broughtById,
 );
 
 /// The M5 mockup: five in the conversation (author, a contact, a stranger,
@@ -62,8 +70,14 @@ List<BeaconParticipant> _participants() => [
   ),
   _participant('Umaria', 'Мария', lastSeenRoomAt: _seenAt),
   _participant('Udima', 'Дима', lastSeenRoomAt: _seenAt),
-  _participant('Usveta', 'Света', lastSeenRoomAt: _seenAt),
-  _participant(_viewer.id, _viewer.displayName, lastSeenRoomAt: _seenAt),
+  _participant(
+    'Usveta',
+    'Света',
+    lastSeenRoomAt: _seenAt,
+    broughtByName: 'Мария',
+    broughtHow: BeaconParticipantBroughtHow.forward,
+  ),
+  _participant(_viewerId, _viewer.displayName, lastSeenRoomAt: _seenAt),
   _participant('Ukatya', 'Катя'),
   _participant('Upavel', 'Павел'),
   _participant(
@@ -74,15 +88,7 @@ List<BeaconParticipant> _participants() => [
   ),
 ];
 
-List<ForwardEdge> _edges() => [
-  ForwardEdge(
-    id: 'E-maria-sveta',
-    beaconId: _postId,
-    createdAt: _createdAt,
-    sender: const Profile(id: 'Umaria', displayName: 'Мария'),
-    recipient: const Profile(id: 'Usveta', displayName: 'Света'),
-  ),
-];
+List<ForwardEdge> _edges() => const [];
 
 /// Records pushed routes; `root` is the router itself.
 class _RecordingRouter extends Mock implements RootStackRouter {
@@ -125,11 +131,28 @@ class _Harness {
   int graphTaps = 0;
   int inviteTaps = 0;
 
+  Rect _rect(Element e) {
+    final box = e.renderObject! as RenderBox;
+    return box.localToGlobal(Offset.zero) & box.size;
+  }
+
+  List<Element> beside(String name, Finder label) {
+    final nameRect = tester.getRect(find.text(name));
+    return label.evaluate().where((e) {
+      final r = _rect(e);
+      return (r.center.dy - nameRect.center.dy).abs() < nameRect.height;
+    }).toList();
+  }
+
+  bool hasBeside(String name, Finder label) => beside(name, label).isNotEmpty;
+
   double top(Finder f) => tester.getRect(f).top;
 }
 
 Future<_Harness> _pump(
   WidgetTester tester, {
+  String viewerId = _viewerId,
+  Locale locale = const Locale('ru'),
   List<BeaconParticipant>? participants,
   List<ForwardEdge>? forwardEdges,
   bool canInvite = true,
@@ -154,7 +177,7 @@ Future<_Harness> _pump(
         theme: TenturaTheme.light(),
         localizationsDelegates: L10n.localizationsDelegates,
         supportedLocales: L10n.supportedLocales,
-        locale: const Locale('ru'),
+        locale: locale,
         home: MediaQuery(
           data: MediaQueryData(size: surface),
           child: TenturaResponsiveScope(
@@ -163,7 +186,7 @@ Future<_Harness> _pump(
               child: Scaffold(
                 body: SingleChildScrollView(
                   child: PostParticipantsList(
-                    viewerId: _viewer.id,
+                    viewerId: viewerId,
                     participants: participants ?? _participants(),
                     forwardEdges: forwardEdges ?? _edges(),
                     onForwardsGraph: () => harness.graphTaps++,
@@ -207,8 +230,7 @@ void main() {
     ) async {
       final h = await _pump(tester);
 
-      expect(find.text('автор'), findsOneWidget);
-      expect(h.top(find.text('автор')), closeTo(h.top(find.text('Олег')), 24));
+      expect(h.hasBeside('Олег', find.text('автор')), isTrue);
       expect(find.text('Вы'), findsOneWidget);
       expect(find.text(_viewer.displayName), findsNothing);
     });
@@ -256,7 +278,7 @@ void main() {
           _participant('Umaria', 'Мария', lastSeenRoomAt: _seenAt),
           _participant('Udima', 'Дима', lastSeenRoomAt: _seenAt),
           _participant(
-            _viewer.id,
+            _viewerId,
             _viewer.displayName,
             lastSeenRoomAt: _seenAt,
           ),
@@ -290,7 +312,7 @@ void main() {
             role: BeaconParticipantRoleBits.author,
           ),
           _participant(
-            _viewer.id,
+            _viewerId,
             _viewer.displayName,
             lastSeenRoomAt: _seenAt,
           ),
@@ -301,12 +323,12 @@ void main() {
       expect(find.textContaining('ЕЩЁ НЕ ОТКРЫЛИ'), findsNothing);
     });
 
-    testWidgets('names who brought a member in, from the forward edges', (
+    testWidgets('names who brought a member in, from server attribution', (
       tester,
     ) async {
-      await _pump(tester);
+      final h = await _pump(tester);
 
-      expect(find.text('позвал(а): Мария'), findsOneWidget);
+      expect(h.hasBeside('Света', find.text('через Мария')), isTrue);
     });
 
     testWidgets('participant rows offer no inline trust control', (
@@ -405,9 +427,101 @@ void main() {
         expect(tester.takeException(), isNull);
         expect(find.text('Участники · 7'), findsOneWidget);
         expect(find.text('В ПОСТЕ · 5'), findsOneWidget);
-        expect(find.text('позвал(а): Мария'), findsOneWidget);
+        expect(find.text('через Мария'), findsOneWidget);
         expect(find.byType(Switch), findsNothing);
       },
     );
+  });
+
+  group('Post participant arrival note (broughtBy / broughtHow)', () {
+    testWidgets('invite: shows invited-by from server, not forward edges', (
+      tester,
+    ) async {
+      final h = await _pump(
+        tester,
+        locale: const Locale('en'),
+        viewerId: _aliceViewerId,
+        forwardEdges: const [],
+        participants: [
+          _participant(
+            'Uauthor',
+            'Author',
+            role: BeaconParticipantRoleBits.author,
+            lastSeenRoomAt: _seenAt,
+          ),
+          _participant(
+            _aliceViewerId,
+            'Alice',
+            lastSeenRoomAt: _seenAt,
+          ),
+          _participant(
+            'Usam',
+            'Sam',
+            lastSeenRoomAt: _seenAt,
+            broughtByName: 'Bob GQ',
+            broughtHow: BeaconParticipantBroughtHow.invite,
+          ),
+        ],
+      );
+
+      expect(h.hasBeside('Sam', find.text('invited by Bob GQ')), isTrue);
+    });
+
+    testWidgets('forward: shows via from server', (tester) async {
+      final h = await _pump(
+        tester,
+        locale: const Locale('en'),
+        viewerId: _aliceViewerId,
+        forwardEdges: const [],
+        participants: [
+          _participant(
+            'Uauthor',
+            'Author',
+            role: BeaconParticipantRoleBits.author,
+            lastSeenRoomAt: _seenAt,
+          ),
+          _participant(
+            _aliceViewerId,
+            'Alice',
+            lastSeenRoomAt: _seenAt,
+          ),
+          _participant(
+            'Usam',
+            'Sam',
+            lastSeenRoomAt: _seenAt,
+            broughtByName: 'Bob GQ',
+            broughtHow: BeaconParticipantBroughtHow.forward,
+          ),
+        ],
+      );
+
+      expect(h.hasBeside('Sam', find.text('via Bob GQ')), isTrue);
+    });
+
+    testWidgets('omits a line when broughtBy is null', (tester) async {
+      await _pump(
+        tester,
+        locale: const Locale('en'),
+        viewerId: _aliceViewerId,
+        forwardEdges: const [],
+        participants: [
+          _participant(
+            'Uauthor',
+            'Author',
+            role: BeaconParticipantRoleBits.author,
+            lastSeenRoomAt: _seenAt,
+          ),
+          _participant(
+            _aliceViewerId,
+            'Alice',
+            lastSeenRoomAt: _seenAt,
+          ),
+          _participant('Usam', 'Sam', lastSeenRoomAt: _seenAt),
+        ],
+      );
+
+      expect(find.textContaining('invited by'), findsNothing);
+      expect(find.textContaining('via '), findsNothing);
+    });
   });
 }

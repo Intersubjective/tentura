@@ -3920,6 +3920,46 @@
       }
     }
   },
+  "profileMemberSince": "On Tentura since {date} · {tenure}",
+  "@profileMemberSince": {
+    "context": "Profile",
+    "description": "Profile summary: localized join date plus tenure duration (#990).",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      },
+      "tenure": {
+        "type": "String"
+      }
+    }
+  },
+  "profileTenureDays": "{count, plural, =0{0 days} =1{1 day} other{{count} days}}",
+  "@profileTenureDays": {
+    "context": "Profile",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "profileTenureMonths": "{count, plural, =1{1 month} other{{count} months}}",
+  "@profileTenureMonths": {
+    "context": "Profile",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "profileTenureYears": "{count, plural, =1{1 year} other{{count} years}}",
+  "@profileTenureYears": {
+    "context": "Profile",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "durationRemainingDaysHours": "{days}d {hours}h",
   "@durationRemainingDaysHours": {
     "placeholders": {
@@ -7067,9 +7107,18 @@
       }
     }
   },
-  "postParticipantBroughtBy": "invited by {name}",
-  "@postParticipantBroughtBy": {
-    "description": "Label next to a Post participant naming who forwarded the Post to them.",
+  "postParticipantInvitedBy": "invited by {name}",
+  "@postParticipantInvitedBy": {
+    "description": "Post participant row note when they were invited by someone.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "postParticipantVia": "via {name}",
+  "@postParticipantVia": {
+    "description": "Post participant row note when the Post reached them through someone.",
     "placeholders": {
       "name": {
         "type": "String"
@@ -10612,6 +10661,14 @@
   "constellationTagsManage": "Manage tags",
   "@constellationTagsManage": {
     "description": "Field all-tags sheet: opens people tag settings"
+  },
+  "constellationTagsClearAll": "Clear all",
+  "@constellationTagsClearAll": {
+    "description": "Field all-tags sheet: clears the tag lens selection"
+  },
+  "constellationTagsSelectAll": "Select all",
+  "@constellationTagsSelectAll": {
+    "description": "Field all-tags sheet: selects every tag in the sheet"
   },
   "constellationTagModeOr": "Any of them",
   "@constellationTagModeOr": {

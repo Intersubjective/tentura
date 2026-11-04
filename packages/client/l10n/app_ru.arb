@@ -3660,6 +3660,46 @@
       }
     }
   },
+  "profileMemberSince": "В Tentura с {date} · {tenure}",
+  "@profileMemberSince": {
+    "context": "Profile",
+    "description": "Profile summary: localized join date plus tenure duration (#990).",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      },
+      "tenure": {
+        "type": "String"
+      }
+    }
+  },
+  "profileTenureDays": "{count, plural, =0{0 дней} one{{count} день} few{{count} дня} many{{count} дней} other{{count} дня}}",
+  "@profileTenureDays": {
+    "context": "Profile",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "profileTenureMonths": "{count, plural, one{{count} месяц} few{{count} месяца} many{{count} месяцев} other{{count} месяца}}",
+  "@profileTenureMonths": {
+    "context": "Profile",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "profileTenureYears": "{count, plural, one{{count} год} few{{count} года} many{{count} лет} other{{count} года}}",
+  "@profileTenureYears": {
+    "context": "Profile",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "durationRemainingDaysHours": "{days}д {hours}ч",
   "@durationRemainingDaysHours": {
     "placeholders": {
@@ -5722,8 +5762,16 @@
       }
     }
   },
-  "postParticipantBroughtBy": "позвал(а): {name}",
-  "@postParticipantBroughtBy": {
+  "postParticipantInvitedBy": "приглашён(а) {name}",
+  "@postParticipantInvitedBy": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "postParticipantVia": "через {name}",
+  "@postParticipantVia": {
     "placeholders": {
       "name": {
         "type": "String"
@@ -6620,6 +6668,8 @@
   "constellationTagsSection": "Теги",
   "constellationTagsSheetTitle": "Теги",
   "constellationTagsManage": "Управлять тегами",
+  "constellationTagsClearAll": "Снять все",
+  "constellationTagsSelectAll": "Выбрать все",
   "constellationTagModeOr": "Любой из них",
   "constellationTagModeAnd": "Все сразу",
   "constellationAutoTagMutualContact": "Взаимный контакт",
