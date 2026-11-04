@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
 
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -1065,15 +1064,33 @@ class _ConstellationBodyState extends State<ConstellationBody>
                                     // pass under the chip row, as edges do: the
                                     // clip stops their paint and hits at the
                                     // map's edge (#675).
-                                    builder: (context, _, _) => ClipRect(
-                                      child: _buildGraphStack(
-                                        context,
-                                        cubit,
-                                        cubit.state,
-                                        cubit.graphSceneLayoutAlgorithm,
-                                        panelVisible,
-                                      ),
-                                    ),
+                                    // [touchNodeDragLocked] must track Arranging.
+                                    builder: (context, _, _) {
+                                      Widget graphStack() => ClipRect(
+                                        child: _buildGraphStack(
+                                          context,
+                                          cubit,
+                                          cubit.state,
+                                          cubit.graphSceneLayoutAlgorithm,
+                                          panelVisible,
+                                        ),
+                                      );
+                                      final selection =
+                                          maybeConstellationSelection(context);
+                                      if (selection == null) {
+                                        return graphStack();
+                                      }
+                                      return BlocBuilder<
+                                        ConstellationSelectionCubit,
+                                        ConstellationMultiSelection
+                                      >(
+                                        bloc: selection,
+                                        buildWhen: (previous, current) =>
+                                            previous.arranging !=
+                                            current.arranging,
+                                        builder: (context, _) => graphStack(),
+                                      );
+                                    },
                                   ),
                                   // The map stack hosts the preview overlay; the
                                   // text view needs its own or a tapped card shows
