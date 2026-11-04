@@ -11,6 +11,10 @@ final gqlTypeConstellationTrustChainPerson =
 
 List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeFieldHiddenItem,
+  gqlTypeFieldSearchResult,
+  gqlTypeFieldSearchPerson,
+  gqlTypeFieldSearchRequest,
+  gqlTypeFieldSearchPost,
   InputFieldCoordinates.type,
   InputFieldForwardRecipientBandProvenance.type,
   InputFieldForwardRecipientReasons.type,
@@ -2388,3 +2392,38 @@ final class _DynamicListType extends GraphQLListType<dynamic, dynamic> {
   @override
   GraphQLType<List<dynamic>, List<dynamic>> coerceToInputObject() => this;
 }
+
+final gqlTypeFieldSearchPerson = GraphQLObjectType('FieldSearchPerson', null)
+  ..fields.addAll([
+    field('id', graphQLString.nonNullable()),
+    field('displayName', graphQLString),
+    field('handle', graphQLString),
+  ]);
+
+final gqlTypeFieldSearchRequest = GraphQLObjectType('FieldSearchRequest', null)
+  ..fields.addAll([
+    field('id', graphQLString.nonNullable()),
+    field('authorId', graphQLString.nonNullable()),
+    field('title', graphQLString.nonNullable()),
+    field('status', graphQLInt.nonNullable()),
+    field('hidden', graphQLBoolean.nonNullable()),
+    field('lastActivityAt', graphQLString.nonNullable()),
+  ]);
+
+final gqlTypeFieldSearchPost = GraphQLObjectType('FieldSearchPost', null)
+  ..fields.addAll([
+    field('id', graphQLString.nonNullable()),
+    field('authorId', graphQLString.nonNullable()),
+    field('rootExcerpt', graphQLString.nonNullable()),
+    field('status', graphQLInt.nonNullable()),
+    field('hidden', graphQLBoolean.nonNullable()),
+    field('lastActivityAt', graphQLString.nonNullable()),
+    field('expiresAt', graphQLString),
+  ]);
+
+final gqlTypeFieldSearchResult = GraphQLObjectType('FieldSearchResult', null)
+  ..fields.addAll([
+    field('people', GraphQLListType(gqlTypeFieldSearchPerson.nonNullable())),
+    field('requests', GraphQLListType(gqlTypeFieldSearchRequest.nonNullable())),
+    field('posts', GraphQLListType(gqlTypeFieldSearchPost.nonNullable())),
+  ]);

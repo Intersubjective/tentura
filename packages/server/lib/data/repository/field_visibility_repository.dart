@@ -1,16 +1,29 @@
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/entity/field_hidden_item.dart';
+import 'package:tentura_server/domain/entity/field_search_result.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/field_visibility_repository_port.dart';
 
 import '../database/tentura_db.dart';
+import 'field_search_reader.dart';
 
 @LazySingleton(as: FieldVisibilityRepositoryPort)
 final class FieldVisibilityRepository implements FieldVisibilityRepositoryPort {
   const FieldVisibilityRepository(this._database);
 
   final TenturaDb _database;
+
+  @override
+  Future<FieldSearchResult> search({
+    required String viewerId,
+    required String context,
+    required List<String> words,
+  }) => FieldSearchReader(_database).read(
+    viewerId: viewerId,
+    context: context,
+    words: words,
+  );
 
   @override
   Future<void> setHidden({
