@@ -98,6 +98,7 @@ class ConstellationBody extends StatefulWidget {
     required this.legendExpanded,
     required this.onToggleLegend,
     this.presentationFrameHolder,
+    this.onFieldContextSheetExpandedChanged,
     this.arrangeV2Enabled = kFieldArrangeV2Enabled,
     this.peopleTagsEnabled = kPeopleTagsEnabled,
     this.fieldMembershipV2Enabled = kFieldMembershipV2Enabled,
@@ -118,6 +119,10 @@ class ConstellationBody extends StatefulWidget {
   /// A temporary person's dashed outline and the bond / temporary line in the
   /// person panel (`kFieldMembershipV2Enabled`).
   final bool fieldMembershipV2Enabled;
+
+  /// When set (Field screen on compact widths), true while the map context
+  /// sheet is on its expanded detent, not peek.
+  final ValueChanged<bool>? onFieldContextSheetExpandedChanged;
 
   /// When set (tests only), the viewport overlay writes its frame here.
   final ConstellationPresentationFrameHolder? presentationFrameHolder;
@@ -151,8 +156,16 @@ class _ConstellationBodyState extends State<ConstellationBody>
   final _fieldTopChromeKey = GlobalKey();
   double _fieldTopChromeHeight = 0;
   double _mapStackHeight = 0;
+  /// Latest [LayoutBuilder] max height for the map stack; updated during
+  /// layout so sheet detent math stays in sync when the scaffold app bar
+  /// collapses (#974).
+  double _layoutMapStackHeight = 0;
   double _compactSheetHeight = 0;
+  bool _compactSheetDetentExpanded = false;
   bool _wasCompactPanelOpen = false;
+
+  double get _effectiveMapStackHeight =>
+      _layoutMapStackHeight > 0 ? _layoutMapStackHeight : _mapStackHeight;
 
   /// Kept across builds: it remembers which marker is the map's Tab stop.
   final _mapTraversalPolicy = _ConstellationMapReadingOrderPolicy();
@@ -742,7 +755,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
     final sheetHeight = compactSheet
         ? (_compactSheetHeight > 0
               ? _compactSheetHeight
-              : _mapStackHeight * tt.fieldSheetPeekFraction)
+              : _effectiveMapStackHeight * tt.fieldSheetPeekFraction)
         : 0.0;
     return ConstellationCameraControls.cameraViewportInsets(
       context,
@@ -755,14 +768,6 @@ class _ConstellationBodyState extends State<ConstellationBody>
     BuildContext context,
     bool panelVisible,
   ) => panelVisible && context.windowClass == WindowClass.compact;
-
-  bool _compactSheetIsExpanded(BuildContext context) {
-    if (_mapStackHeight <= 0) {
-      return false;
-    }
-    final peek = _mapStackHeight * context.tt.fieldSheetPeekFraction;
-    return _compactSheetHeight > peek + 1;
-  }
 
   void _onCompactSheetExtentChanged(double height) {
     if ((_compactSheetHeight - height).abs() < 0.5) {
@@ -780,6 +785,25 @@ class _ConstellationBodyState extends State<ConstellationBody>
         _revealNode(context, cubit, node);
       }
     });
+  }
+
+  void _onCompactSheetDetentExpanded(bool expanded) {
+    if (_compactSheetDetentExpanded == expanded) {
+      return;
+    }
+    setState(() => _compactSheetDetentExpanded = expanded);
+    final report = widget.onFieldContextSheetExpandedChanged;
+    if (report == null) {
+      return;
+    }
+    final state = context.read<ConstellationCubit>().state;
+    final panelVisible =
+        state.selectedPersonId != null || state.selectedRequestId != null;
+    if (!_compactContextPanelOpen(context, panelVisible)) {
+      report(false);
+      return;
+    }
+    report(expanded);
   }
 
   NodeDetails? _selectedMapNode(
@@ -819,9 +843,39 @@ class _ConstellationBodyState extends State<ConstellationBody>
   ) {
     final compactOpen = _compactContextPanelOpen(context, panelVisible);
     if (!compactOpen && _wasCompactPanelOpen && _compactSheetHeight != 0) {
-      setState(() => _compactSheetHeight = 0);
+      setState(() {
+        _compactSheetHeight = 0;
+        _compactSheetDetentExpanded = false;
+      });
     }
     _wasCompactPanelOpen = compactOpen;
+  }
+
+  void _scheduleFieldContextSheetExpandedReport() {
+    if (widget.onFieldContextSheetExpandedChanged == null) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      _reportFieldContextSheetExpanded();
+    });
+  }
+
+  void _reportFieldContextSheetExpanded() {
+    final report = widget.onFieldContextSheetExpandedChanged;
+    if (report == null) {
+      return;
+    }
+    final state = context.read<ConstellationCubit>().state;
+    final panelVisible =
+        state.selectedPersonId != null || state.selectedRequestId != null;
+    if (!_compactContextPanelOpen(context, panelVisible)) {
+      report(false);
+      return;
+    }
+    report(_compactSheetDetentExpanded);
   }
 
   void _noteMapStackHeight(double height) {
@@ -866,6 +920,8 @@ class _ConstellationBodyState extends State<ConstellationBody>
       mapStackHeight: useDetents ? mapStackHeight : null,
       onDismiss: useDetents ? () => _dismissCompactContextPanel(cubit) : null,
       onCompactExtentChanged: useDetents ? _onCompactSheetExtentChanged : null,
+      onCompactDetentExpandedChanged:
+          useDetents ? _onCompactSheetDetentExpanded : null,
       child: child,
     );
   }
@@ -1039,6 +1095,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
                 state.selectedPersonId != null ||
                 state.selectedRequestId != null;
             _syncCompactPanelSideEffects(context, cubit, panelVisible);
+            _scheduleFieldContextSheetExpandedReport();
           },
         ),
       ],
@@ -1113,7 +1170,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
                 context,
                 panelVisible,
               );
-              final compactSheetExpanded = _compactSheetIsExpanded(context);
+              final compactSheetExpanded = _compactSheetDetentExpanded;
 
               return Shortcuts(
                 shortcuts: {
@@ -1231,6 +1288,8 @@ class _ConstellationBodyState extends State<ConstellationBody>
                                     // map's edge (#675).
                                     builder: (context, _, _) => LayoutBuilder(
                                       builder: (context, mapConstraints) {
+                                        _layoutMapStackHeight =
+                                            mapConstraints.maxHeight;
                                         _noteMapStackHeight(
                                           mapConstraints.maxHeight,
                                         );
@@ -1264,7 +1323,8 @@ class _ConstellationBodyState extends State<ConstellationBody>
                                             context,
                                             cubit,
                                             state,
-                                            mapStackHeight: _mapStackHeight,
+                                            mapStackHeight:
+                                                _effectiveMapStackHeight,
                                           ),
                                       ],
                                     ],
@@ -2207,7 +2267,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
             context,
             cubit,
             state,
-            mapStackHeight: _mapStackHeight,
+            mapStackHeight: _effectiveMapStackHeight,
           ),
       ],
     );
@@ -2375,13 +2435,13 @@ class _ConstellationBodyState extends State<ConstellationBody>
     if (!panelVisible || context.windowClass != WindowClass.compact) {
       return legend;
     }
-    final peek = _mapStackHeight > 0
-        ? _mapStackHeight * tt.fieldSheetPeekFraction
+    final peek = _effectiveMapStackHeight > 0
+        ? _effectiveMapStackHeight * tt.fieldSheetPeekFraction
         : compactSheetHeight;
     final sheet = compactSheetHeight > 0 ? compactSheetHeight : peek;
     final media = MediaQuery.of(context);
     final maxHeight =
-        _mapStackHeight - sheet - media.padding.top - tt.rowGap * 2;
+        _effectiveMapStackHeight - sheet - media.padding.top - tt.rowGap * 2;
     return ConstrainedBox(
       constraints: BoxConstraints(maxHeight: math.max(0, maxHeight)),
       child: SingleChildScrollView(child: legend),

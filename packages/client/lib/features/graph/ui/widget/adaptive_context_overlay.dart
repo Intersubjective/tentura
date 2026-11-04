@@ -16,6 +16,7 @@ class AdaptiveContextOverlay extends StatelessWidget {
     this.mapStackHeight,
     this.onDismiss,
     this.onCompactExtentChanged,
+    this.onCompactDetentExpandedChanged,
     super.key,
   });
 
@@ -33,6 +34,9 @@ class AdaptiveContextOverlay extends StatelessWidget {
   /// Live sheet height in logical px (compact detents only).
   final ValueChanged<double>? onCompactExtentChanged;
 
+  /// `true` while the sheet is on its expanded detent (compact detents only).
+  final ValueChanged<bool>? onCompactDetentExpandedChanged;
+
   @override
   Widget build(BuildContext context) {
     final tt = context.tt;
@@ -47,6 +51,7 @@ class AdaptiveContextOverlay extends StatelessWidget {
             mapStackHeight: mapStackHeight!,
             onDismiss: onDismiss,
             onExtentChanged: onCompactExtentChanged,
+            onDetentExpandedChanged: onCompactDetentExpandedChanged,
             child: child,
           ),
         );
@@ -93,12 +98,14 @@ class _CompactDetentSheet extends StatefulWidget {
     required this.child,
     this.onDismiss,
     this.onExtentChanged,
+    this.onDetentExpandedChanged,
   });
 
   final double mapStackHeight;
   final Widget child;
   final VoidCallback? onDismiss;
   final ValueChanged<double>? onExtentChanged;
+  final ValueChanged<bool>? onDetentExpandedChanged;
 
   @override
   State<_CompactDetentSheet> createState() => _CompactDetentSheetState();
@@ -119,7 +126,10 @@ class _CompactDetentSheetState extends State<_CompactDetentSheet>
     super.initState();
     _snap = AnimationController(vsync: this, duration: _snapDuration);
     _snap.addListener(_reportExtent);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _reportExtent());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _reportExtent();
+      _reportDetentExpanded();
+    });
   }
 
   @override
@@ -127,6 +137,19 @@ class _CompactDetentSheetState extends State<_CompactDetentSheet>
     _snap.removeListener(_reportExtent);
     _snap.dispose();
     super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(covariant _CompactDetentSheet oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.mapStackHeight != widget.mapStackHeight) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) {
+          return;
+        }
+        _reportExtent();
+      });
+    }
   }
 
   TenturaTokens get _tt => context.tt;
@@ -148,6 +171,10 @@ class _CompactDetentSheetState extends State<_CompactDetentSheet>
     widget.onExtentChanged?.call(_displayHeight);
   }
 
+  void _reportDetentExpanded() {
+    widget.onDetentExpandedChanged?.call(_detent == _SheetDetent.expanded);
+  }
+
   bool get _reduceMotion => MediaQuery.disableAnimationsOf(context);
 
   void _toggleDetent() {
@@ -162,6 +189,7 @@ class _CompactDetentSheetState extends State<_CompactDetentSheet>
       _detent = detent;
       _dragOffset = 0;
     });
+    _reportDetentExpanded();
     if (_reduceMotion) {
       _snap.value = 1;
       _reportExtent();

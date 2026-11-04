@@ -49,6 +49,7 @@ import '../widget/constellation_camera_controls.dart';
 import '../widget/constellation_app_bar.dart';
 import '../widget/constellation_body.dart';
 import '../widget/constellation_create_entry.dart';
+import '../widget/field_collapsing_app_bar.dart';
 
 @RoutePage()
 class ConstellationScreen extends StatefulWidget implements AutoRouteWrapper {
@@ -166,8 +167,16 @@ class ConstellationScreen extends StatefulWidget implements AutoRouteWrapper {
 
 class _ConstellationScreenState extends State<ConstellationScreen> {
   bool _legendExpanded = false;
+  bool _fieldContextSheetExpanded = false;
 
   void _toggleLegend() => setState(() => _legendExpanded = !_legendExpanded);
+
+  void _onFieldContextSheetExpanded(bool expanded) {
+    if (_fieldContextSheetExpanded == expanded) {
+      return;
+    }
+    setState(() => _fieldContextSheetExpanded = expanded);
+  }
 
   final _focusRequest = ConstellationFocusRequest.instance;
 
@@ -278,9 +287,12 @@ class _ConstellationScreenState extends State<ConstellationScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final tt = context.tt;
+      final compact = context.windowClass == WindowClass.compact;
+      final effectiveAppBarHeight =
+          compact && _fieldContextSheetExpanded ? 0.0 : tt.appBarHeight;
       final mapBodyHeight =
           MediaQuery.sizeOf(context).height -
-          tt.appBarHeight -
+          effectiveAppBarHeight -
           tt.bottomNavHeight;
       cubit.focusBeacon(
         beaconId,
@@ -307,6 +319,16 @@ class _ConstellationScreenState extends State<ConstellationScreen> {
   @override
   Widget build(BuildContext context) {
     final composer = maybeConstellationComposer(context);
+    final compact = context.windowClass == WindowClass.compact;
+    final topBar = TenturaTopBar.of(
+      context,
+      title: const SizedBox.shrink(),
+      row: ConstellationAppBarRow(
+        legendExpanded: _legendExpanded,
+        onToggleLegend: _toggleLegend,
+      ),
+      account: homeTopBarAccount(context),
+    );
     return MultiBlocListener(
       listeners: [
         if (composer != null)
@@ -380,14 +402,10 @@ class _ConstellationScreenState extends State<ConstellationScreen> {
         ),
       ],
       child: Scaffold(
-        appBar: TenturaTopBar.of(
-          context,
-          title: const SizedBox.shrink(),
-          row: ConstellationAppBarRow(
-            legendExpanded: _legendExpanded,
-            onToggleLegend: _toggleLegend,
-          ),
-          account: homeTopBarAccount(context),
+        appBar: FieldCollapsingAppBar(
+          key: const Key('field.context_sheet.app_bar'),
+          collapsed: compact && _fieldContextSheetExpanded,
+          bar: topBar,
         ),
         body: GraphTrustWriteNotices(
           child: LazyWriteTimeoutNotice(
@@ -398,6 +416,9 @@ class _ConstellationScreenState extends State<ConstellationScreen> {
                 child: ConstellationBody(
                   legendExpanded: _legendExpanded,
                   onToggleLegend: _toggleLegend,
+                  onFieldContextSheetExpandedChanged: compact
+                      ? _onFieldContextSheetExpanded
+                      : null,
                 ),
               ),
             ),
