@@ -191,8 +191,8 @@ Future<void> _secondaryTapAt(WidgetTester tester, Offset global) async {
 Future<void> _pumpMapChrome(
   WidgetTester tester,
   ConstellationCubit cubit, {
-  TargetPlatform platform = TargetPlatform.android,
   required String beaconId,
+  TargetPlatform platform = TargetPlatform.android,
 }) async {
   await tester.pumpPeopleTagsWidget(
     _themedApp(

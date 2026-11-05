@@ -1,6 +1,5 @@
 import 'package:meta/meta.dart';
 import 'package:tentura/consts.dart';
-import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
 import 'entity/constellation_anchor_projection.dart';
