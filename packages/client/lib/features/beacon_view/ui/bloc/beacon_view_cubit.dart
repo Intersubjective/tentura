@@ -215,7 +215,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
 
   /// A block marker arrived and the refresh it asked for has not run yet.
   /// That refresh treats a Request it can no longer read as unavailable
-  /// instead of keeping the stale page (#638).
+  /// instead of keeping the stale page.
   bool _blockRefreshPending = false;
 
   /// Bumped by each block marker. A refresh that started before the latest
@@ -242,20 +242,20 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
 
   /// Set while a successful reopen / cancel / close now notifies other
   /// screens and runs its one refresh read, so its own notify does not start
-  /// a second full refresh (#366, #611).
+  /// a second full refresh.
   bool _applyingLifecycleStatus = false;
 
   /// The viewer's own offer, written locally after their action, until a
   /// refetch returns a different slice. A read that still has the pre-action
   /// rows is lag: it must not put the old decline, or the missing offer,
-  /// back on the page (#744, #751).
+  /// back on the page.
   _OwnOfferOverlay? _ownOfferOverlay;
 
   /// Last help-offer slice the server actually returned, before that overlay.
   List<HelpOfferRowRecord> _serverOfferRows = const [];
 
   /// Accepting an invite admits the viewer before the beacon read returns.
-  /// A lagging read that still says outsider keeps them inside (#751, #664).
+  /// A lagging read that still says outsider keeps them inside.
   bool _awaitingOwnMembership = false;
 
   final Set<BeaconRoomEntityType> _pendingRoomTypes = {};
@@ -556,7 +556,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
       return;
     }
     // The cancel went through: show it at once, even if the follow-up read
-    // fails (#611, same shape as Reopen in #366).
+    // fails.
     await _applyLifecycleStatus(BeaconStatus.cancelled);
   }
 
@@ -570,7 +570,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
       return;
     }
     // The reopen went through: back to coordinating at once, even if the
-    // follow-up read fails (#366). The cancelled epoch's snapshot goes.
+    // follow-up read fails. The cancelled epoch's snapshot goes.
     await _applyLifecycleStatus(BeaconStatus.open);
   }
 
@@ -585,14 +585,14 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
       return;
     }
     // The close went through: show it at once, even if the follow-up read
-    // fails (#611). The finished final check's snapshot goes.
+    // fails. The finished final check's snapshot goes.
     await _applyLifecycleStatus(BeaconStatus.closed);
   }
 
   /// After a lifecycle mutation that succeeded (reopen, cancel, close now):
   /// applies [status] at once, drops the final-check snapshot, tells other
   /// screens, then runs one quiet refresh read (with its one retry). A failed
-  /// read keeps the local status and shows no error (#366, #611).
+  /// read keeps the local status and shows no error.
   Future<void> _applyLifecycleStatus(BeaconStatus status) async {
     if (isClosed) return;
     final updated = state.beacon.copyWith(status: status);
@@ -625,7 +625,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
   }
 
   /// Reloads the Request after the viewer answered their author invite on
-  /// the page (#664): an accepted invitee lands inside at once instead of
+  /// the page: an accepted invitee lands inside at once instead of
   /// keeping the showcase until realtime catches up.
   ///
   /// [accepted] is the viewer's own «Принять». A decline only reloads.
@@ -694,7 +694,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
       );
       if (isClosed) return;
       // The write succeeded. Show that offer now; a refetch that still has
-      // the withdrawn row is behind the write (#744).
+      // the withdrawn row is behind the write.
       _publishOwnOffer(
         _ownOfferRow(
           message: message,
@@ -717,7 +717,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
     } catch (e) {
       _showSnackError(e);
       // The offer may have raced the author (final check, close): show the
-      // Request as it is now, so the page matches the message (#683).
+      // Request as it is now, so the page matches the message.
       if (!isClosed) await _fetchBeaconByIdWithTimeline(background: true);
     }
   }
@@ -832,7 +832,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
         beaconId: state.beacon.id,
         offerUserId: offerUserId,
       );
-      // #734: the People tab row changes quietly; say what happened.
+      // The People tab row changes quietly; say what happened.
       _effects.emit(
         ShowMessage(HelpOfferAcceptedMessage(_offererName(offerUserId))),
       );
@@ -911,7 +911,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
   }
 
   /// Removes [offerUserId] from the room optimistically; a refusal restores
-  /// the People tab before the error shows (#691). Never throws.
+  /// the People tab before the error shows. Never throws.
   Future<void> removeFromRoom({
     required String offerUserId,
     required String reason,
@@ -967,7 +967,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
   }
 
   /// Ends [offerUserId]'s participation optimistically. A refusal (e.g. the
-  /// author closed the Request first, #691) restores the People tab before
+  /// author closed the Request first) restores the People tab before
   /// the error shows; the call itself never throws.
   Future<void> releaseCommitment({
     required String offerUserId,
@@ -1052,7 +1052,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
     }
   }
 
-  /// «Decline remaining offers» (#268): one server call that declines every
+  /// «Decline remaining offers»: one server call that declines every
   /// offer still waiting, with one [reason] each declined person sees
   /// privately. Returns how many were declined, or null on failure (the error
   /// is shown).
@@ -1108,7 +1108,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
 
   void _onRoomInvalidation(BeaconRoomInvalidation inv) {
     if (isClosed || inv.beaconId != state.beacon.id) return;
-    // `beacon` updates already full-refresh through beaconChanges (#509).
+    // `beacon` updates already full-refresh through beaconChanges.
     if (inv.entityType == BeaconRoomEntityType.roomState) return;
     // Room kinds with request_detail impact must also converge the beacon
     // lifecycle and its derived header context, not just the room slices.
@@ -1254,7 +1254,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
 
   /// Refetch room cue after local mutations (echo-suppressed on WS).
   /// [savedCurrentLine] and its [savedRevision] (the server's answer to a
-  /// save, or the newer line a refused save reported, #517) are shown at
+  /// save, or the newer line a refused save reported) are shown at
   /// once, before the refetch.
   Future<void> refreshBeaconRoomCue({
     String? savedCurrentLine,
@@ -1385,7 +1385,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
   }
 
   /// The Add-fact message that was posted but not pinned: Pin again with the
-  /// same content pins this message instead of posting a copy (#759).
+  /// same content pins this message instead of posting a copy.
   ({String body, List<RoomPendingUpload> uploads, String messageId})?
   _unpinnedFactPost;
 
@@ -1442,7 +1442,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
     return true;
   }
 
-  /// The Add-fact form closed: a later form posts its own message (#759).
+  /// The Add-fact form closed: a later form posts its own message.
   void forgetUnpinnedFactPost() => _unpinnedFactPost = null;
 
   static bool _sameUploads(
@@ -1475,7 +1475,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
   }
 
   /// Accept puts the viewer inside as an admitted helper before the refresh
-  /// returns. The help-offer slice is the slow part (#751).
+  /// returns. The help-offer slice is the slow part.
   void _noteInviteAccepted() {
     if (isClosed) return;
     final level = state.beacon.accessLevel;
@@ -1634,7 +1634,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
       } on BeaconFetchException {
         if (isClosed) return;
         // After a block marker a missing Request means the block took the
-        // viewer's access away, not a busy read (#638).
+        // viewer's access away, not a busy read.
         if (!state.beaconContentLoaded || afterBlock) {
           emit(
             state.copyWith(
@@ -1751,7 +1751,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
         return displayStatus;
       }
 
-      // The author's forwards (#484) and the final-check snapshot need only
+      // The author's forwards and the final-check snapshot need only
       // the Request just read, so they leave with this round. Waiting until
       // the round returns re-reads the Request and adds a dependent chain.
       final closureFuture = _case
@@ -1774,7 +1774,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
             )
           : Future<_ForwardsRead?>.value();
 
-      // #766: the "Seen by" lookup leaves with the other reads but does not
+      // The "Seen by" lookup leaves with the other reads but does not
       // hold the screen back; it lands when it lands.
       final updateReaders = skipRoom
           ? null
@@ -1916,7 +1916,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
         emitPrimary(state);
       } else if (!_authorForwardStatusTried &&
           state.needsTrailForDirectForward) {
-        // #496: a helper card's "forwarded directly" line follows this
+        // A helper card's "forwarded directly" line follows this
         // viewer's trail, which is only known once offers are in hand.
         // Best effort: a failed read leaves the status unknown (no line, no
         // error; the card says "Joined via the network").
@@ -1935,7 +1935,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
     }
   }
 
-  /// #724: someone who sees the Request only through the Post it grew from
+  /// Someone who sees the Request only through the Post it grew from
   /// is told so by name; the banner needs the parent's kind and title. The
   /// parent is the hierarchy (nesting) parent the server's contextChild
   /// reason is about — a budded Request has no lineage parent. One read per
@@ -1993,13 +1993,13 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
     await _fetchBeaconByIdWithTimeline();
   }
 
-  /// #484: the silent author forward-status read runs at most once per cubit
+  /// The silent author forward-status read runs at most once per cubit
   /// (success or failure); later content reloads don't re-fire it.
   bool _authorForwardStatusTried = false;
 
   bool _forwardReadSent = false;
 
-  /// #952: a recipient's first open tells the server they read it, so the
+  /// A recipient's first open tells the server they read it, so the
   /// sender's read receipt no longer depends on the involvement read (which
   /// forward recipients are allowed to make, m0280, but the screen loads
   /// lazily). The server stamp is idempotent and scoped to the viewer's own
@@ -2252,7 +2252,7 @@ List<TimelineEntry> helpOfferRowsToTimelineEntries({
       ),
     );
   }
-  // The helper's own edit only, not the accept/admission writes (#361).
+  // The helper's own edit only, not the accept/admission writes.
   final editedAt = row.editedAt;
   if (editedAt != null) {
     events.add(
