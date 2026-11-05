@@ -6520,6 +6520,8 @@
   "constellationResetPositionsBody": "Все люди, запросы и посты, которые вы переместили на поле, вернутся на свои автоматические места — в том числе скрытые фильтрами и те, что за краем экрана, — на всех ваших устройствах.",
   "constellationArrange": "Расставить",
   "constellationUndo": "Отменить",
+  "constellationHideFromField": "Скрыть с «Поля»",
+  "constellationHiddenFromFieldSnack": "Скрыто с вашего «Поля».",
   "constellationRedo": "Повторить",
   "constellationResetPositionsConfirm": "Сбросить",
   "constellationResetPositionsFailed": "Не удалось сбросить позиции. Попробуйте ещё раз.",

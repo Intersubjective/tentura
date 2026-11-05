@@ -53,6 +53,9 @@ import '../../domain/use_case/constellation_anchor_case.dart';
 import '../../domain/use_case/constellation_placement_case.dart';
 import '../../domain/use_case/constellation_tag_magnet_case.dart';
 import '../../domain/use_case/constellation_field_store_case.dart';
+import '../../domain/use_case/constellation_field_hide_case.dart';
+import '../../domain/entity/constellation_field_target_kind.dart';
+import '../../domain/constellation_field_patches.dart';
 import '../../domain/use_case/constellation_visibility_case.dart';
 import '../../../graph/domain/entity/edge_details.dart';
 import '../../../graph/domain/entity/node_details.dart';
@@ -147,6 +150,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     this._placementCase,
     this._memberWebsCase,
     this._visibilityCase,
+    this._fieldHideCase,
     this._mutualTrustCase,
     this._trustChainCase,
     this._newPeopleCase,
@@ -202,6 +206,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   final ConstellationPlacementCase? _placementCase;
   final ConstellationMemberWebsCase? _memberWebsCase;
   final ConstellationVisibilityCase? _visibilityCase;
+  final ConstellationFieldHideCase? _fieldHideCase;
   final ConstellationMutualTrustCase? _mutualTrustCase;
   final ConstellationTrustChainCase? _trustChainCase;
   final ConstellationNewPeopleCase? _newPeopleCase;
@@ -675,6 +680,96 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   /// Screen visibility contributes to the shared store's lease visibility.
   void setVisible(bool visible) {
     if (!isClosed) _storeLease.setVisible(visible);
+  }
+
+  /// Optimistically clears unread on a Field item the viewer opened (#256).
+  void openedFieldBeacon(String beaconId) =>
+      _case.applyOpenedFieldBeacon(beaconId);
+
+  ConstellationFieldHideCase? get fieldHideCase => _fieldHideCase;
+
+  /// Graph ids of unread Requests and Posts currently on the field map (#256).
+  ///
+  /// Hidden items are absent from the loaded field and therefore never glow (#255).
+  @visibleForTesting
+  Set<GraphNodeId> unreadGlowGraphIds({
+    required bool Function(GraphNodeId id) isOnMap,
+  }) {
+    final field = state.field;
+    if (field == null) {
+      return const {};
+    }
+    final ids = <GraphNodeId>{};
+    void consider(String beaconId, bool hasUnread) {
+      if (!hasUnread) {
+        return;
+      }
+      final graphId = 'fr:$beaconId';
+      if (isOnMap(graphId)) {
+        ids.add(graphId);
+      }
+    }
+
+    for (final request in field.requests) {
+      consider(request.id, request.hasUnread);
+    }
+    for (final post in field.posts) {
+      consider(post.id, post.hasUnread);
+    }
+    for (final request in field.resolvedAnchorProjection.pinnedRequests) {
+      consider(request.id, request.hasUnread);
+    }
+    return ids;
+  }
+
+  /// Locally hides a Request or Post before the server answers (#255).
+  ConstellationFieldHideSnapshot? beginHideFromField({
+    required ConstellationFieldTargetKind targetKind,
+    required String beaconId,
+  }) {
+    if (isClosed) {
+      return null;
+    }
+    final snapshot = _case.hideSnapshotForBeacon(beaconId);
+    if (snapshot == null) {
+      return null;
+    }
+    _case.applyFieldHide(beaconId);
+    final field = _case.current.field;
+    if (field != null) {
+      if (state.selectedRequestId == beaconId) {
+        emit(state.copyWith(selectedRequestId: null));
+      }
+      _applyLoadedField(field);
+    } else {
+      _recomposeAndLayout();
+    }
+    return snapshot;
+  }
+
+  /// Rolls back [beginHideFromField] after a failed mutation or for tests.
+  void cancelHideFromField(
+    ConstellationFieldHideSnapshot snapshot, {
+    required String beaconId,
+  }) {
+    if (isClosed) {
+      return;
+    }
+    _case.restoreFieldHide(snapshot);
+    final field = _case.current.field;
+    if (field != null) {
+      _applyLoadedField(field);
+    } else {
+      _recomposeAndLayout();
+    }
+  }
+
+  /// Restores a hidden item after Undo (#255).
+  void restoreHideFromField(
+    ConstellationFieldHideSnapshot snapshot, {
+    required String beaconId,
+  }) {
+    cancelHideFromField(snapshot, beaconId: beaconId);
   }
 
   void _onStoreChanged(ConstellationFieldStoreState snapshot) {

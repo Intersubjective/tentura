@@ -48,6 +48,8 @@ import '../util/constellation_perf.dart';
 import '../utils/constellation_edge_style.dart';
 import '../utils/constellation_presentation_frame.dart';
 import '../utils/constellation_tap_resolver.dart';
+import 'constellation_field_item_actions.dart';
+import '../../domain/entity/constellation_field_target_kind.dart';
 import 'constellation_anchor_controls.dart';
 import 'constellation_camera_controls.dart';
 import 'constellation_composer_radius.dart';
@@ -81,6 +83,23 @@ import 'constellation_tag_view_header.dart';
 import 'constellation_viewport_overlay.dart';
 
 const _mapNodeSemanticsPrefix = 'constellation.mapNode:';
+
+Widget _wrapFieldBeaconMapChrome(NodeDetails node, Widget child) {
+  return switch (node) {
+    FieldBeaconNode(request: final request?) when !request.isPlaceholder =>
+      ConstellationFieldBeaconMapChrome(
+        targetKind: ConstellationFieldTargetKind.request,
+        beaconId: request.id,
+        child: child,
+      ),
+    FieldBeaconNode(post: final post?) => ConstellationFieldBeaconMapChrome(
+      targetKind: ConstellationFieldTargetKind.post,
+      beaconId: post.id,
+      child: child,
+    ),
+    _ => child,
+  };
+}
 
 class _CancelPlacementIntent extends Intent {
   const _CancelPlacementIntent();
@@ -634,6 +653,9 @@ class _ConstellationBodyState extends State<ConstellationBody>
   ) async {
     final requestId = request.id;
     await _dismissRequestPreview(cubit);
+    if (!context.mounted) {
+      return;
+    }
     final reShow = await _runOfferFlow(context, cubit, request);
     if (reShow != null && context.mounted) {
       cubit.selectRequest(requestId);
@@ -1064,10 +1086,12 @@ class _ConstellationBodyState extends State<ConstellationBody>
               context,
             )!.constellationSelectionUnavailable;
             setState(() => _selectionUnavailableMessage = message);
-            SemanticsService.sendAnnouncement(
-              View.of(context),
-              message,
-              TextDirection.ltr,
+            unawaited(
+              SemanticsService.sendAnnouncement(
+                View.of(context),
+                message,
+                TextDirection.ltr,
+              ),
             );
             cubit.selectRequest(null);
           },
@@ -2167,17 +2191,19 @@ class _ConstellationBodyState extends State<ConstellationBody>
                       anchorTarget != null && cubit.isAnchored(anchorTarget),
                   builder: (context, _) => ConstellationPersonPresenceBuilder(
                     personId: node is FieldPersonNode ? node.person.id : null,
-                    builder: (context, online) =>
-                        _wrapConstellationMapNodeSemantics(
-                          context: context,
-                          cubit: cubit,
-                          state: state,
-                          node: node,
-                          panelVisible: panelVisible,
-                          mapNode: mapNode.withOwnTags(ownTags),
-                          online: online,
-                          ownTags: ownTags,
-                        ),
+                    builder: (context, online) => _wrapFieldBeaconMapChrome(
+                      node,
+                      _wrapConstellationMapNodeSemantics(
+                        context: context,
+                        cubit: cubit,
+                        state: state,
+                        node: node,
+                        panelVisible: panelVisible,
+                        mapNode: mapNode.withOwnTags(ownTags),
+                        online: online,
+                        ownTags: ownTags,
+                      ),
+                    ),
                   ),
                 );
                 final store = _peopleTags;

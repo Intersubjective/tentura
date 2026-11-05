@@ -39,6 +39,7 @@ Map<String, dynamic> _response() => {
       'viewerIsRoomParticipant': false,
       'viewerHasForwardEdge': false,
       'helpOfferCount': 0,
+      'hasUnread': false,
       'coverSource': 0,
       'coverThumb': null,
       'parentBeaconId': null,

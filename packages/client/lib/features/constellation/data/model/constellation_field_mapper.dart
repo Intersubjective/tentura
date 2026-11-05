@@ -37,6 +37,7 @@ List<ConstellationRequest> mapConstellationFieldRequestsFetch(
       coverSource: request.coverSource,
       coverThumb: request.coverThumb as ImageModelV2?,
       parentBeaconId: request.parentBeaconId,
+      hasUnread: request.hasUnread,
     ),
 ];
 
@@ -63,6 +64,7 @@ ConstellationField mapConstellationFieldFromFieldFetch(
         status: post.status,
         isPinned: post.isPinned,
         hiddenReachCount: post.hiddenReachCount,
+        hasUnread: post.hasUnread,
       ),
   ],
   memberWebs: [
@@ -229,6 +231,7 @@ ConstellationRequest _mapRequestFields({
   String? addressLabel,
   ImageModelV2? coverThumb,
   String? parentBeaconId,
+  bool hasUnread = false,
 }) => ConstellationRequest(
   id: id,
   pinState: pinState,
@@ -254,6 +257,7 @@ ConstellationRequest _mapRequestFields({
   coverSource: BeaconCoverSource.fromWireOrPhoto(coverSource),
   coverThumb: coverThumb?.asEntity,
   parentBeaconId: parentBeaconId,
+  hasUnread: hasUnread,
 );
 
 ConstellationRequest _mapFieldFetchRequest(
@@ -280,6 +284,7 @@ ConstellationRequest _mapFieldFetchRequest(
   coverSource: request.coverSource,
   coverThumb: request.coverThumb as ImageModelV2?,
   parentBeaconId: request.parentBeaconId,
+  hasUnread: request.hasUnread,
 );
 
 ConstellationRequest _mapAnchorsFetchRequest(
@@ -357,6 +362,7 @@ ConstellationAnchorProjection _mapFieldFetchAnchorProjection(
         coverSource: request.coverSource,
         coverThumb: request.coverThumb as ImageModelV2?,
         parentBeaconId: request.parentBeaconId,
+        hasUnread: request.hasUnread,
       ),
   ],
   supportPeers: [

@@ -148,6 +148,9 @@ abstract class ConstellationRequest with _$ConstellationRequest {
 
     /// The Post this Request budded from, when the viewer can read it.
     String? parentBeaconId,
+
+    /// Unread messages or never opened (#256); server excludes muted items.
+    @Default(false) bool hasUnread,
   }) = _ConstellationRequest;
 
   const ConstellationRequest._();
@@ -188,6 +191,9 @@ abstract class ConstellationPost with _$ConstellationPost {
     @Default(0) int status,
     @Default(false) bool isPinned,
     @Default(0) int hiddenReachCount,
+
+    /// Unread messages or never opened (#256); server excludes muted items.
+    @Default(false) bool hasUnread,
   }) = _ConstellationPost;
 }
 

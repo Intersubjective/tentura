@@ -163,6 +163,10 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
   /// Most Requests added between two FULLs (#671); more wait for the FULL.
   static const maxHeldRequests = 50;
 
+  /// Beacons the viewer muted locally (#256); suppresses unread bumps from
+  /// room message invalidations.
+  final _mutedBeaconIds = <String>{};
+
   /// Pending account-owned replays a catch-up read must wait for, if any.
   Future<void>? Function()? _catchUpHold;
 
@@ -357,6 +361,90 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
         generation: _state.generation,
       ),
     );
+  }
+
+  /// Opening a Request or Post from the Field clears unread at once (#256).
+  void applyOpenedFieldBeacon(String beaconId) {
+    final field = _state.field;
+    if (field == null || beaconId.isEmpty) {
+      return;
+    }
+    final patched = patchFieldBeaconHasUnread(
+      field,
+      beaconId,
+      hasUnread: false,
+    );
+    if (identical(patched, field)) {
+      return;
+    }
+    _emit(
+      ConstellationFieldStoreState(
+        field: patched,
+        coveredRevision: _state.coveredRevision,
+        generation: _state.generation,
+      ),
+    );
+  }
+
+  /// Snapshot of a Request or Post before «Hide from Field» removes it (#255).
+  ConstellationFieldHideSnapshot? hideSnapshotForBeacon(String beaconId) {
+    final field = _state.field;
+    if (field == null || beaconId.isEmpty) {
+      return null;
+    }
+    return snapshotFieldHide(field, beaconId: beaconId);
+  }
+
+  /// Optimistically removes a Request or Post from the loaded field (#255).
+  void applyFieldHide(String beaconId) {
+    final field = _state.field;
+    if (field == null || beaconId.isEmpty) {
+      return;
+    }
+    _heldRequests.remove(beaconId);
+    final patched = removeFieldBeacon(field, beaconId: beaconId);
+    if (identical(patched, field)) {
+      return;
+    }
+    _emit(
+      ConstellationFieldStoreState(
+        field: patched,
+        coveredRevision: _state.coveredRevision,
+        generation: _state.generation,
+      ),
+    );
+  }
+
+  /// Restores a Request or Post after undo or a failed hide (#255).
+  void restoreFieldHide(ConstellationFieldHideSnapshot snapshot) {
+    final field = _state.field;
+    if (field == null) {
+      return;
+    }
+    final patched = reinsertFieldHide(field, snapshot);
+    if (identical(patched, field)) {
+      return;
+    }
+    _emit(
+      ConstellationFieldStoreState(
+        field: patched,
+        coveredRevision: _state.coveredRevision,
+        generation: _state.generation,
+      ),
+    );
+  }
+
+  /// A successful mute mutation for a beacon on the Field (#256).
+  void noteBeaconMuted(String beaconId) {
+    if (beaconId.isEmpty || !_mutedBeaconIds.add(beaconId)) {
+      return;
+    }
+    applyOpenedFieldBeacon(beaconId);
+  }
+
+  /// A successful unmute mutation (#256).
+  void noteBeaconUnmuted(String beaconId) {
+    _mutedBeaconIds.remove(beaconId);
   }
 
   /// Relations read for [mark] (#672). Ignored when a FULL that started after
@@ -560,6 +648,7 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
     _paramsGeneration++;
     _heldRelations.clear();
     _heldRequests.clear();
+    _mutedBeaconIds.clear();
     _cancelTimer();
     _queued = false;
     _queuedUrgent = false;
@@ -613,11 +702,33 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
       ...?field?.posts.map((p) => p.id),
       ...?field?.resolvedAnchorProjection.pinnedRequests.map((r) => r.id),
     };
+    final onField = fieldBeaconIds.contains(change.aggregateId);
+    if (onField && field != null) {
+      final patched = patchFieldHasUnreadFromRealtime(
+        field,
+        change,
+        viewerId: _accountId,
+        isBeaconMuted: _mutedBeaconIds.contains,
+      );
+      if (patched != null) {
+        _emit(
+          ConstellationFieldStoreState(
+            field: patched,
+            coveredRevision: _state.coveredRevision,
+            generation: _state.generation,
+          ),
+        );
+      }
+      if (change.kind == RealtimeEntityKind.roomMessage ||
+          change.kind == RealtimeEntityKind.roomSeen) {
+        return;
+      }
+    }
     _schedule(
       urgent: switch (change.kind) {
         RealtimeEntityKind.constellationField => false,
-        RealtimeEntityKind.roomMessage || RealtimeEntityKind.roomSeen =>
-          fieldBeaconIds.contains(change.aggregateId),
+        RealtimeEntityKind.roomMessage ||
+        RealtimeEntityKind.roomSeen => onField,
         _ => true,
       },
     );

@@ -181,6 +181,7 @@ void main() {
                     'lastActivityAt': '2026-09-09T10:00:00.000Z',
                     'rootExcerpt': 'Who has a ladder?',
                     'isPinned': true,
+                    'hasUnread': false,
                     'hiddenReachCount': 3,
                   },
                 ],
