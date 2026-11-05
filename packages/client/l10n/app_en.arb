@@ -10126,11 +10126,6 @@
     "description": "Status suffix on a closed Field search hit",
     "context": "ConstellationField"
   },
-  "constellationShowAgain": "Show again",
-  "@constellationShowAgain": {
-    "description": "Restores a hidden Request or Post to the Field from search",
-    "context": "ConstellationField"
-  },
   "constellationListDirectContacts": "People you trust",
   "@constellationListDirectContacts": {
     "context": "Field list: section of the people the viewer trusts directly (#253)"
