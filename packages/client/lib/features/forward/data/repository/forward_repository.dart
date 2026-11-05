@@ -15,6 +15,8 @@ import 'package:tentura/domain/port/realtime_sync_port.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 
 import '../../domain/entity/forward_delivery_result.dart';
+import '../../domain/entity/forward_reach.dart';
+import '../mapper/forward_reach_mapper.dart';
 import '../../domain/entity/help_offer_event.dart';
 import '../../domain/entity/forward_edge.dart';
 import '../../domain/entity/forward_graph.dart';
@@ -218,6 +220,12 @@ class ForwardRepository {
             .toList(),
       );
 
+  Map<String, ForwardReach?> _forwardReachByUserId = const {};
+
+  /// Reach payload from the latest [fetchForwardCandidates] call on this repo.
+  @visibleForTesting
+  ForwardReach? forwardReachFor(String userId) => _forwardReachByUserId[userId];
+
   /// Users mutually visible to the viewer (V2 `forwardCandidates`).
   Future<Iterable<Profile>> fetchForwardCandidates({String context = ''}) =>
       _remoteApiService
@@ -226,9 +234,18 @@ class ForwardRepository {
           )
           .firstWhere((e) => e.dataSource == DataSource.Link)
           .then((r) => r.dataOrThrow(label: _label).forwardCandidates)
-          .then(
-            (rows) => rows.map((user) => (user as UserPublicModel).toEntity()),
-          );
+          .then((rows) {
+            final reachById = <String, ForwardReach?>{};
+            final profiles = <Profile>[];
+            for (final user in rows) {
+              final model = user as UserPublicModel;
+              final profile = model.toEntity();
+              profiles.add(profile);
+              reachById[profile.id] = mapForwardReachFromUserPublic(model);
+            }
+            _forwardReachByUserId = reachById;
+            return profiles;
+          });
 
   /// Loads beacon header + forward-screen involvement in parallel.
   ///

@@ -9664,6 +9664,77 @@
   "@forwardSectionOthersReachableHint": {
     "description": "Helper line under «Others you can reach» (#440)."
   },
+  "forwardSectionThroughConnections": "Through your connections",
+  "@forwardSectionThroughConnections": {
+    "description": "Forward picker section: people reachable via a connection or shared request (#440)."
+  },
+  "forwardSectionWiderNetwork": "Wider network",
+  "@forwardSectionWiderNetwork": {
+    "description": "Forward picker section: distant reachable people (#440)."
+  },
+  "forwardReachYouTrustThem": "You trust them",
+  "@forwardReachYouTrustThem": {
+    "description": "Forward picker row reason when the viewer trusts the candidate directly (#440)."
+  },
+  "forwardReachYouTrustThemWithPresence": "You trust them · {presence}",
+  "@forwardReachYouTrustThemWithPresence": {
+    "description": "Direct-connection reason with online/offline presence (#440).",
+    "placeholders": {
+      "presence": {
+        "type": "String"
+      }
+    }
+  },
+  "forwardReachVouchedByOne": "Vouched for by {name}",
+  "@forwardReachVouchedByOne": {
+    "description": "Via-connection reason with one named voucher (#440).",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "forwardReachVouchedByTwo": "Vouched for by {first} and {second}",
+  "@forwardReachVouchedByTwo": {
+    "description": "Via-connection reason naming two vouchers (#440).",
+    "placeholders": {
+      "first": {
+        "type": "String"
+      },
+      "second": {
+        "type": "String"
+      }
+    }
+  },
+  "forwardReachVouchedByOneAndOthers": "Vouched for by {name} and {others} others",
+  "@forwardReachVouchedByOneAndOthers": {
+    "description": "Via-connection reason with one named voucher plus a count (#440).",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "others": {
+        "type": "int"
+      }
+    }
+  },
+  "forwardReachSharedRequest": "In \"{title}\" with you",
+  "@forwardReachSharedRequest": {
+    "description": "Shared active Request reason on a forward picker row (#440).",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "forwardReachDistantConnection": "Distant connection",
+  "@forwardReachDistantConnection": {
+    "description": "Wider-network reason on a forward picker row (#440)."
+  },
+  "forwardPickerContactEyeTooltip": "Can see you through the network",
+  "@forwardPickerContactEyeTooltip": {
+    "description": "Tooltip and semantics on the MeritRank eye badge in the forward recipient picker (#440)."
+  },
   "beaconPublishWithoutSendingDiscoverableHint": "People who can see you may find it in the Field. Nobody gets it directly until you send it.",
   "@beaconPublishWithoutSendingDiscoverableHint": {
     "description": "Under «Publish without sending» on the new-Request recipients step when the Request is discoverable (#440)."

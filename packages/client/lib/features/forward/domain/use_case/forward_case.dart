@@ -23,6 +23,7 @@ import '../entity/forward_candidate.dart';
 import '../entity/forward_delivery_result.dart';
 import '../entity/forward_inbound_source.dart';
 import '../entity/forward_load.dart';
+import '../entity/forward_reach.dart';
 import '../entity/lineage_suggestion_group.dart';
 
 @singleton
@@ -74,7 +75,9 @@ final class ForwardCase extends UseCaseBase {
     List<ForwardCandidate> candidates,
   ) => candidates.map(applyContactOverlay).toList();
 
-  Future<Iterable<Profile>> fetchForwardCandidates({String context = ''}) =>
+  Future<Iterable<Profile>> fetchForwardCandidates({
+    String context = '',
+  }) =>
       _forwardRepository.fetchForwardCandidates(context: context);
 
   Future<bool> offerHelp({
@@ -137,17 +140,16 @@ final class ForwardCase extends UseCaseBase {
         isPost || involvement.beacon.kind == BeaconKind.post;
 
     final parentId = involvement.beacon.lineageParentBeaconId;
-    final lineage =
-        !effectiveIsPost && parentId != null && parentId.isNotEmpty
-            ? await _forwardRepository.fetchLineageForwardSuggestions(
-                beaconId: beaconId,
-              )
-            : const LineageForwardSuggestions(
-                sourceBeaconId: '',
-                rootBeaconId: '',
-                suggestedNote: '',
-                suggestions: [],
-              );
+    final lineage = !effectiveIsPost && parentId != null && parentId.isNotEmpty
+        ? await _forwardRepository.fetchLineageForwardSuggestions(
+            beaconId: beaconId,
+          )
+        : const LineageForwardSuggestions(
+            sourceBeaconId: '',
+            rootBeaconId: '',
+            suggestedNote: '',
+            suggestions: [],
+          );
 
     final myId = await getCurrentAccountId();
 
@@ -157,6 +159,7 @@ final class ForwardCase extends UseCaseBase {
             .map(
               (p) => ForwardCandidate(
                 profile: p,
+                reach: _forwardReachFor(p.id),
                 mutualSince: p.mutualSince,
                 involvement: computeInvolvement(p.id, involvement),
                 myForwardNote: involvement.myForwardedRecipientNotes[p.id],
@@ -226,13 +229,13 @@ final class ForwardCase extends UseCaseBase {
           profile: profile,
           involvement: computeInvolvement(s.userId, involvement),
           hasOnwardChild:
-              involvement.myForwardedRecipientHasOnwardChild[s.userId] ??
-              false,
+              involvement.myForwardedRecipientHasOnwardChild[s.userId] ?? false,
           recipientDeclined:
               involvement.rejectedIds.contains(s.userId) ||
               (involvement.myForwardedRecipientRejected[s.userId] ?? false),
-          recipientHasActiveHelpOffer:
-              involvement.helpOfferedIds.contains(s.userId),
+          recipientHasActiveHelpOffer: involvement.helpOfferedIds.contains(
+            s.userId,
+          ),
           lineageGroup: s.group,
           lineageReasonCode: s.reasonCode,
           lineageReasonArg: s.reasonArg,
@@ -265,13 +268,11 @@ final class ForwardCase extends UseCaseBase {
     if (band.isNotEmpty) {
       final todayUtc = availabilityTodayUtc(_clock);
       final candidateById = {for (final c in candidates) c.id: c};
-      band = band
-          .where((row) {
-            final matched = candidateById[row.userId];
-            return matched == null ||
-                !matched.profile.availability.blocksNewRequestsOn(todayUtc);
-          })
-          .toList();
+      band = band.where((row) {
+        final matched = candidateById[row.userId];
+        return matched == null ||
+            !matched.profile.availability.blocksNewRequestsOn(todayUtc);
+      }).toList();
     }
 
     return ForwardLoad(
@@ -377,8 +378,7 @@ final class ForwardCase extends UseCaseBase {
     String? context,
     String? parentEdgeId,
     List<String>? attributionParentEdgeIds,
-    Map<String, ({String? tier, bool isExploration})>?
-    recipientBandProvenance,
+    Map<String, ({String? tier, bool isExploration})>? recipientBandProvenance,
   }) => _forwardRepository.forwardBeacon(
     beaconId: beaconId,
     recipientIds: recipientIds,
@@ -407,4 +407,13 @@ final class ForwardCase extends UseCaseBase {
     note: note,
     reasonSlugs: reasonSlugs,
   );
+
+  ForwardReach? _forwardReachFor(String userId) {
+    try {
+      return _forwardRepository.forwardReachFor(userId);
+    } on Object {
+      // Test doubles implement ForwardRepository without reach lookup.
+      return null;
+    }
+  }
 }

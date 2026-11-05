@@ -11,6 +11,7 @@ import 'package:tentura/features/beacon_threads/data/repository/beacon_fact_card
 import 'package:tentura/features/contacts/domain/use_case/contacts_case.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 import 'package:tentura/features/forward/domain/entity/forward_load.dart';
+import 'package:tentura/features/forward/domain/entity/forward_reach.dart';
 import 'package:tentura/features/forward/domain/use_case/forward_case.dart';
 import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
 
@@ -102,6 +103,50 @@ void main() {
       );
       expect(sent.single.operationName, 'ForwardCandidatesFetch');
       expect(profiles.single.mutualSince, since);
+    },
+  );
+
+  test(
+    'ForwardRepository maps forward_reach from ForwardCandidatesFetch',
+    () async {
+      final sent = <WireSent>[];
+      late ForwardRepository repo;
+      await withRemoteWire(
+        {
+          'ForwardCandidatesFetch': {
+            '__typename': 'query_root',
+            'forwardCandidates': [
+              {
+                ..._v2ForwardUser(
+                  id: _inviteeId,
+                  displayName: 'Peer',
+                ),
+                'forward_reach': {
+                  'kind': 'via_connection',
+                  'via_count': 2,
+                  'via': [
+                    {'id': 'U-v1', 'displayName': 'Vadim', 'image': null},
+                  ],
+                  'shared_request_id': null,
+                  'shared_request_title': null,
+                },
+              },
+            ],
+          },
+        },
+        sent,
+        (remote) async {
+          repo = ForwardRepository(
+            remote,
+            _NoBeaconRepository(),
+            buildTestRealtimeSync().port,
+          );
+          await repo.fetchForwardCandidates();
+        },
+      );
+      expect(repo.forwardReachFor(_inviteeId)?.kind, ForwardReachKind.viaConnection);
+      expect(repo.forwardReachFor(_inviteeId)?.viaCount, 2);
+      expect(repo.forwardReachFor(_inviteeId)?.via.single.displayName, 'Vadim');
     },
   );
 
