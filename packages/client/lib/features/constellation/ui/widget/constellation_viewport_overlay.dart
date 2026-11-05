@@ -15,6 +15,7 @@ import 'package:tentura/ui/widget/relative_timestamp_ticker.dart';
 import 'package:tentura/features/people_tags/domain/use_case/people_tags_case.dart';
 
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
+import '../../domain/constellation_field_unread_glow.dart';
 import '../../domain/constellation_post_fade.dart';
 import '../../domain/constellation_trust_badge.dart';
 import '../../domain/constellation_trust_chain.dart';
@@ -24,6 +25,7 @@ import '../bloc/constellation_presence_cubit.dart';
 import '../utils/constellation_presentation_frame.dart';
 import '../utils/constellation_tap_resolver.dart';
 import 'constellation_field_new_ring_layer.dart';
+import 'constellation_field_unread_glow_layer.dart';
 import 'constellation_node_ring_layer.dart';
 import 'constellation_overflow_group.dart';
 import 'constellation_presence_halo_layer.dart';
@@ -940,8 +942,44 @@ class _ConstellationViewportOverlayState
                   }
                 }
 
+                final tagsCase = context.read<PeopleTagsCase?>();
+                final unreadGlowByGraphId = field == null
+                    ? const <String, String>{}
+                    : constellationFieldUnreadGlowGraphIds(
+                        field: field,
+                        beaconGraphIdsOnMap: {
+                          for (final id in frame.bodies.keys)
+                            if (id.startsWith(
+                              kConstellationFieldBeaconGraphPrefix,
+                            ))
+                              id,
+                        },
+                        personGraphIdsOnMap: {
+                          for (final id in frame.bodies.keys)
+                            if (id.startsWith(
+                              kConstellationFieldPersonGraphPrefix,
+                            ))
+                              id,
+                        },
+                      );
+
                 return Stack(
                   children: [
+                    if (unreadGlowByGraphId.isNotEmpty)
+                      Positioned.fill(
+                        child: ConstellationFieldUnreadGlowLayer(
+                          frame: frame,
+                          glowByGraphId: unreadGlowByGraphId,
+                          dimmedGraphIds: dimmedGraphIds,
+                          colorForAuthor: (authorId) =>
+                              constellationFieldUnreadGlowColor(
+                                tags: tagsCase,
+                                authorId: authorId,
+                                tt: tt,
+                                tagColors: context.tagColors,
+                              ),
+                        ),
+                      ),
                     // Presence halos under the trust rings; they repaint on
                     // their own, never with the rings or the labels.
                     if (presence != null)
