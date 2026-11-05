@@ -9672,6 +9672,19 @@
   "@forwardSectionWiderNetwork": {
     "description": "Forward picker section: distant reachable people (#440)."
   },
+  "forwardWiderNetworkMorePeople": "{count, plural, one{{count} more person in your wider network} other{{count} more people in your wider network}}",
+  "@forwardWiderNetworkMorePeople": {
+    "description": "Forward picker: collapsed wider-network expander title (#440 mn5y.4).",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "forwardWiderNetworkExpanderHint": "You don't know them directly.",
+  "@forwardWiderNetworkExpanderHint": {
+    "description": "Secondary line under the wider-network expander (#440 mn5y.4)."
+  },
   "forwardReachYouTrustThem": "You trust them",
   "@forwardReachYouTrustThem": {
     "description": "Forward picker row reason when the viewer trusts the candidate directly (#440)."
