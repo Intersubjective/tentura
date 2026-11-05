@@ -39,6 +39,7 @@ export 'components/tentura_type_label.dart';
 export 'components/tentura_underline_tabs.dart';
 export 'tentura_capability_colors.dart';
 export 'tentura_colors.dart';
+export 'tentura_field_backdrop_colors.dart';
 export 'tentura_radii.dart';
 export 'tentura_spacing.dart';
 export 'tentura_tab_indicator.dart';
