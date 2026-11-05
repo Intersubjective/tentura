@@ -549,6 +549,23 @@ WHERE blocker_id = $1 AND blocked_id = $2
           return 0;
         }
 
+        // Take every per-user block barrier the batch needs, in a fixed order,
+        // before the first INSERT. The m0294 BEFORE INSERT row trigger
+        // re-acquires the same barriers per row (advisory xact locks are
+        // re-entrant within a transaction); acquiring them up front keeps the
+        // batch from holding the visibility_trust_generation row — bumped by
+        // the m0235 AFTER INSERT STATEMENT trigger after the first INSERT —
+        // while waiting for a later candidate's exclusive barrier that a
+        // concurrent Post forward holds shared. The #941 lock order is
+        // hierarchy -> per-user block barrier -> per-Post lock, so all
+        // barriers come before the generation row.
+        for (final userId in ([...batch]..sort())) {
+          await _db.customStatement(
+            r'SELECT public.user_block_pair_lock($1, $2)',
+            [blockerId, userId],
+          );
+        }
+
         for (final userId in batch) {
           await _db.customStatement(
             r'''
