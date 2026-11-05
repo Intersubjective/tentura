@@ -77,6 +77,7 @@ import '../../support/fake_user_block_repository.dart';
 const _author = 'Upostlockauth1';
 const _recipient = 'Upostlockrcpt1';
 const _bystander = 'Upostlockbyst1';
+const _extraRecipient = 'Upostlockextr1';
 const _post = 'Bpostlockpost1';
 const _mediaImage = 'd2990de0-1100-4000-8000-000000000001';
 
@@ -85,6 +86,14 @@ const _statusDraft = 3;
 const _deadlockDetected = '40P01';
 const _rounds = 20;
 const _roundBudget = Duration(seconds: 10);
+const _deliveryBudget = Duration(seconds: 2);
+const _hierarchyKey = "hashtextextended('tentura.beacon_hierarchy.v1', 0)";
+const _postKey = "hashtextextended('$_post', 4242)";
+
+/// The per-user block barrier: a Post delivery takes it shared for the
+/// sender, a recorded block takes it exclusively for both users.
+String _barrierKey(String userId) =>
+    "hashtextextended('tentura.user_block.v1:$userId', 0)";
 
 Future<void> main() async {
   final target = DisposablePgTarget.fromNamedEnvironment(
@@ -593,6 +602,390 @@ Future<void> main() async {
       );
     });
 
+    group('Post delivery lock order', () {
+      test(
+        'a Post forward to three recipients completes while another '
+        'transaction holds the global hierarchy lock',
+        () async {
+          await writer.execute(
+            'INSERT INTO public."user" (id, display_name, public_key) '
+            "VALUES ('$_extraRecipient', '$_extraRecipient', "
+            "'pk-$_extraRecipient')",
+          );
+          final deliveryDb = openDisposablePgDatabase(target);
+          addTearDown(deliveryDb.close);
+          final deliveryStack = _buildStack(deliveryDb, target.databaseEnv);
+          final deliveryPid = await _backendPid(deliveryDb);
+          final holder = await _openConnection(target);
+          addTearDown(holder.close);
+          await holder.execute('BEGIN');
+          Future<_Outcome>? forward;
+          try {
+            await holder.execute(
+              'SELECT pg_advisory_xact_lock($_hierarchyKey)',
+            );
+            forward = _settle(
+              deliveryStack.forwardCase.forward(
+                senderId: _author,
+                beaconId: _post,
+                recipientIds: const [_recipient, _bystander, _extraRecipient],
+              ),
+            );
+            // Assert the deadline before releasing hierarchy. Cleanup cannot
+            // turn a completion after release into a successful delivery.
+            final outcome = await forward.timeout(
+              _deliveryBudget,
+              onTimeout: () => fail(
+                'Post forwarding did not complete within 2 s while the '
+                'hierarchy lock remained held',
+              ),
+            );
+            expect(outcome.error, isNull);
+            expect(
+              outcome.result?.deliveredRecipientIds,
+              unorderedEquals([_recipient, _bystander, _extraRecipient]),
+            );
+            for (final id in [_recipient, _bystander, _extraRecipient]) {
+              expect(
+                await _isAdmitted(writer, _post, id),
+                isTrue,
+                reason: '$id is admitted while hierarchy remains locked',
+              );
+            }
+          } finally {
+            try {
+              await holder.execute('ROLLBACK');
+            } finally {
+              await _drainDelivery(writer, deliveryPid, forward);
+            }
+          }
+        },
+      );
+
+      for (final cancelling in [false, true]) {
+        final operation = cancelling ? 'forward cancellation' : 'forward';
+        test(
+          'a Post $operation waits for the sender block barrier before '
+          'acquiring the Post lock',
+          () async {
+            final edgeId = cancelling
+                ? await _insertEdge(writer, _author, _recipient)
+                : null;
+            final deliveryDb = openDisposablePgDatabase(target);
+            addTearDown(deliveryDb.close);
+            final deliveryStack = _buildStack(deliveryDb, target.databaseEnv);
+            final deliveryPid = await _backendPid(deliveryDb);
+            final holder = await _openConnection(target);
+            addTearDown(holder.close);
+            await holder.execute('BEGIN');
+            Future<_Outcome>? delivery;
+            try {
+              // Hold only the barrier: hierarchy cannot account for the wait.
+              await holder.execute(
+                'SELECT pg_advisory_xact_lock(${_barrierKey(_author)})',
+              );
+              delivery = _settle(
+                cancelling
+                    ? deliveryStack.forwardCase.cancelForward(
+                        edgeId: edgeId!,
+                        senderId: _author,
+                      )
+                    : deliveryStack.forwardCase.forward(
+                        senderId: _author,
+                        beaconId: _post,
+                        recipientIds: const [_recipient],
+                      ),
+              );
+              await _waitForAdvisoryWaiter(
+                writer,
+                deliveryPid,
+                _barrierKey(_author),
+                label: "the sender's block barrier before taking the Post lock",
+              );
+              expect(
+                await _advisoryLocks(writer, deliveryPid, _barrierKey(_author)),
+                [(granted: false, mode: 'ShareLock')],
+              );
+              expect(
+                await _advisoryLocks(writer, deliveryPid, _postKey),
+                isEmpty,
+                reason: 'delivery must wait for the barrier before the Post',
+              );
+              expect(
+                (await holder.execute(
+                  'SELECT pg_try_advisory_xact_lock($_postKey)',
+                )).single.single,
+                isTrue,
+                reason:
+                    'a barrier holder can still acquire the Post lock while '
+                    'delivery waits; the reverse order would deadlock',
+              );
+            } finally {
+              try {
+                await holder.execute('ROLLBACK');
+              } finally {
+                await _drainDelivery(writer, deliveryPid, delivery);
+              }
+            }
+
+            final outcome = await delivery;
+            expect(outcome.error, isNull);
+            if (cancelling) {
+              expect(outcome.value, isTrue);
+              expect(await _liveEdgeCount(writer, _post, _recipient), 0);
+              expect(await _isAdmitted(writer, _post, _recipient), isFalse);
+            } else {
+              expect(outcome.result?.deliveredRecipientIds, [_recipient]);
+              expect(await _isAdmitted(writer, _post, _recipient), isTrue);
+            }
+          },
+        );
+      }
+
+      test(
+        'before commit, a Post forward holds the Post lock and the sender '
+        'block barrier in shared mode, and no hierarchy lock',
+        () async {
+          final sample = await forwardStack.uow.run(
+            actorUserId: _author,
+            action: () async {
+              final result = await forwardStack.forwardCase.forward(
+                senderId: _author,
+                beaconId: _post,
+                recipientIds: const [_recipient],
+              );
+              expect(result.deliveredRecipientIds, [_recipient]);
+              return _sampleDeliveryLocks(
+                writer,
+                await _backendPid(forwardDb),
+                senderId: _author,
+              );
+            },
+          );
+
+          _expectDeliveryLocks(sample, senderId: _author);
+          expect(await _isAdmitted(writer, _post, _recipient), isTrue);
+        },
+      );
+
+      test(
+        'before commit, a Post forward cancellation holds the Post lock and '
+        'the sender block barrier in shared mode, and no hierarchy lock',
+        () async {
+          final edgeId = await _insertEdge(writer, _author, _recipient);
+          expect(await _isAdmitted(writer, _post, _recipient), isTrue);
+
+          final sample = await forwardStack.uow.run(
+            actorUserId: _author,
+            action: () async {
+              final cancelled = await forwardStack.forwardCase.cancelForward(
+                edgeId: edgeId,
+                senderId: _author,
+              );
+              expect(cancelled, isTrue, reason: 'the cancellation succeeds');
+              return _sampleDeliveryLocks(
+                writer,
+                await _backendPid(forwardDb),
+                senderId: _author,
+              );
+            },
+          );
+
+          _expectDeliveryLocks(sample, senderId: _author);
+          expect(await _liveEdgeCount(writer, _post, _recipient), 0);
+          expect(await _isAdmitted(writer, _post, _recipient), isFalse);
+        },
+      );
+
+      test(
+        "recording a block takes both users' block barriers exclusively",
+        () async {
+          final holder = await _openConnection(target);
+          addTearDown(holder.close);
+          final holderPid = await _connectionPid(holder);
+          await holder.execute('BEGIN');
+          try {
+            await holder.execute(
+              'INSERT INTO public.user_block (blocker_id, blocked_id, '
+              "origin_id) VALUES ('$_author', '$_recipient', '$_recipient')",
+            );
+            for (final id in [_author, _recipient]) {
+              expect(
+                await _advisoryLocks(writer, holderPid, _barrierKey(id)),
+                [(granted: true, mode: 'ExclusiveLock')],
+                reason: "the block insert holds $id's barrier exclusively",
+              );
+            }
+          } finally {
+            await holder.execute('ROLLBACK');
+          }
+        },
+      );
+
+      test('removing a block takes no block barrier', () async {
+        await writer.execute(
+          'INSERT INTO public.user_block (blocker_id, blocked_id, origin_id) '
+          "VALUES ('$_author', '$_recipient', '$_recipient')",
+        );
+        final holder = await _openConnection(target);
+        addTearDown(holder.close);
+        final holderPid = await _connectionPid(holder);
+        await holder.execute('BEGIN');
+        try {
+          await holder.execute(
+            "DELETE FROM public.user_block WHERE blocker_id = '$_author' "
+            "AND blocked_id = '$_recipient'",
+          );
+          for (final id in [_author, _recipient]) {
+            expect(
+              await _advisoryLocks(writer, holderPid, _barrierKey(id)),
+              isEmpty,
+              reason: 'a block delete takes no barrier on $id',
+            );
+          }
+        } finally {
+          await holder.execute('ROLLBACK');
+        }
+      });
+
+      test(
+        'a Post forward waits on the sender block barrier behind an '
+        'uncommitted block, then is refused and the blocked recipient is '
+        'not admitted',
+        () async {
+          final forwardPid = await _backendPid(forwardDb);
+          final holder = await _openConnection(target);
+          addTearDown(holder.close);
+          await holder.execute('BEGIN');
+          Future<_Outcome>? forward;
+          try {
+            await holder.execute(
+              'INSERT INTO public.user_block (blocker_id, blocked_id, '
+              "origin_id) VALUES ('$_author', '$_recipient', '$_recipient')",
+            );
+            forward = _settle(
+              forwardStack.forwardCase.forward(
+                senderId: _author,
+                beaconId: _post,
+                recipientIds: const [_recipient],
+              ),
+            );
+            await _waitForAdvisoryWaiter(
+              writer,
+              forwardPid,
+              _barrierKey(_author),
+              label: "the sender's block barrier",
+            );
+          } finally {
+            await holder.execute('COMMIT');
+            await forward?.timeout(_roundBudget);
+          }
+
+          final outcome = await forward.timeout(_roundBudget);
+          expect(
+            outcome.error,
+            isA<UnauthorizedException>().having(
+              (e) => e.code.codeNumber,
+              'code',
+              const AuthExceptionCodes(
+                AuthExceptionCode.authUnauthorizedException,
+              ).codeNumber,
+            ),
+            reason:
+                'the forward resumed after the block committed and must be '
+                'refused (result: ${outcome.result?.deliveredRecipientIds})',
+          );
+          expect(
+            await _edgeCount(writer, _post, _recipient, liveOnly: false),
+            0,
+          );
+          expect(await _isAdmitted(writer, _post, _recipient), isFalse);
+        },
+      );
+
+      test(
+        'a third-party Post forward racing a block of its recipient never '
+        'deadlocks, and the recipient keeps room access exactly when a live '
+        'edge to them remains',
+        () async {
+          for (var round = 0; round < _rounds; round++) {
+            await _resetFixture(writer);
+            await writer.execute(
+              "UPDATE public.beacon SET forward_policy = 1 WHERE id = '$_post'",
+            );
+            await _insertEdge(
+              writer,
+              _author,
+              _bystander,
+              edgeId: 'Fauthtobyst1',
+            );
+            await _insertEdge(
+              writer,
+              _author,
+              _recipient,
+              edgeId: 'Fauthtorcpt1',
+            );
+            expect(await _isAdmitted(writer, _post, _bystander), isTrue);
+            expect(await _isAdmitted(writer, _post, _recipient), isTrue);
+
+            final forward = _settle(
+              forwardStack.forwardCase.forward(
+                senderId: _bystander,
+                beaconId: _post,
+                recipientIds: const [_recipient],
+              ),
+            );
+            final block = _settle(
+              blockStack.blockCase.block(
+                blockerId: _author,
+                blockedId: _recipient,
+                cascadeMode: 0,
+              ),
+            );
+            final outcomes = await _raceRound(round, [forward, block]);
+            for (final (index, outcome) in outcomes.indexed) {
+              expect(
+                _isDeadlock(outcome.error),
+                isFalse,
+                reason:
+                    'round $round: ${index == 0 ? "forward" : "block"} '
+                    'must not return SQLSTATE 40P01: ${outcome.error}',
+              );
+            }
+            expect(
+              outcomes[1].error,
+              isNull,
+              reason: 'round $round: the block must succeed',
+            );
+            final forwardError = outcomes[0].error;
+            if (forwardError != null) {
+              expect(
+                forwardError,
+                isA<ExceptionBase>().having(
+                  (e) => e,
+                  'not an unspecified failure',
+                  isNot(isA<UnspecifiedException>()),
+                ),
+                reason:
+                    'round $round: a refused forward fails with a specific '
+                    'domain exception: $forwardError',
+              );
+            }
+            final liveEdges = await _liveEdgeCount(writer, _post, _recipient);
+            expect(
+              await _roomAccess(writer, _post, _recipient) ==
+                  RoomAccessBits.admitted,
+              liveEdges > 0,
+              reason:
+                  'round $round: room access is admitted iff a live edge to '
+                  'the recipient remains ($liveEdges live edges)',
+            );
+          }
+        },
+        timeout: const Timeout(Duration(minutes: 5)),
+      );
+    });
+
     group('publish of a Post', () {
       test(
         'a publish racing a block never deadlocks and never leaves the '
@@ -726,9 +1119,27 @@ Future<void> main() async {
 
     group('cancelling a forward edge while the addressee leaves', () {
       test(
-        'a cancellation queued behind a leave on the hierarchy lock does not '
+        'a cancellation queued behind a leave on the Post lock does not '
         'take the edge first: the leave wins and the cancellation is refused',
         () async {
+          // Keep forcibly terminated backends out of the shared fixture stacks.
+          final cancelDb = openDisposablePgDatabase(target);
+          final leaveDb = openDisposablePgDatabase(target);
+          addTearDown(cancelDb.close);
+          addTearDown(leaveDb.close);
+          final cancelStack = _buildStack(cancelDb, target.databaseEnv);
+          final leaveStack = _buildStack(leaveDb, target.databaseEnv);
+          final cancelPid = await _backendPid(cancelDb);
+          final leavePid = await _backendPid(leaveDb);
+
+          Future<void> terminateRoundBackends() async {
+            await writer.execute(
+              'SELECT pg_terminate_backend(pid) FROM pg_stat_activity '
+              'WHERE datname = current_database() '
+              'AND pid IN ($leavePid, $cancelPid)',
+            );
+          }
+
           for (var round = 0; round < _rounds; round++) {
             await _resetFixture(writer);
             final edgeId = await _insertEdge(writer, _author, _recipient);
@@ -739,32 +1150,54 @@ ON CONFLICT (user_id, beacon_id) DO UPDATE SET status = 1
 """);
             expect(await _isAdmitted(writer, _post, _recipient), isTrue);
 
-            final cancelPid = await _backendPid(forwardDb);
-            final leavePid = await _backendPid(blockDb);
-            // The writer holds the hierarchy scope while the leave and then
-            // the cancellation queue behind it, so on release the leave gets
-            // the hierarchy first: the interleaving of the deadlock.
+            // The writer holds the Post lock while the leave and then the
+            // cancellation queue behind it, so on release the leave gets the
+            // Post lock first: the interleaving of the deadlock.
             await writer.execute('BEGIN');
-            late final Future<_Outcome> leave;
-            late final Future<_Outcome> cancel;
+            Future<_Outcome>? leave;
+            Future<_Outcome>? cancel;
+            var queued = false;
             try {
-              await writer.execute(
-                'SELECT pg_advisory_xact_lock(hashtextextended('
-                "'tentura.beacon_hierarchy.v1', 0))",
-              );
+              await writer.execute('SELECT pg_advisory_xact_lock($_postKey)');
               leave = _settle(
-                blockStack.postCase.leave(userId: _recipient, beaconId: _post),
+                leaveStack.postCase.leave(userId: _recipient, beaconId: _post),
               );
-              await _waitForHierarchyWaiter(writer, leavePid);
+              await _waitForAdvisoryWaiter(
+                writer,
+                leavePid,
+                _postKey,
+                label: 'the Post lock',
+              );
               cancel = _settle(
-                forwardStack.forwardCase.cancelForward(
+                cancelStack.forwardCase.cancelForward(
                   edgeId: edgeId,
                   senderId: _author,
                 ),
               );
-              await _waitForHierarchyWaiter(writer, cancelPid);
+              await _waitForAdvisoryWaiter(
+                writer,
+                cancelPid,
+                _postKey,
+                label: 'the Post lock',
+              );
+              queued = true;
             } finally {
-              await writer.execute('COMMIT');
+              try {
+                await writer.execute('COMMIT');
+              } finally {
+                // A failed queue observation must stop the actual SQL, not
+                // merely stop awaiting its Future. These connections belong
+                // only to this test and are closed after both actions settle.
+                if (!queued) await terminateRoundBackends();
+                final pending = Future.wait([?leave, ?cancel]);
+                try {
+                  await pending.timeout(_roundBudget);
+                } on TimeoutException {
+                  await terminateRoundBackends();
+                  await pending.timeout(_roundBudget);
+                  rethrow;
+                }
+              }
             }
 
             final outcomes = await Future.wait([leave, cancel]).timeout(
@@ -1007,9 +1440,10 @@ Future<void> _makeDraft(Connection writer) => writer.execute(
 Future<String> _insertEdge(
   Connection writer,
   String senderId,
-  String recipientId,
-) async {
-  final id = 'F${senderId.substring(senderId.length - 10)}';
+  String recipientId, {
+  String? edgeId,
+}) async {
+  final id = edgeId ?? 'F${senderId.substring(senderId.length - 10)}';
   await writer.execute('''
 INSERT INTO public.beacon_forward_edge (id, beacon_id, sender_id, recipient_id)
 VALUES ('$id', '$_post', '$senderId', '$recipientId')
@@ -1380,21 +1814,103 @@ Future<int> _backendPid(TenturaDb db) async {
   return row.read<int>('pid');
 }
 
-/// Waits until backend [pid] waits for the hierarchy advisory lock. Scoped to
-/// this database, that key and that pid (`pg_locks` is cluster-wide).
-Future<void> _waitForHierarchyWaiter(Connection writer, int pid) async {
+Future<int> _connectionPid(Connection connection) async =>
+    (await connection.execute('SELECT pg_backend_pid()')).single.single! as int;
+
+/// Drain a delivery on its test-owned connection before closing its fixture.
+/// Killing a stuck backend cancels SQL as well as settling the awaited Future.
+Future<void> _drainDelivery(
+  Connection writer,
+  int pid,
+  Future<_Outcome>? delivery,
+) async {
+  if (delivery == null) return;
+  try {
+    await delivery.timeout(_roundBudget);
+  } on TimeoutException {
+    await writer.execute(
+      'SELECT pg_terminate_backend(pid) FROM pg_stat_activity '
+      'WHERE datname = current_database() AND pid = $pid',
+    );
+    await delivery.timeout(_roundBudget);
+  }
+}
+
+/// `pg_locks` filter for the advisory lock [keyExpr] of backend [pid], scoped
+/// to this database (`pg_locks` is cluster-wide).
+String _advisoryLockFilter(int pid, String keyExpr) =>
+    "l.locktype = 'advisory' AND l.objsubid = 1 "
+    'AND ((l.classid::bigint << 32) | l.objid::bigint) = $keyExpr '
+    'AND l.pid = $pid AND l.database = '
+    '(SELECT oid FROM pg_database WHERE datname = current_database())';
+
+typedef _AdvisoryLock = ({bool granted, String mode});
+
+Future<List<_AdvisoryLock>> _advisoryLocks(
+  Connection writer,
+  int pid,
+  String keyExpr,
+) async {
+  final rows = await writer.execute(
+    'SELECT l.granted, l.mode FROM pg_locks l '
+    'WHERE ${_advisoryLockFilter(pid, keyExpr)} ORDER BY l.mode',
+  );
+  return [
+    for (final row in rows) (granted: row[0]! as bool, mode: row[1]! as String),
+  ];
+}
+
+typedef _DeliveryLocks = ({
+  List<_AdvisoryLock> hierarchy,
+  List<_AdvisoryLock> post,
+  List<_AdvisoryLock> barrier,
+});
+
+/// The advisory locks backend [pid] holds or waits on, read from another
+/// connection while that backend's transaction is still open.
+Future<_DeliveryLocks> _sampleDeliveryLocks(
+  Connection writer,
+  int pid, {
+  required String senderId,
+}) async => (
+  hierarchy: await _advisoryLocks(writer, pid, _hierarchyKey),
+  post: await _advisoryLocks(writer, pid, _postKey),
+  barrier: await _advisoryLocks(writer, pid, _barrierKey(senderId)),
+);
+
+void _expectDeliveryLocks(_DeliveryLocks sample, {required String senderId}) {
+  expect(
+    sample.hierarchy,
+    isEmpty,
+    reason: 'Post delivery never takes the global hierarchy lock',
+  );
+  expect(
+    sample.post,
+    contains((granted: true, mode: 'ExclusiveLock')),
+    reason: 'Post delivery holds the Post advisory lock',
+  );
+  expect(
+    sample.barrier,
+    [(granted: true, mode: 'ShareLock')],
+    reason: "Post delivery holds $senderId's block barrier in shared mode only",
+  );
+}
+
+/// Waits until backend [pid] waits for the advisory lock [keyExpr].
+Future<void> _waitForAdvisoryWaiter(
+  Connection writer,
+  int pid,
+  String keyExpr, {
+  required String label,
+}) async {
   final deadline = DateTime.now().add(const Duration(seconds: 10));
   while (DateTime.now().isBefore(deadline)) {
     final rows = await writer.execute(
       'SELECT 1 FROM pg_locks l '
-      "WHERE l.locktype = 'advisory' AND NOT l.granted AND l.objsubid = 1 "
-      'AND ((l.classid::bigint << 32) | l.objid::bigint) = '
-      "hashtextextended('tentura.beacon_hierarchy.v1', 0) "
-      'AND l.pid = $pid AND l.database = '
-      '(SELECT oid FROM pg_database WHERE datname = current_database())',
+      'WHERE NOT l.granted AND ${_advisoryLockFilter(pid, keyExpr)}',
     );
     if (rows.isNotEmpty) return;
     await Future<void>.delayed(const Duration(milliseconds: 20));
   }
-  fail('backend $pid never waited for the hierarchy lock');
+  fail('backend $pid never waited for $label');
 }

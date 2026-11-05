@@ -8,6 +8,7 @@ import 'package:tentura_server/domain/port/witness_window_port.dart';
 import 'package:tentura_server/env.dart';
 
 import '../database/tentura_db.dart';
+import 'post_lock_repository.dart';
 
 @Injectable(
   as: UserBlockRepositoryPort,
@@ -34,6 +35,35 @@ class UserBlockRepository implements UserBlockRepositoryPort {
     required String blockedId,
     required int cascadeMode,
   }) => _db.withJoinedTransaction(() async {
+    await _db.customStatement(
+      'SELECT public.beacon_hierarchy_acquire_mutation_lock()',
+    );
+    await _db.customStatement(
+      r'SELECT public.user_block_pair_lock($1, $2)',
+      [blockerId, blockedId],
+    );
+    // Block INSERT bumps visibility_trust_generation. Lock every Post whose
+    // edges cleanup will cancel before taking that counter row, since delivery
+    // takes the Post before trust projection. The pair barriers keep this edge
+    // inventory stable; hierarchy serializes blocks that lock multiple Posts.
+    final posts = await _db
+        .customSelect(
+          r'''
+SELECT DISTINCT b.id
+FROM public.beacon b
+JOIN public.beacon_forward_edge e ON e.beacon_id = b.id
+WHERE b.kind = 1 AND e.cancelled_at IS NULL
+  AND ((e.sender_id = $1 AND e.recipient_id = $2)
+    OR (e.sender_id = $2 AND e.recipient_id = $1))
+ORDER BY b.id
+''',
+          variables: [Variable<String>(blockerId), Variable<String>(blockedId)],
+        )
+        .get();
+    final postLock = PostLockRepository(_db);
+    for (final post in posts) {
+      await postLock.lockForPostMutation(post.read<String>('id'));
+    }
     // Mode 0 has nothing to materialize — store status=2 (done) so the
     // cascade worker never claims these rows into a tight no-op loop.
     await _db.customStatement(

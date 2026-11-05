@@ -469,5 +469,11 @@ class _PassThroughUnitOfWork implements MutatingUnitOfWorkPort {
 
 class _NoopPostLock implements PostLockPort {
   @override
+  Future<void> lockForPostDelivery(
+    String beaconId, {
+    required String senderId,
+  }) async => throw StateError('Expiry must take the hierarchy lock');
+
+  @override
   Future<void> lockForPostMutation(String beaconId) async {}
 }

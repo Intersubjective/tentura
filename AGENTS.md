@@ -187,8 +187,38 @@ Standard dev setup is in `DEVELOPMENT.md` and the `local-debug` skill; only the 
 <!-- headroom:learn:end -->
 
 <!-- alloy:memory:begin -->
-reviewed: 2026-11-04
-review due: 2026-11-11
+reviewed: 2026-11-05
+review due: 2026-11-12
+
+### 0-evidence-real-path
+Evidence rule (owner 2026-10-30, QA-bounce prevention). Every behaviour the commit message or verdict claims needs its own test that fails without the change. At least one test per bead runs the real path: the real transport response through the GQL mapper/repository to the cubit and widget (client), or a real Postgres pg test (server). Hand-built entities don't count. Touch, focus, keyboard, semantics, scroll and web lifecycle (bfcache, reload) are proven only by the web integration_test (scripts/run_client_integration_web_local.sh) or Playwright; a widget test alone is not evidence. Judge: an unbacked claim is not done, so answer retry and name the missing test, or human when the sandbox can't run the browser suite.
+
+### alloy:lesson:deploy_hosts_no_rsync
+deploy.sh and anything run on the dev/prod VPS (Debian base) must use only coreutils/findutils/tar/cp/mv/find. The hosts have no rsync (verified on dev.tentura.io with `command -v rsync`). Under `set -euo pipefail` a missing rsync aborts the deploy mid-publication, after app-assets are moved and before the entry files are published (tentura-g71a.9). The judge and tests passed because the CI sandbox has rsync, so green checks do not prove host compatibility. Make scripts/test_deploy_web_asset_publication.sh run deploy.sh with a PATH that lacks rsync (or a shim that exits 127) in both dev and prod modes. Web publish order: new app-assets/<ver>/ first, then prune stale root files (excluding app-assets/ and the entry files, compared against the staged tree), then entry files last, then prune_app_assets (keep the newest APP_ASSETS_KEEP). Never edit the live ./web in place from the archive; stage it first. The deploy action now scp's the repo Caddyfile, so a deploy also brings new routes to the host. Check landing fonts, /invite, sign-in and push-action in the post-deploy QA smoke. Web assets such as the Drift worker and sqlite3.wasm must be resolved through ui_web.assetManager, never through root literals or getWebAppVersion(), which reads the latest root version.json and not the running build's.
+
+### check-hints-client-lints
+client lints: run FROM REPO ROOT, never with ../../ prefixes: './scripts/run_with_test_cleanup.sh --timeout 10m -- ./scripts/check-custom-lints.sh packages/client' and 'bash scripts/check-analyze-baseline.sh packages/client' (same for packages/server).
+
+### check-hints-plain-name-quoting
+flutter test --plain-name values containing spaces MUST be quoted in check commands (e.g. --plain-name='wire mapping of Post fields'), never --plain-name=wire mapping of Post fields unquoted -- the shell splits the unquoted value into separate words, which flutter test then tries to load as nonexistent test files, producing phantom 'Does not exist' failures that look like real test failures and have twice caused Alloy to wrongly override a correct 'done' judge verdict (tentura-brd4.38, tentura-brd4.39).
+
+### check-hints-test-profiles
+PREFERRED check commands (repo root, see docs/testing-resource-profile.md): per iteration 'scripts/run_tests.sh server-files <test files>' or 'scripts/run_tests.sh server-affected' (client: client-files <paths> / client-affected); ONCE before done 'scripts/run_tests.sh server-regression' (gates + unit + pg, + mr only for Field/visibility/trust changes) or 'scripts/run_tests.sh client-gates' + 'scripts/run_tests.sh client-all'. Never a whole package without tags (no plain 'dart test' / 'dart test test/data/repository' at -j 8: mixes mr/perf and fails on load), never perf/load suites. Wrapped runs queue machine-wide; 'queued behind another test run' in a log is waiting, not a hang. Timings 2026-10-24: unit 2 min, pg 9.4 min, mr 3.7 min, client-all 9.8 min.
+
+### check-hints-tmp-quota
+Fixed at the source 2026-10-24 (tentura-lt6i): run_with_test_cleanup.sh now defaults TMPDIR to ~/.cache/tentura-test-tmp when unset, so full suites no longer hit the /tmp usrquota. 'Disk quota exceeded' load failures now mean something else filled the quota — check du /tmp and the cache dir.
+
+### check-hints-transaction-inventory
+server: every NEW transaction root (withMutatingUser / withTransaction / withMutatingRepeatableRead / withReadSnapshot call site in packages/server/lib) must get a line in packages/server/test/architecture/transaction_entry_inventory.txt ('path | Class.member | api | owner | reason'), else test/architecture/scoped_main_db_access_test.dart fails the non-pg regression. Check: cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 10m -- dart test test/architecture/scoped_main_db_access_test.dart
+
+### check-hints-web-e2e-bwrap
+web e2e (scripts/run_client_integration_web_local.sh) inside the Alloy bwrap sandbox: Chrome's default sandbox aborts ('SUID sandbox helper ... not configured correctly', nosuid mounts). Run it with TENTURA_WEB_CHROME_NO_SANDBOX=1 (passes --web-browser-flag=--no-sandbox to flutter drive; landed in 91114ea94). A failure at browser start without the knob is not a code regression.
+
+### check-hints-wrapper-selftest
+scripts/run_with_test_cleanup_selftest.sh cannot run inside the Alloy per-run sandbox (it reports 0 passed / 26 failed there: it needs real process groups, the machine-wide lock and /tmp). For changes to the test wrapper use the Python tests (e.g. python3 -m unittest scripts/test_test_cleanup_inactivity.py) as the check; the operator runs the selftest outside Alloy.
+
+### ci-pg-job-two-step-selection
+CI test-pg job (.github/workflows/pipeline.yml) runs TWO commands: (1) TENTURA_TEST_PG_POOL_SIZE=1 dart test --tags pg --exclude-tags mr,multi-connection, then (2) dart test --tags multi-connection --exclude-tags mr -j 1. test-server runs dart test --exclude-tags pg. So: any test that needs Postgres (even a meta test that spawns a pg test) MUST carry the pg tag or test-server fails; tests that size their own pool carry multi-connection and run serially (-j 1: they assert admission latency/RSS and interfere in parallel). Before pushing, run both pg commands locally, not just the changed files (a first CI run of ev3z.27 failed on exactly this). Use absolute path to scripts/run_with_test_cleanup.sh when a script cd's into packages/server.
 <!-- alloy:memory:end -->
 
 <!-- alloy:memory-review:ptl:begin -->

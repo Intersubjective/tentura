@@ -117,14 +117,19 @@ final class ForwardCase extends UseCaseBase {
       return hasOffer ? null : edge;
     }
 
-    // Requests: checks run before the transaction. Posts: hierarchy -> Post
-    // lock first, then every mutable check, inside the transaction.
+    // Requests: checks run before the transaction. Posts: sender barrier ->
+    // Post lock first, then every mutable check, inside the transaction.
     if (!isPost && await eligibleEdge() == null) return false;
 
     return _attention!.runAction(
       actorUserId: senderId,
       action: (_) async {
-        if (isPost) await _postLock!.lockForPostMutation(first.beaconId);
+        if (isPost) {
+          await _postLock!.lockForPostDelivery(
+            first.beaconId,
+            senderId: senderId,
+          );
+        }
         final edge = await eligibleEdge();
         if (edge == null) return false;
         await _forwardEdgeRepository.cancel(edgeId, senderId);
@@ -364,7 +369,7 @@ final class ForwardCase extends UseCaseBase {
       actorUserId: senderId,
       action: (transaction) async {
         if (isPost) {
-          await _postLock!.lockForPostMutation(beaconId);
+          await _postLock!.lockForPostDelivery(beaconId, senderId: senderId);
           preChecked = await _checkForward(
             senderId: senderId,
             beaconId: beaconId,

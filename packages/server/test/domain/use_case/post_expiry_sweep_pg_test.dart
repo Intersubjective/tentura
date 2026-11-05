@@ -339,6 +339,12 @@ final class _RecordingPostLock implements PostLockPort {
   String? failFor;
 
   @override
+  Future<void> lockForPostDelivery(
+    String beaconId, {
+    required String senderId,
+  }) async => throw StateError('Expiry must take the hierarchy lock');
+
+  @override
   Future<void> lockForPostMutation(String beaconId) async {
     _events.add('lock:$beaconId');
     if (beaconId == failFor) throw StateError('lock failed for $beaconId');
