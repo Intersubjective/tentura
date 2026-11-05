@@ -12,6 +12,7 @@ abstract class CandidateConnectionContext with _$CandidateConnectionContext {
   const factory CandidateConnectionContext({
     required CandidateConnectionContextStatus status,
     @Default([]) List<CandidateConnectionNode> nodes,
+    DateTime? candidateJoinedAt,
   }) = _CandidateConnectionContext;
 }
 
