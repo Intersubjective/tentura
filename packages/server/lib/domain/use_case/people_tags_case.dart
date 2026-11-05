@@ -15,7 +15,15 @@ const kPersonTagMaxNameLength = 32;
 const kPersonTagMaxGlyphUnits = 8;
 const kPersonTagColors = 8;
 const kPersonTagMaxOpsPerCall = 400;
-const kPersonTagMaxSource = 4;
+
+/// `person_tag_member.source`: how a person came to be in a tag.
+const kPersonTagSourceManual = 0;
+const kPersonTagSourceFromAutoTag = 2;
+const kPersonTagSourceFromRequest = 3;
+
+/// Copied from the person's inviter when they were first seen on the Field.
+const kPersonTagSourceInherited = 4;
+const kPersonTagMaxSource = kPersonTagSourceInherited;
 
 /// An owner's own tags: create, update, delete and restore. Names and glyphs
 /// are private; they never go into exception text or log lines.

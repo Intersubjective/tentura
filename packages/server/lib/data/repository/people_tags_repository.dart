@@ -8,13 +8,14 @@ import 'package:tentura_server/domain/entity/person_tag.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
 import 'package:tentura_server/domain/port/people_tags_repository_port.dart';
+import 'package:tentura_server/domain/use_case/people_tags_case.dart'
+    show kPersonTagSourceFromAutoTag, kPersonTagSourceFromRequest;
 import 'package:tentura_server/utils/id.dart';
 
 import '../database/tentura_db.dart';
 
 const _maxTags = 50;
 const _colors = 8;
-const _maxMembers = 1000;
 
 /// The two-way block test of `block_hides`, as an anti-join on a member row.
 const _notBlockedSql = r'''
@@ -61,6 +62,18 @@ UPDATE public.person_tag_suggestion_state
 )
 class PeopleTagsRepository implements PeopleTagsRepositoryPort {
   const PeopleTagsRepository(this._database);
+
+  /// The most people one tag can hold.
+  static const maxMembers = 1000;
+
+  /// Serialises every change to [ownerId]'s tags until the transaction ends.
+  static Future<void> lockOwner(
+    TenturaDb database,
+    String ownerId,
+  ) => database.customStatement(
+    r"SELECT pg_advisory_xact_lock(hashtextextended('person_tags:' || $1, 4242))",
+    [ownerId],
+  );
 
   final TenturaDb _database;
 
@@ -346,7 +359,7 @@ DELETE FROM public.person_tag_member
                   }.toList(),
                 ),
               ),
-              Variable.withInt(_maxMembers),
+              Variable.withInt(maxMembers),
             ],
           )
           .get();
@@ -571,10 +584,7 @@ VALUES ($1) ON CONFLICT (owner_id) DO NOTHING
     required Future<T> Function() run,
     required Map<String, dynamic> Function(T) encode,
   }) => _database.withMutatingUser(ownerId, () async {
-    await _database.customStatement(
-      r"SELECT pg_advisory_xact_lock(hashtextextended('person_tags:' || $1, 4242))",
-      [ownerId],
-    );
+    await lockOwner(_database, ownerId);
     final logged = await _database
         .customSelect(
           'SELECT fingerprint, result::text AS result '
@@ -703,10 +713,10 @@ SELECT l.tag_id,
     final int source;
     final List<String> candidates;
     if (fromAutoKind != null) {
-      source = 2;
+      source = kPersonTagSourceFromAutoTag;
       candidates = await autoTagMembers(ownerId, fromAutoKind);
     } else {
-      source = 3;
+      source = kPersonTagSourceFromRequest;
       final beacon = await _database
           .customSelect(
             r'''
@@ -759,7 +769,7 @@ SELECT p AS person_id FROM unnest($2::text[]) AS m(p)
           ],
         )
         .get();
-    if (rows.length > _maxMembers) {
+    if (rows.length > maxMembers) {
       throw PeopleTagsException(
         peopleTagsCode: PeopleTagsExceptionCode.memberLimitReached,
       );
