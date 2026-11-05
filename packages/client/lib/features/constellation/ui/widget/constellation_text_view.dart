@@ -588,6 +588,82 @@ class _PersonRow extends StatelessWidget {
   }
 }
 
+/// Trailing unread marker for Field list beacon rows (#256 xdle.5, #258).
+class _ConstellationFieldListUnreadDot extends StatelessWidget {
+  const _ConstellationFieldListUnreadDot({required this.beaconId});
+
+  final String beaconId;
+
+  static Key dotKey(String beaconId) =>
+      Key('constellation.text.unreadDot.$beaconId');
+
+  @override
+  Widget build(BuildContext context) {
+    final tt = context.tt;
+    return DecoratedBox(
+      key: dotKey(beaconId),
+      decoration: BoxDecoration(
+        color: tt.info,
+        shape: BoxShape.circle,
+        border: Border.all(color: tt.bg, width: tt.tightGap),
+      ),
+      child: SizedBox.square(dimension: tt.unreadDotSize),
+    );
+  }
+}
+
+TextStyle _constellationFieldListBeaconTitleStyle(
+  ThemeData theme, {
+  required bool hasUnread,
+}) {
+  final base = theme.textTheme.bodyMedium!;
+  return base.copyWith(
+    fontWeight: hasUnread ? FontWeight.w600 : FontWeight.w400,
+  );
+}
+
+/// Title line with optional trailing unread dot (#256 xdle.5).
+class _ConstellationFieldListBeaconTitleRow extends StatelessWidget {
+  const _ConstellationFieldListBeaconTitleRow({
+    required this.title,
+    required this.hasUnread,
+    required this.beaconId,
+    this.trailingBeforeDot = const [],
+  });
+
+  final String title;
+  final bool hasUnread;
+  final String beaconId;
+  final List<Widget> trailingBeforeDot;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final tt = context.tt;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Text(
+            title,
+            style: _constellationFieldListBeaconTitleStyle(
+              theme,
+              hasUnread: hasUnread,
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        ...trailingBeforeDot,
+        if (hasUnread) ...[
+          SizedBox(width: tt.iconTextGap),
+          _ConstellationFieldListUnreadDot(beaconId: beaconId),
+        ],
+      ],
+    );
+  }
+}
+
 /// A Post on the field, a secondary row under its author (#253).
 class _PostTile extends StatelessWidget {
   const _PostTile({
@@ -605,10 +681,14 @@ class _PostTile extends StatelessWidget {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
     final theme = Theme.of(context);
+    final hasUnread = post.hasUnread;
+    final titleLabel = '${l10n.constellationListPostLabel}. ${post.rootExcerpt}';
     return Semantics(
       button: true,
       selected: selected,
-      label: '${l10n.constellationListPostLabel}. ${post.rootExcerpt}',
+      label: hasUnread
+          ? l10n.constellationFieldUnreadBeaconSemantics(titleLabel)
+          : titleLabel,
       excludeSemantics: true,
       child: Material(
         color: selected
@@ -634,11 +714,10 @@ class _PostTile extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        post.rootExcerpt,
-                        style: theme.textTheme.bodyMedium,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+                      _ConstellationFieldListBeaconTitleRow(
+                        title: post.rootExcerpt,
+                        hasUnread: hasUnread,
+                        beaconId: post.id,
                       ),
                       if (post.expiresAt != null) ...[
                         SizedBox(height: tt.tightGap),
@@ -713,12 +792,17 @@ class _RequestTile extends StatelessWidget {
       isPinned: isPinned,
     );
 
+    final hasUnread = request.hasUnread;
+
     return Semantics(
       button: true,
       selected: selected,
       identifier: TestIds.constellationTextRequest(request.id),
       label: [
-        card.title,
+        if (hasUnread)
+          l10n.constellationFieldUnreadBeaconSemantics(card.title)
+        else
+          card.title,
         ?meta,
         if (connectionLabel != null) connectionLabel,
         ?held,
@@ -749,9 +833,16 @@ class _RequestTile extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              card.title,
-                              style: theme.textTheme.bodyMedium,
+                            _ConstellationFieldListBeaconTitleRow(
+                              title: card.title,
+                              hasUnread: hasUnread,
+                              beaconId: request.id,
+                              trailingBeforeDot: [
+                                ConstellationRequestStatusMarker(
+                                  rawStatus: request.status,
+                                  isPinned: isPinned,
+                                ),
+                              ],
                             ),
                             if (meta != null)
                               Text(
@@ -762,10 +853,6 @@ class _RequestTile extends StatelessWidget {
                               ),
                           ],
                         ),
-                      ),
-                      ConstellationRequestStatusMarker(
-                        rawStatus: request.status,
-                        isPinned: isPinned,
                       ),
                       ConstellationFieldItemOverflowMenu(
                         targetKind: ConstellationFieldTargetKind.request,

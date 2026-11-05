@@ -10199,9 +10199,9 @@
   "@constellationFieldUnreadLegend": {
     "context": "Field legend: ambient glow under unread Requests and Posts (#256 xdle.3)"
   },
-  "constellationFieldUnreadLegendHint": "A soft glow under a Request or Post you have not read yet; when zoomed out it rolls up to the author.",
+  "constellationFieldUnreadLegendHint": "Something new here: a Request or Post you haven't opened, or new messages in it.",
   "@constellationFieldUnreadLegendHint": {
-    "context": "Field legend: one-sentence hint for the unread ambient glow (#256 xdle.3)"
+    "context": "Field legend: one-sentence hint for unread Requests and Posts on the map and list (#256)"
   },
   "constellationFieldUnreadBeaconSemantics": "{title}, unread",
   "@constellationFieldUnreadBeaconSemantics": {
