@@ -37,6 +37,7 @@ class GraphPersonContextPanel extends StatelessWidget {
     this.requestsExpanded = false,
     this.onToggleRequestsExpanded,
     this.onDiscoverableRequestTap,
+    this.personFieldItemsSection,
     this.footer,
     this.subtitle,
     this.peopleTagsEnabled = kPeopleTagsEnabled,
@@ -55,6 +56,10 @@ class GraphPersonContextPanel extends StatelessWidget {
   final bool requestsExpanded;
   final VoidCallback? onToggleRequestsExpanded;
   final ValueChanged<ConstellationRequest>? onDiscoverableRequestTap;
+
+  /// Server-backed Field items (Active / Closed / Hidden); replaces
+  /// [discoverableRequests] on the Constellation field.
+  final Widget? personFieldItemsSection;
 
   /// Extra action drawn on the same card surface, below the scrollable body.
   final Widget? footer;
@@ -161,7 +166,10 @@ class GraphPersonContextPanel extends StatelessWidget {
                 : null,
           ),
         ],
-        if (discoverableRequests.isNotEmpty &&
+        if (personFieldItemsSection != null) ...[
+          SizedBox(height: tt.sectionGap),
+          personFieldItemsSection!,
+        ] else if (discoverableRequests.isNotEmpty &&
             onToggleRequestsExpanded != null) ...[
           SizedBox(height: tt.sectionGap),
           _DiscoverableRequestsSection(
