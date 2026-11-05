@@ -10124,6 +10124,34 @@
       }
     }
   },
+  "constellationFieldUnreadLegend": "Unread",
+  "@constellationFieldUnreadLegend": {
+    "context": "Field legend: ambient glow under unread Requests and Posts (#256 xdle.3)"
+  },
+  "constellationFieldUnreadLegendHint": "A soft glow under a Request or Post you have not read yet; when zoomed out it rolls up to the author.",
+  "@constellationFieldUnreadLegendHint": {
+    "context": "Field legend: one-sentence hint for the unread ambient glow (#256 xdle.3)"
+  },
+  "constellationFieldUnreadBeaconSemantics": "{title}, unread",
+  "@constellationFieldUnreadBeaconSemantics": {
+    "context": "Field map semantics for an unread Request or Post (#256 xdle.3)",
+    "placeholders": {
+      "title": {
+        "type": "String",
+        "example": "Request: Fix the roof"
+      }
+    }
+  },
+  "constellationFieldUnreadAuthorSemantics": "{name}, has unread",
+  "@constellationFieldUnreadAuthorSemantics": {
+    "context": "Field map semantics when unread glow rolls up to the author (#256 xdle.3)",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "Maria"
+      }
+    }
+  },
   "constellationTrustChainThrough": "Through {chain}",
   "@constellationTrustChainThrough": {
     "context": "Field map: person panel line naming the people on the shortest chain of trust from the viewer to the selected person, joined with arrows, e.g. 'Through Dima → Raf' (#641)",
