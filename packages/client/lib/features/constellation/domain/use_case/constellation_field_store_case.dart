@@ -159,6 +159,9 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
   /// re-applied over every FULL that started before they were learned.
   final _heldRelations = <String, _HeldRelation>{};
   final _heldRequests = <String, _HeldRequest>{};
+
+  /// Snapshots for «Hide from Field» so list «Show» can restore without refetch.
+  final _restorableHideSnapshots = <String, ConstellationFieldHideSnapshot>{};
   var _relationTick = 0;
 
   /// Most Requests added between two FULLs (#671); more wait for the FULL.
@@ -402,6 +405,10 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
     if (field == null || beaconId.isEmpty) {
       return;
     }
+    final snapshot = snapshotFieldHide(field, beaconId: beaconId);
+    if (snapshot != null) {
+      _restorableHideSnapshots[beaconId] = snapshot;
+    }
     _heldRequests.remove(beaconId);
     final patched = removeFieldBeacon(field, beaconId: beaconId);
     if (identical(patched, field)) {
@@ -422,6 +429,10 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
     if (field == null) {
       return;
     }
+    final beaconId = snapshot.request?.id ?? snapshot.post?.id;
+    if (beaconId != null) {
+      _restorableHideSnapshots.remove(beaconId);
+    }
     final patched = reinsertFieldHide(field, snapshot);
     if (identical(patched, field)) {
       return;
@@ -433,6 +444,10 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
         generation: _state.generation,
       ),
     );
+  }
+
+  ConstellationFieldHideSnapshot? takeRestorableHideSnapshot(String beaconId) {
+    return _restorableHideSnapshots.remove(beaconId);
   }
 
   /// A successful mute mutation for a beacon on the Field (#256).
@@ -649,6 +664,7 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
     _paramsGeneration++;
     _heldRelations.clear();
     _heldRequests.clear();
+    _restorableHideSnapshots.clear();
     _mutedBeaconIds.clear();
     _cancelTimer();
     _queued = false;

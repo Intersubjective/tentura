@@ -1,0 +1,9 @@
+query FieldHiddenItems($cursor: String) {
+  fieldHiddenItems(cursor: $cursor) {
+    targetKind
+    targetId
+    title
+    authorId
+    hiddenAt
+  }
+}
