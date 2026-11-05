@@ -82,6 +82,9 @@ abstract class ConstellationState extends StateBase with _$ConstellationState {
 
     /// A previewed «Rearrange everyone»; the Field is not touched until Apply.
     ConstellationRearrangePreview? rearrangePreview,
+
+    /// Effective personal Field hides (`fieldHiddenItems`), #255 l9k5.7.
+    @Default(0) int hiddenByYouCount,
   }) = _ConstellationState;
 
   const ConstellationState._();
