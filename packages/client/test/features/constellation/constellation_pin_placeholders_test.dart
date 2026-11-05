@@ -123,6 +123,7 @@ Map<String, Object?> _wire(
           'viewerIsRoomParticipant': false,
           'viewerHasForwardEdge': false,
           'helpOfferCount': 0,
+          'has_unread': false,
           'coverSource': 0,
           'coverThumb': null,
           'parentBeaconId': null,

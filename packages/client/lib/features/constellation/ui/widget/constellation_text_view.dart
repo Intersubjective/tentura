@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:get_it/get_it.dart';
@@ -17,7 +19,9 @@ import '../../domain/constellation_post_fade.dart';
 import '../../domain/entity/constellation_field.dart';
 import '../bloc/constellation_cubit.dart';
 import '../bloc/constellation_tag_lens_cubit.dart';
+import 'constellation_field_item_actions.dart';
 import 'constellation_anchor_controls.dart';
+import '../../domain/entity/constellation_field_target_kind.dart';
 import 'constellation_no_contacts.dart';
 import 'constellation_overflow_group.dart';
 import 'constellation_request_label.dart';
@@ -95,15 +99,18 @@ class _ConstellationTextViewState extends State<ConstellationTextView> {
         for (final authorId in cubit.overflowHiddenCountByAuthor.keys) {
           if (cubit.isSatelliteOverflowExpanded(authorId) &&
               _announcedOverflowAuthors.add(authorId)) {
-            SemanticsService.announce(
-              constellationOverflowChipCopy(
-                cubit: cubit,
-                authorId: authorId,
-                hiddenCount: cubit.overflowHiddenCountByAuthor[authorId] ?? 0,
-                expanded: true,
-                l10n: L10n.of(context)!,
-              ).chipLabel,
-              TextDirection.ltr,
+            unawaited(
+              SemanticsService.sendAnnouncement(
+                View.of(context),
+                constellationOverflowChipCopy(
+                  cubit: cubit,
+                  authorId: authorId,
+                  hiddenCount: cubit.overflowHiddenCountByAuthor[authorId] ?? 0,
+                  expanded: true,
+                  l10n: L10n.of(context)!,
+                ).chipLabel,
+                TextDirection.ltr,
+              ),
             );
           }
         }
@@ -655,6 +662,10 @@ class _PostTile extends StatelessWidget {
                     ],
                   ),
                 ),
+                ConstellationFieldItemOverflowMenu(
+                  targetKind: ConstellationFieldTargetKind.post,
+                  beaconId: post.id,
+                ),
               ],
             ),
           ),
@@ -755,6 +766,10 @@ class _RequestTile extends StatelessWidget {
                       ConstellationRequestStatusMarker(
                         rawStatus: request.status,
                         isPinned: isPinned,
+                      ),
+                      ConstellationFieldItemOverflowMenu(
+                        targetKind: ConstellationFieldTargetKind.request,
+                        beaconId: request.id,
                       ),
                     ],
                   ),

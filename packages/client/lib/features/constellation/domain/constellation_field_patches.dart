@@ -490,3 +490,173 @@ List<ConstellationPost> _patchPostHasUnread(
   }
   return changed ? out : source;
 }
+
+/// What to put back after «Hide from Field» undo or a failed hide mutation.
+@immutable
+final class ConstellationFieldHideSnapshot {
+  const ConstellationFieldHideSnapshot({
+    this.request,
+    this.post,
+    this.anchor,
+  });
+
+  final ConstellationRequest? request;
+  final ConstellationPost? post;
+  final ConstellationAnchor? anchor;
+}
+
+/// Captures a Request or Post still on [field] before it is removed locally.
+ConstellationFieldHideSnapshot? snapshotFieldHide(
+  ConstellationField field, {
+  required String beaconId,
+}) {
+  ConstellationRequest? request;
+  for (final r in field.requests) {
+    if (r.id == beaconId) {
+      request = r;
+      break;
+    }
+  }
+  for (final r in field.resolvedAnchorProjection.pinnedRequests) {
+    if (r.id == beaconId) {
+      request ??= r;
+      break;
+    }
+  }
+  ConstellationPost? post;
+  for (final p in field.posts) {
+    if (p.id == beaconId) {
+      post = p;
+      break;
+    }
+  }
+  if (request == null && post == null) {
+    return null;
+  }
+  ConstellationAnchor? anchor;
+  for (final a in field.resolvedAnchorProjection.anchors) {
+    if (a.target.kind == ConstellationAnchorTargetKind.beacon &&
+        a.target.id == beaconId) {
+      anchor = a;
+      break;
+    }
+  }
+  return ConstellationFieldHideSnapshot(
+    request: request,
+    post: post,
+    anchor: anchor,
+  );
+}
+
+/// Removes one Request or Post (and its anchor / member web) from [field].
+ConstellationField removeFieldBeacon(
+  ConstellationField field, {
+  required String beaconId,
+}) {
+  var changed = false;
+  final requests = <ConstellationRequest>[];
+  for (final r in field.requests) {
+    if (r.id == beaconId) {
+      changed = true;
+    } else {
+      requests.add(r);
+    }
+  }
+  final posts = <ConstellationPost>[];
+  for (final p in field.posts) {
+    if (p.id == beaconId) {
+      changed = true;
+    } else {
+      posts.add(p);
+    }
+  }
+  final projection = field.resolvedAnchorProjection;
+  final pinnedRequests = <ConstellationRequest>[];
+  for (final r in projection.pinnedRequests) {
+    if (r.id == beaconId) {
+      changed = true;
+    } else {
+      pinnedRequests.add(r);
+    }
+  }
+  final anchors = <ConstellationAnchor>[];
+  for (final a in projection.anchors) {
+    if (a.target.kind == ConstellationAnchorTargetKind.beacon &&
+        a.target.id == beaconId) {
+      changed = true;
+    } else {
+      anchors.add(a);
+    }
+  }
+  final memberWebs = <ConstellationMemberWeb>[];
+  for (final w in field.memberWebs) {
+    if (w.beaconId == beaconId) {
+      changed = true;
+    } else {
+      memberWebs.add(w);
+    }
+  }
+  if (!changed) {
+    return field;
+  }
+  return field.copyWith(
+    requests: requests,
+    posts: posts,
+    memberWebs: memberWebs,
+    anchorProjection: ConstellationAnchorProjection(
+      revision: projection.revision,
+      anchors: anchors,
+      pinnedPeers: projection.pinnedPeers,
+      pinnedRequests: pinnedRequests,
+      supportPeers: projection.supportPeers,
+      supportEdges: projection.supportEdges,
+      serverFilteredBeaconIds: projection.serverFilteredBeaconIds,
+      serverFilteredBeaconCount: projection.serverFilteredBeaconCount,
+    ),
+  );
+}
+
+/// Puts a hidden Request or Post back on [field] (undo / failed hide).
+ConstellationField reinsertFieldHide(
+  ConstellationField field,
+  ConstellationFieldHideSnapshot snapshot,
+) {
+  var result = field;
+  final request = snapshot.request;
+  if (request != null) {
+    result = addFieldRequests(result, [request]);
+  }
+  final post = snapshot.post;
+  if (post != null) {
+    final present = {
+      for (final p in result.posts) p.id,
+    };
+    if (!present.contains(post.id)) {
+      result = result.copyWith(posts: [...result.posts, post]);
+    }
+  }
+  final anchor = snapshot.anchor;
+  if (anchor != null) {
+    final projection = result.resolvedAnchorProjection;
+    final hasAnchor = projection.anchors.any(
+      (a) =>
+          a.target.kind == anchor.target.kind &&
+          a.target.id == anchor.target.id,
+    );
+    if (!hasAnchor) {
+      result = result.copyWith(
+        anchorProjection: ConstellationAnchorProjection(
+          revision: projection.revision,
+          anchors: [...projection.anchors, anchor],
+          pinnedPeers: projection.pinnedPeers,
+          pinnedRequests: projection.pinnedRequests,
+          supportPeers: projection.supportPeers,
+          supportEdges: projection.supportEdges,
+          serverFilteredBeaconIds: projection.serverFilteredBeaconIds,
+          serverFilteredBeaconCount: projection.serverFilteredBeaconCount,
+        ),
+      );
+    }
+  }
+  return result;
+}

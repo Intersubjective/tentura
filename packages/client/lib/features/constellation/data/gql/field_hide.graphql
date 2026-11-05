@@ -1,0 +1,7 @@
+mutation FieldHide($targetKind: Int!, $targetId: String!) {
+  fieldHide(targetKind: $targetKind, targetId: $targetId)
+}
+
+mutation FieldUnhide($targetKind: Int!, $targetId: String!) {
+  fieldUnhide(targetKind: $targetKind, targetId: $targetId)
+}

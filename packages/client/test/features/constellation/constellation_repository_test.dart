@@ -109,6 +109,7 @@ Map<String, Object?> _fieldPayload({
       'viewerIsRoomParticipant': false,
       'viewerHasForwardEdge': false,
       'helpOfferCount': 2,
+      'has_unread': false,
       'coverSource': 0,
       'coverThumb': null,
       'parentBeaconId': parentBeaconId,

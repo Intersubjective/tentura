@@ -8,7 +8,8 @@ import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/capability_tag_presenter.dart';
-import 'constellation_anchor_controls.dart';
+import '../../domain/entity/constellation_field_target_kind.dart';
+import 'constellation_field_item_actions.dart';
 import 'constellation_pin_placeholder_sheet.dart';
 import 'constellation_request_label.dart';
 import 'constellation_request_status_marker.dart';
@@ -39,7 +40,7 @@ String constellationPreviewPrimaryActionLabel(
 String? constellationHeldOpenViewTab(ConstellationHeldState held) =>
     held == ConstellationHeldState.offered ? kBeaconViewTabPeople : null;
 
-/// Whether [Forward] is shown as a permitted secondary action.
+/// Whether Forward is shown as a permitted secondary action.
 bool constellationPreviewShowsForward(ConstellationRequest request) {
   if (request.isMine || request.isPlaceholder) {
     return false;
@@ -123,8 +124,9 @@ class ConstellationRequestPreviewSheet extends StatelessWidget {
           ),
         ],
         SizedBox(height: tt.rowGap),
-        ConstellationAnchorTargetButton(
-          target: ConstellationAnchorTarget.beacon(request.id),
+        ConstellationFieldItemFooterActions(
+          targetKind: ConstellationFieldTargetKind.request,
+          beaconId: request.id,
         ),
       ],
     );
@@ -170,8 +172,6 @@ class ConstellationRequestPreviewSheet extends StatelessWidget {
           TenturaStatusText(
             heldAnnotation,
             tone: TenturaTone.info,
-            maxLines: 2,
-            softWrap: true,
           ),
         ],
         SizedBox(height: tt.sectionGap),

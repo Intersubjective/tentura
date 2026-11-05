@@ -3,11 +3,11 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/features/post_view/ui/post_remaining_label.dart';
 import 'package:tentura/ui/widget/relative_timestamp_ticker.dart';
-import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
 import '../../domain/constellation_post_fade.dart';
 import '../../domain/entity/constellation_field.dart';
-import 'constellation_anchor_controls.dart';
+import '../../domain/entity/constellation_field_target_kind.dart';
+import 'constellation_field_item_actions.dart';
 
 /// Post context card on the map, sharing the adaptive preview placement.
 class ConstellationPostPreviewSheet extends StatelessWidget {
@@ -39,8 +39,9 @@ class ConstellationPostPreviewSheet extends StatelessWidget {
           child: Text(l10n.constellationOpenPost),
         ),
         SizedBox(height: tt.rowGap),
-        ConstellationAnchorTargetButton(
-          target: ConstellationAnchorTarget.beacon(post.id),
+        ConstellationFieldItemFooterActions(
+          targetKind: ConstellationFieldTargetKind.post,
+          beaconId: post.id,
         ),
       ],
     );
