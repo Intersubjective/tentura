@@ -131,7 +131,7 @@ void main() {
           updatedAt: t,
         ),
       ],
-      beaconContextLoaded: true,
+      load: BeaconViewLoad.ready,
     );
 
     await _pumpHeaderCard(tester, state: state);
@@ -158,7 +158,7 @@ void main() {
     final state = BeaconViewState(
       beacon: beacon,
       myProfile: const Profile(id: 'viewer', displayName: 'Viewer'),
-      beaconContextLoaded: true,
+      load: BeaconViewLoad.ready,
     );
 
     await _pumpHeaderCard(tester, state: state);
@@ -194,7 +194,7 @@ void main() {
     final state = BeaconViewState(
       beacon: beacon,
       myProfile: const Profile(id: 'viewer', displayName: 'Viewer'),
-      beaconContextLoaded: true,
+      load: BeaconViewLoad.ready,
     );
 
     await _pumpHeaderCard(tester, state: state);
@@ -232,7 +232,7 @@ void main() {
     final state = BeaconViewState(
       beacon: beacon,
       myProfile: const Profile(id: 'viewer', displayName: 'Viewer'),
-      beaconContextLoaded: true,
+      load: BeaconViewLoad.ready,
       pinnedFactsSeenAt: DateTime.utc(2025),
       factCards: [
         BeaconFactCard(
@@ -278,7 +278,7 @@ void main() {
     final state = BeaconViewState(
       beacon: beacon,
       myProfile: const Profile(id: 'viewer', displayName: 'Viewer'),
-      beaconContextLoaded: true,
+      load: BeaconViewLoad.ready,
     );
 
     await _pumpHeaderCard(tester, state: state);
@@ -294,7 +294,7 @@ void main() {
     final state = BeaconViewState(
       beacon: _openAuthorBeacon(),
       myProfile: authorProfile,
-      beaconContextLoaded: true,
+      load: BeaconViewLoad.ready,
     );
     var opens = 0;
     await _pumpHeaderCard(
@@ -321,7 +321,7 @@ void main() {
     final state = BeaconViewState(
       beacon: beacon,
       myProfile: const Profile(id: 'viewer', displayName: 'Viewer'),
-      beaconContextLoaded: true,
+      load: BeaconViewLoad.ready,
     );
 
     var editTaps = 0;
@@ -364,7 +364,7 @@ void main() {
       final state = BeaconViewState(
         beacon: _openAuthorBeacon(),
         myProfile: authorProfile,
-        beaconContextLoaded: true,
+        load: BeaconViewLoad.ready,
         helpOffers: [
           TimelineHelpOffer(
             user: const Profile(id: 'h1', displayName: 'Helper'),
@@ -403,7 +403,7 @@ void main() {
       final state = BeaconViewState(
         beacon: _openAuthorBeacon(),
         myProfile: authorProfile,
-        beaconContextLoaded: true,
+        load: BeaconViewLoad.ready,
         helpOffers: [
           TimelineHelpOffer(
             user: const Profile(id: 'h1', displayName: 'Helper'),
@@ -435,7 +435,7 @@ void main() {
       final state = BeaconViewState(
         beacon: _openAuthorBeacon(),
         myProfile: authorProfile,
-        beaconContextLoaded: true,
+        load: BeaconViewLoad.ready,
       );
 
       await _pumpHeaderCard(
@@ -454,7 +454,7 @@ void main() {
       final state = BeaconViewState(
         beacon: _openAuthorBeacon(),
         myProfile: authorProfile,
-        beaconContextLoaded: true,
+        load: BeaconViewLoad.ready,
       );
 
       var forwardTaps = 0;
@@ -478,7 +478,7 @@ void main() {
         final state = BeaconViewState(
           beacon: _openAuthorBeacon(),
           myProfile: authorProfile,
-          beaconContextLoaded: true,
+          load: BeaconViewLoad.ready,
           helpOffers: [
             TimelineHelpOffer(
               user: const Profile(id: 'h1', displayName: 'Helper'),
@@ -507,7 +507,7 @@ void main() {
       final state = BeaconViewState(
         beacon: _openAuthorBeacon(status: BeaconStatus.closed),
         myProfile: authorProfile,
-        beaconContextLoaded: true,
+        load: BeaconViewLoad.ready,
       );
 
       await _pumpHeaderCard(
@@ -525,7 +525,7 @@ void main() {
       final state = BeaconViewState(
         beacon: _openAuthorBeacon(),
         myProfile: stewardProfile,
-        beaconContextLoaded: true,
+        load: BeaconViewLoad.ready,
         roomParticipants: [
           BeaconParticipant(
             id: 'p1',
@@ -559,7 +559,7 @@ void main() {
         final state = BeaconViewState(
           beacon: _openAuthorBeacon(status: BeaconStatus.enoughHelp),
           myProfile: viewer,
-          beaconContextLoaded: true,
+          load: BeaconViewLoad.ready,
         );
 
         var offerHelpTaps = 0;
@@ -594,7 +594,7 @@ void main() {
         final state = BeaconViewState(
           beacon: _openAuthorBeacon(status: BeaconStatus.enoughHelp),
           myProfile: viewer,
-          beaconContextLoaded: true,
+          load: BeaconViewLoad.ready,
         );
 
         await _pumpHeaderCard(
@@ -620,7 +620,7 @@ void main() {
         beacon: _openAuthorBeacon(),
         myProfile: viewer,
         isHelpOffered: true,
-        beaconContextLoaded: true,
+        load: BeaconViewLoad.ready,
         helpOffers: [
           TimelineHelpOffer(
             user: viewer,
@@ -649,7 +649,7 @@ void main() {
         beacon: _openAuthorBeacon(),
         myProfile: viewer,
         isHelpOffered: true,
-        beaconContextLoaded: true,
+        load: BeaconViewLoad.ready,
         helpOffers: [
           TimelineHelpOffer(
             user: viewer,

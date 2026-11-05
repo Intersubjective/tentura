@@ -149,7 +149,7 @@ BeaconViewState _state({
   myProfile: me,
   roomParticipants: participants,
   roomParticipantsLoaded: true,
-  beaconContextLoaded: true,
+  load: BeaconViewLoad.ready,
 );
 
 Widget _wrap(Profile me, BeaconViewState state, Widget child) => MaterialApp(

@@ -246,6 +246,55 @@ final _viewerTrailMemo = Expando<List<ForwardEdge>>('viewerTrail');
 /// "never read" and "the last read failed", so the next load reads again.
 enum ForwardsLoad { idle, loading, loaded }
 
+/// The Request page's own load phase. One value, so the page cannot be
+/// "unavailable" and "read" at once, or failed after it was read.
+@immutable
+sealed class BeaconViewLoad {
+  const BeaconViewLoad();
+
+  /// Not read yet, or reading again after the Request was unavailable.
+  static const loading = BeaconViewLoading();
+
+  /// The Request is read; its context (offers, room) is still coming.
+  static const contentRead = BeaconViewContentRead();
+
+  /// The Request and its context are read.
+  static const ready = BeaconViewReady();
+
+  /// The server returned no readable Request.
+  static const unavailable = BeaconViewUnavailable();
+}
+
+final class BeaconViewLoading extends BeaconViewLoad {
+  const BeaconViewLoading();
+}
+
+final class BeaconViewContentRead extends BeaconViewLoad {
+  const BeaconViewContentRead();
+}
+
+final class BeaconViewReady extends BeaconViewLoad {
+  const BeaconViewReady();
+}
+
+final class BeaconViewUnavailable extends BeaconViewLoad {
+  const BeaconViewUnavailable();
+}
+
+/// The first read failed before the Request arrived.
+final class BeaconViewLoadFailed extends BeaconViewLoad {
+  const BeaconViewLoadFailed(this.error);
+
+  final Object error;
+
+  @override
+  bool operator ==(Object other) =>
+      other is BeaconViewLoadFailed && other.error == error;
+
+  @override
+  int get hashCode => error.hashCode;
+}
+
 @Freezed(makeCollectionsUnmodifiable: false)
 abstract class BeaconViewState extends StateBase with _$BeaconViewState {
   const factory BeaconViewState({
@@ -326,15 +375,8 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
     /// secondary room enrichment never reset this first-load latch.
     @Default(false) bool firstLoadDone,
 
-    /// True after a successful beacon content fetch (title, status, etc.).
-    @Default(false) bool beaconContentLoaded,
-
-    /// True after the secondary beacon context fetches complete
-    /// (help offers, room participants, room state, fact cards, inbox context).
-    @Default(false) bool beaconContextLoaded,
-
-    /// Server returned no readable beacon (gated `beacon_by_pk` null).
-    @Default(false) bool beaconUnavailable,
+    /// Where the Request's own read stands.
+    @Default(BeaconViewLoad.loading) BeaconViewLoad load,
 
     /// The Request's hierarchy parent, fetched only when the viewer sees the
     /// Request through it: the access banner names a Post parent.
@@ -342,8 +384,6 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
 
     /// Root message excerpt for [accessParent] when it is a Post.
     @Default('') String accessParentPostExcerpt,
-
-    Object? loadError,
   }) = _BeaconViewState;
 
   const BeaconViewState._();
@@ -351,6 +391,23 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
   bool get forwardsLoaded => forwardsLoad == ForwardsLoad.loaded;
 
   bool get forwardsLoading => forwardsLoad == ForwardsLoad.loading;
+
+  /// True once the Request itself has been read (title, status, etc.).
+  bool get beaconContentLoaded =>
+      load is BeaconViewContentRead || load is BeaconViewReady;
+
+  /// True once the Request's context has been read too (help offers, room
+  /// participants, room state, fact cards, inbox context).
+  bool get beaconContextLoaded => load is BeaconViewReady;
+
+  /// Server returned no readable beacon (gated `beacon_by_pk` null).
+  bool get beaconUnavailable => load is BeaconViewUnavailable;
+
+  /// Why the first read failed; null in every other phase.
+  Object? get loadError => switch (load) {
+    BeaconViewLoadFailed(:final error) => error,
+    _ => null,
+  };
 
   bool get hasError => loadError != null;
 

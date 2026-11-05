@@ -116,7 +116,7 @@ BeaconViewState _authorBeaconState({
     updatedAt: _kNow,
   ),
   myProfile: const Profile(id: _kAuthorId, displayName: 'Author'),
-  beaconContentLoaded: true,
+  load: BeaconViewLoad.ready,
   roomParticipantsLoaded: true,
   roomParticipants: [
     BeaconParticipant(
@@ -142,7 +142,6 @@ BeaconViewState _authorBeaconState({
   ],
   roomActivityEvents: roomActivityEvents,
   firstLoadDone: true,
-  beaconContextLoaded: true,
   forwardsLoad: ForwardsLoad.loaded,
 );
 

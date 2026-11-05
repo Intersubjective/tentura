@@ -87,7 +87,7 @@ void main() {
     author: const Profile(id: 'Uauthor', displayName: 'Author'),
   );
   final loading = BeaconViewState(beacon: beacon, myProfile: myProfile);
-  final loaded = loading.copyWith(beaconContentLoaded: true);
+  final loaded = loading.copyWith(load: BeaconViewLoad.contentRead);
 
   /// The listeners `BeaconViewScope` mounts, in its order.
   Future<

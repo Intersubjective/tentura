@@ -118,7 +118,7 @@ void main() {
     return BeaconViewState(
       beacon: closedBeacon(),
       myProfile: viewer,
-      beaconContextLoaded: true,
+      load: BeaconViewLoad.ready,
       isHelpOffered: participant,
       roomParticipants: participant
           ? [
@@ -179,7 +179,7 @@ void main() {
         state: BeaconViewState(
           beacon: closedBeacon(),
           myProfile: author,
-          beaconContextLoaded: true,
+          load: BeaconViewLoad.ready,
         ),
       );
 
