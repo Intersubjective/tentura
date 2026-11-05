@@ -25,8 +25,10 @@ import 'package:tentura_server/utils/id.dart';
 
 import '../database/tentura_db.dart';
 import '../database/sql/request_unread_sql.dart'
-    show discussionUnreadMessageSql;
-import 'room_unread_sql.dart';
+    show
+        discussionUnreadMessageSql,
+        requestDiscussionUnreadCountSql,
+        requestQuestionsUnreadCountSql;
 import 'beacon_room_participant_join_recorder.dart';
 import 'participant_activity_sql.dart';
 import 'mappers/coordination_row_mappers.dart';
@@ -2020,43 +2022,33 @@ WHERE b.id = ANY($1::text[])
   Future<Map<String, int>> unreadMainRoomMessageCounts(
     Iterable<String> beaconIds, {
     required String viewerUserId,
-  }) async {
-    final ids = beaconIds.where((id) => id.isNotEmpty).toSet().toList();
-    if (ids.isEmpty) return {};
-    // One statement for every card, including Questions-only readers. Room
-    // authorization is part of the shared count, not a filter on its callers.
-    final rows = await _db
-        .customSelect(
-          '''
-SELECT ids.beacon_id,
-  ${requestUnreadMessageCountSql(viewer: r'$2', beaconId: 'ids.beacon_id')} AS unread
-FROM unnest(\$1::text[]) AS ids(beacon_id)
-''',
-          variables: [
-            Variable(TypedValue(Type.textArray, ids)),
-            Variable<String>(viewerUserId),
-          ],
-        )
-        .get();
-    return {
-      for (final row in rows)
-        row.read<String>('beacon_id'): row.read<int>('unread'),
-    };
-  }
+  }) async => {
+    for (final MapEntry(:key, :value) in (await unreadRoomSummaries(
+      beaconIds,
+      viewerUserId: viewerUserId,
+    )).entries)
+      key: value.total,
+  };
 
   @override
-  Future<Map<String, String>> oldestUnreadRoomByBeacon(
+  Future<Map<String, RoomUnreadSummary>> unreadRoomSummaries(
     Iterable<String> beaconIds, {
     required String viewerUserId,
   }) async {
     final ids = beaconIds.where((id) => id.isNotEmpty).toSet().toList();
     if (ids.isEmpty) return {};
+    // One statement for every card, including Questions-only readers, so the
+    // counts and the oldest room share one snapshot. Room authorization is
+    // part of the shared count, not a filter on its callers.
     final rows = await _db
         .customSelect(
           '''
-SELECT ids.beacon_id, oldest.room
+SELECT ids.beacon_id,
+  ${requestDiscussionUnreadCountSql(viewer: r'$2', beaconId: 'ids.beacon_id')} AS discussion_unread,
+  ${requestQuestionsUnreadCountSql(viewer: r'$2', beaconId: 'ids.beacon_id')} AS questions_unread,
+  oldest.room
 FROM unnest(\$1::text[]) AS ids(beacon_id)
-CROSS JOIN LATERAL (
+LEFT JOIN LATERAL (
   SELECT c.room FROM (
     SELECT m.created_at, 'discussion' AS room
     FROM public.beacon_room_message m
@@ -2086,7 +2078,7 @@ CROSS JOIN LATERAL (
   ) c
   ORDER BY c.created_at
   LIMIT 1
-) oldest
+) oldest ON true
 ''',
           variables: [
             Variable(TypedValue(Type.textArray, ids)),
@@ -2096,7 +2088,11 @@ CROSS JOIN LATERAL (
         .get();
     return {
       for (final row in rows)
-        row.read<String>('beacon_id'): row.read<String>('room'),
+        row.read<String>('beacon_id'): RoomUnreadSummary(
+          discussion: row.read<int>('discussion_unread'),
+          questions: row.read<int>('questions_unread'),
+          oldestRoom: row.readNullable<String>('room'),
+        ),
     };
   }
 

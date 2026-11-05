@@ -8353,6 +8353,8 @@ type v2_ConstellationRequest {
   hasUnread: Boolean!
   helpOfferCount: Int!
   id: String!
+  kind: Int
+  lastActivityAt: String
   pinState: String
   isMine: Boolean!
   lastActivityAt: String
@@ -8745,6 +8747,7 @@ type v2_InboxRoomContextRow {
   parentTitle: String
   planSliceJson: String
   publicFactSnippet: String
+  questionsUnreadCount: Int!
   roomUnreadCount: Int!
   unreadRoom: String
 }

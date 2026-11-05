@@ -53,19 +53,23 @@ final class FieldVisibilityRepository implements FieldVisibilityRepositoryPort {
       Variable.withInt(targetKind.value),
       Variable.withString(targetId),
     ];
-    final readable = await _database.customSelect(
-      r'''
+    // Unhiding only removes the viewer's own row, so it needs no read access
+    // and stays idempotent after the viewer loses it.
+    if (hidden) {
+      final readable = await _database.customSelect(
+        r'''
 SELECT b.id FROM public.beacon b
 WHERE b.id = $3 AND b.kind = $2
   AND public.beacon_can_read_content(b.id, $1)
 FOR SHARE
 ''',
-      variables: variables,
-    ).get();
-    if (readable.isEmpty) {
-      throw const UnauthorizedException(
-        description: 'Viewer cannot read target',
-      );
+        variables: variables,
+      ).get();
+      if (readable.isEmpty) {
+        throw const UnauthorizedException(
+          description: 'Viewer cannot read target',
+        );
+      }
     }
     await _database.customUpdate(
       hidden

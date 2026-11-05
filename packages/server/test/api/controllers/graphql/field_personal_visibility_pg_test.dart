@@ -540,7 +540,7 @@ SELECT public.beacon_can_read_content('$_private', '$_viewer')
     );
 
     test(
-      'an unreadable target cannot be unhidden and leaves stored hides unchanged',
+      'an unreadable target can still be unhidden, which removes only the stored hide',
       () async {
         await hide(_request, 0);
         await writer.execute('''
@@ -553,12 +553,9 @@ DELETE FROM public.beacon_help_offer WHERE beacon_id = '$_request';
 SELECT public.beacon_can_read_content('$_request', '$_viewer')
 ''');
         expect(readable.single.single, isFalse);
-        final before = await hiddenStorage();
-        await expectLater(
-          unhide(_request, 0),
-          throwsA(isA<UnauthorizedException>()),
-        );
-        expect(await hiddenStorage(), before);
+        expect(await hiddenStorage(), isNotEmpty);
+        await unhide(_request, 0);
+        expect(await hiddenStorage(), isEmpty);
       },
     );
   });

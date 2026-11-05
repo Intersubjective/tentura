@@ -1881,6 +1881,16 @@ WHERE outbox.account_id = \$1
     required String beaconId,
   }) => _database.customUpdate(
     '''
+WITH opened AS (
+  -- A reader who can see the Request but holds no room seat has no room to
+  -- read, so opening is what clears its Field unread flag (the flag reads the
+  -- opened row). Seated readers keep the cursor the room itself moves.
+  INSERT INTO public.beacon_room_seen (user_id, beacon_id, thread_item_id, last_seen_at)
+  SELECT \$1, \$2, NULL, now()
+  WHERE public.beacon_can_read_content(\$2, \$1)
+    AND NOT public.beacon_effective_admission(\$2, \$1)
+  ON CONFLICT (user_id, beacon_id) WHERE thread_item_id IS NULL DO NOTHING
+)
 UPDATE public.notification_outbox outbox
 SET
   seen_at = COALESCE(outbox.seen_at, now())

@@ -793,6 +793,9 @@ final gqlTypeInboxRoomContextRow =
         field('lastRoomMeaningfulChange', graphQLString),
         field('nextMoveText', graphQLString),
         field('roomUnreadCount', graphQLInt.nonNullable()),
+        // The Questions part of roomUnreadCount, so a client-side discussion
+        // read watermark cannot hide an unread Question.
+        field('questionsUnreadCount', graphQLInt.nonNullable()),
         // Room holding the oldest unread message: discussion | questions.
         field('unreadRoom', graphQLString),
         field('lastSeenAt', graphQLString),

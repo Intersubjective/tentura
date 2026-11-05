@@ -9,6 +9,11 @@ import 'package:tentura_server/domain/entity/person_field_items_page.dart';
 import '../database/tentura_db.dart';
 import 'constellation_field_repository.dart';
 
+/// Closed Requests are those the Field lists only when closed ones are on.
+final _closedRequestStatuses = kConstellationShowClosedFieldBeaconStatuses
+    .difference(kConstellationDefaultFieldBeaconStatuses)
+    .join(', ');
+
 /// Uses the Field's existing population and read policies, without its display
 /// caps, hide exclusion or active-only filters. Readability is one set operation
 /// before ranking, never one database round trip per candidate or result.
@@ -45,15 +50,15 @@ WITH candidates AS MATERIALIZED (
     ON root.id = b.post_root_message_id AND root.beacon_id = b.id
   WHERE b.user_id = \$2 AND b.published_at IS NOT NULL
     AND NOT public.block_hides(\$1, b.user_id)
-    AND ((b.kind = 0 AND b.status IN (0, 5, 6, 7, 8))
+    AND ((b.kind = 0 AND b.status IN (${kConstellationShowClosedFieldBeaconStatuses.join(', ')}))
       OR (b.kind = 1 AND b.status IN (0, 6)))
     AND ${_matches("CASE WHEN b.kind = 0 THEN b.title ELSE left(COALESCE(root.body, ''), $kConstellationPostExcerptLength) END")}
 ), readable AS MATERIALIZED (
   SELECT public.beacon_readable_ids(\$1, ARRAY(SELECT id FROM candidates)) AS id
 ), bucketed AS MATERIALIZED (
-  SELECT c.*, NOT public.field_item_visible(\$1, c.kind, c.id) AS hidden,
-    CASE WHEN NOT public.field_item_visible(\$1, c.kind, c.id) THEN 'hidden'
-      WHEN (c.kind = 0 AND c.status IN (5, 6))
+  SELECT c.*, public.field_item_hidden(\$1, c.kind, c.id) AS hidden,
+    CASE WHEN public.field_item_hidden(\$1, c.kind, c.id) THEN 'hidden'
+      WHEN (c.kind = 0 AND c.status IN ($_closedRequestStatuses))
         OR (c.kind = 1 AND (c.status = 6 OR c.expires_at <= now())) THEN 'closed'
       ELSE 'active' END AS bucket
   FROM candidates c WHERE c.id IN (SELECT id FROM readable)
@@ -213,7 +218,7 @@ WITH visible AS MATERIALIZED (
 )
 SELECT id, author_id, kind, title, status, root_excerpt,
        activity_at::text AS activity_at, expires_at::text AS expires_at,
-       NOT public.field_item_visible(\$1, kind, id) AS hidden
+       public.field_item_hidden(\$1, kind, id) AS hidden
 FROM ranked WHERE rank <= 20
 ORDER BY kind, rank
 ''',

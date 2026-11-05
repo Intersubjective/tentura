@@ -206,3 +206,25 @@ final class RoomViewerFacts {
 
   bool get isParticipant => participantRoomAccess != null;
 }
+
+/// Unread messages of one Request card, as one viewer has them at one moment.
+/// Discussion and Questions each count against their own read cursor, so a
+/// discussion read never hides an unread Question.
+final class RoomUnreadSummary {
+  const RoomUnreadSummary({
+    required this.discussion,
+    required this.questions,
+    this.oldestRoom,
+  });
+
+  static const none = RoomUnreadSummary(discussion: 0, questions: 0);
+
+  final int discussion;
+  final int questions;
+
+  /// Room holding the oldest unread message: `discussion` or `questions`;
+  /// null exactly when nothing is unread.
+  final String? oldestRoom;
+
+  int get total => discussion + questions;
+}
