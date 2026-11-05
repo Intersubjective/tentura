@@ -9672,6 +9672,19 @@
   "@forwardSectionWiderNetwork": {
     "description": "Forward picker section: distant reachable people (#440)."
   },
+  "forwardWiderNetworkMorePeople": "{count, plural, one{{count} more person in your wider network} other{{count} more people in your wider network}}",
+  "@forwardWiderNetworkMorePeople": {
+    "description": "Forward picker: collapsed wider-network expander title (#440 mn5y.4).",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "forwardWiderNetworkExpanderHint": "You don't know them directly.",
+  "@forwardWiderNetworkExpanderHint": {
+    "description": "Secondary line under the wider-network expander (#440 mn5y.4)."
+  },
   "forwardReachYouTrustThem": "You trust them",
   "@forwardReachYouTrustThem": {
     "description": "Forward picker row reason when the viewer trusts the candidate directly (#440)."
@@ -10127,6 +10140,34 @@
   "constellationFieldNewSemantics": "{name}, new on your Field",
   "@constellationFieldNewSemantics": {
     "context": "Field map/list semantics for a person who is new on your Field (#898)",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "Maria"
+      }
+    }
+  },
+  "constellationFieldUnreadLegend": "Unread",
+  "@constellationFieldUnreadLegend": {
+    "context": "Field legend: ambient glow under unread Requests and Posts (#256 xdle.3)"
+  },
+  "constellationFieldUnreadLegendHint": "A soft glow under a Request or Post you have not read yet; when zoomed out it rolls up to the author.",
+  "@constellationFieldUnreadLegendHint": {
+    "context": "Field legend: one-sentence hint for the unread ambient glow (#256 xdle.3)"
+  },
+  "constellationFieldUnreadBeaconSemantics": "{title}, unread",
+  "@constellationFieldUnreadBeaconSemantics": {
+    "context": "Field map semantics for an unread Request or Post (#256 xdle.3)",
+    "placeholders": {
+      "title": {
+        "type": "String",
+        "example": "Request: Fix the roof"
+      }
+    }
+  },
+  "constellationFieldUnreadAuthorSemantics": "{name}, has unread",
+  "@constellationFieldUnreadAuthorSemantics": {
+    "context": "Field map semantics when unread glow rolls up to the author (#256 xdle.3)",
     "placeholders": {
       "name": {
         "type": "String",

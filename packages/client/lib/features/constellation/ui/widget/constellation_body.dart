@@ -37,6 +37,7 @@ import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import '../../domain/constellation_consts.dart';
 import '../../domain/constellation_trust_chain.dart';
+import '../../domain/constellation_field_unread_glow.dart';
 import '../../domain/entity/constellation_field.dart';
 import '../../domain/radius_recipient_selection.dart';
 import '../../domain/layout/constellation_transition_stages.dart';
@@ -176,6 +177,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
   final _fieldTopChromeKey = GlobalKey();
   double _fieldTopChromeHeight = 0;
   double _mapStackHeight = 0;
+
   /// Latest [LayoutBuilder] max height for the map stack; updated during
   /// layout so sheet detent math stays in sync when the scaffold app bar
   /// collapses (#974).
@@ -945,8 +947,9 @@ class _ConstellationBodyState extends State<ConstellationBody>
       mapStackHeight: useDetents ? mapStackHeight : null,
       onDismiss: useDetents ? () => _dismissCompactContextPanel(cubit) : null,
       onCompactExtentChanged: useDetents ? _onCompactSheetExtentChanged : null,
-      onCompactDetentExpandedChanged:
-          useDetents ? _onCompactSheetDetentExpanded : null,
+      onCompactDetentExpandedChanged: useDetents
+          ? _onCompactSheetDetentExpanded
+          : null,
       child: child,
     );
   }
@@ -1334,8 +1337,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
                                               context,
                                               cubit,
                                               cubit.state,
-                                              cubit
-                                                  .graphSceneLayoutAlgorithm,
+                                              cubit.graphSceneLayoutAlgorithm,
                                               panelVisible,
                                               compactSheetExpanded,
                                             ),
@@ -1824,9 +1826,8 @@ class _ConstellationBodyState extends State<ConstellationBody>
 
     final mapSelectionCubit = maybeConstellationSelection(context);
     final mapArranging = mapSelectionCubit?.state.arranging ?? false;
-    final touchNodeDragLocked = mapSelectionCubit != null &&
-        !mapArranging &&
-        !cubit.state.isComposing;
+    final touchNodeDragLocked =
+        mapSelectionCubit != null && !mapArranging && !cubit.state.isComposing;
     bool canDragNode(NodeDetails node) {
       if (cubit.state.isComposing && !mapArranging) {
         return cubit.isComposerDrag(node);
@@ -1942,8 +1943,10 @@ class _ConstellationBodyState extends State<ConstellationBody>
                 if (_peopleTags != null &&
                     !cubit.state.isComposing &&
                     cubit.state.tagView == null) {
-                  _lastTagChipDropHint =
-                      constellationTagChipDropAt(context, globalPosition);
+                  _lastTagChipDropHint = constellationTagChipDropAt(
+                    context,
+                    globalPosition,
+                  );
                 }
               },
               onNodeDragEnd: (node, position, globalPosition) {
@@ -2452,6 +2455,30 @@ class _ConstellationBodyState extends State<ConstellationBody>
       node: node,
       online: online,
       ownTagNames: [for (final tag in ownTags) tag.name],
+      unreadAuthorRollup: () {
+        final field = cubit.state.field;
+        final frame = _frameHolder.frame;
+        if (field == null || frame == null) {
+          return false;
+        }
+        if (node case FieldPersonNode(:final person)) {
+          final glow = constellationFieldUnreadGlowGraphIds(
+            field: field,
+            beaconGraphIdsOnMap: {
+              for (final id in frame.bodies.keys)
+                if (id.startsWith(kConstellationFieldBeaconGraphPrefix)) id,
+            },
+            personGraphIdsOnMap: {
+              for (final id in frame.bodies.keys)
+                if (id.startsWith(kConstellationFieldPersonGraphPrefix)) id,
+            },
+          );
+          return glow.containsKey(
+            constellationFieldPersonGraphId(person.id),
+          );
+        }
+        return false;
+      }(),
     );
     // Off the selected person's trust chain (#641): the marker fades.
     final chainMarker = cubit.isDimmedByTrustChain(node)
