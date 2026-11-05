@@ -315,6 +315,40 @@ void main() {
         );
         expect(filtered, {'pinned-old'});
       });
+
+      test('compareConstellationBeaconRecency ranks activity before null', () {
+        final byId = {
+          'req-a': null,
+          'post-a': asOfUtc,
+        };
+        expect(
+          compareConstellationBeaconRecency(
+            aId: 'post-a',
+            bId: 'req-a',
+            lastActivityAtById: byId,
+          ),
+          lessThan(0),
+        );
+        expect(
+          compareConstellationBeaconRecency(
+            aId: 'req-a',
+            bId: 'post-a',
+            lastActivityAtById: byId,
+          ),
+          greaterThan(0),
+        );
+      });
+
+      test('compareConstellationBeaconRecency uses id order when both null', () {
+        expect(
+          compareConstellationBeaconRecency(
+            aId: 'req-a',
+            bId: 'post-a',
+            lastActivityAtById: const {},
+          ),
+          greaterThan(0),
+        );
+      });
     });
   });
 }

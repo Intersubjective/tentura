@@ -133,16 +133,16 @@ int compareConstellationBeaconRecency({
   required String bId,
   required Map<String, DateTime?> lastActivityAtById,
 }) {
-  final bActivity = lastActivityAtById[bId];
   final aActivity = lastActivityAtById[aId];
-  if (bActivity != null && aActivity != null) {
+  final bActivity = lastActivityAtById[bId];
+  if (aActivity != null && bActivity != null) {
     final byActivity = bActivity.compareTo(aActivity);
     if (byActivity != 0) {
       return byActivity;
     }
-  } else if (bActivity != null) {
-    return -1;
   } else if (aActivity != null) {
+    return -1;
+  } else if (bActivity != null) {
     return 1;
   }
   return aId.compareTo(bId);
