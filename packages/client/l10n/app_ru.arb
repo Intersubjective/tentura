@@ -6549,7 +6549,7 @@
   "constellationFieldNewLegendHint": "Человек, который появился на вашем поле за последнюю неделю и которого вы ещё не открывали.",
   "constellationFieldNewSemantics": "{name}, новый на вашем поле",
   "constellationFieldUnreadLegend": "Непрочитанное",
-  "constellationFieldUnreadLegendHint": "Мягкое свечение под запросом или постом, который вы ещё не читали; при отдалении карты оно переносится к автору.",
+  "constellationFieldUnreadLegendHint": "Здесь есть новое: запрос или пост, который вы ещё не открывали, или новые сообщения в нём.",
   "constellationFieldUnreadBeaconSemantics": "{title}, непрочитано",
   "constellationFieldUnreadAuthorSemantics": "{name}, есть непрочитанное",
   "constellationTrustChainThrough": "Через: {chain}",
