@@ -133,8 +133,10 @@ double _fade(double t) => t * t * t * (t * (t * 6 - 15) + 10);
 
 /// Periodic fractal gradient noise; `noise(x, y) == noise(x + tile, y)`.
 class FieldTopoNoise {
-  FieldTopoNoise({this.seed = kFieldTopoSeed, this.tileSize = kFieldTopoTileSize})
-    : _perm = _permutation(seed);
+  FieldTopoNoise({
+    this.seed = kFieldTopoSeed,
+    this.tileSize = kFieldTopoTileSize,
+  }) : _perm = _permutation(seed);
 
   final int seed;
   final double tileSize;
@@ -342,7 +344,10 @@ class FieldTopoGenerator {
         final c = _samples[(j + 1) * n + i + 1]; // bottom-right
         final d = _samples[(j + 1) * n + i]; // bottom-left
         final code =
-            (a > t ? 8 : 0) | (b > t ? 4 : 0) | (c > t ? 2 : 0) | (d > t ? 1 : 0);
+            (a > t ? 8 : 0) |
+            (b > t ? 4 : 0) |
+            (c > t ? 2 : 0) |
+            (d > t ? 1 : 0);
         if (code == 0 || code == 15) continue;
         final x0 = i * cell;
         final y0 = j * cell;

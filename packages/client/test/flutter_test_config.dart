@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:tentura/features/constellation/ui/widget/constellation_field_topo_backdrop.dart';
+
 /// Per-test timeout for `testWidgets` in this package.
 ///
 /// `testWidgets` passes the binding's `defaultTestTimeout` (10 min) to
@@ -18,5 +20,8 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   if (binding is AutomatedTestWidgetsFlutterBinding) {
     binding.defaultTestTimeout = kWidgetTestTimeout;
   }
+  // The Field's topographic backdrop (#1022) stays out of widget tests so
+  // golden and layout tests are undisturbed; its own test turns it on.
+  ConstellationFieldTopoBackdrop.enabled = false;
   await testMain();
 }
