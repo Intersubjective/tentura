@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura_root/domain/entity/beacon_access.dart';
-import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -57,9 +56,6 @@ Beacon _beacon(BeaconAccessLevel accessLevel) => Beacon(
   title: 'Request',
   createdAt: DateTime.utc(2026),
   updatedAt: DateTime.utc(2026),
-  status: BeaconStatus.open,
-  canReadContent: true,
-  canReadInvolvement: true,
   accessLevel: accessLevel,
   author: const Profile(id: 'Uauthor', displayName: 'Author'),
 );
@@ -126,41 +122,45 @@ void main() {
     expect(r.cubit.state.viewerForwardEdges, isNotEmpty);
   });
 
-  test('a second loadForwards while one is in flight reads nothing more',
-      () async {
-    final r = await _open();
+  test(
+    'a second loadForwards while one is in flight reads nothing more',
+    () async {
+      final r = await _open();
 
-    final first = r.cubit.loadForwards();
-    await _settle();
-    await r.cubit.loadForwards();
-    expect(r.forwards.pending, hasLength(1));
+      final first = r.cubit.loadForwards();
+      await _settle();
+      await r.cubit.loadForwards();
+      expect(r.forwards.pending, hasLength(1));
 
-    r.forwards.pending.single.complete(const []);
-    await first;
-    await r.cubit.loadForwards();
-    expect(r.forwards.pending, hasLength(1));
-    expect(r.cubit.state.forwardsLoaded, isTrue);
-  });
+      r.forwards.pending.single.complete(const []);
+      await first;
+      await r.cubit.loadForwards();
+      expect(r.forwards.pending, hasLength(1));
+      expect(r.cubit.state.forwardsLoaded, isTrue);
+    },
+  );
 
-  test('a failed read goes back to idle and the next load reads again',
-      () async {
-    final r = await _open();
+  test(
+    'a failed read goes back to idle and the next load reads again',
+    () async {
+      final r = await _open();
 
-    final failed = r.cubit.loadForwards();
-    await _settle();
-    r.forwards.pending.single.completeError(StateError('offline'));
-    await failed;
-    expect(r.cubit.state.forwardsLoading, isFalse);
-    expect(r.cubit.state.forwardsLoaded, isFalse);
+      final failed = r.cubit.loadForwards();
+      await _settle();
+      r.forwards.pending.single.completeError(StateError('offline'));
+      await failed;
+      expect(r.cubit.state.forwardsLoading, isFalse);
+      expect(r.cubit.state.forwardsLoaded, isFalse);
 
-    final retry = r.cubit.loadForwards();
-    await _settle();
-    expect(r.forwards.pending, hasLength(2));
-    expect(r.cubit.state.forwardsLoading, isTrue);
-    r.forwards.pending.last.complete(const []);
-    await retry;
-    expect(r.cubit.state.forwardsLoaded, isTrue);
-  });
+      final retry = r.cubit.loadForwards();
+      await _settle();
+      expect(r.forwards.pending, hasLength(2));
+      expect(r.cubit.state.forwardsLoading, isTrue);
+      r.forwards.pending.last.complete(const []);
+      await retry;
+      expect(r.cubit.state.forwardsLoaded, isTrue);
+    },
+  );
 
   test('an observer never starts the forwards read', () async {
     final r = await _open(accessLevel: BeaconAccessLevel.observer);

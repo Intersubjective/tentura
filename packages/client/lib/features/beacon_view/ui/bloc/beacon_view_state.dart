@@ -242,6 +242,10 @@ class TimelineCreation extends TimelineEntry {
 /// its trail never changes.
 final _viewerTrailMemo = Expando<List<ForwardEdge>>('viewerTrail');
 
+/// Where the People › Forwards read stands this session. [idle] covers both
+/// "never read" and "the last read failed", so the next load reads again.
+enum ForwardsLoad { idle, loading, loaded }
+
 @Freezed(makeCollectionsUnmodifiable: false)
 abstract class BeaconViewState extends StateBase with _$BeaconViewState {
   const factory BeaconViewState({
@@ -276,11 +280,7 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
     /// True when the current user has forwarded this beacon at least once.
     @Default(false) bool hasForwardedThisBeaconOnce,
 
-    /// True after the lazy forwards load has completed at least once this session.
-    @Default(false) bool forwardsLoaded,
-
-    /// True while lazy forwards fetch is in flight.
-    @Default(false) bool forwardsLoading,
+    @Default(ForwardsLoad.idle) ForwardsLoad forwardsLoad,
 
     @Default([]) List<BeaconFactCard> factCards,
     DateTime? pinnedFactsSeenAt,
@@ -348,6 +348,10 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
 
   const BeaconViewState._();
 
+  bool get forwardsLoaded => forwardsLoad == ForwardsLoad.loaded;
+
+  bool get forwardsLoading => forwardsLoad == ForwardsLoad.loading;
+
   bool get hasError => loadError != null;
 
   bool get isBeaconMine => beacon.author.id == myProfile.id;
@@ -370,7 +374,7 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
 
   /// The author's forward status is still unknown and worth reading.
   bool get needsAuthorForwardStatus =>
-      _isAuthorsLiveFieldRequest && !forwardsLoaded && !forwardsLoading;
+      _isAuthorsLiveFieldRequest && forwardsLoad == ForwardsLoad.idle;
 
   /// This viewer's forward trail ([viewerForwardTrail] of
   /// [viewerForwardEdges]), derived once per state and reused by every helper
@@ -399,8 +403,7 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
   /// A helper card would claim a direct author forward that only this
   /// viewer's forward trail can confirm, and the trail is not read yet.
   bool get needsTrailForDirectForward =>
-      !forwardsLoaded &&
-      !forwardsLoading &&
+      forwardsLoad == ForwardsLoad.idle &&
       helpOffers.any(
         (o) =>
             o.isDirectAuthorForward &&
