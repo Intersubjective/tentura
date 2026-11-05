@@ -15,6 +15,23 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import '../../support/phone_surface.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 
+Future<void> _scrollPickerUntilVisible(
+  WidgetTester tester,
+  Finder target,
+) async {
+  await tester.scrollUntilVisible(
+    target,
+    120,
+    scrollable: find
+        .descendant(
+          of: find.byType(ForwardRecipientPicker),
+          matching: find.byType(Scrollable),
+        )
+        .first,
+  );
+  await tester.pump();
+}
+
 class _MockProfileCubit extends Mock implements ProfileCubit {
   @override
   ProfileState get state => const ProfileState();
@@ -52,20 +69,21 @@ ForwardCubit _cubit(
   List<ForwardCandidate> candidates, {
   Set<String>? selected,
 }) {
-  final cubit = ForwardCubit(
-    beaconId: 'draft-1',
-    debugSkipInitialLoad: true,
-    embedded: true,
-    effects: FakeUiEffectPort(),
-  )..emit(
-    ForwardState(
-      beaconId: 'draft-1',
-      beacon: Beacon.empty.copyWith(id: 'draft-1', title: 'Draft'),
-      candidates: candidates,
-      selectedIds: selected ?? const {},
-      candidatesLoad: const ForwardCandidatesReady(),
-    ),
-  );
+  final cubit =
+      ForwardCubit(
+        beaconId: 'draft-1',
+        debugSkipInitialLoad: true,
+        embedded: true,
+        effects: FakeUiEffectPort(),
+      )..emit(
+        ForwardState(
+          beaconId: 'draft-1',
+          beacon: Beacon.empty.copyWith(id: 'draft-1', title: 'Draft'),
+          candidates: candidates,
+          selectedIds: selected ?? const {},
+          candidatesLoad: const ForwardCandidatesReady(),
+        ),
+      );
   return cubit;
 }
 
@@ -143,6 +161,10 @@ void main() {
     for (final c in wider) {
       expect(find.text(c.profile.displayName), findsNothing);
     }
+    await _scrollPickerUntilVisible(
+      tester,
+      find.byKey(ForwardRecipientPicker.widerExpanderKey),
+    );
     expect(
       find.text('9 more people in your wider network'),
       findsOneWidget,
@@ -155,6 +177,10 @@ void main() {
     expect(find.text('9 more people in your wider network'), findsNothing);
     expect(find.text('WIDER NETWORK'), findsOneWidget);
     for (final c in wider) {
+      await _scrollPickerUntilVisible(
+        tester,
+        find.text(c.profile.displayName),
+      );
       expect(find.text(c.profile.displayName), findsOneWidget);
     }
   });
@@ -211,6 +237,10 @@ void main() {
     expect(find.text('Pinned'), findsOneWidget);
     expect(find.text('Hidden A'), findsNothing);
     expect(find.text('Hidden B'), findsNothing);
+    await _scrollPickerUntilVisible(
+      tester,
+      find.byKey(ForwardRecipientPicker.widerExpanderKey),
+    );
     expect(
       find.text('2 more people in your wider network'),
       findsOneWidget,
@@ -225,6 +255,10 @@ void main() {
     addTearDown(cubit.close);
     await _pumpRuPhone(tester, cubit);
 
+    await _scrollPickerUntilVisible(
+      tester,
+      find.byKey(ForwardRecipientPicker.widerExpanderKey),
+    );
     expect(find.text('Ещё 1 человек в широкой сети'), findsOneWidget);
     expect(find.text('Вы не знаете их лично.'), findsOneWidget);
     expect(find.text('Kesi'), findsNothing);

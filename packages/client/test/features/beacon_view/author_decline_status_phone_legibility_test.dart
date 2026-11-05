@@ -39,7 +39,7 @@ BeaconViewState _authorWithEveryForwardDeclined() {
   );
   return base.copyWith(
     myForwards: [declined('r1'), declined('r2')],
-    forwardsLoaded: true,
+    forwardsLoad: ForwardsLoad.loaded,
   );
 }
 

@@ -82,7 +82,7 @@ BeaconViewState _authorState({
   beacon: _beacon(helpOfferCount: helpOfferCount),
   myProfile: viewer,
   myForwards: forwards,
-  forwardsLoaded: true,
+  forwardsLoad: ForwardsLoad.loaded,
   helpOffers: helpOffers,
 );
 
