@@ -29,6 +29,8 @@ class NetworkPersonCard extends StatelessWidget {
     this.forwardedForSlugs = const [],
     this.commitRoleSlugs = const [],
     this.closeAckSlugs = const [],
+    this.trustLineOverride,
+    this.interactionTimeSuffix,
     this.peopleTagsEnabled = kPeopleTagsEnabled,
     super.key,
   });
@@ -51,6 +53,12 @@ class NetworkPersonCard extends StatelessWidget {
 
   /// Close-acknowledgement slugs — strongest signal (Phase 4+).
   final List<String> closeAckSlugs;
+
+  /// When set, replaces the default trust reciprocity line (People «New» rows).
+  final String? trustLineOverride;
+
+  /// Relative last-interaction age appended as « · …» on the context or trust line.
+  final String? interactionTimeSuffix;
 
   /// Offers the person menu ("Add to tag…"); off with the feature gate.
   final bool peopleTagsEnabled;
@@ -85,7 +93,9 @@ class NetworkPersonCard extends StatelessWidget {
   String _trustReciprocityLabel(L10n l10n) {
     if (profile.isMutualFriend) return l10n.trustSentenceMutual;
     if (profile.isFriend) return l10n.trustSentenceOneWayOut;
-    if (profile.subjectExplicitlyTrustsViewer) return l10n.trustSentenceOneWayIn;
+    if (profile.subjectExplicitlyTrustsViewer) {
+      return l10n.trustSentenceOneWayIn;
+    }
     return l10n.trustSentenceNone;
   }
 
@@ -163,15 +173,35 @@ class NetworkPersonCard extends StatelessWidget {
                                 color: theme.colorScheme.onSurfaceVariant,
                               ),
                             ),
-                          if (!isSelf)
-                            Text(
-                              _trustReciprocityLabel(l10n),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant,
-                              ),
+                          if (!isSelf) ...[
+                            Builder(
+                              builder: (context) {
+                                final inbox =
+                                    friendContext.activeForwardsToCount;
+                                final shared =
+                                    friendContext.coInvolvedBeaconsCount;
+                                final hasCounts = inbox > 0 || shared > 0;
+                                final base =
+                                    trustLineOverride ??
+                                    _trustReciprocityLabel(l10n);
+                                final suffix = interactionTimeSuffix;
+                                final line =
+                                    suffix != null &&
+                                        suffix.isNotEmpty &&
+                                        !hasCounts
+                                    ? '$base · $suffix'
+                                    : base;
+                                return Text(
+                                  line,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                );
+                              },
                             ),
+                          ],
                         ],
                       );
                     },
@@ -217,6 +247,7 @@ class NetworkPersonCard extends StatelessWidget {
                     l10n: l10n,
                     theme: theme,
                     context: friendContext,
+                    interactionSuffix: interactionTimeSuffix,
                   ),
                 ],
               ),
@@ -239,16 +270,18 @@ class NetworkPersonCard extends StatelessWidget {
                 () => LongPressGestureRecognizer(
                   supportedDevices: _touchOrStylus,
                 ),
-                (r) => r
-                  ..onLongPressStart = (details) =>
-                      _showMenuAt(context, details.globalPosition),
+                (r) =>
+                    r
+                      ..onLongPressStart = (details) =>
+                          _showMenuAt(context, details.globalPosition),
               ),
           TapGestureRecognizer:
               GestureRecognizerFactoryWithHandlers<TapGestureRecognizer>(
                 TapGestureRecognizer.new,
-                (r) => r
-                  ..onSecondaryTapUp = (details) =>
-                      _showMenuAt(context, details.globalPosition),
+                (r) =>
+                    r
+                      ..onSecondaryTapUp = (details) =>
+                          _showMenuAt(context, details.globalPosition),
               ),
         },
         child: row,
@@ -274,11 +307,13 @@ class _FriendContextCountsRow extends StatelessWidget {
     required this.l10n,
     required this.theme,
     required this.context,
+    this.interactionSuffix,
   });
 
   final L10n l10n;
   final ThemeData theme;
   final FriendContext context;
+  final String? interactionSuffix;
 
   @override
   Widget build(BuildContext context) {
@@ -289,13 +324,14 @@ class _FriendContextCountsRow extends StatelessWidget {
     final style = theme.textTheme.bodySmall?.copyWith(
       color: theme.colorScheme.onSurfaceVariant,
     );
+    final suffix = interactionSuffix;
 
     return Padding(
       padding: EdgeInsets.only(top: context.tt.tightGap * 2),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+      child: Wrap(
+        crossAxisAlignment: WrapCrossAlignment.center,
         children: [
-          if (inbox > 0) ...[
+          if (inbox > 0)
             Tooltip(
               message: L10n.of(context)!.friendContextInboxCount(inbox),
               child: Row(
@@ -314,7 +350,6 @@ class _FriendContextCountsRow extends StatelessWidget {
                 ],
               ),
             ),
-          ],
           if (shared > 0) ...[
             if (inbox > 0) const SizedBox(width: 10),
             Tooltip(
@@ -336,6 +371,8 @@ class _FriendContextCountsRow extends StatelessWidget {
               ),
             ),
           ],
+          if (suffix != null && suffix.isNotEmpty)
+            Text(' · $suffix', style: style),
         ],
       ),
     );

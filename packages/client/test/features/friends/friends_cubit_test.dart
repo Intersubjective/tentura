@@ -21,6 +21,8 @@ import 'package:tentura/features/auth/domain/use_case/auth_case.dart';
 import 'package:tentura/features/block/domain/entity/user_block.dart';
 import 'package:tentura/features/contacts/domain/use_case/contacts_case.dart';
 import 'package:tentura/features/friends/data/repository/friends_remote_repository.dart';
+import 'package:tentura/features/friends/domain/entity/person_list_meta.dart';
+import 'package:tentura/features/friends/domain/people_list_order.dart';
 import 'package:tentura/features/friends/domain/use_case/friends_case.dart';
 import 'package:tentura/features/friends/ui/bloc/friends_cubit.dart';
 import 'package:tentura/features/friends/ui/widget/accepted_invite_list_tile.dart';
@@ -138,6 +140,29 @@ void main() {
       );
       expect(harness.presence.lastWatched, {'friend-1'});
     });
+
+    test(
+      'local trust puts the person at the top of New before refetch',
+      () async {
+        harness.signIn();
+        await harness.waitFor(() => harness.cubit.state.firstLoadDone);
+        harness.likes.emit(
+          _friend('fresh').copyWith(displayName: 'Fresh'),
+        );
+        await Future<void>.delayed(Duration.zero);
+        expect(harness.cubit.state.friends.containsKey('fresh'), isTrue);
+        expect(
+          harness.cubit.state.optimisticListMeta['fresh']?.newReason,
+          PersonNewReason.trusted,
+        );
+        final sections = buildPeopleListSections(
+          friends: harness.cubit.state.friends,
+          listMeta: harness.cubit.state.listMeta,
+          optimisticNew: harness.cubit.state.optimisticListMeta,
+        );
+        expect(sections.newPeople.single.displayName, 'Fresh');
+      },
+    );
 
     test('relationship invalidation silently replaces the snapshot', () async {
       harness.friendsRepository.result = [_friend('friend-1')];
@@ -464,6 +489,7 @@ final class _FriendsHarness {
 
 final class _FakeFriendsRepository implements FriendsRemoteRepository {
   Iterable<Profile> result = const [];
+  Map<String, PersonListMeta> listMetaResult = const {};
   Object? error;
   int fetchCalls = 0;
   final pending = <Completer<Iterable<Profile>>>[];
@@ -477,6 +503,10 @@ final class _FakeFriendsRepository implements FriendsRemoteRepository {
     if (failure is Error) throw failure;
     return result;
   }
+
+  @override
+  Future<Map<String, PersonListMeta>> fetchPeopleListMeta() async =>
+      listMetaResult;
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);

@@ -4,6 +4,7 @@ import 'package:injectable/injectable.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/features/block/domain/entity/user_block.dart';
+import 'package:tentura/features/friends/domain/entity/person_list_meta.dart';
 import 'package:tentura/features/friends/domain/use_case/friends_case.dart';
 
 import 'package:tentura/ui/effect/ui_effect.dart';
@@ -86,6 +87,7 @@ class FriendsCubit extends Cubit<FriendsState> {
         FriendsState(
           friends: snapshot.friends,
           friendContexts: snapshot.friendContexts,
+          listMeta: snapshot.listMeta,
           firstLoadDone: true,
         ),
       );
@@ -119,12 +121,27 @@ class FriendsCubit extends Cubit<FriendsState> {
 
   void _onFriendsChanged(Profile profile) {
     final next = {...state.friends};
+    var optimistic = state.optimisticListMeta;
     if (profile.isFriend) {
       next[profile.id] = _case.applyContactOverlay(profile);
+      final now = DateTime.now().toUtc();
+      optimistic = {
+        ...optimistic,
+        profile.id: PersonListMeta(
+          id: profile.id,
+          newSince: now,
+          newReason: profile.isMutualFriend
+              ? PersonNewReason.mutual
+              : PersonNewReason.trusted,
+        ),
+      };
     } else {
       next.remove(profile.id);
+      if (optimistic.containsKey(profile.id)) {
+        optimistic = {...optimistic}..remove(profile.id);
+      }
     }
-    emit(state.copyWith(friends: next));
+    emit(state.copyWith(friends: next, optimisticListMeta: optimistic));
     _scheduleSilentFetch();
   }
 

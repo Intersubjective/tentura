@@ -1,0 +1,8 @@
+query PeopleListMetaFetch {
+  peopleListMeta {
+    id
+    newSince
+    newReason
+    lastInteractionAt
+  }
+}

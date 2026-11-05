@@ -14,12 +14,14 @@ import 'package:tentura/features/block/domain/entity/user_block.dart';
 import 'package:tentura/features/block/domain/use_case/block_case.dart';
 import 'package:tentura/features/contacts/domain/use_case/contacts_case.dart';
 import 'package:tentura/features/friends/data/repository/friends_remote_repository.dart';
+import 'package:tentura/features/friends/domain/entity/person_list_meta.dart';
 import 'package:tentura/features/invitation/data/repository/invitation_repository.dart';
 import 'package:tentura/features/like/data/repository/like_remote_repository.dart';
 
 typedef FriendsSnapshot = ({
   Map<String, Profile> friends,
   Map<String, FriendContext> friendContexts,
+  Map<String, PersonListMeta> listMeta,
 });
 
 @singleton
@@ -95,14 +97,23 @@ final class FriendsCase extends UseCaseBase {
 
   Future<FriendsSnapshot> load() async {
     await _contacts.refresh();
-    final profiles = await _friends.fetch();
+    final fetchResults = await Future.wait([
+      _friends.fetch(),
+      _friends.fetchPeopleListMeta(),
+    ]);
+    final profiles = fetchResults[0] as Iterable<Profile>;
+    final listMeta = fetchResults[1] as Map<String, PersonListMeta>;
     final friends = {
       for (final profile in profiles) profile.id: applyContactOverlay(profile),
     };
     final contexts = await _capabilities.fetchFriendContextsBatch(
       subjectIds: friends.keys.toList(growable: false),
     );
-    return (friends: friends, friendContexts: contexts);
+    return (
+      friends: friends,
+      friendContexts: contexts,
+      listMeta: listMeta,
+    );
   }
 
   Profile applyContactOverlay(Profile profile) =>
