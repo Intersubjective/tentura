@@ -141,7 +141,7 @@ void main() {
           anchors: [
             ConstellationAnchor(
               target: ConstellationAnchorTarget.beacon('pinned-old'),
-              position: ConstellationAnchorPosition(
+              position: const ConstellationAnchorPosition(
                 xUnits: 1,
                 yUnits: 1,
                 coordinateSpaceVersion: kConstellationCoordinateSpaceVersionV1,

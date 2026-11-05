@@ -236,8 +236,8 @@ void _expectClear(
     final category = switch (node) {
       FieldPersonNode(:final person) =>
         person.id == 'ego' ? 'viewer' : 'person',
-      FieldBeaconNode(request: final request?) => 'request',
-      FieldBeaconNode(post: final post?) => 'post',
+      FieldBeaconNode(request: final _?) => 'request',
+      FieldBeaconNode(post: final _?) => 'post',
       _ => throw StateError('Unexpected Field node: $node'),
     };
     renderedCategories.add(category);

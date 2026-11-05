@@ -97,7 +97,7 @@ Future<ConstellationCubit> _loadCubit({bool withPost = false}) async {
               title: 'Need tools',
               status: 0,
               needs: ['tools'],
-              lastActivityAt: DateTime.utc(2026, 9, 1),
+              lastActivityAt: DateTime.utc(2026, 9),
             ),
           ],
         ),
