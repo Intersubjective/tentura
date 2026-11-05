@@ -6,6 +6,7 @@ import 'package:get_it/get_it.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/attention/attention_case.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
+import 'package:tentura/domain/attention/request_card_room_attention.dart';
 import 'package:tentura/features/updates/updates_receipt_display_copy.dart';
 import 'package:tentura/features/updates/ui/widget/updates_feed_tile.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -92,7 +93,9 @@ class _RequestAttentionTimelineSheetState
       );
       if (!mounted) return;
       setState(() {
-        _items.addAll(page.items);
+        _items.addAll(
+          requestCardVisibleAttentionEvents(page.items),
+        );
         _cursor = page.nextCursor;
         _loading = false;
         _failed = false;

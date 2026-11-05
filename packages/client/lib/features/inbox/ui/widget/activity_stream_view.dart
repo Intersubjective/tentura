@@ -12,6 +12,8 @@ import 'package:tentura/domain/attention/entity/attention_clear.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/attention/for_you_stream_entries.dart';
+import 'package:tentura/domain/attention/request_card_room_attention.dart';
+import 'package:tentura/features/beacon_threads/data/repository/beacon_room_hints_repository.dart';
 import 'package:tentura/domain/entity/author_invite.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/inbox/ui/bloc/inbox_cubit.dart';
@@ -692,6 +694,22 @@ class _ActivityStreamScrollBody extends StatelessWidget {
   }
 }
 
+/// Opens the room that holds the oldest unread (#904), else the Request view.
+Future<void> openRequestCardByUnreadRoom(
+  StackRouter router, {
+  required String beaconId,
+  required String entry,
+}) async {
+  final hints = await GetIt.I<BeaconRoomHintsRepository>().fetchByBeaconIds([
+    beaconId,
+  ]);
+  if (requestCardUnreadOpensQuestions(hints[beaconId]?.unreadRoom)) {
+    await router.push(BeaconLobbyRoute(beaconId: beaconId));
+    return;
+  }
+  await router.push(BeaconViewRoute(id: beaconId, entry: entry));
+}
+
 /// A pinned row that carries the viewer's pending author invite (plan D3):
 /// the invite card instead of the Request card. «Не смогу» goes through the
 /// same rejection dialog as «Не могу помочь».
@@ -776,8 +794,10 @@ class _PinnedRequestCard extends StatelessWidget {
     // §4 — nothing clears before navigation. The detail host clears the
     // snapshot once the Request has actually displayed.
     Future<void> openBeacon() async {
-      await context.router.push(
-        BeaconViewRoute(id: beaconId, entry: kBeaconEntryInbox),
+      await openRequestCardByUnreadRoom(
+        context.router,
+        beaconId: beaconId,
+        entry: kBeaconEntryInbox,
       );
     }
 
@@ -1197,7 +1217,13 @@ class _ActivityStreamCell extends StatelessWidget {
             eventTotal: model.eventTotal,
             eventsPreview: model.eventsPreview,
             actors: streamCubit.state.actors,
-            onOpenBeacon: () => unawaited(onOpenParent()),
+            onOpenBeacon: () => unawaited(
+              openRequestCardByUnreadRoom(
+                context.router,
+                beaconId: beaconId,
+                entry: kBeaconEntryInbox,
+              ),
+            ),
             onEventTap: (event) {
               final isBaton =
                   batonReceiptDisplayCopy(

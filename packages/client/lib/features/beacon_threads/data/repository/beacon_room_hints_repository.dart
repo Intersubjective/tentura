@@ -40,6 +40,7 @@ class BeaconRoomHintsRepository {
           postRootExcerpt: e.postRootExcerpt ?? '',
           isRoomMember: e.isRoomMember,
           roomUnreadCount: e.roomUnreadCount,
+          unreadRoom: e.unreadRoom,
           lastSeenAt: _parseOptionalIso(e.lastSeenAt),
           currentLineSnippet: clipBeaconRoomCurrentLine(e.currentLine ?? ''),
           lastRoomMeaningfulChange: _clip(e.lastRoomMeaningfulChange ?? ''),

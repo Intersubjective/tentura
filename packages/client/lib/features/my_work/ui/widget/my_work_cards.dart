@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
-import 'package:tentura/features/updates/updates_receipt_display_copy.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/features/attention/ui/widget/request_attention_timeline_sheet.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -34,6 +33,7 @@ import 'package:tentura/features/my_work/ui/widget/my_work_plan_step_rows.dart';
 import 'package:tentura/features/beacon_plan/ui/util/plan_presenter.dart'
     show planErrorText;
 import 'package:tentura/features/my_work/domain/derive_my_work_card_attention.dart';
+import 'package:tentura/domain/attention/request_card_room_attention.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_card_attention_indicators.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_last_event_row.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_latest_message_line.dart';
@@ -171,15 +171,10 @@ void _openBeaconOrSelect(
     );
     return;
   }
-  // #656: unread Questions updates are answered in Questions; they stay on
-  // the card until Questions is opened.
-  final latest = context
-      .read<MyWorkCubit>()
-      .state
-      .attentionByBeacon[vm.beaconId]
-      ?.latestUnseen;
-  if (latest != null && isQuestionsAttentionReceipt(latest)) {
-    unawaited(context.router.push(BeaconLobbyRoute(beaconId: vm.beaconId)));
+  if (requestCardUnreadOpensQuestions(vm.unreadRoom)) {
+    unawaited(
+      context.router.push(BeaconLobbyRoute(beaconId: vm.beaconId)),
+    );
     return;
   }
   _openBeacon(context, vm.beaconId);
@@ -408,10 +403,6 @@ Widget? _composeMyWorkFooter(
           ),
           onOpenTimeline: () => unawaited(
             showRequestAttentionTimelineSheet(context, beaconId: vm.beaconId),
-          ),
-          // #656: a Questions message opens Questions, not the Chat.
-          onOpenQuestions: () => unawaited(
-            context.router.push(BeaconLobbyRoute(beaconId: vm.beaconId)),
           ),
           suppressReviewHelpOffersFallback: suppressReviewHelpOffersFallback,
           onReviewHelpOffers: () => _openBeaconReviewHelpOffers(context, vm),
