@@ -114,7 +114,7 @@ void main() {
       expect(FieldTopoBand.hidden.isVisible, isFalse);
     });
 
-    test('coarser bands draw a subset of the finer bands\' levels', () {
+    test("coarser bands draw a subset of the finer bands' levels", () {
       final close = tile.levelsForStride(1).toSet();
       final district = tile.levelsForStride(2).toSet();
       final overview = tile.levelsForStride(4).toSet();

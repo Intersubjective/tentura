@@ -55,7 +55,10 @@ void main() {
       expect(light.line, isNot(dark.line));
       expect(light.lerp(dark, 0), light);
       expect(light.lerp(dark, 1), dark);
-      expect(light.lerp(dark, 0.5).line, Color.lerp(light.line, dark.line, 0.5));
+      expect(
+        light.lerp(dark, 0.5).line,
+        Color.lerp(light.line, dark.line, 0.5),
+      );
       expect(light.copyWith().line, light.line);
     });
 
@@ -74,7 +77,10 @@ void main() {
           ),
         ),
       );
-      expect(colors, TenturaTheme.dark().extension<TenturaFieldBackdropColors>());
+      expect(
+        colors,
+        TenturaTheme.dark().extension<TenturaFieldBackdropColors>(),
+      );
     });
   });
 }
