@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import 'tentura_capability_colors.dart';
 import 'tentura_colors.dart';
+import 'tentura_field_backdrop_colors.dart';
 import 'tentura_radii.dart';
 import 'tentura_tag_colors.dart';
 import 'tentura_text.dart';
@@ -69,6 +70,7 @@ abstract final class TenturaTheme {
         tokens,
         capabilityColors,
         tagColors,
+        TenturaFieldBackdropColors.fromScheme(colorScheme),
       ],
       dialogTheme: DialogThemeData(
         backgroundColor: colorScheme.surfaceContainer,
