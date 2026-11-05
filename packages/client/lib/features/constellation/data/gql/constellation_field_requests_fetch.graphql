@@ -20,6 +20,7 @@ query ConstellationFieldRequestsFetch(
     primaryNeedSlug
     startAt
     endAt
+    lastActivityAt
     addressLabel
     hasCoordinates
     isMine

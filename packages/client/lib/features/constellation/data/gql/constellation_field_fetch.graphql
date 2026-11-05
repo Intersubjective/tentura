@@ -47,6 +47,7 @@ query ConstellationFieldFetch(
       primaryNeedSlug
       startAt
       endAt
+      lastActivityAt
       addressLabel
       hasCoordinates
       isMine
@@ -117,6 +118,7 @@ query ConstellationFieldFetch(
         primaryNeedSlug
         startAt
         endAt
+        lastActivityAt
         addressLabel
         hasCoordinates
         isMine

@@ -1369,7 +1369,7 @@
   "@constellationFilterLocationHas": {
     "context": "ConstellationFilterBar"
   },
-  "constellationFilterTiming": "Срок",
+  "constellationFilterTiming": "Когда",
   "@constellationFilterTiming": {
     "context": "ConstellationFilterBar"
   },
@@ -1384,6 +1384,23 @@
         "type": "int"
       }
     }
+  },
+  "constellationFilterActivityRecency": "Активность за последние",
+  "@constellationFilterActivityRecency": {
+    "context": "ConstellationFilterBar"
+  },
+  "constellationFilterActivityRecencyAny": "Любой срок",
+  "@constellationFilterActivityRecencyAny": {
+    "context": "ConstellationFilterBar"
+  },
+  "constellationFilterActivityRecencyWithinDays": "{days} дн.",
+  "@constellationFilterActivityRecencyWithinDays": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    },
+    "context": "ConstellationFilterBar"
   },
   "constellationAbsenceFilterHidden": "Скрыто фильтрами",
   "@constellationAbsenceFilterHidden": {

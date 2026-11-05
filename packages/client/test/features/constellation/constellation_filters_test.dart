@@ -8,6 +8,7 @@ ConstellationRequestRef _request({
   String? primaryNeedSlug,
   DateTime? startAt,
   DateTime? endAt,
+  DateTime? lastActivityAt,
   String? addressLabel,
   bool hasCoordinates = false,
 }) {
@@ -17,6 +18,7 @@ ConstellationRequestRef _request({
     primaryNeedSlug: primaryNeedSlug,
     startAt: startAt,
     endAt: endAt,
+    lastActivityAt: lastActivityAt,
     addressLabel: addressLabel,
     hasCoordinates: hasCoordinates,
   );
@@ -26,12 +28,14 @@ ConstellationFilters _filters({
   Set<String> capabilitySlugs = const {},
   LocationFilter location = LocationFilter.any,
   TimingFilter timing = timingFilterAny,
+  ActivityRecencyFilter activityRecency = activityRecencyFilterAny,
   bool includeUnspecified = true,
 }) {
   return (
     capabilitySlugs: capabilitySlugs,
     location: location,
     timing: timing,
+    activityRecency: activityRecency,
     includeUnspecified: includeUnspecified,
   );
 }
@@ -272,6 +276,45 @@ void main() {
       );
       expect(filtered, isA<Set<String>>());
       expect(filtered, {'only-id'});
+    });
+
+    group('activity recency', () {
+      final asOfUtc = DateTime.utc(2026, 6, 10, 12);
+
+      test('within 7 days keeps recent activity only', () {
+        final recent = _request(
+          id: 'recent',
+          lastActivityAt: asOfUtc.subtract(const Duration(days: 1)),
+        );
+        final stale = _request(
+          id: 'stale',
+          lastActivityAt: asOfUtc.subtract(const Duration(days: 10)),
+        );
+        final filtered = filterRequestIds(
+          requests: [recent, stale],
+          filters: _filters(
+            activityRecency: activityRecencyFilterWithinDays(7),
+          ),
+          asOfUtc: asOfUtc,
+        );
+        expect(filtered, {'recent'});
+      });
+
+      test('pinned exempt ids bypass activity recency', () {
+        final stale = _request(
+          id: 'pinned-old',
+          lastActivityAt: asOfUtc.subtract(const Duration(days: 30)),
+        );
+        final filtered = filterRequestIds(
+          requests: [stale],
+          filters: _filters(
+            activityRecency: activityRecencyFilterWithinDays(7),
+          ),
+          asOfUtc: asOfUtc,
+          activityRecencyExemptIds: {'pinned-old'},
+        );
+        expect(filtered, {'pinned-old'});
+      });
     });
   });
 }

@@ -599,9 +599,20 @@ ConstellationLabelDisplayPlan _buildLabelDisplayPlan({
   for (final post in activePosts) {
     allByAuthor.putIfAbsent(post.authorId, () => <String>[]).add(post.id);
   }
+  final lastActivityAtById = {
+    for (final request in automatic.requests) request.id: request.lastActivityAt,
+    for (final request in anchorOverlay.pinnedRequests)
+      request.id: request.lastActivityAt,
+    for (final post in activePosts) post.id: post.lastActivityAt,
+  };
   for (final entry in allByAuthor.entries) {
-    entry.value.sort();
+    sortConstellationBeaconIdsByRecency(entry.value, lastActivityAtById);
   }
+
+  final activityRecencyExemptIds = {
+    for (final request in anchorOverlay.pinnedRequests) request.id,
+    ...pinnedPostIds,
+  };
 
   final filteredIds = filterRequestIds(
     requests:
@@ -616,6 +627,7 @@ ConstellationLabelDisplayPlan _buildLabelDisplayPlan({
                 primaryNeedSlug: request.primaryNeedSlug,
                 startAt: request.startAt,
                 endAt: request.endAt,
+                lastActivityAt: request.lastActivityAt,
                 addressLabel: request.addressLabel,
                 hasCoordinates: request.hasCoordinates,
               ),
@@ -628,6 +640,7 @@ ConstellationLabelDisplayPlan _buildLabelDisplayPlan({
                   primaryNeedSlug: null,
                   startAt: null,
                   endAt: null,
+                  lastActivityAt: post.lastActivityAt,
                   addressLabel: null,
                   hasCoordinates: false,
                 ),
@@ -635,6 +648,7 @@ ConstellationLabelDisplayPlan _buildLabelDisplayPlan({
             ),
     filters: localFilters,
     asOfUtc: asOfUtc,
+    activityRecencyExemptIds: activityRecencyExemptIds,
   );
 
   final pinnedRequestIds = {
@@ -735,12 +749,14 @@ bool _requestMatchesLocalFilters(
         primaryNeedSlug: request.primaryNeedSlug,
         startAt: request.startAt,
         endAt: request.endAt,
+        lastActivityAt: request.lastActivityAt,
         addressLabel: request.addressLabel,
         hasCoordinates: request.hasCoordinates,
       ),
     ],
     filters: filters,
     asOfUtc: asOfUtc,
+    activityRecencyExemptIds: {request.id},
   ).contains(request.id);
 }
 

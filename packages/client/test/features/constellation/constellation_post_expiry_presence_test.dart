@@ -91,6 +91,7 @@ ConstellationComposedPresentation _compose(
     capabilitySlugs: {},
     location: LocationFilter.any,
     timing: TimingFilterAny(),
+    activityRecency: ActivityRecencyFilterAny(),
     includeUnspecified: true,
   ),
   asOfUtc: asOfUtc ?? _asOf,

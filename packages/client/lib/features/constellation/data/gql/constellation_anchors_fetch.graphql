@@ -37,6 +37,7 @@ query ConstellationAnchorsFetch(
       primaryNeedSlug
       startAt
       endAt
+      lastActivityAt
       addressLabel
       hasCoordinates
       isMine
@@ -83,6 +84,7 @@ query ConstellationAnchorsFetch(
         primaryNeedSlug
         startAt
         endAt
+        lastActivityAt
         addressLabel
         hasCoordinates
         isMine
