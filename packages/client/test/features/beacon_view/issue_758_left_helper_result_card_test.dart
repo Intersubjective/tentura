@@ -107,7 +107,7 @@ BeaconViewState _view({
 }) => BeaconViewState(
   beacon: _closed(),
   myProfile: viewer,
-  beaconContextLoaded: true,
+  load: BeaconViewLoad.ready,
   isHelpOffered: liveOffer,
   helpOffers: offers,
 );

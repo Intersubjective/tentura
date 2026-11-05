@@ -15,7 +15,7 @@ BeaconViewState _state({required bool viewerCanForward}) {
       viewerCanForward: viewerCanForward,
     ),
     myProfile: const Profile(id: 'uViewer', displayName: 'Viewer'),
-    beaconContextLoaded: true,
+    load: BeaconViewLoad.ready,
   );
 }
 

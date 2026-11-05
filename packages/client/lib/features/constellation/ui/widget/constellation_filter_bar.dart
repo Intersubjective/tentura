@@ -11,6 +11,7 @@ import 'package:tentura/ui/utils/capability_tag_presenter.dart';
 
 import '../../domain/constellation_filters.dart';
 import '../bloc/constellation_cubit.dart';
+import 'constellation_field_hidden_sheet.dart';
 
 Future<void> showConstellationFilterSheet(
   BuildContext context, {
@@ -47,7 +48,8 @@ class _ConstellationFilterSheet extends StatelessWidget {
               current.filterIncludeUnspecified ||
           previous.membershipFilters != current.membershipFilters ||
           previous.field != current.field ||
-          previous.composition != current.composition,
+          previous.composition != current.composition ||
+          previous.hiddenByYouCount != current.hiddenByYouCount,
       builder: (context, state) {
         final cubit = context.read<ConstellationCubit>();
         return ConstrainedBox(
@@ -186,7 +188,8 @@ class ConstellationFilterBar extends StatelessWidget {
               current.filterIncludeUnspecified ||
           previous.membershipFilters != current.membershipFilters ||
           previous.field != current.field ||
-          previous.composition != current.composition,
+          previous.composition != current.composition ||
+          previous.hiddenByYouCount != current.hiddenByYouCount,
       builder: (context, state) {
         final cubit = context.read<ConstellationCubit>();
         final l10n = L10n.of(context)!;
@@ -227,6 +230,26 @@ class ConstellationFilterBar extends StatelessWidget {
                 value: state.filterIncludeUnspecified,
                 onChanged: cubit.setFilterIncludeUnspecified,
               ),
+              if (state.hiddenByYouCount > 0) ...[
+                SizedBox(height: tt.sectionGap),
+                TenturaMenuGroup(
+                  children: [
+                    TenturaMenuTile(
+                      key: TestIds.key(TestIds.constellationHiddenByYouRow),
+                      icon: Icons.visibility_off_outlined,
+                      title: l10n.constellationHiddenByYouRow(
+                        state.hiddenByYouCount,
+                      ),
+                      onTap: () => unawaited(
+                        showConstellationFieldHiddenSheet(
+                          context,
+                          cubit: cubit,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ],
           ),
         );

@@ -29,7 +29,7 @@ BeaconViewState _state({
       viewerCanForward: status.allowsForward,
     ),
     myProfile: Profile(id: viewerId, displayName: 'Viewer'),
-    beaconContextLoaded: true,
+    load: BeaconViewLoad.ready,
   );
 }
 

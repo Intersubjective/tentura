@@ -341,7 +341,7 @@ BeaconViewState beaconViewHarnessAuthorState({
   ),
   myProfile: Profile(id: authorId, displayName: 'Author'),
   firstLoadDone: true,
-  beaconContentLoaded: true,
+  load: BeaconViewLoad.contentRead,
   roomParticipantsLoaded: true,
   roomParticipants: [
     BeaconParticipant(

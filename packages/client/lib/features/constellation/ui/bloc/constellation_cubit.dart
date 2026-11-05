@@ -56,6 +56,7 @@ import '../../domain/use_case/constellation_field_store_case.dart';
 import '../../domain/use_case/constellation_field_hide_case.dart';
 import '../../domain/use_case/constellation_field_search_case.dart';
 import '../../domain/entity/constellation_field_search_result.dart';
+import '../../domain/entity/constellation_field_hidden_item.dart';
 import '../../domain/entity/constellation_field_target_kind.dart';
 import '../../domain/constellation_field_patches.dart';
 import '../../domain/use_case/constellation_visibility_case.dart';
@@ -694,7 +695,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   }
 
   /// Optimistically clears unread on a Field item the viewer opened (#256).
-  void   openedFieldBeacon(String beaconId) =>
+  void openedFieldBeacon(String beaconId) =>
       _case.applyOpenedFieldBeacon(beaconId);
 
   ConstellationFieldHideCase? get fieldHideCase => _fieldHideCase;
@@ -783,6 +784,61 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     required String beaconId,
   }) {
     cancelHideFromField(snapshot, beaconId: beaconId);
+  }
+
+  void noteHiddenByYouCountDelta(int delta) {
+    if (isClosed || delta == 0) {
+      return;
+    }
+    final next = state.hiddenByYouCount + delta;
+    if (next < 0) {
+      return;
+    }
+    emit(state.copyWith(hiddenByYouCount: next));
+  }
+
+  @visibleForTesting
+  void setHiddenByYouCountForTest(int count) {
+    if (isClosed || count < 0) {
+      return;
+    }
+    emit(state.copyWith(hiddenByYouCount: count));
+  }
+
+  Future<void> refreshHiddenByYouCount() async {
+    final hideCase = _fieldHideCase;
+    if (hideCase == null || isClosed) {
+      return;
+    }
+    try {
+      final items = await hideCase.fetchHiddenItems();
+      if (isClosed) {
+        return;
+      }
+      emit(state.copyWith(hiddenByYouCount: items.length));
+    } on Object {
+      // Count is optional; the filter row stays at the last known value.
+    }
+  }
+
+  Future<bool> showHiddenFieldItem(ConstellationFieldHiddenItem item) async {
+    final hideCase = _fieldHideCase;
+    if (hideCase == null || isClosed) {
+      return false;
+    }
+    try {
+      await hideCase.showHiddenItemOnField(item);
+    } on Object {
+      return false;
+    }
+    noteHiddenByYouCountDelta(-1);
+    final field = _case.current.field;
+    if (field != null) {
+      _applyLoadedField(field);
+    } else {
+      _recomposeAndLayout();
+    }
+    return true;
   }
 
   void _onStoreChanged(ConstellationFieldStoreState snapshot) {
@@ -970,6 +1026,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       }
     }
     unawaited(_loadTagMagnets());
+    await refreshHiddenByYouCount();
   }
 
   void _armExpiry(ConstellationField field) {

@@ -47,7 +47,7 @@ BeaconViewState _postSubmitAuthorNowState({
   return BeaconViewState(
     beacon: beacon,
     myProfile: author,
-    beaconContextLoaded: true,
+    load: BeaconViewLoad.ready,
     closureState: ClosureState(
       epoch: 1,
       status: BeaconStatus.reviewOpen.smallintValue,

@@ -119,6 +119,7 @@ Future<void> _hideFromField(
       targetKind: targetKind.wireValue,
       targetId: beaconId,
     );
+    cubit.noteHiddenByYouCountDelta(1);
   } on Object {
     if (context.mounted) {
       cubit.cancelHideFromField(snapshot, beaconId: beaconId);
@@ -152,6 +153,7 @@ Future<void> _undoHide(
   final cubit = context.read<ConstellationCubit>();
   final l10n = L10n.of(context)!;
   cubit.restoreHideFromField(snapshot, beaconId: beaconId);
+  cubit.noteHiddenByYouCountDelta(-1);
   final hideCase = cubit.fieldHideCase;
   if (hideCase == null) {
     return;
@@ -164,6 +166,7 @@ Future<void> _undoHide(
   } on Object {
     if (context.mounted) {
       cubit.cancelHideFromField(snapshot, beaconId: beaconId);
+      cubit.noteHiddenByYouCountDelta(1);
       showSnackBar(context, text: l10n.errorGenericAction, isError: true);
     }
   }

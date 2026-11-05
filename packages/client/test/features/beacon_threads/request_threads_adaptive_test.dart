@@ -355,7 +355,9 @@ BeaconViewState _authorBeaconState({
   ),
   myProfile: const Profile(id: _kAuthorId, displayName: 'Author'),
   firstLoadDone: beaconContentLoaded,
-  beaconContentLoaded: beaconContentLoaded,
+  load: beaconContentLoaded
+      ? BeaconViewLoad.contentRead
+      : BeaconViewLoad.loading,
   roomParticipantsLoaded: true,
   roomParticipants: [
     BeaconParticipant(
@@ -387,7 +389,7 @@ BeaconViewState _itemOnlyParticipantState({
     ),
     myProfile: Profile(id: participantId, displayName: 'Participant'),
     firstLoadDone: true,
-    beaconContentLoaded: true,
+    load: BeaconViewLoad.contentRead,
     roomParticipantsLoaded: true,
     roomParticipants: [
       BeaconParticipant(

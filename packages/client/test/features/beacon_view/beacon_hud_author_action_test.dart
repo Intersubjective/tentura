@@ -36,7 +36,7 @@ BeaconViewState _authorState({
   helpOffers: helpOffers,
   roomParticipants: roomParticipants,
   closureState: closureState,
-  beaconContextLoaded: beaconContextLoaded,
+  load: beaconContextLoaded ? BeaconViewLoad.ready : BeaconViewLoad.loading,
   status: isLoading ? StateStatus.isLoading : const StateIsSuccess(),
 );
 
@@ -155,7 +155,7 @@ void main() {
             updatedAt: DateTime.utc(2026, 6, 20),
           ),
         ],
-        beaconContextLoaded: true,
+        load: BeaconViewLoad.ready,
       );
       expect(deriveBeaconHudAuthorAction(state), isNull);
     });

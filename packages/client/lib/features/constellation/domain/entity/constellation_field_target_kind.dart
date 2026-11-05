@@ -9,6 +9,12 @@ enum ConstellationFieldTargetKind {
 
   final int wireValue;
 
+  static ConstellationFieldTargetKind fromWireValue(int value) => switch (value) {
+        0 => ConstellationFieldTargetKind.request,
+        1 => ConstellationFieldTargetKind.post,
+        _ => ConstellationFieldTargetKind.request,
+      };
+
   static ConstellationFieldTargetKind forBeaconId(
     ConstellationField field,
     String beaconId,

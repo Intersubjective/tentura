@@ -233,6 +233,8 @@ abstract final class TestIds {
   static const constellationHiddenPinsCount = 'constellation.hidden_pins_count';
   static const constellationFieldSearch = 'constellation.field_search';
   static const constellationShowAgain = 'constellation.show_again';
+  static const constellationHiddenByYouRow = 'constellation.hidden_by_you_row';
+  static const constellationHiddenByYouShow = 'constellation.hidden_by_you_show';
   static const constellationRequestStatusMarker =
       'constellation.request_status_marker';
   static const constellationPinMarker = 'constellation.pin_marker';

@@ -10156,6 +10156,41 @@
     "description": "Confirmation after hiding a Request or Post from the Field; Undo restores it",
     "context": "ConstellationField"
   },
+  "constellationHiddenByYouRow": "Hidden by you ({count})",
+  "@constellationHiddenByYouRow": {
+    "description": "Field filter sheet row opening the list of items hidden by the viewer",
+    "context": "ConstellationField",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "constellationHiddenByYouTitle": "Hidden by you",
+  "@constellationHiddenByYouTitle": {
+    "description": "Title of the sheet listing items hidden from the Field",
+    "context": "ConstellationField"
+  },
+  "constellationHiddenByYouHiddenOn": "Hidden {date}",
+  "@constellationHiddenByYouHiddenOn": {
+    "description": "When the viewer hid an item from the Field",
+    "context": "ConstellationField",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "constellationHiddenByYouShow": "Show",
+  "@constellationHiddenByYouShow": {
+    "description": "Restores a hidden Request or Post to the Field",
+    "context": "ConstellationField"
+  },
+  "constellationHiddenByYouEmpty": "Nothing hidden by you",
+  "@constellationHiddenByYouEmpty": {
+    "description": "Empty state when the viewer has no effective Field hides",
+    "context": "ConstellationField"
+  },
   "constellationRedo": "Redo",
   "@constellationRedo": {
     "description": "Arrange sheet: applies the last undone arrangement action on the Field map again",

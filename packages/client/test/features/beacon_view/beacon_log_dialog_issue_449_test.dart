@@ -89,7 +89,7 @@ BeaconViewState _state(List<BeaconActivityEvent> events) => BeaconViewState(
     updatedAt: _kStatus,
   ),
   myProfile: const Profile(id: _kAuthorId, displayName: 'Author'),
-  beaconContentLoaded: true,
+  load: BeaconViewLoad.contentRead,
   roomParticipantsLoaded: true,
   roomParticipants: [
     BeaconParticipant(

@@ -7,11 +7,14 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/features/constellation/data/repository/constellation_field_hide_repository.dart';
+import 'package:tentura/features/constellation/domain/constellation_field_patches.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field_target_kind.dart';
+import 'package:tentura/features/constellation/domain/entity/constellation_field_hidden_item.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_field_hide_port.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
+import 'package:tentura/features/constellation/domain/port/constellation_targeted_read_port.dart';
 import 'package:tentura/features/constellation/domain/use_case/constellation_field_hide_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_field_item_actions.dart';
@@ -29,6 +32,7 @@ final class _RecordingHidePort implements ConstellationFieldHidePort {
   final hideCalls = <({int targetKind, String targetId})>[];
   final unhideCalls = <({int targetKind, String targetId})>[];
   bool failHide = false;
+  List<ConstellationFieldHiddenItem> hiddenItems = const [];
 
   @override
   Future<void> hide({required int targetKind, required String targetId}) async {
@@ -45,6 +49,12 @@ final class _RecordingHidePort implements ConstellationFieldHidePort {
   }) async {
     unhideCalls.add((targetKind: targetKind, targetId: targetId));
   }
+
+  @override
+  Future<List<ConstellationFieldHiddenItem>> fetchHiddenItems({
+    String? cursor,
+  }) async =>
+      hiddenItems;
 }
 
 ConstellationField _singleRequestField({
@@ -84,6 +94,8 @@ Future<ConstellationCubit> _cubitWithHide({
   );
   final hideCase = ConstellationFieldHideCase(
     port,
+    fixture.store,
+    _StubTargetedReadPort(),
     env: const Env.fromEnvironment(),
     logger: Logger('test'),
   );
@@ -109,6 +121,22 @@ final class _StubFieldRepo implements ConstellationRepositoryPort {
     ConstellationProjection projection = ConstellationProjection.full,
   }) async =>
       field;
+}
+
+final class _StubTargetedReadPort implements ConstellationTargetedReadPort {
+  @override
+  Future<List<ConstellationRequest>> fetchRequests(
+    Set<String> beaconIds, {
+    ConstellationFieldMembershipFilters membershipFilters =
+        ConstellationFieldMembershipFilters.defaults,
+  }) async =>
+      const [];
+
+  @override
+  Future<List<ConstellationViewerRelation>> readViewerRelations(
+    Set<String> personIds,
+  ) async =>
+      const [];
 }
 
 Future<void> _pumpPreview(
