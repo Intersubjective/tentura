@@ -191,7 +191,12 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
   void _showSnackError(Object error) {
     _effects.emit(ShowError(error));
     if (!isClosed) {
-      emit(state.copyWith(status: const StateIsSuccess(), loadError: null));
+      emit(
+        state.copyWith(
+          status: const StateIsSuccess(),
+          load: state.hasError ? BeaconViewLoad.loading : state.load,
+        ),
+      );
     }
   }
 
@@ -1638,9 +1643,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
         if (!state.beaconContentLoaded || afterBlock) {
           emit(
             state.copyWith(
-              beaconContentLoaded: false,
-              beaconContextLoaded: false,
-              beaconUnavailable: true,
+              load: BeaconViewLoad.unavailable,
               status: const StateIsSuccess(),
             ),
           );
@@ -1655,9 +1658,9 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
         emit(
           state.copyWith(
             beacon: beacon,
-            beaconContentLoaded: true,
-            beaconContextLoaded: retainLoadedContext,
-            beaconUnavailable: false,
+            load: retainLoadedContext
+                ? BeaconViewLoad.ready
+                : BeaconViewLoad.contentRead,
             status: StateStatus.isSuccess,
           ),
         );
@@ -1897,10 +1900,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
           hasForwardedThisBeaconOnce:
               forwards?.hasForwardedThisBeaconOnce ??
               state.hasForwardedThisBeaconOnce,
-          beaconContentLoaded: true,
-          beaconContextLoaded: true,
-          beaconUnavailable: false,
-          loadError: null,
+          load: BeaconViewLoad.ready,
           status: StateStatus.isSuccess,
         ),
       );
@@ -1932,7 +1932,12 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
     } catch (e) {
       if (isClosed) return;
       if (!state.beaconContentLoaded) {
-        emit(state.copyWith(loadError: e, status: const StateIsSuccess()));
+        emit(
+          state.copyWith(
+            load: BeaconViewLoadFailed(e),
+            status: const StateIsSuccess(),
+          ),
+        );
       } else if (!background) {
         _showSnackError(e);
       }
@@ -1991,7 +1996,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
     emit(
       state.copyWith(
         status: const StateIsLoading(),
-        beaconUnavailable: false,
+        load: state.beaconUnavailable ? BeaconViewLoad.loading : state.load,
       ),
     );
     await _fetchBeaconByIdWithTimeline();
@@ -2155,7 +2160,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
         ),
         _ => BeaconViewState(
           beacon: _emptyBeacon,
-          loadError: 'Wrong id: $id',
+          load: BeaconViewLoadFailed('Wrong id: $id'),
         ),
       };
 }

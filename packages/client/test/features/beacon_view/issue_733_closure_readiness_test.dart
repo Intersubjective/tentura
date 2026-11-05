@@ -73,7 +73,7 @@ BeaconViewState _state({
   myProfile: const Profile(id: 'uAuthor', displayName: 'Me'),
   displayStatus: committers == null ? null : _display(committers),
   openCoordinationBlocker: plan,
-  beaconContextLoaded: true,
+  load: BeaconViewLoad.ready,
 );
 
 void main() {

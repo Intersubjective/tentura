@@ -30,7 +30,7 @@ BeaconViewState _state({
     status: status,
   ),
   myProfile: me,
-  beaconContextLoaded: true,
+  load: BeaconViewLoad.ready,
   closureState: withClosure
       ? ClosureState(
           epoch: 2,

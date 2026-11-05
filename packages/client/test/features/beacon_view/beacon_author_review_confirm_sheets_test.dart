@@ -38,7 +38,7 @@ BeaconViewState _state({BeaconStatus status = BeaconStatus.reviewOpen}) =>
     canCloseNow: true,
     canReopen: true,
   ),
-  beaconContextLoaded: true,
+  load: BeaconViewLoad.ready,
 );
 
 class _MockBeaconViewCubit extends Mock implements BeaconViewCubit {

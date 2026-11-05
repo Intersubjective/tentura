@@ -157,7 +157,7 @@ void main() {
         final state = BeaconViewState(
           beacon: _beacon(BeaconStatus.enoughHelp),
           myProfile: const Profile(id: 'uAuthor', displayName: 'Alice'),
-          beaconContextLoaded: true,
+          load: BeaconViewLoad.ready,
           displayStatus: const BeaconDisplayStatusDto(
             beaconId: 'B825',
             status: BeaconStatus.enoughHelp,

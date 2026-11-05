@@ -116,8 +116,7 @@ void main() {
         coordinationResponse: CoordinationResponseType.notSuitable,
       ),
     ],
-    beaconContentLoaded: true,
-    beaconContextLoaded: true,
+    load: BeaconViewLoad.ready,
   );
 
   testWidgets('same-tab People reselect remounts folds to default', (
