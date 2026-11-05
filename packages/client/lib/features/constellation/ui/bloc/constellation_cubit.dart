@@ -56,6 +56,7 @@ import '../../domain/use_case/constellation_field_store_case.dart';
 import '../../domain/use_case/constellation_field_hide_case.dart';
 import '../../domain/use_case/constellation_field_search_case.dart';
 import '../../domain/entity/constellation_field_search_result.dart';
+import '../../domain/use_case/constellation_person_field_items_case.dart';
 import '../../domain/entity/constellation_field_hidden_item.dart';
 import '../../domain/entity/constellation_field_target_kind.dart';
 import '../../domain/constellation_field_patches.dart';
@@ -155,6 +156,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     this._visibilityCase,
     this._fieldHideCase,
     this._fieldSearchCase,
+    this._personFieldItemsCase,
     this._mutualTrustCase,
     this._trustChainCase,
     this._newPeopleCase,
@@ -212,6 +214,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   final ConstellationVisibilityCase? _visibilityCase;
   final ConstellationFieldHideCase? _fieldHideCase;
   final ConstellationFieldSearchCase? _fieldSearchCase;
+  final ConstellationPersonFieldItemsCase? _personFieldItemsCase;
   final ConstellationMutualTrustCase? _mutualTrustCase;
   final ConstellationTrustChainCase? _trustChainCase;
   final ConstellationNewPeopleCase? _newPeopleCase;
@@ -702,6 +705,9 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
 
   ConstellationFieldSearchCase? get fieldSearchCase => _fieldSearchCase;
 
+  ConstellationPersonFieldItemsCase? get personFieldItemsCase =>
+      _personFieldItemsCase;
+
   /// Graph ids of unread Requests and Posts currently on the field map (#256).
   ///
   /// Hidden items are absent from the loaded field and therefore never glow (#255).
@@ -839,6 +845,48 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       _recomposeAndLayout();
     }
     return true;
+  }
+
+  Future<bool> hideBeaconFromPersonPanel({
+    required ConstellationFieldTargetKind targetKind,
+    required String beaconId,
+  }) async {
+    final hideCase = _fieldHideCase;
+    final snapshot = beginHideFromField(
+      targetKind: targetKind,
+      beaconId: beaconId,
+    );
+    if (snapshot == null || hideCase == null) {
+      return false;
+    }
+    try {
+      await hideCase.hide(
+        targetKind: targetKind.wireValue,
+        targetId: beaconId,
+      );
+    } on Object {
+      cancelHideFromField(snapshot, beaconId: beaconId);
+      return false;
+    }
+    noteHiddenByYouCountDelta(1);
+    return true;
+  }
+
+  Future<bool> showAgainBeaconFromPersonPanel({
+    required ConstellationFieldTargetKind targetKind,
+    required String beaconId,
+    required String title,
+    required String authorId,
+  }) async {
+    return showHiddenFieldItem(
+      ConstellationFieldHiddenItem(
+        targetKind: targetKind,
+        targetId: beaconId,
+        title: title,
+        authorId: authorId,
+        hiddenAt: DateTime.now().toUtc(),
+      ),
+    );
   }
 
   void _onStoreChanged(ConstellationFieldStoreState snapshot) {

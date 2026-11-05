@@ -1263,6 +1263,13 @@
   "@constellationPersonHideRequests": {
     "context": "GraphPersonContextPanel"
   },
+  "constellationPersonItemsActive": "Активные",
+  "constellationPersonItemsClosed": "Закрытые",
+  "constellationPersonItemsHidden": "Скрытые",
+  "constellationPersonItemsSearchHint": "Поиск по их материалам",
+  "constellationPersonItemsEmpty": "Здесь пусто.",
+  "constellationPersonItemsLoadMore": "Загрузить ещё",
+  "constellationShowAgain": "Показать снова",
   "constellationEmptyFiltered": "Нет запросов по этим фильтрам",
   "@constellationEmptyFiltered": {
     "context": "ConstellationFilterBar"

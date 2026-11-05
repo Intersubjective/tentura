@@ -60,6 +60,7 @@ import 'constellation_filter_bar.dart';
 import 'constellation_minimap.dart';
 import 'constellation_no_contacts.dart';
 import 'constellation_overflow_group.dart';
+import 'constellation_person_field_items_section.dart';
 import 'constellation_presence_halo_layer.dart';
 import 'constellation_request_status_marker.dart';
 import 'constellation_node_semantics.dart';
@@ -997,15 +998,23 @@ class _ConstellationBodyState extends State<ConstellationBody>
               ConstellationTrustChainLine(personId: personId),
             ],
           ),
-          discoverableRequests: cubit.discoverableRequestsForPerson(personId),
+          personFieldItemsSection: cubit.personFieldItemsCase == null
+              ? null
+              : ConstellationPersonFieldItemsSection(personId: personId),
+          discoverableRequests: cubit.personFieldItemsCase == null
+              ? cubit.discoverableRequestsForPerson(personId)
+              : const [],
           requestsExpanded: state.expandedPersonIds.contains(personId),
-          onToggleRequestsExpanded: () =>
-              cubit.togglePersonRequestsExpanded(personId),
-          onDiscoverableRequestTap: (request) {
-            cubit
-              ..selectPerson(null)
-              ..selectRequest(request.id);
-          },
+          onToggleRequestsExpanded: cubit.personFieldItemsCase == null
+              ? () => cubit.togglePersonRequestsExpanded(personId)
+              : null,
+          onDiscoverableRequestTap: cubit.personFieldItemsCase == null
+              ? (request) {
+                  cubit
+                    ..selectPerson(null)
+                    ..selectRequest(request.id);
+                }
+              : null,
           footer: ConstellationAnchorTargetButton(
             target: ConstellationAnchorTarget.person(personId),
           ),

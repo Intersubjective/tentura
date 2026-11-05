@@ -1,0 +1,31 @@
+query PersonFieldItems(
+  $personId: String!
+  $bucket: String!
+  $query: String
+  $cursor: String
+) {
+  personFieldItems(
+    personId: $personId
+    bucket: $bucket
+    query: $query
+    cursor: $cursor
+  ) {
+    items {
+      id
+      kind
+      authorId
+      title
+      rootExcerpt
+      status
+      hidden
+      lastActivityAt
+      expiresAt
+    }
+    nextCursor
+    counts {
+      active
+      closed
+      hidden
+    }
+  }
+}

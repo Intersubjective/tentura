@@ -1376,6 +1376,41 @@
   "@constellationPersonHideRequests": {
     "context": "GraphPersonContextPanel"
   },
+  "constellationPersonItemsActive": "Active",
+  "@constellationPersonItemsActive": {
+    "description": "Person panel tab for open Requests and Posts on the Field",
+    "context": "ConstellationField"
+  },
+  "constellationPersonItemsClosed": "Closed",
+  "@constellationPersonItemsClosed": {
+    "description": "Person panel tab for closed Requests and Posts",
+    "context": "ConstellationField"
+  },
+  "constellationPersonItemsHidden": "Hidden",
+  "@constellationPersonItemsHidden": {
+    "description": "Person panel tab for items hidden from the Field",
+    "context": "ConstellationField"
+  },
+  "constellationPersonItemsSearchHint": "Search their items",
+  "@constellationPersonItemsSearchHint": {
+    "description": "Filters the person's Field items list in the panel",
+    "context": "ConstellationField"
+  },
+  "constellationPersonItemsEmpty": "Nothing here.",
+  "@constellationPersonItemsEmpty": {
+    "description": "Empty state for a person Field items tab",
+    "context": "ConstellationField"
+  },
+  "constellationPersonItemsLoadMore": "Load more",
+  "@constellationPersonItemsLoadMore": {
+    "description": "Fetches the next page of person Field items",
+    "context": "ConstellationField"
+  },
+  "constellationShowAgain": "Show again",
+  "@constellationShowAgain": {
+    "description": "Restores a hidden Request or Post to the Field",
+    "context": "ConstellationField"
+  },
   "constellationEmptyFiltered": "No requests match these filters",
   "@constellationEmptyFiltered": {
     "context": "ConstellationFilterBar"
