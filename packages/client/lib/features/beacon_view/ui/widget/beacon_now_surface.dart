@@ -58,7 +58,7 @@ class BeaconNowSurface extends StatefulWidget {
   final void Function(CoordinationItem item) onFocusCoordinationItem;
   final VoidCallback onOpenGeneralThread;
 
-  /// «Не успеваю → написать в обсуждении» (#220).
+  /// «Не успеваю → написать в обсуждении».
   final PlanCantMakeChatCallback? onPlanCantMakeChat;
 
   @override
@@ -103,7 +103,7 @@ class _BeaconNowSurfaceState extends State<BeaconNowSurface> {
                 savedRevision: saved.currentLineRevision,
               ),
             ),
-            // Someone changed it meanwhile: show theirs at once (#517).
+            // Someone changed it meanwhile: show theirs at once.
             onStale: (newer) => unawaited(
               beaconViewCubit.refreshBeaconRoomCue(
                 savedCurrentLine: newer.currentLine,
@@ -431,7 +431,7 @@ class _BeaconNowSurfaceState extends State<BeaconNowSurface> {
                         ),
                       ),
                     ),
-                  // #484: made live without sending — say it reached nobody.
+                  // Made live without sending — say it reached nobody.
                   if (state.isLiveSentToNobody)
                     SliverPadding(
                       padding: EdgeInsets.symmetric(
