@@ -225,6 +225,7 @@ abstract final class TestIds {
       'constellation.temporary_outline.$personId';
   static const constellationPinTarget = 'constellation.pin_target';
   static const constellationUnpinTarget = 'constellation.unpin_target';
+  static const constellationHideFromField = 'constellation.hide_from_field';
   static const constellationFilterShowClosed =
       'constellation.filter.show_closed';
   static const constellationFilterParticipatedOnly =

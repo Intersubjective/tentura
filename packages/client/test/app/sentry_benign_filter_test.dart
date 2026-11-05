@@ -120,12 +120,18 @@ void main() {
       );
     });
 
-    test('web_socket Future already completed is benign', () {
+    // The vendored packages/web_socket_client catches its own Completer race,
+    // so a double-complete that reaches Sentry is a first-party bug.
+    test("first-party 'Bad state: Future already completed' is reported", () {
       expect(
         isBenignSentryThrowable(
           StateError('Bad state: Future already completed'),
         ),
-        isTrue,
+        isFalse,
+      );
+      expect(
+        isBenignSentryExceptionText('Bad state: Future already completed'),
+        isFalse,
       );
     });
 

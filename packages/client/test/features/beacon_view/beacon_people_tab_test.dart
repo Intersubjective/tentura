@@ -91,8 +91,11 @@ BeaconViewState _peopleState({
     roomParticipants: roomParticipants,
     viewerForwardEdges: viewerForwardEdges,
     admittedHelperRoster: admittedHelperRoster,
-    forwardsLoaded: forwardsLoaded,
-    forwardsLoading: forwardsLoading,
+    forwardsLoad: forwardsLoading
+        ? ForwardsLoad.loading
+        : forwardsLoaded
+        ? ForwardsLoad.loaded
+        : ForwardsLoad.idle,
   );
 }
 

@@ -59,6 +59,21 @@ bool isInUnreadView(AttentionReceipt receipt) => switch (receipt.itemKind) {
 bool isActiveOptional(AttentionReceipt receipt) =>
     !receipt.requiresAction && !receipt.isCleared;
 
+/// What «Read all» clears after its sweep (#258): an active optional receipt
+/// the sweep did not take. The forward shell (`relay_received`) is never
+/// cleared. An Activity row is the sweep's own business, so it counts only
+/// once the sweep completed and still left it. The gate
+/// (`UpdatesFeedState.canReadAll`) asks before the sweep, the action
+/// (`AttentionCase.readAll`) after it.
+bool isReadAllLeftover(
+  AttentionReceipt receipt, {
+  required bool sweepCompleted,
+}) =>
+    receipt.itemKind == AttentionItemKind.receipt &&
+    isActiveOptional(receipt) &&
+    receipt.presentationKey != 'relay_received' &&
+    (sweepCompleted || receipt.surface != AttentionSurface.activity);
+
 /// The subset of [receipts] a sweep may optimistically remove.
 Set<String> optimisticSweepMembers(Iterable<AttentionReceipt> receipts) => {
   for (final receipt in receipts)

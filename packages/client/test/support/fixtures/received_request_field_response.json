@@ -69,11 +69,11 @@
         "viewerHasForwardEdge": true,
         "parentBeaconId": null,
         "helpOfferCount": 0,
+        "has_unread": false,
         "coverSource": 0,
         "coverThumb": null,
         "forwardedById": "Uforwardbob01",
-        "forwardedByName": "Bob",
-        "has_unread": false
+        "forwardedByName": "Bob"
       }
     ],
     "posts": [],

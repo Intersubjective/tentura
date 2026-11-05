@@ -47,7 +47,7 @@ BeaconViewState _state(List<ForwardEdge> edges) => BeaconViewState(
     ),
   ],
   viewerForwardEdges: edges,
-  forwardsLoaded: true,
+  forwardsLoad: ForwardsLoad.loaded,
 );
 
 void main() {

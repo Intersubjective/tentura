@@ -36,26 +36,16 @@ abstract class UpdatesFeedState extends StateBase with _$UpdatesFeedState {
   bool get hasActionError => actionError != null;
 
   /// «Read all» has something to do (#258): the sweep would take rows, or a
-  /// loaded row is on the Unread view ([isInUnreadView], the server's
-  /// `unread` filter) and is either unseen or optional attention Read all
-  /// clears after the sweep (`AttentionCase.readAll`). `summary.unreadTotal`
-  /// is not the gate: it also counts unanswered forwards, which Read all
-  /// never clears (round 1).
-  ///
-  /// Only rows on Unread count (round 3): Dismiss all clears rows without
-  /// reading them, so «All» keeps cleared, unseen rows that are not on
-  /// Unread and that Read all has nothing to do for; counting them left the
-  /// control enabled on «All» and disabled on «Unread».
+  /// loaded row on Unread ([isInUnreadView]) is unseen or an
+  /// [isReadAllLeftover]. `summary.unreadTotal` is not the gate: it also
+  /// counts unanswered forwards, which Read all never clears. Rows off
+  /// Unread (Dismiss all clears without reading) do not count.
   bool get canReadAll =>
       sweepEligible ||
       items.any(
         (r) =>
             isInUnreadView(r) &&
-            (!r.isSeen ||
-                (r.itemKind == AttentionItemKind.receipt &&
-                    isActiveOptional(r) &&
-                    r.presentationKey != 'relay_received' &&
-                    r.surface != AttentionSurface.activity)),
+            (!r.isSeen || isReadAllLeftover(r, sweepCompleted: false)),
       );
 
   PromptProjection promptProjectionFor(String subjectId) =>

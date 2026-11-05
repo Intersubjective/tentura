@@ -995,10 +995,8 @@ final class AttentionCase implements AttentionReconcilePort {
     return result;
   }
 
-  /// One page of Unread, read back after the sweep: its active optional
-  /// receipts the sweep did not take. An Activity row is the sweep's own
-  /// business, so it is only picked up when the sweep completed and still
-  /// left it (it was never a member). The forward shell is never cleared.
+  /// One page of Unread, read back after the sweep: its [isReadAllLeftover]
+  /// rows.
   Future<void> _clearUnreadLeftovers({required bool sweepCompleted}) async {
     final generation = _accountGeneration;
     final feed = await _repository.fetch(view: AttentionView.unread);
@@ -1006,10 +1004,7 @@ final class AttentionCase implements AttentionReconcilePort {
     final beaconIds = <String>{};
     final receiptIds = <String>{};
     for (final receipt in feed.page.items) {
-      if (receipt.itemKind != AttentionItemKind.receipt ||
-          !isActiveOptional(receipt) ||
-          receipt.presentationKey == 'relay_received' ||
-          (receipt.surface == AttentionSurface.activity && !sweepCompleted)) {
+      if (!isReadAllLeftover(receipt, sweepCompleted: sweepCompleted)) {
         continue;
       }
       final beaconId = receipt.beaconId;

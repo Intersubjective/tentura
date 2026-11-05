@@ -47,7 +47,7 @@ BeaconViewState _authorState({
   ),
   myProfile: _author,
   myForwards: forwards,
-  forwardsLoaded: true,
+  forwardsLoad: ForwardsLoad.loaded,
 );
 
 /// The message key the decline-specific cue must live under, in both ARBs.

@@ -387,6 +387,54 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
     );
   }
 
+  /// Snapshot of a Request or Post before «Hide from Field» removes it (#255).
+  ConstellationFieldHideSnapshot? hideSnapshotForBeacon(String beaconId) {
+    final field = _state.field;
+    if (field == null || beaconId.isEmpty) {
+      return null;
+    }
+    return snapshotFieldHide(field, beaconId: beaconId);
+  }
+
+  /// Optimistically removes a Request or Post from the loaded field (#255).
+  void applyFieldHide(String beaconId) {
+    final field = _state.field;
+    if (field == null || beaconId.isEmpty) {
+      return;
+    }
+    _heldRequests.remove(beaconId);
+    final patched = removeFieldBeacon(field, beaconId: beaconId);
+    if (identical(patched, field)) {
+      return;
+    }
+    _emit(
+      ConstellationFieldStoreState(
+        field: patched,
+        coveredRevision: _state.coveredRevision,
+        generation: _state.generation,
+      ),
+    );
+  }
+
+  /// Restores a Request or Post after undo or a failed hide (#255).
+  void restoreFieldHide(ConstellationFieldHideSnapshot snapshot) {
+    final field = _state.field;
+    if (field == null) {
+      return;
+    }
+    final patched = reinsertFieldHide(field, snapshot);
+    if (identical(patched, field)) {
+      return;
+    }
+    _emit(
+      ConstellationFieldStoreState(
+        field: patched,
+        coveredRevision: _state.coveredRevision,
+        generation: _state.generation,
+      ),
+    );
+  }
+
   /// A successful mute mutation for a beacon on the Field (#256).
   void noteBeaconMuted(String beaconId) {
     if (beaconId.isEmpty || !_mutedBeaconIds.add(beaconId)) {

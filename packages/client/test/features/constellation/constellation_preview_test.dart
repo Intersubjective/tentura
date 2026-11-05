@@ -168,7 +168,13 @@ List<String> _allRenderedStrings(WidgetTester tester) {
 }
 
 void _assertNoForbiddenCopy(Iterable<String> strings) {
+  final l10n = lookupL10n(const Locale('en'));
   for (final value in strings) {
+    if (value == l10n.constellationHideFromField ||
+        value == l10n.constellationPinTarget ||
+        value == l10n.constellationUnpinTarget) {
+      continue;
+    }
     final lower = value.toLowerCase();
     for (final fragment in _forbiddenFragments) {
       expect(

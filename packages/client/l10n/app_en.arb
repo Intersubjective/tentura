@@ -10062,6 +10062,16 @@
     "description": "Arrange sheet: undoes the last arrangement action on the Field map",
     "context": "ConstellationArrangeSheet"
   },
+  "constellationHideFromField": "Hide from Field",
+  "@constellationHideFromField": {
+    "description": "Removes a Request or Post from the viewer's Field map and list until they show it again",
+    "context": "ConstellationField"
+  },
+  "constellationHiddenFromFieldSnack": "Hidden from your Field.",
+  "@constellationHiddenFromFieldSnack": {
+    "description": "Confirmation after hiding a Request or Post from the Field; Undo restores it",
+    "context": "ConstellationField"
+  },
   "constellationRedo": "Redo",
   "@constellationRedo": {
     "description": "Arrange sheet: applies the last undone arrangement action on the Field map again",
