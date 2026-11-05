@@ -240,6 +240,11 @@ void main() {
             'constellation.filter.timing.any',
             'constellation.filter.timing.undated',
           ),
+          (
+            l10n.constellationFilterActivityRecency,
+            'constellation.filter.activity.any',
+            'constellation.filter.activity.within_7',
+          ),
         ]) {
           final labelRect = tester.getRect(find.text(label));
           final wrap = find.ancestor(

@@ -17,7 +17,6 @@ import 'package:tentura/features/constellation/domain/entity/constellation_field
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_state.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_anchor_controls.dart';
-import 'package:tentura/features/constellation/ui/widget/constellation_text_view.dart';
 
 import '../../support/constellation_composer_screen_harness.dart';
 

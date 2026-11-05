@@ -42,6 +42,7 @@ class _ConstellationFilterSheet extends StatelessWidget {
           previous.filterCapabilitySlugs != current.filterCapabilitySlugs ||
           previous.filterLocation != current.filterLocation ||
           previous.filterTiming != current.filterTiming ||
+          previous.filterActivityRecency != current.filterActivityRecency ||
           previous.filterIncludeUnspecified !=
               current.filterIncludeUnspecified ||
           previous.membershipFilters != current.membershipFilters ||
@@ -126,6 +127,7 @@ class ConstellationEmptyFilterBanner extends StatelessWidget {
           previous.filterCapabilitySlugs != current.filterCapabilitySlugs ||
           previous.filterLocation != current.filterLocation ||
           previous.filterTiming != current.filterTiming ||
+          previous.filterActivityRecency != current.filterActivityRecency ||
           previous.filterIncludeUnspecified !=
               current.filterIncludeUnspecified ||
           previous.field != current.field ||
@@ -179,6 +181,7 @@ class ConstellationFilterBar extends StatelessWidget {
           previous.filterCapabilitySlugs != current.filterCapabilitySlugs ||
           previous.filterLocation != current.filterLocation ||
           previous.filterTiming != current.filterTiming ||
+          previous.filterActivityRecency != current.filterActivityRecency ||
           previous.filterIncludeUnspecified !=
               current.filterIncludeUnspecified ||
           previous.membershipFilters != current.membershipFilters ||
@@ -214,6 +217,8 @@ class ConstellationFilterBar extends StatelessWidget {
               _LocationFilters(cubit: cubit),
               SizedBox(height: tt.tightGap),
               _TimingFilters(cubit: cubit),
+              SizedBox(height: tt.tightGap),
+              _ActivityRecencyFilters(cubit: cubit),
               SizedBox(height: tt.tightGap),
               SwitchListTile.adaptive(
                 key: const Key('constellation.filter.include_unspecified'),
@@ -561,6 +566,59 @@ class _TimingFilters extends StatelessWidget {
                 }
               },
             ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _ActivityRecencyFilters extends StatelessWidget {
+  const _ActivityRecencyFilters({required this.cubit});
+
+  final ConstellationCubit cubit;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
+    final tt = context.tt;
+    final activityRecency = cubit.state.filterActivityRecency;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          l10n.constellationFilterActivityRecency,
+          style: Theme.of(context).textTheme.labelLarge,
+        ),
+        SizedBox(height: tt.rowGap),
+        Wrap(
+          spacing: tt.tightGap,
+          runSpacing: tt.tightGap,
+          children: [
+            FilterChip(
+              key: const Key('constellation.filter.activity.any'),
+              label: Text(l10n.constellationFilterActivityRecencyAny),
+              selected: activityRecency is ActivityRecencyFilterAny,
+              onSelected: (selected) {
+                if (selected) {
+                  cubit.setFilterActivityRecency(const ActivityRecencyFilterAny());
+                }
+              },
+            ),
+            for (final days in [7, 30, 90])
+              FilterChip(
+                key: Key('constellation.filter.activity.within_$days'),
+                label: Text(l10n.constellationFilterActivityRecencyWithinDays(days)),
+                selected: activityRecency is ActivityRecencyFilterWithinDays &&
+                    activityRecency.days == days,
+                onSelected: (selected) {
+                  if (selected) {
+                    cubit.setFilterActivityRecency(
+                      activityRecencyFilterWithinDays(days),
+                    );
+                  }
+                },
+              ),
           ],
         ),
       ],

@@ -310,6 +310,7 @@ void main() {
               capabilitySlugs: {'transport'},
               location: LocationFilter.hasLocation,
               timing: timingFilterWithinDays(1),
+              activityRecency: activityRecencyFilterAny,
               includeUnspecified: false,
             ),
             asOfUtc: field.loadedAt,

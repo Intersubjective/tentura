@@ -2577,6 +2577,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       state.filterCapabilitySlugs.isNotEmpty ||
       state.filterLocation != LocationFilter.any ||
       state.filterTiming is! TimingFilterAny ||
+      state.filterActivityRecency is! ActivityRecencyFilterAny ||
       !state.filterIncludeUnspecified ||
       state.membershipFilters.showClosed ||
       state.membershipFilters.participatedOnly;
@@ -3271,6 +3272,15 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     _recomposeAndLayout();
   }
 
+  void setFilterActivityRecency(ActivityRecencyFilter activityRecency) {
+    if (isClosed || state.filterActivityRecency == activityRecency) {
+      return;
+    }
+    _cancelUnsentPlacement(write: false);
+    emit(state.copyWith(filterActivityRecency: activityRecency));
+    _recomposeAndLayout();
+  }
+
   void setFilterIncludeUnspecified(bool include) {
     if (isClosed || state.filterIncludeUnspecified == include) {
       return;
@@ -3323,6 +3333,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         filterCapabilitySlugs: const {},
         filterLocation: LocationFilter.any,
         filterTiming: const TimingFilterAny(),
+        filterActivityRecency: const ActivityRecencyFilterAny(),
         filterIncludeUnspecified: true,
         membershipFilters: defaultMembership,
       ),
@@ -4083,18 +4094,40 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         }..removeWhere(
           (_, request) => request.isPlaceholder || request.authorId != personId,
         );
-    final filteredRequestIds = _filteredRequestIds(field, byId.values);
+    final filteredRequestIds = _filteredRequestIds(
+      field,
+      byId.values,
+      {
+        for (final request in field.resolvedAnchorProjection.pinnedRequests)
+          if (request.authorId == personId) request.id,
+      },
+    );
+    final lastActivityAtById = {
+      for (final request in byId.values) request.id: request.lastActivityAt,
+    };
     return [
       for (final request in byId.values)
         if (filteredRequestIds.contains(request.id)) request,
-    ]..sort((a, b) => a.id.compareTo(b.id));
+    ]..sort(
+      (a, b) => compareConstellationBeaconRecency(
+        aId: a.id,
+        bId: b.id,
+        lastActivityAtById: lastActivityAtById,
+      ),
+    );
   }
 
   Set<String> _filteredRequestIds(
     ConstellationField field, [
     Iterable<ConstellationRequest>? requests,
+    Set<String> activityRecencyExemptIds = const {},
   ]) {
     final asOf = state.loadedAt ?? field.loadedAt;
+    final pinnedIds = {
+      for (final request in field.resolvedAnchorProjection.pinnedRequests)
+        request.id,
+      ...activityRecencyExemptIds,
+    };
     return filterRequestIds(
       requests: (requests ?? field.requests).map(
         (request) => (
@@ -4103,22 +4136,26 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
           primaryNeedSlug: request.primaryNeedSlug,
           startAt: request.startAt,
           endAt: request.endAt,
+          lastActivityAt: request.lastActivityAt,
           addressLabel: request.addressLabel,
           hasCoordinates: request.hasCoordinates,
         ),
       ),
       filters: state.filters,
       asOfUtc: asOf.toUtc(),
+      activityRecencyExemptIds: pinnedIds,
     );
   }
 
   Map<String, List<String>> _allRequestsByAuthor(ConstellationField field) {
     final byAuthor = <String, List<String>>{};
+    final lastActivityAtById = <String, DateTime?>{};
     for (final request in field.requests) {
       byAuthor.putIfAbsent(request.authorId, () => <String>[]).add(request.id);
+      lastActivityAtById[request.id] = request.lastActivityAt;
     }
     for (final entry in byAuthor.entries) {
-      entry.value.sort();
+      sortConstellationBeaconIdsByRecency(entry.value, lastActivityAtById);
     }
     return byAuthor;
   }

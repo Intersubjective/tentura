@@ -34,17 +34,33 @@ class _FieldRepository implements ConstellationRepositoryPort {
     ConstellationProjection projection = ConstellationProjection.full,
   }) async {
     final base = tagLensHarnessField();
+    final loadedAt = base.loadedAt;
     return base.copyWith(
       posts: [
         ConstellationPost(
           id: 'bob-post',
           authorId: 'bob',
           rootExcerpt: 'Sharing garden tools',
-          lastActivityAt: DateTime.utc(2026, 10, 28),
+          lastActivityAt: loadedAt.add(const Duration(hours: 2)),
         ),
       ],
       requests: [
-        ...base.requests,
+        for (final request in base.requests)
+          switch (request.id) {
+            'req-ann-1' => request.copyWith(
+              lastActivityAt: loadedAt.add(const Duration(hours: 3)),
+            ),
+            'req-ann-2' => request.copyWith(
+              lastActivityAt: loadedAt.subtract(const Duration(days: 2)),
+            ),
+            'req-bob' => request.copyWith(
+              lastActivityAt: loadedAt.subtract(const Duration(days: 1)),
+            ),
+            'req-cid' => request.copyWith(
+              lastActivityAt: loadedAt.subtract(const Duration(days: 3)),
+            ),
+            _ => request,
+          },
         for (var i = 0; i < 40; i++)
           ConstellationRequest(
             id: 'viewer-request-$i',
@@ -52,6 +68,7 @@ class _FieldRepository implements ConstellationRepositoryPort {
             title: 'Viewer request $i',
             status: 0,
             isMine: true,
+            lastActivityAt: loadedAt.subtract(Duration(hours: i + 4)),
           ),
       ],
     );
@@ -219,8 +236,8 @@ void _expectClear(
     final category = switch (node) {
       FieldPersonNode(:final person) =>
         person.id == 'ego' ? 'viewer' : 'person',
-      FieldBeaconNode(request: final request?) => 'request',
-      FieldBeaconNode(post: final post?) => 'post',
+      FieldBeaconNode(request: final _?) => 'request',
+      FieldBeaconNode(post: final _?) => 'post',
       _ => throw StateError('Unexpected Field node: $node'),
     };
     renderedCategories.add(category);

@@ -28,6 +28,7 @@ ConstellationComposedPresentation _compose(
     capabilitySlugs: {},
     location: LocationFilter.any,
     timing: TimingFilterAny(),
+    activityRecency: ActivityRecencyFilterAny(),
     includeUnspecified: true,
   ),
   asOfUtc: DateTime.utc(2026, 10, 24),
