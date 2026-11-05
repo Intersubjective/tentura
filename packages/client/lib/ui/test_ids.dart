@@ -231,6 +231,9 @@ abstract final class TestIds {
   static const constellationFilterParticipatedOnly =
       'constellation.filter.participated_only';
   static const constellationHiddenPinsCount = 'constellation.hidden_pins_count';
+  static const constellationPersonItemsSearch = 'constellation.person_items.search';
+  static const constellationPersonItemsLoadMore =
+      'constellation.person_items.load_more';
   static const constellationHiddenByYouRow = 'constellation.hidden_by_you_row';
   static const constellationHiddenByYouShow = 'constellation.hidden_by_you_show';
   static const constellationRequestStatusMarker =
