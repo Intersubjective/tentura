@@ -1483,7 +1483,7 @@
   "@constellationFilterLocationHas": {
     "context": "ConstellationFilterBar"
   },
-  "constellationFilterTiming": "Timing",
+  "constellationFilterTiming": "Happening",
   "@constellationFilterTiming": {
     "context": "ConstellationFilterBar"
   },
@@ -1498,6 +1498,23 @@
         "type": "int"
       }
     }
+  },
+  "constellationFilterActivityRecency": "Active in the last",
+  "@constellationFilterActivityRecency": {
+    "context": "ConstellationFilterBar"
+  },
+  "constellationFilterActivityRecencyAny": "Any",
+  "@constellationFilterActivityRecencyAny": {
+    "context": "ConstellationFilterBar"
+  },
+  "constellationFilterActivityRecencyWithinDays": "{days} days",
+  "@constellationFilterActivityRecencyWithinDays": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    },
+    "context": "ConstellationFilterBar"
   },
   "constellationAbsenceFilterHidden": "Hidden by your filters",
   "@constellationAbsenceFilterHidden": {

@@ -54,6 +54,7 @@ abstract class ConstellationState extends StateBase with _$ConstellationState {
     @Default(<String>{}) Set<String> filterCapabilitySlugs,
     @Default(LocationFilter.any) LocationFilter filterLocation,
     @Default(TimingFilterAny()) TimingFilter filterTiming,
+    @Default(ActivityRecencyFilterAny()) ActivityRecencyFilter filterActivityRecency,
     @Default(true) bool filterIncludeUnspecified,
     @Default(ConstellationFieldMembershipFilters.defaults)
     ConstellationFieldMembershipFilters membershipFilters,
@@ -89,6 +90,7 @@ abstract class ConstellationState extends StateBase with _$ConstellationState {
     capabilitySlugs: filterCapabilitySlugs,
     location: filterLocation,
     timing: filterTiming,
+    activityRecency: filterActivityRecency,
     includeUnspecified: filterIncludeUnspecified,
   );
 

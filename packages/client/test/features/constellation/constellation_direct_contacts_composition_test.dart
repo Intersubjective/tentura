@@ -22,6 +22,7 @@ ConstellationComposedPresentation _compose(ConstellationField field) =>
         capabilitySlugs: {},
         location: LocationFilter.any,
         timing: TimingFilterAny(),
+        activityRecency: ActivityRecencyFilterAny(),
         includeUnspecified: true,
       ),
       asOfUtc: _asOf,

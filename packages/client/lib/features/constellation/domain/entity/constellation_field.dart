@@ -135,6 +135,7 @@ abstract class ConstellationRequest with _$ConstellationRequest {
     String? primaryNeedSlug,
     DateTime? startAt,
     DateTime? endAt,
+    DateTime? lastActivityAt,
     String? addressLabel,
     @Default(false) bool hasCoordinates,
     @Default(false) bool isMine,

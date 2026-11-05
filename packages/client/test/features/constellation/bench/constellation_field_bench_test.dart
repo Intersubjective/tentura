@@ -24,6 +24,7 @@ Map<String, double> _timeLayout(int size) {
     capabilitySlugs: <String>{},
     location: LocationFilter.any,
     timing: TimingFilterAny(),
+    activityRecency: ActivityRecencyFilterAny(),
     includeUnspecified: true,
   );
 

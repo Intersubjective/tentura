@@ -90,13 +90,14 @@ Future<ConstellationCubit> _loadCubit({bool withPost = false}) async {
           edges: const [
             ConstellationTrustEdgeEntity(src: 'ego', dst: 'a', tier: 1),
           ],
-          requests: const [
+          requests: [
             ConstellationRequest(
               id: 'req-a',
               authorId: 'a',
               title: 'Need tools',
               status: 0,
               needs: ['tools'],
+              lastActivityAt: DateTime.utc(2026, 9),
             ),
           ],
         ),
