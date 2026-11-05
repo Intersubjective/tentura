@@ -3,8 +3,9 @@ library;
 
 import 'dart:io';
 
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 
+import '../../hook/build/wasm_preload_artifacts.dart';
 import '../../hook/build/web_build_version.dart';
 
 // Observed before this release task began, not a prescribed next version.
@@ -34,21 +35,48 @@ void main() {
       _expectReleaseAdvanced(resolveWebBuildVersion(buildId: ''));
     });
 
-    test('source page requests the new release with a fresh bootstrap URL', () {
-      final index = File('web/index.html').readAsStringSync();
-      final scripts = RegExp(
-        r'''<script\b[^>]*\bsrc=["']([^"']*flutter_bootstrap\.js[^"']*)["']''',
-      ).allMatches(index).toList();
-      expect(scripts, hasLength(1));
-      final bootstrapUrl = Uri.parse(scripts.single.group(1)!);
-      final version = bootstrapUrl.queryParameters['v'];
-      expect(
-        version,
-        isNotNull,
-        reason: 'Returning browsers need a versioned URL',
-      );
-      expect(version, resolveWebBuildVersion(buildId: ''));
-      _expectReleaseAdvanced(version!);
-    });
+    test(
+      'built release requests the package version while source retains a placeholder',
+      () {
+        final source = File('web/index.html');
+        final sourceBytes = source.readAsBytesSync();
+        final output = Directory.systemTemp.createTempSync('client_release_');
+        addTearDown(() => output.deleteSync(recursive: true));
+        source.copySync('${output.path}/index.html');
+        File(
+          '${output.path}/manifest.json',
+        ).writeAsStringSync('{"name":"Tentura"}');
+        for (final asset in [
+          'main.dart.wasm',
+          'main.dart.js',
+          'flutter_bootstrap.js',
+        ]) {
+          File(
+            '${output.path}/$asset',
+          ).writeAsStringSync('compiled artifact fixture');
+        }
+        final packageVersion = resolveWebBuildVersion(buildId: '');
+
+        generateWasmPreloadArtifacts(
+          buildWebDir: output.path,
+          version: packageVersion,
+        );
+
+        final deployed = _bootstrapVersion(File('${output.path}/index.html'));
+        expect(deployed, packageVersion);
+        expect(deployed, isNot('0.0.0-dev'));
+        _expectReleaseAdvanced(deployed!);
+        expect(source.readAsBytesSync(), sourceBytes);
+        expect(_bootstrapVersion(source), '0.0.0-dev');
+      },
+    );
   });
+}
+
+String? _bootstrapVersion(File index) {
+  final scripts = RegExp(
+    r'''<script\b[^>]*\bsrc=["']([^"']*flutter_bootstrap\.js[^"']*)["']''',
+  ).allMatches(index.readAsStringSync()).toList();
+  expect(scripts, hasLength(1));
+  return Uri.parse(scripts.single.group(1)!).queryParameters['v'];
 }

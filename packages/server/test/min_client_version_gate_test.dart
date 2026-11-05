@@ -72,13 +72,19 @@ void main() {
       );
     });
 
-    /// The cache-buster carries the version into the browser. A `?v=` that
-    /// disagrees with the pubspec serves a returning client a stale bundle —
-    /// of a build the floor then rejects, with no way for that client to fetch
-    /// the one that would be accepted.
-    test('the checked-in cache-buster matches the pubspec', () {
-      expect(_bootstrapCacheBusterVersion(), _shippedClientVersion());
-    });
+    /// Source HTML has no release version to reconcile. Build artifacts carry
+    /// the actual client version; the server floor is compared with pubspec,
+    /// never with this development placeholder.
+    test(
+      'the source bootstrap placeholder is independent of the client version floor',
+      () {
+        expect(_bootstrapCacheBusterVersion(), '0.0.0-dev');
+        expect(
+          _compare(_shippedClientVersion(), kDefaultMinClientVersion),
+          greaterThanOrEqualTo(0),
+        );
+      },
+    );
 
     /// `web/manifest.json` used to carry the version too, which made it a third
     /// place the number had to be kept in step. It drifted twice in one day and
@@ -166,7 +172,7 @@ String _shippedClientVersion() {
 String _bootstrapCacheBusterVersion() {
   final html = _clientFile('web/index.html').readAsStringSync();
   final match = RegExp(
-    r'flutter_bootstrap\.js\?v=([0-9]+\.[0-9]+\.[0-9]+)',
+    r'''flutter_bootstrap\.js\?v=([^"']+)''',
   ).firstMatch(html);
   if (match == null) {
     fail('web/index.html has no flutter_bootstrap.js?v= cache-buster');

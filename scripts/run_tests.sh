@@ -167,7 +167,17 @@ touches_mr_area() {
 }
 
 server_files() {
-  local -a files=("$@")
+  local -a requested=("$@") files=()
+  local f
+  # perf and load suites are manual measurements on an idle machine (see the
+  # header): an affected-tests selection must not pull them into a gate.
+  for f in "${requested[@]}"; do
+    if server_header_has_tag perf "$f" || server_header_has_tag load "$f"; then
+      log "skipping perf/load suite (manual measurement): $f"
+    else
+      files+=("$f")
+    fi
+  done
   (( ${#files[@]} > 0 )) || { log "no server test files"; return 0; }
   local j; j="$(concurrency server-files)"
   # mr-tagged files must not share the run with others: split them out.
@@ -180,13 +190,13 @@ server_files() {
     else rest+=("$f"); fi
   done
   if (( ${#rest[@]} > 0 )); then
-    (cd "$ROOT/packages/server" && export TENTURA_PG_TESTS_REQUIRED=1 && run_chunked 30m dart test -j "$j" -- "${rest[@]}") || rc=1
+    (cd "$ROOT/packages/server" && export TENTURA_PG_TESTS_REQUIRED=1 && run_chunked 30m dart test -j "$j" -x perf -x load -- "${rest[@]}") || rc=1
   fi
   if (( ${#mr[@]} > 0 )); then
-    (cd "$ROOT/packages/server" && export TENTURA_PG_TESTS_REQUIRED=1 && run 30m dart test -j 1 "${mr[@]}") || rc=1
+    (cd "$ROOT/packages/server" && export TENTURA_PG_TESTS_REQUIRED=1 && run 30m dart test -j 1 -x perf -x load "${mr[@]}") || rc=1
   fi
   for f in "${isolated[@]}"; do
-    (cd "$ROOT/packages/server" && export TENTURA_PG_TESTS_REQUIRED=1 && run 10m dart test -j 1 "$f") || rc=1
+    (cd "$ROOT/packages/server" && export TENTURA_PG_TESTS_REQUIRED=1 && run 10m dart test -j 1 -x perf -x load "$f") || rc=1
   done
   return "$rc"
 }

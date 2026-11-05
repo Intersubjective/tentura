@@ -5125,6 +5125,7 @@ type query_root {
   blockPreview(cascadeMode: Int, objectId: String!): v2_BlockPreview!
   closureResultForViewer(beaconId: String!): v2_ClosureResult
   personAutoTagMembers(kind: Int!): [String!]!
+  peopleListMeta: [v2_PersonListMeta!]!
   personAutoTags: [v2_PersonAutoTag!]!
   personTagMemberships: [v2_PersonTagMembers!]!
   personTagSuggestionState: v2_PersonTagSuggestionState!
@@ -8353,9 +8354,10 @@ type v2_ConstellationRequest {
   hasUnread: Boolean!
   helpOfferCount: Int!
   id: String!
+  kind: Int
+  lastActivityAt: String
   pinState: String
   isMine: Boolean!
-  lastActivityAt: String
   needs: [String!]!
   primaryNeedSlug: String
   startAt: String
@@ -8620,6 +8622,13 @@ input v2_PersonTagMemberOpInput {
   tagId: String!
 }
 
+type v2_PersonListMeta {
+  id: String!
+  lastInteractionAt: v2_Date
+  newReason: String
+  newSince: v2_Date
+}
+
 type v2_PersonTagMembers {
   personIds: [String!]!
   tagId: String!
@@ -8745,6 +8754,7 @@ type v2_InboxRoomContextRow {
   parentTitle: String
   planSliceJson: String
   publicFactSnippet: String
+  questionsUnreadCount: Int!
   roomUnreadCount: Int!
   unreadRoom: String
 }

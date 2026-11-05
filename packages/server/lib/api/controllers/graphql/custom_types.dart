@@ -10,6 +10,7 @@ final gqlTypeConstellationTrustChainPerson =
       ]);
 
 List<GraphQLType<dynamic, dynamic>> get customTypes => [
+  gqlTypePersonListMeta,
   gqlTypeFieldHiddenItem,
   gqlTypePersonFieldItemsPage,
   gqlTypePersonFieldItem,
@@ -793,6 +794,9 @@ final gqlTypeInboxRoomContextRow =
         field('lastRoomMeaningfulChange', graphQLString),
         field('nextMoveText', graphQLString),
         field('roomUnreadCount', graphQLInt.nonNullable()),
+        // The Questions part of roomUnreadCount, so a client-side discussion
+        // read watermark cannot hide an unread Question.
+        field('questionsUnreadCount', graphQLInt.nonNullable()),
         // Room holding the oldest unread message: discussion | questions.
         field('unreadRoom', graphQLString),
         field('lastSeenAt', graphQLString),
@@ -2427,6 +2431,15 @@ final class _DynamicListType extends GraphQLListType<dynamic, dynamic> {
   @override
   GraphQLType<List<dynamic>, List<dynamic>> coerceToInputObject() => this;
 }
+
+/// Sort keys for one person on the People tab (see `peopleListMeta`).
+final gqlTypePersonListMeta = GraphQLObjectType('PersonListMeta', null)
+  ..fields.addAll([
+    field('id', graphQLString.nonNullable()),
+    field('newSince', graphQLDate),
+    field('newReason', graphQLString),
+    field('lastInteractionAt', graphQLDate),
+  ]);
 
 final gqlTypeFieldSearchPerson = GraphQLObjectType('FieldSearchPerson', null)
   ..fields.addAll([

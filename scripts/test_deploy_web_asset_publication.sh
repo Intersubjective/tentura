@@ -5,6 +5,10 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CASE="${1:-dev}"
 MODE="${2:-all}"
+# An artifact produced by the client build tests can replace the canned payload.
+# The expected version is supplied independently, from that test's pubspec.
+ARTIFACT_DIR="${3:-}"
+[[ -z "$ARTIFACT_DIR" || -n "${4:-}" ]] || { echo 'Artifact input needs its expected version' >&2; exit 2; }
 [[ "$CASE" == dev || "$CASE" == prod ]] || { echo 'Expected dev or prod' >&2; exit 2; }
 [[ "$MODE" == all || "$MODE" == order-only ]] || { echo 'Expected all or order-only' >&2; exit 2; }
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/tentura-web-publication.XXXXXX")"
@@ -56,7 +60,7 @@ for number in $(seq 0 21); do
   touch -m -t "202001010000.$(printf '%02d' "$number")" "$WEB/app-assets/previous-$number"
 done
 
-VERSION='9.0.0-new-build'
+VERSION="${4:-9.0.0-new-build}"
 mkdir -p "$PAYLOAD/app-assets/$VERSION/assets/packages" "$PAYLOAD/app-assets/$VERSION/canvaskit"
 printf 'new sqlite\n' > "$PAYLOAD/app-assets/$VERSION/assets/packages/sqlite3.wasm"
 printf 'new worker\n' > "$PAYLOAD/app-assets/$VERSION/assets/packages/drift_worker.js"
@@ -74,6 +78,12 @@ printf 'const CACHE_VERSION = "%s";\n' "$VERSION" > "$PAYLOAD/tentura-app-cache-
 printf '{"version":"%s"}\n' "$VERSION" > "$PAYLOAD/version.json"
 printf '{"name":"Tentura","version":"%s"}\n' "$VERSION" > "$PAYLOAD/manifest.json"
 printf 'root PWA icon\n' > "$PAYLOAD/tentura-icon-192.png"
+if [[ -n "$ARTIFACT_DIR" ]]; then
+  rm -rf "$PAYLOAD"
+  mkdir -p "$PAYLOAD"
+  cp -a "$ARTIFACT_DIR/." "$PAYLOAD/"
+  touch -m -t 201901010000 "$PAYLOAD/app-assets/$VERSION"
+fi
 
 failures=0
 check() {
@@ -121,6 +131,10 @@ for attempt in 1 2; do
     fi
   fi
   [[ "$MODE" == all ]] || continue
+  check "$CASE deployment $attempt serves the expected bootstrap version" \
+    grep -Fq "flutter_bootstrap.js?v=$VERSION\"" "$WEB/index.html"
+  check "$CASE deployment $attempt never serves the source placeholder" \
+    test "$(grep -Fc 'flutter_bootstrap.js?v=0.0.0-dev' "$WEB/index.html" || true)" -eq 0
   check "$CASE deployment $attempt removes stale root assets" test ! -e "$WEB/assets"
   check "$CASE deployment $attempt removes stale root canvaskit" test ! -e "$WEB/canvaskit"
   check "$CASE deployment $attempt removes obsolete root files" test ! -e "$WEB/obsolete.js"

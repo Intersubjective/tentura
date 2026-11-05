@@ -15,8 +15,7 @@ mixin RoomReadsFromPerRequestStubs implements BeaconRoomRepositoryPort {
     Iterable<String> beaconIds, {
     required String viewerUserId,
   }) async => {
-    for (final id in beaconIds)
-      id: await _facts(id, viewerUserId),
+    for (final id in beaconIds) id: await _facts(id, viewerUserId),
   };
 
   Future<RoomViewerFacts> _facts(String id, String viewerUserId) async {
@@ -60,10 +59,16 @@ mixin RoomReadsFromPerRequestStubs implements BeaconRoomRepositoryPort {
 
   // Stubs hold no Questions room, so no card has a Questions tap target.
   @override
-  Future<Map<String, String>> oldestUnreadRoomByBeacon(
+  Future<Map<String, RoomUnreadSummary>> unreadRoomSummaries(
     Iterable<String> beaconIds, {
     required String viewerUserId,
-  }) async => {};
+  }) async => {
+    for (final entry in (await unreadMainRoomMessageCounts(
+      beaconIds,
+      viewerUserId: viewerUserId,
+    )).entries)
+      entry.key: RoomUnreadSummary(discussion: entry.value, questions: 0),
+  };
 }
 
 /// For item fakes that stub [listByBeacon]: answers the batched open-blocker

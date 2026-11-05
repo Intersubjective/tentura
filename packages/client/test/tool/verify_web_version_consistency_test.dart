@@ -1,7 +1,10 @@
+@Tags(['repo-files'])
+library;
+
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 
 import '../../hook/build/web_build_version.dart';
 
@@ -23,11 +26,17 @@ Directory _clientPackageRoot() {
   );
 }
 
-Future<ProcessResult> _runDefaultVerify(Directory clientRoot) {
+Future<ProcessResult> _runDefaultVerify(
+  Directory clientRoot,
+  Directory sourceRoot,
+) {
   return Process.run(
     'dart',
-    ['run', 'tool/verify_web_version_consistency.dart'],
-    workingDirectory: clientRoot.path,
+    [
+      '--packages=${clientRoot.parent.parent.path}/.dart_tool/package_config.json',
+      '${clientRoot.path}/tool/verify_web_version_consistency.dart',
+    ],
+    workingDirectory: sourceRoot.path,
     environment: {
       ...Platform.environment,
       'WEB_BUILD_ID': '',
@@ -87,14 +96,17 @@ void _writeConsistentBuildWeb({
     jsonEncode({'version': version}),
   );
   File('${buildWebDir.path}/flutter_bootstrap.js').writeAsStringSync('');
-  File('${buildWebDir.path}/main.dart.js').writeAsStringSync('');
-  File('${buildWebDir.path}/main.dart.wasm').writeAsStringSync('');
+  for (final asset in ['main.dart.js', 'main.dart.wasm']) {
+    File('${buildWebDir.path}/app-assets/$version/$asset')
+      ..createSync(recursive: true)
+      ..writeAsStringSync('compiled artifact fixture');
+  }
   File('${buildWebDir.path}/wasm-preload-manifest.json').writeAsStringSync(
     jsonEncode({
       'version': version,
       'sharedPreload': ['/flutter_bootstrap.js?v=$version'],
-      'wasmPreload': <String>['/main.dart.wasm'],
-      'jsPreload': <String>['/main.dart.js'],
+      'wasmPreload': <String>['/app-assets/$version/main.dart.wasm'],
+      'jsPreload': <String>['/app-assets/$version/main.dart.js'],
     }),
   );
   File('${buildWebDir.path}/tentura-app-cache-sw.js').writeAsStringSync(
@@ -186,8 +198,7 @@ void main() {
   });
 
   test(
-    'default verify passes when pubspec and tracked web/index.html agree '
-    'even if build/web is stale',
+    'source verification accepts a fixed placeholder when compiled output is stale',
     () async {
       final clientRoot = _clientPackageRoot();
       final pubspecPath = '${clientRoot.path}/pubspec.yaml';
@@ -197,57 +208,32 @@ void main() {
       );
       const staleBuildVersion = '0.0.1-stale-build-artifacts-only';
 
-      final buildWeb = Directory('${clientRoot.path}/build/web');
-      final backedUp = <String, List<int>?>{};
-      if (buildWeb.existsSync()) {
-        for (final entry in buildWeb.listSync(followLinks: false)) {
-          if (entry is File) {
-            backedUp[entry.path] = entry.readAsBytesSync();
-          }
-        }
-      }
-      addTearDown(() {
-        if (!buildWeb.existsSync()) return;
-        for (final entry in buildWeb.listSync(followLinks: false)) {
-          if (entry is File) {
-            final bytes = backedUp[entry.path];
-            if (bytes == null) {
-              entry.deleteSync();
-            } else {
-              entry.writeAsBytesSync(bytes);
-            }
-          }
-        }
-      });
+      final sourceRoot = _writeSourceCheckout(clientRoot, '0.0.0-dev');
+      final buildWeb = Directory('${sourceRoot.path}/build/web');
 
       _writeStaleBuildWeb(
         buildWebDir: buildWeb,
         staleVersion: staleBuildVersion,
       );
 
-      final trackedIndex = File(
-        '${clientRoot.path}/web/index.html',
-      ).readAsStringSync();
-      expect(
-        trackedIndex,
-        contains('flutter_bootstrap.js?v=$expected'),
-        reason: 'fixture requires tracked web/index.html to match pubspec',
-      );
-
-      final result = await _runDefaultVerify(clientRoot);
+      final result = await _runDefaultVerify(clientRoot, sourceRoot);
       expect(
         result.exitCode,
         0,
         reason:
-            'standalone check must validate tracked sources, not gitignored '
+            'standalone check must accept the source placeholder, independently of '
             'build/web\nstdout: ${result.stdout}\nstderr: ${result.stderr}',
+      );
+      expect(result.stdout, contains(expected));
+      expect(
+        File('${sourceRoot.path}/web/index.html').readAsStringSync(),
+        contains('flutter_bootstrap.js?v=0.0.0-dev'),
       );
     },
   );
 
   test(
-    'default verify fails when tracked web/index.html disagrees with pubspec '
-    'even if build/web matches pubspec',
+    'source verification rejects release-pinned bootstraps even when compiled output is valid',
     () async {
       final clientRoot = _clientPackageRoot();
       final pubspecPath = '${clientRoot.path}/pubspec.yaml';
@@ -255,59 +241,37 @@ void main() {
         buildId: '',
         pubspecPath: pubspecPath,
       );
-      const driftedSourceBootstrap = '0.0.2-tracked-index-drift';
-
-      final indexFile = File('${clientRoot.path}/web/index.html');
-      final originalIndex = indexFile.readAsStringSync();
-      addTearDown(() => indexFile.writeAsStringSync(originalIndex));
-
-      final driftedIndex = originalIndex.replaceFirst(
-        RegExp(r'''flutter_bootstrap\.js\?v=[^"']+'''),
-        'flutter_bootstrap.js?v=$driftedSourceBootstrap',
-      );
-      expect(driftedIndex, isNot(equals(originalIndex)));
-      indexFile.writeAsStringSync(driftedIndex);
-
-      final buildWeb = Directory('${clientRoot.path}/build/web');
-      final backedUp = <String, List<int>?>{};
-      if (buildWeb.existsSync()) {
-        for (final entry in buildWeb.listSync(followLinks: false)) {
-          if (entry is File) {
-            backedUp[entry.path] = entry.readAsBytesSync();
-          }
-        }
-      }
-      addTearDown(() {
-        if (!buildWeb.existsSync()) return;
-        for (final entry in buildWeb.listSync(followLinks: false)) {
-          if (entry is File) {
-            final bytes = backedUp[entry.path];
-            if (bytes == null) {
-              entry.deleteSync();
-            } else {
-              entry.writeAsBytesSync(bytes);
-            }
-          }
-        }
-      });
+      final sourceRoot = _writeSourceCheckout(clientRoot, expected);
+      final buildWeb = Directory('${sourceRoot.path}/build/web');
 
       _writeConsistentBuildWeb(buildWebDir: buildWeb, version: expected);
+      final validBuild = await _runBuildDirVerify(clientRoot, buildWeb.path);
+      expect(
+        validBuild.exitCode,
+        0,
+        reason: '${validBuild.stdout}\n${validBuild.stderr}',
+      );
 
-      final result = await _runDefaultVerify(clientRoot);
-      expect(
-        result.exitCode,
-        isNot(0),
-        reason:
-            'tracked web/index.html drift must fail even when build/web '
-            'matches pubspec\nstdout: ${result.stdout}\nstderr: ${result.stderr}',
-      );
-      expect(
-        '${result.stdout}${result.stderr}',
-        contains('web/index.html'),
-        reason:
-            'failure must cite the tracked source entry point, not only '
-            'build/web artifacts',
-      );
+      for (final sourceVersion in [expected, '0.0.2-tracked-index-drift']) {
+        File('${sourceRoot.path}/web/index.html').writeAsStringSync(
+          '<script src="flutter_bootstrap.js?v=$sourceVersion"></script>',
+        );
+        final result = await _runDefaultVerify(clientRoot, sourceRoot);
+        expect(
+          result.exitCode,
+          1,
+          reason:
+              'A release version in source HTML restores the dual-version workflow, '
+              'whether it matches pubspec or has drifted.\n${result.stdout}\n${result.stderr}',
+        );
+        expect(
+          '${result.stdout}${result.stderr}',
+          contains('web/index.html'),
+          reason:
+              'failure must cite the tracked source entry point, not only '
+              'build/web artifacts',
+        );
+      }
     },
   );
 
@@ -343,4 +307,16 @@ void main() {
       );
     },
   );
+}
+
+Directory _writeSourceCheckout(Directory clientRoot, String bootstrapVersion) {
+  final root = Directory.systemTemp.createTempSync('web_version_source_');
+  addTearDown(() => root.deleteSync(recursive: true));
+  File('${clientRoot.path}/pubspec.yaml').copySync('${root.path}/pubspec.yaml');
+  File('${root.path}/web/index.html')
+    ..createSync(recursive: true)
+    ..writeAsStringSync(
+      '<script src="flutter_bootstrap.js?v=$bootstrapVersion"></script>',
+    );
+  return root;
 }

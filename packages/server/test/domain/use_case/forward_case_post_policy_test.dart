@@ -33,6 +33,15 @@ final class _RecordingPostLock implements PostLockPort {
   void Function()? onLocked;
 
   @override
+  Future<void> lockForPostDelivery(
+    String beaconId, {
+    required String senderId,
+  }) async {
+    lockedBeaconIds.add(beaconId);
+    onLocked?.call();
+  }
+
+  @override
   Future<void> lockForPostMutation(String beaconId) async {
     lockedBeaconIds.add(beaconId);
     onLocked?.call();

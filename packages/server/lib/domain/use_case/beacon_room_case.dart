@@ -1356,11 +1356,7 @@ class BeaconRoomCase extends UseCaseBase {
         ))
           f.beaconId: f,
     };
-    final unread = await _room.unreadMainRoomMessageCounts(
-      slice,
-      viewerUserId: userId,
-    );
-    final unreadRooms = await _room.oldestUnreadRoomByBeacon(
+    final unread = await _room.unreadRoomSummaries(
       slice,
       viewerUserId: userId,
     );
@@ -1390,8 +1386,7 @@ class BeaconRoomCase extends UseCaseBase {
           'currentLine': null,
           'lastRoomMeaningfulChange': null,
           'nextMoveText': null,
-          'roomUnreadCount': unread[bid] ?? 0,
-          'unreadRoom': unreadRooms[bid],
+          ..._unreadBatchFields(unread[bid]),
           'lastSeenAt': null,
           'openBlockerTitle': null,
           ..._emptyOpenBlockerBatchFields(),
@@ -1410,8 +1405,7 @@ class BeaconRoomCase extends UseCaseBase {
         'currentLine': member.currentLine,
         'lastRoomMeaningfulChange': member.lastRoomMeaningfulChange,
         'nextMoveText': member.nextMoveText,
-        'roomUnreadCount': unread[bid] ?? 0,
-        'unreadRoom': unreadRooms[bid],
+        ..._unreadBatchFields(unread[bid]),
         'lastSeenAt': member.lastSeenAt?.toUtc().toIso8601String(),
         'openBlockerTitle': openBlocker?.title,
         ..._openBlockerBatchFields(
@@ -2483,6 +2477,12 @@ class BeaconRoomCase extends UseCaseBase {
     );
     return rows.isEmpty ? null : rows.first.item;
   }
+
+  Map<String, Object?> _unreadBatchFields(RoomUnreadSummary? unread) => {
+    'roomUnreadCount': (unread ?? RoomUnreadSummary.none).total,
+    'questionsUnreadCount': (unread ?? RoomUnreadSummary.none).questions,
+    'unreadRoom': unread?.oldestRoom,
+  };
 
   Map<String, Object?> _emptyOpenBlockerBatchFields() => {
     'openBlockerCreatorId': null,

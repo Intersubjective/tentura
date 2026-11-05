@@ -33,6 +33,15 @@ If a step contradicts the architecture, stop and report; do not guess. Line numb
   4. invite rows `FOR UPDATE`, ordered by `id`;
   5. recipient availability locks;
   6. trust pair locks.
+- **Post delivery (#941).** Forward and forward-cancel take the per-user block
+  barrier `hashtextextended('tentura.user_block.v1:' || sender_id, 0)` shared,
+  then the Post advisory lock `hashtextextended(post_id, 4242)`, the Post row
+  `FOR UPDATE`, and availability locks then rows, as before. A block takes the
+  barriers exclusively for the least then greatest user id, after hierarchy.
+  Direct block creation locks the Posts whose edges cleanup will cancel before
+  inserting the block (and updating the visibility-generation counter).
+  Any hierarchy lock request after a Post lock is a bug. Hierarchy paths keep
+  steps 1–6 above.
 - **Feature gate.**
   - `packages/client/lib/consts.dart` gets `const kPostBuddingEnabled = false;` (unit D0).
   - Every client entry point that starts a bud checks it. Unit E3 flips it.

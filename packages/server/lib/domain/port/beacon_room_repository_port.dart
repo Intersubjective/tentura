@@ -59,11 +59,11 @@ abstract class BeaconRoomRepositoryPort {
     required String viewerUserId,
   });
 
-  /// Which room holds the oldest unread message of each Request card the
-  /// viewer may read: `discussion` or `questions`. Beacons with nothing unread
-  /// are absent. Same room access, cursors and message rules as
-  /// [unreadMainRoomMessageCounts].
-  Future<Map<String, String>> oldestUnreadRoomByBeacon(
+  /// Both unread counts and the room holding the oldest unread message of each
+  /// Request, read by one statement so they describe the same moment. Same room
+  /// access, cursors and message rules as [unreadMainRoomMessageCounts]; every
+  /// requested id is present.
+  Future<Map<String, RoomUnreadSummary>> unreadRoomSummaries(
     Iterable<String> beaconIds, {
     required String viewerUserId,
   });

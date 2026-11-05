@@ -38,9 +38,8 @@ int _compareCoreVersions(String left, String right) {
 void main() {
   group('Interactive Constellation protocol release', () {
     test(
-      'client version matches the web bootstrap cache-buster',
+      'source bootstrap keeps a release-independent placeholder',
       () {
-        final shipped = _shippedClientVersion();
         final html = File('../client/web/index.html').readAsStringSync();
         final bootstrapVersions = RegExp(
           r'''flutter_bootstrap\.js\?v=([^"'\s>]+)''',
@@ -48,8 +47,9 @@ void main() {
 
         expect(
           bootstrapVersions,
-          [shipped],
-          reason: 'The tracked browser entry point must fetch the new release.',
+          ['0.0.0-dev'],
+          reason:
+              'The post-build tool stamps the release into built HTML only.',
         );
       },
     );
