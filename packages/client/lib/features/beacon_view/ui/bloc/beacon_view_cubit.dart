@@ -1867,8 +1867,12 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
           displayStatus: displayStatusLoaded
               ? loadedDisplayStatus
               : state.displayStatus,
-          forwardsLoaded:
-              forwards != null || (!clearForwards && wasForwardsLoaded),
+          forwardsLoad:
+              forwards != null || (!clearForwards && wasForwardsLoaded)
+              ? ForwardsLoad.loaded
+              : state.forwardsLoading
+              ? ForwardsLoad.loading
+              : ForwardsLoad.idle,
           myForwards:
               forwards?.myForwards ??
               (clearForwards ? const [] : state.myForwards),
@@ -2029,25 +2033,23 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
   /// [silent] background loads report no error to the user.
   Future<void> _loadForwards({required bool silent}) async {
     final isMember = state.beacon.accessLevel?.isMember ?? true;
-    if (!isMember || state.forwardsLoaded || state.forwardsLoading) return;
-    emit(state.copyWith(forwardsLoading: true));
+    if (!isMember || state.forwardsLoad != ForwardsLoad.idle) return;
+    emit(state.copyWith(forwardsLoad: ForwardsLoad.loading));
     try {
       final beaconId = state.beacon.id;
       final myUserId = state.myProfile.id;
       await _applyForwardsFromRemote(beaconId, myUserId);
       if (!isClosed) {
-        emit(
-          state.copyWith(
-            forwardsLoaded: true,
-            forwardsLoading: false,
-          ),
-        );
+        emit(state.copyWith(forwardsLoad: ForwardsLoad.loaded));
       }
     } catch (e) {
       if (!isClosed) {
+        // A full reload may have brought the forwards in meanwhile.
         emit(
           state.copyWith(
-            forwardsLoading: false,
+            forwardsLoad: state.forwardsLoaded
+                ? ForwardsLoad.loaded
+                : ForwardsLoad.idle,
           ),
         );
         if (!silent) _showSnackError(e);

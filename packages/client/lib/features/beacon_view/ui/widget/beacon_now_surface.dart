@@ -204,8 +204,7 @@ class _BeaconNowSurfaceState extends State<BeaconNowSurface> {
           p.forwardProvenance != c.forwardProvenance ||
           p.inboxStatus != c.inboxStatus ||
           p.viewerForwardEdges != c.viewerForwardEdges ||
-          p.forwardsLoaded != c.forwardsLoaded ||
-          p.forwardsLoading != c.forwardsLoading ||
+          p.forwardsLoad != c.forwardsLoad ||
           p.myForwards != c.myForwards ||
           p.factCards != c.factCards ||
           p.pinnedFactsSeenAt != c.pinnedFactsSeenAt ||

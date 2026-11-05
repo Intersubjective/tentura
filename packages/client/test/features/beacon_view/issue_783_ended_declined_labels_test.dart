@@ -94,7 +94,7 @@ BeaconViewState _state({
   myProfile: viewer,
   helpOffers: offers,
   viewerForwardEdges: edges,
-  forwardsLoaded: edges.isNotEmpty,
+  forwardsLoad: edges.isNotEmpty ? ForwardsLoad.loaded : ForwardsLoad.idle,
 );
 
 Future<void> _pump(
