@@ -322,12 +322,7 @@ final class ForwardCase extends UseCaseBase {
 
     final visibilityContext = context ?? '';
 
-    final nonSelfRecipients = recipientIds
-        .where((id) => id != senderId)
-        .toList();
-    if (nonSelfRecipients.isEmpty) {
-      throw ArgumentError('recipientIds must not contain only the sender');
-    }
+    final nonSelfRecipients = _nonSelfRecipients(senderId, recipientIds);
     final firstRead = await _beaconRepository.getBeaconById(
       beaconId: beaconId,
     );
@@ -468,6 +463,30 @@ final class ForwardCase extends UseCaseBase {
         );
       },
     );
+  }
+
+  /// Runs the refusals of a Post [forward] without writing, so a publish can
+  /// refuse before it commits the Post's status. The forward repeats them
+  /// under the Post lock.
+  Future<void> checkPostForward({
+    required String senderId,
+    required String beaconId,
+    required List<String> recipientIds,
+  }) => _checkForward(
+    senderId: senderId,
+    beaconId: beaconId,
+    nonSelfRecipients: _nonSelfRecipients(senderId, recipientIds),
+    visibilityContext: '',
+    parentEdgeId: null,
+    rejectBlocked: true,
+  );
+
+  List<String> _nonSelfRecipients(String senderId, List<String> recipientIds) {
+    final nonSelf = recipientIds.where((id) => id != senderId).toList();
+    if (nonSelf.isEmpty) {
+      throw ArgumentError('recipientIds must not contain only the sender');
+    }
+    return nonSelf;
   }
 
   /// Block filter, read gate, forward policy, mutual visibility and parent

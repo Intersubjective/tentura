@@ -1,4 +1,3 @@
-
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:postgres/postgres.dart';
@@ -39,6 +38,7 @@ import 'package:tentura_server/domain/port/image_object_gc_port.dart';
 import 'package:tentura_server/domain/port/image_repository_port.dart';
 import 'package:tentura_server/domain/port/invite_genealogy_repository_port.dart';
 import 'package:tentura_server/domain/port/polling_repository_port.dart';
+import 'package:tentura_server/domain/port/post_lock_port.dart';
 import 'package:tentura_server/domain/port/remote_storage_port.dart';
 import 'package:tentura_server/domain/port/task_repository_port.dart';
 import 'package:tentura_server/domain/port/upload_quota_repository_port.dart';
@@ -155,12 +155,17 @@ Future<void> expectBuddedChild(
 }
 
 final class PostPublishHarness {
-  const PostPublishHarness(this.posts, this.buds);
+  const PostPublishHarness(this.posts, this.buds, this.beacons);
 
   final PostCase posts;
   final PostBudCase buds;
+  final BeaconCase beacons;
 
-  factory PostPublishHarness.build(TenturaDb db, Env env) {
+  factory PostPublishHarness.build(
+    TenturaDb db,
+    Env env, {
+    PostLockPort? publishLock,
+  }) {
     final logger = Logger('PostPublishConcurrencyPgTest');
     final uow = MutatingUnitOfWork(db);
     final attention = TransactionalAttentionCase(
@@ -258,7 +263,7 @@ final class PostPublishHarness {
         forwardCase: forwards,
         roomCase: room,
         beaconRepository: beaconRepository,
-        postLock: PostLockRepository(db),
+        postLock: publishLock ?? PostLockRepository(db),
         attention: attention,
       ),
       PostBudCase(
@@ -290,6 +295,7 @@ final class PostPublishHarness {
           logger: logger,
         ),
       ),
+      beacons,
     );
   }
 }

@@ -44,37 +44,53 @@ void main() {
       expect(fixture.events, ['upload started']);
 
       fixture.room.uploadRelease.complete();
-      await fixture.unitOfWork.commitStarted.future;
+      await fixture.unitOfWork.statusCommitStarted.future;
       expect(fixture.events, [
         'upload started',
         'upload completed',
-        'transaction started',
+        'status transaction started',
         'post locked',
+      ]);
+      fixture.unitOfWork.statusCommitRelease.complete();
+      await fixture.unitOfWork.deliveryCommitStarted.future;
+      expect(fixture.events, [
+        'upload started',
+        'upload completed',
+        'status transaction started',
+        'post locked',
+        'status transaction committed',
+        'delivery transaction started',
+        'delivery locked',
         'message persisted',
         'root persisted',
       ]);
-      fixture.unitOfWork.commitRelease.complete();
+      fixture.unitOfWork.deliveryCommitRelease.complete();
       await publishing;
     });
 
-    test('image hash scheduling waits for the outer publish commit', () async {
+    test('image hash scheduling waits for the delivery commit', () async {
       final fixture = _Fixture();
       fixture.room.uploadRelease.complete();
       final publishing = fixture.publish();
-      await fixture.unitOfWork.commitStarted.future;
+      await fixture.unitOfWork.statusCommitStarted.future;
+      expect(fixture.unitOfWork.inTransaction, isTrue);
+      expect(fixture.room.scheduledHashes, isEmpty);
+      expect(fixture.room.receivedAttachment, isNull);
+      fixture.unitOfWork.statusCommitRelease.complete();
+      await fixture.unitOfWork.deliveryCommitStarted.future;
       expect(fixture.unitOfWork.inTransaction, isTrue);
       expect(fixture.room.scheduledHashes, isEmpty);
       expect(fixture.room.receivedAttachment, fixture.room.attachment);
       expect(fixture.room.receivedBytes, isNull);
       expect(fixture.room.deferHash, isTrue);
 
-      fixture.unitOfWork.commitRelease.complete();
+      fixture.unitOfWork.deliveryCommitRelease.complete();
       final result = await publishing;
       expect(result.rootMessageId, 'root-message');
       expect(fixture.room.scheduledHashes, [fixture.room.attachment]);
       expect(fixture.room.hashScheduledInTransaction, isFalse);
       expect(fixture.events.sublist(fixture.events.length - 2), [
-        'transaction committed',
+        'delivery transaction committed',
         'hash scheduled',
       ]);
     });
@@ -157,8 +173,11 @@ final class _Fixture {
 final class _UnitOfWork extends Fake implements MutatingUnitOfWorkPort {
   _UnitOfWork(this.events);
   final List<String> events;
-  final commitStarted = Completer<void>();
-  final commitRelease = Completer<void>();
+  final statusCommitStarted = Completer<void>();
+  final statusCommitRelease = Completer<void>();
+  final deliveryCommitStarted = Completer<void>();
+  final deliveryCommitRelease = Completer<void>();
+  var _transactions = 0;
   bool inTransaction = false;
 
   @override
@@ -166,13 +185,24 @@ final class _UnitOfWork extends Fake implements MutatingUnitOfWorkPort {
     required Future<T> Function() action,
     String? actorUserId,
   }) async {
+    expect(inTransaction, isFalse);
+    final phase = switch (++_transactions) {
+      1 => 'status',
+      2 => 'delivery',
+      _ => throw StateError('Unexpected publish transaction'),
+    };
     inTransaction = true;
-    events.add('transaction started');
+    events.add('$phase transaction started');
     try {
       final value = await action();
-      commitStarted.complete();
-      await commitRelease.future;
-      events.add('transaction committed');
+      if (phase == 'status') {
+        statusCommitStarted.complete();
+        await statusCommitRelease.future;
+      } else {
+        deliveryCommitStarted.complete();
+        await deliveryCommitRelease.future;
+      }
+      events.add('$phase transaction committed');
       return value;
     } finally {
       inTransaction = false;
@@ -264,18 +294,19 @@ BeaconEntity _draft() => BeaconEntity(
 final class _Beacons extends Fake implements BeaconRepositoryPort {
   _Beacons(this.events);
   final List<String> events;
+  BeaconEntity _post = _draft();
 
   @override
   Future<BeaconEntity> getBeaconById({
     required String beaconId,
     String? filterByUserId,
-  }) async => _draft();
+  }) async => _post;
 
   @override
   Future<BeaconEntity> publishDraft({
     required String id,
     required String actorId,
-  }) async => _draft();
+  }) async => _post = _post.copyWith(status: BeaconStatus.open);
 
   @override
   Future<void> setForwardPolicy({
@@ -288,6 +319,7 @@ final class _Beacons extends Fake implements BeaconRepositoryPort {
     required String beaconId,
     required String messageId,
   }) async {
+    _post = _post.copyWith(postRootMessageId: messageId);
     events.add('root persisted');
   }
 }
@@ -299,6 +331,14 @@ final class _PostLock extends Fake implements PostLockPort {
   @override
   Future<void> lockForPostMutation(String beaconId) async {
     events.add('post locked');
+  }
+
+  @override
+  Future<void> lockForPostDelivery(
+    String beaconId, {
+    required String senderId,
+  }) async {
+    events.add('delivery locked');
   }
 }
 

@@ -6,6 +6,7 @@ import 'package:tentura_root/domain/entity/beacon_post_lifetime.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura_server/domain/entity/beacon_kind.dart';
+import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/post_publish_result.dart';
 import 'package:tentura_server/domain/entity/post_summary.dart';
 import 'package:tentura_server/domain/exception.dart';
@@ -71,10 +72,11 @@ class PostCase {
   final PostLockPort _postLock;
   final TransactionalAttentionCase _attention;
 
-  /// Publishes a draft Post, forwards it to [recipientIds] and posts the root
-  /// message, all in one transaction after upload I/O. [lifetimeHours]
-  /// (1…72, default 72) sets when the Post expires. A retry by the author
-  /// after success returns the existing ids.
+  /// Commits the draft's status before delivering to [recipientIds] and posting
+  /// the root message in a transaction without the hierarchy lock. Upload I/O
+  /// precedes both transactions. [lifetimeHours] (1…72, default 72) sets when
+  /// the Post expires. An open Post without a root retries delivery alone;
+  /// after success the author gets the existing ids.
   Future<PostPublishResult> publish({
     required String authorId,
     required String beaconId,
@@ -90,10 +92,11 @@ class PostCase {
     String? attachmentMimeType,
     int? lifetimeHours,
   }) async {
-    final existing = await _publishedPostOrValidateDraft(
+    final post = await _postForPublication(
       authorId: authorId,
       beaconId: beaconId,
     );
+    final existing = _publishedResult(post);
     if (existing != null) return existing;
     if (lifetimeHours != null &&
         (lifetimeHours < BeaconPostLifetime.minHours ||
@@ -113,28 +116,53 @@ class PostCase {
             uploadFilename: attachmentFilename,
             uploadMimeType: attachmentMimeType,
           );
+    if (post.status == BeaconStatus.draft) {
+      await _attention.runAction<void>(
+        actorUserId: authorId,
+        action: (_) async {
+          await _postLock.lockForPostMutation(beaconId);
+          final current = await _postForPublication(
+            authorId: authorId,
+            beaconId: beaconId,
+          );
+          if (current.status != BeaconStatus.draft) return;
+          await _beaconRepository.setForwardPolicy(
+            beaconId: beaconId,
+            policy: forwardPolicy,
+          );
+          await _beaconCase.publishDraft(userId: authorId, beaconId: beaconId);
+          // `publishDraft` stamps the 72 h default; a shorter choice restamps.
+          if (lifetimeHours != null &&
+              lifetimeHours != BeaconPostLifetime.maxHours) {
+            await _beaconRepository.setPostLifetime(
+              beaconId: beaconId,
+              lifetime: Duration(hours: lifetimeHours),
+            );
+          }
+          // A refused recipient fails the call before the status commits.
+          if (recipientIds.isNotEmpty) {
+            await _forwardCase.checkPostForward(
+              senderId: authorId,
+              beaconId: beaconId,
+              recipientIds: recipientIds,
+            );
+          }
+        },
+      );
+    }
     var createdMessage = false;
     final result = await _attention.runAction(
       actorUserId: authorId,
       action: (_) async {
-        await _postLock.lockForPostMutation(beaconId);
-        final existing = await _publishedPostOrValidateDraft(
+        await _postLock.lockForPostDelivery(beaconId, senderId: authorId);
+        final current = await _postForPublication(
           authorId: authorId,
           beaconId: beaconId,
         );
+        final existing = _publishedResult(current);
         if (existing != null) return existing;
-        await _beaconRepository.setForwardPolicy(
-          beaconId: beaconId,
-          policy: forwardPolicy,
-        );
-        await _beaconCase.publishDraft(userId: authorId, beaconId: beaconId);
-        // `publishDraft` stamps the 72 h default; a shorter choice restamps.
-        if (lifetimeHours != null &&
-            lifetimeHours != BeaconPostLifetime.maxHours) {
-          await _beaconRepository.setPostLifetime(
-            beaconId: beaconId,
-            lifetime: Duration(hours: lifetimeHours),
-          );
+        if (current.status != BeaconStatus.open) {
+          throw const PostNotOpenException();
         }
         // Without recipients the Post stays visible only to its author —
         // `beacon_can_read_content` already admits the author unconditionally.
@@ -173,7 +201,7 @@ class PostCase {
     return result;
   }
 
-  Future<PostPublishResult?> _publishedPostOrValidateDraft({
+  Future<BeaconEntity> _postForPublication({
     required String authorId,
     required String beaconId,
   }) async {
@@ -186,19 +214,19 @@ class PostCase {
     if (beacon.kind != BeaconKind.post) {
       throw const BeaconCreateException(description: 'Not a Post');
     }
-    final existingRoot = beacon.postRootMessageId;
-    if (beacon.status == BeaconStatus.open && existingRoot != null) {
-      return PostPublishResult(
-        beaconId: beaconId,
-        rootMessageId: existingRoot,
-      );
-    }
-    if (beacon.status != BeaconStatus.draft) {
+    if (beacon.status != BeaconStatus.draft &&
+        beacon.status != BeaconStatus.open) {
       throw const BeaconCreateException(
         description: 'Post is not a draft',
       );
     }
-    return null;
+    return beacon;
+  }
+
+  PostPublishResult? _publishedResult(BeaconEntity beacon) {
+    final root = beacon.postRootMessageId;
+    if (beacon.status != BeaconStatus.open || root == null) return null;
+    return PostPublishResult(beaconId: beacon.id, rootMessageId: root);
   }
 
   /// The author ends the open Post early: [expiresAt] must be after now and
