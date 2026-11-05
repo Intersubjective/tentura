@@ -167,7 +167,17 @@ touches_mr_area() {
 }
 
 server_files() {
-  local -a files=("$@")
+  local -a requested=("$@") files=()
+  local f
+  # perf and load suites are manual measurements on an idle machine (see the
+  # header): an affected-tests selection must not pull them into a gate.
+  for f in "${requested[@]}"; do
+    if server_header_has_tag perf "$f" || server_header_has_tag load "$f"; then
+      log "skipping perf/load suite (manual measurement): $f"
+    else
+      files+=("$f")
+    fi
+  done
   (( ${#files[@]} > 0 )) || { log "no server test files"; return 0; }
   local j; j="$(concurrency server-files)"
   # mr-tagged files must not share the run with others: split them out.
