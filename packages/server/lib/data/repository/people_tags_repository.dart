@@ -9,7 +9,10 @@ import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
 import 'package:tentura_server/domain/port/people_tags_repository_port.dart';
 import 'package:tentura_server/domain/use_case/people_tags_case.dart'
-    show kPersonTagSourceFromAutoTag, kPersonTagSourceFromRequest;
+    show
+        kPersonTagSourceFromAutoTag,
+        kPersonTagSourceFromRequest,
+        kPersonTagSourceInherited;
 import 'package:tentura_server/utils/id.dart';
 
 import '../database/tentura_db.dart';
@@ -334,6 +337,14 @@ ON CONFLICT DO NOTHING
 ''',
             [o.tagId, ownerId, o.personId, o.source],
           );
+        } else if (o.keep) {
+          await _database.customStatement(
+            r'''
+UPDATE public.person_tag_member SET source = 0
+ WHERE tag_id = $1 AND owner_id = $2 AND person_id = $3 AND source = $4
+''',
+            [o.tagId, ownerId, o.personId, kPersonTagSourceInherited],
+          );
         } else {
           await _database.customStatement(
             r'''
@@ -382,10 +393,21 @@ SELECT t.id AS tag_id,
        coalesce(
          array_agg(m.person_id ORDER BY m.person_id)
            FILTER (WHERE m.person_id IS NOT NULL),
-         '{}'::text[]) AS person_ids
+         '{}'::text[]) AS person_ids,
+       coalesce(
+         array_agg(m.person_id ORDER BY m.person_id)
+           FILTER (WHERE m.source = $kPersonTagSourceInherited),
+         '{}'::text[]) AS inherited_ids,
+       coalesce(
+         array_agg(g.ancestor_user_id ORDER BY m.person_id)
+           FILTER (WHERE m.source = $kPersonTagSourceInherited),
+         '{}'::text[]) AS inviter_ids
   FROM public.person_tag t
   LEFT JOIN public.person_tag_member m
     ON m.tag_id = t.id AND $_notBlockedSql
+  LEFT JOIN public.invite_genealogy g
+    ON g.descendant_user_id = m.person_id
+   AND m.source = $kPersonTagSourceInherited
  WHERE t.owner_id = \$1
  GROUP BY t.id, t.ord, t.created_at
  ORDER BY t.ord, t.created_at, t.id
@@ -398,9 +420,21 @@ SELECT t.id AS tag_id,
         PersonTagMembers(
           tagId: r.read<String>('tag_id'),
           personIds: r.read<List<dynamic>>('person_ids').cast<String>(),
+          inherited: _inheritedOf(
+            r.read<List<dynamic>>('inherited_ids').cast<String>(),
+            r.read<List<dynamic>>('inviter_ids').cast<String?>(),
+          ),
         ),
     ];
   }
+
+  static List<PersonTagInherited> _inheritedOf(
+    List<String> personIds,
+    List<String?> inviterIds,
+  ) => [
+    for (var i = 0; i < personIds.length; i++)
+      PersonTagInherited(personId: personIds[i], inviterId: inviterIds[i]),
+  ];
 
   @override
   Future<List<String>> tagIdsOf(String ownerId, String personId) async {

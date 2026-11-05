@@ -155,6 +155,7 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlInputPersonTagSnapshot,
   gqlInputPersonTagMemberOp,
   gqlTypePersonTagMembers,
+  gqlTypePersonTagInherited,
   gqlTypePersonTagsOf,
   gqlTypePersonAutoTag,
   gqlTypePersonAutoTagOf,
@@ -2382,6 +2383,17 @@ final gqlTypePersonTagMembers = GraphQLObjectType('PersonTagMembers', null)
       'personIds',
       GraphQLListType(graphQLString.nonNullable()).nonNullable(),
     ),
+    field(
+      'inherited',
+      GraphQLListType(gqlTypePersonTagInherited.nonNullable()).nonNullable(),
+    ),
+  ]);
+
+/// A tag member put there automatically, with their direct inviter.
+final gqlTypePersonTagInherited = GraphQLObjectType('PersonTagInherited', null)
+  ..fields.addAll([
+    field('personId', graphQLString.nonNullable()),
+    field('inviterId', graphQLString),
   ]);
 
 /// The owner's tags a person is in: own tag ids and automatic tags.

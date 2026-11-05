@@ -140,7 +140,7 @@ final class PeopleTagsCase extends UseCaseBase {
       ownerId: ownerId,
       clientOpId: clientOpId,
       fingerprint: _fingerprint('members', [
-        for (final o in parsed) [o.tagId, o.personId, o.add, o.source],
+        for (final o in parsed) [o.tagId, o.personId, o.add, o.source, o.keep],
       ]),
       ops: parsed,
     );
@@ -221,7 +221,7 @@ final class PeopleTagsCase extends UseCaseBase {
     if (tagId == null ||
         personId == null ||
         personId == ownerId ||
-        (kind != 'add' && kind != 'remove') ||
+        (kind != 'add' && kind != 'remove' && kind != 'keep') ||
         source == null ||
         source < 0 ||
         source > kPersonTagMaxSource) {
@@ -232,6 +232,7 @@ final class PeopleTagsCase extends UseCaseBase {
       personId: personId,
       add: kind == 'add',
       source: source,
+      keep: kind == 'keep',
     );
   }
 

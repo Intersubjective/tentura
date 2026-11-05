@@ -99,27 +99,55 @@ final class PersonTagSnapshot {
 
 /// The people in one of the owner's tags, blocked people left out.
 final class PersonTagMembers {
-  const PersonTagMembers({required this.tagId, required this.personIds});
+  const PersonTagMembers({
+    required this.tagId,
+    required this.personIds,
+    this.inherited = const [],
+  });
 
   final String tagId;
   final List<String> personIds;
 
-  Map<String, dynamic> toJson() => {'tagId': tagId, 'personIds': personIds};
+  /// Members who joined by inheriting the tag from their inviter.
+  final List<PersonTagInherited> inherited;
+
+  Map<String, dynamic> toJson() => {
+    'tagId': tagId,
+    'personIds': personIds,
+    'inherited': [for (final i in inherited) i.toJson()],
+  };
 }
 
-/// One add or remove of a person in a tag, with the add's `source`.
+/// A member put in a tag automatically, with their direct inviter (null when
+/// the invite record is gone).
+final class PersonTagInherited {
+  const PersonTagInherited({required this.personId, this.inviterId});
+
+  final String personId;
+  final String? inviterId;
+
+  Map<String, dynamic> toJson() => {
+    'personId': personId,
+    'inviterId': inviterId,
+  };
+}
+
+/// One add, remove or keep of a person in a tag, with the add's `source`.
+/// A keep turns an inherited member into a manual one.
 final class PersonTagMemberOp {
   const PersonTagMemberOp({
     required this.tagId,
     required this.personId,
     required this.add,
     required this.source,
+    this.keep = false,
   });
 
   final String tagId;
   final String personId;
   final bool add;
   final int source;
+  final bool keep;
 }
 
 /// One automatic tag the owner has: how many people, and the Field filter

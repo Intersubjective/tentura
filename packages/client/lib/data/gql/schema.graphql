@@ -8629,7 +8629,13 @@ type v2_PersonListMeta {
   newSince: v2_Date
 }
 
+type v2_PersonTagInherited {
+  inviterId: String
+  personId: String!
+}
+
 type v2_PersonTagMembers {
+  inherited: [v2_PersonTagInherited!]!
   personIds: [String!]!
   tagId: String!
 }
