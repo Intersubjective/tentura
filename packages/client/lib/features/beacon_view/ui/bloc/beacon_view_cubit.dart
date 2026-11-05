@@ -260,7 +260,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
 
   final Set<BeaconRoomEntityType> _pendingRoomTypes = {};
 
-  /// Team ids whose presence this screen asked for (U093).
+  /// Team ids whose presence this screen asked for.
   Set<String> _watchedTeam = const {};
 
   @override
@@ -1675,7 +1675,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
       // On a background refresh of an already loaded request, a slice that
       // fails (e.g. "Constellation database busy") keeps its current value
       // instead of dropping the whole refresh, so fresh slices such as the
-      // room state (next step) still reach the screen (B079).
+      // room state (next step) still reach the screen.
       Future<Object?> keepOnError(Future<Object?> slice) => retainLoadedContext
           ? slice.then<Object?>(
               (value) => value,
