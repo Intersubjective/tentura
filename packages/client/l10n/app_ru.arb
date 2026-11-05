@@ -6475,6 +6475,7 @@
   "forwardReachSharedRequest": "С вами в «{title}»",
   "forwardReachDistantConnection": "Дальняя связь",
   "forwardPickerContactEyeTooltip": "Видит вас через сеть",
+  "forwardPickerCandidateDetailsTooltip": "Подробнее",
   "beaconPublishWithoutSendingDiscoverableHint": "Его могут найти в «Поле» те, кто видит вас. Напрямую его никто не получит, пока вы его не отправите.",
   "beaconPublishWithoutSendingHiddenHint": "Не виден в «Поле»: его увидят только те, кому его отправят или перешлют.",
   "beaconRoutingBannerDiscoverable": "Выберите, кому отправить этот запрос. Те, кто видит вас, также могут найти его в «Поле».",

@@ -9748,6 +9748,10 @@
   "@forwardPickerContactEyeTooltip": {
     "description": "Tooltip and semantics on the MeritRank eye badge in the forward recipient picker (#440)."
   },
+  "forwardPickerCandidateDetailsTooltip": "Details",
+  "@forwardPickerCandidateDetailsTooltip": {
+    "description": "Tooltip on the ⓘ control that opens forward candidate details (#440 mn5y.5)."
+  },
   "beaconPublishWithoutSendingDiscoverableHint": "People who can see you may find it in the Field. Nobody gets it directly until you send it.",
   "@beaconPublishWithoutSendingDiscoverableHint": {
     "description": "Under «Publish without sending» on the new-Request recipients step when the Request is discoverable (#440)."

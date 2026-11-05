@@ -16,6 +16,23 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import '../../support/phone_surface.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 
+Future<void> _scrollPickerUntilVisible(
+  WidgetTester tester,
+  Finder target,
+) async {
+  await tester.scrollUntilVisible(
+    target,
+    120,
+    scrollable: find
+        .descendant(
+          of: find.byType(ForwardRecipientPicker),
+          matching: find.byType(Scrollable),
+        )
+        .first,
+  );
+  await tester.pump();
+}
+
 class _MockProfileCubit extends Mock implements ProfileCubit {
   @override
   ProfileState get state => const ProfileState();
@@ -152,6 +169,10 @@ void main() {
       find.byKey(ForwardRecipientPicker.widerSectionKey),
       findsNothing,
     );
+    await _scrollPickerUntilVisible(
+      tester,
+      find.byKey(ForwardRecipientPicker.widerExpanderKey),
+    );
     expect(
       find.byKey(ForwardRecipientPicker.widerExpanderKey),
       findsOneWidget,
@@ -165,7 +186,12 @@ void main() {
     await tester.tap(find.byKey(ForwardRecipientPicker.widerExpanderKey));
     await tester.pumpAndSettle();
 
+    await _scrollPickerUntilVisible(
+      tester,
+      find.byKey(ForwardRecipientPicker.widerSectionKey),
+    );
     expect(find.text('ШИРОКАЯ СЕТЬ'), findsOneWidget);
+    await _scrollPickerUntilVisible(tester, find.text('Kesi'));
     expect(find.text('Kesi'), findsOneWidget);
     expect(find.text('Дальняя связь'), findsOneWidget);
   });

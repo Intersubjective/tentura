@@ -18,6 +18,9 @@ abstract final class TestIds {
   static String forwardRecipientCheckbox(String userId) =>
       'forward.recipient.checkbox.$userId';
 
+  static String forwardRecipientDetails(String userId) =>
+      'forward.recipient.details.$userId';
+
   static String activityPromptPin(String receiptId) =>
       'activity-prompt-pin-$receiptId';
 
