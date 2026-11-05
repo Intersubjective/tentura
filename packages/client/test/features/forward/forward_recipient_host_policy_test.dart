@@ -100,6 +100,7 @@ Future<void> _pumpRecipientRow(
   VoidCallback? onOpenDetails,
   VoidCallback? onEditReasons,
   DateTime? todayUtc,
+  ForwardRecipientRowHost host = ForwardRecipientRowHost.pickerStandard,
 }) async {
   await tester.pumpWidget(
     MaterialApp(
@@ -111,7 +112,7 @@ Future<void> _pumpRecipientRow(
         value: _MockProfileCubit(),
         child: Scaffold(
           body: ForwardRecipientRow(
-            host: ForwardRecipientRowHost.pickerStandard,
+            host: host,
             candidate: candidate,
             isSelected: isSelected,
             onToggle: onToggle,
@@ -430,30 +431,33 @@ void main() {
   group('paused row interaction', () {
     const pausedId = 'paused-user';
 
-    testWidgets('selected paused identity tap opens details only', (
-      tester,
-    ) async {
-      var taps = 0;
-      var opens = 0;
-      await _pumpRecipientRow(
+    testWidgets(
+      'selected paused identity tap toggles without opening details',
+      (
         tester,
-        candidate: _candidate(
-          id: pausedId,
-          availability: Availability(resumeOn: _resumeOn),
-        ),
-        isSelected: true,
-        onToggle: () => taps++,
-        onOpenDetails: () => opens++,
-      );
+      ) async {
+        var taps = 0;
+        var opens = 0;
+        await _pumpRecipientRow(
+          tester,
+          candidate: _candidate(
+            id: pausedId,
+            availability: Availability(resumeOn: _resumeOn),
+          ),
+          isSelected: true,
+          onToggle: () => taps++,
+          onOpenDetails: () => opens++,
+        );
 
-      await tester.tap(
-        find.byKey(TestIds.key(TestIds.forwardRecipient(pausedId))),
-      );
-      await tester.pump();
+        await tester.tap(
+          find.byKey(TestIds.key(TestIds.forwardRecipient(pausedId))),
+        );
+        await tester.pump();
 
-      expect(taps, 0);
-      expect(opens, 1);
-    });
+        expect(taps, 1);
+        expect(opens, 0);
+      },
+    );
 
     testWidgets('selected paused checkbox deselects exactly once', (
       tester,
@@ -583,12 +587,13 @@ void main() {
     );
 
     testWidgets(
-      'identity tap opens details without toggling',
+      'pickerBand identity tap opens details without toggling',
       (tester) async {
         var taps = 0;
         var opens = 0;
         await _pumpRecipientRow(
           tester,
+          host: ForwardRecipientRowHost.pickerBand,
           candidate: _candidate(id: 'available-user'),
           isSelected: false,
           onToggle: () => taps++,

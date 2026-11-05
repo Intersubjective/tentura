@@ -149,6 +149,9 @@ void main() {
     final cubit = _cubitWithCandidates(candidates);
     addTearDown(cubit.close);
     await _pumpRuPicker(tester, cubit: cubit);
+    // Taller than [kPhoneSurface]: picker rows gained a details control (#440).
+    await tester.binding.setSurfaceSize(const Size(375, 1200));
+    await tester.pumpAndSettle();
 
     final baselineGaps = <String, double>{};
     for (var i = 0; i < candidates.length - 1; i++) {

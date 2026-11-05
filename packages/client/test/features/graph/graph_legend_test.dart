@@ -460,7 +460,7 @@ void main() {
       'Shown while someone is selected: a double line joins them to each person on the Field they trust both ways.',
       'A soft green pulse around a friend means they are online now.',
       'Someone who appeared on your Field in the last week and you have not opened yet.',
-      'Something new here: a Request or Post you haven\'t opened, or new messages in it.',
+      "Something new here: a Request or Post you haven't opened, or new messages in it.",
     ]);
 
     await tester.ensureVisible(find.text('Wider network reach'));

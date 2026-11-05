@@ -1,10 +1,11 @@
+import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/contacts/contact_name_overlay.dart';
 import 'package:tentura/domain/util/availability_presets.dart';
-import 'package:tentura/features/capability/ui/widget/forward_capability_chips.dart';
 import 'package:tentura/features/forward/domain/entity/candidate_involvement.dart';
+import 'package:tentura/features/forward/domain/entity/forward_reach.dart';
 import 'package:tentura/features/forward/domain/entity/forward_candidate.dart';
 import 'package:tentura/features/forward/domain/forward_target_profile.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
@@ -19,6 +20,7 @@ import 'package:tentura/ui/widget/url_link_annotations.dart';
 import '../../domain/entity/candidate_connection_context.dart';
 import '../bloc/forward_candidate_context_cubit.dart';
 import '../bloc/forward_candidate_context_state.dart';
+import 'forward_candidate_context_sheet_presenter.dart';
 
 enum _ForwardCandidateSheetResult { closed, unavailable, dismissedByThem }
 
@@ -168,6 +170,7 @@ class _ForwardCandidateContextSheetState
         return _SheetBody(
           candidate: candidate,
           relevanceLabel: widget.relevanceLabel,
+          requiredCapabilitySlugs: state.beacon?.needs ?? const {},
           selected: state.selectedIds.contains(candidate.id),
           selectionEnabled: !context.read<ForwardCubit>().isClosed,
           dismissedHint:
@@ -190,6 +193,7 @@ class _SheetBody extends StatelessWidget {
     required this.candidate,
     required this.selected,
     required this.selectionEnabled,
+    required this.requiredCapabilitySlugs,
     required this.onToggleSelection,
     required this.onViewProfile,
     required this.onClose,
@@ -199,6 +203,7 @@ class _SheetBody extends StatelessWidget {
 
   final ForwardCandidate candidate;
   final String? relevanceLabel;
+  final Set<String> requiredCapabilitySlugs;
 
   /// #730: the author's way to still ask someone who dismissed the Request.
   final String? dismissedHint;
@@ -213,6 +218,7 @@ class _SheetBody extends StatelessWidget {
     final tt = context.tt;
     final theme = Theme.of(context);
     final l10n = L10n.of(context)!;
+    final locale = Localizations.localeOf(context);
     final profile = profileWithContactOverlay(candidate.profile);
     final availability = otherAvailabilityStatusLine(
       l10n,
@@ -227,142 +233,183 @@ class _SheetBody extends StatelessWidget {
             arg: candidate.lineageReasonArg,
           );
     final effectiveRelevance = relevanceLabel ?? lineageLabel;
+    final matchesLine = forwardCandidateMatchesLine(
+      l10n: l10n,
+      requiredSlugs: requiredCapabilitySlugs,
+      candidateSlugs: candidate.topCapabilities,
+    );
 
-    return SafeArea(
-      child: SingleChildScrollView(
-        padding: EdgeInsets.all(tt.screenHPadding),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    return BlocBuilder<
+      ForwardCandidateContextCubit,
+      ForwardCandidateContextState
+    >(
+      builder: (context, ctxState) {
+        final joinedAt = forwardCandidateSheetJoinedAt(
+          profile: profile,
+          phase: ctxState.phase,
+          connectionContext: ctxState.connectionContext,
+        );
+        final headerSubline = forwardCandidateSheetHeaderSubline(
+          l10n: l10n,
+          locale: locale,
+          profile: profile,
+          phase: ctxState.phase,
+          joinedAt: joinedAt,
+          now: clock.now(),
+        );
+
+        return SafeArea(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.all(tt.screenHPadding),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                TenturaAvatar.medium(
-                  profile: profile,
-                  withContactBadge: true,
-                ),
-                SizedBox(width: tt.avatarTextGap),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        profile.shownName,
-                        style: TenturaText.title(context.tt.text),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TenturaAvatar.medium(
+                      profile: profile,
+                      withRating: true,
+                      withContactBadge: true,
+                    ),
+                    SizedBox(width: tt.avatarTextGap),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            profile.shownName,
+                            style: TenturaText.title(context.tt.text),
+                          ),
+                          if (headerSubline.isNotEmpty) ...[
+                            SizedBox(height: tt.tightGap),
+                            Text(
+                              headerSubline,
+                              style: TenturaText.bodySmall(tt.textMuted),
+                            ),
+                          ],
+                        ],
                       ),
-                      if (profile.canonicalSecondaryLabel.isNotEmpty) ...[
-                        SizedBox(height: tt.tightGap),
-                        Text(
-                          profile.canonicalSecondaryLabel,
-                          style: TenturaText.bodySmall(tt.textMuted),
-                        ),
-                      ],
-                    ],
-                  ),
+                    ),
+                    IconButton(
+                      tooltip: l10n.buttonClose,
+                      onPressed: onClose,
+                      icon: const Icon(Icons.close),
+                    ),
+                  ],
                 ),
-                IconButton(
-                  tooltip: l10n.buttonClose,
-                  onPressed: onClose,
-                  icon: const Icon(Icons.close),
+                SizedBox(height: tt.sectionGap),
+                Text(
+                  l10n.forwardCandidateConnectionHeading,
+                  style: TenturaText.titleSmall(tt.text),
+                ),
+                SizedBox(height: tt.rowGap),
+                _ConnectionSection(candidate: candidate),
+                if (effectiveRelevance != null &&
+                        effectiveRelevance.trim().isNotEmpty ||
+                    matchesLine != null) ...[
+                  SizedBox(height: tt.sectionGap),
+                  Text(
+                    l10n.forwardCandidateRelevanceHeading,
+                    style: TenturaText.titleSmall(tt.text),
+                  ),
+                  SizedBox(height: tt.tightGap),
+                  if (effectiveRelevance != null &&
+                      effectiveRelevance.trim().isNotEmpty)
+                    TenturaStatusText(
+                      effectiveRelevance,
+                      tone: TenturaTone.info,
+                    ),
+                  if (matchesLine != null) ...[
+                    if (effectiveRelevance != null &&
+                        effectiveRelevance.trim().isNotEmpty)
+                      SizedBox(height: tt.tightGap),
+                    Text(
+                      matchesLine,
+                      style: TenturaText.bodySmall(tt.text),
+                    ),
+                  ],
+                ],
+                if (profile.description.trim().isNotEmpty) ...[
+                  SizedBox(height: tt.sectionGap),
+                  Text(
+                    l10n.forwardCandidateAboutHeading,
+                    style: TenturaText.titleSmall(tt.text),
+                  ),
+                  SizedBox(height: tt.tightGap),
+                  TenturaSelectionArea(
+                    child: ShowMoreText(
+                      profile.description.trim(),
+                      style: TenturaText.body(tt.text),
+                      colorClickableText: theme.colorScheme.primary,
+                      annotations: buildUrlAnnotations(linkColor: tt.info),
+                    ),
+                  ),
+                ],
+                if (dismissedHint != null) ...[
+                  SizedBox(height: tt.rowGap),
+                  TenturaStatusText(
+                    dismissedHint!,
+                    tone: TenturaTone.warn,
+                    maxLines: null,
+                    overflow: TextOverflow.clip,
+                  ),
+                ],
+                if (availability != null) ...[
+                  SizedBox(height: tt.sectionGap),
+                  TenturaStatusText(availability, tone: TenturaTone.neutral),
+                ],
+                SizedBox(height: tt.sectionGap),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final compact =
+                        windowClassForWidth(constraints.maxWidth) ==
+                        WindowClass.compact;
+                    final primary = FilledButton(
+                      onPressed: selectionEnabled ? onToggleSelection : null,
+                      child: Text(
+                        selected
+                            ? l10n.forwardCandidateRemove
+                            : l10n.forwardCandidateSelect,
+                      ),
+                    );
+                    final secondary = OutlinedButton(
+                      onPressed: onViewProfile,
+                      child: Text(l10n.forwardCandidateViewProfile),
+                    );
+                    if (compact) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          primary,
+                          SizedBox(height: tt.rowGap),
+                          secondary,
+                        ],
+                      );
+                    }
+                    return Row(
+                      children: [
+                        Expanded(child: primary),
+                        SizedBox(width: tt.rowGap),
+                        Expanded(child: secondary),
+                      ],
+                    );
+                  },
                 ),
               ],
             ),
-            if (profile.description.trim().isNotEmpty) ...[
-              SizedBox(height: tt.rowGap),
-              TenturaSelectionArea(
-                child: ShowMoreText(
-                  profile.description.trim(),
-                  style: TenturaText.body(tt.text),
-                  colorClickableText: theme.colorScheme.primary,
-                  annotations: buildUrlAnnotations(linkColor: tt.info),
-                ),
-              ),
-            ],
-            if (dismissedHint != null) ...[
-              SizedBox(height: tt.rowGap),
-              TenturaStatusText(
-                dismissedHint!,
-                tone: TenturaTone.warn,
-                maxLines: null,
-                // An ellipsis with no maxLines still cuts at line one.
-                overflow: TextOverflow.clip,
-              ),
-            ],
-            if (availability != null) ...[
-              SizedBox(height: tt.rowGap),
-              TenturaStatusText(availability, tone: TenturaTone.neutral),
-            ],
-            if (candidate.topCapabilities.isNotEmpty) ...[
-              SizedBox(height: tt.rowGap),
-              ForwardCapabilityChips(slugs: candidate.topCapabilities),
-            ],
-            if (effectiveRelevance != null &&
-                effectiveRelevance.trim().isNotEmpty) ...[
-              SizedBox(height: tt.sectionGap),
-              Text(
-                l10n.forwardCandidateRelevanceHeading,
-                style: TenturaText.titleSmall(tt.text),
-              ),
-              SizedBox(height: tt.tightGap),
-              TenturaStatusText(
-                effectiveRelevance,
-                tone: TenturaTone.info,
-              ),
-            ],
-            SizedBox(height: tt.sectionGap),
-            Text(
-              l10n.forwardCandidateConnectionHeading,
-              style: TenturaText.titleSmall(tt.text),
-            ),
-            SizedBox(height: tt.rowGap),
-            const _ConnectionSection(),
-            SizedBox(height: tt.sectionGap),
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final compact =
-                    windowClassForWidth(constraints.maxWidth) ==
-                    WindowClass.compact;
-                final primary = FilledButton(
-                  onPressed: selectionEnabled ? onToggleSelection : null,
-                  child: Text(
-                    selected
-                        ? l10n.forwardCandidateRemove
-                        : l10n.forwardCandidateSelect,
-                  ),
-                );
-                final secondary = OutlinedButton(
-                  onPressed: onViewProfile,
-                  child: Text(l10n.forwardCandidateViewProfile),
-                );
-                if (compact) {
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      primary,
-                      SizedBox(height: tt.rowGap),
-                      secondary,
-                    ],
-                  );
-                }
-                return Row(
-                  children: [
-                    Expanded(child: primary),
-                    SizedBox(width: tt.rowGap),
-                    Expanded(child: secondary),
-                  ],
-                );
-              },
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }
 
 class _ConnectionSection extends StatefulWidget {
-  const _ConnectionSection();
+  const _ConnectionSection({required this.candidate});
+
+  final ForwardCandidate candidate;
 
   @override
   State<_ConnectionSection> createState() => _ConnectionSectionState();
@@ -380,53 +427,81 @@ class _ConnectionSectionState extends State<_ConnectionSection> {
       builder: (context, state) {
         final l10n = L10n.of(context)!;
         final tt = context.tt;
-        return switch (state.phase) {
-          ForwardCandidateContextPhase.direct => TenturaStatusText(
-            l10n.forwardCandidateDirectConnection,
-            tone: TenturaTone.good,
+        final wider = forwardCandidateShowsWiderPath(widget.candidate);
+        final children = <Widget>[
+          ..._instantHowYouKnowLines(
+            context: context,
+            candidate: widget.candidate,
+            phase: state.phase,
           ),
-          ForwardCandidateContextPhase.loading => Row(
-            children: [
-              SizedBox(
-                width: tt.iconSize,
-                height: tt.iconSize,
-                child: const TenturaCircularProgress(),
+        ];
+
+        switch (state.phase) {
+          case ForwardCandidateContextPhase.direct:
+            break;
+          case ForwardCandidateContextPhase.loading:
+            children.addAll([
+              if (children.isNotEmpty) SizedBox(height: tt.rowGap),
+              Row(
+                children: [
+                  SizedBox(
+                    width: tt.iconSize,
+                    height: tt.iconSize,
+                    child: const TenturaCircularProgress(),
+                  ),
+                  SizedBox(width: tt.iconTextGap),
+                  Expanded(
+                    child: Text(
+                      l10n.forwardCandidateFindingPath,
+                      style: TenturaText.bodySmall(tt.textMuted),
+                    ),
+                  ),
+                ],
               ),
-              SizedBox(width: tt.iconTextGap),
-              Expanded(
-                child: Text(
-                  l10n.forwardCandidateFindingPath,
+            ]);
+          case ForwardCandidateContextPhase.path:
+            if (wider) {
+              children.addAll([
+                if (children.isNotEmpty) SizedBox(height: tt.rowGap),
+                TenturaStatusText(
+                  l10n.forwardCandidateDistantSteps,
+                  tone: TenturaTone.neutral,
+                ),
+                SizedBox(height: tt.tightGap),
+                _PathAvatarChain(
+                  nodes: state.connectionContext?.nodes ?? const [],
+                  expanded: _expanded,
+                  onToggleExpanded: () =>
+                      setState(() => _expanded = !_expanded),
+                ),
+                SizedBox(height: tt.tightGap),
+                Text(
+                  l10n.forwardCandidateNoDirectVouch,
                   style: TenturaText.bodySmall(tt.textMuted),
                 ),
-              ),
-            ],
-          ),
-          ForwardCandidateContextPhase.path => _PathView(
-            nodes: state.connectionContext?.nodes ?? const [],
-            expanded: _expanded,
-            onToggleExpanded: () => setState(() => _expanded = !_expanded),
-          ),
-          ForwardCandidateContextPhase.longPath => Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              TenturaStatusText(
-                l10n.forwardCandidateLongPathTitle,
-                tone: TenturaTone.neutral,
-              ),
-              SizedBox(height: tt.tightGap),
+              ]);
+            }
+          case ForwardCandidateContextPhase.longPath:
+            if (wider) {
+              children.addAll([
+                if (children.isNotEmpty) SizedBox(height: tt.rowGap),
+                TenturaStatusText(
+                  l10n.forwardCandidateLongPathTitle,
+                  tone: TenturaTone.neutral,
+                ),
+              ]);
+            }
+          case ForwardCandidateContextPhase.unavailable:
+            children.addAll([
+              if (children.isNotEmpty) SizedBox(height: tt.rowGap),
               Text(
-                l10n.forwardCandidateLongPathBody,
+                l10n.forwardCandidateContextUnavailable,
                 style: TenturaText.bodySmall(tt.textMuted),
               ),
-            ],
-          ),
-          ForwardCandidateContextPhase.unavailable => Text(
-            l10n.forwardCandidateContextUnavailable,
-            style: TenturaText.bodySmall(tt.textMuted),
-          ),
-          ForwardCandidateContextPhase.transportError => Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+            ]);
+          case ForwardCandidateContextPhase.transportError:
+            children.addAll([
+              if (children.isNotEmpty) SizedBox(height: tt.rowGap),
               Text(
                 l10n.forwardCandidateContextUnavailable,
                 style: TenturaText.bodySmall(tt.textMuted),
@@ -436,16 +511,85 @@ class _ConnectionSectionState extends State<_ConnectionSection> {
                 onPressed: context.read<ForwardCandidateContextCubit>().retry,
                 child: Text(l10n.forwardCandidateRetry),
               ),
-            ],
-          ),
-        };
+            ]);
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: children,
+        );
       },
     );
   }
 }
 
-class _PathView extends StatelessWidget {
-  const _PathView({
+List<Widget> _instantHowYouKnowLines({
+  required BuildContext context,
+  required ForwardCandidate candidate,
+  required ForwardCandidateContextPhase phase,
+}) {
+  final l10n = L10n.of(context)!;
+  final tt = context.tt;
+  final reach = candidate.reach;
+  final lines = <Widget>[];
+
+  if (phase == ForwardCandidateContextPhase.direct ||
+      reach?.kind == ForwardReachKind.direct ||
+      candidate.profile.isFriend) {
+    lines.add(
+      TenturaStatusText(
+        l10n.forwardCandidateDirectConnection,
+        tone: TenturaTone.good,
+      ),
+    );
+  }
+
+  if (reach?.kind == ForwardReachKind.viaConnection) {
+    lines.add(
+      Padding(
+        padding: EdgeInsets.only(top: lines.isEmpty ? 0 : tt.rowGap),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (candidate.reachViaProfiles.isNotEmpty) ...[
+              TenturaAvatarStack(
+                profiles: candidate.reachViaProfiles,
+                max: 2,
+                size: tt.iconSize * 1.35,
+                overlap: tt.tightGap,
+              ),
+              SizedBox(width: tt.iconTextGap),
+            ],
+            Expanded(
+              child: Text(
+                forwardReachVouchedLabel(l10n, candidate),
+                style: TenturaText.bodySmall(tt.text),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  final shared = reach?.sharedRequest;
+  if (shared != null && shared.title.trim().isNotEmpty) {
+    lines.add(
+      Padding(
+        padding: EdgeInsets.only(top: lines.isEmpty ? 0 : tt.rowGap),
+        child: TenturaStatusText(
+          l10n.forwardCandidateBothInRequest(shared.title.trim()),
+          tone: TenturaTone.info,
+        ),
+      ),
+    );
+  }
+
+  return lines;
+}
+
+class _PathAvatarChain extends StatelessWidget {
+  const _PathAvatarChain({
     required this.nodes,
     required this.expanded,
     required this.onToggleExpanded,
@@ -459,35 +603,45 @@ class _PathView extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
+    if (nodes.isEmpty) return const SizedBox.shrink();
+
     final collapsed = nodes.length > 4 && !expanded;
     final visibleNodes = collapsed
         ? <CandidateConnectionNode?>[nodes.first, nodes[1], null, nodes.last]
         : nodes.cast<CandidateConnectionNode?>();
+
     final pieces = <Widget>[];
     for (var index = 0; index < visibleNodes.length; index++) {
       if (index > 0) {
-        pieces.add(Text('→', style: TenturaText.bodySmall(tt.textMuted)));
+        pieces.add(
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: tt.tightGap),
+            child: Text('→', style: TenturaText.bodySmall(tt.textMuted)),
+          ),
+        );
       }
       final node = visibleNodes[index];
-      pieces.add(
-        Text(
-          node == null ? '…' : _nodeLabel(node, l10n),
-          style: TenturaText.bodySmall(
-            node?.kind == CandidateConnectionNodeKind.unavailable
-                ? tt.textMuted
-                : tt.text,
+      if (node == null) {
+        pieces.add(Text('…', style: TenturaText.bodySmall(tt.textMuted)));
+      } else if (node.kind == CandidateConnectionNodeKind.unavailable) {
+        pieces.add(
+          Text(
+            l10n.forwardCandidateUnavailablePerson,
+            style: TenturaText.bodySmall(tt.textMuted),
           ),
-        ),
-      );
+        );
+      } else {
+        pieces.add(
+          TenturaAvatar.small(
+            profile: profileFromConnectionNode(node),
+          ),
+        );
+      }
     }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          l10n.forwardCandidateOnePath,
-          style: TenturaText.bodySmall(tt.textMuted),
-        ),
-        SizedBox(height: tt.tightGap),
         Wrap(
           spacing: tt.iconTextGap,
           runSpacing: tt.tightGap,
@@ -508,13 +662,4 @@ class _PathView extends StatelessWidget {
       ],
     );
   }
-}
-
-String _nodeLabel(CandidateConnectionNode node, L10n l10n) {
-  if (node.kind == CandidateConnectionNodeKind.viewer) return l10n.labelYou;
-  if (node.kind == CandidateConnectionNodeKind.unavailable) {
-    return l10n.forwardCandidateUnavailablePerson;
-  }
-  final label = node.displayName?.trim() ?? '';
-  return label.isEmpty ? l10n.forwardCandidateUnavailablePerson : label;
 }

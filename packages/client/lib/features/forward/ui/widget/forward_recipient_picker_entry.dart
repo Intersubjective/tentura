@@ -68,6 +68,7 @@ class ForwardRecipientPickerEntry extends StatelessWidget {
             ? state.recipientReasons[id] ?? const []
             : const [],
         personalNotePreview: state.perRecipientNotes[id],
+        connectionContextQuery: state.context,
       ),
       builder: (context, view) {
         onBuild?.call();
@@ -91,6 +92,7 @@ class ForwardRecipientPickerEntry extends StatelessWidget {
               onOpenPersonalNote: showsNotes && view.isSelected
                   ? onOpenPersonalNote
                   : null,
+              connectionContextQuery: view.connectionContextQuery,
             );
 
         if (!showsNotes || !view.isSelected) {
@@ -138,11 +140,13 @@ class _ForwardPickerRowView {
     required this.isSelected,
     required this.reasonSlugs,
     required this.personalNotePreview,
+    required this.connectionContextQuery,
   });
 
   final bool isSelected;
   final List<String> reasonSlugs;
   final String? personalNotePreview;
+  final String connectionContextQuery;
 
   @override
   bool operator ==(Object other) =>
@@ -150,13 +154,15 @@ class _ForwardPickerRowView {
       other is _ForwardPickerRowView &&
           isSelected == other.isSelected &&
           _listEq(reasonSlugs, other.reasonSlugs) &&
-          personalNotePreview == other.personalNotePreview;
+          personalNotePreview == other.personalNotePreview &&
+          connectionContextQuery == other.connectionContextQuery;
 
   @override
   int get hashCode => Object.hash(
     isSelected,
     Object.hashAll(reasonSlugs),
     personalNotePreview,
+    connectionContextQuery,
   );
 
   static bool _listEq(List<String> a, List<String> b) {

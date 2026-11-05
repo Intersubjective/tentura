@@ -41,6 +41,7 @@ final class ForwardCandidateContextRepository
           status: CandidateConnectionContextStatus.values.byName(
             payload.status,
           ),
+          candidateJoinedAt: payload.candidate_joined_at,
           nodes: [for (final node in payload.nodes) _toEntity(node)],
         );
       });

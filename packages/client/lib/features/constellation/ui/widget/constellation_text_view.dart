@@ -628,14 +628,12 @@ class _ConstellationFieldListBeaconTitleRow extends StatelessWidget {
     required this.title,
     required this.hasUnread,
     required this.beaconId,
-    this.maxLines = 2,
     this.trailingBeforeDot = const [],
   });
 
   final String title;
   final bool hasUnread;
   final String beaconId;
-  final int maxLines;
   final List<Widget> trailingBeforeDot;
 
   @override
@@ -652,7 +650,7 @@ class _ConstellationFieldListBeaconTitleRow extends StatelessWidget {
               theme,
               hasUnread: hasUnread,
             ),
-            maxLines: maxLines,
+            maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
         ),
@@ -801,9 +799,10 @@ class _RequestTile extends StatelessWidget {
       selected: selected,
       identifier: TestIds.constellationTextRequest(request.id),
       label: [
-        hasUnread
-            ? l10n.constellationFieldUnreadBeaconSemantics(card.title)
-            : card.title,
+        if (hasUnread)
+          l10n.constellationFieldUnreadBeaconSemantics(card.title)
+        else
+          card.title,
         ?meta,
         if (connectionLabel != null) connectionLabel,
         ?held,
