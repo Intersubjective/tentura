@@ -2107,6 +2107,16 @@ LEFT JOIN LATERAL (
   }) => _db.withMutatingUser(userId, () async {
     // customSelect binds timestamptz as ISO text via ::timestamptz cast.
     final seenAtIso = at.toUtc().toIso8601String();
+    // Reading either accessible scope also opens the Request in the Field.
+    // Keep this fact separate from its discussion/Questions watermarks.
+    await _db.customStatement(
+      r'''
+INSERT INTO public.beacon_field_seen (user_id, beacon_id)
+VALUES ($1, $2)
+ON CONFLICT (user_id, beacon_id) DO NOTHING
+''',
+      [userId, beaconId],
+    );
     final QueryRow row;
     if (threadItemId == null) {
       row = await _db

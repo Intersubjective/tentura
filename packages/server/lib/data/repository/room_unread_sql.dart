@@ -22,8 +22,12 @@ String _fieldHasUnreadSql(String unreadMessages) =>
   )
   AND (
     (b.user_id <> \$1 AND NOT EXISTS (
+      SELECT 1 FROM public.beacon_field_seen opened
+      WHERE opened.user_id = \$1 AND opened.beacon_id = b.id
+    ) AND NOT EXISTS (
       SELECT 1 FROM public.beacon_room_seen opened
       WHERE opened.user_id = \$1 AND opened.beacon_id = b.id
+        AND (b.kind = 1 OR public.beacon_effective_admission(b.id, \$1))
     ))
     OR ($unreadMessages)
   )
