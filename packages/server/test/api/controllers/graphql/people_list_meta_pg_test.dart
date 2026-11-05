@@ -665,7 +665,7 @@ VALUES (@room, @from, @to, @at)
         },
       );
 
-      test('is a trust change between the two, in either direction', () async {
+      test('is a trust edge creation between the two, in either direction', () async {
         final changed = ago(const Duration(hours: 8));
         await trust(
           _viewer,
@@ -675,8 +675,7 @@ VALUES (@room, @from, @to, @at)
         await trust(
           _peer,
           _viewer,
-          created: ago(const Duration(days: 29)),
-          updated: changed,
+          created: changed,
         );
 
         final row = await peerRow();
