@@ -69,6 +69,9 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
     required this.fieldSheetDragHandleWidth,
     required this.fieldSheetDragHandleHeight,
     required this.fieldSheetDragHandleHitSize,
+    required this.fieldUnreadGlowSpread,
+    required this.fieldUnreadGlowAlphaDark,
+    required this.fieldUnreadGlowAlphaLight,
   });
 
   final Color bg;
@@ -200,6 +203,15 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
   /// Touch/keyboard target around the Field context sheet drag handle.
   final double fieldSheetDragHandleHitSize;
 
+  /// Ambient unread glow radius as a multiple of the node body radius (#256).
+  final double fieldUnreadGlowSpread;
+
+  /// Peak alpha of the unread glow sprite on dark theme ([BlendMode.plus]).
+  final double fieldUnreadGlowAlphaDark;
+
+  /// Peak alpha of the unread glow sprite on light theme (normal blend).
+  final double fieldUnreadGlowAlphaLight;
+
   /// Light preset (compact density); colours from [TenturaColorPalette.light].
   static final TenturaTokens light = TenturaTokens.fromPalette(
     TenturaColorPalette.light,
@@ -270,6 +282,9 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
     fieldSheetDragHandleWidth: 32,
     fieldSheetDragHandleHeight: 4,
     fieldSheetDragHandleHitSize: 48,
+    fieldUnreadGlowSpread: 2.15,
+    fieldUnreadGlowAlphaDark: 0.34,
+    fieldUnreadGlowAlphaLight: 0.26,
   );
 
   /// Mine / secondary info on cards (sky-tinted border emphasis).
@@ -452,6 +467,9 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
     double? fieldSheetDragHandleWidth,
     double? fieldSheetDragHandleHeight,
     double? fieldSheetDragHandleHitSize,
+    double? fieldUnreadGlowSpread,
+    double? fieldUnreadGlowAlphaDark,
+    double? fieldUnreadGlowAlphaLight,
   }) {
     return TenturaTokens(
       bg: bg ?? this.bg,
@@ -526,6 +544,12 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
           fieldSheetDragHandleHeight ?? this.fieldSheetDragHandleHeight,
       fieldSheetDragHandleHitSize:
           fieldSheetDragHandleHitSize ?? this.fieldSheetDragHandleHitSize,
+      fieldUnreadGlowSpread:
+          fieldUnreadGlowSpread ?? this.fieldUnreadGlowSpread,
+      fieldUnreadGlowAlphaDark:
+          fieldUnreadGlowAlphaDark ?? this.fieldUnreadGlowAlphaDark,
+      fieldUnreadGlowAlphaLight:
+          fieldUnreadGlowAlphaLight ?? this.fieldUnreadGlowAlphaLight,
     );
   }
 
@@ -664,6 +688,21 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
       fieldSheetDragHandleHitSize: lerpDouble(
         fieldSheetDragHandleHitSize,
         other.fieldSheetDragHandleHitSize,
+        t,
+      )!,
+      fieldUnreadGlowSpread: lerpDouble(
+        fieldUnreadGlowSpread,
+        other.fieldUnreadGlowSpread,
+        t,
+      )!,
+      fieldUnreadGlowAlphaDark: lerpDouble(
+        fieldUnreadGlowAlphaDark,
+        other.fieldUnreadGlowAlphaDark,
+        t,
+      )!,
+      fieldUnreadGlowAlphaLight: lerpDouble(
+        fieldUnreadGlowAlphaLight,
+        other.fieldUnreadGlowAlphaLight,
         t,
       )!,
     );

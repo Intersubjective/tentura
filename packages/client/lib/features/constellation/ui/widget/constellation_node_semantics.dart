@@ -22,6 +22,7 @@ String constellationNodeSemanticLabel({
   required NodeDetails node,
   bool online = false,
   List<String> ownTagNames = const [],
+  bool unreadAuthorRollup = false,
 }) {
   return switch (node) {
     FieldPersonNode(:final person) => () {
@@ -39,6 +40,8 @@ String constellationNodeSemanticLabel({
           l10n.constellationPinAccountDeleted
         else if (isNewOnField)
           l10n.constellationFieldNewSemantics(person.shownName)
+        else if (unreadAuthorRollup)
+          l10n.constellationFieldUnreadAuthorSemantics(person.shownName)
         else
           person.shownName,
         if (pinState == 'blockedByMe') l10n.constellationPinBlocked,
@@ -85,20 +88,26 @@ String constellationNodeSemanticLabel({
           ConstellationAnchorTarget.beacon(request.id),
         ),
       );
-      if (markerParts.isEmpty) {
-        return titlePart;
+      final label = markerParts.isEmpty
+          ? titlePart
+          : '$titlePart, ${markerParts.join(', ')}';
+      if (request.hasUnread) {
+        return l10n.constellationFieldUnreadBeaconSemantics(label);
       }
-      return '$titlePart, ${markerParts.join(', ')}';
+      return label;
     }(),
     FieldBeaconNode(post: final post?) => () {
       final excerpt = post.rootExcerpt.trim();
-      final titlePart = excerpt.isEmpty
+      var label = excerpt.isEmpty
           ? l10n.postCreateMenuPost
           : '${l10n.postCreateMenuPost}: $excerpt';
-      if (!cubit.isAnchored(ConstellationAnchorTarget.beacon(post.id))) {
-        return titlePart;
+      if (cubit.isAnchored(ConstellationAnchorTarget.beacon(post.id))) {
+        label = '$label, ${l10n.constellationPinMarkerSemantics}';
       }
-      return '$titlePart, ${l10n.constellationPinMarkerSemantics}';
+      if (post.hasUnread) {
+        return l10n.constellationFieldUnreadBeaconSemantics(label);
+      }
+      return label;
     }(),
     _ => '',
   };
