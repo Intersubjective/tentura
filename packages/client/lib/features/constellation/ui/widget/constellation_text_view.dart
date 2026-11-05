@@ -298,7 +298,7 @@ class _ConstellationTextViewState extends State<ConstellationTextView> {
                     child: SearchBar(
                       key: const Key('constellation.text.search'),
                       controller: _search,
-                      hintText: l10n.constellationSearchHint,
+                      hintText: l10n.constellationFieldSearchHint,
                       leading: const Icon(Icons.search),
                       trailing: [
                         if (_query.isNotEmpty)

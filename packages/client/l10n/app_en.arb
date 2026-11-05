@@ -10091,6 +10091,41 @@
   "@constellationSearchNoMatch": {
     "context": "Field: the name search found nobody (#253)"
   },
+  "constellationFieldSearchHint": "Search the Field",
+  "@constellationFieldSearchHint": {
+    "description": "Placeholder for server Field search across people, Requests and Posts",
+    "context": "ConstellationField"
+  },
+  "constellationFieldSearchPeople": "People",
+  "@constellationFieldSearchPeople": {
+    "description": "Section header for people in Field search results",
+    "context": "ConstellationField"
+  },
+  "constellationFieldSearchRequests": "Requests",
+  "@constellationFieldSearchRequests": {
+    "description": "Section header for Requests in Field search results",
+    "context": "ConstellationField"
+  },
+  "constellationFieldSearchPosts": "Posts",
+  "@constellationFieldSearchPosts": {
+    "description": "Section header for Posts in Field search results",
+    "context": "ConstellationField"
+  },
+  "constellationFieldSearchEmpty": "No matches on your Field.",
+  "@constellationFieldSearchEmpty": {
+    "description": "Empty state when Field search returns no hits",
+    "context": "ConstellationField"
+  },
+  "constellationFieldSearchStatusHidden": "Hidden",
+  "@constellationFieldSearchStatusHidden": {
+    "description": "Status suffix on a hidden Field search hit",
+    "context": "ConstellationField"
+  },
+  "constellationFieldSearchStatusClosed": "Closed",
+  "@constellationFieldSearchStatusClosed": {
+    "description": "Status suffix on a closed Field search hit",
+    "context": "ConstellationField"
+  },
   "constellationListDirectContacts": "People you trust",
   "@constellationListDirectContacts": {
     "context": "Field list: section of the people the viewer trusts directly (#253)"

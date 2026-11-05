@@ -131,6 +131,8 @@ final class _RecordingComposer {
     Set<String> expandedSatelliteAuthorIds = const {},
     List<ConstellationMemberWeb> selectedRequestWebs = const [],
     Set<String> extraKeptPeerIds = const {},
+    Set<String> searchRevealedBeaconIds = const {},
+    Set<String> searchRevealedPersonIds = const {},
   }) {
     composeCount++;
     return last = _real(
@@ -142,6 +144,8 @@ final class _RecordingComposer {
       expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
       selectedRequestWebs: selectedRequestWebs,
       extraKeptPeerIds: extraKeptPeerIds,
+      searchRevealedBeaconIds: searchRevealedBeaconIds,
+      searchRevealedPersonIds: searchRevealedPersonIds,
     );
   }
 

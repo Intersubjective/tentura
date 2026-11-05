@@ -50,6 +50,8 @@ final class _CountingComposer {
     Set<String> expandedSatelliteAuthorIds = const {},
     List<ConstellationMemberWeb> selectedRequestWebs = const [],
     Set<String> extraKeptPeerIds = const {},
+    Set<String> searchRevealedBeaconIds = const {},
+    Set<String> searchRevealedPersonIds = const {},
   }) {
     fields.add(field);
     return composeConstellationPresentation(
@@ -61,6 +63,8 @@ final class _CountingComposer {
       expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
       selectedRequestWebs: selectedRequestWebs,
       extraKeptPeerIds: extraKeptPeerIds,
+      searchRevealedBeaconIds: searchRevealedBeaconIds,
+      searchRevealedPersonIds: searchRevealedPersonIds,
     );
   }
 }
