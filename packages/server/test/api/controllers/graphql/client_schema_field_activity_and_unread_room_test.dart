@@ -87,6 +87,11 @@ query {
         line,
       );
       if (match != null) {
+        expect(
+          fields.containsKey(match.group(1)),
+          isFalse,
+          reason: 'v2_$type declares ${match.group(1)} more than once',
+        );
         fields[match.group(1)!] = match
             .group(2)!
             .replaceAll(
