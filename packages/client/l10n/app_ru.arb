@@ -6465,6 +6465,8 @@
   "forwardSectionOthersReachableHint": "Не ваши прямые связи: вы видите друг друга через сеть доверия или общий запрос.",
   "forwardSectionThroughConnections": "Через ваши связи",
   "forwardSectionWiderNetwork": "Широкая сеть",
+  "forwardWiderNetworkMorePeople": "{count, plural, one{Ещё {count} человек в широкой сети} few{Ещё {count} человека в широкой сети} many{Ещё {count} человек в широкой сети} other{Ещё {count} человека в широкой сети}}",
+  "forwardWiderNetworkExpanderHint": "Вы не знаете их лично.",
   "forwardReachYouTrustThem": "Вы им доверяете",
   "forwardReachYouTrustThemWithPresence": "Вы им доверяете · {presence}",
   "forwardReachVouchedByOne": "За них поручился {name}",

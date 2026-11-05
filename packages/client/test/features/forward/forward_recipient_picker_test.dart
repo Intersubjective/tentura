@@ -1395,22 +1395,31 @@ void main() {
       await pumpPicker(tester, cubit: cubit, embedded: true);
 
       final direct = find.byKey(ForwardRecipientPicker.directSectionKey);
-      final wider = find.byKey(ForwardRecipientPicker.widerSectionKey);
       expect(direct, findsOneWidget);
-      expect(wider, findsOneWidget);
       expect(find.text('YOUR CONNECTIONS'), findsOneWidget);
-      expect(find.text('WIDER NETWORK'), findsOneWidget);
+      expect(find.text('WIDER NETWORK'), findsNothing);
       expect(find.text('OTHERS YOU CAN REACH'), findsNothing);
+      expect(
+        find.byKey(ForwardRecipientPicker.widerExpanderKey),
+        findsOneWidget,
+      );
+      expect(find.text('Kesi'), findsNothing);
+      expect(
+        find.text('1 more person in your wider network'),
+        findsOneWidget,
+      );
       final directY = tester.getTopLeft(direct).dy;
       final vadimY = tester.getTopLeft(find.text('Vadim')).dy;
-      final widerY = tester.getTopLeft(wider).dy;
-      final kesiY = tester.getTopLeft(find.text('Kesi')).dy;
+      final expanderY = tester
+          .getTopLeft(find.byKey(ForwardRecipientPicker.widerExpanderKey))
+          .dy;
       expect(directY, lessThan(vadimY));
-      expect(vadimY, lessThan(widerY));
-      expect(widerY, lessThan(kesiY));
+      expect(vadimY, lessThan(expanderY));
     });
 
-    testWidgets('no direct contacts: only the wider header', (tester) async {
+    testWidgets('no direct contacts: wider rows without header or expander', (
+      tester,
+    ) async {
       final cubit = groupedCubit(
         candidates: const [
           ForwardCandidate(
@@ -1428,8 +1437,13 @@ void main() {
       );
       expect(
         find.byKey(ForwardRecipientPicker.widerSectionKey),
-        findsOneWidget,
+        findsNothing,
       );
+      expect(
+        find.byKey(ForwardRecipientPicker.widerExpanderKey),
+        findsNothing,
+      );
+      expect(find.text('Kesi'), findsOneWidget);
     });
 
     testWidgets('the involved scope stays one flat list', (tester) async {

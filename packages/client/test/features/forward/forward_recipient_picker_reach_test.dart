@@ -143,15 +143,31 @@ void main() {
     final throughY = tester
         .getTopLeft(find.byKey(ForwardRecipientPicker.throughSectionKey))
         .dy;
-    final widerY = tester
-        .getTopLeft(find.byKey(ForwardRecipientPicker.widerSectionKey))
-        .dy;
     expect(directY, lessThan(throughY));
-    expect(throughY, lessThan(widerY));
 
     expect(find.text('ВАШИ СВЯЗИ'), findsOneWidget);
     expect(find.text('ЧЕРЕЗ ВАШИ СВЯЗИ'), findsOneWidget);
+    expect(find.text('Kesi'), findsNothing);
+    expect(
+      find.byKey(ForwardRecipientPicker.widerSectionKey),
+      findsNothing,
+    );
+    expect(
+      find.byKey(ForwardRecipientPicker.widerExpanderKey),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Ещё 1 человек в широкой сети'),
+      findsOneWidget,
+    );
+    expect(find.text('Вы не знаете их лично.'), findsOneWidget);
+
+    await tester.tap(find.byKey(ForwardRecipientPicker.widerExpanderKey));
+    await tester.pumpAndSettle();
+
     expect(find.text('ШИРОКАЯ СЕТЬ'), findsOneWidget);
+    expect(find.text('Kesi'), findsOneWidget);
+    expect(find.text('Дальняя связь'), findsOneWidget);
   });
 
   testWidgets('via row shows vouch copy and mini-avatars', (tester) async {
@@ -254,14 +270,14 @@ void main() {
           ForwardState(
             beaconId: 'draft-1',
             beacon: Beacon.empty.copyWith(id: 'draft-1', title: 'Draft'),
-        activeFilter: ForwardFilter.alreadyInvolved,
-        candidates: [
-          _candidate(
-            id: 'via',
-            name: 'Tanya',
-            reach: _viaReach(via: [_voucher('U-v', 'Vadim')], viaCount: 1),
-          ).copyWith(involvement: CandidateInvolvement.forwardedByMe),
-        ],
+            activeFilter: ForwardFilter.alreadyInvolved,
+            candidates: [
+              _candidate(
+                id: 'via',
+                name: 'Tanya',
+                reach: _viaReach(via: [_voucher('U-v', 'Vadim')], viaCount: 1),
+              ).copyWith(involvement: CandidateInvolvement.forwardedByMe),
+            ],
             candidatesLoad: const ForwardCandidatesReady(),
           ),
         );
