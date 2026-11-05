@@ -10,6 +10,7 @@ final gqlTypeConstellationTrustChainPerson =
       ]);
 
 List<GraphQLType<dynamic, dynamic>> get customTypes => [
+  gqlTypePersonListMeta,
   gqlTypeFieldHiddenItem,
   gqlTypePersonFieldItemsPage,
   gqlTypePersonFieldItem,
@@ -2430,6 +2431,15 @@ final class _DynamicListType extends GraphQLListType<dynamic, dynamic> {
   @override
   GraphQLType<List<dynamic>, List<dynamic>> coerceToInputObject() => this;
 }
+
+/// Sort keys for one person on the People tab (see `peopleListMeta`).
+final gqlTypePersonListMeta = GraphQLObjectType('PersonListMeta', null)
+  ..fields.addAll([
+    field('id', graphQLString.nonNullable()),
+    field('newSince', graphQLDate),
+    field('newReason', graphQLString),
+    field('lastInteractionAt', graphQLDate),
+  ]);
 
 final gqlTypeFieldSearchPerson = GraphQLObjectType('FieldSearchPerson', null)
   ..fields.addAll([

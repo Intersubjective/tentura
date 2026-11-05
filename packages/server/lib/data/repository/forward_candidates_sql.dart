@@ -1,5 +1,14 @@
 import 'constellation_field_repository.dart' show constellationLastActivitySql;
 
+/// Start of the current mutual trust: the later `created_at` of two positive
+/// edges, read from the `outgoing` (viewer -> peer) and `incoming` (peer ->
+/// viewer) `user_trust_edge` joins; null for one-way trust. Shared by every
+/// reader that reports `mutualSince`.
+const kMutualSinceSql = '''
+CASE WHEN outgoing.subject IS NOT NULL AND incoming.subject IS NOT NULL
+    THEN greatest(outgoing.created_at, incoming.created_at)
+  END''';
+
 /// Membership wrap matching `mutually_visible_users` (m0142), returning
 /// peer signal columns instead of `SETOF user`, followed by bond-only peers.
 /// Both groups carry the start of their current mutual trust edges and why
@@ -38,9 +47,11 @@ LIMIT 500
   WHERE NOT EXISTS (SELECT 1 FROM visible v WHERE v.peer_id = b.peer_id)
 )
 SELECT c.*,
-  CASE WHEN outgoing.subject IS NOT NULL AND incoming.subject IS NOT NULL
-    THEN greatest(outgoing.created_at, incoming.created_at)
-  END AS mutual_since,
+  '''
+    '''$kMutualSinceSql'''
+    r'''
+
+ AS mutual_since,
   outgoing.subject IS NOT NULL AS viewer_trusts_directly,
   vouch.via_ids,
   vouch.via_count,

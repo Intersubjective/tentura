@@ -37,6 +37,7 @@ import 'query_mutual_friends.dart';
 import 'query_lineage_suggestions.dart';
 import 'query_person_shared_contexts.dart';
 import 'query_notification_preferences.dart';
+import 'query_people_list_meta.dart';
 import 'query_people_tags.dart';
 import 'query_trust_preference.dart';
 import 'query_user_block.dart';
@@ -82,6 +83,7 @@ List<GraphQLObjectField<dynamic, dynamic>> get queriesAll => [
   ...QueryMutualFriends().all,
   ...QueryLineageSuggestions().all,
   ...QueryNotificationPreferences().all,
+  ...QueryPeopleListMeta().all,
   ...QueryPeopleTags().all,
   ...QueryConstellationLayoutSnapshots().all,
   ...QueryConstellationTagMagnets().all,
