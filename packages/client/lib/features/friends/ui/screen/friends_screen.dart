@@ -11,7 +11,6 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
 import 'package:tentura/features/auth/domain/use_case/auth_case.dart';
-import 'package:tentura/features/capability/ui/widget/network_person_card.dart';
 import 'package:tentura/features/connect/ui/widget/connect_bottom_sheet.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/domain/entity/invitation_entity.dart';
@@ -19,7 +18,6 @@ import 'package:tentura/features/friends/domain/use_case/friends_case.dart';
 import 'package:tentura/features/invitation/ui/bloc/invitation_cubit.dart';
 import 'package:tentura/features/invitation/ui/dialog/invitation_addressee_dialog.dart';
 import 'package:tentura/features/invitation/ui/dialog/invitation_remove_dialog.dart';
-import 'package:tentura/domain/capability/friend_context.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/widget/relative_timestamp_ticker.dart';
 import 'package:tentura/ui/widget/first_load_gate.dart';
@@ -29,6 +27,7 @@ import '../invite_pending_subtitle.dart';
 import '../widget/accepted_invite_list_tile.dart';
 import '../widget/friends_app_bar_actions.dart';
 import '../widget/pending_invites_empty_state.dart';
+import '../widget/people_ordered_list.dart';
 
 /// Semantic hook for blocked-people navigation from People.
 void navigateToBlockedPeopleFromFriends(BuildContext context) {
@@ -285,7 +284,9 @@ class FriendsListBody extends StatelessWidget {
       bloc: friendsCubit,
       buildWhen: (_, c) => c.isSuccess || c.isLoading || c.hasError,
       builder: (_, state) {
-        final friends = state.friends.values.toList();
+        final showInviteFooter =
+            onCreateInvitation != null &&
+            state.friends.length < _inviteFooterBelow;
         return TenturaFirstLoadGate(
           ready: state.firstLoadDone,
           error: state.loadError,
@@ -310,16 +311,17 @@ class FriendsListBody extends StatelessWidget {
                       ),
                     ),
                   )
-                : ListView.separated(
-                    itemCount:
-                        friends.length +
-                        (onCreateInvitation != null &&
-                                friends.length < _inviteFooterBelow
-                            ? 1
-                            : 0),
-                    itemBuilder: (_, i) {
-                      if (i == friends.length) {
-                        return Padding(
+                : ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    children: [
+                      PeopleOrderedList(
+                        friends: state.friends,
+                        friendContexts: state.friendContexts,
+                        listMeta: state.listMeta,
+                        optimisticListMeta: state.optimisticListMeta,
+                      ),
+                      if (showInviteFooter)
+                        Padding(
                           padding: EdgeInsets.symmetric(
                             vertical: tt.sectionGap,
                           ),
@@ -331,18 +333,8 @@ class FriendsListBody extends StatelessWidget {
                               onPressed: onCreateInvitation,
                             ),
                           ),
-                        );
-                      }
-                      final profile = friends[i];
-                      return NetworkPersonCard(
-                        key: ValueKey(profile),
-                        profile: profile,
-                        friendContext:
-                            state.friendContexts[profile.id] ??
-                            FriendContext.empty,
-                      );
-                    },
-                    separatorBuilder: separatorBuilder,
+                        ),
+                    ],
                   ),
           ),
         );

@@ -468,6 +468,7 @@ class _V2RoutingLink extends Link {
     'MyPrivateLabelsForUser',
     'PersonCapabilityCues',
     'PersonFriendContextBatch',
+    'PeopleListMetaFetch',
     'PersonSharedContexts',
     'PersonTopCapabilitiesBatch',
     'SubjectiveTags',

@@ -352,6 +352,37 @@
   "@friendsInviteMore": {
     "context": "FriendsScreen"
   },
+  "friendsPeopleSectionNew": "Новые",
+  "@friendsPeopleSectionNew": {
+    "context": "FriendsScreen"
+  },
+  "friendsPeopleNewReasonInvite": "Принял ваше приглашение · {relative}",
+  "@friendsPeopleNewReasonInvite": {
+    "context": "FriendsScreen",
+    "placeholders": {
+      "relative": {
+        "type": "String"
+      }
+    }
+  },
+  "friendsPeopleNewReasonTrusted": "Вы доверились · {relative}",
+  "@friendsPeopleNewReasonTrusted": {
+    "context": "FriendsScreen",
+    "placeholders": {
+      "relative": {
+        "type": "String"
+      }
+    }
+  },
+  "friendsPeopleNewReasonMutual": "Взаимное доверие · с {relative}",
+  "@friendsPeopleNewReasonMutual": {
+    "context": "FriendsScreen",
+    "placeholders": {
+      "relative": {
+        "type": "String"
+      }
+    }
+  },
   "friendsScanInviteCode": "Сканировать код приглашения",
   "@friendsScanInviteCode": {
     "context": "FriendsScreen"

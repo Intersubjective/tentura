@@ -352,6 +352,37 @@
   "@friendsInviteMore": {
     "context": "FriendsScreen"
   },
+  "friendsPeopleSectionNew": "New",
+  "@friendsPeopleSectionNew": {
+    "context": "FriendsScreen"
+  },
+  "friendsPeopleNewReasonInvite": "Joined via your invite · {relative}",
+  "@friendsPeopleNewReasonInvite": {
+    "context": "FriendsScreen",
+    "placeholders": {
+      "relative": {
+        "type": "String"
+      }
+    }
+  },
+  "friendsPeopleNewReasonTrusted": "You trusted them · {relative}",
+  "@friendsPeopleNewReasonTrusted": {
+    "context": "FriendsScreen",
+    "placeholders": {
+      "relative": {
+        "type": "String"
+      }
+    }
+  },
+  "friendsPeopleNewReasonMutual": "Trust is mutual · since {relative}",
+  "@friendsPeopleNewReasonMutual": {
+    "context": "FriendsScreen",
+    "placeholders": {
+      "relative": {
+        "type": "String"
+      }
+    }
+  },
   "friendsScanInviteCode": "Scan invite code",
   "@friendsScanInviteCode": {
     "context": "FriendsScreen"
