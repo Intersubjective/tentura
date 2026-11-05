@@ -199,20 +199,6 @@ ForwardRecipientLine2? _forwardReachReasonLine2({
   final label = forwardReachReasonLabel(l10n, candidate);
   final reach = candidate.reach!;
   if (reach.kind == ForwardReachKind.direct) {
-    final presence = profilePresenceDisplayLine(
-      l10n: l10n,
-      locale: locale,
-      status: candidate.profile.presenceStatus,
-      lastSeenAt: candidate.profile.presenceLastSeenAt,
-    );
-    if (presence.isNotEmpty) {
-      return ForwardRecipientLine2(
-        presenceOrAvailabilityLine: l10n.forwardReachYouTrustThemWithPresence(
-          presence,
-        ),
-        presenceOrAvailabilityTone: TenturaTone.good,
-      );
-    }
     return ForwardRecipientLine2(
       relationLabel: label,
       relationTone: TenturaTone.good,
@@ -367,14 +353,11 @@ ForwardRecipientLine2 computeForwardRecipientLine2({
     );
   }
 
-  // Next to a presence line, a forwardable "Unseen" only repeats the
-  // "Not yet seen" tab the row sits in (and ran into it: "Online Unseen").
   final redundantUnseen =
       candidate.involvement == CandidateInvolvement.unseen &&
       relationTone == TenturaTone.good;
+  // Presence lives on the candidate details sheet (#440 mn5y.6).
   return ForwardRecipientLine2(
-    presenceOrAvailabilityLine: presence,
-    presenceOrAvailabilityTone: TenturaTone.neutral,
     relationLabel: redundantUnseen ? null : relationLabel,
     relationTone: relationTone,
     forwardedByMeWithNote: forwardedByMeWithNote,

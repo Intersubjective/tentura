@@ -207,7 +207,7 @@ void main() {
       await tester.tap(find.text('open-candidate'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Direct connection'), findsOneWidget);
+      expect(find.text('You trust them'), findsOneWidget);
       expect(router.stackData.map((data) => data.name), [
         ForwardBeaconRoute.name,
       ]);
@@ -223,7 +223,7 @@ void main() {
 
       await router.maybePop();
       await tester.pumpAndSettle();
-      expect(find.text('Direct connection'), findsOneWidget);
+      expect(find.text('You trust them'), findsOneWidget);
 
       await tester.tap(find.byTooltip('Close'));
       await tester.pumpAndSettle();
@@ -250,7 +250,7 @@ void main() {
     await router.maybePop();
     await tester.pumpAndSettle();
 
-    expect(find.text('Direct connection'), findsNothing);
+    expect(find.text('You trust them'), findsNothing);
     expect(
       find.text('This person is no longer available.', findRichText: true),
       findsOneWidget,

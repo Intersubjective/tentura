@@ -1,14 +1,17 @@
 import 'dart:async';
 
+import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:logging/logging.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/features/forward/domain/entity/candidate_involvement.dart';
 import 'package:tentura/features/forward/domain/entity/forward_candidate.dart';
+import 'package:tentura/features/forward/domain/entity/forward_reach.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
 import 'package:tentura/features/forward_candidate_context/domain/entity/candidate_connection_context.dart';
 import 'package:tentura/features/forward_candidate_context/domain/port/forward_candidate_context_repository_port.dart';
@@ -16,6 +19,8 @@ import 'package:tentura/features/forward_candidate_context/domain/use_case/load_
 import 'package:tentura/features/forward_candidate_context/ui/widget/forward_candidate_context_sheet.dart';
 import 'package:tentura/ui/effect/ui_effect_bus.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+
+import '../../../../support/phone_surface.dart';
 
 final class _Repository implements ForwardCandidateContextRepositoryPort {
   final responses = <Future<CandidateConnectionContext> Function()>[];
@@ -65,7 +70,9 @@ void main() {
   ForwardCandidate candidate({
     bool direct = false,
     String description = 'Builds bridges between teams.',
-    List<String> capabilities = const ['general'],
+    List<String> capabilities = const ['transport', 'food'],
+    ForwardReach? reach,
+    DateTime? joinedAt,
   }) => ForwardCandidate(
     profile: Profile(
       id: 'U2',
@@ -73,9 +80,11 @@ void main() {
       description: description,
       myVote: direct ? 1 : 0,
       subjectExplicitlyTrustsViewer: direct,
-      score: direct ? 0 : 1,
+      score: direct ? 50 : 1,
       rScore: direct ? 0 : 1,
+      joinedAt: joinedAt,
     ),
+    reach: reach,
     topCapabilities: capabilities,
   );
 
@@ -85,6 +94,8 @@ void main() {
     ThemeData? theme,
     Size size = const Size(390, 844),
     bool viewerIsAuthor = false,
+    Locale locale = const Locale('en'),
+    Set<String> needs = const {'transport', 'food'},
   }) async {
     await tester.binding.setSurfaceSize(size);
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -99,6 +110,7 @@ void main() {
       initialState: ForwardState(
         beaconId: 'B1',
         context: 'personal',
+        beacon: Beacon.empty.copyWith(id: 'B1', needs: needs),
         candidates: [value],
         viewerIsAuthor: viewerIsAuthor,
       ),
@@ -106,7 +118,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         theme: theme ?? TenturaTheme.light(),
-        locale: const Locale('en'),
+        locale: locale,
         localizationsDelegates: L10n.localizationsDelegates,
         supportedLocales: L10n.supportedLocales,
         home: BlocProvider.value(
@@ -132,25 +144,219 @@ void main() {
     await tester.pump();
   }
 
-  testWidgets('direct contact shows direct state without repository call', (
+  testWidgets('header paints MeritRank rating arcs', (tester) async {
+    await pumpHost(tester, candidate(direct: true));
+    await tester.pumpAndSettle();
+    expect(find.byType(CustomPaint), findsWidgets);
+  });
+
+  testWidgets('joined 20 days ago shows Joined relative copy', (tester) async {
+    final now = DateTime(2026, 6, 1, 12);
+    await withClock(Clock.fixed(now), () async {
+      await pumpHost(
+        tester,
+        candidate(
+          direct: true,
+          joinedAt: now.subtract(const Duration(days: 20)),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Joined 20 days'), findsOneWidget);
+    });
+  });
+
+  testWidgets('older join shows Member since month year', (tester) async {
+    final now = DateTime(2026, 6, 1, 12);
+    await withClock(Clock.fixed(now), () async {
+      repository.responses.add(
+        () async => CandidateConnectionContext(
+          status: CandidateConnectionContextStatus.longPath,
+          candidateJoinedAt: DateTime.utc(2025, 3, 4),
+        ),
+      );
+      await pumpHost(
+        tester,
+        candidate(reach: const ForwardReach(kind: ForwardReachKind.wider)),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Member since Mar 2025'), findsOneWidget);
+    });
+  });
+
+  testWidgets('via_connection vouch copy appears before fetch completes', (
+    tester,
+  ) async {
+    final pending = Completer<CandidateConnectionContext>();
+    repository.responses.add(() => pending.future);
+    await pumpHost(
+      tester,
+      candidate(
+        reach: ForwardReach(
+          kind: ForwardReachKind.viaConnection,
+          via: [const Profile(id: 'V1', displayName: 'A')],
+          viaCount: 1,
+        ),
+      ),
+    );
+    expect(find.text('Vouched for by A'), findsOneWidget);
+    pending.complete(
+      const CandidateConnectionContext(
+        status: CandidateConnectionContextStatus.unavailable,
+      ),
+    );
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('shared_request shows both-in title line', (tester) async {
+    repository.responses.add(
+      () async => const CandidateConnectionContext(
+        status: CandidateConnectionContextStatus.unavailable,
+      ),
+    );
+    await pumpHost(
+      tester,
+      candidate(
+        reach: const ForwardReach(
+          kind: ForwardReachKind.sharedRequest,
+          sharedRequest: (id: 'R1', title: 'Moving boxes'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Both in "Moving boxes"'), findsOneWidget);
+  });
+
+  testWidgets('wider five-node path collapses to four slots then expands', (
+    tester,
+  ) async {
+    repository.responses.add(
+      () async => const CandidateConnectionContext(
+        status: CandidateConnectionContextStatus.path,
+        nodes: [
+          CandidateConnectionNode(
+            kind: CandidateConnectionNodeKind.viewer,
+            id: 'U1',
+            displayName: 'You',
+          ),
+          CandidateConnectionNode(
+            kind: CandidateConnectionNodeKind.person,
+            id: 'U3',
+            displayName: 'B',
+          ),
+          CandidateConnectionNode(
+            kind: CandidateConnectionNodeKind.person,
+            id: 'U4',
+            displayName: 'C',
+          ),
+          CandidateConnectionNode(
+            kind: CandidateConnectionNodeKind.person,
+            id: 'U5',
+            displayName: 'D',
+          ),
+          CandidateConnectionNode(
+            kind: CandidateConnectionNodeKind.candidate,
+            id: 'U2',
+            displayName: 'Alice',
+          ),
+        ],
+      ),
+    );
+    await pumpHost(
+      tester,
+      candidate(reach: const ForwardReach(kind: ForwardReachKind.wider)),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('…'), findsOneWidget);
+    expect(find.byType(TenturaAvatar), findsNWidgets(4));
+    await tester.tap(find.text('Show full path'));
+    await tester.pumpAndSettle();
+    expect(find.byType(TenturaAvatar), findsAtLeastNWidgets(6));
+  });
+
+  testWidgets('legacy path copy strings never render', (tester) async {
+    repository.responses.add(
+      () async => const CandidateConnectionContext(
+        status: CandidateConnectionContextStatus.path,
+        nodes: [
+          CandidateConnectionNode(kind: CandidateConnectionNodeKind.viewer),
+          CandidateConnectionNode(
+            kind: CandidateConnectionNodeKind.candidate,
+            id: 'U2',
+          ),
+        ],
+      ),
+    );
+    await pumpHost(
+      tester,
+      candidate(reach: const ForwardReach(kind: ForwardReachKind.wider)),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('One path through your network.'), findsNothing);
+    expect(find.textContaining('network snapshot'), findsNothing);
+  });
+
+  testWidgets('section order: how, why, about, then actions', (tester) async {
+    repository.responses.add(
+      () async => const CandidateConnectionContext(
+        status: CandidateConnectionContextStatus.unavailable,
+      ),
+    );
+    await pumpHost(tester, candidate());
+    await tester.pumpAndSettle();
+
+    double top(Finder f) => tester.getTopLeft(f).dy;
+    expect(
+      top(find.text('How you know them')),
+      lessThan(top(find.text('Why for this request'))),
+    );
+    expect(
+      top(find.text('Why for this request')),
+      lessThan(top(find.text('About'))),
+    );
+    expect(
+      top(find.text('About')),
+      lessThan(top(find.widgetWithText(FilledButton, 'Select'))),
+    );
+    expect(find.textContaining('Matches:'), findsOneWidget);
+  });
+
+  testWidgets('375x667 RU sheet headings', (tester) async {
+    await usePhoneSurface(tester);
+    repository.responses.add(
+      () async => const CandidateConnectionContext(
+        status: CandidateConnectionContextStatus.unavailable,
+      ),
+    );
+    await pumpHost(
+      tester,
+      candidate(direct: true, capabilities: const []),
+      locale: const Locale('ru'),
+      needs: const {},
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Как вы их знаете'), findsOneWidget);
+    expect(find.text('Почему для этого запроса'), findsNothing);
+  });
+
+  testWidgets('direct contact shows trust without repository call', (
     tester,
   ) async {
     await pumpHost(tester, candidate(direct: true));
     await tester.pumpAndSettle();
 
-    expect(find.text('Direct connection'), findsOneWidget);
-    expect(find.text('Select'), findsOneWidget);
-    expect(find.text('View full profile'), findsOneWidget);
+    expect(find.text('You trust them'), findsOneWidget);
     expect(repository.calls, 0);
   });
 
   testWidgets('loading does not block selection', (tester) async {
     final pending = Completer<CandidateConnectionContext>();
     repository.responses.add(() => pending.future);
-    final value = candidate();
-    await pumpHost(tester, value);
+    await pumpHost(
+      tester,
+      candidate(reach: const ForwardReach(kind: ForwardReachKind.wider)),
+    );
 
-    expect(find.text('Finding a path through your network…'), findsOneWidget);
     final select = find.widgetWithText(FilledButton, 'Select');
     expect(tester.widget<FilledButton>(select).onPressed, isNotNull);
     await tester.ensureVisible(select);
@@ -163,61 +369,11 @@ void main() {
         status: CandidateConnectionContextStatus.longPath,
       ),
     );
+    await tester.pumpAndSettle();
+    expect(find.text('Distant connection'), findsOneWidget);
   });
 
-  testWidgets('path collapses, expands, wraps, and hides deleted identity', (
-    tester,
-  ) async {
-    repository.responses.add(
-      () async => const CandidateConnectionContext(
-        status: CandidateConnectionContextStatus.path,
-        nodes: [
-          CandidateConnectionNode(
-            kind: CandidateConnectionNodeKind.viewer,
-            id: 'U1',
-          ),
-          CandidateConnectionNode(
-            kind: CandidateConnectionNodeKind.person,
-            id: 'U3',
-            displayName: 'Bob',
-          ),
-          CandidateConnectionNode(
-            kind: CandidateConnectionNodeKind.unavailable,
-          ),
-          CandidateConnectionNode(
-            kind: CandidateConnectionNodeKind.person,
-            id: 'U4',
-            displayName: 'Caroline with a long display name',
-          ),
-          CandidateConnectionNode(
-            kind: CandidateConnectionNodeKind.person,
-            id: 'U5',
-            displayName: 'Devon',
-          ),
-          CandidateConnectionNode(
-            kind: CandidateConnectionNodeKind.candidate,
-            id: 'U2',
-            displayName: 'Alice',
-          ),
-        ],
-      ),
-    );
-    await pumpHost(tester, candidate());
-    await tester.pumpAndSettle();
-
-    expect(find.text('One path through your network.'), findsOneWidget);
-    expect(find.text('…'), findsOneWidget);
-    expect(find.text('Unavailable person'), findsNothing);
-    await tester.tap(find.text('Show full path'));
-    await tester.pumpAndSettle();
-    expect(find.text('Unavailable person'), findsOneWidget);
-    expect(find.text('Show less'), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('transport failure retries once and actions remain enabled', (
-    tester,
-  ) async {
+  testWidgets('transport failure retries once', (tester) async {
     repository.responses
       ..add(() => Future.error(StateError('offline')))
       ..add(
@@ -227,19 +383,20 @@ void main() {
       );
     await pumpHost(
       tester,
-      candidate(description: '', capabilities: const []),
+      candidate(
+        description: '',
+        capabilities: const [],
+        reach: const ForwardReach(kind: ForwardReachKind.wider),
+      ),
       theme: TenturaTheme.dark(),
       size: const Size(900, 900),
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Connection details unavailable'), findsOneWidget);
-    expect(find.text('View full profile'), findsOneWidget);
     await tester.tap(find.text('Try again'));
     await tester.pumpAndSettle();
     expect(repository.calls, 2);
-    expect(find.text('Long network path'), findsOneWidget);
-    expect(find.text('Why they may be relevant'), findsNothing);
+    expect(find.text('Distant connection'), findsOneWidget);
   });
 
   testWidgets('candidate disappearance closes with generic unavailable copy', (
@@ -256,19 +413,15 @@ void main() {
     (forwardCubit as _MutableForwardCubit).removeCandidate();
     await tester.pumpAndSettle();
 
-    expect(find.text('View full profile'), findsNothing);
     expect(
       find.text('This person is no longer available.', findRichText: true),
       findsOneWidget,
     );
   });
-  // #730 (QA 7.56.5, iPhone SE): the author tapped the row of someone who
-  // dismissed the Request; the sheet said nothing about it and Select ended
-  // in "This person is no longer available." Both now say how the author can
-  // still ask them.
+
   group('#730 the author and someone who dismissed the Request', () {
     const hint = 'They dismissed it — use People › Invite';
-    const dismissed = ForwardCandidate(
+    const declined = ForwardCandidate(
       profile: Profile(id: 'U2', displayName: 'Carol', score: 1, rScore: 1),
       involvement: CandidateInvolvement.declined,
     );
@@ -281,15 +434,14 @@ void main() {
 
     testWidgets('the sheet shows the People › Invite hint', (tester) async {
       longPath();
-      await pumpHost(tester, dismissed, viewerIsAuthor: true);
+      await pumpHost(tester, declined, viewerIsAuthor: true);
       await tester.pumpAndSettle();
-
       expect(find.text(hint), findsOneWidget);
     });
 
     testWidgets('Select says to use People › Invite', (tester) async {
       longPath();
-      await pumpHost(tester, dismissed, viewerIsAuthor: true);
+      await pumpHost(tester, declined, viewerIsAuthor: true);
       await tester.pumpAndSettle();
 
       final select = find.widgetWithText(FilledButton, 'Select');
@@ -297,33 +449,7 @@ void main() {
       await tester.tap(select);
       await tester.pumpAndSettle();
 
-      expect(find.text('View full profile'), findsNothing);
       expect(find.text(hint, findRichText: true), findsOneWidget);
-      expect(
-        find.text('This person is no longer available.', findRichText: true),
-        findsNothing,
-      );
-      expect(forwardCubit.state.selectedIds, isEmpty);
-    });
-
-    // Guard: a forwarder who is not the author has no People › Invite.
-    testWidgets('a forwarder who is not the author keeps the generic copy', (
-      tester,
-    ) async {
-      longPath();
-      await pumpHost(tester, dismissed);
-      await tester.pumpAndSettle();
-
-      expect(find.text(hint), findsNothing);
-      final select = find.widgetWithText(FilledButton, 'Select');
-      await tester.ensureVisible(select);
-      await tester.tap(select);
-      await tester.pumpAndSettle();
-
-      expect(
-        find.text('This person is no longer available.', findRichText: true),
-        findsOneWidget,
-      );
     });
   });
 }

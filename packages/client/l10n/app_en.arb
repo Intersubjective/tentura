@@ -6338,12 +6338,39 @@
   "@availabilityDatePickerTitle": {
     "description": "Title for the pause resume date picker."
   },
-  "forwardCandidateRelevanceHeading": "Why they may be relevant",
-  "forwardCandidateConnectionHeading": "How you're connected",
-  "forwardCandidateDirectConnection": "Direct connection",
+  "forwardCandidateRelevanceHeading": "Why for this request",
+  "forwardCandidateConnectionHeading": "How you know them",
+  "forwardCandidateAboutHeading": "About",
+  "forwardCandidateDirectConnection": "You trust them",
+  "forwardCandidateBothInRequest": "Both in \"{title}\"",
+  "@forwardCandidateBothInRequest": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "forwardCandidateDistantSteps": "Distant: 3+ steps away",
+  "forwardCandidateNoDirectVouch": "Nobody you trust vouches for them directly.",
+  "forwardCandidateMemberSinceShort": "Member since {date}",
+  "@forwardCandidateMemberSinceShort": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "forwardCandidateMatchesNamed": "Matches: {names}",
+  "@forwardCandidateMatchesNamed": {
+    "placeholders": {
+      "names": {
+        "type": "String"
+      }
+    }
+  },
   "forwardCandidateFindingPath": "Finding a path through your network…",
   "forwardCandidateOnePath": "One path through your network.",
-  "forwardCandidateLongPathTitle": "Long network path",
+  "forwardCandidateLongPathTitle": "Distant connection",
   "forwardCandidateLongPathBody": "A compact path isn't available from this network snapshot.",
   "forwardCandidateContextUnavailable": "Connection details unavailable",
   "forwardCandidateUnavailablePerson": "Unavailable person",
