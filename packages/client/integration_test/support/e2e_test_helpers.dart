@@ -726,6 +726,8 @@ Future<String> createAndForwardRequest(
     TestIds.key(TestIds.forwardRecipientCheckbox(fixture.helperUserId)),
   );
   await pumpUntilVisible(tester, selectRecipient);
+  // Picker rows toggle via checkbox (or row tap); candidate details use ⓘ
+  // [TestIds.forwardRecipientDetails] or avatar (#440 mn5y.5).
   final forwardCubit = tester.element(selectRecipient).read<ForwardCubit>();
   await runE2eStep('recipient selection', () async {
     expect(

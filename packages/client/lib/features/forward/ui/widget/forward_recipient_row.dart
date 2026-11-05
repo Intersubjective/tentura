@@ -1,4 +1,6 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 
 import 'package:tentura/consts.dart';
@@ -21,6 +23,7 @@ import '../../domain/entity/forward_candidate.dart';
 import '../../domain/entity/lineage_suggestion_group.dart';
 import '../model/forward_recipient_row_host.dart';
 import 'forward_recipient_personal_note_slot.dart';
+import 'forward_recipient_picker_hover_card.dart';
 import 'lineage_forward_section.dart';
 
 class ForwardRecipientRow extends StatelessWidget {
@@ -46,6 +49,7 @@ class ForwardRecipientRow extends StatelessWidget {
     this.isPost = false,
     this.viewerIsAuthor = false,
     this.peopleTagsEnabled = kPeopleTagsEnabled,
+    this.connectionContextQuery = '',
     super.key,
   });
 
@@ -98,6 +102,9 @@ class ForwardRecipientRow extends StatelessWidget {
 
   /// UTC calendar date for availability; defaults to [availabilityTodayUtc].
   final DateTime? todayUtc;
+
+  /// Beacon routing context for connection-path hover preview (#440 mn5y.5).
+  final String connectionContextQuery;
 
   @override
   Widget build(BuildContext context) {
@@ -200,6 +207,28 @@ class ForwardRecipientRow extends StatelessWidget {
 
     final stackForwardManageActions =
         hasForwardManageActions && context.windowClass == WindowClass.compact;
+
+    if (host == ForwardRecipientRowHost.pickerStandard) {
+      return _buildPickerStandardRow(
+        context: context,
+        tt: tt,
+        l10n: l10n,
+        theme: theme,
+        line2: line2,
+        canSelectNew: canSelectNew,
+        checkboxEnabled: checkboxEnabled,
+        nameBaseStyle: nameBaseStyle,
+        hasPersonMenu: hasPersonMenu,
+        requiredSet: requiredSet,
+        displayName: displayName,
+        editForwardButton: editForwardButton,
+        cancelForwardButton: cancelForwardButton,
+        hasForwardManageActions: hasForwardManageActions,
+        stackForwardManageActions: stackForwardManageActions,
+        personalNoteSlot: personalNoteSlot,
+        forwardManageActionsRow: forwardManageActionsRow,
+      );
+    }
 
     return RepaintBoundary(
       child: Semantics(
@@ -379,6 +408,241 @@ class ForwardRecipientRow extends StatelessWidget {
                 ),
                 identifier: TestIds.forwardRecipientCheckbox(candidate.id),
                 name: profileWithContactOverlay(candidate.profile).shownName,
+                isSelected: isSelected,
+                enabled: checkboxEnabled,
+                onTap: onToggle,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPickerStandardRow({
+    required BuildContext context,
+    required TenturaTokens tt,
+    required L10n l10n,
+    required ThemeData theme,
+    required ForwardRecipientLine2 line2,
+    required bool canSelectNew,
+    required bool checkboxEnabled,
+    required TextStyle nameBaseStyle,
+    required bool hasPersonMenu,
+    required Set<String> requiredSet,
+    required String displayName,
+    required Widget? editForwardButton,
+    required Widget? cancelForwardButton,
+    required bool hasForwardManageActions,
+    required bool stackForwardManageActions,
+    required ForwardRecipientPersonalNoteSlot personalNoteSlot,
+    required Widget Function() forwardManageActionsRow,
+  }) {
+    Widget nameLine(ProfileState profileState) {
+      final displayProfile = profileWithContactOverlay(candidate.profile);
+      return Text(
+        SelfUserHighlight.displayName(
+          l10n,
+          displayProfile,
+          profileState.profile.id,
+        ),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: SelfUserHighlight.nameStyle(
+          theme,
+          nameBaseStyle,
+          SelfUserHighlight.profileIsSelf(
+            candidate.profile,
+            profileState.profile.id,
+          ),
+        ),
+      );
+    }
+
+    Widget metaColumn() {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          BlocBuilder<ProfileCubit, ProfileState>(
+            buildWhen: (p, c) => p.profile.id != c.profile.id,
+            builder: (context, state) {
+              return ForwardRecipientPickerNameHover(
+                candidate: candidate,
+                line2: line2,
+                requiredCapabilitySlugs: requiredSet,
+                connectionContextQuery: connectionContextQuery,
+                nameChild: nameLine(state),
+              );
+            },
+          ),
+          SizedBox(height: tt.tightGap),
+          if (!line2.suppressed)
+            _Line2Content(
+              line2: line2,
+              candidate: candidate,
+              l10n: l10n,
+              tt: tt,
+              theme: theme,
+            ),
+          if (stackForwardManageActions) ...[
+            SizedBox(height: tt.tightGap),
+            forwardManageActionsRow(),
+          ],
+          if (showPresenceLine && candidate.topCapabilities.isNotEmpty) ...[
+            SizedBox(height: tt.tightGap),
+            Wrap(
+              spacing: tt.iconTextGap,
+              runSpacing: tt.tightGap,
+              children: [
+                for (final slug in candidate.topCapabilities)
+                  if (CapabilityTag.fromSlug(slug.trim()) case final tag?)
+                    _CapabilityHintChip(
+                      label: tag.labelOf(l10n),
+                      icon: tag.icon,
+                      group: tag.group,
+                      matchesNeed: requiredSet.contains(slug.trim()),
+                      matchSemanticsLabel:
+                          l10n.forwardRecipientCapabilityMatchesNeed,
+                      tt: tt,
+                    ),
+              ],
+            ),
+          ],
+          if (candidate.lineageGroup != null) ...[
+            SizedBox(height: tt.tightGap * 2),
+            _LineageMemoryBadge(l10n: l10n, tt: tt),
+            TenturaStatusText(
+              lineageReasonLabel(
+                l10n,
+                candidate.lineageReasonCode ?? '',
+                arg: candidate.lineageReasonArg,
+              ),
+              tone: candidate.lineageGroup == LineageSuggestionGroup.involved
+                  ? TenturaTone.good
+                  : TenturaTone.info,
+            ),
+          ],
+        ],
+      );
+    }
+
+    Widget? detailsButton;
+    if (onOpenDetails != null) {
+      final compact = context.windowClass == WindowClass.compact;
+      final detailTap = compact ? 36.0 : kMinInteractiveDimension;
+      detailsButton = IconButton(
+        key: TestIds.key(TestIds.forwardRecipientDetails(candidate.id)),
+        padding: EdgeInsets.zero,
+        visualDensity: compact ? VisualDensity.compact : VisualDensity.standard,
+        constraints: BoxConstraints(
+          minWidth: detailTap,
+          minHeight: detailTap,
+        ),
+        tooltip: l10n.forwardPickerCandidateDetailsTooltip,
+        onPressed: onOpenDetails,
+        icon: Icon(Icons.info_outline, size: tt.iconSize, color: tt.textMuted),
+      );
+    }
+
+    final rowInkWell = Listener(
+      onPointerDown: (event) {
+        if (event.buttons == kSecondaryMouseButton) {
+          onOpenDetails?.call();
+        }
+      },
+      child: InkWell(
+        key: TestIds.key(TestIds.forwardRecipient(candidate.id)),
+        onTap: checkboxEnabled ? onToggle : null,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            InkWell(
+              onTap: onOpenDetails,
+              customBorder: const CircleBorder(),
+              child: _ForwardPickerContactAvatar(
+                host: host,
+                candidate: candidate,
+              ),
+            ),
+            SizedBox(width: tt.avatarTextGap),
+            Expanded(child: metaColumn()),
+          ],
+        ),
+      ),
+    );
+
+    return RepaintBoundary(
+      child: Semantics(
+        identifier: TestIds.forwardRecipient(candidate.id),
+        child: Padding(
+          padding: EdgeInsets.symmetric(
+            vertical: tt.rowGap,
+            horizontal: tt.screenHPadding,
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: PersonMenuGestures(
+                  enabled: hasPersonMenu,
+                  personId: candidate.id,
+                  child: rowInkWell,
+                ),
+              ),
+              SizedBox(width: tt.rowGap),
+              if (!stackForwardManageActions && hasForwardManageActions) ...[
+                ?editForwardButton,
+                if (editForwardButton != null && cancelForwardButton != null)
+                  SizedBox(width: tt.iconTextGap),
+                ?cancelForwardButton,
+                SizedBox(width: tt.iconTextGap),
+              ],
+              if (onEditReasons != null) ...[
+                if (isSelected && canSelectNew)
+                  IconButton(
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(
+                      minWidth: 44,
+                      minHeight: 44,
+                    ),
+                    tooltip: l10n.forwardReasonPrompt,
+                    icon: Icon(
+                      Icons.label_outline,
+                      size: tt.iconSize,
+                      color: reasonSlugs.isNotEmpty ? tt.info : tt.textMuted,
+                    ),
+                    onPressed: onEditReasons,
+                  )
+                else
+                  const SizedBox(
+                    width: ForwardRecipientPersonalNoteSlot.slotWidth,
+                    height: ForwardRecipientPersonalNoteSlot.slotWidth,
+                  ),
+                SizedBox(width: tt.iconTextGap),
+              ],
+              if (showsPersonalNoteSlot) ...[
+                if (ForwardRecipientPersonalNoteSlot.showsPreview(
+                  isSelected: isSelected && canSelectNew,
+                  isExpanded: isPersonalNoteExpanded,
+                  notePreview: personalNotePreview,
+                ))
+                  Flexible(child: personalNoteSlot)
+                else
+                  personalNoteSlot,
+                SizedBox(width: tt.iconTextGap),
+              ],
+              if (hasPersonMenu) ...[
+                PersonMenuButton(personId: candidate.id),
+                SizedBox(width: tt.iconTextGap),
+              ],
+              ?detailsButton,
+              if (detailsButton != null) SizedBox(width: tt.iconTextGap),
+              _ForwardRowCheckbox(
+                key: TestIds.key(
+                  TestIds.forwardRecipientCheckbox(candidate.id),
+                ),
+                identifier: TestIds.forwardRecipientCheckbox(candidate.id),
+                name: displayName,
                 isSelected: isSelected,
                 enabled: checkboxEnabled,
                 onTap: onToggle,

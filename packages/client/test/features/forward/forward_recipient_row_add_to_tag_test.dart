@@ -16,6 +16,7 @@ import 'package:tentura/features/forward/ui/widget/forward_recipient_row.dart';
 import 'package:tentura/features/people_tags/domain/use_case/people_tags_case.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/test_ids.dart';
 
 import '../../support/add_to_tag_sheet_probe.dart';
 import '../../support/fake_people_tags_repository.dart';
@@ -95,7 +96,7 @@ void main() {
   final overflowButton = find.byIcon(Icons.more_vert);
 
   group('Forward recipient row: add to tag', () {
-    testWidgets('a plain tap on the row opens its details, not a menu', (
+    testWidgets('a plain tap on the name toggles selection, not details', (
       tester,
     ) async {
       await pumpRow(tester, candidate: peer, peopleTagsEnabled: true);
@@ -103,8 +104,20 @@ void main() {
       await tester.tap(find.text('Peer Person'));
       await tester.pumpAndSettle();
 
+      expect(toggled, 1);
+      expect(detailsOpened, 0);
+    });
+
+    testWidgets('the details control opens the sheet', (tester) async {
+      await pumpRow(tester, candidate: peer, peopleTagsEnabled: true);
+
+      await tester.tap(
+        find.byKey(TestIds.key(TestIds.forwardRecipientDetails(_peerId))),
+      );
+      await tester.pumpAndSettle();
+
       expect(detailsOpened, 1);
-      expect(find.text('Add to tag…'), findsNothing);
+      expect(toggled, 0);
     });
 
     testWidgets('the overflow button does not select the recipient', (
