@@ -8353,6 +8353,7 @@ type v2_ConstellationRequest {
   id: String!
   pinState: String
   isMine: Boolean!
+  lastActivityAt: String
   needs: [String!]!
   primaryNeedSlug: String
   startAt: String

@@ -28,6 +28,7 @@ void main() {
                 'rootExcerpt': 'Who has a ladder?',
                 'isPinned': true,
                 'hiddenReachCount': 0,
+                'has_unread': false,
                 'expiresAt': '2026-10-26T16:00:00+02:00',
                 'status': status,
               },
