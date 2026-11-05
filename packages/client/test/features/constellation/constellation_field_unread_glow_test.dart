@@ -80,7 +80,6 @@ void main() {
           authorId: 'author',
           rootExcerpt: 'hi',
           lastActivityAt: DateTime.utc(2026, 11, 4),
-          hasUnread: false,
         ),
       ],
     );
@@ -88,6 +87,77 @@ void main() {
       field: field,
       beaconGraphIdsOnMap: {constellationFieldBeaconGraphId('p1')},
       personGraphIdsOnMap: const {},
+    );
+    expect(glow, isEmpty);
+  });
+
+  test('isNew person on map gets glow under person node', () {
+    final field = ConstellationField(
+      loadedAt: DateTime.utc(2026, 11, 4),
+      context: '',
+      peers: const [
+        ConstellationPerson(
+          id: 'peer-new',
+          displayName: 'New',
+          isNew: true,
+        ),
+      ],
+    );
+    final person = constellationFieldPersonGraphId('peer-new');
+    final glow = constellationFieldUnreadGlowGraphIds(
+      field: field,
+      beaconGraphIdsOnMap: const {},
+      personGraphIdsOnMap: {person},
+    );
+    expect(glow, {person: 'peer-new'});
+  });
+
+  test('isNew with unread rollup is one glow site on the person', () {
+    final field = _field(
+      posts: [
+        ConstellationPost(
+          id: 'p1',
+          authorId: 'peer-new',
+          rootExcerpt: 'hi',
+          lastActivityAt: DateTime.utc(2026, 11, 4),
+          hasUnread: true,
+        ),
+      ],
+    ).copyWith(
+      peers: const [
+        ConstellationPerson(
+          id: 'peer-new',
+          displayName: 'New',
+          isNew: true,
+        ),
+      ],
+    );
+    final person = constellationFieldPersonGraphId('peer-new');
+    final glow = constellationFieldUnreadGlowGraphIds(
+      field: field,
+      beaconGraphIdsOnMap: const {},
+      personGraphIdsOnMap: {person},
+    );
+    expect(glow.keys, [person]);
+    expect(glow[person], 'peer-new');
+  });
+
+  test('no glow when person is not new and has no unread', () {
+    final field = ConstellationField(
+      loadedAt: DateTime.utc(2026, 11, 4),
+      context: '',
+      peers: const [
+        ConstellationPerson(
+          id: 'peer-old',
+          displayName: 'Old',
+        ),
+      ],
+    );
+    final person = constellationFieldPersonGraphId('peer-old');
+    final glow = constellationFieldUnreadGlowGraphIds(
+      field: field,
+      beaconGraphIdsOnMap: const {},
+      personGraphIdsOnMap: {person},
     );
     expect(glow, isEmpty);
   });

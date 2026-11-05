@@ -32,9 +32,26 @@ constellationFieldUnreadBeaconEntries(ConstellationField field) sync* {
   }
 }
 
+/// People on [field] in peers and anchor projection lists.
+Iterable<ConstellationPerson> constellationFieldPersonEntries(
+  ConstellationField field,
+) sync* {
+  yield* field.peers;
+  yield* field.resolvedAnchorProjection.pinnedPeers;
+  yield* field.resolvedAnchorProjection.supportPeers;
+}
+
+/// Person ids still marked «new on your Field» (#898).
+Set<String> constellationFieldNewOnFieldPersonIds(ConstellationField field) => {
+  for (final person in constellationFieldPersonEntries(field))
+    if (person.isNew) person.id,
+};
+
 /// Resolves where the unread ambient glow is drawn: under the item when its
 /// body is on the map, otherwise rolled up under the author's person node
-/// (#256 xdle.3).
+/// (#256 xdle.3). People who are new on the Field also get one glow under
+/// their person node at every zoom (#256 xdle.4, #898); unread rollup and
+/// «new» share a single site per person.
 Map<String, String> constellationFieldUnreadGlowGraphIds({
   required ConstellationField field,
   required Set<String> beaconGraphIdsOnMap,
@@ -50,6 +67,12 @@ Map<String, String> constellationFieldUnreadGlowGraphIds({
     final authorGraph = constellationFieldPersonGraphId(entry.authorId);
     if (personGraphIdsOnMap.contains(authorGraph)) {
       glow[authorGraph] = entry.authorId;
+    }
+  }
+  for (final personId in constellationFieldNewOnFieldPersonIds(field)) {
+    final personGraph = constellationFieldPersonGraphId(personId);
+    if (personGraphIdsOnMap.contains(personGraph)) {
+      glow.putIfAbsent(personGraph, () => personId);
     }
   }
   return glow;
