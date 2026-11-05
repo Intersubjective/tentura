@@ -26,4 +26,17 @@ fragment UserPublicModel on v2_user {
     is_limited
     resume_on
   }
+  forward_reach {
+    kind
+    via_count
+    shared_request_id
+    shared_request_title
+    via {
+      id
+      displayName
+      image {
+        ...ImageModelV2
+      }
+    }
+  }
 }

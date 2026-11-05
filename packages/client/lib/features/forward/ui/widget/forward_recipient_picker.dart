@@ -13,6 +13,7 @@ import 'package:tentura/features/beacon_create/ui/bloc/beacon_create_cubit.dart'
 import 'package:tentura/features/context/ui/bloc/context_cubit.dart';
 import 'package:tentura/features/capability/ui/widget/capability_chip_set.dart';
 import 'package:tentura/features/forward/domain/entity/forward_candidate.dart';
+import 'package:tentura/features/forward/domain/entity/forward_reach.dart';
 import 'package:tentura/features/forward/domain/invite_new_person_enabled.dart';
 import 'package:tentura/features/forward/domain/forward_draft_policy.dart';
 import 'package:tentura/features/forward/domain/forward_target_profile.dart';
@@ -110,8 +111,11 @@ class ForwardRecipientPicker extends StatefulWidget {
   /// «Your connections» header (#440).
   static const directSectionKey = Key('ForwardRecipientPicker.directSection');
 
-  /// «Others you can reach» header (#440).
-  static const othersSectionKey = Key('ForwardRecipientPicker.othersSection');
+  /// «Through your connections» header (#440).
+  static const throughSectionKey = Key('ForwardRecipientPicker.throughSection');
+
+  /// «Wider network» header (#440).
+  static const widerSectionKey = Key('ForwardRecipientPicker.widerSection');
 
   /// «New» mutual-trust-this-week header (#894).
   static const newSectionKey = Key('ForwardRecipientPicker.newSection');
@@ -1242,8 +1246,27 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
           ..sort(ForwardState.compareNewMutualNewestFirst);
     final newIds = newMutual.map((c) => c.id).toSet();
     final rest = visible.where((c) => !newIds.contains(c.id)).toList();
-    final directRest = rest.where((c) => c.profile.isFriend).toList();
-    final otherRest = rest.where((c) => !c.profile.isFriend).toList();
+    final directRest = rest
+        .where((c) => c.effectiveReachKind == ForwardReachKind.direct)
+        .toList();
+    final throughRest =
+        rest
+            .where(
+              (c) =>
+                  c.effectiveReachKind == ForwardReachKind.viaConnection ||
+                  c.effectiveReachKind == ForwardReachKind.sharedRequest,
+            )
+            .toList()
+          ..sort((a, b) {
+            final viaOrder = b.reachViaCount.compareTo(a.reachViaCount);
+            if (viaOrder != 0) {
+              return viaOrder;
+            }
+            return b.mrScore.compareTo(a.mrScore);
+          });
+    final widerRest = rest
+        .where((c) => c.effectiveReachKind == ForwardReachKind.wider)
+        .toList();
 
     final slots = <_RecipientListSlot>[];
 
@@ -1271,12 +1294,24 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
       }
     }
 
-    if (otherRest.isNotEmpty) {
-      slots.add(const _RecipientListOthersHeader());
+    if (throughRest.isNotEmpty) {
+      slots.add(const _RecipientListThroughHeader());
     }
-    for (var i = 0; i < otherRest.length; i++) {
+    for (var i = 0; i < throughRest.length; i++) {
       if (i > 0) slots.add(const _RecipientListDivider());
-      final candidate = otherRest[i];
+      final candidate = throughRest[i];
+      slots.add(_RecipientListRow(candidate));
+      if (state.editingRecipientId == candidate.id) {
+        slots.add(const _RecipientListEditPanel());
+      }
+    }
+
+    if (widerRest.isNotEmpty) {
+      slots.add(const _RecipientListWiderHeader());
+    }
+    for (var i = 0; i < widerRest.length; i++) {
+      if (i > 0) slots.add(const _RecipientListDivider());
+      final candidate = widerRest[i];
       slots.add(_RecipientListRow(candidate));
       if (state.editingRecipientId == candidate.id) {
         slots.add(const _RecipientListEditPanel());
@@ -1326,13 +1361,17 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
         padding: EdgeInsets.symmetric(horizontal: tt.screenHPadding),
         child: TenturaSectionHeader(label: l10n.forwardSectionDirectContacts),
       ),
-      _RecipientListOthersHeader() => Padding(
-        key: ForwardRecipientPicker.othersSectionKey,
+      _RecipientListThroughHeader() => Padding(
+        key: ForwardRecipientPicker.throughSectionKey,
         padding: EdgeInsets.symmetric(horizontal: tt.screenHPadding),
         child: TenturaSectionHeader(
-          label: l10n.forwardSectionOthersReachable,
-          helperText: l10n.forwardSectionOthersReachableHint,
+          label: l10n.forwardSectionThroughConnections,
         ),
+      ),
+      _RecipientListWiderHeader() => Padding(
+        key: ForwardRecipientPicker.widerSectionKey,
+        padding: EdgeInsets.symmetric(horizontal: tt.screenHPadding),
+        child: TenturaSectionHeader(label: l10n.forwardSectionWiderNetwork),
       ),
       _RecipientListDivider() => const TenturaHairlineDivider(),
       _RecipientListEditPanel() => ForwardEditPanel(
@@ -1374,8 +1413,12 @@ final class _RecipientListNewHeader extends _RecipientListSlot {
   const _RecipientListNewHeader();
 }
 
-final class _RecipientListOthersHeader extends _RecipientListSlot {
-  const _RecipientListOthersHeader();
+final class _RecipientListThroughHeader extends _RecipientListSlot {
+  const _RecipientListThroughHeader();
+}
+
+final class _RecipientListWiderHeader extends _RecipientListSlot {
+  const _RecipientListWiderHeader();
 }
 
 final class _RecipientListDivider extends _RecipientListSlot {

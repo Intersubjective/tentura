@@ -14,7 +14,7 @@ void main() {
       expect(source, contains('...UserPublicModel'));
       expect(
         File('lib/data/gql/user_public_model.graphql').readAsStringSync(),
-        contains('mutual_since'),
+        allOf(contains('mutual_since'), contains('forward_reach')),
       );
       expect(source, isNot(contains('mutually_visible_users')));
       expect(source, isNot(contains('UserModel')));

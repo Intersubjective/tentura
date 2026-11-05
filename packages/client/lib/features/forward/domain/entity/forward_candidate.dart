@@ -4,6 +4,7 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/util/availability_presets.dart';
 
 import 'candidate_involvement.dart';
+import 'forward_reach.dart';
 import 'lineage_suggestion_group.dart';
 
 part 'forward_candidate.freezed.dart';
@@ -25,6 +26,7 @@ abstract class ForwardCandidate with _$ForwardCandidate {
     String? lineageReasonArg,
     @Default(false) bool lineageAutoSelect,
     DateTime? mutualSince,
+    ForwardReach? reach,
   }) = _ForwardCandidate;
 
   const ForwardCandidate._();
@@ -51,4 +53,15 @@ abstract class ForwardCandidate with _$ForwardCandidate {
   bool get canForwardTo => canForwardToOn(availabilityTodayUtc());
 
   bool get isUnseen => involvement == CandidateInvolvement.unseen;
+
+  /// Server reach kind, or legacy picker grouping when [reach] is absent.
+  ForwardReachKind get effectiveReachKind =>
+      reach?.kind ??
+      (profile.isFriend ? ForwardReachKind.direct : ForwardReachKind.wider);
+
+  int get reachViaCount => reach?.viaCount ?? 0;
+
+  List<Profile> get reachViaProfiles => reach?.via ?? const [];
+
+  ForwardSharedRequest? get reachSharedRequest => reach?.sharedRequest;
 }

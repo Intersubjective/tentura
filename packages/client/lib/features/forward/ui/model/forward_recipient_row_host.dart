@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/availability_line.dart';
 import 'package:tentura/ui/utils/profile_presence_line.dart';
@@ -8,6 +9,7 @@ import 'package:tentura_root/domain/enums.dart';
 
 import '../../domain/entity/candidate_involvement.dart';
 import '../../domain/entity/forward_candidate.dart';
+import '../../domain/entity/forward_reach.dart';
 
 /// D19 host inventory — every [ForwardRecipientRow] must pass one explicitly.
 enum ForwardRecipientRowHost {
@@ -33,6 +35,7 @@ class ForwardRecipientLine2 {
     this.relationTone,
     this.forwardedByMeWithNote = false,
     this.suppressed = false,
+    this.reachViaAvatars = const [],
   });
 
   final String? tierEvidenceLabel;
@@ -44,6 +47,7 @@ class ForwardRecipientLine2 {
   final TenturaTone? relationTone;
   final bool forwardedByMeWithNote;
   final bool suppressed;
+  final List<Profile> reachViaAvatars;
 }
 
 bool forwardRecipientAlreadyIneligibleInvolvement(CandidateInvolvement i) =>
@@ -118,6 +122,117 @@ TenturaTone forwardRecipientRelationTone(
   return TenturaTone.warn;
 }
 
+bool _hostShowsForwardReachReason({
+  required ForwardRecipientRowHost host,
+  required ForwardCandidate candidate,
+}) {
+  if (candidate.reach == null) {
+    return false;
+  }
+  return switch (host) {
+    ForwardRecipientRowHost.pickerStandard ||
+    ForwardRecipientRowHost.pickerLineage => true,
+    _ => false,
+  };
+}
+
+String forwardReachReasonLabel(L10n l10n, ForwardCandidate candidate) {
+  final reach = candidate.reach!;
+  return switch (reach.kind) {
+    ForwardReachKind.direct => l10n.forwardReachYouTrustThem,
+    ForwardReachKind.viaConnection => _forwardReachViaLabel(l10n, candidate),
+    ForwardReachKind.sharedRequest => l10n.forwardReachSharedRequest(
+      reach.sharedRequest?.title ?? '',
+    ),
+    ForwardReachKind.wider => l10n.forwardReachDistantConnection,
+  };
+}
+
+String _forwardReachViaLabel(L10n l10n, ForwardCandidate candidate) {
+  final via = candidate.reachViaProfiles;
+  final total = candidate.reachViaCount;
+  if (via.isEmpty || total <= 0) {
+    return l10n.forwardReachDistantConnection;
+  }
+  final first = via.first.shownName.trim().isEmpty
+      ? via.first.displayName
+      : via.first.shownName;
+  if (total == 1) {
+    return l10n.forwardReachVouchedByOne(first);
+  }
+  if (total == 2 && via.length >= 2) {
+    final second = via[1].shownName.trim().isEmpty
+        ? via[1].displayName
+        : via[1].shownName;
+    return l10n.forwardReachVouchedByTwo(first, second);
+  }
+  final others = total - 1;
+  return l10n.forwardReachVouchedByOneAndOthers(first, others);
+}
+
+ForwardRecipientLine2? _forwardReachReasonLine2({
+  required ForwardCandidate candidate,
+  required ForwardRecipientRowHost host,
+  required L10n l10n,
+  required Locale locale,
+  required DateTime todayUtc,
+}) {
+  if (!_hostShowsForwardReachReason(host: host, candidate: candidate)) {
+    return null;
+  }
+  if (!candidate.isReachable ||
+      forwardRecipientAlreadyIneligibleInvolvement(candidate.involvement)) {
+    return null;
+  }
+  if (candidate.involvement != CandidateInvolvement.unseen &&
+      candidate.involvement != CandidateInvolvement.forwarded &&
+      candidate.involvement != CandidateInvolvement.watching) {
+    return null;
+  }
+  if (host.showsAvailability &&
+      candidate.profile.availability.effectiveOn(todayUtc) ==
+          AvailabilityView.paused &&
+      forwardRecipientPauseReplacesRelation(candidate.involvement)) {
+    return null;
+  }
+
+  final label = forwardReachReasonLabel(l10n, candidate);
+  final reach = candidate.reach!;
+  if (reach.kind == ForwardReachKind.direct) {
+    final presence = profilePresenceDisplayLine(
+      l10n: l10n,
+      locale: locale,
+      status: candidate.profile.presenceStatus,
+      lastSeenAt: candidate.profile.presenceLastSeenAt,
+    );
+    if (presence.isNotEmpty) {
+      return ForwardRecipientLine2(
+        presenceOrAvailabilityLine: l10n.forwardReachYouTrustThemWithPresence(
+          presence,
+        ),
+        presenceOrAvailabilityTone: TenturaTone.good,
+      );
+    }
+    return ForwardRecipientLine2(
+      relationLabel: label,
+      relationTone: TenturaTone.good,
+    );
+  }
+  if (reach.kind == ForwardReachKind.viaConnection) {
+    return ForwardRecipientLine2(
+      relationLabel: label,
+      relationTone: TenturaTone.info,
+      reachViaAvatars: candidate.reachViaProfiles,
+    );
+  }
+  return ForwardRecipientLine2(
+    relationLabel: label,
+    relationTone: reach.kind == ForwardReachKind.wider
+        ? TenturaTone.neutral
+        : TenturaTone.info,
+  );
+}
+
 ForwardRecipientLine2 computeForwardRecipientLine2({
   required ForwardCandidate candidate,
   required ForwardRecipientRowHost host,
@@ -130,6 +245,17 @@ ForwardRecipientLine2 computeForwardRecipientLine2({
   bool isPost = false,
   bool viewerIsAuthor = false,
 }) {
+  final reachLine = _forwardReachReasonLine2(
+    candidate: candidate,
+    host: host,
+    l10n: l10n,
+    locale: locale,
+    todayUtc: todayUtc,
+  );
+  if (reachLine != null) {
+    return reachLine;
+  }
+
   // A paused person cannot be picked; say why even where a tier label or
   // the suppressed exploration line would otherwise take the slot.
   if (host.showsAvailability &&
@@ -139,7 +265,7 @@ ForwardRecipientLine2 computeForwardRecipientLine2({
       candidate.profile.availability.effectiveOn(todayUtc) ==
           AvailabilityView.paused) {
     final resumeOn = candidate.profile.availability.resumeOn;
-    assert(resumeOn != null);
+    assert(resumeOn != null, 'paused availability must carry resumeOn');
     return ForwardRecipientLine2(
       presenceOrAvailabilityLine: l10n.availabilityPausedUntil(
         availabilityWhenLabel(l10n, resumeOn!, todayUtc),
