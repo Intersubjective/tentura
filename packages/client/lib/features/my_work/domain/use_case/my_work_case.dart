@@ -293,8 +293,17 @@ final class MyWorkCase extends UseCaseBase {
             parentBeaconId: h.parentBeaconId,
             parentTitle: h.parentTitle,
           );
+          final unreadFields = (
+            roomUnreadCount: h.roomUnreadCount > 0 ? h.roomUnreadCount : 0,
+            unreadRoom: h.unreadRoom,
+            roomLastSeenAt: h.lastSeenAt,
+          );
           if (!h.isRoomMember) {
-            return withParent;
+            return withParent.copyWith(
+              roomUnreadCount: unreadFields.roomUnreadCount,
+              unreadRoom: unreadFields.unreadRoom,
+              roomLastSeenAt: unreadFields.roomLastSeenAt,
+            );
           }
           return withParent.copyWith(
             planSlice: h.planSlice,
@@ -308,8 +317,9 @@ final class MyWorkCase extends UseCaseBase {
             roomLatestMessageAuthorName: h.lastMessageAuthorName,
             roomLatestMessageAt: h.lastMessageAt,
             roomLatestMessageKind: h.lastMessageKind,
-            roomUnreadCount: h.roomUnreadCount > 0 ? h.roomUnreadCount : 0,
-            roomLastSeenAt: h.lastSeenAt,
+            roomUnreadCount: unreadFields.roomUnreadCount,
+            unreadRoom: unreadFields.unreadRoom,
+            roomLastSeenAt: unreadFields.roomLastSeenAt,
           );
         }(),
     ].map(resolveRoomUnread).toList();

@@ -135,7 +135,11 @@ void main() {
 
       emit(RealtimeEntityKind.roomMessage, 'on-map');
       async.elapse(const Duration(seconds: 3));
-      expect(repository.fetchCount, 3);
+      expect(
+        repository.fetchCount,
+        2,
+        reason: 'on-map room traffic patches unread locally (#256)',
+      );
       tearDownCubit(async);
     });
   });

@@ -232,7 +232,7 @@ void main() {
           repository.field.posts.single.copyWith(rootExcerpt: 'new message'),
         ],
       );
-      change(RealtimeEntityKind.roomMessage);
+      change(RealtimeEntityKind.beacon);
       await advance(const Duration(milliseconds: 2500));
       expect(cubit.postById('post-1')!.rootExcerpt, 'new message');
       repository.field = repository.field.copyWith(posts: [], memberWebs: []);

@@ -4,6 +4,7 @@ import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/attention/entity/my_work_beacon_attention.dart';
 import 'package:tentura/domain/attention/request_attention_predicate.dart';
 import 'package:tentura/features/beacon_plan/domain/entity/plan_viewer_slice.dart';
+import 'package:tentura/domain/attention/request_card_room_attention.dart';
 
 import 'derive_my_work_plan_rows.dart';
 
@@ -53,7 +54,12 @@ MyWorkCardAttentionView myWorkCardAttentionView({
   DateTime? now,
 }) {
   final obligations = attention?.liveObligations ?? const <AttentionReceipt>[];
-  final optionalEvents = <AttentionReceipt>[?attention?.latestUnseen];
+  final latest = attention?.latestUnseen;
+  final optionalEvents = <AttentionReceipt>[
+    if (latest != null &&
+        requestCardVisibleAttentionEvents([latest]).isNotEmpty)
+      latest,
+  ];
   final serverTotal = attention?.unseenCount ?? 0;
   // A row in hand is worth at least one, whatever the total says.
   final optionalTotal = optionalEvents.isEmpty

@@ -1,7 +1,3 @@
-// A Requests card whose unread updates are Questions messages: tapping the
-// card body must land in Questions (the same place as the update row), and
-// the Questions updates must stay on the card until Questions is opened.
-
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -20,7 +16,9 @@ import 'package:tentura/domain/attention/offer_accepted_dismissals.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
+import 'package:tentura/features/beacon_threads/data/repository/beacon_room_hints_repository.dart';
 import 'package:tentura/features/closure/data/repository/closure_repository.dart';
+import 'package:tentura/features/inbox/domain/entity/inbox_room_card_hints.dart';
 import 'package:tentura/features/inbox/ui/widget/attention_mini_card.dart';
 import 'package:tentura/features/my_work/ui/bloc/my_work_cubit.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_cards.dart';
@@ -28,6 +26,8 @@ import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../support/phone_surface.dart';
+import '../../support/remote_wire_harness.dart';
 import 'my_work_test_support.dart';
 
 const _viewerId = 'alice';
@@ -55,7 +55,6 @@ final class _NoDismissals implements OfferAcceptedDismissalPort {
   }) async => {};
 }
 
-/// Records where the card sends the viewer.
 class _TrackingRouter extends Mock implements StackRouter {
   final pushedRouteNames = <String>[];
 
@@ -69,12 +68,12 @@ class _TrackingRouter extends Mock implements StackRouter {
   }
 }
 
-AttentionReceipt _questionsMessage(String asker) => AttentionReceipt(
-  id: 'question-$asker',
+AttentionReceipt _questionsMessage() => AttentionReceipt(
+  id: 'question-bob',
   category: 'room',
   kind: 'roomActivityLowPriority',
   priority: 'normal',
-  title: asker,
+  title: 'Bob',
   body: 'New message in Questions',
   actionUrl: '/#/beacon/lobby/$_beaconId',
   createdAt: DateTime.utc(2026, 10, 29, 12),
@@ -84,44 +83,26 @@ AttentionReceipt _questionsMessage(String asker) => AttentionReceipt(
     'eventType': 'roomMessagePosted',
     'beaconId': _beaconId,
     'coordinationItemId': 'questions-1',
-    'actorUserId': asker.toLowerCase(),
-    'actorName': asker,
   }),
   surface: AttentionSurface.myWork,
   beaconId: _beaconId,
-  actorUserId: asker.toLowerCase(),
-  targetEntityId: 'message-$asker',
-  destinationKind: 'beacon_room_message',
   coordinationItemId: 'questions-1',
 );
 
-AttentionReceipt _forwardNote() => AttentionReceipt(
-  id: 'status-1',
-  category: 'coordination',
-  kind: 'coordinationChanged',
-  priority: 'normal',
-  title: 'Status changed',
-  body: 'The Request moved on',
-  actionUrl: '/#/beacon/view/$_beaconId',
-  createdAt: DateTime.utc(2026, 10, 29, 12),
-  collapsedCount: 1,
-  presentationKey: 'request_status_changed',
-  presentationPayloadJson: jsonEncode({'eventType': 'requestStatusChanged'}),
-  surface: AttentionSurface.myWork,
-  beaconId: _beaconId,
-  destinationKind: 'beacon',
-);
-
-typedef _Desk = ({
-  MyWorkCubit cubit,
-  _TrackingRouter router,
-  StubAttentionRepository attention,
-});
-
-Future<_Desk> _pumpCard(
+Future<({MyWorkCubit cubit, _TrackingRouter router})> _pumpAuthoredCard(
   WidgetTester tester, {
-  required AttentionReceipt newestUpdate,
+  required FakeRoomHints roomHints,
+  Locale locale = const Locale('en'),
+  bool phoneSurface = false,
 }) async {
+  if (phoneSurface) {
+    await usePhoneSurface(tester);
+  } else {
+    tester.view
+      ..physicalSize = const Size(400, 1600)
+      ..devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+  }
   final beacon = Beacon.empty.copyWith(
     id: _beaconId,
     title: 'Move the garden shed',
@@ -140,25 +121,25 @@ Future<_Desk> _pumpCard(
     ..myWorkAttentionResult = [
       MyWorkBeaconAttention(
         beaconId: _beaconId,
-        unseenCount: 2,
-        latestUnseen: newestUpdate,
+        unseenCount: 1,
+        latestUnseen: _questionsMessage(),
       ),
     ];
   final cubit = MyWorkCubit(
     userId: _viewerId,
-    myWorkCase: buildTestMyWorkCase(repo: repo, attentionRepository: attention),
+    myWorkCase: buildTestMyWorkCase(
+      repo: repo,
+      attentionRepository: attention,
+      roomHints: roomHints,
+    ),
   );
   addTearDown(cubit.close);
   await cubit.stream.firstWhere((s) => s.isSuccess && s.attentionLoaded);
 
   final router = _TrackingRouter();
-  tester.view
-    ..physicalSize = const Size(400, 1600)
-    ..devicePixelRatio = 1;
-  addTearDown(tester.view.reset);
   await tester.pumpWidget(
     MaterialApp(
-      locale: const Locale('en'),
+      locale: locale,
       theme: TenturaTheme.light(),
       localizationsDelegates: L10n.localizationsDelegates,
       supportedLocales: L10n.supportedLocales,
@@ -193,13 +174,13 @@ Future<_Desk> _pumpCard(
     ),
   );
   await tester.pumpAndSettle();
-  return (cubit: cubit, router: router, attention: attention);
+  return (cubit: cubit, router: router);
 }
 
 void main() {
   setUp(() {
     if (!GetIt.I.isRegistered<Logger>()) {
-      GetIt.I.registerSingleton<Logger>(Logger('questions-tap'));
+      GetIt.I.registerSingleton<Logger>(Logger('issue-904'));
     }
     if (!GetIt.I.isRegistered<BeaconRepository>()) {
       GetIt.I.registerSingleton<BeaconRepository>(FakeBeaconRepository());
@@ -227,14 +208,47 @@ void main() {
     }
   });
 
-  group('Requests card body tap with unread Questions updates', () {
-    testWidgets('lands in Questions, not in the Request view', (tester) async {
-      final desk = await _pumpCard(
+  group('#904 Request card unread counter and tap target', () {
+    testWidgets('shows room unread count, not a Questions update row', (
+      tester,
+    ) async {
+      final l10n = lookupL10n(const Locale('ru'));
+      final hints = FakeRoomHints()
+        ..hintsByBeaconId = {
+          _beaconId: InboxRoomCardHints(
+            isRoomMember: true,
+            roomUnreadCount: 1,
+            unreadRoom: 'questions',
+            lastMessageText: 'Когда удобно привезти грунт?',
+            lastMessageAuthorName: 'Bob',
+            lastMessageAuthorId: 'bob',
+            lastMessageAt: DateTime.utc(2026, 10, 29, 11, 30),
+          ),
+        };
+      await _pumpAuthoredCard(
         tester,
-        newestUpdate: _questionsMessage('Bob'),
+        roomHints: hints,
+        locale: const Locale('ru'),
+        phoneSurface: true,
       );
-      // The card shows the Questions update the tap is about.
-      expect(find.byType(AttentionMiniCard), findsOneWidget);
+
+      expect(find.byType(AttentionMiniCard), findsNothing);
+      expect(find.text(l10n.myWorkUnreadCount(1)), findsOneWidget);
+      expect(find.textContaining('Новое сообщение в вопросах'), findsNothing);
+    });
+
+    testWidgets('card tap opens Questions when unreadRoom is questions', (
+      tester,
+    ) async {
+      final hints = FakeRoomHints()
+        ..hintsByBeaconId = {
+          _beaconId: const InboxRoomCardHints(
+            isRoomMember: true,
+            roomUnreadCount: 1,
+            unreadRoom: 'questions',
+          ),
+        };
+      final desk = await _pumpAuthoredCard(tester, roomHints: hints);
 
       await tester.tap(find.text('Move the garden shed'));
       await tester.pumpAndSettle();
@@ -242,38 +256,80 @@ void main() {
       expect(desk.router.pushedRouteNames, [BeaconLobbyRoute.name]);
     });
 
-    testWidgets('keeps the Questions updates on the card after the tap', (
-      tester,
-    ) async {
-      final desk = await _pumpCard(
+    testWidgets(
+      'card tap opens the Request view when unreadRoom is discussion',
+      (
         tester,
-        newestUpdate: _questionsMessage('Bob'),
-      );
+      ) async {
+        final hints = FakeRoomHints()
+          ..hintsByBeaconId = {
+            _beaconId: const InboxRoomCardHints(
+              isRoomMember: true,
+              roomUnreadCount: 2,
+              unreadRoom: 'discussion',
+            ),
+          };
+        final desk = await _pumpAuthoredCard(tester, roomHints: hints);
 
-      await tester.tap(find.text('Move the garden shed'));
-      await tester.pumpAndSettle();
+        await tester.tap(find.text('Move the garden shed'));
+        await tester.pumpAndSettle();
 
-      // Only opening Questions clears them; going there is not that yet.
-      final shown = desk.cubit.state.attentionByBeacon[_beaconId];
-      expect(shown?.unseenCount, 2);
-      expect(shown?.latestUnseen?.id, 'question-Bob');
-      // Nothing was sent to the server to clear either, not even in the
-      // background.
-      expect(desk.attention.clearSnapshotCalls, isEmpty);
-      expect(desk.attention.clearCalls, isEmpty);
-      expect(find.byType(AttentionMiniCard), findsOneWidget);
-    });
-
-    testWidgets('guard: other updates still open the Request view', (
-      tester,
-    ) async {
-      final desk = await _pumpCard(tester, newestUpdate: _forwardNote());
-      expect(find.byType(AttentionMiniCard), findsOneWidget);
-
-      await tester.tap(find.text('Move the garden shed'));
-      await tester.pumpAndSettle();
-
-      expect(desk.router.pushedRouteNames, [BeaconViewRoute.name]);
-    });
+        expect(desk.router.pushedRouteNames, [BeaconViewRoute.name]);
+      },
+    );
   });
+
+  test(
+    'InboxRoomContextBatch maps unreadRoom through the repository',
+    () async {
+      final sent = <WireSent>[];
+      await withRemoteWire(
+        {
+          'InboxRoomContextBatch': {
+            'InboxRoomContextBatch': [
+              {
+                '__typename': 'v2_InboxRoomContextRow',
+                'beaconId': _beaconId,
+                'isRoomMember': true,
+                'roomUnreadCount': 1,
+                'unreadRoom': 'questions',
+                'postRootExcerpt': null,
+                'currentLine': null,
+                'lastRoomMeaningfulChange': null,
+                'nextMoveText': null,
+                'lastSeenAt': null,
+                'openBlockerTitle': null,
+                'openBlockerCreatorId': null,
+                'openBlockerTargetPersonId': null,
+                'openBlockerResponsibleUserId': null,
+                'openBlockerCreatedAt': null,
+                'openBlockerCreatorDisplayName': null,
+                'openBlockerCreatorImageId': null,
+                'openBlockerCreatorHasPicture': null,
+                'publicFactSnippet': null,
+                'planSliceJson': null,
+                'lastActivityAt': null,
+                'lastMessageAt': '2030-01-01T12:00:00.000Z',
+                'lastMessageText': 'Hello?',
+                'lastMessageAuthorId': 'bob',
+                'lastMessageAuthorName': 'Bob',
+                'lastMessageKind': null,
+                'parentBeaconId': null,
+                'parentTitle': null,
+              },
+            ],
+          },
+        },
+        sent,
+        (remote) async {
+          final repo = BeaconRoomHintsRepository(remote);
+          final map = await repo.fetchByBeaconIds([_beaconId]);
+          final hint = map[_beaconId];
+          expect(hint?.roomUnreadCount, 1);
+          expect(hint?.unreadRoom, 'questions');
+        },
+      );
+      expect(sent.single.operationName, 'InboxRoomContextBatch');
+    },
+  );
 }

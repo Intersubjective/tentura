@@ -395,3 +395,98 @@ ConstellationField patchAcknowledgedNew(
         : field.anchorProjection,
   );
 }
+
+/// Sets [hasUnread] on a Request or Post on [field] when [beaconId] matches.
+ConstellationField patchFieldBeaconHasUnread(
+  ConstellationField field,
+  String beaconId, {
+  required bool hasUnread,
+}) {
+  var changed = false;
+  final requests = _patchRequestHasUnread(
+    field.requests,
+    beaconId,
+    hasUnread,
+    onChanged: () => changed = true,
+  );
+  final posts = _patchPostHasUnread(
+    field.posts,
+    beaconId,
+    hasUnread,
+    onChanged: () => changed = true,
+  );
+  final projection = field.resolvedAnchorProjection;
+  final pinnedRequests = _patchRequestHasUnread(
+    projection.pinnedRequests,
+    beaconId,
+    hasUnread,
+    onChanged: () => changed = true,
+  );
+  if (!changed) {
+    return field;
+  }
+  return field.copyWith(
+    requests: identical(requests, field.requests) ? field.requests : requests,
+    posts: identical(posts, field.posts) ? field.posts : posts,
+    anchorProjection: identical(pinnedRequests, projection.pinnedRequests)
+        ? field.anchorProjection
+        : ConstellationAnchorProjection(
+            revision: projection.revision,
+            anchors: projection.anchors,
+            pinnedPeers: projection.pinnedPeers,
+            pinnedRequests: pinnedRequests,
+            supportPeers: projection.supportPeers,
+            supportEdges: projection.supportEdges,
+            serverFilteredBeaconIds: projection.serverFilteredBeaconIds,
+            serverFilteredBeaconCount: projection.serverFilteredBeaconCount,
+          ),
+  );
+}
+
+List<ConstellationRequest> _patchRequestHasUnread(
+  List<ConstellationRequest> source,
+  String beaconId,
+  bool hasUnread, {
+  required void Function() onChanged,
+}) {
+  var changed = false;
+  final out = <ConstellationRequest>[];
+  for (final request in source) {
+    if (request.id == beaconId) {
+      if (request.hasUnread != hasUnread) {
+        changed = true;
+        onChanged();
+        out.add(request.copyWith(hasUnread: hasUnread));
+      } else {
+        out.add(request);
+      }
+    } else {
+      out.add(request);
+    }
+  }
+  return changed ? out : source;
+}
+
+List<ConstellationPost> _patchPostHasUnread(
+  List<ConstellationPost> source,
+  String beaconId,
+  bool hasUnread, {
+  required void Function() onChanged,
+}) {
+  var changed = false;
+  final out = <ConstellationPost>[];
+  for (final post in source) {
+    if (post.id == beaconId) {
+      if (post.hasUnread != hasUnread) {
+        changed = true;
+        onChanged();
+        out.add(post.copyWith(hasUnread: hasUnread));
+      } else {
+        out.add(post);
+      }
+    } else {
+      out.add(post);
+    }
+  }
+  return changed ? out : source;
+}

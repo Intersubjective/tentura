@@ -10,6 +10,7 @@ import 'package:tentura/domain/entity/profile.dart';
 
 import '../../domain/entity/inbox_item.dart';
 import '../../domain/entity/inbox_provenance.dart';
+import 'package:tentura/domain/attention/request_card_room_attention.dart';
 import '../bloc/activity_offers_state.dart';
 import 'request_attention_card.dart';
 
@@ -100,7 +101,9 @@ RequestAttentionCardModel? requestCardFromReceipt(
     provenance: InboxProvenance.parse(receipt.provenanceJson),
     representative: receipt,
     eventTotal: receipt.eventTotal ?? receipt.eventsPreview.length,
-    eventsPreview: receipt.eventsPreview,
+    eventsPreview: requestCardVisibleAttentionEvents(
+      receipt.eventsPreview,
+    ).toList(),
     allowsForward: receipt.allowsForward ?? false,
   );
 }
@@ -126,7 +129,9 @@ RequestAttentionCardModel? requestCardFromInboxItem(
     variant: RequestAttentionCardVariant.pinned,
     provenance: item.provenance,
     eventTotal: meta?.eventTotal ?? 0,
-    eventsPreview: meta?.eventsPreview ?? const [],
+    eventsPreview: requestCardVisibleAttentionEvents(
+      meta?.eventsPreview ?? const [],
+    ).toList(),
     allowsForward: beacon.viewerCanForward,
   );
 }
