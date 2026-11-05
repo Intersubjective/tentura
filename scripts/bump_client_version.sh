@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Usage: scripts/bump_client_version.sh [--minor | --set X.Y.Z]
-# Requires Python 3. Only the pubspec and web bootstrap cache-buster are changed.
+# Requires Python 3. Only the pubspec version is changed.
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 exec python3 - "$ROOT" "$@" <<'PY'
@@ -37,8 +37,9 @@ if len(versions) != 1 or len(bootstraps) != 1:
 version_match = versions[0]
 bootstrap_match = bootstraps[0]
 old = version_match['version']
-if bootstrap_match[1] != old:
-    fail(f'version mismatch: pubspec={old}, index.html={bootstrap_match[1]}')
+source_version = '0.0.0-dev'
+if bootstrap_match[1] != source_version:
+    fail(f'version mismatch: expected source placeholder={source_version}, index.html={bootstrap_match[1]}')
 
 major, minor, patch = map(int, old.split('.'))
 if not args:
@@ -53,8 +54,6 @@ value_end = version_match.end('version')
 if pubspec_text[value_end:value_end + 1] == '+':
     value_end = re.match(r'\+[0-9A-Za-z.-]+', pubspec_text[value_end:]).end() + value_end
 updated_pubspec = pubspec_text[:version_match.start('version')] + new + pubspec_text[value_end:]
-updated_index = index_text[:bootstrap_match.start(1)] + new + index_text[bootstrap_match.end(1):]
 pubspec.write_bytes(updated_pubspec.encode('utf-8'))
-index.write_bytes(updated_index.encode('utf-8'))
 print(f'{old} -> {new}')
 PY

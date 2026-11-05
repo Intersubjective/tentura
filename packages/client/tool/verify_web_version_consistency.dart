@@ -1,9 +1,9 @@
 // CI guard: fail the build if web entry points disagree on the cache-busting
 // build version.
 //
-// With no arguments (local / pre-build): compares tracked sources only —
+// With no arguments (local / pre-build): checks tracked sources only —
 //   - pubspec.yaml                resolveWebBuildVersion()
-//   - web/index.html              flutter_bootstrap.js?v=<version>
+//   - web/index.html              flutter_bootstrap.js?v=0.0.0-dev
 //
 // With a build/web directory argument (after flutter build + post-process tools):
 //   - build/web/index.html        flutter_bootstrap.js?v=<version>
@@ -29,8 +29,8 @@ void main(List<String> args) {
 }
 
 void _verifyTrackedSources() {
-  final expected = resolveWebBuildVersion();
-  print('Expected web build version: $expected');
+  const expected = '0.0.0-dev';
+  print('Expected web build version: ${resolveWebBuildVersion()}');
 
   final problems = <String>[];
   void check(String label, String? actual) {

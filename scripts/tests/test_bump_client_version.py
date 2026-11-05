@@ -20,7 +20,7 @@ class BumpClientVersionTest(unittest.TestCase):
         self.index = root / 'packages/client/web/index.html'
         self.index.parent.mkdir(parents=True)
         self.pubspec.write_text('name: tentura\nversion: 7.57.11+42\n')
-        self.index.write_text('<script src="flutter_bootstrap.js?v=7.57.11" async></script>\n')
+        self.index.write_text('<script src="flutter_bootstrap.js?v=0.0.0-dev" async></script>\n')
 
     def run_script(self, *args):
         return subprocess.run(['bash', str(self.script), *args], cwd='/',
@@ -28,7 +28,7 @@ class BumpClientVersionTest(unittest.TestCase):
 
     def assert_version(self, version):
         self.assertEqual(self.pubspec.read_text(), f'name: tentura\nversion: {version}\n')
-        self.assertEqual(self.index.read_text(), f'<script src="flutter_bootstrap.js?v={version}" async></script>\n')
+        self.assertEqual(self.index.read_text(), '<script src="flutter_bootstrap.js?v=0.0.0-dev" async></script>\n')
 
     def test_patch_and_repeat(self):
         result = self.run_script()
@@ -42,6 +42,18 @@ class BumpClientVersionTest(unittest.TestCase):
         result = self.run_script('--set', '7.60.0')
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assert_version('7.60.0')
+
+    def test_repeated_set_preserves_source_bytes(self):
+        original = (
+            b'<!doctype html>\r\n'
+            b'<script src="flutter_bootstrap.js?v=0.0.0-dev" async></script>\r\n'
+        )
+        self.index.write_bytes(original)
+        for _ in range(2):
+            result = self.run_script('--set', '7.60.0')
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(self.pubspec.read_text(), 'name: tentura\nversion: 7.60.0\n')
+            self.assertEqual(self.index.read_bytes(), original)
 
     def test_minor(self):
         result = self.run_script('--minor')

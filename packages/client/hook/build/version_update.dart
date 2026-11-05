@@ -4,27 +4,21 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:pubspec_parse/pubspec_parse.dart';
 
-/// Writes [version] (defaults to the pubspec version) into the web app entry
+/// Writes [version] (defaults to the pubspec version) into the built web entry
 /// files in [webDir]: the `flutter_bootstrap.js?v=` cache-busting query in
 /// `index.html`, and — when [includeManifest] is set — the PWA
 /// `manifest.json` `version`.
 ///
-/// Works on both the source `web/` dir (build hook) and the compiled
-/// `build/web/` dir (post-build tool), so the deployed bootstrap query always
-/// matches the service-worker cache version.
-///
-/// [includeManifest] is false for the source tree on purpose. `web/manifest.json`
-/// is committed, and stamping a version into it made the file a third place the
-/// client version had to be kept in step — one that drifted twice in a single
-/// day, invisibly, because the file also carried a `skip-worktree` bit. The
-/// deployed `build/web/manifest.json` still gets the version, from the
-/// post-build tool, which is the only copy anything serves.
+/// Called by the post-build tool after compilation so the deployed bootstrap
+/// query matches the service-worker cache version. Source `web/` files keep
+/// their release-independent values.
 void versionUpdate({
-  String webDir = 'web',
+  String webDir = 'build/web',
   String? version,
   bool includeManifest = true,
 }) {
-  final resolved = version ??
+  final resolved =
+      version ??
       Pubspec.parse(File('pubspec.yaml').readAsStringSync()).version.toString();
   print('Web build version: $resolved');
 
@@ -55,8 +49,7 @@ void _updateIndexBootstrap(String path, String version) {
   final html = file.readAsStringSync();
   final pattern = RegExp(r'''flutter_bootstrap\.js(\?v=[^"']*)?''');
   if (!pattern.hasMatch(html)) return;
-  final updated =
-      html.replaceFirst(pattern, 'flutter_bootstrap.js?v=$version');
+  final updated = html.replaceFirst(pattern, 'flutter_bootstrap.js?v=$version');
   if (updated != html) {
     file.writeAsStringSync(updated, flush: true);
     print('Updated $path');
