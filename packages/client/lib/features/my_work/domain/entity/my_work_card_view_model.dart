@@ -108,9 +108,12 @@ abstract class MyWorkCardViewModel with _$MyWorkCardViewModel {
     /// `file`, `poll`, `fact`); empty for a text message.
     @Default('') String roomLatestMessageKind,
 
-    /// U087 — unread discussion messages (the same count the header showed
-    /// as "+N"), shown on the "latest" line.
+    /// U087 — unread messages in every room the viewer can read (discussion
+    /// and Questions; #904), shown on the "latest" line or as "+N".
     @Default(0) int roomUnreadCount,
+
+    /// #904 — card tap opens Questions when this is [kRequestCardUnreadRoomQuestions].
+    String? unreadRoom,
 
     /// The viewer's server read watermark the unread count was taken at, so
     /// a newer local read clears it without a refetch.

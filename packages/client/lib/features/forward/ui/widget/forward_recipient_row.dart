@@ -226,9 +226,9 @@ class ForwardRecipientRow extends StatelessWidget {
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          SelfAwareAvatar.medium(
-                            profile: candidate.profile,
-                            withContactBadge: true,
+                          _ForwardPickerContactAvatar(
+                            host: host,
+                            candidate: candidate,
                           ),
                           SizedBox(width: tt.avatarTextGap),
                           Expanded(
@@ -335,40 +335,40 @@ class ForwardRecipientRow extends StatelessWidget {
                 ?cancelForwardButton,
                 SizedBox(width: tt.iconTextGap),
               ],
-                if (onEditReasons != null) ...[
-                  if (isSelected && canSelectNew)
-                    IconButton(
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(
-                        minWidth: 44,
-                        minHeight: 44,
-                      ),
-                      tooltip: l10n.forwardReasonPrompt,
-                      icon: Icon(
-                        Icons.label_outline,
-                        size: tt.iconSize,
-                        color: reasonSlugs.isNotEmpty ? tt.info : tt.textMuted,
-                      ),
-                      onPressed: onEditReasons,
-                    )
-                  else
-                    const SizedBox(
-                      width: ForwardRecipientPersonalNoteSlot.slotWidth,
-                      height: ForwardRecipientPersonalNoteSlot.slotWidth,
+              if (onEditReasons != null) ...[
+                if (isSelected && canSelectNew)
+                  IconButton(
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(
+                      minWidth: 44,
+                      minHeight: 44,
                     ),
-                  SizedBox(width: tt.iconTextGap),
-                ],
-                if (showsPersonalNoteSlot) ...[
-                  if (ForwardRecipientPersonalNoteSlot.showsPreview(
-                    isSelected: isSelected && canSelectNew,
-                    isExpanded: isPersonalNoteExpanded,
-                    notePreview: personalNotePreview,
-                  ))
-                    Flexible(child: personalNoteSlot)
-                  else
-                    personalNoteSlot,
-                  SizedBox(width: tt.iconTextGap),
-                ],
+                    tooltip: l10n.forwardReasonPrompt,
+                    icon: Icon(
+                      Icons.label_outline,
+                      size: tt.iconSize,
+                      color: reasonSlugs.isNotEmpty ? tt.info : tt.textMuted,
+                    ),
+                    onPressed: onEditReasons,
+                  )
+                else
+                  const SizedBox(
+                    width: ForwardRecipientPersonalNoteSlot.slotWidth,
+                    height: ForwardRecipientPersonalNoteSlot.slotWidth,
+                  ),
+                SizedBox(width: tt.iconTextGap),
+              ],
+              if (showsPersonalNoteSlot) ...[
+                if (ForwardRecipientPersonalNoteSlot.showsPreview(
+                  isSelected: isSelected && canSelectNew,
+                  isExpanded: isPersonalNoteExpanded,
+                  notePreview: personalNotePreview,
+                ))
+                  Flexible(child: personalNoteSlot)
+                else
+                  personalNoteSlot,
+                SizedBox(width: tt.iconTextGap),
+              ],
               if (hasPersonMenu) ...[
                 PersonMenuButton(personId: candidate.id),
                 SizedBox(width: tt.iconTextGap),
@@ -386,6 +386,52 @@ class ForwardRecipientRow extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _ForwardPickerContactAvatar extends StatelessWidget {
+  const _ForwardPickerContactAvatar({
+    required this.host,
+    required this.candidate,
+  });
+
+  final ForwardRecipientRowHost host;
+  final ForwardCandidate candidate;
+
+  @override
+  Widget build(BuildContext context) {
+    final profile = candidate.profile;
+    final avatar = SelfAwareAvatar.medium(
+      profile: profile,
+      withContactBadge: true,
+    );
+    final showBadgeSemantics = switch (host) {
+      ForwardRecipientRowHost.pickerStandard ||
+      ForwardRecipientRowHost.pickerLineage => true,
+      _ => false,
+    };
+    if (!showBadgeSemantics) {
+      return avatar;
+    }
+    final l10n = L10n.of(context)!;
+    final String? badgeLabel;
+    if (profile.isMutualFriend) {
+      badgeLabel = l10n.graphLegendEdgeMutual;
+    } else if (profile.isMutuallyVisible) {
+      badgeLabel = l10n.forwardPickerContactEyeTooltip;
+    } else {
+      badgeLabel = null;
+    }
+    if (badgeLabel == null) {
+      return avatar;
+    }
+    return Tooltip(
+      message: badgeLabel,
+      child: Semantics(
+        label: badgeLabel,
+        child: avatar,
       ),
     );
   }
@@ -456,16 +502,22 @@ class _Line2Content extends StatelessWidget {
               trimCollapsedText: l10n.forwardMyNoteViewMore,
               trimExpandedText: l10n.forwardMyNoteShowLess,
             )
-          else
-            // #730: the author's hint ends in "People › Invite", the part
-            // that says what to do; it wraps instead of ellipsizing.
+          else ...[
             TenturaStatusText(
               line2.relationLabel!,
               tone: line2.relationTone ?? TenturaTone.neutral,
               maxLines: null,
-              // An ellipsis with no maxLines still cuts at line one.
               overflow: TextOverflow.clip,
             ),
+            if (line2.reachViaAvatars.isNotEmpty) ...[
+              TenturaAvatarStack(
+                profiles: line2.reachViaAvatars,
+                max: 2,
+                size: tt.iconSize * 1.35,
+                overlap: tt.tightGap,
+              ),
+            ],
+          ],
         if (candidate.involvement == CandidateInvolvement.forwardedByMe)
           _ForwardReadReceipt(
             readAt: candidate.recipientReadAt,

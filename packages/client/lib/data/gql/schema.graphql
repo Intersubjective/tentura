@@ -8355,6 +8355,7 @@ type v2_ConstellationRequest {
   id: String!
   pinState: String
   isMine: Boolean!
+  lastActivityAt: String
   needs: [String!]!
   primaryNeedSlug: String
   startAt: String
@@ -8745,6 +8746,7 @@ type v2_InboxRoomContextRow {
   planSliceJson: String
   publicFactSnippet: String
   roomUnreadCount: Int!
+  unreadRoom: String
 }
 
 type v2_Invitation {

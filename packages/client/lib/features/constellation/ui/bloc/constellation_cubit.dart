@@ -683,7 +683,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   }
 
   /// Optimistically clears unread on a Field item the viewer opened (#256).
-  void openedFieldBeacon(String beaconId) =>
+  void   openedFieldBeacon(String beaconId) =>
       _case.applyOpenedFieldBeacon(beaconId);
 
   ConstellationFieldHideCase? get fieldHideCase => _fieldHideCase;

@@ -99,10 +99,9 @@ void main() {
     );
   });
 
-  Future<AttentionMiniCard> pumpRow(
+  Future<AttentionMiniCard?> pumpRow(
     WidgetTester tester,
     AttentionReceipt receipt,
-    VoidCallback onOpenQuestions,
   ) async {
     final cubit = MyWorkCubit(
       userId: 'user-1',
@@ -129,7 +128,6 @@ void main() {
                 obligations: const [],
                 optionalEvents: [receipt],
                 optionalTotal: 1,
-                onOpenQuestions: onOpenQuestions,
               ),
             ),
           ),
@@ -137,19 +135,17 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    return tester.widget<AttentionMiniCard>(find.byType(AttentionMiniCard));
+    final mini = find.byType(AttentionMiniCard);
+    if (mini.evaluate().isEmpty) return null;
+    return tester.widget<AttentionMiniCard>(mini);
   }
 
-  testWidgets('My Work: tapping a Questions update opens Questions', (
+  testWidgets('My Work: Questions messages are not per-message update rows', (
     tester,
   ) async {
-    var opened = 0;
-    await pumpRow(tester, _receipt(id: 'q'), () => opened++);
-    expect(find.textContaining('New message in Questions'), findsOneWidget);
-    expect(find.textContaining('New thread message'), findsNothing);
-    await tester.tap(find.byType(AttentionMiniCard));
-    await tester.pumpAndSettle();
-    expect(opened, 1);
+    await pumpRow(tester, _receipt(id: 'q'));
+    expect(find.byType(AttentionMiniCard), findsNothing);
+    expect(find.textContaining('New message in Questions'), findsNothing);
   });
 
   testWidgets('My Work: a General message row stays as it was (no tap)', (
@@ -159,9 +155,9 @@ void main() {
     final card = await pumpRow(
       tester,
       _receipt(id: 'g', coordinationItemId: null),
-      () => opened++,
     );
-    expect(card.onTap, isNull);
+    expect(card, isNotNull);
+    expect(card!.onTap, isNull);
     expect(opened, 0);
   });
 }

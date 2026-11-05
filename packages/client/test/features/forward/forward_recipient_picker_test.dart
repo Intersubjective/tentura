@@ -12,6 +12,7 @@ import 'package:tentura/domain/entity/invitation_entity.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/forward/domain/entity/candidate_involvement.dart';
 import 'package:tentura/features/forward/domain/entity/forward_candidate.dart';
+import 'package:tentura/features/forward/domain/entity/forward_reach.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
 import 'package:tentura/features/forward/ui/widget/forward_band_strip.dart';
 import 'package:tentura/features/forward/ui/widget/forward_recipient_picker.dart';
@@ -1354,6 +1355,7 @@ void main() {
             score: 50,
             rScore: 1,
           ),
+          reach: ForwardReach(kind: ForwardReachKind.wider),
         ),
         ForwardCandidate(
           profile: Profile(
@@ -1363,6 +1365,7 @@ void main() {
             rScore: 1,
             myVote: 1,
           ),
+          reach: ForwardReach(kind: ForwardReachKind.direct),
         ),
       ],
     }) {
@@ -1392,34 +1395,27 @@ void main() {
       await pumpPicker(tester, cubit: cubit, embedded: true);
 
       final direct = find.byKey(ForwardRecipientPicker.directSectionKey);
-      final others = find.byKey(ForwardRecipientPicker.othersSectionKey);
+      final wider = find.byKey(ForwardRecipientPicker.widerSectionKey);
       expect(direct, findsOneWidget);
-      expect(others, findsOneWidget);
+      expect(wider, findsOneWidget);
       expect(find.text('YOUR CONNECTIONS'), findsOneWidget);
-      expect(find.text('OTHERS YOU CAN REACH'), findsOneWidget);
-      expect(
-        find.text(
-          'Not your direct connections: you see each other through the '
-          'trust network or a shared request.',
-        ),
-        findsOneWidget,
-      );
-      // Vadim (trusted, lower score) sits above the header for others, and
-      // Kesi (higher score, not trusted) below it.
+      expect(find.text('WIDER NETWORK'), findsOneWidget);
+      expect(find.text('OTHERS YOU CAN REACH'), findsNothing);
       final directY = tester.getTopLeft(direct).dy;
       final vadimY = tester.getTopLeft(find.text('Vadim')).dy;
-      final othersY = tester.getTopLeft(others).dy;
+      final widerY = tester.getTopLeft(wider).dy;
       final kesiY = tester.getTopLeft(find.text('Kesi')).dy;
       expect(directY, lessThan(vadimY));
-      expect(vadimY, lessThan(othersY));
-      expect(othersY, lessThan(kesiY));
+      expect(vadimY, lessThan(widerY));
+      expect(widerY, lessThan(kesiY));
     });
 
-    testWidgets('no direct contacts: only the others header', (tester) async {
+    testWidgets('no direct contacts: only the wider header', (tester) async {
       final cubit = groupedCubit(
         candidates: const [
           ForwardCandidate(
             profile: Profile(id: 'stranger', displayName: 'Kesi', score: 5),
+            reach: ForwardReach(kind: ForwardReachKind.wider),
           ),
         ],
       );
@@ -1431,7 +1427,7 @@ void main() {
         findsNothing,
       );
       expect(
-        find.byKey(ForwardRecipientPicker.othersSectionKey),
+        find.byKey(ForwardRecipientPicker.widerSectionKey),
         findsOneWidget,
       );
     });
@@ -1455,7 +1451,11 @@ void main() {
         findsNothing,
       );
       expect(
-        find.byKey(ForwardRecipientPicker.othersSectionKey),
+        find.byKey(ForwardRecipientPicker.throughSectionKey),
+        findsNothing,
+      );
+      expect(
+        find.byKey(ForwardRecipientPicker.widerSectionKey),
         findsNothing,
       );
     });

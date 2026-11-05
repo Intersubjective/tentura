@@ -61,7 +61,7 @@ query ConstellationFieldFetch(
       coverThumb {
         ...ImageModelV2
       }
-      hasUnread
+      has_unread
     }
     posts {
       id
@@ -72,7 +72,7 @@ query ConstellationFieldFetch(
       rootExcerpt
       isPinned
       hiddenReachCount
-      hasUnread
+      has_unread
     }
     memberWebs {
       beaconId
@@ -131,7 +131,7 @@ query ConstellationFieldFetch(
         coverThumb {
           ...ImageModelV2
         }
-        hasUnread
+        has_unread
       }
       supportPeers {
         id

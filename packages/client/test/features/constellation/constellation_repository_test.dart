@@ -109,10 +109,11 @@ Map<String, Object?> _fieldPayload({
       'viewerIsRoomParticipant': false,
       'viewerHasForwardEdge': false,
       'helpOfferCount': 2,
-      'hasUnread': false,
+      'has_unread': false,
       'coverSource': 0,
       'coverThumb': null,
       'parentBeaconId': parentBeaconId,
+      'has_unread': false,
     },
   ],
   if (includeAnchorProjection)

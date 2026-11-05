@@ -13,6 +13,7 @@ import 'package:tentura/domain/use_case/use_case_base.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
 import '../constellation_field_patches.dart';
+import 'constellation_field_unread_realtime_patch.dart';
 import '../entity/constellation_anchor_projection.dart';
 import '../entity/constellation_field.dart';
 import '../entity/constellation_field_store_state.dart';

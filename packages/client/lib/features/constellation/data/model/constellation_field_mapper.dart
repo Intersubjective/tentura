@@ -37,7 +37,7 @@ List<ConstellationRequest> mapConstellationFieldRequestsFetch(
       coverSource: request.coverSource,
       coverThumb: request.coverThumb as ImageModelV2?,
       parentBeaconId: request.parentBeaconId,
-      hasUnread: request.hasUnread,
+      hasUnread: request.has_unread ?? false,
     ),
 ];
 
@@ -64,7 +64,7 @@ ConstellationField mapConstellationFieldFromFieldFetch(
         status: post.status,
         isPinned: post.isPinned,
         hiddenReachCount: post.hiddenReachCount,
-        hasUnread: post.hasUnread,
+        hasUnread: post.has_unread,
       ),
   ],
   memberWebs: [
@@ -284,7 +284,7 @@ ConstellationRequest _mapFieldFetchRequest(
   coverSource: request.coverSource,
   coverThumb: request.coverThumb as ImageModelV2?,
   parentBeaconId: request.parentBeaconId,
-  hasUnread: request.hasUnread,
+  hasUnread: request.has_unread ?? false,
 );
 
 ConstellationRequest _mapAnchorsFetchRequest(
@@ -362,7 +362,7 @@ ConstellationAnchorProjection _mapFieldFetchAnchorProjection(
         coverSource: request.coverSource,
         coverThumb: request.coverThumb as ImageModelV2?,
         parentBeaconId: request.parentBeaconId,
-        hasUnread: request.hasUnread,
+        hasUnread: request.has_unread ?? false,
       ),
   ],
   supportPeers: [

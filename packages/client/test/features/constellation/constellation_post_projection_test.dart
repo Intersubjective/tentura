@@ -181,8 +181,9 @@ void main() {
                     'lastActivityAt': '2026-09-09T10:00:00.000Z',
                     'rootExcerpt': 'Who has a ladder?',
                     'isPinned': true,
-                    'hasUnread': false,
+                    'has_unread': false,
                     'hiddenReachCount': 3,
+                    'has_unread': false,
                   },
                 ],
                 'memberWebs': [

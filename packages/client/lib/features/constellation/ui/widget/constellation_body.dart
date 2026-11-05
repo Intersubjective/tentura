@@ -590,6 +590,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
     String beaconId, {
     String? viewTab,
   }) {
+    context.read<ConstellationCubit>().openedFieldBeacon(beaconId);
     unawaited(() async {
       await context.router.push(
         BeaconViewRoute(id: beaconId, viewTab: viewTab),
