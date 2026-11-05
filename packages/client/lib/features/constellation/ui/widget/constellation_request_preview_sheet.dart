@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
@@ -7,6 +9,7 @@ import 'package:tentura/domain/capability/capability_tag.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/utils/capability_tag_presenter.dart';
 import '../../domain/entity/constellation_field_target_kind.dart';
 import 'constellation_field_item_actions.dart';
@@ -124,6 +127,27 @@ class ConstellationRequestPreviewSheet extends StatelessWidget {
           ),
         ],
         SizedBox(height: tt.rowGap),
+        BlocBuilder<ConstellationCubit, ConstellationState>(
+          buildWhen: (previous, current) =>
+              previous.selectedRequestId != current.selectedRequestId ||
+              previous.graphRevision != current.graphRevision,
+          builder: (context, _) {
+            final cubit = context.read<ConstellationCubit>();
+            if (!cubit.isSearchRevealedHiddenBeacon(request.id)) {
+              return const SizedBox.shrink();
+            }
+            return Padding(
+              padding: EdgeInsets.only(bottom: tt.rowGap),
+              child: OutlinedButton(
+                key: TestIds.key(TestIds.constellationShowAgain),
+                onPressed: () => unawaited(
+                  cubit.unhideSearchHiddenBeacon(request.id),
+                ),
+                child: Text(l10n.constellationShowAgain),
+              ),
+            );
+          },
+        ),
         ConstellationFieldItemFooterActions(
           targetKind: ConstellationFieldTargetKind.request,
           beaconId: request.id,

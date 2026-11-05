@@ -36,6 +36,7 @@ import '../../domain/use_case/constellation_anchor_case.dart';
 import '../../domain/use_case/constellation_placement_case.dart';
 import '../../domain/use_case/constellation_field_store_case.dart';
 import '../../domain/use_case/constellation_field_hide_case.dart';
+import '../../domain/use_case/constellation_field_search_case.dart';
 import '../../domain/use_case/constellation_person_field_items_case.dart';
 import '../../domain/use_case/constellation_visibility_case.dart';
 import '../util/layout_geometry_adapters.dart';
@@ -85,6 +86,7 @@ class ConstellationScreen extends StatefulWidget implements AutoRouteWrapper {
             memberWebsCase: GetIt.I<ConstellationMemberWebsCase>(),
             visibilityCase: GetIt.I<ConstellationVisibilityCase>(),
             fieldHideCase: GetIt.I<ConstellationFieldHideCase>(),
+            fieldSearchCase: GetIt.I<ConstellationFieldSearchCase>(),
             personFieldItemsCase: GetIt.I<ConstellationPersonFieldItemsCase>(),
             mutualTrustCase: GetIt.I<ConstellationMutualTrustCase>(),
             trustChainCase: GetIt.I<ConstellationTrustChainCase>(),
