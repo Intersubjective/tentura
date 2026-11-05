@@ -1,0 +1,26 @@
+query FieldSearch($query: String!, $context: String!) {
+  fieldSearch(query: $query, context: $context) {
+    people {
+      id
+      displayName
+      handle
+    }
+    requests {
+      id
+      authorId
+      title
+      status
+      hidden
+      lastActivityAt
+    }
+    posts {
+      id
+      authorId
+      rootExcerpt
+      status
+      hidden
+      lastActivityAt
+      expiresAt
+    }
+  }
+}

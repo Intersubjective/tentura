@@ -54,6 +54,8 @@ import '../../domain/use_case/constellation_placement_case.dart';
 import '../../domain/use_case/constellation_tag_magnet_case.dart';
 import '../../domain/use_case/constellation_field_store_case.dart';
 import '../../domain/use_case/constellation_field_hide_case.dart';
+import '../../domain/use_case/constellation_field_search_case.dart';
+import '../../domain/entity/constellation_field_search_result.dart';
 import '../../domain/entity/constellation_field_target_kind.dart';
 import '../../domain/constellation_field_patches.dart';
 import '../../domain/use_case/constellation_visibility_case.dart';
@@ -151,6 +153,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     this._memberWebsCase,
     this._visibilityCase,
     this._fieldHideCase,
+    this._fieldSearchCase,
     this._mutualTrustCase,
     this._trustChainCase,
     this._newPeopleCase,
@@ -207,6 +210,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   final ConstellationMemberWebsCase? _memberWebsCase;
   final ConstellationVisibilityCase? _visibilityCase;
   final ConstellationFieldHideCase? _fieldHideCase;
+  final ConstellationFieldSearchCase? _fieldSearchCase;
   final ConstellationMutualTrustCase? _mutualTrustCase;
   final ConstellationTrustChainCase? _trustChainCase;
   final ConstellationNewPeopleCase? _newPeopleCase;
@@ -383,6 +387,13 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
 
   Set<String> droppedHolderIds = const {};
   final Set<String> expandedSatelliteAuthorIds = {};
+  final _searchRevealedBeaconIds = <String>{};
+  final _searchRevealedPersonIds = <String>{};
+  final _searchRevealedHiddenBeaconIds = <String>{};
+  final _searchTemporaryOutlineBeaconIds = <String>{};
+  final _searchInjectedRequests = <ConstellationRequest>[];
+  final _searchInjectedPosts = <ConstellationPost>[];
+  String? _searchPickBeaconId;
 
   Size _labelBudgetViewport = const Size(1200, 900);
   double _labelBudgetTextScale = 1;
@@ -687,6 +698,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       _case.applyOpenedFieldBeacon(beaconId);
 
   ConstellationFieldHideCase? get fieldHideCase => _fieldHideCase;
+
+  ConstellationFieldSearchCase? get fieldSearchCase => _fieldSearchCase;
 
   /// Graph ids of unread Requests and Posts currently on the field map (#256).
   ///
@@ -1003,7 +1016,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         ? _draggedTargetsForPresentation()
         : const <ConstellationAnchorTarget>{};
     if (deferTargets.isEmpty) _noteDisappearedAnchors(confirmedProjection);
-    final presentationField = _desiredField(
+    final presentationField = _fieldForPresentation(
       deferTargets.isEmpty
           ? loadedField
           : loadedField.copyWith(
@@ -1028,6 +1041,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
             expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
             selectedRequestWebs: _holderWebs,
             extraKeptPeerIds: _extraKeptPeerIds,
+            searchRevealedBeaconIds: _searchRevealedBeaconIds,
+            searchRevealedPersonIds: _searchRevealedPersonIds,
           )
         : ConstellationPerf.timeSync(
             'compose',
@@ -1040,6 +1055,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
               expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
               selectedRequestWebs: _holderWebs,
               extraKeptPeerIds: _extraKeptPeerIds,
+            searchRevealedBeaconIds: _searchRevealedBeaconIds,
+            searchRevealedPersonIds: _searchRevealedPersonIds,
             ),
           );
     emit(
@@ -1089,6 +1106,17 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     );
   }
 
+  ConstellationField _fieldForPresentation(ConstellationField field) {
+    final desired = _desiredField(field);
+    if (_searchInjectedRequests.isEmpty && _searchInjectedPosts.isEmpty) {
+      return desired;
+    }
+    return desired.copyWith(
+      requests: [...desired.requests, ..._searchInjectedRequests],
+      posts: [...desired.posts, ..._searchInjectedPosts],
+    );
+  }
+
   /// Whether laying out [next] would give the scene nothing new over [previous].
   bool _sameLayoutInputs(
     ConstellationField? previous,
@@ -1131,7 +1159,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (isClosed || field == null) return;
     // A store publication still queued reads the outbox itself when it lands.
     if (!identical(_case.current.field, _lastAppliedStoreField)) return;
-    final presentationField = _desiredField(field);
+    final presentationField = _fieldForPresentation(field);
     if (_sameLayoutInputs(_lastPresentationField, presentationField)) return;
     _lastPresentationField = presentationField;
     _noteDisappearedAnchors(presentationField.resolvedAnchorProjection);
@@ -1144,6 +1172,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
       selectedRequestWebs: _holderWebs,
       extraKeptPeerIds: _extraKeptPeerIds,
+      searchRevealedBeaconIds: _searchRevealedBeaconIds,
+      searchRevealedPersonIds: _searchRevealedPersonIds,
     );
     emit(
       state.copyWith(
@@ -2068,6 +2098,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
             expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
             selectedRequestWebs: _holderWebs,
             extraKeptPeerIds: _extraKeptPeerIds,
+            searchRevealedBeaconIds: _searchRevealedBeaconIds,
+            searchRevealedPersonIds: _searchRevealedPersonIds,
           )
         : ConstellationPerf.timeSync(
             'compose',
@@ -2080,6 +2112,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
               expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
               selectedRequestWebs: _holderWebs,
               extraKeptPeerIds: _extraKeptPeerIds,
+            searchRevealedBeaconIds: _searchRevealedBeaconIds,
+            searchRevealedPersonIds: _searchRevealedPersonIds,
             ),
           );
     emit(
@@ -2176,6 +2210,9 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   void selectRequest(String? requestId) {
     if (isClosed) {
       return;
+    }
+    if (requestId == null || requestId != _searchPickBeaconId) {
+      _clearSearchPickSession();
     }
     _cancelPersonFocus();
     final previousId = state.selectedRequestId;
@@ -2716,6 +2753,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
       selectedRequestWebs: _holderWebs,
       extraKeptPeerIds: _extraKeptPeerIds,
+      searchRevealedBeaconIds: _searchRevealedBeaconIds,
+      searchRevealedPersonIds: _searchRevealedPersonIds,
     );
     emit(
       state.copyWith(
@@ -2771,7 +2810,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (isClosed || positions == null) return;
     final field = state.field;
     if (field != null) {
-      final presentationField = _desiredField(field);
+      final presentationField = _fieldForPresentation(field);
       _lastPresentationField = presentationField;
       final composition = _composePresentation(
         viewerId: viewerId,
@@ -2782,6 +2821,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
         selectedRequestWebs: _holderWebs,
         extraKeptPeerIds: _extraKeptPeerIds,
+      searchRevealedBeaconIds: _searchRevealedBeaconIds,
+      searchRevealedPersonIds: _searchRevealedPersonIds,
       );
       emit(
         state.copyWith(
@@ -3671,6 +3712,9 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   }
 
   ConstellationNodeAbsence absenceForRequest(String requestId) {
+    if (_searchRevealedBeaconIds.contains(requestId)) {
+      return ConstellationNodeAbsence.none;
+    }
     final field = state.field;
     if (field == null) {
       return ConstellationNodeAbsence.none;
@@ -3886,6 +3930,9 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (isClosed) {
       return;
     }
+    if (personId != null) {
+      _clearSearchPickSession();
+    }
     if (personId != null &&
         personId != viewerId &&
         (fieldPersonById(personId)?.isNew ?? false)) {
@@ -4056,9 +4103,203 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     _personFocusTimer = null;
   }
 
-  /// Selects [personId] for two seconds (highlighting the node and opening
+  /// Selects the person for two seconds (highlighting the node and opening
   /// the person panel), and centres the camera, keeping the zoom (#253).
   /// An intentional selection takes over from the temporary search focus.
+  Future<ConstellationFieldSearchResult> searchField(String query) async {
+    final searchCase = _fieldSearchCase;
+    final trimmed = query.trim();
+    if (searchCase == null || trimmed.length < 2) {
+      return emptyConstellationFieldSearchResult;
+    }
+    return searchCase.search(
+      query: trimmed,
+      context: state.field?.context ?? '',
+    );
+  }
+
+  bool isSearchTemporaryOutlineBeacon(String beaconId) =>
+      _searchTemporaryOutlineBeaconIds.contains(beaconId);
+
+  bool isSearchRevealedHiddenBeacon(String beaconId) =>
+      _searchRevealedHiddenBeaconIds.contains(beaconId);
+
+  bool searchHitOnField({required String beaconId, required bool hidden}) {
+    if (hidden) {
+      return false;
+    }
+    final field = state.field;
+    if (field == null) {
+      return false;
+    }
+    final known =
+        field.requests.any((request) => request.id == beaconId) ||
+        field.posts.any((post) => post.id == beaconId) ||
+        _searchInjectedRequests.any((request) => request.id == beaconId) ||
+        _searchInjectedPosts.any((post) => post.id == beaconId);
+    if (!known) {
+      return false;
+    }
+    return _filteredRequestIds(field).contains(beaconId);
+  }
+
+  void _clearSearchPickSession() {
+    if (_searchRevealedBeaconIds.isEmpty &&
+        _searchRevealedPersonIds.isEmpty &&
+        _searchRevealedHiddenBeaconIds.isEmpty &&
+        _searchTemporaryOutlineBeaconIds.isEmpty &&
+        _searchInjectedRequests.isEmpty &&
+        _searchInjectedPosts.isEmpty &&
+        _searchPickBeaconId == null) {
+      return;
+    }
+    _searchRevealedBeaconIds.clear();
+    _searchRevealedPersonIds.clear();
+    _searchRevealedHiddenBeaconIds.clear();
+    _searchTemporaryOutlineBeaconIds.clear();
+    _searchInjectedRequests.clear();
+    _searchInjectedPosts.clear();
+    _searchPickBeaconId = null;
+    _recomposeAndLayout();
+  }
+
+  void _ensureSearchInjection({
+    required ConstellationFieldSearchRequestHit hit,
+    required bool isPost,
+  }) {
+    final field = state.field;
+    if (field == null) {
+      return;
+    }
+    if (isPost) {
+      if (field.posts.any((post) => post.id == hit.id) ||
+          _searchInjectedPosts.any((post) => post.id == hit.id)) {
+        return;
+      }
+      _searchInjectedPosts.add(
+        ConstellationPost(
+          id: hit.id,
+          authorId: hit.authorId,
+          rootExcerpt: hit.title,
+          lastActivityAt: hit.lastActivityAt,
+          status: hit.status,
+        ),
+      );
+      return;
+    }
+    if (field.requests.any((request) => request.id == hit.id) ||
+        _searchInjectedRequests.any((request) => request.id == hit.id)) {
+      return;
+    }
+    _searchInjectedRequests.add(
+      ConstellationRequest(
+        id: hit.id,
+        authorId: hit.authorId,
+        title: hit.title,
+        status: hit.status,
+        lastActivityAt: hit.lastActivityAt,
+      ),
+    );
+  }
+
+  Future<void> unhideSearchHiddenBeacon(String beaconId) async {
+    final hideCase = _fieldHideCase;
+    final field = state.field;
+    if (hideCase == null || field == null) {
+      return;
+    }
+    final presentation = _fieldForPresentation(field);
+    final kind = ConstellationFieldTargetKind.forBeaconId(
+      presentation,
+      beaconId,
+    );
+    await hideCase.unhide(
+      targetKind: kind.wireValue,
+      targetId: beaconId,
+    );
+    _clearSearchPickSession();
+    await load();
+  }
+
+  void _revealSearchBeacon({
+    required String beaconId,
+    required String authorId,
+    required bool hidden,
+  }) {
+    _searchRevealedBeaconIds.add(beaconId);
+    if (hidden) {
+      _searchRevealedHiddenBeaconIds.add(beaconId);
+    } else {
+      _searchRevealedHiddenBeaconIds.remove(beaconId);
+    }
+    expandedSatelliteAuthorIds.add(authorId);
+    _recomposeAndLayout();
+  }
+
+  void _revealSearchPerson(String personId) {
+    _searchRevealedPersonIds.add(personId);
+    _recomposeAndLayout();
+  }
+
+  void pickFieldSearchPerson(
+    String personId, {
+    required EdgeInsets insets,
+  }) {
+    _revealSearchPerson(personId);
+    focusPerson(personId, insets: insets);
+  }
+
+  void pickFieldSearchBeacon({
+    required ConstellationFieldSearchRequestHit hit,
+    required EdgeInsets insets,
+    required bool isPost,
+  }) {
+    final onField = searchHitOnField(beaconId: hit.id, hidden: hit.hidden);
+    _searchPickBeaconId = hit.id;
+    if (!onField) {
+      _searchTemporaryOutlineBeaconIds.add(hit.id);
+      _ensureSearchInjection(hit: hit, isPost: isPost);
+    } else {
+      _searchTemporaryOutlineBeaconIds.remove(hit.id);
+    }
+    _revealSearchBeacon(
+      beaconId: hit.id,
+      authorId: hit.authorId,
+      hidden: hit.hidden,
+    );
+    focusBeacon(hit.id, insets: insets);
+  }
+
+  void focusFieldSearchPerson(
+    String personId, {
+    required EdgeInsets insets,
+  }) =>
+      pickFieldSearchPerson(personId, insets: insets);
+
+  void focusFieldSearchBeacon({
+    required String beaconId,
+    required String authorId,
+    required EdgeInsets insets,
+    required bool hidden,
+    String title = '',
+    int status = 0,
+    DateTime? lastActivityAt,
+    bool isPost = false,
+  }) {
+    pickFieldSearchBeacon(
+      hit: ConstellationFieldSearchRequestHit(
+        id: beaconId,
+        authorId: authorId,
+        title: title,
+        status: status,
+        hidden: hidden,
+        lastActivityAt: lastActivityAt ?? state.loadedAt ?? DateTime.now().toUtc(),
+      ),
+      insets: insets,
+      isPost: isPost,
+    );
+  }
+
   void focusPerson(String personId, {required EdgeInsets insets}) {
     if (isClosed || personId == _viewer.id) {
       return;
@@ -4232,6 +4473,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
             expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
             selectedRequestWebs: _holderWebs,
             extraKeptPeerIds: _extraKeptPeerIds,
+            searchRevealedBeaconIds: _searchRevealedBeaconIds,
+            searchRevealedPersonIds: _searchRevealedPersonIds,
           )
         : ConstellationPerf.timeSync(
             'compose',
@@ -4244,6 +4487,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
               expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
               selectedRequestWebs: _holderWebs,
               extraKeptPeerIds: _extraKeptPeerIds,
+            searchRevealedBeaconIds: _searchRevealedBeaconIds,
+            searchRevealedPersonIds: _searchRevealedPersonIds,
             ),
           );
     emit(

@@ -25,6 +25,8 @@ typedef ConstellationPresentationComposer =
       Set<String> expandedSatelliteAuthorIds,
       List<ConstellationMemberWeb> selectedRequestWebs,
       Set<String> extraKeptPeerIds,
+      Set<String> searchRevealedBeaconIds,
+      Set<String> searchRevealedPersonIds,
     });
 
 /// Configures the default composer while retaining the injectable UI seam.
@@ -41,6 +43,8 @@ ConstellationPresentationComposer constellationPresentationComposer({
       expandedSatelliteAuthorIds = const {},
       selectedRequestWebs = const [],
       extraKeptPeerIds = const {},
+      searchRevealedBeaconIds = const {},
+      searchRevealedPersonIds = const {},
     }) => composeConstellationPresentation(
       viewerId: viewerId,
       field: field,
@@ -50,6 +54,8 @@ ConstellationPresentationComposer constellationPresentationComposer({
       expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
       selectedRequestWebs: selectedRequestWebs,
       extraKeptPeerIds: extraKeptPeerIds,
+      searchRevealedBeaconIds: searchRevealedBeaconIds,
+      searchRevealedPersonIds: searchRevealedPersonIds,
       semanticZoomEnabled: semanticZoomEnabled,
       fieldMembershipV2Enabled: fieldMembershipV2Enabled,
     );
@@ -219,6 +225,8 @@ ConstellationComposedPresentation composeConstellationPresentation({
   Set<String> expandedSatelliteAuthorIds = const {},
   List<ConstellationMemberWeb> selectedRequestWebs = const [],
   Set<String> extraKeptPeerIds = const {},
+  Set<String> searchRevealedBeaconIds = const {},
+  Set<String> searchRevealedPersonIds = const {},
   bool fieldMembershipV2Enabled = kFieldMembershipV2Enabled,
   bool semanticZoomEnabled = kFieldSemanticZoomEnabled,
 }) {
@@ -368,6 +376,7 @@ ConstellationComposedPresentation composeConstellationPresentation({
     for (final peer in anchorOverlay.supportPeers) peer.id,
     ...directContactIds,
     ...extraKeptPeerIds.intersection(visiblePeerIds),
+    ...searchRevealedPersonIds.intersection(visiblePeerIds),
   };
 
   final labelPlan = _buildLabelDisplayPlan(
@@ -382,6 +391,7 @@ ConstellationComposedPresentation composeConstellationPresentation({
     authorEligibleIds: {viewerId, ...keptPeerIds},
     activePosts: activePosts,
     pinnedPostIds: pinnedPostIds.difference(dormantBeaconIds),
+    searchRevealedBeaconIds: searchRevealedBeaconIds,
   );
 
   final eligiblePersonIds = {
@@ -583,6 +593,7 @@ ConstellationLabelDisplayPlan _buildLabelDisplayPlan({
   required Set<String> authorEligibleIds,
   List<ConstellationPost> activePosts = const [],
   Set<String> pinnedPostIds = const {},
+  Set<String> searchRevealedBeaconIds = const {},
 }) {
   final allByAuthor = <String, List<String>>{};
   for (final request in automatic.requests) {
@@ -612,6 +623,7 @@ ConstellationLabelDisplayPlan _buildLabelDisplayPlan({
   final activityRecencyExemptIds = {
     for (final request in anchorOverlay.pinnedRequests) request.id,
     ...pinnedPostIds,
+    ...searchRevealedBeaconIds,
   };
 
   final filteredIds = filterRequestIds(
@@ -650,6 +662,14 @@ ConstellationLabelDisplayPlan _buildLabelDisplayPlan({
     asOfUtc: asOfUtc,
     activityRecencyExemptIds: activityRecencyExemptIds,
   );
+  final allBeaconIds = {
+    for (final ids in allByAuthor.values) ...ids,
+  };
+  final mergedFilteredIds = {
+    ...filteredIds,
+    for (final id in searchRevealedBeaconIds)
+      if (allBeaconIds.contains(id)) id,
+  };
 
   final pinnedRequestIds = {
     for (final request in anchorOverlay.pinnedRequests) request.id,
@@ -663,7 +683,7 @@ ConstellationLabelDisplayPlan _buildLabelDisplayPlan({
     final authorKept = authorEligibleIds.contains(authorId);
     final ids = [
       for (final id in entry.value)
-        if (filteredIds.contains(id) &&
+        if (mergedFilteredIds.contains(id) &&
             !pinnedRequestIds.contains(id) &&
             authorKept)
           id,
@@ -671,7 +691,8 @@ ConstellationLabelDisplayPlan _buildLabelDisplayPlan({
     if (!authorKept) {
       final dropped = [
         for (final id in entry.value)
-          if (filteredIds.contains(id) && !pinnedRequestIds.contains(id)) id,
+          if (mergedFilteredIds.contains(id) && !pinnedRequestIds.contains(id))
+            id,
       ];
       if (dropped.isNotEmpty) {
         authorDroppedOverflow[authorId] = dropped.length;
@@ -713,7 +734,7 @@ ConstellationLabelDisplayPlan _buildLabelDisplayPlan({
   }
 
   for (final request in anchorOverlay.pinnedRequests) {
-    if (filteredIds.contains(request.id)) {
+    if (mergedFilteredIds.contains(request.id)) {
       drawn.add(request.id);
     }
   }
@@ -722,6 +743,9 @@ ConstellationLabelDisplayPlan _buildLabelDisplayPlan({
       drawn.add(post.id);
     }
   }
+  drawn.addAll(
+    searchRevealedBeaconIds.intersection(allBeaconIds),
+  );
 
   return ConstellationLabelDisplayPlan(
     drawnRequestIds: drawn,

@@ -2117,6 +2117,20 @@ class _ConstellationBodyState extends State<ConstellationBody>
                   FieldBeaconNode(request: final request?) =>
                     _ConstellationMapNode(
                       detail: _detail,
+                      temporaryOutline:
+                          cubit.isSearchTemporaryOutlineBeacon(request.id)
+                          ? ConstellationTemporaryOutline(
+                              key: TestIds.key(
+                                TestIds.constellationTemporaryOutline(
+                                  request.id,
+                                ),
+                              ),
+                              color: tt.graphEdgePath,
+                              dash: tt.tightGap * 1.5,
+                              gap: tt.tightGap,
+                              strokeWidth: tt.tightGap / 2,
+                            )
+                          : null,
                       pinBadge:
                           cubit.isAnchored(
                             ConstellationAnchorTarget.beacon(request.id),
@@ -2161,6 +2175,18 @@ class _ConstellationBodyState extends State<ConstellationBody>
                     ),
                   FieldBeaconNode(post: final post?) => _ConstellationMapNode(
                     detail: _detail,
+                    temporaryOutline:
+                        cubit.isSearchTemporaryOutlineBeacon(post.id)
+                        ? ConstellationTemporaryOutline(
+                            key: TestIds.key(
+                              TestIds.constellationTemporaryOutline(post.id),
+                            ),
+                            color: tt.graphEdgePath,
+                            dash: tt.tightGap * 1.5,
+                            gap: tt.tightGap,
+                            strokeWidth: tt.tightGap / 2,
+                          )
+                        : null,
                     pinBadge:
                         cubit.isAnchored(
                           ConstellationAnchorTarget.beacon(post.id),
