@@ -566,8 +566,9 @@ ConstellationAnchorOverlay _overlayForVisiblePins({
     if (neededSupportPeerIds.contains(peer.id) &&
         automaticPeerIds.contains(peer.id) &&
         !supportPeers.any((existing) => existing.id == peer.id)) {
-      supportPeers.add(peer);
-      supportPeers.sort((a, b) => a.id.compareTo(b.id));
+      supportPeers
+        ..add(peer)
+        ..sort((a, b) => a.id.compareTo(b.id));
     }
   }
 
