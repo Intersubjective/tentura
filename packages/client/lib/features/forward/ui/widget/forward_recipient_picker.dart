@@ -35,6 +35,7 @@ import 'forward_input_decoration.dart';
 import 'forward_invite_bar.dart';
 import '../model/forward_recipient_row_host.dart';
 import 'forward_recipient_picker_entry.dart';
+import 'forward_recipient_wider_expander.dart';
 import 'forward_pinned_tab_bar_delegate.dart';
 import 'forward_scope_links.dart';
 import 'forward_tag_picker.dart';
@@ -117,6 +118,9 @@ class ForwardRecipientPicker extends StatefulWidget {
   /// «Wider network» header (#440).
   static const widerSectionKey = Key('ForwardRecipientPicker.widerSection');
 
+  /// Collapsed wider-network expander (#440 mn5y.4).
+  static const widerExpanderKey = Key('ForwardRecipientPicker.widerExpander');
+
   /// «New» mutual-trust-this-week header (#894).
   static const newSectionKey = Key('ForwardRecipientPicker.newSection');
 
@@ -142,6 +146,7 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
   /// and the list below filters, so the footer Forward button stays visible.
   bool _searchActive = false;
   final _searchController = TextEditingController();
+  bool _widerNetworkExpanded = false;
   bool _inviteFlowActive = false;
   bool _hitTestReady = false;
   final _expandedPersonalNoteRecipientId = ValueNotifier<String?>(null);
@@ -663,10 +668,14 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
               if (_scrollController.hasClients) {
                 _scrollController.jumpTo(0);
               }
+              if (_widerNetworkExpanded) {
+                setState(() => _widerNetworkExpanded = false);
+              }
             },
           ),
         ],
         child: BlocBuilder<ForwardCubit, ForwardState>(
+          key: ValueKey(_widerNetworkExpanded),
           buildWhen: (prev, next) =>
               prev.candidatesLoad != next.candidatesLoad ||
               prev.candidates != next.candidates ||
@@ -1307,18 +1316,60 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
     }
 
     if (widerRest.isNotEmpty) {
-      slots.add(const _RecipientListWiderHeader());
-    }
-    for (var i = 0; i < widerRest.length; i++) {
-      if (i > 0) slots.add(const _RecipientListDivider());
-      final candidate = widerRest[i];
-      slots.add(_RecipientListRow(candidate));
-      if (state.editingRecipientId == candidate.id) {
-        slots.add(const _RecipientListEditPanel());
+      final hasSectionAboveWider =
+          newMutual.isNotEmpty ||
+          directRest.isNotEmpty ||
+          throughRest.isNotEmpty;
+      final widerOnly = !hasSectionAboveWider;
+      final collapseWider = hasSectionAboveWider && !_widerNetworkExpanded;
+
+      if (widerOnly) {
+        for (var i = 0; i < widerRest.length; i++) {
+          if (i > 0) slots.add(const _RecipientListDivider());
+          final candidate = widerRest[i];
+          slots.add(_RecipientListRow(candidate));
+          if (state.editingRecipientId == candidate.id) {
+            slots.add(const _RecipientListEditPanel());
+          }
+        }
+      } else if (collapseWider) {
+        final selectedIds = state.selectedIds;
+        final pinned = widerRest
+            .where((c) => selectedIds.contains(c.id))
+            .toList();
+        final hiddenCount = widerRest.length - pinned.length;
+        for (var i = 0; i < pinned.length; i++) {
+          if (i > 0 || slots.isNotEmpty) {
+            slots.add(const _RecipientListDivider());
+          }
+          final candidate = pinned[i];
+          slots.add(_RecipientListRow(candidate));
+          if (state.editingRecipientId == candidate.id) {
+            slots.add(const _RecipientListEditPanel());
+          }
+        }
+        if (hiddenCount > 0) {
+          if (slots.isNotEmpty) slots.add(const _RecipientListDivider());
+          slots.add(_RecipientListWiderExpander(hiddenCount: hiddenCount));
+        }
+      } else {
+        slots.add(const _RecipientListWiderHeader());
+        for (var i = 0; i < widerRest.length; i++) {
+          if (i > 0) slots.add(const _RecipientListDivider());
+          final candidate = widerRest[i];
+          slots.add(_RecipientListRow(candidate));
+          if (state.editingRecipientId == candidate.id) {
+            slots.add(const _RecipientListEditPanel());
+          }
+        }
       }
     }
 
     return slots;
+  }
+
+  void _expandWiderNetwork() {
+    setState(() => _widerNetworkExpanded = true);
   }
 
   Widget _buildVisibleRecipientSlot({
@@ -1373,6 +1424,12 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
         padding: EdgeInsets.symmetric(horizontal: tt.screenHPadding),
         child: TenturaSectionHeader(label: l10n.forwardSectionWiderNetwork),
       ),
+      _RecipientListWiderExpander(:final hiddenCount) =>
+        ForwardRecipientWiderExpander(
+          key: ForwardRecipientPicker.widerExpanderKey,
+          hiddenCount: hiddenCount,
+          onExpand: _expandWiderNetwork,
+        ),
       _RecipientListDivider() => const TenturaHairlineDivider(),
       _RecipientListEditPanel() => ForwardEditPanel(
         controller: _editNoteController,
@@ -1419,6 +1476,12 @@ final class _RecipientListThroughHeader extends _RecipientListSlot {
 
 final class _RecipientListWiderHeader extends _RecipientListSlot {
   const _RecipientListWiderHeader();
+}
+
+final class _RecipientListWiderExpander extends _RecipientListSlot {
+  const _RecipientListWiderExpander({required this.hiddenCount});
+
+  final int hiddenCount;
 }
 
 final class _RecipientListDivider extends _RecipientListSlot {

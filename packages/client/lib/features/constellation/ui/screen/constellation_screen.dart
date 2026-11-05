@@ -35,6 +35,7 @@ import '../../domain/use_case/constellation_tag_magnet_case.dart';
 import '../../domain/use_case/constellation_anchor_case.dart';
 import '../../domain/use_case/constellation_placement_case.dart';
 import '../../domain/use_case/constellation_field_store_case.dart';
+import '../../domain/use_case/constellation_field_hide_case.dart';
 import '../../domain/use_case/constellation_visibility_case.dart';
 import '../util/layout_geometry_adapters.dart';
 import '../../domain/constellation_presence.dart';
@@ -82,6 +83,7 @@ class ConstellationScreen extends StatefulWidget implements AutoRouteWrapper {
             placementCase: GetIt.I<ConstellationPlacementCase>(),
             memberWebsCase: GetIt.I<ConstellationMemberWebsCase>(),
             visibilityCase: GetIt.I<ConstellationVisibilityCase>(),
+            fieldHideCase: GetIt.I<ConstellationFieldHideCase>(),
             mutualTrustCase: GetIt.I<ConstellationMutualTrustCase>(),
             trustChainCase: GetIt.I<ConstellationTrustChainCase>(),
             newPeopleCase: GetIt.I<ConstellationNewPeopleCase>(),
@@ -290,8 +292,9 @@ class _ConstellationScreenState extends State<ConstellationScreen> {
       if (!mounted) return;
       final tt = context.tt;
       final compact = context.windowClass == WindowClass.compact;
-      final effectiveAppBarHeight =
-          compact && _fieldContextSheetExpanded ? 0.0 : tt.appBarHeight;
+      final effectiveAppBarHeight = compact && _fieldContextSheetExpanded
+          ? 0.0
+          : tt.appBarHeight;
       final mapBodyHeight =
           MediaQuery.sizeOf(context).height -
           effectiveAppBarHeight -
@@ -438,7 +441,10 @@ class _ConstellationScreenState extends State<ConstellationScreen> {
     if (selectionCubit == null) {
       return scaffold;
     }
-    return BlocBuilder<ConstellationSelectionCubit, ConstellationMultiSelection>(
+    return BlocBuilder<
+      ConstellationSelectionCubit,
+      ConstellationMultiSelection
+    >(
       bloc: selectionCubit,
       builder: (context, selectionState) => PopScope(
         canPop: !selectionState.arranging,

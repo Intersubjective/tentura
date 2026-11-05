@@ -8325,6 +8325,7 @@ type v2_ConstellationPeer {
 type v2_ConstellationPost {
   has_unread: Boolean!
   authorId: String!
+  hasUnread: Boolean!
   hiddenReachCount: Int!
   id: String!
   isPinned: Boolean!
@@ -8349,6 +8350,7 @@ type v2_ConstellationRequest {
   forwardedById: String
   forwardedByName: String
   hasCoordinates: Boolean!
+  hasUnread: Boolean!
   helpOfferCount: Int!
   id: String!
   pinState: String

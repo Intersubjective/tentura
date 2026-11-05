@@ -69,7 +69,7 @@ class TimelineHelpOffer {
   final DateTime? coordinationResponseAt;
 
   /// Who last set [coordinationResponse]: on an accept, the one who accepted
-  /// (the author or a steward, #507).
+  /// (the author or a steward).
   final String? coordinationResponseAuthorId;
   final String? withdrawReason;
 
@@ -84,8 +84,7 @@ class TimelineHelpOffer {
   final DateTime? authorSeenAt;
 
   /// When the helper last edited the offer's text or help types; null when
-  /// never. Unlike [updatedAt], accepting or admitting the offer leaves it
-  /// (#361).
+  /// never. Unlike [updatedAt], accepting or admitting the offer leaves it.
   final DateTime? editedAt;
 
   bool get isEdited => !isWithdrawn && editedAt != null;
@@ -94,7 +93,7 @@ class TimelineHelpOffer {
   static const offerKindRegular = 0;
 
   /// [offerKind] of a backup offer: made by someone who could step in if the
-  /// accepted helpers fall through (#596).
+  /// accepted helpers fall through.
   static const offerKindBackup = 1;
 
   bool get isBackup => offerKind == offerKindBackup;
@@ -240,8 +239,12 @@ class TimelineCreation extends TimelineEntry {
 }
 
 /// [BeaconViewState.viewerTrail] per state instance: a state is immutable, so
-/// its trail never changes (#496).
+/// its trail never changes.
 final _viewerTrailMemo = Expando<List<ForwardEdge>>('viewerTrail');
+
+/// Where the People › Forwards read stands this session. [idle] covers both
+/// "never read" and "the last read failed", so the next load reads again.
+enum ForwardsLoad { idle, loading, loaded }
 
 @Freezed(makeCollectionsUnmodifiable: false)
 abstract class BeaconViewState extends StateBase with _$BeaconViewState {
@@ -277,11 +280,7 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
     /// True when the current user has forwarded this beacon at least once.
     @Default(false) bool hasForwardedThisBeaconOnce,
 
-    /// True after the lazy forwards load has completed at least once this session.
-    @Default(false) bool forwardsLoaded,
-
-    /// True while lazy forwards fetch is in flight.
-    @Default(false) bool forwardsLoading,
+    @Default(ForwardsLoad.idle) ForwardsLoad forwardsLoad,
 
     @Default([]) List<BeaconFactCard> factCards,
     DateTime? pinnedFactsSeenAt,
@@ -305,7 +304,7 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
     BeaconRoomState? beaconRoomCue,
     CoordinationItem? openCoordinationBlocker,
 
-    /// #766: members who have seen the latest next step / status update, as
+    /// Members who have seen the latest next step / status update, as
     /// far as the server tells this viewer (empty for everyone else).
     @Default([]) List<RoomReadWatermark> latestUpdateReaders,
 
@@ -338,16 +337,20 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
     @Default(false) bool beaconUnavailable,
 
     /// The Request's hierarchy parent, fetched only when the viewer sees the
-    /// Request through it (#724): the access banner names a Post parent.
+    /// Request through it: the access banner names a Post parent.
     Beacon? accessParent,
 
-    /// Root message excerpt for [accessParent] when it is a Post (#724).
+    /// Root message excerpt for [accessParent] when it is a Post.
     @Default('') String accessParentPostExcerpt,
 
     Object? loadError,
   }) = _BeaconViewState;
 
   const BeaconViewState._();
+
+  bool get forwardsLoaded => forwardsLoad == ForwardsLoad.loaded;
+
+  bool get forwardsLoading => forwardsLoad == ForwardsLoad.loading;
 
   bool get hasError => loadError != null;
 
@@ -356,26 +359,26 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
   /// The viewer has a help-offer row on this Request, including one they
   /// withdrew or the author removed. [isHelpOffered] is only a live offer
   /// (status 0), so a helper who left before close would miss the result
-  /// the server already has for them (#758). Someone who never offered has
+  /// the server already has for them. Someone who never offered has
   /// no row.
   bool get viewerOfferedHelp =>
       isHelpOffered || helpOffers.any((offer) => offer.user.id == myProfile.id);
 
   /// The author's own live Request that is discoverable in the Field: the
-  /// case where "sent to nobody yet" is worth saying (#484).
+  /// case where "sent to nobody yet" is worth saying.
   bool get _isAuthorsLiveFieldRequest =>
       isBeaconMine &&
       beacon.isRequest &&
       beacon.isDiscoverable &&
       beacon.status == BeaconStatus.open;
 
-  /// The author's forward status is still unknown and worth reading (#484).
+  /// The author's forward status is still unknown and worth reading.
   bool get needsAuthorForwardStatus =>
-      _isAuthorsLiveFieldRequest && !forwardsLoaded && !forwardsLoading;
+      _isAuthorsLiveFieldRequest && forwardsLoad == ForwardsLoad.idle;
 
   /// This viewer's forward trail ([viewerForwardTrail] of
   /// [viewerForwardEdges]), derived once per state and reused by every helper
-  /// tile and the Forwards fold of one build (#496).
+  /// tile and the Forwards fold of one build.
   List<ForwardEdge> get viewerTrail =>
       _viewerTrailMemo[this] ??= List.unmodifiable(
         viewerForwardTrail(viewerForwardEdges, viewerUserId: myProfile.id),
@@ -383,7 +386,7 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
 
   /// [offer] as its helper card tells it: the "forwarded directly" claim
   /// follows this viewer's forward trail, the same data People › Forwards
-  /// shows, so the two never disagree (#496).
+  /// shows, so the two never disagree.
   TimelineHelpOffer offerOnForwardTrail(TimelineHelpOffer offer) {
     final direct = directAuthorForwardOnViewerTrail(
       serverSaysDirect: offer.isDirectAuthorForward,
@@ -398,25 +401,23 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
   }
 
   /// A helper card would claim a direct author forward that only this
-  /// viewer's forward trail can confirm, and the trail is not read yet
-  /// (#496).
+  /// viewer's forward trail can confirm, and the trail is not read yet.
   bool get needsTrailForDirectForward =>
-      !forwardsLoaded &&
-      !forwardsLoading &&
+      forwardsLoad == ForwardsLoad.idle &&
       helpOffers.any(
         (o) =>
             o.isDirectAuthorForward &&
             (isBeaconMine || o.user.id == myProfile.id),
       );
 
-  /// Live in the Field but the author has forwarded it to nobody (#484).
+  /// Live in the Field but the author has forwarded it to nobody.
   /// Unknown (forwards not loaded, e.g. the read failed) is not "nobody".
   bool get isLiveSentToNobody =>
       _isAuthorsLiveFieldRequest && forwardsLoaded && myForwards.isEmpty;
 
   /// The viewer is "inside" the Request: its author or a member let in
   /// (steward, admitted helper, admitted Post addressee). Inside viewers get
-  /// the operational HUD; everyone else gets the showcase (#159, #104).
+  /// the operational HUD; everyone else gets the showcase.
   /// A null access level (local fixtures) keeps the HUD.
   bool get isInsideRequest =>
       isBeaconMine || (beacon.accessLevel?.isMember ?? true);
@@ -433,7 +434,7 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
   }
 
   /// The viewer's offer the author declined, while they have no active one.
-  /// Drives the "Your offer was declined" notice on Now (UI review #216).
+  /// Drives the "Your offer was declined" notice on Now.
   TimelineHelpOffer? get myDeclinedHelpOffer {
     if (isBeaconMine || myActiveHelpOffer != null) return null;
     for (final c in helpOffers) {
@@ -486,7 +487,7 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
   /// True for the beacon author or a promoted Steward.
   bool get isAuthorOrSteward => isBeaconMine || isSteward;
 
-  /// Offers «Decline remaining offers» (#268) would decline, as far as this
+  /// Offers «Decline remaining offers» would decline, as far as this
   /// client can tell: live ordinary offers from people not admitted (an
   /// addressee may be). Backup offers and accepted helpers are left alone.
   /// The server re-checks under its locks and is the authority.
