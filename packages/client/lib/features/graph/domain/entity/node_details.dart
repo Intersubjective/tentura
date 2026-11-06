@@ -310,7 +310,10 @@ final class FieldPersonNode extends NodeDetails {
 
   @override
   int get hashCode =>
-      super.hashCode ^ ring.hashCode ^ isKept.hashCode ^ person.hashCode;
+      super.hashCode ^
+      ring.hashCode ^
+      isKept.hashCode ^
+      person.hashCode;
 
   @override
   bool operator ==(Object other) =>

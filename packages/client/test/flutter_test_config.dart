@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:tentura/features/constellation/ui/util/constellation_forward_tree_request.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_field_topo_backdrop.dart';
 
 /// Per-test timeout for `testWidgets` in this package.
@@ -23,5 +24,10 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   // The Field's topographic backdrop (#1022) stays out of widget tests so
   // golden and layout tests are undisturbed; its own test turns it on.
   ConstellationFieldTopoBackdrop.enabled = false;
+  // The forward-tree entry request is a process-wide one-shot (#774 31ve.6):
+  // a test that schedules it and never mounts the Field would leave it pending
+  // for the next Field test in the same bundle isolate, which then draws the
+  // overlay and rebuilds every node tile.
+  tearDown(() => ConstellationForwardTreeRequest.instance.take());
   await testMain();
 }

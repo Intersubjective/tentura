@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:developer' show TimelineTask;
 import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
 import 'package:get_it/get_it.dart';
@@ -11,6 +10,7 @@ import 'package:tentura/domain/contacts/contact_name_overlay.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/lazy_write_notice.dart';
 import 'package:tentura/features/forward/domain/use_case/forward_case.dart';
+import 'package:tentura/features/forward/domain/entity/forward_graph.dart';
 import 'package:tentura/ui/utils/post_expiry_clock.dart';
 import '../utils/constellation_presentation_frame.dart';
 
@@ -60,6 +60,8 @@ import '../../domain/entity/constellation_field_search_result.dart';
 import '../../domain/use_case/constellation_person_field_items_case.dart';
 import '../../domain/entity/constellation_field_hidden_item.dart';
 import '../../domain/entity/constellation_field_target_kind.dart';
+import '../../domain/constellation_forward_tree_marker.dart';
+import '../../domain/constellation_forward_tree_overlay.dart';
 import '../../domain/constellation_field_patches.dart';
 import '../../domain/use_case/constellation_visibility_case.dart';
 import '../../../graph/domain/entity/edge_details.dart';
@@ -69,6 +71,7 @@ import '../../../graph/ui/utils/tentura_layout_algorithms.dart';
 import '../utils/constellation_graph_scene.dart';
 import '../scene/constellation_interaction_controller.dart';
 import '../scene/constellation_scene_controller.dart';
+import '../scene/constellation_forward_tree_scene_layout.dart';
 import '../scene/constellation_tag_view_field_layout.dart';
 import '../util/constellation_perf.dart';
 import 'constellation_state.dart';
@@ -361,8 +364,405 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   Offset _composingDraftCentre = Offset.zero;
   void Function(String personId)? _onComposingToggle;
 
+  Timer? _forwardTreeReplayTimer;
+  int? _forwardTreeReplayTargetCount;
+
+  /// Bumped when forward-tree replay updates edge pulse glow (#774).
+  final ValueNotifier<int> forwardTreeEdgePulseTick = ValueNotifier(0);
+
+  bool _forwardTreePulseTickerDisposed = false;
+
   ForwardCase get _forwardCase =>
       _forwardCaseOverride ?? GetIt.I<ForwardCase>();
+
+  /// Widget tests: force reduced-motion branch without platform hooks.
+  @visibleForTesting
+  bool? reduceMotionMediaOverrideForTest;
+
+  bool _reduceMotionMedia() =>
+      reduceMotionMediaOverrideForTest ??
+      WidgetsBinding.instance.platformDispatcher.accessibilityFeatures
+          .disableAnimations;
+
+  /// Latest edges shown during forward-tree replay (by `createdAt`); for tests.
+  @visibleForTesting
+  List<ForwardGraphEdge> forwardTreeVisibleEdgesForTest =
+      const <ForwardGraphEdge>[];
+
+  void _snapshotPositionsForForwardTreeOverlay() {
+    final snap = graphController.renderSnapshot;
+    final persons = <String, ({double x, double y})>{};
+    final requests = <String, ({double x, double y})>{};
+    final beacons = <String, ({double x, double y})>{};
+    for (final entry in snap.topology.nodesById.entries) {
+      final p = snap.resolvePosition(entry.key);
+      if (p == null) continue;
+      final (:x, :y) = (x: p.x, y: p.y);
+      final node = entry.value.payload;
+      switch (node) {
+        case FieldPersonNode(:final person):
+          persons[person.id] = (x: x, y: y);
+        case FieldBeaconNode(request: final r?):
+          requests[r.id] = (x: x, y: y);
+        case FieldBeaconNode(post: final p0?):
+          beacons[p0.id] = (x: x, y: y);
+        default:
+          break;
+      }
+    }
+    final o = state.forwardTreeOverlay;
+    if (o == null) return;
+    emit(
+      state.copyWith(
+        forwardTreeOverlay: o.copyWith(
+          savedPersonPositions: persons,
+          savedRequestPositions: requests,
+          savedBeaconPositions: beacons,
+        ),
+      ),
+    );
+  }
+
+  Map<GraphNodeId, ScenePoint> _scenePointsFromForwardTreeSnapshot(
+    ConstellationForwardTreeOverlay overlay,
+  ) {
+    final snap = graphController.renderSnapshot;
+    final out = <GraphNodeId, ScenePoint>{};
+    void addPerson(String id, ({double x, double y}) pt) {
+      final gid = 'fp:$id';
+      if (!snap.topology.nodesById.containsKey(gid)) return;
+      out[gid] = ScenePoint(x: pt.x, y: pt.y);
+    }
+
+    void addRequest(String id, ({double x, double y}) pt) {
+      final gid = 'fr:$id';
+      if (!snap.topology.nodesById.containsKey(gid)) return;
+      out[gid] = ScenePoint(x: pt.x, y: pt.y);
+    }
+
+    final savedP = overlay.savedPersonPositions;
+    if (savedP != null) {
+      for (final e in savedP.entries) {
+        addPerson(e.key, e.value);
+      }
+    }
+    final savedR = overlay.savedRequestPositions;
+    if (savedR != null) {
+      for (final e in savedR.entries) {
+        addRequest(e.key, e.value);
+      }
+    }
+    final savedB = overlay.savedBeaconPositions;
+    if (savedB != null) {
+      for (final e in savedB.entries) {
+        addRequest(e.key, e.value);
+      }
+    }
+    return out;
+  }
+
+  void _applyForwardTreeLayoutMode() {
+    final o = state.forwardTreeOverlay;
+    final g = o?.graph;
+    if (o == null || g == null || g.edges.isEmpty) {
+      _scene.forwardTreeAlgorithm = null;
+      _scene.forwardTreeLayoutRestore = null;
+      return;
+    }
+    if (o.arrangeAsTree) {
+      if (o.savedPersonPositions == null) {
+        _snapshotPositionsForForwardTreeOverlay();
+      }
+      final personIds = <GraphNodeId>{};
+      for (final id in graphController.renderSnapshot.topology.nodesById.keys) {
+        if (id.startsWith('fp:')) personIds.add(id);
+      }
+      _scene.forwardTreeLayoutRestore = null;
+      _scene.forwardTreeAlgorithm = ConstellationForwardTreeRadialLayout(
+        authorPersonId: g.authorId,
+        edges: g.edges,
+        personGraphIds: personIds,
+      );
+      return;
+    }
+    final snapOverlay = state.forwardTreeOverlay;
+    if (snapOverlay?.savedPersonPositions != null) {
+      final positions = _scenePointsFromForwardTreeSnapshot(snapOverlay!);
+      if (positions.isNotEmpty) {
+        _scene.forwardTreeAlgorithm = null;
+        _scene.forwardTreeLayoutRestore = ConstellationFixedLayout(positions);
+        return;
+      }
+    }
+    _scene.forwardTreeAlgorithm = null;
+    _scene.forwardTreeLayoutRestore = null;
+  }
+
+  /// Opens forward-tree overlay for [beaconId]. Fetches [ForwardGraph] via V2 API.
+  Future<void> enterForwardTreeMode({
+    required String beaconId,
+    String? helpOffererFocusId,
+  }) async {
+    if (isClosed || beaconId.isEmpty) return;
+    _cancelForwardTreeReplay();
+    final reduceMotion = _reduceMotionMedia();
+    emit(
+      state.copyWith(
+        forwardTreeOverlay: ConstellationForwardTreeOverlay(
+          beaconId: beaconId,
+          helpOffererFocusId: helpOffererFocusId,
+          loading: true,
+          reduceMotion: reduceMotion,
+        ),
+        selectedRequestId: beaconId,
+        selectedPersonId: null,
+      ),
+    );
+    _rebuildGraphWithoutLayout();
+    try {
+      final graph = await _forwardCase.fetchForwardGraph(beaconId: beaconId);
+      if (isClosed) return;
+      emit(
+        state.copyWith(
+          forwardTreeOverlay: ConstellationForwardTreeOverlay(
+            beaconId: beaconId,
+            helpOffererFocusId: helpOffererFocusId,
+            graph: graph,
+            reduceMotion: reduceMotion,
+          ),
+        ),
+      );
+      _snapshotPositionsForForwardTreeOverlay();
+      _applyForwardTreeLayoutMode();
+      _reconcileLayout(immediateHandoff: true);
+      if (reduceMotion) {
+        final overlay = state.forwardTreeOverlay;
+        if (overlay != null) {
+          emit(
+            state.copyWith(
+              forwardTreeOverlay: overlay.copyWith(
+                replayVisibleCount: graph.edges.length,
+                replaying: false,
+              ),
+            ),
+          );
+        }
+        _reconcileLayout(immediateHandoff: true);
+        forwardTreeVisibleEdgesForTest = graph.edges;
+        _scheduleForwardTreeCameraFit();
+      } else {
+        _startForwardTreeReplay(edgeCount: graph.edges.length);
+      }
+    } on Object catch (e) {
+      if (isClosed) return;
+      emit(
+        state.copyWith(
+          forwardTreeOverlay: ConstellationForwardTreeOverlay(
+            beaconId: beaconId,
+            helpOffererFocusId: helpOffererFocusId,
+            error: e,
+            reduceMotion: reduceMotion,
+          ),
+        ),
+      );
+      _reconcileLayout(immediateHandoff: true);
+    }
+  }
+
+  void _cancelForwardTreeReplay({bool bumpPulseTicker = true}) {
+    _forwardTreeReplayTimer?.cancel();
+    _forwardTreeReplayTimer = null;
+    _forwardTreeReplayTargetCount = null;
+    _forwardTreeReplayElapsedMs = 0;
+    _scene.forwardTreeEdgePulseBySemanticId.clear();
+    if (bumpPulseTicker && !_forwardTreePulseTickerDisposed) {
+      forwardTreeEdgePulseTick.value++;
+    }
+  }
+
+  int _forwardTreeReplayElapsedMs = 0;
+
+  void _startForwardTreeReplay({required int edgeCount}) {
+    _forwardTreeReplayTimer?.cancel();
+    _forwardTreeReplayTimer = null;
+    _forwardTreeReplayTargetCount = null;
+    _forwardTreeReplayElapsedMs = 0;
+    if (edgeCount <= 0) return;
+    _forwardTreeReplayTargetCount = edgeCount;
+    _forwardTreeReplayElapsedMs = 0;
+    final tree = state.forwardTreeOverlay;
+    if (tree == null) return;
+    emit(
+      state.copyWith(
+        forwardTreeOverlay: tree.copyWith(
+          replaying: true,
+          replayVisibleCount: 0,
+        ),
+      ),
+    );
+    _scene.forwardTreeEdgePulseBySemanticId.clear();
+    if (!_forwardTreePulseTickerDisposed) {
+      forwardTreeEdgePulseTick.value++;
+    }
+    const totalMs = 3000;
+    _forwardTreeReplayTimer = Timer.periodic(const Duration(milliseconds: 50), (
+      t,
+    ) {
+      if (isClosed) {
+        t.cancel();
+        return;
+      }
+      _forwardTreeReplayElapsedMs += 50;
+      final target = _forwardTreeReplayTargetCount ?? edgeCount;
+      final next = math.min(
+        target,
+        (edgeCount * _forwardTreeReplayElapsedMs / totalMs).ceil(),
+      );
+      final current = state.forwardTreeOverlay;
+      if (current == null) {
+        t.cancel();
+        return;
+      }
+      emit(
+        state.copyWith(
+          forwardTreeOverlay: current.copyWith(
+            replayVisibleCount: next,
+            replaying: next < target,
+          ),
+        ),
+      );
+      if (next > 0) {
+        _rebuildGraphWithoutLayout();
+      }
+      final visible = _scene.forwardTreeVisibleSemanticIds;
+      final g = state.forwardTreeOverlay?.graph;
+      if (g != null) {
+        forwardTreeVisibleEdgesForTest = [
+          for (final e in g.edges)
+            if (visible.any((sid) => sid.contains('ft_${e.id}'))) e,
+        ];
+      }
+      if (visible.isNotEmpty) {
+        final last = visible.last;
+        for (final k in _scene.forwardTreeEdgePulseBySemanticId.keys.toList()) {
+          if (k == last) continue;
+          final v = (_scene.forwardTreeEdgePulseBySemanticId[k] ?? 0) * 0.82;
+          if (v < 0.04) {
+            _scene.forwardTreeEdgePulseBySemanticId.remove(k);
+          } else {
+            _scene.forwardTreeEdgePulseBySemanticId[k] = v;
+          }
+        }
+        _scene.forwardTreeEdgePulseBySemanticId[last] = 1;
+        if (!_forwardTreePulseTickerDisposed) {
+          forwardTreeEdgePulseTick.value++;
+        }
+      }
+      if (next >= target) {
+        t.cancel();
+        _forwardTreeReplayTimer = null;
+        _forwardTreeReplayTargetCount = null;
+        emit(
+          state.copyWith(
+            forwardTreeOverlay: current.copyWith(
+              replayVisibleCount: target,
+              replaying: false,
+            ),
+          ),
+        );
+        _reconcileLayout(immediateHandoff: true);
+        final fg = state.forwardTreeOverlay?.graph;
+        if (fg != null) {
+          forwardTreeVisibleEdgesForTest = fg.edges;
+        }
+        _scheduleForwardTreeCameraFit();
+      }
+    });
+  }
+
+  void _scheduleForwardTreeCameraFit() {
+    runAfterNextFrame(() {
+      if (isClosed || state.forwardTreeOverlay == null) return;
+      if (state.placementPhase != ConstellationPlacementPhase.idle) return;
+      _scene.fitNodes(
+        EdgeInsets.zero,
+        minScale: kConstellationDistrictDetailScale,
+        focus: 'fp:${state.forwardTreeOverlay!.graph?.authorId ?? ''}',
+      );
+    });
+  }
+
+  void replayForwardTree() {
+    final tree = state.forwardTreeOverlay;
+    if (tree == null || tree.graph == null || tree.reduceMotion) return;
+    _cancelForwardTreeReplay();
+    emit(
+      state.copyWith(
+        forwardTreeOverlay: tree.copyWith(
+          replayGeneration: tree.replayGeneration + 1,
+        ),
+      ),
+    );
+    _startForwardTreeReplay(edgeCount: tree.graph!.edges.length);
+  }
+
+  void exitForwardTreeMode() {
+    if (state.forwardTreeOverlay == null) return;
+    forwardTreeVisibleEdgesForTest = const [];
+    _cancelForwardTreeReplay();
+    _scene.forwardTreeAlgorithm = null;
+    _scene.forwardTreeLayoutRestore = null;
+    _scene.forwardTreeEdgePulseBySemanticId.clear();
+    if (!_forwardTreePulseTickerDisposed) {
+      forwardTreeEdgePulseTick.value++;
+    }
+    emit(state.copyWith(forwardTreeOverlay: null));
+    _reconcileLayout(immediateHandoff: true);
+  }
+
+  void toggleForwardTreeArrange() {
+    final tree = state.forwardTreeOverlay;
+    if (tree == null || tree.graph == null) return;
+    final next = !tree.arrangeAsTree;
+    emit(
+      state.copyWith(
+        forwardTreeOverlay: tree.copyWith(arrangeAsTree: next),
+      ),
+    );
+    _applyForwardTreeLayoutMode();
+    _reconcileLayout(immediateHandoff: true);
+    _scheduleForwardTreeCameraFit();
+  }
+
+  bool isDimmedByForwardTree(NodeDetails node) {
+    final o = state.forwardTreeOverlay;
+    final g = o?.graph;
+    if (o == null || g == null || g.edges.isEmpty) {
+      return false;
+    }
+    String domain(ForwardGraphEdge e, {required bool sender}) {
+      final anon = sender ? e.senderAnonymousCount : e.recipientAnonymousCount;
+      if (anon > 0) {
+        return sender ? 'ftghost:${e.id}:s' : 'ftghost:${e.id}:r';
+      }
+      return sender ? e.senderId : e.recipientId;
+    }
+
+    bool inTreeGraph(String pid) {
+      if (pid.startsWith('ftghost:')) return true;
+      return g.edges.any(
+        (e) => domain(e, sender: true) == pid || domain(e, sender: false) == pid,
+      );
+    }
+
+    return switch (node) {
+      FieldPersonNode(:final person) => !inTreeGraph(person.id),
+      FieldBeaconNode(:final request?) =>
+        request.id != o.beaconId && !inTreeGraph(request.authorId),
+      FieldBeaconNode(post: _) => true,
+      _ => false,
+    };
+  }
 
   GraphController<NodeDetails, EdgeDetails> get graphController =>
       _scene.graphController;
@@ -375,6 +775,25 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   Map<String, double> get postFadeById => _scene.postFadeById;
 
   Map<String, double> get edgeFadeBySemanticId => _scene.edgeFadeBySemanticId;
+
+  Map<String, double> get forwardTreeEdgePulseBySemanticId =>
+      _scene.forwardTreeEdgePulseBySemanticId;
+
+  /// Forward-tree glyph per person id; empty when the overlay is off (#774).
+  Map<String, ConstellationForwardTreeRecipientMarker>
+      get forwardTreeRecipientMarkerByPersonId =>
+          _scene.forwardTreeRecipientMarkerByPersonId;
+
+  Set<String> get forwardTreeTemporaryOutlinePersonIds =>
+      _scene.forwardTreeTemporaryOutlinePersonIds;
+
+  Map<String, int> get forwardTreeAnonymousCountByPersonId =>
+      _scene.forwardTreeAnonymousCountByPersonId;
+
+  /// Widget tests: whether «Arrange as tree» installed the radial algorithm.
+  @visibleForTesting
+  SceneLayoutAlgorithm? get forwardTreeLayoutAlgorithmForTest =>
+      _scene.forwardTreeAlgorithm;
 
   Map<String, int> get postOverflowCountByPostId =>
       _scene.postOverflowCountByPostId;
@@ -460,6 +879,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         field == null ||
         state.isComposing ||
         state.tagView != null ||
+        state.forwardTreeOverlay != null ||
         _layoutPreviewAlgorithm != null ||
         _scene.tagViewAlgorithm != null ||
         _scene.testSceneLayoutAlgorithmOverride != null ||
@@ -676,6 +1096,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
 
   @override
   Future<void> close() async {
+    _cancelForwardTreeReplay(bumpPulseTicker: false);
     _cancelPersonFocus();
     _expiry?.dispose();
     _storeLease.dispose();
@@ -697,7 +1118,10 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     graphController.scene.removeListener(_onGraphSceneLayoutOutcomeChanged);
     graphController.removeListener(_onGraphControllerChanged);
     _anchorCase?.deactivate(token: _anchorLifecycleToken);
+    _forwardTreePulseTickerDisposed = true;
     _scene.dispose();
+    // Do not dispose [forwardTreeEdgePulseTick]: [_scene.dispose] can schedule
+    // work that still bumps the notifier; dropping the cubit releases it.
     return super.close();
   }
 
@@ -3888,6 +4312,9 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   /// When the field shows no chain, the one the server named (if any) stands
   /// in for it, unless it passes through people the switches hide.
   ConstellationTrustChain? get selectedTrustChain {
+    if (state.forwardTreeOverlay != null) {
+      return null;
+    }
     final local = _localTrustChain;
     if (local is! ConstellationTrustChainNone) {
       return local;
@@ -3954,6 +4381,9 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   /// selected person trusts both ways (their edges are drawn to them) and the
   /// selected person's own Requests and Posts.
   bool isDimmedByTrustChain(NodeDetails node) {
+    if (state.forwardTreeOverlay != null) {
+      return false;
+    }
     final chain = selectedTrustChain;
     if (chain is! ConstellationTrustChainFound) {
       return false;
@@ -5073,6 +5503,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       keptPeerIds: state.keptPeerIds,
       selectedPersonId: state.selectedPersonId,
       selectedRequestId: state.selectedRequestId,
+      forwardTree: state.forwardTreeOverlay,
       trustChain: selectedTrustChain,
       mutualTrustIds: selectedMutualTrustIds,
       asOfUtc: _case.nowUtc(),

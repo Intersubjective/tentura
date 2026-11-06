@@ -484,15 +484,16 @@ class _ConstellationViewportOverlayState
               selectedPersonId: selectedPersonId,
               selectedRequestId: selectedRequestId,
             );
-            // Off the selected person's trust chain (#641) the node fades,
-            // and its trust marks and presence halo with it.
-            final dimmedGraphIds =
-                widget.cubit.selectedTrustChain is ConstellationTrustChainFound
-                ? <GraphNodeId>{
-                    for (final MapEntry(:key, :value) in nodeByGraphId.entries)
-                      if (widget.cubit.isDimmedByTrustChain(value)) key,
-                  }
-                : const <GraphNodeId>{};
+            // Off the selected person's trust chain (#641) or forward-tree
+            // overlay (#774) the node fades; trust marks and presence halo with it.
+            final dimmedGraphIds = <GraphNodeId>{
+              if (widget.cubit.selectedTrustChain is ConstellationTrustChainFound)
+                for (final MapEntry(:key, :value) in nodeByGraphId.entries)
+                  if (widget.cubit.isDimmedByTrustChain(value)) key,
+              if (state.forwardTreeOverlay != null)
+                for (final MapEntry(:key, :value) in nodeByGraphId.entries)
+                  if (widget.cubit.isDimmedByForwardTree(value)) key,
+            };
 
             final inputs = <ConstellationFrameNodeInput>[];
             final labelTexts = <String>[];

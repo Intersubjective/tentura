@@ -13,7 +13,11 @@ import '../../domain/constellation_post_fade.dart';
 import '../../domain/constellation_trust_chain.dart';
 import '../../domain/constellation_visibility.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
+import '../../domain/constellation_forward_tree_overlay.dart';
+import '../../domain/constellation_forward_tree_marker.dart';
 import '../../domain/entity/constellation_field.dart';
+import 'package:tentura/features/forward/domain/entity/forward_graph.dart';
+import 'package:tentura/features/forward/domain/entity/forward_recipient_offer_status.dart';
 import '../../../graph/domain/entity/edge_details.dart';
 import '../../../graph/domain/entity/node_details.dart';
 import '../../../graph/ui/utils/graph_scene_ids.dart';
@@ -41,6 +45,12 @@ enum ConstellationEdgeKind {
   /// both ways (explicit trust marks only). Drawn over the scene, never laid
   /// out.
   mutualTrust,
+
+  /// Forward-tree overlay: edge on a path to an accepted helper (#774 31ve.6).
+  helpBranch,
+
+  /// Forward-tree overlay: other forward edges in the tree (dimmed).
+  forwardBranch,
 
   /// A temporary person → the Request that made them visible (field
   /// membership v2).
@@ -123,8 +133,30 @@ class ConstellationSceneController {
   /// The tag view's layout while one is open; takes over from the Field's.
   SceneLayoutAlgorithm? tagViewAlgorithm;
 
+  /// Forward-tree «Arrange as tree» session layout (#774 31ve.6).
+  SceneLayoutAlgorithm? forwardTreeAlgorithm;
+
+  /// Restores saved Field positions after leaving forward-tree radial layout.
+  SceneLayoutAlgorithm? forwardTreeLayoutRestore;
+
   /// One-shot algorithm for an owned layout request (tests); not used after recovery.
   SceneLayoutAlgorithm? ephemeralOwnedLayoutAlgorithm;
+
+  /// 0–1 pulse along an edge while forward-tree replay reveals it (#774).
+  final Map<String, double> forwardTreeEdgePulseBySemanticId = {};
+
+  /// Semantic ids of forward-tree edges currently drawn (replay slice order).
+  List<String> forwardTreeVisibleSemanticIds = const [];
+
+  /// Overlay-only person decoration: not part of [FieldPersonNode] equality, so
+  /// graph topology stays stable when the overlay toggles or rebuilds (#774,
+  /// placement_phase_node_rebuild_test).
+  Map<String, ConstellationForwardTreeRecipientMarker>
+      forwardTreeRecipientMarkerByPersonId = const {};
+
+  Set<String> forwardTreeTemporaryOutlinePersonIds = const {};
+
+  Map<String, int> forwardTreeAnonymousCountByPersonId = const {};
 
   int _constellationLayoutAlgorithmRevision = -1;
   ConstellationSceneLayoutAlgorithm? _constellationLayoutAlgorithm;
@@ -188,6 +220,8 @@ class ConstellationSceneController {
     required Set<String> stateKeptPeerIds,
     required Set<String> forgetPriorHintNodeIds,
   }) =>
+      forwardTreeAlgorithm ??
+      forwardTreeLayoutRestore ??
       tagViewAlgorithm ??
       ephemeralOwnedLayoutAlgorithm ??
       testSceneLayoutAlgorithmOverride ??
@@ -329,6 +363,13 @@ class ConstellationSceneController {
     edgeKinds.clear();
     edgeKindByPair.clear();
     edgeFadeBySemanticId = {};
+    forwardTreeEdgePulseBySemanticId.clear();
+    forwardTreeRecipientMarkerByPersonId = const {};
+    forwardTreeTemporaryOutlinePersonIds = const {};
+    forwardTreeAnonymousCountByPersonId = const {};
+    forwardTreeVisibleSemanticIds = const [];
+    forwardTreeAlgorithm = null;
+    forwardTreeLayoutRestore = null;
     postFadeById = const {};
     postOverflowCountByPostId = const {};
     overflowHiddenCountByAuthor = const {};
@@ -447,6 +488,250 @@ class ConstellationSceneController {
     }
   }
 
+  void _applyForwardTreeOverlay({
+    required ConstellationForwardTreeOverlay? forwardTree,
+    required Profile viewer,
+    required ConstellationPathResolution paths,
+    required Set<String> keptPeerIds,
+    required Set<NodeDetails> nodes,
+    required Map<String, NodeDetails> nodeById,
+    required Set<EdgeDetails> edges,
+  }) {
+    forwardTreeRecipientMarkerByPersonId = const {};
+    forwardTreeTemporaryOutlinePersonIds = const {};
+    forwardTreeAnonymousCountByPersonId = const {};
+
+    final tree = forwardTree;
+    final graph = tree?.graph;
+    if (tree == null || graph == null || graph.edges.isEmpty) {
+      forwardTreeVisibleSemanticIds = const [];
+      forwardTreeEdgePulseBySemanticId.clear();
+      return;
+    }
+
+    final markers = <String, ConstellationForwardTreeRecipientMarker>{};
+    final tempOutlineIds = <String>{};
+    final anonByPerson = <String, int>{};
+
+    forwardTreeVisibleSemanticIds = const [];
+    if (!tree.replaying) {
+      forwardTreeEdgePulseBySemanticId.clear();
+    }
+
+    String endpointId(ForwardGraphEdge e, {required bool sender}) {
+      final anon = sender ? e.senderAnonymousCount : e.recipientAnonymousCount;
+      if (anon > 0) {
+        return sender ? 'ftghost:${e.id}:s' : 'ftghost:${e.id}:r';
+      }
+      return sender ? e.senderId : e.recipientId;
+    }
+
+    Profile profileForPerson(
+      String personId,
+      ForwardGraphEdge e, {
+      required bool sender,
+    }) {
+      final existing = nodeById[personId];
+      if (existing is FieldPersonNode) {
+        return existing.person;
+      }
+      final raw = sender ? e.senderDisplayName : e.recipientDisplayName;
+      final display = raw?.trim() ?? '';
+      return Profile(id: personId, displayName: display);
+    }
+
+    ConstellationForwardTreeRecipientMarker? markerFor(ForwardGraphEdge e) {
+      if (e.offerStatus == ForwardRecipientOfferStatus.accepted) {
+        return ConstellationForwardTreeRecipientMarker.helped;
+      }
+      if (e.offerStatus == ForwardRecipientOfferStatus.offered) {
+        return ConstellationForwardTreeRecipientMarker.offered;
+      }
+      if (e.declinedInvite == true) {
+        return ConstellationForwardTreeRecipientMarker.cantHelp;
+      }
+      if (e.readAt != null) {
+        return ConstellationForwardTreeRecipientMarker.opened;
+      }
+      if (e.forwardedOn == false) {
+        return ConstellationForwardTreeRecipientMarker.notOpened;
+      }
+      return null;
+    }
+
+    ConstellationForwardTreeRecipientMarker? mergeMarker(
+      ConstellationForwardTreeRecipientMarker? a,
+      ConstellationForwardTreeRecipientMarker? b,
+    ) {
+      if (a == null) return b;
+      if (b == null) return a;
+      int rank(ConstellationForwardTreeRecipientMarker m) => switch (m) {
+        ConstellationForwardTreeRecipientMarker.helped => 0,
+        ConstellationForwardTreeRecipientMarker.offered => 1,
+        ConstellationForwardTreeRecipientMarker.cantHelp => 2,
+        ConstellationForwardTreeRecipientMarker.opened => 3,
+        ConstellationForwardTreeRecipientMarker.notOpened => 4,
+      };
+      return rank(a) <= rank(b) ? a : b;
+    }
+
+    void ensurePersonNode(
+      String personId,
+      ForwardGraphEdge e, {
+      required bool sender,
+    }) {
+      final anon = sender ? e.senderAnonymousCount : e.recipientAnonymousCount;
+      final marker = sender ? null : markerFor(e);
+      final isGhost = personId.startsWith('ftghost:');
+      final onVisibleField = !isGhost &&
+          (personId == viewer.id || keptPeerIds.contains(personId));
+      final tempOutline = !isGhost && !onVisibleField && anon == 0;
+      if (marker != null) {
+        final merged = mergeMarker(markers[personId], marker);
+        if (merged != null) {
+          markers[personId] = merged;
+        }
+      }
+      if (tempOutline) {
+        tempOutlineIds.add(personId);
+      }
+      if (anon > 0) {
+        final prev = anonByPerson[personId];
+        anonByPerson[personId] =
+            prev == null ? anon : math.max(prev, anon);
+      }
+      final existing = nodeById[personId];
+      if (existing is FieldPersonNode) {
+        return;
+      }
+      final profile = profileForPerson(personId, e, sender: sender);
+      final ring = paths.depth[personId] ?? kConstellationLayoutMaxHops;
+      nodes.add(
+        nodeById[personId] = FieldPersonNode(
+          person: profile,
+          ring: ring,
+          isKept: false,
+        ),
+      );
+    }
+
+    // Edge ids on paths to active help offerers (ancestor walk).
+    final byId = {for (final edge in graph.edges) edge.id: edge};
+    final helpBranchIds = <String>{};
+    final focusOfferer = tree.helpOffererFocusId;
+    final offererIds = (focusOfferer != null && focusOfferer.isNotEmpty)
+        ? {focusOfferer}
+        : graph.helpOffererIds;
+    for (final hoId in offererIds) {
+      final intoHo = [
+        for (final edge in graph.edges)
+          if (edge.recipientId == hoId) edge,
+      ]..sort(
+          (a, b) {
+            final at = a.createdAt;
+            final bt = b.createdAt;
+            if (at != null && bt != null && at != bt) {
+              return at.compareTo(bt);
+            }
+            return a.id.compareTo(b.id);
+          },
+        );
+      var current = intoHo.isEmpty ? null : intoHo.last;
+      final seen = <String>{};
+      while (current != null && seen.add(current.id)) {
+        helpBranchIds.add(current.id);
+        final parent = current.parentEdgeId;
+        current = parent == null ? null : byId[parent];
+      }
+    }
+
+    var ordered = List<ForwardGraphEdge>.from(graph.edges)
+      ..sort(
+        (a, b) {
+          final at = a.createdAt;
+          final bt = b.createdAt;
+          if (at != null && bt != null && at != bt) {
+            return at.compareTo(bt);
+          }
+          return a.id.compareTo(b.id);
+        },
+      );
+    final maxVisible = tree.replayVisibleCount;
+    if (maxVisible != null) {
+      if (maxVisible <= 0) {
+        ordered = const [];
+      } else if (maxVisible < ordered.length) {
+        ordered = ordered.sublist(0, maxVisible);
+      }
+    }
+
+    final visibleSemanticIds = <String>[];
+    for (final e in ordered) {
+      final srcId = endpointId(e, sender: true);
+      final dstId = endpointId(e, sender: false);
+      ensurePersonNode(srcId, e, sender: true);
+      ensurePersonNode(dstId, e, sender: false);
+      final kind = helpBranchIds.contains(e.id)
+          ? ConstellationEdgeKind.helpBranch
+          : ConstellationEdgeKind.forwardBranch;
+      final srcNode = nodeById[srcId]!;
+      final dstNode = nodeById[dstId]!;
+      final uniqueKind = 'ft_${e.id}';
+      final semanticId =
+          '${tenturaGraphNodeId(srcNode)}->${tenturaGraphNodeId(dstNode)}#$uniqueKind';
+      if (edgeKindByPair.containsKey(semanticId)) {
+        continue;
+      }
+      final edge = EdgeDetails(
+        source: srcNode,
+        destination: dstNode,
+        color: Colors.transparent,
+        strokeWidth: kind == ConstellationEdgeKind.helpBranch ? 3 : 1.5,
+        arrowAtDestination: kind == ConstellationEdgeKind.helpBranch,
+        semanticId: semanticId,
+      );
+      edges.add(edge);
+      final sceneEdgeId = constellationSceneEdgeId(
+        kindName: uniqueKind,
+        source: srcNode,
+        destination: dstNode,
+      );
+      edgeKinds[sceneEdgeId] = kind;
+      edgeKindByPair[semanticId] = kind;
+      visibleSemanticIds.add(semanticId);
+    }
+    forwardTreeVisibleSemanticIds = visibleSemanticIds;
+
+    final activePersonIds = <String>{};
+    for (final e in graph.edges) {
+      activePersonIds
+        ..add(endpointId(e, sender: true))
+        ..add(endpointId(e, sender: false));
+    }
+
+    for (final edge in edges) {
+      final kind = edgeKindByPair[edge.semanticId];
+      if (kind == ConstellationEdgeKind.helpBranch ||
+          kind == ConstellationEdgeKind.forwardBranch) {
+        continue;
+      }
+      final srcId = edge.source.id;
+      final dstId = edge.destination.id;
+      final touches = activePersonIds.contains(srcId) ||
+          activePersonIds.contains(dstId);
+      if (touches) {
+        continue;
+      }
+      edgeFadeBySemanticId[edge.semanticId] =
+          (edgeFadeBySemanticId[edge.semanticId] ?? 1) *
+          kConstellationTrustChainEdgeFade;
+    }
+
+    forwardTreeRecipientMarkerByPersonId = markers;
+    forwardTreeTemporaryOutlinePersonIds = tempOutlineIds;
+    forwardTreeAnonymousCountByPersonId = anonByPerson;
+  }
+
   /// The peer an ego edge may lead to: the first hop on the path to
   /// [focusPersonId], or the person itself when it hangs on the ring.
   Set<String> _egoEdgeTargets({
@@ -494,6 +779,7 @@ class ConstellationSceneController {
     required Map<String, List<ConstellationMemberWeb>> requestWebsById,
     required ConstellationFootprintMetrics? footprintMetrics,
     required Profile Function(ConstellationPerson peer) profileFromPeer,
+    ConstellationForwardTreeOverlay? forwardTree,
     ConstellationTrustChain? trustChain,
     Set<String> mutualTrustIds = const {},
     Set<String> hiddenPersonIds = const {},
@@ -649,6 +935,7 @@ class ConstellationSceneController {
         strokeWidth: switch (kind) {
           ConstellationEdgeKind.tier1Path => 2,
           ConstellationEdgeKind.tier2Path => 2,
+          ConstellationEdgeKind.helpBranch => 3,
           ConstellationEdgeKind.attachment => 1.5,
           ConstellationEdgeKind.ringStub => 1.5,
           ConstellationEdgeKind.webForwarded ||
@@ -656,8 +943,10 @@ class ConstellationSceneController {
           ConstellationEdgeKind.draftRecipient ||
           ConstellationEdgeKind.grewFrom ||
           ConstellationEdgeKind.mutualTrust => 1.5,
+          ConstellationEdgeKind.forwardBranch => 1.5,
           ConstellationEdgeKind.temporaryPresence => 1,
         },
+        arrowAtDestination: kind == ConstellationEdgeKind.helpBranch,
         semanticId:
             '${tenturaGraphNodeId(src)}->${tenturaGraphNodeId(dst)}#${kind.name}',
       );
@@ -671,7 +960,10 @@ class ConstellationSceneController {
             destination: dst,
           )] =
           kind;
-      assert(!edgeKindByPair.containsKey(edge.semanticId));
+      assert(
+        !edgeKindByPair.containsKey(edge.semanticId),
+        'duplicate edge semantic id ${edge.semanticId}',
+      );
       edgeKindByPair[edge.semanticId] = kind;
       if (fade != null) {
         edgeFadeBySemanticId[edge.semanticId] = fade;
@@ -862,6 +1154,16 @@ class ConstellationSceneController {
         }
       }
     }
+
+    _applyForwardTreeOverlay(
+      forwardTree: forwardTree,
+      viewer: viewer,
+      paths: paths,
+      keptPeerIds: keptPeerIds,
+      nodes: nodes,
+      nodeById: nodeById,
+      edges: edges,
+    );
 
     final previous = graphController.renderSnapshot;
     final previousNodeIds = previous.topology.nodesById.keys.toSet();

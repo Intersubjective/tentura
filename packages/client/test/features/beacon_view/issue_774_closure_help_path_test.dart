@@ -223,7 +223,9 @@ void main() {
     expect(find.text('Boris'), findsNothing);
   });
 
-  testWidgets('tap opens ForwardsGraphScreen for the helper', (tester) async {
+  testWidgets('tap opens Constellation with forward-tree entry (#774)', (
+    tester,
+  ) async {
     final effects = FakeUiEffectPort();
     final forwardRepo = _FakeForwardRepository({
       _helperId: _multiHopPath(),
@@ -245,12 +247,7 @@ void main() {
     await tester.pump();
 
     final push = effects.emitted.whereType<NavigatePush>().last;
-    expect(
-      push.path,
-      '$kPathForwardsGraph/$_beaconId?'
-      'committer=${Uri.encodeQueryComponent(_helperId)}'
-      '&committerName=${Uri.encodeQueryComponent('Vera')}',
-    );
+    expect(push.path, kPathConstellation);
   });
 
   testWidgets('RU locale at 375×667 renders path without overflow', (

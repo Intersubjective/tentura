@@ -15,8 +15,8 @@ final class EdgeDetails {
     this.crossMark = false,
     this.arrowAtSource = false,
     this.arrowAtDestination = false,
-    String? semanticId,
-  }) : _semanticId = semanticId;
+    this._semanticId,
+  });
 
   final NodeDetails source;
   final NodeDetails destination;
@@ -79,6 +79,7 @@ final class EdgeDetails {
     bool? crossMark,
     bool? arrowAtSource,
     bool? arrowAtDestination,
+    String? semanticId,
   }) => EdgeDetails(
     source: source ?? this.source,
     destination: destination ?? this.destination,
@@ -89,6 +90,6 @@ final class EdgeDetails {
     crossMark: crossMark ?? this.crossMark,
     arrowAtSource: arrowAtSource ?? this.arrowAtSource,
     arrowAtDestination: arrowAtDestination ?? this.arrowAtDestination,
-    semanticId: _semanticId,
+    semanticId: semanticId ?? _semanticId,
   );
 }
