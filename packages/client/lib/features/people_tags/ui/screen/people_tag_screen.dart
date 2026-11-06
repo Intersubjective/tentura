@@ -15,6 +15,7 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 import '../widget/add_people_sheet.dart';
 import '../widget/people_tag_person_row.dart';
 import '../widget/people_tag_profiles.dart';
+import '../widget/people_tags_inherited.dart';
 import '../widget/tag_editor_dialog.dart';
 
 /// One own tag: its people with ×, the editor, and Add people.
@@ -53,9 +54,11 @@ class _PeopleTagScreenState extends State<PeopleTagScreen> {
 
   void _loadProfiles() => unawaited(
     _run(() async {
-      final arrived = await _profiles.ensure(
-        _peopleTags.peopleInTag(widget.tagId),
-      );
+      final people = _peopleTags.peopleInTag(widget.tagId);
+      final inviterIds = {
+        for (final id in people) _peopleTags.inheritedFrom(widget.tagId, id),
+      }.whereType<String>();
+      final arrived = await _profiles.ensure({...people, ...inviterIds});
       if (arrived && mounted) setState(() {});
     }),
   );
@@ -158,6 +161,20 @@ class _PeopleTagScreenState extends State<PeopleTagScreen> {
                     PeopleTagPersonRow(
                       id: id,
                       profile: _profiles.of(id),
+                      showInheritedMarker: _peopleTags.isInheritedMember(
+                        widget.tagId,
+                        id,
+                      ),
+                      inheritedSemanticsLabel:
+                          _peopleTags.isInheritedMember(widget.tagId, id)
+                          ? peopleTagsInheritedSemantics(
+                              l10n,
+                              _peopleTags,
+                              _profiles,
+                              widget.tagId,
+                              id,
+                            )
+                          : null,
                       trailing: IconButton(
                         key: Key('people-tag-person-remove-$id'),
                         tooltip: l10n.peopleTagsRemovePerson(_label(id)),
