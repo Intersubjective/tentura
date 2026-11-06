@@ -22,6 +22,13 @@ final class LayoutResult {
     : positions = UnmodifiableMapView(layout.positions),
       ring = UnmodifiableMapView(layout.ring);
 
+  /// Published wrapper for jobs outside [_ConstellationLayoutJob] that already
+  /// hold a completed [ConstellationLayout].
+  factory LayoutResult.fromCompleteLayout(
+    ConstellationLayout layout,
+    LayoutInput input,
+  ) => LayoutResult._(layout, input);
+
   final Map<String, ConstellationPoint> positions;
   final Map<String, int> ring;
   final LayoutInput _input;

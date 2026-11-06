@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:math' show min;
 
 import 'package:flutter/material.dart';
-import 'package:auto_route/auto_route.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:image_cropper_for_web/cropper_editor.dart';
 

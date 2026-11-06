@@ -116,7 +116,7 @@ class MyWorkEmptyBody extends StatelessWidget {
                 const SizedBox(height: kSpacingMedium),
                 if (_inboxPrimary) ...[
                   FilledButton.icon(
-                    icon: const Icon(Icons.inbox_outlined),
+                    icon: const Icon(Icons.notifications_outlined),
                     label: Text(
                       l10n.myWorkEmptyActiveInboxPrimaryCta(inboxNeedsMeCount),
                     ),

@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:math';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
@@ -291,7 +291,7 @@ class GraphBodyState extends State<GraphBody>
     final centre = controller.sceneToViewportLocal(scenePosition);
     final half = node.size / 2 * scale;
     final label = widget.isLabeled ? widget.labelSize : Size.zero;
-    final halfWidth = max(half, label.width / 2 * scale);
+    final halfWidth = math.max(half, label.width / 2 * scale);
     final rect = Rect.fromLTRB(
       centre.dx - halfWidth,
       centre.dy - half,
@@ -301,7 +301,9 @@ class GraphBodyState extends State<GraphBody>
     final gap = context.tt.rowGap;
     double shift(double low, double high, double extent) {
       if (low < gap) return low - gap;
-      if (high > extent - gap) return min(high - (extent - gap), low - gap);
+      if (high > extent - gap) {
+        return math.min(high - (extent - gap), low - gap);
+      }
       return 0;
     }
 
@@ -524,16 +526,20 @@ class GraphBodyState extends State<GraphBody>
       return legend;
     }
     final media = MediaQuery.of(context);
-    final maxHeight =
+    final freeAboveGraph =
         viewportHeight -
         media.size.height * tt.graphPersonContextCompactMaxHeightFraction -
         media.padding.top -
         media.padding.bottom -
         tt.rowGap * 4;
+    final capHeight =
+        media.size.height * tt.graphLegendMaxHeightFractionCompact;
+    final maxHeight = math.min(
+      capHeight,
+      freeAboveGraph.clamp(0.0, double.infinity),
+    );
     return ConstrainedBox(
-      constraints: BoxConstraints(
-        maxHeight: maxHeight.clamp(0.0, double.infinity),
-      ),
+      constraints: BoxConstraints(maxHeight: maxHeight),
       child: legend,
     );
   }

@@ -11,7 +11,6 @@ import 'dart:convert';
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:get_it/get_it.dart';
 import 'package:mockito/mockito.dart';
 import 'package:tentura_root/domain/entity/beacon_hierarchy_owner_summary.dart';
 import 'package:tentura_root/domain/entity/beacon_hierarchy_summary.dart';
@@ -45,11 +44,9 @@ import 'package:tentura/features/beacon_view/ui/widget/beacon_room_surface.dart'
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/presence_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
-import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/widget/show_more_text.dart';
-import 'package:tentura_root/domain/enums.dart';
 
 import '../../domain/use_case/fake_beacon_hierarchy_ports.dart';
 import '../beacon_create/fake_beacon_ports.dart';

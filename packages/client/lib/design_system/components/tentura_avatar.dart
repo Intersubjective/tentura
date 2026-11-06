@@ -299,6 +299,13 @@ class TenturaAvatar extends StatelessWidget {
   }
 
   /// Initials when there is no profile photo (also used by room mini avatars).
+  ///
+  /// When the second word is a dev/QA-style **`Q` + digits** label (e.g. `Bob
+  /// Q1106`), the second glyph is the **last decimal digit** of that code so two
+  /// people with the same first name + `Q…` pattern do not both show e.g. `BQ`
+  /// (#1066). This does not guarantee globally unique initials; the
+  /// `hueKey` passed to [ProfileAvatarInitials] (usually the profile's user id)
+  /// still drives the stable background colour and can collide across users.
   static String initialsForProfile(Profile profile) {
     final t = profile.shownName.trim();
     if (t.isEmpty) {
@@ -307,13 +314,30 @@ class TenturaAvatar extends StatelessWidget {
     final parts = t.split(RegExp(r'\s+'));
     if (parts.length >= 2) {
       final a = parts[0].isNotEmpty ? parts[0][0] : '';
-      final b = parts[1].isNotEmpty ? parts[1][0] : '';
+      final secondWord = parts[1];
+      final b = _secondInitialFromSecondWord(secondWord);
       return '$a$b'.toUpperCase();
     }
     if (t.length >= 2) {
       return t.substring(0, 2).toUpperCase();
     }
     return t[0].toUpperCase();
+  }
+
+  static final RegExp _qTrailingDigits = RegExp(r'^[Qq](\d+)$');
+
+  static String _secondInitialFromSecondWord(String secondWord) {
+    if (secondWord.isEmpty) {
+      return '';
+    }
+    final match = _qTrailingDigits.firstMatch(secondWord);
+    if (match != null) {
+      final digits = match.group(1)!;
+      if (digits.isNotEmpty) {
+        return digits[digits.length - 1];
+      }
+    }
+    return secondWord[0];
   }
 }
 

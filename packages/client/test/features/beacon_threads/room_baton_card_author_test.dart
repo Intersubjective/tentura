@@ -28,7 +28,6 @@ import 'package:tentura/features/beacon_threads/ui/widget/room_message_tile.dart
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/presence_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
-import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 const _author = Profile(id: 'u-anna', displayName: 'Anna Author');

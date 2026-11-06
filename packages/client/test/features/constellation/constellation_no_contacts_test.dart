@@ -138,7 +138,8 @@ void main() {
       findsOneWidget,
     );
     expect(find.text(_trustSentence), findsOneWidget);
-    expect(find.text('Invite someone you know'), findsOneWidget);
+    final l10n = lookupL10n(const Locale('en'));
+    expect(find.text(l10n.emptyInviteSomeoneAction), findsOneWidget);
   });
 
   testWidgets('list view: visible people without requests remain listed', (

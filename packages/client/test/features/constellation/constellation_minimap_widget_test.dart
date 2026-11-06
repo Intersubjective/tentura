@@ -8,8 +8,10 @@ import 'package:tentura/features/constellation/domain/layout/layout_geometry.dar
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/utils/constellation_presentation_frame.dart';
 import 'package:tentura/features/constellation/ui/utils/constellation_tap_resolver.dart';
+import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
+import '../../support/phone_surface.dart';
 import 'fixtures/constellation_reference_fixture.dart';
 
 const _surface = Size(1200, 900);
@@ -77,6 +79,7 @@ final class _Mounted {
   ConstellationMinimapProjection get projection =>
       ConstellationMinimapProjection.fromPoints([
         for (final p in worldPeople.values) _lPoint(p),
+        _lPoint(worldViewer),
       ]);
 
   /// The part of the scene the camera shows right now.
@@ -378,16 +381,19 @@ void main() {
           y: viewport.bottom,
         ));
         expect(
-          reachesPast.x > 104 || reachesPast.y > 104,
+          reachesPast.x >
+                  kConstellationMinimapSize - kConstellationMinimapInset ||
+              reachesPast.y >
+                  kConstellationMinimapSize - kConstellationMinimapInset,
           isTrue,
           reason: 'the camera must reach beyond the field for this test',
         );
         final expected = m.projection.frameOf(viewport);
         final frame = _within(tester, find.byKey(_frameKey), find.byKey(_map));
-        expect(frame.left, greaterThanOrEqualTo(-0.5));
-        expect(frame.top, greaterThanOrEqualTo(-0.5));
-        expect(frame.right, lessThanOrEqualTo(104.5));
-        expect(frame.bottom, lessThanOrEqualTo(104.5));
+        expect(frame.left, greaterThanOrEqualTo(1.5));
+        expect(frame.top, greaterThanOrEqualTo(1.5));
+        expect(frame.right, lessThanOrEqualTo(102.5));
+        expect(frame.bottom, lessThanOrEqualTo(102.5));
         expect(frame.left, closeTo(expected.left, 1));
         expect(frame.top, closeTo(expected.top, 1));
         expect(frame.right, closeTo(expected.right, 1));
@@ -468,6 +474,103 @@ void main() {
       });
     });
   }
+
+  group('minimap phone RU (#1035 U1)', () {
+    testWidgets('starts collapsed on compact width; RU toggle copy', (
+      tester,
+    ) async {
+      await usePhoneSurface(tester);
+      final cubit = await loadReferenceCubit();
+      addTearDown(cubit.close);
+      await pumpConstellationBody(
+        tester,
+        cubit,
+        size: kPhoneSurface,
+        presentationFrameHolder: ConstellationPresentationFrameHolder(),
+        disableAnimations: true,
+        arrangeV2Enabled: true,
+      );
+      await tester.pumpAndSettle();
+      final controller = cubit.graphController;
+      controller.zoomBy(0.6 / controller.cameraScale);
+      await tester.pumpAndSettle();
+      expect(find.byKey(_map), findsNothing);
+      expect(find.byIcon(Icons.map_outlined), findsOneWidget);
+      final toggle = tester.widget<IconButton>(find.byKey(_toggle));
+      expect(toggle.tooltip, 'Показать миникарту');
+    });
+
+    testWidgets(
+      'four corner people: dot centres stay inside inset; viewer uses '
+      'tertiary; frame inside border after fit-all',
+      (tester) async {
+        await usePhoneSurface(tester);
+        final m = await _Mounted.mount(
+          tester,
+          people: _corners,
+        );
+        await tester.tap(find.byKey(TestIds.key(TestIds.constellationFitAll)));
+        await tester.pumpAndSettle();
+
+        if (find.byKey(_map).evaluate().isEmpty) {
+          await tester.tap(find.byKey(_toggle));
+          await tester.pumpAndSettle();
+        }
+        expect(tester.takeException(), isNull);
+
+        final origin = tester.getTopLeft(find.byKey(_map));
+        const inset = kConstellationMinimapInset;
+        final scheme = Theme.of(
+          tester.element(find.byKey(_map)),
+        ).colorScheme;
+        final capture = await _Pixels.capture(tester);
+
+        int c8(double ch) => (ch * 255.0).round().clamp(0, 255);
+
+        bool isNearColor(List<int> rgb, Color c) {
+          return (rgb[0] - c8(c.r)).abs() <= 14 &&
+              (rgb[1] - c8(c.g)).abs() <= 14 &&
+              (rgb[2] - c8(c.b)).abs() <= 14;
+        }
+
+        for (final id in _corners) {
+          final world = m.worldPeople[id]!;
+          final dot = m.projection.worldToMinimap(_lPoint(world));
+          expect(
+            dot.x,
+            inInclusiveRange(inset, kConstellationMinimapSize - inset),
+          );
+          expect(
+            dot.y,
+            inInclusiveRange(inset, kConstellationMinimapSize - inset),
+          );
+          final screen = origin + Offset(dot.x, dot.y);
+          final px = capture._at(screen);
+          expect(
+            isNearColor(px, scheme.tertiary) || isNearColor(px, scheme.primary),
+            isTrue,
+            reason: 'expected person dot ink at ($id) $screen',
+          );
+        }
+
+        final viewerDot = m.projection.worldToMinimap(_lPoint(m.worldViewer));
+        expect(
+          isNearColor(
+            capture._at(origin + Offset(viewerDot.x, viewerDot.y)),
+            scheme.tertiary,
+          ),
+          isTrue,
+          reason: 'viewer should paint with tertiary',
+        );
+
+        final frame = _within(tester, find.byKey(_frameKey), find.byKey(_map));
+        expect(frame.left, greaterThanOrEqualTo(1.5));
+        expect(frame.top, greaterThanOrEqualTo(1.5));
+        expect(frame.right, lessThanOrEqualTo(102.5));
+        expect(frame.bottom, lessThanOrEqualTo(102.5));
+      },
+    );
+  });
 
   group('minimap by zoom level', () {
     testWidgets('shows neither the minimap nor its toggle at close level', (

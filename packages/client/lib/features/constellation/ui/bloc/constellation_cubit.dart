@@ -22,7 +22,7 @@ import '../../domain/constellation_gather.dart';
 import '../../domain/constellation_layout.dart';
 import '../../domain/constellation_drag_cluster.dart';
 import '../../domain/constellation_pin_position.dart';
-import '../../domain/constellation_rearrange_all.dart';
+import '../../domain/constellation_rearrange_layout_jobs.dart';
 import '../../domain/constellation_tidy_action.dart';
 import '../../domain/constellation_tidy_offset_layer.dart';
 import '../../domain/entity/constellation_layout_snapshot.dart';
@@ -183,6 +183,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
            ),
        _forwardCaseOverride = forwardCase,
        _magnetTagsOf = ownTagIdsOf ?? _noTagViewOwnTags,
+       _ownTagIdsOfInjected = ownTagIdsOf,
+       _fieldOwnTagIdsOf = ownTagIdsOf ?? _noTagViewOwnTags,
        super(const ConstellationState()) {
     _placementCase?.history.applyTidyOffsets = (offsets) async {
       if (isClosed) return;
@@ -314,6 +316,14 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
 
   int _writeCount = 0;
 
+  int _rearrangePreviewToken = 0;
+  bool _rearrangePreviewInFlight = false;
+
+  /// Bottom of the draggable parent cluster in scene Y may not exceed this
+  /// value (from Field body while «Arranging» and the toolbar is visible,
+  /// #1043); null when not constraining.
+  double? _arrangingDragMaxParentCentreSceneY;
+
   /// A store publication or an outbox change arrived while the scene was
   /// frozen; the release applies them together in one compose and layout.
   bool _storeInputHeld = false;
@@ -381,7 +391,10 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
 
   bool _reduceMotionMedia() =>
       reduceMotionMediaOverrideForTest ??
-      WidgetsBinding.instance.platformDispatcher.accessibilityFeatures
+      WidgetsBinding
+          .instance
+          .platformDispatcher
+          .accessibilityFeatures
           .disableAnimations;
 
   /// Latest edges shown during forward-tree replay (by `createdAt`); for tests.
@@ -751,7 +764,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     bool inTreeGraph(String pid) {
       if (pid.startsWith('ftghost:')) return true;
       return g.edges.any(
-        (e) => domain(e, sender: true) == pid || domain(e, sender: false) == pid,
+        (e) =>
+            domain(e, sender: true) == pid || domain(e, sender: false) == pid,
       );
     }
 
@@ -781,8 +795,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
 
   /// Forward-tree glyph per person id; empty when the overlay is off (#774).
   Map<String, ConstellationForwardTreeRecipientMarker>
-      get forwardTreeRecipientMarkerByPersonId =>
-          _scene.forwardTreeRecipientMarkerByPersonId;
+  get forwardTreeRecipientMarkerByPersonId =>
+      _scene.forwardTreeRecipientMarkerByPersonId;
 
   Set<String> get forwardTreeTemporaryOutlinePersonIds =>
       _scene.forwardTreeTemporaryOutlinePersonIds;
@@ -900,6 +914,13 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   final _tagMagnets = <String, Offset>{};
   Map<String, ScenePoint> _magnetBasePositions = const {};
   Set<String> Function(String) _magnetTagsOf;
+
+  /// When non-null, restores Field tag membership after account change.
+  final Set<String> Function(String)? _ownTagIdsOfInjected;
+
+  /// Own tags from the injected tag index on the Field (`ownTagIdsOf` at construction).
+  /// Kept separate from [_magnetTagsOf], which tag-view drag can temporarily retarget.
+  Set<String> Function(String) _fieldOwnTagIdsOf;
 
   Map<String, Offset> get tagMagnets => Map.unmodifiable(_tagMagnets);
 
@@ -1096,6 +1117,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
 
   @override
   Future<void> close() async {
+    _scene.rearrangePreviewScheduler?.cancel();
     _cancelForwardTreeReplay(bumpPulseTicker: false);
     _cancelPersonFocus();
     _expiry?.dispose();
@@ -1117,12 +1139,22 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     // ignore: invalid_use_of_visible_for_testing_member
     graphController.scene.removeListener(_onGraphSceneLayoutOutcomeChanged);
     graphController.removeListener(_onGraphControllerChanged);
+    _arrangingDragMaxParentCentreSceneY = null;
     _anchorCase?.deactivate(token: _anchorLifecycleToken);
     _forwardTreePulseTickerDisposed = true;
     _scene.dispose();
     // Do not dispose [forwardTreeEdgePulseTick]: [_scene.dispose] can schedule
     // work that still bumps the notifier; dropping the cubit releases it.
     return super.close();
+  }
+
+  /// Highest allowed parent cluster centre Y in scene space while the bottom
+  /// arranging toolbar is visible; cleared when arranging mode ends.
+  void applyArrangingToolbarDragCentreLimit(double? value) {
+    if (_arrangingDragMaxParentCentreSceneY == value) {
+      return;
+    }
+    _arrangingDragMaxParentCentreSceneY = value;
   }
 
   /// Screen visibility contributes to the shared store's lease visibility.
@@ -1739,6 +1771,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     _tagMagnets.clear();
     _magnetBasePositions = const {};
     _magnetTagsOf = _noTagViewOwnTags;
+    _fieldOwnTagIdsOf = _ownTagIdsOfInjected ?? _noTagViewOwnTags;
     _magnetEpoch++;
     _magnetsStale = _tagMagnetCase != null;
     if (state.isComposing) exitComposing();
@@ -1841,11 +1874,9 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       for (final p in field.peers) p.id,
       for (final p in field.resolvedAnchorProjection.pinnedPeers) p.id,
     };
-    final candidates = peopleOfTag(tagId)
-        .intersection(fieldPersonIds)
-        .difference({viewerId})
-        .toList()
-      ..sort();
+    final candidates = peopleOfTag(
+      tagId,
+    ).intersection(fieldPersonIds).difference({viewerId}).toList()..sort();
     if (candidates.isEmpty) {
       return;
     }
@@ -1858,6 +1889,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       }
       return n;
     }
+
     final weights = <ConstellationAnchorTarget, double>{};
     for (final id in candidates) {
       final k = tagCountWithPeopleOnField(id);
@@ -1876,7 +1908,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     // Grab handle: a person who is only in this tag on the Field moves at full
     // pointer speed; shared members have lower weight (#1021).
     final rep = memberIds.firstWhere(
-      (id) => (weights[ConstellationAnchorTarget.person(id)]! - 1.0).abs() < 1e-9,
+      (id) =>
+          (weights[ConstellationAnchorTarget.person(id)]! - 1.0).abs() < 1e-9,
       orElse: () => memberIds.first,
     );
     final target = ConstellationAnchorTarget.person(rep);
@@ -2104,10 +2137,47 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         tenturaGraphNodeId(node) == _composerDragGraphId) {
       return _clampComposerDrop(composerStart, proposed);
     }
-    return _interaction.clampClusterDragPosition(
+    final base = _interaction.clampClusterDragPosition(
       state.activePlacementTarget,
       node,
       proposed,
+    );
+    return _clampArrangingToolbarClusterDrag(node, base);
+  }
+
+  Offset _clampArrangingToolbarClusterDrag(NodeDetails node, Offset base) {
+    final limit = _arrangingDragMaxParentCentreSceneY;
+    if (limit == null || _interaction.placementClusterGraphIds.isEmpty) {
+      return base;
+    }
+    final target = state.activePlacementTarget;
+    if (target == null) {
+      return base;
+    }
+    final parentGraphId = constellationGraphNodeIdForTarget(target);
+    if (tenturaGraphNodeId(node) != parentGraphId) {
+      return base;
+    }
+    final parentStart = _interaction.clusterStartCentres[parentGraphId];
+    final limited = _interaction.limitedClusterDelta(parentGraphId, base);
+    if (parentStart == null || limited == null) {
+      return base;
+    }
+    final parentCentre = Offset(
+      parentStart.dx + limited.x,
+      parentStart.dy + limited.y,
+    );
+    if (parentCentre.dy <= limit) {
+      return base;
+    }
+    final corrected = Offset(parentCentre.dx, limit);
+    final correctedDelta = (
+      x: corrected.dx - parentStart.dx,
+      y: corrected.dy - parentStart.dy,
+    );
+    return Offset(
+      parentStart.dx + correctedDelta.x,
+      parentStart.dy + correctedDelta.y,
     );
   }
 
@@ -2141,7 +2211,10 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (parentStart == null) {
       return sceneCentre;
     }
-    final limited = _interaction.limitedClusterDelta(parentGraphId, sceneCentre);
+    final limited = _interaction.limitedClusterDelta(
+      parentGraphId,
+      sceneCentre,
+    );
     if (limited == null) {
       return sceneCentre;
     }
@@ -2158,6 +2231,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       }
       return false;
     }
+
     if (!overlapsEgo(limited)) {
       return Offset(parentStart.dx + limited.x, parentStart.dy + limited.y);
     }
@@ -3712,11 +3786,20 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         state.placementPhase != ConstellationPlacementPhase.idle) {
       return;
     }
+    _rearrangePreviewToken++;
+    final token = _rearrangePreviewToken;
+    _scene.rearrangePreviewScheduler?.cancel();
+    _rearrangePreviewInFlight = true;
+    emit(state.copyWith(rearrangePreview: null));
     final snapshot = graphController.renderSnapshot;
     final rearrangeOwnTagPeopleByTagId = kPeopleTagsEnabled
         ? rearrangeOwnTagPeopleFromComposition(
             viewerId: _viewer.id,
             composition: composition,
+            ownTagIdsOf: (id) => {
+              ..._fieldOwnTagIdsOf(id),
+              ..._magnetTagsOf(id),
+            },
           )
         : const <String, Set<String>>{};
     final rearrangeTagMagnetsByTagId =
@@ -3743,46 +3826,80 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       rearrangeOwnTagPeopleByTagId: rearrangeOwnTagPeopleByTagId,
       rearrangeTagMagnetsByTagId: rearrangeTagMagnetsByTagId,
     );
-    final rearranged = computeConstellationRearrangeAll(input);
-    var moving = 0;
-    for (final id in {
-      ...input.automaticKeptPeerIds,
-      ...input.pinnedPersonIds,
-      ...input.supportPersonIds,
-    }) {
-      final from = snapshot.resolvePosition(
-        constellationGraphNodeIdForTarget(ConstellationAnchorTarget.person(id)),
-      );
-      final to = rearranged.layout.positions[id];
-      if (id != _viewer.id &&
-          from != null &&
-          to != null &&
-          math.sqrt(math.pow(to.x - from.x, 2) + math.pow(to.y - from.y, 2)) >
-              0.5) {
-        moving++;
+    final job = ConstellationRearrangeAllLayoutJob(input)..start();
+
+    void publishPreview() {
+      if (token != _rearrangePreviewToken) {
+        return;
       }
-    }
-    emit(
-      state.copyWith(
-        rearrangePreview: ConstellationRearrangePreview(
-          movingCount: moving,
-          pinnedWrites: {
-            for (final anchor in composition.anchorOverlay.anchors)
-              if (rearranged.pinned[anchor.target.id] case final point?)
-                anchor.target: constellationPointToV1Anchor(point),
-            for (final MapEntry(:key, :value) in rearranged.pinned.entries)
-              if (!input.anchorByNodeId.containsKey(key))
-                ConstellationAnchorTarget.person(key):
-                    constellationPointToV1Anchor(value),
-          },
+      if (isClosed) {
+        _rearrangePreviewInFlight = false;
+        return;
+      }
+      _rearrangePreviewInFlight = false;
+      final rearranged = job.completeOutcome();
+      var moving = 0;
+      for (final id in {
+        ...input.automaticKeptPeerIds,
+        ...input.pinnedPersonIds,
+        ...input.supportPersonIds,
+      }) {
+        final from = snapshot.resolvePosition(
+          constellationGraphNodeIdForTarget(
+            ConstellationAnchorTarget.person(id),
+          ),
+        );
+        final to = rearranged.layout.positions[id];
+        if (id != _viewer.id &&
+            from != null &&
+            to != null &&
+            math.sqrt(
+                  math.pow(to.x - from.x, 2) + math.pow(to.y - from.y, 2),
+                ) >
+                0.5) {
+          moving++;
+        }
+      }
+      emit(
+        state.copyWith(
+          rearrangePreview: ConstellationRearrangePreview(
+            movingCount: moving,
+            pinnedWrites: {
+              for (final anchor in composition.anchorOverlay.anchors)
+                if (rearranged.pinned[anchor.target.id] case final point?)
+                  anchor.target: constellationPointToV1Anchor(point),
+              for (final MapEntry(:key, :value) in rearranged.pinned.entries)
+                if (!input.anchorByNodeId.containsKey(key))
+                  ConstellationAnchorTarget.person(key):
+                      constellationPointToV1Anchor(value),
+            },
+          ),
         ),
-      ),
-    );
+      );
+    }
+
+    bool stepSlice(int units) => job.step(units);
+
+    final sched = _scene.rearrangePreviewScheduler;
+    if (sched == null) {
+      while (!job.step(1000000)) {}
+      publishPreview();
+      return;
+    }
+    sched.start(step: stepSlice, onComplete: publishPreview);
   }
 
   void cancelRearrangePreview() {
-    if (isClosed || state.rearrangePreview == null) return;
-    emit(state.copyWith(rearrangePreview: null));
+    if (isClosed ||
+        (state.rearrangePreview == null && !_rearrangePreviewInFlight)) {
+      return;
+    }
+    _rearrangePreviewToken++;
+    _rearrangePreviewInFlight = false;
+    _scene.rearrangePreviewScheduler?.cancel();
+    if (state.rearrangePreview != null) {
+      emit(state.copyWith(rearrangePreview: null));
+    }
   }
 
   /// Applies the previewed arrangement: saves the layout it replaces as a
@@ -3793,6 +3910,9 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     final preview = state.rearrangePreview;
     final placement = _placementCase;
     if (isClosed || preview == null || placement == null) {
+      return false;
+    }
+    if (_rearrangePreviewInFlight) {
       return false;
     }
     emit(state.copyWith(rearrangePreview: null));

@@ -41,7 +41,11 @@ class ConstellationCameraControls extends StatelessWidget {
 
     final controlColumnHeight = tt.buttonHeight * 2 + tt.tightGap * 2;
     final top = padding.top + tt.rowGap + controlColumnHeight;
-    var right = padding.right + tt.screenHPadding + tt.buttonHeight;
+    // Fit/recenter use this as the graph's safe viewport. The FAB column is
+    // [screenHPadding + buttonHeight] wide from the trailing edge; without an
+    // extra margin the usable rect ends exactly at the column's inner edge, so
+    // labels and badges can sit under the buttons on narrow phones (#1034).
+    var right = padding.right + tt.screenHPadding + tt.buttonHeight + tt.rowGap;
     var bottom = padding.bottom;
 
     if (contextPanelVisible && context.windowClass == WindowClass.compact) {
@@ -114,12 +118,13 @@ class ConstellationCameraControls extends StatelessWidget {
                 SizedBox(height: tt.tightGap * 2),
                 IconButton.filledTonal(
                   key: const Key('constellation.camera.arrange'),
-                  tooltip: l10n.constellationArrange,
+                  tooltip: l10n.constellationArrangingTitle,
                   onPressed: enabled
                       ? () => maybeConstellationSelection(context)
                           ?.enterArranging()
                       : null,
-                  icon: const Icon(Icons.tune),
+                  // open_with reads as move/reposition; keep Filters on tune (#1036).
+                  icon: const Icon(Icons.open_with),
                   constraints: buttonSize,
                 ),
               ],
