@@ -456,36 +456,67 @@ class _Title extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: TenturaText.titleSmall(tt.text),
             ),
-            Row(
-              children: [
-                Flexible(
-                  child: _MembersLine(
-                    post: state.beacon,
-                    now: now,
-                    author: excerpt.isEmpty ? '' : author,
-                    style: metaStyle,
-                  ),
+            if (context.windowClass == WindowClass.compact) ...[
+              _MembersLine(
+                post: state.beacon,
+                now: now,
+                author: excerpt.isEmpty ? '' : author,
+                style: metaStyle,
+                wrapMemberAndLifetime: true,
+              ),
+              if (muted || (state.summary?.isPinned ?? false))
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (muted)
+                      Icon(
+                        Icons.notifications_off_outlined,
+                        size: metaIconSize,
+                        color: tt.textMuted,
+                        semanticLabel: l10n.postConversationMuted,
+                      ),
+                    if (muted && (state.summary?.isPinned ?? false))
+                      SizedBox(width: tt.tightGap),
+                    if (state.summary?.isPinned ?? false)
+                      Icon(
+                        Icons.push_pin_outlined,
+                        size: metaIconSize,
+                        color: tt.textMuted,
+                        semanticLabel: l10n.postMenuUnpin,
+                      ),
+                  ],
                 ),
-                if (muted) ...[
-                  SizedBox(width: tt.tightGap),
-                  Icon(
-                    Icons.notifications_off_outlined,
-                    size: metaIconSize,
-                    color: tt.textMuted,
-                    semanticLabel: l10n.postConversationMuted,
+            ] else
+              Row(
+                children: [
+                  Flexible(
+                    child: _MembersLine(
+                      post: state.beacon,
+                      now: now,
+                      author: excerpt.isEmpty ? '' : author,
+                      style: metaStyle,
+                    ),
                   ),
+                  if (muted) ...[
+                    SizedBox(width: tt.tightGap),
+                    Icon(
+                      Icons.notifications_off_outlined,
+                      size: metaIconSize,
+                      color: tt.textMuted,
+                      semanticLabel: l10n.postConversationMuted,
+                    ),
+                  ],
+                  if (state.summary?.isPinned ?? false) ...[
+                    SizedBox(width: tt.tightGap),
+                    Icon(
+                      Icons.push_pin_outlined,
+                      size: metaIconSize,
+                      color: tt.textMuted,
+                      semanticLabel: l10n.postMenuUnpin,
+                    ),
+                  ],
                 ],
-                if (state.summary?.isPinned ?? false) ...[
-                  SizedBox(width: tt.tightGap),
-                  Icon(
-                    Icons.push_pin_outlined,
-                    size: metaIconSize,
-                    color: tt.textMuted,
-                    semanticLabel: l10n.postMenuUnpin,
-                  ),
-                ],
-              ],
-            ),
+              ),
           ],
         ),
       ),
@@ -501,6 +532,7 @@ class _MembersLine extends StatelessWidget {
     required this.now,
     required this.author,
     required this.style,
+    this.wrapMemberAndLifetime = false,
   });
 
   final Beacon post;
@@ -509,6 +541,9 @@ class _MembersLine extends StatelessWidget {
   /// Empty when the title already names the author.
   final String author;
   final TextStyle style;
+
+  /// Phone: author · participants on one block; lifetime on the next (#1083).
+  final bool wrapMemberAndLifetime;
 
   @override
   Widget build(BuildContext context) =>
@@ -551,9 +586,24 @@ class _MembersLine extends StatelessWidget {
     if (who.isEmpty || lifetime.isEmpty) {
       return Text(
         who.isEmpty ? lifetime : who,
-        maxLines: 1,
+        maxLines: wrapMemberAndLifetime ? 2 : 1,
         overflow: TextOverflow.ellipsis,
         style: style,
+      );
+    }
+    if (wrapMemberAndLifetime) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            who,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: style,
+          ),
+          Text(lifetime, maxLines: 1, style: style),
+        ],
       );
     }
     return Row(
