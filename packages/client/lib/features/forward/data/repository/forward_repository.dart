@@ -20,12 +20,14 @@ import '../mapper/forward_reach_mapper.dart';
 import '../../domain/entity/help_offer_event.dart';
 import '../../domain/entity/forward_edge.dart';
 import '../../domain/entity/forward_graph.dart';
+import '../../domain/entity/help_path_node.dart';
 import '../../domain/entity/forward_inbound_source.dart';
 import '../gql/_g/beacon_involvement_data.data.gql.dart';
 import '../gql/_g/beacon_involvement_data.req.gql.dart';
 import '../gql/_g/beacon_involvement_fields.data.gql.dart';
 import '../gql/_g/beacon_involvements_data.req.gql.dart';
 import '../gql/_g/beacon_forward_graph.req.gql.dart';
+import '../gql/_g/beacon_help_offerer_forward_path.data.gql.dart';
 import '../gql/_g/beacon_help_offerer_forward_path.req.gql.dart';
 import '../gql/_g/forward_beacon.req.gql.dart';
 import '../gql/_g/forward_inbound_sources.req.gql.dart';
@@ -462,6 +464,7 @@ class ForwardRepository {
                   ),
                 )
                 .toList(growable: false),
+            path: _mapHelpPathNodes(g.path),
           );
         },
       );
@@ -645,6 +648,30 @@ class ForwardRepository {
       suggestions: suggestions,
     );
   }
+
+  @visibleForTesting
+  static List<HelpPathNode> mapHelpPathNodesForTest(
+    Iterable<
+      GBeaconHelpOffererForwardPathData_beaconHelpOffererForwardPath_path
+    >
+    nodes,
+  ) => _mapHelpPathNodes(nodes);
+
+  static List<HelpPathNode> _mapHelpPathNodes(
+    Iterable<
+      GBeaconHelpOffererForwardPathData_beaconHelpOffererForwardPath_path
+    >
+    nodes,
+  ) => [
+    for (final node in nodes)
+      if (node.anonymousCount > 0)
+        HelpPathNode.anonymous(node.anonymousCount)
+      else
+        HelpPathNode.named(
+          userId: node.userId ?? '',
+          displayName: node.displayName ?? '',
+        ),
+  ];
 
   static const _label = 'Forward';
 }
