@@ -48,6 +48,20 @@ void main() {
     expect(_arrangeButton(), findsOneWidget);
     expect(_oldRearrangeButton(), findsNothing);
     expect(_oldResetButton(), findsNothing);
+    expect(
+      find.descendant(
+        of: _arrangeButton(),
+        matching: find.byIcon(Icons.open_with),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: _arrangeButton(),
+        matching: find.byIcon(Icons.tune),
+      ),
+      findsNothing,
+    );
 
     await _enterArranging(tester);
     expect(

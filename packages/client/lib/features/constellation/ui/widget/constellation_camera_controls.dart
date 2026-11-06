@@ -114,12 +114,13 @@ class ConstellationCameraControls extends StatelessWidget {
                 SizedBox(height: tt.tightGap * 2),
                 IconButton.filledTonal(
                   key: const Key('constellation.camera.arrange'),
-                  tooltip: l10n.constellationArrange,
+                  tooltip: l10n.constellationArrangingTitle,
                   onPressed: enabled
                       ? () => maybeConstellationSelection(context)
                           ?.enterArranging()
                       : null,
-                  icon: const Icon(Icons.tune),
+                  // open_with reads as move/reposition; keep Filters on tune (#1036).
+                  icon: const Icon(Icons.open_with),
                   constraints: buttonSize,
                 ),
               ],
