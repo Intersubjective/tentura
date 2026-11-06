@@ -8,7 +8,6 @@ import 'package:tentura/features/my_work/domain/entity/my_work_last_event.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/beacon_activity_event_presenter.dart';
 import 'package:tentura/ui/utils/relative_time.dart';
-import 'package:tentura/design_system/components/tentura_avatar.dart';
 import 'package:tentura/ui/widget/beacon_card_primitives.dart';
 import 'package:tentura/ui/widget/relative_timestamp_ticker.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';

@@ -3,6 +3,7 @@ import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'constellation_drag_cluster.dart';
 import 'constellation_layout.dart';
 import 'constellation_rearrange_tag_areas.dart';
+import 'constellation_rearrange_two_tag_refinement.dart';
 
 /// First pass of [computeConstellationRearrangeAll]: same graph as rearrange
 /// everyone uses for the free layout (pins cleared; seated-off-path merged).
@@ -133,102 +134,17 @@ ConstellationRearrangement computeConstellationRearrangeAll(
   );
   var layout = computeConstellationPlacedLayout(input: settled);
 
-  final ownTagIds =
-      input.rearrangeOwnTagPeopleByTagId.keys
-          .where((k) => !k.startsWith('auto:'))
-          .toList()
-        ..sort();
-  if (ownTagIds.length == 2 && tagCentres.length == 2 && tagArea.isNotEmpty) {
-    final t0 = ownTagIds[0];
-    final t1 = ownTagIds[1];
-    final a = tagCentres[t0];
-    final b = tagCentres[t1];
-    final set0 = input.rearrangeOwnTagPeopleByTagId[t0];
-    final set1 = input.rearrangeOwnTagPeopleByTagId[t1];
-    if (a != null && b != null && set0 != null && set1 != null) {
-      final personTags = <String, Set<String>>{};
-      for (final id in set0) {
-        personTags.putIfAbsent(id, () => {}).add(t0);
-      }
-      for (final id in set1) {
-        personTags.putIfAbsent(id, () => {}).add(t1);
-      }
-
-      final nextPositions = Map<String, ConstellationPoint>.from(
-        layout.positions,
-      );
-
-      final both = set0.intersection(set1);
-      for (final id in both) {
-        final current = nextPositions[id];
-        if (current == null) continue;
-        final onSeg = _nearestPointOnSegment(current, a, b);
-        final snapped = constellationClampToDragBounds(
-          onSeg,
-          size: input.nodeSizes[id] ?? (width: 64, height: 64),
-        );
-        nextPositions[id] = snapped;
-        if (pinned.containsKey(id)) {
-          pinned[id] = snapped;
-        }
-      }
-
-      for (final MapEntry(:key, :value) in personTags.entries) {
-        if (value.length != 1) continue;
-        final tagId = value.first;
-        final otherId = tagId == t0 ? t1 : t0;
-        final cOwn = tagCentres[tagId];
-        final cOth = tagCentres[otherId];
-        if (cOwn == null || cOth == null) continue;
-        final start = nextPositions[key];
-        if (start == null) continue;
-        ConstellationPoint p = start;
-        double dist2(ConstellationPoint u, ConstellationPoint v) {
-          final dx = u.x - v.x;
-          final dy = u.y - v.y;
-          return dx * dx + dy * dy;
-        }
-
-        for (var i = 0; i < 24 && dist2(p, cOwn) >= dist2(p, cOth); i++) {
-          p = (
-            x: p.x + 0.22 * (cOwn.x - p.x),
-            y: p.y + 0.22 * (cOwn.y - p.y),
-          );
-          p = constellationClampToDragBounds(
-            p,
-            size: input.nodeSizes[key] ?? (width: 64, height: 64),
-          );
-        }
-        nextPositions[key] = p;
-        if (pinned.containsKey(key)) {
-          pinned[key] = p;
-        }
-      }
-
-      layout = (positions: nextPositions, ring: layout.ring);
-    }
-  }
+  layout = applyConstellationRearrangeTwoTagRefinement(
+    input: input,
+    tagCentres: tagCentres,
+    staging: staging,
+    pinned: pinned,
+    layout: layout,
+  );
 
   return (
     pinned: pinned,
     layout: layout,
     tagCentres: tagCentres,
-  );
-}
-
-ConstellationPoint _nearestPointOnSegment(
-  ConstellationPoint p,
-  ConstellationPoint a,
-  ConstellationPoint b,
-) {
-  final abx = b.x - a.x;
-  final aby = b.y - a.y;
-  final apx = p.x - a.x;
-  final apy = p.y - a.y;
-  final ab2 = abx * abx + aby * aby;
-  final t = ab2 < 1e-12 ? 0.0 : ((apx * abx + apy * aby) / ab2).clamp(0.0, 1.0);
-  return (
-    x: a.x + t * abx,
-    y: a.y + t * aby,
   );
 }

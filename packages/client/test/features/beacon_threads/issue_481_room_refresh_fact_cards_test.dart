@@ -10,7 +10,6 @@ import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/features/beacon_threads/domain/room_read_watermark_store.dart';
 import 'package:tentura/features/beacon_threads/domain/use_case/beacon_threads_case.dart';
-import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
 
 import '../../support/test_realtime_sync.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';

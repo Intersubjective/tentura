@@ -4,7 +4,6 @@
 // step afterward (drag the new node, same as any other beacon on the field)
 // — see constellation_cubit.dart's anchorTargetForNode.
 
-import 'dart:ui' show Offset;
 
 import 'package:flutter_test/flutter_test.dart';
 
