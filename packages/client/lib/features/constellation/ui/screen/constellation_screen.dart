@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:auto_route/auto_route.dart';
-
 import 'package:tentura/app/router/home_tab_branches.dart';
 import 'package:tentura/app/router/root_router.gr.dart';
 import 'package:tentura/features/home/ui/widget/home_account_avatar_button.dart';
@@ -49,6 +48,7 @@ import '../bloc/constellation_selection_cubit.dart';
 import '../bloc/constellation_tag_lens_cubit.dart';
 import '../scene/constellation_scene_controller.dart';
 import '../util/constellation_focus_request.dart';
+import '../util/constellation_forward_tree_request.dart';
 import '../widget/constellation_camera_controls.dart';
 import '../widget/constellation_app_bar.dart';
 import '../widget/constellation_body.dart';
@@ -187,6 +187,7 @@ class _ConstellationScreenState extends State<ConstellationScreen> {
   }
 
   final _focusRequest = ConstellationFocusRequest.instance;
+  final _forwardTreeRequest = ConstellationForwardTreeRequest.instance;
 
   StackRouter? _rootRouter;
   TabsRouter? _homeTabs;
@@ -212,7 +213,11 @@ class _ConstellationScreenState extends State<ConstellationScreen> {
     _graphController = context.read<ConstellationCubit>().graphController
       ..addListener(_syncComposerPersonPositions);
     _focusRequest.pending.addListener(_takeFocusRequest);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _takeFocusRequest());
+    _forwardTreeRequest.pending.addListener(_takeForwardTreeRequest);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _takeFocusRequest();
+      _takeForwardTreeRequest();
+    });
   }
 
   @override
@@ -242,6 +247,7 @@ class _ConstellationScreenState extends State<ConstellationScreen> {
     _homeTabs?.removeListener(_syncVisibility);
     _history?.removeListener(_syncVisibility);
     _focusRequest.pending.removeListener(_takeFocusRequest);
+    _forwardTreeRequest.pending.removeListener(_takeForwardTreeRequest);
     _zoomLevel.dispose();
     super.dispose();
   }
@@ -312,6 +318,28 @@ class _ConstellationScreenState extends State<ConstellationScreen> {
               ? mapBodyHeight * tt.fieldSheetPeekFraction
               : 0,
         ),
+      );
+    });
+  }
+
+  void _takeForwardTreeRequest() {
+    if (!mounted || _forwardTreeRequest.pending.value == null) return;
+    final cubit = context.read<ConstellationCubit>();
+    if (cubit.state.status is! StateIsSuccess || cubit.state.isComposing) {
+      return;
+    }
+    final payload = _forwardTreeRequest.take();
+    if (payload == null) return;
+    if (GetIt.I.isRegistered<HomeTabReselectCubit>()) {
+      GetIt.I<HomeTabReselectCubit>().bump(HomeTab.constellation);
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(
+        context.read<ConstellationCubit>().enterForwardTreeMode(
+              beaconId: payload.beaconId,
+              helpOffererFocusId: payload.helpOffererId,
+            ),
       );
     });
   }
@@ -391,7 +419,10 @@ class _ConstellationScreenState extends State<ConstellationScreen> {
         BlocListener<ConstellationCubit, ConstellationState>(
           listenWhen: (prev, curr) =>
               prev.status is! StateIsSuccess && curr.status is StateIsSuccess,
-          listener: (context, _) => _takeFocusRequest(),
+          listener: (context, _) {
+            _takeFocusRequest();
+            _takeForwardTreeRequest();
+          },
         ),
         BlocListener<HomeTabReselectCubit, HomeTabReselectState>(
           listenWhen: (prev, curr) =>

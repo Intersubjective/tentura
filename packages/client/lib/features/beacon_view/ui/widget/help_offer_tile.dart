@@ -319,11 +319,11 @@ class HelpOfferTile extends StatelessWidget {
                 IconButton(
                   icon: const Icon(TenturaIcons.graph),
                   tooltip: l10n.helpOffererForwardPathTooltip,
-                  onPressed: () =>
-                      context.read<ScreenCubit>().showHelpOffererForwardPathFor(
+                  onPressed: () => context
+                      .read<ScreenCubit>()
+                      .showConstellationForwardTreeFor(
                         beaconId: beaconId,
                         helpOffererId: helpOffer.user.id,
-                        helpOffererName: helpOffer.user.shownName,
                       ),
                 ),
               if (hasPersonMenu) PersonMenuButton(personId: helpOffer.user.id),
