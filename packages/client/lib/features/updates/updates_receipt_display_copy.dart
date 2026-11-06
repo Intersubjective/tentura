@@ -300,6 +300,7 @@ String _fallbackTitle(
   'promise_withdrawn' => l10n.updatesFallbackTitlePromiseWithdrawn,
   'help_withdrawn' => l10n.updatesFallbackTitleHelpWithdrawn,
   'forward_declined' => l10n.updatesFallbackTitleForwardDeclined,
+  'forward_helped' => l10n.updatesFallbackTitleForwardHelped,
   'coordination_changed' => l10n.updatesFallbackTitleCoordinationChanged,
   'deadline_changed' => l10n.updatesFallbackTitleDeadlineChanged,
   'deadline_reminder' => l10n.updatesFallbackTitleDeadlineReminder,

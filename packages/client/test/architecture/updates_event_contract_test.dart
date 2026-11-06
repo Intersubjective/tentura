@@ -74,6 +74,8 @@ const _runtimeAttentionEventTypes = <String>[
   // Who-did-what (#516, #486).
   'helpWithdrawn',
   'forwardDeclined',
+  // Forward helped (#774).
+  'forwardHelped',
 ];
 
 const _classificationVariantKeys = {
@@ -455,6 +457,16 @@ const _expectedEventTypes = <Map<String, String>>[
     'muteability': 'standard',
     'coveringTest':
         'packages/server/test/domain/use_case/forward_case_cant_help_pg_test.dart',
+  },
+  {
+    'eventType': 'forwardHelped',
+    'producer':
+        'AdmissionOperation.admitWithConfirmations|ClosureFinalizeCase.finalize',
+    'recipientCategory': 'path_forwarders',
+    'destinationFamily': 'beacon',
+    'muteability': 'standard',
+    'coveringTest':
+        'packages/server/test/domain/use_case/forward_helped_updates_pg_test.dart',
   },
 ];
 

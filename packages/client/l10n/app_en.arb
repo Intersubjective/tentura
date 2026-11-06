@@ -10802,6 +10802,10 @@
   "@updatesFallbackTitleForwardDeclined": {
     "description": "Updates fallback title (#486) when the receipt carries no name."
   },
+  "updatesFallbackTitleForwardHelped": "Your forward helped",
+  "@updatesFallbackTitleForwardHelped": {
+    "description": "Updates fallback title (#774) for a forwardHelped receipt."
+  },
   "updatesFallbackBodyForwardDeclined": "A recipient can't help with this request.",
   "@updatesFallbackBodyForwardDeclined": {
     "description": "Updates fallback body (#486) when the receipt carries no text."

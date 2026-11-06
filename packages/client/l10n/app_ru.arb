@@ -6736,6 +6736,7 @@
   "updatesFallbackTitleHelpWithdrawn": "Предложение помощи отозвано",
   "updatesFallbackBodyHelpWithdrawn": "Кто-то отозвал своё предложение помощи.",
   "updatesFallbackTitleForwardDeclined": "Не может помочь",
+  "updatesFallbackTitleForwardHelped": "Ваша пересылка помогла",
   "updatesFallbackBodyForwardDeclined": "Получатель не может помочь с этим запросом.",
   "beaconHudStepLeaverFlag": "{name} покинул(а) запрос после того, как шаг был задан",
   "attentionEventHelpWithdrawn": "{name}: предложение помощи отозвано",
