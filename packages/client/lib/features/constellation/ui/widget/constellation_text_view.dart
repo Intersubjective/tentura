@@ -245,8 +245,8 @@ class _ConstellationTextViewState extends State<ConstellationTextView> {
             Semantics(
               liveRegion: true,
               child: Text(
-                _query.isEmpty
-                    ? l10n.constellationEmptyFiltered
+                _query.trim().isEmpty
+                    ? l10n.constellationFieldSearchPrompt
                     : l10n.constellationSearchNoMatch,
                 key: const Key('constellation.text.search.no_match'),
                 style: theme.textTheme.bodyMedium,
@@ -682,7 +682,8 @@ class _PostTile extends StatelessWidget {
     final tt = context.tt;
     final theme = Theme.of(context);
     final hasUnread = post.hasUnread;
-    final titleLabel = '${l10n.constellationListPostLabel}. ${post.rootExcerpt}';
+    final titleLabel =
+        '${l10n.constellationListPostLabel}. ${post.rootExcerpt}';
     return Semantics(
       button: true,
       selected: selected,

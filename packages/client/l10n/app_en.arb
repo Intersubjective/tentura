@@ -10185,6 +10185,21 @@
     "description": "Empty state when Field search returns no hits",
     "context": "ConstellationField"
   },
+  "constellationFieldSearchPrompt": "Start typing to search your Field.",
+  "@constellationFieldSearchPrompt": {
+    "description": "Neutral prompt when the Field search query is empty (#1046)",
+    "context": "ConstellationField"
+  },
+  "constellationFieldSearchMinChars": "Enter at least two characters to search.",
+  "@constellationFieldSearchMinChars": {
+    "description": "Hint when the Field search query is shorter than the minimum length (#1046)",
+    "context": "ConstellationField"
+  },
+  "constellationFieldSearchSelfOnly": "Only your profile matches — others on the Field are listed on the map.",
+  "@constellationFieldSearchSelfOnly": {
+    "description": "When server search only returns the signed-in user and there are no Requests or Posts (#1046)",
+    "context": "ConstellationField"
+  },
   "constellationFieldSearchStatusHidden": "Hidden",
   "@constellationFieldSearchStatusHidden": {
     "description": "Status suffix on a hidden Field search hit",
