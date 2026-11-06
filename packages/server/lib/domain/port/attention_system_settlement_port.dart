@@ -1,6 +1,14 @@
 /// System-driven settlement of attention (not user dismiss/resolve): help-offer
 /// obligations, and the optional author-invite update once it is answered.
 abstract class AttentionSystemSettlementPort {
+  /// Upgrade existing forwarder gratitude only when an accepted helper on
+  /// that recipient's path is still present at this closure's finalization.
+  /// Repeating the same epoch does not mark a subsequently read item unread.
+  Future<int> completeForwardHelped({
+    required String beaconId,
+    required int epoch,
+  });
+
   /// After the author (or steward) admits or declines a help offer: settle that
   /// author's `helpOfferSubmitted` obligation and mark the matching receipt seen.
   /// [authorAccountId] is the request author, not necessarily the admitting actor.

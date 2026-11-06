@@ -396,9 +396,95 @@ const _expectedEventTypes = <Map<String, String>>[
     'coveringTest':
         'packages/server/test/domain/use_case/forward_case_cant_help_pg_test.dart',
   },
+  {
+    'eventType': 'forwardHelped',
+    'producer':
+        'AdmissionOperation.admitWithConfirmations|ClosureFinalizeCase.finalize',
+    'recipientCategory': 'path_forwarders',
+    'destinationFamily': 'beacon',
+    'muteability': 'standard',
+    'coveringTest':
+        'packages/server/test/domain/use_case/forward_helped_updates_pg_test.dart',
+  },
 ];
 
 void main() {
+  group('forward helped Updates contract', () {
+    test('registers a muteable event for path forwarders', () {
+      final contract = _loadContract();
+      final entries = _contractRows(contract['eventTypes']);
+      final helped = entries
+          .where((entry) => entry['eventType'] == 'forwardHelped')
+          .toList();
+      expect(
+        helped,
+        hasLength(1),
+        reason: 'forwardHelped is a supported Updates event',
+      );
+      expect(helped.single['recipientCategory'], 'path_forwarders');
+      expect(helped.single['muteability'], 'standard');
+      expect(
+        AttentionEventType.values.map((type) => type.name),
+        contains('forwardHelped'),
+      );
+      expect(
+        contract['pendingProducerEventTypes'] as List,
+        isNot(contains('forwardHelped')),
+      );
+    });
+
+    test(
+      'classifies forward gratitude as a coalescible optional primary update',
+      () {
+        final entries = _contractRows(_loadContract()['eventClassifications']);
+        final helped = entries
+            .where((entry) => entry['eventType'] == 'forwardHelped')
+            .toList();
+        expect(
+          helped,
+          hasLength(1),
+          reason: 'forwardHelped needs a classification',
+        );
+        expect(helped.single['status'], 'supported');
+        final variants = _contractRows(helped.single['variants']);
+        expect(
+          variants.map(
+            (variant) => (variant['recipientPredicate'], variant['scope']),
+          ),
+          unorderedEquals(const [('reason:pathForwarder', 'beacon')]),
+          reason:
+              'the supported path-forwarder variant must be present exactly once; unrelated variants cannot stand in for it',
+        );
+        for (final variant in variants) {
+          expect(variant['attentionClass'], 'optional');
+          expect(variant['placement'], 'primary');
+          expect(variant['coalescible'], isTrue);
+          expect(variant['clearPolicy'], isNot('forbidden'));
+          expect(variant['ownDutyReminder'], isFalse);
+          expect(variant, isNot(contains('actionDescriptor')));
+          expect(
+            variant['producerTests'],
+            allOf(
+              isA<List<Object?>>(),
+              contains(
+                'packages/server/test/domain/use_case/forward_helped_updates_pg_test.dart',
+              ),
+            ),
+          );
+          expect(
+            variant['transitionTests'],
+            allOf(
+              isA<List<Object?>>(),
+              contains(
+                'packages/server/test/domain/use_case/forward_helped_updates_pg_test.dart',
+              ),
+            ),
+          );
+        }
+      },
+    );
+  });
+
   test('Updates contract has the exact revision 6 semantic coverage', () {
     final contractFile = _contractFile();
     final contract = Map<String, dynamic>.from(
@@ -574,6 +660,17 @@ void main() {
           '${unverifiedGaps.join('\n')}',
     );
   });
+}
+
+List<Map<String, Object?>> _contractRows(Object? value) {
+  if (value is! List<Object?>) throw StateError('Contract rows must be a list');
+  return [
+    for (final row in value)
+      if (row case final Map<String, Object?> fields)
+        fields
+      else
+        throw StateError('Contract row must be an object'),
+  ];
 }
 
 Map<String, dynamic> _loadContract() => Map<String, dynamic>.from(

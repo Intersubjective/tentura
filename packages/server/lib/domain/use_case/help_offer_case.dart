@@ -62,6 +62,7 @@ final class HelpOfferCase extends UseCaseBase {
                _commitmentRepository,
                closureCase,
                attentionSystemSettlement,
+               attentionIntents,
              );
 
   final BeaconRoomRepositoryPort _roomRepository;

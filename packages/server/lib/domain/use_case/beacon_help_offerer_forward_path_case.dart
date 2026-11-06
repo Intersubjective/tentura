@@ -33,7 +33,7 @@ import '_use_case_base.dart';
 /// addition, `helpOffererId` must have a non-withdrawn help offer on
 /// `beaconId`; otherwise an `IdNotFoundException` is thrown to avoid
 /// leaking arbitrary user→beacon relationships.
-@Singleton(order: 2)
+@Singleton(order: 1)
 final class BeaconHelpOffererForwardPathCase extends UseCaseBase {
   BeaconHelpOffererForwardPathCase(
     this._beaconRepository,

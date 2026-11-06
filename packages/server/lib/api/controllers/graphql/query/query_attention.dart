@@ -440,6 +440,9 @@ final class QueryAttention extends GqlNodeBase {
     // #700: the actor's display name at write time (offer and invite-answer
     // receipts; `AttentionPolicy.actorNamePayloadEventTypes`).
     'actorName',
+    'authorId',
+    'helperId',
+    'doneEpoch',
   };
 
   /// #189 — the «вам» flag, a bool rather than a String.
@@ -459,14 +462,16 @@ final class QueryAttention extends GqlNodeBase {
     // #725: a "not interested" forward row that answered an author
     // invitation ("Can't make it").
     'declinedInvite',
+    'done',
   };
 
   @visibleForTesting
   static void validateAttentionPresentationPayload(
     Map<String, Object?> payload,
   ) {
-    bool allowed(MapEntry<String, Object?> entry) =>
-        attentionPresentationPayloadBoolKeys.contains(entry.key)
+    bool allowed(MapEntry<String, Object?> entry) => entry.key == 'path'
+        ? _safeForwardPath(entry.value) != null
+        : attentionPresentationPayloadBoolKeys.contains(entry.key)
         ? entry.value is bool
         : attentionPresentationPayloadAllowedKeys.contains(entry.key) &&
               entry.value is String;
@@ -478,6 +483,38 @@ final class QueryAttention extends GqlNodeBase {
   @visibleForTesting
   static Map<String, Object?> mapReceiptForTesting(AttentionReceipt receipt) =>
       _mapReceipt(receipt);
+
+  /// Stored JSON is outside data. Accept only the named/anonymous node
+  /// shapes the path API serves, dropping any writer-specific extra fields.
+  static List<Map<String, Object?>>? _safeForwardPath(Object? value) {
+    if (value is! List) return null;
+    final path = <Map<String, Object?>>[];
+    for (final node in value) {
+      switch (node) {
+        case {
+              'userId': final String id,
+              'displayName': final String name,
+              'anonymousCount': 0,
+            }
+            when id.isNotEmpty && name.isNotEmpty:
+          path.add({'userId': id, 'displayName': name, 'anonymousCount': 0});
+        case {
+              'userId': null,
+              'displayName': null,
+              'anonymousCount': final int count,
+            }
+            when count > 0:
+          path.add({
+            'userId': null,
+            'displayName': null,
+            'anonymousCount': count,
+          });
+        default:
+          return null;
+      }
+    }
+    return path;
+  }
 
   static Map<String, Object?> _mapReceipt(AttentionReceipt receipt) {
     // Stored receipts may carry writer-specific metadata outside the public
@@ -492,7 +529,9 @@ final class QueryAttention extends GqlNodeBase {
         // non-String fields the client reads.
         else if (attentionPresentationPayloadBoolKeys.contains(entry.key) &&
             entry.value is bool)
-          entry.key: entry.value! as bool,
+          entry.key: entry.value! as bool
+        else if (entry.key == 'path')
+          entry.key: ?_safeForwardPath(entry.value),
     };
     if (payload.length != receipt.presentationPayload.length) {
       _log.warning('Omitted unsupported attention presentation fields');

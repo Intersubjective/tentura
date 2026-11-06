@@ -8,6 +8,7 @@ import 'package:test/test.dart';
 
 import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/attention/attention_policy.dart';
+import 'package:tentura_server/domain/entity/help_path_node.dart';
 
 void main() {
   const policy = AttentionPolicy();
@@ -179,6 +180,11 @@ void main() {
               'excerpt',
               'toStatus',
               'withdrawReason',
+              if (eventName == 'forwardHelped') ...{
+                'authorId',
+                'helperId',
+                'path',
+              },
             }),
           ),
         );
@@ -492,6 +498,20 @@ _fixtureFor(String eventName) => switch (eventName) {
   'relayReceived' => (
     reasons: const {AttentionRecipientReason.forwardRecipient},
     role: _baseRole,
+  ),
+  'forwardHelped' => (
+    reasons: const {AttentionRecipientReason.pathForwarder},
+    role: _baseRole.copyWith(
+      forwardHelped: const ForwardHelpedDetails(
+        authorId: 'author-1',
+        helperId: 'helper-1',
+        path: [
+          HelpPathNode.named(userId: 'author-1', displayName: 'Author'),
+          HelpPathNode.named(userId: 'recipient', displayName: 'Forwarder'),
+          HelpPathNode.named(userId: 'helper-1', displayName: 'Helper'),
+        ],
+      ),
+    ),
   ),
   'helpOfferSubmitted' => (
     reasons: const {AttentionRecipientReason.authorOfBeacon},

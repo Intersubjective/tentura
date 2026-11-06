@@ -13,6 +13,7 @@ import 'package:tentura_server/domain/port/commitment_repository_port.dart';
 import 'package:tentura_server/domain/port/coordination_repository_port.dart';
 import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
 import 'package:tentura_server/domain/use_case/closure_case.dart';
+import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
 
 /// Arch §5.3: the one implementation of "admit with both confirmations".
@@ -36,6 +37,7 @@ final class AdmissionOperation {
     this._commitmentRepository, [
     this._closureCase,
     this._attentionSystemSettlement,
+    this._attentionIntents,
   ]);
 
   /// DI registration. Non-null dependencies let injectable order this
@@ -47,12 +49,14 @@ final class AdmissionOperation {
     CommitmentRepositoryPort commitmentRepository,
     ClosureCase closureCase,
     AttentionSystemSettlementPort attentionSystemSettlement,
+    AttentionIntentCase attentionIntents,
   ) => AdmissionOperation(
     helpOfferRepository,
     coordinationRepository,
     commitmentRepository,
     closureCase,
     attentionSystemSettlement,
+    attentionIntents,
   );
 
   final HelpOfferRepositoryPort _helpOfferRepository;
@@ -60,6 +64,7 @@ final class AdmissionOperation {
   final CommitmentRepositoryPort _commitmentRepository;
   final ClosureCase? _closureCase;
   final AttentionSystemSettlementPort? _attentionSystemSettlement;
+  final AttentionIntentCase? _attentionIntents;
 
   /// Admits [helperId] into [beacon] with [confirmingAuthorId] as the author
   /// confirmation, and returns the beacon status after admission.
@@ -140,6 +145,12 @@ final class AdmissionOperation {
       authorId: beacon.author.id,
       invite: invite,
     );
+
+    final forwardHelped = await _attentionIntents?.forwardHelped(
+      beacon: beacon,
+      helperId: helperId,
+    );
+    if (forwardHelped != null) await transaction.record(forwardHelped);
 
     // (h) The caller's attention intent, then (g) the author's obligation.
     // This order is the pre-A2 `acceptHelpOffer` order, kept unchanged.

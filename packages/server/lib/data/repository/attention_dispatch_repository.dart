@@ -201,24 +201,51 @@ RETURNING o.account_id, o.logical_task_key, o.lifecycle_generation
         previousGenerations[key] = generation > known ? generation : known;
       }
     }
-    // A receipt is inserted, never rewritten. Until U05a this was an
-    // `ON CONFLICT (dedup_key) WHERE seen_at IS NULL DO UPDATE` that
-    // repointed an existing unseen row at the newest occurrence and reset
-    // its `created_at`, so two distinct occurrences in one collapse family
-    // shared a single mutable row. Now each `(occurrence_id, account_id)`
-    // pair is its own immutable receipt; `dedup_key` keeps its
-    // collapse-derived value purely as a lookup key, and m0179 removed the
-    // uniqueness that used to forbid a second unseen row per family.
-    //
-    // Replay of a `source_event_key` is still dedupped above, at the
-    // occurrence grain, and never reaches this statement. The remaining
-    // guard against a duplicate receipt is m0178's UNIQUE
-    // `notification_outbox__occurrence_account`, which raises rather than
-    // silently overwriting — that is deliberate: a duplicate here would be
-    // a producer bug, not a replay.
+    // Most receipts retain their occurrence identity. Forward gratitude is
+    // explicitly one evolving item per (Request, forwarder); the immutable
+    // occurrences and recipient snapshots still retain every accepted helper.
+    final isForwardHelped =
+        intent.eventType == AttentionEventType.forwardHelped;
+    final peopleCount = isForwardHelped
+        ? r'''
+(
+      SELECT count(DISTINCT o.immutable_payload->>'targetEntityId')::int
+      FROM public.attention_occurrence_recipient recipient
+      JOIN public.attention_occurrence o ON o.id = recipient.occurrence_id
+      WHERE recipient.account_id = r.account_id
+        AND o.event_type = 'forwardHelped'
+        AND o.immutable_payload->>'beaconId' = $6
+    )'''
+        : '1';
+    final receiptTitle = isForwardHelped
+        ? r'''
+CASE WHEN r.people_count > 1
+      THEN 'Your forward helped ' || r.people_count::text || ' people'
+      ELSE $3 END'''
+        : r'$3';
+    final merge = isForwardHelped
+        ? '''
+ON CONFLICT (beacon_id, account_id) WHERE presentation_key = 'forward_helped'
+DO UPDATE SET title = EXCLUDED.title, body = EXCLUDED.body,
+  presentation_payload = EXCLUDED.presentation_payload,
+  collapsed_count = EXCLUDED.collapsed_count,
+  seen_at = NULL, cleared_at = NULL, clear_reason = NULL,
+  cleared_by_operation_id = NULL
+'''
+        : '';
     final inserted = await _database
         .customSelect(
-          r'''
+          '''
+WITH incoming AS (
+  SELECT r.*, $peopleCount AS people_count
+  FROM jsonb_to_recordset(\$12::jsonb) AS r(
+    account_id text, category text, dedup_key text, destination_kind text,
+    target_entity_id text, presentation_key text, presentation_payload jsonb,
+    in_app_preference_class text, suppression_class text, access_policy text,
+    requires_action boolean, attention_thread_key text, logical_task_key text,
+    lifecycle_generation integer
+  )
+)
 INSERT INTO public.notification_outbox (
   id, account_id, category, kind, priority,
   title, body, action_url, dedup_key,
@@ -228,25 +255,20 @@ INSERT INTO public.notification_outbox (
   in_app_preference_class, suppression_class, access_policy,
   requires_action, attention_thread_key,
   logical_task_key, lifecycle_generation,
-  placement
+  placement, collapsed_count
 )
 SELECT
-  gen_random_uuid()::text, r.account_id, r.category, $1, $2,
-  $3, $4, $5, r.dedup_key,
-  $6, $7, $8,
-  $9, $10, r.destination_kind, r.target_entity_id,
+  gen_random_uuid()::text, r.account_id, r.category, \$1, \$2,
+  $receiptTitle, \$4, \$5, r.dedup_key,
+  \$6, \$7, \$8,
+  \$9, \$10, r.destination_kind, r.target_entity_id,
   r.presentation_key, r.presentation_payload,
   r.in_app_preference_class, r.suppression_class, r.access_policy,
   r.requires_action, r.attention_thread_key,
   r.logical_task_key, r.lifecycle_generation,
-  $11
-FROM jsonb_to_recordset($12::jsonb) AS r(
-  account_id text, category text, dedup_key text, destination_kind text,
-  target_entity_id text, presentation_key text, presentation_payload jsonb,
-  in_app_preference_class text, suppression_class text, access_policy text,
-  requires_action boolean, attention_thread_key text, logical_task_key text,
-  lifecycle_generation integer
-)
+  \$11, r.people_count
+FROM incoming r
+$merge
 RETURNING id, account_id
 ''',
           variables: [
@@ -306,9 +328,9 @@ RETURNING id, account_id
         row.read<String>('account_id'): row.read<String>('id'),
     };
 
-    // U05b — collapsing lives here, at the channel layer, and nowhere else.
+    // U05b — channel deliveries collapse independently of receipt identity.
     //
-    // In-app receipts are one per occurrence and immutable (U05a). Push and
+    // Apart from forward gratitude, receipts are one per occurrence. Push and
     // email must not be: a family of events sharing a collapse key is one
     // notification, and sending it twice is the user-visible defect that a
     // receipt-row count cannot see. So a new job coalesces into the
@@ -494,6 +516,8 @@ WHERE target.job_id IS NULL''',
     'withdrawReason': role.withdrawReason,
     'leftDiscussion': role.leftDiscussion,
     'nextStepMentionsActor': role.nextStepMentionsActor,
+    if (role.forwardHelped case final helped?)
+      'forwardHelped': helped.toPayload(),
   };
 
   Map<String, Object?> _decisionPayload(AttentionChannelDecision decision) => {

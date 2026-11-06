@@ -1,5 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import 'package:tentura_server/domain/entity/help_path_node.dart';
+
 import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/entity/notification_category.dart';
 import 'package:tentura_server/domain/entity/notification_kind.dart';
@@ -72,6 +74,7 @@ abstract final class AttentionEventTypeCatalog {
       case AttentionEventType.planEdited:
       case AttentionEventType.planStepDone:
       case AttentionEventType.helpWithdrawn:
+      case AttentionEventType.forwardHelped:
       case AttentionEventType.forwardDeclined:
         return;
     }
@@ -175,6 +178,9 @@ enum AttentionEventType {
   /// «Can't help». An optional update for the author only; the recipient's
   /// note rides on that receipt and nowhere public (never the room).
   forwardDeclined,
+
+  /// Gratitude to the forwarders on an accepted helper's canonical path.
+  forwardHelped,
 }
 
 extension AttentionEventTypeScope on AttentionEventType {
@@ -196,6 +202,7 @@ enum AttentionRecipientReason {
   roomModeratorOrSteward,
   admittedRoomMember,
   forwardRecipient,
+  pathForwarder,
   inboxStanceHolder,
   directedChatTarget,
   reciprocalCounterpart,
@@ -374,6 +381,30 @@ abstract final class AttentionCollapseKey {
 }
 
 @freezed
+abstract class ForwardHelpedDetails with _$ForwardHelpedDetails {
+  const factory ForwardHelpedDetails({
+    required String? authorId,
+    required String? helperId,
+    required List<HelpPathNode> path,
+  }) = _ForwardHelpedDetails;
+
+  const ForwardHelpedDetails._();
+
+  Map<String, Object?> toPayload() => {
+    'authorId': ?authorId,
+    'helperId': ?helperId,
+    'path': [
+      for (final node in path)
+        {
+          'userId': node.userId,
+          'displayName': node.displayName,
+          'anonymousCount': node.anonymousCount,
+        },
+    ],
+  };
+}
+
+@freezed
 abstract class AttentionRecipientRoleFacts with _$AttentionRecipientRoleFacts {
   const factory AttentionRecipientRoleFacts({
     @Default(false) bool canReadBeaconContent,
@@ -412,6 +443,7 @@ abstract class AttentionRecipientRoleFacts with _$AttentionRecipientRoleFacts {
     String? withdrawReason,
     bool? leftDiscussion,
     bool? nextStepMentionsActor,
+    ForwardHelpedDetails? forwardHelped,
   }) = _AttentionRecipientRoleFacts;
 }
 

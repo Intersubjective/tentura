@@ -6,6 +6,9 @@ import 'package:tentura_root/domain/next_step_mention.dart';
 
 import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/entity/beacon_kind.dart';
+import 'package:tentura_server/domain/entity/beacon_entity.dart';
+import 'package:tentura_server/domain/entity/help_path_node.dart';
+import 'beacon_help_offerer_forward_path_case.dart';
 import 'package:tentura_server/domain/entity/beacon_notification_context.dart';
 import 'package:tentura_server/domain/entity/beacon_notification_intent.dart';
 import 'package:tentura_server/domain/entity/invite_accepted_notification_intent.dart';
@@ -29,8 +32,103 @@ class AttentionIntentCase {
     this._context,
     this._users,
     this._accessGuard,
-    this._userBlocks,
+    this._userBlocks, {
+    this._helpPaths,
+  });
+
+  @factoryMethod
+  factory AttentionIntentCase.inject(
+    BeaconRoomNotificationContextPort context,
+    UserRepositoryPort users,
+    BeaconAccessGuard accessGuard,
+    UserBlockRepositoryPort userBlocks,
+    BeaconHelpOffererForwardPathCase helpPaths,
+  ) => AttentionIntentCase(
+    context,
+    users,
+    accessGuard,
+    userBlocks,
+    helpPaths: helpPaths,
   );
+
+  final BeaconHelpOffererForwardPathCase? _helpPaths;
+
+  /// The canonical route selects recipients; each recipient's block mask
+  /// determines the names in their own immutable snapshot.
+  Future<AttentionDispatchIntent?> forwardHelped({
+    required BeaconEntity beacon,
+    required String helperId,
+  }) async {
+    final helpPaths = _helpPaths;
+    // Older hand-wired test harnesses omit this collaborator. Production DI
+    // uses inject(), which requires it.
+    if (helpPaths == null) return null;
+    final path = await helpPaths.helpPathFor(
+      beaconId: beacon.id,
+      helperId: helperId,
+    );
+    final recipients = <AttentionRecipientSnapshot>[];
+    final forwarderIds = {
+      for (final node in path)
+        if (node.userId case final String id
+            when id != beacon.author.id && id != helperId)
+          id,
+    };
+    for (final recipientId in forwarderIds) {
+      final hidden = await _userBlocks.hiddenPeerIds(
+        viewerId: recipientId,
+        peerIds: path.map((node) => node.userId).whereType<String>(),
+      );
+      final masked = HelpPathNode.collapseAnonymous([
+        for (final node in path)
+          if (hidden.contains(node.userId))
+            const HelpPathNode.anonymous(1)
+          else
+            node,
+      ]);
+      recipients.add(
+        AttentionRecipientSnapshot(
+          recipientId: recipientId,
+          reasons: const {AttentionRecipientReason.pathForwarder},
+          collapseKey: AttentionCollapseKey.family('forwardHelped', [
+            beacon.id,
+            recipientId,
+          ]),
+          // Push and digest delivery are enabled by their separate rollout.
+          channelEligible: false,
+          role: AttentionRecipientRoleFacts(
+            beaconId: beacon.id,
+            beaconTitle: beacon.title,
+            canReadBeaconContent: await _accessGuard.canReadContent(
+              beaconId: beacon.id,
+              viewerId: recipientId,
+            ),
+            forwardHelped: ForwardHelpedDetails(
+              authorId: hidden.contains(beacon.author.id)
+                  ? null
+                  : beacon.author.id,
+              helperId: hidden.contains(helperId) ? null : helperId,
+              path: masked,
+            ),
+          ),
+        ),
+      );
+    }
+    return AttentionDispatchIntent(
+      eventType: AttentionEventType.forwardHelped,
+      sourceEventKey: 'forward_helped:${beacon.id}:$helperId',
+      actorUserId: null,
+      beaconId: beacon.id,
+      targetEntityId: helperId,
+      kind: NotificationKind.commitmentEvent,
+      priority: NotificationPriority.normal,
+      title: 'Your forward helped',
+      body: 'A helper offered help and was accepted.',
+      actionUrl: '/#$kPathBeaconView/${beacon.id}?is_deep_link=true',
+      collapseKey: AttentionCollapseKey.family('forwardHelped', [beacon.id]),
+      recipients: recipients,
+    );
+  }
 
   final BeaconRoomNotificationContextPort _context;
   final UserRepositoryPort _users;

@@ -125,7 +125,8 @@ class AttentionPolicy {
     AttentionEventType.authorInviteAccepted ||
     AttentionEventType.authorInviteDeclined ||
     AttentionEventType.helpWithdrawn ||
-    AttentionEventType.forwardDeclined => AttentionSuppressionClass.standard,
+    AttentionEventType.forwardDeclined ||
+    AttentionEventType.forwardHelped => AttentionSuppressionClass.standard,
     AttentionEventType.commitmentRedirected =>
       AttentionSuppressionClass.mandatory,
     AttentionEventType.planStepDue ||
@@ -187,7 +188,8 @@ class AttentionPolicy {
     AttentionEventType.authorInviteAccepted ||
     AttentionEventType.authorInviteDeclined ||
     AttentionEventType.helpWithdrawn ||
-    AttentionEventType.forwardDeclined => NotificationCategory.coordination,
+    AttentionEventType.forwardDeclined ||
+    AttentionEventType.forwardHelped => NotificationCategory.coordination,
     AttentionEventType.deadlineChanged => NotificationCategory.coordination,
     AttentionEventType.deadlineReminder ||
     AttentionEventType.closureOpened ||
@@ -245,7 +247,8 @@ class AttentionPolicy {
     AttentionEventType.authorInviteAccepted ||
     AttentionEventType.authorInviteDeclined ||
     AttentionEventType.helpWithdrawn ||
-    AttentionEventType.forwardDeclined => AttentionAccessPolicy.beaconContent,
+    AttentionEventType.forwardDeclined ||
+    AttentionEventType.forwardHelped => AttentionAccessPolicy.beaconContent,
     AttentionEventType.deadlineChanged ||
     AttentionEventType.deadlineReminder ||
     AttentionEventType.postExpiringSoon ||
@@ -284,7 +287,8 @@ class AttentionPolicy {
       AttentionEventType.relayReceived ||
       AttentionEventType.requestStatusChanged ||
       AttentionEventType.authorInviteReceived ||
-      AttentionEventType.forwardDeclined => AttentionDestination(
+      AttentionEventType.forwardDeclined ||
+      AttentionEventType.forwardHelped => AttentionDestination(
         kind: AttentionDestinationKind.beacon,
         targetEntityId: role.beaconId,
       ),
@@ -433,7 +437,8 @@ class AttentionPolicy {
     AttentionEventType.planEdited => false,
     AttentionEventType.planStepDone => false,
     AttentionEventType.helpWithdrawn => false,
-    AttentionEventType.forwardDeclined => false,
+    AttentionEventType.forwardDeclined ||
+    AttentionEventType.forwardHelped => false,
   };
 
   /// U11 / D16 — the placement of a receipt, decided by the producer.
@@ -534,7 +539,8 @@ class AttentionPolicy {
     // Who-did-what updates tell the author what happened to their Request;
     // nobody addressed them by name.
     AttentionEventType.helpWithdrawn ||
-    AttentionEventType.forwardDeclined => false,
+    AttentionEventType.forwardDeclined ||
+    AttentionEventType.forwardHelped => false,
   };
 
   /// #189 — personal = a human actor other than the recipient, an event type
@@ -729,6 +735,7 @@ class AttentionPolicy {
     AttentionEventType.planStepDone => 'plan_step_done',
     AttentionEventType.helpWithdrawn => 'help_withdrawn',
     AttentionEventType.forwardDeclined => 'forward_declined',
+    AttentionEventType.forwardHelped => 'forward_helped',
   };
 
   Map<String, Object?> _presentationPayload(
@@ -744,6 +751,9 @@ class AttentionPolicy {
       // existed (m0237 backfills those).
       'personal': personal,
     };
+    if (role.forwardHelped case final helped?) {
+      payload.addAll(helped.toPayload());
+    }
     final values = <String, String?>{
       'actorUserId': _safeId(role.actorUserId),
       'beaconId': _safeId(role.beaconId),

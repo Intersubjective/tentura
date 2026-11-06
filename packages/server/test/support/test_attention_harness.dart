@@ -9,6 +9,7 @@ import 'package:tentura_server/domain/port/beacon_room_notification_context_port
 import 'package:tentura_server/domain/port/mutating_unit_of_work_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
+import 'package:tentura_server/domain/use_case/beacon_help_offerer_forward_path_case.dart';
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
 
 import 'fake_user_block_repository.dart';
@@ -20,12 +21,14 @@ final class TestAttentionHarness {
     void Function()? onContextLoaded,
     FakeUserBlockRepository? userBlocks,
     Future<bool> Function(String viewerId)? canReadContent,
+    BeaconHelpOffererForwardPathCase? helpPaths,
   }) : _dispatch = _RecordingDispatch(),
        intents = AttentionIntentCase(
          _Context(context, onContextLoaded),
          _Users(),
          _Access(allowed: canReadBeaconContent, read: canReadContent),
          userBlocks ?? FakeUserBlockRepository(),
+         helpPaths: helpPaths,
        ) {
     transactional = TransactionalAttentionCase(
       _UnitOfWork(),

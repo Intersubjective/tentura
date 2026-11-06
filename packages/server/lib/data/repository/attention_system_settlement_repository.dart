@@ -12,6 +12,38 @@ class AttentionSystemSettlementRepository
 
   final TenturaDb _database;
 
+  @override
+  Future<int> completeForwardHelped({
+    required String beaconId,
+    required int epoch,
+  }) => _database.customUpdate(
+    r'''
+UPDATE public.notification_outbox outbox
+SET title = CASE WHEN outbox.presentation_payload->>'done' = 'true'
+                THEN outbox.title ELSE outbox.title || ' · Done ✓' END,
+    presentation_payload = outbox.presentation_payload ||
+      jsonb_build_object('done', true, 'doneEpoch', $2::int::text),
+    seen_at = NULL
+WHERE outbox.beacon_id = $1
+  AND outbox.presentation_key = 'forward_helped'
+  AND outbox.presentation_payload->>'doneEpoch' IS DISTINCT FROM $2::int::text
+  AND EXISTS (
+    SELECT 1
+    FROM public.attention_occurrence_recipient recipient
+    JOIN public.attention_occurrence occurrence ON occurrence.id = recipient.occurrence_id
+    JOIN public.beacon_closure_member member
+      ON member.beacon_id = $1 AND member.epoch = $2
+     AND member.user_id = occurrence.immutable_payload->>'targetEntityId'
+     AND member.departure IS NULL
+    WHERE recipient.account_id = outbox.account_id
+      AND occurrence.event_type = 'forwardHelped'
+      AND occurrence.immutable_payload->>'beaconId' = $1
+  )
+''',
+    variables: [Variable<String>(beaconId), Variable<int>(epoch)],
+    updateKind: UpdateKind.update,
+  );
+
   static const _helpOfferSubmittedEventType = 'helpOfferSubmitted';
 
   static const _authorInviteReceivedEventType = 'authorInviteReceived';

@@ -62,6 +62,7 @@ final class CoordinationCase extends UseCaseBase {
          _commitmentRepository,
          closureCase,
          attentionSystemSettlement,
+         _attentionIntents,
        );
 
   final BeaconRepositoryPort _beaconRepository;

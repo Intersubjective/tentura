@@ -5,6 +5,17 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:test/test.dart';
+import 'package:logging/logging.dart';
+import 'package:mockito/mockito.dart';
+import 'package:tentura_server/domain/entity/beacon_entity.dart';
+import 'package:tentura_server/domain/entity/help_offer_entity.dart';
+import 'package:tentura_server/domain/entity/help_path_node.dart';
+import 'package:tentura_server/domain/entity/user_entity.dart';
+import 'package:tentura_server/domain/port/beacon_repository_port.dart';
+import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
+import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
+import 'package:tentura_server/domain/use_case/beacon_help_offerer_forward_path_case.dart';
+import 'package:tentura_server/env.dart';
 
 import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/entity/beacon_notification_context.dart';
@@ -13,6 +24,7 @@ import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 
 import '../../support/test_attention_harness.dart';
 import '../../support/fake_user_block_repository.dart';
+import '../../support/fake_beacon_access_guard.dart';
 
 const _closureOutboxEventTypes = {
   'closureOpened',
@@ -30,7 +42,22 @@ void main() {
   const item = 'item';
   const eventKey = 'source:event';
 
+  final request = BeaconEntity(
+    id: beacon,
+    title: 'Request',
+    author: const UserEntity(id: author, displayName: 'Author'),
+    createdAt: DateTime.utc(2026),
+    updatedAt: DateTime.utc(2026),
+  );
   final harness = TestAttentionHarness(
+    helpPaths: BeaconHelpOffererForwardPathCase(
+      _PathBeacon(request),
+      _PathEdges(),
+      _PathOffer(),
+      FakeBeaconAccessGuard(),
+      env: Env(environment: 'test', printEnv: false),
+      logger: Logger('ForwardHelpedIntentFixture'),
+    ),
     context: const BeaconNotificationContext(
       beaconAuthorId: author,
       admittedUserIds: {'member', target},
@@ -64,6 +91,21 @@ void main() {
             recipientIds: const [target],
             sourceEventKey: eventKey,
           ),
+        ),
+        (
+          eventType: AttentionEventType.forwardHelped,
+          legacyKind: 'commitmentEvent',
+          recipient: target,
+          build: (intents) async {
+            final intent = await intents.forwardHelped(
+              beacon: request,
+              helperId: actor,
+            );
+            if (intent == null) {
+              throw StateError('Forward gratitude was not built');
+            }
+            return intent;
+          },
         ),
         (
           eventType: AttentionEventType.helpOfferSubmitted,
@@ -365,8 +407,16 @@ void main() {
 
         expect(intent.eventType, fixture.eventType);
         expect(intent.kind.name, fixture.legacyKind);
-        expect(intent.sourceEventKey, eventKey);
-        expect(intent.actorUserId, actor);
+        expect(
+          intent.sourceEventKey,
+          fixture.eventType == AttentionEventType.forwardHelped
+              ? 'forward_helped:$beacon:$actor'
+              : eventKey,
+        );
+        expect(
+          intent.actorUserId,
+          fixture.eventType == AttentionEventType.forwardHelped ? null : actor,
+        );
         expect(intent.title, isNotEmpty);
         expect(intent.body, isNotEmpty);
         expect(intent.actionUrl, isNotEmpty);
@@ -377,6 +427,7 @@ void main() {
         expect(
           intent.collapseKey,
           switch (fixture.eventType) {
+            AttentionEventType.forwardHelped => startsWith('v1|forwardHelped|'),
             AttentionEventType.coordinationChanged => startsWith(
               'v1|coordination_changed|',
             ),
@@ -618,7 +669,22 @@ void main() {
         () async {
           final blocks = FakeUserBlockRepository();
           blocks.blockPair(actor, target);
+          final request = BeaconEntity(
+            id: beacon,
+            title: 'Request',
+            author: const UserEntity(id: author, displayName: 'Author'),
+            createdAt: DateTime.utc(2026),
+            updatedAt: DateTime.utc(2026),
+          );
           final harness = TestAttentionHarness(
+            helpPaths: BeaconHelpOffererForwardPathCase(
+              _PathBeacon(request),
+              _PathEdges(),
+              _PathOffer(),
+              FakeBeaconAccessGuard(),
+              env: Env(environment: 'test', printEnv: false),
+              logger: Logger('ForwardHelpedIntentFixture'),
+            ),
             context: blockContext,
             userBlocks: blocks,
           );
@@ -635,7 +701,22 @@ void main() {
         () async {
           final blocks = FakeUserBlockRepository();
           blocks.blockPair(target, actor);
+          final request = BeaconEntity(
+            id: beacon,
+            title: 'Request',
+            author: const UserEntity(id: author, displayName: 'Author'),
+            createdAt: DateTime.utc(2026),
+            updatedAt: DateTime.utc(2026),
+          );
           final harness = TestAttentionHarness(
+            helpPaths: BeaconHelpOffererForwardPathCase(
+              _PathBeacon(request),
+              _PathEdges(),
+              _PathOffer(),
+              FakeBeaconAccessGuard(),
+              env: Env(environment: 'test', printEnv: false),
+              logger: Logger('ForwardHelpedIntentFixture'),
+            ),
             context: blockContext,
             userBlocks: blocks,
           );
@@ -772,4 +853,42 @@ void main() {
       });
     });
   });
+}
+
+final class _PathBeacon extends Fake implements BeaconRepositoryPort {
+  _PathBeacon(this.beacon);
+  final BeaconEntity beacon;
+
+  @override
+  Future<BeaconEntity> getBeaconById({
+    required String beaconId,
+    String? filterByUserId,
+  }) async => beacon;
+}
+
+final class _PathOffer extends Fake implements HelpOfferRepositoryPort {
+  @override
+  Future<List<HelpOfferEntity>> fetchAllByBeaconId(String beaconId) async => [
+    HelpOfferEntity(
+      beaconId: beaconId,
+      userId: 'actor',
+      createdAt: DateTime.utc(2026),
+      updatedAt: DateTime.utc(2026),
+    ),
+  ];
+}
+
+final class _PathEdges extends Fake implements ForwardEdgeRepositoryPort {
+  @override
+  Future<List<HelpPathNode>> fetchHelpPath({
+    required String beaconId,
+    required String helperId,
+    required String authorId,
+    required DateTime offerCreatedAt,
+    String? viewerId,
+  }) async => const [
+    HelpPathNode.named(userId: 'author', displayName: 'Author'),
+    HelpPathNode.named(userId: 'target', displayName: 'Forwarder'),
+    HelpPathNode.named(userId: 'actor', displayName: 'Helper'),
+  ];
 }

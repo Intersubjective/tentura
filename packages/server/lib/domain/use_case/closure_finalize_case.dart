@@ -292,6 +292,7 @@ final class ClosureFinalizeCase extends UseCaseBase
       await _repo.postStoryMessage(beaconId: beaconId, body: story);
     }
 
+    await _settlement.completeForwardHelped(beaconId: beaconId, epoch: epoch);
     await _receipts.finalized(beaconId, epoch);
     _publisher.nudge();
   }

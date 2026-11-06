@@ -286,6 +286,14 @@
       "destinationFamily": "beacon",
       "muteability": "standard",
       "coveringTest": "packages/server/test/domain/use_case/forward_case_cant_help_pg_test.dart"
+    },
+    {
+      "eventType": "forwardHelped",
+      "producer": "AdmissionOperation.admitWithConfirmations|ClosureFinalizeCase.finalize",
+      "recipientCategory": "path_forwarders",
+      "destinationFamily": "beacon",
+      "muteability": "standard",
+      "coveringTest": "packages/server/test/domain/use_case/forward_helped_updates_pg_test.dart"
     }
   ],
   "producers": [
@@ -771,6 +779,22 @@
       "destinationFamily": "beacon",
       "muteability": "standard",
       "coveringTest": "packages/server/test/domain/use_case/forward_case_cant_help_pg_test.dart"
+    },
+    {
+      "useCase": "packages/server/lib/domain/use_case/admission_operation.dart",
+      "eventType": "forwardHelped",
+      "recipientCategory": "path_forwarders",
+      "destinationFamily": "beacon",
+      "muteability": "standard",
+      "coveringTest": "packages/server/test/domain/use_case/forward_helped_updates_pg_test.dart"
+    },
+    {
+      "useCase": "packages/server/lib/domain/use_case/closure_finalize_case.dart",
+      "eventType": "forwardHelped",
+      "recipientCategory": "path_forwarders",
+      "destinationFamily": "beacon",
+      "muteability": "standard",
+      "coveringTest": "packages/server/test/domain/use_case/forward_helped_updates_pg_test.dart"
     }
   ],
   "eventClassifications": [
@@ -2357,6 +2381,35 @@
             "packages/server/test/domain/use_case/forward_case_cant_help_pg_test.dart"
           ],
           "transitionTests": [],
+          "personal": false,
+          "stateLike": false,
+          "ownDutyReminder": false
+        }
+      ]
+    },
+    {
+      "eventType": "forwardHelped",
+      "status": "supported",
+      "variants": [
+        {
+          "recipientPredicate": "reason:pathForwarder",
+          "scope": "beacon",
+          "attentionClass": "optional",
+          "placement": "primary",
+          "groupKey": "beaconId",
+          "orderingEffect": "stable",
+          "accessPolicy": "beacon_content",
+          "recoverableVia": "request_timeline",
+          "clearPolicy": "explicit_or_request_open",
+          "selfAuthored": false,
+          "headlineTreatment": "beacon",
+          "coalescible": true,
+          "producerTests": [
+            "packages/server/test/domain/use_case/forward_helped_updates_pg_test.dart"
+          ],
+          "transitionTests": [
+            "packages/server/test/domain/use_case/forward_helped_updates_pg_test.dart"
+          ],
           "personal": false,
           "stateLike": false,
           "ownDutyReminder": false
