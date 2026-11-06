@@ -47,10 +47,12 @@ BrowseDeepLinkStack? buildBrowseDeepLinkStack(Uri input) {
     );
   }
 
-  final beaconMatch = RegExp(
-    '^${RegExp.escape(kPathBeaconView)}/([^/]+)(?:/thread/([^/]+))?\$',
-  ).firstMatch(path);
-  if (beaconMatch != null) {
+  final detailPrefixes = [kPathBeaconView, kPathPostView];
+  for (final prefix in detailPrefixes) {
+    final beaconMatch = RegExp(
+      '^${RegExp.escape(prefix)}/([^/]+)(?:/thread/([^/]+))?\$',
+    ).firstMatch(path);
+    if (beaconMatch == null) continue;
     final beaconId = beaconMatch.group(1)!;
     final pathThreadId = beaconMatch.group(2);
     final normalized = normalizeBeaconViewRouteQuery(
@@ -58,19 +60,31 @@ BrowseDeepLinkStack? buildBrowseDeepLinkStack(Uri input) {
       incomingQuery: uri.queryParameters,
     );
     final q = normalized.queryParameters;
-    return (
-      owner: HomeTab.work,
-      route: BeaconViewRoute(
-        id: beaconId,
-        isDeepLink: q[kQueryIsDeepLink],
-        viewTab: q[kQueryBeaconViewTab],
-        peopleTabAttention: q[kQueryBeaconPeopleTabAttention],
-        entry: q[kQueryBeaconEntry],
-        threadId: q[kQueryThreadId],
-        messageId: q[kQueryMessageId],
-        children: [beaconViewOperationalFromNormalized(normalized)],
-      ),
-    );
+    final operational = beaconViewOperationalFromNormalized(normalized);
+    final route =
+        (prefix == kPathPostView
+                ? PostViewRoute(
+                    id: beaconId,
+                    isDeepLink: q[kQueryIsDeepLink],
+                    viewTab: q[kQueryBeaconViewTab],
+                    peopleTabAttention: q[kQueryBeaconPeopleTabAttention],
+                    entry: q[kQueryBeaconEntry],
+                    threadId: q[kQueryThreadId],
+                    messageId: q[kQueryMessageId],
+                    children: [operational],
+                  )
+                : BeaconViewRoute(
+                    id: beaconId,
+                    isDeepLink: q[kQueryIsDeepLink],
+                    viewTab: q[kQueryBeaconViewTab],
+                    peopleTabAttention: q[kQueryBeaconPeopleTabAttention],
+                    entry: q[kQueryBeaconEntry],
+                    threadId: q[kQueryThreadId],
+                    messageId: q[kQueryMessageId],
+                    children: [operational],
+                  ))
+            as PageRouteInfo;
+    return (owner: HomeTab.work, route: route);
   }
 
   final beaconAllId = _singleId(path, kPathBeaconViewAll);
