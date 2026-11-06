@@ -37,10 +37,9 @@ class ForwardHelpedSeePathAction extends StatelessWidget {
     return TenturaTextAction(
       label: l10n.updatesForwardHelpedSeePath,
       flushStart: true,
-      onPressed: () => context.read<ScreenCubit>().showHelpOffererForwardPathFor(
+      onPressed: () => context.read<ScreenCubit>().showConstellationForwardTreeFor(
         beaconId: beaconId,
         helpOffererId: helperId,
-        helpOffererName: helperName,
       ),
     );
   }

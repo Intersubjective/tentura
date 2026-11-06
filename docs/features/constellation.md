@@ -106,7 +106,7 @@ Migrations: **m0160** (`is_discoverable`), **m0161** (symmetric visibility), **m
 - Each person's **active discoverable requests** hang off them as satellite nodes.
 - **Pinned people and requests** retain the viewer's chosen positions across sessions and devices. Pinning a person does not pin or move that person's requests; each request has its own pin.
 - **Residual ring:** mutually visible peers with no drawable path within the hop cap still appear on an outer ring with their requests — tappable, but without a drawn explanation path (D3).
-- **Forward chains are never drawn** (D5). A forwarded request belongs in Inbox, not as a discovery path. The approved membership-web exception below does not draw relay provenance.
+- **Forward chains are never drawn for discovery** (D5). The Field does not show relay provenance while you browse discoverable requests; a forwarded request still belongs in Inbox for push semantics. The membership-web exception below only draws **to/from** people already placed for that Post or Request — not a full relay tree. **Exception (#774):** participants in a Request’s forward chain can open **«Show on Field»** from Updates, closure copy, or the Request preview; the client then draws that Request’s **full forward tree** on demand (help-path edges emphasized, rest of the map dimmed like the trust-chain highlight). Nothing is discoverable from that tree and it is not shown unless explicitly requested.
 
 ### Edge vocabulary (legend)
 

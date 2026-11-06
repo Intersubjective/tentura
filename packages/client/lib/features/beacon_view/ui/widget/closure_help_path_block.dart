@@ -137,10 +137,9 @@ class _ClosureHelpPathBlockState extends State<ClosureHelpPathBlock> {
                 SizedBox(height: tt.tightGap),
                 HelpPathChainRow(
                   path: row.path,
-                  onTap: () => screenCubit.showHelpOffererForwardPathFor(
+                  onTap: () => screenCubit.showConstellationForwardTreeFor(
                     beaconId: widget.beaconId,
                     helpOffererId: row.helpOffererId,
-                    helpOffererName: row.helpOffererName,
                   ),
                 ),
               ],

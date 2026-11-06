@@ -1,6 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 import 'help_path_node.dart';
+import 'forward_recipient_offer_status.dart';
 
 part 'forward_graph.freezed.dart';
 
@@ -14,6 +15,15 @@ abstract class ForwardGraphEdge with _$ForwardGraphEdge {
     required String recipientId,
     String? parentEdgeId,
     String? batchId,
+    DateTime? createdAt,
+    DateTime? readAt,
+    bool? declinedInvite,
+    bool? forwardedOn,
+    ForwardRecipientOfferStatus? offerStatus,
+    @Default(0) int senderAnonymousCount,
+    @Default(0) int recipientAnonymousCount,
+    String? senderDisplayName,
+    String? recipientDisplayName,
   }) = _ForwardGraphEdge;
 
   const ForwardGraphEdge._();

@@ -10,6 +10,7 @@ import '../effect/ui_effect.dart';
 import '../effect/ui_effect_bus.dart';
 import '../effect/ui_effect_port.dart';
 import 'screen_state.dart';
+import 'package:tentura/features/constellation/ui/util/constellation_forward_tree_request.dart';
 
 export 'screen_state.dart';
 export 'state_base.dart';
@@ -22,7 +23,7 @@ class ScreenCubit extends Cubit<ScreenState> {
     : _effects = effects,
       super(const ScreenState());
 
-  /// Route-local bus for screens that provide their own [UiEffectHandler].
+  /// Route-local bus for screens that provide their own effect handler.
   factory ScreenCubit.local([UiEffectPort? effects]) =>
       ScreenCubit(effects ?? UiEffectBus());
 
@@ -63,6 +64,20 @@ class ScreenCubit extends Cubit<ScreenState> {
 
   void showConstellation() => _navigateTo(kPathConstellation);
 
+  /// Opens Constellation and shows the Request forward tree on the Field (#774).
+  void showConstellationForwardTreeFor({
+    required String beaconId,
+    String? helpOffererId,
+  }) {
+    ConstellationForwardTreeRequest.instance.schedulePending(
+      ConstellationForwardTreeRequestPayload(
+        beaconId: beaconId,
+        helpOffererId: helpOffererId,
+      ),
+    );
+    showConstellation();
+  }
+
   void showRating() => _navigateTo(kPathRating);
 
   void showBeaconsOf(String id) => _navigateTo('$kPathBeaconViewAll/$id');
@@ -75,8 +90,8 @@ class ScreenCubit extends Cubit<ScreenState> {
   void showPostCreate() => _navigateTo(kPathPostNew);
 
   void showBeaconCreateFor(String userId) => _navigateTo(
-    '$kPathBeaconNew?'
-    '${kQueryBeaconForwardTo}=${Uri.encodeQueryComponent(userId)}',
+    '$kPathBeaconNew?$kQueryBeaconForwardTo='
+    '${Uri.encodeQueryComponent(userId)}',
   );
 
   void showBeaconEditDraft(String id) =>
