@@ -113,7 +113,7 @@ class HomeOrientationPanel extends StatelessWidget {
                   label: l10n.myWorkEmptyActiveInboxPrimaryCta(
                     inboxNeedsMeCount,
                   ),
-                  icon: const Icon(Icons.inbox_outlined),
+                  icon: const Icon(Icons.notifications_outlined),
                   onPressed: onOpenInbox,
                 ),
                 SizedBox(height: tt.rowGap),
