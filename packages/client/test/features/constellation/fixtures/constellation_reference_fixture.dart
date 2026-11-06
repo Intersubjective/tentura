@@ -245,6 +245,7 @@ Future<FakeUiEffectPort> pumpConstellationBody(
   bool withSelectionCubit = true,
   bool touchNodeDragLocked = false,
   GraphPersonContextCubit? graphPersonContext,
+  bool arrangeV2Enabled = false,
 }) async {
   final resolvedScaler = textScaler ?? TextScaler.linear(textScale);
   await tester.binding.setSurfaceSize(size);
@@ -302,6 +303,7 @@ Future<FakeUiEffectPort> pumpConstellationBody(
                 child: ConstellationBody(
                   legendExpanded: false,
                   onToggleLegend: () {},
+                  arrangeV2Enabled: arrangeV2Enabled,
                   presentationFrameHolder: presentationFrameHolder,
                 ),
               ),

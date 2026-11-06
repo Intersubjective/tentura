@@ -55,15 +55,26 @@ final _fmtHmByLocale = <String?, DateFormat>{};
 final GlobalKey<ScaffoldMessengerState> snackbarKey =
     GlobalKey<ScaffoldMessengerState>();
 
-/// Clears snack bars when the user moves to another screen: a new route is
-/// stacked (e.g. leaving Inbox for a beacon) or a Home tab is switched (#470;
-/// AutoTabsRouter pushes no route and reports tab changes only to inherited
-/// [AutoRouterObserver]s). Per-navigator instance — do not use a singleton
-/// (nested routers).
+/// Clears transient overlays when the user moves to another screen: snack bars
+/// when a new route is stacked (e.g. leaving Inbox for a beacon) or a Home tab
+/// is switched (#470; AutoTabsRouter pushes no route and reports tab changes
+/// only to inherited [AutoRouterObserver]s), and every [Tooltip] when any
+/// navigation event hides the widget that triggered it (#1049). Per-navigator
+/// instance — do not use a singleton (nested routers).
 class ClearSnackBarsOnPushObserver extends AutoRouterObserver {
   @override
   void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
     if (previousRoute != null) _clear();
+  }
+
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    _dismissTooltipsOnly();
+  }
+
+  @override
+  void didRemove(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    _dismissTooltipsOnly();
   }
 
   @override
@@ -76,9 +87,14 @@ class ClearSnackBarsOnPushObserver extends AutoRouterObserver {
     if (previousRoute != null) _clear();
   }
 
+  /// Tooltips only: snack bars stay on pop/remove (#470 kept their behavior).
+  static void _dismissTooltipsOnly() =>
+      scheduleMicrotask(Tooltip.dismissAllToolTips);
+
   // Clear before the next pointer frame. A post-frame clear races Firefox
   // trackpad pan-zoom hit tests against SnackBar's Dismissible overlay.
   static void _clear() => scheduleMicrotask(() {
+    Tooltip.dismissAllToolTips();
     snackbarKey.currentState?.clearSnackBars();
     // #448: a pane's own messenger is not under [snackbarKey]; without this
     // its bar outlived the move and could sit beside an app-wide bar.
