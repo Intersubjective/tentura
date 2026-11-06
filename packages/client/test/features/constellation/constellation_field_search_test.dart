@@ -17,9 +17,11 @@ import 'package:tentura/features/constellation/domain/use_case/constellation_fie
 import 'package:tentura/features/constellation/domain/use_case/constellation_field_search_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_person_search.dart';
+import 'package:tentura/features/constellation/ui/widget/constellation_visibility_bar.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_request_preview_sheet.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
+import 'package:tentura/ui/utils/ui_utils.dart';
 
 import '../../support/constellation_store_fixture.dart';
 import '../../support/people_tags_widget_harness.dart';
@@ -37,8 +39,7 @@ final class _StubRepository implements ConstellationRepositoryPort {
     ConstellationFieldMembershipFilters membershipFilters =
         ConstellationFieldMembershipFilters.defaults,
     ConstellationProjection projection = ConstellationProjection.full,
-  }) async =>
-      field;
+  }) async => field;
 }
 
 final class _FakeSearchPort implements ConstellationFieldSearchPort {
@@ -65,7 +66,10 @@ final class _RecordingHidePort implements ConstellationFieldHidePort {
   final unhideCalls = <({int targetKind, String targetId})>[];
 
   @override
-  Future<void> hide({required int targetKind, required String targetId}) async {}
+  Future<void> hide({
+    required int targetKind,
+    required String targetId,
+  }) async {}
 
   @override
   Future<void> unhide({
@@ -78,8 +82,7 @@ final class _RecordingHidePort implements ConstellationFieldHidePort {
   @override
   Future<List<ConstellationFieldHiddenItem>> fetchHiddenItems({
     String? cursor,
-  }) async =>
-      const [];
+  }) async => const [];
 }
 
 final class _StubTargetedReadPort implements ConstellationTargetedReadPort {
@@ -88,14 +91,12 @@ final class _StubTargetedReadPort implements ConstellationTargetedReadPort {
     Set<String> beaconIds, {
     ConstellationFieldMembershipFilters membershipFilters =
         ConstellationFieldMembershipFilters.defaults,
-  }) async =>
-      const [];
+  }) async => const [];
 
   @override
   Future<List<ConstellationViewerRelation>> readViewerRelations(
     Set<String> personIds,
-  ) async =>
-      const [];
+  ) async => const [];
 }
 
 ConstellationField _fieldWithFilteredRequest() => ConstellationField(
@@ -132,7 +133,8 @@ Future<ConstellationCubit> _loadCubit({
     _StubRepository(field),
     accountId: 'ego',
   );
-  final resolvedHide = hideCase ??
+  final resolvedHide =
+      hideCase ??
       (hidePortForCase != null
           ? ConstellationFieldHideCase(
               hidePortForCase,
@@ -163,14 +165,18 @@ ConstellationFieldSearchCase _searchCase(_FakeSearchPort port) =>
       logger: Logger('test'),
     );
 
-Widget _app(Widget child, {Locale locale = const Locale('en')}) =>
-    MaterialApp(
-      locale: locale,
-      theme: TenturaTheme.light(),
-      localizationsDelegates: L10n.localizationsDelegates,
-      supportedLocales: L10n.supportedLocales,
-      home: TenturaResponsiveScope(child: child),
-    );
+Widget _app(
+  Widget child, {
+  Locale locale = const Locale('en'),
+  List<NavigatorObserver>? navigatorObservers,
+}) => MaterialApp(
+  locale: locale,
+  theme: TenturaTheme.light(),
+  localizationsDelegates: L10n.localizationsDelegates,
+  supportedLocales: L10n.supportedLocales,
+  navigatorObservers: navigatorObservers ?? const [],
+  home: TenturaResponsiveScope(child: child),
+);
 
 Future<List<Widget>> _suggestionsAfterQuery(
   WidgetTester tester,
@@ -190,6 +196,30 @@ Future<List<Widget>> _suggestionsAfterQuery(
 
 void main() {
   group('Field search (#255)', () {
+    test('searchField skips the port when the query is too short', () async {
+      final port = _FakeSearchPort(emptyConstellationFieldSearchResult);
+      final cubit = await _loadCubit(
+        field: _fieldWithFilteredRequest(),
+        searchCase: _searchCase(port),
+      );
+      addTearDown(cubit.close);
+
+      await cubit.searchField('a');
+      expect(port.queries, isEmpty);
+    });
+
+    test('searchField trims the query before calling the port', () async {
+      final port = _FakeSearchPort(emptyConstellationFieldSearchResult);
+      final cubit = await _loadCubit(
+        field: _fieldWithFilteredRequest(),
+        searchCase: _searchCase(port),
+      );
+      addTearDown(cubit.close);
+
+      await cubit.searchField('  move ');
+      expect(port.queries, ['move']);
+    });
+
     testWidgets('groups People, Requests and Posts in suggestions', (
       tester,
     ) async {
@@ -348,7 +378,10 @@ void main() {
       expect(cubit.isSearchTemporaryOutlineBeacon('req-hidden-filter'), isTrue);
 
       cubit.selectRequest(null);
-      expect(cubit.isSearchTemporaryOutlineBeacon('req-hidden-filter'), isFalse);
+      expect(
+        cubit.isSearchTemporaryOutlineBeacon('req-hidden-filter'),
+        isFalse,
+      );
     });
 
     testWidgets('Show again on hidden search hit calls fieldUnhide', (
@@ -411,6 +444,181 @@ void main() {
       expect(hidePort.unhideCalls.single.targetId, 'req-hidden-user');
     });
 
+    testWidgets('empty Field search query shows neutral prompt', (
+      tester,
+    ) async {
+      final cubit = await _loadCubit(
+        field: _fieldWithFilteredRequest(),
+        searchCase: _searchCase(
+          _FakeSearchPort(emptyConstellationFieldSearchResult),
+        ),
+      );
+      addTearDown(cubit.close);
+
+      await tester.pumpPeopleTagsWidget(
+        _app(
+          BlocProvider.value(
+            value: cubit,
+            child: const Scaffold(body: ConstellationPersonSearchButton()),
+          ),
+        ),
+      );
+
+      final anchor = tester.widget<SearchAnchor>(find.byType(SearchAnchor));
+      final anchorContext = tester.element(find.byType(SearchAnchor));
+      final controller = SearchController();
+      addTearDown(controller.dispose);
+      controller.text = '';
+      final widgets = await anchor.suggestionsBuilder(
+        anchorContext,
+        controller,
+      );
+      await tester.pumpPeopleTagsWidget(
+        _app(Scaffold(body: ListView(children: widgets.toList()))),
+      );
+
+      expect(
+        find.byKey(const Key('constellation.field_search.prompt')),
+        findsOneWidget,
+      );
+      expect(find.text('Start typing to search your Field.'), findsOneWidget);
+    });
+
+    testWidgets(
+      'whitespace-only Field search query shows neutral prompt (RU, phone)',
+      (tester) async {
+        await usePhoneSurface(tester);
+        final cubit = await _loadCubit(
+          field: _fieldWithFilteredRequest(),
+          searchCase: _searchCase(
+            _FakeSearchPort(emptyConstellationFieldSearchResult),
+          ),
+        );
+        addTearDown(cubit.close);
+
+        await tester.pumpPeopleTagsWidget(
+          _app(
+            BlocProvider.value(
+              value: cubit,
+              child: const Scaffold(body: ConstellationPersonSearchButton()),
+            ),
+            locale: const Locale('ru'),
+          ),
+        );
+
+        final anchor = tester.widget<SearchAnchor>(find.byType(SearchAnchor));
+        final anchorContext = tester.element(find.byType(SearchAnchor));
+        final controller = SearchController();
+        addTearDown(controller.dispose);
+        controller.text = '   ';
+        final widgets = await anchor.suggestionsBuilder(
+          anchorContext,
+          controller,
+        );
+        await tester.pumpPeopleTagsWidget(
+          _app(
+            Scaffold(body: ListView(children: widgets.toList())),
+            locale: const Locale('ru'),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(tester.takeException(), isNull);
+        expect(
+          find.text(
+            'Начните вводить текст, чтобы искать по «Полю».',
+          ),
+          findsOneWidget,
+        );
+      },
+    );
+
+    testWidgets(
+      'one-character query shows minimum-length hint instead of spinner',
+      (tester) async {
+        final cubit = await _loadCubit(
+          field: _fieldWithFilteredRequest(),
+          searchCase: _searchCase(
+            _FakeSearchPort(emptyConstellationFieldSearchResult),
+          ),
+        );
+        addTearDown(cubit.close);
+
+        await tester.pumpPeopleTagsWidget(
+          _app(
+            BlocProvider.value(
+              value: cubit,
+              child: const Scaffold(body: ConstellationPersonSearchButton()),
+            ),
+          ),
+        );
+
+        final anchor = tester.widget<SearchAnchor>(find.byType(SearchAnchor));
+        final anchorContext = tester.element(find.byType(SearchAnchor));
+        final controller = SearchController();
+        addTearDown(controller.dispose);
+        controller.text = 'a';
+        final widgets = await anchor.suggestionsBuilder(
+          anchorContext,
+          controller,
+        );
+        await tester.pumpPeopleTagsWidget(
+          _app(Scaffold(body: ListView(children: widgets.toList()))),
+        );
+
+        expect(
+          find.byKey(const Key('constellation.field_search.short_query')),
+          findsOneWidget,
+        );
+        expect(find.byType(TenturaCircularProgress), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'server returns only the viewer — show self-only message (#1046)',
+      (tester) async {
+        final port = _FakeSearchPort(
+          const ConstellationFieldSearchResult(
+            people: [
+              ConstellationFieldSearchPersonHit(
+                id: 'ego',
+                displayName: 'Bob Q1106',
+              ),
+            ],
+          ),
+        );
+        final cubit = await _loadCubit(
+          field: _fieldWithFilteredRequest(),
+          searchCase: _searchCase(port),
+        );
+        addTearDown(cubit.close);
+
+        await tester.pumpPeopleTagsWidget(
+          _app(
+            BlocProvider.value(
+              value: cubit,
+              child: const Scaffold(body: ConstellationPersonSearchButton()),
+            ),
+          ),
+        );
+
+        final controller = SearchController();
+        addTearDown(controller.dispose);
+        final widgets = await _suggestionsAfterQuery(tester, controller, 'bo');
+        await tester.pumpPeopleTagsWidget(
+          _app(Scaffold(body: ListView(children: widgets))),
+        );
+
+        expect(port.queries, ['bo']);
+        expect(
+          find.text(
+            'Only your profile matches — others on the Field are listed on the map.',
+          ),
+          findsOneWidget,
+        );
+      },
+    );
+
     testWidgets('RU 375×667 search suggestions do not overflow', (
       tester,
     ) async {
@@ -459,5 +667,79 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(find.textContaining('коробок'), findsOneWidget);
     });
+
+    testWidgets(
+      '#1049 Field search overlay pop clears second-degree chip tooltip (RU phone)',
+      (tester) async {
+        await usePhoneSurface(tester);
+        final l10nRu = lookupL10n(const Locale('ru'));
+        final degreeHint = l10nRu.constellationShowDegreeSecondHint;
+        final port = _FakeSearchPort(
+          const ConstellationFieldSearchResult(
+            people: [
+              ConstellationFieldSearchPersonHit(id: 'am', displayName: 'Alex'),
+            ],
+          ),
+        );
+        final cubit = await _loadCubit(
+          field: _fieldWithFilteredRequest(),
+          searchCase: _searchCase(port),
+        );
+        addTearDown(cubit.close);
+
+        await tester.pumpPeopleTagsWidget(
+          _app(
+            BlocProvider.value(
+              value: cubit,
+              child: const Scaffold(
+                body: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    ConstellationVisibilityBar(),
+                    Expanded(child: ConstellationPersonSearchButton()),
+                  ],
+                ),
+              ),
+            ),
+            locale: const Locale('ru'),
+            navigatorObservers: [ClearSnackBarsOnPushObserver()],
+          ),
+        );
+
+        final degreeChip = find.byKey(
+          const Key('constellation.show.degree.second'),
+        );
+        await tester.scrollUntilVisible(
+          degreeChip,
+          16,
+          scrollable: find.descendant(
+            of: find.byKey(const Key('constellation.show')),
+            matching: find.byType(Scrollable),
+          ),
+        );
+        await tester.longPress(degreeChip);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 500));
+        expect(find.text(degreeHint), findsWidgets);
+
+        await tester.tap(find.byKey(const Key('constellation.app_bar.search')));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 500));
+
+        await tester.enterText(find.byType(TextField).last, 'al');
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 400));
+        await tester.pump();
+
+        final back = find.byIcon(Icons.arrow_back);
+        expect(back, findsOneWidget);
+        await tester.tap(back);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 500));
+
+        expect(find.text(degreeHint), findsNothing);
+        expect(tester.takeException(), isNull);
+      },
+    );
   });
 }

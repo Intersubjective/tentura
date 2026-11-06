@@ -46,10 +46,10 @@ List<HomeNavDestinationData> homeNavDestinations(
       HomeTab.inbox => (
         icon: badged
             ? const InboxNavbarItem()
-            : const Icon(Icons.inbox_outlined),
+            : const Icon(Icons.notifications_outlined),
         selectedIcon: badged
             ? const InboxNavbarItem(selected: true)
-            : const Icon(Icons.inbox),
+            : const Icon(Icons.notifications),
         label: l10n.inbox,
       ),
       HomeTab.constellation => (

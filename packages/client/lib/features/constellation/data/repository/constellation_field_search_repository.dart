@@ -30,7 +30,7 @@ final class ConstellationFieldSearchRepository
               ..context = context,
           ),
         )
-        .firstWhere((response) => response.dataSource == DataSource.Link)
+        .firstLinkResponse(label: 'FieldSearch')
         .then(
           (response) => response.dataOrThrow(label: 'FieldSearch').fieldSearch,
         );
