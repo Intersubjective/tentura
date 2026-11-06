@@ -380,8 +380,11 @@ class _UpdatesFeedPaneState extends State<UpdatesFeedPane>
     // #736: on Unread the dots mark what the view's count counts.
     final unreadView =
         context.read<UpdatesFeedCubit>().state.view == AttentionView.unread;
-    final viewerUserId = context.read<ProfileCubit>().state.profile.id;
     if (isForwardHelpedPresentationKey(receipt.presentationKey)) {
+      // Widget tests often omit [ProfileCubit]; only forward-helped needs it.
+      final viewerUserId = GetIt.I.isRegistered<ProfileCubit>()
+          ? GetIt.I<ProfileCubit>().state.profile.id
+          : null;
       return UpdatesReceiptCard(
         key: ValueKey(receipt.id),
         receipt: receipt,
