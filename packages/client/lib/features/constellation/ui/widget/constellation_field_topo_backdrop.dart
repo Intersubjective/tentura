@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_field_backdrop_colors.dart';
 
 import '../../domain/utils/field_topo_contours.dart';
@@ -25,9 +26,10 @@ class ConstellationFieldTopoBackdrop extends StatefulWidget {
     super.key,
   });
 
-  /// Off in widget tests (`test/flutter_test_config.dart`), so golden and
-  /// layout tests stay as they were; a dedicated test turns it on.
-  static bool enabled = true;
+  /// Off in widget tests (`test/flutter_test_config.dart`) and in
+  /// integration runs ([kQaIntegrationTestMode]), so golden, layout and e2e
+  /// tests stay as they were; a dedicated test turns it on.
+  static bool enabled = !kQaIntegrationTestMode;
 
   /// Key of the backdrop's [CustomPaint].
   static const backdropKey = ValueKey('constellation-field-topo-backdrop');
