@@ -9748,9 +9748,9 @@
   "@trustWidensReachHint": {
     "description": "One truthful sentence on trust and visibility under the recipient picker / Field empty states (#252, D6). No fixed-hop promise."
   },
-  "emptyInviteSomeoneAction": "Invite someone you know",
+  "emptyInviteSomeoneAction": "Invite someone you trust",
   "@emptyInviteSomeoneAction": {
-    "description": "Invite CTA on the recipient picker / Field empty states (#252)."
+    "description": "Invite CTA on the recipient picker / Field empty states (#252, #1050). Same verb as People → Invitations."
   },
   "forwardSearchNoMatches": "No one found",
   "@forwardSearchNoMatches": {

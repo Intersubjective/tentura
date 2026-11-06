@@ -8,7 +8,6 @@ import 'package:tentura/features/constellation/domain/entity/constellation_field
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
 import 'package:tentura/features/constellation/domain/use_case/constellation_field_store_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
-import 'package:tentura/features/constellation/ui/bloc/constellation_selection_cubit.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_presence_cubit.dart';
 import 'package:tentura/features/constellation/ui/utils/constellation_tap_resolver.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
@@ -183,7 +182,9 @@ Future<ConstellationCubit> loadReferenceCubit({
   return cubit;
 }
 
-class _StubContextCubit extends Cubit<GraphPersonContextState>
+/// Minimal [GraphPersonContextCubit] for Field body widget tests.
+final class FieldBodyTestGraphPersonContextCubit
+    extends Cubit<GraphPersonContextState>
     implements GraphPersonContextCubit {
   @override
   Stream<LazyWriteNotice> get lazyWriteNotices => const Stream.empty();
@@ -191,7 +192,8 @@ class _StubContextCubit extends Cubit<GraphPersonContextState>
   @override
   Future<void> retryTrust([GraphTrustRevert? revert]) async {}
 
-  _StubContextCubit() : super(const GraphPersonContextState());
+  FieldBodyTestGraphPersonContextCubit()
+    : super(const GraphPersonContextState());
 
   @override
   final void Function(Profile profile)? onProfilePatched = null;
@@ -286,7 +288,7 @@ Future<FakeUiEffectPort> pumpConstellationBody(
                   )
                 else
                   BlocProvider<GraphPersonContextCubit>(
-                    create: (_) => _StubContextCubit(),
+                    create: (_) => FieldBodyTestGraphPersonContextCubit(),
                   ),
                 BlocProvider<ScreenCubit>(
                   create: (_) => ScreenCubit(fx),
