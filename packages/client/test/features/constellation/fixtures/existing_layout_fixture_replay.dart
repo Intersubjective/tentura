@@ -47,6 +47,9 @@ const existingLayoutFixtureFiles = {
         in fixtureDirectory.listSync(recursive: true).whereType<File>())
       if (file.path.endsWith('_test.dart') &&
           !file.path.endsWith('/constellation_layout_job_test.dart') &&
+          !file.path.endsWith(
+            '/constellation_rearrange_preview_tag_members_test.dart',
+          ) &&
           RegExp(
             r'\bcomputeConstellationPlacedLayout\s*\(',
           ).hasMatch(file.readAsStringSync()))
