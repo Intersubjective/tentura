@@ -586,19 +586,21 @@ class _MembersLine extends StatelessWidget {
     if (who.isEmpty || lifetime.isEmpty) {
       return Text(
         who.isEmpty ? lifetime : who,
-        maxLines: wrapMemberAndLifetime ? 2 : 1,
+        maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: style,
       );
     }
     if (wrapMemberAndLifetime) {
+      // One line for «author · members», lifetime on the next — a second line
+      // for `who` plus `lifetime` overflows the compact app bar title slot.
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
             who,
-            maxLines: 2,
+            maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: style,
           ),
