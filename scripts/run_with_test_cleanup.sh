@@ -11,7 +11,7 @@
 # session, watches the wrapper PID, then kills tagged descendants and
 # drops unreferenced /tmp/flutter_tools.* and /tmp/dart_test.kernel.*,
 # and stale disposable `tentura_test_*` Postgres databases
-# (those sit on the 31GiB tmpfs and count as RAM).
+# (in `postgres-test` those sit on its tmpfs and count as RAM).
 #
 # Preserves: `flutter run` web compilers (`--target=dartdevc`),
 # tentura-server, Serena language-server, Chrome, Cursor.
@@ -80,6 +80,19 @@ elif [[ -z "${TMPDIR+x}" ]]; then
   mkdir -p "$TMPDIR"
 fi
 STATE_ROOT="${TMPDIR:-/tmp}/tentura-test-cleanup"
+
+# Postgres under test: the RAM-backed `postgres-test` container
+# (compose.dev.yaml, 127.0.0.1:5433) whenever it runs. pg suites clone and
+# migrate a database per test; against the persistent `postgres` that wrote
+# ~230 GB/day to the SSD (2026-11). Applies only when the caller named no
+# target: perf scripts that set POSTGRES_HOST/PORT/DBNAME (tentura_perfsynth
+# and its copies live in `postgres`) keep theirs. TENTURA_TEST_PG=shared
+# opts out. Nested wrapped runs inherit the choice through the environment.
+if [[ -z "${CI:-}" && "${TENTURA_TEST_PG:-}" != shared &&
+      -z "${POSTGRES_HOST:-}${POSTGRES_PORT:-}${POSTGRES_DBNAME:-}" ]] &&
+   [[ "$(docker inspect -f '{{.State.Running}}' postgres-test 2>/dev/null)" == true ]]; then
+  export POSTGRES_HOST=127.0.0.1 POSTGRES_PORT=5433
+fi
 DEFAULT_TIMEOUT="45m"
 KILL_AFTER="15s"
 
@@ -369,7 +382,15 @@ PG_GC_MIN_AGE_MIN="${PG_GC_MIN_AGE_MIN:-120}"
 
 sweep_pg_databases() {
   command -v docker >/dev/null 2>&1 || return 0
-  docker ps --format '{{.Names}}' 2>/dev/null | grep -qx postgres || return 0
+  local container
+  for container in postgres postgres-test; do
+    docker ps --format '{{.Names}}' 2>/dev/null | grep -qx "$container" || continue
+    PG_GC_CONTAINER="$container" sweep_pg_databases_in || true
+  done
+  return 0
+}
+
+sweep_pg_databases_in() {
 
   local keep_tpl
   keep_tpl="$(pg_gc_psql "SELECT datname FROM pg_database
@@ -396,13 +417,13 @@ sweep_pg_databases() {
       && dropped=$((dropped + 1))
   done <<<"$victims"
 
-  [[ "$dropped" -gt 0 ]] && log "dropped $dropped stale tentura_test_* database(s)"
-  [[ -n "${keep_tpl:-}" ]] && log "kept schema template(s): $(echo "$keep_tpl" | tr '\n' ' ')"
+  [[ "$dropped" -gt 0 ]] && log "$PG_GC_CONTAINER: dropped $dropped stale tentura_test_* database(s)"
+  [[ -n "${keep_tpl:-}" ]] && log "$PG_GC_CONTAINER: kept schema template(s): $(echo "$keep_tpl" | tr '\n' ' ')"
   return 0
 }
 
 pg_gc_psql() {
-  docker exec postgres psql -U postgres -d postgres -tAc "$1" 2>/dev/null
+  docker exec "${PG_GC_CONTAINER:-postgres}" psql -U postgres -d postgres -tAc "$1" 2>/dev/null
 }
 
 

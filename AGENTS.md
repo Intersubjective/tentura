@@ -90,6 +90,10 @@ cd packages/client && ../../scripts/run_with_test_cleanup.sh --timeout 45m -- \
   flutter test --dart-define=ENV=test --dart-define-from-file=env/test.env
 cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- \
   dart test --exclude-tags pg
+# Wrapped runs put their disposable databases in the RAM-backed
+# `postgres-test` container (127.0.0.1:5433, `docker compose up -d
+# postgres-test`) whenever it is up and the caller set no POSTGRES_HOST/
+# PORT/DBNAME; TENTURA_TEST_PG=shared keeps them in `postgres` (SSD).
 # Postgres tests run in two steps. The `mr` ones also reach the MeritRank
 # service, which is a single shared container every disposable database talks
 # to, so they must not run in parallel with each other. The D8 load suite
