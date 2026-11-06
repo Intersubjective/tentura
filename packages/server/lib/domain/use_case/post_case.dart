@@ -96,7 +96,7 @@ class PostCase {
       authorId: authorId,
       beaconId: beaconId,
     );
-    final existing = _publishedResult(post);
+    final existing = await _publishedResult(post);
     if (existing != null) return existing;
     if (lifetimeHours != null &&
         (lifetimeHours < BeaconPostLifetime.minHours ||
@@ -159,7 +159,7 @@ class PostCase {
           authorId: authorId,
           beaconId: beaconId,
         );
-        final existing = _publishedResult(current);
+        final existing = await _publishedResult(current);
         if (existing != null) return existing;
         if (current.status != BeaconStatus.open) {
           throw const PostNotOpenException();
@@ -191,9 +191,11 @@ class PostCase {
           messageId: rootMessageId,
         );
         createdMessage = true;
+        final expiresAt = await _beaconRepository.postExpiresAt(beaconId);
         return PostPublishResult(
           beaconId: beaconId,
           rootMessageId: rootMessageId,
+          expiresAt: expiresAt,
         );
       },
     );
@@ -223,10 +225,15 @@ class PostCase {
     return beacon;
   }
 
-  PostPublishResult? _publishedResult(BeaconEntity beacon) {
+  Future<PostPublishResult?> _publishedResult(BeaconEntity beacon) async {
     final root = beacon.postRootMessageId;
     if (beacon.status != BeaconStatus.open || root == null) return null;
-    return PostPublishResult(beaconId: beacon.id, rootMessageId: root);
+    final expiresAt = await _beaconRepository.postExpiresAt(beacon.id);
+    return PostPublishResult(
+      beaconId: beacon.id,
+      rootMessageId: root,
+      expiresAt: expiresAt,
+    );
   }
 
   /// The author ends the open Post early: [expiresAt] must be after now and
