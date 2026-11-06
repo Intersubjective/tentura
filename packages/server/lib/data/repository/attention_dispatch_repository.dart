@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:injectable/injectable.dart';
 import 'package:logging/logging.dart';
 import 'package:meta/meta.dart';
+import 'package:tentura_server/domain/entity/forward_helped_content.dart';
 
 import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/attention/attention_policy.dart';
@@ -230,7 +231,7 @@ DO UPDATE SET title = EXCLUDED.title, body = EXCLUDED.body,
   presentation_payload = EXCLUDED.presentation_payload,
   collapsed_count = EXCLUDED.collapsed_count,
   seen_at = NULL, cleared_at = NULL, clear_reason = NULL,
-  cleared_by_operation_id = NULL
+  cleared_by_operation_id = NULL, emailed_at = NULL
 '''
         : '';
     final inserted = await _database
@@ -381,6 +382,9 @@ RETURNING id, account_id
                 coordinationItemId: intent.coordinationItemId,
                 beaconKind: intent.beaconKind,
                 actorDisplayName: intent.actorDisplayName,
+                forwardHelped: ForwardHelpedContent.fromPayload(
+                  receipts[i].projection.presentationPayload,
+                ),
               ),
             ),
           },
@@ -535,5 +539,7 @@ WHERE target.job_id IS NULL''',
     'coordinationItemId': decision.coordinationItemId,
     'beaconKind': decision.beaconKind.name,
     'actorDisplayName': decision.actorDisplayName,
+    if (decision.forwardHelped case final helped?)
+      'presentationPayload': helped.toPayload(),
   };
 }

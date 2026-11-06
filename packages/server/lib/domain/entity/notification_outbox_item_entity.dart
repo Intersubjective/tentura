@@ -1,6 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 import 'notification_category.dart';
+import 'forward_helped_content.dart';
 import 'digest_post_content.dart';
 import 'notification_kind.dart';
 import 'notification_priority.dart';
@@ -25,6 +26,7 @@ abstract class NotificationOutboxItemEntity
     required int collapsedCount,
     String? beaconId,
     DigestPostContent? digestPost,
+    ForwardHelpedContent? forwardHelped,
     String? coordinationItemId,
     String? actorUserId,
     @Default('') String actorDisplayName,

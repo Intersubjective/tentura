@@ -117,20 +117,27 @@ class EmailDigestCase {
   ) {
     final headings = _copyBuilder.digestHeadings(locale);
     EmailNotificationItem toItem(NotificationOutboxItemEntity i) {
-      final copy = _copyBuilder.localizeStored(
-        intent: BeaconNotificationIntent(
-          kind: i.kind,
-          priority: i.priority,
-          beaconId: i.beaconId ?? '',
-          actorUserId: i.actorUserId ?? '',
-          coordinationItemId: i.coordinationItemId,
+      final copy = switch (i.forwardHelped) {
+        final helped? => _copyBuilder.forwardHelped(
+          content: helped,
+          locale: locale,
+          actionUrl: i.actionUrl,
         ),
-        title: i.title,
-        body: i.body,
-        actionUrl: i.actionUrl,
-        locale: locale,
-        actorDisplayName: i.actorDisplayName,
-      );
+        null => _copyBuilder.localizeStored(
+          intent: BeaconNotificationIntent(
+            kind: i.kind,
+            priority: i.priority,
+            beaconId: i.beaconId ?? '',
+            actorUserId: i.actorUserId ?? '',
+            coordinationItemId: i.coordinationItemId,
+          ),
+          title: i.title,
+          body: i.body,
+          actionUrl: i.actionUrl,
+          locale: locale,
+          actorDisplayName: i.actorDisplayName,
+        ),
+      };
       return EmailNotificationItem(
         title: copy.title,
         body: copy.body,

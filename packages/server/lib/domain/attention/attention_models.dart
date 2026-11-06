@@ -1,4 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:tentura_server/domain/entity/forward_helped_content.dart';
 
 import 'package:tentura_server/domain/entity/help_path_node.dart';
 
@@ -522,6 +523,8 @@ abstract class AttentionChannelDecision with _$AttentionChannelDecision {
     String? beaconId,
     String? coordinationItemId,
     @Default(BeaconKind.request) BeaconKind beaconKind,
+
+    ForwardHelpedContent? forwardHelped,
 
     /// The actor name the stored copy was built with (#367).
     String? actorDisplayName,

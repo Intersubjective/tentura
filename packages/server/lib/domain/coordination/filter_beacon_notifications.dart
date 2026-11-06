@@ -31,6 +31,7 @@ Future<List<NotificationOutboxItemEntity>> filterBeaconNotifications({
       out.add(
         item.copyWith(
           digestPost: null,
+          forwardHelped: null,
           title: kBeaconUnavailableNotificationTitle,
           body: kBeaconUnavailableNotificationBody,
         ),

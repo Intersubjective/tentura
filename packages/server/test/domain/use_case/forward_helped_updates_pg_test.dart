@@ -3,6 +3,29 @@ library;
 
 import 'dart:convert';
 
+import 'package:logging/logging.dart';
+import 'package:mockito/mockito.dart';
+import 'package:uuid/uuid.dart';
+import 'package:tentura_server/data/repository/attention_channel_delivery_repository.dart';
+import 'package:tentura_server/data/repository/notification_preference_repository.dart';
+import 'package:tentura_server/data/repository/notification_outbox_repository.dart';
+import 'package:tentura_server/data/service/beacon_notification_service.dart';
+import 'package:tentura_server/data/service/fcm_batch_queue.dart';
+import 'package:tentura_server/data/service/email/email_link_builder.dart';
+import 'package:tentura_server/data/service/email/templates/email_template_renderer.dart';
+import 'package:tentura_server/domain/entity/email_notification_content.dart';
+import 'package:tentura_server/domain/entity/fcm_message_entity.dart';
+import 'package:tentura_server/domain/entity/fcm_token_entity.dart';
+import 'package:tentura_server/domain/entity/notification_kind.dart';
+import 'package:tentura_server/domain/entity/notification_category.dart';
+import 'package:tentura_server/domain/port/email_notification_port.dart';
+import 'package:tentura_server/domain/port/email_sender_port.dart';
+import 'package:tentura_server/domain/port/fcm_remote_repository_port.dart';
+import 'package:tentura_server/domain/port/fcm_token_repository_port.dart';
+import 'package:tentura_server/domain/port/verified_contact_repository_port.dart';
+import 'package:tentura_server/domain/port/beacon_access_guard.dart';
+import 'package:tentura_server/domain/use_case/email_digest_case.dart';
+import 'package:tentura_server/domain/use_case/notification_preference_case.dart';
 import 'package:injectable/injectable.dart' show Environment;
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
@@ -127,7 +150,7 @@ VALUES (@id, @beacon, @sender, @recipient, @parent,
       },
     );
 
-    setUp(() async {
+    Future<void> seedForwardingRoute() async {
       await writer.execute('''
 TRUNCATE public.trust_evidence, public.notification_outbox,
   public.attention_occurrence_recipient, public.attention_occurrence,
@@ -185,7 +208,9 @@ VALUES (@id, @author, @title, 'Moving day', @status)
         hoursAgo: 2,
         cancelled: true,
       );
-    });
+    }
+
+    setUp(seedForwardingRoute);
 
     Future<void> accept(String helper) async {
       await offers.offerHelp(beaconId: _beacon, userId: helper);
@@ -258,6 +283,474 @@ ORDER BY id
       expect(epoch!.status, ClosureEpochStatus.finalized);
       expect(epoch.finalizedAt, isNotNull);
     }
+
+    group('forward help channel delivery', () {
+      late NotificationPreferenceRepository preferences;
+      late AttentionChannelDeliveryRepository deliveries;
+      late _ForwardPushRemote remote;
+      late FcmBatchQueue queue;
+      late BeaconNotificationService channels;
+      late DateTime claimAt;
+
+      setUp(() {
+        preferences = NotificationPreferenceRepository(database);
+        deliveries = AttentionChannelDeliveryRepository(database);
+        remote = _ForwardPushRemote();
+        final logger = Logger('ForwardHelpChannels');
+        queue = FcmBatchQueue(remote, logger);
+        channels = BeaconNotificationService(
+          queue,
+          _ForwardTokens(),
+          remote,
+          preferences,
+          _NoImmediateEmail(),
+          logger,
+        );
+        claimAt = DateTime.timestamp().add(const Duration(days: 1));
+      });
+      tearDown(() => queue.dispose());
+
+      Future<void> setPreferences(String account, String locale) async {
+        await NotificationPreferenceCase(preferences).update(
+          accountId: account,
+          locale: locale,
+        );
+      }
+
+      // Identify the category from the same Activity response its recipient
+      // reads, then restore the fixture so preferences precede the tested event.
+      // This permits either an existing category or a new default-on category.
+      Future<NotificationCategory> identifyHelpCategory() async {
+        await accept(_helper);
+        final item = await helpedUpdate(_first);
+        final name = item['category'];
+        expect(
+          name,
+          isA<String>(),
+          reason: 'the update exposes its settings category',
+        );
+        final category = notificationCategoryFromName(name! as String);
+        expect(
+          category,
+          isNotNull,
+          reason: 'the category is recognized by notification settings',
+        );
+        await seedForwardingRoute();
+        return category!;
+      }
+
+      Future<void> setCategoryChannels({
+        required String account,
+        required NotificationCategory category,
+        required bool push,
+        required bool email,
+        bool onlyMatchingCategory = false,
+      }) async {
+        final settings = NotificationPreferenceCase(preferences);
+        final current = await settings.getForAccount(account);
+        final nextPush = onlyMatchingCategory
+            ? (push ? {category} : <NotificationCategory>{})
+            : (push
+                  ? current.pushCategories.union({category})
+                  : current.pushCategories.difference({category}));
+        final nextEmail = onlyMatchingCategory
+            ? (email ? {category} : <NotificationCategory>{})
+            : (email
+                  ? current.emailCategories.union({category})
+                  : current.emailCategories.difference({category}));
+        await settings.update(
+          accountId: account,
+          pushCategories: [for (final value in nextPush) value.name],
+          emailCategories: [for (final value in nextEmail) value.name],
+        );
+        final persisted = await settings.getForAccount(account);
+        expect(persisted.pushCategories, nextPush);
+        expect(persisted.emailCategories, nextEmail);
+      }
+
+      // Real dispatch jobs are claimed and delivered as in the worker. Only
+      // device tokens and the remote FCM endpoint are replaced.
+      Future<void> deliver() async {
+        for (var round = 0; round < 10; round++) {
+          final jobs = await deliveries.claimDue(
+            workerId: 'forward-help-channels',
+            now: claimAt,
+            limit: 50,
+          );
+          claimAt = claimAt.add(const Duration(minutes: 5));
+          if (jobs.isEmpty) break;
+          await channels.handOffChannels([
+            for (final job in jobs) job.decision,
+          ]);
+          for (final job in jobs) {
+            await deliveries.markDelivered(
+              id: job.id,
+              workerId: 'forward-help-channels',
+            );
+          }
+        }
+        // The production queue flushes once a second, including the negative
+        // control where no message is expected.
+        await Future<void>.delayed(const Duration(milliseconds: 1200));
+      }
+
+      List<FcmNotificationEntity> pushes(String account) => [
+        for (final sent in remote.sent)
+          if (sent.tokens.contains('token-$account')) sent.message,
+      ];
+
+      void expectAcceptedCopy(String text, String locale) {
+        expect(text, contains(_title));
+        for (final name in _names.values.take(4)) {
+          expect(
+            text,
+            contains(name),
+            reason: 'the canonical help path is named',
+          );
+        }
+        if (locale == 'ru') {
+          expect(text.toLowerCase(), contains('помог'));
+          expect(text.toLowerCase(), contains('предлож'));
+          expect(text, isNot(contains('offered help with')));
+        } else {
+          expect(text, contains('Your forward helped'));
+          expect(text, contains('offered help with «$_title»'));
+        }
+      }
+
+      Future<_ForwardDigestSender> digest() async {
+        final sender = _ForwardDigestSender();
+        final env = getIt<Env>();
+        final now = DateTime.timestamp().toUtc();
+        final due = DateTime.utc(
+          now.year,
+          now.month,
+          now.day + 2,
+          env.emailDigestHour,
+        );
+        await EmailDigestCase(
+          preferences,
+          NotificationOutboxRepository(database),
+          _ForwardContacts(),
+          sender,
+          EmailLinkBuilder(env),
+          env,
+          Logger('ForwardHelpDigest'),
+          getIt<BeaconAccessGuard>(),
+        ).runDue(now: due);
+        return sender;
+      }
+
+      test(
+        'the help update category is enabled by default for push and email',
+        () async {
+          final category = await identifyHelpCategory();
+          // There is no saved preference row after restoring this fresh account.
+          final defaults = await NotificationPreferenceCase(
+            preferences,
+          ).getForAccount(_first);
+          expect(defaults.pushCategories, contains(category));
+          expect(defaults.emailCategories, contains(category));
+          await accept(_helper);
+          expect((await helpedUpdate(_first))['category'], category.name);
+          await deliver();
+          expect(pushes(_first), hasLength(1));
+          expectAcceptedCopy(
+            '${pushes(_first).single.title} ${pushes(_first).single.body}',
+            'en',
+          );
+          final sender = await digest();
+          final messages = sender.sent
+              .where((m) => m.to == '$_first@example.com')
+              .toList();
+          expect(messages, hasLength(1));
+          expectAcceptedCopy(messages.single.rendered.text, 'en');
+        },
+      );
+
+      for (final locale in ['en', 'ru']) {
+        test(
+          'accepted help sends one localized push to the forwarder in $locale',
+          () async {
+            await setPreferences(_first, locale);
+            await accept(_helper);
+            expect(await receipts(_first), hasLength(1));
+            await deliver();
+            expect(pushes(_first), hasLength(1));
+            final message = pushes(_first).single;
+            expectAcceptedCopy('${message.title} ${message.body}', locale);
+            expect(message.actionUrl, contains(_beacon));
+            await deliver();
+            expect(
+              pushes(_first),
+              hasLength(1),
+              reason: 'worker polling must not repeat the push',
+            );
+          },
+        );
+
+        test(
+          'the next digest includes accepted help in the forwarder locale $locale',
+          () async {
+            await setPreferences(_first, locale);
+            await accept(_helper);
+            final sender = await digest();
+            final messages = sender.sent
+                .where((m) => m.to == '$_first@example.com')
+                .toList();
+            expect(messages, hasLength(1));
+            expect(messages.single.locale, locale);
+            expectAcceptedCopy(messages.single.rendered.text, locale);
+            expect(messages.single.rendered.html, contains(_title));
+            final again = await digest();
+            expect(
+              again.sent.where((m) => m.to == '$_first@example.com'),
+              isEmpty,
+            );
+          },
+        );
+
+        test(
+          'a completed request returns in the next digest with localized helper credit in $locale',
+          () async {
+            await setPreferences(_first, locale);
+            await accept(_helper);
+            final accepted = await digest();
+            expect(
+              accepted.sent.where((m) => m.to == '$_first@example.com'),
+              hasLength(1),
+            );
+            await finalize();
+            final completed = await digest();
+            final messages = completed.sent
+                .where((m) => m.to == '$_first@example.com')
+                .toList();
+            expect(
+              messages,
+              hasLength(1),
+              reason:
+                  'completion is new digest activity after the acceptance was emailed',
+            );
+            final text = messages.single.rendered.text;
+            expect(messages.single.locale, locale);
+            expect(text, contains(_title));
+            expect(text, contains(_names[_helper]));
+            if (locale == 'ru') {
+              expect(text.toLowerCase(), contains('заверш'));
+              expect(text.toLowerCase(), contains('помощ'));
+              expect(text, isNot(contains('was completed with')));
+            } else {
+              expect(
+                text,
+                contains(
+                  "«$_title» was completed with ${_names[_helper]}'s help",
+                ),
+              );
+            }
+            final again = await digest();
+            expect(
+              again.sent.where((m) => m.to == '$_first@example.com'),
+              isEmpty,
+            );
+          },
+        );
+
+        test(
+          'completion sends one fresh localized push after acceptance in $locale',
+          () async {
+            await setPreferences(_first, locale);
+            await accept(_helper);
+            await deliver();
+            // The done notification is observed independently of acceptance.
+            remote.sent.clear();
+            await finalize();
+            await deliver();
+            expect(pushes(_first), hasLength(1));
+            final message = pushes(_first).single;
+            final text = '${message.title} ${message.body}';
+            expect(text, contains(_title));
+            expect(text, contains(_names[_helper]));
+            if (locale == 'ru') {
+              expect(text.toLowerCase(), contains('заверш'));
+              expect(text.toLowerCase(), contains('помощ'));
+              expect(text, isNot(contains('was completed with')));
+            } else {
+              expect(
+                text,
+                contains(
+                  "«$_title» was completed with ${_names[_helper]}'s help",
+                ),
+              );
+            }
+            await deliver();
+            expect(
+              pushes(_first),
+              hasLength(1),
+              reason: 'done is pushed only once',
+            );
+          },
+        );
+      }
+
+      test(
+        'category push opt out silences a forwarder while another receives help',
+        () async {
+          final category = await identifyHelpCategory();
+          await setCategoryChannels(
+            account: _first,
+            category: category,
+            push: false,
+            email: true,
+          );
+          // Only the identified category is on for the positive control, so a
+          // push under some unrelated category cannot make this test pass.
+          await setCategoryChannels(
+            account: _second,
+            category: category,
+            push: true,
+            email: true,
+            onlyMatchingCategory: true,
+          );
+          await accept(_helper);
+          await deliver();
+          expect(pushes(_first), isEmpty);
+          expect(
+            pushes(_second),
+            hasLength(1),
+            reason: 'positive control proves delivery occurred',
+          );
+          expectAcceptedCopy(
+            '${pushes(_second).single.title} ${pushes(_second).single.body}',
+            'en',
+          );
+          expect(
+            await receipts(_first),
+            hasLength(1),
+            reason: 'push opt out leaves the in-app update',
+          );
+          remote.sent.clear();
+          await finalize();
+          await deliver();
+          expect(
+            pushes(_first),
+            isEmpty,
+            reason: 'completion honours push opt out too',
+          );
+          expect(
+            pushes(_second),
+            hasLength(1),
+            reason: 'an opted-in forwarder receives the new completion push',
+          );
+          final done = pushes(_second).single;
+          expect(
+            '${done.title} ${done.body}',
+            contains("«$_title» was completed with ${_names[_helper]}'s help"),
+          );
+          await deliver();
+          expect(pushes(_first), isEmpty);
+          expect(
+            pushes(_second),
+            hasLength(1),
+            reason: 'the completion push is not repeated',
+          );
+        },
+      );
+
+      test(
+        'completion push follows the help category setting for each forwarder',
+        () async {
+          final category = await identifyHelpCategory();
+          await setCategoryChannels(
+            account: _first,
+            category: category,
+            push: false,
+            email: true,
+          );
+          await setCategoryChannels(
+            account: _second,
+            category: category,
+            push: true,
+            email: true,
+            onlyMatchingCategory: true,
+          );
+          await accept(_helper);
+          await deliver();
+          // Observe completion independently: missing acceptance delivery must
+          // not prevent this test from reaching the done-delivery assertions.
+          remote.sent.clear();
+          await finalize();
+          await deliver();
+          expect(
+            pushes(_first),
+            isEmpty,
+            reason: 'the matching category is off',
+          );
+          expect(
+            pushes(_second),
+            hasLength(1),
+            reason: 'the opted-in forwarder receives completion',
+          );
+          final done = pushes(_second).single;
+          expect(
+            '${done.title} ${done.body}',
+            contains("«$_title» was completed with ${_names[_helper]}'s help"),
+          );
+          await deliver();
+          expect(pushes(_first), isEmpty);
+          expect(pushes(_second), hasLength(1));
+        },
+      );
+
+      test(
+        'category email opt out excludes a forwarder while another gets the digest',
+        () async {
+          final category = await identifyHelpCategory();
+          await setCategoryChannels(
+            account: _first,
+            category: category,
+            push: true,
+            email: false,
+          );
+          await setCategoryChannels(
+            account: _second,
+            category: category,
+            push: true,
+            email: true,
+            onlyMatchingCategory: true,
+          );
+          await accept(_helper);
+          final sender = await digest();
+          expect(
+            sender.sent.where((m) => m.to == '$_first@example.com'),
+            isEmpty,
+          );
+          final control = sender.sent
+              .where((m) => m.to == '$_second@example.com')
+              .toList();
+          expect(
+            control,
+            hasLength(1),
+            reason: 'positive control proves the digest ran',
+          );
+          expectAcceptedCopy(control.single.rendered.text, 'en');
+          expect(await receipts(_first), hasLength(1));
+          await finalize();
+          final completed = await digest();
+          expect(
+            completed.sent.where((m) => m.to == '$_first@example.com'),
+            isEmpty,
+          );
+          final doneControl = completed.sent
+              .where((m) => m.to == '$_second@example.com')
+              .toList();
+          expect(doneControl, hasLength(1));
+          expect(
+            doneControl.single.rendered.text,
+            contains("«$_title» was completed with ${_names[_helper]}'s help"),
+          );
+        },
+      );
+    });
 
     test('acceptance thanks every canonical path forwarder in Updates '
         'without a My desk obligation', () async {
@@ -745,3 +1238,69 @@ Matcher _anonymous(int count) => allOf(
   containsPair('displayName', null),
   containsPair('anonymousCount', count),
 );
+
+class _ForwardPushRemote implements FcmRemoteRepositoryPort {
+  final sent = <({Set<String> tokens, FcmNotificationEntity message})>[];
+  @override
+  Future<List<Exception>> sendChatNotification({
+    required Iterable<String> fcmTokens,
+    required FcmNotificationEntity message,
+  }) async {
+    sent.add((tokens: fcmTokens.toSet(), message: message));
+    return [];
+  }
+}
+
+class _ForwardTokens extends Fake implements FcmTokenRepositoryPort {
+  @override
+  Future<Iterable<FcmTokenEntity>> getTokensByUserId(String userId) async => [
+    FcmTokenEntity(
+      userId: userId,
+      appId: UuidValue.fromString('00000000-0000-4000-8000-000000000001'),
+      platform: 'web',
+      token: 'token-$userId',
+      createdAt: DateTime.utc(2026),
+      lastRefreshedAt: DateTime.utc(2026),
+    ),
+  ];
+}
+
+class _NoImmediateEmail extends Fake implements EmailNotificationPort {
+  @override
+  Future<void> considerImmediate({
+    required String recipientUserId,
+    required NotificationKind kind,
+    required String beaconId,
+    required String channelCollapseKey,
+    required String title,
+    required String body,
+    required String actionUrl,
+    required bool pushDelivered,
+  }) async {}
+}
+
+class _ForwardContacts extends Fake implements VerifiedContactRepositoryPort {
+  @override
+  Future<String?> getPrimaryEmailForAccount(String accountId) async =>
+      '$accountId@example.com';
+}
+
+class _ForwardDigestSender extends Fake implements EmailSenderPort {
+  final sent = <({String to, String locale, RenderedEmail rendered})>[];
+  @override
+  Future<void> sendDigestEmail({
+    required String to,
+    required String locale,
+    required EmailDigestContent content,
+    String? listUnsubscribeUrl,
+  }) async {
+    sent.add((
+      to: to,
+      locale: locale,
+      rendered: const EmailTemplateRenderer().renderDigest(
+        content: content,
+        locale: locale,
+      ),
+    ));
+  }
+}

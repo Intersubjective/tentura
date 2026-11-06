@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:tentura_server/domain/entity/forward_helped_content.dart';
 
 import 'package:injectable/injectable.dart';
 import 'package:postgres/postgres.dart' show TypedValue, Type;
@@ -120,5 +121,8 @@ WHERE id = $1 AND status = 'leased' AND lease_owner = $2''',
             BeaconKind.values.asNameMap()[value['beaconKind']] ??
             BeaconKind.request,
         actorDisplayName: value['actorDisplayName'] as String?,
+        forwardHelped: ForwardHelpedContent.fromPayload(
+          value['presentationPayload'],
+        ),
       );
 }

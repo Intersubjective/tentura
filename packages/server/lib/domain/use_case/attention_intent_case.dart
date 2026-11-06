@@ -94,8 +94,6 @@ class AttentionIntentCase {
             beacon.id,
             recipientId,
           ]),
-          // Push and digest delivery are enabled by their separate rollout.
-          channelEligible: false,
           role: AttentionRecipientRoleFacts(
             beaconId: beacon.id,
             beaconTitle: beacon.title,

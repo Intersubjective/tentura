@@ -16,14 +16,19 @@ class AttentionSystemSettlementRepository
   Future<int> completeForwardHelped({
     required String beaconId,
     required int epoch,
-  }) => _database.customUpdate(
-    r'''
+  }) async {
+    // The state upgrade, fresh digest eligibility and durable channel job are
+    // one write. The epoch predicate makes a retry a no-op, including delivery.
+    final row = await _database
+        .customSelect(
+          r'''
+WITH completed AS (
 UPDATE public.notification_outbox outbox
 SET title = CASE WHEN outbox.presentation_payload->>'done' = 'true'
                 THEN outbox.title ELSE outbox.title || ' · Done ✓' END,
     presentation_payload = outbox.presentation_payload ||
       jsonb_build_object('done', true, 'doneEpoch', $2::int::text),
-    seen_at = NULL
+    seen_at = NULL, emailed_at = NULL
 WHERE outbox.beacon_id = $1
   AND outbox.presentation_key = 'forward_helped'
   AND outbox.presentation_payload->>'doneEpoch' IS DISTINCT FROM $2::int::text
@@ -39,10 +44,52 @@ WHERE outbox.beacon_id = $1
       AND occurrence.event_type = 'forwardHelped'
       AND occurrence.immutable_payload->>'beaconId' = $1
   )
+RETURNING outbox.*
+), occurrence AS (
+  INSERT INTO public.attention_occurrence (
+    source_event_key, event_type, immutable_payload
+  )
+  SELECT 'forward_helped_done:' || $1 || ':' || $2::int::text,
+    'forwardHelped', jsonb_build_object('beaconId', $1, 'doneEpoch', $2::int::text)
+  WHERE EXISTS (SELECT 1 FROM completed)
+  ON CONFLICT (source_event_key) DO NOTHING
+  RETURNING id
+), recipients AS (
+  INSERT INTO public.attention_occurrence_recipient (
+    occurrence_id, account_id, reasons, role_facts, collapse_key, channel_eligible
+  )
+  SELECT occurrence.id, completed.account_id, original.reasons,
+    original.role_facts, original.collapse_key, true
+  FROM completed
+  CROSS JOIN occurrence
+  JOIN public.attention_occurrence_recipient original
+    ON original.occurrence_id = completed.occurrence_id
+   AND original.account_id = completed.account_id
+  RETURNING occurrence_id, account_id
+), deliveries AS (
+  INSERT INTO public.attention_channel_delivery (
+    occurrence_id, receipt_id, account_id, payload
+  )
+  SELECT recipients.occurrence_id, completed.id, completed.account_id,
+    jsonb_build_object(
+      'receiptId', completed.id, 'recipientId', completed.account_id,
+      'kind', completed.kind, 'priority', completed.priority,
+      'title', completed.title, 'body', completed.body,
+      'actionUrl', completed.action_url,
+      'dedupKey', completed.dedup_key || '|done:' || $2::int::text,
+      'actorUserId', '', 'reason', 'pathForwarder',
+      'beaconId', completed.beacon_id, 'beaconKind', 'request',
+      'presentationPayload', completed.presentation_payload
+    )
+  FROM completed JOIN recipients USING (account_id)
+)
+SELECT count(*)::int AS completed_count FROM completed
 ''',
-    variables: [Variable<String>(beaconId), Variable<int>(epoch)],
-    updateKind: UpdateKind.update,
-  );
+          variables: [Variable<String>(beaconId), Variable<int>(epoch)],
+        )
+        .getSingle();
+    return row.read<int>('completed_count');
+  }
 
   static const _helpOfferSubmittedEventType = 'helpOfferSubmitted';
 

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:tentura_server/domain/entity/forward_helped_content.dart';
 
 import 'package:drift_postgres/drift_postgres.dart' show PgDateTime;
 import 'package:injectable/injectable.dart';
@@ -260,6 +261,7 @@ WHERE seen_at IS NOT NULL
       targetEntityId: row.readNullable<String>('target_entity_id'),
       presentationKey: row.readNullable<String>('presentation_key'),
       presentationPayload: payload,
+      forwardHelped: ForwardHelpedContent.fromPayload(payload),
       inAppPreferenceClass: row.readNullable<String>(
         'in_app_preference_class',
       ),

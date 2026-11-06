@@ -1,3 +1,4 @@
+import 'package:tentura_server/domain/entity/forward_helped_content.dart';
 import 'package:tentura_server/consts.dart';
 import 'package:tentura_server/domain/entity/email_notification_content.dart';
 import 'package:tentura_server/domain/entity/notification_outbox_item_entity.dart';
@@ -104,6 +105,51 @@ class BeaconNotificationCopyBuilder {
         if (first.kind != NotificationKind.postExpiringSoon) ...notes,
       ].join(' — '),
       url: url,
+    );
+  }
+
+  /// Both channels use the recipient's frozen masked route and current locale.
+  BeaconNotificationCopy forwardHelped({
+    required ForwardHelpedContent content,
+    required String locale,
+    required String actionUrl,
+  }) {
+    final ru = locale.toLowerCase().startsWith('ru');
+    final title = ru ? 'Ваша пересылка помогла' : 'Your forward helped';
+    if (content.beaconTitle.isEmpty) {
+      return BeaconNotificationCopy(
+        title: title,
+        body: '',
+        actionUrl: actionUrl,
+      );
+    }
+    final path = content.path
+        .map(
+          (node) =>
+              node.displayName ??
+              (ru
+                  ? '${node.anonymousCount} чел.'
+                  : '${node.anonymousCount} people'),
+        )
+        .join(' → ');
+    var helper = ru ? 'участника' : 'a helper';
+    for (final node in content.path) {
+      if (node.displayName case final name?
+          when node.userId == content.helperId) {
+        helper = name;
+      }
+    }
+    final body = content.done
+        ? (ru
+              ? '«${content.beaconTitle}» завершён с помощью $helper'
+              : "«${content.beaconTitle}» was completed with $helper's help")
+        : (ru
+              ? '$path предложил(а) помощь с «${content.beaconTitle}»'
+              : '$path offered help with «${content.beaconTitle}»');
+    return BeaconNotificationCopy(
+      title: title,
+      body: body,
+      actionUrl: actionUrl,
     );
   }
 

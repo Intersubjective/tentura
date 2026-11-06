@@ -70,14 +70,21 @@ class BeaconNotificationService implements BeaconNotificationPort {
       final preferences = await _preferences.getForAccount(
         decision.recipientId,
       );
-      final fullCopy = _copyBuilder.localizeStored(
-        intent: intent,
-        title: decision.title,
-        body: decision.body,
-        actionUrl: decision.actionUrl,
-        actorDisplayName: decision.actorDisplayName ?? '',
-        locale: preferences.locale,
-      );
+      final fullCopy = switch (decision.forwardHelped) {
+        final helped? => _copyBuilder.forwardHelped(
+          content: helped,
+          locale: preferences.locale,
+          actionUrl: decision.actionUrl,
+        ),
+        null => _copyBuilder.localizeStored(
+          intent: intent,
+          title: decision.title,
+          body: decision.body,
+          actionUrl: decision.actionUrl,
+          actorDisplayName: decision.actorDisplayName ?? '',
+          locale: preferences.locale,
+        ),
+      };
       final muted = decision.beaconId == null
           ? const <String>{}
           : await _preferences.getMutedBeaconIds(decision.recipientId, now);
