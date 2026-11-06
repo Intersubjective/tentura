@@ -18,12 +18,24 @@ abstract class PersonTag with _$PersonTag {
   const PersonTag._();
 }
 
+/// A member who joined a tag by inheriting it from their inviter.
+@freezed
+abstract class PersonTagInherited with _$PersonTagInherited {
+  const factory PersonTagInherited({
+    required String personId,
+    String? inviterId,
+  }) = _PersonTagInherited;
+
+  const PersonTagInherited._();
+}
+
 /// The people in one own tag.
 @freezed
 abstract class PersonTagMembers with _$PersonTagMembers {
   const factory PersonTagMembers({
     required String tagId,
     required List<String> personIds,
+    @Default([]) List<PersonTagInherited> inherited,
   }) = _PersonTagMembers;
 
   const PersonTagMembers._();
@@ -97,6 +109,9 @@ abstract class PersonTagMemberOp with _$PersonTagMemberOp {
 
     /// Membership source; 0 is a manual edit.
     @Default(0) int source,
+
+    /// Turns an inherited member into a manual one (`op: keep` on the wire).
+    @Default(false) bool keep,
   }) = _PersonTagMemberOp;
 
   const PersonTagMemberOp._();

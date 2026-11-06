@@ -16,6 +16,12 @@ List<PersonTag> mapPersonTags(Iterable<Map<String, dynamic>> json) => [
   for (final t in json) mapPersonTag(t),
 ];
 
+PersonTagInherited mapPersonTagInherited(Map<String, dynamic> json) =>
+    PersonTagInherited(
+      personId: json['personId']! as String,
+      inviterId: json['inviterId'] as String?,
+    );
+
 List<PersonTagMembers> mapPersonTagMembers(
   Iterable<Map<String, dynamic>> json,
 ) => [
@@ -23,6 +29,10 @@ List<PersonTagMembers> mapPersonTagMembers(
     PersonTagMembers(
       tagId: m['tagId']! as String,
       personIds: List<String>.from(m['personIds']! as List),
+      inherited: [
+        for (final i in m['inherited']! as List)
+          mapPersonTagInherited(Map<String, dynamic>.from(i as Map)),
+      ],
     ),
 ];
 
@@ -89,6 +99,6 @@ Map<String, Object> personTagSnapshotToWire(PersonTagSnapshot snapshot) => {
 Map<String, Object> personTagMemberOpToWire(PersonTagMemberOp op) => {
   'tagId': op.tagId,
   'personId': op.personId,
-  'add': op.add,
+  'op': op.keep ? 'keep' : (op.add ? 'add' : 'remove'),
   'source': op.source,
 };

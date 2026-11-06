@@ -2,5 +2,9 @@ query PersonTagMemberships {
   personTagMemberships {
     tagId
     personIds
+    inherited {
+      personId
+      inviterId
+    }
   }
 }
