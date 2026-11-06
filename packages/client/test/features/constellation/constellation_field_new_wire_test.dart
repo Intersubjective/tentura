@@ -209,6 +209,97 @@ void main() {
     },
   );
 
+  test(
+    'ConstellationFieldFetch (#1035 U1) maps Anna,Kira,Vera,Boris from the wire',
+    () async {
+      final wireResponse = {
+        '__typename': 'query_root',
+        'constellationField': {
+          '__typename': 'v2_ConstellationField',
+          'loadedAt': '2026-11-06T12:00:00.000Z',
+          'context': '',
+          'peersCapped': false,
+          'requestsCapped': false,
+          'directContactIds': ['kira', 'vera', 'boris'],
+          'peers': [
+            for (final id in ['anna', 'kira', 'vera', 'boris'])
+              {
+                '__typename': 'v2_ConstellationPeer',
+                'id': id,
+                'contactOnly': false,
+                'displayName': switch (id) {
+                  'anna' =>
+                    'Анна с очень длинным отображаемым именем для миникарты поля',
+                  'kira' => 'Кира',
+                  'vera' => 'Вера',
+                  'boris' => 'Борис',
+                  _ => id,
+                },
+                'handle': null,
+                'image': null,
+                'isNew': false,
+                'pinState': null,
+                'presence': 'visible',
+                'temporaryBeaconId': null,
+                'bondContexts': <dynamic>[],
+                'visible': true,
+              },
+          ],
+          'edges': [
+            for (final dst in ['kira', 'vera', 'boris'])
+              {
+                '__typename': 'v2_ConstellationTrustEdge',
+                'src': 'anna',
+                'dst': dst,
+                'tier': 1,
+              },
+          ],
+          'requests': <dynamic>[],
+          'posts': <dynamic>[],
+          'memberWebs': <dynamic>[],
+          'anchorProjection': {
+            '__typename': 'v2_ConstellationAnchorProjection',
+            'revision': '0',
+            'anchors': <dynamic>[],
+            'pinnedPeers': <dynamic>[],
+            'pinnedRequests': <dynamic>[],
+            'supportPeers': <dynamic>[],
+            'supportEdges': <dynamic>[],
+            'serverFilteredBeaconIds': <dynamic>[],
+            'serverFilteredBeaconCount': 0,
+          },
+        },
+      };
+
+      final sent = <WireSent>[];
+      await withRemoteWire(
+        {'ConstellationFieldFetch': wireResponse},
+        sent,
+        (remote) async {
+          final field = await ConstellationRepository(remote).fetch();
+          expect(
+            sent.map((s) => s.operationName),
+            contains('ConstellationFieldFetch'),
+          );
+          expect(
+            field.peers.map((p) => p.id).toSet(),
+            {'anna', 'kira', 'vera', 'boris'},
+          );
+          expect(field.edges, hasLength(3));
+        },
+      );
+
+      final mapped = mapConstellationFieldFromFieldFetch(
+        GConstellationFieldFetchData.fromJson(wireResponse)!.constellationField,
+      );
+      expect(mapped.peers, hasLength(4));
+      expect(
+        {for (final p in mapped.peers) p.id},
+        {'anna', 'kira', 'vera', 'boris'},
+      );
+    },
+  );
+
   test('ConstellationAcknowledgeNew sends peerIds on the wire', () async {
     final sent = <WireSent>[];
     await withRemoteWire(

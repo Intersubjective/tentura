@@ -299,12 +299,21 @@ class TenturaAvatar extends StatelessWidget {
   }
 
   /// Initials when there is no profile photo (also used by room mini avatars).
+  ///
+  /// When the second word is a dev/QA-style **`Q` + digits** label (e.g. `Bob
+  /// Q1106`), the second glyph is the **last decimal digit** of that code so two
+  /// people with the same first name + `Q…` pattern do not both show e.g. `BQ`
+  /// (#1066). This does not guarantee globally unique initials; the
+  /// `hueKey` passed to [ProfileAvatarInitials] (usually the profile's user id)
+  /// still drives the stable background colour and can collide across users.
   static String initialsForProfile(Profile profile) {
     final letter = RegExp(r'\p{L}', unicode: true);
 
     String? firstLetterIn(String segment) => letter.firstMatch(segment)?[0];
 
-    /// Default path: word-aware using Unicode letters (not raw `[0]`, which breaks on markup/emoji).
+    /// Word-aware using Unicode letters; two-word names with a `Q`+digits second
+    /// word use the last digit as the second glyph (#1066), combined with the first
+    /// word's first letter.
     String fromOrdinaryVisibleName(String name) {
       final t = name.trim();
       if (t.isEmpty) {
@@ -313,9 +322,13 @@ class TenturaAvatar extends StatelessWidget {
       final parts = t.split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
       if (parts.length >= 2) {
         final a = firstLetterIn(parts[0]);
-        final b = firstLetterIn(parts[1]);
-        if (a != null && b != null) {
-          return '$a$b'.toUpperCase();
+        final bFromQ = _secondInitialFromSecondWord(parts[1]);
+        if (a != null && bFromQ.isNotEmpty) {
+          return '$a$bFromQ'.toUpperCase();
+        }
+        final bLetter = firstLetterIn(parts[1]);
+        if (a != null && bLetter != null) {
+          return '$a$bLetter'.toUpperCase();
         }
       }
       final letters = letter.allMatches(t).map((m) => m[0]!).toList();
@@ -352,6 +365,22 @@ class TenturaAvatar extends StatelessWidget {
 
     final fromShown = fromOrdinaryVisibleName(profile.shownName);
     return fromShown.isNotEmpty ? fromShown : '?';
+  }
+
+  static final RegExp _qTrailingDigits = RegExp(r'^[Qq](\d+)$');
+
+  static String _secondInitialFromSecondWord(String secondWord) {
+    if (secondWord.isEmpty) {
+      return '';
+    }
+    final match = _qTrailingDigits.firstMatch(secondWord);
+    if (match != null) {
+      final digits = match.group(1)!;
+      if (digits.isNotEmpty) {
+        return digits[digits.length - 1];
+      }
+    }
+    return secondWord[0];
   }
 }
 

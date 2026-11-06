@@ -25,7 +25,9 @@ class InboxNavbarItem extends StatelessWidget {
       ),
       builder: (context, view) {
         final scheme = Theme.of(context).colorScheme;
-        final icon = Icon(selected ? Icons.inbox : Icons.inbox_outlined);
+        final icon = Icon(
+          selected ? Icons.notifications : Icons.notifications_outlined,
+        );
 
         if (view.showUnreadDot) {
           return Semantics(

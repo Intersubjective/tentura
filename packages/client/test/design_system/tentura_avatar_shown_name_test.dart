@@ -78,7 +78,7 @@ void main() {
         ),
       );
 
-      expect(find.text('BQ'), findsOneWidget);
+      expect(find.text('B6'), findsOneWidget);
     },
   );
 

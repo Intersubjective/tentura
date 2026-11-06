@@ -5,12 +5,23 @@ import 'layout/layout_geometry.dart';
 /// Side of the square minimap, in logical points.
 const kConstellationMinimapSize = 104.0;
 
+/// Inset from the minimap border so extreme people and dots stay fully inside
+/// the framed area (FCP §M U1).
+const kConstellationMinimapInset = 8.0;
+
+/// Minimap-space clamp for the camera frame stroke so a 2px stroke stays off
+/// the 1px outline-variant border (FCP §M U1).
+const kConstellationMinimapFrameClampInset = 2.0;
+
 /// Maps the Field's scene coordinates into the minimap square and back.
 ///
 /// Fitted to the people alone (never the camera), with one scale for both
 /// axes, so the field keeps its shape and sits centred in the square.
 class ConstellationMinimapProjection {
-  factory ConstellationMinimapProjection.fromPoints(Iterable<LPoint> points) {
+  factory ConstellationMinimapProjection.fromPoints(
+    Iterable<LPoint> points, {
+    double inset = kConstellationMinimapInset,
+  }) {
     var minX = double.infinity;
     var minY = double.infinity;
     var maxX = -double.infinity;
@@ -22,16 +33,26 @@ class ConstellationMinimapProjection {
       maxY = math.max(maxY, p.y);
     }
     if (minX > maxX) {
-      return const ConstellationMinimapProjection._((x: 0, y: 0), 1);
+      return ConstellationMinimapProjection._(
+        (x: 0, y: 0),
+        1,
+        inset: inset,
+      );
     }
     final extent = math.max(maxX - minX, maxY - minY);
+    final inner = math.max(0, kConstellationMinimapSize - 2 * inset).toDouble();
     return ConstellationMinimapProjection._(
       (x: (minX + maxX) / 2, y: (minY + maxY) / 2),
-      extent > 0 ? kConstellationMinimapSize / extent : 1,
+      extent > 0 ? inner / extent : 1,
+      inset: inset,
     );
   }
 
-  const ConstellationMinimapProjection._(this._centre, this._scale);
+  const ConstellationMinimapProjection._(
+    this._centre,
+    this._scale, {
+    required this.inset,
+  });
 
   /// The scene point shown at the middle of the minimap.
   final LPoint _centre;
@@ -39,31 +60,38 @@ class ConstellationMinimapProjection {
   /// Minimap points per scene unit.
   final double _scale;
 
+  /// Inset applied when `ConstellationMinimapProjection.fromPoints` built this projection.
+  final double inset;
+
   static const _half = kConstellationMinimapSize / 2;
 
+  double get _innerHalf => _half - inset;
+
   LPoint worldToMinimap(LPoint world) => (
-    x: _snap(_half + (world.x - _centre.x) * _scale),
-    y: _snap(_half + (world.y - _centre.y) * _scale),
+    x: _snap(inset + _innerHalf + (world.x - _centre.x) * _scale),
+    y: _snap(inset + _innerHalf + (world.y - _centre.y) * _scale),
   );
 
   /// Rounding must not push an edge person a hair outside the square.
-  static double _snap(double v) {
+  double _snap(double v) {
     const tolerance = 1e-9;
-    if (v < 0 && v > -tolerance) return 0;
-    const side = kConstellationMinimapSize;
-    if (v > side && v < side + tolerance) return side;
+    final lo = inset;
+    final hi = kConstellationMinimapSize - inset;
+    if (v < lo && v > lo - tolerance) return lo;
+    if (v > hi && v < hi + tolerance) return hi;
     return v;
   }
 
   LPoint minimapToWorld(LPoint point) => (
-    x: _centre.x + (point.x - _half) / _scale,
-    y: _centre.y + (point.y - _half) / _scale,
+    x: _centre.x + (point.x - inset - _innerHalf) / _scale,
+    y: _centre.y + (point.y - inset - _innerHalf) / _scale,
   );
 
   /// The camera's [viewport] (in scene coordinates) on the minimap, clipped
   /// to the square when the camera shows more than the field.
   LRect frameOf(LRect viewport) {
-    double clamp(double v) => v.clamp(0, kConstellationMinimapSize);
+    const fc = kConstellationMinimapFrameClampInset;
+    double clamp(double v) => v.clamp(fc, kConstellationMinimapSize - fc);
     final topLeft = worldToMinimap((x: viewport.left, y: viewport.top));
     final bottomRight = worldToMinimap((
       x: viewport.right,

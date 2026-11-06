@@ -5,7 +5,6 @@
 // the sheet opened with per plan §14.6), never refetched.
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mockito/mockito.dart';
 
 import 'package:tentura/domain/entity/beacon_fact_history_entry.dart';
 import 'package:tentura/features/beacon_threads/data/repository/beacon_fact_card_repository.dart';
