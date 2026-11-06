@@ -211,6 +211,8 @@ class _ConstellationBodyState extends State<ConstellationBody>
   final _minimapExpanded = ValueNotifier<bool>(true);
   int _pointersDown = 0;
 
+  ConstellationTagHullHitTester? _tagHullHitTester;
+
   // The level held back near a threshold while a gesture ran must catch up
   // with the scale once the last pointer is gone.
   void _onPointerReleased() {
@@ -218,6 +220,30 @@ class _ConstellationBodyState extends State<ConstellationBody>
     if (_pointersDown == 0) {
       _zoom.update(_graphController.cameraScale, gestureActive: false);
     }
+  }
+
+  void _updateTagHullHitTester(ConstellationCubit cubit) {
+    final store = _peopleTags;
+    final lensCubit = maybeConstellationTagLens(context);
+    if (store == null || lensCubit == null) {
+      _tagHullHitTester = null;
+      return;
+    }
+    final fieldIds = {for (final person in cubit.fieldPeople) person.id};
+    final tags = [
+      for (final tag in store.tags)
+        if (store.peopleInTag(tag.id).any(fieldIds.contains)) tag,
+    ];
+    _tagHullHitTester ??= ConstellationTagHullHitTester(
+      hitsMapNode: (scenePoint) =>
+          cubit.mapNodeAtSceneCentre(scenePoint) != null,
+    );
+    _tagHullHitTester!.update(
+      controller: cubit.graphController,
+      tags: tags,
+      selectedTagIds: lensCubit.state.selectedOwn,
+      peopleOf: store.peopleInTag,
+    );
   }
 
   ConstellationDetailLevel get _detail => _zoom.value;
@@ -1908,7 +1934,31 @@ class _ConstellationBodyState extends State<ConstellationBody>
               onCanvasLongPress:
                   composer == null || composer.createCubit != null
                   ? null
-                  : offerCreate,
+                  : (scene) {
+                      final cubit = context.read<ConstellationCubit>();
+                      if (cubit.state.tagView != null ||
+                          cubit.state.isComposing ||
+                          !widget.peopleTagsEnabled) {
+                        offerCreate(scene);
+                        return;
+                      }
+                      _updateTagHullHitTester(cubit);
+                      final tagId = _tagHullHitTester?.tagHullAt(scene);
+                      if (tagId == null) {
+                        offerCreate(scene);
+                        return;
+                      }
+                      final store = _peopleTags;
+                      if (store == null) {
+                        offerCreate(scene);
+                        return;
+                      }
+                      cubit.beginDragTagArea(
+                        tagId: tagId,
+                        peopleOfTag: store.peopleInTag,
+                        tagsOfPerson: store.tagsOfPerson,
+                      );
+                    },
               minScale: 0.1,
               maxScale: 3,
               layoutAlgorithm: layoutAlgorithm,

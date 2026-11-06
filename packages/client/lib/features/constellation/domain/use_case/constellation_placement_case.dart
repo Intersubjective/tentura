@@ -14,6 +14,7 @@ import 'package:uuid/uuid.dart';
 import '../entity/constellation_field.dart';
 import '../entity/constellation_layout_snapshot.dart';
 import '../entity/placement_outbox.dart';
+import '../layout/layout_geometry.dart';
 import '../placement_overlay.dart';
 import '../port/constellation_anchor_repository_port.dart';
 import 'constellation_arrangement_history.dart';
@@ -33,9 +34,9 @@ final class ConstellationPlacementCase extends UseCaseBase {
     this._clock,
     this._wakeUp, {
     required RealtimeSyncCase realtime,
-    @ignoreParam this.recordAutomaticHistory = kFieldArrangeV2Enabled,
     required super.env,
     required super.logger,
+    @ignoreParam this.recordAutomaticHistory = kFieldArrangeV2Enabled,
   }) : _state = PlacementOutboxState(
          targets: const {},
          hasUserPlacements: false,
@@ -88,6 +89,10 @@ final class ConstellationPlacementCase extends UseCaseBase {
   /// apply batch in flight (whose echo may beat its acknowledgement) settles.
   Completer<void>? _applyBarrier;
 
+  /// Cubit assigns this to apply local tag-magnet positions when undo/redo
+  /// replays an entry that bundled magnet moves with anchors.
+  Future<void> Function(Map<String, LPoint> positions)? tagMagnetUndo;
+
   /// Screen-session undo / redo of drags, unpins and resets.
   late final history = ConstellationArrangementHistory(
     applyOps: _applyHistoryOps,
@@ -98,6 +103,9 @@ final class ConstellationPlacementCase extends UseCaseBase {
     newOpId: _uuid.v4,
     restoreFavourite: (id) =>
         _snapshots.restoreFavourite(snapshotId: id, clientOpId: _uuid.v4()),
+    applyTagMagnets: (positions) async {
+      await tagMagnetUndo?.call(positions);
+    },
   );
 
   ConstellationLayoutSnapshotRepositoryPort get _snapshots =>
@@ -208,8 +216,10 @@ final class ConstellationPlacementCase extends UseCaseBase {
   /// Records [ops] as one history step and marks it failed if any is rejected.
   void _record(
     Map<ConstellationAnchorTarget, ConstellationAnchorPosition?> after,
-    List<PlacementOp> ops,
-  ) {
+    List<PlacementOp> ops, {
+    Map<String, LPoint>? tagMagnetsBefore,
+    Map<String, LPoint>? tagMagnetsAfter,
+  }) {
     final confirmed = {
       for (final anchor
           in _store.current.field?.resolvedAnchorProjection.anchors ??
@@ -223,6 +233,8 @@ final class ConstellationPlacementCase extends UseCaseBase {
             entry.key: (before: confirmed[entry.key], after: entry.value),
         },
         newOpId: _uuid.v4,
+        tagMagnetsBefore: tagMagnetsBefore,
+        tagMagnetsAfter: tagMagnetsAfter,
       ),
     );
     unawaited(
@@ -255,6 +267,8 @@ final class ConstellationPlacementCase extends UseCaseBase {
     bool saveManualHistory = true,
     ConstellationPerson? grabbedPerson,
     ConstellationRequest? grabbedRequest,
+    Map<String, LPoint>? tagMagnetsBefore,
+    Map<String, LPoint>? tagMagnetsAfter,
   }) {
     final positions = {parent: position};
     for (final companion in companions) {
@@ -304,7 +318,12 @@ final class ConstellationPlacementCase extends UseCaseBase {
               : null,
         ),
     ];
-    _record(positions, ops);
+    _record(
+      positions,
+      ops,
+      tagMagnetsBefore: tagMagnetsBefore,
+      tagMagnetsAfter: tagMagnetsAfter,
+    );
     _manualSnapshotDue |= saveManualHistory && recordAutomaticHistory;
     _enqueue(ops);
   }
@@ -966,8 +985,9 @@ final class ConstellationPlacementCase extends UseCaseBase {
     _replayBarrier = null;
     _applyBarrier?.complete();
     _applyBarrier = null;
-    _store.holdCatchUpReads(null);
-    _store.holdAnchorHints(null);
+    _store
+      ..holdCatchUpReads(null)
+      ..holdAnchorHints(null);
     for (final subscription in _subscriptions) {
       await subscription.cancel();
     }

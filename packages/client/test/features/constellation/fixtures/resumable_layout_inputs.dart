@@ -56,6 +56,8 @@ ConstellationPlacedLayoutInput _input({
   maxHops: maxHops,
   viewportClass: viewport,
   footprints: footprints,
+  rearrangeOwnTagPeopleByTagId: const <String, Set<String>>{},
+  rearrangeTagMagnetsByTagId: const <String, ConstellationPoint>{},
 );
 
 ConstellationPlacedLayoutInput withLayoutChanges(
@@ -73,6 +75,8 @@ ConstellationPlacedLayoutInput withLayoutChanges(
   Set<String>? egoRequests,
   ConstellationLayoutPriorHints? prior,
   ConstellationViewportClass? viewport,
+  Map<String, Set<String>>? rearrangeOwnTagPeopleByTagId,
+  Map<String, ConstellationPoint>? rearrangeTagMagnetsByTagId,
 }) => (
   egoId: input.egoId,
   paths: paths ?? input.paths,
@@ -90,6 +94,10 @@ ConstellationPlacedLayoutInput withLayoutChanges(
   maxHops: input.maxHops,
   viewportClass: viewport ?? input.viewportClass,
   footprints: footprints ?? input.footprints,
+  rearrangeOwnTagPeopleByTagId:
+      rearrangeOwnTagPeopleByTagId ?? input.rearrangeOwnTagPeopleByTagId,
+  rearrangeTagMagnetsByTagId:
+      rearrangeTagMagnetsByTagId ?? input.rearrangeTagMagnetsByTagId,
 );
 
 /// Uses the existing deterministic field fixture without composition's caps.

@@ -449,6 +449,8 @@ final class ConstellationSceneLayoutAlgorithm implements SceneLayoutAlgorithm {
         maxHops: maxHops,
         viewportClass: viewportClass,
         footprints: footprints,
+        rearrangeOwnTagPeopleByTagId: const {},
+        rearrangeTagMagnetsByTagId: const {},
       ),
     );
   }

@@ -184,6 +184,8 @@ int _drainSteps(_CountingSizes sizes, {required int peerCount}) {
     maxHops: 3,
     viewportClass: ConstellationViewportClass.expanded,
     footprints: const <String, ConstellationFootprint>{},
+    rearrangeOwnTagPeopleByTagId: const <String, Set<String>>{},
+    rearrangeTagMagnetsByTagId: const <String, ConstellationPoint>{},
   );
   var maxReads = 0;
   var readsAtLastCheckpoint = 0;

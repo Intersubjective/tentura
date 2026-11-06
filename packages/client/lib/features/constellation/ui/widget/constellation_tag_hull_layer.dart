@@ -13,6 +13,139 @@ const _hullAlphaUnselected = 0.18;
 const _hullAlphaSelected = 0.32;
 const _hullOutlineWidth = 1.0;
 
+/// Own-tag hull paint order: unselected tags first, then selected (on top).
+List<PersonTag> constellationTagHullPaintOrder(
+  List<PersonTag> tags,
+  Set<String> selectedTagIds,
+) => [
+  for (final tag in tags)
+    if (!selectedTagIds.contains(tag.id)) tag,
+  for (final tag in tags)
+    if (selectedTagIds.contains(tag.id)) tag,
+];
+
+/// Scene-space hull path around member node centres (same geometry as the layer).
+Path buildConstellationTagHullPath(List<Offset> centres) {
+  var hull = Path();
+  for (final centre in centres) {
+    hull = Path.combine(
+      PathOperation.union,
+      hull,
+      Path()..addOval(
+        Rect.fromCircle(center: centre, radius: kConstellationTagHullPadding),
+      ),
+    );
+  }
+  final ring = _convexHull(centres);
+  if (ring.length > 2) {
+    hull = Path.combine(
+      PathOperation.union,
+      hull,
+      Path()..addPolygon(ring, true),
+    );
+  }
+  return hull;
+}
+
+/// Scene-space hit test for own-tag hulls. Call `update` when tags, selection,
+/// or member positions change; `tagHullAt` is cheap on repeated pointer moves.
+///
+/// Returns null when the point hits a map node (people, Requests, Posts) or
+/// lies outside every hull. Topmost hull matches `constellationTagHullPaintOrder`.
+class ConstellationTagHullHitTester {
+  ConstellationTagHullHitTester({required this.hitsMapNode});
+
+  /// Whether the point hits any Field node body (not hull empty space).
+  final bool Function(Offset scenePoint) hitsMapNode;
+
+  late GraphController<NodeDetails, EdgeDetails> _controller;
+  late List<PersonTag> _tags;
+  late Set<String> _selectedTagIds;
+  late Set<String> Function(String tagId) _peopleOf;
+
+  final Map<String, _CachedTagHullPath> _pathsByTagId = {};
+
+  /// How many times [buildConstellationTagHullPath] ran since construction or
+  /// [clearPathBuildCountForTesting].
+  @visibleForTesting
+  int pathBuildCount = 0;
+
+  @visibleForTesting
+  void clearPathBuildCountForTesting() => pathBuildCount = 0;
+
+  void update({
+    required GraphController<NodeDetails, EdgeDetails> controller,
+    required List<PersonTag> tags,
+    required Set<String> selectedTagIds,
+    required Set<String> Function(String tagId) peopleOf,
+  }) {
+    _controller = controller;
+    _tags = tags;
+    _selectedTagIds = selectedTagIds;
+    _peopleOf = peopleOf;
+
+    final liveIds = <String>{};
+    for (final tag in tags) {
+      liveIds.add(tag.id);
+      final centres = _memberCentres(tag.id);
+      if (centres.isEmpty) {
+        _pathsByTagId.remove(tag.id);
+        continue;
+      }
+      final cached = _pathsByTagId[tag.id];
+      if (cached != null && _sameCentres(cached.centres, centres)) {
+        continue;
+      }
+      pathBuildCount++;
+      _pathsByTagId[tag.id] = _CachedTagHullPath(
+        centres: centres,
+        path: buildConstellationTagHullPath(centres),
+      );
+    }
+    _pathsByTagId.removeWhere((id, _) => !liveIds.contains(id));
+  }
+
+  /// Own-tag id whose hull contains [scenePoint], or null.
+  String? tagHullAt(Offset scenePoint) {
+    if (hitsMapNode(scenePoint)) {
+      return null;
+    }
+    final paintOrder = constellationTagHullPaintOrder(_tags, _selectedTagIds);
+    for (var i = paintOrder.length - 1; i >= 0; i--) {
+      final tag = paintOrder[i];
+      final cached = _pathsByTagId[tag.id];
+      if (cached != null && cached.path.contains(scenePoint)) {
+        return tag.id;
+      }
+    }
+    return null;
+  }
+
+  List<Offset> _memberCentres(String tagId) => [
+    for (final id in _peopleOf(tagId))
+      ?_controller.getPositionOrNullForId('fp:$id'),
+  ];
+}
+
+final class _CachedTagHullPath {
+  const _CachedTagHullPath({required this.centres, required this.path});
+
+  final List<Offset> centres;
+  final Path path;
+}
+
+bool _sameCentres(List<Offset> a, List<Offset> b) {
+  if (a.length != b.length) {
+    return false;
+  }
+  for (var i = 0; i < a.length; i++) {
+    if (a[i] != b[i]) {
+      return false;
+    }
+  }
+  return true;
+}
+
 /// A soft hull around the Field people of every own tag that has someone on
 /// the map: the padded convex hull of their nodes in the tag's colour.
 /// Selected tags are drawn brighter with a thin outline and on top. Sits in
@@ -46,12 +179,7 @@ class ConstellationTagHullLayer extends StatelessWidget {
     final swatches = Theme.of(
       context,
     ).extension<TenturaTagColors>()!.swatches;
-    final paintOrder = [
-      for (final tag in tags)
-        if (!selectedTagIds.contains(tag.id)) tag,
-      for (final tag in tags)
-        if (selectedTagIds.contains(tag.id)) tag,
-    ];
+    final paintOrder = constellationTagHullPaintOrder(tags, selectedTagIds);
     return IgnorePointer(
       child: AnimatedBuilder(
         animation: controller,
@@ -100,22 +228,7 @@ class _HullPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    var hull = Path();
-    for (final centre in centres) {
-      hull = Path.combine(
-        PathOperation.union,
-        hull,
-        Path()..addOval(Rect.fromCircle(center: centre, radius: _padding)),
-      );
-    }
-    final ring = _convexHull(centres);
-    if (ring.length > 2) {
-      hull = Path.combine(
-        PathOperation.union,
-        hull,
-        Path()..addPolygon(ring, true),
-      );
-    }
+    final hull = buildConstellationTagHullPath(centres);
     canvas.drawPath(hull, Paint()..color = fillColor);
     final stroke = outlineColor;
     if (stroke != null) {
@@ -129,21 +242,11 @@ class _HullPainter extends CustomPainter {
     }
   }
 
-  static const _padding = kConstellationTagHullPadding;
-
   @override
   bool shouldRepaint(_HullPainter old) =>
       old.fillColor != fillColor ||
       old.outlineColor != outlineColor ||
-      !_sameCentres(old.centres);
-
-  bool _sameCentres(List<Offset> other) {
-    if (other.length != centres.length) return false;
-    for (var i = 0; i < other.length; i++) {
-      if (other[i] != centres[i]) return false;
-    }
-    return true;
-  }
+      !_sameCentres(old.centres, centres);
 }
 
 /// Andrew's monotone chain; the points of the convex hull in order.

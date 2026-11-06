@@ -264,5 +264,29 @@ void main() {
       expect(moved.x, closeTo(outside.x - 300, 1e-6));
       expect(moved.y, closeTo(centre + 60, 1e-6));
     });
+
+    test('member weights scale how far each member may move for the same '
+        'parent delta', () {
+      const m1 = (x: centre + 200.0, y: centre);
+      const m2 = (x: centre + 400.0, y: centre);
+      final limited = constellationLimitGroupDelta(
+        parentStart: (x: centre, y: centre),
+        proposedParent: (x: centre + 300, y: centre),
+        memberStarts: [m1, m2],
+        memberWeights: [1.0, 0.5],
+      );
+      expect(limited.x, closeTo(300, 1e-6));
+      final p1 = constellationGroupMemberPosition(
+        memberStart: m1,
+        groupDelta: limited,
+      );
+      final p2 = constellationGroupMemberPosition(
+        memberStart: m2,
+        groupDelta: limited,
+        weight: .5,
+      );
+      expect(p1.x - m1.x, closeTo(300, 1e-6));
+      expect(p2.x - m2.x, closeTo(150, 1e-6));
+    });
   });
 }

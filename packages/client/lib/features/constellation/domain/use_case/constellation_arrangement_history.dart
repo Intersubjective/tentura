@@ -18,8 +18,10 @@ final class AnchorBatchEntry extends ArrangementEntry {
   /// `null` means unpinned.
   AnchorBatchEntry.placement({
     required this.changes,
-    required String Function() newOpId,
-  }) : _newOpId = newOpId;
+    required this.newOpId,
+    this.tagMagnetsBefore,
+    this.tagMagnetsAfter,
+  });
 
   final Map<
     ConstellationAnchorTarget,
@@ -29,23 +31,29 @@ final class AnchorBatchEntry extends ArrangementEntry {
     })
   >
   changes;
-  final String Function() _newOpId;
+  final String Function() newOpId;
+
+  /// Optional tag-magnet scene positions paired with this anchor batch (e.g.
+  /// tag-area drag). Undo restores [tagMagnetsBefore]; redo applies
+  /// [tagMagnetsAfter]. When null, magnet state is not part of this entry.
+  final Map<String, LPoint>? tagMagnetsBefore;
+  final Map<String, LPoint>? tagMagnetsAfter;
 
   List<ConstellationAnchorApplyOp> _ops({required bool undo}) => [
     for (final entry in changes.entries)
       switch (undo ? entry.value.before : entry.value.after) {
         final ConstellationAnchorPosition position =>
           ConstellationAnchorApplyOp(
-            clientOpId: _newOpId(),
+            clientOpId: newOpId(),
             kind: ConstellationAnchorOpKind.upsert,
             target: entry.key,
             position: position,
           ),
         null => ConstellationAnchorApplyOp(
-          clientOpId: _newOpId(),
-          kind: ConstellationAnchorOpKind.delete,
-          target: entry.key,
-        ),
+            clientOpId: newOpId(),
+            kind: ConstellationAnchorOpKind.delete,
+            target: entry.key,
+          ),
       },
   ];
 }
@@ -91,6 +99,7 @@ final class ConstellationArrangementHistory {
     required this.newOpId,
     this.applyTidyOffsets,
     this.restoreFavourite,
+    this.applyTagMagnets,
   });
 
   /// Sends one batch; false when the server rejected it.
@@ -106,6 +115,9 @@ final class ConstellationArrangementHistory {
   Future<void> Function(Map<String, LPoint> offsets)? applyTidyOffsets;
 
   final Future<void> Function(String snapshotId)? restoreFavourite;
+
+  /// Applies local tag-magnet positions for undo/redo of [AnchorBatchEntry].
+  final Future<void> Function(Map<String, LPoint> positions)? applyTagMagnets;
 
   static const _batchCap = 400;
 
@@ -169,6 +181,12 @@ final class ConstellationArrangementHistory {
         for (var i = 0; i < ops.length; i += _batchCap) {
           final end = i + _batchCap < ops.length ? i + _batchCap : ops.length;
           if (!await applyOps(ops.sublist(i, end))) return null;
+        }
+        final before = e.tagMagnetsBefore;
+        final after = e.tagMagnetsAfter;
+        final apply = applyTagMagnets;
+        if (before != null && after != null && apply != null) {
+          await apply(undo ? before : after);
         }
         return e;
       case final LocalLayoutEntry e:

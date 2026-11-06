@@ -97,6 +97,13 @@ typedef ConstellationPlacedLayoutInput = ({
   int maxHops,
   ConstellationViewportClass viewportClass,
   Map<String, ConstellationFootprint> footprints,
+
+  /// Own-tag members per tag id (sources 1–4 only, excluding automatic tags).
+  /// Used by [computeConstellationRearrangeAll]; empty when unset.
+  Map<String, Set<String>> rearrangeOwnTagPeopleByTagId,
+
+  /// Optional tag magnet centres in scene space for rearrange.
+  Map<String, ConstellationPoint> rearrangeTagMagnetsByTagId,
 });
 
 const _kCandidateRadiiMultipliers = [1, 2, 3, 4];
@@ -209,6 +216,8 @@ ConstellationLayout computeConstellationLayout({
       maxHops: maxHops,
       viewportClass: viewportClass,
       footprints: const {},
+      rearrangeOwnTagPeopleByTagId: const {},
+      rearrangeTagMagnetsByTagId: const {},
     ),
     ringGap: ringGap,
     residualRingFactor: residualRingFactor,
