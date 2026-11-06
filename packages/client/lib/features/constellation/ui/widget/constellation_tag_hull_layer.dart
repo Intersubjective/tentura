@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
 
 import 'package:tentura/design_system/tentura_tag_colors.dart';
+import 'package:tentura/design_system/tentura_tokens.dart';
 import 'package:tentura/features/graph/domain/entity/edge_details.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura/features/people_tags/domain/entity/people_tags_entities.dart';
@@ -157,6 +158,7 @@ class ConstellationTagHullLayer extends StatelessWidget {
     required this.tags,
     required this.selectedTagIds,
     required this.peopleOf,
+    this.dragHighlightTagId,
     super.key,
   });
 
@@ -174,8 +176,12 @@ class ConstellationTagHullLayer extends StatelessWidget {
   /// Ids of the people in the own tag with the given id.
   final Set<String> Function(String tagId) peopleOf;
 
+  /// While dragging a tag area (#1021), this hull is outlined more strongly.
+  final String? dragHighlightTagId;
+
   @override
   Widget build(BuildContext context) {
+    final tt = context.tt;
     final swatches = Theme.of(
       context,
     ).extension<TenturaTagColors>()!.swatches;
@@ -194,11 +200,17 @@ class ConstellationTagHullLayer extends StatelessWidget {
                     centres: centres,
                     fillColor: swatches[tag.color % swatches.length].accent
                         .withValues(
-                          alpha: selectedTagIds.contains(tag.id)
+                          alpha: dragHighlightTagId == tag.id
+                              ? (_hullAlphaSelected + 0.12).clamp(0, 1).toDouble()
+                              : selectedTagIds.contains(tag.id)
                               ? _hullAlphaSelected
                               : _hullAlphaUnselected,
                         ),
-                    outlineColor: selectedTagIds.contains(tag.id)
+                    outlineWidth: dragHighlightTagId == tag.id
+                        ? tt.tightGap / 2
+                        : _hullOutlineWidth,
+                    outlineColor: selectedTagIds.contains(tag.id) ||
+                            dragHighlightTagId == tag.id
                         ? swatches[tag.color % swatches.length].accent
                         : null,
                   ),
@@ -219,12 +231,14 @@ class _HullPainter extends CustomPainter {
   const _HullPainter({
     required this.centres,
     required this.fillColor,
+    required this.outlineWidth,
     this.outlineColor,
   });
 
   final List<Offset> centres;
   final Color fillColor;
   final Color? outlineColor;
+  final double outlineWidth;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -237,7 +251,7 @@ class _HullPainter extends CustomPainter {
         Paint()
           ..color = stroke
           ..style = PaintingStyle.stroke
-          ..strokeWidth = _hullOutlineWidth,
+          ..strokeWidth = outlineWidth,
       );
     }
   }
@@ -246,6 +260,7 @@ class _HullPainter extends CustomPainter {
   bool shouldRepaint(_HullPainter old) =>
       old.fillColor != fillColor ||
       old.outlineColor != outlineColor ||
+      old.outlineWidth != outlineWidth ||
       !_sameCentres(old.centres, centres);
 }
 

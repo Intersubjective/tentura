@@ -816,8 +816,10 @@ class ConstellationSceneController {
 
     layoutEgoId = viewer.id;
     layoutPaths = paths;
-    layoutKeptPeerIds = keptPeerIds;
-    final anchors = overlay?.anchors ?? const <ConstellationAnchor>[];
+    // When [composition] is null the legacy path still reads anchors from the
+    // field projection (#1021).
+    final anchors =
+        overlay?.anchors ?? field.resolvedAnchorProjection.anchors;
     // Hard pins only: ids with an anchor coordinate. Peers listed as pinned
     // without a person anchor must not block automatic placement.
     layoutPinnedPersonIds = {
@@ -842,6 +844,12 @@ class ConstellationSceneController {
       plan,
       hardPinnedRequestIds: layoutPinnedRequestIds,
     );
+    layoutKeptPeerIds = {
+      ...keptPeerIds,
+      for (final id in layoutPinnedPersonIds)
+        if (id != viewer.id) id,
+      for (final author in drawnSatellites.byAuthor.keys) author,
+    };
     layoutVisibleRequestsByAuthor = drawnSatellites.byAuthor;
     layoutEgoOwnRequestIds = drawnSatellites.egoOwn;
     displayedRequestIds = plan.drawnRequestIds;
@@ -880,8 +888,11 @@ class ConstellationSceneController {
       ),
     );
 
-    final keptSorted = keptPeerIds.toList()..sort();
-    for (final peerId in keptSorted) {
+    final layoutPeersSorted = layoutKeptPeerIds.toList()..sort();
+    for (final peerId in layoutPeersSorted) {
+      if (peerId == viewer.id) {
+        continue;
+      }
       final peer = peersById[peerId];
       if (peer == null || hiddenPersonIds.contains(peerId)) {
         continue;
@@ -980,7 +991,7 @@ class ConstellationSceneController {
     );
 
     for (final ringPeer in paths.ring.intersection(
-      keptPeerIds.intersection(egoEdgeTargets),
+      layoutKeptPeerIds.intersection(egoEdgeTargets),
     )) {
       addEdge(
         srcId: viewer.id,
@@ -1086,7 +1097,7 @@ class ConstellationSceneController {
     // addEdge drops the link unless both the person and the Request are on
     // the field.
     if (fieldMembershipV2Enabled) {
-      for (final peerId in keptSorted) {
+      for (final peerId in layoutPeersSorted) {
         final peer = peersById[peerId];
         final requestId = peer?.temporaryBeaconId;
         if (peer?.fieldMembership != ConstellationFieldMembership.temporary ||

@@ -23,7 +23,6 @@ import '../../domain/constellation_layout.dart';
 import '../../domain/constellation_drag_cluster.dart';
 import '../../domain/constellation_pin_position.dart';
 import '../../domain/constellation_rearrange_all.dart';
-import '../../domain/constellation_rearrange_tag_areas.dart';
 import '../../domain/constellation_tidy_action.dart';
 import '../../domain/constellation_tidy_offset_layer.dart';
 import '../../domain/entity/constellation_layout_snapshot.dart';
@@ -1802,7 +1801,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (isClosed) {
       return;
     }
-    _interaction.beginDragging(target.graphNodeId);
+    _interaction.beginDragging(constellationGraphNodeIdForTarget(target));
     _beginClusterDragPresentation(
       target,
       group: group,
@@ -1828,7 +1827,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (isClosed) {
       return;
     }
-    _interaction.beginDragging(target.graphNodeId);
+    _interaction.beginDragging(constellationGraphNodeIdForTarget(target));
     _beginClusterDragPresentation(
       target,
       group: group,
@@ -1916,7 +1915,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       magnetStart = magnetAt;
       virtualMembers = [(magnetAt, 1.0)];
     }
-    _interaction.beginDragging(target.graphNodeId);
+    _interaction.beginDragging(constellationGraphNodeIdForTarget(target));
     _interaction.beginClusterDragPresentation(
       target,
       field: state.field,
@@ -1937,7 +1936,17 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         placementPhase: ConstellationPlacementPhase.draggingExisting,
         activePlacementTarget: target,
         placementFailureMessage: null,
+        tagAreaDragTagId: tagId,
+        tagAreaDragNodeLiftScale: 1.04,
       ),
+    );
+  }
+
+  /// Clears tag-hull drag visual affordances without cancelling placement.
+  void clearTagAreaHullAffordances() {
+    if (isClosed || state.tagAreaDragTagId == null) return;
+    emit(
+      state.copyWith(tagAreaDragTagId: null, tagAreaDragNodeLiftScale: 1),
     );
   }
 
@@ -2114,11 +2123,17 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (target == null) {
       return;
     }
-    // The held node is named by its domain id (gesture layer) or graph id.
+    // The held node is named by graph id (`fp:…`); callers may pass that or
+    // the bare domain id from [NodeDetails.id] (#642 / group drag updates).
     final dragging = _interaction.draggingNodeId;
-    if (dragging == null ||
-        (dragging != nodeId &&
-            nodeId != constellationGraphNodeIdForTarget(target))) {
+    if (dragging == null) {
+      return;
+    }
+    final targetGraphId = constellationGraphNodeIdForTarget(target);
+    final matchesDragging = dragging == nodeId ||
+        nodeId == targetGraphId ||
+        tenturaLayoutDomainId(dragging) == nodeId;
+    if (!matchesDragging) {
       return;
     }
     _interaction.updateDragPresentation(target, sceneCentre);
@@ -2505,6 +2520,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       state.copyWith(
         placementPhase: ConstellationPlacementPhase.idle,
         activePlacementTarget: target,
+        tagAreaDragTagId: null,
+        tagAreaDragNodeLiftScale: 1,
       ),
     );
     if (!kReleaseMode) ConstellationPerf.finishSpan(draggableSpan);
@@ -2801,6 +2818,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         placementPhase: ConstellationPlacementPhase.idle,
         activePlacementTarget: null,
         placementFailureMessage: null,
+        tagAreaDragTagId: null,
+        tagAreaDragNodeLiftScale: 1,
       ),
     );
   }
@@ -3004,6 +3023,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         placementPhase: ConstellationPlacementPhase.idle,
         activePlacementTarget: null,
         placementFailureMessage: null,
+        tagAreaDragTagId: null,
+        tagAreaDragNodeLiftScale: 1,
       ),
     );
     if (_releaseFreeze() || write) return;

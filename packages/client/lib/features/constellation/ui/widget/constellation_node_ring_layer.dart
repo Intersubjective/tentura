@@ -307,24 +307,16 @@ class ConstellationNodeRingLayer extends StatefulWidget {
 
   @override
   State<ConstellationNodeRingLayer> createState() =>
-      _ConstellationNodeRingLayerState();
+      ConstellationNodeRingLayerState();
 }
 
-class _ConstellationNodeRingLayerState
-    extends State<ConstellationNodeRingLayer> {
+/// State for [ConstellationNodeRingLayer]; [clearHover] is for tests (#1021).
+class ConstellationNodeRingLayerState extends State<ConstellationNodeRingLayer> {
   final _hover = ValueNotifier<Offset?>(null);
   final _glyphs = ConstellationTrustGlyphCache();
   GraphNodeId? _mouseOver;
 
-  void _onHover(PointerHoverEvent event) {
-    _hover.value = event.localPosition;
-    final id = event.kind == PointerDeviceKind.mouse
-        ? resolveConstellationTap(widget.frame, event.localPosition)
-        : null;
-    if (id != _mouseOver) {
-      setState(() => _mouseOver = id);
-    }
-  }
+  void clearHover() => _onExit();
 
   void _onExit() {
     _hover.value = null;
@@ -345,10 +337,26 @@ class _ConstellationNodeRingLayerState
     final tt = context.tt;
     final scheme = Theme.of(context).colorScheme;
     final rtl = Directionality.of(context) == TextDirection.rtl;
-    return MouseRegion(
-      hitTestBehavior: HitTestBehavior.translucent,
-      onHover: _onHover,
-      onExit: (_) => _onExit(),
+    // Hover uses a translucent [Listener] so the paint is still non-hit
+    // ([CustomPaint] stays under [IgnorePointer]) and drags reach [GraphView]
+    // below (#1021).
+    return Listener(
+      behavior: HitTestBehavior.translucent,
+      onPointerHover: (event) {
+        if (event.kind != PointerDeviceKind.mouse) {
+          return;
+        }
+        final box = context.findRenderObject();
+        if (box is! RenderBox || !box.hasSize) {
+          return;
+        }
+        final local = box.globalToLocal(event.position);
+        _hover.value = local;
+        final id = resolveConstellationTap(widget.frame, local);
+        if (id != _mouseOver) {
+          setState(() => _mouseOver = id);
+        }
+      },
       child: Stack(
         fit: StackFit.expand,
         children: [
@@ -504,6 +512,10 @@ class ConstellationNodeRingPainter extends CustomPainter {
       ),
     );
   }
+
+  /// Rings are decorative; hit testing belongs to [GraphView] / other layers.
+  @override
+  bool? hitTest(Offset position) => false;
 
   @override
   void paint(Canvas canvas, Size size) {

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:collection/collection.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -19,6 +20,8 @@ import 'package:tentura/features/beacon_view/ui/dialog/help_offer_message_dialog
 import 'package:tentura/features/beacon_view/ui/util/help_offer_types_wire.dart';
 import 'package:tentura/features/graph/domain/entity/edge_details.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
+import 'package:tentura/features/graph/ui/utils/graph_scene_ids.dart';
+import '../utils/constellation_graph_scene.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_person_context_cubit.dart';
 import 'package:tentura/features/graph/ui/widget/adaptive_context_overlay.dart';
 import 'package:tentura/features/graph/ui/widget/graph_legend_mode.dart';
@@ -50,7 +53,6 @@ import '../bloc/constellation_tag_lens_cubit.dart';
 import '../../domain/constellation_forward_tree_marker.dart';
 import '../util/constellation_perf.dart';
 import '../utils/constellation_edge_style.dart';
-import '../utils/constellation_graph_scene.dart';
 import '../utils/constellation_presentation_frame.dart';
 import '../utils/constellation_tap_resolver.dart';
 import 'constellation_field_item_actions.dart';
@@ -65,6 +67,7 @@ import 'constellation_filter_bar.dart';
 import 'constellation_forward_tree_overlay_bar.dart';
 import 'constellation_minimap.dart';
 import 'constellation_no_contacts.dart';
+import 'constellation_node_ring_layer.dart';
 import 'constellation_overflow_group.dart';
 import 'constellation_person_field_items_section.dart';
 import 'constellation_presence_halo_layer.dart';
@@ -130,6 +133,9 @@ class ConstellationBody extends StatefulWidget {
     this.arrangeV2Enabled = kFieldArrangeV2Enabled,
     this.peopleTagsEnabled = kPeopleTagsEnabled,
     this.fieldMembershipV2Enabled = kFieldMembershipV2Enabled,
+    /// Injected in widget tests so tags load without relying on [GetIt]
+    /// registration order relative to this widget's field initializers (#1021).
+    this.peopleTagsCase,
     super.key,
   });
 
@@ -143,6 +149,9 @@ class ConstellationBody extends StatefulWidget {
   /// With [arrangeV2Enabled], the tag lens panel offers the tag view
   /// (`kPeopleTagsEnabled`).
   final bool peopleTagsEnabled;
+
+  /// Optional store for own-tag hulls and magnets; production uses [GetIt].
+  final PeopleTagsCase? peopleTagsCase;
 
   /// A temporary person's dashed outline and the bond / temporary line in the
   /// person panel (`kFieldMembershipV2Enabled`).
@@ -216,6 +225,9 @@ class _ConstellationBodyState extends State<ConstellationBody>
   final _minimapExpanded = ValueNotifier<bool>(true);
   int _pointersDown = 0;
 
+  final GlobalKey<ConstellationNodeRingLayerState> _nodeRingLayerKey =
+      GlobalKey<ConstellationNodeRingLayerState>();
+
   ConstellationTagHullHitTester? _tagHullHitTester;
 
   // The level held back near a threshold while a gesture ran must catch up
@@ -227,31 +239,116 @@ class _ConstellationBodyState extends State<ConstellationBody>
     }
   }
 
-  void _updateTagHullHitTester(ConstellationCubit cubit) {
+  void _updateTagHullHitTester(
+    ConstellationCubit cubit, {
+    ConstellationTagLensCubit? lensCubit,
+  }) {
     final store = _peopleTags;
-    final lensCubit = maybeConstellationTagLens(context);
-    if (store == null || lensCubit == null) {
+    final lens = lensCubit ?? maybeConstellationTagLens(context);
+    if (store == null) {
       _tagHullHitTester = null;
       return;
     }
-    final fieldIds = {for (final person in cubit.fieldPeople) person.id};
+    final field = cubit.state.field;
+    if (field == null) {
+      _tagHullHitTester = null;
+      return;
+    }
+    // Match [ConstellationCubit.beginDragTagArea] membership: hull hit-testing
+    // must not depend on [fieldPeople], which needs a composed presentation
+    // and is empty in some tests and edge states.
+    final fieldPersonIds = <String>{
+      for (final p in field.peers) p.id,
+      for (final p in field.resolvedAnchorProjection.pinnedPeers) p.id,
+    };
     final tags = [
       for (final tag in store.tags)
-        if (store.peopleInTag(tag.id).any(fieldIds.contains)) tag,
+        if (store.peopleInTag(tag.id).any(fieldPersonIds.contains)) tag,
     ];
     _tagHullHitTester ??= ConstellationTagHullHitTester(
-      hitsMapNode: (scenePoint) =>
-          cubit.mapNodeAtSceneCentre(scenePoint) != null,
+      hitsMapNode: (scenePoint) {
+        final node = cubit.mapNodeAtSceneCentre(scenePoint);
+        if (node is FieldPersonNode && node.person.id == cubit.viewerId) {
+          return false;
+        }
+        return node != null;
+      },
     );
     _tagHullHitTester!.update(
       controller: cubit.graphController,
       tags: tags,
-      selectedTagIds: lensCubit.state.selectedOwn,
+      selectedTagIds: lens?.state.selectedOwn ?? {},
       peopleOf: store.peopleInTag,
     );
   }
 
+  /// Empty-canvas long press for tag-area drag; uses [State.context] so the tag
+  /// lens resolves — the [context] name inside [GraphView] closures is the
+  /// graph subtree, where [ConstellationTagLensCubit] is not in scope (#1021).
+  void _onGraphCanvasLongPress(
+    ConstellationCubit cubit,
+    void Function(Offset scene) offerCreate,
+    Offset scene,
+    PointerDeviceKind kind,
+  ) {
+    if (cubit.state.tagView != null ||
+        cubit.state.isComposing ||
+        !widget.peopleTagsEnabled) {
+      offerCreate(scene);
+      return;
+    }
+    if (kind != PointerDeviceKind.touch &&
+        kind != PointerDeviceKind.stylus &&
+        kind != PointerDeviceKind.mouse) {
+      offerCreate(scene);
+      return;
+    }
+    final lensCubit = maybeConstellationTagLens(context);
+    if (lensCubit == null) {
+      offerCreate(scene);
+      return;
+    }
+    _updateTagHullHitTester(cubit, lensCubit: lensCubit);
+    final tagId = _tagHullHitTester?.tagHullAt(scene);
+    if (tagId == null) {
+      offerCreate(scene);
+      return;
+    }
+    final store = _peopleTags;
+    if (store == null) {
+      offerCreate(scene);
+      return;
+    }
+    cubit.beginDragTagArea(
+      tagId: tagId,
+      peopleOfTag: store.peopleInTag,
+      tagsOfPerson: store.tagsOfPerson,
+    );
+  }
+
   ConstellationDetailLevel get _detail => _zoom.value;
+
+  /// LOD for map nodes (dot / district / pin stack). When the graph rebuilds
+  /// from [GraphController.cameraRevision] before [_onCamera] runs, [_detail]
+  /// can still reflect the previous [_zoom]; read the settled level from the
+  /// live scale unless a gesture is holding hysteresis.
+  ///
+  /// When the screen injects [ConstellationZoomLevelController], map chrome
+  /// must follow that owner (e.g. programmatic [ConstellationZoomLevelController
+  /// .update] without moving the camera — the overlay and the markers agree).
+  /// The bare-body test harness owns its own controller ([_ownZoom]); there the
+  /// graph still keys LOD off the camera until [_onCamera] syncs [_zoom].
+  ConstellationDetailLevel get _nodeDetailForMapChrome {
+    if (_pointersDown > 0) {
+      return _detail;
+    }
+    // [_ownZoom] is non-null only when [_readZoomOrOwn] created an internal
+    // controller (no [RepositoryProvider] above the body). There the graph
+    // must still key LOD off the live scale until [_onCamera] syncs [_zoom].
+    return _ownZoom != null
+        ? settledConstellationDetailLevel(_graphController.cameraScale)
+        : _detail;
+  }
 
   // Edges only depend on the camera through the stroke compensation (zoom
   // below 1), so pans and zooms above 1 must not repaint them.
@@ -290,9 +387,10 @@ class _ConstellationBodyState extends State<ConstellationBody>
       unawaited(peopleTags.ensureLoaded().catchError((Object _) {}));
     }
     _magnetTagsSubscription = _peopleTags?.changes.listen((_) {
-      if (!mounted || !_peopleTags.hasLoaded) return;
+      final tags = _peopleTags;
+      if (!mounted || tags == null || !tags.hasLoaded) return;
       context.read<ConstellationCubit>().refreshTagMagnets({
-        for (final tag in _peopleTags.tags) tag.id,
+        for (final tag in tags.tags) tag.id,
       });
     });
   }
@@ -901,7 +999,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
       }
     }
     final maxBelowCentreViewport = math.max(
-      0.0,
+      0,
       lowestViewport - body.center.dy,
     );
     if (maxBelowCentreViewport <= 0) {
@@ -1763,18 +1861,35 @@ class _ConstellationBodyState extends State<ConstellationBody>
                 BlocBuilder<ConstellationTagLensCubit, ConstellationTagFilter>(
                   bloc: lensCubit,
                   builder: (context, filter) {
-                    final fieldIds = {
-                      for (final person in cubit.fieldPeople) person.id,
-                    };
-                    return ConstellationTagHullLayer(
-                      controller: cubit.graphController,
-                      tags: [
-                        for (final tag in store.tags)
-                          if (store.peopleInTag(tag.id).any(fieldIds.contains))
-                            tag,
-                      ],
-                      selectedTagIds: filter.selectedOwn,
-                      peopleOf: store.peopleInTag,
+                    return BlocBuilder<ConstellationCubit, ConstellationState>(
+                      bloc: cubit,
+                      buildWhen: (previous, current) =>
+                          previous.tagAreaDragTagId != current.tagAreaDragTagId,
+                      builder: (context, hullState) {
+                        final field = cubit.state.field;
+                        final fieldIds = field == null
+                            ? const <String>{}
+                            : <String>{
+                                for (final p in field.peers) p.id,
+                                for (final p
+                                    in field.resolvedAnchorProjection
+                                        .pinnedPeers)
+                                  p.id,
+                              };
+                        return ConstellationTagHullLayer(
+                          controller: cubit.graphController,
+                          tags: [
+                            for (final tag in store.tags)
+                              if (store
+                                  .peopleInTag(tag.id)
+                                  .any(fieldIds.contains))
+                                tag,
+                          ],
+                          selectedTagIds: filter.selectedOwn,
+                          peopleOf: store.peopleInTag,
+                          dragHighlightTagId: hullState.tagAreaDragTagId,
+                        );
+                      },
                     );
                   },
                 ),
@@ -2012,6 +2127,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
     final mapArranging = mapSelectionCubit?.state.arranging ?? false;
     final touchNodeDragLocked =
         mapSelectionCubit != null && !mapArranging && !cubit.state.isComposing;
+
     bool canDragNode(NodeDetails node) {
       if (cubit.state.isComposing && !mapArranging) {
         return cubit.isComposerDrag(node);
@@ -2059,6 +2175,14 @@ class _ConstellationBodyState extends State<ConstellationBody>
           child: FocusTraversalGroup(
             policy: _mapTraversalPolicy,
             child: GraphView<NodeDetails, EdgeDetails>(
+              // Constellation sets explicit paint order ([ConstellationCubit
+              // .orderedNodeIdsForPaint]); viewport lazy building would drop
+              // off-screen nodes from the widget tree and break tests (and
+              // Tab focus) that key markers by graph id after zoom (#1021).
+              layoutChromeListenable: Listenable.merge(<Listenable>[
+                _zoom.changes,
+                cubit.graphController.cameraRevision,
+              ]),
               controller: cubit.graphController,
               canvasSize: ConstellationBody._canvasSize,
               canvasBackgroundBuilder: (context) =>
@@ -2073,32 +2197,45 @@ class _ConstellationBodyState extends State<ConstellationBody>
                   composer == null || composer.createCubit != null
                   ? null
                   : offerCreate,
-              onCanvasLongPress:
-                  composer == null || composer.createCubit != null
+              onCanvasLongPress: composer?.createCubit != null
+                  ? null
+                  : (scene, kind) => _onGraphCanvasLongPress(
+                      cubit,
+                      offerCreate,
+                      scene,
+                      kind,
+                    ),
+              onCanvasLongPressMove: composer?.createCubit != null
                   ? null
                   : (scene) {
-                      final cubit = context.read<ConstellationCubit>();
-                      if (cubit.state.tagView != null ||
-                          cubit.state.isComposing ||
-                          !widget.peopleTagsEnabled) {
-                        offerCreate(scene);
+                      if (cubit.state.tagAreaDragTagId == null) {
                         return;
                       }
-                      _updateTagHullHitTester(cubit);
-                      final tagId = _tagHullHitTester?.tagHullAt(scene);
-                      if (tagId == null) {
-                        offerCreate(scene);
+                      final target = cubit.state.activePlacementTarget;
+                      if (target == null) {
                         return;
                       }
-                      final store = _peopleTags;
-                      if (store == null) {
-                        offerCreate(scene);
+                      cubit.updateDragPresentation(
+                        nodeId: constellationGraphNodeIdForTarget(target),
+                        sceneCentre: scene,
+                      );
+                    },
+              onCanvasLongPressEnd: composer?.createCubit != null
+                  ? null
+                  : (scene) {
+                      if (cubit.state.tagAreaDragTagId == null) {
                         return;
                       }
-                      cubit.beginDragTagArea(
-                        tagId: tagId,
-                        peopleOfTag: store.peopleInTag,
-                        tagsOfPerson: store.tagsOfPerson,
+                      final target = cubit.state.activePlacementTarget;
+                      if (target == null) {
+                        cubit.clearTagAreaHullAffordances();
+                        return;
+                      }
+                      unawaited(
+                        cubit.onExistingNodeDrop(
+                          target: target,
+                          sceneCentre: scene,
+                        ),
                       );
                     },
               minScale: 0.1,
@@ -2119,11 +2256,17 @@ class _ConstellationBodyState extends State<ConstellationBody>
               transformNodeDragPosition: cubit.clampClusterDragPosition,
               onNodeLongPress: mapSelectionCubit == null
                   ? null
-                  : (node, position) {
+                  : (node, position, kind) {
                       if (cubit.state.tagView != null) {
                         return false;
                       }
                       if (!cubit.canDragNode(node)) {
+                        return false;
+                      }
+                      if (kind != PointerDeviceKind.touch &&
+                          kind != PointerDeviceKind.stylus &&
+                          kind != PointerDeviceKind.mouse &&
+                          kind != PointerDeviceKind.trackpad) {
                         return false;
                       }
                       if (cubit.state.isComposing) {
@@ -2162,7 +2305,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
               },
               onNodeDragUpdate: (node, position, globalPosition) {
                 cubit.updateDragPresentation(
-                  nodeId: node.id,
+                  nodeId: tenturaGraphNodeId(node),
                   sceneCentre: position,
                 );
                 _syncComposerPersonPositions(cubit, composer);
@@ -2278,6 +2421,8 @@ class _ConstellationBodyState extends State<ConstellationBody>
                 final l10n = L10n.of(context)!;
                 final tt = context.tt;
                 final scheme = Theme.of(context).colorScheme;
+                final tagsStore = _peopleTags;
+                final tagAreaDragId = state.tagAreaDragTagId;
                 final personPinState = node is FieldPersonNode
                     ? cubit.fieldPersonById(node.person.id)?.pinState
                     : null;
@@ -2287,9 +2432,13 @@ class _ConstellationBodyState extends State<ConstellationBody>
                     :final person,
                   ) =>
                     _ConstellationMapNode(
-                      detail: _detail,
-                      forwardTreeMarker:
-                          cubit.forwardTreeRecipientMarkerByPersonId[person.id],
+                      mapGraphNodeKey: TestIds.key(TestIds.graphNode(node.id)),
+                      lodChromeKey: ValueKey<String>('lod|${node.id}'),
+                      detail: _nodeDetailForMapChrome,
+                      cameraRevision:
+                          cubit.graphController.cameraRevision.value,
+                      forwardTreeMarker: cubit
+                          .forwardTreeRecipientMarkerByPersonId[person.id],
                       statusBadge: personPinState != null
                           ? ExcludeSemantics(
                               child: ConstellationMarkerBadge.pinState(
@@ -2343,19 +2492,39 @@ class _ConstellationBodyState extends State<ConstellationBody>
                               ),
                             )
                           : null,
-                      child: GraphNodeWidget(
-                        key: TestIds.key(TestIds.graphNode(node.id)),
-                        nodeDetails: node,
-                        hiddenNeighborCount: cubit
-                            .forwardTreeAnonymousCountByPersonId[person.id],
-                        isOrigin: ring == 0,
-                        isFocused:
-                            panelVisible && node.id == state.selectedPersonId,
+                      child: Builder(
+                        builder: (context) {
+                          final lift = tagAreaDragId != null &&
+                                  tagsStore != null &&
+                                  person.id != cubit.viewerId &&
+                                  tagsStore
+                                      .peopleInTag(tagAreaDragId)
+                                      .contains(person.id)
+                              ? state.tagAreaDragNodeLiftScale
+                              : 1.0;
+                          final marker = GraphNodeWidget(
+                            nodeDetails: node,
+                            hiddenNeighborCount: cubit
+                                .forwardTreeAnonymousCountByPersonId[
+                                    person.id],
+                            isOrigin: ring == 0,
+                            isFocused:
+                                panelVisible && node.id == state.selectedPersonId,
+                          );
+                          if ((lift - 1.0).abs() < 1e-9) {
+                            return marker;
+                          }
+                          return Transform.scale(scale: lift, child: marker);
+                        },
                       ),
                     ),
                   FieldBeaconNode(request: final request?) =>
                     _ConstellationMapNode(
-                      detail: _detail,
+                      mapGraphNodeKey: TestIds.key(TestIds.graphNode(node.id)),
+                      lodChromeKey: ValueKey<String>('lod|${node.id}'),
+                      detail: _nodeDetailForMapChrome,
+                      cameraRevision:
+                          cubit.graphController.cameraRevision.value,
                       temporaryOutline:
                           cubit.isSearchTemporaryOutlineBeacon(request.id)
                           ? ConstellationTemporaryOutline(
@@ -2407,13 +2576,16 @@ class _ConstellationBodyState extends State<ConstellationBody>
                               ),
                             ),
                       child: GraphNodeWidget(
-                        key: TestIds.key(TestIds.graphNode(node.id)),
                         nodeDetails: node,
                         isFocused: state.selectedRequestId == request.id,
                       ),
                     ),
                   FieldBeaconNode(post: final post?) => _ConstellationMapNode(
-                    detail: _detail,
+                    mapGraphNodeKey: TestIds.key(TestIds.graphNode(node.id)),
+                    lodChromeKey: ValueKey<String>('lod|${node.id}'),
+                    detail: _nodeDetailForMapChrome,
+                    cameraRevision:
+                        cubit.graphController.cameraRevision.value,
                     temporaryOutline:
                         cubit.isSearchTemporaryOutlineBeacon(post.id)
                         ? ConstellationTemporaryOutline(
@@ -2439,7 +2611,6 @@ class _ConstellationBodyState extends State<ConstellationBody>
                           )
                         : null,
                     child: GraphNodeWidget(
-                      key: TestIds.key(TestIds.graphNode(node.id)),
                       nodeDetails: node,
                       isFocused: state.selectedRequestId == post.id,
                     ),
@@ -2454,23 +2625,36 @@ class _ConstellationBodyState extends State<ConstellationBody>
                 final anchorTarget = cubit.anchorTargetForNode(node);
                 Widget build(
                   List<PersonTag> ownTags,
-                ) => BlocSelector<ConstellationCubit, ConstellationState, bool>(
-                  bloc: cubit,
-                  selector: (_) =>
-                      anchorTarget != null && cubit.isAnchored(anchorTarget),
-                  builder: (context, _) => ConstellationPersonPresenceBuilder(
-                    personId: node is FieldPersonNode ? node.person.id : null,
-                    builder: (context, online) => _wrapFieldBeaconMapChrome(
-                      node,
-                      _wrapConstellationMapNodeSemantics(
-                        context: context,
-                        cubit: cubit,
-                        state: state,
-                        node: node,
-                        panelVisible: panelVisible,
-                        mapNode: mapNode.withOwnTags(ownTags),
-                        online: online,
-                        ownTags: ownTags,
+                ) => ListenableBuilder(
+                  listenable: Listenable.merge(<Listenable>[
+                    cubit.graphController.cameraRevision,
+                    _zoom.changes,
+                  ]),
+                  builder: (context, _) => BlocSelector<
+                      ConstellationCubit,
+                      ConstellationState,
+                      bool
+                    >(
+                    bloc: cubit,
+                    selector: (_) =>
+                        anchorTarget != null && cubit.isAnchored(anchorTarget),
+                    builder: (context, _) => ConstellationPersonPresenceBuilder(
+                      personId:
+                          node is FieldPersonNode ? node.person.id : null,
+                      builder: (context, online) => _wrapFieldBeaconMapChrome(
+                        node,
+                        _wrapConstellationMapNodeSemantics(
+                          context: context,
+                          cubit: cubit,
+                          state: state,
+                          node: node,
+                          panelVisible: panelVisible,
+                          mapNode: mapNode
+                              .withDetail(_nodeDetailForMapChrome)
+                              .withOwnTags(ownTags),
+                          online: online,
+                          ownTags: ownTags,
+                        ),
                       ),
                     ),
                   ),
@@ -2484,9 +2668,11 @@ class _ConstellationBodyState extends State<ConstellationBody>
                   builder: (_, _) => build(_ownTagsOf(store, node.person.id)),
                 );
               },
+              ),
             ),
           ),
-        ),
+        // Trust rings and chips receive hover/taps; paint-only decoration is
+        // [IgnorePointer] inside [ConstellationViewportOverlay] (#1021).
         Positioned.fill(
           child: RepositoryProvider<ConstellationZoomLevelController>.value(
             value: _zoom,
@@ -2494,6 +2680,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
               cubit: cubit,
               frameHolder: _frameHolder,
               peopleTags: _peopleTags,
+              nodeRingLayerKey: _nodeRingLayerKey,
             ),
           ),
         ),
@@ -2667,9 +2854,13 @@ class _ConstellationBodyState extends State<ConstellationBody>
   }
 
   /// The viewer's tag store; null where none is registered.
-  final PeopleTagsCase? _peopleTags = GetIt.I.isRegistered<PeopleTagsCase>()
-      ? GetIt.I<PeopleTagsCase>()
-      : null;
+  ///
+  /// Resolved on read so tests can register `PeopleTagsCase` in `GetIt` after
+  /// this widget is constructed (#1021). The `peopleTagsCase` constructor
+  /// parameter wins when set.
+  PeopleTagsCase? get _peopleTags =>
+      widget.peopleTagsCase ??
+      (GetIt.I.isRegistered<PeopleTagsCase>() ? GetIt.I<PeopleTagsCase>() : null);
 
   /// Own tags on [personId], in tag order.
   List<PersonTag> _ownTagsOf(PeopleTagsCase store, String personId) {
@@ -3314,22 +3505,38 @@ class _OverviewDotSpec {
 /// A [kConstellationOverviewDotDiameter] dot on screen whatever the camera
 /// scale, centred in the node's own scene box.
 class _OverviewDot extends StatelessWidget {
-  const _OverviewDot({required this.spec, required this.color, super.key});
+  const _OverviewDot({
+    required this.spec,
+    required this.color,
+    this.mapChromeKey,
+  });
 
   final _OverviewDotSpec spec;
   final Color color;
 
+  /// When set, keys the **painted** overview dot (fixed logical diameter on
+  /// screen). Tests use `TestIds.graphNode` for layout size; that key must not
+  /// wrap the full `spec.sceneSize` box (hit target), which scales with zoom.
+  final Key? mapChromeKey;
+
   @override
-  Widget build(BuildContext context) => SizedBox.square(
-    dimension: spec.sceneSize,
-    child: Center(
-      child: ListenableBuilder(
-        listenable: spec.camera,
-        builder: (_, _) => SizedBox.square(
-          dimension: kConstellationOverviewDotDiameter / spec.scale(),
-          child: DecoratedBox(
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-          ),
+  Widget build(BuildContext context) => RepaintBoundary(
+    child: SizedBox.square(
+      dimension: spec.sceneSize,
+      child: Center(
+        child: ListenableBuilder(
+          listenable: spec.camera,
+          builder: (_, _) {
+            final dot = SizedBox.square(
+              dimension: kConstellationOverviewDotDiameter / spec.scale(),
+              child: DecoratedBox(
+                decoration:
+                    BoxDecoration(color: color, shape: BoxShape.circle),
+              ),
+            );
+            final key = mapChromeKey;
+            return key == null ? dot : KeyedSubtree(key: key, child: dot);
+          },
         ),
       ),
     ),
@@ -3347,45 +3554,34 @@ class _DistrictMarker extends StatelessWidget {
     required this.spec,
     required this.person,
     required this.ringColor,
-    required this.markerKey,
+    this.mapChromeKey,
   });
 
   final _OverviewDotSpec spec;
   final Profile person;
   final Color? ringColor;
-  final Key? markerKey;
+
+  /// Same as [_OverviewDot.mapChromeKey]: key the fixed-diameter marker, not
+  /// the outer scene-sized box.
+  final Key? mapChromeKey;
 
   static const _ringWidth = 2.0;
 
   @override
-  Widget build(BuildContext context) => SizedBox.square(
-    dimension: spec.sceneSize,
-    child: Center(
-      child: ListenableBuilder(
-        listenable: spec.camera,
-        builder: (_, child) => Transform.scale(
-          scale: 1 / spec.scale(),
-          child: child,
-        ),
-        child: SizedBox.square(
-          key: markerKey,
-          dimension: kConstellationDistrictMarkerDiameter,
-          child: DecoratedBox(
-            position: DecorationPosition.foreground,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: switch (ringColor) {
-                final color? => Border.all(color: color, width: _ringWidth),
-                null => null,
-              },
-            ),
-            child: ClipOval(
-              child: ProfileAvatarInitials(
-                lettering: TenturaAvatar.initialsForProfile(person),
-                size: kConstellationDistrictMarkerDiameter,
-                hueKey: person.id,
-              ),
-            ),
+  Widget build(BuildContext context) => RepaintBoundary(
+    child: SizedBox.square(
+      dimension: spec.sceneSize,
+      child: Center(
+        child: ListenableBuilder(
+          listenable: spec.camera,
+          builder: (_, child) => Transform.scale(
+            scale: 1 / spec.scale(),
+            child: child,
+          ),
+          child: _districtMarkerChrome(
+            mapChromeKey: mapChromeKey,
+            ringColor: ringColor,
+            person: person,
           ),
         ),
       ),
@@ -3393,10 +3589,44 @@ class _DistrictMarker extends StatelessWidget {
   );
 }
 
+Widget _districtMarkerChrome({
+  required Key? mapChromeKey,
+  required Color? ringColor,
+  required Profile person,
+}) {
+  final marker = SizedBox.square(
+    dimension: kConstellationDistrictMarkerDiameter,
+    child: DecoratedBox(
+      position: DecorationPosition.foreground,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: switch (ringColor) {
+          final color? =>
+            Border.all(color: color, width: _DistrictMarker._ringWidth),
+          null => null,
+        },
+      ),
+      child: ClipOval(
+        child: ProfileAvatarInitials(
+          lettering: TenturaAvatar.initialsForProfile(person),
+          size: kConstellationDistrictMarkerDiameter,
+          hueKey: person.id,
+        ),
+      ),
+    ),
+  );
+  return mapChromeKey == null
+      ? marker
+      : KeyedSubtree(key: mapChromeKey, child: marker);
+}
+
 class _ConstellationMapNode extends StatelessWidget {
   const _ConstellationMapNode({
     required this.child,
     required this.detail,
+    required this.cameraRevision,
+    this.mapGraphNodeKey,
+    this.lodChromeKey,
     this.dot,
     this.districtPerson,
     this.temporaryOutline,
@@ -3411,6 +3641,20 @@ class _ConstellationMapNode extends StatelessWidget {
 
   final Widget child;
   final ConstellationDetailLevel detail;
+
+  /// Wraps the whole map chrome (dot / district / full node) so tests can
+  /// target `TestIds.graphNode` even when the body is not a `GraphNodeWidget`
+  /// (overview dot and district marker reuse `GraphNodeWidget`'s key via
+  /// `KeyedSubtree` below).
+  final Key? mapGraphNodeKey;
+
+  /// Stable key for the LOD body so zoom never reuses one dot widget for
+  /// another person when [child] no longer carries the test key.
+  final Key? lodChromeKey;
+
+  /// Bumps on every camera transform; keys the outer chrome so LOD cannot
+  /// survive widget reuse across zoom (person `am` can swap dot ↔ avatar).
+  final int cameraRevision;
 
   /// Set for a person who is drawn as a bare dot at the overview.
   final _OverviewDotSpec? dot;
@@ -3431,6 +3675,9 @@ class _ConstellationMapNode extends StatelessWidget {
   _ConstellationMapNode withOwnTags(List<PersonTag> ownTags) =>
       _ConstellationMapNode(
         detail: detail,
+        cameraRevision: cameraRevision,
+        mapGraphNodeKey: mapGraphNodeKey,
+        lodChromeKey: lodChromeKey,
         dot: dot,
         districtPerson: districtPerson,
         temporaryOutline: temporaryOutline,
@@ -3441,30 +3688,56 @@ class _ConstellationMapNode extends StatelessWidget {
         child: child,
       );
 
+  _ConstellationMapNode withDetail(ConstellationDetailLevel next) =>
+      identical(detail, next)
+          ? this
+          : _ConstellationMapNode(
+              detail: next,
+              cameraRevision: cameraRevision,
+              mapGraphNodeKey: mapGraphNodeKey,
+              lodChromeKey: lodChromeKey,
+              dot: dot,
+              districtPerson: districtPerson,
+              temporaryOutline: temporaryOutline,
+              forwardTreeMarker: forwardTreeMarker,
+              pinBadge: pinBadge,
+              statusBadge: statusBadge,
+              ownTags: ownTags,
+              child: child,
+            );
+
   @override
   Widget build(BuildContext context) {
     final tt = context.tt;
     final theme = Theme.of(context);
     final dot = this.dot;
     final districtPerson = this.districtPerson;
+    final lodKey = lodChromeKey ?? child.key;
+    final mapChromeKey = mapGraphNodeKey;
     final shown = dot != null && detail == ConstellationDetailLevel.overview
-        ? _OverviewDot(
-            key: child.key,
-            spec: dot,
-            color: ownTags.isEmpty
-                ? HSLColor.fromColor(tt.textMuted).withSaturation(0).toColor()
-                : context.tagColors.swatchFor(ownTags.first.color).accent,
+        ? KeyedSubtree(
+            key: lodKey,
+            child: _OverviewDot(
+              spec: dot,
+              mapChromeKey: mapChromeKey,
+              color: ownTags.isEmpty
+                  ? HSLColor.fromColor(tt.textMuted).withSaturation(0).toColor()
+                  : context.tagColors.swatchFor(ownTags.first.color).accent,
+            ),
           )
         : dot != null &&
               districtPerson != null &&
               detail == ConstellationDetailLevel.district
-        ? _DistrictMarker(
-            spec: dot,
-            person: districtPerson,
-            markerKey: child.key,
-            ringColor: ownTags.isEmpty
-                ? null
-                : context.tagColors.swatchFor(ownTags.first.color).accent,
+        ? KeyedSubtree(
+            key: lodKey,
+            child: _DistrictMarker(
+              spec: dot,
+              person: districtPerson,
+              mapChromeKey: mapChromeKey,
+              ringColor: ownTags.isEmpty
+                  ? null
+                  : context.tagColors.swatchFor(ownTags.first.color).accent,
+            ),
           )
         : child;
     final overhang = constellationMarkerBadgeOverhang(tt);
@@ -3478,11 +3751,14 @@ class _ConstellationMapNode extends StatelessWidget {
       ConstellationForwardTreeRecipientMarker.notOpened => '○',
       null => null,
     };
-    return Stack(
+    final body = mapGraphNodeKey == null || !identical(shown, child)
+        ? shown
+        : KeyedSubtree(key: mapGraphNodeKey, child: shown);
+    final stack = Stack(
       clipBehavior: Clip.none,
       alignment: Alignment.center,
       children: [
-        shown,
+        body,
         if (temporaryOutline != null && identical(shown, child))
           Positioned.fill(child: temporaryOutline!),
         if (markerChar != null &&
@@ -3536,6 +3812,22 @@ class _ConstellationMapNode extends StatelessWidget {
             ),
           ),
       ],
+    );
+    // Key the chrome subtree by node identity + LOD, not by every camera tick:
+    // district-marker tests require [RenderParagraph] (initials) to survive
+    // scroll/zoom repaints without disposal. [lodChromeKey] is stable per map
+    // node (`lod|<id>`); fall back to [cameraRevision] when absent.
+    final lodStable =
+        switch (lodChromeKey) {
+          ValueKey<String>(:final value) => value,
+          _ => null,
+        };
+    final mapChromeRootKey = lodStable != null
+        ? ValueKey<String>('cm|$detail|$lodStable')
+        : ValueKey<String>('cm|$detail|$cameraRevision');
+    return KeyedSubtree(
+      key: mapChromeRootKey,
+      child: stack,
     );
   }
 }

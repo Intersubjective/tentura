@@ -89,6 +89,12 @@ abstract class ConstellationState extends StateBase with _$ConstellationState {
 
     /// Effective personal Field hides (`fieldHiddenItems`), #255 l9k5.7.
     @Default(0) int hiddenByYouCount,
+
+    /// Own-tag hull highlighted during an empty-space tag-area drag (#1021).
+    String? tagAreaDragTagId,
+
+    /// Light scale on Field person nodes while a tag-area cluster drag is active.
+    @Default(1.0) double tagAreaDragNodeLiftScale,
   }) = _ConstellationState;
 
   const ConstellationState._();

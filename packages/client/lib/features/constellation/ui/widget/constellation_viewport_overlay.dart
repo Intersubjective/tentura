@@ -84,12 +84,15 @@ class ConstellationViewportOverlay extends StatefulWidget {
     required this.cubit,
     required this.frameHolder,
     this.peopleTags,
+    this.nodeRingLayerKey,
     super.key,
   });
 
   final ConstellationCubit cubit;
   final ConstellationPresentationFrameHolder frameHolder;
   final PeopleTagsCase? peopleTags;
+
+  final GlobalKey<ConstellationNodeRingLayerState>? nodeRingLayerKey;
 
   @override
   State<ConstellationViewportOverlay> createState() =>
@@ -966,80 +969,96 @@ class _ConstellationViewportOverlayState
 
                 return Stack(
                   children: [
-                    if (unreadGlowByGraphId.isNotEmpty)
-                      Positioned.fill(
-                        child: ConstellationFieldUnreadGlowLayer(
-                          frame: frame,
-                          glowByGraphId: unreadGlowByGraphId,
-                          dimmedGraphIds: dimmedGraphIds,
-                          colorForAuthor: (authorId) =>
-                              constellationFieldUnreadGlowColor(
-                                tags: tagsCase,
-                                authorId: authorId,
-                                tt: tt,
-                                tagColors: context.tagColors,
-                              ),
-                        ),
-                      ),
-                    // Presence halos under the trust rings; they repaint on
-                    // their own, never with the rings or the labels.
-                    if (presence != null)
-                      Positioned.fill(
-                        child:
-                            BlocBuilder<
-                              ConstellationPresenceCubit,
-                              Set<String>
-                            >(
-                              bloc: presence,
-                              builder: (context, online) =>
-                                  ConstellationPresenceHaloLayer(
-                                    frame: frame,
-                                    onlineGraphIds: constellationOnlineGraphIds(
-                                      onlinePersonIds: online,
-                                      isOnMap: nodeByGraphId.containsKey,
+                    // Paint-only decoration + labels: must not sit in front of
+                    // [GraphView] for hit testing. Trust rings and overflow
+                    // chips stay outside (#1021).
+                    IgnorePointer(
+                      child: Stack(
+                        children: [
+                          if (unreadGlowByGraphId.isNotEmpty)
+                            Positioned.fill(
+                              child: ConstellationFieldUnreadGlowLayer(
+                                frame: frame,
+                                glowByGraphId: unreadGlowByGraphId,
+                                dimmedGraphIds: dimmedGraphIds,
+                                colorForAuthor: (authorId) =>
+                                    constellationFieldUnreadGlowColor(
+                                      tags: tagsCase,
+                                      authorId: authorId,
+                                      tt: tt,
+                                      tagColors: context.tagColors,
                                     ),
-                                    dimmedGraphIds: dimmedGraphIds,
-                                    viewport: viewport,
+                              ),
+                            ),
+                          if (presence != null)
+                            Positioned.fill(
+                              child:
+                                  BlocBuilder<
+                                    ConstellationPresenceCubit,
+                                    Set<String>
+                                  >(
+                                    bloc: presence,
+                                    builder: (context, online) =>
+                                        ConstellationPresenceHaloLayer(
+                                          frame: frame,
+                                          onlineGraphIds:
+                                              constellationOnlineGraphIds(
+                                                onlinePersonIds: online,
+                                                isOnMap:
+                                                    nodeByGraphId.containsKey,
+                                              ),
+                                          dimmedGraphIds: dimmedGraphIds,
+                                          viewport: viewport,
+                                        ),
                                   ),
                             ),
-                      ),
-                    Positioned.fill(
-                      child: ConstellationFieldNewRingLayer(
-                        frame: frame,
-                        newGraphIds: constellationNewOnFieldGraphIds(
-                          newPersonIds: {
-                            for (final peer
-                                in widget.cubit.state.field?.peers ??
-                                    const <ConstellationPerson>[])
-                              if (peer.isNew) peer.id,
-                            for (final peer
-                                in widget
-                                        .cubit
-                                        .state
-                                        .field
-                                        ?.resolvedAnchorProjection
-                                        .pinnedPeers ??
-                                    const <ConstellationPerson>[])
-                              if (peer.isNew) peer.id,
-                            for (final peer
-                                in widget
-                                        .cubit
-                                        .state
-                                        .field
-                                        ?.resolvedAnchorProjection
-                                        .supportPeers ??
-                                    const <ConstellationPerson>[])
-                              if (peer.isNew) peer.id,
-                          },
-                          viewerId: widget.cubit.viewerId,
-                          isOnMap: nodeByGraphId.containsKey,
-                        ),
-                        dimmedGraphIds: dimmedGraphIds,
-                        accentColor: Theme.of(context).colorScheme.secondary,
+                          Positioned.fill(
+                            child: ConstellationFieldNewRingLayer(
+                              frame: frame,
+                              newGraphIds: constellationNewOnFieldGraphIds(
+                                newPersonIds: {
+                                  for (final peer
+                                      in widget.cubit.state.field?.peers ??
+                                          const <ConstellationPerson>[])
+                                    if (peer.isNew) peer.id,
+                                  for (final peer
+                                      in widget
+                                              .cubit
+                                              .state
+                                              .field
+                                              ?.resolvedAnchorProjection
+                                              .pinnedPeers ??
+                                          const <ConstellationPerson>[])
+                                    if (peer.isNew) peer.id,
+                                  for (final peer
+                                      in widget
+                                              .cubit
+                                              .state
+                                              .field
+                                              ?.resolvedAnchorProjection
+                                              .supportPeers ??
+                                          const <ConstellationPerson>[])
+                                    if (peer.isNew) peer.id,
+                                },
+                                viewerId: widget.cubit.viewerId,
+                                isOnMap: nodeByGraphId.containsKey,
+                              ),
+                              dimmedGraphIds: dimmedGraphIds,
+                              accentColor:
+                                  Theme.of(context).colorScheme.secondary,
+                            ),
+                          ),
+                          Transform.translate(
+                            offset: origin - _placementOrigin,
+                            child: RepaintBoundary(child: _labelLayer),
+                          ),
+                          ...draggedLabels,
+                        ],
                       ),
                     ),
                     Positioned.fill(
                       child: ConstellationNodeRingLayer(
+                        key: widget.nodeRingLayerKey,
                         frame: frame,
                         trustByGraphId: rings.trust,
                         selectedGraphId: rings.selected,
@@ -1057,11 +1076,6 @@ class _ConstellationViewportOverlayState
                         },
                       ),
                     ),
-                    Transform.translate(
-                      offset: origin - _placementOrigin,
-                      child: RepaintBoundary(child: _labelLayer),
-                    ),
-                    ...draggedLabels,
                     ...chipWidgets,
                     ...postChipWidgets,
                   ],
