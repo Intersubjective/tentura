@@ -503,6 +503,19 @@ for p in pathlib.Path("/proc").iterdir():
 PY
 }
 
+# flutter test leaves incremental kernels (*.cache.dill.track.dill, pack.dill)
+# and test_cache under packages/client/build: 45-195 MB each, 66 GB piled up on
+# the SSD once. The dir is meant to be a tmpfs (docs: AGENTS.md Verify); stale
+# files are removed so it never fills. Only reached when no wrapped run is
+# active, and only files untouched for 30 minutes.
+sweep_client_build_cache() {
+  local build
+  build="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/packages/client/build"
+  [[ -d "$build" ]] || return 0
+  find "$build" -maxdepth 3 -type f \( -name '*.cache.dill.track.dill' -o -name 'pack.dill' \) -mmin +30 -delete 2>/dev/null || true
+  [[ -d "$build/test_cache" ]] && find "$build/test_cache" -type f -mmin +30 -delete 2>/dev/null || true
+}
+
 sweep_run() {
   local run_id="$1"
   kill_tagged_tree "$run_id"
@@ -520,6 +533,7 @@ sweep_run() {
   local orphans
   orphans="$(kill_orphan_testers || true)"
   [[ -n "${orphans:-}" ]] && log "killed orphan test leftovers: $orphans"
+  sweep_client_build_cache
   local gone
   gone="$(sweep_tmpfs || true)"
   if [[ -n "${gone:-}" ]]; then
