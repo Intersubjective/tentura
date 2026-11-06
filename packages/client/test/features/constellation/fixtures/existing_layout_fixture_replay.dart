@@ -332,6 +332,8 @@ ConstellationLayout captureLayout({
   requestAuthorById: const {}, egoOwnRequestIds: egoOwnRequestIds,
   spacing: spacing, maxHops: maxHops, viewportClass: viewportClass,
   footprints: const {},
+  rearrangeOwnTagPeopleByTagId: const <String, Set<String>>{},
+  rearrangeTagMagnetsByTagId: const <String, ConstellationPoint>{},
 ), ringGap: ringGap, residualRingFactor: residualRingFactor,
   satelliteOffset: satelliteOffset);
 ''';
