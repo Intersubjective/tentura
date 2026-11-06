@@ -475,6 +475,46 @@ class ConstellationSceneController {
     }
   }
 
+  /// Clears forward-tree-only fields from [FieldPersonNode] when the overlay is
+  /// not drawing the tree, so person payloads match a plain field build and
+  /// topology reconciliation does not replace every person node each pass.
+  void _stripForwardTreeDecorationsFromFieldPeople({
+    required ConstellationForwardTreeOverlay? forwardTree,
+    required Set<NodeDetails> nodes,
+    required Map<String, NodeDetails> nodeById,
+  }) {
+    final graph = forwardTree?.graph;
+    final overlayActive = forwardTree != null &&
+        graph != null &&
+        graph.edges.isNotEmpty;
+    if (overlayActive) {
+      return;
+    }
+    for (final entry in nodeById.entries.toList()) {
+      final id = entry.key;
+      final existing = entry.value;
+      if (existing is! FieldPersonNode) {
+        continue;
+      }
+      if (existing.forwardTreeMarker == null &&
+          !existing.forwardTreeTemporaryOutline &&
+          existing.forwardTreeAnonymousCount == 0) {
+        continue;
+      }
+      final stripped = FieldPersonNode(
+        person: existing.person,
+        ring: existing.ring,
+        isKept: existing.isKept,
+        pinned: existing.pinned,
+        size: existing.size,
+      );
+      nodeById[id] = stripped;
+      nodes
+        ..remove(existing)
+        ..add(stripped);
+    }
+  }
+
   void _applyForwardTreeOverlay({
     required ConstellationForwardTreeOverlay? forwardTree,
     required Profile viewer,
@@ -1128,6 +1168,17 @@ class ConstellationSceneController {
         }
       }
     }
+
+    // With the overlay off, strip forward-tree decoration from person payloads so
+    // [reconcileTopology] sees the same [FieldPersonNode] instances as before
+    // the overlay ran — otherwise new instances per rebuild bump the scene
+    // revision and every node tile rebuilds on unrelated graph passes (e.g.
+    // placement cancel; placement_phase_node_rebuild_test).
+    _stripForwardTreeDecorationsFromFieldPeople(
+      forwardTree: forwardTree,
+      nodes: nodes,
+      nodeById: nodeById,
+    );
 
     _applyForwardTreeOverlay(
       forwardTree: forwardTree,
