@@ -17,9 +17,11 @@ import 'package:tentura/features/constellation/domain/use_case/constellation_fie
 import 'package:tentura/features/constellation/domain/use_case/constellation_field_search_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_person_search.dart';
+import 'package:tentura/features/constellation/ui/widget/constellation_visibility_bar.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_request_preview_sheet.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
+import 'package:tentura/ui/utils/ui_utils.dart';
 
 import '../../support/constellation_store_fixture.dart';
 import '../../support/people_tags_widget_harness.dart';
@@ -163,11 +165,16 @@ ConstellationFieldSearchCase _searchCase(_FakeSearchPort port) =>
       logger: Logger('test'),
     );
 
-Widget _app(Widget child, {Locale locale = const Locale('en')}) => MaterialApp(
+Widget _app(
+  Widget child, {
+  Locale locale = const Locale('en'),
+  List<NavigatorObserver>? navigatorObservers,
+}) => MaterialApp(
   locale: locale,
   theme: TenturaTheme.light(),
   localizationsDelegates: L10n.localizationsDelegates,
   supportedLocales: L10n.supportedLocales,
+  navigatorObservers: navigatorObservers ?? const [],
   home: TenturaResponsiveScope(child: child),
 );
 
@@ -660,5 +667,79 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(find.textContaining('коробок'), findsOneWidget);
     });
+
+    testWidgets(
+      '#1049 Field search overlay pop clears second-degree chip tooltip (RU phone)',
+      (tester) async {
+        await usePhoneSurface(tester);
+        final l10nRu = lookupL10n(const Locale('ru'));
+        final degreeHint = l10nRu.constellationShowDegreeSecondHint;
+        final port = _FakeSearchPort(
+          const ConstellationFieldSearchResult(
+            people: [
+              ConstellationFieldSearchPersonHit(id: 'am', displayName: 'Alex'),
+            ],
+          ),
+        );
+        final cubit = await _loadCubit(
+          field: _fieldWithFilteredRequest(),
+          searchCase: _searchCase(port),
+        );
+        addTearDown(cubit.close);
+
+        await tester.pumpPeopleTagsWidget(
+          _app(
+            BlocProvider.value(
+              value: cubit,
+              child: const Scaffold(
+                body: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    ConstellationVisibilityBar(),
+                    Expanded(child: ConstellationPersonSearchButton()),
+                  ],
+                ),
+              ),
+            ),
+            locale: const Locale('ru'),
+            navigatorObservers: [ClearSnackBarsOnPushObserver()],
+          ),
+        );
+
+        final degreeChip = find.byKey(
+          const Key('constellation.show.degree.second'),
+        );
+        await tester.scrollUntilVisible(
+          degreeChip,
+          16,
+          scrollable: find.descendant(
+            of: find.byKey(const Key('constellation.show')),
+            matching: find.byType(Scrollable),
+          ),
+        );
+        await tester.longPress(degreeChip);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 500));
+        expect(find.text(degreeHint), findsWidgets);
+
+        await tester.tap(find.byKey(const Key('constellation.app_bar.search')));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 500));
+
+        await tester.enterText(find.byType(TextField).last, 'al');
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 400));
+        await tester.pump();
+
+        final back = find.byIcon(Icons.arrow_back);
+        expect(back, findsOneWidget);
+        await tester.tap(back);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 500));
+
+        expect(find.text(degreeHint), findsNothing);
+        expect(tester.takeException(), isNull);
+      },
+    );
   });
 }
