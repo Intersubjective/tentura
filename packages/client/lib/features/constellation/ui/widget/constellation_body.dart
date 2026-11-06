@@ -1116,8 +1116,8 @@ class _ConstellationBodyState extends State<ConstellationBody>
             : null,
         onShowForwardTreeOnField: request.viewerHasForwardEdge
             ? () => context.read<ScreenCubit>().showConstellationForwardTreeFor(
-                  beaconId: request.id,
-                )
+                beaconId: request.id,
+              )
             : null,
         onClose: () => unawaited(_dismissRequestPreview(cubit)),
       ),
@@ -2146,8 +2146,8 @@ class _ConstellationBodyState extends State<ConstellationBody>
                   ) =>
                     _ConstellationMapNode(
                       detail: _detail,
-                      forwardTreeMarker: cubit
-                          .forwardTreeRecipientMarkerByPersonId[person.id],
+                      forwardTreeMarker:
+                          cubit.forwardTreeRecipientMarkerByPersonId[person.id],
                       statusBadge: personPinState != null
                           ? ExcludeSemantics(
                               child: ConstellationMarkerBadge.pinState(
@@ -2169,8 +2169,9 @@ class _ConstellationBodyState extends State<ConstellationBody>
                             ),
                       districtPerson: ring == 0 ? null : person,
                       temporaryOutline:
-                          cubit.forwardTreeTemporaryOutlinePersonIds
-                                  .contains(person.id) ||
+                          cubit.forwardTreeTemporaryOutlinePersonIds.contains(
+                                person.id,
+                              ) ||
                               (widget.fieldMembershipV2Enabled &&
                                   cubit
                                           .fieldPersonById(person.id)
@@ -2617,8 +2618,8 @@ class _ConstellationBodyState extends State<ConstellationBody>
     );
     // Off the selected person's trust chain (#641) or forward-tree overlay (#774):
     // the marker fades.
-    final chainMarker = cubit.isDimmedByTrustChain(node) ||
-            cubit.isDimmedByForwardTree(node)
+    final chainMarker =
+        cubit.isDimmedByTrustChain(node) || cubit.isDimmedByForwardTree(node)
         ? Opacity(opacity: kConstellationTrustChainDimOpacity, child: mapNode)
         : mapNode;
     // Outside the tag selection: the marker fades; positions stay put.
@@ -2713,10 +2714,16 @@ class _ConstellationBodyState extends State<ConstellationBody>
         : compactSheetHeight;
     final sheet = compactSheetHeight > 0 ? compactSheetHeight : peek;
     final media = MediaQuery.of(context);
-    final maxHeight =
+    final freeBelowPanel =
         _effectiveMapStackHeight - sheet - media.padding.top - tt.rowGap * 2;
+    final capHeight =
+        media.size.height * tt.graphLegendMaxHeightFractionCompact;
+    final maxHeight = math.min(
+      capHeight,
+      math.max(0.0, freeBelowPanel),
+    );
     return ConstrainedBox(
-      constraints: BoxConstraints(maxHeight: math.max(0, maxHeight)),
+      constraints: BoxConstraints(maxHeight: maxHeight),
       child: SingleChildScrollView(child: legend),
     );
   }
@@ -3412,6 +3419,7 @@ class ConstellationEdgePainter
 
   final Map<String, ConstellationEdgeKind> edgeKindByPair;
   final Map<String, double> edgeFadeBySemanticId;
+
   /// Stable reader for pulse map (equality ignores the closure identity).
   final Map<String, double> Function()? forwardTreePulseReader;
   final TenturaTokens tt;
@@ -3558,8 +3566,14 @@ class ConstellationEdgePainter
         final aw = strokeWidth * 1.8;
         final path = Path()
           ..moveTo(tip.dx, tip.dy)
-          ..lineTo(tip.dx - u.dx * ah + v.dx * aw, tip.dy - u.dy * ah + v.dy * aw)
-          ..lineTo(tip.dx - u.dx * ah - v.dx * aw, tip.dy - u.dy * ah - v.dy * aw)
+          ..lineTo(
+            tip.dx - u.dx * ah + v.dx * aw,
+            tip.dy - u.dy * ah + v.dy * aw,
+          )
+          ..lineTo(
+            tip.dx - u.dx * ah - v.dx * aw,
+            tip.dy - u.dy * ah - v.dy * aw,
+          )
           ..close();
         final fill = Paint()
           ..color = paint.color

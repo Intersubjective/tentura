@@ -183,7 +183,9 @@ Future<ConstellationCubit> loadReferenceCubit({
   return cubit;
 }
 
-class _StubContextCubit extends Cubit<GraphPersonContextState>
+/// Minimal [GraphPersonContextCubit] for Field body widget tests.
+final class FieldBodyTestGraphPersonContextCubit
+    extends Cubit<GraphPersonContextState>
     implements GraphPersonContextCubit {
   @override
   Stream<LazyWriteNotice> get lazyWriteNotices => const Stream.empty();
@@ -191,7 +193,8 @@ class _StubContextCubit extends Cubit<GraphPersonContextState>
   @override
   Future<void> retryTrust([GraphTrustRevert? revert]) async {}
 
-  _StubContextCubit() : super(const GraphPersonContextState());
+  FieldBodyTestGraphPersonContextCubit()
+    : super(const GraphPersonContextState());
 
   @override
   final void Function(Profile profile)? onProfilePatched = null;
@@ -286,7 +289,7 @@ Future<FakeUiEffectPort> pumpConstellationBody(
                   )
                 else
                   BlocProvider<GraphPersonContextCubit>(
-                    create: (_) => _StubContextCubit(),
+                    create: (_) => FieldBodyTestGraphPersonContextCubit(),
                   ),
                 BlocProvider<ScreenCubit>(
                   create: (_) => ScreenCubit(fx),

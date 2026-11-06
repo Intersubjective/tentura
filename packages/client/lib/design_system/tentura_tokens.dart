@@ -59,6 +59,8 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
     required this.unreadDotSize,
     required this.graphPersonContextWidth,
     required this.graphPersonContextCompactMaxHeightFraction,
+    required this.graphLegendMaxHeightFractionCompact,
+    required this.graphLegendMaxHeightFractionWide,
     required this.graphLabelMaxWidthPerson,
     required this.graphLabelMaxWidthRequest,
     required this.tabCompactWidth,
@@ -173,6 +175,13 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
   /// Max height fraction for the compact bottom person context card.
   final double graphPersonContextCompactMaxHeightFraction;
 
+  /// Max height for an expanded graph/Field legend on a phone: scroll inside
+  /// the cap so the map stays usable (#1042).
+  final double graphLegendMaxHeightFractionCompact;
+
+  /// Max height fraction for an expanded legend on regular and wide layouts.
+  final double graphLegendMaxHeightFractionWide;
+
   /// Max outer width for a Constellation person label plate (viewport px at scale 1).
   final double graphLabelMaxWidthPerson;
 
@@ -272,6 +281,8 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
     unreadDotSize: TenturaSpacing.unreadDot,
     graphPersonContextWidth: 320,
     graphPersonContextCompactMaxHeightFraction: 0.42,
+    graphLegendMaxHeightFractionCompact: 0.40,
+    graphLegendMaxHeightFractionWide: 0.55,
     graphLabelMaxWidthPerson: 120,
     graphLabelMaxWidthRequest: 144,
     tabCompactWidth: TenturaSpacing.tabCompact,
@@ -457,6 +468,8 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
     double? unreadDotSize,
     double? graphPersonContextWidth,
     double? graphPersonContextCompactMaxHeightFraction,
+    double? graphLegendMaxHeightFractionCompact,
+    double? graphLegendMaxHeightFractionWide,
     double? graphLabelMaxWidthPerson,
     double? graphLabelMaxWidthRequest,
     double? tabCompactWidth,
@@ -525,6 +538,12 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
       graphPersonContextCompactMaxHeightFraction:
           graphPersonContextCompactMaxHeightFraction ??
           this.graphPersonContextCompactMaxHeightFraction,
+      graphLegendMaxHeightFractionCompact:
+          graphLegendMaxHeightFractionCompact ??
+          this.graphLegendMaxHeightFractionCompact,
+      graphLegendMaxHeightFractionWide:
+          graphLegendMaxHeightFractionWide ??
+          this.graphLegendMaxHeightFractionWide,
       graphLabelMaxWidthPerson:
           graphLabelMaxWidthPerson ?? this.graphLabelMaxWidthPerson,
       graphLabelMaxWidthRequest:
@@ -642,6 +661,16 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
       graphPersonContextCompactMaxHeightFraction: lerpDouble(
         graphPersonContextCompactMaxHeightFraction,
         other.graphPersonContextCompactMaxHeightFraction,
+        t,
+      )!,
+      graphLegendMaxHeightFractionCompact: lerpDouble(
+        graphLegendMaxHeightFractionCompact,
+        other.graphLegendMaxHeightFractionCompact,
+        t,
+      )!,
+      graphLegendMaxHeightFractionWide: lerpDouble(
+        graphLegendMaxHeightFractionWide,
+        other.graphLegendMaxHeightFractionWide,
         t,
       )!,
       graphLabelMaxWidthPerson: lerpDouble(
