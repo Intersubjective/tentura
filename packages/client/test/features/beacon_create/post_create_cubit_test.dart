@@ -5,9 +5,7 @@
 // response is retried with the same arguments; a failed upload retries only
 // that upload and never re-sends `postPublish`.
 
-import 'dart:typed_data';
 
-import 'package:flutter/foundation.dart' show immutable;
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/domain/entity/beacon_kind.dart';

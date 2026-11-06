@@ -13,9 +13,7 @@
 // sheet closes) to `RoomCubit.setPendingQuotedFact`.
 
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:get_it/get_it.dart';
 
 import 'package:tentura/data/repository/clipboard_image_repository.dart';
 import 'package:tentura/data/repository/image_repository.dart';

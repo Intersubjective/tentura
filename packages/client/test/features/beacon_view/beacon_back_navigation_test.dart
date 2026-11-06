@@ -10,8 +10,6 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 import 'beacon_view_screen_harness.dart';
 import 'dart:async';
-import 'package:tentura/design_system/components/tentura_underline_tabs.dart';
-import 'package:tentura/design_system/components/tentura_vertical_resize_handle.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
 import '../beacon_threads/room_cubit_fakes.dart';

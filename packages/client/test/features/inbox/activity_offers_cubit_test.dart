@@ -14,7 +14,6 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/inbox/domain/entity/inbox_item.dart';
-import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/features/inbox/domain/use_case/inbox_case.dart';
 import 'package:tentura/features/inbox/ui/bloc/activity_offers_cubit.dart';
 
