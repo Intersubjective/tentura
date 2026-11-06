@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:get_it/get_it.dart';
 
-import 'package:tentura/design_system/components/tentura_avatar.dart';
-import 'package:tentura/design_system/components/tentura_count_badge.dart';
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/features/constellation/domain/constellation_request_identity.dart';
@@ -11,6 +9,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/beacon_identity_tile.dart';
 import 'package:tentura/ui/widget/self_user_highlight.dart';
 
+import '../../domain/entity/forwards_recipient_marker.dart';
 import '../../domain/entity/node_details.dart';
 
 class GraphNodeWidget extends StatelessWidget {
@@ -21,6 +20,7 @@ class GraphNodeWidget extends StatelessWidget {
     this.isViewer = false,
     this.isOrigin = false,
     this.isFocused = false,
+    this.forwardsDimmed = false,
     this.hiddenNeighborCount,
     this.connectionSemantics,
     this.onTap,
@@ -39,6 +39,9 @@ class GraphNodeWidget extends StatelessWidget {
   final bool isViewer;
   final bool isOrigin;
   final bool isFocused;
+
+  /// Committer / help-offerer path: off-spine nodes stay visible but muted.
+  final bool forwardsDimmed;
   final int? hiddenNeighborCount;
 
   /// Screen-reader description of this node's connection to the viewer
@@ -96,21 +99,87 @@ class GraphNodeWidget extends StatelessWidget {
         buildWhen: (p, c) => p.profile.id != c.profile.id,
         builder: (context, state) {
           final s = nodeDetails.size;
+          final tt = context.tt;
+          final scheme = Theme.of(context).colorScheme;
+          final isGhostForward =
+              userNode.user.id.startsWith('Ufg:') &&
+              userNode.anonymousForwardCount != null;
+          final anonForwardCount = userNode.anonymousForwardCount;
           final isSelf = SelfUserHighlight.profileIsSelf(
             userNode.user,
             state.profile.id,
           );
-          final core = TenturaAvatar(
-            profile: userNode.user,
-            size: s,
-            withRating: withRating,
-            isSelf: isSelf,
-          );
-          Widget result = core;
+          Widget core;
+          if (isGhostForward) {
+            core = CircleAvatar(
+              radius: s / 2,
+              backgroundColor: scheme.surfaceContainerHighest,
+              child: Icon(
+                Icons.visibility_off_outlined,
+                size: s * 0.45,
+                color: scheme.onSurfaceVariant,
+              ),
+            );
+          } else {
+            core = TenturaAvatar(
+              profile: userNode.user,
+              size: s,
+              withRating: withRating,
+              isSelf: isSelf,
+            );
+          }
+          var result = core;
           if (userNode.isHelpOfferer) {
             result = _HelpOffererRing(size: s, child: result);
           }
-          return result;
+          final markerLabel = forwardsRecipientMarkerAbbreviation(
+            userNode.forwardsRecipientMarker,
+          );
+          final marker = markerLabel == null
+              ? null
+              : Positioned(
+                  bottom: -2,
+                  left: 0,
+                  right: 0,
+                  child: Text(
+                    markerLabel,
+                    key: ValueKey<String>('forwards_graph.marker.$markerLabel'),
+                    textAlign: TextAlign.center,
+                    style: TenturaText.labelSmall(scheme.primary),
+                  ),
+                );
+          final fwdOn = userNode.forwardsShowForwardedOn
+              ? Positioned(
+                  top: -2,
+                  right: -2,
+                  child: Icon(
+                    Icons.forward,
+                    size: tt.iconSize * 0.65,
+                    color: tt.good,
+                  ),
+                )
+              : null;
+          final anonBadge = switch ((isGhostForward, anonForwardCount)) {
+            (true, final int c) => Positioned(
+                bottom: 0,
+                right: 0,
+                child: TenturaCountBadge(
+                  key: ValueKey<String>('forwards_graph.anon.$c'),
+                  count: c,
+                  backgroundColor: scheme.primary,
+                ),
+              ),
+            _ => null,
+          };
+          return Stack(
+            clipBehavior: Clip.none,
+            children: [
+              result,
+              ?marker,
+              ?fwdOn,
+              ?anonBadge,
+            ],
+          );
         },
       ),
       final BeaconNode beaconNode => BeaconIdentityTile(
@@ -191,6 +260,12 @@ class GraphNodeWidget extends StatelessWidget {
       decorated = _FocusRing(
         size: nodeDetails.size,
         square: useSquareFocus,
+        child: decorated,
+      );
+    }
+    if (forwardsDimmed && !isFocused) {
+      decorated = Opacity(
+        opacity: 0.55,
         child: decorated,
       );
     }

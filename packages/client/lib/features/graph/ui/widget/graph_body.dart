@@ -149,7 +149,7 @@ class GraphBodyState extends State<GraphBody>
   void initState() {
     super.initState();
     if (_graphCubit.state.isAnimated) {
-      unawaited(_animationController.repeat());
+      _animationController.repeat();
     }
   }
 
@@ -345,7 +345,8 @@ class GraphBodyState extends State<GraphBody>
         previous.focus != current.focus ||
         previous.focusPathDepth != current.focusPathDepth ||
         previous.positiveOnly != current.positiveOnly ||
-        previous.hiddenNeighborCounts != current.hiddenNeighborCounts,
+        previous.hiddenNeighborCounts != current.hiddenNeighborCounts ||
+        previous.forwardsDimmedNodeIds != current.forwardsDimmedNodeIds,
     builder: (context, graphState) =>
         _buildGraphStack(context, graphState, contextState),
   );
@@ -675,6 +676,9 @@ class GraphBodyState extends State<GraphBody>
       isViewer: _isViewerNode(node),
       isOrigin: node.id == _graphCubit.originNodeId,
       isFocused: graphState.focus.isNotEmpty && node.id == graphState.focus,
+      forwardsDimmed:
+          _graphCubit.mode == GraphMode.forwards &&
+          graphState.forwardsDimmedNodeIds.contains(node.id),
       hiddenNeighborCount: graphState.hiddenNeighborCounts[node.id],
       connectionSemantics: node.id == graphState.focus
           ? _viewerConnectionSemantics(node)

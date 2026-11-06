@@ -134,6 +134,15 @@ class GraphRepository extends RemoteRepository
           branch: null,
           srcTotalNeighborCount: srcTotalNeighborCount,
           dstTotalNeighborCount: dstTotalNeighborCount,
+          forwardEdgeId: null,
+          forwardRecipientIsGhostEndpoint: null,
+          forwardOfferStatus: null,
+          forwardDeclinedInvite: null,
+          forwardReadAt: null,
+          forwardForwardedOn: null,
+          forwardSenderAnonymousCount: null,
+          forwardRecipientAnonymousCount: null,
+          forwardParentEdgeId: null,
         ));
       }
       return;
@@ -146,6 +155,15 @@ class GraphRepository extends RemoteRepository
       branch: null,
       srcTotalNeighborCount: srcTotalNeighborCount,
       dstTotalNeighborCount: dstTotalNeighborCount,
+      forwardEdgeId: null,
+      forwardRecipientIsGhostEndpoint: null,
+      forwardOfferStatus: null,
+      forwardDeclinedInvite: null,
+      forwardReadAt: null,
+      forwardForwardedOn: null,
+      forwardSenderAnonymousCount: null,
+      forwardRecipientAnonymousCount: null,
+      forwardParentEdgeId: null,
     ));
   }
 
@@ -182,6 +200,15 @@ class GraphRepository extends RemoteRepository
             branch: null,
             srcTotalNeighborCount: e.src_total_neighbor_count,
             dstTotalNeighborCount: e.dst_total_neighbor_count,
+            forwardEdgeId: null,
+            forwardRecipientIsGhostEndpoint: null,
+            forwardOfferStatus: null,
+            forwardDeclinedInvite: null,
+            forwardReadAt: null,
+            forwardForwardedOn: null,
+            forwardSenderAnonymousCount: null,
+            forwardRecipientAnonymousCount: null,
+            forwardParentEdgeId: null,
           ),
     };
   }
