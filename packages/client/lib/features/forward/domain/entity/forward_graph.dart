@@ -1,5 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import 'help_path_node.dart';
+
 part 'forward_graph.freezed.dart';
 
 /// One forward edge as returned by the V2 `beaconForwardGraph` query.
@@ -30,6 +32,7 @@ abstract class ForwardGraph with _$ForwardGraph {
     @Default(<ForwardGraphEdge>[]) List<ForwardGraphEdge> edges,
     @Default(<String>{}) Set<String> helpOffererIds,
     String? viewerId,
+    @Default(<HelpPathNode>[]) List<HelpPathNode> path,
   }) = _ForwardGraph;
 
   const ForwardGraph._();

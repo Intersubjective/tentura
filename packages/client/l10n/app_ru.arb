@@ -5719,6 +5719,19 @@
   "closureHelperInfoScaling": "Ты не знаешь, как решил автор, — и знать не нужно. Поддержи тех, чья работа, по-твоему, была важной. Если автор уже оценил человека высоко, добавка будет маленькой; если низко — заметной. Отдают в основном те, кому автор дал больше. Автор твой выбор не видит",
   "closureHelperDiagramExample": "пример",
   "closureHelperStale": "Запрос изменился, данные обновлены",
+  "closureHelpPathTitle": "Помощь прошла через",
+  "@closureHelpPathTitle": {
+    "description": "Heading above the forward chain on a closed Request (#774)."
+  },
+  "helpPathAnonymousCount": "+{count}",
+  "@helpPathAnonymousCount": {
+    "description": "Masked participants on a help forward path hidden by a block.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "closureResultTitle": "Итоги для тебя",
   "closureResultOutcomeDone": "Автор отметил: выполнено",
   "closureResultOutcomeNotDone": "Автор отметил: не выполнено",
