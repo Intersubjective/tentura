@@ -993,14 +993,14 @@ final gqlTypeForwardGraphEdge = GraphQLObjectType('ForwardGraphEdge', null)
     field('recipientId', graphQLString.nonNullable()),
     field('parentEdgeId', graphQLString),
     field('batchId', graphQLString),
-    // beaconForwardGraph only: replay time, both ends and recipient states.
+    // beaconForwardGraph only (null on beaconHelpOffererForwardPath): replay time, both ends and recipient states.
     // readAt and declinedInvite are null unless the viewer is the author or
     // this edge's sender.
-    field('createdAt', graphQLString.nonNullable()),
-    field('sender', gqlTypeHelpPathNode.nonNullable()),
-    field('recipient', gqlTypeHelpPathNode.nonNullable()),
-    field('forwardedOn', graphQLBoolean.nonNullable()),
-    field('offerStatus', gqlEnumForwardRecipientOfferStatus.nonNullable()),
+    field('createdAt', graphQLString),
+    field('sender', gqlTypeHelpPathNode),
+    field('recipient', gqlTypeHelpPathNode),
+    field('forwardedOn', graphQLBoolean),
+    field('offerStatus', gqlEnumForwardRecipientOfferStatus),
     field('readAt', graphQLString),
     field('declinedInvite', graphQLBoolean),
   ]);

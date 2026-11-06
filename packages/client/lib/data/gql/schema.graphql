@@ -8496,16 +8496,16 @@ type v2_ForwardDeliveryResult {
 type v2_ForwardGraphEdge {
   batchId: String
   beaconId: String!
-  createdAt: String!
+  createdAt: String
   declinedInvite: Boolean
-  forwardedOn: Boolean!
+  forwardedOn: Boolean
   id: String!
-  offerStatus: v2_ForwardRecipientOfferStatus!
+  offerStatus: v2_ForwardRecipientOfferStatus
   parentEdgeId: String
   readAt: String
-  recipient: v2_HelpPathNode!
+  recipient: v2_HelpPathNode
   recipientId: String!
-  sender: v2_HelpPathNode!
+  sender: v2_HelpPathNode
   senderId: String!
 }
 

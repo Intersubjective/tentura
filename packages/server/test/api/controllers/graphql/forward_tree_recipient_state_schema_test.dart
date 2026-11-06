@@ -9,8 +9,8 @@ import 'package:test/test.dart';
 import 'package:tentura_server/api/controllers/graphql/custom_types.dart';
 
 const _edgeFields = {
-  'createdAt': 'String!',
-  'forwardedOn': 'Boolean!',
+  'createdAt': 'String',
+  'forwardedOn': 'Boolean',
   'readAt': 'String',
   'declinedInvite': 'Boolean',
 };
@@ -54,7 +54,7 @@ void main() {
       final declaredType = matches.single.group(1)!;
       final servedType = _servedOfferStatusType();
       if (servedType is GraphQLEnumType) {
-        expect(declaredType, 'v2_${servedType.name}!');
+        expect(declaredType, 'v2_${servedType.name}');
         final enumBody = _body(schema, 'enum', 'v2_${servedType.name}');
         final values = enumBody
             .replaceAll(RegExp('""".*?"""', dotAll: true), '')
@@ -68,7 +68,7 @@ void main() {
         );
       } else {
         expect(servedType, same(graphQLString));
-        expect(declaredType, 'String!');
+        expect(declaredType, 'String');
       }
     });
 
@@ -96,9 +96,10 @@ void main() {
       for (final side in ['sender', 'recipient']) {
         expect(fields, contains(side), reason: 'edges must expose $side');
         final type = fields[side]!.type;
-        expect(type, isA<GraphQLNonNullableType<dynamic, dynamic>>());
+        // Nullable: beaconHelpOffererForwardPath shares this type and does
+        // not supply them.
         expect(
-          (type as GraphQLNonNullableType<dynamic, dynamic>).ofType,
+          type,
           same(gqlTypeHelpPathNode),
           reason: '$side is a named or anonymous person node',
         );
@@ -114,7 +115,9 @@ void main() {
         final edgeBody = _body(schema, 'type', 'v2_ForwardGraphEdge');
         for (final side in ['sender', 'recipient']) {
           expect(
-            RegExp('\\b$side\\s*:\\s*v2_HelpPathNode!').hasMatch(edgeBody),
+            RegExp(
+              '\\b$side\\s*:\\s*v2_HelpPathNode\\b(?!!)',
+            ).hasMatch(edgeBody),
             isTrue,
             reason: '$side must reach generated client operations',
           );
@@ -155,8 +158,7 @@ GraphQLType<dynamic, dynamic> _servedOfferStatusType() {
   };
   expect(fields, contains('offerStatus'));
   final declaredType = fields['offerStatus']!.type;
-  expect(declaredType, isA<GraphQLNonNullableType<dynamic, dynamic>>());
-  return (declaredType as GraphQLNonNullableType<dynamic, dynamic>).ofType;
+  return declaredType;
 }
 
 String _body(String schema, String kind, String name) {

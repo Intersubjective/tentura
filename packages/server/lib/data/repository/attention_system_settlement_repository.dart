@@ -28,7 +28,8 @@ SET title = CASE WHEN outbox.presentation_payload->>'done' = 'true'
                 THEN outbox.title ELSE outbox.title || ' · Done ✓' END,
     presentation_payload = outbox.presentation_payload ||
       jsonb_build_object('done', true, 'doneEpoch', $2::int::text),
-    seen_at = NULL, emailed_at = NULL
+    seen_at = NULL, cleared_at = NULL, clear_reason = NULL,
+    cleared_by_operation_id = NULL, emailed_at = NULL
 WHERE outbox.beacon_id = $1
   AND outbox.presentation_key = 'forward_helped'
   AND outbox.presentation_payload->>'doneEpoch' IS DISTINCT FROM $2::int::text
