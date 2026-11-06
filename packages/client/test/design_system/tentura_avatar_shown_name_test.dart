@@ -65,6 +65,23 @@ void main() {
     expect(find.text('NM'), findsNothing);
   });
 
+  testWidgets(
+    'initials fall back to objective name when alias has no letters (#1075)',
+    (tester) async {
+      await _pump(
+        tester,
+        const Profile(
+          id: 'U1',
+          displayName: 'Bob Q1106',
+          // No \p{L} graphemes — falls back to objective display name (#1075).
+          contactName: '😀😀😀😀😀',
+        ),
+      );
+
+      expect(find.text('BQ'), findsOneWidget);
+    },
+  );
+
   testWidgets('guard: a chosen name without a contact name is unchanged', (
     tester,
   ) async {
