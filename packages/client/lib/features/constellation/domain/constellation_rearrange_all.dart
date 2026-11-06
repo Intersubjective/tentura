@@ -4,24 +4,9 @@ import 'constellation_drag_cluster.dart';
 import 'constellation_layout.dart';
 import 'constellation_rearrange_tag_areas.dart';
 
-/// Where «Rearrange everyone» puts the Field: `pinned` holds the new centre of
-/// every pinned node it can seat, `layout` the whole Field once those nodes
-/// rest there and everyone else is laid out afresh around them.
-typedef ConstellationRearrangement = ({
-  Map<String, ConstellationPoint> pinned,
-  ConstellationLayout layout,
-  Map<String, ConstellationPoint> tagCentres,
-});
-
-/// A full re-layout of [input] that ignores its pins and session inertia.
-///
-/// The pinned people join the automatic ones for a first layout without
-/// anchors; each pinned node takes the place that layout gives it, held to
-/// the bounds a drag holds a node to, and stays pinned there. A second layout
-/// with the pins at those places is what the Field shows once they are
-/// written, so `layout` is exactly what Apply
-/// produces. A pinned node the first layout cannot seat keeps its anchor.
-ConstellationRearrangement computeConstellationRearrangeAll(
+/// First pass of [computeConstellationRearrangeAll]: same graph as rearrange
+/// everyone uses for the free layout (pins cleared; seated-off-path merged).
+ConstellationPlacedLayoutInput constellationRearrangeLoosePlacementInput(
   ConstellationPlacedLayoutInput input,
 ) {
   final seatedOffPath = {
@@ -31,7 +16,7 @@ ConstellationRearrangement computeConstellationRearrangeAll(
           !input.paths.ring.contains(id))
         id,
   };
-  final loose = (
+  return (
     egoId: input.egoId,
     paths: seatedOffPath.isEmpty
         ? input.paths
@@ -64,6 +49,29 @@ ConstellationRearrangement computeConstellationRearrangeAll(
     rearrangeOwnTagPeopleByTagId: input.rearrangeOwnTagPeopleByTagId,
     rearrangeTagMagnetsByTagId: input.rearrangeTagMagnetsByTagId,
   );
+}
+
+/// Where «Rearrange everyone» puts the Field: `pinned` holds the new centre of
+/// every pinned node it can seat, `layout` the whole Field once those nodes
+/// rest there and everyone else is laid out afresh around them.
+typedef ConstellationRearrangement = ({
+  Map<String, ConstellationPoint> pinned,
+  ConstellationLayout layout,
+  Map<String, ConstellationPoint> tagCentres,
+});
+
+/// A full re-layout of [input] that ignores its pins and session inertia.
+///
+/// The pinned people join the automatic ones for a first layout without
+/// anchors; each pinned node takes the place that layout gives it, held to
+/// the bounds a drag holds a node to, and stays pinned there. A second layout
+/// with the pins at those places is what the Field shows once they are
+/// written, so `layout` is exactly what Apply
+/// produces. A pinned node the first layout cannot seat keeps its anchor.
+ConstellationRearrangement computeConstellationRearrangeAll(
+  ConstellationPlacedLayoutInput input,
+) {
+  final loose = constellationRearrangeLoosePlacementInput(input);
   final free = computeConstellationPlacedLayout(input: loose);
   final hasOwnTagIds = input.rearrangeOwnTagPeopleByTagId.keys.any(
     (k) => !k.startsWith('auto:'),
