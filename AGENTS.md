@@ -202,11 +202,11 @@ client lints: run FROM REPO ROOT, never with ../../ prefixes: './scripts/run_wit
 ### check-hints-plain-name-quoting
 flutter test --plain-name values containing spaces MUST be quoted in check commands (e.g. --plain-name='wire mapping of Post fields'), never --plain-name=wire mapping of Post fields unquoted -- the shell splits the unquoted value into separate words, which flutter test then tries to load as nonexistent test files, producing phantom 'Does not exist' failures that look like real test failures and have twice caused Alloy to wrongly override a correct 'done' judge verdict (tentura-brd4.38, tentura-brd4.39).
 
+### check-hints-server-regression-split
+server-regression (gates+unit+pg in one check) can exceed max_command_timeout and time out (tentura-kxyq.4, 2026-10-26): propose server-gates, server-unit and server-pg (TENTURA_PG_TESTS_REQUIRED=1) as three separate checks instead. Re-confirmed 2026-11-05 (zzir, scripts/run_tests.sh server-regression exit=-1).
+
 ### check-hints-test-profiles
 PREFERRED check commands (repo root, see docs/testing-resource-profile.md): per iteration 'scripts/run_tests.sh server-files <test files>' or 'scripts/run_tests.sh server-affected' (client: client-files <paths> / client-affected); ONCE before done 'scripts/run_tests.sh server-regression' (gates + unit + pg, + mr only for Field/visibility/trust changes) or 'scripts/run_tests.sh client-gates' + 'scripts/run_tests.sh client-all'. Never a whole package without tags (no plain 'dart test' / 'dart test test/data/repository' at -j 8: mixes mr/perf and fails on load), never perf/load suites. Wrapped runs queue machine-wide; 'queued behind another test run' in a log is waiting, not a hang. Timings 2026-10-24: unit 2 min, pg 9.4 min, mr 3.7 min, client-all 9.8 min.
-
-### check-hints-tmp-quota
-Fixed at the source 2026-10-24 (tentura-lt6i): run_with_test_cleanup.sh now defaults TMPDIR to ~/.cache/tentura-test-tmp when unset, so full suites no longer hit the /tmp usrquota. 'Disk quota exceeded' load failures now mean something else filled the quota — check du /tmp and the cache dir.
 
 ### check-hints-transaction-inventory
 server: every NEW transaction root (withMutatingUser / withTransaction / withMutatingRepeatableRead / withReadSnapshot call site in packages/server/lib) must get a line in packages/server/test/architecture/transaction_entry_inventory.txt ('path | Class.member | api | owner | reason'), else test/architecture/scoped_main_db_access_test.dart fails the non-pg regression. Check: cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 10m -- dart test test/architecture/scoped_main_db_access_test.dart
