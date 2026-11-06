@@ -6,6 +6,10 @@ class Accounts extends Table {
   TextColumn get displayName =>
       text().named('display_name').withDefault(const Constant(''))();
 
+  /// Cached from profile sync for account switcher (public @handle).
+  TextColumn get handle =>
+      text().withDefault(const Constant(''))();
+
   TextColumn get imageId => text().withDefault(const Constant(''))(); // v2
 
   TextColumn get blurHash => text().withDefault(const Constant(''))(); // v2

@@ -10,6 +10,9 @@ abstract class AccountEntity with _$AccountEntity {
   const factory AccountEntity({
     required String id,
     @Default('') String displayName,
+
+    /// Public @handle from the last profile sync (for switcher when name empty).
+    @Default('') String handle,
     ImageEntity? image,
   }) = _AccountEntity;
 

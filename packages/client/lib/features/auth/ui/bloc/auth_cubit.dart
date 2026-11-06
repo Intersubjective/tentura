@@ -623,6 +623,7 @@ class AuthCubit extends Cubit<AuthState> {
         final account = state.accounts[index];
 
         if (account.displayName == event.value.displayName &&
+            account.handle == event.value.handle &&
             account.image == event.value.image) {
           return;
         }
@@ -632,6 +633,7 @@ class AuthCubit extends Cubit<AuthState> {
 
           state.accounts[index] = account.copyWith(
             displayName: event.value.displayName,
+            handle: event.value.handle,
             image: event.value.image,
           );
           emit(

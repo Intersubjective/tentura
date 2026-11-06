@@ -140,6 +140,7 @@ class AuthLocalRepository implements AuthLocalRepositoryPort {
       .update(
         (o) => o(
           displayName: Value(account.displayName),
+          handle: Value(account.handle),
           imageId: Value(account.image?.id ?? ''),
           blurHash: Value(account.image?.blurHash ?? ''),
           height: Value(account.image?.height ?? 0),

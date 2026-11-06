@@ -32,7 +32,7 @@ final class Database extends _$Database {
   final Logger _logger;
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -86,6 +86,10 @@ final class Database extends _$Database {
       from4To5: (m, schema) async {
         _logger.warning('Migrating step 4 to 5 (contacts)...');
         await m.createTable(schema.contacts);
+      },
+      from5To6: (m, schema) async {
+        _logger.warning('Migrating step 5 to 6 (accounts.handle)...');
+        await m.addColumn(schema.accounts, schema.accounts.handle);
       },
     ),
   );
