@@ -1,6 +1,7 @@
 import 'package:tentura/ui/bloc/state_base.dart';
 
 import '../../domain/constellation_anchor_composition.dart';
+import '../../domain/constellation_forward_tree_overlay.dart';
 import '../../domain/constellation_filters.dart';
 import '../../domain/constellation_tag_view_scope.dart';
 import '../../domain/constellation_visibility.dart';
@@ -82,6 +83,9 @@ abstract class ConstellationState extends StateBase with _$ConstellationState {
 
     /// A previewed «Rearrange everyone»; the Field is not touched until Apply.
     ConstellationRearrangePreview? rearrangePreview,
+
+    /// Full forward tree overlay (#774 31ve.6): session-local, not persisted.
+    ConstellationForwardTreeOverlay? forwardTreeOverlay,
 
     /// Effective personal Field hides (`fieldHiddenItems`), #255 l9k5.7.
     @Default(0) int hiddenByYouCount,

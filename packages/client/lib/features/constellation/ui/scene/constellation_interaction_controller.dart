@@ -23,13 +23,7 @@ class ConstellationInteractionController {
   GraphController<NodeDetails, EdgeDetails> get _graphController =>
       _scene.graphController;
 
-  String? _draggingNodeId;
-
-  String? get draggingNodeId => _draggingNodeId;
-
-  set draggingNodeId(String? nodeId) {
-    _draggingNodeId = nodeId;
-  }
+  String? draggingNodeId;
 
   bool suppressLateGestureEnd = false;
 
@@ -37,6 +31,13 @@ class ConstellationInteractionController {
   final Map<GraphNodeId, ConstellationAnchorTarget> placementClusterTargets =
       {};
   final Map<GraphNodeId, Offset> clusterStartCentres = {};
+  final Map<GraphNodeId, double> groupMemberWeights = {};
+  final List<(Offset start, double weight)> virtualWeightedMembers = [];
+
+  /// When dragging a tag hull (see [virtualWeightedMembers]), the magnet that
+  /// moves with the cluster at weight 1, if any.
+  String? tagAreaMagnetTagId;
+  Offset? tagAreaMagnetStartScene;
 
   /// The other selected nodes moved with the dragged one (group drag): they
   /// travel by the parent's own delta as one rigid group and are all written
@@ -59,6 +60,10 @@ class ConstellationInteractionController {
     placementClusterGraphIds.clear();
     placementClusterTargets.clear();
     clusterStartCentres.clear();
+    groupMemberWeights.clear();
+    virtualWeightedMembers.clear();
+    tagAreaMagnetTagId = null;
+    tagAreaMagnetStartScene = null;
     groupMemberGraphIds.clear();
     companionAuthorGraphIds.clear();
   }
@@ -68,8 +73,53 @@ class ConstellationInteractionController {
     placementClusterGraphIds.remove(graphId);
     placementClusterTargets.remove(graphId);
     clusterStartCentres.remove(graphId);
+    groupMemberWeights.remove(graphId);
     groupMemberGraphIds.remove(graphId);
     companionAuthorGraphIds.remove(graphId);
+  }
+
+  /// Scene delta for [referenceGraphId]: maximum [fullDelta] such that every
+  /// cluster member moves by its weight times that delta within drag bounds.
+  ConstellationPoint? weightedLimitedDelta(
+    GraphNodeId referenceGraphId,
+    ConstellationPoint fullDelta,
+  ) {
+    final refStart = clusterStartCentres[referenceGraphId];
+    if (refStart == null) {
+      return null;
+    }
+    final refPos = (x: refStart.dx, y: refStart.dy);
+    final proposedParent = (
+      x: refPos.x + fullDelta.x,
+      y: refPos.y + fullDelta.y,
+    );
+    if (groupMemberGraphIds.isEmpty && virtualWeightedMembers.isEmpty) {
+      return constellationLimitClusterDelta(
+        parentStart: refPos,
+        proposedParent: proposedParent,
+        companionStarts: companionClusterStarts(referenceGraphId),
+      );
+    }
+    final members = <ConstellationPoint>[];
+    final weights = <double>[];
+    for (final graphId in groupMemberGraphIds) {
+      final memberStart = clusterStartCentres[graphId];
+      if (memberStart == null) {
+        continue;
+      }
+      members.add((x: memberStart.dx, y: memberStart.dy));
+      weights.add(groupMemberWeights[graphId] ?? 1.0);
+    }
+    for (final entry in virtualWeightedMembers) {
+      members.add((x: entry.$1.dx, y: entry.$1.dy));
+      weights.add(entry.$2);
+    }
+    return constellationLimitGroupDelta(
+      parentStart: refPos,
+      proposedParent: proposedParent,
+      memberStarts: members,
+      memberWeights: weights,
+    );
   }
 
   /// The scene delta the cluster of [parentGraphId] moves by when the pointer
@@ -82,30 +132,17 @@ class ConstellationInteractionController {
     if (parentStart == null) {
       return null;
     }
-    final start = (x: parentStart.dx, y: parentStart.dy);
-    final proposedParent = (x: proposed.dx, y: proposed.dy);
-    if (groupMemberGraphIds.isEmpty) {
-      return constellationLimitClusterDelta(
-        parentStart: start,
-        proposedParent: proposedParent,
-        companionStarts: companionClusterStarts(parentGraphId),
-      );
-    }
-    return constellationLimitGroupDelta(
-      parentStart: start,
-      proposedParent: proposedParent,
-      memberStarts: [
-        for (final graphId in groupMemberGraphIds)
-          if (clusterStartCentres[graphId] case final memberStart?)
-            (x: memberStart.dx, y: memberStart.dy),
-      ],
+    final proposedDelta = (
+      x: proposed.dx - parentStart.dx,
+      y: proposed.dy - parentStart.dy,
     );
+    return weightedLimitedDelta(parentGraphId, proposedDelta);
   }
 
   void clearClusterPresentations() {
-    for (final graphId in placementClusterGraphIds) {
-      _graphController.clearPresentationForNodeId(graphId);
-    }
+    placementClusterGraphIds.forEach(
+      _graphController.clearPresentationForNodeId,
+    );
     clearPlacementClusterState();
     _scene.clearPlacementHandoffGraphIds();
   }
@@ -175,6 +212,10 @@ class ConstellationInteractionController {
     required ConstellationComposedPresentation? composition,
     required List<ConstellationAnchor> fallbackAnchors,
     Iterable<ConstellationAnchorTarget> group = const [],
+    Map<ConstellationAnchorTarget, double> groupWeights = const {},
+    List<(Offset sceneStart, double weight)> virtualMembers = const [],
+    String? tagAreaMagnetTagId,
+    Offset? tagAreaMagnetStartScene,
   }) {
     clearPlacementClusterState();
     _beginDragPresentation(target);
@@ -182,6 +223,9 @@ class ConstellationInteractionController {
     placementClusterGraphIds.add(parentGraphId);
     placementClusterTargets[parentGraphId] = target;
     _recordClusterStartCentre(parentGraphId, fallbackAnchors);
+    virtualWeightedMembers.addAll(virtualMembers);
+    this.tagAreaMagnetTagId = tagAreaMagnetTagId;
+    this.tagAreaMagnetStartScene = tagAreaMagnetStartScene;
     final people = [
       if (target.kind == ConstellationAnchorTargetKind.person) target,
     ];
@@ -200,6 +244,7 @@ class ConstellationInteractionController {
       }
       placementClusterGraphIds.add(graphId);
       groupMemberGraphIds.add(graphId);
+      groupMemberWeights[graphId] = groupWeights[member] ?? 1.0;
       if (_graphController.activePresentationTokenForNode(graphId) == null) {
         _graphController.beginNodePresentationDragForId(graphId, start);
       }
@@ -317,12 +362,17 @@ class ConstellationInteractionController {
   ) {
     final start = clusterStartCentres[graphId]!;
     if (graphId == parentGraphId) {
-      return Offset(start.dx + parentDelta.x, start.dy + parentDelta.y);
+      return Offset(
+        start.dx + parentDelta.x,
+        start.dy + parentDelta.y,
+      );
     }
     if (groupMemberGraphIds.contains(graphId)) {
+      final w = groupMemberWeights[graphId] ?? 1.0;
       final point = constellationGroupMemberPosition(
         memberStart: (x: start.dx, y: start.dy),
         groupDelta: parentDelta,
+        weight: w,
       );
       return Offset(point.x, point.y);
     }

@@ -182,7 +182,7 @@ ConstellationRearrangement computeConstellationRearrangeAll(
         if (cOwn == null || cOth == null) continue;
         final start = nextPositions[key];
         if (start == null) continue;
-        var p = start;
+        ConstellationPoint p = start;
         double dist2(ConstellationPoint u, ConstellationPoint v) {
           final dx = u.x - v.x;
           final dy = u.y - v.y;

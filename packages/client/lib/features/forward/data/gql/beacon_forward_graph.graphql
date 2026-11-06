@@ -16,6 +16,21 @@ query BeaconForwardGraph($id: String!) {
       recipientId
       parentEdgeId
       batchId
+      createdAt
+      readAt
+      declinedInvite
+      forwardedOn
+      offerStatus
+      sender {
+        userId
+        displayName
+        anonymousCount
+      }
+      recipient {
+        userId
+        displayName
+        anonymousCount
+      }
     }
   }
 }

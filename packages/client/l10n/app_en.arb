@@ -1442,6 +1442,31 @@
     "description": "Restores a hidden Request or Post to the Field",
     "context": "ConstellationField"
   },
+  "constellationPreviewShowForwardTreeOnField": "Show on Field",
+  "@constellationPreviewShowForwardTreeOnField": {
+    "description": "Opens the Request forward tree on the Field (#774).",
+    "context": "ConstellationRequestPreviewSheet"
+  },
+  "constellationForwardTreeClose": "Close",
+  "@constellationForwardTreeClose": {
+    "description": "Tooltip for closing forward-tree overlay (#774).",
+    "context": "ConstellationField"
+  },
+  "constellationForwardTreeReplay": "Replay",
+  "@constellationForwardTreeReplay": {
+    "description": "Replays forward-tree edge animation (#774).",
+    "context": "ConstellationField"
+  },
+  "constellationForwardTreeArrangeAsTree": "Arrange as tree",
+  "@constellationForwardTreeArrangeAsTree": {
+    "description": "Temporary tree layout for forward-tree overlay (#774).",
+    "context": "ConstellationField"
+  },
+  "constellationForwardTreeRestoreLayout": "Restore layout",
+  "@constellationForwardTreeRestoreLayout": {
+    "description": "Restores pre-overlay positions after tree layout (#774).",
+    "context": "ConstellationField"
+  },
   "constellationEmptyFiltered": "No requests match these filters",
   "@constellationEmptyFiltered": {
     "context": "ConstellationFilterBar"
@@ -10858,9 +10883,9 @@
       }
     }
   },
-  "updatesForwardHelpedSeePath": "See the path ›",
+  "updatesForwardHelpedSeePath": "Show on Field ›",
   "@updatesForwardHelpedSeePath": {
-    "description": "Opens the committer-mode forward graph (#774)."
+    "description": "Opens the Request forward tree on the Field (#774)."
   },
   "updatesForwardHelpedAuthorFallback": "the author",
   "@updatesForwardHelpedAuthorFallback": {

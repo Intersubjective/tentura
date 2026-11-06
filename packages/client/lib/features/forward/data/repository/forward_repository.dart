@@ -20,12 +20,14 @@ import '../mapper/forward_reach_mapper.dart';
 import '../../domain/entity/help_offer_event.dart';
 import '../../domain/entity/forward_edge.dart';
 import '../../domain/entity/forward_graph.dart';
+import '../../domain/entity/forward_recipient_offer_status.dart';
 import '../../domain/entity/help_path_node.dart';
 import '../../domain/entity/forward_inbound_source.dart';
 import '../gql/_g/beacon_involvement_data.data.gql.dart';
 import '../gql/_g/beacon_involvement_data.req.gql.dart';
 import '../gql/_g/beacon_involvement_fields.data.gql.dart';
 import '../gql/_g/beacon_involvements_data.req.gql.dart';
+import '../gql/_g/beacon_forward_graph.data.gql.dart';
 import '../gql/_g/beacon_forward_graph.req.gql.dart';
 import '../gql/_g/beacon_help_offerer_forward_path.data.gql.dart';
 import '../gql/_g/beacon_help_offerer_forward_path.req.gql.dart';
@@ -34,6 +36,7 @@ import '../gql/_g/forward_inbound_sources.req.gql.dart';
 import 'package:tentura/data/gql/_g/schema.schema.gql.dart'
     show
         Gv2_ForwardRecipientBandProvenanceInput,
+        Gv2_ForwardRecipientOfferStatus,
         Gv2_ForwardRecipientReasonInput;
 import '../gql/_g/forward_cancel.req.gql.dart';
 import '../gql/_g/forward_mark_read.req.gql.dart';
@@ -225,7 +228,6 @@ class ForwardRepository {
   Map<String, ForwardReach?> _forwardReachByUserId = const {};
 
   /// Reach payload from the latest [fetchForwardCandidates] call on this repo.
-  @visibleForTesting
   ForwardReach? forwardReachFor(String userId) => _forwardReachByUserId[userId];
 
   /// Users mutually visible to the viewer (V2 `forwardCandidates`).
@@ -411,16 +413,7 @@ class ForwardRepository {
               viewerId: g.viewerId,
               helpOffererIds: g.helpOffererIds.toSet(),
               edges: g.edges
-                  .map(
-                    (e) => ForwardGraphEdge(
-                      id: e.id,
-                      beaconId: e.beaconId,
-                      senderId: e.senderId,
-                      recipientId: e.recipientId,
-                      parentEdgeId: e.parentEdgeId,
-                      batchId: e.batchId,
-                    ),
-                  )
+                  .map(_forwardGraphEdgeFromBeaconForward)
                   .toList(growable: false),
             ),
           );
@@ -453,16 +446,7 @@ class ForwardRepository {
             viewerId: g.viewerId,
             helpOffererIds: g.helpOffererIds.toSet(),
             edges: g.edges
-                .map(
-                  (e) => ForwardGraphEdge(
-                    id: e.id,
-                    beaconId: e.beaconId,
-                    senderId: e.senderId,
-                    recipientId: e.recipientId,
-                    parentEdgeId: e.parentEdgeId,
-                    batchId: e.batchId,
-                  ),
-                )
+                .map(_forwardGraphEdgeFromHelpOffererForward)
                 .toList(growable: false),
             path: _mapHelpPathNodes(g.path),
           );
@@ -672,6 +656,76 @@ class ForwardRepository {
           displayName: node.displayName ?? '',
         ),
   ];
+
+  static DateTime? _parseGraphqlInstant(String? iso) {
+    if (iso == null || iso.isEmpty) {
+      return null;
+    }
+    return DateTime.tryParse(iso);
+  }
+
+  static ForwardRecipientOfferStatus? _offerStatusFromGql(
+    Gv2_ForwardRecipientOfferStatus? s,
+  ) => switch (s) {
+    null => null,
+    Gv2_ForwardRecipientOfferStatus.accepted =>
+      ForwardRecipientOfferStatus.accepted,
+    Gv2_ForwardRecipientOfferStatus.declinedByAuthor =>
+      ForwardRecipientOfferStatus.declinedByAuthor,
+    Gv2_ForwardRecipientOfferStatus.none => ForwardRecipientOfferStatus.none,
+    Gv2_ForwardRecipientOfferStatus.offered => ForwardRecipientOfferStatus.offered,
+    Gv2_ForwardRecipientOfferStatus.withdrawn =>
+      ForwardRecipientOfferStatus.withdrawn,
+    _ => null,
+  };
+
+  static ForwardGraphEdge _forwardGraphEdgeFromBeaconForward(
+    GBeaconForwardGraphData_beaconForwardGraph_edges e,
+  ) {
+    final s = e.sender;
+    final r = e.recipient;
+    return ForwardGraphEdge(
+      id: e.id,
+      beaconId: e.beaconId,
+      senderId: e.senderId,
+      recipientId: e.recipientId,
+      parentEdgeId: e.parentEdgeId,
+      batchId: e.batchId,
+      createdAt: _parseGraphqlInstant(e.createdAt),
+      readAt: _parseGraphqlInstant(e.readAt),
+      declinedInvite: e.declinedInvite,
+      forwardedOn: e.forwardedOn,
+      offerStatus: _offerStatusFromGql(e.offerStatus),
+      senderAnonymousCount: s?.anonymousCount ?? 0,
+      recipientAnonymousCount: r?.anonymousCount ?? 0,
+      senderDisplayName: s?.displayName,
+      recipientDisplayName: r?.displayName,
+    );
+  }
+
+  static ForwardGraphEdge _forwardGraphEdgeFromHelpOffererForward(
+    GBeaconHelpOffererForwardPathData_beaconHelpOffererForwardPath_edges e,
+  ) {
+    final s = e.sender;
+    final r = e.recipient;
+    return ForwardGraphEdge(
+      id: e.id,
+      beaconId: e.beaconId,
+      senderId: e.senderId,
+      recipientId: e.recipientId,
+      parentEdgeId: e.parentEdgeId,
+      batchId: e.batchId,
+      createdAt: _parseGraphqlInstant(e.createdAt),
+      readAt: _parseGraphqlInstant(e.readAt),
+      declinedInvite: e.declinedInvite,
+      forwardedOn: e.forwardedOn,
+      offerStatus: _offerStatusFromGql(e.offerStatus),
+      senderAnonymousCount: s?.anonymousCount ?? 0,
+      recipientAnonymousCount: r?.anonymousCount ?? 0,
+      senderDisplayName: s?.displayName,
+      recipientDisplayName: r?.displayName,
+    );
+  }
 
   static const _label = 'Forward';
 }
