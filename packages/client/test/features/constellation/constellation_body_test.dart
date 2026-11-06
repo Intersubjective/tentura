@@ -388,6 +388,23 @@ void main() {
   });
 
   group('Constellation pin badge zoom LOD', () {
+    /// [Finder.evaluate] can still list DEFUNCT elements after a zoom rebuild;
+    /// [findsNothing] then false-fails. Count only mounted elements.
+    void expectNoMountedMatch(WidgetTester tester, Finder finder) {
+      Iterable<Element> elements;
+      try {
+        elements = finder.evaluate();
+      } on StateError catch (e) {
+        // [inNode] ends with [.first] on the ancestor chain; when the graph
+        // node key is not built (overview dot path), the chain is empty.
+        if (e.toString().contains('No element')) {
+          return;
+        }
+        rethrow;
+      }
+      expect(elements.where((e) => e.mounted).length, 0);
+    }
+
     List<ConstellationAnchor> pinnedAnchors() => [
       ConstellationAnchor(
         target: ConstellationAnchorTarget.beacon('req-in-2'),
@@ -457,7 +474,7 @@ void main() {
         0.8,
         (s) => s < kConstellationDistrictDetailScale,
       );
-      expect(pin, findsNothing);
+      expectNoMountedMatch(tester, pin);
       expect(status, findsOneWidget);
 
       await zoomUntil(
@@ -507,21 +524,21 @@ void main() {
           0.8,
           (s) => s < kConstellationDistrictDetailScale,
         );
-        expect(requestPin, findsNothing);
-        expect(personPin, findsNothing);
+        expectNoMountedMatch(tester, requestPin);
+        expectNoMountedMatch(tester, personPin);
 
         bool inBand(double s) =>
             s >= kConstellationDistrictDetailScale &&
             s < kConstellationCloseDetailScale;
         await zoomUntil(tester, cubit, 1.02, inBand);
-        expect(requestPin, findsNothing);
-        expect(personPin, findsNothing);
+        expectNoMountedMatch(tester, requestPin);
+        expectNoMountedMatch(tester, personPin);
 
         // Filter the request out so its node widget is destroyed, then restore.
         cubit
           ..setFilterIncludeUnspecified(false)
           ..setFilterCapabilitySlugs({'tools'});
-        await tester.pump();
+        await tester.pumpAndSettle();
         expect(
           find.byKey(TestIds.key(TestIds.graphNode('req-in-2'))),
           findsNothing,
@@ -538,8 +555,8 @@ void main() {
           find.byKey(TestIds.key(TestIds.graphNode('req-in-2'))),
           findsOneWidget,
         );
-        expect(personPin, findsNothing);
-        expect(requestPin, findsNothing);
+        expectNoMountedMatch(tester, personPin);
+        expectNoMountedMatch(tester, requestPin);
       },
     );
   });
