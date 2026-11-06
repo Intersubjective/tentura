@@ -2859,10 +2859,16 @@ class _ConstellationBodyState extends State<ConstellationBody>
         : compactSheetHeight;
     final sheet = compactSheetHeight > 0 ? compactSheetHeight : peek;
     final media = MediaQuery.of(context);
-    final maxHeight =
+    final freeBelowPanel =
         _effectiveMapStackHeight - sheet - media.padding.top - tt.rowGap * 2;
+    final capHeight =
+        media.size.height * tt.graphLegendMaxHeightFractionCompact;
+    final maxHeight = math.min(
+      capHeight,
+      freeBelowPanel < 0 ? 0.0 : freeBelowPanel,
+    );
     return ConstrainedBox(
-      constraints: BoxConstraints(maxHeight: math.max(0, maxHeight)),
+      constraints: BoxConstraints(maxHeight: maxHeight),
       child: SingleChildScrollView(child: legend),
     );
   }

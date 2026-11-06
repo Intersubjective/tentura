@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/features/constellation/data/model/constellation_field_mapper.dart';
 import 'package:tentura/features/constellation/data/repository/constellation_new_people_repository.dart';
+import 'package:tentura/features/constellation/data/repository/constellation_repository.dart';
 import 'package:tentura/features/constellation/data/gql/_g/constellation_field_fetch.data.gql.dart';
 
 import '../../support/remote_wire_harness.dart';
@@ -142,6 +143,69 @@ void main() {
       final name = mapped.peers.single.displayName;
       expect(name, isNotNull);
       expect(name!.length, greaterThan(60));
+    },
+  );
+
+  test(
+    'ConstellationFieldFetch (wire → repository) maps ego-only field',
+    () async {
+      final wireResponse = {
+        '__typename': 'query_root',
+        'constellationField': {
+          '__typename': 'v2_ConstellationField',
+          'loadedAt': '2026-11-06T12:00:00.000Z',
+          'context': '',
+          'peersCapped': false,
+          'requestsCapped': false,
+          'directContactIds': <dynamic>[],
+          'peers': [
+            {
+              '__typename': 'v2_ConstellationPeer',
+              'id': 'ego',
+              'contactOnly': false,
+              'displayName':
+                  'Очень длинное отображаемое имя для проверки легенды поля на телефоне',
+              'handle': null,
+              'image': null,
+              'isNew': false,
+              'pinState': null,
+              'presence': 'visible',
+              'temporaryBeaconId': null,
+              'bondContexts': <dynamic>[],
+              'visible': true,
+            },
+          ],
+          'edges': <dynamic>[],
+          'requests': <dynamic>[],
+          'posts': <dynamic>[],
+          'memberWebs': <dynamic>[],
+          'anchorProjection': {
+            '__typename': 'v2_ConstellationAnchorProjection',
+            'revision': '0',
+            'anchors': <dynamic>[],
+            'pinnedPeers': <dynamic>[],
+            'pinnedRequests': <dynamic>[],
+            'supportPeers': <dynamic>[],
+            'supportEdges': <dynamic>[],
+            'serverFilteredBeaconIds': <dynamic>[],
+            'serverFilteredBeaconCount': 0,
+          },
+        },
+      };
+
+      final sent = <WireSent>[];
+      await withRemoteWire(
+        {'ConstellationFieldFetch': wireResponse},
+        sent,
+        (remote) async {
+          final field = await ConstellationRepository(remote).fetch();
+          expect(sent.single.operationName, 'ConstellationFieldFetch');
+          expect(field.peers.single.id, 'ego');
+          expect(field.peers.single.displayName, isNotNull);
+          expect(field.edges, isEmpty);
+          expect(field.requests, isEmpty);
+        },
+      );
     },
   );
 
