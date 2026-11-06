@@ -13,8 +13,10 @@ class UpdatesReceiptCard extends StatelessWidget {
     required this.onMarkSeen,
     required this.onMarkUnseen,
     this.onSettle,
+    this.action,
     this.actor,
     this.unreadView = false,
+    this.viewerUserId,
     super.key,
   });
 
@@ -23,10 +25,14 @@ class UpdatesReceiptCard extends StatelessWidget {
   final VoidCallback onMarkSeen;
   final VoidCallback onMarkUnseen;
   final VoidCallback? onSettle;
+  final Widget? action;
   final Profile? actor;
 
   /// Passed to [UpdatesFeedTile.unreadView] (#736).
   final bool unreadView;
+
+  /// Replaces the viewer's name with «You» on forward-helped path rows (#774).
+  final String? viewerUserId;
 
   @override
   Widget build(BuildContext context) => UpdatesFeedTile(
@@ -36,6 +42,8 @@ class UpdatesReceiptCard extends StatelessWidget {
     onMarkSeen: onMarkSeen,
     onMarkUnseen: onMarkUnseen,
     onSettle: onSettle,
+    action: action,
     unreadView: unreadView,
+    viewerUserId: viewerUserId,
   );
 }
