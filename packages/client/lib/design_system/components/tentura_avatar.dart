@@ -299,6 +299,15 @@ class TenturaAvatar extends StatelessWidget {
   }
 
   /// Initials when there is no profile photo (also used by room mini avatars).
+  ///
+  /// When the second word is a dev/QA-style **`Q` + digits** label (e.g. `Bob
+  /// Q1106`), the second glyph is the **last decimal digit** of that code so two
+  /// people with the same first name + `Q…` pattern do not both show e.g. `BQ`
+  /// (#1066). Letter runs use grapheme-safe clusters so leading emoji or combining
+  /// marks are not cut on UTF-16 boundaries (#1093). This does not guarantee
+  /// globally unique initials; the `hueKey` passed to [ProfileAvatarInitials]
+  /// (usually the profile's user id) still drives the stable background colour and
+  /// can collide across users.
   static String initialsForProfile(Profile profile) {
     final t = profile.shownName.trim();
     if (t.isEmpty) {
@@ -333,27 +342,36 @@ class TenturaAvatar extends StatelessWidget {
       }
     }
 
-    final parts = t
-        .split(RegExp(r'\s+'))
-        .where((p) => p.isNotEmpty)
-        .toList();
-
-    if (parts.length >= 2) {
-      final initials = <String>[];
-      for (final p in parts) {
-        final c = leadingLetterCluster(p);
+    final tokens = t.split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+    if (tokens.length >= 2) {
+      var firstIdx = -1;
+      String? firstCluster;
+      for (var i = 0; i < tokens.length; i++) {
+        final c = leadingLetterCluster(tokens[i]);
         if (c != null) {
-          initials.add(c);
-          if (initials.length >= 2) {
-            break;
-          }
+          firstIdx = i;
+          firstCluster = c;
+          break;
         }
       }
-      if (initials.length >= 2) {
-        return upperEachGrapheme('${initials[0]}${initials[1]}');
-      }
-      if (initials.length == 1) {
-        return upperEachGrapheme(initials[0]);
+      if (firstCluster != null) {
+        final firstU = upperEachGrapheme(firstCluster);
+        for (var j = firstIdx + 1; j < tokens.length; j++) {
+          final qMatch = _qTrailingDigits.firstMatch(tokens[j]);
+          if (qMatch != null) {
+            final digits = qMatch.group(1)!;
+            if (digits.isNotEmpty) {
+              return '$firstU${digits[digits.length - 1]}';
+            }
+          }
+        }
+        for (var j = firstIdx + 1; j < tokens.length; j++) {
+          final c2 = leadingLetterCluster(tokens[j]);
+          if (c2 != null) {
+            return upperEachGrapheme('$firstCluster$c2');
+          }
+        }
+        return firstU;
       }
     }
 
@@ -374,6 +392,8 @@ class TenturaAvatar extends StatelessWidget {
     }
     return upperEachGrapheme('${graphemes[0]}${graphemes[1]}');
   }
+
+  static final RegExp _qTrailingDigits = RegExp(r'^[Qq](\d+)$');
 }
 
 class _Network extends StatelessWidget {
