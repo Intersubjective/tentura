@@ -17,6 +17,7 @@ import 'package:tentura_server/domain/port/attention_settlement_port.dart';
 
 import '../database/tentura_db.dart';
 import 'attention_dismissible_sql.dart';
+import 'field_open_sql.dart';
 
 @Singleton(as: AttentionQueryPort)
 class AttentionRepository implements AttentionQueryPort {
@@ -1885,11 +1886,7 @@ WITH opened AS (
   -- A reader who can see the Request but holds no room seat has no room to
   -- read, so record only the independent Field-open fact. Seated readers
   -- keep the cursor the room itself moves.
-  INSERT INTO public.beacon_field_seen (user_id, beacon_id)
-  SELECT \$1, \$2
-  WHERE public.beacon_can_read_content(\$2, \$1)
-    AND NOT public.beacon_effective_admission(\$2, \$1)
-  ON CONFLICT (user_id, beacon_id) DO NOTHING
+  $recordUnseatedFieldOpenSql
 )
 UPDATE public.notification_outbox outbox
 SET

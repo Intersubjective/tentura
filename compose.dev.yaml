@@ -120,6 +120,54 @@ services:
       retries: 30
       start_period: 15s
 
+  # Disposable Postgres for local test suites: scripts/run_with_test_cleanup.sh
+  # points wrapped runs here (127.0.0.1:5433) whenever this container is up.
+  # pg suites clone and migrate a database per test; against the persistent
+  # `postgres` above that wrote ~230 GB/day to the SSD. Here the data lives in
+  # RAM and durability is off, so a restart wipes everything; the next run
+  # rebuilds its schema template. Shares the one MeritRank, like `postgres`.
+  postgres-test:
+    init: true
+    restart: unless-stopped
+    hostname: postgres-test
+    container_name: postgres-test
+    image: vbulavintsev/postgres-tentura:v0.9.1
+    networks:
+      backend: {}
+      db_host: {}
+    ports:
+      - '127.0.0.1:5433:5432'
+    depends_on:
+      meritrank:
+        condition: service_started
+    tmpfs:
+      - /var/lib/postgresql/data:size=8g
+    shm_size: 256m
+    command:
+      - postgres
+      - -c
+      - fsync=off
+      - -c
+      - full_page_writes=off
+      - -c
+      - synchronous_commit=off
+      - -c
+      - wal_level=minimal
+      - -c
+      - max_wal_senders=0
+      - -c
+      - max_wal_size=256MB
+    environment:
+      - POSTGRES_PASSWORD
+      - 'MERITRANK_SERVICE_URL=tcp://meritrank:8080'
+      - 'MERITRANK_RECV_TIMEOUT_MSEC=10000'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 2s
+      timeout: 5s
+      retries: 30
+      start_period: 15s
+
   minio:
     <<: *common
     hostname: minio

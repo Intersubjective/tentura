@@ -7,6 +7,7 @@ import 'package:tentura_server/domain/port/attention_clear_port.dart';
 import '../database/tentura_db.dart';
 import 'attention_dismissible_sql.dart';
 import 'constellation_field_repository.dart' show readCustomSelectTimestamptz;
+import 'field_open_sql.dart';
 
 /// U08 — storage for the clear command.
 ///
@@ -119,7 +120,7 @@ SELECT outcome_generation, decision_revision
     required int outcomeGeneration,
     required int decisionRevision,
     required List<String> receiptIds,
-  }) => _database.withTransaction(() async {
+  }) => _database.withMutatingUser(accountId, () async {
     final members = {...receiptIds};
 
     // 1. The operation row. `ON CONFLICT DO NOTHING` is the whole idempotency
@@ -147,6 +148,15 @@ ON CONFLICT (id) DO NOTHING
         operationId: operationId,
         requestedIds: members,
       );
+    }
+
+    // A successful Request open records Field attention even when there are
+    // no optional receipts to clear. Keep it in this replayable transaction.
+    if (kind == AttentionClearCaptureKind.requestOpen && beaconId != null) {
+      await _database.customStatement(recordUnseatedFieldOpenSql, [
+        accountId,
+        beaconId,
+      ]);
     }
 
     // 2. Re-authorize. Ownership and eligibility are two different answers:
@@ -307,7 +317,7 @@ UPDATE public.attention_clear_operation
               operationId: operationId,
             ).encode(),
     );
-  }, actorUserId: accountId);
+  });
 
   /// The window as the database holds it — read back rather than computed
   /// here, so the answer is the same clock undo will enforce against.

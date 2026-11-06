@@ -743,7 +743,8 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
     }
     _schedule(
       urgent: switch (change.kind) {
-        RealtimeEntityKind.constellationField => false,
+        RealtimeEntityKind.constellationField =>
+          change.actorUserId == _accountId,
         RealtimeEntityKind.roomMessage ||
         RealtimeEntityKind.roomSeen => onField,
         _ => true,
