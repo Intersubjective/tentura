@@ -114,6 +114,9 @@ class ConstellationScreen extends StatefulWidget implements AutoRouteWrapper {
               ownTagIdsOf: GetIt.I.isRegistered<PeopleTagsCase>()
                   ? GetIt.I<PeopleTagsCase>().tagsOfPerson
                   : null,
+              peopleInTag: GetIt.I.isRegistered<PeopleTagsCase>()
+                  ? GetIt.I<PeopleTagsCase>().peopleInTag
+                  : null,
               viewer: viewer,
               scene: ConstellationSceneController(
                 slicer: layoutSlicer,
