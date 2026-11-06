@@ -91,6 +91,62 @@ void main() {
   });
 
   test(
+    'ConstellationFieldFetch maps long RU displayName for arrangement label math',
+    () async {
+      final wire = {
+        '__typename': 'query_root',
+        'constellationField': {
+          '__typename': 'v2_ConstellationField',
+          'loadedAt': '2026-11-04T12:00:00.000Z',
+          'context': '',
+          'peersCapped': false,
+          'requestsCapped': false,
+          'directContactIds': <String>[],
+          'peers': [
+            {
+              '__typename': 'v2_ConstellationPeer',
+              'id': 'peer-long',
+              'contactOnly': false,
+              'displayName':
+                  'Новый человек с очень длинным именем для телефона и раскладки меток на карте поля',
+              'handle': null,
+              'image': null,
+              'isNew': false,
+              'pinState': null,
+              'presence': 'visible',
+              'temporaryBeaconId': null,
+              'bondContexts': <dynamic>[],
+              'visible': true,
+            },
+          ],
+          'edges': <dynamic>[],
+          'requests': <dynamic>[],
+          'posts': <dynamic>[],
+          'memberWebs': <dynamic>[],
+          'anchorProjection': {
+            '__typename': 'v2_ConstellationAnchorProjection',
+            'revision': '0',
+            'anchors': <dynamic>[],
+            'pinnedPeers': <dynamic>[],
+            'pinnedRequests': <dynamic>[],
+            'supportPeers': <dynamic>[],
+            'supportEdges': <dynamic>[],
+            'serverFilteredBeaconIds': <dynamic>[],
+            'serverFilteredBeaconCount': 0,
+          },
+        },
+      };
+
+      final mapped = mapConstellationFieldFromFieldFetch(
+        GConstellationFieldFetchData.fromJson(wire)!.constellationField,
+      );
+      final name = mapped.peers.single.displayName;
+      expect(name, isNotNull);
+      expect(name!.length, greaterThan(60));
+    },
+  );
+
+  test(
     'ConstellationFieldFetch (wire → repository) maps ego-only field',
     () async {
       final wireResponse = {
