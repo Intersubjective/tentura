@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/constellation/domain/constellation_layout.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
@@ -208,6 +209,33 @@ final class _NonLinearTextScaler extends TextScaler {
 
 void main() {
   group('ConstellationCameraControls', () {
+    testWidgets('cameraViewportInsets leaves a gap past the FAB column (#1034)', (
+      tester,
+    ) async {
+      final cubit = await loadReferenceCubit();
+      addTearDown(cubit.close);
+      await pumpConstellationBody(tester, cubit);
+      await tester.pumpAndSettle();
+
+      final element = tester.element(find.byType(ConstellationBody));
+      final context = element as BuildContext;
+      final media = MediaQuery.of(context);
+      final tt = context.tt;
+      final insets = ConstellationCameraControls.cameraViewportInsets(
+        context,
+        contextPanelVisible: false,
+      );
+      expect(
+        insets.right,
+        media.padding.right +
+            tt.screenHPadding +
+            tt.buttonHeight +
+            tt.rowGap,
+        reason:
+            'fit/recenter must reserve the full camera column plus breathing room',
+      );
+    });
+
     testWidgets('fit whole field after zoom and pan', (tester) async {
       final cubit = await loadReferenceCubit();
       addTearDown(cubit.close);
