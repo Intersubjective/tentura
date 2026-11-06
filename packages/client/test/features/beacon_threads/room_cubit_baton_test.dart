@@ -5,7 +5,6 @@
 //  - when the repository fails, the error is surfaced and the card keeps its
 //    previous state.
 
-import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 

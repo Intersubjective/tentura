@@ -24,6 +24,7 @@ import 'package:tentura/domain/port/clock_port.dart';
 import 'package:tentura/domain/port/wake_up_port.dart';
 import 'package:tentura/domain/scheduling/adaptive_slice_controller.dart';
 import 'package:tentura/ui/utils/frame_slice_scheduler.dart';
+import 'package:tentura/ui/utils/rearrange_preview_scheduler.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
 import '../../domain/use_case/constellation_member_webs_case.dart';
@@ -79,33 +80,47 @@ class ConstellationScreen extends StatefulWidget implements AutoRouteWrapper {
           return const Center(child: TenturaCircularProgress());
         }
         return BlocProvider(
-          create: (_) => ConstellationCubit(
-            case_: GetIt.I<ConstellationFieldStoreCase>(),
-            anchorCase: GetIt.I<ConstellationAnchorCase>(),
-            placementCase: GetIt.I<ConstellationPlacementCase>(),
-            memberWebsCase: GetIt.I<ConstellationMemberWebsCase>(),
-            visibilityCase: GetIt.I<ConstellationVisibilityCase>(),
-            fieldHideCase: GetIt.I<ConstellationFieldHideCase>(),
-            fieldSearchCase: GetIt.I<ConstellationFieldSearchCase>(),
-            personFieldItemsCase: GetIt.I<ConstellationPersonFieldItemsCase>(),
-            mutualTrustCase: GetIt.I<ConstellationMutualTrustCase>(),
-            trustChainCase: GetIt.I<ConstellationTrustChainCase>(),
-            newPeopleCase: GetIt.I<ConstellationNewPeopleCase>(),
-            tagMagnetCase: GetIt.I<ConstellationTagMagnetCase>(),
-            ownTagIdsOf: GetIt.I.isRegistered<PeopleTagsCase>()
-                ? GetIt.I<PeopleTagsCase>().tagsOfPerson
-                : null,
-            viewer: viewer,
-            scene: ConstellationSceneController(
-              slicer: FrameSliceScheduler(
+          create: (_) {
+            final layoutSlicer = FrameSliceScheduler(
+              clock: GetIt.I<ClockPort>(),
+              wakeUpPort: GetIt.I<WakeUpPort>(),
+              controller: AdaptiveSliceController(
+                initialUnitCost: const Duration(microseconds: 100),
+              ),
+            );
+            final rearrangeSlicer = FrameSliceRearrangePreviewScheduler(
+              FrameSliceScheduler(
                 clock: GetIt.I<ClockPort>(),
                 wakeUpPort: GetIt.I<WakeUpPort>(),
                 controller: AdaptiveSliceController(
                   initialUnitCost: const Duration(microseconds: 100),
                 ),
               ),
-            ),
-          ),
+            );
+            return ConstellationCubit(
+              case_: GetIt.I<ConstellationFieldStoreCase>(),
+              anchorCase: GetIt.I<ConstellationAnchorCase>(),
+              placementCase: GetIt.I<ConstellationPlacementCase>(),
+              memberWebsCase: GetIt.I<ConstellationMemberWebsCase>(),
+              visibilityCase: GetIt.I<ConstellationVisibilityCase>(),
+              fieldHideCase: GetIt.I<ConstellationFieldHideCase>(),
+              fieldSearchCase: GetIt.I<ConstellationFieldSearchCase>(),
+              personFieldItemsCase:
+                  GetIt.I<ConstellationPersonFieldItemsCase>(),
+              mutualTrustCase: GetIt.I<ConstellationMutualTrustCase>(),
+              trustChainCase: GetIt.I<ConstellationTrustChainCase>(),
+              newPeopleCase: GetIt.I<ConstellationNewPeopleCase>(),
+              tagMagnetCase: GetIt.I<ConstellationTagMagnetCase>(),
+              ownTagIdsOf: GetIt.I.isRegistered<PeopleTagsCase>()
+                  ? GetIt.I<PeopleTagsCase>().tagsOfPerson
+                  : null,
+              viewer: viewer,
+              scene: ConstellationSceneController(
+                slicer: layoutSlicer,
+                rearrangePreviewScheduler: rearrangeSlicer,
+              ),
+            );
+          },
           child: MultiBlocProvider(
             providers: [
               BlocProvider(create: (_) => ConstellationSelectionCubit()),
@@ -337,9 +352,9 @@ class _ConstellationScreenState extends State<ConstellationScreen> {
       if (!mounted) return;
       unawaited(
         context.read<ConstellationCubit>().enterForwardTreeMode(
-              beaconId: payload.beaconId,
-              helpOffererFocusId: payload.helpOffererId,
-            ),
+          beaconId: payload.beaconId,
+          helpOffererFocusId: payload.helpOffererId,
+        ),
       );
     });
   }

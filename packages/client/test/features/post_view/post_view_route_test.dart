@@ -20,7 +20,6 @@ import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/domain/use_case/beacon_hierarchy_case.dart';
 import 'package:tentura/features/beacon_view/domain/use_case/beacon_view_case.dart';
 import 'package:tentura/features/beacon_view/ui/screen/beacon_view_screen.dart';
-import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/home_tab_reselect_cubit.dart';
 import 'package:tentura/features/inbox/domain/use_case/posts_case.dart';
 import 'package:tentura/features/inbox/ui/bloc/posts_cubit.dart';

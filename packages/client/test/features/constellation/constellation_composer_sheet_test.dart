@@ -5,7 +5,6 @@
 // drive `composer.setRadius` directly to cover how the sheet reacts.
 
 import 'dart:async';
-import 'dart:ui' show Offset;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
