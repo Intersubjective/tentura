@@ -107,6 +107,7 @@ final class _Server implements ConstellationAnchorRepositoryPort {
     applies.add(List.of(ops));
     // The real server refuses the whole batch for one position out of range.
     for (final op in ops) {
+      if (op.kind != ConstellationAnchorOpKind.upsert) continue;
       expect(
         ConstellationAnchorPosition.validate(
           xUnits: op.position!.xUnits,
@@ -121,22 +122,35 @@ final class _Server implements ConstellationAnchorRepositoryPort {
     final results = <ConstellationAnchorOpResult>[];
     for (final op in ops) {
       revision++;
-      final anchor = ConstellationAnchor(
-        target: op.target,
-        position: op.position!,
-        revision: _revision(revision),
-        placedAt: DateTime.utc(2026, 10, 22),
-      );
-      anchors[op.target] = anchor;
-      results.add(
-        ConstellationAnchorOpResult(
-          clientOpId: op.clientOpId,
-          status: ConstellationAnchorOpStatus.ok,
-          resultingTargetRevision: _revision(revision),
-          target: op.target,
-          anchor: anchor,
-        ),
-      );
+      switch (op.kind) {
+        case ConstellationAnchorOpKind.delete:
+          anchors.remove(op.target);
+          results.add(
+            ConstellationAnchorOpResult(
+              clientOpId: op.clientOpId,
+              status: ConstellationAnchorOpStatus.ok,
+              resultingTargetRevision: _revision(revision),
+              target: op.target,
+            ),
+          );
+        case ConstellationAnchorOpKind.upsert:
+          final anchor = ConstellationAnchor(
+            target: op.target,
+            position: op.position!,
+            revision: _revision(revision),
+            placedAt: DateTime.utc(2026, 10, 22),
+          );
+          anchors[op.target] = anchor;
+          results.add(
+            ConstellationAnchorOpResult(
+              clientOpId: op.clientOpId,
+              status: ConstellationAnchorOpStatus.ok,
+              resultingTargetRevision: _revision(revision),
+              target: op.target,
+              anchor: anchor,
+            ),
+          );
+      }
     }
     return ConstellationAnchorApplyResult(
       beforeRevision: _revision(before),
@@ -235,6 +249,7 @@ final _postB = ConstellationAnchorTarget.beacon('post-b');
 typedef _Harness = ({
   _Server server,
   ConstellationCubit cubit,
+  ConstellationPlacementCase placement,
   ConstellationSelectionCubit selection,
 });
 
@@ -311,7 +326,12 @@ Future<_Harness> _mount(
   );
   await _settle(tester);
   await tester.pump();
-  return (server: server, cubit: cubit, selection: selection);
+  return (
+    server: server,
+    cubit: cubit,
+    placement: placement,
+    selection: selection,
+  );
 }
 
 Future<void> _settle(WidgetTester tester) async {
@@ -325,7 +345,7 @@ Future<void> _frames(WidgetTester tester) async {
   await tester.pump();
 }
 
-/// Lets the outbox send its batch and the store settle.
+/// Lets the placement outbox settle (real time outside fake-async).
 Future<void> _flushWrites(WidgetTester tester) async {
   await tester.runAsync(() => Future<void>.delayed(Duration.zero));
   await _settle(tester);
@@ -640,5 +660,90 @@ void main() {
     expectOffset(_scene(h.cubit, 'b'), bobStart, reason: 'snaps back');
     expect(h.server.anchors[_bob]!.position.xUnits, 10.6);
     expectOffset(_beacon(h.cubit, 'post-b'), postBStart);
+  });
+
+  testWidgets('weighted group drag: shared-tag member moves by half the grab '
+      'handle delta; one undo restores anchors', (tester) async {
+    final h = await _mount(tester);
+    await _frames(tester);
+    final annStart = _scene(h.cubit, 'a');
+    final bobStart = _scene(h.cubit, 'b');
+
+    h.cubit.beginDragExisting(
+      target: _ann,
+      group: {_bob},
+      groupWeights: {_bob: 0.5},
+    );
+    final annNode = h.cubit.graphController.nodePayloadForId('fp:a')!;
+    const move = Offset(100, 0);
+    final proposed = annStart + move;
+    final clamped = h.cubit.clampClusterDragPosition(annNode, proposed);
+    h.cubit.updateDragPresentation(nodeId: 'fp:a', sceneCentre: clamped);
+    await _frames(tester);
+
+    final d = clamped - annStart;
+    expectOffset(_scene(h.cubit, 'a') - annStart, d);
+    expectOffset(_scene(h.cubit, 'b') - bobStart, Offset(d.dx * 0.5, d.dy * 0.5));
+
+    await h.cubit.onExistingNodeDrop(target: _ann, sceneCentre: clamped);
+    await _flushWrites(tester);
+
+    expect(h.server.applies, hasLength(1));
+    final ops = {for (final op in h.server.applies.single) op.target: op};
+    expect(ops.keys, unorderedEquals([_ann, _bob]));
+    final annWritten = _written(ops[_ann]!) - annStart;
+    final bobWritten = _written(ops[_bob]!) - bobStart;
+    expectOffset(bobWritten, Offset(annWritten.dx * 0.5, annWritten.dy * 0.5));
+
+    final beforeUndo = h.server.applies.length;
+    await tester.runAsync(() async {
+      expect(await h.cubit.undoArrangement(), isTrue);
+    });
+    await _flushWrites(tester);
+
+    expect(h.server.applies.length, greaterThan(beforeUndo));
+    final anchors = h.server.anchors;
+    expect(anchors.containsKey(_ann), isFalse);
+    expect(anchors.containsKey(_bob), isFalse);
+  });
+
+  testWidgets('weighted group drag: pinned Request follows author movement', (
+    tester,
+  ) async {
+    final h = await _mount(
+      tester,
+      seeded: {
+        _ann: (0, 0),
+        _bob: (2, 0),
+        _postA: (0.5, 0),
+      },
+    );
+    await _frames(tester);
+    final annStart = _scene(h.cubit, 'a');
+    final postStart = _beacon(h.cubit, 'post-a');
+
+    h.cubit.beginDragExisting(
+      target: _ann,
+      group: {_bob},
+      groupWeights: {_bob: 0.5},
+    );
+    final annNode = h.cubit.graphController.nodePayloadForId('fp:a')!;
+    final proposed = annStart + const Offset(80, 0);
+    final clamped = h.cubit.clampClusterDragPosition(annNode, proposed);
+    h.cubit.updateDragPresentation(nodeId: 'fp:a', sceneCentre: clamped);
+    await _frames(tester);
+
+    final d = clamped - annStart;
+    expectOffset(_beacon(h.cubit, 'post-a') - postStart, d);
+
+    await h.cubit.onExistingNodeDrop(target: _ann, sceneCentre: clamped);
+    await _flushWrites(tester);
+
+    final ops = {for (final op in h.server.applies.single) op.target: op};
+    expect(ops.containsKey(_postA), isTrue);
+    expectOffset(
+      _written(ops[_postA]!) - postStart,
+      _written(ops[_ann]!) - annStart,
+    );
   });
 }

@@ -48,6 +48,7 @@ import '../../domain/use_case/constellation_mutual_trust_case.dart';
 import '../../domain/use_case/constellation_new_people_case.dart';
 import '../../domain/use_case/constellation_trust_chain_case.dart';
 import '../../domain/entity/placement_outbox.dart';
+import '../../domain/layout/layout_geometry.dart';
 import '../../domain/placement_overlay.dart';
 import '../../domain/use_case/constellation_anchor_case.dart';
 import '../../domain/use_case/constellation_placement_case.dart';
@@ -183,6 +184,13 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     _placementCase?.history.applyTidyOffsets = (offsets) async {
       if (isClosed) return;
       _tidyOffsets.replaceAll(offsets);
+      _reconcileLayout(immediateHandoff: true);
+    };
+    _placementCase?.tagMagnetUndo = (positions) async {
+      if (isClosed) return;
+      for (final MapEntry(:key, :value) in positions.entries) {
+        _putTagMagnet(key, Offset(value.x, value.y));
+      }
       _reconcileLayout(immediateHandoff: true);
     };
     _anchorLifecycleToken = _anchorCase?.activate(viewerAccountId: viewer.id);
@@ -681,6 +689,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     _placementSub = null;
     unawaited(_magnetHintSub?.cancel());
     _magnetHintSub = null;
+    _placementCase?.tagMagnetUndo = null;
     _clearClusterPresentations();
     _finishDropReflowSpans();
     // Test hook: detach scene listener registered in the constructor.
@@ -1338,12 +1347,17 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   void beginDragExisting({
     required ConstellationAnchorTarget target,
     Iterable<ConstellationAnchorTarget> group = const [],
+    Map<ConstellationAnchorTarget, double> groupWeights = const {},
   }) {
     if (isClosed) {
       return;
     }
     _interaction.beginDragging(target.graphNodeId);
-    _beginClusterDragPresentation(target, group: group);
+    _beginClusterDragPresentation(
+      target,
+      group: group,
+      groupWeights: groupWeights,
+    );
     graphController.setCameraInteractionGated(true);
     emit(
       state.copyWith(
@@ -1359,16 +1373,118 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   void beginDragNew({
     required ConstellationAnchorTarget target,
     Iterable<ConstellationAnchorTarget> group = const [],
+    Map<ConstellationAnchorTarget, double> groupWeights = const {},
   }) {
     if (isClosed) {
       return;
     }
     _interaction.beginDragging(target.graphNodeId);
-    _beginClusterDragPresentation(target, group: group);
+    _beginClusterDragPresentation(
+      target,
+      group: group,
+      groupWeights: groupWeights,
+    );
     graphController.setCameraInteractionGated(true);
     emit(
       state.copyWith(
         placementPhase: ConstellationPlacementPhase.draggingNew,
+        activePlacementTarget: target,
+        placementFailureMessage: null,
+      ),
+    );
+  }
+
+  /// Drags everyone on the Field who is in the viewer's own tag [tagId],
+  /// weighted by how many of the viewer's tags (that still have someone on
+  /// the map) each person shares; the tag's magnet moves at full weight when
+  /// placed. [peopleOfTag] and [tagsOfPerson] come from `PeopleTagsCase`.
+  void beginDragTagArea({
+    required String tagId,
+    required Set<String> Function(String tagId) peopleOfTag,
+    required Set<String> Function(String personId) tagsOfPerson,
+  }) {
+    if (isClosed ||
+        state.tagView != null ||
+        state.isComposing ||
+        _placementCase == null) {
+      return;
+    }
+    final field = state.field;
+    if (field == null) {
+      return;
+    }
+    final fieldPersonIds = <String>{
+      for (final p in field.peers) p.id,
+      for (final p in field.resolvedAnchorProjection.pinnedPeers) p.id,
+    };
+    final candidates = peopleOfTag(tagId)
+        .intersection(fieldPersonIds)
+        .difference({viewerId})
+        .toList()
+      ..sort();
+    if (candidates.isEmpty) {
+      return;
+    }
+    int tagCountWithPeopleOnField(String personId) {
+      var n = 0;
+      for (final tid in tagsOfPerson(personId)) {
+        if (peopleOfTag(tid).any(fieldPersonIds.contains)) {
+          n++;
+        }
+      }
+      return n;
+    }
+    final weights = <ConstellationAnchorTarget, double>{};
+    for (final id in candidates) {
+      final k = tagCountWithPeopleOnField(id);
+      if (k <= 0) {
+        continue;
+      }
+      weights[ConstellationAnchorTarget.person(id)] = 1.0 / k;
+    }
+    if (weights.isEmpty) {
+      return;
+    }
+    final memberIds = [
+      for (final t in weights.keys)
+        if (t.kind == ConstellationAnchorTargetKind.person) t.id,
+    ]..sort();
+    // Grab handle: a person who is only in this tag on the Field moves at full
+    // pointer speed; shared members have lower weight (#1021).
+    final rep = memberIds.firstWhere(
+      (id) => (weights[ConstellationAnchorTarget.person(id)]! - 1.0).abs() < 1e-9,
+      orElse: () => memberIds.first,
+    );
+    final target = ConstellationAnchorTarget.person(rep);
+    final group = <ConstellationAnchorTarget>[
+      for (final id in memberIds.skip(1)) ConstellationAnchorTarget.person(id),
+    ];
+    Offset? magnetStart;
+    var virtualMembers = const <(Offset, double)>[];
+    final magnetAt = _tagMagnets[tagId];
+    if (magnetAt != null) {
+      magnetStart = magnetAt;
+      virtualMembers = [(magnetAt, 1.0)];
+    }
+    _interaction.beginDragging(target.graphNodeId);
+    _interaction.beginClusterDragPresentation(
+      target,
+      field: state.field,
+      composition: state.composition,
+      fallbackAnchors: [
+        ...?state.composition?.anchorOverlay.anchors,
+        ...?state.confirmedProjection?.anchors,
+      ],
+      group: _draggableGroup(target, group),
+      groupWeights: weights,
+      virtualMembers: virtualMembers,
+      tagAreaMagnetTagId: magnetStart == null ? null : tagId,
+      tagAreaMagnetStartScene: magnetStart,
+    );
+    graphController.setCameraInteractionGated(true);
+    emit(
+      state.copyWith(
+        placementPhase: ConstellationPlacementPhase.draggingExisting,
         activePlacementTarget: target,
         placementFailureMessage: null,
       ),
@@ -1571,6 +1687,76 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     );
   }
 
+  Rect? _egoBodyRectScene() {
+    final id = 'fp:$viewerId';
+    final point = graphController.renderSnapshot.resolvePosition(id);
+    final node = graphController.nodePayloadForId(id);
+    if (point == null || node is! NodeDetails) {
+      return null;
+    }
+    final s = node.size;
+    return Rect.fromCenter(
+      center: Offset(point.x, point.y),
+      width: s,
+      height: s,
+    );
+  }
+
+  /// After [clampClusterDragPosition], nudges the drop so no dragged cluster
+  /// member's centre lies on the viewer's body.
+  Offset _clampClusterDropAwayFromEgo({
+    required ConstellationAnchorTarget target,
+    required Offset sceneCentre,
+  }) {
+    final ego = _egoBodyRectScene();
+    if (ego == null) {
+      return sceneCentre;
+    }
+    final parentGraphId = constellationGraphNodeIdForTarget(target);
+    final parentStart = _interaction.clusterStartCentres[parentGraphId];
+    if (parentStart == null) {
+      return sceneCentre;
+    }
+    final limited = _interaction.limitedClusterDelta(parentGraphId, sceneCentre);
+    if (limited == null) {
+      return sceneCentre;
+    }
+    bool overlapsEgo(ConstellationPoint lim) {
+      for (final graphId in _interaction.placementClusterGraphIds) {
+        final start = _interaction.clusterStartCentres[graphId];
+        if (start == null) {
+          continue;
+        }
+        final c = _interaction.clusterCentreFor(graphId, parentGraphId, lim);
+        if (ego.contains(c)) {
+          return true;
+        }
+      }
+      return false;
+    }
+    if (!overlapsEgo(limited)) {
+      return Offset(parentStart.dx + limited.x, parentStart.dy + limited.y);
+    }
+    var lo = 0.0;
+    var hi = 1.0;
+    for (var i = 0; i < 30; i++) {
+      final mid = (lo + hi) / 2;
+      final lim = (
+        x: limited.x * mid,
+        y: limited.y * mid,
+      );
+      if (overlapsEgo(lim)) {
+        hi = mid;
+      } else {
+        lo = mid;
+      }
+    }
+    return Offset(
+      parentStart.dx + limited.x * lo,
+      parentStart.dy + limited.y * lo,
+    );
+  }
+
   /// Whether dragging [node] only moves it for the composer session: while
   /// composing, people are arranged by hand and nothing is written.
   bool isComposerDrag(NodeDetails node) =>
@@ -1643,6 +1829,10 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   void _beginClusterDragPresentation(
     ConstellationAnchorTarget target, {
     Iterable<ConstellationAnchorTarget> group = const [],
+    Map<ConstellationAnchorTarget, double> groupWeights = const {},
+    List<(Offset sceneStart, double weight)> virtualMembers = const [],
+    String? tagAreaMagnetTagId,
+    Offset? tagAreaMagnetStartScene,
   }) => _interaction.beginClusterDragPresentation(
     target,
     field: state.field,
@@ -1652,6 +1842,10 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       ...?state.confirmedProjection?.anchors,
     ],
     group: state.isComposing ? const [] : _draggableGroup(target, group),
+    groupWeights: groupWeights,
+    virtualMembers: virtualMembers,
+    tagAreaMagnetTagId: tagAreaMagnetTagId,
+    tagAreaMagnetStartScene: tagAreaMagnetStartScene,
   );
 
   /// The [group] nodes that a drag of their own could move: on the graph now,
@@ -1727,9 +1921,13 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     final parentGraphId = constellationGraphNodeIdForTarget(target);
     final parentStart = _interaction.clusterStartCentres[parentGraphId];
     final parentNode = graphController.nodePayloadForId(parentGraphId);
-    final dropCentre = parentStart == null || parentNode is! NodeDetails
+    var dropCentre = parentStart == null || parentNode is! NodeDetails
         ? sceneCentre
         : clampClusterDragPosition(parentNode, sceneCentre);
+    dropCentre = _clampClusterDropAwayFromEgo(
+      target: target,
+      sceneCentre: dropCentre,
+    );
     final position = constellationPointToV1Anchor(
       (x: dropCentre.dx, y: dropCentre.dy),
     );
@@ -1743,6 +1941,18 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     final parentDelta = parentStart == null
         ? Offset.zero
         : dropCentre - parentStart;
+    final tagMagnetId = _interaction.tagAreaMagnetTagId;
+    final tagMagnetStart = _interaction.tagAreaMagnetStartScene;
+    Map<String, LPoint>? tagMagnetsBefore;
+    Map<String, LPoint>? tagMagnetsAfter;
+    if (tagMagnetId != null && tagMagnetStart != null) {
+      tagMagnetsBefore = {
+        tagMagnetId: (x: tagMagnetStart.dx, y: tagMagnetStart.dy),
+      };
+      final nextMagnet = tagMagnetStart + parentDelta;
+      tagMagnetsAfter = {tagMagnetId: (x: nextMagnet.dx, y: nextMagnet.dy)};
+      _putTagMagnet(tagMagnetId, nextMagnet);
+    }
     final companions =
         <
           ({
@@ -1816,6 +2026,11 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       target: target,
       position: position,
       companions: companions,
+      tagMagnetsBefore: tagMagnetsBefore,
+      tagMagnetsAfter: tagMagnetsAfter,
+      persistTagMagnet: tagMagnetId != null && tagMagnetStart != null
+          ? (tagId: tagMagnetId, previous: tagMagnetStart)
+          : null,
     );
     // The placement is with the outbox first; the release then composes it
     // together with whatever was held during the drag.
@@ -1891,7 +2106,11 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       return;
     }
     final node = graphController.nodePayloadForId(parentGraphId)!;
-    final dropCentre = clampClusterDragPosition(node, sceneCentre);
+    var dropCentre = clampClusterDragPosition(node, sceneCentre);
+    dropCentre = _clampClusterDropAwayFromEgo(
+      target: target,
+      sceneCentre: dropCentre,
+    );
     final limited = _interaction.limitedClusterDelta(
       parentGraphId,
       dropCentre,
@@ -2037,6 +2256,9 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         >
         companions =
         const [],
+    Map<String, LPoint>? tagMagnetsBefore,
+    Map<String, LPoint>? tagMagnetsAfter,
+    ({String tagId, Offset previous})? persistTagMagnet,
   }) {
     if (_placementCase == null) {
       return;
@@ -2046,6 +2268,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     // A group drag may hold more nodes than one batch takes: the rest go as
     // further batches, each with its first node as the parent.
     final writes = [(target: target, position: position), ...companions];
+    var batchIndex = 0;
     for (
       var start = 0;
       start < writes.length;
@@ -2055,12 +2278,27 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         start,
         math.min(start + kConstellationPlacementBatchCap, writes.length),
       );
+      final hasMagnets =
+          saveManualHistory &&
+          tagMagnetsBefore != null &&
+          tagMagnetsAfter != null &&
+          batchIndex == 0;
       _placementCase.place(
         parent: batch.first.target,
         position: batch.first.position,
         companions: batch.sublist(1),
         saveManualHistory: saveManualHistory,
+        tagMagnetsBefore: hasMagnets ? tagMagnetsBefore : null,
+        tagMagnetsAfter: hasMagnets ? tagMagnetsAfter : null,
       );
+      batchIndex++;
+    }
+    final persist = persistTagMagnet;
+    if (persist != null) {
+      final after = _tagMagnets[persist.tagId];
+      if (after != null) {
+        unawaited(_saveTagMagnet(persist.tagId, after, persist.previous));
+      }
     }
     if (!kReleaseMode) {
       _finishAckSpanOnSettlement(ackSpan, {

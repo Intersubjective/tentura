@@ -34,7 +34,7 @@ final class ConstellationAuthorSatellites {
 /// when [pinnedPostIds] does (the Posts the field draws at their pin).
 ///
 /// Does **not** use layout-visible maps — dormant/filter-hidden pins stay in
-/// [pinnedIds] when present in [pinnedBeaconIds] even if not drawn.
+/// `pinnedIds` when present in [pinnedBeaconIds] even if not drawn.
 ConstellationAuthorSatellites constellationAuthorSatellites({
   required String authorId,
   required Iterable<ConstellationRequest> fieldRequests,
@@ -226,16 +226,40 @@ ConstellationPoint constellationLimitGroupDelta({
   required ConstellationPoint parentStart,
   required ConstellationPoint proposedParent,
   required Iterable<ConstellationPoint> memberStarts,
+  Iterable<double>? memberWeights,
   ConstellationSize size = kConstellationDragPersonBodySize,
 }) {
-  final starts = [
-    parentStart,
-    for (final start in memberStarts)
-      if (_centreValid(start, size)) start,
-  ];
-  bool allValid(double dx, double dy) => starts.every(
-    (start) => _centreValid((x: start.x + dx, y: start.y + dy), size),
+  final weights = memberWeights?.toList();
+  final memberList = memberStarts.toList();
+  assert(
+    weights == null || weights.length == memberList.length,
+    'memberWeights length must match memberStarts',
   );
+  final indexedMembers = <({ConstellationPoint start, double weight})>[
+    for (var i = 0; i < memberList.length; i++)
+      if (_centreValid(memberList[i], size))
+        (start: memberList[i], weight: weights == null ? 1.0 : weights[i]),
+  ];
+  bool allValid(double dx, double dy) {
+    if (!_centreValid(
+      (x: parentStart.x + dx, y: parentStart.y + dy),
+      size,
+    )) {
+      return false;
+    }
+    for (final m in indexedMembers) {
+      if (!_centreValid(
+        (
+          x: m.start.x + m.weight * dx,
+          y: m.start.y + m.weight * dy,
+        ),
+        size,
+      )) {
+        return false;
+      }
+    }
+    return true;
+  }
   final dx = _settleAxis(
     proposedParent.x - parentStart.x,
     (d) => allValid(d, 0),
@@ -253,7 +277,17 @@ ConstellationPoint constellationLimitGroupDelta({
 ConstellationPoint constellationGroupMemberPosition({
   required ConstellationPoint memberStart,
   required ConstellationPoint groupDelta,
+  double weight = 1.0,
   ConstellationSize size = kConstellationDragPersonBodySize,
-}) => _centreValid(memberStart, size)
-    ? (x: memberStart.x + groupDelta.x, y: memberStart.y + groupDelta.y)
-    : _slideWithinBounds(memberStart, groupDelta, size);
+}) {
+  final weightedDelta = (
+    x: groupDelta.x * weight,
+    y: groupDelta.y * weight,
+  );
+  return _centreValid(memberStart, size)
+      ? (
+          x: memberStart.x + weightedDelta.x,
+          y: memberStart.y + weightedDelta.y,
+        )
+      : _slideWithinBounds(memberStart, weightedDelta, size);
+}
