@@ -57,6 +57,7 @@ const kPathConstellation = '/home/constellation';
 const kPathNetwork = '/home/network';
 const kPathBeaconNew = '/beacon/new';
 const kPathPostNew = '/post/new';
+const kPathPostView = '/post/view';
 const kPathBeaconView = '/beacon/view';
 const kPathBeaconLobby = '/beacon/lobby';
 const kPathBeaconViewAll = '/beacon/all';

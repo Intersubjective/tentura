@@ -255,7 +255,7 @@ class PostViewCubit extends Cubit<PostViewState> implements RoomHost {
           onPressed: () => unawaited(() async {
             try {
               await membership.postReturn(id);
-              effects.emit(NavigatePush('$kPathBeaconView/$id'));
+              effects.emit(NavigatePush('$kPathPostView/$id'));
             } on Object catch (e) {
               effects.emit(ShowError(e));
             }

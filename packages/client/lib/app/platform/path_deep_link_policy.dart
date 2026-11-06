@@ -3,7 +3,11 @@ import 'package:tentura/consts.dart';
 
 /// Detail paths that are handed out as plain path URLs (profile QR / share
 /// link, request links) but that the web app only routes as hash routes.
-const _pathDeepLinkPrefixes = [kPathProfileView, kPathBeaconView];
+const _pathDeepLinkPrefixes = [
+  kPathProfileView,
+  kPathBeaconView,
+  kPathPostView,
+];
 
 /// The hash-route URL (`/#/profile/view/U…`) to show instead of a path deep
 /// link (`/profile/view/U…`), or `null` when [pathname] is not one or the

@@ -22,6 +22,13 @@ void main() {
       );
     });
 
+    test('post detail alias becomes its hash route', () {
+      expect(
+        hashUrlForPathDeepLink(pathname: '/post/view/Bd0c1a2b3c4d5'),
+        '/#/post/view/Bd0c1a2b3c4d5',
+      );
+    });
+
     test('an empty fragment does not block the rewrite', () {
       expect(
         hashUrlForPathDeepLink(
