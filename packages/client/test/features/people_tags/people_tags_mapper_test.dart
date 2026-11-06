@@ -35,13 +35,35 @@ void main() {
         {
           'tagId': 'T1',
           'personIds': ['Ua', 'Ub'],
+          'inherited': <Object>[],
         },
-        {'tagId': 'T2', 'personIds': <String>[]},
+        {
+          'tagId': 'T2',
+          'personIds': <String>[],
+          'inherited': <Object>[],
+        },
       ]);
 
       expect(members.map((m) => m.tagId), ['T1', 'T2']);
       expect(members.first.personIds, ['Ua', 'Ub']);
       expect(members.last.personIds, isEmpty);
+    });
+
+    test('memberships carry inherited members with their inviter', () {
+      final members = mapPersonTagMembers([
+        {
+          'tagId': 'Ta',
+          'personIds': ['Ucarol', 'Ubob'],
+          'inherited': [
+            {'personId': 'Ucarol', 'inviterId': 'Ubob'},
+          ],
+        },
+      ]);
+
+      expect(
+        members.single.inherited,
+        [const PersonTagInherited(personId: 'Ucarol', inviterId: 'Ubob')],
+      );
     });
 
     test('an automatic tag keeps its count and filter switch', () {
@@ -147,9 +169,20 @@ void main() {
       expect(personTagMemberOpToWire(op), {
         'tagId': 'Ta',
         'personId': 'Ub',
-        'add': false,
-        'source': isA<int>(),
+        'op': 'remove',
+        'source': 0,
       });
+    });
+
+    test('a keep membership op converts to the keep wire input', () {
+      const op = PersonTagMemberOp(
+        tagId: 'Ta',
+        personId: 'Ub',
+        add: false,
+        keep: true,
+      );
+
+      expect(personTagMemberOpToWire(op)['op'], 'keep');
     });
   });
 }

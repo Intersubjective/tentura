@@ -36,6 +36,7 @@ final class PeopleTagsCase extends UseCaseBase {
   StreamSubscription<String>? _accountSubscription;
   final _changes = StreamController<void>.broadcast();
   final _members = <String, Set<String>>{};
+  final _inherited = <String, Map<String, String?>>{};
   final _uuid = const Uuid();
 
   List<PersonTag> _tags = const [];
@@ -73,6 +74,14 @@ final class PeopleTagsCase extends UseCaseBase {
       if (e.value.contains(personId)) e.key,
   };
 
+  /// Inviter id when [personId] inherited own tag [tagId]; null when they did
+  /// not, or when the invite record is gone.
+  String? inheritedFrom(String tagId, String personId) {
+    final tag = _inherited[tagId];
+    if (tag == null || !tag.containsKey(personId)) return null;
+    return tag[personId];
+  }
+
   /// The automatic tags [personId] carries, as the server derives them.
   Future<List<PersonAutoTagOf>> autoTagsOf(String personId) async =>
       (await _repository.personTagsOf(personId)).auto;
@@ -106,6 +115,7 @@ final class PeopleTagsCase extends UseCaseBase {
         for (final m in results[1] as List<PersonTagMembers>)
           MapEntry(m.tagId, {...m.personIds}),
       ]);
+    _reloadInherited(results[1] as List<PersonTagMembers>);
     _loaded = true;
     _emit();
   }
@@ -189,6 +199,15 @@ final class PeopleTagsCase extends UseCaseBase {
     PersonTagMemberOp(tagId: tagId, personId: personId, add: false),
   ]);
 
+  /// Keeps an inherited tag on [personId]: the marker goes away and the
+  /// membership stays.
+  Future<void> keepInherited({
+    required String personId,
+    required String tagId,
+  }) => applyMembership([
+    PersonTagMemberOp(tagId: tagId, personId: personId, add: false, keep: true),
+  ]);
+
   /// Creates an own tag and puts it last in the list. With [fromAutoKind]
   /// the server fills it with the people of that automatic tag, so the
   /// membership index is reloaded; likewise with [fromBeaconId], which fills
@@ -249,10 +268,41 @@ final class PeopleTagsCase extends UseCaseBase {
   /// Applies [ops] to the index and sends them as one batch; the ops that
   /// change nothing are dropped, and a failed send rolls the index back.
   Future<void> applyMembership(List<PersonTagMemberOp> ops) async {
-    final changed = [
-      for (final op in ops)
-        if (_setMember(op.tagId, op.personId, op.add)) op,
-    ];
+    final changed = <PersonTagMemberOp>[];
+    final undo = <void Function()>[];
+
+    for (final op in ops) {
+      if (op.keep) {
+        final tag = _inherited[op.tagId];
+        if (tag == null || !tag.containsKey(op.personId)) continue;
+        final inviterId = tag.remove(op.personId);
+        if (tag.isEmpty) _inherited.remove(op.tagId);
+        changed.add(op);
+        undo.add(() => _putInherited(op.tagId, op.personId, inviterId));
+        _emit();
+        continue;
+      }
+      if (!_setMember(op.tagId, op.personId, op.add)) continue;
+      String? removedInviter;
+      var hadInherited = false;
+      if (!op.add) {
+        final inheritedTag = _inherited[op.tagId];
+        if (inheritedTag != null && inheritedTag.containsKey(op.personId)) {
+          hadInherited = true;
+          removedInviter = inheritedTag.remove(op.personId);
+          if (inheritedTag.isEmpty) _inherited.remove(op.tagId);
+        }
+      }
+      changed.add(op);
+      final inviterBackup = removedInviter;
+      final restoreInherited = hadInherited;
+      undo.add(() {
+        _setMember(op.tagId, op.personId, !op.add);
+        if (restoreInherited) {
+          _putInherited(op.tagId, op.personId, inviterBackup);
+        }
+      });
+    }
     if (changed.isEmpty) return;
     // One id per batch, reused by every retry so the server applies it once.
     final clientOpId = _uuid.v4();
@@ -265,8 +315,8 @@ final class PeopleTagsCase extends UseCaseBase {
         return;
       } catch (_) {
         if (attempt < _applyAttempts) continue;
-        for (final op in changed.reversed) {
-          _setMember(op.tagId, op.personId, !op.add);
+        for (final rollback in undo.reversed) {
+          rollback();
         }
         rethrow;
       }
@@ -288,6 +338,21 @@ final class PeopleTagsCase extends UseCaseBase {
     return changed;
   }
 
+  void _reloadInherited(List<PersonTagMembers> memberships) {
+    _inherited.clear();
+    for (final m in memberships) {
+      if (m.inherited.isEmpty) continue;
+      _inherited[m.tagId] = {
+        for (final i in m.inherited) i.personId: i.inviterId,
+      };
+    }
+  }
+
+  void _putInherited(String tagId, String personId, String? inviterId) {
+    _inherited.putIfAbsent(tagId, () => <String, String?>{})[personId] =
+        inviterId;
+  }
+
   /// Follow the signed-in account for the lifetime of this shared store.
   void bindAccountChanges(Stream<String> accountChanges) {
     _accountSubscription ??= accountChanges.listen(_onAccountChanged);
@@ -306,6 +371,7 @@ final class PeopleTagsCase extends UseCaseBase {
     _autoTags = const [];
     _suggestionState = null;
     _members.clear();
+    _inherited.clear();
     _emit();
     if (_requested && accountId.isNotEmpty) {
       unawaited(

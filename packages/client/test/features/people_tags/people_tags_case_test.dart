@@ -299,4 +299,86 @@ void main() {
       });
     });
   });
+
+  group('people tags inherited memberships', () {
+    const tagAId = 'Ta';
+    const uBob = 'Ubob';
+    const uCarol = 'Ucarol';
+
+    setUp(() async {
+      repository = _FakePeopleTagsRepository()
+        ..memberList = [
+          const PersonTagMembers(
+            tagId: tagAId,
+            personIds: [uCarol, uBob],
+            inherited: [
+              PersonTagInherited(personId: uCarol, inviterId: uBob),
+            ],
+          ),
+        ];
+      case_ = build();
+      await case_.load();
+    });
+
+    tearDown(() async {
+      await case_.dispose();
+      await realtimePort.dispose();
+    });
+
+    test('maps inherited Carol on A to inviter Bob and keeps her a member', () {
+      expect(case_.inheritedFrom(tagAId, uCarol), uBob);
+      expect(case_.peopleInTag(tagAId), contains(uCarol));
+    });
+
+    test(
+      'keepInherited sends one keep op and clears inheritedFrom at once',
+      () async {
+        await case_.keepInherited(personId: uCarol, tagId: tagAId);
+
+        expect(case_.inheritedFrom(tagAId, uCarol), isNull);
+        expect(case_.peopleInTag(tagAId), contains(uCarol));
+        expect(repository.appliedOps.single, hasLength(1));
+        final op = repository.appliedOps.single.single;
+        expect(op.tagId, tagAId);
+        expect(op.personId, uCarol);
+        expect(op.keep, isTrue);
+      },
+    );
+
+    test('a failing keep restores inheritedFrom and rethrows', () async {
+      repository.onApply = (_) => throw StateError('offline');
+
+      await expectLater(
+        case_.keepInherited(personId: uCarol, tagId: tagAId),
+        throwsA(anything),
+      );
+
+      expect(case_.inheritedFrom(tagAId, uCarol), uBob);
+    });
+
+    test(
+      'removeFromTag on Carol clears inheritedFrom and membership',
+      () async {
+        await case_.removeFromTag(personId: uCarol, tagId: tagAId);
+
+        expect(case_.inheritedFrom(tagAId, uCarol), isNull);
+        expect(case_.peopleInTag(tagAId), isNot(contains(uCarol)));
+      },
+    );
+
+    test('a person_tag hint reload replaces the inherited map', () async {
+      expect(case_.inheritedFrom(tagAId, uCarol), uBob);
+
+      repository.memberList = [
+        const PersonTagMembers(
+          tagId: tagAId,
+          personIds: [uBob],
+        ),
+      ];
+      await case_.load();
+
+      expect(case_.inheritedFrom(tagAId, uCarol), isNull);
+      expect(case_.peopleInTag(tagAId), {uBob});
+    });
+  });
 }

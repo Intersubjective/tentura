@@ -47,6 +47,7 @@ void main() {
                     '__typename': 'PersonTagMembership',
                     'tagId': m.tagId,
                     'personIds': m.personIds,
+                    'inherited': <Map<String, dynamic>>[],
                   },
               ],
             },

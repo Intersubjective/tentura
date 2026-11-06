@@ -223,7 +223,7 @@ final class PeopleTagsRepository implements PeopleTagsRepositoryPort {
                   (o) => o
                     ..tagId = op.tagId
                     ..personId = op.personId
-                    ..op = op.add ? 'add' : 'remove'
+                    ..op = op.keep ? 'keep' : (op.add ? 'add' : 'remove')
                     ..source = op.source,
                 ),
             ]),
