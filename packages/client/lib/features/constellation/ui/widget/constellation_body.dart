@@ -50,6 +50,7 @@ import '../utils/constellation_edge_style.dart';
 import '../utils/constellation_presentation_frame.dart';
 import '../utils/constellation_tap_resolver.dart';
 import 'constellation_field_item_actions.dart';
+import 'constellation_field_topo_backdrop.dart';
 import '../../domain/entity/constellation_field_target_kind.dart';
 import 'constellation_anchor_controls.dart';
 import 'constellation_camera_controls.dart';
@@ -1581,6 +1582,12 @@ class _ConstellationBodyState extends State<ConstellationBody>
     return Stack(
       fit: StackFit.expand,
       children: [
+        // The topographic backdrop (#1022) lies under everything, hulls too.
+        if (ConstellationFieldTopoBackdrop.enabled)
+          ConstellationFieldTopoBackdrop(
+            camera: cubit.graphController.cameraRevision,
+            cameraScale: () => cubit.graphController.cameraScale,
+          ),
         if (store != null && lensCubit != null)
           StreamBuilder<void>(
             stream: store.changes,

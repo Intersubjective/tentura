@@ -13,6 +13,10 @@ CLIENT_DIR="$ROOT/packages/client"
 CHROMEDRIVER_PORT="${CHROMEDRIVER_PORT:-4444}"
 CHROMEDRIVER_DIR="$ROOT/.local/chromedriver"
 WEB_PORT=8888
+# Keep browser proofs on this run's compiled client via their own proxy.
+export LOCAL_HTTP_PORT="${LOCAL_HTTP_PORT:-9081}"
+export LOCAL_HTTPS_PORT="${LOCAL_HTTPS_PORT:-9444}"
+APP_ORIGIN="https://${LOCAL_HOST:-dev.lvh.me}:$LOCAL_HTTPS_PORT"
 RUNS="${REALTIME_MULTICLIENT_RUNS:-5}"
 NEGATIVE_PROOFS="${REALTIME_MULTICLIENT_NEGATIVE_PROOFS:-true}"
 DRIVER="${REALTIME_MULTICLIENT_DRIVER:-realtime_multiclient_web_test.dart}"
@@ -37,8 +41,9 @@ grep -qE '^QA_SIMPLE_LOGIN_MODE=true' "$ROOT/.env" || die ".env needs QA_SIMPLE_
 [[ "$DRIVER" == realtime_multiclient_web_test.dart \
   || "$DRIVER" == constellation_pinning_multiclient_web_test.dart \
   || "$DRIVER" == chat_read_receipt_multiclient_web_test.dart \
-  || "$DRIVER" == help_offer_author_seen_multiclient_web_test.dart ]] \
-  || die "REALTIME_MULTICLIENT_DRIVER must be realtime_multiclient_web_test.dart, constellation_pinning_multiclient_web_test.dart, chat_read_receipt_multiclient_web_test.dart or help_offer_author_seen_multiclient_web_test.dart"
+  || "$DRIVER" == help_offer_author_seen_multiclient_web_test.dart \
+  || "$DRIVER" == field_open_unread_multiclient_web_test.dart ]] \
+  || die "REALTIME_MULTICLIENT_DRIVER must be realtime_multiclient_web_test.dart, constellation_pinning_multiclient_web_test.dart, chat_read_receipt_multiclient_web_test.dart, help_offer_author_seen_multiclient_web_test.dart or field_open_unread_multiclient_web_test.dart"
 [[ "$ACTOR_ECHO_ENABLED" == true || "$ACTOR_ECHO_ENABLED" == false ]] \
   || die "REALTIME_MULTICLIENT_ACTOR_ECHO_ENABLED must be true or false"
 mkdir -p "$ARTIFACT_ROOT"
@@ -156,10 +161,11 @@ bash "$ROOT/scripts/resolve_local_web_config.sh" --check-only
   cd "$CLIENT_DIR"
   flutter run -d web-server \
     --profile \
-    --web-hostname=localhost \
+    --web-hostname=127.0.0.1 \
     --web-port="$WEB_PORT" \
     --dart-define-from-file=env/local-web.env \
-    --dart-define=WS_SERVER_NAME=https://dev.lvh.me:9443 \
+    --dart-define=SERVER_NAME="$APP_ORIGIN" \
+    --dart-define=WS_SERVER_NAME="$APP_ORIGIN" \
     --dart-define=QA_INTEGRATION_TEST_MODE=true \
     --dart-define=QA_WEBDRIVER_SEMANTICS=true
 ) >"$WEB_LOG" 2>&1 &
@@ -170,17 +176,17 @@ for _ in $(seq 1 180); do
 done
 rg -q 'is being served at|Flutter run key commands' "$WEB_LOG" || die "Flutter web server did not finish compiling"
 curl -sf -m 2 "http://localhost:$WEB_PORT/main.dart.js" >/dev/null || die "Flutter web output is unavailable"
-if ! curl -ksf -m 3 https://dev.lvh.me:9443/ >/dev/null 2>&1; then
+if ! curl -ksf -m 3 "$APP_ORIGIN/" >/dev/null 2>&1; then
   command -v caddy >/dev/null || die "Caddy is required for the HTTPS app origin"
   log "starting local Caddy HTTPS proxy"
   (cd "$ROOT" && caddy run --config Caddyfile.local) >"$ARTIFACT_ROOT/caddy.log" 2>&1 &
   STARTED_CADDY=$!
   for _ in $(seq 1 30); do
-    curl -ksf -m 2 https://dev.lvh.me:9443/ >/dev/null 2>&1 && break
+    curl -ksf -m 2 "$APP_ORIGIN/" >/dev/null 2>&1 && break
     sleep 1
   done
 fi
-curl -ksf -m 5 https://dev.lvh.me:9443/ >/dev/null || die "Caddy local origin is unavailable"
+curl -ksf -m 5 "$APP_ORIGIN/" >/dev/null || die "Caddy local origin is unavailable"
 
 cd "$CLIENT_DIR"
 for run in $(seq 1 "$RUNS"); do

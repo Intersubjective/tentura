@@ -11,7 +11,7 @@
 # session, watches the wrapper PID, then kills tagged descendants and
 # drops unreferenced /tmp/flutter_tools.* and /tmp/dart_test.kernel.*,
 # and stale disposable `tentura_test_*` Postgres databases
-# (those sit on the 31GiB tmpfs and count as RAM).
+# (in `postgres-test` those sit on its tmpfs and count as RAM).
 #
 # Preserves: `flutter run` web compilers (`--target=dartdevc`),
 # tentura-server, Serena language-server, Chrome, Cursor.
@@ -80,6 +80,19 @@ elif [[ -z "${TMPDIR+x}" ]]; then
   mkdir -p "$TMPDIR"
 fi
 STATE_ROOT="${TMPDIR:-/tmp}/tentura-test-cleanup"
+
+# Postgres under test: the RAM-backed `postgres-test` container
+# (compose.dev.yaml, 127.0.0.1:5433) whenever it runs. pg suites clone and
+# migrate a database per test; against the persistent `postgres` that wrote
+# ~230 GB/day to the SSD (2026-11). Applies only when the caller named no
+# target: perf scripts that set POSTGRES_HOST/PORT/DBNAME (tentura_perfsynth
+# and its copies live in `postgres`) keep theirs. TENTURA_TEST_PG=shared
+# opts out. Nested wrapped runs inherit the choice through the environment.
+if [[ -z "${CI:-}" && "${TENTURA_TEST_PG:-}" != shared &&
+      -z "${POSTGRES_HOST:-}${POSTGRES_PORT:-}${POSTGRES_DBNAME:-}" ]] &&
+   [[ "$(docker inspect -f '{{.State.Running}}' postgres-test 2>/dev/null)" == true ]]; then
+  export POSTGRES_HOST=127.0.0.1 POSTGRES_PORT=5433
+fi
 DEFAULT_TIMEOUT="45m"
 KILL_AFTER="15s"
 
@@ -369,7 +382,15 @@ PG_GC_MIN_AGE_MIN="${PG_GC_MIN_AGE_MIN:-120}"
 
 sweep_pg_databases() {
   command -v docker >/dev/null 2>&1 || return 0
-  docker ps --format '{{.Names}}' 2>/dev/null | grep -qx postgres || return 0
+  local container
+  for container in postgres postgres-test; do
+    docker ps --format '{{.Names}}' 2>/dev/null | grep -qx "$container" || continue
+    PG_GC_CONTAINER="$container" sweep_pg_databases_in || true
+  done
+  return 0
+}
+
+sweep_pg_databases_in() {
 
   local keep_tpl
   keep_tpl="$(pg_gc_psql "SELECT datname FROM pg_database
@@ -396,13 +417,13 @@ sweep_pg_databases() {
       && dropped=$((dropped + 1))
   done <<<"$victims"
 
-  [[ "$dropped" -gt 0 ]] && log "dropped $dropped stale tentura_test_* database(s)"
-  [[ -n "${keep_tpl:-}" ]] && log "kept schema template(s): $(echo "$keep_tpl" | tr '\n' ' ')"
+  [[ "$dropped" -gt 0 ]] && log "$PG_GC_CONTAINER: dropped $dropped stale tentura_test_* database(s)"
+  [[ -n "${keep_tpl:-}" ]] && log "$PG_GC_CONTAINER: kept schema template(s): $(echo "$keep_tpl" | tr '\n' ' ')"
   return 0
 }
 
 pg_gc_psql() {
-  docker exec postgres psql -U postgres -d postgres -tAc "$1" 2>/dev/null
+  docker exec "${PG_GC_CONTAINER:-postgres}" psql -U postgres -d postgres -tAc "$1" 2>/dev/null
 }
 
 
@@ -482,6 +503,33 @@ for p in pathlib.Path("/proc").iterdir():
 PY
 }
 
+# flutter test leaves incremental kernels (*.cache.dill.track.dill, pack.dill)
+# and test_cache under packages/client/build: 45-195 MB each, 66 GB piled up on
+# the SSD once. The dir is meant to be a tmpfs (AGENTS.md Verify). Alloy beads
+# share this one dir (no per-bead worktree), and the kernels are the cache the
+# next bead reuses, so files go only when idle for TENTURA_BUILD_CACHE_MAX_AGE_MIN
+# (default 120) or, under size pressure (>70% full), oldest first until <50%.
+# Files touched in the last 5 minutes are never removed. Only reached when no
+# wrapped run is active.
+sweep_client_build_cache() {
+  local build max_age used_pct
+  build="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/packages/client/build"
+  [[ -d "$build" ]] || return 0
+  max_age="${TENTURA_BUILD_CACHE_MAX_AGE_MIN:-120}"
+  find "$build" -maxdepth 3 -type f \( -name '*.cache.dill.track.dill' -o -name 'pack.dill' \) -mmin +"$max_age" -delete 2>/dev/null || true
+  [[ -d "$build/test_cache" ]] && find "$build/test_cache" -type f -mmin +"$max_age" -delete 2>/dev/null || true
+  used_pct="$(df --output=pcent "$build" 2>/dev/null | tail -1 | tr -dc '0-9')"
+  [[ "$(findmnt -no FSTYPE -T "$build" 2>/dev/null)" == tmpfs ]] || return 0
+  if [[ -n "${used_pct:-}" ]] && (( used_pct > 70 )); then
+    log "client build tmpfs ${used_pct}% full: removing oldest cache files"
+    while IFS= read -r f; do
+      rm -f -- "$f"
+      used_pct="$(df --output=pcent "$build" | tail -1 | tr -dc '0-9')"
+      (( used_pct < 50 )) && break
+    done < <(find "$build" -type f -mmin +5 -printf '%T@ %p\n' 2>/dev/null | sort -n | cut -d' ' -f2-)
+  fi
+}
+
 sweep_run() {
   local run_id="$1"
   kill_tagged_tree "$run_id"
@@ -499,6 +547,7 @@ sweep_run() {
   local orphans
   orphans="$(kill_orphan_testers || true)"
   [[ -n "${orphans:-}" ]] && log "killed orphan test leftovers: $orphans"
+  sweep_client_build_cache
   local gone
   gone="$(sweep_tmpfs || true)"
   if [[ -n "${gone:-}" ]]; then

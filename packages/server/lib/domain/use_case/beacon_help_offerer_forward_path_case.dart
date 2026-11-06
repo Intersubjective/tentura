@@ -90,8 +90,8 @@ final class BeaconHelpOffererForwardPathCase extends UseCaseBase {
     );
   }
 
-  /// Server-side notification reads use the same canonical route, without
-  /// applying a particular viewer's block mask. This is not a public query.
+  /// Reserved for notification consumers in tentura-31ve.2/.3; currently only
+  /// tests use this route without a particular viewer's block mask.
   Future<List<HelpPathNode>> helpPathFor({
     required String beaconId,
     required String helperId,

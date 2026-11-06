@@ -7,7 +7,9 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:webdriver/async_io.dart' hide TimeoutException;
 
-const multiclientAppOrigin = 'https://dev.lvh.me:9443';
+final multiclientAppOrigin =
+    'https://${Platform.environment['LOCAL_HOST'] ?? 'dev.lvh.me'}:'
+    '${Platform.environment['LOCAL_HTTPS_PORT'] ?? '9443'}';
 const multiclientApiOrigin = 'http://127.0.0.1:2080';
 const multiclientDriverUri = 'http://127.0.0.1:4444/';
 const multiclientSessionCookieName = '__Host-tentura_session';
@@ -66,8 +68,11 @@ final class BrowserSession {
       throw StateError('$name login failed: $result');
     }
     await driver.refresh();
+    // The Work screen title was renamed «My Work» → «Requests» (#249), so the
+    // empty-state body «Requests shows requests you authored...» is the
+    // stable post-auth signal that the Work screen has rendered.
     await waitForText(
-      'My Work',
+      'Requests',
       timeout: const Duration(seconds: 45),
     );
   }
@@ -707,7 +712,9 @@ Future<Map<String, dynamic>> postGraphQlAuthenticated({
 Future<String> bearerTokenForEmail(String email) async {
   final client = HttpClient();
   try {
-    final loginUri = Uri.parse('$multiclientApiOrigin/api/v2/auth/email/test-login');
+    final loginUri = Uri.parse(
+      '$multiclientApiOrigin/api/v2/auth/email/test-login',
+    );
     final loginRequest = await client.postUrl(loginUri);
     loginRequest.headers.set(HttpHeaders.contentTypeHeader, 'application/json');
     loginRequest.write(jsonEncode({'email': email}));
@@ -724,7 +731,9 @@ Future<String> bearerTokenForEmail(String email) async {
       throw StateError('test-login did not set session cookie for $email');
     }
 
-    final tokenUri = Uri.parse('$multiclientApiOrigin/api/v2/session/access-token');
+    final tokenUri = Uri.parse(
+      '$multiclientApiOrigin/api/v2/session/access-token',
+    );
     final tokenRequest = await client.postUrl(tokenUri);
     tokenRequest.headers.set(HttpHeaders.cookieHeader, sessionCookie);
     final tokenResponse = await tokenRequest.close();
@@ -857,4 +866,3 @@ Future<void> assertNoUncaughtFlutterErrors(
     }
   }
 }
-

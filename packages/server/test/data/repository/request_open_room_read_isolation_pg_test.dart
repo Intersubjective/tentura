@@ -9,10 +9,14 @@ import 'package:logging/logging.dart';
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
+import 'package:tentura_root/domain/entity/auth_request_intent.dart';
 import 'package:tentura_server/api/controllers/graphql/input/_input_types.dart';
 import 'package:tentura_server/api/controllers/graphql/mutation/mutation_attention.dart';
 import 'package:tentura_server/api/controllers/graphql/query/query_constellation_field.dart';
 import 'package:tentura_server/api/controllers/graphql/query/query_constellation_field_requests.dart';
+import 'package:tentura_server/api/controllers/websocket/path_handler/websocket_path_entity_changes.dart';
+import 'package:tentura_server/api/controllers/websocket/session/qa_realtime_socket_gate.dart';
+import 'package:tentura_server/api/controllers/websocket/session/websocket_session_handler_base.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
 import 'package:tentura_server/data/repository/attention_repository.dart';
@@ -22,15 +26,19 @@ import 'package:tentura_server/data/repository/constellation_field_requests_repo
 import 'package:tentura_server/data/repository/user_availability_repository.dart';
 import 'package:tentura_server/data/repository/user_profile_batch_lookup.dart';
 import 'package:tentura_server/domain/entity/jwt_entity.dart';
+import 'package:tentura_server/domain/use_case/auth_case.dart';
 import 'package:tentura_server/domain/use_case/constellation_field_case.dart';
 import 'package:tentura_server/domain/use_case/constellation_field_requests_case.dart';
+import 'package:tentura_server/domain/use_case/user_presence_case.dart';
 import 'package:tentura_server/env.dart';
 
 import '../../support/disposable_pg_target.dart';
 import '../../support/pg_test_public_keys.dart';
+import '../../api/controllers/websocket/websocket_realtime_protocol_test.mocks.dart';
 
-const _reader = 'Uopenreader01';
-const _author = 'Uopenauthor01';
+// These fixture accounts also authenticate over the production JWT path.
+const _reader = 'U0ead00000001';
+const _author = 'Ua07000000001';
 const _seated = 'Uopenseated01';
 const _request = 'Bopenread01';
 
@@ -231,6 +239,152 @@ SELECT public.beacon_can_read_content('$_request', '$_reader'),
   });
 
   group('Request opening keeps Field state separate from discussion reads', () {
+    test(
+      'unseated opening sends a private Field unread invalidation to both reader sessions',
+      () async {
+        final auth = AuthCase(
+          MockUserRepositoryPort(),
+          MockInvitationRepositoryPort(),
+          env: Env.test(),
+          logger: logger,
+        );
+        final presence = UserPresenceCase(
+          MockUserPresenceRepositoryPort(),
+          env: Env.test(),
+          logger: logger,
+        );
+        final connections = [
+          for (final actorEcho in [true, false])
+            (
+              handler: _FieldInvalidationHandler(
+                actorEcho: actorEcho,
+                auth: auth,
+                presence: presence,
+                logger: logger,
+              ),
+              first: _RecordingFieldSession(),
+              second: _RecordingFieldSession(),
+              unrelated: _RecordingFieldSession(),
+            ),
+        ];
+        for (final sockets in connections) {
+          addTearDown(() {
+            sockets.handler.disposeEntityChanges();
+            [
+              sockets.first,
+              sockets.second,
+              sockets.unrelated,
+            ].forEach(sockets.handler.removeSession);
+          });
+          for (final (socket, accountId) in [
+            (sockets.first, _reader),
+            (sockets.second, _reader),
+            (sockets.unrelated, _author),
+          ]) {
+            // Sign and validate real JWTs through the production auth handler.
+            await sockets.handler.onAuth(socket, {
+              'intent': AuthRequestIntent.cnameSignIn,
+              'token': auth.issueAccessToken(accountId).rawToken,
+            });
+          }
+          expect(
+            sockets.handler.getSessionsByUserId(_reader),
+            unorderedEquals([sockets.first, sockets.second]),
+          );
+          expect(
+            sockets.handler.getSessionsByUserId(_author),
+            unorderedEquals([sockets.unrelated]),
+          );
+          for (final socket in [
+            sockets.first,
+            sockets.second,
+            sockets.unrelated,
+          ]) {
+            socket.sent.clear();
+          }
+        }
+        await expectFieldUnread(unread: true, refresh: false);
+        await expectFieldUnread(unread: true, refresh: true);
+        expect(
+          await session.writer.execute('''
+SELECT user_id, beacon_id FROM public.beacon_field_seen
+WHERE user_id = '$_reader' AND beacon_id = '$_request'
+'''),
+          isEmpty,
+        );
+        // Exclude hints from fixture setup and the precondition Field reads.
+        await drainNotifications();
+        notifications.clear();
+
+        await open(_reader);
+        await drainNotifications();
+        final openNotifications = List<Map<String, dynamic>>.of(notifications);
+        final opened = await session.writer.execute('''
+SELECT user_id, beacon_id FROM public.beacon_field_seen
+WHERE user_id = '$_reader' AND beacon_id = '$_request'
+''');
+        expect(opened, hasLength(1));
+        expect(opened.single, [_reader, _request]);
+
+        await expectFieldUnread(unread: false, refresh: false);
+        await expectFieldUnread(unread: false, refresh: true);
+        final watermarks = await session.writer.execute('''
+SELECT last_seen_at FROM public.beacon_room_seen
+WHERE user_id = '$_reader' AND beacon_id = '$_request'
+''');
+        expect(watermarks, isEmpty);
+        expect(
+          openNotifications.where(
+            (event) => event['entity'] == 'room_seen_peer',
+          ),
+          isEmpty,
+        );
+
+        // Opening changes this account's Field projection, not its discussion
+        // cursor. Use the existing account-scoped Field invalidation contract.
+        final hints = openNotifications
+            .where((event) => event['entity'] == 'constellation_field')
+            .toList();
+        expect(
+          hints,
+          [
+            allOf(
+              containsPair('entity', 'constellation_field'),
+              containsPair('event', 'update'),
+              containsPair('id', 'global'),
+              containsPair('user_ids', [_reader]),
+            ),
+          ],
+          reason:
+              "The new Field-open row must invalidate only its reader's Field",
+        );
+        for (final hint in hints) {
+          expect(hint['user_ids'], [_reader]);
+          for (final sockets in connections) {
+            // Pass the real committed NOTIFY to the production mixin. Only
+            // the socket transport is recorded; auth and dispatch are real.
+            await sockets.handler.fanOutEntityChange(Map.of(hint));
+            for (final socket in [sockets.first, sockets.second]) {
+              expect(socket.sent, hasLength(1));
+              final frame = socket.sent.single;
+              expect(frame['type'], 'subscription');
+              expect(frame['path'], 'entity_changes');
+              final payload = frame['payload'] as Map<String, dynamic>;
+              expect(payload['entity'], 'constellation_field');
+              expect(payload['event'], 'update');
+              expect(payload['id'], 'global');
+            }
+            expect(
+              sockets.unrelated.sent,
+              isEmpty,
+              reason:
+                  "The Request author must not receive the reader's private invalidation",
+            );
+          }
+        }
+      },
+    );
+
     for (final refresh in [false, true]) {
       test(
         '${refresh ? 'targeted' : 'full'} Field clears unread on repeated unseated opens without creating a room watermark',
@@ -462,4 +616,33 @@ SELECT public.beacon_effective_admission('$_request', '$_reader')
       },
     );
   });
+}
+
+// The production authentication registry and fan-out mixin run unchanged;
+// unrelated database lookups use this suite's existing websocket port mocks.
+final class _FieldInvalidationHandler extends WebsocketSessionHandlerBase
+    with WebsocketPathEntityChanges {
+  _FieldInvalidationHandler({
+    required bool actorEcho,
+    required AuthCase auth,
+    required UserPresenceCase presence,
+    required Logger logger,
+  }) : super(
+         Env(realtimeActorEchoEnabled: actorEcho),
+         logger,
+         auth,
+         presence,
+         MockVoteUserFriendshipLookupPort(),
+         MockBeaconRoomCoParticipantLookupPort(),
+         MockRoomMessageSnapshotLookupPort(),
+         QaRealtimeSocketGate(),
+       );
+}
+
+final class _RecordingFieldSession extends WebSocketSession {
+  final sent = <Map<String, dynamic>>[];
+
+  @override
+  void send(Object? data) =>
+      sent.add(jsonDecode(data! as String) as Map<String, dynamic>);
 }

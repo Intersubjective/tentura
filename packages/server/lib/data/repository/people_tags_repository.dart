@@ -12,7 +12,8 @@ import 'package:tentura_server/domain/use_case/people_tags_case.dart'
     show
         kPersonTagSourceFromAutoTag,
         kPersonTagSourceFromRequest,
-        kPersonTagSourceInherited;
+        kPersonTagSourceInherited,
+        kPersonTagSourceManual;
 import 'package:tentura_server/utils/id.dart';
 
 import '../database/tentura_db.dart';
@@ -339,9 +340,9 @@ ON CONFLICT DO NOTHING
           );
         } else if (o.keep) {
           await _database.customStatement(
-            r'''
-UPDATE public.person_tag_member SET source = 0
- WHERE tag_id = $1 AND owner_id = $2 AND person_id = $3 AND source = $4
+            '''
+UPDATE public.person_tag_member SET source = $kPersonTagSourceManual
+ WHERE tag_id = \$1 AND owner_id = \$2 AND person_id = \$3 AND source = \$4
 ''',
             [o.tagId, ownerId, o.personId, kPersonTagSourceInherited],
           );
@@ -399,7 +400,9 @@ SELECT t.id AS tag_id,
            FILTER (WHERE m.source = $kPersonTagSourceInherited),
          '{}'::text[]) AS inherited_ids,
        coalesce(
-         array_agg(g.ancestor_user_id ORDER BY m.person_id)
+         array_agg(CASE WHEN public.block_hides(\$1, g.ancestor_user_id)
+                        THEN NULL ELSE g.ancestor_user_id END
+                   ORDER BY m.person_id)
            FILTER (WHERE m.source = $kPersonTagSourceInherited),
          '{}'::text[]) AS inviter_ids
   FROM public.person_tag t
