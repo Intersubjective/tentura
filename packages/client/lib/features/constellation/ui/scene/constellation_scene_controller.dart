@@ -636,7 +636,7 @@ class ConstellationSceneController {
             return a.id.compareTo(b.id);
           },
         );
-      ForwardGraphEdge? current = intoHo.isEmpty ? null : intoHo.last;
+      var current = intoHo.isEmpty ? null : intoHo.last;
       final seen = <String>{};
       while (current != null && seen.add(current.id)) {
         helpBranchIds.add(current.id);
@@ -691,13 +691,12 @@ class ConstellationSceneController {
         semanticId: semanticId,
       );
       edges.add(edge);
-      edgeKinds[
-        constellationSceneEdgeId(
-          kindName: uniqueKind,
-          source: srcNode,
-          destination: dstNode,
-        )
-      ] = kind;
+      final sceneEdgeId = constellationSceneEdgeId(
+        kindName: uniqueKind,
+        source: srcNode,
+        destination: dstNode,
+      );
+      edgeKinds[sceneEdgeId] = kind;
       edgeKindByPair[semanticId] = kind;
       visibleSemanticIds.add(semanticId);
     }
@@ -705,8 +704,9 @@ class ConstellationSceneController {
 
     final activePersonIds = <String>{};
     for (final e in graph.edges) {
-      activePersonIds.add(endpointId(e, sender: true));
-      activePersonIds.add(endpointId(e, sender: false));
+      activePersonIds
+        ..add(endpointId(e, sender: true))
+        ..add(endpointId(e, sender: false));
     }
 
     for (final edge in edges) {
@@ -960,7 +960,10 @@ class ConstellationSceneController {
             destination: dst,
           )] =
           kind;
-      assert(!edgeKindByPair.containsKey(edge.semanticId));
+      assert(
+        !edgeKindByPair.containsKey(edge.semanticId),
+        'duplicate edge semantic id ${edge.semanticId}',
+      );
       edgeKindByPair[edge.semanticId] = kind;
       if (fade != null) {
         edgeFadeBySemanticId[edge.semanticId] = fade;

@@ -69,11 +69,10 @@ class ScreenCubit extends Cubit<ScreenState> {
     required String beaconId,
     String? helpOffererId,
   }) {
-    ConstellationForwardTreeRequest.instance.schedulePending(
-      ConstellationForwardTreeRequestPayload(
-        beaconId: beaconId,
-        helpOffererId: helpOffererId,
-      ),
+    ConstellationForwardTreeRequest.instance.pendingPayload =
+        ConstellationForwardTreeRequestPayload(
+      beaconId: beaconId,
+      helpOffererId: helpOffererId,
     );
     showConstellation();
   }

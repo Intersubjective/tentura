@@ -27,13 +27,6 @@ class ForwardHelpedSeePathAction extends StatelessWidget {
         helperId.isEmpty) {
       return const SizedBox.shrink();
     }
-    String? helperName;
-    for (final node in content.path) {
-      if (node.userId == helperId) {
-        helperName = node.displayName;
-        break;
-      }
-    }
     return TenturaTextAction(
       label: l10n.updatesForwardHelpedSeePath,
       flushStart: true,

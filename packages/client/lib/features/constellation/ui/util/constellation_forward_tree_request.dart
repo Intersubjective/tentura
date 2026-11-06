@@ -11,7 +11,10 @@ final class ConstellationForwardTreeRequest {
   ValueListenable<ConstellationForwardTreeRequestPayload?> get pending =>
       _pending;
 
-  void schedulePending(ConstellationForwardTreeRequestPayload payload) {
+  ConstellationForwardTreeRequestPayload? get pendingPayload =>
+      _pending.value;
+
+  set pendingPayload(ConstellationForwardTreeRequestPayload payload) {
     _pending.value = payload;
   }
 
@@ -22,7 +25,7 @@ final class ConstellationForwardTreeRequest {
   }
 }
 
-/// Parameters for [ConstellationForwardTreeRequest.schedulePending].
+/// Parameters for [ConstellationForwardTreeRequest.pendingPayload].
 @immutable
 final class ConstellationForwardTreeRequestPayload {
   const ConstellationForwardTreeRequestPayload({
