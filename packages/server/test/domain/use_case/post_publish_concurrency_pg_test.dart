@@ -55,7 +55,7 @@ Future<void> main() async {
   );
   final unavailable = await pgSkipReason(target);
   final dockerReachable = await IsolatedHasuraSession.isDockerAvailable();
-  final Object skipHasura =
+  final skipHasura =
       dockerReachable ? false : 'Docker not available for isolated Hasura';
   if (unavailable != null) {
     test('Post publication concurrency requires reachable Postgres', () {
