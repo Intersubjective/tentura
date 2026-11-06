@@ -2720,7 +2720,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
         media.size.height * tt.graphLegendMaxHeightFractionCompact;
     final maxHeight = math.min(
       capHeight,
-      math.max(0.0, freeBelowPanel),
+      freeBelowPanel < 0 ? 0.0 : freeBelowPanel,
     );
     return ConstrainedBox(
       constraints: BoxConstraints(maxHeight: maxHeight),

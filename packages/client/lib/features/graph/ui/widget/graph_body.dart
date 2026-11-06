@@ -149,7 +149,7 @@ class GraphBodyState extends State<GraphBody>
   void initState() {
     super.initState();
     if (_graphCubit.state.isAnimated) {
-      unawaited(_animationController.repeat());
+      _animationController.repeat();
     }
   }
 
