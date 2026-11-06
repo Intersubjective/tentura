@@ -14,6 +14,7 @@ class GraphSceneRenderScope extends InheritedModel<bool> {
   const GraphSceneRenderScope({
     required this.snapshot,
     required this.orderedNodeIds,
+    this.layoutChromeGeneration = 0,
     required super.child,
     super.key,
   });
@@ -23,6 +24,11 @@ class GraphSceneRenderScope extends InheritedModel<bool> {
 
   /// Visible node ids in paint/hit order (later ids are on top).
   final List<GraphNodeId> orderedNodeIds;
+
+  /// Increments when [GraphViewConfiguration.layoutChromeListenable] notifies
+  /// without a scene topology / paint-order change, so [NodesView] still
+  /// rebuilds (resting tiles cache `identical` child widgets otherwise).
+  final int layoutChromeGeneration;
 
   /// { @nodoc }
   static GraphSceneRenderScope of(BuildContext context) {
@@ -43,7 +49,8 @@ class GraphSceneRenderScope extends InheritedModel<bool> {
   @override
   bool updateShouldNotify(GraphSceneRenderScope oldWidget) =>
       snapshot != oldWidget.snapshot ||
-      orderedNodeIds != oldWidget.orderedNodeIds;
+      orderedNodeIds != oldWidget.orderedNodeIds ||
+      layoutChromeGeneration != oldWidget.layoutChromeGeneration;
 
   @override
   bool updateShouldNotifyDependent(
@@ -51,7 +58,8 @@ class GraphSceneRenderScope extends InheritedModel<bool> {
     Set<bool> dependencies,
   ) =>
       (dependencies.contains(true) &&
-          (snapshot.topology != oldWidget.snapshot.topology ||
+          (layoutChromeGeneration != oldWidget.layoutChromeGeneration ||
+              snapshot.topology != oldWidget.snapshot.topology ||
               !setEquals(
                 orderedNodeIds.toSet(),
                 oldWidget.orderedNodeIds.toSet(),
@@ -61,16 +69,61 @@ class GraphSceneRenderScope extends InheritedModel<bool> {
 }
 
 /// { @nodoc }
-class GraphLayoutView extends StatelessWidget {
+class GraphLayoutView extends StatefulWidget {
   /// { @nodoc }
   const GraphLayoutView({
     super.key,
   });
 
   @override
+  State<GraphLayoutView> createState() => _GraphLayoutViewState();
+}
+
+class _GraphLayoutViewState extends State<GraphLayoutView> {
+  Listenable? _layoutChromeListenable;
+  VoidCallback? _layoutChromeListener;
+  var _layoutChromeGeneration = 0;
+
+  @override
+  void dispose() {
+    _removeLayoutChromeListener();
+    super.dispose();
+  }
+
+  void _removeLayoutChromeListener() {
+    final listenable = _layoutChromeListenable;
+    final listener = _layoutChromeListener;
+    if (listenable != null && listener != null) {
+      listenable.removeListener(listener);
+    }
+    _layoutChromeListenable = null;
+    _layoutChromeListener = null;
+  }
+
+  void _syncLayoutChromeListener(Listenable? next) {
+    if (identical(next, _layoutChromeListenable)) {
+      return;
+    }
+    _removeLayoutChromeListener();
+    _layoutChromeListenable = next;
+    if (next == null) {
+      return;
+    }
+    void listener() {
+      setState(() {
+        _layoutChromeGeneration++;
+      });
+    }
+
+    _layoutChromeListener = listener;
+    next.addListener(listener);
+  }
+
+  @override
   Widget build(BuildContext context) {
     final configuration = InheritedConfiguration.configurationOf(context);
     final controller = InheritedConfiguration.controllerOf(context);
+    _syncLayoutChromeListener(configuration.layoutChromeListenable);
     final backgroundBuilder = configuration.canvasBackgroundBuilder;
     final builder = configuration.builder;
 
@@ -92,6 +145,7 @@ class GraphLayoutView extends StatelessWidget {
         return GraphSceneRenderScope(
           snapshot: snapshot,
           orderedNodeIds: orderedNodeIds,
+          layoutChromeGeneration: _layoutChromeGeneration,
           child: SizedBox.fromSize(
             size: controller.canvasSize,
             // Camera transforms reuse the whole scene's layers. Geometry and

@@ -6,6 +6,10 @@ import 'package:flutter/widgets.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
 import 'package:force_directed_graphview/src/widget/inherited_configuration.dart';
 
+/// Hit-test root for [NodeDragGesture]'s pointer layer (scene coords match
+/// `localPosition` on this [Listener]). Widget tests find it with this key.
+const kGraphViewNodeDragPointerLayerKey = Key('fdgv.node_drag.pointer_layer');
+
 /// Optional node-drag and camera-gating layer for [GraphView].
 class NodeDragGesture extends StatefulWidget {
   /// { @nodoc }
@@ -29,6 +33,8 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
   int? _canvasButtons;
   Timer? _canvasLongPressTimer;
   var _canvasLongPressed = false;
+  PointerDeviceKind? _canvasLongPressKind;
+  Offset? _canvasLongPressLastScene;
 
   Timer? _nodeLongPressTimer;
   var _nodeLongPressed = false;
@@ -108,6 +114,12 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
     _releaseCapture(notifyCancel: true);
   }
 
+  /// Scene-space pointer position; matches [_updateCapturedPosition] and hit
+  /// tests, which use [GraphController.globalToScene] instead of raw
+  /// [PointerEvent.localPosition] when the camera binding is current (#1021).
+  Offset _sceneFromEvent(PointerEvent event) =>
+      _controller.globalToScene(event.position) ?? event.localPosition;
+
   @override
   Widget build(BuildContext context) {
     if (!_configuration.nodePointerLayerEnabled) {
@@ -132,6 +144,7 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
         ),
       },
       child: Listener(
+        key: kGraphViewNodeDragPointerLayerKey,
         behavior: HitTestBehavior.translucent,
         onPointerDown: _onPointerDown,
         onPointerMove: _onPointerMove,
@@ -163,25 +176,36 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
       return;
     }
 
-    final pos = event.localPosition;
     // Hit tests run on the camera as it stands, which can be a frame ahead of
     // the one `event.localPosition` was resolved against.
-    final hitPos = _controller.globalToScene(event.position) ?? pos;
+    final hitPos = _sceneFromEvent(event);
     final pass = _captureDragPassSnapshot();
     final canvasEnabled = _configuration.onCanvasTap != null ||
         _configuration.onCanvasSecondaryTap != null ||
         _configuration.onCanvasLongPress != null;
     if (canvasEnabled) {
-      final nodeId = _hitTestTopmostNodeIdInSnapshot(
+      // Canvas long press is for true empty space: no draggable node body.
+      // Do not use [nodeTapHitTester] (widened tap rings) or non-draggable
+      // layers — they would block tag-area holds beside zoomed-out nodes
+      // (#1021).
+      final blockingDraggable = _hitTestTopmostNodeIdInSnapshot(
         hitPos,
         pass,
-        draggableOnly: false,
+        draggableOnly: true,
       );
-      final tapId =
-          _configuration.nodeTapHitTester?.call(hitPos, pass.orderedNodeIds);
-      if (nodeId == null && tapId == null) {
-        _startCanvasPress(event);
-        return;
+      if (blockingDraggable == null) {
+        // Between dense dots the strict body miss is expected;
+        // [nodeTapHitTester] still picks the nearer person (#680). Only treat
+        // as canvas-empty when that resolver also misses (true empty hull /
+        // composer background).
+        final ringTapId = _configuration.nodeTapHitTester?.call(
+          hitPos,
+          pass.orderedNodeIds,
+        );
+        if (ringTapId == null) {
+          _startCanvasPress(event);
+          return;
+        }
       }
     }
     // A visible but non-draggable marker must not block a draggable node
@@ -201,15 +225,10 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
     _pendingNodeId = bodyId;
     _pendingTapNodeId = tapId;
     _pendingPointer = event.pointer;
-    _pendingDownScene = event.localPosition;
-    _pendingLastScene = event.localPosition;
+    _pendingDownScene = hitPos;
+    _pendingLastScene = hitPos;
     _pendingKind = event.kind;
     _pendingDragged = false;
-
-    if (event.kind == PointerDeviceKind.mouse &&
-        event.buttons == kPrimaryMouseButton) {
-      return;
-    }
 
     _maybeStartNodeLongPress(event, bodyId);
   }
@@ -218,9 +237,7 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
       kind == PointerDeviceKind.touch || kind == PointerDeviceKind.stylus;
 
   void _maybeStartNodeLongPress(PointerDownEvent event, GraphNodeId? bodyId) {
-    if (bodyId == null ||
-        _configuration.onNodeLongPress == null ||
-        !_isTouchLike(event.kind)) {
+    if (bodyId == null || _configuration.onNodeLongPress == null) {
       return;
     }
     final payload = _controller.nodePayloadForId(bodyId);
@@ -230,7 +247,7 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
     _nodeLongPressTimer?.cancel();
     _nodeLongPressed = false;
     final pointer = event.pointer;
-    final downScene = event.localPosition;
+    final downScene = _sceneFromEvent(event);
     _nodeLongPressTimer = Timer(kLongPressTimeout, () {
       _nodeLongPressTimer = null;
       if (_pendingPointer != pointer || _pendingNodeId != bodyId) {
@@ -243,9 +260,13 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
         return;
       }
       final scenePosition = Offset(point.x, point.y);
-      final lift = _configuration.onNodeLongPress!(payload, scenePosition);
+      final kind = _pendingKind ?? PointerDeviceKind.touch;
+      final lift =
+          _configuration.onNodeLongPress!(payload, scenePosition, kind);
       if (lift) {
-        HapticFeedback.mediumImpact();
+        if (_isTouchLike(kind)) {
+          unawaited(HapticFeedback.mediumImpact());
+        }
         _captureNode(bodyId, pointer, downScene);
         _updateCapturedPosition(downScene);
       }
@@ -306,8 +327,7 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
     if (nodeId == null) {
       // Pan eligibility runs in the same pointer dispatch as [_onPointerDown];
       // hit-test here when pending is not set yet.
-      final hitPos =
-          _controller.globalToScene(event.position) ?? event.localPosition;
+      final hitPos = _sceneFromEvent(event);
       final pass = _captureDragPassSnapshot();
       nodeId = _hitTestTopmostNodeIdInSnapshot(
         hitPos,
@@ -343,19 +363,30 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
       return;
     }
     _captureNode(nodeId, pointer, down);
-    _updateCapturedPosition(details.localPosition);
+    _updateCapturedPosition(
+      _controller.globalToScene(details.globalPosition) ??
+          details.localPosition,
+      global: details.globalPosition,
+    );
   }
 
   void _onPointerMove(PointerMoveEvent event) {
-    if (_canvasPointer == event.pointer &&
+    if (_canvasPointer == event.pointer && !_canvasLongPressed &&
         (event.position - _canvasDownGlobal!).distance >= kTouchSlop) {
       _cancelCanvasPress();
+    }
+    if (_canvasPointer == event.pointer && _canvasLongPressed) {
+      final scene = _sceneFromEvent(event);
+      _canvasLongPressLastScene = scene;
+      _configuration.onCanvasLongPressMove?.call(scene);
+      return;
     }
     if (_pendingNodeId == null &&
         _pendingTapNodeId != null &&
         event.pointer == _pendingPointer) {
       final down = _pendingDownScene;
-      if (down != null && (event.localPosition - down).distance >= kTouchSlop) {
+      if (down != null &&
+          (_sceneFromEvent(event) - down).distance >= kTouchSlop) {
         _cancelPendingCapture();
         return;
       }
@@ -368,7 +399,7 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
       // A pointer keeps the hit-test transforms of its press, which go stale
       // when the camera or the view origin moves mid-drag.
       _updateCapturedPosition(
-        _controller.globalToScene(event.position) ?? event.localPosition,
+        _sceneFromEvent(event),
         global: event.position,
       );
       return;
@@ -377,14 +408,16 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
     if (_pendingNodeId == null || event.pointer != _pendingPointer) {
       return;
     }
-    _pendingLastScene = event.localPosition;
+    _pendingLastScene = _sceneFromEvent(event);
 
     final down = _pendingDownScene;
     if (down == null) {
       return;
     }
 
-    if ((event.localPosition - down).distance >= kTouchSlop) {
+    final scene = _sceneFromEvent(event);
+
+    if ((scene - down).distance >= kTouchSlop) {
       _cancelNodeLongPress();
       if (_configuration.touchNodeDragLocked && _isTouchLike(_pendingKind)) {
         _cancelPendingCapture();
@@ -398,14 +431,14 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
       return;
     }
 
-    if ((event.localPosition - down).distance < kTouchSlop) {
+    if ((scene - down).distance < kTouchSlop) {
       return;
     }
 
     if (event.kind == PointerDeviceKind.mouse) {
       _pendingDragged = true;
       _captureNode(_pendingNodeId!, event.pointer, down);
-      _updateCapturedPosition(event.localPosition);
+      _updateCapturedPosition(scene);
       return;
     }
 
@@ -417,13 +450,17 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
     _activePointers.remove(event.pointer);
     if (_canvasPointer == event.pointer) {
       final position = _controller.viewportLocalToScene(_canvasDownViewport!);
-      final callback = _canvasLongPressed
-          ? null
-          : _canvasButtons == kSecondaryMouseButton
-              ? _configuration.onCanvasSecondaryTap
-              : _configuration.onCanvasTap;
-      _cancelCanvasPress();
-      callback?.call(position);
+      if (_canvasLongPressed) {
+        final releaseScene =
+            _controller.globalToScene(event.position) ?? event.localPosition;
+        _cancelCanvasPress(releaseScene: releaseScene);
+      } else {
+        final callback = _canvasButtons == kSecondaryMouseButton
+            ? _configuration.onCanvasSecondaryTap
+            : _configuration.onCanvasTap;
+        _cancelCanvasPress();
+        callback?.call(position);
+      }
     }
 
     if (_capturedNodeId != null) {
@@ -475,8 +512,14 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
   }
 
   void _startCanvasPress(PointerDownEvent event) {
-    if (event.buttons != kPrimaryButton &&
-        event.buttons != kSecondaryMouseButton) {
+    // [PointerDownEvent.buttons] is [kPrimaryButton] for a mouse primary
+    // click but can be zero for touch/stylus in tests and on some platforms
+    // (#1021 tag-area long press from empty hull).
+    var buttons = event.buttons;
+    if (_isTouchLike(event.kind) && buttons == 0) {
+      buttons = kPrimaryButton;
+    }
+    if (buttons != kPrimaryButton && buttons != kSecondaryMouseButton) {
       return;
     }
     _canvasPointer = event.pointer;
@@ -485,25 +528,56 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
     // local coordinates are already scene coordinates. Store viewport-local
     // coordinates for the controller's conversion at callback dispatch.
     _canvasDownViewport = _controller.sceneToViewportLocal(event.localPosition);
-    _canvasButtons = event.buttons;
+    _canvasButtons = buttons;
     _canvasLongPressed = false;
-    if (event.buttons == kPrimaryButton) {
+    _canvasLongPressKind = event.kind;
+    if (buttons == kPrimaryButton) {
+      _canvasLongPressLastScene = event.localPosition;
       _canvasLongPressTimer = Timer(kLongPressTimeout, () {
         _canvasLongPressed = true;
-        final position = _controller.viewportLocalToScene(_canvasDownViewport!);
-        _configuration.onCanvasLongPress?.call(position);
+        // [InteractiveViewer] can still settle (fit / initial pan) between
+        // pointer-down and [kLongPressTimeout]. Re-project from the stored
+        // global so the callback sees the same scene point as the press
+        // (#1021 tag-area long press on a moving camera).
+        final position = _canvasDownGlobal != null
+            ? (_controller.globalToScene(_canvasDownGlobal!) ??
+                _controller.viewportLocalToScene(_canvasDownViewport!))
+            : _controller.viewportLocalToScene(_canvasDownViewport!);
+        _canvasLongPressLastScene = position;
+        final kind = _canvasLongPressKind;
+        if (kind != null) {
+          _configuration.onCanvasLongPress?.call(position, kind);
+          if (_isTouchLike(kind)) {
+            unawaited(HapticFeedback.selectionClick());
+          }
+        }
       });
     }
   }
 
-  void _cancelCanvasPress() {
+  void _cancelCanvasPress({Offset? releaseScene}) {
+    final wasLongPress = _canvasLongPressed;
+    final downViewport = _canvasDownViewport;
     _canvasLongPressTimer?.cancel();
     _canvasLongPressTimer = null;
+    Offset? endScene;
+    if (wasLongPress) {
+      endScene = releaseScene ??
+          _canvasLongPressLastScene ??
+          (downViewport != null
+              ? _controller.viewportLocalToScene(downViewport)
+              : null);
+    }
     _canvasPointer = null;
     _canvasDownGlobal = null;
     _canvasDownViewport = null;
     _canvasButtons = null;
     _canvasLongPressed = false;
+    _canvasLongPressKind = null;
+    _canvasLongPressLastScene = null;
+    if (wasLongPress && endScene != null) {
+      _configuration.onCanvasLongPressEnd?.call(endScene);
+    }
   }
 
   void _cancelNodeLongPress() {
@@ -616,11 +690,13 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
     }
 
     try {
-      final token = _captureToken;
+      var token = _captureToken;
+      token ??= _controller.activePresentationTokenForNode(nodeId);
       if (token == null) {
         _captureToken =
             _controller.beginNodePresentationDragForId(nodeId, centre);
       } else {
+        _captureToken = token;
         _controller.updateNodePresentationDrag(token, centre);
       }
       final globalForCallback = _grabGlobal;

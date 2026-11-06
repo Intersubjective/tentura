@@ -47,10 +47,13 @@ class GraphView<N, E> extends StatefulWidget {
     this.onCanvasTap,
     this.onCanvasSecondaryTap,
     this.onCanvasLongPress,
+    this.onCanvasLongPressMove,
+    this.onCanvasLongPressEnd,
     this.onNodeLongPress,
     this.nodeTapHitTester,
     this.nodePaintOrder,
     this.touchNodeDragLocked = false,
+    this.layoutChromeListenable,
     super.key,
   });
 
@@ -136,8 +139,15 @@ class GraphView<N, E> extends StatefulWidget {
   /// Called for a secondary short press on empty canvas, in scene coordinates.
   final void Function(Offset scenePosition)? onCanvasSecondaryTap;
 
-  /// Called for a primary long press that hits no node, in scene coordinates.
-  final void Function(Offset scenePosition)? onCanvasLongPress;
+  /// Empty-canvas primary long press after [kLongPressTimeout] (scene coords
+  /// and pointer kind).
+  final CanvasLongPressCallback? onCanvasLongPress;
+
+  /// Moves after [onCanvasLongPress], same gesture (scene coordinates).
+  final CanvasLongPressMoveCallback? onCanvasLongPressMove;
+
+  /// Primary pointer up after [onCanvasLongPress] (and optional drag).
+  final CanvasLongPressEndCallback? onCanvasLongPressEnd;
 
   /// Touch/stylus long press on a draggable node within slop.
   final NodeLongPressCallback<N>? onNodeLongPress;
@@ -150,6 +160,9 @@ class GraphView<N, E> extends StatefulWidget {
 
   /// Optional shared paint/hit order. Later entries paint and hit-test on top.
   final List<GraphNodeId>? nodePaintOrder;
+
+  /// See [GraphViewConfiguration.layoutChromeListenable].
+  final Listenable? layoutChromeListenable;
 
   @override
   State<GraphView<N, E>> createState() => _GraphViewState<N, E>();
@@ -256,18 +269,23 @@ class _GraphViewState<N, E> extends State<GraphView<N, E>>
         onCanvasTap: widget.onCanvasTap,
         onCanvasSecondaryTap: widget.onCanvasSecondaryTap,
         onCanvasLongPress: widget.onCanvasLongPress,
+        onCanvasLongPressMove: widget.onCanvasLongPressMove,
+        onCanvasLongPressEnd: widget.onCanvasLongPressEnd,
         onNodeLongPress: widget.onNodeLongPress == null
             ? null
-            : (node, position) => widget.onNodeLongPress!(node as N, position),
+            : (node, position, kind) =>
+                widget.onNodeLongPress!(node as N, position, kind),
         nodeTapHitTester: widget.nodeTapHitTester,
         nodePaintOrder: widget.nodePaintOrder,
         touchNodeDragLocked: widget.touchNodeDragLocked,
+        layoutChromeListenable: widget.layoutChromeListenable,
       ),
       child: _CameraGatedInteractiveViewer(
         controller: widget.controller,
         transformationController: _transformationController,
         minScale: widget.minScale,
         maxScale: widget.maxScale,
+        layoutChromeListenable: widget.layoutChromeListenable,
       ),
     );
   }
@@ -279,12 +297,14 @@ class _CameraGatedInteractiveViewer extends StatefulWidget {
     required this.transformationController,
     required this.minScale,
     required this.maxScale,
+    this.layoutChromeListenable,
   });
 
   final GraphController<dynamic, dynamic> controller;
   final TransformationController transformationController;
   final double minScale;
   final double maxScale;
+  final Listenable? layoutChromeListenable;
 
   @override
   State<_CameraGatedInteractiveViewer> createState() =>
@@ -363,9 +383,21 @@ class _CameraGatedInteractiveViewerState
           onInteractionStart: (_) => widget.controller._onUserCameraInput(),
           builder: (context, viewport) {
             widget.controller._updateViewport(viewport, constraints.biggest);
-            return const NodeDragGesture(
-              child: GraphLayoutView(),
-            );
+            final chrome = widget.layoutChromeListenable;
+            // [InteractiveViewer.builder] does not re-run this closure when only
+            // ancestors rebuild; rebuild explicitly when external chrome signals
+            // change (constellation semantic zoom / LOD, #1021).
+            Widget scene() => NodeDragGesture(
+                  child: GraphLayoutView(),
+                );
+            return chrome == null
+                ? scene()
+                : ListenableBuilder(
+                    listenable: chrome,
+                    // Non-const subtree so each notification gets a fresh widget
+                    // update (const would compare equal and skip deep rebuilds).
+                    builder: (_, __) => scene(),
+                  );
           },
         );
       },

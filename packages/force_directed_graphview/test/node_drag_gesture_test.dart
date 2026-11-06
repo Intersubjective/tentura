@@ -912,7 +912,7 @@ void main() {
     await _pumpGraph(
       tester,
       controller: controller,
-      onNodeLongPress: (node, _) {
+      onNodeLongPress: (node, _, __) {
         longPressCalls++;
         return true;
       },
@@ -946,8 +946,8 @@ void main() {
     await _pumpGraph(
       tester,
       controller: controller,
-      onCanvasLongPress: canvasHolds.add,
-      onNodeLongPress: (_, __) {
+      onCanvasLongPress: (pos, _) => canvasHolds.add(pos),
+      onNodeLongPress: (_, __, ___) {
         nodeLongPress++;
         return false;
       },
@@ -1000,7 +1000,7 @@ Future<void> _pumpGraph(
   List<GraphNodeId>? nodePaintOrder,
   bool touchNodeDragLocked = false,
   NodeLongPressCallback<Node<int>>? onNodeLongPress,
-  void Function(Offset scenePosition)? onCanvasLongPress,
+  CanvasLongPressCallback? onCanvasLongPress,
 }) async {
   tester.view.physicalSize = const Size(800, 600);
   tester.view.devicePixelRatio = 1.0;

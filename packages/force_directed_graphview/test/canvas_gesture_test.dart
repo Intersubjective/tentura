@@ -18,7 +18,7 @@ void main() {
         testAddNode(controller, node);
         final taps = <Offset>[];
         final secondary = <Offset>[];
-        final holds = <Offset>[];
+        final holds = <(Offset, PointerDeviceKind)>[];
         final nodeTaps = <Node<int>>[];
         await tester.pumpWidget(
           MaterialApp(
@@ -32,7 +32,7 @@ void main() {
               onNodeTap: nodeCallbacks ? nodeTaps.add : null,
               onCanvasTap: taps.add,
               onCanvasSecondaryTap: secondary.add,
-              onCanvasLongPress: holds.add,
+              onCanvasLongPress: (pos, kind) => holds.add((pos, kind)),
             ),
           ),
         );
@@ -63,14 +63,21 @@ void main() {
         }
 
         await press(const Offset(300, 250));
-        final expected = gestureKind == 'tap'
-            ? taps
-            : gestureKind == 'secondary'
-                ? secondary
-                : holds;
-        expect(expected, hasLength(1));
-        expect(expected.single.dx, closeTo(100, 1));
-        expect(expected.single.dy, closeTo(100, 1));
+        if (gestureKind == 'tap') {
+          expect(taps, hasLength(1));
+          expect(taps.single.dx, closeTo(100, 1));
+          expect(taps.single.dy, closeTo(100, 1));
+        } else if (gestureKind == 'secondary') {
+          expect(secondary, hasLength(1));
+          expect(secondary.single.dx, closeTo(100, 1));
+          expect(secondary.single.dy, closeTo(100, 1));
+        } else {
+          expect(holds, hasLength(1));
+          final (hold, kind) = holds.single;
+          expect(hold.dx, closeTo(100, 1));
+          expect(hold.dy, closeTo(100, 1));
+          expect(kind, PointerDeviceKind.touch);
+        }
         expect(taps.length + secondary.length + holds.length, 1);
         await press(const Offset(100, 50));
         expect(taps.length + secondary.length + holds.length, 1);
@@ -95,7 +102,7 @@ void main() {
           nodeBuilder: (_, node) => SizedBox.square(dimension: node.size),
           onCanvasTap: calls.add,
           onCanvasSecondaryTap: calls.add,
-          onCanvasLongPress: calls.add,
+          onCanvasLongPress: (pos, _) => calls.add(pos),
         ),
       ),
     );

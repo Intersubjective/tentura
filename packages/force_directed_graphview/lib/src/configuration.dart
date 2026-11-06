@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
 
@@ -54,12 +55,27 @@ typedef NodeDragCancelCallback<N> = void Function(N node);
 /// Called when a pointer releases over a node without starting a drag.
 typedef NodeTapCallback<N> = void Function(N node);
 
-/// Called after a touch/stylus hold on a draggable node within [kTouchSlop].
+/// Empty-canvas primary long press after [kLongPressTimeout] (scene coords).
+typedef CanvasLongPressCallback = void Function(
+  Offset scenePosition,
+  PointerDeviceKind kind,
+);
+
+/// Moves after [CanvasLongPressCallback], before release (scene coordinates).
+typedef CanvasLongPressMoveCallback = void Function(Offset scenePosition);
+
+/// Primary pointer up after a recognized canvas long press ([scenePosition]
+/// is the release location in scene coordinates).
+typedef CanvasLongPressEndCallback = void Function(Offset scenePosition);
+
+/// Called after a hold on a draggable node within [kTouchSlop] ([kind] is the
+/// pointer that pressed; touch/stylus and mouse/trackpad are distinguished).
 ///
 /// Return true to lift the node and continue the same pointer as a drag.
 typedef NodeLongPressCallback<N> = bool Function(
   N node,
   Offset scenePosition,
+  PointerDeviceKind kind,
 );
 
 /// Optional override for which node a tap resolves to (scene coordinates).
@@ -83,6 +99,7 @@ class GraphViewConfiguration {
     required this.labelBuilder,
     required this.canvasBackgroundBuilder,
     required this.builder,
+    this.layoutChromeListenable,
     this.canDragNodePredicate,
     this.onNodeDragStart,
     this.onNodeDragUpdate,
@@ -93,6 +110,8 @@ class GraphViewConfiguration {
     this.onCanvasTap,
     this.onCanvasSecondaryTap,
     this.onCanvasLongPress,
+    this.onCanvasLongPressMove,
+    this.onCanvasLongPressEnd,
     this.onNodeLongPress,
     this.nodeTapHitTester,
     this.nodePaintOrder,
@@ -113,6 +132,11 @@ class GraphViewConfiguration {
 
   /// { @nodoc }
   final ChildBuilder? builder;
+
+  /// When non-null, [GraphLayoutView] also listens here so node/edge chrome can
+  /// rebuild when it changes without a graph scene or camera notification
+  /// (constellation semantic zoom / LOD, #1021).
+  final Listenable? layoutChromeListenable;
 
   /// Optional predicate for draggable nodes. Defaults to allowing drag.
   final CanDragNodePredicate<dynamic>? canDragNodePredicate;
@@ -142,8 +166,14 @@ class GraphViewConfiguration {
   /// Called for a secondary short press on empty canvas, in scene coordinates.
   final void Function(Offset scenePosition)? onCanvasSecondaryTap;
 
-  /// Called for a primary long press that hits no node, in scene coordinates.
-  final void Function(Offset scenePosition)? onCanvasLongPress;
+  /// Called once [kLongPressTimeout] after an empty-canvas primary press.
+  final CanvasLongPressCallback? onCanvasLongPress;
+
+  /// Pointer moves after [onCanvasLongPress], same gesture, scene coordinates.
+  final CanvasLongPressMoveCallback? onCanvasLongPressMove;
+
+  /// Primary pointer up after [onCanvasLongPress] (and optional drag).
+  final CanvasLongPressEndCallback? onCanvasLongPressEnd;
 
   /// Touch/stylus long press on a draggable node; never fires with canvas long
   /// press for the same gesture.
@@ -173,6 +203,8 @@ class GraphViewConfiguration {
       onCanvasTap != null ||
       onCanvasSecondaryTap != null ||
       onCanvasLongPress != null ||
+      onCanvasLongPressMove != null ||
+      onCanvasLongPressEnd != null ||
       onNodeLongPress != null;
 
   /// Returns whether [node] may be dragged.

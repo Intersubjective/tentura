@@ -3,6 +3,7 @@ export 'src/edge_painter/animated_dash_edge_painter.dart';
 export 'src/edge_painter/edge_painter.dart';
 export 'src/edge_painter/line_edge_painter.dart';
 export 'src/graph_view.dart';
+export 'src/widget/node_drag_gesture.dart' show kGraphViewNodeDragPointerLayerKey;
 export 'src/label_builder/bottom_label_builder.dart';
 export 'src/label_builder/label_builder.dart';
 export 'src/layout_algorithm/fruchterman_reingold_scene_layout_algorithm.dart';
