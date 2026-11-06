@@ -6526,7 +6526,7 @@
   "skipToContent": "Перейти к содержимому",
   "forwardEmptyNoContactsTitle": "Пока некому отправить",
   "trustWidensReachHint": "Люди, которым вы доверяете и которые доверяют вам, расширяют круг тех, кого вы видите и кому можете отправлять.",
-  "emptyInviteSomeoneAction": "Пригласить знакомого",
+  "emptyInviteSomeoneAction": "Пригласить того, кому доверяете",
   "forwardSearchNoMatches": "Никого не нашлось",
   "forwardScopeUnseenEmpty": "Все, кому вы можете отправить, уже участвуют.",
   "forwardScopeInvolvedEmpty": "Пока никто не участвует.",
