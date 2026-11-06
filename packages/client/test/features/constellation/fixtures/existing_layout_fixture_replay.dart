@@ -295,9 +295,32 @@ ConstellationLayout capturePlaced({
       satelliteOffset != 56) {
     throw StateError('A fixture needs layout parameters outside LayoutInput: $site');
   }
-  final legacy = frozen.computeConstellationPlacedLayout(input: input,
-      ringGap: ringGap, residualRingFactor: residualRingFactor,
-      satelliteOffset: satelliteOffset);
+  // Frozen oracle predates rearrange maps on [ConstellationPlacedLayoutInput].
+  // Empty maps match production geometry; strip so the snapshot types align.
+  final frozenInput = (
+    egoId: input.egoId,
+    paths: input.paths,
+    automaticKeptPeerIds: input.automaticKeptPeerIds,
+    pinnedPersonIds: input.pinnedPersonIds,
+    pinnedRequestIds: input.pinnedRequestIds,
+    supportPersonIds: input.supportPersonIds,
+    anchorByNodeId: input.anchorByNodeId,
+    priorHints: input.priorHints,
+    nodeSizes: input.nodeSizes,
+    satelliteRequestIdsByAuthor: input.satelliteRequestIdsByAuthor,
+    requestAuthorById: input.requestAuthorById,
+    egoOwnRequestIds: input.egoOwnRequestIds,
+    spacing: input.spacing,
+    maxHops: input.maxHops,
+    viewportClass: input.viewportClass,
+    footprints: input.footprints,
+  );
+  final legacy = frozen.computeConstellationPlacedLayout(
+    input: frozenInput,
+    ringGap: ringGap,
+    residualRingFactor: residualRingFactor,
+    satelliteOffset: satelliteOffset,
+  );
   onLayout('$_testName/${_call++}', site, input, legacy);
   return legacy;
 }

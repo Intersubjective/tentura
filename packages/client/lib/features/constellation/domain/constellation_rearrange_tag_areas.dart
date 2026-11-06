@@ -37,6 +37,10 @@ ConstellationRearrangeTagStaging constellationRearrangeTagStaging({
   if (tagPeople.isEmpty) {
     return (areaPositions: const {}, tagCentres: const {});
   }
+  // Synthetic `auto:*` keys alone carry no own-tag membership; skip work.
+  if (!tagPeople.keys.any((id) => !id.startsWith('auto:'))) {
+    return (areaPositions: const {}, tagCentres: const {});
+  }
   final canvasCentre = constellationCanvasCentrePoint();
   final onFieldPeople = <String>{
     ...input.automaticKeptPeerIds,
