@@ -303,9 +303,9 @@ class TenturaAvatar extends StatelessWidget {
   /// When the second word is a dev/QA-style **`Q` + digits** label (e.g. `Bob
   /// Q1106`), the second glyph is the **last decimal digit** of that code so two
   /// people with the same first name + `Q…` pattern do not both show e.g. `BQ`
-  /// (#1066). This does not guarantee globally unique initials; [hueKey]
-  /// (usually [Profile.id]) still drives the stable background colour and can
-  /// collide across users.
+  /// (#1066). This does not guarantee globally unique initials; the
+  /// `hueKey` passed to [ProfileAvatarInitials] (usually the profile's user id)
+  /// still drives the stable background colour and can collide across users.
   static String initialsForProfile(Profile profile) {
     final t = profile.shownName.trim();
     if (t.isEmpty) {

@@ -4,8 +4,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:tentura/design_system/components/tentura_avatar.dart';
-import 'package:tentura/design_system/tentura_theme.dart';
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
 
 void main() {
@@ -38,12 +37,13 @@ void main() {
   testWidgets('initials are stable across rebuilds for the same profile', (
     tester,
   ) async {
-    const profile = Profile(id: 'stable-id', displayName: 'Bob Q1106');
     await tester.pumpWidget(
       MaterialApp(
         theme: TenturaTheme.light(),
-        home: Scaffold(
-          body: Center(child: TenturaAvatar.medium(profile: profile)),
+        home: const Scaffold(
+          body: Center(
+            child: _StableAvatar(),
+          ),
         ),
       ),
     );
@@ -51,8 +51,10 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         theme: TenturaTheme.light(),
-        home: Scaffold(
-          body: Center(child: TenturaAvatar.medium(profile: profile)),
+        home: const Scaffold(
+          body: Center(
+            child: _StableAvatar(),
+          ),
         ),
       ),
     );
@@ -82,4 +84,15 @@ void main() {
       'B9',
     );
   });
+}
+
+/// Const wrapper so the scaffold subtree is a constant (prefer_const_constructors).
+class _StableAvatar extends StatelessWidget {
+  const _StableAvatar();
+
+  static const _profile = Profile(id: 'stable-id', displayName: 'Bob Q1106');
+
+  @override
+  Widget build(BuildContext context) =>
+      const TenturaAvatar.medium(profile: _profile);
 }
