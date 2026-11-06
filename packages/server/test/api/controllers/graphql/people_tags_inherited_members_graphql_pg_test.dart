@@ -236,6 +236,37 @@ VALUES ('nk-' || @newcomer, 'nk-' || @inviter, @newcomer, @inviter,
       ]);
     });
 
+    group('inherited tag membership hides blocked inviters', () {
+      for (final (blocker, blocked, direction) in [
+        (_owner, _bob, 'the owner blocked the inviter'),
+        (_bob, _owner, 'the inviter blocked the owner'),
+      ]) {
+        test(
+          'inviter identity is null when $direction while members remain visible',
+          () async {
+            final tagId = await tagWithCarolInheritedAndEveManual();
+            expect(await inheritedOf(tagId), [
+              {'personId': _carol, 'inviterId': _bob},
+            ]);
+            await writer.execute(
+              Sql.named('''
+INSERT INTO public.user_block (blocker_id, blocked_id, origin_id)
+VALUES (@blocker, @blocked, @blocker)
+'''),
+              parameters: {'blocker': blocker, 'blocked': blocked},
+            );
+
+            final membership = await membershipOf(tagId);
+
+            expect(membership['personIds'], [_carol, _eve]);
+            expect(membership['inherited'], [
+              {'personId': _carol, 'inviterId': null},
+            ]);
+          },
+        );
+      }
+    });
+
     test('keep turns an inherited member into a manual one: no longer '
         'listed as inherited, still in the tag', () async {
       final tagId = await tagWithCarolInheritedAndEveManual();
