@@ -272,6 +272,18 @@
   "@chooseAccount": {
     "context": "AuthLoginScreen"
   },
+  "accountMenuViewProfile": "Открыть профиль",
+  "@accountMenuViewProfile": {
+    "context": "HomeAccountMenu"
+  },
+  "accountUnnamed": "Аккаунт без имени",
+  "@accountUnnamed": {
+    "context": "HomeAccountMenu"
+  },
+  "semanticsAccountMenuHint": "Открывает меню аккаунта",
+  "@semanticsAccountMenuHint": {
+    "context": "HomeAccountAvatar"
+  },
   "alreadyHaveAccount": "У вас уже есть аккаунт?\nПолучите доступ, отсканировав QR-код на другом устройстве\nили используя сохранённый seed восстановления.",
   "@alreadyHaveAccount": {
     "context": "AuthLoginScreen"
