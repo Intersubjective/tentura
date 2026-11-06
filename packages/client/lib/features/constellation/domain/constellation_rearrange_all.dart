@@ -65,10 +65,18 @@ ConstellationRearrangement computeConstellationRearrangeAll(
     rearrangeTagMagnetsByTagId: input.rearrangeTagMagnetsByTagId,
   );
   final free = computeConstellationPlacedLayout(input: loose);
-  final staging = constellationRearrangeTagStaging(
-    input: input,
-    freeLayout: free,
+  final hasOwnTagIds = input.rearrangeOwnTagPeopleByTagId.keys.any(
+    (k) => !k.startsWith('auto:'),
   );
+  final staging = hasOwnTagIds
+      ? constellationRearrangeTagStaging(
+          input: input,
+          freeLayout: free,
+        )
+      : (
+          areaPositions: const <String, ConstellationPoint>{},
+          tagCentres: const <String, ConstellationPoint>{},
+        );
   final tagArea = staging.areaPositions;
   final tagCentres = staging.tagCentres;
   final pinned = <String, ConstellationPoint>{
