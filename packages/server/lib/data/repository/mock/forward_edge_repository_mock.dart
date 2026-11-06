@@ -2,6 +2,7 @@ import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/entity/forward_batch_create_result.dart';
 import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
+import 'package:tentura_server/domain/entity/help_path_node.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
 
 @Injectable(
@@ -64,6 +65,15 @@ class ForwardEdgeRepositoryMock implements ForwardEdgeRepositoryPort {
     required String beaconId,
     required String helpOffererId,
     required String viewerId,
+  }) => Future.value(const []);
+
+  @override
+  Future<List<HelpPathNode>> fetchHelpPath({
+    required String beaconId,
+    required String helperId,
+    required String authorId,
+    required DateTime offerCreatedAt,
+    String? viewerId,
   }) => Future.value(const []);
 
   @override

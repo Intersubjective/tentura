@@ -4,9 +4,11 @@ import 'package:injectable/injectable.dart';
 import 'package:tentura_server/domain/entity/forward_batch_create_result.dart';
 import 'package:tentura_server/domain/entity/forward_edge_created.dart';
 import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
+import 'package:tentura_server/domain/entity/help_path_node.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
 
 import '../database/tentura_db.dart';
+import 'closure_repository.dart';
 
 @Injectable(
   as: ForwardEdgeRepositoryPort,
@@ -241,6 +243,71 @@ class ForwardEdgeRepository implements ForwardEdgeRepositoryPort {
         .orderBy((e) => e.createdAt.asc())
         .get()
         .then((rows) => rows.map(_toEntity).toList());
+  }
+
+  @override
+  Future<List<HelpPathNode>> fetchHelpPath({
+    required String beaconId,
+    required String helperId,
+    required String authorId,
+    required DateTime offerCreatedAt,
+    String? viewerId,
+  }) async {
+    final arrival = await ClosureRepository(_database).selectArrivalEdge(
+      beaconId: beaconId,
+      helperId: helperId,
+      offerCreatedAt: offerCreatedAt,
+    );
+    if (arrival == null) return const [];
+    final edges = await fetchHelpOffererPathChain(
+      beaconId: beaconId,
+      helpOffererId: helperId,
+      viewerId: viewerId ?? helperId,
+    );
+    final byId = {for (final edge in edges) edge.id: edge};
+    final ancestors = <ForwardEdgeEntity>[];
+    final visited = <String>{};
+    ForwardEdgeEntity? edge = arrival;
+    while (edge != null && edge.beaconId == beaconId && visited.add(edge.id)) {
+      if (edge.cancelledAt == null) ancestors.add(edge);
+      final parentId = edge.parentEdgeId;
+      if (edge.senderId == authorId || parentId == null) break;
+      // A cancelled edge is absent from the graph projection. Walk through
+      // it to retain the remaining ancestors of the original arrival route.
+      edge = byId[parentId] ?? await fetchById(parentId);
+    }
+    final ids = <String>[
+      authorId,
+      for (final ancestor in ancestors.reversed)
+        if (ancestor.recipientId != authorId) ancestor.recipientId,
+    ];
+    if (ids.last != helperId) ids.add(helperId);
+
+    return _database
+        .customSelect(
+          r'''
+SELECT person.id, person.display_name,
+       CASE WHEN $2::text IS NULL THEN false
+            ELSE public.block_hides($2, person.id) END AS hidden
+FROM unnest($1::text[]) WITH ORDINALITY AS route(user_id, position)
+JOIN public."user" person ON person.id = route.user_id
+ORDER BY route.position
+''',
+          variables: [
+            Variable<List<String>>(ids, PgTypes.textArray),
+            Variable<String>(viewerId),
+          ],
+          readsFrom: {_database.users},
+        )
+        .map(
+          (person) => person.read<bool>('hidden')
+            ? const HelpPathNode.anonymous(1)
+            : HelpPathNode.named(
+                userId: person.read<String>('id'),
+                displayName: person.read<String>('display_name'),
+              ),
+        )
+        .get();
   }
 
   /// Distinct users who sent at least one forward edge for this beacon.

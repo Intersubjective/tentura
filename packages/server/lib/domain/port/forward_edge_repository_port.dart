@@ -1,5 +1,6 @@
 import 'package:tentura_server/domain/entity/forward_batch_create_result.dart';
 import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
+import 'package:tentura_server/domain/entity/help_path_node.dart';
 
 abstract class ForwardEdgeRepositoryPort {
   Future<ForwardEdgeEntity?> fetchById(String edgeId);
@@ -57,6 +58,16 @@ abstract class ForwardEdgeRepositoryPort {
     required String beaconId,
     required String helpOffererId,
     required String viewerId,
+  });
+
+  /// Canonical arrival route using the same ancestor query and arrival-edge
+  /// selection as closure. Only blocks mask names when [viewerId] is supplied.
+  Future<List<HelpPathNode>> fetchHelpPath({
+    required String beaconId,
+    required String helperId,
+    required String authorId,
+    required DateTime offerCreatedAt,
+    String? viewerId,
   });
 
   Future<List<ForwardEdgeEntity>> fetchByRecipientId(

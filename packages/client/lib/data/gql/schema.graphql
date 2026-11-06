@@ -8507,7 +8507,14 @@ type v2_ForwardGraphResult {
   beaconId: String!
   edges: [v2_ForwardGraphEdge!]!
   helpOffererIds: [String!]!
+  path: [v2_HelpPathNode!]!
   viewerId: String
+}
+
+type v2_HelpPathNode {
+  anonymousCount: Int!
+  displayName: String
+  userId: String
 }
 
 type v2_ForwardInboundEdge {

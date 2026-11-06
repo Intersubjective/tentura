@@ -1,5 +1,7 @@
 import 'package:meta/meta.dart';
 
+import '../help_path_node.dart';
+
 /// One forward edge in the V2 forwards-graph view (GraphQL `ForwardGraphEdge`).
 @immutable
 class ForwardGraphEdgeResult {
@@ -30,6 +32,7 @@ class ForwardGraphResult {
     required this.helpOffererIds,
     required this.edges,
     this.viewerId,
+    this.path = const [],
   });
 
   final String beaconId;
@@ -37,4 +40,5 @@ class ForwardGraphResult {
   final String? viewerId;
   final List<String> helpOffererIds;
   final List<ForwardGraphEdgeResult> edges;
+  final List<HelpPathNode> path;
 }

@@ -39,6 +39,7 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeForwardDeliveryResult,
   gqlTypeForwardGraphEdge,
   gqlTypeForwardGraphResult,
+  gqlTypeHelpPathNode,
   gqlTypeForwardCandidateConnectionNode,
   gqlTypeForwardCandidateContext,
   gqlTypeConstellationPeer,
@@ -991,11 +992,15 @@ final gqlTypeForwardGraphEdge = GraphQLObjectType('ForwardGraphEdge', null)
     field('batchId', graphQLString),
   ]);
 
-/// Result of `beaconForwardGraph` and `beaconHelpOffererForwardPath`: edge set
-/// plus the help offerer ids the client should highlight. `viewerId` is non-null
-/// only for `beaconHelpOffererForwardPath` (so the client can derive whether the
-/// viewer is the beacon author, the focused help offerer, or an "involved
-/// other"). Callers of the older `beaconForwardGraph` ignore the field.
+/// A named participant or a consecutive run of people hidden by a block.
+final gqlTypeHelpPathNode = GraphQLObjectType('HelpPathNode', null)
+  ..fields.addAll([
+    field('userId', graphQLString),
+    field('displayName', graphQLString),
+    field('anonymousCount', graphQLInt.nonNullable()),
+  ]);
+
+/// Forward graph edges plus the canonical path for eligible path viewers.
 final gqlTypeForwardGraphResult = GraphQLObjectType('ForwardGraphResult', null)
   ..fields.addAll([
     field('beaconId', graphQLString.nonNullable()),
@@ -1008,6 +1013,10 @@ final gqlTypeForwardGraphResult = GraphQLObjectType('ForwardGraphResult', null)
     field(
       'edges',
       GraphQLListType(gqlTypeForwardGraphEdge.nonNullable()).nonNullable(),
+    ),
+    field(
+      'path',
+      GraphQLListType(gqlTypeHelpPathNode.nonNullable()).nonNullable(),
     ),
   ]);
 

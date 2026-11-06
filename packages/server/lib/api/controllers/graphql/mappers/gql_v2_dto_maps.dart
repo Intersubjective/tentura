@@ -56,6 +56,14 @@ Map<String, dynamic> forwardGraphResultToGqlMap(ForwardGraphResult dto) => {
   'viewerId': dto.viewerId,
   'helpOffererIds': dto.helpOffererIds,
   'edges': dto.edges.map(forwardGraphEdgeToGqlMap).toList(),
+  'path': [
+    for (final node in dto.path)
+      {
+        'userId': node.userId,
+        'displayName': node.displayName,
+        'anonymousCount': node.anonymousCount,
+      },
+  ],
 };
 
 Map<String, dynamic> myForwardRecipientToGqlMap(MyForwardRecipientResult dto) =>

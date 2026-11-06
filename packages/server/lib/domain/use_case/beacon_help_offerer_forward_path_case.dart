@@ -4,6 +4,7 @@ import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
 import 'package:tentura_server/domain/entity/gql_public/forward_graph_result.dart';
 import 'package:tentura_server/domain/entity/help_offer_entity.dart';
+import 'package:tentura_server/domain/entity/help_path_node.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/beacon_access_guard.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
@@ -12,7 +13,7 @@ import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
 
 import '_use_case_base.dart';
 
-/// Builds the edge set for the V2 `beaconHelpOffererForwardPath` query.
+/// Builds the ordered help path and the existing forwards-graph edge set.
 ///
 /// The graph is centered on a single active help offerer of `beaconId` and
 /// returns the **union** of:
@@ -29,7 +30,7 @@ import '_use_case_base.dart';
 /// Authorization mirrors `BeaconForwardGraphCase`: viewer must be the
 /// beacon author OR have at least one forward edge for the beacon (as
 /// sender or recipient) OR have an active help offer on the beacon. In
-/// addition, `helpOffererId` must currently be an active help offerer of
+/// addition, `helpOffererId` must have a non-withdrawn help offer on
 /// `beaconId`; otherwise an `IdNotFoundException` is thrown to avoid
 /// leaking arbitrary user→beacon relationships.
 @Singleton(order: 2)
@@ -65,32 +66,19 @@ final class BeaconHelpOffererForwardPathCase extends UseCaseBase {
       );
     }
 
-    final results = await Future.wait([
-      _beaconRepository.getBeaconById(beaconId: beaconId),
-      _helpOfferRepository.fetchAllByBeaconId(beaconId),
-    ]);
-
-    final beacon = results[0] as BeaconEntity;
-    final helpOffers = results[1] as List<HelpOfferEntity>;
-
+    final (beacon, offer) = await _target(beaconId, helpOffererId);
     final authorId = beacon.author.id;
-    final activeHelpOffererIds = helpOffers
-        .where((c) => c.status == 0)
-        .map((c) => c.userId)
-        .toSet();
-
-    if (!activeHelpOffererIds.contains(helpOffererId)) {
-      throw IdNotFoundException(
-        id: helpOffererId,
-        description: 'User is not an active help offerer of the request',
-      );
-    }
 
     final chainEdges = await _forwardEdgeRepository.fetchHelpOffererPathChain(
       beaconId: beaconId,
       helpOffererId: helpOffererId,
       viewerId: currentUserId,
     );
+    final path = await _pathFor(beacon, offer, viewerId: currentUserId);
+    final onPath =
+        currentUserId == authorId ||
+        currentUserId == helpOffererId ||
+        path.any((node) => node.userId == currentUserId);
 
     return ForwardGraphResult(
       beaconId: beaconId,
@@ -98,11 +86,55 @@ final class BeaconHelpOffererForwardPathCase extends UseCaseBase {
       viewerId: currentUserId,
       helpOffererIds: [helpOffererId],
       edges: chainEdges.map(_edgeToResult).toList(),
+      path: onPath ? path : const [],
     );
   }
+
+  /// Server-side notification reads use the same canonical route, without
+  /// applying a particular viewer's block mask. This is not a public query.
+  Future<List<HelpPathNode>> helpPathFor({
+    required String beaconId,
+    required String helperId,
+  }) async {
+    final (beacon, offer) = await _target(beaconId, helperId);
+    return _pathFor(beacon, offer);
+  }
+
+  Future<(BeaconEntity, HelpOfferEntity)> _target(
+    String beaconId,
+    String helperId,
+  ) async {
+    final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
+    final offers = await _helpOfferRepository.fetchAllByBeaconId(beaconId);
+    final offer = offers.where((offer) => offer.userId == helperId).firstOrNull;
+    // Acceptance is room/commitment state; an accepted offer remains active
+    // in beacon_help_offer. Closure does not invalidate that arrival history.
+    if (offer == null || !offer.isActive) {
+      throw IdNotFoundException(
+        id: helperId,
+        description: 'User is not an active help offerer of the request',
+      );
+    }
+    return (beacon, offer);
+  }
+
+  Future<List<HelpPathNode>> _pathFor(
+    BeaconEntity beacon,
+    HelpOfferEntity offer, {
+    String? viewerId,
+  }) async => HelpPathNode.collapseAnonymous(
+    await _forwardEdgeRepository.fetchHelpPath(
+      beaconId: beacon.id,
+      helperId: offer.userId,
+      authorId: beacon.author.id,
+      offerCreatedAt: offer.createdAt,
+      viewerId: viewerId,
+    ),
+  );
 }
 
-ForwardGraphEdgeResult _edgeToResult(ForwardEdgeEntity e) => ForwardGraphEdgeResult(
+ForwardGraphEdgeResult _edgeToResult(ForwardEdgeEntity e) =>
+    ForwardGraphEdgeResult(
       id: e.id,
       beaconId: e.beaconId,
       senderId: e.senderId,

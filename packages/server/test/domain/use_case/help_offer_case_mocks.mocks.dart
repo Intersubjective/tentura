@@ -10,11 +10,11 @@ import 'package:mockito/src/dummies.dart' as _i12;
 import 'package:tentura_root/domain/entity/beacon_cover_source.dart' as _i9;
 import 'package:tentura_root/domain/entity/beacon_status.dart' as _i10;
 import 'package:tentura_server/domain/entity/beacon_activity_event_record.dart'
-    as _i26;
+    as _i27;
 import 'package:tentura_server/domain/entity/beacon_entity.dart' as _i2;
 import 'package:tentura_server/domain/entity/beacon_kind.dart' as _i11;
 import 'package:tentura_server/domain/entity/beacon_media_state.dart' as _i4;
-import 'package:tentura_server/domain/entity/beacon_room_record.dart' as _i24;
+import 'package:tentura_server/domain/entity/beacon_room_record.dart' as _i25;
 import 'package:tentura_server/domain/entity/forward_batch_create_result.dart'
     as _i5;
 import 'package:tentura_server/domain/entity/forward_edge_entity.dart' as _i20;
@@ -23,14 +23,15 @@ import 'package:tentura_server/domain/entity/gql_public/help_offer_with_coordina
 import 'package:tentura_server/domain/entity/help_offer_admission_event.dart'
     as _i18;
 import 'package:tentura_server/domain/entity/help_offer_entity.dart' as _i14;
-import 'package:tentura_server/domain/entity/inbox_item_entity.dart' as _i22;
+import 'package:tentura_server/domain/entity/help_path_node.dart' as _i21;
+import 'package:tentura_server/domain/entity/inbox_item_entity.dart' as _i23;
 import 'package:tentura_server/domain/entity/post_summary.dart' as _i8;
-import 'package:tentura_server/domain/entity/room_latest_activity.dart' as _i25;
+import 'package:tentura_server/domain/entity/room_latest_activity.dart' as _i26;
 import 'package:tentura_server/domain/entity/room_read_watermark_record.dart'
-    as _i27;
+    as _i28;
 import 'package:tentura_server/domain/port/beacon_repository_port.dart' as _i7;
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart'
-    as _i23;
+    as _i24;
 import 'package:tentura_server/domain/port/coordination_repository_port.dart'
     as _i15;
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart'
@@ -39,7 +40,7 @@ import 'package:tentura_server/domain/port/help_offer_admission_repository_port.
     as _i17;
 import 'package:tentura_server/domain/port/help_offer_repository_port.dart'
     as _i13;
-import 'package:tentura_server/domain/port/inbox_repository_port.dart' as _i21;
+import 'package:tentura_server/domain/port/inbox_repository_port.dart' as _i22;
 import 'package:tentura_server/domain/port/person_capability_event_repository_port.dart'
     as _i6;
 
@@ -1469,6 +1470,28 @@ class MockForwardEdgeRepositoryPort extends _i1.Mock
           as _i3.Future<List<_i20.ForwardEdgeEntity>>);
 
   @override
+  _i3.Future<List<_i21.HelpPathNode>> fetchHelpPath({
+    required String? beaconId,
+    required String? helperId,
+    required String? authorId,
+    required DateTime? offerCreatedAt,
+    String? viewerId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#fetchHelpPath, [], {
+              #beaconId: beaconId,
+              #helperId: helperId,
+              #authorId: authorId,
+              #offerCreatedAt: offerCreatedAt,
+              #viewerId: viewerId,
+            }),
+            returnValue: _i3.Future<List<_i21.HelpPathNode>>.value(
+              <_i21.HelpPathNode>[],
+            ),
+          )
+          as _i3.Future<List<_i21.HelpPathNode>>);
+
+  @override
   _i3.Future<List<_i20.ForwardEdgeEntity>> fetchByRecipientId(
     String? recipientId, {
     String? context,
@@ -1665,13 +1688,13 @@ class MockForwardEdgeRepositoryPort extends _i1.Mock
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockInboxRepositoryPort extends _i1.Mock
-    implements _i21.InboxRepositoryPort {
+    implements _i22.InboxRepositoryPort {
   MockInboxRepositoryPort() {
     _i1.throwOnMissingStub(this);
   }
 
   @override
-  _i3.Future<List<_i22.InboxItemEntity>> fetchByUserId(
+  _i3.Future<List<_i23.InboxItemEntity>> fetchByUserId(
     String? userId, {
     String? context,
     int? limit = 50,
@@ -1683,11 +1706,11 @@ class MockInboxRepositoryPort extends _i1.Mock
               [userId],
               {#context: context, #limit: limit, #offset: offset},
             ),
-            returnValue: _i3.Future<List<_i22.InboxItemEntity>>.value(
-              <_i22.InboxItemEntity>[],
+            returnValue: _i3.Future<List<_i23.InboxItemEntity>>.value(
+              <_i23.InboxItemEntity>[],
             ),
           )
-          as _i3.Future<List<_i22.InboxItemEntity>>);
+          as _i3.Future<List<_i23.InboxItemEntity>>);
 
   @override
   _i3.Future<List<String>> fetchRejectedUserIdsByBeacon(String? beaconId) =>
@@ -2047,7 +2070,7 @@ class MockPersonCapabilityEventRepositoryPort extends _i1.Mock
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockBeaconRoomRepositoryPort extends _i1.Mock
-    implements _i23.BeaconRoomRepositoryPort {
+    implements _i24.BeaconRoomRepositoryPort {
   MockBeaconRoomRepositoryPort() {
     _i1.throwOnMissingStub(this);
   }
@@ -2120,7 +2143,7 @@ class MockBeaconRoomRepositoryPort extends _i1.Mock
           as _i3.Future<void>);
 
   @override
-  _i3.Future<_i24.BeaconParticipantRecord?> findParticipant({
+  _i3.Future<_i25.BeaconParticipantRecord?> findParticipant({
     required String? beaconId,
     required String? userId,
   }) =>
@@ -2129,22 +2152,22 @@ class MockBeaconRoomRepositoryPort extends _i1.Mock
               #beaconId: beaconId,
               #userId: userId,
             }),
-            returnValue: _i3.Future<_i24.BeaconParticipantRecord?>.value(),
+            returnValue: _i3.Future<_i25.BeaconParticipantRecord?>.value(),
           )
-          as _i3.Future<_i24.BeaconParticipantRecord?>);
+          as _i3.Future<_i25.BeaconParticipantRecord?>);
 
   @override
-  _i3.Future<_i24.BeaconRoomStateRecord?> getBeaconRoomState(
+  _i3.Future<_i25.BeaconRoomStateRecord?> getBeaconRoomState(
     String? beaconId,
   ) =>
       (super.noSuchMethod(
             Invocation.method(#getBeaconRoomState, [beaconId]),
-            returnValue: _i3.Future<_i24.BeaconRoomStateRecord?>.value(),
+            returnValue: _i3.Future<_i25.BeaconRoomStateRecord?>.value(),
           )
-          as _i3.Future<_i24.BeaconRoomStateRecord?>);
+          as _i3.Future<_i25.BeaconRoomStateRecord?>);
 
   @override
-  _i3.Future<Map<String, _i25.RoomLatestActivity>> latestRoomActivities(
+  _i3.Future<Map<String, _i26.RoomLatestActivity>> latestRoomActivities(
     Iterable<String>? beaconIds, {
     required String? viewerUserId,
   }) =>
@@ -2154,14 +2177,14 @@ class MockBeaconRoomRepositoryPort extends _i1.Mock
               [beaconIds],
               {#viewerUserId: viewerUserId},
             ),
-            returnValue: _i3.Future<Map<String, _i25.RoomLatestActivity>>.value(
-              <String, _i25.RoomLatestActivity>{},
+            returnValue: _i3.Future<Map<String, _i26.RoomLatestActivity>>.value(
+              <String, _i26.RoomLatestActivity>{},
             ),
           )
-          as _i3.Future<Map<String, _i25.RoomLatestActivity>>);
+          as _i3.Future<Map<String, _i26.RoomLatestActivity>>);
 
   @override
-  _i3.Future<Map<String, _i24.RoomViewerFacts>> roomViewerFacts(
+  _i3.Future<Map<String, _i25.RoomViewerFacts>> roomViewerFacts(
     Iterable<String>? beaconIds, {
     required String? viewerUserId,
   }) =>
@@ -2171,11 +2194,11 @@ class MockBeaconRoomRepositoryPort extends _i1.Mock
               [beaconIds],
               {#viewerUserId: viewerUserId},
             ),
-            returnValue: _i3.Future<Map<String, _i24.RoomViewerFacts>>.value(
-              <String, _i24.RoomViewerFacts>{},
+            returnValue: _i3.Future<Map<String, _i25.RoomViewerFacts>>.value(
+              <String, _i25.RoomViewerFacts>{},
             ),
           )
-          as _i3.Future<Map<String, _i24.RoomViewerFacts>>);
+          as _i3.Future<Map<String, _i25.RoomViewerFacts>>);
 
   @override
   _i3.Future<Map<String, int>> unreadMainRoomMessageCounts(
@@ -2193,7 +2216,7 @@ class MockBeaconRoomRepositoryPort extends _i1.Mock
           as _i3.Future<Map<String, int>>);
 
   @override
-  _i3.Future<Map<String, _i24.RoomUnreadSummary>> unreadRoomSummaries(
+  _i3.Future<Map<String, _i25.RoomUnreadSummary>> unreadRoomSummaries(
     Iterable<String>? beaconIds, {
     required String? viewerUserId,
   }) =>
@@ -2203,11 +2226,11 @@ class MockBeaconRoomRepositoryPort extends _i1.Mock
               [beaconIds],
               {#viewerUserId: viewerUserId},
             ),
-            returnValue: _i3.Future<Map<String, _i24.RoomUnreadSummary>>.value(
-              <String, _i24.RoomUnreadSummary>{},
+            returnValue: _i3.Future<Map<String, _i25.RoomUnreadSummary>>.value(
+              <String, _i25.RoomUnreadSummary>{},
             ),
           )
-          as _i3.Future<Map<String, _i24.RoomUnreadSummary>>);
+          as _i3.Future<Map<String, _i25.RoomUnreadSummary>>);
 
   @override
   _i3.Future<Map<String, String>> postRootExcerpts(
@@ -2241,34 +2264,34 @@ class MockBeaconRoomRepositoryPort extends _i1.Mock
           as _i3.Future<DateTime?>);
 
   @override
-  _i3.Future<_i24.BeaconRoomMessageAttachmentRecord?>
+  _i3.Future<_i25.BeaconRoomMessageAttachmentRecord?>
   getRoomMessageAttachmentById(String? attachmentId) =>
       (super.noSuchMethod(
             Invocation.method(#getRoomMessageAttachmentById, [attachmentId]),
             returnValue:
-                _i3.Future<_i24.BeaconRoomMessageAttachmentRecord?>.value(),
+                _i3.Future<_i25.BeaconRoomMessageAttachmentRecord?>.value(),
           )
-          as _i3.Future<_i24.BeaconRoomMessageAttachmentRecord?>);
+          as _i3.Future<_i25.BeaconRoomMessageAttachmentRecord?>);
 
   @override
-  _i3.Future<_i24.BeaconRoomMessageRecord?> getRoomMessageById(
+  _i3.Future<_i25.BeaconRoomMessageRecord?> getRoomMessageById(
     String? messageId,
   ) =>
       (super.noSuchMethod(
             Invocation.method(#getRoomMessageById, [messageId]),
-            returnValue: _i3.Future<_i24.BeaconRoomMessageRecord?>.value(),
+            returnValue: _i3.Future<_i25.BeaconRoomMessageRecord?>.value(),
           )
-          as _i3.Future<_i24.BeaconRoomMessageRecord?>);
+          as _i3.Future<_i25.BeaconRoomMessageRecord?>);
 
   @override
-  _i3.Future<_i24.BeaconRoomMessageRecord?> getRoomMessageByLinkedPollingId(
+  _i3.Future<_i25.BeaconRoomMessageRecord?> getRoomMessageByLinkedPollingId(
     String? pollingId,
   ) =>
       (super.noSuchMethod(
             Invocation.method(#getRoomMessageByLinkedPollingId, [pollingId]),
-            returnValue: _i3.Future<_i24.BeaconRoomMessageRecord?>.value(),
+            returnValue: _i3.Future<_i25.BeaconRoomMessageRecord?>.value(),
           )
-          as _i3.Future<_i24.BeaconRoomMessageRecord?>);
+          as _i3.Future<_i25.BeaconRoomMessageRecord?>);
 
   @override
   _i3.Future<Map<String, String?>> helpTypesByUserId(String? beaconId) =>
@@ -2356,7 +2379,7 @@ class MockBeaconRoomRepositoryPort extends _i1.Mock
           as _i3.Future<Map<String, Object?>?>);
 
   @override
-  _i3.Future<_i24.BeaconRoomMessageRecord> insertRoomMessage({
+  _i3.Future<_i25.BeaconRoomMessageRecord> insertRoomMessage({
     required String? beaconId,
     required String? authorId,
     required String? body,
@@ -2389,8 +2412,8 @@ class MockBeaconRoomRepositoryPort extends _i1.Mock
               #quotedFactRevisionSeq: quotedFactRevisionSeq,
               #clientMessageId: clientMessageId,
             }),
-            returnValue: _i3.Future<_i24.BeaconRoomMessageRecord>.value(
-              _i12.dummyValue<_i24.BeaconRoomMessageRecord>(
+            returnValue: _i3.Future<_i25.BeaconRoomMessageRecord>.value(
+              _i12.dummyValue<_i25.BeaconRoomMessageRecord>(
                 this,
                 Invocation.method(#insertRoomMessage, [], {
                   #beaconId: beaconId,
@@ -2411,10 +2434,10 @@ class MockBeaconRoomRepositoryPort extends _i1.Mock
               ),
             ),
           )
-          as _i3.Future<_i24.BeaconRoomMessageRecord>);
+          as _i3.Future<_i25.BeaconRoomMessageRecord>);
 
   @override
-  _i3.Future<_i24.BeaconRoomMessageRecord?> getRoomMessageByClientId({
+  _i3.Future<_i25.BeaconRoomMessageRecord?> getRoomMessageByClientId({
     required String? authorId,
     required String? clientMessageId,
   }) =>
@@ -2423,9 +2446,9 @@ class MockBeaconRoomRepositoryPort extends _i1.Mock
               #authorId: authorId,
               #clientMessageId: clientMessageId,
             }),
-            returnValue: _i3.Future<_i24.BeaconRoomMessageRecord?>.value(),
+            returnValue: _i3.Future<_i25.BeaconRoomMessageRecord?>.value(),
           )
-          as _i3.Future<_i24.BeaconRoomMessageRecord?>);
+          as _i3.Future<_i25.BeaconRoomMessageRecord?>);
 
   @override
   _i3.Future<void> insertRoomMessageAttachmentFile({
@@ -2531,7 +2554,7 @@ class MockBeaconRoomRepositoryPort extends _i1.Mock
           as _i3.Future<bool>);
 
   @override
-  _i3.Future<List<_i26.MyWorkLastActivityEventRow>>
+  _i3.Future<List<_i27.MyWorkLastActivityEventRow>>
   latestActivityEventsByBeaconIds({
     required List<String>? beaconIds,
     required String? viewerUserId,
@@ -2542,11 +2565,11 @@ class MockBeaconRoomRepositoryPort extends _i1.Mock
               #viewerUserId: viewerUserId,
             }),
             returnValue:
-                _i3.Future<List<_i26.MyWorkLastActivityEventRow>>.value(
-                  <_i26.MyWorkLastActivityEventRow>[],
+                _i3.Future<List<_i27.MyWorkLastActivityEventRow>>.value(
+                  <_i27.MyWorkLastActivityEventRow>[],
                 ),
           )
-          as _i3.Future<List<_i26.MyWorkLastActivityEventRow>>);
+          as _i3.Future<List<_i27.MyWorkLastActivityEventRow>>);
 
   @override
   _i3.Future<DateTime?> latestMainRoomMessageCreatedAt(String? beaconId) =>
@@ -2581,16 +2604,16 @@ class MockBeaconRoomRepositoryPort extends _i1.Mock
           as _i3.Future<List<String>>);
 
   @override
-  _i3.Future<List<_i24.AdmittedRoomMentionParticipant>>
+  _i3.Future<List<_i25.AdmittedRoomMentionParticipant>>
   listAdmittedMentionParticipants(String? beaconId) =>
       (super.noSuchMethod(
             Invocation.method(#listAdmittedMentionParticipants, [beaconId]),
             returnValue:
-                _i3.Future<List<_i24.AdmittedRoomMentionParticipant>>.value(
-                  <_i24.AdmittedRoomMentionParticipant>[],
+                _i3.Future<List<_i25.AdmittedRoomMentionParticipant>>.value(
+                  <_i25.AdmittedRoomMentionParticipant>[],
                 ),
           )
-          as _i3.Future<List<_i24.AdmittedRoomMentionParticipant>>);
+          as _i3.Future<List<_i25.AdmittedRoomMentionParticipant>>);
 
   @override
   _i3.Future<List<Map<String, Object?>>> listMessagesEnriched({
@@ -2615,28 +2638,28 @@ class MockBeaconRoomRepositoryPort extends _i1.Mock
           as _i3.Future<List<Map<String, Object?>>>);
 
   @override
-  _i3.Future<List<_i24.BeaconParticipantRecord>> listParticipants(
+  _i3.Future<List<_i25.BeaconParticipantRecord>> listParticipants(
     String? beaconId,
   ) =>
       (super.noSuchMethod(
             Invocation.method(#listParticipants, [beaconId]),
-            returnValue: _i3.Future<List<_i24.BeaconParticipantRecord>>.value(
-              <_i24.BeaconParticipantRecord>[],
+            returnValue: _i3.Future<List<_i25.BeaconParticipantRecord>>.value(
+              <_i25.BeaconParticipantRecord>[],
             ),
           )
-          as _i3.Future<List<_i24.BeaconParticipantRecord>>);
+          as _i3.Future<List<_i25.BeaconParticipantRecord>>);
 
   @override
-  _i3.Future<Map<String, List<_i24.BeaconParticipantRecord>>>
+  _i3.Future<Map<String, List<_i25.BeaconParticipantRecord>>>
   listParticipantsByBeaconIds(Iterable<String>? beaconIds) =>
       (super.noSuchMethod(
             Invocation.method(#listParticipantsByBeaconIds, [beaconIds]),
             returnValue:
                 _i3.Future<
-                  Map<String, List<_i24.BeaconParticipantRecord>>
-                >.value(<String, List<_i24.BeaconParticipantRecord>>{}),
+                  Map<String, List<_i25.BeaconParticipantRecord>>
+                >.value(<String, List<_i25.BeaconParticipantRecord>>{}),
           )
-          as _i3.Future<Map<String, List<_i24.BeaconParticipantRecord>>>);
+          as _i3.Future<Map<String, List<_i25.BeaconParticipantRecord>>>);
 
   @override
   _i3.Future<List<String>> listStewardUserIds(String? beaconId) =>
@@ -2663,16 +2686,16 @@ class MockBeaconRoomRepositoryPort extends _i1.Mock
           as _i3.Future<Map<String, DateTime>>);
 
   @override
-  _i3.Future<List<_i27.RoomReadWatermarkRecord>> mainRoomReadWatermarks(
+  _i3.Future<List<_i28.RoomReadWatermarkRecord>> mainRoomReadWatermarks(
     String? beaconId,
   ) =>
       (super.noSuchMethod(
             Invocation.method(#mainRoomReadWatermarks, [beaconId]),
-            returnValue: _i3.Future<List<_i27.RoomReadWatermarkRecord>>.value(
-              <_i27.RoomReadWatermarkRecord>[],
+            returnValue: _i3.Future<List<_i28.RoomReadWatermarkRecord>>.value(
+              <_i28.RoomReadWatermarkRecord>[],
             ),
           )
-          as _i3.Future<List<_i27.RoomReadWatermarkRecord>>);
+          as _i3.Future<List<_i28.RoomReadWatermarkRecord>>);
 
   @override
   _i3.Future<DateTime> markBeaconUpdateSeen({
@@ -2697,16 +2720,16 @@ class MockBeaconRoomRepositoryPort extends _i1.Mock
           as _i3.Future<DateTime>);
 
   @override
-  _i3.Future<List<_i27.RoomReadWatermarkRecord>> latestUpdateReaders(
+  _i3.Future<List<_i28.RoomReadWatermarkRecord>> latestUpdateReaders(
     String? beaconId,
   ) =>
       (super.noSuchMethod(
             Invocation.method(#latestUpdateReaders, [beaconId]),
-            returnValue: _i3.Future<List<_i27.RoomReadWatermarkRecord>>.value(
-              <_i27.RoomReadWatermarkRecord>[],
+            returnValue: _i3.Future<List<_i28.RoomReadWatermarkRecord>>.value(
+              <_i28.RoomReadWatermarkRecord>[],
             ),
           )
-          as _i3.Future<List<_i27.RoomReadWatermarkRecord>>);
+          as _i3.Future<List<_i28.RoomReadWatermarkRecord>>);
 
   @override
   _i3.Future<DateTime> markBeaconRoomSeen({
@@ -2847,7 +2870,7 @@ class MockBeaconRoomRepositoryPort extends _i1.Mock
           as _i3.Future<String>);
 
   @override
-  _i3.Future<_i24.BeaconRoomStateRecord?> setBeaconRoomCurrentLine({
+  _i3.Future<_i25.BeaconRoomStateRecord?> setBeaconRoomCurrentLine({
     required String? beaconId,
     required String? text,
     required String? updatedBy,
@@ -2860,9 +2883,9 @@ class MockBeaconRoomRepositoryPort extends _i1.Mock
               #updatedBy: updatedBy,
               #baseRevision: baseRevision,
             }),
-            returnValue: _i3.Future<_i24.BeaconRoomStateRecord?>.value(),
+            returnValue: _i3.Future<_i25.BeaconRoomStateRecord?>.value(),
           )
-          as _i3.Future<_i24.BeaconRoomStateRecord?>);
+          as _i3.Future<_i25.BeaconRoomStateRecord?>);
 
   @override
   _i3.Future<void> setBeaconSteward({

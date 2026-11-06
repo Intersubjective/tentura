@@ -111,6 +111,17 @@ void main() {
         edgeAuthorDirectToHelpOfferer,
       ],
     );
+    // This graph fixture has no arrival before the offer: its edges were
+    // created at or after `now`, which is also the offer creation time.
+    when(
+      forwardEdgeRepo.fetchHelpPath(
+        beaconId: anyNamed('beaconId'),
+        helperId: anyNamed('helperId'),
+        authorId: anyNamed('authorId'),
+        offerCreatedAt: anyNamed('offerCreatedAt'),
+        viewerId: anyNamed('viewerId'),
+      ),
+    ).thenAnswer((_) async => []);
   });
 
   group('viewer roles', () {

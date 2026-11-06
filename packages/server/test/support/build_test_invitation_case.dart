@@ -3,6 +3,7 @@ import 'package:logging/logging.dart';
 
 import 'package:tentura_server/domain/entity/forward_batch_create_result.dart';
 import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
+import 'package:tentura_server/domain/entity/help_path_node.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
 import 'package:tentura_server/domain/port/invitation_repository_port.dart';
@@ -58,6 +59,21 @@ class _NoopForwardEdgeRepositoryPort implements ForwardEdgeRepositoryPort {
   @override
   Future<void> cancel(String edgeId, String senderId) =>
       _d.cancel(edgeId, senderId);
+
+  @override
+  Future<List<HelpPathNode>> fetchHelpPath({
+    required String beaconId,
+    required String helperId,
+    required String authorId,
+    required DateTime offerCreatedAt,
+    String? viewerId,
+  }) => _d.fetchHelpPath(
+    beaconId: beaconId,
+    helperId: helperId,
+    authorId: authorId,
+    offerCreatedAt: offerCreatedAt,
+    viewerId: viewerId,
+  );
 
   @override
   Future<List<IgnoredContact>> claimIgnoredContacts({int limit = 200}) =>
