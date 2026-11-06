@@ -560,6 +560,8 @@ void main() {
           maxHops: 3,
           viewportClass: ConstellationViewportClass.expanded,
           footprints: const <String, ConstellationFootprint>{},
+          rearrangeOwnTagPeopleByTagId: const <String, Set<String>>{},
+          rearrangeTagMagnetsByTagId: const <String, ConstellationPoint>{},
         ),
       );
 
@@ -612,6 +614,8 @@ void main() {
           maxHops: 3,
           viewportClass: ConstellationViewportClass.expanded,
           footprints: const <String, ConstellationFootprint>{},
+          rearrangeOwnTagPeopleByTagId: const <String, Set<String>>{},
+          rearrangeTagMagnetsByTagId: const <String, ConstellationPoint>{},
         ),
       );
 
@@ -655,6 +659,8 @@ void main() {
           maxHops: 3,
           viewportClass: ConstellationViewportClass.expanded,
           footprints: const <String, ConstellationFootprint>{},
+          rearrangeOwnTagPeopleByTagId: const <String, Set<String>>{},
+          rearrangeTagMagnetsByTagId: const <String, ConstellationPoint>{},
         ),
       );
 
@@ -699,6 +705,8 @@ void main() {
           maxHops: 3,
           viewportClass: ConstellationViewportClass.expanded,
           footprints: const <String, ConstellationFootprint>{},
+          rearrangeOwnTagPeopleByTagId: const <String, Set<String>>{},
+          rearrangeTagMagnetsByTagId: const <String, ConstellationPoint>{},
         ),
       );
 
@@ -746,6 +754,8 @@ void main() {
         maxHops: 3,
         viewportClass: ConstellationViewportClass.expanded,
         footprints: const <String, ConstellationFootprint>{},
+          rearrangeOwnTagPeopleByTagId: const <String, Set<String>>{},
+          rearrangeTagMagnetsByTagId: const <String, ConstellationPoint>{},
       );
 
       final before = computeConstellationPlacedLayout(
@@ -777,6 +787,8 @@ void main() {
         maxHops: 3,
         viewportClass: ConstellationViewportClass.expanded,
         footprints: const <String, ConstellationFootprint>{},
+          rearrangeOwnTagPeopleByTagId: const <String, Set<String>>{},
+          rearrangeTagMagnetsByTagId: const <String, ConstellationPoint>{},
       );
       final first = computeConstellationPlacedLayout(input: input);
       final second = computeConstellationPlacedLayout(input: input);
@@ -839,6 +851,8 @@ void main() {
           maxHops: 3,
           viewportClass: ConstellationViewportClass.expanded,
           footprints: const <String, ConstellationFootprint>{},
+          rearrangeOwnTagPeopleByTagId: const <String, Set<String>>{},
+          rearrangeTagMagnetsByTagId: const <String, ConstellationPoint>{},
         ),
       );
 
@@ -884,6 +898,8 @@ void main() {
           maxHops: 3,
           viewportClass: ConstellationViewportClass.expanded,
           footprints: const <String, ConstellationFootprint>{},
+          rearrangeOwnTagPeopleByTagId: const <String, Set<String>>{},
+          rearrangeTagMagnetsByTagId: const <String, ConstellationPoint>{},
         ),
       );
       final crowdedIdeal = baseline.positions['crowded-auto']!;
@@ -911,6 +927,8 @@ void main() {
           maxHops: 3,
           viewportClass: ConstellationViewportClass.expanded,
           footprints: const <String, ConstellationFootprint>{},
+          rearrangeOwnTagPeopleByTagId: const <String, Set<String>>{},
+          rearrangeTagMagnetsByTagId: const <String, ConstellationPoint>{},
         ),
       );
 
@@ -963,6 +981,8 @@ void main() {
             maxHops: 3,
             viewportClass: ConstellationViewportClass.expanded,
             footprints: const <String, ConstellationFootprint>{},
+          rearrangeOwnTagPeopleByTagId: const <String, Set<String>>{},
+          rearrangeTagMagnetsByTagId: const <String, ConstellationPoint>{},
           ),
         );
 
@@ -1011,6 +1031,8 @@ void main() {
           maxHops: 3,
           viewportClass: ConstellationViewportClass.compact,
           footprints: const <String, ConstellationFootprint>{},
+          rearrangeOwnTagPeopleByTagId: const <String, Set<String>>{},
+          rearrangeTagMagnetsByTagId: const <String, ConstellationPoint>{},
         ),
       );
       final withoutHint = computeConstellationPlacedLayout(
@@ -1035,6 +1057,8 @@ void main() {
           maxHops: 3,
           viewportClass: ConstellationViewportClass.expanded,
           footprints: const <String, ConstellationFootprint>{},
+          rearrangeOwnTagPeopleByTagId: const <String, Set<String>>{},
+          rearrangeTagMagnetsByTagId: const <String, ConstellationPoint>{},
         ),
       );
 
@@ -1100,6 +1124,8 @@ void main() {
             maxHops: 3,
             viewportClass: ConstellationViewportClass.expanded,
             footprints: const <String, ConstellationFootprint>{},
+          rearrangeOwnTagPeopleByTagId: const <String, Set<String>>{},
+          rearrangeTagMagnetsByTagId: const <String, ConstellationPoint>{},
           ),
         );
 
@@ -1169,6 +1195,8 @@ void main() {
             maxHops: 3,
             viewportClass: ConstellationViewportClass.expanded,
             footprints: const <String, ConstellationFootprint>{},
+          rearrangeOwnTagPeopleByTagId: const <String, Set<String>>{},
+          rearrangeTagMagnetsByTagId: const <String, ConstellationPoint>{},
           ),
         );
 

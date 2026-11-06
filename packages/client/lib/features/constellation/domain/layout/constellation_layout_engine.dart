@@ -162,6 +162,8 @@ final class _ConstellationLayoutJob implements LayoutJob {
         maxHops: input.maxHops,
         viewportClass: input.viewportClass,
         footprints: input.footprints,
+        rearrangeOwnTagPeopleByTagId: input.rearrangeOwnTagPeopleByTagId,
+        rearrangeTagMagnetsByTagId: input.rearrangeTagMagnetsByTagId,
       );
       yield null;
     }
