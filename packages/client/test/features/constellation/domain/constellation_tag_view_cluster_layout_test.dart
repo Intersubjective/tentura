@@ -86,8 +86,8 @@ void main() {
 
     test('the same input twice gives identical output', () {
       final people = [
-        _person('x', angle: 1.0, depth: 2, tags: {'a', 'b'}),
-        _person('y', angle: -1.0, depth: 3, tags: {'a'}),
+        _person('x', angle: 1, depth: 2, tags: {'a', 'b'}),
+        _person('y', angle: -1, depth: 3, tags: {'a'}),
       ]..sort((a, b) => a.id.compareTo(b.id));
       TagViewClusterLayout run() => computeConstellationTagViewClusterLayout(
         ego: _ego,

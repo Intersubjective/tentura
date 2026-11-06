@@ -18,9 +18,10 @@ LPoint _polar(LPoint ego, double angle, double radius) => (
 
 /// Cluster centres and member positions for tag-view-style grouping.
 ///
-/// [sortedPeople] must be sorted by id. Each tag's centre is the mean
+/// The `sortedPeople` list must be sorted by id. Each tag's centre is the mean
 /// direction (vector average of member Field angles) and mean radial distance
-/// from [ego] (average of [ringRadius] at each member's trust depth). A person
+/// from ego (average of the `ringRadius` callback at each member's trust
+/// depth). A person
 /// in one tag keeps their Field direction and depth; a person in several tags
 /// is placed at the arithmetic mean of those tags' cluster centres.
 typedef TagViewClusterLayout = ({
