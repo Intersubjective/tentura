@@ -41,7 +41,11 @@ class ConstellationCameraControls extends StatelessWidget {
 
     final controlColumnHeight = tt.buttonHeight * 2 + tt.tightGap * 2;
     final top = padding.top + tt.rowGap + controlColumnHeight;
-    var right = padding.right + tt.screenHPadding + tt.buttonHeight;
+    // Fit/recenter use this as the graph's safe viewport. The FAB column is
+    // [screenHPadding + buttonHeight] wide from the trailing edge; without an
+    // extra margin the usable rect ends exactly at the column's inner edge, so
+    // labels and badges can sit under the buttons on narrow phones (#1034).
+    var right = padding.right + tt.screenHPadding + tt.buttonHeight + tt.rowGap;
     var bottom = padding.bottom;
 
     if (contextPanelVisible && context.windowClass == WindowClass.compact) {
