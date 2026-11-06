@@ -72,7 +72,7 @@ class HowTenturaWorksContent extends StatelessWidget {
           onTap: onOpenTab == null ? null : () => onOpenTab!(HomeTab.work),
         ),
         _OrientNavRow(
-          icon: Icons.inbox_outlined,
+          icon: Icons.notifications_outlined,
           label: l10n.inbox,
           description: l10n.orientationWhereInbox,
           semanticsLabel: l10n.orientationWhereSemantics(

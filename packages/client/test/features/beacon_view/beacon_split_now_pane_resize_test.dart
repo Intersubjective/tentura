@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura/design_system/components/tentura_vertical_resize_handle.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/thread_detail.dart';

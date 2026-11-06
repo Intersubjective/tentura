@@ -24,7 +24,6 @@ import 'package:tentura/domain/port/capability_repository_port.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/features/auth/domain/use_case/auth_case.dart';
-import 'package:tentura/features/block/domain/entity/user_block.dart';
 import 'package:tentura/features/contacts/domain/use_case/contacts_case.dart';
 import 'package:tentura/features/friends/data/repository/friends_remote_repository.dart';
 import 'package:tentura/features/friends/domain/entity/person_list_meta.dart';
