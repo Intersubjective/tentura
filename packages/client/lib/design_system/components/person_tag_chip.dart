@@ -39,6 +39,22 @@ class TagGlyph extends StatelessWidget {
   }
 }
 
+/// Small ✦ for inherited own-tag membership (same mark as automatic tags).
+class InheritedTagMarker extends StatelessWidget {
+  const InheritedTagMarker({required this.color, super.key});
+
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => RichText(
+    textScaler: MediaQuery.textScalerOf(context),
+    text: TextSpan(
+      text: '✦',
+      style: TenturaText.labelSmall(color),
+    ),
+  );
+}
+
 /// One of the viewer's own tags: glyph circle + name, with an optional ×.
 ///
 /// The × is offered only when [onRemove] is set.
@@ -48,6 +64,12 @@ class PersonTagChip extends StatelessWidget {
     required this.name,
     required this.colorIndex,
     this.onRemove,
+    this.onKeep,
+    this.keepLabel,
+    this.keepSemanticsLabel,
+    this.showInheritedMarker = false,
+    this.semanticsLabel,
+    this.tooltipMessage,
     this.maxWidth,
     this.selected = false,
     super.key,
@@ -57,6 +79,16 @@ class PersonTagChip extends StatelessWidget {
   final String name;
   final int colorIndex;
   final VoidCallback? onRemove;
+  final VoidCallback? onKeep;
+  final String? keepLabel;
+  final String? keepSemanticsLabel;
+  final bool showInheritedMarker;
+
+  /// When set, replaces the default «{name}, tag» screen-reader label.
+  final String? semanticsLabel;
+
+  /// Tooltip for inherited chips; defaults to [semanticsLabel] when inherited.
+  final String? tooltipMessage;
   final bool selected;
 
   /// When set (e.g. in a wrapped tag list), the name ellipsizes instead of
@@ -69,10 +101,13 @@ class PersonTagChip extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final swatch = context.tagColors.swatchFor(colorIndex);
     final onRemove = this.onRemove;
+    final onKeep = this.onKeep;
     final maxWidth = this.maxWidth;
     final selected = this.selected;
     final chipSemantics =
-        L10n.of(context)?.peopleTagsPersonChipSemantics(name) ?? '$name, tag';
+        semanticsLabel ??
+        L10n.of(context)?.peopleTagsPersonChipSemantics(name) ??
+        '$name, tag';
     Widget namePart = Text(
       name,
       style: TenturaText.labelSmall(swatch.onContainer),
@@ -97,6 +132,10 @@ class PersonTagChip extends StatelessWidget {
         TagGlyph(glyph: glyph, colorIndex: colorIndex),
         SizedBox(width: tt.iconTextGap),
         namePart,
+        if (showInheritedMarker) ...[
+          SizedBox(width: tt.iconTextGap),
+          InheritedTagMarker(color: swatch.onContainer),
+        ],
         SizedBox(width: tt.iconTextGap),
       ],
     );
@@ -113,6 +152,23 @@ class PersonTagChip extends StatelessWidget {
           Expanded(child: labelSemantics)
         else
           labelSemantics,
+        if (onKeep != null)
+          Semantics(
+            button: true,
+            label: keepSemanticsLabel ?? keepLabel,
+            excludeSemantics: true,
+            child: InkResponse(
+              onTap: onKeep,
+              radius: 14,
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: tt.tightGap),
+                child: Text(
+                  keepLabel ?? '',
+                  style: TenturaText.labelSmall(swatch.onContainer),
+                ),
+              ),
+            ),
+          ),
         if (onRemove != null)
           Semantics(
             button: true,
@@ -135,7 +191,7 @@ class PersonTagChip extends StatelessWidget {
             swatch.container,
           )
         : swatch.container;
-    return DecoratedBox(
+    final chip = DecoratedBox(
       decoration: BoxDecoration(
         color: fill,
         borderRadius: BorderRadius.circular(TenturaRadii.avatar),
@@ -143,6 +199,11 @@ class PersonTagChip extends StatelessWidget {
       ),
       child: Padding(padding: EdgeInsets.all(tt.tightGap * 2), child: row),
     );
+    final tip = tooltipMessage ?? semanticsLabel;
+    if (tip != null && tip.isNotEmpty) {
+      return Tooltip(message: tip, child: chip);
+    }
+    return chip;
   }
 }
 

@@ -8,10 +8,13 @@ import 'package:tentura/features/people_tags/domain/entity/people_tags_entities.
 import 'package:tentura/features/people_tags/domain/use_case/people_tags_case.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/widget/undo_snack_bar.dart';
 import 'package:tentura_root/domain/entity/person_auto_tag_kind.dart';
 
 import 'add_to_tag_sheet.dart';
 import 'person_auto_tag_name.dart';
+import 'person_own_tag_chip.dart';
+import 'people_tag_profiles.dart';
 
 /// The viewer's private tags on one person: own tags with ×, the automatic
 /// ones without, and "+ Tag" to edit the person's membership.
@@ -30,6 +33,7 @@ class PersonTagsBlock extends StatefulWidget {
 
 class _PersonTagsBlockState extends State<PersonTagsBlock> {
   final _peopleTags = GetIt.I<PeopleTagsCase>();
+  final _profiles = PeopleTagProfiles();
 
   late Future<List<PersonAutoTagOf>> _auto;
 
@@ -50,9 +54,67 @@ class _PersonTagsBlockState extends State<PersonTagsBlock> {
       .autoTagsOf(widget.personId)
       .catchError((Object _) => const <PersonAutoTagOf>[]);
 
-  Future<void> _remove(String tagId) async {
+  Future<void> _remove(PersonTag tag) async {
+    final l10n = L10n.of(context)!;
+    final inviterId = _peopleTags.inheritedFrom(tag.id, widget.personId);
     try {
       await _peopleTags.removeFromTag(
+        personId: widget.personId,
+        tagId: tag.id,
+      );
+      if (!mounted) return;
+      showUndoSnackBar(
+        context,
+        text: l10n.peopleTagsRemovedFromPersonOnPeer(tag.name),
+        onUndo: () => unawaited(
+          _undoRemove(tag: tag, inviterId: inviterId),
+        ),
+      );
+    } catch (e, s) {
+      if (mounted) {
+        showSnackBar(
+          context,
+          isError: true,
+          text: e.toString(),
+          error: e,
+          stackTrace: s,
+        );
+      }
+    }
+  }
+
+  Future<void> _undoRemove({
+    required PersonTag tag,
+    required String? inviterId,
+  }) async {
+    try {
+      await _peopleTags.addToTag(
+        personId: widget.personId,
+        tagId: tag.id,
+      );
+      if (inviterId != null) {
+        _peopleTags.restoreInheritedMarker(
+          tagId: tag.id,
+          personId: widget.personId,
+          inviterId: inviterId,
+        );
+      }
+    } catch (e, s) {
+      if (mounted) {
+        showSnackBar(
+          context,
+          isError: true,
+          text: e.toString(),
+          error: e,
+          stackTrace: s,
+        );
+      }
+    }
+  }
+
+  Future<void> _keep(String tagId) async {
+    try {
+      await _peopleTags.keepInherited(
         personId: widget.personId,
         tagId: tagId,
       );
@@ -67,6 +129,12 @@ class _PersonTagsBlockState extends State<PersonTagsBlock> {
         );
       }
     }
+  }
+
+  Future<void> _ensureInviterProfiles(Set<String> inviterIds) async {
+    if (inviterIds.isEmpty) return;
+    final arrived = await _profiles.ensure(inviterIds);
+    if (arrived && mounted) setState(() {});
   }
 
   /// One chip per automatic tag kind: the source may emit a row per shared
@@ -112,10 +180,19 @@ class _PersonTagsBlockState extends State<PersonTagsBlock> {
     final tt = context.tt;
     final spacing = tt.iconTextGap * 2;
     final runSpacing = tt.tightGap * 2;
+    final maxChipWidth =
+        MediaQuery.sizeOf(context).width - tt.screenHPadding * 2;
     return StreamBuilder<void>(
       stream: _peopleTags.changes,
       builder: (context, _) {
         final own = _peopleTags.tagsOfPerson(widget.personId);
+        final inviterIds = {
+          for (final tag in _peopleTags.tags)
+            if (own.contains(tag.id) &&
+                _peopleTags.isInheritedMember(tag.id, widget.personId))
+              _peopleTags.inheritedFrom(tag.id, widget.personId),
+        }.whereType<String>().toSet();
+        unawaited(_ensureInviterProfiles(inviterIds));
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -128,11 +205,13 @@ class _PersonTagsBlockState extends State<PersonTagsBlock> {
               children: [
                 for (final tag in _peopleTags.tags)
                   if (own.contains(tag.id))
-                    PersonTagChip(
-                      glyph: tag.glyph,
-                      name: tag.name,
-                      colorIndex: tag.color,
-                      onRemove: () => unawaited(_remove(tag.id)),
+                    PersonOwnTagChip(
+                      tag: tag,
+                      personId: widget.personId,
+                      profiles: _profiles,
+                      maxWidth: maxChipWidth,
+                      onKeep: () => unawaited(_keep(tag.id)),
+                      onRemove: () => unawaited(_remove(tag)),
                     ),
                 TextButton(
                   onPressed: () => unawaited(

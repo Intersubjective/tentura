@@ -82,6 +82,21 @@ final class PeopleTagsCase extends UseCaseBase {
     return tag[personId];
   }
 
+  /// Whether [personId] carries the «set automatically» marker on [tagId].
+  bool isInheritedMember(String tagId, String personId) =>
+      _inherited[tagId]?.containsKey(personId) ?? false;
+
+  /// Puts the inherited marker back after undoing a remove (local until reload).
+  void restoreInheritedMarker({
+    required String tagId,
+    required String personId,
+    required String inviterId,
+  }) {
+    if (!(_members[tagId]?.contains(personId) ?? false)) return;
+    _putInherited(tagId, personId, inviterId);
+    _emit();
+  }
+
   /// The automatic tags [personId] carries, as the server derives them.
   Future<List<PersonAutoTagOf>> autoTagsOf(String personId) async =>
       (await _repository.personTagsOf(personId)).auto;

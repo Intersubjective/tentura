@@ -9,6 +9,12 @@ final class PeopleTagProfiles {
 
   Profile? of(String id) => _profiles[id];
 
+  /// Display name for [id], or [id] when the profile is missing or unnamed.
+  String displayName(String id) {
+    final name = _profiles[id]?.shownName.trim() ?? '';
+    return name.isEmpty ? id : name;
+  }
+
   /// Fetches the profiles of [ids] not held yet; true when any arrived.
   Future<bool> ensure(Iterable<String> ids) async {
     final missing = {

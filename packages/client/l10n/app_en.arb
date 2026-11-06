@@ -11047,6 +11047,41 @@
       }
     }
   },
+  "peopleTagsInheritedChipSemantics": "Set automatically: invited by {inviterName}",
+  "@peopleTagsInheritedChipSemantics": {
+    "description": "Screen-reader label and tooltip for an inherited own-tag chip (#1019)",
+    "placeholders": {
+      "inviterName": {
+        "type": "String"
+      }
+    }
+  },
+  "peopleTagsInheritedChipSemanticsUnknownInviter": "Set automatically",
+  "@peopleTagsInheritedChipSemanticsUnknownInviter": {
+    "description": "Inherited tag chip when the inviter record is gone (#1019)"
+  },
+  "peopleTagsInheritedKeep": "Keep",
+  "@peopleTagsInheritedKeep": {
+    "description": "Keeps an inherited tag; the automatic marker goes away (#1019)"
+  },
+  "peopleTagsInheritedKeepSemantics": "Keep tag {tagName}",
+  "@peopleTagsInheritedKeepSemantics": {
+    "description": "Screen-reader label for Keep on an inherited tag (#1019)",
+    "placeholders": {
+      "tagName": {
+        "type": "String"
+      }
+    }
+  },
+  "peopleTagsRemovedFromPersonOnPeer": "Removed «{tagName}»",
+  "@peopleTagsRemovedFromPersonOnPeer": {
+    "description": "Undo snackbar after removing an own tag from someone in the person panel (#1019)",
+    "placeholders": {
+      "tagName": {
+        "type": "String"
+      }
+    }
+  },
   "peopleTagsAutoChipSemantics": "{name}, automatic tag",
   "@peopleTagsAutoChipSemantics": {
     "description": "Screen-reader label for an automatic tag chip",
