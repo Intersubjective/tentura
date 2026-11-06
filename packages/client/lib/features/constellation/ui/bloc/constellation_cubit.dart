@@ -317,6 +317,11 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
 
   int _writeCount = 0;
 
+  /// Bottom of the draggable parent cluster in scene Y may not exceed this
+  /// value (from Field body while «Arranging» and the toolbar is visible,
+  /// #1043); null when not constraining.
+  double? _arrangingDragMaxParentCentreSceneY;
+
   /// A store publication or an outbox change arrived while the scene was
   /// frozen; the release applies them together in one compose and layout.
   bool _storeInputHeld = false;
@@ -1127,12 +1132,22 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     // ignore: invalid_use_of_visible_for_testing_member
     graphController.scene.removeListener(_onGraphSceneLayoutOutcomeChanged);
     graphController.removeListener(_onGraphControllerChanged);
+    _arrangingDragMaxParentCentreSceneY = null;
     _anchorCase?.deactivate(token: _anchorLifecycleToken);
     _forwardTreePulseTickerDisposed = true;
     _scene.dispose();
     // Do not dispose [forwardTreeEdgePulseTick]: [_scene.dispose] can schedule
     // work that still bumps the notifier; dropping the cubit releases it.
     return super.close();
+  }
+
+  /// Highest allowed parent cluster centre Y in scene space while the bottom
+  /// arranging toolbar is visible; cleared when arranging mode ends.
+  void applyArrangingToolbarDragCentreLimit(double? value) {
+    if (_arrangingDragMaxParentCentreSceneY == value) {
+      return;
+    }
+    _arrangingDragMaxParentCentreSceneY = value;
   }
 
   /// Screen visibility contributes to the shared store's lease visibility.
@@ -2115,10 +2130,47 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         tenturaGraphNodeId(node) == _composerDragGraphId) {
       return _clampComposerDrop(composerStart, proposed);
     }
-    return _interaction.clampClusterDragPosition(
+    final base = _interaction.clampClusterDragPosition(
       state.activePlacementTarget,
       node,
       proposed,
+    );
+    return _clampArrangingToolbarClusterDrag(node, base);
+  }
+
+  Offset _clampArrangingToolbarClusterDrag(NodeDetails node, Offset base) {
+    final limit = _arrangingDragMaxParentCentreSceneY;
+    if (limit == null || _interaction.placementClusterGraphIds.isEmpty) {
+      return base;
+    }
+    final target = state.activePlacementTarget;
+    if (target == null) {
+      return base;
+    }
+    final parentGraphId = constellationGraphNodeIdForTarget(target);
+    if (tenturaGraphNodeId(node) != parentGraphId) {
+      return base;
+    }
+    final parentStart = _interaction.clusterStartCentres[parentGraphId];
+    final limited = _interaction.limitedClusterDelta(parentGraphId, base);
+    if (parentStart == null || limited == null) {
+      return base;
+    }
+    final parentCentre = Offset(
+      parentStart.dx + limited.x,
+      parentStart.dy + limited.y,
+    );
+    if (parentCentre.dy <= limit) {
+      return base;
+    }
+    final corrected = Offset(parentCentre.dx, limit);
+    final correctedDelta = (
+      x: corrected.dx - parentStart.dx,
+      y: corrected.dy - parentStart.dy,
+    );
+    return Offset(
+      parentStart.dx + correctedDelta.x,
+      parentStart.dy + correctedDelta.y,
     );
   }
 

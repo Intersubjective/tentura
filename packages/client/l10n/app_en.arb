@@ -9752,9 +9752,9 @@
   "@trustWidensReachHint": {
     "description": "One truthful sentence on trust and visibility under the recipient picker / Field empty states (#252, D6). No fixed-hop promise."
   },
-  "emptyInviteSomeoneAction": "Invite someone you know",
+  "emptyInviteSomeoneAction": "Invite someone you trust",
   "@emptyInviteSomeoneAction": {
-    "description": "Invite CTA on the recipient picker / Field empty states (#252)."
+    "description": "Invite CTA on the recipient picker / Field empty states (#252, #1050). Same verb as People → Invitations."
   },
   "forwardSearchNoMatches": "No one found",
   "@forwardSearchNoMatches": {
@@ -10187,6 +10187,21 @@
   "constellationFieldSearchEmpty": "No matches on your Field.",
   "@constellationFieldSearchEmpty": {
     "description": "Empty state when Field search returns no hits",
+    "context": "ConstellationField"
+  },
+  "constellationFieldSearchPrompt": "Start typing to search your Field.",
+  "@constellationFieldSearchPrompt": {
+    "description": "Neutral prompt when the Field search query is empty (#1046)",
+    "context": "ConstellationField"
+  },
+  "constellationFieldSearchMinChars": "Enter at least two characters to search.",
+  "@constellationFieldSearchMinChars": {
+    "description": "Hint when the Field search query is shorter than the minimum length (#1046)",
+    "context": "ConstellationField"
+  },
+  "constellationFieldSearchSelfOnly": "Only your profile matches — others on the Field are listed on the map.",
+  "@constellationFieldSearchSelfOnly": {
+    "description": "When server search only returns the signed-in user and there are no Requests or Posts (#1046)",
     "context": "ConstellationField"
   },
   "constellationFieldSearchStatusHidden": "Hidden",
