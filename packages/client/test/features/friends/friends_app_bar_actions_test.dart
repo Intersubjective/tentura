@@ -5,7 +5,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 
-import 'package:tentura/consts.dart';
 import 'package:tentura/data/repository/presence_repository.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/contacts/contact_name_store.dart';

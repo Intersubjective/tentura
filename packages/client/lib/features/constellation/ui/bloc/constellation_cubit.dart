@@ -71,7 +71,6 @@ import '../../../graph/ui/utils/tentura_layout_algorithms.dart';
 import '../utils/constellation_graph_scene.dart';
 import '../scene/constellation_interaction_controller.dart';
 import '../scene/constellation_scene_controller.dart';
-import 'package:tentura/ui/utils/rearrange_preview_scheduler.dart';
 import '../scene/constellation_forward_tree_scene_layout.dart';
 import '../scene/constellation_tag_view_field_layout.dart';
 import '../util/constellation_perf.dart';
@@ -184,6 +183,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
            ),
        _forwardCaseOverride = forwardCase,
        _magnetTagsOf = ownTagIdsOf ?? _noTagViewOwnTags,
+       _ownTagIdsOfInjected = ownTagIdsOf,
+       _fieldOwnTagIdsOf = ownTagIdsOf ?? _noTagViewOwnTags,
        super(const ConstellationState()) {
     _placementCase?.history.applyTidyOffsets = (offsets) async {
       if (isClosed) return;
@@ -908,6 +909,13 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   final _tagMagnets = <String, Offset>{};
   Map<String, ScenePoint> _magnetBasePositions = const {};
   Set<String> Function(String) _magnetTagsOf;
+
+  /// When non-null, restores Field tag membership after account change.
+  final Set<String> Function(String)? _ownTagIdsOfInjected;
+
+  /// Own tags from the injected tag index on the Field (`ownTagIdsOf` at construction).
+  /// Kept separate from [_magnetTagsOf], which tag-view drag can temporarily retarget.
+  Set<String> Function(String) _fieldOwnTagIdsOf;
 
   Map<String, Offset> get tagMagnets => Map.unmodifiable(_tagMagnets);
 
@@ -1748,6 +1756,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     _tagMagnets.clear();
     _magnetBasePositions = const {};
     _magnetTagsOf = _noTagViewOwnTags;
+    _fieldOwnTagIdsOf = _ownTagIdsOfInjected ?? _noTagViewOwnTags;
     _magnetEpoch++;
     _magnetsStale = _tagMagnetCase != null;
     if (state.isComposing) exitComposing();
@@ -3735,6 +3744,10 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         ? rearrangeOwnTagPeopleFromComposition(
             viewerId: _viewer.id,
             composition: composition,
+            ownTagIdsOf: (id) => {
+              ..._fieldOwnTagIdsOf(id),
+              ..._magnetTagsOf(id),
+            },
           )
         : const <String, Set<String>>{};
     final rearrangeTagMagnetsByTagId =
@@ -3761,8 +3774,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       rearrangeOwnTagPeopleByTagId: rearrangeOwnTagPeopleByTagId,
       rearrangeTagMagnetsByTagId: rearrangeTagMagnetsByTagId,
     );
-    final job = ConstellationRearrangeAllLayoutJob(input);
-    job.start();
+    final job = ConstellationRearrangeAllLayoutJob(input)..start();
 
     void publishPreview() {
       if (token != _rearrangePreviewToken) {
@@ -3816,7 +3828,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
 
     bool stepSlice(int units) => job.step(units);
 
-    final RearrangePreviewScheduler? sched = _scene.rearrangePreviewScheduler;
+    final sched = _scene.rearrangePreviewScheduler;
     if (sched == null) {
       while (!job.step(1000000)) {}
       publishPreview();

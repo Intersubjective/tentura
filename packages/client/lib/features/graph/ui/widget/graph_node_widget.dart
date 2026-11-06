@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:get_it/get_it.dart';
 
 import 'package:tentura/design_system/components/tentura_avatar.dart';
 import 'package:tentura/design_system/components/tentura_count_badge.dart';

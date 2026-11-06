@@ -4,7 +4,6 @@
 // not just whoever currently has a rendered node on the graph.
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter/material.dart' show Offset;
 
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_anchor_projection.dart';

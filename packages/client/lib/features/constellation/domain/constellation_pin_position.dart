@@ -16,6 +16,7 @@ int get constellationPinLayoutRunCount => _pinLayoutRunCount;
 Map<String, Set<String>> rearrangeOwnTagPeopleFromComposition({
   required String viewerId,
   required ConstellationComposedPresentation composition,
+  Set<String> Function(String personId)? ownTagIdsOf,
 }) {
   final eligible = <String>{
     ...composition.keptPeerIds,
@@ -27,7 +28,8 @@ Map<String, Set<String>> rearrangeOwnTagPeopleFromComposition({
     if (peer.id == viewerId || !eligible.contains(peer.id)) {
       continue;
     }
-    for (final tagId in peer.ownTagIds) {
+    final tags = ownTagIdsOf?.call(peer.id) ?? peer.ownTagIds.toSet();
+    for (final tagId in tags) {
       byTag.putIfAbsent(tagId, () => {}).add(peer.id);
     }
   }
