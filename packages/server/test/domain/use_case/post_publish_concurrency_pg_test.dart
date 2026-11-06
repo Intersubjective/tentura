@@ -54,6 +54,9 @@ Future<void> main() async {
     defaultNamePrefix: 'tentura_test_post_publish_concurrency',
   );
   final unavailable = await pgSkipReason(target);
+  final dockerReachable = await IsolatedHasuraSession.isDockerAvailable();
+  final Object skipHasura =
+      dockerReachable ? false : 'Docker not available for isolated Hasura';
   if (unavailable != null) {
     test('Post publication concurrency requires reachable Postgres', () {
       fail(unavailable);
@@ -390,7 +393,7 @@ FOR EACH ROW EXECUTE FUNCTION public.pause_post_recipient_insert()
         'Retry delivery',
         'Use the retry audience',
       );
-    });
+    }, skip: skipHasura);
 
     test(
       'an author resumes an open Post without a root using the retry body, '
@@ -470,6 +473,7 @@ FOR EACH ROW EXECUTE FUNCTION public.pause_post_recipient_insert()
         )).single.toList();
         expect(after, before);
       },
+      skip: skipHasura,
     );
 
     test('failed recipient admission rolls back delivery while the published '
@@ -545,7 +549,7 @@ FOR EACH ROW EXECUTE FUNCTION public.refuse_post_recipient_insert()
         reason: 'failed delivery must not commit recipient notifications',
       );
       await expectPendingReaders(post);
-    });
+    }, skip: skipHasura);
   });
 }
 
