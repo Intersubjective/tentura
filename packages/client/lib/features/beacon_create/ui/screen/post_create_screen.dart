@@ -148,7 +148,7 @@ class _PostCreateScreenState extends State<PostCreateScreen>
         context: context,
         title: l10n.postCreateDiscardTitle,
         content: l10n.postCreateDiscardBody,
-        confirmLabel: l10n.buttonDelete,
+        confirmLabel: l10n.postCreateDiscardConfirm,
         cancelLabel: l10n.buttonCancel,
         emphasizeCancel: true,
       );

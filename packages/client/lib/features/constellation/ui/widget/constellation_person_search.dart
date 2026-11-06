@@ -34,6 +34,7 @@ class ConstellationPersonSearchButton extends StatefulWidget {
 class _ConstellationPersonSearchButtonState
     extends State<ConstellationPersonSearchButton> {
   Timer? _debounce;
+  int _searchSession = 0;
   String? _inFlightQuery;
   String? _resolvedQuery;
   ConstellationFieldSearchResult _resolvedResults =
@@ -44,6 +45,21 @@ class _ConstellationPersonSearchButtonState
   void dispose() {
     _debounce?.cancel();
     super.dispose();
+  }
+
+  void _resetSearchSession() {
+    _debounce?.cancel();
+    _debounce = null;
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _searchSession++;
+      _inFlightQuery = null;
+      _resolvedQuery = null;
+      _resolvedResults = emptyConstellationFieldSearchResult;
+      _searchError = null;
+    });
   }
 
   void _scheduleSearch(ConstellationCubit cubit, String query) {
@@ -57,11 +73,12 @@ class _ConstellationPersonSearchButtonState
       });
       return;
     }
+    final session = _searchSession;
     setState(() => _inFlightQuery = query);
     _debounce = Timer(_fieldSearchDebounce, () async {
       try {
         final results = await cubit.searchField(query);
-        if (!mounted || _inFlightQuery != query) {
+        if (!mounted || session != _searchSession || _inFlightQuery != query) {
           return;
         }
         setState(() {
@@ -71,7 +88,7 @@ class _ConstellationPersonSearchButtonState
           _searchError = null;
         });
       } on Object catch (error) {
-        if (!mounted || _inFlightQuery != query) {
+        if (!mounted || session != _searchSession || _inFlightQuery != query) {
           return;
         }
         setState(() {
@@ -86,11 +103,12 @@ class _ConstellationPersonSearchButtonState
 
   List<ConstellationFieldPerson> _localPeopleMatches(
     ConstellationCubit cubit,
-    String rawQuery,
-  ) {
+    String rawQuery, {
+    required String viewerId,
+  }) {
     return [
       for (final person in cubit.fieldPeople)
-        if (!person.isViewer &&
+        if (person.id != viewerId &&
             constellationPersonMatches(person, rawQuery))
           person,
     ];
@@ -137,7 +155,11 @@ class _ConstellationPersonSearchButtonState
     );
   }
 
-  String _personLabel(ConstellationCubit cubit, String personId, {String? fallback}) {
+  String _personLabel(
+    ConstellationCubit cubit,
+    String personId, {
+    String? fallback,
+  }) {
     final profile = cubit.profileForPersonId(personId);
     if (profile != null) {
       return profile.shownName;
@@ -178,7 +200,7 @@ class _ConstellationPersonSearchButtonState
     if (matches.isEmpty) {
       yield ListTile(
         key: const Key('constellation.search.no_match'),
-        title: Text(l10n.constellationSearchNoMatch),
+        title: Text(l10n.constellationFieldSearchEmpty),
       );
       return;
     }
@@ -214,23 +236,33 @@ class _ConstellationPersonSearchButtonState
     final tt = context.tt;
     final raw = controller.text;
     final query = raw.trim();
-
-    if (query.length < _fieldSearchMinLength) {
-      return _localPeopleSuggestions(
-        context,
-        cubit,
-        controller,
-        _localPeopleMatches(cubit, raw),
-      );
-    }
+    final viewerId = cubit.viewerId;
 
     if (cubit.fieldSearchCase == null) {
       return _localPeopleSuggestions(
         context,
         cubit,
         controller,
-        _localPeopleMatches(cubit, raw),
-      );
+        _localPeopleMatches(cubit, raw, viewerId: viewerId),
+      ).toList();
+    }
+
+    if (query.isEmpty) {
+      return [
+        ListTile(
+          key: const Key('constellation.field_search.prompt'),
+          title: Text(l10n.constellationFieldSearchPrompt),
+        ),
+      ];
+    }
+
+    if (query.length < _fieldSearchMinLength) {
+      return [
+        ListTile(
+          key: const Key('constellation.field_search.short_query'),
+          title: Text(l10n.constellationFieldSearchMinChars),
+        ),
+      ];
     }
 
     if (query != _resolvedQuery && query != _inFlightQuery) {
@@ -248,17 +280,30 @@ class _ConstellationPersonSearchButtonState
     final useOfflinePeople =
         _searchError != null || cubit.fieldSearchCase == null;
     final serverPeople = _resolvedResults.people;
+    final serverPeopleFiltered = [
+      for (final hit in serverPeople)
+        if (hit.id != viewerId) hit,
+    ];
     final localPeople = useOfflinePeople
-        ? _localPeopleMatches(cubit, raw)
+        ? _localPeopleMatches(cubit, raw, viewerId: viewerId)
         : const <ConstellationFieldPerson>[];
 
     if (!useOfflinePeople &&
-        _resolvedResults.isEmpty &&
+        serverPeopleFiltered.isEmpty &&
+        _resolvedResults.requests.isEmpty &&
+        _resolvedResults.posts.isEmpty &&
         localPeople.isEmpty) {
+      final onlyViewer =
+          serverPeople.isNotEmpty &&
+          serverPeople.every((hit) => hit.id == viewerId);
       return [
         ListTile(
           key: const Key('constellation.field_search.empty'),
-          title: Text(l10n.constellationFieldSearchEmpty),
+          title: Text(
+            onlyViewer
+                ? l10n.constellationFieldSearchSelfOnly
+                : l10n.constellationFieldSearchEmpty,
+          ),
         ),
       ];
     }
@@ -278,16 +323,18 @@ class _ConstellationPersonSearchButtonState
       return widgets;
     }
 
-    if (serverPeople.isNotEmpty) {
+    if (serverPeopleFiltered.isNotEmpty) {
       widgets.add(
         Semantics(
           container: true,
           header: true,
           label: l10n.constellationFieldSearchPeople,
-          child: TenturaSectionHeader(label: l10n.constellationFieldSearchPeople),
+          child: TenturaSectionHeader(
+            label: l10n.constellationFieldSearchPeople,
+          ),
         ),
       );
-      for (final hit in serverPeople) {
+      for (final hit in serverPeopleFiltered) {
         widgets.add(
           ListTile(
             key: Key('constellation.field_search.person.${hit.id}'),
@@ -318,7 +365,9 @@ class _ConstellationPersonSearchButtonState
           container: true,
           header: true,
           label: l10n.constellationFieldSearchRequests,
-          child: TenturaSectionHeader(label: l10n.constellationFieldSearchRequests),
+          child: TenturaSectionHeader(
+            label: l10n.constellationFieldSearchRequests,
+          ),
         ),
       );
       for (final hit in _resolvedResults.requests) {
@@ -355,7 +404,9 @@ class _ConstellationPersonSearchButtonState
           container: true,
           header: true,
           label: l10n.constellationFieldSearchPosts,
-          child: TenturaSectionHeader(label: l10n.constellationFieldSearchPosts),
+          child: TenturaSectionHeader(
+            label: l10n.constellationFieldSearchPosts,
+          ),
         ),
       );
       for (final hit in _resolvedResults.posts) {
@@ -387,10 +438,17 @@ class _ConstellationPersonSearchButtonState
     }
 
     if (widgets.isEmpty) {
+      final onlyViewer =
+          serverPeople.isNotEmpty &&
+          serverPeople.every((hit) => hit.id == viewerId);
       widgets.add(
         ListTile(
           key: const Key('constellation.field_search.empty'),
-          title: Text(l10n.constellationFieldSearchEmpty),
+          title: Text(
+            onlyViewer
+                ? l10n.constellationFieldSearchSelfOnly
+                : l10n.constellationFieldSearchEmpty,
+          ),
         ),
       );
     }
@@ -406,6 +464,8 @@ class _ConstellationPersonSearchButtonState
     return SearchAnchor(
       key: TestIds.key(TestIds.constellationFieldSearch),
       viewHintText: l10n.constellationFieldSearchHint,
+      viewOnOpen: _resetSearchSession,
+      viewOnClose: _resetSearchSession,
       builder: (context, controller) => SemanticsFreeTooltip(
         message: l10n.constellationSearchPeople,
         child: IconButton(

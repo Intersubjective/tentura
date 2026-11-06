@@ -763,7 +763,53 @@ void main() {
 
       expect(find.text('No one to send to yet'), findsOneWidget);
       expect(find.byKey(TenturaEmptyState.actionKey), findsOneWidget);
-      expect(find.text('Invite someone you know'), findsOneWidget);
+      expect(find.text('Invite someone you trust'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'the genuinely empty picker RU phone: invite CTA matches People invitations (#1050)',
+    (tester) async {
+      await usePhoneSurface(tester);
+      final cubit = ForwardCubit(
+        beaconId: 'b1',
+        debugSkipInitialLoad: true,
+        embedded: true,
+        effects: FakeUiEffectPort(),
+      );
+      addTearDown(cubit.close);
+      cubit.emit(
+        ForwardState(
+          beaconId: 'b1',
+          beacon: Beacon.empty.copyWith(id: 'b1', viewerCanForward: true),
+          candidatesLoad: const ForwardCandidatesEmpty(),
+        ),
+      );
+
+      final l10n = lookupL10n(const Locale('ru'));
+      expect(l10n.emptyInviteSomeoneAction, l10n.friendsCreateInvitation);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          locale: const Locale('ru'),
+          localizationsDelegates: L10n.localizationsDelegates,
+          supportedLocales: L10n.supportedLocales,
+          theme: TenturaTheme.light(),
+          home: MultiBlocProvider(
+            providers: [
+              BlocProvider<ForwardCubit>.value(value: cubit),
+              BlocProvider<ProfileCubit>.value(value: _MockProfileCubit()),
+            ],
+            child: const Scaffold(
+              body: ForwardRecipientPicker(beaconId: 'b1', embedded: true),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text(l10n.emptyInviteSomeoneAction), findsOneWidget);
+      expect(tester.takeException(), isNull);
     },
   );
 
