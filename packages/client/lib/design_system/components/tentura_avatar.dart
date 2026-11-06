@@ -304,16 +304,75 @@ class TenturaAvatar extends StatelessWidget {
     if (t.isEmpty) {
       return '?';
     }
-    final parts = t.split(RegExp(r'\s+'));
+
+    String upperEachGrapheme(String s) =>
+        s.characters.map((g) => g.toUpperCase()).join();
+
+    // Grapheme-safe extraction: never slice UTF-16 between surrogate halves;
+    // skip leading emoji/symbols to the first letter; combine marks stay on letters.
+    final leadingNonLetters = RegExp(r'^[^\p{L}]*', unicode: true);
+    final letterCluster = RegExp(r'\p{L}[\p{M}]*', unicode: true);
+
+    String? leadingLetterCluster(String word) {
+      final after = word.replaceFirst(leadingNonLetters, '');
+      if (after.isEmpty) {
+        return null;
+      }
+      return letterCluster.firstMatch(after)?.group(0);
+    }
+
+    Iterable<String> letterClustersInWord(String word) sync* {
+      var rest = word.replaceFirst(leadingNonLetters, '');
+      while (rest.isNotEmpty) {
+        final m = letterCluster.firstMatch(rest);
+        if (m == null) {
+          break;
+        }
+        yield m.group(0)!;
+        rest = rest.substring(m.end).replaceFirst(leadingNonLetters, '');
+      }
+    }
+
+    final parts = t
+        .split(RegExp(r'\s+'))
+        .where((p) => p.isNotEmpty)
+        .toList();
+
     if (parts.length >= 2) {
-      final a = parts[0].isNotEmpty ? parts[0][0] : '';
-      final b = parts[1].isNotEmpty ? parts[1][0] : '';
-      return '$a$b'.toUpperCase();
+      final initials = <String>[];
+      for (final p in parts) {
+        final c = leadingLetterCluster(p);
+        if (c != null) {
+          initials.add(c);
+          if (initials.length >= 2) {
+            break;
+          }
+        }
+      }
+      if (initials.length >= 2) {
+        return upperEachGrapheme('${initials[0]}${initials[1]}');
+      }
+      if (initials.length == 1) {
+        return upperEachGrapheme(initials[0]);
+      }
     }
-    if (t.length >= 2) {
-      return t.substring(0, 2).toUpperCase();
+
+    final fromOneWord = letterClustersInWord(t).take(2).toList();
+    if (fromOneWord.length >= 2) {
+      return upperEachGrapheme('${fromOneWord[0]}${fromOneWord[1]}');
     }
-    return t[0].toUpperCase();
+    if (fromOneWord.length == 1) {
+      return upperEachGrapheme(fromOneWord[0]);
+    }
+
+    final graphemes = t.characters.toList();
+    if (graphemes.isEmpty) {
+      return '?';
+    }
+    if (graphemes.length == 1) {
+      return upperEachGrapheme(graphemes.first);
+    }
+    return upperEachGrapheme('${graphemes[0]}${graphemes[1]}');
   }
 }
 
