@@ -169,20 +169,15 @@ void main() {
     expect(copy.headline, contains('2 people'));
   });
 
-  testWidgets('See the path opens ForwardsGraphScreen for helper', (
+  testWidgets('Show on Field navigates to Constellation for forward tree', (
     tester,
   ) async {
     final effects = FakeUiEffectPort();
     await _pumpTile(tester, receipt: _receipt(), effects: effects);
-    await tester.tap(find.text('See the path ›'));
+    await tester.tap(find.text('Show on Field ›'));
     await tester.pump();
     final push = effects.emitted.whereType<NavigatePush>().last;
-    expect(
-      push.path,
-      '$kPathForwardsGraph/$_beaconId?'
-      'committer=${Uri.encodeQueryComponent(_helperId)}'
-      '&committerName=${Uri.encodeQueryComponent('Vera')}',
-    );
+    expect(push.path, kPathConstellation);
   });
 
   testWidgets('× dismiss invokes onDismiss', (tester) async {

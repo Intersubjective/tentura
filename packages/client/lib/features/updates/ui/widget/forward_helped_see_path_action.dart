@@ -27,20 +27,12 @@ class ForwardHelpedSeePathAction extends StatelessWidget {
         helperId.isEmpty) {
       return const SizedBox.shrink();
     }
-    String? helperName;
-    for (final node in content.path) {
-      if (node.userId == helperId) {
-        helperName = node.displayName;
-        break;
-      }
-    }
     return TenturaTextAction(
       label: l10n.updatesForwardHelpedSeePath,
       flushStart: true,
-      onPressed: () => context.read<ScreenCubit>().showHelpOffererForwardPathFor(
+      onPressed: () => context.read<ScreenCubit>().showConstellationForwardTreeFor(
         beaconId: beaconId,
         helpOffererId: helperId,
-        helpOffererName: helperName,
       ),
     );
   }

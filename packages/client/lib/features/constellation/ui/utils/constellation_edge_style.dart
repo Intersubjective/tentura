@@ -238,4 +238,20 @@ ConstellationEdgeStyle constellationEdgeStyle(
     endDots: false,
     twin: true,
   ),
+  ConstellationEdgeKind.helpBranch => (
+    color: scheme.tertiary,
+    width: 3.0,
+    dash: 0,
+    gap: 0,
+    endDots: false,
+    twin: false,
+  ),
+  ConstellationEdgeKind.forwardBranch => (
+    color: scheme.onSurfaceVariant,
+    width: 1.25,
+    dash: 4,
+    gap: 4,
+    endDots: false,
+    twin: false,
+  ),
 };

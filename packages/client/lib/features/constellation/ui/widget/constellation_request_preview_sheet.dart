@@ -60,6 +60,7 @@ class ConstellationRequestPreviewSheet extends StatelessWidget {
     this.onOpen,
     this.onPrimaryAction,
     this.onForward,
+    this.onShowForwardTreeOnField,
     this.onClose,
     this.now,
     super.key,
@@ -71,6 +72,7 @@ class ConstellationRequestPreviewSheet extends StatelessWidget {
   final VoidCallback? onOpen;
   final VoidCallback? onPrimaryAction;
   final VoidCallback? onForward;
+  final VoidCallback? onShowForwardTreeOnField;
   final VoidCallback? onClose;
   final DateTime? now;
 
@@ -97,6 +99,7 @@ class ConstellationRequestPreviewSheet extends StatelessWidget {
     final primaryLabel = constellationPreviewPrimaryActionLabel(l10n, request);
     final showForward =
         constellationPreviewShowsForward(request) && onForward != null;
+    final showForwardTree = onShowForwardTreeOnField != null;
     final showOpenButton =
         onOpen != null &&
         (onPrimaryAction == null || primaryLabel != l10n.openBeacon);
@@ -124,6 +127,14 @@ class ConstellationRequestPreviewSheet extends StatelessWidget {
             onPressed: onForward,
             icon: const Icon(Icons.send_outlined),
             label: Text(l10n.labelForward),
+          ),
+        ],
+        if (showForwardTree) ...[
+          SizedBox(height: tt.rowGap),
+          OutlinedButton(
+            key: const Key('constellation.request_preview.forward_tree'),
+            onPressed: onShowForwardTreeOnField,
+            child: Text(l10n.constellationPreviewShowForwardTreeOnField),
           ),
         ],
         SizedBox(height: tt.rowGap),

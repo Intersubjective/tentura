@@ -18,6 +18,21 @@ query BeaconHelpOffererForwardPath($id: String!, $helpOffererId: String!) {
       recipientId
       parentEdgeId
       batchId
+      createdAt
+      readAt
+      declinedInvite
+      forwardedOn
+      offerStatus
+      sender {
+        userId
+        displayName
+        anonymousCount
+      }
+      recipient {
+        userId
+        displayName
+        anonymousCount
+      }
     }
     path {
       userId

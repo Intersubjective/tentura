@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -24,6 +25,7 @@ import 'package:tentura/features/graph/ui/widget/graph_legend_mode.dart';
 import 'package:tentura/features/graph/ui/widget/graph_legend_panel.dart';
 import 'package:tentura/features/graph/ui/widget/graph_node_widget.dart';
 import 'package:tentura/features/graph/ui/widget/graph_person_context_panel.dart';
+import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/features/people_tags/domain/entity/people_tags_entities.dart';
 import 'package:tentura/features/people_tags/domain/use_case/people_tags_case.dart';
 import 'package:tentura/features/people_tags/ui/widget/tag_editor_dialog.dart';
@@ -45,6 +47,7 @@ import '../bloc/constellation_composer_cubit.dart';
 import '../bloc/constellation_cubit.dart';
 import '../bloc/constellation_selection_cubit.dart';
 import '../bloc/constellation_tag_lens_cubit.dart';
+import '../../domain/constellation_forward_tree_marker.dart';
 import '../util/constellation_perf.dart';
 import '../utils/constellation_edge_style.dart';
 import '../utils/constellation_presentation_frame.dart';
@@ -58,6 +61,7 @@ import 'constellation_composer_radius.dart';
 import 'constellation_composer_sheet.dart';
 import 'constellation_create_entry.dart';
 import 'constellation_filter_bar.dart';
+import 'constellation_forward_tree_overlay_bar.dart';
 import 'constellation_minimap.dart';
 import 'constellation_no_contacts.dart';
 import 'constellation_overflow_group.dart';
@@ -247,6 +251,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
   // Edges only depend on the camera through the stroke compensation (zoom
   // below 1), so pans and zooms above 1 must not repaint them.
   late final ValueNotifier<double> _edgeStrokeScale;
+  late final Listenable _edgeRepaint;
 
   // Animated pan that keeps a tapped node beside its preview (#458).
   late final AnimationController _reveal;
@@ -266,6 +271,11 @@ class _ConstellationBodyState extends State<ConstellationBody>
       _detail == ConstellationDetailLevel.overview,
     );
     _edgeStrokeScale = ValueNotifier(_strokeScale());
+    final cubit = context.read<ConstellationCubit>();
+    _edgeRepaint = Listenable.merge([
+      _edgeStrokeScale,
+      cubit.forwardTreeEdgePulseTick,
+    ]);
     _reveal = AnimationController(vsync: this, duration: _revealDuration)
       ..addListener(_onRevealTick);
     _graphController.cameraRevision.addListener(_onCamera);
@@ -596,6 +606,10 @@ class _ConstellationBodyState extends State<ConstellationBody>
   /// multi-select tools keep their own handling of the map.
   void _onEmptyMapTap(BuildContext context, ConstellationCubit cubit) {
     final state = cubit.state;
+    if (state.forwardTreeOverlay != null) {
+      cubit.exitForwardTreeMode();
+      return;
+    }
     if (state.isComposing ||
         state.placementPhase != ConstellationPlacementPhase.idle) {
       return;
@@ -1099,6 +1113,11 @@ class _ConstellationBodyState extends State<ConstellationBody>
         onPrimaryAction: _primaryActionForRequest(context, cubit, request),
         onForward: constellationPreviewShowsForward(request)
             ? () => unawaited(_runForwardFlow(context, cubit, request))
+            : null,
+        onShowForwardTreeOnField: request.viewerHasForwardEdge
+            ? () => context.read<ScreenCubit>().showConstellationForwardTreeFor(
+                  beaconId: request.id,
+                )
             : null,
         onClose: () => unawaited(_dismissRequestPreview(cubit)),
       ),
@@ -2106,9 +2125,11 @@ class _ConstellationBodyState extends State<ConstellationBody>
                 overview: _detail == ConstellationDetailLevel.overview,
                 edgeKindByPair: cubit.edgeKindByPair,
                 edgeFadeBySemanticId: cubit.edgeFadeBySemanticId,
+                forwardTreePulseReader: () =>
+                    cubit.forwardTreeEdgePulseBySemanticId,
                 tt: context.tt,
                 scheme: Theme.of(context).colorScheme,
-                repaint: _edgeStrokeScale,
+                repaint: _edgeRepaint,
                 cameraScale: () => cubit.graphController.cameraScale,
               ),
               nodeBuilder: (_, node) {
@@ -2119,9 +2140,14 @@ class _ConstellationBodyState extends State<ConstellationBody>
                     ? cubit.fieldPersonById(node.person.id)?.pinState
                     : null;
                 final mapNode = switch (node) {
-                  FieldPersonNode(:final ring, :final person) =>
+                  FieldPersonNode(
+                    :final ring,
+                    :final person,
+                  ) =>
                     _ConstellationMapNode(
                       detail: _detail,
+                      forwardTreeMarker: cubit
+                          .forwardTreeRecipientMarkerByPersonId[person.id],
                       statusBadge: personPinState != null
                           ? ExcludeSemantics(
                               child: ConstellationMarkerBadge.pinState(
@@ -2143,11 +2169,13 @@ class _ConstellationBodyState extends State<ConstellationBody>
                             ),
                       districtPerson: ring == 0 ? null : person,
                       temporaryOutline:
-                          widget.fieldMembershipV2Enabled &&
-                              cubit
-                                      .fieldPersonById(person.id)
-                                      ?.fieldMembership ==
-                                  ConstellationFieldMembership.temporary
+                          cubit.forwardTreeTemporaryOutlinePersonIds
+                                  .contains(person.id) ||
+                              (widget.fieldMembershipV2Enabled &&
+                                  cubit
+                                          .fieldPersonById(person.id)
+                                          ?.fieldMembership ==
+                                      ConstellationFieldMembership.temporary)
                           ? ConstellationTemporaryOutline(
                               key: TestIds.key(
                                 TestIds.constellationTemporaryOutline(
@@ -2175,6 +2203,8 @@ class _ConstellationBodyState extends State<ConstellationBody>
                       child: GraphNodeWidget(
                         key: TestIds.key(TestIds.graphNode(node.id)),
                         nodeDetails: node,
+                        hiddenNeighborCount: cubit
+                            .forwardTreeAnonymousCountByPersonId[person.id],
                         isOrigin: ring == 0,
                         isFocused:
                             panelVisible && node.id == state.selectedPersonId,
@@ -2398,10 +2428,23 @@ class _ConstellationBodyState extends State<ConstellationBody>
               ),
               child: compactPanel && compactSheetExpanded
                   ? const SizedBox.shrink()
-                  : ConstellationCameraControls(
-                      cubit: cubit,
-                      viewportInsets: cameraInsets,
-                      arrangeV2Enabled: widget.arrangeV2Enabled,
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (state.forwardTreeOverlay != null)
+                          Padding(
+                            padding: EdgeInsets.only(bottom: tt.tightGap),
+                            child: ConstellationForwardTreeOverlayBar(
+                              cubit: cubit,
+                            ),
+                          ),
+                        ConstellationCameraControls(
+                          cubit: cubit,
+                          viewportInsets: cameraInsets,
+                          arrangeV2Enabled: widget.arrangeV2Enabled,
+                        ),
+                      ],
                     ),
             ),
           ),
@@ -2572,8 +2615,10 @@ class _ConstellationBodyState extends State<ConstellationBody>
         return false;
       }(),
     );
-    // Off the selected person's trust chain (#641): the marker fades.
-    final chainMarker = cubit.isDimmedByTrustChain(node)
+    // Off the selected person's trust chain (#641) or forward-tree overlay (#774):
+    // the marker fades.
+    final chainMarker = cubit.isDimmedByTrustChain(node) ||
+            cubit.isDimmedByForwardTree(node)
         ? Opacity(opacity: kConstellationTrustChainDimOpacity, child: mapNode)
         : mapNode;
     // Outside the tag selection: the marker fades; positions stay put.
@@ -3203,6 +3248,7 @@ class _ConstellationMapNode extends StatelessWidget {
     this.dot,
     this.districtPerson,
     this.temporaryOutline,
+    this.forwardTreeMarker,
     this.pinBadge,
     this.statusBadge,
     this.ownTags = const [],
@@ -3223,6 +3269,9 @@ class _ConstellationMapNode extends StatelessWidget {
   /// Dashed ring of a temporary person, drawn over the node (not at the
   /// overview, where the node is a dot).
   final Widget? temporaryOutline;
+
+  /// Small glyph for forward-tree recipient state (#774).
+  final ConstellationForwardTreeRecipientMarker? forwardTreeMarker;
   final Widget? pinBadge;
   final Widget? statusBadge;
   final List<PersonTag> ownTags;
@@ -3233,6 +3282,7 @@ class _ConstellationMapNode extends StatelessWidget {
         dot: dot,
         districtPerson: districtPerson,
         temporaryOutline: temporaryOutline,
+        forwardTreeMarker: forwardTreeMarker,
         pinBadge: pinBadge,
         statusBadge: statusBadge,
         ownTags: ownTags,
@@ -3242,6 +3292,7 @@ class _ConstellationMapNode extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tt = context.tt;
+    final theme = Theme.of(context);
     final dot = this.dot;
     final districtPerson = this.districtPerson;
     final shown = dot != null && detail == ConstellationDetailLevel.overview
@@ -3267,6 +3318,14 @@ class _ConstellationMapNode extends StatelessWidget {
     final overhang = constellationMarkerBadgeOverhang(tt);
     final pinBadge = this.pinBadge;
     final statusBadge = this.statusBadge;
+    final markerChar = switch (forwardTreeMarker) {
+      ConstellationForwardTreeRecipientMarker.helped => '✓',
+      ConstellationForwardTreeRecipientMarker.offered => '✋',
+      ConstellationForwardTreeRecipientMarker.cantHelp => '✕',
+      ConstellationForwardTreeRecipientMarker.opened => '·',
+      ConstellationForwardTreeRecipientMarker.notOpened => '○',
+      null => null,
+    };
     return Stack(
       clipBehavior: Clip.none,
       alignment: Alignment.center,
@@ -3274,6 +3333,21 @@ class _ConstellationMapNode extends StatelessWidget {
         shown,
         if (temporaryOutline != null && identical(shown, child))
           Positioned.fill(child: temporaryOutline!),
+        if (markerChar != null &&
+            detail == ConstellationDetailLevel.close &&
+            identical(shown, child))
+          PositionedDirectional(
+            bottom: -overhang,
+            end: -overhang,
+            child: ExcludeSemantics(
+              child: Text(
+                markerChar,
+                style: TenturaText.labelMedium(
+                  theme.colorScheme.onSurface,
+                ),
+              ),
+            ),
+          ),
         if (statusBadge != null)
           PositionedDirectional(
             top: -overhang,
@@ -3332,11 +3406,14 @@ class ConstellationEdgePainter
     required this.repaint,
     required this.cameraScale,
     this.edgeFadeBySemanticId = const {},
+    this.forwardTreePulseReader,
     this.overview = false,
   });
 
   final Map<String, ConstellationEdgeKind> edgeKindByPair;
   final Map<String, double> edgeFadeBySemanticId;
+  /// Stable reader for pulse map (equality ignores the closure identity).
+  final Map<String, double> Function()? forwardTreePulseReader;
   final TenturaTokens tt;
   final ColorScheme scheme;
   @override
@@ -3459,6 +3536,38 @@ class ConstellationEdgePainter
       dashPath: dashPath,
       twin: style.twin,
     );
+    final pulse = forwardTreePulseReader?.call()[edge.semanticId];
+    if (pulse != null && pulse > 0) {
+      final t = pulse.clamp(0.0, 1.0);
+      final centre = Offset.lerp(trimmed.$1, trimmed.$2, t)!;
+      final r = strokeWidth * 4 * t + 2;
+      final glow = Paint()
+        ..color = scheme.primary.withValues(alpha: 0.35 * t)
+        ..style = PaintingStyle.fill;
+      canvas.drawCircle(centre, r, glow);
+    }
+    if (edge.arrowAtDestination) {
+      final tip = trimmed.$2;
+      final base = trimmed.$1;
+      final dir = tip - base;
+      final len = dir.distance;
+      if (len > 1e-6) {
+        final u = dir / len;
+        final v = Offset(-u.dy, u.dx);
+        final ah = strokeWidth * 2.5;
+        final aw = strokeWidth * 1.8;
+        final path = Path()
+          ..moveTo(tip.dx, tip.dy)
+          ..lineTo(tip.dx - u.dx * ah + v.dx * aw, tip.dy - u.dy * ah + v.dy * aw)
+          ..lineTo(tip.dx - u.dx * ah - v.dx * aw, tip.dy - u.dy * ah - v.dy * aw)
+          ..close();
+        final fill = Paint()
+          ..color = paint.color
+          ..style = PaintingStyle.fill
+          ..isAntiAlias = true;
+        canvas.drawPath(path, fill);
+      }
+    }
   }
 
   (Offset, Offset) _trim({

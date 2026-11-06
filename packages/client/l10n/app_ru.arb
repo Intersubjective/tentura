@@ -1301,6 +1301,11 @@
   "constellationPersonItemsEmpty": "Здесь пусто.",
   "constellationPersonItemsLoadMore": "Загрузить ещё",
   "constellationShowAgain": "Показать снова",
+  "constellationPreviewShowForwardTreeOnField": "Показать на поле",
+  "constellationForwardTreeClose": "Закрыть",
+  "constellationForwardTreeReplay": "Повторить",
+  "constellationForwardTreeArrangeAsTree": "Расположить как дерево",
+  "constellationForwardTreeRestoreLayout": "Восстановить расположение",
   "constellationEmptyFiltered": "Нет запросов по этим фильтрам",
   "@constellationEmptyFiltered": {
     "context": "ConstellationFilterBar"
@@ -6744,7 +6749,7 @@
   "updatesForwardHelpedYou": "Вы",
   "updatesForwardHelpedAcceptedBody": "{path} предложил(а) помощь с «{title}». {author} принял(а).",
   "updatesForwardHelpedDoneBody": "«{title}» завершён с помощью {helper}.",
-  "updatesForwardHelpedSeePath": "Посмотреть путь ›",
+  "updatesForwardHelpedSeePath": "Показать на поле ›",
   "updatesForwardHelpedAuthorFallback": "автор",
   "updatesForwardHelpedHelperFallback": "участника",
   "updatesFallbackBodyForwardDeclined": "Получатель не может помочь с этим запросом.",
