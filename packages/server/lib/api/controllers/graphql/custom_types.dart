@@ -2391,7 +2391,8 @@ final gqlInputPersonTagSnapshot = GraphQLInputObjectType(
   ],
 );
 
-/// One add or remove in `personTagMembersApply`; `op` is `add` or `remove`.
+/// One `add`, `remove` or `keep` in `personTagMembersApply`.
+/// `keep` converts an inherited membership to a manual one.
 final gqlInputPersonTagMemberOp = GraphQLInputObjectType(
   'PersonTagMemberOpInput',
   inputFields: [

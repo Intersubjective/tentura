@@ -128,7 +128,8 @@ final class PeopleTagsCase extends UseCaseBase {
     );
   }
 
-  /// [ops] are `{tagId, personId, op: add|remove, source}`.
+  /// [ops] are `{tagId, personId, op: add|remove|keep, source}`.
+  /// `keep` converts an inherited membership to a manual one.
   Future<void> applyMembers({
     required String ownerId,
     required List<Map<String, dynamic>> ops,

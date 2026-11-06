@@ -282,7 +282,7 @@ https://{$LOCAL_HOST:dev.lvh.me}:{$LOCAL_HTTPS_PORT:9443} {
 
 # Fallback when system DNS does not resolve *.lvh.me (no /etc/hosts): browse via 127.0.0.1.
 # Google Console redirect URI: https://127.0.0.1:9443/api/auth/google/callback
-https://127.0.0.1:9443 {
+https://127.0.0.1:{$LOCAL_HTTPS_PORT:9443} {
 	tls internal
 	import local_site
 }

@@ -359,6 +359,10 @@ ORDER BY live.created_at, live.id
     }
     final ids = <String>[
       authorId,
+      if (ancestors.isNotEmpty &&
+          ancestors.last.parentEdgeId == null &&
+          ancestors.last.senderId != authorId)
+        ancestors.last.senderId,
       for (final ancestor in ancestors.reversed)
         if (ancestor.recipientId != authorId) ancestor.recipientId,
     ];

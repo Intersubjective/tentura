@@ -330,6 +330,110 @@ VALUES (@blocker, @blocked, @blocker)
                 as int,
     };
 
+    group(
+      'help paths include the forwarder who discovered the Request directly',
+      () {
+        test(
+          'first forwarder sees author, themselves and helper in route order',
+          () async {
+            // F1 discovered A's Request directly: there is no A -> F1 edge.
+            await writer.execute('''
+UPDATE public.beacon
+SET is_discoverable = true, published_at = now() - interval '2 hours'
+WHERE id = '$_beaconId'
+''');
+            await writer.execute('''
+INSERT INTO public.vote_user (subject, object, amount)
+VALUES ('$_f1Id', '$_authorId', 1), ('$_authorId', '$_f1Id', 1)
+''');
+            final discoverable = await writer.execute('''
+SELECT public.beacon_can_read_content('$_beaconId', '$_f1Id')
+''');
+            expect(discoverable.single.single, isTrue);
+            await _forward(
+              writer,
+              'Fhpathdirect1',
+              _f1Id,
+              _helperId,
+              ago: '1 hour',
+            );
+            await offerAndAccept();
+            final edges = await writer.execute('''
+SELECT sender_id, recipient_id, parent_edge_id
+FROM public.beacon_forward_edge WHERE beacon_id = '$_beaconId'
+''');
+            expect(edges, hasLength(1));
+            expect(edges.single, [_f1Id, _helperId, null]);
+            final incomingToFirstForwarder = await writer.execute('''
+SELECT id FROM public.beacon_forward_edge
+WHERE beacon_id = '$_beaconId' AND recipient_id = '$_f1Id'
+''');
+            expect(
+              incomingToFirstForwarder,
+              isEmpty,
+              reason: 'Direct discovery supplies no A -> F1 ancestry edge',
+            );
+            final chain =
+                await ForwardEdgeRepository(
+                  database,
+                ).fetchHelpOffererPathChain(
+                  beaconId: _beaconId,
+                  helpOffererId: _helperId,
+                  viewerId: _f1Id,
+                );
+            expect(chain.map((edge) => edge.id), ['Fhpathdirect1']);
+            expect(chain.single.parentEdgeId, isNull);
+            expect(chain.single.senderId, _f1Id);
+            expect(chain.map((edge) => edge.recipientId), [_helperId]);
+            expect(
+              chain.map((edge) => edge.recipientId),
+              isNot(contains(_f1Id)),
+              reason:
+                  'F1 must be included as the root sender, not an ancestor recipient',
+            );
+
+            final graphQL = GraphQL(
+              GraphQLSchema(
+                queryType: GraphQLObjectType('Query', null)
+                  ..fields.addAll(
+                    QueryHelpOffererForwardPath(
+                      beaconHelpOffererForwardPathCase: harness.pathCase,
+                    ).all,
+                  ),
+              ),
+              customTypes: customTypes,
+            );
+            final result = await graphQL.parseAndExecute(
+              '''
+query {
+  beaconHelpOffererForwardPath(id: "$_beaconId", helpOffererId: "$_helperId") {
+    path { userId displayName anonymousCount }
+  }
+}
+''',
+              globalVariables: {
+                kGlobalInputQueryJwt: const JwtEntity(sub: _f1Id),
+              },
+            );
+
+            expect(result, {
+              'beaconHelpOffererForwardPath': {
+                'path': [
+                  for (final id in [_authorId, _f1Id, _helperId])
+                    {
+                      'userId': id,
+                      'displayName': _names[id],
+                      'anonymousCount': 0,
+                    },
+                ],
+              },
+            });
+          },
+          skip: skipReason,
+        );
+      },
+    );
+
     group('ordered path', () {
       test('the author gets author, forwarders and helper in route order, '
           'by name', () async {

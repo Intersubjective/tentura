@@ -10806,6 +10806,70 @@
   "@updatesFallbackTitleForwardHelped": {
     "description": "Updates fallback title (#774) for a forwardHelped receipt."
   },
+  "updatesForwardHelpedSparkle": "✨ ",
+  "@updatesForwardHelpedSparkle": {
+    "description": "Leading sparkle on forward-helped Updates rows (#774)."
+  },
+  "updatesForwardHelpedTitle": "Your forward helped",
+  "@updatesForwardHelpedTitle": {
+    "description": "Headline for one accepted helper (#774)."
+  },
+  "updatesForwardHelpedTitlePlural": "Your forward helped {count} people",
+  "@updatesForwardHelpedTitlePlural": {
+    "description": "Headline when the same forwarder helped multiple helpers (#774).",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "updatesForwardHelpedDoneMark": "Done ✓",
+  "@updatesForwardHelpedDoneMark": {
+    "description": "Done suffix on a finalized forward-helped row (#774)."
+  },
+  "updatesForwardHelpedYou": "You",
+  "@updatesForwardHelpedYou": {
+    "description": "Viewer label on their own hop in a forward-help path (#774)."
+  },
+  "updatesForwardHelpedAcceptedBody": "{path} offered help with «{title}». {author} accepted.",
+  "@updatesForwardHelpedAcceptedBody": {
+    "description": "Body for an accepted forward-helped update (#774).",
+    "placeholders": {
+      "path": {
+        "type": "String"
+      },
+      "title": {
+        "type": "String"
+      },
+      "author": {
+        "type": "String"
+      }
+    }
+  },
+  "updatesForwardHelpedDoneBody": "«{title}» was completed with {helper}'s help.",
+  "@updatesForwardHelpedDoneBody": {
+    "description": "Body after Request closure for forward-helped (#774).",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "helper": {
+        "type": "String"
+      }
+    }
+  },
+  "updatesForwardHelpedSeePath": "See the path ›",
+  "@updatesForwardHelpedSeePath": {
+    "description": "Opens the committer-mode forward graph (#774)."
+  },
+  "updatesForwardHelpedAuthorFallback": "the author",
+  "@updatesForwardHelpedAuthorFallback": {
+    "description": "When the author name is hidden on a forward-helped row (#774)."
+  },
+  "updatesForwardHelpedHelperFallback": "a helper",
+  "@updatesForwardHelpedHelperFallback": {
+    "description": "When the helper name is hidden on a forward-helped done row (#774)."
+  },
   "updatesFallbackBodyForwardDeclined": "A recipient can't help with this request.",
   "@updatesFallbackBodyForwardDeclined": {
     "description": "Updates fallback body (#486) when the receipt carries no text."
