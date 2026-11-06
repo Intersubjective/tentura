@@ -570,6 +570,7 @@ final gqlTypePostPublishResult = GraphQLObjectType('PostPublishResult', null)
   ..fields.addAll([
     field('beaconId', graphQLString.nonNullable()),
     field('rootMessageId', graphQLString.nonNullable()),
+    field('expiresAt', graphQLString),
   ]);
 
 /// Quoted fact revision snapshot on a room message (issue #181 plan §8.11).
