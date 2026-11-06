@@ -11,8 +11,8 @@ import '../invite_accepted_subtitle.dart';
 /// A consumed-invite row: who accepted, when, and (via [onTap]) a way to
 /// navigate to them or the Request it was tied to. No edit/delete actions —
 /// nothing left to rename or cancel once an invite is consumed. Copy
-/// distinguishes a brand-new signup from an existing user becoming a friend
-/// via [InvitationEntity.inviteOrigin].
+/// distinguishes a brand-new signup from an existing account accepting via
+/// [InvitationEntity.inviteOrigin].
 class AcceptedInviteListTile extends StatelessWidget {
   const AcceptedInviteListTile({
     required this.invitation,
