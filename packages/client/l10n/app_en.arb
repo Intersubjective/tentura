@@ -11047,6 +11047,32 @@
       }
     }
   },
+  "peopleTagsInheritedChipSemantics": "Set automatically: invited by {inviterName}",
+  "@peopleTagsInheritedChipSemantics": {
+    "description": "Screen-reader label for an inherited own-tag chip (#1019)",
+    "placeholders": {
+      "inviterName": {
+        "type": "String"
+      }
+    }
+  },
+  "peopleTagsInheritedChipSemanticsUnknownInviter": "Set automatically",
+  "@peopleTagsInheritedChipSemanticsUnknownInviter": {
+    "description": "Screen-reader label for an inherited tag when the inviter record is gone (#1019)"
+  },
+  "peopleTagsInheritedKeep": "Keep",
+  "@peopleTagsInheritedKeep": {
+    "description": "Keeps an inherited tag on a person; the automatic marker goes away (#1019)"
+  },
+  "peopleTagsInheritedKeepSemantics": "Keep tag {tagName}",
+  "@peopleTagsInheritedKeepSemantics": {
+    "description": "Screen-reader label for the Keep action on an inherited tag chip (#1019)",
+    "placeholders": {
+      "tagName": {
+        "type": "String"
+      }
+    }
+  },
   "peopleTagsAutoChipSemantics": "{name}, automatic tag",
   "@peopleTagsAutoChipSemantics": {
     "description": "Screen-reader label for an automatic tag chip",

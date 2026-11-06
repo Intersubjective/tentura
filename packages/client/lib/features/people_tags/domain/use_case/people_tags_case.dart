@@ -82,6 +82,10 @@ final class PeopleTagsCase extends UseCaseBase {
     return tag[personId];
   }
 
+  /// Whether [personId] is in [tagId] with the «set automatically» marker.
+  bool isInheritedMember(String tagId, String personId) =>
+      _inherited[tagId]?.containsKey(personId) ?? false;
+
   /// The automatic tags [personId] carries, as the server derives them.
   Future<List<PersonAutoTagOf>> autoTagsOf(String personId) async =>
       (await _repository.personTagsOf(personId)).auto;

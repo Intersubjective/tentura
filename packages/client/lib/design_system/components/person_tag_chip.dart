@@ -48,6 +48,11 @@ class PersonTagChip extends StatelessWidget {
     required this.name,
     required this.colorIndex,
     this.onRemove,
+    this.onKeep,
+    this.keepLabel,
+    this.keepSemanticsLabel,
+    this.showInheritedMarker = false,
+    this.semanticsLabel,
     this.maxWidth,
     this.selected = false,
     super.key,
@@ -57,6 +62,13 @@ class PersonTagChip extends StatelessWidget {
   final String name;
   final int colorIndex;
   final VoidCallback? onRemove;
+  final VoidCallback? onKeep;
+  final String? keepLabel;
+  final String? keepSemanticsLabel;
+  final bool showInheritedMarker;
+
+  /// When set, replaces the default «{name}, tag» screen-reader label.
+  final String? semanticsLabel;
   final bool selected;
 
   /// When set (e.g. in a wrapped tag list), the name ellipsizes instead of
@@ -69,10 +81,13 @@ class PersonTagChip extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final swatch = context.tagColors.swatchFor(colorIndex);
     final onRemove = this.onRemove;
+    final onKeep = this.onKeep;
     final maxWidth = this.maxWidth;
     final selected = this.selected;
     final chipSemantics =
-        L10n.of(context)?.peopleTagsPersonChipSemantics(name) ?? '$name, tag';
+        semanticsLabel ??
+        L10n.of(context)?.peopleTagsPersonChipSemantics(name) ??
+        '$name, tag';
     Widget namePart = Text(
       name,
       style: TenturaText.labelSmall(swatch.onContainer),
@@ -97,6 +112,16 @@ class PersonTagChip extends StatelessWidget {
         TagGlyph(glyph: glyph, colorIndex: colorIndex),
         SizedBox(width: tt.iconTextGap),
         namePart,
+        if (showInheritedMarker) ...[
+          SizedBox(width: tt.iconTextGap),
+          RichText(
+            textScaler: MediaQuery.textScalerOf(context),
+            text: TextSpan(
+              text: '✦',
+              style: TenturaText.labelSmall(swatch.onContainer),
+            ),
+          ),
+        ],
         SizedBox(width: tt.iconTextGap),
       ],
     );
@@ -113,6 +138,23 @@ class PersonTagChip extends StatelessWidget {
           Expanded(child: labelSemantics)
         else
           labelSemantics,
+        if (onKeep != null)
+          Semantics(
+            button: true,
+            label: keepSemanticsLabel ?? keepLabel,
+            excludeSemantics: true,
+            child: InkResponse(
+              onTap: onKeep,
+              radius: 14,
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: tt.tightGap),
+                child: Text(
+                  keepLabel ?? '',
+                  style: TenturaText.labelSmall(swatch.onContainer),
+                ),
+              ),
+            ),
+          ),
         if (onRemove != null)
           Semantics(
             button: true,

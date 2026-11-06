@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/people_tags/domain/entity/people_tags_entities.dart';
 import 'package:tentura/features/people_tags/domain/use_case/people_tags_case.dart';
+import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura_root/domain/entity/person_auto_tag_kind.dart';
@@ -30,6 +32,7 @@ class PersonTagsBlock extends StatefulWidget {
 
 class _PersonTagsBlockState extends State<PersonTagsBlock> {
   final _peopleTags = GetIt.I<PeopleTagsCase>();
+  final _inviterProfiles = <String, Profile>{};
 
   late Future<List<PersonAutoTagOf>> _auto;
 
@@ -67,6 +70,55 @@ class _PersonTagsBlockState extends State<PersonTagsBlock> {
         );
       }
     }
+  }
+
+  Future<void> _keep(String tagId) async {
+    try {
+      await _peopleTags.keepInherited(
+        personId: widget.personId,
+        tagId: tagId,
+      );
+    } catch (e, s) {
+      if (mounted) {
+        showSnackBar(
+          context,
+          isError: true,
+          text: e.toString(),
+          error: e,
+          stackTrace: s,
+        );
+      }
+    }
+  }
+
+  Future<void> _ensureInviterProfiles(Iterable<String> inviterIds) async {
+    final missing = {
+      for (final id in inviterIds)
+        if (!_inviterProfiles.containsKey(id)) id,
+    };
+    if (missing.isEmpty) return;
+    final fetched = await GetIt.I<ProfileRepositoryPort>().fetchProfilesByIds(
+      missing,
+    );
+    if (!mounted) return;
+    setState(() {
+      for (final profile in fetched) {
+        _inviterProfiles[profile.id] = profile;
+      }
+    });
+  }
+
+  String _inviterName(String inviterId) {
+    final name = _inviterProfiles[inviterId]?.shownName.trim() ?? '';
+    return name.isEmpty ? inviterId : name;
+  }
+
+  String _inheritedChipSemantics(L10n l10n, String tagId) {
+    final inviterId = _peopleTags.inheritedFrom(tagId, widget.personId);
+    if (inviterId == null) {
+      return l10n.peopleTagsInheritedChipSemanticsUnknownInviter;
+    }
+    return l10n.peopleTagsInheritedChipSemantics(_inviterName(inviterId));
   }
 
   /// One chip per automatic tag kind: the source may emit a row per shared
@@ -112,10 +164,19 @@ class _PersonTagsBlockState extends State<PersonTagsBlock> {
     final tt = context.tt;
     final spacing = tt.iconTextGap * 2;
     final runSpacing = tt.tightGap * 2;
+    final maxChipWidth =
+        MediaQuery.sizeOf(context).width - tt.screenHPadding * 2;
     return StreamBuilder<void>(
       stream: _peopleTags.changes,
       builder: (context, _) {
         final own = _peopleTags.tagsOfPerson(widget.personId);
+        final inviterIds = {
+          for (final tag in _peopleTags.tags)
+            if (own.contains(tag.id) &&
+                _peopleTags.isInheritedMember(tag.id, widget.personId))
+              _peopleTags.inheritedFrom(tag.id, widget.personId),
+        }.whereType<String>();
+        unawaited(_ensureInviterProfiles(inviterIds));
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -132,6 +193,29 @@ class _PersonTagsBlockState extends State<PersonTagsBlock> {
                       glyph: tag.glyph,
                       name: tag.name,
                       colorIndex: tag.color,
+                      maxWidth: maxChipWidth,
+                      showInheritedMarker: _peopleTags.isInheritedMember(
+                        tag.id,
+                        widget.personId,
+                      ),
+                      semanticsLabel:
+                          _peopleTags.isInheritedMember(
+                            tag.id,
+                            widget.personId,
+                          )
+                          ? _inheritedChipSemantics(l10n, tag.id)
+                          : null,
+                      onKeep:
+                          _peopleTags.isInheritedMember(
+                            tag.id,
+                            widget.personId,
+                          )
+                          ? () => unawaited(_keep(tag.id))
+                          : null,
+                      keepLabel: l10n.peopleTagsInheritedKeep,
+                      keepSemanticsLabel: l10n.peopleTagsInheritedKeepSemantics(
+                        tag.name,
+                      ),
                       onRemove: () => unawaited(_remove(tag.id)),
                     ),
                 TextButton(
