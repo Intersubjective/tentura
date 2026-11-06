@@ -13,6 +13,7 @@ import 'package:tentura/features/beacon_view/ui/widget/beacon_details_facts_acce
 import 'package:tentura/features/beacon_view/ui/widget/beacon_view_details_sheet.dart';
 import 'package:tentura/features/closure/domain/entity/closure_member.dart';
 import 'package:tentura/features/closure/ui/widget/closure_result_card.dart';
+import 'package:tentura/features/beacon_view/ui/widget/closure_help_path_block.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_view_hud_metadata_entries.dart';
 import 'package:tentura/ui/widget/beacon_hud_metadata_table.dart';
@@ -119,6 +120,13 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (showHudRows) ClosedRequestBanner(beacon: state.beacon),
+          if (state.beacon.status == BeaconStatus.closed)
+            ClosureHelpPathBlock(
+              beaconId: state.beacon.id,
+              admittedHelpers: state.admittedHelpersLoaded
+                  ? state.admittedHelperRoster
+                  : state.beacon.admittedHelperUsers,
+            ),
           if (state.beacon.status == BeaconStatus.closed &&
               !state.isBeaconMine &&
               state.viewerOfferedHelp)

@@ -6938,6 +6938,19 @@
   "@closureHelperStale": {
     "description": "Snackbar after a stale-epoch write."
   },
+  "closureHelpPathTitle": "Help came through",
+  "@closureHelpPathTitle": {
+    "description": "Heading above the forward chain on a closed Request (#774)."
+  },
+  "helpPathAnonymousCount": "+{count}",
+  "@helpPathAnonymousCount": {
+    "description": "Masked participants on a help forward path hidden by a block.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "closureResultTitle": "Results for you",
   "@closureResultTitle": {
     "description": "Title of the Results card on the request screen after finalize."
