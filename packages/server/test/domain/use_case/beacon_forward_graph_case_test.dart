@@ -10,6 +10,8 @@ import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/entity/beacon_room_record.dart';
 import 'package:tentura_server/domain/entity/help_offer_entity.dart';
 import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
+import 'package:tentura_server/domain/entity/forward_tree_edge.dart';
+import 'package:tentura_server/domain/entity/help_path_node.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
@@ -51,6 +53,18 @@ class _FakeRoom extends Fake implements BeaconRoomRepositoryPort {
     ];
   }
 }
+
+/// The repository's tree read for [edges]: everyone named, no states.
+List<ForwardTreeEdge> _tree(List<ForwardEdgeEntity> edges) => [
+  for (final edge in edges)
+    ForwardTreeEdge(
+      edge: edge,
+      sender: HelpPathNode.named(userId: edge.senderId, displayName: ''),
+      recipient: HelpPathNode.named(userId: edge.recipientId, displayName: ''),
+      recipientDeclined: false,
+      recipientOffer: ForwardRecipientOfferStatus.none,
+    ),
+];
 
 void main() {
   late MockForwardEdgeRepositoryPort forwardEdgeRepo;
@@ -145,8 +159,13 @@ void main() {
     when(helpOfferRepo.fetchAllByBeaconId(beaconId)).thenAnswer(
       (_) async => [activeHelpOffer],
     );
-    when(forwardEdgeRepo.fetchByBeaconId(beaconId)).thenAnswer(
-      (_) async => allEdges,
+    when(
+      forwardEdgeRepo.fetchForwardTree(
+        beaconId: beaconId,
+        viewerId: anyNamed('viewerId'),
+      ),
+    ).thenAnswer(
+      (_) async => _tree(allEdges),
     );
   });
 
@@ -169,7 +188,12 @@ void main() {
       );
 
       verifyNever(beaconRepo.getBeaconById(beaconId: anyNamed('beaconId')));
-      verifyNever(forwardEdgeRepo.fetchByBeaconId(any));
+      verifyNever(
+        forwardEdgeRepo.fetchForwardTree(
+          beaconId: anyNamed('beaconId'),
+          viewerId: anyNamed('viewerId'),
+        ),
+      );
       verifyNever(helpOfferRepo.fetchAllByBeaconId(any));
     });
   });
@@ -196,7 +220,7 @@ void main() {
       expect(res.helpOffererIds, [helpOffererId]);
     });
 
-    test('involved hop viewer sees their edges, help-offerer seeds, and ancestors',
+    test('an involved forwarder is given every forward edge of the beacon',
         () async {
       final res = await case_.asMap(
         beaconId: beaconId,
@@ -208,12 +232,13 @@ void main() {
         {
           edgeAuthorToHop.id,
           edgeHopToHelpOfferer.id,
+          edgeAuthorToBranch.id,
           edgeAuthorDirectToHelpOfferer.id,
         },
       );
     });
 
-    test('help offerer sees their inbound edges and ancestor chain', () async {
+    test('a help offerer is given every forward edge of the beacon', () async {
       final res = await case_.asMap(
         beaconId: beaconId,
         currentUserId: helpOffererId,
@@ -224,12 +249,13 @@ void main() {
         {
           edgeAuthorToHop.id,
           edgeHopToHelpOfferer.id,
+          edgeAuthorToBranch.id,
           edgeAuthorDirectToHelpOfferer.id,
         },
       );
     });
 
-    test('viewer on unrelated branch sees only their edge when no help offerers',
+    test('a recipient is given every forward edge when there are no help offers',
         () async {
       when(helpOfferRepo.fetchAllByBeaconId(beaconId)).thenAnswer(
         (_) async => [],
@@ -240,13 +266,13 @@ void main() {
         currentUserId: branchRecipientId,
       );
 
-      expect(res.edges.map((e) => e.id).toList(), [edgeAuthorToBranch.id]);
+      expect(res.edges.map((e) => e.id), allEdges.map((e) => e.id));
       expect(res.helpOffererIds, isEmpty);
     });
   });
 
   group('help offerer seeding', () {
-    test('withdrawn help offerer edges are not auto-seeded for author',
+    test('the author is given every forward edge after an offer is withdrawn',
         () async {
       when(helpOfferRepo.fetchAllByBeaconId(beaconId)).thenAnswer(
         (_) async => [activeHelpOffer.copyWith(status: 1)],
@@ -261,6 +287,7 @@ void main() {
         res.edges.map((e) => e.id).toSet(),
         {
           edgeAuthorToHop.id,
+          edgeHopToHelpOfferer.id,
           edgeAuthorToBranch.id,
           edgeAuthorDirectToHelpOfferer.id,
         },
@@ -329,13 +356,18 @@ void main() {
       when(helpOfferRepo.fetchAllByBeaconId(beaconId)).thenAnswer(
         (_) async => [],
       );
-      when(forwardEdgeRepo.fetchByBeaconId(beaconId)).thenAnswer(
-        (_) async => [
+      when(
+        forwardEdgeRepo.fetchForwardTree(
+          beaconId: beaconId,
+          viewerId: anyNamed('viewerId'),
+        ),
+      ).thenAnswer(
+        (_) async => _tree([
           edgeAuthorToHop,
           edgeHopToHelpOfferer,
           edgeAuthorToCarol,
           edgeBobToDave,
-        ],
+        ]),
       );
       room.accessByUserId = {
         bobId: RoomAccessBits.admitted,
@@ -364,7 +396,7 @@ void main() {
       },
     );
 
-    test('another member sees how every current member got in', () async {
+    test('an admitted member is given every forward edge of a Post', () async {
       post();
       final res = await case_.asMap(
         beaconId: beaconId,
@@ -372,21 +404,31 @@ void main() {
       );
       expect(
         res.edges.map((e) => e.id).toSet(),
-        {edgeAuthorToHop.id, edgeHopToHelpOfferer.id, edgeAuthorToCarol.id},
+        {
+          edgeAuthorToHop.id,
+          edgeHopToHelpOfferer.id,
+          edgeAuthorToCarol.id,
+          edgeBobToDave.id,
+        },
       );
     });
 
-    test('someone who left the chat is not seeded', () async {
+    test('the edge set keeps edges to people who left the chat', () async {
       post();
       final res = await case_.asMap(
         beaconId: beaconId,
         currentUserId: eveId,
       );
-      expect(res.edges.map((e) => e.id), isNot(contains(edgeBobToDave.id)));
+      expect(res.edges.map((e) => e.id).toSet(), {
+        edgeAuthorToHop.id,
+        edgeHopToHelpOfferer.id,
+        edgeAuthorToCarol.id,
+        edgeBobToDave.id,
+      });
     });
 
     test(
-      'a viewer who left the chat sees only their own chain, not the members',
+      'a recipient who left the chat is still given every forward edge',
       () async {
         post();
         final res = await case_.asMap(
@@ -395,13 +437,18 @@ void main() {
         );
         expect(
           res.edges.map((e) => e.id).toSet(),
-          {edgeAuthorToHop.id, edgeBobToDave.id},
+          {
+            edgeAuthorToHop.id,
+            edgeHopToHelpOfferer.id,
+            edgeAuthorToCarol.id,
+            edgeBobToDave.id,
+          },
         );
       },
     );
 
     test(
-      'a forwarded viewer who never joined does not see the members',
+      'a recipient who never joined the chat is given every forward edge',
       () async {
         post();
         const frankId = 'U0000000000000000000000006';
@@ -412,20 +459,31 @@ void main() {
           recipientId: frankId,
           createdAt: now.add(const Duration(seconds: 5)),
         );
-        when(forwardEdgeRepo.fetchByBeaconId(beaconId)).thenAnswer(
-          (_) async => [
+        when(
+          forwardEdgeRepo.fetchForwardTree(
+            beaconId: beaconId,
+            viewerId: anyNamed('viewerId'),
+          ),
+        ).thenAnswer(
+          (_) async => _tree([
             edgeAuthorToHop,
             edgeHopToHelpOfferer,
             edgeAuthorToCarol,
             edgeBobToDave,
             edgeAuthorToFrank,
-          ],
+          ]),
         );
         final res = await case_.asMap(
           beaconId: beaconId,
           currentUserId: frankId,
         );
-        expect(res.edges.map((e) => e.id).toSet(), {edgeAuthorToFrank.id});
+        expect(res.edges.map((e) => e.id).toSet(), {
+          edgeAuthorToHop.id,
+          edgeHopToHelpOfferer.id,
+          edgeAuthorToCarol.id,
+          edgeBobToDave.id,
+          edgeAuthorToFrank.id,
+        });
       },
     );
 
@@ -447,7 +505,8 @@ void main() {
       );
     });
 
-    test('a Request does not read room members', () async {
+    test('a Request participant is given every forward edge without reading '
+        'room members', () async {
       when(helpOfferRepo.fetchAllByBeaconId(beaconId)).thenAnswer(
         (_) async => [],
       );
@@ -458,7 +517,7 @@ void main() {
       );
       expect(
         res.edges.map((e) => e.id).toSet(),
-        {edgeAuthorToHop.id, edgeHopToHelpOfferer.id},
+        allEdges.map((e) => e.id).toSet(),
       );
       expect(room.listCalls, 0);
     });

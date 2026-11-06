@@ -1,5 +1,6 @@
 import 'package:tentura_server/domain/entity/forward_batch_create_result.dart';
 import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
+import 'package:tentura_server/domain/entity/forward_tree_edge.dart';
 import 'package:tentura_server/domain/entity/help_path_node.dart';
 
 abstract class ForwardEdgeRepositoryPort {
@@ -40,6 +41,14 @@ abstract class ForwardEdgeRepositoryPort {
   });
 
   Future<List<ForwardEdgeEntity>> fetchByBeaconId(String beaconId);
+
+  /// Every non-cancelled edge of [beaconId] in creation order, read in one
+  /// set-wise query: both ends as person nodes for [viewerId] (anonymous
+  /// when a block hides them either way) and the recipient's states.
+  Future<List<ForwardTreeEdge>> fetchForwardTree({
+    required String beaconId,
+    required String viewerId,
+  });
 
   /// Recursive ancestor closure for `BeaconHelpOffererForwardPathCase`.
   ///

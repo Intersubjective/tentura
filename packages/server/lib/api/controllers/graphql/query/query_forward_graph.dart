@@ -5,9 +5,9 @@ import '../gql_nodel_base.dart';
 import '../input/_input_types.dart';
 import '../mappers/gql_v2_dto_maps.dart';
 
-/// Root query field [beaconForwardGraph]: edges visible to the viewer plus the
-/// ancestor closure and the chain that delivered the beacon to each active
-/// help offerer. See [BeaconForwardGraphCase] for the visibility model.
+/// Root query field [beaconForwardGraph]: the whole forward tree with
+/// per-recipient states for chain participants, the chains to help offerers
+/// for other involved viewers. See [BeaconForwardGraphCase] for the model.
 final class QueryForwardGraph extends GqlNodeBase {
   QueryForwardGraph({BeaconForwardGraphCase? beaconForwardGraphCase})
     : _beaconForwardGraphCase =

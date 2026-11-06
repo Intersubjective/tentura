@@ -3,7 +3,10 @@ import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/entity/forward_batch_create_result.dart';
 import 'package:tentura_server/domain/entity/forward_edge_created.dart';
+import 'package:tentura_server/domain/entity/author_invite.dart';
 import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
+import 'package:tentura_server/domain/entity/forward_tree_edge.dart';
+import 'package:tentura_server/domain/entity/help_offer_admission_event.dart';
 import 'package:tentura_server/domain/entity/help_path_node.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
 
@@ -199,6 +202,84 @@ class ForwardEdgeRepository implements ForwardEdgeRepositoryPort {
       .orderBy((e) => e.createdAt.desc())
       .get()
       .then((rows) => rows.map(_toEntity).toList());
+
+  @override
+  Future<List<ForwardTreeEdge>> fetchForwardTree({
+    required String beaconId,
+    required String viewerId,
+  }) => _database
+      .customSelect(
+        '''
+WITH live AS (
+  SELECT * FROM public.beacon_forward_edge
+  WHERE beacon_id = \$1 AND cancelled_at IS NULL
+),
+admission AS (
+  SELECT DISTINCT ON (offer_user_id) offer_user_id, action
+  FROM public.beacon_help_offer_admission_event
+  WHERE beacon_id = \$1
+  ORDER BY offer_user_id, seq DESC
+)
+SELECT live.*,
+  sender.display_name AS sender_name,
+  recipient.display_name AS recipient_name,
+  public.block_hides(\$2, live.sender_id) AS sender_hidden,
+  public.block_hides(\$2, live.recipient_id) AS recipient_hidden,
+  live.recipient_rejected OR EXISTS (
+    SELECT 1 FROM public.beacon_author_invite invite
+    WHERE invite.forward_edge_id = live.id
+      AND invite.status = ${AuthorInviteStatus.declined.code}
+  ) AS recipient_declined,
+  CASE
+    WHEN offer.user_id IS NULL THEN '${ForwardRecipientOfferStatus.none.name}'
+    WHEN admission.action IN (${HelpOfferAdmissionAction.decline.smallintValue},
+                              ${HelpOfferAdmissionAction.remove.smallintValue})
+      THEN '${ForwardRecipientOfferStatus.declinedByAuthor.name}'
+    WHEN offer.status = 1 THEN '${ForwardRecipientOfferStatus.withdrawn.name}'
+    WHEN admission.action IN (${HelpOfferAdmissionAction.autoAdmit.smallintValue},
+                              ${HelpOfferAdmissionAction.accept.smallintValue})
+      THEN '${ForwardRecipientOfferStatus.accepted.name}'
+    ELSE '${ForwardRecipientOfferStatus.offered.name}'
+  END AS recipient_offer
+FROM live
+JOIN public."user" sender ON sender.id = live.sender_id
+JOIN public."user" recipient ON recipient.id = live.recipient_id
+LEFT JOIN public.beacon_help_offer offer
+  ON offer.beacon_id = live.beacon_id AND offer.user_id = live.recipient_id
+LEFT JOIN admission ON admission.offer_user_id = live.recipient_id
+ORDER BY live.created_at, live.id
+''',
+        variables: [
+          Variable.withString(beaconId),
+          Variable.withString(viewerId),
+        ],
+        readsFrom: {
+          _database.beaconForwardEdges,
+          _database.users,
+          _database.beaconHelpOffers,
+          _database.beaconHelpOfferAdmissionEvents,
+        },
+      )
+      .map((row) {
+        final edge = _toEntity(_database.beaconForwardEdges.map(row.data));
+        HelpPathNode person(String id, String side) =>
+            row.read<bool>('${side}_hidden')
+            ? const HelpPathNode.anonymous(1)
+            : HelpPathNode.named(
+                userId: id,
+                displayName: row.read<String>('${side}_name'),
+              );
+        return ForwardTreeEdge(
+          edge: edge,
+          sender: person(edge.senderId, 'sender'),
+          recipient: person(edge.recipientId, 'recipient'),
+          recipientDeclined: row.read<bool>('recipient_declined'),
+          recipientOffer: ForwardRecipientOfferStatus.values.byName(
+            row.read<String>('recipient_offer'),
+          ),
+        );
+      })
+      .get();
 
   @override
   Future<List<ForwardEdgeEntity>> fetchHelpOffererPathChain({

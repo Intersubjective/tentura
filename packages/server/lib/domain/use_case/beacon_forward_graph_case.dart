@@ -5,7 +5,7 @@ import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/entity/gql_public/forward_graph_result.dart';
 import 'package:tentura_server/domain/entity/help_offer_entity.dart';
-import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
+import 'package:tentura_server/domain/entity/forward_tree_edge.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/beacon_access_guard.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
@@ -15,16 +15,16 @@ import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
 
 import '_use_case_base.dart';
 
-ForwardGraphEdgeResult _edgeToResult(ForwardEdgeEntity e) => ForwardGraphEdgeResult(
-      id: e.id,
-      beaconId: e.beaconId,
-      senderId: e.senderId,
-      recipientId: e.recipientId,
-      parentEdgeId: e.parentEdgeId,
-      batchId: e.batchId,
-    );
-
-/// Builds the edge set powering the V2 `beaconForwardGraph` query.
+/// Builds the forward tree powering the V2 `beaconForwardGraph` query.
+///
+/// A chain participant gets every live edge: the author, anyone who sent or
+/// received a live edge, anyone with a help offer (any status) and, for a
+/// Post, admitted room members. Other viewers who may read involvement get
+/// the chains to active help offerers (and, for a Post steward, to admitted
+/// members) with their ancestors.
+///
+/// Reading the tree never changes visibility, trust or anchors: everyone in
+/// it is named unless a block hides them from the viewer.
 @Singleton(order: 2)
 final class BeaconForwardGraphCase extends UseCaseBase {
   BeaconForwardGraphCase(
@@ -58,12 +58,15 @@ final class BeaconForwardGraphCase extends UseCaseBase {
 
     final results = await Future.wait([
       _beaconRepository.getBeaconById(beaconId: beaconId),
-      _forwardEdgeRepository.fetchByBeaconId(beaconId),
+      _forwardEdgeRepository.fetchForwardTree(
+        beaconId: beaconId,
+        viewerId: currentUserId,
+      ),
       _helpOfferRepository.fetchAllByBeaconId(beaconId),
     ]);
 
     final beacon = results[0] as BeaconEntity;
-    final allEdges = results[1] as List<ForwardEdgeEntity>;
+    final tree = results[1] as List<ForwardTreeEdge>;
     final helpOffers = results[2] as List<HelpOfferEntity>;
 
     final authorId = beacon.author.id;
@@ -72,64 +75,104 @@ final class BeaconForwardGraphCase extends UseCaseBase {
         .map((c) => c.userId)
         .toSet();
 
-    final edgeById = <String, ForwardEdgeEntity>{
-      for (final e in allEdges) e.id: e,
-    };
-
-    // A Post has no help offers: show how each current room member got in,
-    // e.g. a member who joined through another member's invite (#718).
-    // The member list is room-only, so only the author, a steward or an
-    // admitted member gets these seeds; a viewer who only holds a forward
-    // edge or who left the chat sees just their own chain.
-    var roomMemberIds = const <String>{};
+    // A Post has no help offers: admitted room members take part (#718).
+    var admittedIds = const <String>{};
     if (beacon.kind == BeaconKind.post) {
-      final admittedIds = (await _roomRepository.listParticipants(beaconId))
+      admittedIds = (await _roomRepository.listParticipants(beaconId))
           .where((p) => p.roomAccess == RoomAccessBits.admitted)
           .map((p) => p.userId)
           .toSet();
-      if (currentUserId == authorId ||
-          admittedIds.contains(currentUserId) ||
-          await _roomRepository.isBeaconSteward(
-            beaconId: beaconId,
-            userId: currentUserId,
-          )) {
-        roomMemberIds = admittedIds;
-      }
     }
 
-    final seedIds = <String>{};
-    for (final e in allEdges) {
-      if (e.senderId == currentUserId || e.recipientId == currentUserId) {
-        seedIds.add(e.id);
-      }
-      if (helpOffererIds.contains(e.recipientId)) {
-        seedIds.add(e.id);
-      }
-      if (roomMemberIds.contains(e.recipientId)) {
-        seedIds.add(e.id);
-      }
-    }
+    final isParticipant =
+        currentUserId == authorId ||
+        admittedIds.contains(currentUserId) ||
+        helpOffers.any((offer) => offer.userId == currentUserId) ||
+        tree.any(
+          (e) =>
+              e.edge.senderId == currentUserId ||
+              e.edge.recipientId == currentUserId,
+        );
 
-    final visibleIds = <String>{};
-    for (final id in seedIds) {
-      var cursor = edgeById[id];
-      while (cursor != null && visibleIds.add(cursor.id)) {
-        final parentId = cursor.parentEdgeId;
-        if (parentId == null) break;
-        cursor = edgeById[parentId];
-      }
-    }
+    final visible = isParticipant
+        ? tree
+        : _chainsToSeeds(
+            tree,
+            seedRecipientIds: {
+              ...helpOffererIds,
+              // A steward reads how each current member of a Post got in.
+              if (admittedIds.isNotEmpty &&
+                  await _roomRepository.isBeaconSteward(
+                    beaconId: beaconId,
+                    userId: currentUserId,
+                  ))
+                ...admittedIds,
+            },
+          );
 
-    final visibleEdges = visibleIds
-        .map((id) => edgeById[id]!)
-        .toList()
-      ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+    final forwardedOnIds = {
+      for (final e in tree)
+        if (e.edge.parentEdgeId != null) e.edge.parentEdgeId!,
+    };
 
     return ForwardGraphResult(
       beaconId: beaconId,
       authorId: authorId,
       helpOffererIds: helpOffererIds.toList(),
-      edges: visibleEdges.map(_edgeToResult).toList(),
+      edges: [
+        for (final e in visible)
+          _edgeToResult(
+            e,
+            forwardedOn: forwardedOnIds.contains(e.edge.id),
+            // Read and «can't make it» states are private to the author and
+            // the sender of that edge.
+            showPrivate:
+                currentUserId == authorId || currentUserId == e.edge.senderId,
+          ),
+      ],
     );
   }
+
+  /// Edges delivering the beacon to [seedRecipientIds], with their ancestors,
+  /// in tree order.
+  static List<ForwardTreeEdge> _chainsToSeeds(
+    List<ForwardTreeEdge> tree, {
+    required Set<String> seedRecipientIds,
+  }) {
+    final edgeById = {for (final e in tree) e.edge.id: e};
+    final visibleIds = <String>{};
+    for (final seed in tree) {
+      if (!seedRecipientIds.contains(seed.edge.recipientId)) continue;
+      ForwardTreeEdge? cursor = seed;
+      while (cursor != null && visibleIds.add(cursor.edge.id)) {
+        final parentId = cursor.edge.parentEdgeId;
+        if (parentId == null) break;
+        cursor = edgeById[parentId];
+      }
+    }
+    return [
+      for (final e in tree)
+        if (visibleIds.contains(e.edge.id)) e,
+    ];
+  }
+
+  static ForwardTreeEdgeResult _edgeToResult(
+    ForwardTreeEdge e, {
+    required bool forwardedOn,
+    required bool showPrivate,
+  }) => ForwardTreeEdgeResult(
+    id: e.edge.id,
+    beaconId: e.edge.beaconId,
+    senderId: e.edge.senderId,
+    recipientId: e.edge.recipientId,
+    parentEdgeId: e.edge.parentEdgeId,
+    batchId: e.edge.batchId,
+    createdAt: e.edge.createdAt,
+    sender: e.sender,
+    recipient: e.recipient,
+    forwardedOn: forwardedOn,
+    offerStatus: e.recipientOffer,
+    readAt: showPrivate ? e.edge.recipientReadAt : null,
+    declinedInvite: showPrivate ? e.recipientDeclined : null,
+  );
 }

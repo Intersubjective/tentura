@@ -1,5 +1,7 @@
 import 'package:graphql_schema2/graphql_schema2.dart';
 
+import 'package:tentura_server/domain/entity/forward_tree_edge.dart';
+
 import 'input/_input_types.dart';
 
 final gqlTypeConstellationTrustChainPerson =
@@ -38,6 +40,7 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeBeaconInvolvement,
   gqlTypeForwardDeliveryResult,
   gqlTypeForwardGraphEdge,
+  gqlEnumForwardRecipientOfferStatus,
   gqlTypeForwardGraphResult,
   gqlTypeHelpPathNode,
   gqlTypeForwardCandidateConnectionNode,
@@ -990,7 +993,22 @@ final gqlTypeForwardGraphEdge = GraphQLObjectType('ForwardGraphEdge', null)
     field('recipientId', graphQLString.nonNullable()),
     field('parentEdgeId', graphQLString),
     field('batchId', graphQLString),
+    // beaconForwardGraph only: replay time, both ends and recipient states.
+    // readAt and declinedInvite are null unless the viewer is the author or
+    // this edge's sender.
+    field('createdAt', graphQLString.nonNullable()),
+    field('sender', gqlTypeHelpPathNode.nonNullable()),
+    field('recipient', gqlTypeHelpPathNode.nonNullable()),
+    field('forwardedOn', graphQLBoolean.nonNullable()),
+    field('offerStatus', gqlEnumForwardRecipientOfferStatus.nonNullable()),
+    field('readAt', graphQLString),
+    field('declinedInvite', graphQLBoolean),
   ]);
+
+final gqlEnumForwardRecipientOfferStatus = enumTypeFromStrings(
+  'ForwardRecipientOfferStatus',
+  [for (final status in ForwardRecipientOfferStatus.values) status.name],
+);
 
 /// A named participant or a consecutive run of people hidden by a block.
 final gqlTypeHelpPathNode = GraphQLObjectType('HelpPathNode', null)

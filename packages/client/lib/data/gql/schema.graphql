@@ -8496,9 +8496,16 @@ type v2_ForwardDeliveryResult {
 type v2_ForwardGraphEdge {
   batchId: String
   beaconId: String!
+  createdAt: String!
+  declinedInvite: Boolean
+  forwardedOn: Boolean!
   id: String!
+  offerStatus: v2_ForwardRecipientOfferStatus!
   parentEdgeId: String
+  readAt: String
+  recipient: v2_HelpPathNode!
   recipientId: String!
+  sender: v2_HelpPathNode!
   senderId: String!
 }
 
@@ -8523,6 +8530,14 @@ type v2_ForwardInboundEdge {
   isSuggestedSource: Boolean!
   senderId: String!
   senderName: String!
+}
+
+enum v2_ForwardRecipientOfferStatus {
+  accepted
+  declinedByAuthor
+  none
+  offered
+  withdrawn
 }
 
 type v2_ForwardReach {

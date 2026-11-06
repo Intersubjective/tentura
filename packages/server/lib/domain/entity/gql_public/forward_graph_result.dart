@@ -1,5 +1,6 @@
 import 'package:meta/meta.dart';
 
+import '../forward_tree_edge.dart';
 import '../help_path_node.dart';
 
 /// One forward edge in the V2 forwards-graph view (GraphQL `ForwardGraphEdge`).
@@ -20,6 +21,39 @@ class ForwardGraphEdgeResult {
   final String recipientId;
   final String? parentEdgeId;
   final String? batchId;
+}
+
+/// An edge of the whole forward tree served by `beaconForwardGraph`, with
+/// both ends as person nodes and the recipient's states. [readAt] and
+/// [declinedInvite] are null unless the viewer is the author or the sender
+/// of this edge.
+@immutable
+class ForwardTreeEdgeResult extends ForwardGraphEdgeResult {
+  const ForwardTreeEdgeResult({
+    required super.id,
+    required super.beaconId,
+    required super.senderId,
+    required super.recipientId,
+    required this.createdAt,
+    required this.sender,
+    required this.recipient,
+    required this.forwardedOn,
+    required this.offerStatus,
+    super.parentEdgeId,
+    super.batchId,
+    this.readAt,
+    this.declinedInvite,
+  });
+
+  final DateTime createdAt;
+  final HelpPathNode sender;
+  final HelpPathNode recipient;
+
+  /// The recipient forwarded the beacon on (has live child edges).
+  final bool forwardedOn;
+  final ForwardRecipientOfferStatus offerStatus;
+  final DateTime? readAt;
+  final bool? declinedInvite;
 }
 
 /// Result of `beaconForwardGraph` / `beaconHelpOffererForwardPath`

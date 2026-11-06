@@ -12,6 +12,7 @@ import 'package:tentura_server/domain/entity/gql_public/beacon_image_staged_resu
 import 'package:tentura_server/domain/entity/gql_public/beacon_involvement_result.dart';
 import 'package:tentura_server/domain/entity/gql_public/beacon_status_result.dart';
 import 'package:tentura_server/domain/entity/gql_public/forward_graph_result.dart';
+import 'package:tentura_server/domain/entity/help_path_node.dart';
 
 Map<String, dynamic> beaconCancelResultToGqlMap(BeaconCancelResult dto) => {
   'id': dto.id,
@@ -48,6 +49,21 @@ Map<String, dynamic> forwardGraphEdgeToGqlMap(ForwardGraphEdgeResult dto) => {
   'recipientId': dto.recipientId,
   'parentEdgeId': dto.parentEdgeId,
   'batchId': dto.batchId,
+  if (dto case final ForwardTreeEdgeResult tree) ...{
+    'createdAt': tree.createdAt.toUtc().toIso8601String(),
+    'sender': helpPathNodeToGqlMap(tree.sender),
+    'recipient': helpPathNodeToGqlMap(tree.recipient),
+    'forwardedOn': tree.forwardedOn,
+    'offerStatus': tree.offerStatus.name,
+    'readAt': tree.readAt?.toUtc().toIso8601String(),
+    'declinedInvite': tree.declinedInvite,
+  },
+};
+
+Map<String, dynamic> helpPathNodeToGqlMap(HelpPathNode node) => {
+  'userId': node.userId,
+  'displayName': node.displayName,
+  'anonymousCount': node.anonymousCount,
 };
 
 Map<String, dynamic> forwardGraphResultToGqlMap(ForwardGraphResult dto) => {
@@ -56,14 +72,7 @@ Map<String, dynamic> forwardGraphResultToGqlMap(ForwardGraphResult dto) => {
   'viewerId': dto.viewerId,
   'helpOffererIds': dto.helpOffererIds,
   'edges': dto.edges.map(forwardGraphEdgeToGqlMap).toList(),
-  'path': [
-    for (final node in dto.path)
-      {
-        'userId': node.userId,
-        'displayName': node.displayName,
-        'anonymousCount': node.anonymousCount,
-      },
-  ],
+  'path': dto.path.map(helpPathNodeToGqlMap).toList(),
 };
 
 Map<String, dynamic> myForwardRecipientToGqlMap(MyForwardRecipientResult dto) =>
