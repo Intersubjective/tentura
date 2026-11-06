@@ -442,6 +442,8 @@ void main() {
         maxHops: 3,
         viewportClass: ConstellationViewportClass.expanded,
         footprints: footprints,
+        rearrangeOwnTagPeopleByTagId: const <String, Set<String>>{},
+        rearrangeTagMagnetsByTagId: const <String, ConstellationPoint>{},
       );
     }
 
@@ -518,6 +520,8 @@ void main() {
         maxHops: 3,
         viewportClass: ConstellationViewportClass.expanded,
         footprints: const <String, ConstellationFootprint>{},
+        rearrangeOwnTagPeopleByTagId: const <String, Set<String>>{},
+        rearrangeTagMagnetsByTagId: const <String, ConstellationPoint>{},
       );
       final withFootprints = (
         egoId: base.egoId,
@@ -551,6 +555,8 @@ void main() {
               metrics: _sampleMetrics,
             ),
         },
+        rearrangeOwnTagPeopleByTagId: const <String, Set<String>>{},
+        rearrangeTagMagnetsByTagId: const <String, ConstellationPoint>{},
       );
       final emptyLayout = computeConstellationPlacedLayout(input: base);
       final footprintLayout = computeConstellationPlacedLayout(
@@ -585,6 +591,8 @@ void main() {
           'a': (left: 50.0, top: 50.0, right: 50.0, bottom: 50.0),
           'b': (left: 50.0, top: 50.0, right: 50.0, bottom: 50.0),
         },
+        rearrangeOwnTagPeopleByTagId: const <String, Set<String>>{},
+        rearrangeTagMagnetsByTagId: const <String, ConstellationPoint>{},
       );
       final centre = _centre();
       final layout = (
@@ -619,6 +627,8 @@ void main() {
           'a': (left: 50.0, top: 50.0, right: 50.0, bottom: 50.0),
           'b': (left: 50.0, top: 50.0, right: 50.0, bottom: 50.0),
         },
+        rearrangeOwnTagPeopleByTagId: const <String, Set<String>>{},
+        rearrangeTagMagnetsByTagId: const <String, ConstellationPoint>{},
       );
       final centre = _centre();
       final layout = (
@@ -649,6 +659,8 @@ void main() {
           'a': (left: 10.0, top: 10.0, right: 10.0, bottom: 10.0),
           'b': (left: 10.0, top: 10.0, right: 10.0, bottom: 10.0),
         },
+        rearrangeOwnTagPeopleByTagId: const <String, Set<String>>{},
+        rearrangeTagMagnetsByTagId: const <String, ConstellationPoint>{},
       );
       final centre = _centre();
       final layout = (
@@ -730,6 +742,8 @@ void main() {
           'req-a': (left: 30.0, top: 30.0, right: 30.0, bottom: 60.0),
           'req-b': (left: 30.0, top: 30.0, right: 30.0, bottom: 60.0),
         },
+        rearrangeOwnTagPeopleByTagId: const <String, Set<String>>{},
+        rearrangeTagMagnetsByTagId: const <String, ConstellationPoint>{},
       );
       final layout = computeConstellationPlacedLayout(input: input);
       expect(layout.positions['req-a'], point);
@@ -776,6 +790,8 @@ void main() {
         maxHops: 3,
         viewportClass: ConstellationViewportClass.expanded,
         footprints: const <String, ConstellationFootprint>{},
+        rearrangeOwnTagPeopleByTagId: const <String, Set<String>>{},
+        rearrangeTagMagnetsByTagId: const <String, ConstellationPoint>{},
       );
       final layout = computeConstellationPlacedLayout(input: input);
       final authorPos = layout.positions['author']!;
@@ -821,6 +837,8 @@ void main() {
         maxHops: 3,
         viewportClass: ConstellationViewportClass.expanded,
         footprints: const <String, ConstellationFootprint>{},
+        rearrangeOwnTagPeopleByTagId: const <String, Set<String>>{},
+        rearrangeTagMagnetsByTagId: const <String, ConstellationPoint>{},
       );
       final layoutWithBlocker = computeConstellationPlacedLayout(
         input: (
@@ -849,6 +867,8 @@ void main() {
           maxHops: input.maxHops,
           viewportClass: input.viewportClass,
           footprints: input.footprints,
+          rearrangeOwnTagPeopleByTagId: input.rearrangeOwnTagPeopleByTagId,
+          rearrangeTagMagnetsByTagId: input.rearrangeTagMagnetsByTagId,
         ),
       );
       final baseline = computeConstellationPlacedLayout(input: input);
@@ -908,6 +928,8 @@ void main() {
         maxHops: 3,
         viewportClass: ConstellationViewportClass.expanded,
         footprints: footprints,
+        rearrangeOwnTagPeopleByTagId: const <String, Set<String>>{},
+        rearrangeTagMagnetsByTagId: const <String, ConstellationPoint>{},
       );
     }
 

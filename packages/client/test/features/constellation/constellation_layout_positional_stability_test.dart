@@ -89,6 +89,8 @@ ConstellationLayout _place(
       maxHops: 3,
       viewportClass: ConstellationViewportClass.expanded,
       footprints: const {},
+      rearrangeOwnTagPeopleByTagId: const <String, Set<String>>{},
+      rearrangeTagMagnetsByTagId: const <String, ConstellationPoint>{},
     ),
   );
 }

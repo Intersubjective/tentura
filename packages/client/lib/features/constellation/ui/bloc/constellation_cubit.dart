@@ -1160,8 +1160,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
               expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
               selectedRequestWebs: _holderWebs,
               extraKeptPeerIds: _extraKeptPeerIds,
-            searchRevealedBeaconIds: _searchRevealedBeaconIds,
-            searchRevealedPersonIds: _searchRevealedPersonIds,
+              searchRevealedBeaconIds: _searchRevealedBeaconIds,
+              searchRevealedPersonIds: _searchRevealedPersonIds,
             ),
           );
     emit(
@@ -2217,8 +2217,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
               expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
               selectedRequestWebs: _holderWebs,
               extraKeptPeerIds: _extraKeptPeerIds,
-            searchRevealedBeaconIds: _searchRevealedBeaconIds,
-            searchRevealedPersonIds: _searchRevealedPersonIds,
+              searchRevealedBeaconIds: _searchRevealedBeaconIds,
+              searchRevealedPersonIds: _searchRevealedPersonIds,
             ),
           );
     emit(
@@ -2926,8 +2926,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
         selectedRequestWebs: _holderWebs,
         extraKeptPeerIds: _extraKeptPeerIds,
-      searchRevealedBeaconIds: _searchRevealedBeaconIds,
-      searchRevealedPersonIds: _searchRevealedPersonIds,
+        searchRevealedBeaconIds: _searchRevealedBeaconIds,
+        searchRevealedPersonIds: _searchRevealedPersonIds,
       );
       emit(
         state.copyWith(
@@ -3051,6 +3051,19 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       return;
     }
     final snapshot = graphController.renderSnapshot;
+    final rearrangeOwnTagPeopleByTagId = kPeopleTagsEnabled
+        ? rearrangeOwnTagPeopleFromComposition(
+            viewerId: _viewer.id,
+            composition: composition,
+          )
+        : const <String, Set<String>>{};
+    final rearrangeTagMagnetsByTagId =
+        kPeopleTagsEnabled && _tagMagnets.isNotEmpty
+        ? {
+            for (final MapEntry(:key, :value) in _tagMagnets.entries)
+              key: (x: value.dx, y: value.dy),
+          }
+        : const <String, ConstellationPoint>{};
     final input = layoutInputFromComposition(
       viewerId: _viewer.id,
       composition: composition,
@@ -3065,6 +3078,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       },
       spacing: 16,
       footprints: layoutFootprints,
+      rearrangeOwnTagPeopleByTagId: rearrangeOwnTagPeopleByTagId,
+      rearrangeTagMagnetsByTagId: rearrangeTagMagnetsByTagId,
     );
     final rearranged = computeConstellationRearrangeAll(input);
     var moving = 0;
@@ -3091,9 +3106,12 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
           movingCount: moving,
           pinnedWrites: {
             for (final anchor in composition.anchorOverlay.anchors)
-              if (rearranged.pinned[anchor.target.graphNodeId]
-                  case final point?)
+              if (rearranged.pinned[anchor.target.id] case final point?)
                 anchor.target: constellationPointToV1Anchor(point),
+            for (final MapEntry(:key, :value) in rearranged.pinned.entries)
+              if (!input.anchorByNodeId.containsKey(key))
+                ConstellationAnchorTarget.person(key):
+                    constellationPointToV1Anchor(value),
           },
         ),
       ),
@@ -4378,8 +4396,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   void focusFieldSearchPerson(
     String personId, {
     required EdgeInsets insets,
-  }) =>
-      pickFieldSearchPerson(personId, insets: insets);
+  }) => pickFieldSearchPerson(personId, insets: insets);
 
   void focusFieldSearchBeacon({
     required String beaconId,
@@ -4398,7 +4415,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         title: title,
         status: status,
         hidden: hidden,
-        lastActivityAt: lastActivityAt ?? state.loadedAt ?? DateTime.now().toUtc(),
+        lastActivityAt:
+            lastActivityAt ?? state.loadedAt ?? DateTime.now().toUtc(),
       ),
       insets: insets,
       isPost: isPost,
@@ -4592,8 +4610,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
               expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
               selectedRequestWebs: _holderWebs,
               extraKeptPeerIds: _extraKeptPeerIds,
-            searchRevealedBeaconIds: _searchRevealedBeaconIds,
-            searchRevealedPersonIds: _searchRevealedPersonIds,
+              searchRevealedBeaconIds: _searchRevealedBeaconIds,
+              searchRevealedPersonIds: _searchRevealedPersonIds,
             ),
           );
     emit(

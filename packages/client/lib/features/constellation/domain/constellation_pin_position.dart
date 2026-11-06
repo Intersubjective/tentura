@@ -11,6 +11,29 @@ int _pinLayoutRunCount = 0;
 @visibleForTesting
 int get constellationPinLayoutRunCount => _pinLayoutRunCount;
 
+/// Inverts each automatic peer's own tag ids into tag id → member ids for the
+/// rearrange-everyone pass.
+Map<String, Set<String>> rearrangeOwnTagPeopleFromComposition({
+  required String viewerId,
+  required ConstellationComposedPresentation composition,
+}) {
+  final eligible = <String>{
+    ...composition.keptPeerIds,
+    for (final p in composition.anchorOverlay.pinnedPeers) p.id,
+    for (final p in composition.anchorOverlay.supportPeers) p.id,
+  };
+  final byTag = <String, Set<String>>{};
+  for (final peer in composition.automatic.peers) {
+    if (peer.id == viewerId || !eligible.contains(peer.id)) {
+      continue;
+    }
+    for (final tagId in peer.ownTagIds) {
+      byTag.putIfAbsent(tagId, () => {}).add(peer.id);
+    }
+  }
+  return byTag;
+}
+
 ConstellationLayout _runPinLayout(ConstellationPlacedLayoutInput input) {
   _pinLayoutRunCount++;
   return computeConstellationPlacedLayout(input: input);
@@ -82,6 +105,10 @@ ConstellationPlacedLayoutInput? _scratchInputAddingTarget({
               maxHops: layoutInput.maxHops,
               viewportClass: layoutInput.viewportClass,
               footprints: layoutInput.footprints,
+              rearrangeOwnTagPeopleByTagId:
+                  layoutInput.rearrangeOwnTagPeopleByTagId,
+              rearrangeTagMagnetsByTagId:
+                  layoutInput.rearrangeTagMagnetsByTagId,
             ),
     ConstellationAnchorBeaconTarget(:final id) => () {
       final authorId = layoutInput.requestAuthorById[id];
@@ -92,10 +119,11 @@ ConstellationPlacedLayoutInput? _scratchInputAddingTarget({
         for (final entry in layoutInput.satelliteRequestIdsByAuthor.entries)
           entry.key: List<String>.from(entry.value),
       };
-      byAuthor.putIfAbsent(authorId, () => <String>[]);
-      if (!byAuthor[authorId]!.contains(id)) {
-        byAuthor[authorId]!.add(id);
-        byAuthor[authorId]!.sort();
+      final list = byAuthor.putIfAbsent(authorId, () => <String>[]);
+      if (!list.contains(id)) {
+        list
+          ..add(id)
+          ..sort();
       }
       return (
         egoId: layoutInput.egoId,
@@ -114,6 +142,8 @@ ConstellationPlacedLayoutInput? _scratchInputAddingTarget({
         maxHops: layoutInput.maxHops,
         viewportClass: layoutInput.viewportClass,
         footprints: layoutInput.footprints,
+        rearrangeOwnTagPeopleByTagId: layoutInput.rearrangeOwnTagPeopleByTagId,
+        rearrangeTagMagnetsByTagId: layoutInput.rearrangeTagMagnetsByTagId,
       );
     }(),
   };
@@ -129,6 +159,8 @@ ConstellationPlacedLayoutInput layoutInputFromComposition({
   ConstellationViewportClass viewportClass =
       ConstellationViewportClass.expanded,
   Map<String, ConstellationFootprint> footprints = const {},
+  Map<String, Set<String>> rearrangeOwnTagPeopleByTagId = const {},
+  Map<String, ConstellationPoint> rearrangeTagMagnetsByTagId = const {},
 }) {
   final anchorByNodeId = constellationAnchorsByNodeId(
     composition.anchorOverlay.anchors,
@@ -201,5 +233,7 @@ ConstellationPlacedLayoutInput layoutInputFromComposition({
     maxHops: 3,
     viewportClass: viewportClass,
     footprints: footprints,
+    rearrangeOwnTagPeopleByTagId: rearrangeOwnTagPeopleByTagId,
+    rearrangeTagMagnetsByTagId: rearrangeTagMagnetsByTagId,
   );
 }
