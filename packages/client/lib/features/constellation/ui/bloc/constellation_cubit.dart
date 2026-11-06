@@ -59,6 +59,7 @@ import '../../domain/entity/constellation_field_search_result.dart';
 import '../../domain/use_case/constellation_person_field_items_case.dart';
 import '../../domain/entity/constellation_field_hidden_item.dart';
 import '../../domain/entity/constellation_field_target_kind.dart';
+import '../../domain/constellation_forward_tree_marker.dart';
 import '../../domain/constellation_forward_tree_overlay.dart';
 import '../../domain/constellation_field_patches.dart';
 import '../../domain/use_case/constellation_visibility_case.dart';
@@ -769,6 +770,17 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
 
   Map<String, double> get forwardTreeEdgePulseBySemanticId =>
       _scene.forwardTreeEdgePulseBySemanticId;
+
+  /// Forward-tree glyph per person id; empty when the overlay is off (#774).
+  Map<String, ConstellationForwardTreeRecipientMarker>
+      get forwardTreeRecipientMarkerByPersonId =>
+          _scene.forwardTreeRecipientMarkerByPersonId;
+
+  Set<String> get forwardTreeTemporaryOutlinePersonIds =>
+      _scene.forwardTreeTemporaryOutlinePersonIds;
+
+  Map<String, int> get forwardTreeAnonymousCountByPersonId =>
+      _scene.forwardTreeAnonymousCountByPersonId;
 
   /// Widget tests: whether «Arrange as tree» installed the radial algorithm.
   @visibleForTesting

@@ -4,7 +4,6 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/domain/entity/profile.dart';
 
-import 'package:tentura/features/constellation/domain/constellation_forward_tree_marker.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/domain/layout/layout_node_spec.dart'
     show FieldBeaconGlyph;
@@ -276,23 +275,11 @@ final class FieldPersonNode extends NodeDetails {
     required this.isKept,
     super.pinned,
     super.size,
-    this.forwardTreeMarker,
-    this.forwardTreeTemporaryOutline = false,
-    this.forwardTreeAnonymousCount = 0,
   });
 
   final Profile person;
   final int ring;
   final bool isKept;
-
-  /// Forward-tree overlay (#774): optional state glyph on the recipient.
-  final ConstellationForwardTreeRecipientMarker? forwardTreeMarker;
-
-  /// Dashed ring: person only appears for this overlay (not on visible set).
-  final bool forwardTreeTemporaryOutline;
-
-  /// When > 0, label shows «+N» ghost (blocked/anonymous endpoint).
-  final int forwardTreeAnonymousCount;
 
   @override
   String get userId => person.id;
@@ -301,8 +288,7 @@ final class FieldPersonNode extends NodeDetails {
   String get id => person.id;
 
   @override
-  String get label =>
-      forwardTreeAnonymousCount > 0 ? '+$forwardTreeAnonymousCount' : person.shownName;
+  String get label => person.shownName;
 
   @override
   bool get hasImage => person.hasAvatar;
@@ -320,9 +306,6 @@ final class FieldPersonNode extends NodeDetails {
     isKept: isKept,
     pinned: isPinned,
     size: size,
-    forwardTreeMarker: forwardTreeMarker,
-    forwardTreeTemporaryOutline: forwardTreeTemporaryOutline,
-    forwardTreeAnonymousCount: forwardTreeAnonymousCount,
   );
 
   @override
@@ -330,10 +313,7 @@ final class FieldPersonNode extends NodeDetails {
       super.hashCode ^
       ring.hashCode ^
       isKept.hashCode ^
-      person.hashCode ^
-      forwardTreeMarker.hashCode ^
-      forwardTreeTemporaryOutline.hashCode ^
-      forwardTreeAnonymousCount.hashCode;
+      person.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -341,10 +321,7 @@ final class FieldPersonNode extends NodeDetails {
       other is FieldPersonNode &&
       other.ring == ring &&
       other.isKept == isKept &&
-      other.person == person &&
-      other.forwardTreeMarker == forwardTreeMarker &&
-      other.forwardTreeTemporaryOutline == forwardTreeTemporaryOutline &&
-      other.forwardTreeAnonymousCount == forwardTreeAnonymousCount;
+      other.person == person;
 }
 
 /// Request or Post satellite on the Constellation field map.

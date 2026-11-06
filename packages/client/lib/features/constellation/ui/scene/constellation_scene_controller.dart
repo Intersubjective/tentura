@@ -148,6 +148,16 @@ class ConstellationSceneController {
   /// Semantic ids of forward-tree edges currently drawn (replay slice order).
   List<String> forwardTreeVisibleSemanticIds = const [];
 
+  /// Overlay-only person decoration: not part of [FieldPersonNode] equality, so
+  /// graph topology stays stable when the overlay toggles or rebuilds (#774,
+  /// placement_phase_node_rebuild_test).
+  Map<String, ConstellationForwardTreeRecipientMarker>
+      forwardTreeRecipientMarkerByPersonId = const {};
+
+  Set<String> forwardTreeTemporaryOutlinePersonIds = const {};
+
+  Map<String, int> forwardTreeAnonymousCountByPersonId = const {};
+
   int _constellationLayoutAlgorithmRevision = -1;
   ConstellationSceneLayoutAlgorithm? _constellationLayoutAlgorithm;
 
@@ -354,6 +364,9 @@ class ConstellationSceneController {
     edgeKindByPair.clear();
     edgeFadeBySemanticId = {};
     forwardTreeEdgePulseBySemanticId.clear();
+    forwardTreeRecipientMarkerByPersonId = const {};
+    forwardTreeTemporaryOutlinePersonIds = const {};
+    forwardTreeAnonymousCountByPersonId = const {};
     forwardTreeVisibleSemanticIds = const [];
     forwardTreeAlgorithm = null;
     forwardTreeLayoutRestore = null;
@@ -475,46 +488,6 @@ class ConstellationSceneController {
     }
   }
 
-  /// Clears forward-tree-only fields from [FieldPersonNode] when the overlay is
-  /// not drawing the tree, so person payloads match a plain field build and
-  /// topology reconciliation does not replace every person node each pass.
-  void _stripForwardTreeDecorationsFromFieldPeople({
-    required ConstellationForwardTreeOverlay? forwardTree,
-    required Set<NodeDetails> nodes,
-    required Map<String, NodeDetails> nodeById,
-  }) {
-    final graph = forwardTree?.graph;
-    final overlayActive = forwardTree != null &&
-        graph != null &&
-        graph.edges.isNotEmpty;
-    if (overlayActive) {
-      return;
-    }
-    for (final entry in nodeById.entries.toList()) {
-      final id = entry.key;
-      final existing = entry.value;
-      if (existing is! FieldPersonNode) {
-        continue;
-      }
-      if (existing.forwardTreeMarker == null &&
-          !existing.forwardTreeTemporaryOutline &&
-          existing.forwardTreeAnonymousCount == 0) {
-        continue;
-      }
-      final stripped = FieldPersonNode(
-        person: existing.person,
-        ring: existing.ring,
-        isKept: existing.isKept,
-        pinned: existing.pinned,
-        size: existing.size,
-      );
-      nodeById[id] = stripped;
-      nodes
-        ..remove(existing)
-        ..add(stripped);
-    }
-  }
-
   void _applyForwardTreeOverlay({
     required ConstellationForwardTreeOverlay? forwardTree,
     required Profile viewer,
@@ -524,6 +497,10 @@ class ConstellationSceneController {
     required Map<String, NodeDetails> nodeById,
     required Set<EdgeDetails> edges,
   }) {
+    forwardTreeRecipientMarkerByPersonId = const {};
+    forwardTreeTemporaryOutlinePersonIds = const {};
+    forwardTreeAnonymousCountByPersonId = const {};
+
     final tree = forwardTree;
     final graph = tree?.graph;
     if (tree == null || graph == null || graph.edges.isEmpty) {
@@ -531,6 +508,11 @@ class ConstellationSceneController {
       forwardTreeEdgePulseBySemanticId.clear();
       return;
     }
+
+    final markers = <String, ConstellationForwardTreeRecipientMarker>{};
+    final tempOutlineIds = <String>{};
+    final anonByPerson = <String, int>{};
+
     forwardTreeVisibleSemanticIds = const [];
     if (!tree.replaying) {
       forwardTreeEdgePulseBySemanticId.clear();
@@ -604,22 +586,22 @@ class ConstellationSceneController {
       final onVisibleField = !isGhost &&
           (personId == viewer.id || keptPeerIds.contains(personId));
       final tempOutline = !isGhost && !onVisibleField && anon == 0;
+      if (marker != null) {
+        final merged = mergeMarker(markers[personId], marker);
+        if (merged != null) {
+          markers[personId] = merged;
+        }
+      }
+      if (tempOutline) {
+        tempOutlineIds.add(personId);
+      }
+      if (anon > 0) {
+        final prev = anonByPerson[personId];
+        anonByPerson[personId] =
+            prev == null ? anon : math.max(prev, anon);
+      }
       final existing = nodeById[personId];
       if (existing is FieldPersonNode) {
-        nodeById[personId] = FieldPersonNode(
-          person: existing.person,
-          ring: existing.ring,
-          isKept: existing.isKept,
-          pinned: existing.pinned,
-          size: existing.size,
-          forwardTreeMarker: mergeMarker(existing.forwardTreeMarker, marker),
-          forwardTreeTemporaryOutline:
-              existing.forwardTreeTemporaryOutline || tempOutline,
-          forwardTreeAnonymousCount:
-              anon > 0 ? anon : existing.forwardTreeAnonymousCount,
-        );
-        nodes.remove(existing);
-        nodes.add(nodeById[personId]!);
         return;
       }
       final profile = profileForPerson(personId, e, sender: sender);
@@ -629,9 +611,6 @@ class ConstellationSceneController {
           person: profile,
           ring: ring,
           isKept: false,
-          forwardTreeMarker: marker,
-          forwardTreeTemporaryOutline: tempOutline,
-          forwardTreeAnonymousCount: anon,
         ),
       );
     }
@@ -747,6 +726,10 @@ class ConstellationSceneController {
           (edgeFadeBySemanticId[edge.semanticId] ?? 1) *
           kConstellationTrustChainEdgeFade;
     }
+
+    forwardTreeRecipientMarkerByPersonId = markers;
+    forwardTreeTemporaryOutlinePersonIds = tempOutlineIds;
+    forwardTreeAnonymousCountByPersonId = anonByPerson;
   }
 
   /// The peer an ego edge may lead to: the first hop on the path to
@@ -1168,17 +1151,6 @@ class ConstellationSceneController {
         }
       }
     }
-
-    // With the overlay off, strip forward-tree decoration from person payloads so
-    // [reconcileTopology] sees the same [FieldPersonNode] instances as before
-    // the overlay ran — otherwise new instances per rebuild bump the scene
-    // revision and every node tile rebuilds on unrelated graph passes (e.g.
-    // placement cancel; placement_phase_node_rebuild_test).
-    _stripForwardTreeDecorationsFromFieldPeople(
-      forwardTree: forwardTree,
-      nodes: nodes,
-      nodeById: nodeById,
-    );
 
     _applyForwardTreeOverlay(
       forwardTree: forwardTree,

@@ -13,7 +13,6 @@ import 'package:tentura/features/constellation/ui/widget/constellation_request_p
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 import 'package:tentura/features/forward/domain/entity/forward_graph.dart';
 import 'package:tentura/features/forward/domain/entity/forward_recipient_offer_status.dart';
-import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../../support/constellation_store_fixture.dart';
@@ -149,25 +148,8 @@ Future<ConstellationCubit> _cubit({
   return cubit;
 }
 
-bool _hasTempOutline(ConstellationCubit cubit, String personId) {
-  final snap = cubit.graphController.renderSnapshot;
-  for (final node in snap.topology.nodesById.values) {
-    if (node.payload case FieldPersonNode(:final person, :final forwardTreeTemporaryOutline)) {
-      if (person.id == personId) return forwardTreeTemporaryOutline;
-    }
-  }
-  return false;
-}
-
-FieldPersonNode? _personPayload(ConstellationCubit cubit, String id) {
-  final snap = cubit.graphController.renderSnapshot;
-  for (final node in snap.topology.nodesById.values) {
-    if (node.payload case FieldPersonNode(:final person) when person.id == id) {
-      return node.payload as FieldPersonNode;
-    }
-  }
-  return null;
-}
+bool _hasTempOutline(ConstellationCubit cubit, String personId) =>
+    cubit.forwardTreeTemporaryOutlinePersonIds.contains(personId);
 
 ConstellationCubit _previewCubit() {
   final fixture = ConstellationStoreFixture(_StubRepo(), accountId: _viewer.id);
@@ -235,10 +217,22 @@ void main() {
         4,
       );
 
-      expect(_personPayload(cubit, _v)?.forwardTreeMarker?.name, 'helped');
-      expect(_personPayload(cubit, _d)?.forwardTreeMarker?.name, 'cantHelp');
-      expect(_personPayload(cubit, _k)?.forwardTreeMarker?.name, 'notOpened');
-      expect(_personPayload(cubit, _authorId)?.forwardTreeMarker, isNull);
+      expect(
+        cubit.forwardTreeRecipientMarkerByPersonId[_v]?.name,
+        'helped',
+      );
+      expect(
+        cubit.forwardTreeRecipientMarkerByPersonId[_d]?.name,
+        'cantHelp',
+      );
+      expect(
+        cubit.forwardTreeRecipientMarkerByPersonId[_k]?.name,
+        'notOpened',
+      );
+      expect(
+        cubit.forwardTreeRecipientMarkerByPersonId[_authorId],
+        isNull,
+      );
 
       await cubit.close();
     });

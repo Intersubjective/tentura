@@ -2093,11 +2093,11 @@ class _ConstellationBodyState extends State<ConstellationBody>
                   FieldPersonNode(
                     :final ring,
                     :final person,
-                    :final forwardTreeMarker,
                   ) =>
                     _ConstellationMapNode(
                       detail: _detail,
-                      forwardTreeMarker: forwardTreeMarker,
+                      forwardTreeMarker: cubit
+                          .forwardTreeRecipientMarkerByPersonId[person.id],
                       statusBadge: personPinState != null
                           ? ExcludeSemantics(
                               child: ConstellationMarkerBadge.pinState(
@@ -2119,7 +2119,8 @@ class _ConstellationBodyState extends State<ConstellationBody>
                             ),
                       districtPerson: ring == 0 ? null : person,
                       temporaryOutline:
-                          node.forwardTreeTemporaryOutline ||
+                          cubit.forwardTreeTemporaryOutlinePersonIds
+                                  .contains(person.id) ||
                               (widget.fieldMembershipV2Enabled &&
                                   cubit
                                           .fieldPersonById(person.id)
@@ -2152,6 +2153,8 @@ class _ConstellationBodyState extends State<ConstellationBody>
                       child: GraphNodeWidget(
                         key: TestIds.key(TestIds.graphNode(node.id)),
                         nodeDetails: node,
+                        hiddenNeighborCount: cubit
+                            .forwardTreeAnonymousCountByPersonId[person.id],
                         isOrigin: ring == 0,
                         isFocused:
                             panelVisible && node.id == state.selectedPersonId,
