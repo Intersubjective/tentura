@@ -8,6 +8,7 @@ import 'package:tentura/domain/attention/attention_event_classification.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/attention/plan_receipt_event_type.dart';
 import 'package:tentura/features/beacon_view/domain/beacon_status_menu_presenter.dart';
+import 'forward_helped_receipt_copy.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/withdraw_reason_label.dart';
 
@@ -748,6 +749,8 @@ UpdatesFeedRowCopy resolveUpdatesFeedRowCopy({
   String? actorName,
   bool isPost = false,
   String? postRootExcerpt,
+  int collapsedCount = 1,
+  String? viewerUserId,
 }) {
   final shared = isPost
       ? _postSharedRowCopy(
@@ -760,6 +763,20 @@ UpdatesFeedRowCopy resolveUpdatesFeedRowCopy({
         )
       : null;
   if (shared != null) return shared;
+  final forwardHelped = forwardHelpedReceiptDisplayCopy(
+    receiptTitle: title,
+    presentationKey: presentationKey,
+    presentationPayloadJson: presentationPayloadJson,
+    l10n: l10n,
+    collapsedCount: collapsedCount,
+    viewerUserId: viewerUserId,
+  );
+  if (forwardHelped != null) {
+    return UpdatesFeedRowCopy(
+      headline: forwardHelped.headline,
+      body: forwardHelped.body,
+    );
+  }
   final baton = batonReceiptDisplayCopy(
     title: title,
     presentationKey: presentationKey,

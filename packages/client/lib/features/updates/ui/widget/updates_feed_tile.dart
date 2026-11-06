@@ -72,6 +72,7 @@ UpdatesFeedGlyph updatesFeedGlyphFor(
     'offer_declined' ||
     'help_withdrawn' ||
     'forward_declined' ||
+    'forward_helped' ||
     'relay_received' => UpdatesFeedGlyph(
       icon: TenturaIcons.send,
       color: tt.warn,
@@ -102,6 +103,7 @@ class UpdatesFeedTile extends StatefulWidget {
     this.activityRow = false,
     this.onDismiss,
     this.unreadView = false,
+    this.viewerUserId,
     super.key,
   });
 
@@ -130,6 +132,9 @@ class UpdatesFeedTile extends StatefulWidget {
   /// Whether the row sits on the Unread view. Dot membership is the same
   /// on both All and Unread: every counted row keeps its dot after opening.
   final bool unreadView;
+
+  /// Replaces the viewer's name with «You» on forward-helped path rows (#774).
+  final String? viewerUserId;
 
   static const requestTitleKey = Key('updates-feed-tile-request-title');
 
@@ -221,6 +226,8 @@ class _UpdatesFeedTileState extends State<UpdatesFeedTile> {
       // Beacon kind 1 is a Post (0 a Request).
       isPost: widget.receipt.beaconKind == 1,
       postRootExcerpt: widget.receipt.postRootExcerpt,
+      collapsedCount: widget.receipt.collapsedCount,
+      viewerUserId: widget.viewerUserId,
     );
     final glyph = updatesFeedGlyphFor(widget.receipt, tt);
     final localCreatedAt = widget.receipt.createdAt.toLocal();

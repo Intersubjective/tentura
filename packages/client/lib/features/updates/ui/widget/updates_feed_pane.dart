@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:get_it/get_it.dart';
 
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -9,6 +8,9 @@ import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/features/updates/domain/entity/prompt_projection.dart';
+import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
+import 'package:tentura/features/updates/forward_helped_receipt_copy.dart';
+import 'package:tentura/features/updates/ui/widget/forward_helped_see_path_action.dart';
 import 'package:tentura/features/updates/updates_receipt_display_copy.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
@@ -378,6 +380,21 @@ class _UpdatesFeedPaneState extends State<UpdatesFeedPane>
     // #736: on Unread the dots mark what the view's count counts.
     final unreadView =
         context.read<UpdatesFeedCubit>().state.view == AttentionView.unread;
+    final viewerUserId = context.read<ProfileCubit>().state.profile.id;
+    if (isForwardHelpedPresentationKey(receipt.presentationKey)) {
+      return UpdatesReceiptCard(
+        key: ValueKey(receipt.id),
+        receipt: receipt,
+        actor: actor,
+        onTap: onTap,
+        onMarkSeen: onMarkSeen,
+        onMarkUnseen: onMarkUnseen,
+        onSettle: settleCallback,
+        unreadView: unreadView,
+        viewerUserId: viewerUserId,
+        action: ForwardHelpedSeePathAction(receipt: receipt),
+      );
+    }
     if (isTrustChangePresentationKey(receipt.presentationKey)) {
       return TrustChangeReceiptCard(
         key: ValueKey(receipt.id),
