@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:developer' show TimelineTask;
 import 'dart:math' as math;
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/material.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
 import 'package:get_it/get_it.dart';
@@ -167,6 +168,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     this._newPeopleCase,
     this._tagMagnetCase,
     Set<String> Function(String personId)? ownTagIdsOf,
+    Set<String> Function(String tagId)? peopleInTag,
     ForwardCase? forwardCase,
     bool loadOnCreate = true,
     this.fieldMembershipV2Enabled = kFieldMembershipV2Enabled,
@@ -186,6 +188,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
        _magnetTagsOf = ownTagIdsOf ?? _noTagViewOwnTags,
        _ownTagIdsOfInjected = ownTagIdsOf,
        _fieldOwnTagIdsOf = ownTagIdsOf ?? _noTagViewOwnTags,
+       _peopleInTagForLayout = peopleInTag,
        super(const ConstellationState()) {
     _placementCase?.history.applyTidyOffsets = (offsets) async {
       if (isClosed) return;
@@ -934,6 +937,9 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   /// Kept separate from [_magnetTagsOf], which tag-view drag can temporarily retarget.
   Set<String> Function(String) _fieldOwnTagIdsOf;
 
+  /// Tag membership index from `PeopleTagsCase` (`tagId → person ids`); null when unset.
+  final Set<String> Function(String tagId)? _peopleInTagForLayout;
+
   Map<String, Offset> get tagMagnets => Map.unmodifiable(_tagMagnets);
 
   /// Bumped by every read and write of the saved magnets, so a read that
@@ -1088,25 +1094,36 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
 
   SceneLayoutAlgorithm _withMagnets(SceneLayoutAlgorithm base) {
     final field = state.field;
-    if (_tagMagnets.isEmpty ||
-        field == null ||
+    if (field == null ||
         state.tagView != null ||
         state.isComposing ||
         _scene.tagViewAlgorithm != null ||
         _layoutPreviewAlgorithm != null) {
       return base;
     }
+    final useTagAreaSeating =
+        kPeopleTagsEnabled && _peopleInTagForLayout != null;
+    final useMagnets = _tagMagnets.isNotEmpty;
+    if (!useTagAreaSeating && !useMagnets) {
+      return base;
+    }
     return ConstellationMagnetLayout(
       base: base,
+      viewerId: _viewer.id,
+      tagsOfPerson: _fieldOwnTagIdsOf,
+      peopleInTag: _peopleInTagForLayout ?? (_) => const {},
       priors: _magnetBasePositions,
-      magnetsByPerson: {
-        for (final person in field.peers)
-          if (!isAnchored(ConstellationAnchorTarget.person(person.id)))
-            'fp:${person.id}': [
-              for (final tagId in _magnetTagsOf(person.id))
-                if (_tagMagnets[tagId] case final at?) (x: at.dx, y: at.dy),
-            ],
-      },
+      magnetsByPerson: useMagnets
+          ? {
+              for (final person in field.peers)
+                if (!isAnchored(ConstellationAnchorTarget.person(person.id)))
+                  'fp:${person.id}': [
+                    for (final tagId in _magnetTagsOf(person.id))
+                      if (_tagMagnets[tagId] case final at?) (x: at.dx, y: at.dy),
+                  ],
+            }
+          : const {},
+      tagMagnetOffsets: _tagMagnets,
       followers: {
         for (final r in field.requests)
           if (!isAnchored(ConstellationAnchorTarget.beacon(r.id)))
@@ -1117,6 +1134,10 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       },
     );
   }
+
+  @visibleForTesting
+  SceneLayoutAlgorithm withMagnetsForTest(SceneLayoutAlgorithm base) =>
+      _withMagnets(base);
 
   ConstellationSceneLayoutAlgorithm get constellationSceneLayoutAlgorithm =>
       _scene.constellationAlgorithm(
