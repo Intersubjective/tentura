@@ -12,6 +12,7 @@ import 'package:tentura/data/service/remote_api_client/session_fetch.dart';
 import 'package:tentura/features/auth/domain/entity/session_cookie_clear_result.dart';
 import 'package:tentura/features/auth/domain/exception.dart';
 import 'package:tentura/features/auth/domain/port/auth_remote_repository_port.dart';
+import 'package:tentura/features/auth/domain/port/auth_session_account_change_source.dart';
 
 import '../gql/_g/sign_in.req.gql.dart';
 import '../gql/_g/sign_out.req.gql.dart';
@@ -21,7 +22,8 @@ import '../gql/_g/sign_up.req.gql.dart';
   as: AuthRemoteRepositoryPort,
   env: [Environment.dev, Environment.prod],
 )
-class AuthRemoteRepository implements AuthRemoteRepositoryPort {
+class AuthRemoteRepository
+    implements AuthRemoteRepositoryPort, AuthSessionAccountChangeSource {
   AuthRemoteRepository({
     required this.remoteApiService,
     required this.log,
@@ -29,6 +31,14 @@ class AuthRemoteRepository implements AuthRemoteRepositoryPort {
 
   final AuthRemoteClient remoteApiService;
   final Logger log;
+
+  @override
+  Stream<AuthSessionAccountChangedException> get sessionAccountChanges =>
+      switch (remoteApiService) {
+        final AuthSessionAccountChangeSource source =>
+          source.sessionAccountChanges,
+        _ => const Stream.empty(),
+      };
 
   ///
   /// Returns id of created account

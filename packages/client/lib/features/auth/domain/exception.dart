@@ -102,6 +102,17 @@ final class AuthSessionLostException extends AuthException {
   String get toRu => 'Не удалось проверить вашу сессию';
 }
 
+/// Another tab replaced the shared cookie with a different account's session.
+final class AuthSessionAccountChangedException extends AuthException {
+  const AuthSessionAccountChangedException();
+
+  @override
+  String get toEn => 'Your account changed in another tab. Reloading…';
+
+  @override
+  String get toRu => 'Аккаунт изменён в другой вкладке. Перезагружаем…';
+}
+
 /// Session could not be verified because the server was slow or unreachable
 /// (timeout, 5xx, network). Not a rejection: the session may still be valid,
 /// so callers retry instead of signing the user out.
