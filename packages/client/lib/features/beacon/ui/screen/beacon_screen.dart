@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
-import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/auto_leading_with_fallback.dart';
@@ -12,7 +11,7 @@ import 'package:tentura/ui/widget/show_anchored_popup_menu.dart';
 
 import '../../domain/enum.dart';
 import '../bloc/beacon_cubit.dart';
-import '../widget/beacon_tile.dart';
+import '../widget/beacon_paged_list.dart';
 import 'package:tentura/features/home/ui/widget/home_rail_frame.dart';
 
 @RoutePage()
@@ -38,8 +37,6 @@ class BeaconScreen extends StatefulWidget implements AutoRouteWrapper {
 }
 
 class _BeaconScreenState extends State<BeaconScreen> {
-  final _scrollController = ScrollController();
-
   late final _beaconCubit = context.read<BeaconCubit>();
 
   late final _l10n = L10n.of(context)!;
@@ -47,20 +44,7 @@ class _BeaconScreenState extends State<BeaconScreen> {
   @override
   void initState() {
     super.initState();
-    _scrollController.addListener(() {
-      if (_scrollController.hasClients &&
-          _scrollController.offset >
-              _scrollController.position.maxScrollExtent * kFetchListOffset) {
-        unawaited(_beaconCubit.fetch());
-      }
-    });
     unawaited(_beaconCubit.fetch());
-  }
-
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
   }
 
   String _labelForFilter(BeaconFilter filter) => switch (filter) {
@@ -153,82 +137,18 @@ class _BeaconScreenState extends State<BeaconScreen> {
             child: BlocBuilder<BeaconCubit, BeaconState>(
               bloc: _beaconCubit,
               buildWhen: (_, c) => c.isSuccess || c.isLoading || c.hasError,
-              builder: (context, state) {
-                if (state.isLoading && state.beacons.isEmpty) {
-                  return const Center(
-                    child: TenturaCircularProgress(adaptive: true),
-                  );
-                }
-                if (state.hasError && state.beacons.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.error_outline,
-                          size: 48,
-                          color: scheme.error,
-                        ),
-                        const SizedBox(height: kSpacingMedium),
-                        FilledButton(
-                          onPressed: () =>
-                              unawaited(_beaconCubit.fetch(reset: true)),
-                          child: Text(_l10n.myWorkRetry),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-                if (state.beacons.isEmpty) {
-                  return RefreshIndicator.adaptive(
-                    onRefresh: _onRefresh,
-                    child: ListView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      children: [
-                        SizedBox(
-                          height: MediaQuery.sizeOf(context).height * 0.4,
-                          child: Center(
-                            child: Padding(
-                              padding: tt.cardPadding,
-                              child: TenturaEmptyState(
-                                icon: Icons.campaign_outlined,
-                                title: _l10n.noBeaconsMessage,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-                return RefreshIndicator.adaptive(
-                  onRefresh: _onRefresh,
-                  child: ListView.builder(
-                    key: ValueKey(state.beacons),
-                    controller: _scrollController,
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: kPaddingSmallV,
-                    itemCount: state.beacons.length,
-                    itemBuilder: (_, i) {
-                      final beacon = state.beacons[i];
-                      return Padding(
-                        padding: kPaddingSmallV,
-                        child: BeaconTile(
-                          key: ValueKey(beacon.id),
-                          beacon: beacon,
-                          showAuthor: false,
-                          onOpenBeacon: () => context.router.push(
-                            BeaconViewRoute(id: beacon.id),
-                          ),
-                          onForward: () => context.router.push(
-                            ForwardBeaconRoute(beaconId: beacon.id),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                );
-              },
+              builder: (context, state) => BeaconPagedList(
+                beacons: state.beacons,
+                isLoading: state.isLoading,
+                hasError: state.hasError,
+                onFetchMore: _beaconCubit.fetch,
+                onReload: _onRefresh,
+                showAuthor: false,
+                empty: TenturaEmptyState(
+                  icon: Icons.campaign_outlined,
+                  title: _l10n.noBeaconsMessage,
+                ),
+              ),
             ),
           ),
         ),
