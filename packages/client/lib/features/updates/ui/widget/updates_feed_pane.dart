@@ -297,7 +297,7 @@ class _UpdatesFeedPaneState extends State<UpdatesFeedPane>
                       ),
                     if (placement.collapsedCount >= 3)
                       SliverToBoxAdapter(
-                        child: _CollapsedInvitePromptRow(
+                        child: UpdatesCollapsedInvitePromptRow(
                           count: placement.collapsedCount,
                           onOpenBatch: () => unawaited(
                             PromptBatchSheet.show(
@@ -346,7 +346,7 @@ class _UpdatesFeedPaneState extends State<UpdatesFeedPane>
           ),
         );
       case UpdatesFeedCellKind.loadMore:
-        return const _LoadMoreIndicator();
+        return const UpdatesLoadMoreIndicator();
       case UpdatesFeedCellKind.row:
         final receipt = cell.receipt!;
         final row = _receiptRow(context, receipt);
@@ -567,8 +567,10 @@ class _EmptyUpdates extends StatelessWidget {
   }
 }
 
-class _LoadMoreIndicator extends StatelessWidget {
-  const _LoadMoreIndicator();
+/// Paging spinner at the end of the updates feed and the inbox activity
+/// stream.
+class UpdatesLoadMoreIndicator extends StatelessWidget {
+  const UpdatesLoadMoreIndicator({super.key});
 
   @override
   Widget build(BuildContext context) => Padding(
@@ -577,10 +579,13 @@ class _LoadMoreIndicator extends StatelessWidget {
   );
 }
 
-class _CollapsedInvitePromptRow extends StatelessWidget {
-  const _CollapsedInvitePromptRow({
+/// One row standing for a batch of collapsed invite prompts (shared by the
+/// updates feed and the inbox activity stream).
+class UpdatesCollapsedInvitePromptRow extends StatelessWidget {
+  const UpdatesCollapsedInvitePromptRow({
     required this.count,
     required this.onOpenBatch,
+    super.key,
   });
 
   final int count;
