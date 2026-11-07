@@ -398,16 +398,17 @@ class TenturaAvatar extends StatelessWidget {
       return upperEachGrapheme('${graphemes[0]}${graphemes[1]}');
     }
 
-    /// Contact alias: any `\p{L}` graphemes in order; if none, caller falls back to objective name (#1075).
+    /// Contact alias: word-aware when the alias contains letters; if none, caller
+    /// falls back to objective name (#1075).
     String fromContactAlias(String alias) {
-      final letters = letter.allMatches(alias.trim()).map((m) => m[0]!).toList();
-      if (letters.length >= 2) {
-        return '${letters[0]}${letters[1]}'.toUpperCase();
+      final trimmed = alias.trim();
+      if (trimmed.isEmpty) {
+        return '';
       }
-      if (letters.length == 1) {
-        return letters[0].toUpperCase();
+      if (!letter.hasMatch(trimmed)) {
+        return '';
       }
-      return '';
+      return fromOrdinaryVisibleName(trimmed);
     }
 
     final trimmedContact = profile.contactName.trim();
