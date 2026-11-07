@@ -47,7 +47,7 @@ void main() {
   });
 
   testWidgets(
-    'existing-account origin shows "became friends" copy, preferring the '
+    'existing-account origin shows trust-aligned copy, preferring the '
     'private addressee name over the public display name',
     (tester) async {
       final invitation = InvitationEntity(
@@ -67,7 +67,7 @@ void main() {
       );
 
       expect(
-        find.text('You and Sasha (gym) became friends via this invite'),
+        find.text('You now trust Sasha (gym) from this invite'),
         findsOneWidget,
       );
     },

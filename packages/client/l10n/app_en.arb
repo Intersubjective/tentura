@@ -36,6 +36,14 @@
   "@displayNameTooLong": {
     "context": "CommonErrors"
   },
+  "inviteLabelTooShort": "Invite name is too short",
+  "@inviteLabelTooShort": {
+    "context": "InvitationAddresseeDialog"
+  },
+  "inviteLabelTooLong": "Invite name is too long",
+  "@inviteLabelTooLong": {
+    "context": "InvitationAddresseeDialog"
+  },
   "userHandleHint": "3–30 letters, numbers, or underscore (optional)",
   "@userHandleHint": {
     "context": "Utils"
@@ -487,7 +495,7 @@
       }
     }
   },
-  "friendsInviteAcceptedExistingAccount": "You and {name} became friends via this invite",
+  "friendsInviteAcceptedExistingAccount": "You now trust {name} from this invite",
   "@friendsInviteAcceptedExistingAccount": {
     "context": "FriendsScreen",
     "placeholders": {
@@ -496,8 +504,20 @@
       }
     }
   },
-  "confirmInvitationRemoval": "Are you sure you want to cancel this invite? The link will stop working.",
-  "@confirmInvitationRemoval": {
+  "friendsInvitePendingUntitled": "Untitled invite",
+  "@friendsInvitePendingUntitled": {
+    "context": "FriendsScreen"
+  },
+  "confirmInvitationRemovalTitle": "Remove this invite?",
+  "@confirmInvitationRemovalTitle": {
+    "context": "InvitationRemoveDialog"
+  },
+  "confirmInvitationRemovalBody": "The link will stop working.",
+  "@confirmInvitationRemovalBody": {
+    "context": "InvitationRemoveDialog"
+  },
+  "buttonKeepInvite": "Keep invite",
+  "@buttonKeepInvite": {
     "context": "InvitationRemoveDialog"
   },
   "confirmBeaconRemoval": "Are you sure you want to delete this request?",
@@ -4118,6 +4138,16 @@
         "type": "String"
       },
       "tenure": {
+        "type": "String"
+      }
+    }
+  },
+  "profileMemberSinceJoinedToday": "On Tentura since {date}",
+  "@profileMemberSinceJoinedToday": {
+    "context": "Profile",
+    "description": "Join-day line without redundant “0 days” tenure (#1077).",
+    "placeholders": {
+      "date": {
         "type": "String"
       }
     }

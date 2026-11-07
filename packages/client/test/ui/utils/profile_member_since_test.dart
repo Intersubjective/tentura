@@ -74,6 +74,17 @@ void main() {
   group('profileMemberSinceDisplayLine EN', () {
     final l10n = lookupL10n(const Locale('en'));
 
+    test('join day omits redundant zero-day tenure (#1077)', () {
+      final joined = DateTime.utc(2026, 11, 4, 8);
+      final line = profileMemberSinceDisplayLine(
+        l10n: l10n,
+        joinedAt: joined,
+        now: fixedNow,
+      );
+      expect(line, 'On Tentura since Nov 4');
+      expect(line.contains('0 days'), isFalse);
+    });
+
     test('full line with months tenure', () {
       final joined = DateTime.utc(2026, 3, 12, 8);
       final line = profileMemberSinceDisplayLine(
@@ -125,6 +136,17 @@ void main() {
 
   group('profileMemberSinceDisplayLine RU plurals', () {
     final l10n = lookupL10n(const Locale('ru'));
+
+    test('join day omits redundant zero-day tenure', () {
+      final joined = DateTime.utc(2026, 11, 4, 8);
+      final line = profileMemberSinceDisplayLine(
+        l10n: l10n,
+        joinedAt: joined,
+        now: fixedNow,
+      );
+      expect(line.contains('0 дней'), isFalse);
+      expect(line.startsWith('В Tentura с'), isTrue);
+    });
 
     test('день/дня/дней', () {
       expect(

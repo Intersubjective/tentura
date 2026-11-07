@@ -14,7 +14,7 @@ import 'package:tentura/ui/utils/string_input_validator.dart';
 // the check, so a name the counter showed as 25/32 was refused on Save with
 // "Display name is too long".
 
-const _tooLong = 'Display name is too long';
+const _tooLong = 'Invite name is too long';
 
 /// The issue repro: 25 characters, 39 UTF-16 code units (each van is two).
 final _typed = 'Van friend ${'🚐' * 14}';
@@ -106,14 +106,14 @@ void main() {
     expect(_cutsEmoji.characters.length, 32);
   });
 
-  test('guard: the validator keeps counting code units like the server', () {
+  test('guard: invite label validator keeps counting code units like the server', () {
     final validator = _Validator();
     final l10n = lookupL10n(const Locale('en'));
-    expect(validator.displayNameValidator(l10n, _exact), isNull);
+    expect(validator.inviteLabelValidator(l10n, _exact), isNull);
     // 25 characters but 39 code units: the server refuses it, so must we.
     expect(
-      validator.displayNameValidator(l10n, _typed),
-      l10n.displayNameTooLong,
+      validator.inviteLabelValidator(l10n, _typed),
+      l10n.inviteLabelTooLong,
     );
   });
 

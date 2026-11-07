@@ -72,6 +72,10 @@ String profileMemberSinceDisplayLine({
     localeName: l10n.localeName,
     now: now,
   );
+  final segment = profileTenureSegment(joinedAt: joinedAt, now: now);
+  if (segment.unit == ProfileTenureUnit.days && segment.count == 0) {
+    return l10n.profileMemberSinceJoinedToday(date);
+  }
   final tenure = profileTenureDurationLabel(
     l10n: l10n,
     joinedAt: joinedAt,
