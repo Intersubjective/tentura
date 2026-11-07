@@ -225,13 +225,13 @@ class Env {
     String? sentryDist,
     double? sentryTracesSampleRate,
   }) : // Common
-       printEnv = printEnv ?? _env['PRINT_ENV'] == 'true',
-       isDebugModeOn = isDebugModeOn ?? _env['DEBUG_MODE'] == 'true',
+       printEnv = printEnv ?? _envIsTrue('PRINT_ENV'),
+       isDebugModeOn = isDebugModeOn ?? _envIsTrue('DEBUG_MODE'),
        environment = environment ?? _env['ENVIRONMENT'] ?? Environment.prod,
        serverUri = serverUri ?? Uri.parse(kServerName),
        workersCount =
            workersCount ??
-           int.tryParse(_env['WORKERS_COUNT'] ?? '') ??
+           _envInt('WORKERS_COUNT') ??
            Platform.numberOfProcessors,
 
        // Auth
@@ -240,11 +240,9 @@ class Env {
        sessionExpiresIn =
            sessionExpiresIn ??
            Duration(
-             seconds:
-                 int.tryParse(_env['SESSION_EXPIRES_IN'] ?? '') ??
-                 kSessionExpiresIn,
+             seconds: _envInt('SESSION_EXPIRES_IN') ?? kSessionExpiresIn,
            ),
-       isNeedInvite = isNeedInvite ?? _env['NEED_INVITE'] == 'true',
+       isNeedInvite = isNeedInvite ?? _envIsTrue('NEED_INVITE'),
        publicOrigin = publicOrigin ?? kServerName,
        googleClientId = googleClientId ?? _env['GOOGLE_CLIENT_ID'] ?? '',
        googleClientSecret =
@@ -252,16 +250,16 @@ class Env {
        googleIosClientId =
            googleIosClientId ?? _env['GOOGLE_IOS_CLIENT_ID'] ?? '',
        oauthPreloadEnabled =
-           oauthPreloadEnabled ?? _env['OAUTH_PRELOAD_ENABLED'] == 'true',
+           oauthPreloadEnabled ?? _envIsTrue('OAUTH_PRELOAD_ENABLED'),
        resendApiKey = resendApiKey ?? _env['RESEND_API_KEY'] ?? '',
        resendFromEmail = resendFromEmail ?? _env['RESEND_FROM_EMAIL'] ?? '',
        complaintEmail = complaintEmail ?? _env['COMPLAINT_EMAIL'] ?? '',
        emailDebugSinkDir =
            emailDebugSinkDir ?? _env['EMAIL_DEBUG_SINK_DIR'] ?? '',
-       qaAuthEnabled = qaAuthEnabled ?? _env['QA_AUTH_ENABLED'] == 'true',
+       qaAuthEnabled = qaAuthEnabled ?? _envIsTrue('QA_AUTH_ENABLED'),
        qaAuthToken = qaAuthToken ?? _env['QA_AUTH_TOKEN'] ?? '',
        qaSimpleLoginMode =
-           qaSimpleLoginMode ?? _env['QA_SIMPLE_LOGIN_MODE'] == 'true',
+           qaSimpleLoginMode ?? _envIsTrue('QA_SIMPLE_LOGIN_MODE'),
        qaEmailDomains =
            qaEmailDomains ??
            (_env['QA_EMAIL_DOMAINS'] ??
@@ -272,7 +270,7 @@ class Env {
                .toList(),
        suppressTestDomainEmails =
            suppressTestDomainEmails ??
-           _env['EMAIL_SUPPRESS_TEST_DOMAINS'] == 'true',
+           _envIsTrue('EMAIL_SUPPRESS_TEST_DOMAINS'),
        unsubscribeSigningSecret =
            unsubscribeSigningSecret ?? _env['UNSUBSCRIBE_SIGNING_SECRET'] ?? '',
        genealogyNodeKeySecret =
@@ -280,69 +278,42 @@ class Env {
        emailNotifCooldown =
            emailNotifCooldown ??
            Duration(
-             seconds:
-                 int.tryParse(_env['EMAIL_NOTIF_COOLDOWN_SECONDS'] ?? '') ??
-                 1800,
+             seconds: _envInt('EMAIL_NOTIF_COOLDOWN_SECONDS') ?? 1800,
            ),
-       emailDigestHour =
-           emailDigestHour ??
-           int.tryParse(_env['EMAIL_DIGEST_HOUR'] ?? '') ??
-           8,
+       emailDigestHour = emailDigestHour ?? _envInt('EMAIL_DIGEST_HOUR') ?? 8,
        emailAuthTtl =
            emailAuthTtl ??
            Duration(
-             seconds: int.tryParse(_env['EMAIL_AUTH_TTL_SECONDS'] ?? '') ?? 900,
+             seconds: _envInt('EMAIL_AUTH_TTL_SECONDS') ?? 900,
            ),
        emailAuthRateLimitWindow =
            emailAuthRateLimitWindow ??
            Duration(
-             seconds:
-                 int.tryParse(
-                   _env['EMAIL_AUTH_RATE_WINDOW_SECONDS'] ?? '',
-                 ) ??
-                 3600,
+             seconds: _envInt('EMAIL_AUTH_RATE_WINDOW_SECONDS') ?? 3600,
            ),
        emailAuthMaxPerEmail =
-           emailAuthMaxPerEmail ??
-           int.tryParse(_env['EMAIL_AUTH_MAX_PER_EMAIL'] ?? '') ??
-           5,
+           emailAuthMaxPerEmail ?? _envInt('EMAIL_AUTH_MAX_PER_EMAIL') ?? 5,
        emailAuthMaxPerIp =
-           emailAuthMaxPerIp ??
-           int.tryParse(_env['EMAIL_AUTH_MAX_PER_IP'] ?? '') ??
-           20,
+           emailAuthMaxPerIp ?? _envInt('EMAIL_AUTH_MAX_PER_IP') ?? 20,
        emailAuthMaxPerInvite =
-           emailAuthMaxPerInvite ??
-           int.tryParse(_env['EMAIL_AUTH_MAX_PER_INVITE'] ?? '') ??
-           10,
+           emailAuthMaxPerInvite ?? _envInt('EMAIL_AUTH_MAX_PER_INVITE') ?? 10,
        beaconCreateRateWindow =
            beaconCreateRateWindow ??
            Duration(
-             seconds:
-                 int.tryParse(
-                   _env['BEACON_CREATE_RATE_WINDOW_SECONDS'] ?? '',
-                 ) ??
-                 3600,
+             seconds: _envInt('BEACON_CREATE_RATE_WINDOW_SECONDS') ?? 3600,
            ),
        beaconCreateMaxPerUser =
            beaconCreateMaxPerUser ??
-           int.tryParse(_env['BEACON_CREATE_MAX_PER_USER'] ?? '') ??
+           _envInt('BEACON_CREATE_MAX_PER_USER') ??
            30,
        blockRateLimitPerDay =
-           blockRateLimitPerDay ??
-           int.tryParse(_env['BLOCK_RATE_LIMIT_PER_DAY'] ?? '') ??
-           50,
+           blockRateLimitPerDay ?? _envInt('BLOCK_RATE_LIMIT_PER_DAY') ?? 50,
        blockCascadeMaxDepth =
-           blockCascadeMaxDepth ??
-           int.tryParse(_env['BLOCK_CASCADE_MAX_DEPTH'] ?? '') ??
-           6,
+           blockCascadeMaxDepth ?? _envInt('BLOCK_CASCADE_MAX_DEPTH') ?? 6,
        blockCascadeMaxRows =
-           blockCascadeMaxRows ??
-           int.tryParse(_env['BLOCK_CASCADE_MAX_ROWS'] ?? '') ??
-           5000,
+           blockCascadeMaxRows ?? _envInt('BLOCK_CASCADE_MAX_ROWS') ?? 5000,
        blockCascadeBatchSize =
-           blockCascadeBatchSize ??
-           int.tryParse(_env['BLOCK_CASCADE_BATCH_SIZE'] ?? '') ??
-           500,
+           blockCascadeBatchSize ?? _envInt('BLOCK_CASCADE_BATCH_SIZE') ?? 500,
        blockReleaseSweepInterval =
            blockReleaseSweepInterval ??
            _parseEnvDuration(_env['BLOCK_RELEASE_SWEEP_INTERVAL']) ??
@@ -350,31 +321,20 @@ class Env {
        roomMessageRateWindow =
            roomMessageRateWindow ??
            Duration(
-             seconds:
-                 int.tryParse(
-                   _env['ROOM_MESSAGE_RATE_WINDOW_SECONDS'] ?? '',
-                 ) ??
-                 60,
+             seconds: _envInt('ROOM_MESSAGE_RATE_WINDOW_SECONDS') ?? 60,
            ),
        roomMessageMaxPerUser =
-           roomMessageMaxPerUser ??
-           int.tryParse(_env['ROOM_MESSAGE_MAX_PER_USER'] ?? '') ??
-           30,
+           roomMessageMaxPerUser ?? _envInt('ROOM_MESSAGE_MAX_PER_USER') ?? 30,
        factEditRateWindow =
            factEditRateWindow ??
            Duration(
-             seconds: int.tryParse(_env['FACT_EDIT_RATE_WINDOW'] ?? '') ?? 60,
+             seconds: _envInt('FACT_EDIT_RATE_WINDOW') ?? 60,
            ),
-       factEditRateMax =
-           factEditRateMax ??
-           int.tryParse(_env['FACT_EDIT_RATE_MAX'] ?? '') ??
-           20,
+       factEditRateMax = factEditRateMax ?? _envInt('FACT_EDIT_RATE_MAX') ?? 20,
        planEnabled = planEnabled ?? _env['PLAN_ENABLED'] != 'false',
        uploadDailyCapBytes =
            uploadDailyCapBytes ??
-           (int.tryParse(_env['UPLOAD_DAILY_CAP_MB'] ?? '') ?? 200) *
-               1024 *
-               1024,
+           (_envInt('UPLOAD_DAILY_CAP_MB') ?? 200) * 1024 * 1024,
        publicKey = EdDSAPublicKey.fromPEM(
          (publicKey ?? _env['JWT_PUBLIC_PEM'] ?? kJwtPublicKey).replaceAll(
            r'\n',
@@ -390,8 +350,7 @@ class Env {
 
        // Web server
        bindAddress = bindAddress ?? _env['HOST'] ?? '0.0.0.0',
-       listenWebPort =
-           listenWebPort ?? int.tryParse(_env['PORT'] ?? '') ?? 2080,
+       listenWebPort = listenWebPort ?? _envInt('PORT') ?? 2080,
        realtimeActorEchoEnabled =
            realtimeActorEchoEnabled ??
            resolveRealtimeActorEchoEnabled(
@@ -399,22 +358,19 @@ class Env {
            ),
        constellationDbRefreshShare =
            constellationDbRefreshShare ??
-           double.tryParse(_env['CONSTELLATION_DB_REFRESH_SHARE'] ?? '') ??
+           _envDouble('CONSTELLATION_DB_REFRESH_SHARE') ??
            0.3,
        constellationDbMaxConcurrent = max(
          1,
          constellationDbMaxConcurrent ??
-             int.tryParse(_env['CONSTELLATION_DB_MAX_CONCURRENT'] ?? '') ??
+             _envInt('CONSTELLATION_DB_MAX_CONCURRENT') ??
              2,
        ),
        constellationFieldBroadcastWindow =
            constellationFieldBroadcastWindow ??
            Duration(
              seconds:
-                 int.tryParse(
-                   _env['CONSTELLATION_FIELD_BROADCAST_WINDOW_SECONDS'] ?? '',
-                 ) ??
-                 30,
+                 _envInt('CONSTELLATION_FIELD_BROADCAST_WINDOW_SECONDS') ?? 30,
            ),
        attentionV1ShadowEnabled =
            attentionV1ShadowEnabled ??
@@ -426,7 +382,7 @@ class Env {
 
        // Postgres
        pgHost = pgHost ?? _env['POSTGRES_HOST'] ?? 'postgres',
-       pgPort = pgPort ?? int.tryParse(_env['POSTGRES_PORT'] ?? '') ?? 5432,
+       pgPort = pgPort ?? _envInt('POSTGRES_PORT') ?? 5432,
        pgDatabase = pgDatabase ?? _env['POSTGRES_DBNAME'] ?? 'postgres',
        pgUsername = pgUsername ?? _env['POSTGRES_USERNAME'] ?? 'postgres',
        pgPassword = pgPassword ?? _env['POSTGRES_PASSWORD'] ?? 'password',
@@ -434,30 +390,25 @@ class Env {
        // maxSessionUse) to a new lease; a lease, and so a transaction, never
        // changes connection mid-way. Package default 12h.
        pgMaxConnectionAge =
-           maxConnectionAge ??
-           int.tryParse(_env['POSTGRES_MAXCONNAGE'] ?? '') ??
-           43200,
+           maxConnectionAge ?? _envInt('POSTGRES_MAXCONNAGE') ?? 43200,
        // Each main scope leases one connection and private Drift executor.
        pgMaxConnectionCount =
-           maxConnectionCount ??
-           int.tryParse(_env['POSTGRES_MAXCONN'] ?? '') ??
-           4,
+           maxConnectionCount ?? _envInt('POSTGRES_MAXCONN') ?? 4,
        pgStatementTimeoutMs =
            pgStatementTimeoutMs ??
-           int.tryParse(_env['POSTGRES_STATEMENT_TIMEOUT_MS'] ?? '') ??
+           _envInt('POSTGRES_STATEMENT_TIMEOUT_MS') ??
            30000,
 
        // Task Worker
        taskOnEmptyDelay =
-           taskOnEmptyDelay ??
-           Duration(seconds: int.tryParse(_env['TASK_DELAY'] ?? '') ?? 1),
+           taskOnEmptyDelay ?? Duration(seconds: _envInt('TASK_DELAY') ?? 1),
 
        // S3 storage
        kS3AccessKey = kS3AccessKey ?? _env['S3_ACCESS_KEY'] ?? '',
        kS3SecretKey = kS3SecretKey ?? _env['S3_SECRET_KEY'] ?? '',
        kS3Endpoint = kS3Endpoint ?? _env['S3_ENDPOINT'] ?? '',
        kS3Bucket = kS3Bucket ?? _env['S3_BUCKET'] ?? '',
-       kS3PathStyle = kS3PathStyle ?? _env['S3_PATH_STYLE'] == 'true',
+       kS3PathStyle = kS3PathStyle ?? _envIsTrue('S3_PATH_STYLE'),
        kS3UseSSL =
            kS3UseSSL ??
            _inferS3UseSsl(
@@ -469,75 +420,57 @@ class Env {
        meritrankCalculateTimeout =
            meritrankCalculateTimeout ??
            Duration(
-             minutes: int.tryParse(_env['MR_CALCULATE_TIMEOUT'] ?? '') ?? 10,
+             minutes: _envInt('MR_CALCULATE_TIMEOUT') ?? 10,
            ),
        meritrankWalksCacheSize =
            meritrankWalksCacheSize ??
-           int.tryParse(_env['MERITRANK_WALKS_CACHE_SIZE'] ?? '') ??
+           _envInt('MERITRANK_WALKS_CACHE_SIZE') ??
            300,
        meritrankSnapshotsMb =
-           meritrankSnapshotsMb ??
-           int.tryParse(_env['MERITRANK_SNAPSHOTS_MB'] ?? '') ??
-           256,
+           meritrankSnapshotsMb ?? _envInt('MERITRANK_SNAPSHOTS_MB') ?? 256,
        forwardNoEffectCount =
-           forwardNoEffectCount ??
-           double.tryParse(_env['FORWARD_NO_EFFECT_COUNT'] ?? '') ??
-           1.0,
+           forwardNoEffectCount ?? _envDouble('FORWARD_NO_EFFECT_COUNT') ?? 1.0,
        forwardMinOpportunity =
            forwardMinOpportunity ??
            Duration(
-             hours:
-                 int.tryParse(_env['FORWARD_MIN_OPPORTUNITY_HOURS'] ?? '') ??
-                 24,
+             hours: _envInt('FORWARD_MIN_OPPORTUNITY_HOURS') ?? 24,
            ),
        trustSweepInterval =
            trustSweepInterval ??
            Duration(
-             hours:
-                 int.tryParse(_env['TRUST_SWEEP_INTERVAL_HOURS'] ?? '') ?? 24,
+             hours: _envInt('TRUST_SWEEP_INTERVAL_HOURS') ?? 24,
            ),
        trustSweepRetry =
            trustSweepRetry ??
            Duration(
-             minutes:
-                 int.tryParse(_env['TRUST_SWEEP_RETRY_MINUTES'] ?? '') ?? 15,
+             minutes: _envInt('TRUST_SWEEP_RETRY_MINUTES') ?? 15,
            ),
        trustSweepBatchSize =
-           trustSweepBatchSize ??
-           int.tryParse(_env['TRUST_SWEEP_BATCH_SIZE'] ?? '') ??
-           200,
+           trustSweepBatchSize ?? _envInt('TRUST_SWEEP_BATCH_SIZE') ?? 200,
        trustSweepTimeBudget =
            trustSweepTimeBudget ??
            Duration(
-             minutes:
-                 int.tryParse(_env['TRUST_SWEEP_TIME_BUDGET_MINUTES'] ?? '') ??
-                 5,
+             minutes: _envInt('TRUST_SWEEP_TIME_BUDGET_MINUTES') ?? 5,
            ),
        contactResolutionBatchSize =
            contactResolutionBatchSize ??
-           int.tryParse(_env['CONTACT_RESOLUTION_BATCH_SIZE'] ?? '') ??
+           _envInt('CONTACT_RESOLUTION_BATCH_SIZE') ??
            25,
        contactResolutionRunRowBudget =
            contactResolutionRunRowBudget ??
-           int.tryParse(_env['CONTACT_RESOLUTION_RUN_ROW_BUDGET'] ?? '') ??
+           _envInt('CONTACT_RESOLUTION_RUN_ROW_BUDGET') ??
            5000,
        contactResolutionRunTimeBudget =
            contactResolutionRunTimeBudget ??
            Duration(
              seconds:
-                 int.tryParse(
-                   _env['CONTACT_RESOLUTION_RUN_TIME_BUDGET_SECONDS'] ?? '',
-                 ) ??
-                 60,
+                 _envInt('CONTACT_RESOLUTION_RUN_TIME_BUDGET_SECONDS') ?? 60,
            ),
        contactResolutionSweepInterval =
            contactResolutionSweepInterval ??
            Duration(
              minutes:
-                 int.tryParse(
-                   _env['CONTACT_RESOLUTION_SWEEP_INTERVAL_MINUTES'] ?? '',
-                 ) ??
-                 10,
+                 _envInt('CONTACT_RESOLUTION_SWEEP_INTERVAL_MINUTES') ?? 10,
            ),
        trustNoisyWallEnabled =
            trustNoisyWallEnabled ??
@@ -550,9 +483,7 @@ class Env {
        chatStatusOfflineAfterDelay =
            chatStatusOfflineAfterDelay ??
            Duration(
-             seconds:
-                 int.tryParse(_env['CHAT_OFFLINE_DELAY'] ?? '') ??
-                 kUserOfflineAfterSeconds,
+             seconds: _envInt('CHAT_OFFLINE_DELAY') ?? kUserOfflineAfterSeconds,
            ),
 
        // Firebase
@@ -574,7 +505,7 @@ class Env {
        sentryDist = sentryDist ?? _env['SENTRY_DIST'] ?? '',
        sentryTracesSampleRate =
            sentryTracesSampleRate ??
-           double.tryParse(_env['SENTRY_TRACES_SAMPLE_RATE'] ?? '') ??
+           _envDouble('SENTRY_TRACES_SAMPLE_RATE') ??
            1.0
   //
   {
@@ -1101,6 +1032,15 @@ class Env {
   }
 
   static final _env = Platform.environment;
+
+  /// [key] parsed as an int; null when unset or not an integer.
+  static int? _envInt(String key) => int.tryParse(_env[key] ?? '');
+
+  /// [key] parsed as a double; null when unset or not a number.
+  static double? _envDouble(String key) => double.tryParse(_env[key] ?? '');
+
+  /// Whether [key] is exactly `true`.
+  static bool _envIsTrue(String key) => _env[key] == 'true';
 
   /// When [explicit] is non-empty, only the value `true` enables TLS.
   /// When unset or empty: TLS for known HTTPS-only S3 hosts; otherwise plain HTTP (MinIO).
