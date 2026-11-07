@@ -694,7 +694,6 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
               ),
       );
 
-  static const _titleCounterFrom = 48;
   static final _descriptionCounterFrom = (kBeaconDescriptionMaxLength * 0.8)
       .floor();
 
@@ -764,9 +763,6 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
               builder: (context, _) {
                 // Code units, as the validators and the server count them.
                 final n = _titleController.text.length;
-                if (n < _titleCounterFrom) {
-                  return const SizedBox.shrink();
-                }
                 return Align(
                   alignment: AlignmentDirectional.centerEnd,
                   child: Text(

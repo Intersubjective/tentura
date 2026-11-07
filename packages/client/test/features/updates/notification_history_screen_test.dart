@@ -217,7 +217,7 @@ void main() {
     await _pumpHistory(tester, repository: repo);
 
     final l10n = L10nEn();
-    expect(find.text(l10n.notificationHistoryTitle), findsOneWidget);
+    expect(find.text(l10n.notificationHistoryScreenTitle), findsOneWidget);
     expect(find.text('Activity surface event'), findsOneWidget);
     expect(find.text('My work surface event'), findsOneWidget);
     expect(repo.lastFetchSurface, isNull);

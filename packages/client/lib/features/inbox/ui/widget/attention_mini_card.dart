@@ -414,25 +414,17 @@ class _AttentionMiniCardState extends State<AttentionMiniCard>
         ),
       );
 
-  String _age(L10n l10n) => widget.compactAge
-      ? cardRelativeAge(
-          when: widget.receipt.createdAt,
-          now: RelativeTimestampTicker.now(),
-          l10n: l10n,
-        )
-      : compactRelativeTimeAgo(
-          when: widget.receipt.createdAt,
-          now: RelativeTimestampTicker.now(),
-          l10n: l10n,
-        );
+  String _age(L10n l10n) => cardRelativeAge(
+    when: widget.receipt.createdAt,
+    now: RelativeTimestampTicker.now(),
+    l10n: l10n,
+  );
 
-  String _spokenAge(L10n l10n) => widget.compactAge
-      ? cardRelativeAgeSpoken(
-          when: widget.receipt.createdAt,
-          now: RelativeTimestampTicker.now(),
-          l10n: l10n,
-        )
-      : _age(l10n);
+  String _spokenAge(L10n l10n) => cardRelativeAgeSpoken(
+    when: widget.receipt.createdAt,
+    now: RelativeTimestampTicker.now(),
+    l10n: l10n,
+  );
 
   void _setHovering(bool value) {
     if (_hovering != value) setState(() => _hovering = value);

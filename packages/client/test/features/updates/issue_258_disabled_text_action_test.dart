@@ -88,7 +88,7 @@ void main() {
           locale: locale,
           size: size,
           child: (context, l10n) => UpdatesFeedAppBarRow(
-            title: l10n.notificationHistoryTitle,
+            title: l10n.notificationHistoryScreenTitle,
             markAllLabel: l10n.updatesMarkAllSeen,
             hasUnread: hasUnread,
             onMarkAll: () {},
