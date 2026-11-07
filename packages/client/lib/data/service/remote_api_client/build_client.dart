@@ -111,9 +111,10 @@ Future<Client> buildClient({
               throwIfBeaconLobbyError(code);
               throwIfNowLineError(code, ext);
             }
-            throw mapRemoteFailure(errs);
           }
-          throw Exception(response.errors.toString());
+          // Same exception family as every other failure path: a null or
+          // empty error list maps to UnknownException / RemoteApiException.
+          throw mapRemoteFailure(errs);
         },
       ),
 
