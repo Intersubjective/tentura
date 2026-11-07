@@ -1696,10 +1696,8 @@ class RoomCubit extends Cubit<RoomState> {
     } on Object catch (e) {
       if (previousMessages != null) {
         emit(state.copyWith(messages: previousMessages));
-        _showSnackError(e);
-      } else {
-        _showSnackError(e);
       }
+      _showSnackError(e);
     }
   }
 
