@@ -508,22 +508,29 @@ class _ActivityStreamScrollBody extends StatelessWidget {
       items: [for (final entry in entries) entry.receipt],
       hasNextPage: streamState.hasNextPage,
     );
+    final visiblePinnedCount = offersState.items.length + exitingOffers.length;
+    final pinnedZoneHasRows = activityForYouPinnedZoneHasRows(
+      offersState: offersState,
+      visiblePinnedCount: visiblePinnedCount,
+      pinnedPromptRows: placement.pinnedReceipts.isNotEmpty,
+      collapsedInvitePrompt: placement.collapsedCount >= 3,
+    );
 
     final slivers = <Widget>[
-      SliverToBoxAdapter(
-        child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: tt.listRowPadding.left),
-          child: TenturaSectionHeader(
-            label: l10n.activityForYouTitle,
-            count: activityForYouHeaderCount(
-              offersState: offersState,
-              visiblePinnedCount:
-                  offersState.items.length + exitingOffers.length,
+      if (pinnedZoneHasRows)
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: tt.listRowPadding.left),
+            child: TenturaSectionHeader(
+              label: l10n.activityForYouTitle,
+              count: activityForYouHeaderCount(
+                offersState: offersState,
+                visiblePinnedCount: visiblePinnedCount,
+              ),
+              semanticsIdentifier: TestIds.activityForYouHeader,
             ),
-            semanticsIdentifier: TestIds.activityForYouHeader,
           ),
         ),
-      ),
       if (offersState.pageLoadFailed)
         SliverToBoxAdapter(
           child: _ActivitySourceRetryRow(
