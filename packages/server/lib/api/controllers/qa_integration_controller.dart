@@ -19,6 +19,7 @@ import 'package:tentura_server/domain/util/email_auth_util.dart';
 
 import '_base_controller.dart';
 import '../http/cookies.dart';
+import '../http/json_body.dart';
 import '../http/qa_request_gate.dart';
 import 'websocket/session/qa_realtime_socket_gate.dart';
 
@@ -54,11 +55,9 @@ final class QaIntegrationController extends BaseController {
       return Response.notFound(null);
     }
 
-    final Map<String, dynamic> body;
-    try {
-      body = (await request.body.asJson as Map).cast<String, dynamic>();
-    } catch (_) {
-      return Response.badRequest(body: 'invalid JSON body');
+    final body = await readJsonObject(request);
+    if (body == null) {
+      return invalidJsonBodyResponse();
     }
 
     final runId = (body['runId'] as String? ?? '').trim().toLowerCase();
@@ -112,11 +111,9 @@ final class QaIntegrationController extends BaseController {
       return Response.notFound(null);
     }
 
-    final Map<String, dynamic> body;
-    try {
-      body = (await request.body.asJson as Map).cast<String, dynamic>();
-    } catch (_) {
-      return Response.badRequest(body: 'invalid JSON body');
+    final body = await readJsonObject(request);
+    if (body == null) {
+      return invalidJsonBodyResponse();
     }
 
     final runId = (body['runId'] as String? ?? '').trim().toLowerCase();
@@ -218,11 +215,9 @@ final class QaIntegrationController extends BaseController {
       return Response.notFound(null);
     }
 
-    final Map<String, dynamic> body;
-    try {
-      body = (await request.body.asJson as Map).cast<String, dynamic>();
-    } catch (_) {
-      return Response.badRequest(body: 'invalid JSON body');
+    final body = await readJsonObject(request);
+    if (body == null) {
+      return invalidJsonBodyResponse();
     }
 
     final runId = (body['runId'] as String? ?? '').trim().toLowerCase();
@@ -284,11 +279,9 @@ final class QaIntegrationController extends BaseController {
       return Response.notFound(null);
     }
 
-    final Map<String, dynamic> body;
-    try {
-      body = (await request.body.asJson as Map).cast<String, dynamic>();
-    } catch (_) {
-      return Response.badRequest(body: 'invalid JSON body');
+    final body = await readJsonObject(request);
+    if (body == null) {
+      return invalidJsonBodyResponse();
     }
 
     final userId = (body['userId'] as String? ?? '').trim();
@@ -327,11 +320,9 @@ final class QaIntegrationController extends BaseController {
       return Response.notFound(null);
     }
 
-    final Map<String, dynamic> body;
-    try {
-      body = (await request.body.asJson as Map).cast<String, dynamic>();
-    } catch (_) {
-      return Response.badRequest(body: 'invalid JSON body');
+    final body = await readJsonObject(request);
+    if (body == null) {
+      return invalidJsonBodyResponse();
     }
 
     final beaconId = (body['beaconId'] as String? ?? '').trim();

@@ -9,6 +9,7 @@ import 'package:tentura_server/domain/port/fcm_remote_repository_port.dart';
 import 'package:tentura_server/domain/port/fcm_token_repository_port.dart';
 
 import '../http/cookies.dart';
+import '../http/json_body.dart';
 import '../http/qa_request_gate.dart';
 import '_base_controller.dart';
 
@@ -30,11 +31,9 @@ final class QaSendFcmController extends BaseController {
       return Response.notFound(null);
     }
 
-    final Map<String, dynamic> body;
-    try {
-      body = (await request.body.asJson as Map).cast<String, dynamic>();
-    } catch (_) {
-      return Response.badRequest(body: 'invalid JSON body');
+    final body = await readJsonObject(request);
+    if (body == null) {
+      return invalidJsonBodyResponse();
     }
 
     final title = _nonEmptyString(body['title']);
