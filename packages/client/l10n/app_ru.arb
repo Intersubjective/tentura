@@ -3163,7 +3163,7 @@
       }
     }
   },
-  "facepileSemantics": "{visible, plural, one{Показан 1 человек} few{Показано {visible} человека} many{Показано {visible} человек} other{Показано {visible} человек}}{more, plural, =0{} one{, ещё {more}} few{, ещё {more}} many{, ещё {more}} other{, ещё {more}}}",
+  "facepileSemantics": "{visible, plural, one{Показан {visible} человек} few{Показано {visible} человека} many{Показано {visible} человек} other{Показано {visible} человек}}{more, plural, =0{} one{, ещё {more}} few{, ещё {more}} many{, ещё {more}} other{, ещё {more}}}",
   "@facepileSemantics": {
     "description": "Accessibility label for overlapping avatar facepile",
     "placeholders": {
@@ -4331,7 +4331,7 @@
   },
   "beaconRoomReceiptPending": "Отправляется…",
   "beaconRoomReceiptSent": "Отправлено",
-  "beaconRoomReceiptRead": "{count, plural, one{Прочитал 1 человек} few{Прочитали {count} человека} many{Прочитали {count} человек} other{Прочитали {count} человека}}",
+  "beaconRoomReceiptRead": "{count, plural, one{Прочитал {count} человек} few{Прочитали {count} человека} many{Прочитали {count} человек} other{Прочитали {count} человека}}",
   "@beaconRoomReceiptRead": {
     "placeholders": {
       "count": {
@@ -5847,9 +5847,9 @@
   "postConversationForwarded": "{author} · через {sender}",
   "postConversationMuted": "Звук выключен",
   "postConversationOnlyYou": "Только вы",
-  "postConversationPeople": "{count, plural, one{1 человек} few{{count} человека} many{{count} человек} other{{count} человека}}",
-  "postConversationNotOpened": "{count, plural, one{1 не открыл} few{{count} не открыли} many{{count} не открыли} other{{count} не открыли}}",
-  "postConversationDeclined": "{count, plural, one{1 отказался} few{{count} отказались} many{{count} отказались} other{{count} отказались}}",
+  "postConversationPeople": "{count, plural, one{{count} человек} few{{count} человека} many{{count} человек} other{{count} человека}}",
+  "postConversationNotOpened": "{count, plural, one{{count} не открыл} few{{count} не открыли} many{{count} не открыли} other{{count} не открыли}}",
+  "postConversationDeclined": "{count, plural, one{{count} отказался} few{{count} отказались} many{{count} отказались} other{{count} отказались}}",
   "postConversationParticipantsSemantics": "Участники поста",
   "postMenuParticipants": "Участники",
   "postMenuAllowForwarding": "Разрешить пересылку",
