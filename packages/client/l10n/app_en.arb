@@ -3665,8 +3665,14 @@
   "@activityShowInStream": {
     "context": "InboxScreen"
   },
-  "notificationHistoryTitle": "Updates",
+  "notificationHistoryTitle": "Notification history",
   "@notificationHistoryTitle": {
+    "description": "Activity overflow menu entry for the global notification history screen",
+    "context": "InboxScreen"
+  },
+  "notificationHistoryScreenTitle": "History",
+  "@notificationHistoryScreenTitle": {
+    "description": "App bar title on the notification history screen (#1067)",
     "context": "UpdatesScreen"
   },
   "activityWatchingDigest": "{count, plural, one{{count} request you follow was updated} other{{count} requests you follow were updated}}",

@@ -161,7 +161,7 @@ class _UpdatesFeedPaneState extends State<UpdatesFeedPane>
           Padding(
             padding: EdgeInsets.symmetric(horizontal: tt.listRowPadding.left),
             child: UpdatesFeedAppBarRow(
-              title: l10n.updatesTitle,
+              title: l10n.notificationHistoryScreenTitle,
               markAllLabel: l10n.updatesMarkAllSeen,
               hasUnread: hasUnread,
               onMarkAll: () => unawaited(markAllUpdatesSeen(context)),

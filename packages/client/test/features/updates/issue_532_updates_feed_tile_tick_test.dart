@@ -73,11 +73,11 @@ void main() {
     tester,
   ) async {
     await _pump(tester);
-    expect(find.text('Just now'), findsOneWidget);
+    expect(find.text('now'), findsOneWidget);
 
     await advance(tester, const Duration(minutes: 2));
-    expect(find.text('Just now'), findsNothing);
-    expect(find.text('2m ago'), findsOneWidget);
+    expect(find.text('now'), findsNothing);
+    expect(find.text('2m'), findsOneWidget);
   });
 
   testWidgets('an Activity row age and its spoken form keep counting', (

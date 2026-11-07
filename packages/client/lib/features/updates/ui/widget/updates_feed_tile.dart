@@ -235,27 +235,19 @@ class _UpdatesFeedTileState extends State<UpdatesFeedTile> {
     // feed stays open (#532); only the age label rebuilds on a tick.
     String ageLabel() {
       final now = RelativeTimestampTicker.now();
-      return widget.activityRow
-          ? cardRelativeAge(
-              when: widget.receipt.createdAt,
-              now: now,
-              l10n: l10n,
-            )
-          : compactRelativeTimeAgo(
-              when: widget.receipt.createdAt,
-              now: now,
-              l10n: l10n,
-            );
+      return cardRelativeAge(
+        when: widget.receipt.createdAt,
+        now: now,
+        l10n: l10n,
+      );
     }
 
     // The abbreviations are for the eye; a screen reader hears the words.
-    String? ageSpoken() => widget.activityRow
-        ? cardRelativeAgeSpoken(
-            when: widget.receipt.createdAt,
-            now: RelativeTimestampTicker.now(),
-            l10n: l10n,
-          )
-        : null;
+    String? ageSpoken() => cardRelativeAgeSpoken(
+      when: widget.receipt.createdAt,
+      now: RelativeTimestampTicker.now(),
+      l10n: l10n,
+    );
     final absoluteTime =
         '${dateFormatDay(localCreatedAt, locale: l10n.localeName)} '
         '${timeFormatHm(localCreatedAt, locale: l10n.localeName)}';

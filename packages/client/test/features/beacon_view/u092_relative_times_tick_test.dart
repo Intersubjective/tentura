@@ -133,11 +133,11 @@ void main() {
           ),
         )
         .data!;
-    expect(age(), 'Just now');
+    expect(age(), 'now');
 
     clock = clock.add(const Duration(minutes: 2));
     await tester.pump(const Duration(seconds: 31));
 
-    expect(age(), '2m ago');
+    expect(age(), '2m');
   });
 }
