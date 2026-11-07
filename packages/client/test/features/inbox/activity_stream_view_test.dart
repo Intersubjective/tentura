@@ -922,6 +922,107 @@ void main() {
     );
   });
 
+  group('#1068 «Для вас» header only over pinned rows', () {
+    AttentionReceipt todayStreamReceipt(String id) => _streamReceipt(
+      id: id,
+      createdAt: DateTime.now(),
+      beaconAuthorName:
+          'Очень длинное имя отправителя для проверки переноса строки',
+    );
+
+    testWidgets('375×667 RU: stream only — no For you header, Today first', (
+      tester,
+    ) async {
+      await usePhoneSurface(tester);
+      final inboxRepo = FakeInboxRepository();
+      final attentionRepo = _FeedAttentionRepo(
+        firstPage: [
+          for (var i = 0; i < 4; i++) todayStreamReceipt('conn-$i'),
+        ],
+      );
+      wireActivityOffersV2(
+        inbox: inboxRepo,
+        attention: attentionRepo,
+        items: const [],
+        totalCount: 0,
+      );
+      final boot = await _boot(
+        inboxRepo: inboxRepo,
+        attentionRepo: attentionRepo,
+      );
+      addTearDown(boot.dispose);
+      await _pumpStreamView(
+        tester,
+        boot: boot,
+        logicalSize: kPhoneSurface,
+        locale: const Locale('ru'),
+      );
+
+      expect(
+        find.bySemanticsIdentifier(TestIds.activityForYouHeader),
+        findsNothing,
+      );
+      expect(
+        find.text(L10nRu().beaconRoomDateToday.toUpperCase()),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('375×667 RU: one pinned offer — For you · 1, then Today', (
+      tester,
+    ) async {
+      await usePhoneSurface(tester);
+      final l10n = L10nRu();
+      final inboxRepo = FakeInboxRepository();
+      final attentionRepo = _FeedAttentionRepo(
+        firstPage: [todayStreamReceipt('stream-1')],
+      );
+      wireActivityOffersV2(
+        inbox: inboxRepo,
+        attention: attentionRepo,
+        items: [_offerItem('offer-1', provenanceJson: _provenanceJson())],
+        totalCount: 1,
+      );
+      final boot = await _boot(
+        inboxRepo: inboxRepo,
+        attentionRepo: attentionRepo,
+      );
+      addTearDown(boot.dispose);
+      await _pumpStreamView(
+        tester,
+        boot: boot,
+        logicalSize: kPhoneSurface,
+        locale: const Locale('ru'),
+      );
+
+      final header = find.bySemanticsIdentifier(TestIds.activityForYouHeader);
+      expect(header, findsOneWidget);
+      expect(
+        find.descendant(
+          of: header,
+          matching: find.text(
+            '${l10n.activityForYouTitle.toUpperCase()} · 1',
+          ),
+        ),
+        findsOneWidget,
+      );
+
+      final headerTop = _top(header, tester);
+      final todayTop = _top(
+        find.text(l10n.beaconRoomDateToday.toUpperCase()),
+        tester,
+      );
+      final offerTop = _top(
+        find.byKey(const ValueKey('offer-offer-1')),
+        tester,
+      );
+      expect(headerTop, lessThan(offerTop));
+      expect(offerTop, lessThan(todayTop));
+      expect(tester.takeException(), isNull);
+    });
+  });
+
   // #476 — one Activity list, one age format and one trailing control. The
   // tombstone and the Request card speak the short card age («6m», #189
   // rev 2); the plain feed tile beside them said «7m ago» and wore a ⋮
