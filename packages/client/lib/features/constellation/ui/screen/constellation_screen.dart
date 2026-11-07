@@ -15,6 +15,7 @@ import 'package:tentura/features/graph/domain/entity/edge_details.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_person_context_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/home_tab_reselect_cubit.dart';
+import 'package:tentura/features/home/ui/widget/home_tab_transition_listener.dart';
 import 'package:tentura/features/people_tags/domain/use_case/people_tags_case.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/features/profile_view/domain/use_case/profile_view_case.dart';
@@ -281,6 +282,9 @@ class _ConstellationScreenState extends State<ConstellationScreen> {
         tabs.activeIndex == HomeTabSpec.forTab(HomeTab.constellation).index;
     final homeOnTop = root == null || root.current.name == HomeRoute.name;
     final visible = tabActive && homeOnTop;
+    if (!visible) {
+      maybeConstellationSelection(context)?.exitArranging();
+    }
     context.read<ConstellationCubit>().setVisible(visible);
     // Hidden, the field asks for nobody's presence either.
     context.read<ConstellationPresenceCubit?>()?.setVisible(visible);
@@ -490,8 +494,18 @@ class _ConstellationScreenState extends State<ConstellationScreen> {
         ),
       ),
     );
+    Widget wrapped = scaffold;
+    final tabs = _homeTabs;
+    if (tabs != null && selectionCubit != null) {
+      wrapped = HomeTabTransitionListener(
+        tabsRouter: tabs,
+        tab: HomeTab.constellation,
+        onLeave: selectionCubit.exitArranging,
+        child: wrapped,
+      );
+    }
     if (selectionCubit == null) {
-      return scaffold;
+      return wrapped;
     }
     return BlocBuilder<
       ConstellationSelectionCubit,
@@ -506,7 +520,7 @@ class _ConstellationScreenState extends State<ConstellationScreen> {
             selectionCubit.exitArranging();
           }
         },
-        child: scaffold,
+        child: wrapped,
       ),
     );
   }

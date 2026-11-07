@@ -55,7 +55,8 @@ abstract class ConstellationState extends StateBase with _$ConstellationState {
     @Default(<String>{}) Set<String> filterCapabilitySlugs,
     @Default(LocationFilter.any) LocationFilter filterLocation,
     @Default(TimingFilterAny()) TimingFilter filterTiming,
-    @Default(ActivityRecencyFilterAny()) ActivityRecencyFilter filterActivityRecency,
+    @Default(ActivityRecencyFilterAny())
+    ActivityRecencyFilter filterActivityRecency,
     @Default(true) bool filterIncludeUnspecified,
     @Default(ConstellationFieldMembershipFilters.defaults)
     ConstellationFieldMembershipFilters membershipFilters,
@@ -89,6 +90,9 @@ abstract class ConstellationState extends StateBase with _$ConstellationState {
 
     /// Effective personal Field hides (`fieldHiddenItems`), #255 l9k5.7.
     @Default(0) int hiddenByYouCount,
+
+    /// Stored show/hide chips have been read for this session (#1047).
+    @Default(false) bool visibilityRestored,
   }) = _ConstellationState;
 
   const ConstellationState._();

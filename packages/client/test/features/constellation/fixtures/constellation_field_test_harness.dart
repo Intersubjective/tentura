@@ -2,8 +2,10 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_selection_cubit.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
+import 'package:tentura/features/constellation/ui/widget/constellation_no_contacts.dart';
 
 /// Field body widget tests after #938 touch node-drag lock.
 ///
@@ -17,6 +19,23 @@ import 'package:tentura/features/constellation/ui/widget/constellation_body.dart
 /// pumpConstellationBody touchNodeDragLocked for locked-behaviour tests.
 ConstellationSelectionCubit constellationSelectionForFieldBodyTests() {
   return ConstellationSelectionCubit();
+}
+
+/// Dismisses the touch hold-hint banner so map chrome matches mouse layout in
+/// widget tests (hint is hidden when a mouse is connected).
+Future<void> stabilizeConstellationFieldChromeForTests(
+  WidgetTester tester,
+  ConstellationCubit cubit,
+) async {
+  final field = cubit.state.field;
+  if (field == null ||
+      constellationFieldHasNoContacts(field, cubit.viewerId) ||
+      cubit.state.visibility.fieldHoldHintDismissed) {
+    return;
+  }
+  cubit.dismissFieldHoldHint();
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 50));
 }
 
 /// Puts the Field into Arranging so touch node drags behave like pre-#938 tests.
