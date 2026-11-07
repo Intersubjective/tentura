@@ -64,7 +64,6 @@ import 'constellation_create_entry.dart';
 import 'constellation_filter_bar.dart';
 import 'constellation_forward_tree_overlay_bar.dart';
 import 'constellation_minimap.dart';
-import 'constellation_offscreen_cues.dart';
 import 'constellation_no_contacts.dart';
 import 'constellation_overflow_group.dart';
 import 'constellation_person_field_items_section.dart';
@@ -232,18 +231,6 @@ class _ConstellationBodyState extends State<ConstellationBody>
     if (_pointersDown == 0) {
       _zoom.update(_graphController.cameraScale, gestureActive: false);
       _rescheduleFieldSettleBack();
-      _syncOffscreenCuesGestureHidden();
-    }
-  }
-
-  void _syncOffscreenCuesGestureHidden() {
-    if (!mounted) {
-      return;
-    }
-    final hidden =
-        _pointersDown > 0 || _revealPan != null || _applyingReveal;
-    if (_offscreenCuesGestureHidden.value != hidden) {
-      _offscreenCuesGestureHidden.value = hidden;
     }
   }
 
@@ -283,7 +270,6 @@ class _ConstellationBodyState extends State<ConstellationBody>
   ({Offset from, Offset to})? _revealPan;
   bool _applyingReveal = false;
   Timer? _fieldSettleBackTimer;
-  final _offscreenCuesGestureHidden = ValueNotifier<bool>(false);
 
   @override
   void initState() {
@@ -355,7 +341,6 @@ class _ConstellationBodyState extends State<ConstellationBody>
     _graphController.removeListener(_syncCameraViewportInsetsFromController);
     _minimapExpanded.removeListener(_onMinimapExpandedChanged);
     _fieldSettleBackTimer?.cancel();
-    _offscreenCuesGestureHidden.dispose();
     _graphController.cameraRevision.removeListener(_onCamera);
     _zoom.removeListener(_onZoomLevel);
     _ownZoom?.dispose();
@@ -453,14 +438,12 @@ class _ConstellationBodyState extends State<ConstellationBody>
     }
     final t = Curves.easeOutCubic.transform(_reveal.value);
     _applyingReveal = true;
-    _syncOffscreenCuesGestureHidden();
     try {
       context.read<ConstellationCubit>().panCameraTo(
         Offset.lerp(pan.from, pan.to, t)!,
       );
     } finally {
       _applyingReveal = false;
-      _syncOffscreenCuesGestureHidden();
     }
   }
 
@@ -470,7 +453,6 @@ class _ConstellationBodyState extends State<ConstellationBody>
     }
     _revealPan = null;
     _reveal.stop();
-    _syncOffscreenCuesGestureHidden();
   }
 
   /// Pans (translation only, zoom kept) so [node] stays visible beside or
@@ -500,14 +482,10 @@ class _ConstellationBodyState extends State<ConstellationBody>
       return;
     }
     _revealPan = pan;
-    _syncOffscreenCuesGestureHidden();
     unawaited(
       _reveal.forward(from: 0).whenComplete(() {
         if (identical(_revealPan, pan)) {
           _revealPan = null;
-        }
-        if (mounted) {
-          _syncOffscreenCuesGestureHidden();
         }
       }),
     );
@@ -2225,7 +2203,6 @@ class _ConstellationBodyState extends State<ConstellationBody>
             _fieldSettleBackTimer = null;
             _stopReveal();
             _takeMapFocus();
-            _syncOffscreenCuesGestureHidden();
           },
           onPointerUp: (_) => _onPointerReleased(),
           onPointerCancel: (_) => _onPointerReleased(),
@@ -2827,29 +2804,6 @@ class _ConstellationBodyState extends State<ConstellationBody>
             ),
           ),
         ),
-        if (state.viewMode == ConstellationViewMode.map)
-          Positioned(
-            left: cameraInsets.left,
-            top: cameraInsets.top,
-            right: cameraInsets.right,
-            bottom: cameraInsets.bottom,
-            child: ConstellationOffscreenCues(
-              cubit: cubit,
-              viewportInsets: cameraInsets,
-              gestureHiddenListenable: _offscreenCuesGestureHidden,
-              visible:
-                  _detail == ConstellationDetailLevel.close &&
-                  !state.isComposing &&
-                  state.forwardTreeOverlay == null &&
-                  state.placementPhase == ConstellationPlacementPhase.idle,
-              onReveal: (node, _) => _revealNode(
-                context,
-                cubit,
-                node,
-                contextPanelVisible: panelVisible,
-              ),
-            ),
-          ),
         if (panelVisible && state.viewMode == ConstellationViewMode.map)
           _buildContextOverlay(
             context,

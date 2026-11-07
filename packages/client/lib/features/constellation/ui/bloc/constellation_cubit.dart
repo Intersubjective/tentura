@@ -34,7 +34,6 @@ import '../scene/constellation_magnet_layout.dart';
 import '../scene/constellation_community_scene_layout.dart';
 import '../../domain/constellation_people.dart';
 import '../../domain/constellation_multi_selection.dart';
-import '../../domain/constellation_offscreen_cues.dart';
 import '../../domain/constellation_mutual_trust.dart';
 import '../../domain/constellation_shown_field.dart';
 import '../../domain/constellation_tag_filter.dart';
@@ -3639,30 +3638,6 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   @visibleForTesting
   bool fieldAnyNodeBodyInSafeRectForTest({required EdgeInsets insets}) =>
       _scene.anyFieldNodeBodyIntersectsSafeRect(insets);
-
-  ConstellationOffscreenCueSnapshot fieldOffscreenCues({
-    required EdgeInsets insets,
-  }) {
-    if (isClosed || !graphController.canLayout) {
-      return const ConstellationOffscreenCueSnapshot.empty();
-    }
-    return _scene.fieldOffscreenCues(insets);
-  }
-
-  NodeDetails? fieldOffscreenRevealTarget(
-    ConstellationOffscreenSide side, {
-    required EdgeInsets insets,
-  }) {
-    if (isClosed || state.viewMode != ConstellationViewMode.map) {
-      return null;
-    }
-    final snapshot = _scene.fieldOffscreenCues(insets);
-    final graphId = snapshot.nearestBySide[side];
-    if (graphId == null) {
-      return null;
-    }
-    return graphController.renderSnapshot.topology.nodesById[graphId]?.payload;
-  }
 
   void compensateViewportHeightDelta(double viewportDeltaY) {
     if (isClosed) {
