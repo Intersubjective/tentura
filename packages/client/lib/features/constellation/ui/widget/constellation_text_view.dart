@@ -161,16 +161,9 @@ class _ConstellationTextViewState extends State<ConstellationTextView> {
         }
 
         // The map's people (#253): the viewer only when they have something
-        // on the field, everyone else always. Compose from the latest field
-        // snapshot — not the cubit's memo — so a reload that landed while this
-        // view was unmounted shows up on the first paint.
+        // on the field, everyone else always.
         final people = [
-          for (final person in constellationFieldPeople(
-            field: field,
-            composition: state.composition!,
-            viewerId: cubit.viewerId,
-            viewerName: cubit.viewer.shownName,
-          ))
+          for (final person in cubit.fieldPeople)
             if (!person.isViewer || _hasRows(cubit, person.id)) person,
         ];
         if (people.isEmpty &&

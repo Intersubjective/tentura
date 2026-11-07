@@ -1,10 +1,12 @@
 // Refs #1047, #1048, #1062 — Field arranging chrome gating and empty-field UI.
 
 import 'package:auto_route/auto_route.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
 import 'package:tentura/app/router/home_tab_branches.dart';
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/constellation/data/gql/_g/constellation_field_fetch.data.gql.dart';
 import 'package:tentura/features/constellation/data/model/constellation_field_mapper.dart';
 import 'package:tentura/features/constellation/data/repository/constellation_repository.dart';
@@ -12,7 +14,8 @@ import 'package:tentura/features/constellation/domain/constellation_visibility.d
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_selection_cubit.dart';
-import 'package:tentura/features/constellation/ui/widget/constellation_arranging_toolbar.dart';
+import 'package:tentura/features/constellation/ui/utils/constellation_tap_resolver.dart';
+import 'package:tentura/features/constellation/ui/widget/constellation_app_bar.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_no_contacts.dart';
 import 'package:tentura/features/graph/domain/entity/edge_details.dart';
@@ -102,6 +105,51 @@ Future<ConstellationCubit> _loadField(ConstellationField field) async {
   return cubit;
 }
 
+/// The phone Field app bar with its overflow menu (#659), as Home mounts it.
+Future<void> _pumpPhoneAppBar(
+  WidgetTester tester,
+  ConstellationCubit cubit,
+  ConstellationSelectionCubit selection,
+) async {
+  await usePhoneSurface(tester);
+  await tester.pumpWidget(
+    MaterialApp(
+      locale: const Locale('ru'),
+      theme: TenturaTheme.light(),
+      localizationsDelegates: L10n.localizationsDelegates,
+      supportedLocales: L10n.supportedLocales,
+      home: MediaQuery(
+        data: const MediaQueryData(size: kPhoneSurface),
+        child: TenturaResponsiveScope(
+          child: MultiBlocProvider(
+            providers: [
+              BlocProvider<ConstellationCubit>.value(value: cubit),
+              BlocProvider<ConstellationSelectionCubit>.value(value: selection),
+            ],
+            child: Builder(
+              builder: (context) => Scaffold(
+                appBar: TenturaTopBar.of(
+                  context,
+                  title: const SizedBox.shrink(),
+                  row: ConstellationAppBarRow(
+                    legendExpanded: false,
+                    onToggleLegend: () {},
+                    peopleTagsEnabled: false,
+                  ),
+                ),
+                body: const SizedBox.expand(),
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+  await tester.tap(find.byKey(const Key('constellation.app_bar.more')));
+  await tester.pumpAndSettle();
+}
+
 class _FakeTabsRouter extends Fake with ChangeNotifier implements TabsRouter {
   _FakeTabsRouter(this._index);
 
@@ -159,12 +207,14 @@ void main() {
     final cubit = await _loadField(await _egoOnlyFieldFromWire());
     addTearDown(cubit.close);
     final l10n = lookupL10n(const Locale('ru'));
+    final holder = ConstellationPresentationFrameHolder();
 
     await pumpConstellationBody(
       tester,
       cubit,
       locale: const Locale('ru'),
       arrangeV2Enabled: true,
+      presentationFrameHolder: holder,
     );
     await tester.pump(const Duration(milliseconds: 400));
 
@@ -189,6 +239,69 @@ void main() {
     );
 
     expect(l10n.constellationArrangeEntry, isNotEmpty);
+
+    // A touch long-press on the viewer's own node does not enter Arranging.
+    final frame = holder.frame;
+    expect(frame, isNotNull, reason: 'presentation frame must be ready');
+    final self = frame!.tapTargets['fp:ego'] ?? frame.bodies['fp:ego'];
+    expect(self, isNotNull, reason: 'the viewer node must be on the map');
+    final graphBox = tester.renderObject<RenderBox>(
+      find.byType(GraphView<NodeDetails, EdgeDetails>),
+    );
+    final gesture = await tester.startGesture(
+      graphBox.localToGlobal(self!.center),
+    );
+    await tester.pump(kLongPressTimeout + const Duration(milliseconds: 50));
+    await gesture.up();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(tester.constellationSelectionUnderTest().state.arranging, isFalse);
+    expect(
+      find.byKey(const Key('constellation.arranging.toolbar')),
+      findsNothing,
+    );
+  });
+
+  testWidgets('empty Field RU phone: the overflow menu has no «Выбрать»', (
+    tester,
+  ) async {
+    final cubit = await _loadField(await _egoOnlyFieldFromWire());
+    addTearDown(cubit.close);
+    final selection = ConstellationSelectionCubit();
+    addTearDown(selection.close);
+    final l10n = lookupL10n(const Locale('ru'));
+
+    await _pumpPhoneAppBar(tester, cubit, selection);
+
+    expect(
+      find.byKey(const Key('constellation.app_bar.more.filters')),
+      findsOneWidget,
+      reason: 'the menu must be open',
+    );
+    expect(
+      find.byKey(const Key('constellation.app_bar.more.select')),
+      findsNothing,
+    );
+    expect(find.text(l10n.constellationArrangeEntry), findsNothing);
+  });
+
+  testWidgets('one contact RU phone: the overflow menu offers «Выбрать»', (
+    tester,
+  ) async {
+    final cubit = await loadReferenceCubit(
+      field: constellationReferenceField(egoRequestCount: 0),
+    );
+    addTearDown(cubit.close);
+    final selection = ConstellationSelectionCubit();
+    addTearDown(selection.close);
+    final l10n = lookupL10n(const Locale('ru'));
+
+    await _pumpPhoneAppBar(tester, cubit, selection);
+
+    expect(
+      find.byKey(const Key('constellation.app_bar.more.select')),
+      findsOneWidget,
+    );
+    expect(find.text(l10n.constellationArrangeEntry), findsOneWidget);
   });
 
   testWidgets('one contact shows chips, tag row and Arrange FAB', (
@@ -216,7 +329,10 @@ void main() {
     final selection = tester.constellationSelectionUnderTest();
     await tester.tap(find.byKey(const Key('constellation.camera.arrange')));
     await tester.pump(const Duration(milliseconds: 400));
-    expect(find.byType(ConstellationArrangingToolbar), findsOneWidget);
+    expect(
+      find.byKey(const Key('constellation.arranging.toolbar')),
+      findsOneWidget,
+    );
     expect(selection.state.arranging, isTrue);
   });
 
