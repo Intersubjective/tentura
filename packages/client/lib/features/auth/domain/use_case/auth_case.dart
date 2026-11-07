@@ -17,6 +17,7 @@ import '../entity/web_bootstrap_result.dart';
 import '../port/auth_local_repository_port.dart';
 import '../port/auth_platform_cleanup_port.dart';
 import '../port/auth_remote_repository_port.dart';
+import '../port/auth_session_account_change_source.dart';
 import '../exception.dart';
 
 @singleton
@@ -49,6 +50,13 @@ final class AuthCase extends UseCaseBase {
   ///
   Stream<String> currentAccountChanges() =>
       _authLocalRepository.currentAccountChanges();
+
+  Stream<AuthSessionAccountChangedException> get sessionAccountChanges =>
+      switch (_authRemoteRepository) {
+        final AuthSessionAccountChangeSource source =>
+          source.sessionAccountChanges,
+        _ => const Stream.empty(),
+      };
 
   ///
   /// Returns the ID of the currently signed-in account.
