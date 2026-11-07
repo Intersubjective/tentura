@@ -7,6 +7,7 @@ import 'package:tentura_server/consts.dart';
 import 'package:tentura_server/data/service/email/email_sink_writer.dart';
 
 import '../http/cookies.dart';
+import '../http/qa_request_gate.dart';
 import '_base_controller.dart';
 
 /// Development/staging-only access to the latest file-sink email for an
@@ -16,7 +17,7 @@ final class QaEmailSinkController extends BaseController {
   const QaEmailSinkController(super.env);
 
   Future<Response> latestEmail(Request request) async {
-    if (!_qaAllowed(request)) {
+    if (!isQaRequestAllowed(request, env)) {
       return Response.notFound(null);
     }
 
@@ -65,19 +66,6 @@ final class QaEmailSinkController extends BaseController {
       }),
       headers: _jsonNoStore,
     );
-  }
-
-  bool _qaAllowed(Request request) {
-    if (!env.isQaAuthEnabled) {
-      return false;
-    }
-
-    final queryToken = request.url.queryParameters['_qa_token'];
-    final authorization = request.headers['authorization'] ?? '';
-    final bearerToken = authorization.toLowerCase().startsWith('bearer ')
-        ? authorization.substring(7).trim()
-        : null;
-    return queryToken == env.qaAuthToken || bearerToken == env.qaAuthToken;
   }
 
   String? _normalizeQaEmail(String raw) {
