@@ -845,6 +845,19 @@ void main() {
       separator.dispose();
     }
 
+    /// Compact header stacks «author · members» then lifetime on the next line
+    /// (`wrapMemberAndLifetime`, #1083).
+    void expectCompactLifetimeBelowWho(
+      RenderParagraph who,
+      RenderParagraph lifetime,
+    ) {
+      expect(
+        lifetime.localToGlobal(Offset.zero).dy,
+        greaterThan(who.localToGlobal(Offset.zero).dy),
+        reason: 'Lifetime must sit on the row below the author · members block',
+      );
+    }
+
     for (final width in [320.0, 375.0]) {
       for (final locale in [const Locale('en'), const Locale('ru')]) {
         for (final archived in [false, true]) {
@@ -855,7 +868,7 @@ void main() {
               ? '2 участника'
               : '2 participants';
           testWidgets('at ${width.toInt()} px the $label label stays on the '
-              'subtitle line while author and members ellipsise', (
+              'line below author · members while those ellipsise', (
             tester,
           ) async {
             await pumpHeader(
@@ -880,25 +893,8 @@ void main() {
               author.localToGlobal(Offset.zero).dy,
               closeTo(members.localToGlobal(Offset.zero).dy, 0.01),
             );
-            expect(
-              author.localToGlobal(Offset.zero).dy,
-              closeTo(lifetime.localToGlobal(Offset.zero).dy, 0.01),
-            );
-            final authorStart = author.text.toPlainText().indexOf(
-              longAuthor.displayName,
-            );
-            final firstCharacter = author.getBoxesForSelection(
-              TextSelection(
-                baseOffset: authorStart,
-                extentOffset: authorStart + 1,
-              ),
-            );
-            expect(firstCharacter, isNotEmpty);
-            final lineTop = author
-                .localToGlobal(firstCharacter.first.toRect().topLeft)
-                .dy;
-            expectEntireLabelVisible(tester, label, lineTop: lineTop);
-            expectLifetimeAdjacent(author, lifetime, label);
+            expectCompactLifetimeBelowWho(author, lifetime);
+            expectEntireLabelVisible(tester, label);
             expect(tester.takeException(), isNull);
           });
         }
