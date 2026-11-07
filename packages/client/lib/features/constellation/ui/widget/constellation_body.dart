@@ -182,7 +182,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
   final _graphStackKey = GlobalKey();
   final _mapFocus = FocusNode(debugLabel: 'ConstellationMap');
   final _fieldTopChromeKey = GlobalKey();
-  final _arrangingToolbarKey = GlobalKey();
+  final _bottomChromeColumnKey = GlobalKey();
   double _fieldTopChromeHeight = 0;
   double _mapStackHeight = 0;
 
@@ -194,8 +194,9 @@ class _ConstellationBodyState extends State<ConstellationBody>
   bool _compactSheetDetentExpanded = false;
   bool _wasCompactPanelOpen = false;
 
-  /// Measured height of [ConstellationArrangingToolbar] when visible.
-  double _arrangingToolbarHeight = 0;
+  /// Measured height of the bottom Field chrome column (tag lens + arranging +
+  /// selection). Used for FCP §C camera insets.
+  double _bottomChromeColumnHeight = 0;
 
   double get _effectiveMapStackHeight =>
       _layoutMapStackHeight > 0 ? _layoutMapStackHeight : _mapStackHeight;
@@ -288,6 +289,15 @@ class _ConstellationBodyState extends State<ConstellationBody>
     _reveal = AnimationController(vsync: this, duration: _revealDuration)
       ..addListener(_onRevealTick);
     _graphController.cameraRevision.addListener(_onCamera);
+    _graphController.addListener(_syncCameraViewportInsetsFromController);
+    _minimapExpanded.addListener(_onMinimapExpandedChanged);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      _measureBottomChromeColumnHeight();
+      _syncCameraViewportInsetsFromController();
+    });
     WidgetsBinding.instance.addObserver(this);
     final peopleTags = _peopleTags;
     if (widget.peopleTagsEnabled && peopleTags != null) {
@@ -325,6 +335,8 @@ class _ConstellationBodyState extends State<ConstellationBody>
   void dispose() {
     unawaited(_magnetTagsSubscription?.cancel());
     WidgetsBinding.instance.removeObserver(this);
+    _graphController.removeListener(_syncCameraViewportInsetsFromController);
+    _minimapExpanded.removeListener(_onMinimapExpandedChanged);
     _graphController.cameraRevision.removeListener(_onCamera);
     _zoom.removeListener(_onZoomLevel);
     _ownZoom?.dispose();
@@ -834,7 +846,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
     showSnackBar(context, text: message);
   }
 
-  EdgeInsets _cameraViewportInsets(
+  EdgeInsets _cameraViewportInsetsFromContext(
     BuildContext context,
     bool contextPanelVisible,
   ) {
@@ -850,20 +862,15 @@ class _ConstellationBodyState extends State<ConstellationBody>
       context,
       contextPanelVisible: contextPanelVisible,
       compactSheetHeight: sheetHeight,
+      bottomChromeHeight: _bottomChromeColumnHeight,
+      minimapExpanded: _minimapExpanded.value,
     );
   }
 
-  void _measureArrangingToolbarHeight() {
-    final box = _arrangingToolbarKey.currentContext?.findRenderObject();
-    if (box is! RenderBox || !box.hasSize) {
-      return;
-    }
-    final h = box.size.height;
-    if ((_arrangingToolbarHeight - h).abs() < 0.5) {
-      return;
-    }
-    setState(() => _arrangingToolbarHeight = h);
-  }
+  EdgeInsets _cameraViewportInsets(
+    BuildContext context,
+    bool contextPanelVisible,
+  ) => _cameraViewportInsetsFromContext(context, contextPanelVisible);
 
   /// Highest scene Y for the parent cluster centre so every member's bottom
   /// (and at close detail a label plate below the body) stays above the
@@ -879,9 +886,6 @@ class _ConstellationBodyState extends State<ConstellationBody>
         cubit.state.tagView != null) {
       return null;
     }
-    if (_arrangingToolbarHeight <= 0) {
-      return null;
-    }
     final vp = cubit.graphController.viewportSize;
     if (vp == null || vp.isEmpty) {
       return null;
@@ -890,8 +894,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
     final insets = _cameraViewportInsets(context, false);
     final viewportTop = insets.top;
     final viewportBottom = vp.height - insets.bottom;
-    final toolbarTopViewport = viewportBottom - _arrangingToolbarHeight;
-    if (toolbarTopViewport <= viewportTop) {
+    if (viewportBottom <= viewportTop) {
       return null;
     }
     final scale = cubit.graphController.cameraScale;
@@ -922,7 +925,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
     if (maxBelowCentreViewport <= 0) {
       return null;
     }
-    final lineViewport = Offset(vp.width / 2, toolbarTopViewport - tt.tightGap);
+    final lineViewport = Offset(vp.width / 2, viewportBottom - tt.tightGap);
     final capViewport = Offset(
       lineViewport.dx,
       lineViewport.dy - maxBelowCentreViewport,
@@ -1082,6 +1085,51 @@ class _ConstellationBodyState extends State<ConstellationBody>
       }
       setState(() {});
     });
+  }
+
+  void _measureBottomChromeColumnHeight() {
+    final box = _bottomChromeColumnKey.currentContext?.findRenderObject();
+    if (box is! RenderBox || !box.hasSize) {
+      return;
+    }
+    final h = box.size.height;
+    if ((_bottomChromeColumnHeight - h).abs() < 0.5) {
+      return;
+    }
+    setState(() => _bottomChromeColumnHeight = h);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      _syncCameraViewportInsetsFromController();
+    });
+  }
+
+  void _onMinimapExpandedChanged() {
+    if (!mounted) {
+      return;
+    }
+    setState(() {});
+    _syncCameraViewportInsetsFromController();
+  }
+
+  void _syncCameraViewportInsetsFromController() {
+    if (!mounted) {
+      return;
+    }
+    final cubit = context.read<ConstellationCubit>();
+    final panelVisible =
+        cubit.state.selectedPersonId != null ||
+        cubit.state.selectedRequestId != null;
+    final snapshotInsets = _cameraViewportInsetsFromContext(
+      context,
+      panelVisible,
+    );
+    cubit.syncFieldCameraViewportFromBody(
+      snapshotInsets: snapshotInsets,
+      bottomChromeHeight: _bottomChromeColumnHeight,
+      minimapExpanded: _minimapExpanded.value,
+    );
   }
 
   Widget _wrapAdaptiveContextOverlay(
@@ -1316,7 +1364,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
               if (!mounted) {
                 return;
               }
-              _measureArrangingToolbarHeight();
+              _measureBottomChromeColumnHeight();
               _syncArrangingDragClamp(
                 context: context,
                 cubit: cubit,
@@ -1997,6 +2045,13 @@ class _ConstellationBodyState extends State<ConstellationBody>
     bool compactSheetExpanded,
   ) {
     _mountedLayoutAlgorithm = layoutAlgorithm;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      _measureBottomChromeColumnHeight();
+      _syncCameraViewportInsetsFromController();
+    });
     final cameraInsets = _cameraViewportInsets(context, panelVisible);
     final tt = context.tt;
     final compactPanel = _compactContextPanelOpen(context, panelVisible);
@@ -2042,7 +2097,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
         if (!mounted) {
           return;
         }
-        _measureArrangingToolbarHeight();
+        _measureBottomChromeColumnHeight();
         _syncArrangingDragClamp(
           context: context,
           cubit: cubit,
@@ -2652,22 +2707,22 @@ class _ConstellationBodyState extends State<ConstellationBody>
           top: compactPanel ? 0 : null,
           bottom: compactPanel ? null : 0,
           child: SafeArea(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (!compactPanel) _buildTagLensPanel(context, cubit),
-                KeyedSubtree(
-                  key: _arrangingToolbarKey,
-                  child: ConstellationArrangingToolbar(
+            child: KeyedSubtree(
+              key: _bottomChromeColumnKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (!compactPanel) _buildTagLensPanel(context, cubit),
+                  ConstellationArrangingToolbar(
                     cubit: cubit,
                     peopleTagsEnabled: widget.peopleTagsEnabled,
                   ),
-                ),
-                ConstellationSelectionBar(
-                  cubit: cubit,
-                  peopleTagsEnabled: widget.peopleTagsEnabled,
-                ),
-              ],
+                  ConstellationSelectionBar(
+                    cubit: cubit,
+                    peopleTagsEnabled: widget.peopleTagsEnabled,
+                  ),
+                ],
+              ),
             ),
           ),
         ),

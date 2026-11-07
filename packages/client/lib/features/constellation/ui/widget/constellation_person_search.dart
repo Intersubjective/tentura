@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -114,11 +115,21 @@ class _ConstellationPersonSearchButtonState
     ];
   }
 
-  EdgeInsets _cameraInsets(BuildContext context) =>
-      ConstellationCameraControls.cameraViewportInsets(
+  EdgeInsets _cameraInsets(BuildContext context) {
+    try {
+      return context.read<ConstellationCubit>().fieldCameraViewportInsets(
         context,
         contextPanelVisible: true,
       );
+    } on ProviderNotFoundException {
+      // List/search-only harnesses mount the cubit above this widget without
+      // a Provider scope around the suggestion rows.
+      return ConstellationCameraControls.cameraViewportInsets(
+        context,
+        contextPanelVisible: true,
+      );
+    }
+  }
 
   void _pickPerson(BuildContext context, ConstellationCubit cubit, String id) {
     cubit.pickFieldSearchPerson(id, insets: _cameraInsets(context));
