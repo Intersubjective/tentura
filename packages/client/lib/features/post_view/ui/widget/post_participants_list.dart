@@ -181,23 +181,21 @@ class _PersonRow extends StatelessWidget {
             ExcludeSemantics(child: TenturaAvatar.small(profile: profile)),
             SizedBox(width: tt.avatarTextGap),
             Expanded(
-              child: Text(
-                isViewer
-                    ? l10n.labelYou
-                    : participant.displayLabel(l10n.unknownPerson),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    isViewer
+                        ? l10n.labelYou
+                        : participant.displayLabel(l10n.unknownPerson),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (note.isNotEmpty) Text(note, style: muted),
+                ],
               ),
             ),
-            if (note.isNotEmpty)
-              Flexible(
-                child: Text(
-                  note,
-                  style: muted,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
             if (hasPersonMenu) PersonMenuButton(personId: participant.userId),
           ],
         ),
