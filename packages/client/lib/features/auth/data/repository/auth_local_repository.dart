@@ -220,6 +220,18 @@ class AuthLocalRepository implements AuthLocalRepositoryPort {
       (await _localSecureStorage.read(_sessionMarkerKey(id))) == '1';
 
   @override
+  Future<void> retainOnlyAccount(String keepId) async {
+    if (keepId.isEmpty) {
+      return;
+    }
+    for (final account in await getAccountsAll()) {
+      if (account.id != keepId) {
+        await removeAccount(account.id);
+      }
+    }
+  }
+
+  @override
   Future<void> clearAllAuthData() async {
     for (final account in await getAccountsAll()) {
       await removeAccount(account.id);

@@ -1,39 +1,25 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
-import 'package:tentura/features/auth/domain/entity/account_entity.dart';
-import 'package:tentura/features/auth/domain/use_case/account_case.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/features/auth/ui/dialog/sign_out_dialog.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/self_aware_profile_avatar.dart';
-import 'package:tentura/ui/widget/self_user_highlight.dart';
 
 import 'home_open_profile.dart';
 
-/// Items for the unified account menu (#1079): profile, settings, optional
-/// account switcher, sign out.
+/// Items for the unified account menu (#1079): profile, settings, sign out.
 List<Widget> buildAccountMenuChildren(BuildContext context) {
   final l10n = L10n.of(context)!;
   final tt = context.tt;
-  final authCubit = GetIt.I<AuthCubit>();
-  final authState = authCubit.state;
   final profile = GetIt.I<ProfileCubit>().state.profile;
   final theme = Theme.of(context);
 
   void closeMenu() => MenuController.maybeOf(context)?.close();
 
-  String accountLabel(AccountEntity account) {
-    final p = AccountCase.fromAccountEntity(account);
-    final name = p.shownName.trim();
-    return name.isEmpty ? l10n.accountUnnamed : name;
-  }
-
-  final items = <Widget>[
+  return [
     MenuItemButton(
       style: _menuItemStyle(context),
       onPressed: () {
@@ -89,101 +75,26 @@ List<Widget> buildAccountMenuChildren(BuildContext context) {
         ),
       ),
     ),
-  ];
-
-  if (authState.accounts.length > 1) {
-    items
-      ..add(const Divider(height: 1))
-      ..add(
-        Padding(
-          padding: EdgeInsets.fromLTRB(
-            tt.menuTextStart,
-            tt.tightGap,
-            tt.rowGap,
-            tt.tightGap,
-          ),
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              l10n.chooseAccount,
-              style: theme.textTheme.labelLarge?.copyWith(
-                color: tt.textMuted,
-              ),
-            ),
-          ),
-        ),
-      );
-    for (final account in authState.accounts) {
-      final isMe = account.id == authState.currentAccountId;
-      final rowProfile = AccountCase.fromAccountEntity(account);
-      items.add(
-        MenuItemButton(
-          style: _menuItemStyle(context),
-          onPressed: () {
-            closeMenu();
-            unawaited(authCubit.signIn(account.id));
-          },
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(
-              minHeight: kMinInteractiveDimension,
-            ),
-            child: Row(
-              children: [
-                SelfAwareAvatar.small(profile: rowProfile),
-                SizedBox(width: tt.avatarTextGap),
-                Expanded(
-                  child: Text(
-                    accountLabel(account),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: SelfUserHighlight.nameStyle(
-                      theme,
-                      theme.textTheme.bodyLarge,
-                      SelfUserHighlight.profileIsSelf(
-                        rowProfile,
-                        profile.id,
-                      ),
-                    ),
-                  ),
-                ),
-                if (isMe)
-                  Icon(
-                    Icons.check,
-                    size: tt.iconSize,
-                    color: tt.textMuted,
-                  ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-  }
-
-  items
-    ..add(const Divider(height: 1))
-    ..add(
-      MenuItemButton(
-        style: _menuItemStyle(context),
-        onPressed: () async {
-          closeMenu();
-          await confirmAndSignOut(context);
-        },
-        child: SizedBox(
-          width: double.infinity,
-          height: kMinInteractiveDimension,
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              l10n.logout,
-              style: theme.textTheme.titleSmall?.copyWith(color: tt.danger),
-            ),
+    const Divider(height: 1),
+    MenuItemButton(
+      style: _menuItemStyle(context),
+      onPressed: () async {
+        closeMenu();
+        await confirmAndSignOut(context);
+      },
+      child: SizedBox(
+        width: double.infinity,
+        height: kMinInteractiveDimension,
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: Text(
+            l10n.logout,
+            style: theme.textTheme.titleSmall?.copyWith(color: tt.danger),
           ),
         ),
       ),
-    );
-
-  return items;
+    ),
+  ];
 }
 
 ButtonStyle _menuItemStyle(BuildContext context) {

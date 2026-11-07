@@ -136,6 +136,18 @@ class CookieSignInLocal extends EmptyAuthLocal {
   }
 
   @override
+  Future<void> retainOnlyAccount(String keepId) async {
+    if (keepId.isEmpty) {
+      return;
+    }
+    for (final id in _accounts.keys.toList()) {
+      if (id != keepId) {
+        await removeAccount(id);
+      }
+    }
+  }
+
+  @override
   Future<void> clearAllAuthData() async {
     _accounts.clear();
     _sessionIds.clear();
