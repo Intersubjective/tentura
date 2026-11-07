@@ -19,6 +19,7 @@ import '../port/auth_platform_cleanup_port.dart';
 import '../port/auth_remote_repository_port.dart';
 import '../port/auth_session_account_change_source.dart';
 import '../exception.dart';
+import 'session_sign_in.dart';
 
 @singleton
 final class AuthCase extends UseCaseBase {
@@ -236,8 +237,14 @@ final class AuthCase extends UseCaseBase {
   }
 
   Future<void> _signInWithSession(String userId) async {
-    await _authRemoteRepository.signInWithSession();
-    await _authLocalRepository.setCurrentAccountId(userId);
+    final sessionUserId = await _authRemoteRepository.signInWithSession();
+    await requireMatchingSessionAccount(
+      _authRemoteRepository,
+      _authLocalRepository,
+      userId: userId,
+      sessionUserId: sessionUserId,
+    );
+    await _authLocalRepository.setCurrentAccountId(sessionUserId);
   }
 
   ///
