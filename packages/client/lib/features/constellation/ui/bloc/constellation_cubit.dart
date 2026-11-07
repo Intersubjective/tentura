@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:developer' show TimelineTask;
 import 'dart:math' as math;
-import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/material.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
 import 'package:get_it/get_it.dart';

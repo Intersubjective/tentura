@@ -1,10 +1,8 @@
 // #1156: person panel rows glow for unread Field beacons (same signal as map).
 
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
-import 'package:tentura/ui/bloc/screen_state.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/env.dart';
@@ -123,7 +121,6 @@ ConstellationField _fieldWithUnread({
       authorId: 'am',
       title: 'Read',
       status: 0,
-      hasUnread: false,
       lastActivityAt: _loadedAt,
     ),
   ],
@@ -233,7 +230,9 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(
         find.byKey(
-          ConstellationPersonFieldItemsSection.personItemUnreadGlowKey(unreadId),
+          ConstellationPersonFieldItemsSection.personItemUnreadGlowKey(
+            unreadId,
+          ),
         ),
         findsOneWidget,
       );
@@ -269,19 +268,23 @@ void main() {
 
       expect(
         find.byKey(
-          ConstellationPersonFieldItemsSection.personItemUnreadGlowKey(unreadId),
+          ConstellationPersonFieldItemsSection.personItemUnreadGlowKey(
+            unreadId,
+          ),
         ),
         findsOneWidget,
       );
 
       await tester.tap(
-        find.byKey(Key('constellation.person_items.row.$unreadId')),
+        find.byKey(const Key('constellation.person_items.row.req-open-clear')),
       );
       await tester.pumpAndSettle();
 
       expect(
         find.byKey(
-          ConstellationPersonFieldItemsSection.personItemUnreadGlowKey(unreadId),
+          ConstellationPersonFieldItemsSection.personItemUnreadGlowKey(
+            unreadId,
+          ),
         ),
         findsNothing,
       );
@@ -359,10 +362,10 @@ void main() {
       final cubit = fixture.createCubit(viewer: _ego);
       await cubit.load();
 
-    expect(cubit.unreadFieldBeaconIds(), {'r-unread'});
-    cubit.openedFieldBeacon('r-unread');
-    await Future<void>.delayed(Duration.zero);
-    expect(cubit.unreadFieldBeaconIds(), isEmpty);
+      expect(cubit.unreadFieldBeaconIds(), {'r-unread'});
+      cubit.openedFieldBeacon('r-unread');
+      await Future<void>.delayed(Duration.zero);
+      expect(cubit.unreadFieldBeaconIds(), isEmpty);
     },
   );
 }
