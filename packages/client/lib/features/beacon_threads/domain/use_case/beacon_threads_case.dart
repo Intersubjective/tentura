@@ -22,6 +22,7 @@ import '../../data/repository/beacon_fact_card_repository.dart';
 import '../../data/repository/beacon_room_hints_repository.dart';
 import '../../data/repository/beacon_threads_repository.dart';
 import '../entity/beacon_room_invalidation.dart';
+import '../entity/committed_mention.dart';
 import '../entity/request_thread.dart';
 import '../entity/room_seen_outcome.dart';
 import '../entity/room_typing_signal.dart';
@@ -209,9 +210,7 @@ base class BeaconThreadsCase extends UseCaseBase {
     String? replyToMessageId,
     String? threadItemId,
     List<RoomPendingUpload> uploads = const [],
-    List<String> explicitMentionUserIds = const [],
-    List<int> explicitMentionOffsets = const [],
-    List<int> explicitMentionLengths = const [],
+    List<CommittedMention> explicitMentions = const [],
     String? quotedFactCardId,
     int? quotedFactRevisionSeq,
     String? clientMessageId,
@@ -230,9 +229,11 @@ base class BeaconThreadsCase extends UseCaseBase {
       replyToMessageId: replyToMessageId,
       threadItemId: threadItemId,
       firstAttachment: first,
-      explicitMentionUserIds: explicitMentionUserIds,
-      explicitMentionOffsets: explicitMentionOffsets,
-      explicitMentionLengths: explicitMentionLengths,
+      explicitMentionUserIds: [for (final m in explicitMentions) m.userId],
+      explicitMentionOffsets: [for (final m in explicitMentions) m.start],
+      explicitMentionLengths: [
+        for (final m in explicitMentions) m.end - m.start,
+      ],
       quotedFactCardId: quotedFactCardId,
       quotedFactRevisionSeq: quotedFactRevisionSeq,
       clientMessageId: clientMessageId,

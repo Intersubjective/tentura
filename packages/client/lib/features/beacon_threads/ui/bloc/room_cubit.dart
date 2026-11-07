@@ -1555,15 +1555,7 @@ class RoomCubit extends Cubit<RoomState> {
         threadItemId: state.threadItemId,
         replyToMessageId: target?.id,
         uploads: uploads,
-        explicitMentionUserIds: [
-          for (final mention in normalizedMentions) mention.userId,
-        ],
-        explicitMentionOffsets: [
-          for (final mention in normalizedMentions) mention.start,
-        ],
-        explicitMentionLengths: [
-          for (final mention in normalizedMentions) mention.end - mention.start,
-        ],
+        explicitMentions: normalizedMentions,
         quotedFactCardId: quotedFact?.factCardId,
         quotedFactRevisionSeq: quotedFact?.seq,
       );
