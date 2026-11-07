@@ -431,7 +431,7 @@ void main() {
       expect(done(cubit.graphController.cameraScale), isTrue);
     }
 
-    testWidgets('pin hides at overview zoom and returns at normal zoom', (
+    testWidgets('pin glyph is never painted; status badge stays visible', (
       tester,
     ) async {
       final cubit = await loadReferenceCubit(
@@ -447,7 +447,7 @@ void main() {
         cubit.graphController.cameraScale,
         greaterThanOrEqualTo(kConstellationCloseDetailScale),
       );
-      expect(pin, findsOneWidget);
+      expect(pin, findsNothing);
       expect(status, findsOneWidget);
 
       await zoomUntil(
@@ -465,7 +465,7 @@ void main() {
         1.25,
         (s) => s >= kConstellationCloseDetailScale,
       );
-      expect(pin, findsOneWidget);
+      expect(pin, findsNothing);
       expect(status, findsOneWidget);
     });
 
@@ -497,8 +497,8 @@ void main() {
 
         final requestPin = inRequestNode(TestIds.constellationPinMarker);
         final personPin = inNode('am', TestIds.constellationPinMarker);
-        expect(requestPin, findsOneWidget);
-        expect(personPin, findsOneWidget);
+        expect(requestPin, findsNothing);
+        expect(personPin, findsNothing);
 
         await zoomUntil(
           tester,

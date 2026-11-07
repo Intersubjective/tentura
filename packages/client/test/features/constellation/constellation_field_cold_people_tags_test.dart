@@ -346,12 +346,12 @@ void main() {
     expect(repository.membershipCalls, 1);
   });
 
-  testWidgets('the Field shows a tagged person glyph on a cold session', (
+  testWidgets('the Field does not show own-tag glyphs on nodes', (
     tester,
   ) async {
     await mount(tester, _field());
     expect(_graphNode('one-tag'), findsOneWidget);
-    expect(_glyphTextsOn(tester, 'one-tag'), ['N']);
+    expect(_glyphsOn('one-tag'), findsNothing);
   });
   testWidgets('a saved own tag magnet appears on the cold Field map', (
     tester,
@@ -405,7 +405,7 @@ void main() {
     expect(repository.tagsCalls, 2);
     expect(repository.membershipCalls, 2);
     expect(find.text('Runners'), findsWidgets);
-    expect(_glyphTextsOn(tester, 'one-tag'), ['R']);
+    expect(_glyphsOn('one-tag'), findsNothing);
   });
   testWidgets(
     'a tagged person opens a panel with own tags from the cold Field',

@@ -185,6 +185,7 @@ void main() {
           base: 0,
           bodyDiameter: diameter,
           hasTrustBadge: true,
+          trustBadge: ConstellationTrustBadge.youTrust,
           tt: tt,
         );
         final body = Rect.fromCircle(center: Offset.zero, radius: diameter / 2);
@@ -224,6 +225,17 @@ void main() {
         ),
         5,
       );
+      expect(
+        constellationNodeBadgeOverhang(
+          base: 3,
+          bodyDiameter: 40,
+          hasTrustBadge: true,
+          trustBadge: ConstellationTrustBadge.mutual,
+          tt: tt,
+        ),
+        3,
+        reason: 'mutual trust is rim-only: no glyph disc overhang',
+      );
     });
 
     test("a neighbour's label is not placed over a trusted person's disc", () {
@@ -249,6 +261,7 @@ void main() {
                   base: 0,
                   bodyDiameter: diameter,
                   hasTrustBadge: reserve,
+                  trustBadge: ConstellationTrustBadge.youTrust,
                   tt: tt,
                 ),
                 labelSize: const Size(80, 20),
@@ -375,50 +388,71 @@ void main() {
     });
 
     for (final badge in ConstellationTrustBadge.values) {
-      testWidgets('paints the ${badge.name} glyph disc and no ring', (
-        tester,
-      ) async {
-        final frame = frameOf([
-          ('p', const Offset(200, 200), 40),
-        ], detail: ConstellationDetailLevel.close);
-        await pumpLayer(tester, frame: frame, trust: {'p': badge});
-        final context = tester.element(rings());
-        final tt = context.tt;
-        final scheme = Theme.of(context).colorScheme;
-        final style = constellationTrustBadgeStyle(badge, scheme, rtl: false);
-        final g = constellationNodeRingGeometry(
-          body: frame.bodies['p']!,
-          minTarget: minTarget,
-          gap: tt.tightGap,
-          minTrustRadius: constellationTrustMinRadius(tt),
-          badgeDiameter: constellationTrustBadgeDiameter(tt),
-          rtl: false,
-        );
-        // Only the disc: nothing is drawn round the person.
-        expect(rings(), isNot(paints..path()));
-        expect(rings(), isNot(paints..circle(x: 200, y: 200)));
-        expect(
-          rings(),
-          paints
-            ..circle(
-              x: g.badgeCentre.dx,
-              y: g.badgeCentre.dy,
-              radius: g.badgeDiameter / 2,
-              color: scheme.surface,
-            )
-            ..circle(
-              x: g.badgeCentre.dx,
-              y: g.badgeCentre.dy,
-              radius: g.badgeDiameter / 2,
-              color: style.color,
-              style: PaintingStyle.stroke,
-            )
-            ..paragraph(),
-        );
-        // A person without a relation gets nothing.
-        await pumpLayer(tester, frame: frame);
-        expect(rings(), paintsNothing);
-      });
+      testWidgets(
+        badge == ConstellationTrustBadge.mutual
+            ? 'paints mutual trust as a rim only at close detail'
+            : 'paints the ${badge.name} glyph disc and no ring',
+        (tester) async {
+          final frame = frameOf([
+            ('p', const Offset(200, 200), 40),
+          ], detail: ConstellationDetailLevel.close);
+          await pumpLayer(tester, frame: frame, trust: {'p': badge});
+          final context = tester.element(rings());
+          final tt = context.tt;
+          final scheme = Theme.of(context).colorScheme;
+          if (badge == ConstellationTrustBadge.mutual) {
+            final rim = constellationTrustRimOf(
+              badge,
+              frame.bodies['p']!,
+              scheme,
+            )!;
+            expect(rings(), isNot(paints..paragraph()));
+            expect(
+              rings(),
+              paints..circle(
+                x: 200,
+                y: 200,
+                radius: 20 - rim.width / 2,
+                strokeWidth: rim.width,
+                color: rim.color,
+                style: PaintingStyle.stroke,
+              ),
+            );
+            return;
+          }
+          final style = constellationTrustBadgeStyle(badge, scheme, rtl: false);
+          final g = constellationNodeRingGeometry(
+            body: frame.bodies['p']!,
+            minTarget: minTarget,
+            gap: tt.tightGap,
+            minTrustRadius: constellationTrustMinRadius(tt),
+            badgeDiameter: constellationTrustBadgeDiameter(tt),
+            rtl: false,
+          );
+          expect(rings(), isNot(paints..path()));
+          expect(rings(), isNot(paints..circle(x: 200, y: 200)));
+          expect(
+            rings(),
+            paints
+              ..circle(
+                x: g.badgeCentre.dx,
+                y: g.badgeCentre.dy,
+                radius: g.badgeDiameter / 2,
+                color: scheme.surface,
+              )
+              ..circle(
+                x: g.badgeCentre.dx,
+                y: g.badgeCentre.dy,
+                radius: g.badgeDiameter / 2,
+                color: style.color,
+                style: PaintingStyle.stroke,
+              )
+              ..paragraph(),
+          );
+          await pumpLayer(tester, frame: frame);
+          expect(rings(), paintsNothing);
+        },
+      );
     }
 
     testWidgets('off the selected trust chain the trust marks fade', (
@@ -450,24 +484,11 @@ void main() {
       );
       var layers = 0;
       // The kept mark first, then both faded ones inside ONE translucent
-      // layer at the chain's dim opacity.
-      final g = (Offset c) => constellationNodeRingGeometry(
-        body: Rect.fromCircle(center: c, radius: 20),
-        minTarget: minTarget,
-        gap: tester.element(rings()).tt.tightGap,
-        minTrustRadius: constellationTrustMinRadius(tester.element(rings()).tt),
-        badgeDiameter: constellationTrustBadgeDiameter(
-          tester.element(rings()).tt,
-        ),
-        rtl: false,
-      ).badgeCentre;
-      final on = g(const Offset(100, 200));
-      final off1 = g(const Offset(200, 300));
-      final off2 = g(const Offset(300, 200));
+      // layer at the chain's dim opacity. Mutual trust is rim-only.
       expect(
         rings(),
         paints
-          ..circle(x: on.dx, y: on.dy)
+          ..circle(x: 100, y: 200)
           ..something((name, args) {
             if (name != #saveLayer) return false;
             layers++;
@@ -481,16 +502,12 @@ void main() {
             );
             return true;
           })
-          // Each mark: the glyph disc (fill, stroke, glyph).
-          ..circle(x: off1.dx, y: off1.dy)
-          ..circle()
-          ..paragraph()
-          ..circle(x: off2.dx, y: off2.dy)
-          ..circle()
-          ..paragraph()
+          ..circle(x: 200, y: 300)
+          ..circle(x: 300, y: 200)
           ..restore(),
       );
       expect(layers, 1);
+      expect(rings(), isNot(paints..paragraph()));
     });
 
     // Zoomed out the fixed-size disc would cover the node: a muted rim on

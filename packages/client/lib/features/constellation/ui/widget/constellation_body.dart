@@ -370,7 +370,6 @@ class _ConstellationBodyState extends State<ConstellationBody>
     return scale < 1 ? scale : 1;
   }
 
-  // Only the pin badge is zoom-gated; rebuild solely on detail-level change.
   void _onCamera() {
     if (!_applyingReveal) {
       // Anyone else moving the camera (a pan, zoom, fit) wins over the reveal.
@@ -2485,18 +2484,6 @@ class _ConstellationBodyState extends State<ConstellationBody>
                               strokeWidth: tt.tightGap / 2,
                             )
                           : null,
-                      pinBadge:
-                          cubit.isAnchored(
-                            ConstellationAnchorTarget.person(person.id),
-                          )
-                          ? ExcludeSemantics(
-                              child: ConstellationMarkerBadge.pin(
-                                l10n: l10n,
-                                tt: tt,
-                                scheme: scheme,
-                              ),
-                            )
-                          : null,
                       child: GraphNodeWidget(
                         key: TestIds.key(TestIds.graphNode(node.id)),
                         nodeDetails: node,
@@ -2522,18 +2509,6 @@ class _ConstellationBodyState extends State<ConstellationBody>
                               dash: tt.tightGap * 1.5,
                               gap: tt.tightGap,
                               strokeWidth: tt.tightGap / 2,
-                            )
-                          : null,
-                      pinBadge:
-                          cubit.isAnchored(
-                            ConstellationAnchorTarget.beacon(request.id),
-                          )
-                          ? ExcludeSemantics(
-                              child: ConstellationMarkerBadge.pin(
-                                l10n: l10n,
-                                tt: tt,
-                                scheme: scheme,
-                              ),
                             )
                           : null,
                       statusBadge: request.isPlaceholder
@@ -2578,18 +2553,6 @@ class _ConstellationBodyState extends State<ConstellationBody>
                             dash: tt.tightGap * 1.5,
                             gap: tt.tightGap,
                             strokeWidth: tt.tightGap / 2,
-                          )
-                        : null,
-                    pinBadge:
-                        cubit.isAnchored(
-                          ConstellationAnchorTarget.beacon(post.id),
-                        )
-                        ? ExcludeSemantics(
-                            child: ConstellationMarkerBadge.pin(
-                              l10n: l10n,
-                              tt: tt,
-                              scheme: scheme,
-                            ),
                           )
                         : null,
                     child: GraphNodeWidget(
@@ -3550,13 +3513,9 @@ class _ConstellationMapNode extends StatelessWidget {
     this.districtPerson,
     this.temporaryOutline,
     this.forwardTreeMarker,
-    this.pinBadge,
     this.statusBadge,
     this.ownTags = const [],
   });
-
-  /// Own tags drawn as glyphs on the top-end corner; two at most, then "+N".
-  static const _maxGlyphs = 2;
 
   final Widget child;
   final ConstellationDetailLevel detail;
@@ -3573,7 +3532,6 @@ class _ConstellationMapNode extends StatelessWidget {
 
   /// Small glyph for forward-tree recipient state (#774).
   final ConstellationForwardTreeRecipientMarker? forwardTreeMarker;
-  final Widget? pinBadge;
   final Widget? statusBadge;
   final List<PersonTag> ownTags;
 
@@ -3584,7 +3542,6 @@ class _ConstellationMapNode extends StatelessWidget {
         districtPerson: districtPerson,
         temporaryOutline: temporaryOutline,
         forwardTreeMarker: forwardTreeMarker,
-        pinBadge: pinBadge,
         statusBadge: statusBadge,
         ownTags: ownTags,
         child: child,
@@ -3617,7 +3574,6 @@ class _ConstellationMapNode extends StatelessWidget {
           )
         : child;
     final overhang = constellationMarkerBadgeOverhang(tt);
-    final pinBadge = this.pinBadge;
     final statusBadge = this.statusBadge;
     final markerChar = switch (forwardTreeMarker) {
       ConstellationForwardTreeRecipientMarker.helped => '✓',
@@ -3654,35 +3610,6 @@ class _ConstellationMapNode extends StatelessWidget {
             top: -overhang,
             start: -overhang,
             child: statusBadge,
-          ),
-        if ((pinBadge != null || ownTags.isNotEmpty) &&
-            detail == ConstellationDetailLevel.close)
-          PositionedDirectional(
-            top: -overhang,
-            end: -overhang,
-            // The pin sits left of the glyph cluster.
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              spacing: tt.tightGap / 2,
-              children: [
-                ?pinBadge,
-                for (final tag in ownTags.take(_maxGlyphs))
-                  ExcludeSemantics(
-                    child: TagGlyph(
-                      glyph: tag.glyph,
-                      colorIndex: tag.color,
-                      size: tt.iconSize * 0.85,
-                    ),
-                  ),
-                if (ownTags.length > _maxGlyphs)
-                  ExcludeSemantics(
-                    child: Text(
-                      '+${ownTags.length - _maxGlyphs}',
-                      style: TenturaText.labelSmall(tt.textMuted),
-                    ),
-                  ),
-              ],
-            ),
           ),
       ],
     );

@@ -652,8 +652,8 @@ void main() {
     });
   });
 
-  group('Constellation pin/status badges (UI-14)', () {
-    testWidgets('pinned nodes and requests respect corner placement', (
+  group('Constellation status badges (UI-14)', () {
+    testWidgets('request status badges respect corner placement', (
       tester,
     ) async {
       final field = constellationReferenceField(
@@ -672,24 +672,25 @@ void main() {
 
       final labelRects = _placedLabelRects(tester).toList();
 
-      final amBody = find.byKey(TestIds.key(TestIds.graphNode('am')));
-      final amStack = _nodeStack(amBody);
-      final amPin = find.descendant(
-        of: amStack,
-        matching: find.byKey(TestIds.key(TestIds.constellationPinMarker)),
+      final amStack = _nodeStack(
+        find.byKey(TestIds.key(TestIds.graphNode('am'))),
       );
-      expect(amPin, findsOneWidget);
-      _expectBadgeUpperCorner(
-        badgeRect: _globalRect(tester, amPin),
-        bodyRect: _globalRect(tester, amBody),
-        onEndSide: true,
+      expect(
+        find.descendant(
+          of: amStack,
+          matching: find.byKey(TestIds.key(TestIds.constellationPinMarker)),
+        ),
+        findsNothing,
       );
 
       final reqBody = find.byKey(TestIds.key(TestIds.graphNode('req-in-2')));
       final reqStack = _nodeStack(reqBody);
-      final reqPin = find.descendant(
-        of: reqStack,
-        matching: find.byKey(TestIds.key(TestIds.constellationPinMarker)),
+      expect(
+        find.descendant(
+          of: reqStack,
+          matching: find.byKey(TestIds.key(TestIds.constellationPinMarker)),
+        ),
+        findsNothing,
       );
       final reqStatus = find.descendant(
         of: reqStack,
@@ -697,37 +698,21 @@ void main() {
           TestIds.key(TestIds.constellationRequestStatusMarker),
         ),
       );
-      expect(reqPin, findsOneWidget);
       expect(reqStatus, findsOneWidget);
-      _expectBadgeUpperCorner(
-        badgeRect: _globalRect(tester, reqPin),
-        bodyRect: _globalRect(tester, reqBody),
-        onEndSide: true,
-      );
       _expectBadgeUpperCorner(
         badgeRect: _globalRect(tester, reqStatus),
         bodyRect: _globalRect(tester, reqBody),
         onEndSide: false,
       );
 
-      for (final badgeRect in [
-        _globalRect(tester, amPin),
-        _globalRect(tester, reqPin),
-        _globalRect(tester, reqStatus),
-      ]) {
+      for (final badgeRect in [_globalRect(tester, reqStatus)]) {
         for (final labelRect in labelRects) {
           expect(badgeRect.overlaps(labelRect), isFalse);
         }
       }
 
-      final smBody = find.byKey(TestIds.key(TestIds.graphNode('sm')));
-      final smStack = _nodeStack(smBody);
-      expect(
-        find.descendant(
-          of: smStack,
-          matching: find.byKey(TestIds.key(TestIds.constellationPinMarker)),
-        ),
-        findsNothing,
+      final smStack = _nodeStack(
+        find.byKey(TestIds.key(TestIds.graphNode('sm'))),
       );
       expect(
         find.descendant(
@@ -740,35 +725,6 @@ void main() {
       );
 
       expect(holder.frame, isNotNull);
-    });
-
-    testWidgets('RTL pin badges sit on visual end side', (tester) async {
-      final field = constellationReferenceField(
-        anchors: _pinnedReferenceAnchors(),
-      );
-      final cubit = await loadReferenceCubit(field: field);
-      addTearDown(cubit.close);
-
-      await pumpConstellationBody(
-        tester,
-        cubit,
-        locale: const Locale('ru'),
-        textDirection: TextDirection.rtl,
-      );
-      await tester.pumpAndSettle();
-
-      final amBody = find.byKey(TestIds.key(TestIds.graphNode('am')));
-      final amStack = _nodeStack(amBody);
-      final amPin = find.descendant(
-        of: amStack,
-        matching: find.byKey(TestIds.key(TestIds.constellationPinMarker)),
-      );
-      expect(amPin, findsOneWidget);
-      _expectBadgeUpperCorner(
-        badgeRect: _globalRect(tester, amPin),
-        bodyRect: _globalRect(tester, amBody),
-        onEndSide: false,
-      );
     });
   });
 

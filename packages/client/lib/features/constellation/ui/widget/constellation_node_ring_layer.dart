@@ -237,16 +237,18 @@ Color constellationMutedRimColor(Color base, Color background) =>
     }();
 
 /// How far a node's decorations reach past its body at the top and sides,
-/// for label and chip placement: [base] (pin / status badges) or, for a
-/// person with a trust badge, its glyph disc if that reaches further, so no
-/// label or chip is placed over it.
+/// for label and chip placement: [base] (status badges) or, for a person with
+/// a one-way trust glyph disc, its disc if that reaches further.
 double constellationNodeBadgeOverhang({
   required double base,
   required double bodyDiameter,
   required bool hasTrustBadge,
   required TenturaTokens tt,
+  ConstellationTrustBadge? trustBadge,
 }) {
-  if (!hasTrustBadge) {
+  if (!hasTrustBadge ||
+      trustBadge == null ||
+      trustBadge == ConstellationTrustBadge.mutual) {
     return base;
   }
   final body = Rect.fromCircle(center: Offset.zero, radius: bodyDiameter / 2);
@@ -475,9 +477,13 @@ class ConstellationNodeRingPainter extends CustomPainter {
     ConstellationTrustBadge badge,
     Rect body,
   ) {
-    if (frame.detail != ConstellationDetailLevel.close) {
-      // Zoomed out the fixed-size disc would cover the node: a muted rim on
-      // the node's own edge, scaling with it, says the same quietly.
+    final paintRim =
+        badge == ConstellationTrustBadge.mutual ||
+        frame.detail != ConstellationDetailLevel.close;
+    if (paintRim) {
+      // Mutual trust stays rim-only at every zoom (#1142). Zoomed out, every
+      // other relation uses a rim instead of the fixed-size disc that would
+      // cover the node.
       if (constellationTrustRimOf(badge, body, scheme) case final rim?) {
         canvas.drawCircle(
           body.center,

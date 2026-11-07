@@ -74,7 +74,9 @@ Future<void> _pump(
         child: TenturaResponsiveScope(
           child: MultiBlocProvider(
             providers: [
-              RepositoryProvider<ConstellationZoomLevelController>.value(value: zoom),
+              RepositoryProvider<ConstellationZoomLevelController>.value(
+                value: zoom,
+              ),
               BlocProvider<ConstellationCubit>.value(value: cubit),
               BlocProvider(
                 create: (_) => constellationSelectionForFieldBodyTests(),
@@ -148,7 +150,7 @@ void main() {
 
         expect(zoom.value, ConstellationDetailLevel.close);
         expect(holder.frame!.detail, ConstellationDetailLevel.close);
-        expect(pinBadge(), findsOneWidget);
+        expect(pinBadge(), findsNothing);
 
         // The camera stays put; only the owner changes level.
         zoom.update(0.3, gestureActive: false);
@@ -164,7 +166,7 @@ void main() {
         zoom.update(1, gestureActive: false);
         await tester.pumpAndSettle();
         expect(holder.frame!.detail, ConstellationDetailLevel.close);
-        expect(pinBadge(), findsOneWidget);
+        expect(pinBadge(), findsNothing);
       },
     );
 
@@ -199,7 +201,7 @@ void main() {
       expect(cubit.graphController.cameraScale, greaterThanOrEqualTo(0.85));
       expect(zoom.value, ConstellationDetailLevel.close);
       expect(holder.frame!.detail, ConstellationDetailLevel.close);
-      expect(pinBadge(), findsOneWidget);
+      expect(pinBadge(), findsNothing);
     });
   });
 }
@@ -250,7 +252,7 @@ void shippedPresentationTests() {
   }
 
   group('shipped map presentation', () {
-    testWidgets('shows pins, labels and chips at the appropriate zoom levels', (
+    testWidgets('shows labels and chips at the appropriate zoom levels', (
       tester,
     ) async {
       final cubit = await loadReferenceCubit(
@@ -264,9 +266,8 @@ void shippedPresentationTests() {
 
       final closeLabels = holder.frame!.labels.length;
       expect(closeLabels, greaterThan(0));
-      expect(pinBadge(), findsOneWidget);
+      expect(pinBadge(), findsNothing);
 
-      // District retains labels but hides pin badges, coming from close.
       await zoomTo(tester, cubit, (s) => s < 0.6, 0.9);
       expect(pinBadge(), findsNothing);
       expect(holder.frame!.labels.length, lessThanOrEqualTo(closeLabels));
@@ -288,7 +289,7 @@ void shippedPresentationTests() {
 
       await zoomTo(tester, cubit, (s) => s >= 0.9, 1.1);
       expect(holder.frame!.labels.length, closeLabels);
-      expect(pinBadge(), findsOneWidget);
+      expect(pinBadge(), findsNothing);
     });
   });
 }
