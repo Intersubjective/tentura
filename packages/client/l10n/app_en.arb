@@ -272,6 +272,18 @@
   "@chooseAccount": {
     "context": "AuthLoginScreen"
   },
+  "accountMenuViewProfile": "View profile",
+  "@accountMenuViewProfile": {
+    "context": "HomeAccountMenu"
+  },
+  "accountUnnamed": "Unnamed account",
+  "@accountUnnamed": {
+    "context": "HomeAccountMenu"
+  },
+  "semanticsAccountMenuHint": "Opens the account menu",
+  "@semanticsAccountMenuHint": {
+    "context": "HomeAccountAvatar"
+  },
   "alreadyHaveAccount": "Already have an account?\nAccess it by scanning a QR code from another device\nor by using your saved recovery seed.",
   "@alreadyHaveAccount": {
     "context": "AuthLoginScreen"
