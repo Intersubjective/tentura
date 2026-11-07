@@ -122,16 +122,20 @@ class _ProfileEditScreenState extends State<ProfileEditScreen>
                       BlocSelector<
                         ProfileEditCubit,
                         ProfileEditState,
-                        (bool, bool)
+                        (bool, bool, bool)
                       >(
-                        selector: (state) =>
-                            (state.hasChanges, state.isLoading),
+                        selector: (state) => (
+                          state.hasChanges,
+                          state.isLoading,
+                          state.canSave,
+                        ),
                         builder: (_, state) {
-                          final (hasChanges, isLoading) = state;
+                          final (hasChanges, isLoading, canSave) = state;
                           return TextButton(
-                            onPressed: hasChanges && !isLoading
-                                ? () => _save(cubit)
-                                : null,
+                            onPressed:
+                                hasChanges && canSave && !isLoading
+                                    ? () => _save(cubit)
+                                    : null,
                             child: Text(l10n.buttonSave),
                           );
                         },
@@ -211,7 +215,8 @@ class _ProfileEditScreenState extends State<ProfileEditScreen>
                           Padding(
                             padding: fieldPadding,
                             child: TextFormField(
-                              autovalidateMode: AutovalidateMode.onUnfocus,
+                              autovalidateMode:
+                                  AutovalidateMode.onUserInteraction,
                               decoration: tenturaFormFieldDecoration(
                                 context,
                                 labelText: l10n.labelDisplayName,

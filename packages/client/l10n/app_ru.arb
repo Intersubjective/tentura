@@ -466,7 +466,7 @@
       }
     }
   },
-  "friendsInviteAcceptedNewAccount": "{name} присоединился(-ась) к Tentura по этому приглашению",
+  "friendsInviteAcceptedNewAccount": "{name} присоединился(-ась) к Тентура по этому приглашению",
   "@friendsInviteAcceptedNewAccount": {
     "context": "FriendsScreen",
     "placeholders": {
@@ -558,7 +558,7 @@
   },
   "beaconMakeLiveWithoutSending": "Опубликовать без отправки",
   "beaconCreateInviteMakeLiveConfirmTitle": "Опубликовать запрос?",
-  "beaconCreateInviteMakeLiveConfirmBody": "Чтобы пригласить человека, которого ещё нет в Tentura, запрос нужно сначала опубликовать. Отправки выбранным здесь людям не будет — только публикация.",
+  "beaconCreateInviteMakeLiveConfirmBody": "Чтобы пригласить человека, которого ещё нет в Тентура, запрос нужно сначала опубликовать. Отправки выбранным здесь людям не будет — только публикация.",
   "liveRequestTitle": "Открытый запрос",
   "@liveRequestTitle": {
     "context": "BeaconCreateScreen"
@@ -1674,7 +1674,7 @@
   "@introPage1Title": {
     "context": "Intro"
   },
-  "introPage1Text": "Tentura — это место, где вы просите о помощи и помогаете сами: без общей ленты, лайков и шума. Только настоящие запросы, которые передаются от человека к человеку.",
+  "introPage1Text": "Тентура — это место, где вы просите о помощи и помогаете сами: без общей ленты, лайков и шума. Только настоящие запросы, которые передаются от человека к человеку.",
   "@introPage1Text": {
     "context": "Intro"
   },
@@ -1862,11 +1862,11 @@
   "@trustSentenceOneWayIn": {},
   "trustSentenceNone": "Доверия пока нет",
   "@trustSentenceNone": {},
-  "trustInfoTitle": "Доверие в Tentura",
+  "trustInfoTitle": "Доверие в Тентура",
   "@trustInfoTitle": {
     "context": "Profile — info sheet title"
   },
-  "trustInfoBody": "Доверие кому-то — ваш личный сигнал, что вы готовы поручиться за этого человека в Tentura. Оно одностороннее, вступает в силу сразу и не отправляет ему/ей уведомление.\n\nЭтот человек появится в вашей сети доверенных людей. Tentura использует ваш граф доверия, чтобы подсказывать, кто может помочь, когда вы пересылаете запрос.",
+  "trustInfoBody": "Доверие кому-то — ваш личный сигнал, что вы готовы поручиться за этого человека в Тентура. Оно одностороннее, вступает в силу сразу и не отправляет ему/ей уведомление.\n\nЭтот человек появится в вашей сети доверенных людей. Тентура использует ваш граф доверия, чтобы подсказывать, кто может помочь, когда вы пересылаете запрос.",
   "@trustInfoBody": {
     "context": "Profile — info sheet body"
   },
@@ -2734,7 +2734,7 @@
   "@forwardInviteDialogTitle": {
     "context": "ForwardBeaconScreen invite dialog title"
   },
-  "forwardInviteDialogBody": "Человек присоединится к Tentura как ваш контакт и увидит этот запрос. Ссылка сработает один раз и действует {days, plural, one{{days} день} few{{days} дня} many{{days} дней} other{{days} дня}}.",
+  "forwardInviteDialogBody": "Человек присоединится к Тентура как ваш контакт и увидит этот запрос. Ссылка сработает один раз и действует {days, plural, one{{days} день} few{{days} дня} many{{days} дней} other{{days} дня}}.",
   "@forwardInviteDialogBody": {
     "context": "ForwardBeaconScreen invite dialog: what the invite does, single-use and validity",
     "placeholders": {
@@ -2960,17 +2960,17 @@
   "@myWorkRetry": {
     "context": "MyWorkScreen"
   },
-  "orientationTitle": "Добро пожаловать в Tentura",
+  "orientationTitle": "Добро пожаловать в Тентура",
   "@orientationTitle": {
     "context": "HomeOrientationPanel",
     "description": "Title on the first-run orientation panel in My Work"
   },
-  "orientationIntro": "За вас поручился кто-то из знакомых. Tentura — это место, где дела делаются через людей, которым вы доверяете: просите о помощи, когда она нужна, и передавайте запрос тому, кто сможет помочь.",
+  "orientationIntro": "За вас поручился кто-то из знакомых. Тентура — это место, где дела делаются через людей, которым вы доверяете: просите о помощи, когда она нужна, и передавайте запрос тому, кто сможет помочь.",
   "@orientationIntro": {
     "context": "HomeOrientationPanel",
     "description": "Opening paragraph on the first-run orientation panel, including the vouch sentence"
   },
-  "orientationIntroReopen": "Tentura — это место, где дела делаются через людей, которым вы доверяете: просите о помощи, когда она нужна, и передавайте запрос тому, кто сможет помочь.",
+  "orientationIntroReopen": "Тентура — это место, где дела делаются через людей, которым вы доверяете: просите о помощи, когда она нужна, и передавайте запрос тому, кто сможет помочь.",
   "@orientationIntroReopen": {
     "context": "HowTenturaWorksContent",
     "description": "Intro paragraph when orientation is reopened from Profile or Settings (no vouch sentence)"
@@ -3038,7 +3038,7 @@
     "context": "HomeOrientationPanel",
     "description": "Dismisses the first-run orientation panel"
   },
-  "orientationReopen": "Как устроена Tentura",
+  "orientationReopen": "Как устроена Тентура",
   "@orientationReopen": {
     "context": "ProfileBody, SettingsScreen",
     "description": "Button label to reopen orientation content from Profile or Settings"
@@ -3791,7 +3791,7 @@
       }
     }
   },
-  "profileMemberSince": "В Tentura с {date} · {tenure}",
+  "profileMemberSince": "В Тентура с {date} · {tenure}",
   "@profileMemberSince": {
     "context": "Profile",
     "description": "Profile summary: localized join date plus tenure duration (#990).",
@@ -4802,7 +4802,7 @@
   },
   "profileEditLabels": "Изменить",
   "profileLabelsInfoTitle": "Метки об этом человеке",
-  "profileLabelsInfoPrivate": "Заметки с замком видите только вы: по ним Tentura подсказывает вам этого человека при пересылке.",
+  "profileLabelsInfoPrivate": "Заметки с замком видите только вы: по ним Тентура подсказывает вам этого человека при пересылке.",
   "profileLabelsInfoShared": "Метки с людьми — из ваших пересылок и отметок о помощи. Их видит {name}, и они помогают людям, которые вам доверяют, найти этого человека для похожих запросов.",
   "profileLabelPrivate": "Ваша заметка, видите только вы",
   "profileLabelShared": "Из пересылок или отметок о помощи, видно другим",
@@ -4950,7 +4950,7 @@
   "helpOfferSearchEmpty": "Ничего не найдено — выберите «Другое» или оставьте только текст",
   "forwardViewInvitations": "Открыть приглашения",
   "logoutConfirmTitle": "Выйти?",
-  "logoutConfirmBody": "Чтобы снова пользоваться Tentura на этом устройстве, потребуется войти в аккаунт.",
+  "logoutConfirmBody": "Чтобы снова пользоваться Тентура на этом устройстве, потребуется войти в аккаунт.",
   "capabilityCueHelpOffered": "Предлагает помощь: {tags}",
   "@capabilityCueHelpOffered": {
     "placeholders": {
@@ -5264,14 +5264,14 @@
   "updatesFallbackTitleRequestStatusChanged": "Статус запроса изменился",
   "updatesFallbackBodyRequestStatusChanged": "Изменился статус запроса.",
   "updatesFallbackTitleMutualConnectionFormed": "Новая связь",
-  "updatesFallbackBodyMutualConnectionFormed": "Вы теперь связаны в Tentura.",
+  "updatesFallbackBodyMutualConnectionFormed": "Вы теперь связаны в Тентура.",
   "updatesFallbackTitleInviteAccepted": "Приглашение принято",
   "updatesFallbackBodyInviteAccepted": "Кто-то присоединился по вашему приглашению.",
   "updatesInviteAcceptedBodyNewAccount": "Создал(а) аккаунт по вашему приглашению. Теперь вы связаны.",
   "@updatesInviteAcceptedBodyNewAccount": {
     "context": "Updates"
   },
-  "updatesInviteAcceptedBodyExistingAccount": "Уже был аккаунт в Tentura. Теперь вы связаны.",
+  "updatesInviteAcceptedBodyExistingAccount": "Уже был аккаунт в Тентура. Теперь вы связаны.",
   "@updatesInviteAcceptedBodyExistingAccount": {
     "context": "Updates"
   },
@@ -6563,7 +6563,7 @@
   "notificationPermissionDeviceTitle": "Уведомления на этом устройстве",
   "notificationPermissionDeviceOff": "Пока не включены. Нажмите «Включить», а когда браузер спросит, выберите «Разрешить».",
   "notificationPermissionBlocked": "Заблокированы в этом браузере. Чтобы разрешить, откройте настройки сайта (значок слева от адресной строки) и разрешите уведомления.",
-  "notificationPermissionBlockedApp": "Заблокированы для этого приложения. Чтобы разрешить, включите уведомления для Tentura в настройках устройства (на компьютере: меню приложения › Сведения о приложении).",
+  "notificationPermissionBlockedApp": "Заблокированы для этого приложения. Чтобы разрешить, включите уведомления для Тентура в настройках устройства (на компьютере: меню приложения › Сведения о приложении).",
   "beaconLiveSentToNobodyHint": "Запрос виден в «Поле», но пока никому не отправлен. Перешлите его кому-нибудь.",
   "avatarOpenProfile": "{name}, открыть профиль",
   "@avatarOpenProfile": {
@@ -6641,7 +6641,7 @@
   "orientationSeeWhatInviterNeeds": "Посмотреть запросы: {name}",
   "forwardAuthorPost": "Автор поста",
   "forwardInviteDialogTitlePost": "Пригласите человека посмотреть этот пост",
-  "forwardInviteDialogBodyPost": "Человек присоединится к Tentura как ваш контакт и увидит этот пост. Ссылка сработает один раз и действует {days, plural, one{{days} день} few{{days} дня} many{{days} дней} other{{days} дня}}.",
+  "forwardInviteDialogBodyPost": "Человек присоединится к Тентура как ваш контакт и увидит этот пост. Ссылка сработает один раз и действует {days, plural, one{{days} день} few{{days} дня} many{{days} дней} other{{days} дня}}.",
   "postChatReadOnlyHint": "Этот пост доступен только для чтения",
   "beaconPublishWithoutSendingHiddenChildHint": "Не виден в «Поле»: его увидят только участники запроса, к которому он относится, и те, кому его отправят или перешлют.",
   "beaconRoutingBannerChild": "Пока вы его не отправите, этот запрос увидят только участники запроса, к которому он относится.",
@@ -6804,7 +6804,7 @@
   "beaconLobbyUnavailableRemoved": "Автор закрыл вам доступ к вопросам по этому запросу.",
   "beaconLobbyAuthorBadge": "Автор",
   "updatesQuestionsMessage": "Новое сообщение в вопросах",
-  "bootFailureTitle": "Не удалось запустить Tentura",
+  "bootFailureTitle": "Не удалось запустить Тентура",
   "bootFailureBodyWeb": "При запуске приложения что-то пошло не так. Обычно помогает перезагрузка страницы.",
   "bootFailureBodyNative": "При запуске приложения что-то пошло не так. Закройте приложение и откройте его снова.",
   "bootFailureReload": "Перезагрузить",
@@ -6954,6 +6954,38 @@
   "requestAccessOpenParentPost": "Открыть пост",
   "constellationMinimapShow": "Показать миникарту",
   "constellationMinimapHide": "Скрыть миникарту",
+  "constellationOffscreenLeft": "Ещё {count} слева",
+  "@constellationOffscreenLeft": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "constellationOffscreenRight": "Ещё {count} справа",
+  "@constellationOffscreenRight": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "constellationOffscreenAbove": "Ещё {count} выше",
+  "@constellationOffscreenAbove": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "constellationOffscreenBelow": "Ещё {count} ниже",
+  "@constellationOffscreenBelow": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "constellationPlaceAsMagnet": "Разместить как магнит",
   "beaconCreateChildOfBanner": "Дочерний запрос для «{title}»",
   "inviteAcceptedSetupAddDetailsFor": "Отметить, чем может помочь {name}",

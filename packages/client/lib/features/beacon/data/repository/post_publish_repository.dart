@@ -60,6 +60,9 @@ class PostPublishRepository implements PostPublishPort {
     return PostPublishResult(
       beaconId: result.beaconId,
       rootMessageId: result.rootMessageId,
+      expiresAt: result.expiresAt == null || result.expiresAt!.isEmpty
+          ? null
+          : DateTime.parse(result.expiresAt!).toUtc(),
     );
   }
 

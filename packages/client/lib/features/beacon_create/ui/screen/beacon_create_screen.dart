@@ -774,12 +774,13 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen>
                 bloc: _beaconCreateCubit,
                 builder: (context, state) {
                   if (state.isEditMode) {
+                    final canSave = state.editSaveBlocker == null;
                     return SizedBox(
                       height: tt.buttonHeight,
                       width: double.infinity,
                       child: FilledButton(
                         key: const Key('BeaconEdit.SaveChangesButton'),
-                        onPressed: state.isLoading
+                        onPressed: state.isLoading || !canSave
                             ? null
                             : () async {
                                 await _beaconCreateCubit.saveEdit(

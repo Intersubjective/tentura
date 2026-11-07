@@ -116,7 +116,7 @@ void main() {
       final finder = find.byKey(const Key('profile_member_since_line'));
       expect(finder, findsOneWidget);
       final text = tester.widget<Text>(finder).data!;
-      expect(text, contains('В Tentura с'));
+      expect(text, contains('В Тентура с'));
       expect(text, contains(expectedTenure));
       expect(tester.takeException(), isNull);
 

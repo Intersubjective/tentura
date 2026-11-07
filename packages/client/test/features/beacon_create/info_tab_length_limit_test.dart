@@ -12,14 +12,17 @@ import 'package:tentura/ui/test_ids.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'fake_beacon_ports.dart';
 
-Widget _infoTabHarness(BeaconCreateCubit cubit) {
+Widget _infoTabHarness(
+  BeaconCreateCubit cubit, {
+  Size surfaceSize = const Size(800, 1200),
+}) {
   return MaterialApp(
     locale: const Locale('en'),
     localizationsDelegates: L10n.localizationsDelegates,
     supportedLocales: L10n.supportedLocales,
     theme: TenturaTheme.light(),
     home: MediaQuery(
-      data: const MediaQueryData(size: Size(800, 1200)),
+      data: MediaQueryData(size: surfaceSize),
       child: Scaffold(
         body: BlocProvider<BeaconCreateCubit>.value(
           value: cubit,
@@ -58,13 +61,15 @@ void main() {
     (
       tester,
     ) async {
-      await tester.pumpWidget(_infoTabHarness(cubit));
-      await tester.pumpAndSettle();
+    await tester.pumpWidget(_infoTabHarness(cubit));
+    await tester.pumpAndSettle();
 
-      await tester.enterText(
-        find.byKey(TestIds.key(TestIds.requestTitle)),
-        'Help me move 📦',
-      );
+    expect(find.text('0/$kBeaconTitleMaxLength'), findsOneWidget);
+
+    await tester.enterText(
+      find.byKey(TestIds.key(TestIds.requestTitle)),
+      'Help me move 📦',
+    );
       // 1 500 emoji: 1 500 characters, 3 000 UTF-16 code units.
       await tester.enterText(
         find.byKey(TestIds.key(TestIds.requestDescription)),
@@ -101,4 +106,32 @@ void main() {
     expect(cubit.state.title.length, lessThanOrEqualTo(kBeaconTitleMaxLength));
     expect(cubit.state.title, '🎉' * (kBeaconTitleMaxLength ~/ 2));
   });
+
+  testWidgets(
+    'narrow layout shows title length counter from the first character (#1089)',
+    (
+      tester,
+    ) async {
+      await tester.binding.setSurfaceSize(const Size(375, 667));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        _infoTabHarness(
+          cubit,
+          surfaceSize: const Size(375, 667),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('0/$kBeaconTitleMaxLength'), findsOneWidget);
+
+      await tester.enterText(
+        find.byKey(TestIds.key(TestIds.requestTitle)),
+        'a',
+      );
+      await tester.pump();
+
+      expect(find.text('1/$kBeaconTitleMaxLength'), findsOneWidget);
+    },
+  );
 }
