@@ -238,6 +238,89 @@ void main() {
       handle.dispose();
     });
 
+    // The tag's handle (the member a hull hold lifts, first by id) is a node
+    // the gesture layer cannot grab: it has left the graph between the app
+    // naming it and the press resolving it. Nothing may stay lifted.
+    await runE2eStep('touch: a hold on the hull whose handle cannot be '
+        'grabbed leaves no drag behind', () async {
+      final handle = ([bob, carol]..sort()).first;
+      final other = handle == bob ? carol : bob;
+      final handleNode = constellationGraphNodeIdForTarget(
+        ConstellationAnchorTarget.person(handle),
+      );
+      for (final ending in ['release', 'pointer cancel']) {
+        final cubit = readConstellationCubit(tester);
+        final writes = cubit.writeCount;
+        final otherBefore = _scene(tester, other)!;
+        final graph = cubit.graphController;
+        final topology = graph.renderSnapshot.topology;
+        graph.reconcileTopology(
+          {
+            for (final node in topology.nodesById.values)
+              if (node.id != handleNode) node.payload,
+          },
+          {
+            for (final edge in topology.edgesById.values)
+              if (edge.sourceId != handleNode &&
+                  edge.destinationId != handleNode)
+                edge.payload,
+          },
+          layoutOnTopologyChange: false,
+        );
+        await pumpBounded(tester);
+        expect(_scene(tester, handle), isNull, reason: 'handle has no node');
+        final gesture = await tester.startGesture(
+          globalForConstellationScene(
+            tester,
+            otherBefore - const Offset(0, kConstellationTagHullPadding * 0.7),
+          ),
+        );
+        await tester.pump(const Duration(milliseconds: 550));
+        if (ending == 'release') {
+          await gesture.up();
+        } else {
+          await gesture.cancel();
+        }
+        await pumpBounded(tester, frames: 8);
+        expect(
+          cubit.state.placementPhase,
+          ConstellationPlacementPhase.idle,
+          reason: 'failed grab ended with $ending: no tag drag left',
+        );
+        expect(
+          tester
+              .widget<ConstellationTagHullLayer>(
+                find.byType(ConstellationTagHullLayer),
+              )
+              .liftedTagId,
+          isNull,
+          reason: 'no hull stays lifted',
+        );
+        expect(_scene(tester, other), otherBefore, reason: 'nobody moved');
+        expect(cubit.writeCount, writes, reason: 'nothing was saved');
+        await reloadConstellation(tester);
+        await _settle(tester);
+        expect(_scene(tester, handle), isNotNull, reason: 'handle is back');
+      }
+      // Dragging one drawn person afterwards moves only that person.
+      final handleBefore = _scene(tester, handle)!;
+      final otherBefore = _scene(tester, other)!;
+      final node = await tester.startGesture(
+        globalForConstellationScene(tester, otherBefore),
+      );
+      await tester.pump(const Duration(milliseconds: 550));
+      await _moveInSteps(tester, node);
+      expect(
+        (_scene(tester, other)! - otherBefore).distance,
+        greaterThan(25),
+        reason: 'the held person moves',
+      );
+      expect(_scene(tester, handle), handleBefore, reason: 'nobody follows');
+      await node.cancel();
+      await _settle(tester);
+      expect(_scene(tester, other), otherBefore, reason: 'cancel restores');
+    });
+
     for (final kind in [PointerDeviceKind.touch, PointerDeviceKind.mouse]) {
       for (final arranging in [false, true]) {
         final mode = arranging ? 'while Arranging' : 'outside Arranging';
@@ -276,6 +359,57 @@ void main() {
             reason: 'panning saves nothing',
           );
           _expectUnits(await _savedUnits([bob, carol]), original);
+        });
+
+        await runE2eStep('$input: a hold on the hull released without moving '
+            'leaves no drag behind', () async {
+          await setMode();
+          final writes = readConstellationCubit(tester).writeCount;
+          final bobBefore = _scene(tester, bob)!;
+          final carolBefore = _scene(tester, carol)!;
+          final gesture = await tester.startGesture(
+            globalForConstellationScene(tester, emptyHullScene()),
+            kind: kind,
+          );
+          await tester.pump(const Duration(milliseconds: 550));
+          await gesture.up();
+          await _settle(tester);
+          expect(
+            readConstellationCubit(tester).state.placementPhase,
+            ConstellationPlacementPhase.idle,
+          );
+          expect(
+            tester
+                .widget<ConstellationTagHullLayer>(
+                  find.byType(ConstellationTagHullLayer),
+                )
+                .liftedTagId,
+            isNull,
+            reason: 'no hull stays lifted',
+          );
+          expect(_scene(tester, bob), bobBefore, reason: 'Bob stays');
+          expect(_scene(tester, carol), carolBefore, reason: 'Carol stays');
+          expect(
+            readConstellationCubit(tester).writeCount,
+            writes,
+            reason: 'a hold that never moved saves nothing',
+          );
+          // The next node hold moves only that node: no tag drag is left.
+          final node = await tester.startGesture(
+            globalForConstellationScene(tester, bobBefore),
+            kind: kind,
+          );
+          await tester.pump(const Duration(milliseconds: 550));
+          await _moveInSteps(tester, node);
+          expect(
+            (_scene(tester, bob)! - bobBefore).distance,
+            greaterThan(25),
+            reason: 'the held node moves',
+          );
+          expect(_scene(tester, carol), carolBefore, reason: 'Carol stays');
+          await node.cancel();
+          await _settle(tester);
+          expect(_scene(tester, bob), bobBefore, reason: 'cancel restores Bob');
         });
 
         await runE2eStep('$input: a hold on the hull moves the whole tag, '

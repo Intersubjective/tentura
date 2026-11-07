@@ -2018,6 +2018,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       ],
       group: _draggableGroup(target, group),
       groupWeights: weights,
+      parentWeight: weights[target]!,
       virtualMembers: virtualMembers,
       tagAreaMagnetTagId: magnetStart == null ? null : tagId,
       tagAreaMagnetStartScene: magnetStart,
@@ -2504,15 +2505,30 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     final parentGraphId = constellationGraphNodeIdForTarget(target);
     final parentStart = _interaction.clusterStartCentres[parentGraphId];
     final parentNode = graphController.nodePayloadForId(parentGraphId);
+    // The held node rests at its weighted share of the pointer's travel;
+    // the cluster is moved by the pointer's own travel.
+    final pointerCentre = _interaction.pointerCentreFor(
+      parentGraphId,
+      sceneCentre,
+    );
     var dropCentre = parentStart == null || parentNode is! NodeDetails
-        ? sceneCentre
-        : clampClusterDragPosition(parentNode, sceneCentre);
+        ? pointerCentre
+        : clampClusterDragPosition(parentNode, pointerCentre);
     dropCentre = _clampClusterDropAwayFromEgo(
       target: target,
       sceneCentre: dropCentre,
     );
+    final parentDelta = parentStart == null
+        ? Offset.zero
+        : dropCentre - parentStart;
+    final heldCentre = parentStart == null
+        ? dropCentre
+        : _interaction.clusterCentreFor(parentGraphId, parentGraphId, (
+            x: parentDelta.dx,
+            y: parentDelta.dy,
+          ));
     final position = constellationPointToV1Anchor(
-      (x: dropCentre.dx, y: dropCentre.dy),
+      (x: heldCentre.dx, y: heldCentre.dy),
     );
     final projectionAnchors =
         _anchorCase?.confirmedProjection.anchors ??
@@ -2521,9 +2537,6 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     final remotePinnedBeaconIds = constellationPinnedBeaconIds(
       projectionAnchors,
     );
-    final parentDelta = parentStart == null
-        ? Offset.zero
-        : dropCentre - parentStart;
     final tagMagnetId = _interaction.tagAreaMagnetTagId;
     final tagMagnetStart = _interaction.tagAreaMagnetStartScene;
     Map<String, LPoint>? tagMagnetsBefore;
@@ -2689,7 +2702,10 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       return;
     }
     final node = graphController.nodePayloadForId(parentGraphId)!;
-    var dropCentre = clampClusterDragPosition(node, sceneCentre);
+    var dropCentre = clampClusterDragPosition(
+      node,
+      _interaction.pointerCentreFor(parentGraphId, sceneCentre),
+    );
     dropCentre = _clampClusterDropAwayFromEgo(
       target: target,
       sceneCentre: dropCentre,
