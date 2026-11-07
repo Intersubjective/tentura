@@ -1135,6 +1135,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
         return;
       }
       setState(() {});
+      _syncCameraViewportInsetsFromController();
     });
   }
 
@@ -1382,7 +1383,6 @@ class _ConstellationBodyState extends State<ConstellationBody>
         ),
         BlocListener<ConstellationCubit, ConstellationState>(
           listenWhen: (previous, current) =>
-              previous.composition != current.composition ||
               previous.visibility != current.visibility ||
               previous.field != current.field,
           listener: (context, state) {
@@ -1390,9 +1390,17 @@ class _ConstellationBodyState extends State<ConstellationBody>
             if (selection == null || !selection.state.arranging) {
               return;
             }
-            if (!context.read<ConstellationCubit>().canArrange) {
-              selection.exitArranging();
-            }
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!context.mounted) {
+                return;
+              }
+              if (!selection.state.arranging) {
+                return;
+              }
+              if (!context.read<ConstellationCubit>().canArrange) {
+                selection.exitArranging();
+              }
+            });
           },
         ),
         BlocListener<ConstellationCubit, ConstellationState>(

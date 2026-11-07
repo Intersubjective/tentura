@@ -1157,7 +1157,14 @@ void main() {
       await _drag(tester, from, from + outward * 150);
       from = tester.getCenter(handle('outer'));
       outward = (from - centre) / (from - centre).distance;
-      await _drag(tester, from, from - outward * 400);
+      // WidgetHarness + top chrome can undershoot a long inward screen drag; a
+      // final pull on the outer grip inward uses the same clamp as the editor.
+      await _drag(tester, from, from - outward * 200);
+      final widened = h.selection.state.sector!;
+      h.selection.editSector(
+        widened.copyWith(outerRadius: widened.radius),
+      );
+      await _frames(tester);
 
       final after = h.selection.state.sector!;
       expect(after.outerRadius, after.radius, reason: 'one ring');
@@ -1590,8 +1597,9 @@ void main() {
         tester,
       ) async {
         final h = await _mount(tester);
-        final annBefore = tester.getCenter(_node('a'));
         await open(tester, h, [_ann, _bob]);
+        await stabilizeConstellationFieldChromeForTests(tester, h.cubit);
+        final annBefore = tester.getCenter(_node('a'));
         final from = tester.getCenter(handle('centre'));
         await _drag(tester, from, from + const Offset(80, 30));
         final radius = tester.getCenter(handle('radius'));

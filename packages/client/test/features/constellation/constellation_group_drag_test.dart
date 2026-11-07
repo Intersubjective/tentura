@@ -325,6 +325,7 @@ Future<_Harness> _mount(
     ),
   );
   await _settle(tester);
+  await stabilizeConstellationFieldChromeForTests(tester, cubit);
   await tester.pump();
   return (
     server: server,
