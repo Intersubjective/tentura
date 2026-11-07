@@ -303,54 +303,112 @@ class TenturaAvatar extends StatelessWidget {
   /// When the second word is a dev/QA-style **`Q` + digits** label (e.g. `Bob
   /// Q1106`), the second glyph is the **last decimal digit** of that code so two
   /// people with the same first name + `Q…` pattern do not both show e.g. `BQ`
-  /// (#1066). This does not guarantee globally unique initials; the
-  /// `hueKey` passed to [ProfileAvatarInitials] (usually the profile's user id)
-  /// still drives the stable background colour and can collide across users.
+  /// (#1066). Letter runs use grapheme-safe clusters so leading emoji or combining
+  /// marks are not cut on UTF-16 boundaries (#1093). This does not guarantee
+  /// globally unique initials; the `hueKey` passed to [ProfileAvatarInitials]
+  /// (usually the profile's user id) still drives the stable background colour and
+  /// can collide across users.
   static String initialsForProfile(Profile profile) {
     final letter = RegExp(r'\p{L}', unicode: true);
 
-    String? firstLetterIn(String segment) => letter.firstMatch(segment)?[0];
+    String upperEachGrapheme(String s) =>
+        s.characters.map((g) => g.toUpperCase()).join();
 
-    /// Word-aware using Unicode letters; two-word names with a `Q`+digits second
-    /// word use the last digit as the second glyph (#1066), combined with the first
-    /// word's first letter.
+    // Grapheme-safe extraction: never slice UTF-16 between surrogate halves;
+    // skip leading emoji/symbols to the first letter; combine marks stay on letters.
+    final leadingNonLetters = RegExp(r'^[^\p{L}]*', unicode: true);
+    final letterCluster = RegExp(r'\p{L}[\p{M}]*', unicode: true);
+
+    String? leadingLetterCluster(String word) {
+      final after = word.replaceFirst(leadingNonLetters, '');
+      if (after.isEmpty) {
+        return null;
+      }
+      return letterCluster.firstMatch(after)?.group(0);
+    }
+
+    Iterable<String> letterClustersInWord(String word) sync* {
+      var rest = word.replaceFirst(leadingNonLetters, '');
+      while (rest.isNotEmpty) {
+        final m = letterCluster.firstMatch(rest);
+        if (m == null) {
+          break;
+        }
+        yield m.group(0)!;
+        rest = rest.substring(m.end).replaceFirst(leadingNonLetters, '');
+      }
+    }
+
+    /// Visible / objective names: grapheme-aware letters; `Q`+digits second word
+    /// uses the last digit (#1066).
     String fromOrdinaryVisibleName(String name) {
       final t = name.trim();
       if (t.isEmpty) {
         return '';
       }
-      final parts = t.split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
-      if (parts.length >= 2) {
-        final a = firstLetterIn(parts[0]);
-        final bFromQ = _secondInitialFromSecondWord(parts[1]);
-        if (a != null && bFromQ.isNotEmpty) {
-          return '$a$bFromQ'.toUpperCase();
+
+      final tokens = t.split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+      if (tokens.length >= 2) {
+        var firstIdx = -1;
+        String? firstCluster;
+        for (var i = 0; i < tokens.length; i++) {
+          final c = leadingLetterCluster(tokens[i]);
+          if (c != null) {
+            firstIdx = i;
+            firstCluster = c;
+            break;
+          }
         }
-        final bLetter = firstLetterIn(parts[1]);
-        if (a != null && bLetter != null) {
-          return '$a$bLetter'.toUpperCase();
+        if (firstCluster != null) {
+          final firstU = upperEachGrapheme(firstCluster);
+          for (var j = firstIdx + 1; j < tokens.length; j++) {
+            final qMatch = _qTrailingDigits.firstMatch(tokens[j]);
+            if (qMatch != null) {
+              final digits = qMatch.group(1)!;
+              if (digits.isNotEmpty) {
+                return '$firstU${digits[digits.length - 1]}';
+              }
+            }
+          }
+          for (var j = firstIdx + 1; j < tokens.length; j++) {
+            final c2 = leadingLetterCluster(tokens[j]);
+            if (c2 != null) {
+              return upperEachGrapheme('$firstCluster$c2');
+            }
+          }
+          return firstU;
         }
       }
-      final letters = letter.allMatches(t).map((m) => m[0]!).toList();
-      if (letters.length >= 2) {
-        return '${letters[0]}${letters[1]}'.toUpperCase();
+
+      final fromOneWord = letterClustersInWord(t).take(2).toList();
+      if (fromOneWord.length >= 2) {
+        return upperEachGrapheme('${fromOneWord[0]}${fromOneWord[1]}');
       }
-      if (letters.length == 1) {
-        return letters[0].toUpperCase();
+      if (fromOneWord.length == 1) {
+        return upperEachGrapheme(fromOneWord[0]);
       }
-      return '';
+
+      final graphemes = t.characters.toList();
+      if (graphemes.isEmpty) {
+        return '';
+      }
+      if (graphemes.length == 1) {
+        return upperEachGrapheme(graphemes.first);
+      }
+      return upperEachGrapheme('${graphemes[0]}${graphemes[1]}');
     }
 
-    /// Contact alias: any `\p{L}` graphemes in order; if none, caller falls back to objective name (#1075).
+    /// Contact alias: word-aware when the alias contains letters; if none, caller
+    /// falls back to objective name (#1075).
     String fromContactAlias(String alias) {
-      final letters = letter.allMatches(alias.trim()).map((m) => m[0]!).toList();
-      if (letters.length >= 2) {
-        return '${letters[0]}${letters[1]}'.toUpperCase();
+      final trimmed = alias.trim();
+      if (trimmed.isEmpty) {
+        return '';
       }
-      if (letters.length == 1) {
-        return letters[0].toUpperCase();
+      if (!letter.hasMatch(trimmed)) {
+        return '';
       }
-      return '';
+      return fromOrdinaryVisibleName(trimmed);
     }
 
     final trimmedContact = profile.contactName.trim();
@@ -368,20 +426,6 @@ class TenturaAvatar extends StatelessWidget {
   }
 
   static final RegExp _qTrailingDigits = RegExp(r'^[Qq](\d+)$');
-
-  static String _secondInitialFromSecondWord(String secondWord) {
-    if (secondWord.isEmpty) {
-      return '';
-    }
-    final match = _qTrailingDigits.firstMatch(secondWord);
-    if (match != null) {
-      final digits = match.group(1)!;
-      if (digits.isNotEmpty) {
-        return digits[digits.length - 1];
-      }
-    }
-    return secondWord[0];
-  }
 }
 
 class _Network extends StatelessWidget {
