@@ -13,7 +13,9 @@ Future<void> requireMatchingSessionAccount(
     final account = await local.getAccountById(userId);
     await remote.signOut();
     await local.setCurrentAccountId(null);
-    await local.removeAccount(userId);
+    if (await local.getAccountById(userId) != null) {
+      await local.removeAccount(userId);
+    }
     final displayName = account?.displayName ?? '';
     throw SessionAccountMismatchException(
       displayName.isEmpty ? userId : displayName,

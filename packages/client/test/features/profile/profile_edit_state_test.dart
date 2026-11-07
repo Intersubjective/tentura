@@ -7,6 +7,17 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/profile_edit/ui/bloc/profile_edit_state.dart';
 
 void main() {
+  test('whitespace-only display name is not saveable (#1118)', () {
+    const state = ProfileEditState(
+      original: Profile(displayName: 'Alice'),
+      displayName: '   ',
+      handle: 'alice',
+      description: '',
+    );
+    expect(state.hasChanges, isTrue);
+    expect(state.canSave, isFalse);
+  });
+
   test('Copy with null', () {
     final stateA = ProfileEditState(
       original: const Profile(),

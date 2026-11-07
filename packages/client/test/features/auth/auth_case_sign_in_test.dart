@@ -20,16 +20,19 @@ void main() {
       expect(order, ['signInWithSession', 'setCurrent:U1']);
     });
 
-    test('seed-backed account uses seed signIn when not session-marked', () async {
-      final order = <String>[];
-      final local = _FakeAuthLocal(order, seed: 'my-seed');
-      final remote = _FakeAuthRemote(order);
-      final authCase = buildTestAuthCase(local, remote, order: order);
+    test(
+      'seed-backed account uses seed signIn when not session-marked',
+      () async {
+        final order = <String>[];
+        final local = _FakeAuthLocal(order, seed: 'my-seed');
+        final remote = _FakeAuthRemote(order);
+        final authCase = buildTestAuthCase(local, remote, order: order);
 
-      await authCase.signIn(userId: 'U1');
+        await authCase.signIn(userId: 'U1');
 
-      expect(order, ['signIn:my-seed', 'setCurrent:U1']);
-    });
+        expect(order, ['signIn:my-seed', 'setCurrent:U1']);
+      },
+    );
   });
 }
 
@@ -65,7 +68,11 @@ class _FakeAuthLocal implements AuthLocalRepositoryPort {
   Future<AccountEntity?> getCurrentAccount() async => null;
 
   @override
-  Future<void> addAccount(String id, String seed, [String? displayName]) async {}
+  Future<void> addAccount(
+    String id,
+    String seed, [
+    String? displayName,
+  ]) async {}
 
   @override
   Future<void> upsertAccountWithSeed(
@@ -93,6 +100,9 @@ class _FakeAuthLocal implements AuthLocalRepositoryPort {
   Future<void> setCurrentAccountId(String? id) async {
     order.add('setCurrent:$id');
   }
+
+  @override
+  Future<void> retainOnlyAccount(String keepId) async {}
 
   @override
   Future<void> clearAllAuthData() async {}
@@ -135,6 +145,5 @@ class _FakeAuthRemote implements AuthRemoteRepositoryPort {
     required String displayName,
     required String invitationCode,
     String? handle,
-  }) async =>
-      '';
+  }) async => '';
 }

@@ -4,11 +4,17 @@ import 'package:tentura/features/post_view/ui/post_remaining_label.dart';
 import 'package:tentura/ui/l10n/l10n_ru.dart';
 
 void main() {
+  group('ceil days (boundary)', () {
+    test('2 d 1 h counts as 3 d', () {
+      expect(postRemainingCeilDaysForTests(const Duration(hours: 49)), 3);
+    });
+  });
+
   group('Post remaining lifetime label in Russian', () {
     final l10n = L10nRu();
     for (final entry in <Duration, String>{
       const Duration(hours: 72): 'осталось 3 д',
-      const Duration(hours: 47, minutes: 59): 'осталось 1 д',
+      const Duration(hours: 47, minutes: 59): 'осталось 2 д',
       const Duration(hours: 24): 'осталось 1 д',
       const Duration(hours: 23, minutes: 59): 'осталось 23 ч',
       const Duration(hours: 1): 'осталось 1 ч',

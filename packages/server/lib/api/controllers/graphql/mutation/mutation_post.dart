@@ -163,6 +163,7 @@ final class MutationPost extends GqlNodeBase {
       return {
         'beaconId': result.beaconId,
         'rootMessageId': result.rootMessageId,
+        'expiresAt': result.expiresAt?.toUtc().toIso8601String(),
       };
     },
   );

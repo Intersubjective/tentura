@@ -272,20 +272,8 @@
   "@pleaseEnterCode": {
     "context": "AccountAddDialog"
   },
-  "confirmAccountRemoval": "Are you sure you want to remove this account?",
-  "@confirmAccountRemoval": {
-    "context": "AccountRemoveDialog"
-  },
-  "chooseAccount": "Choose account",
-  "@chooseAccount": {
-    "context": "AuthLoginScreen"
-  },
   "accountMenuViewProfile": "View profile",
   "@accountMenuViewProfile": {
-    "context": "HomeAccountMenu"
-  },
-  "accountUnnamed": "Unnamed account",
-  "@accountUnnamed": {
     "context": "HomeAccountMenu"
   },
   "semanticsAccountMenuHint": "Opens the account menu",
@@ -336,17 +324,9 @@
   "@recoverCameraBlocked": {
     "context": "RecoverScreen"
   },
-  "shareAccount": "Share account",
-  "@shareAccount": {
-    "context": "AccountListTile"
-  },
   "showSeed": "Show recovery seed",
   "@showSeed": {
-    "context": "AccountListTile, SettingsScreen"
-  },
-  "removeFromList": "Remove from the list",
-  "@removeFromList": {
-    "context": "AccountListTile"
+    "context": "SettingsScreen"
   },
   "invitationScreenTitle": "Invitations",
   "@invitationScreenTitle": {
@@ -11597,6 +11577,42 @@
   },
   "constellationMinimapShow": "Show minimap",
   "constellationMinimapHide": "Hide minimap",
+  "constellationOffscreenLeft": "{count} more to the left",
+  "@constellationOffscreenLeft": {
+    "description": "Field map off-screen cue tooltip/semantics when nodes lie left of the safe viewport (#1053)",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "constellationOffscreenRight": "{count} more to the right",
+  "@constellationOffscreenRight": {
+    "description": "Field map off-screen cue when nodes lie right of the safe viewport (#1053)",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "constellationOffscreenAbove": "{count} more above",
+  "@constellationOffscreenAbove": {
+    "description": "Field map off-screen cue when nodes lie above the safe viewport (#1053)",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "constellationOffscreenBelow": "{count} more below",
+  "@constellationOffscreenBelow": {
+    "description": "Field map off-screen cue when nodes lie below the safe viewport (#1053)",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "constellationPlaceAsMagnet": "Place as magnet",
   "beaconCreateChildOfBanner": "Child request of ‘{title}’",
   "@beaconCreateChildOfBanner": {

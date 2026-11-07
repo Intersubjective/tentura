@@ -12,6 +12,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
+import 'package:tentura/consts.dart';
 import 'package:tentura/data/repository/clipboard_image_repository.dart';
 import 'package:tentura/data/repository/image_repository.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -723,7 +724,7 @@ void main() {
       expect(h.membership.postReturnCalls, [_postId]);
       expect(
         h.effects.emitted.whereType<NavigatePush>().map((e) => e.path),
-        contains('/beacon/view/$_postId'),
+        contains('$kPathPostView/$_postId'),
       );
     });
 

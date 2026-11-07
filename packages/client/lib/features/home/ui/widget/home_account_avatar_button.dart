@@ -12,8 +12,7 @@ import 'home_open_profile.dart';
 import 'own_paused_chip.dart';
 
 /// The account avatar: opens a unified account menu (profile, settings,
-/// account switch, sign out). Long-press and secondary click open the same menu
-/// (#1079).
+/// sign out). Long-press and secondary click open the same menu (#1079).
 ///
 /// Me is not a navigation destination. The avatar sits at the bottom of the
 /// rail on wide windows and at the end of each Home tab's top bar on compact

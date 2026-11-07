@@ -82,6 +82,7 @@ mutation Publish(
   ) {
     beaconId
     rootMessageId
+    expiresAt
   }
 }
 ''';
@@ -103,6 +104,7 @@ mutation Publish(
   ) {
     beaconId
     rootMessageId
+    expiresAt
   }
 }
 ''';
@@ -191,6 +193,7 @@ void main() {
         expect(result['postPublish'], {
           'beaconId': 'Bpost0000001',
           'rootMessageId': 'Mroot00000001',
+          'expiresAt': null,
         });
         expect(postCase.calls, hasLength(1));
         final call = postCase.calls.single;

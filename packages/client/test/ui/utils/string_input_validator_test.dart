@@ -56,9 +56,30 @@ void main() {
     });
   });
 
+  group('displayNameValidator', () {
+    test('rejects whitespace-only names (#1118)', () {
+      expect(validator.displayNameValidator(l10n, '   '), l10n.displayNameTooShort);
+      expect(validator.displayNameValidator(l10n, '  \u00a0  '), l10n.displayNameTooShort);
+    });
+
+    test('accepts Unicode name with surrounding spaces trimmed', () {
+      expect(validator.displayNameValidator(l10n, '  José  '), isNull);
+    });
+  });
+
   group('titleValidator', () {
     test('accepts valid title', () {
       expect(validator.titleValidator(l10n, 'abc'), isNull);
+    });
+
+    test('rejects whitespace-only and trim-too-short titles', () {
+      expect(validator.titleValidator(l10n, '   '), l10n.titleTooShort);
+      expect(validator.titleValidator(l10n, '  ab  '), l10n.titleTooShort);
+    });
+
+    test('accepts min-length title when padding trims to kTitleMinLength', () {
+      expect(validator.titleValidator(l10n, '  abc  '), isNull);
+      expect(validator.titleValidator(l10n, '  José  '), isNull);
     });
 
     test('rejects too short and too long titles', () {
@@ -67,6 +88,16 @@ void main() {
         validator.titleValidator(l10n, 'a' * (kTitleMaxLength + 1)),
         l10n.titleTooLong,
       );
+    });
+  });
+
+  group('beaconTitleValidator', () {
+    test('rejects whitespace-only titles (#1137)', () {
+      expect(validator.beaconTitleValidator(l10n, '   '), l10n.titleTooShort);
+    });
+
+    test('accepts trimmed Unicode titles', () {
+      expect(validator.beaconTitleValidator(l10n, '  Café réunion  '), isNull);
     });
   });
 

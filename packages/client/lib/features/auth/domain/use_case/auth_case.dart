@@ -115,6 +115,7 @@ final class AuthCase extends UseCaseBase {
       displayName,
     );
     await _authLocalRepository.setCurrentAccountId(userId);
+    await _authLocalRepository.retainOnlyAccount(userId);
     return userId;
   });
 
@@ -130,6 +131,7 @@ final class AuthCase extends UseCaseBase {
 
     if (probe.userId != null) {
       await _authLocalRepository.setCurrentAccountId(probe.userId);
+      await _authLocalRepository.retainOnlyAccount(probe.userId!);
       return WebBootstrapResult(
         currentAccountId: probe.userId!,
         sessionUserId: probe.userId,
@@ -137,6 +139,9 @@ final class AuthCase extends UseCaseBase {
     }
 
     final localId = await getCurrentAccountId();
+    if (localId.isNotEmpty) {
+      await _authLocalRepository.retainOnlyAccount(localId);
+    }
     return WebBootstrapResult(
       currentAccountId: localId,
       invalidSessionCookieRejected: probe.invalidSessionCookieRejected,
@@ -216,6 +221,7 @@ final class AuthCase extends UseCaseBase {
     }
     await _authRemoteRepository.signIn(seed);
     await _authLocalRepository.setCurrentAccountId(userId);
+    await _authLocalRepository.retainOnlyAccount(userId);
   });
 
   ///
@@ -245,6 +251,7 @@ final class AuthCase extends UseCaseBase {
       sessionUserId: sessionUserId,
     );
     await _authLocalRepository.setCurrentAccountId(sessionUserId);
+    await _authLocalRepository.retainOnlyAccount(sessionUserId);
   }
 
   ///

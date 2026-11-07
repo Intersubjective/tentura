@@ -15,32 +15,56 @@ void main() {
     AuthCase build({
       required FakeAuthLocal local,
       FakeAuthRemote? remote,
-    }) =>
-        buildTestAuthCase(local, remote ?? FakeAuthRemote(), logger: Logger('test'));
+    }) => buildTestAuthCase(
+      local,
+      remote ?? FakeAuthRemote(),
+      logger: Logger('test'),
+    );
 
     test('session cookie applies when valid', () async {
       final local = FakeAuthLocal();
       final remote = FakeAuthRemote(sessionUserId: 'U-session');
-      final result = await build(local: local, remote: remote).bootstrapWebSession();
+      final result = await build(
+        local: local,
+        remote: remote,
+      ).bootstrapWebSession();
 
       expect(result.sessionUserId, 'U-session');
       expect(result.currentAccountId, 'U-session');
       expect(local.currentAccountId, 'U-session');
     });
 
-    test('valid session registers unknown local account as session-only', () async {
-      final local = FakeAuthLocal();
-      final remote = FakeAuthRemote(sessionUserId: 'U-new-oauth');
+    test('session cookie deletes other stored accounts on boot', () async {
+      final local = FakeAuthLocal()..currentAccountId = 'U-stale';
+      await local.addSessionAccount('U-stale');
+      await local.addAccount('U-other', 'seed');
+      final remote = FakeAuthRemote(sessionUserId: 'U-session');
       await build(local: local, remote: remote).bootstrapWebSession();
 
-      expect(await local.isSessionAccount('U-new-oauth'), isTrue);
-      expect(await local.getAccountById('U-new-oauth'), isNotNull);
+      expect((await local.getAccountsAll()).map((e) => e.id), ['U-session']);
+      expect(await local.getAccountById('U-stale'), isNull);
+      expect(await local.getAccountById('U-other'), isNull);
     });
+
+    test(
+      'valid session registers unknown local account as session-only',
+      () async {
+        final local = FakeAuthLocal();
+        final remote = FakeAuthRemote(sessionUserId: 'U-new-oauth');
+        await build(local: local, remote: remote).bootstrapWebSession();
+
+        expect(await local.isSessionAccount('U-new-oauth'), isTrue);
+        expect(await local.getAccountById('U-new-oauth'), isNotNull);
+      },
+    );
 
     test('rejected session clears cookie and reports rejection', () async {
       final local = FakeAuthLocal();
       final remote = FakeAuthRemote(sessionRejected: true);
-      final result = await build(local: local, remote: remote).bootstrapWebSession();
+      final result = await build(
+        local: local,
+        remote: remote,
+      ).bootstrapWebSession();
 
       expect(remote.clearSessionCookieCalls, 1);
       expect(result.invalidSessionCookieRejected, isTrue);
@@ -54,7 +78,10 @@ void main() {
         sessionRejected: true,
         clearAcknowledged: false,
       );
-      final result = await build(local: local, remote: remote).bootstrapWebSession();
+      final result = await build(
+        local: local,
+        remote: remote,
+      ).bootstrapWebSession();
 
       expect(result.invalidSessionCookieRejected, isTrue);
       expect(result.sessionCookieClearAcknowledged, isFalse);
@@ -66,7 +93,10 @@ void main() {
         ..sessionAccountIds.add('U-ghost')
         ..seedlessAccountIds.add('U-ghost');
       final remote = FakeAuthRemote(sessionRejected: true);
-      final result = await build(local: local, remote: remote).bootstrapWebSession();
+      final result = await build(
+        local: local,
+        remote: remote,
+      ).bootstrapWebSession();
 
       expect(result.currentAccountId, isEmpty);
       expect(local.currentAccountId, isNull);
@@ -77,7 +107,10 @@ void main() {
         ..currentAccountId = 'U-seed'
         ..sessionAccountIds.add('U-seed');
       final remote = FakeAuthRemote(sessionRejected: true);
-      final result = await build(local: local, remote: remote).bootstrapWebSession();
+      final result = await build(
+        local: local,
+        remote: remote,
+      ).bootstrapWebSession();
 
       expect(result.currentAccountId, 'U-seed');
       expect(local.currentAccountId, 'U-seed');
@@ -86,7 +119,10 @@ void main() {
     test('network failure does not clear cookie', () async {
       final local = FakeAuthLocal();
       final remote = FakeAuthRemote(sessionNetworkError: true);
-      final result = await build(local: local, remote: remote).bootstrapWebSession();
+      final result = await build(
+        local: local,
+        remote: remote,
+      ).bootstrapWebSession();
 
       expect(remote.clearSessionCookieCalls, 0);
       expect(result.invalidSessionCookieRejected, isFalse);
@@ -196,7 +232,8 @@ class FakeAuthLocal implements AuthLocalRepositoryPort {
   Future<void> dispose() async {}
 
   @override
-  Future<List<AccountEntity>> getAccountsAll() async => _accounts.values.toList();
+  Future<List<AccountEntity>> getAccountsAll() async =>
+      _accounts.values.toList();
 
   @override
   Future<AccountEntity?> getCurrentAccount() async =>
@@ -209,6 +246,20 @@ class FakeAuthLocal implements AuthLocalRepositoryPort {
 
   @override
   Future<void> updateAccount(AccountEntity account) async {}
+
+  @override
+  Future<void> retainOnlyAccount(String keepId) async {
+    if (keepId.isEmpty) {
+      return;
+    }
+    for (final id in _accounts.keys.toList()) {
+      if (id != keepId) {
+        await removeAccount(id);
+      }
+    }
+    sessionAccountIds.removeWhere((id) => id != keepId);
+    seedlessAccountIds.removeWhere((id) => id != keepId);
+  }
 
   @override
   Future<void> clearAllAuthData() async {
@@ -275,6 +326,5 @@ class FakeAuthRemote implements AuthRemoteRepositoryPort {
     required String displayName,
     required String invitationCode,
     String? handle,
-  }) async =>
-      '';
+  }) async => '';
 }

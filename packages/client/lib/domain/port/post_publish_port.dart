@@ -6,11 +6,15 @@ final class PostPublishResult {
   const PostPublishResult({
     required this.beaconId,
     required this.rootMessageId,
+    this.expiresAt,
   });
 
   final String beaconId;
 
   final String rootMessageId;
+
+  /// Server `expires_at` after publish (UTC), when returned.
+  final DateTime? expiresAt;
 }
 
 /// Publishing a Post draft and attaching files to its root message.

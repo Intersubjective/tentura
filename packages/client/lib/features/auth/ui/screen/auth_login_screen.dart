@@ -5,10 +5,7 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/dialog/qr_scan_dialog.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
-
 import '../bloc/auth_cubit.dart';
-import '../widget/account_list_tile.dart';
 
 @RoutePage()
 class AuthLoginScreen extends StatelessWidget implements AutoRouteWrapper {
@@ -30,7 +27,7 @@ class AuthLoginScreen extends StatelessWidget implements AutoRouteWrapper {
           appBar: TenturaTopBar.of(
             context,
             centerTitle: true,
-            title: Text(l10n.chooseAccount),
+            title: Text(l10n.recoverAccountTitle),
             progress: BlocSelector<AuthCubit, AuthState, bool>(
               key: Key('Loader:${authCubit.hashCode}'),
               selector: (state) => state.isLoading,
@@ -46,32 +43,20 @@ class AuthLoginScreen extends StatelessWidget implements AutoRouteWrapper {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Expanded(
-                      child: state.accounts.isEmpty
-                          ? Padding(
-                              padding: tt.cardPadding,
-                              child: Center(
-                                child: Text(
-                                  l10n.alreadyHaveAccount,
-                                  textAlign: TextAlign.center,
-                                  style: TenturaText.bodyMedium(
-                                    Theme.of(
-                                      context,
-                                    ).colorScheme.onSurfaceVariant,
-                                  ),
-                                ),
-                              ),
-                            )
-                          : ListView.separated(
-                              itemCount: state.accounts.length,
-                              itemBuilder: (_, i) {
-                                final account = state.accounts[i];
-                                return AccountListTile(
-                                  key: ValueKey(account),
-                                  account: account,
-                                );
-                              },
-                              separatorBuilder: separatorBuilder,
+                      child: Padding(
+                        padding: tt.cardPadding,
+                        child: Center(
+                          child: Text(
+                            l10n.alreadyHaveAccount,
+                            textAlign: TextAlign.center,
+                            style: TenturaText.bodyMedium(
+                              Theme.of(
+                                context,
+                              ).colorScheme.onSurfaceVariant,
                             ),
+                          ),
+                        ),
+                      ),
                     ),
 
                     // Recover from seed (QR)
