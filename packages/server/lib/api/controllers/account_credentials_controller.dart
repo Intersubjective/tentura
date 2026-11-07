@@ -53,8 +53,11 @@ final class AccountCredentialsController {
       return invalidJsonBodyResponse();
     }
 
-    final authRequestToken = body['authRequestToken'] as String?;
-    if (authRequestToken == null || authRequestToken.isEmpty) {
+    final authRequestToken = switch (body['authRequestToken']) {
+      final String s when s.isNotEmpty => s,
+      _ => null,
+    };
+    if (authRequestToken == null) {
       return Response.badRequest(body: 'authRequestToken is required');
     }
 
@@ -87,8 +90,11 @@ final class AccountCredentialsController {
       return invalidJsonBodyResponse();
     }
 
-    final idToken = body['idToken'] as String?;
-    if (idToken == null || idToken.isEmpty) {
+    final idToken = switch (body['idToken']) {
+      final String s when s.isNotEmpty => s,
+      _ => null,
+    };
+    if (idToken == null) {
       return Response.badRequest(body: 'idToken is required');
     }
 
