@@ -460,6 +460,9 @@ final class _SessionLocal implements AuthLocalRepositoryPort {
   Future<bool> isSessionAccount(String id) async => true;
 
   @override
+  Future<void> retainOnlyAccount(String keepId) async {}
+
+  @override
   Future<void> clearAllAuthData() async {}
 }
 

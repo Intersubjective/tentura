@@ -162,7 +162,9 @@ class AuthCubit extends Cubit<AuthState> {
     _sessionRestoreInFlight = true;
     final restore = _restoreSessionWithRetry();
     try {
-      _applyRestoredSession(await restore.timeout(_bootstrapTimeout));
+      await _applyRestoredSession(
+        await restore.timeout(_bootstrapTimeout),
+      );
     } on TimeoutException {
       // A slow server is not a lost session (dev 2026-10-05: a 60s
       // access-token response signed everyone out). Start on the stored
@@ -180,7 +182,7 @@ class AuthCubit extends Cubit<AuthState> {
         restore.then(
           (restored) {
             if (!isClosed && state.currentAccountId == provisionalAccountId) {
-              _applyRestoredSession(restored);
+              unawaited(_applyRestoredSession(restored));
             }
           },
           onError: (Object e, StackTrace s) {
@@ -204,7 +206,8 @@ class AuthCubit extends Cubit<AuthState> {
     ),
   );
 
-  void _applyRestoredSession(_RestoredSession restored) {
+  Future<void> _applyRestoredSession(_RestoredSession restored) async {
+    final accounts = await _accountCase.getAccountsAll();
     if (restored.sessionLost) {
       emit(
         state.copyWith(
@@ -212,6 +215,7 @@ class AuthCubit extends Cubit<AuthState> {
           authRecoveryNeeded: true,
           authSessionLossCount: 1,
           currentAccountId: '',
+          accounts: accounts,
           updatedAt: DateTime.timestamp(),
         ),
       );
@@ -223,6 +227,7 @@ class AuthCubit extends Cubit<AuthState> {
         currentAccountId: restored.accountId,
         authRecoveryNeeded: false,
         authSessionLossCount: 0,
+        accounts: accounts,
         updatedAt: DateTime.timestamp(),
       ),
     );
@@ -272,9 +277,15 @@ class AuthCubit extends Cubit<AuthState> {
       } on TimeoutException {
         throw const AuthServerUnavailableException();
       } catch (_) {
+        await _applyRestoredSession(
+          (accountId: '', sessionLost: true),
+        );
         return (accountId: '', sessionLost: true);
       }
     }
+    await _applyRestoredSession(
+      (accountId: accountId, sessionLost: false),
+    );
     return (accountId: accountId, sessionLost: false);
   }
 
@@ -437,11 +448,10 @@ class AuthCubit extends Cubit<AuthState> {
     try {
       final account = await _accountCase.addAccount(seed);
       await _accountCase.updateAccount(account);
+      await _accountCase.retainOnlyAccount(account.id);
       emit(
         AuthState(
-          accounts: state.accounts
-            ..add(account)
-            ..sort(_compareAccounts),
+          accounts: [account],
           updatedAt: DateTime.timestamp(),
         ),
       );
@@ -506,36 +516,11 @@ class AuthCubit extends Cubit<AuthState> {
       );
       emit(
         AuthState(
-          accounts: state.accounts
-            ..add(newProfile)
-            ..sort(_compareAccounts),
+          accounts: [newProfile],
           currentAccountId: newProfile.id,
           updatedAt: DateTime.timestamp(),
         ),
       );
-    } catch (e) {
-      _emitSnackError(e);
-    }
-  }
-
-  //
-  //
-  Future<void> signIn(String id) async {
-    if (state.currentAccountId == id) {
-      return;
-    }
-    emit(state.copyWith(status: StateStatus.isLoading));
-    try {
-      await _authCase.signIn(userId: id);
-      emit(
-        state.copyWith(
-          authRecoveryNeeded: false,
-          authSessionLossCount: 0,
-          status: const StateIsSuccess(),
-        ),
-      );
-    } on AuthSessionLostException catch (e) {
-      noteAuthSessionLoss(e);
     } catch (e) {
       _emitSnackError(e);
     }

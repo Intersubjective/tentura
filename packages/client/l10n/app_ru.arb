@@ -272,20 +272,8 @@
   "@pleaseEnterCode": {
     "context": "AccountAddDialog"
   },
-  "confirmAccountRemoval": "Вы уверены, что хотите удалить этот аккаунт?",
-  "@confirmAccountRemoval": {
-    "context": "AccountRemoveDialog"
-  },
-  "chooseAccount": "Выберите аккаунт",
-  "@chooseAccount": {
-    "context": "AuthLoginScreen"
-  },
   "accountMenuViewProfile": "Открыть профиль",
   "@accountMenuViewProfile": {
-    "context": "HomeAccountMenu"
-  },
-  "accountUnnamed": "Аккаунт без имени",
-  "@accountUnnamed": {
     "context": "HomeAccountMenu"
   },
   "semanticsAccountMenuHint": "Открывает меню аккаунта",
@@ -336,17 +324,9 @@
   "@recoverCameraBlocked": {
     "context": "RecoverScreen"
   },
-  "shareAccount": "Поделиться аккаунтом",
-  "@shareAccount": {
-    "context": "AccountListTile"
-  },
   "showSeed": "Показать seed восстановления",
   "@showSeed": {
-    "context": "AccountListTile, SettingsScreen"
-  },
-  "removeFromList": "Убрать из списка",
-  "@removeFromList": {
-    "context": "AccountListTile"
+    "context": "SettingsScreen"
   },
   "invitationScreenTitle": "Приглашения",
   "@invitationScreenTitle": {

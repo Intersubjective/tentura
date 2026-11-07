@@ -194,6 +194,9 @@ class EmptyAuthLocal implements AuthLocalRepositoryPort {
   Future<bool> isSessionAccount(String id) async => false;
 
   @override
+  Future<void> retainOnlyAccount(String keepId) async {}
+
+  @override
   Future<void> clearAllAuthData() async {}
 }
 
