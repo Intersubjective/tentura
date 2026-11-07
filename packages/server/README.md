@@ -7,23 +7,33 @@
 
 Most server tests use mocked repository ports and need no database.
 
-A small set of **Postgres integration tests** (tagged `pg`) exercise real Drift
-`customSelect` / `customStatement` against a live database. PR CI runs
-`dart test --exclude-tags pg`. Locally use `dart test` (skipped when Postgres is
-not reachable) or `dart test --tags pg` for integration only
-(`docker compose up -d meritrank postgres`).
-Postgres defaults to `127.0.0.1:5432` (override via `POSTGRES_HOST` /
-`POSTGRES_PORT` / `POSTGRES_PASSWORD`).
+Tests that need live services are selected by tags; `dart_test.yaml` holds
+the authoritative description of each one:
 
-| File | What it covers |
-|------|----------------|
-| `test/app/di_smoke_test.dart` | Prod/dev DI graph boots against live Postgres |
-| `test/data/repository/email_auth_transaction_repository_test.dart` | `consumeByToken` raw SQL + `timestamptz` RETURNING workaround (`WORKAROUNDS.md` §4) |
+| Tag | Meaning |
+|-----|---------|
+| `pg` | Needs a live Postgres (most integration tests build their own disposable database). |
+| `mr` | Also reaches the shared MeritRank container; run with `-j 1`, apart from the rest of `pg`. |
+| `multi-connection` | Sizes its own pool above one connection; excluded from the pool-size-1 run, run with `-j 1`. |
+| `perf` / `load` | Perf recorder and load suites (also `pg` + `mr`); opt-in only. |
+| `repo-files` | Reads files outside `packages/server` (docs, scripts, workflows, client). |
+| `toolchain` | Re-runs the analyzer gates; CI runs those directly and excludes this tag. |
+
+Start the services with `docker compose up -d meritrank postgres`. Postgres
+defaults to `127.0.0.1:5432` (override via `POSTGRES_HOST` / `POSTGRES_PORT` /
+`POSTGRES_PASSWORD`). Some `pg` tests use the default database and expect it
+migrated: `dart run bin/utils/run_migrations_once.dart`.
+
+From the repo root, `scripts/run_tests.sh` runs each profile with the right
+tags and `-j` (`server-unit`, `server-pg`, `server-mr`, `server-files <paths>`;
+see its header). The plain equivalents:
 
 ```bash
-cd packages/server && dart test
-# CI: dart test --exclude-tags pg
-# integration only: dart test --tags pg
+cd packages/server
+dart test --exclude-tags pg,toolchain                  # unit tests, no services
+dart test --tags pg --exclude-tags mr,perf,load        # Postgres suites
+dart test --tags mr --exclude-tags perf,load -j 1      # also needs MeritRank
+dart test --tags repo-files                            # files outside the package
 ```
 
 ## Build docker image
