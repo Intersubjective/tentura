@@ -3046,6 +3046,11 @@
   "@myWorkFilterHelpOffered": {
     "context": "MyWorkScreen"
   },
+  "myWorkFilterHelpOfferedChip": "Helping",
+  "@myWorkFilterHelpOfferedChip": {
+    "context": "MyWorkScreen",
+    "description": "Short filter label for the top bar on narrow phones (#1107); menu keeps myWorkFilterHelpOffered."
+  },
   "myWorkFilterArchived": "Archived",
   "@myWorkFilterArchived": {
     "context": "MyWorkScreen"

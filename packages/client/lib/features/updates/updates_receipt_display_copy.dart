@@ -10,6 +10,7 @@ import 'package:tentura/domain/attention/plan_receipt_event_type.dart';
 import 'package:tentura/features/beacon_view/domain/beacon_status_menu_presenter.dart';
 import 'forward_helped_receipt_copy.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/utils/plain_text_preview.dart';
 import 'package:tentura/ui/utils/withdraw_reason_label.dart';
 
 /// Trust-change presentation keys emitted by the server (direction-encoded).
@@ -1092,8 +1093,10 @@ UpdatesFeedRowCopy? _postSharedRowCopy({
       : actorNameFromPresentationPayload(presentationPayloadJson) ??
             localizedDisplayName(title.trim());
   if (name.trim().isEmpty) return null;
-  final post = postRootExcerpt?.trim() ?? '';
-  final note = excerptFromPresentationPayload(presentationPayloadJson) ?? '';
+  final postRaw = postRootExcerpt?.trim() ?? '';
+  final post = stripAngleBracketRegionsForPlainPreview(postRaw);
+  final noteRaw = excerptFromPresentationPayload(presentationPayloadJson) ?? '';
+  final note = stripAngleBracketRegionsForPlainPreview(noteRaw);
   return UpdatesFeedRowCopy(
     headline: l10n.postRowSharedBy(name),
     body: [if (post.isNotEmpty) post, if (note.isNotEmpty) note].join(' · '),
