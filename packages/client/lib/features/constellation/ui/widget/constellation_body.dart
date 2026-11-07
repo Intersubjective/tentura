@@ -225,6 +225,10 @@ class _ConstellationBodyState extends State<ConstellationBody>
   // The own tag whose hull a press-and-hold lifted into a drag (#1021).
   String? _liftedTagId;
 
+  /// Handle node for a hull drag the user started from the secondary menu
+  /// (#1021): the area follows the pointer until the next primary click.
+  GraphNodeId? _tagHullMenuDragNodeId;
+
   // The level held back near a threshold while a gesture ran must catch up
   // with the scale once the last pointer is gone.
   void _onPointerReleased() {
@@ -291,6 +295,160 @@ class _ConstellationBodyState extends State<ConstellationBody>
     if (mounted && _liftedTagId != null) {
       setState(() => _liftedTagId = null);
     }
+  }
+
+  String? _tagHullIdAtScene(ConstellationCubit cubit, Offset scene) {
+    _updateTagHullHitTester(cubit);
+    return _tagHullHitTester?.tagHullAt(scene);
+  }
+
+  Future<void> _showTagHullMoveMenu(
+    ConstellationCubit cubit,
+    String tagId,
+    Offset scene,
+  ) async {
+    final store = _peopleTags;
+    if (store == null) {
+      return;
+    }
+    final tag = store.tags.where((t) => t.id == tagId).firstOrNull;
+    if (tag == null) {
+      return;
+    }
+    final l10n = L10n.of(context)!;
+    final box = _graphStackKey.currentContext?.findRenderObject();
+    if (box is! RenderBox) {
+      return;
+    }
+    final global = box.localToGlobal(
+      cubit.graphController.sceneToViewportLocal(scene),
+    );
+    final overlay =
+        Overlay.of(context).context.findRenderObject()! as RenderBox;
+    final local = overlay.globalToLocal(global);
+    final chosen = await showMenu<bool>(
+      context: context,
+      position: RelativeRect.fromRect(
+        Rect.fromLTWH(local.dx, local.dy, 0, 0),
+        Offset.zero & overlay.size,
+      ),
+      items: [
+        PopupMenuItem<bool>(
+          value: true,
+          child: Text(l10n.constellationTagHullMoveArea(tag.name)),
+        ),
+      ],
+    );
+    if (!mounted || chosen != true) {
+      return;
+    }
+    _startTagHullMenuDrag(cubit, tagId, scene);
+  }
+
+  void _startTagHullMenuDrag(
+    ConstellationCubit cubit,
+    String tagId,
+    Offset scene,
+  ) {
+    final store = _peopleTags;
+    if (store == null) {
+      return;
+    }
+    final handle = cubit.beginDragTagArea(
+      tagId: tagId,
+      peopleOfTag: store.peopleInTag,
+      tagsOfPerson: store.tagsOfPerson,
+    );
+    if (handle == null) {
+      return;
+    }
+    maybeConstellationSelection(context)?.enterArranging();
+    final graphId = constellationGraphNodeIdForTarget(handle);
+    final box = _graphStackKey.currentContext?.findRenderObject();
+    if (box is RenderBox) {
+      _lastPointerGlobal = box.localToGlobal(
+        cubit.graphController.sceneToViewportLocal(scene),
+      );
+    }
+    setState(() {
+      _liftedTagId = tagId;
+      _tagHullMenuDragNodeId = graphId;
+    });
+    _tickTagHullMenuDrag(cubit, _lastPointerGlobal);
+  }
+
+  void _tickTagHullMenuDrag(ConstellationCubit cubit, Offset? global) {
+    final graphId = _tagHullMenuDragNodeId;
+    if (graphId == null || global == null) {
+      return;
+    }
+    final scene = cubit.graphController.globalToScene(global);
+    if (scene == null) {
+      return;
+    }
+    final payload = cubit.graphController.nodePayloadForId(graphId);
+    if (payload is! NodeDetails) {
+      return;
+    }
+    final clamped = cubit.clampClusterDragPosition(payload, scene);
+    cubit.updateDragPresentation(nodeId: graphId, sceneCentre: clamped);
+    _syncComposerPersonPositions(cubit, maybeConstellationComposer(context));
+  }
+
+  void _finishTagHullMenuDrag(ConstellationCubit cubit) {
+    final graphId = _tagHullMenuDragNodeId;
+    if (graphId == null) {
+      return;
+    }
+    _tagHullMenuDragNodeId = null;
+    final payload = cubit.graphController.nodePayloadForId(graphId);
+    if (payload is! NodeDetails) {
+      _lowerTagHull();
+      cubit.onPointerCancelDuringDrag();
+      return;
+    }
+    final global = _lastPointerGlobal;
+    if (global == null) {
+      _lowerTagHull();
+      cubit.onPointerCancelDuringDrag();
+      return;
+    }
+    final scene = cubit.graphController.globalToScene(global);
+    if (scene == null) {
+      _lowerTagHull();
+      cubit.onPointerCancelDuringDrag();
+      return;
+    }
+    final clamped = cubit.clampClusterDragPosition(payload, scene);
+    cubit.updateDragPresentation(nodeId: graphId, sceneCentre: clamped);
+    _lowerTagHull();
+    final target = cubit.state.activePlacementTarget;
+    if (target == null) {
+      cubit.onPointerCancelDuringDrag();
+      return;
+    }
+    final composer = maybeConstellationComposer(context);
+    switch (cubit.state.placementPhase) {
+      case ConstellationPlacementPhase.draggingExisting:
+      case ConstellationPlacementPhase.draggingNew:
+        unawaited(
+          cubit
+              .onExistingNodeDrop(target: target, sceneCentre: clamped)
+              .then((_) => _syncComposerPersonPositions(cubit, composer)),
+        );
+      case ConstellationPlacementPhase.idle:
+      case ConstellationPlacementPhase.composing:
+        cubit.onPointerCancelDuringDrag();
+    }
+  }
+
+  void _cancelTagHullMenuDrag(ConstellationCubit cubit) {
+    if (_tagHullMenuDragNodeId == null && _liftedTagId == null) {
+      return;
+    }
+    _tagHullMenuDragNodeId = null;
+    _lowerTagHull();
+    cubit.onPointerCancelDuringDrag();
   }
 
   ConstellationDetailLevel get _detail => _zoom.value;
@@ -1621,7 +1779,12 @@ class _ConstellationBodyState extends State<ConstellationBody>
                               final placing =
                                   cubit.state.placementPhase !=
                                   ConstellationPlacementPhase.idle;
-                              cubit.cancelPlacement();
+                              if (_tagHullMenuDragNodeId != null ||
+                                  (_liftedTagId != null && placing)) {
+                                _cancelTagHullMenuDrag(cubit);
+                              } else {
+                                cubit.cancelPlacement();
+                              }
                               // Nothing else to cancel: Escape closes the
                               // person or Request panel (#680).
                               if (!placing) _closePanelOnEscape(cubit);
@@ -2187,6 +2350,23 @@ class _ConstellationBodyState extends State<ConstellationBody>
       );
     }
 
+    void onCanvasSecondary(Offset scene) {
+      if (_tagHullMenuDragNodeId != null) {
+        return;
+      }
+      if (widget.peopleTagsEnabled &&
+          cubit.state.tagView == null &&
+          !cubit.state.isComposing &&
+          (composer == null || composer.createCubit == null)) {
+        final tagId = _tagHullIdAtScene(cubit, scene);
+        if (tagId != null) {
+          unawaited(_showTagHullMoveMenu(cubit, tagId, scene));
+          return;
+        }
+      }
+      offerCreate(scene);
+    }
+
     final mapSelectionCubit = maybeConstellationSelection(context);
     final mapArranging = mapSelectionCubit?.state.arranging ?? false;
     final touchNodeDragLocked =
@@ -2232,7 +2412,19 @@ class _ConstellationBodyState extends State<ConstellationBody>
             _stopReveal();
             _takeMapFocus();
           },
-          onPointerUp: (_) => _onPointerReleased(),
+          onPointerMove: (event) {
+            _lastPointerGlobal = event.position;
+            if (_tagHullMenuDragNodeId != null) {
+              _tickTagHullMenuDrag(cubit, event.position);
+            }
+          },
+          onPointerUp: (event) {
+            _lastPointerGlobal = event.position;
+            if (_tagHullMenuDragNodeId != null) {
+              _finishTagHullMenuDrag(cubit);
+            }
+            _onPointerReleased();
+          },
           onPointerCancel: (_) => _onPointerReleased(),
           onPointerSignal: (_) => _stopReveal(),
           // The map markers are one Tab stop with roving focus (#391, #615):
@@ -2253,7 +2445,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
               onCanvasSecondaryTap:
                   composer == null || composer.createCubit != null
                   ? null
-                  : offerCreate,
+                  : onCanvasSecondary,
               onCanvasLongPress:
                   composer == null || composer.createCubit != null
                   ? null
