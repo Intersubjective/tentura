@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'package:tentura_server/domain/entity/forward_helped_content.dart';
 
-import 'package:drift_postgres/drift_postgres.dart' show PgDateTime;
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/entity/notification_category.dart';
@@ -12,6 +11,7 @@ import 'package:tentura_server/domain/entity/notification_outbox_item_entity.dar
 import 'package:tentura_server/domain/entity/notification_priority.dart';
 import 'package:tentura_server/domain/port/notification_outbox_repository_port.dart';
 
+import '../database/query_row_timestamp.dart';
 import '../database/tentura_db.dart';
 
 @Singleton(
@@ -90,7 +90,7 @@ in_app_preference_class, suppression_class, access_policy
           variables: [Variable<String>(accountId)],
         )
         .get();
-    return rows.isEmpty ? null : _readTimestamp(rows.first, 'm');
+    return rows.isEmpty ? null : readRowTimestamp(rows.first, 'm');
   }
 
   @override
@@ -233,8 +233,8 @@ WHERE seen_at IS NOT NULL
       title: row.read<String>('title'),
       body: row.read<String>('body'),
       actionUrl: row.read<String>('action_url'),
-      createdAt: _readTimestamp(row, 'created_at')!,
-      readAt: _readTimestamp(row, 'read_at'),
+      createdAt: readRowTimestamp(row, 'created_at')!,
+      readAt: readRowTimestamp(row, 'read_at'),
       collapsedCount: row.read<int>('collapsed_count'),
       beaconId: row.readNullable<String>('beacon_id'),
       digestPost: switch (row.readNullable<String>('post_body')) {
@@ -255,7 +255,7 @@ WHERE seen_at IS NOT NULL
         final String name when name.isNotEmpty => name,
         _ => row.readNullable<String>('sender_name') ?? '',
       },
-      seenAt: _readTimestamp(row, 'seen_at'),
+      seenAt: readRowTimestamp(row, 'seen_at'),
       sourceEventKey: row.readNullable<String>('source_event_key'),
       destinationKind: row.readNullable<String>('destination_kind'),
       targetEntityId: row.readNullable<String>('target_entity_id'),
@@ -268,20 +268,6 @@ WHERE seen_at IS NOT NULL
       suppressionClass: row.read<String>('suppression_class'),
       accessPolicy: row.read<String>('access_policy'),
     );
-  }
-
-  static DateTime? _readTimestamp(QueryRow row, String column) {
-    final value = row.data[column];
-    if (value == null) {
-      return null;
-    }
-    if (value is DateTime) {
-      return value;
-    }
-    if (value is PgDateTime) {
-      return value.dateTime;
-    }
-    return DateTime.parse(value.toString());
   }
 
   static NotificationKind _kindFromName(String name) =>

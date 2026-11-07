@@ -1,4 +1,3 @@
-import 'package:drift_postgres/drift_postgres.dart' show PgDateTime;
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/entity/beacon_mute_entity.dart';
@@ -7,6 +6,7 @@ import 'package:tentura_server/domain/entity/notification_category.dart';
 import 'package:tentura_server/domain/entity/notification_preferences_entity.dart';
 import 'package:tentura_server/domain/port/notification_preference_repository_port.dart';
 
+import '../database/query_row_timestamp.dart';
 import '../database/tentura_db.dart';
 
 @Singleton(
@@ -137,7 +137,7 @@ ON CONFLICT (account_id) DO UPDATE SET
         BeaconMuteEntity(
           accountId: row.read<String>('account_id'),
           beaconId: row.read<String>('beacon_id'),
-          mutedUntil: _readTimestamp(row, 'muted_until'),
+          mutedUntil: readRowTimestamp(row, 'muted_until'),
         ),
     ];
   }
@@ -216,7 +216,7 @@ DO UPDATE SET muted_until = EXCLUDED.muted_until
       quietHoursEndMinute: row.readNullable<int>('quiet_hours_end'),
       tzOffsetMinutes: row.read<int>('tz_offset_minutes'),
       emailDigest: digestCadenceFromName(row.read<String>('email_digest')),
-      snoozeUntil: _readTimestamp(row, 'snooze_until'),
+      snoozeUntil: readRowTimestamp(row, 'snooze_until'),
       lockScreenSafe: row.read<bool>('lock_screen_safe'),
       locale: row.read<String>('locale'),
     );
@@ -224,18 +224,4 @@ DO UPDATE SET muted_until = EXCLUDED.muted_until
 
   static Set<String> _parseStrings(String? joined) =>
       joined == null || joined.isEmpty ? const {} : joined.split(',').toSet();
-
-  static DateTime? _readTimestamp(QueryRow row, String column) {
-    final value = row.data[column];
-    if (value == null) {
-      return null;
-    }
-    if (value is DateTime) {
-      return value;
-    }
-    if (value is PgDateTime) {
-      return value.dateTime;
-    }
-    return DateTime.parse(value.toString());
-  }
 }

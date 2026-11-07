@@ -15,6 +15,7 @@ import 'package:tentura_server/domain/entity/beacon_fact_room_access.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/utils/id.dart';
 
+import '../database/query_row_timestamp.dart';
 import '../database/tentura_db.dart';
 import 'package:tentura_server/domain/port/beacon_fact_card_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
@@ -846,13 +847,9 @@ LIMIT $2::integer
     );
   }
 
-  static DateTime _readTimestamp(QueryRow row, String column) {
-    final value = row.data[column];
-    if (value is DateTime) return value.toUtc();
-    if (value is PgDateTime) return value.dateTime.toUtc();
-    return DateTime.parse(value.toString()).toUtc();
-  }
+  static DateTime _readTimestamp(QueryRow row, String column) =>
+      readRowTimestamp(row, column)!.toUtc();
 
   static DateTime? _readNullableTimestamp(QueryRow row, String column) =>
-      row.data[column] == null ? null : _readTimestamp(row, column);
+      readRowTimestamp(row, column)?.toUtc();
 }
