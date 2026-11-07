@@ -89,6 +89,9 @@ class AuthCubit extends Cubit<AuthState> {
       _onAuthChanged,
       cancelOnError: false,
     );
+    _sessionAccountChanges = _authCase.sessionAccountChanges.listen(
+      _onSessionAccountChanged,
+    );
     _profileChanges = profileRepository.changes.listen(
       _onProfileChanged,
       cancelOnError: false,
@@ -104,6 +107,11 @@ class AuthCubit extends Cubit<AuthState> {
   final UiEffectPort _effects;
 
   late final StreamSubscription<String> _authChanges;
+
+  late final StreamSubscription<AuthSessionAccountChangedException>
+  _sessionAccountChanges;
+
+  Timer? _sessionAccountReload;
 
   late final StreamSubscription<RepositoryEvent<Profile>> _profileChanges;
 
@@ -133,9 +141,21 @@ class AuthCubit extends Cubit<AuthState> {
 
   @disposeMethod
   Future<void> dispose() async {
+    _sessionAccountReload?.cancel();
+    await _sessionAccountChanges.cancel();
     await _authChanges.cancel();
     await _profileChanges.cancel();
     return close();
+  }
+
+  void _onSessionAccountChanged(AuthSessionAccountChangedException error) {
+    if (isClosed || _sessionAccountReload != null) return;
+    _emitSnackError(error);
+    // Let the notice render and be read before unloading. Keep the valid
+    // replacement cookie so the reload can bootstrap its account.
+    _sessionAccountReload = Timer(const Duration(seconds: 1), () {
+      _authCase.reloadAfterRejectedSession(clearAcknowledged: true);
+    });
   }
 
   Future<void> _bootstrap() async {

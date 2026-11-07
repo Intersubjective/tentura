@@ -1,0 +1,7 @@
+{
+  "name": "tentura-e2e-session-account",
+  "private": true,
+  "type": "module",
+  "scripts": { "test": "bash run.sh" },
+  "dependencies": { "playwright": "^1.51.0", "ws": "^8.18.0" }
+}

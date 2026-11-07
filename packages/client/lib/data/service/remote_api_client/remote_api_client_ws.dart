@@ -6,6 +6,7 @@ import 'package:logging/logging.dart';
 import 'package:meta/meta.dart';
 
 import 'package:tentura_root/domain/enums.dart' show WebSocketState;
+import 'package:tentura/features/auth/domain/exception.dart';
 
 import 'auth_box.dart';
 import 'realtime_socket.dart';
@@ -77,6 +78,7 @@ base mixin RemoteApiClientWs on RemoteApiClientBase {
   Stream<String> get minClientVersionStream =>
       _minClientVersionController.stream;
 
+  @override
   String? get realtimeAccountId => _boundAccountId;
 
   Stream<RealtimeTransportStatus> get realtimeTransportStatus async* {
@@ -262,6 +264,15 @@ base mixin RemoteApiClientWs on RemoteApiClientBase {
     if (!_isCurrentEpoch(epoch)) return;
     _authDeadlineTimer?.cancel();
     _authRetryTimer?.cancel();
+    if (error is AuthSessionAccountChangedException) {
+      _emitBoundStatus(
+        epoch: epoch,
+        phase: RealtimeTransportPhase.disconnected,
+        cause: cause,
+      );
+      unawaited(_teardownSocket(sendSignOut: false));
+      return;
+    }
     _authFailures++;
     if (_authFailures >= 3) {
       _logger.warning('Realtime authentication repeatedly failed', error);
