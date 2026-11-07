@@ -616,7 +616,7 @@ void main() {
         expect(membership.returned, [_postId]);
         expect(
           effects.emitted.whereType<NavigatePush>().map((e) => e.path),
-          contains('$kPathBeaconView/$_postId'),
+          contains('$kPathPostView/$_postId'),
         );
       });
     }

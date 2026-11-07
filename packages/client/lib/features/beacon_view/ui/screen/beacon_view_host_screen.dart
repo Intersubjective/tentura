@@ -93,6 +93,21 @@ class BeaconViewHostScreen extends StatelessWidget implements AutoRouteWrapper {
   );
 }
 
+/// Post detail URL alias — same behaviour as [BeaconViewHostScreen] (`#1082`).
+@RoutePage(name: 'PostViewRoute')
+class PostViewHostScreen extends BeaconViewHostScreen {
+  const PostViewHostScreen({
+    required super.id,
+    super.isDeepLink,
+    super.viewTab,
+    super.peopleTabAttention,
+    super.entry,
+    super.threadId,
+    super.messageId,
+    super.key,
+  });
+}
+
 /// Resolves the beacon kind once, then builds the matching scope.
 class _BeaconKindGate extends StatefulWidget {
   const _BeaconKindGate({required this.beaconId, required this.builder});

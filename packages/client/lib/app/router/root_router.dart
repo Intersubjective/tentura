@@ -30,18 +30,21 @@ export 'home_tab_branches.dart';
 export 'root_router.gr.dart';
 
 Uri normalizeBeaconViewThreadDeepLink(Uri uri) {
-  final match = RegExp(
-    '^${RegExp.escape(kPathBeaconView)}/([^/]+)/thread/([^/]+)\$',
-  ).firstMatch(uri.path);
-  if (match == null) return uri;
-  final normalized = normalizeBeaconViewRouteQuery(
-    pathThreadId: match.group(2),
-    incomingQuery: uri.queryParameters,
-  );
-  return uri.replace(
-    path: '$kPathBeaconView/${match.group(1)}',
-    queryParameters: normalized.queryParameters,
-  );
+  for (final prefix in [kPathBeaconView, kPathPostView]) {
+    final match = RegExp(
+      '^${RegExp.escape(prefix)}/([^/]+)/thread/([^/]+)\$',
+    ).firstMatch(uri.path);
+    if (match == null) continue;
+    final normalized = normalizeBeaconViewRouteQuery(
+      pathThreadId: match.group(2),
+      incomingQuery: uri.queryParameters,
+    );
+    return uri.replace(
+      path: '$prefix/${match.group(1)}',
+      queryParameters: normalized.queryParameters,
+    );
+  }
+  return uri;
 }
 
 @singleton
@@ -437,6 +440,20 @@ class RootRouter extends RootStackRouter {
       usesPathAsKey: true,
       page: BeaconViewRoute.page,
       path: '$kPathBeaconView/:id',
+      children: [
+        AutoRoute(
+          page: BeaconViewOperationalRoute.page,
+          path: '',
+          initial: true,
+        ),
+      ],
+    ),
+
+    // Post detail (alias of BeaconViewRoute; old /beacon/view/ links unchanged).
+    AutoRoute(
+      usesPathAsKey: true,
+      page: PostViewRoute.page,
+      path: '$kPathPostView/:id',
       children: [
         AutoRoute(
           page: BeaconViewOperationalRoute.page,
