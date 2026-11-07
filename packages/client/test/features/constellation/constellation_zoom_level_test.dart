@@ -7,11 +7,6 @@ void main() {
     expect(constellationRenderPeerCap(), 400);
   });
 
-  test('overview has no legacy bare cutoff below scale 0.3', () {
-    expect(constellationBareAtScale(0.2), isFalse);
-    expect(constellationBareAtScale(0.3), isFalse);
-  });
-
   group('settledConstellationDetailLevel', () {
     test('levels are close, district and overview', () {
       expect(
@@ -59,8 +54,16 @@ void main() {
     test('labels never disappear when zooming in', () {
       for (var priority = 0; priority <= 4; priority++) {
         for (var ring = 0; ring <= 4; ring++) {
-          final o = candidate(ConstellationDetailLevel.overview, priority, ring);
-          final d = candidate(ConstellationDetailLevel.district, priority, ring);
+          final o = candidate(
+            ConstellationDetailLevel.overview,
+            priority,
+            ring,
+          );
+          final d = candidate(
+            ConstellationDetailLevel.district,
+            priority,
+            ring,
+          );
           final c = candidate(ConstellationDetailLevel.close, priority, ring);
           if (o) expect(d, isTrue, reason: 'p$priority r$ring');
           if (d) expect(c, isTrue, reason: 'p$priority r$ring');

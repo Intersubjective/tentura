@@ -4,8 +4,6 @@ import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
 
-import 'package:tentura/consts.dart';
-
 /// How much the map shows at a camera scale: everything up close (`close`),
 /// every label that fits (`district`, forcing none), or those without the
 /// people beyond the nearest ring (`overview`, #595).
@@ -20,11 +18,6 @@ const kConstellationOverviewDotDiameter = 5.0;
 /// Screen diameter of a person's initials circle at the district level (E3).
 const kConstellationDistrictMarkerDiameter = 20.0;
 
-/// With semantic zoom gated off, a map below this scale is a clean overview
-/// of shapes and edges: no label and no overflow chip at all (#595). Fitting
-/// a modest field already lands near 0.4, so a fitted map keeps its labels.
-const kConstellationBareDetailScale = 0.3;
-
 /// The level a settled camera [scale] shows: a pure function of the scale,
 /// the same from either zoom direction.
 ConstellationDetailLevel settledConstellationDetailLevel(double scale) {
@@ -36,10 +29,6 @@ ConstellationDetailLevel settledConstellationDetailLevel(double scale) {
   }
   return ConstellationDetailLevel.overview;
 }
-
-/// Whether the map drops every label and chip at [scale] (gate off only).
-bool constellationBareAtScale(double scale) =>
-    !kFieldSemanticZoomEnabled && scale < kConstellationBareDetailScale;
 
 /// Detail policy for [ConstellationFrameNodeInput.labelCandidate] (R03b sets this
 /// before calling [computeConstellationPresentationFrame]). Each level's

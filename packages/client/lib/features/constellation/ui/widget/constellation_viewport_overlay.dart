@@ -442,9 +442,7 @@ class _ConstellationViewportOverlayState
             final snapshot = controller.renderSnapshot;
             final scale = controller.cameraScale;
             // The overview is bare: dots only, no label, chip or forced label (#595).
-            final bare =
-                constellationBareAtScale(scale) ||
-                _detail == ConstellationDetailLevel.overview;
+            final bare = _detail == ConstellationDetailLevel.overview;
 
             final configuredOrder = widget.cubit.orderedNodeIdsForPaint();
             final order = controller.orderedRenderNodeIds(
