@@ -18,7 +18,9 @@ import 'package:tentura/features/profile/domain/port/profile_repository_port.dar
 
 void main() {
   group('AccountCase.normalizeSeed', () {
-    final validBytes = Uint8List.fromList(List<int>.generate(kSeedLength, (i) => i));
+    final validBytes = Uint8List.fromList(
+      List<int>.generate(kSeedLength, (i) => i),
+    );
     final validSeed = base64UrlEncode(validBytes);
 
     test('accepts padded base64url', () {
@@ -47,15 +49,14 @@ void main() {
       required RecoverFakeAuthLocal local,
       RecoverFakeAuthRemote? remote,
       RecoverFakeProfileRepository? profile,
-    }) =>
-        AccountCase(
-          local,
-          remote ?? RecoverFakeAuthRemote(),
-          RecoverFakePlatform(),
-          profile ?? RecoverFakeProfileRepository(),
-          env: const Env(),
-          logger: Logger('test'),
-        );
+    }) => AccountCase(
+      local,
+      remote ?? RecoverFakeAuthRemote(),
+      RecoverFakePlatform(),
+      profile ?? RecoverFakeProfileRepository(),
+      env: const Env(),
+      logger: Logger('test'),
+    );
 
     test('signs in, upserts seed account, sets current id', () async {
       final local = RecoverFakeAuthLocal();
@@ -90,7 +91,10 @@ void main() {
         Uint8List.fromList(List<int>.generate(kSeedLength, (i) => i + 2)),
       );
 
-      await build(local: local, remote: remote).recoverFromSeedAndSignIn(validSeed);
+      await build(
+        local: local,
+        remote: remote,
+      ).recoverFromSeedAndSignIn(validSeed);
 
       expect(local.upsertCalls, hasLength(1));
       expect(local.currentAccountId, 'U-recover');
@@ -105,7 +109,10 @@ void main() {
         Uint8List.fromList(List<int>.generate(kSeedLength, (i) => i + 3)),
       );
 
-      await build(local: local, remote: remote).recoverFromSeedAndSignIn(validSeed);
+      await build(
+        local: local,
+        remote: remote,
+      ).recoverFromSeedAndSignIn(validSeed);
 
       expect(local.sessionAccountIds, isEmpty);
       expect(local.currentAccountId, 'U-session');
@@ -154,7 +161,8 @@ class RecoverFakeAuthLocal implements AuthLocalRepositoryPort {
   }
 
   @override
-  Future<bool> isSessionAccount(String id) async => sessionAccountIds.contains(id);
+  Future<bool> isSessionAccount(String id) async =>
+      sessionAccountIds.contains(id);
 
   @override
   Future<void> setCurrentAccountId(String? id) async {
@@ -170,7 +178,8 @@ class RecoverFakeAuthLocal implements AuthLocalRepositoryPort {
   @override
   Future<String> getSeedByAccountId(String id) async => 'seed';
   @override
-  Future<List<AccountEntity>> getAccountsAll() async => _accounts.values.toList();
+  Future<List<AccountEntity>> getAccountsAll() async =>
+      _accounts.values.toList();
   @override
   Future<AccountEntity?> getCurrentAccount() async => null;
   @override
@@ -178,6 +187,19 @@ class RecoverFakeAuthLocal implements AuthLocalRepositoryPort {
   @override
   Future<void> updateAccount(AccountEntity account) async {
     _accounts[account.id] = account;
+  }
+
+  @override
+  Future<void> retainOnlyAccount(String keepId) async {
+    if (keepId.isEmpty) {
+      return;
+    }
+    for (final id in _accounts.keys.toList()) {
+      if (id != keepId) {
+        _accounts.remove(id);
+        sessionAccountIds.remove(id);
+      }
+    }
   }
 
   @override
@@ -217,8 +239,7 @@ class RecoverFakeAuthRemote implements AuthRemoteRepositoryPort {
     required String displayName,
     required String invitationCode,
     String? handle,
-  }) async =>
-      userId;
+  }) async => userId;
 }
 
 class RecoverFakeProfileRepository implements ProfileRepositoryPort {

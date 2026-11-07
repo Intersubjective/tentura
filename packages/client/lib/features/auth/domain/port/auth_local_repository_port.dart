@@ -27,7 +27,11 @@ abstract class AuthLocalRepositoryPort {
   Future<void> addAccount(String id, String seed, [String? displayName]);
 
   /// Stores [seed], clears session-only marker, creates account row if absent.
-  Future<void> upsertAccountWithSeed(String id, String seed, [String? displayName]);
+  Future<void> upsertAccountWithSeed(
+    String id,
+    String seed, [
+    String? displayName,
+  ]);
 
   /// Persists [seed] for [id] only when no device seed is stored yet (e.g.
   /// session-only web account linking its first recovery seed).
@@ -36,6 +40,10 @@ abstract class AuthLocalRepositoryPort {
   Future<void> addSessionAccount(String id, [String? displayName]);
 
   Future<bool> isSessionAccount(String id);
+
+  /// Keeps only [keepId] in local account storage (rows, seeds, session
+  /// markers). No-op when [keepId] is empty.
+  Future<void> retainOnlyAccount(String keepId);
 
   /// Removes all auth keys, account rows, and friends; keeps settings.
   Future<void> clearAllAuthData();

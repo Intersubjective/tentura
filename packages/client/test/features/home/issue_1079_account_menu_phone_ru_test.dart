@@ -1,4 +1,4 @@
-// #1079: unified account menu — phone RU, one and three accounts, gestures.
+// #1079 / #1140: account menu — phone RU, profile / settings / sign out only.
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -51,17 +51,6 @@ class _AuthFake extends Fake implements AuthCubit {
   Future<void> close() async {}
 }
 
-class _AuthSignInSpy extends _AuthFake {
-  _AuthSignInSpy(super._state);
-
-  String? signedInId;
-
-  @override
-  Future<void> signIn(String id) async {
-    signedInId = id;
-  }
-}
-
 Future<void> _pumpMenu(
   WidgetTester tester, {
   required Profile profile,
@@ -107,7 +96,7 @@ void main() {
   final l10n = lookupL10n(const Locale('ru'));
 
   testWidgets(
-    'RU phone: one account shows view profile, settings, logout full text',
+    'RU phone: avatar menu shows view profile, settings, logout full text',
     (tester) async {
       const profile = Profile(
         id: 'Ucur',
@@ -131,39 +120,7 @@ void main() {
       expect(find.text(l10n.accountMenuViewProfile), findsOneWidget);
       expect(find.text(l10n.labelSettings), findsOneWidget);
       expect(find.text(l10n.logout), findsOneWidget);
-      expect(find.text(l10n.chooseAccount), findsNothing);
       expect(tester.takeException(), isNull);
-    },
-  );
-
-  testWidgets(
-    'RU phone: three accounts, unnamed row and check on current',
-    (tester) async {
-      const currentId = 'U1';
-      const profile = Profile(id: currentId, displayName: 'Текущий');
-      final auth = _AuthSignInSpy(
-        AuthState(
-          updatedAt: DateTime(2026),
-          currentAccountId: currentId,
-          accounts: const [
-            AccountEntity(id: 'U1', displayName: 'Текущий'),
-            AccountEntity(id: 'U2'),
-            AccountEntity(id: 'U3', displayName: 'Другой'),
-          ],
-        ),
-      );
-      await _pumpMenu(tester, profile: profile, auth: auth);
-
-      await tester.tap(find.byKey(HomeAccountAvatarButton.buttonKey));
-      await tester.pumpAndSettle();
-
-      expect(find.text(l10n.chooseAccount), findsOneWidget);
-      expect(find.text(l10n.accountUnnamed), findsOneWidget);
-      expect(find.byIcon(Icons.check), findsOneWidget);
-
-      await tester.tap(find.text('Другой'));
-      await tester.pumpAndSettle();
-      expect(auth.signedInId, 'U3');
     },
   );
 

@@ -235,7 +235,11 @@ class _FakeAuthLocal implements AuthLocalRepositoryPort {
   Future<AccountEntity?> getCurrentAccount() async => null;
 
   @override
-  Future<void> addAccount(String id, String seed, [String? displayName]) async {}
+  Future<void> addAccount(
+    String id,
+    String seed, [
+    String? displayName,
+  ]) async {}
 
   @override
   Future<void> upsertAccountWithSeed(
@@ -261,6 +265,9 @@ class _FakeAuthLocal implements AuthLocalRepositoryPort {
 
   @override
   Future<void> setCurrentAccountId(String? id) async {}
+
+  @override
+  Future<void> retainOnlyAccount(String keepId) async {}
 
   @override
   Future<void> clearAllAuthData() async {
@@ -306,6 +313,5 @@ class _FakeAuthRemote implements AuthRemoteRepositoryPort {
     required String displayName,
     required String invitationCode,
     String? handle,
-  }) async =>
-      '';
+  }) async => '';
 }

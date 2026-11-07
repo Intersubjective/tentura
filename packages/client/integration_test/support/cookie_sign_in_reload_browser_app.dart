@@ -20,8 +20,8 @@ import 'package:tentura/env.dart';
 import 'package:tentura/features/auth/domain/use_case/account_case.dart';
 import 'package:tentura/features/auth/domain/use_case/auth_case.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
-import 'package:tentura/features/auth/ui/widget/account_list_tile.dart';
 import 'package:tentura/features/auth/ui/widget/auth_recovery_listener.dart';
+import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect_bus.dart';
@@ -55,17 +55,18 @@ Future<void> main() async {
   final local = _StoredAccounts();
   final profiles = _UnusedProfiles();
   final effects = UiEffectBus();
+  final authCase = AuthCase(
+    local,
+    remote,
+    TestDevicePush(),
+    AuthPlatformCleanup(),
+    TestSettingsRepository(),
+    env: const Env(),
+    logger: log,
+  );
   final cubit = await AuthCubit.hydrated(
     const Env(),
-    AuthCase(
-      local,
-      remote,
-      TestDevicePush(),
-      AuthPlatformCleanup(),
-      TestSettingsRepository(),
-      env: const Env(),
-      logger: log,
-    ),
+    authCase,
     AccountCase(
       local,
       remote,
@@ -123,7 +124,16 @@ Future<void> main() async {
                     ),
                     Semantics(
                       identifier: 'select-saved-alice',
-                      child: AccountListTile(account: selected),
+                      child: ListTile(
+                        title: Text(selected.displayName),
+                        onTap: () async {
+                          try {
+                            await authCase.signIn(userId: selectedAccountId);
+                          } catch (error) {
+                            effects.emit(ShowError(error));
+                          }
+                        },
+                      ),
                     ),
                   ],
                 ),
