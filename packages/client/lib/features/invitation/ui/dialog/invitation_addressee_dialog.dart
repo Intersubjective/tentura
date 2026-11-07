@@ -126,7 +126,7 @@ class _InvitationAddresseeDialogState extends State<InvitationAddresseeDialog>
                       TenturaText.bodySmall(context.tt.textMuted),
                     ),
                   ),
-              validator: (value) => displayNameValidator(l10n, value?.trim()),
+              validator: (value) => inviteLabelValidator(l10n, value?.trim()),
               onFieldSubmitted: (_) => _submit(),
             ),
           ],

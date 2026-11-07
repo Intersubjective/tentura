@@ -307,21 +307,64 @@ class TenturaAvatar extends StatelessWidget {
   /// `hueKey` passed to [ProfileAvatarInitials] (usually the profile's user id)
   /// still drives the stable background colour and can collide across users.
   static String initialsForProfile(Profile profile) {
-    final t = profile.shownName.trim();
-    if (t.isEmpty) {
-      return '?';
+    final letter = RegExp(r'\p{L}', unicode: true);
+
+    String? firstLetterIn(String segment) => letter.firstMatch(segment)?[0];
+
+    /// Word-aware using Unicode letters; two-word names with a `Q`+digits second
+    /// word use the last digit as the second glyph (#1066), combined with the first
+    /// word's first letter.
+    String fromOrdinaryVisibleName(String name) {
+      final t = name.trim();
+      if (t.isEmpty) {
+        return '';
+      }
+      final parts = t.split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+      if (parts.length >= 2) {
+        final a = firstLetterIn(parts[0]);
+        final bFromQ = _secondInitialFromSecondWord(parts[1]);
+        if (a != null && bFromQ.isNotEmpty) {
+          return '$a$bFromQ'.toUpperCase();
+        }
+        final bLetter = firstLetterIn(parts[1]);
+        if (a != null && bLetter != null) {
+          return '$a$bLetter'.toUpperCase();
+        }
+      }
+      final letters = letter.allMatches(t).map((m) => m[0]!).toList();
+      if (letters.length >= 2) {
+        return '${letters[0]}${letters[1]}'.toUpperCase();
+      }
+      if (letters.length == 1) {
+        return letters[0].toUpperCase();
+      }
+      return '';
     }
-    final parts = t.split(RegExp(r'\s+'));
-    if (parts.length >= 2) {
-      final a = parts[0].isNotEmpty ? parts[0][0] : '';
-      final secondWord = parts[1];
-      final b = _secondInitialFromSecondWord(secondWord);
-      return '$a$b'.toUpperCase();
+
+    /// Contact alias: any `\p{L}` graphemes in order; if none, caller falls back to objective name (#1075).
+    String fromContactAlias(String alias) {
+      final letters = letter.allMatches(alias.trim()).map((m) => m[0]!).toList();
+      if (letters.length >= 2) {
+        return '${letters[0]}${letters[1]}'.toUpperCase();
+      }
+      if (letters.length == 1) {
+        return letters[0].toUpperCase();
+      }
+      return '';
     }
-    if (t.length >= 2) {
-      return t.substring(0, 2).toUpperCase();
+
+    final trimmedContact = profile.contactName.trim();
+    if (trimmedContact.isNotEmpty) {
+      final fromAlias = fromContactAlias(trimmedContact);
+      if (fromAlias.isNotEmpty) {
+        return fromAlias;
+      }
+      final objective = fromOrdinaryVisibleName(profile.objectiveDisplayNameForViewer);
+      return objective.isNotEmpty ? objective : '?';
     }
-    return t[0].toUpperCase();
+
+    final fromShown = fromOrdinaryVisibleName(profile.shownName);
+    return fromShown.isNotEmpty ? fromShown : '?';
   }
 
   static final RegExp _qTrailingDigits = RegExp(r'^[Qq](\d+)$');
