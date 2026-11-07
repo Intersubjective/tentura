@@ -17,6 +17,7 @@ import 'package:tentura_server/domain/port/attention_system_settlement_port.dart
 import 'package:tentura_server/domain/port/author_invite_port.dart';
 import 'package:tentura_server/domain/port/coordination_repository_port.dart';
 import 'package:tentura_server/domain/entity/author_invite.dart';
+import 'package:tentura_server/domain/entity/help_offer_entity.dart';
 import 'package:tentura_server/domain/use_case/admission_operation.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 import 'package:tentura_server/domain/use_case/closure_case.dart';
@@ -259,7 +260,7 @@ final class HelpOfferCase extends UseCaseBase {
                 helpOffererId: userId,
                 authorId: lockedBeacon.author.id,
                 sourceEventKey: 'help_offer:${generateId('A')}',
-                isBackupOffer: offerKind == 1,
+                isBackupOffer: offerKind == HelpOfferKind.backup,
                 message: message,
               ),
             );
