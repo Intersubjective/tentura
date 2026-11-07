@@ -208,8 +208,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     _magnetHintSub = _tagMagnetCase?.changes.listen(
       (_) => unawaited(_loadTagMagnets()),
     );
-    // Test hook: [GraphController.scene] is visible for layout-outcome wiring.
-    // ignore: invalid_use_of_visible_for_testing_member
+    // ignore: invalid_use_of_visible_for_testing_member -- GraphController offers no non-test handle on its scene; layout-outcome wiring needs it
     graphController.scene.addListener(_onGraphSceneLayoutOutcomeChanged);
     graphController.addListener(_onGraphControllerChanged);
     if (loadOnCreate) {
@@ -1146,8 +1145,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     _placementCase?.tagMagnetUndo = null;
     _clearClusterPresentations();
     _finishDropReflowSpans();
-    // Test hook: detach scene listener registered in the constructor.
-    // ignore: invalid_use_of_visible_for_testing_member
+    // ignore: invalid_use_of_visible_for_testing_member -- detaches the scene listener the constructor registered
     graphController.scene.removeListener(_onGraphSceneLayoutOutcomeChanged);
     graphController.removeListener(_onGraphControllerChanged);
     _arrangingDragMaxParentCentreSceneY = null;
@@ -1493,8 +1491,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (isClosed || _dispatchingLayoutRecovery) {
       return;
     }
-    // Test hook: read layout outcome from the package-visible scene handle.
-    // ignore: invalid_use_of_visible_for_testing_member
+    // ignore: invalid_use_of_visible_for_testing_member -- the layout outcome lives only on the package's scene handle
     final outcome = graphController.scene.layoutOutcome;
     if (outcome is GraphLayoutOutcomeRunning) {
       return;

@@ -49,7 +49,7 @@ export 'graph_state.dart';
 
 class GraphCubit extends Cubit<GraphState> {
   // TODO(contract): Phase-2 DTO migration — route multi-repo orchestration through a *Case.
-  // ignore: tentura_lints/cubit_requires_use_case_for_multi_repos
+  // ignore: tentura_lints/cubit_requires_use_case_for_multi_repos -- graph source, beacon and profile reads feed one view; *Case pending (TODO above)
   GraphCubit({
     required Profile me,
     required GraphEdgeColors edgeColors,
