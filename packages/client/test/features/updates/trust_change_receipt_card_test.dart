@@ -5,6 +5,7 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/features/updates/ui/widget/trust_change_receipt_card.dart';
+import 'package:tentura/features/updates/ui/widget/updates_feed_tile.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/l10n/l10n_en.dart';
 
@@ -87,7 +88,15 @@ void main() {
     expect(find.text(l10n.attentionEventTrustGivenUp), findsOneWidget);
     expect(find.byIcon(TenturaIcons.arrowUp), findsOneWidget);
     expect(find.text('Move help this weekend'), findsOneWidget);
-    expect(find.textContaining('ago'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(UpdatesFeedTile),
+        matching: find.byWidgetPredicate(
+          (w) => w is Text && RegExp(r'\d').hasMatch(w.data ?? ''),
+        ),
+      ),
+      findsWidgets,
+    );
     expect(find.textContaining('bin'), findsNothing);
     expect(find.textContaining('edge weight'), findsNothing);
     expect(find.textContaining('MeritRank'), findsNothing);

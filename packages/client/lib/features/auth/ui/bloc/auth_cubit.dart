@@ -648,12 +648,13 @@ class AuthCubit extends Cubit<AuthState> {
         }
 
         try {
-          await _accountCase.updateAccount(account);
-
-          state.accounts[index] = account.copyWith(
+          final updated = account.copyWith(
             displayName: event.value.displayName,
             image: event.value.image,
           );
+          await _accountCase.updateAccount(updated);
+
+          state.accounts[index] = updated;
           emit(
             AuthState(
               accounts: state.accounts,

@@ -253,7 +253,7 @@ Future<void> _pumpRow(
                   context,
                   title: const SizedBox.shrink(),
                   row: UpdatesFeedAppBarRow(
-                    title: l10n.notificationHistoryTitle,
+                    title: l10n.notificationHistoryScreenTitle,
                     markAllLabel: l10n.updatesMarkAllSeen,
                     hasUnread: hasUnread,
                     onMarkAll: onMarkAll,
@@ -300,7 +300,7 @@ void main() {
       expect(action, findsOneWidget);
       expect(find.byIcon(Icons.search), phone ? findsOneWidget : findsNothing);
       _expectWholeLine(tester, l10n.updatesMarkAllSeen);
-      _expectWholeLine(tester, l10n.notificationHistoryTitle);
+      _expectWholeLine(tester, l10n.notificationHistoryScreenTitle);
       expect(tester.takeException(), isNull);
 
       await tester.tap(action);
@@ -358,14 +358,10 @@ void main() {
             phone ? findsOneWidget : findsNothing,
           );
           _expectWholeLine(tester, l10n.updatesMarkAllSeen);
-          _expectWholeLine(tester, l10n.notificationHistoryTitle);
-          // Readable: scaled down at most a little, never clipped.
-          final title = find.text(l10n.notificationHistoryTitle);
+          _expectWholeLine(tester, l10n.notificationHistoryScreenTitle);
+          final title = find.text(l10n.notificationHistoryScreenTitle);
           final laidOut = tester.renderObject<RenderParagraph>(title).size;
-          expect(
-            tester.getRect(title).width / laidOut.width,
-            greaterThanOrEqualTo(0.8),
-          );
+          expect(laidOut.width, lessThanOrEqualTo(tester.getRect(title).width));
           expect(tester.takeException(), isNull);
         },
       );

@@ -267,6 +267,36 @@ void main() {
     });
   });
 
+  group('hasUnpersistedEdits (#1059)', () {
+    BeaconCreateCubit build(FakeBeaconWritePort write) {
+      final cubit = BeaconCreateCubit(
+        beaconCreateCase: fakeBeaconCreateCase(write: write),
+        effects: FakeUiEffectPort(),
+      );
+      addTearDown(cubit.close);
+      return cubit..setAutosaveContext('');
+    }
+
+    test('true after typing, false after autosave lands', () async {
+      final write = FakeBeaconWritePort();
+      final cubit = build(write)
+        ..setTitle('Borrow a ladder')
+        ..setDescription('Need a 3 m ladder this weekend.');
+      expect(cubit.hasUnpersistedEdits, isTrue);
+
+      await cubit.flushAutosave();
+      expect(cubit.hasUnpersistedEdits, isFalse);
+
+      cubit.setDescription('Need it earlier on Saturday.');
+      expect(cubit.hasUnpersistedEdits, isTrue);
+    });
+
+    test('title-only form stays true until description allows save', () async {
+      final cubit = build(FakeBeaconWritePort())..setTitle('Borrow a ladder');
+      expect(cubit.hasUnpersistedEdits, isTrue);
+    });
+  });
+
   // #607: «Keep draft» is offered only when leaving really keeps one.
   group('keepsDraftOnLeave (#607)', () {
     BeaconCreateCubit build(FakeBeaconWritePort write) {
