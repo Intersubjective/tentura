@@ -9,7 +9,7 @@ import 'package:tentura_server/domain/port/email_sender_port.dart';
 import 'package:tentura_server/domain/port/notification_preference_repository_port.dart';
 import 'package:tentura_server/domain/port/verified_contact_repository_port.dart';
 import 'package:tentura_server/domain/use_case/email_test_case.dart';
-import 'package:tentura_server/domain/util/debug_send_rate_limiter.dart';
+import 'package:tentura_server/domain/policy/debug_send_rate_limiter.dart';
 import 'package:tentura_server/env.dart';
 
 void main() {

@@ -45,12 +45,12 @@ import 'package:tentura_root/utils/infer_image_mime_from_bytes.dart';
 import 'package:tentura_root/utils/attachment_mime.dart';
 import 'package:tentura_root/domain/mention_span_validation.dart';
 
-import 'package:tentura_server/domain/util/attachment_filename.dart';
-import 'package:tentura_server/domain/util/room_attachment_storage_key.dart';
-import 'package:tentura_server/domain/util/room_reply_excerpt.dart';
+import 'package:tentura_server/domain/room/attachment_filename.dart';
+import 'package:tentura_server/domain/room/room_attachment_storage_key.dart';
+import 'package:tentura_server/domain/room/room_reply_excerpt.dart';
 import 'package:tentura_server/utils/id.dart';
 import 'package:tentura_server/utils/read_uint8_stream_with_limit.dart';
-import 'package:tentura_server/utils/room_mention_utils.dart';
+import 'package:tentura_server/domain/room/room_mention_utils.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 import 'package:tentura_server/domain/use_case/beacon_case.dart';
 import 'package:tentura_server/domain/use_case/beacon_plan_case.dart';

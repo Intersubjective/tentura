@@ -1,6 +1,6 @@
 import 'package:test/test.dart';
 
-import 'package:tentura_server/domain/util/room_reply_excerpt.dart';
+import 'package:tentura_server/domain/room/room_reply_excerpt.dart';
 
 void main() {
   group('roomReplyExcerpt', () {

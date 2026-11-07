@@ -1,4 +1,4 @@
-import 'package:tentura_server/utils/sanitized_attachment_name.dart';
+import 'package:tentura_server/domain/room/attachment_filename.dart';
 
 /// HTTP [Content-Disposition] for attachment downloads with UTF-8 filename.
 ///

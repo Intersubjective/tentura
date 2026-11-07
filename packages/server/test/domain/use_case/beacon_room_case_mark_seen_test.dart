@@ -19,7 +19,7 @@ import 'package:tentura_server/domain/entity/coordination_item_with_counts.dart'
 import 'package:tentura_server/domain/port/coordination_item_repository_port.dart';
 import 'package:tentura_server/domain/port/image_repository_port.dart';
 import 'package:tentura_server/domain/port/task_repository_port.dart';
-import 'package:tentura_server/domain/util/room_reply_excerpt.dart';
+import 'package:tentura_server/domain/room/room_reply_excerpt.dart';
 import 'package:tentura_server/domain/use_case/beacon_room_case.dart';
 import 'package:tentura_server/env.dart';
 
@@ -47,8 +47,7 @@ class _StubItems extends Fake
     String? targetPersonId,
     String? linkedParentItemId,
     bool rootOnly = false,
-  }) async =>
-      const [];
+  }) async => const [];
 }
 
 class _MarkSeenStubRoom extends Fake
@@ -71,22 +70,19 @@ class _MarkSeenStubRoom extends Fake
   Future<bool> isBeaconAuthor({
     required String beaconId,
     required String userId,
-  }) async =>
-      true;
+  }) async => true;
 
   @override
   Future<bool> isBeaconSteward({
     required String beaconId,
     required String userId,
-  }) async =>
-      false;
+  }) async => false;
 
   @override
   Future<BeaconParticipantRecord?> findParticipant({
     required String beaconId,
     required String userId,
-  }) async =>
-      null;
+  }) async => null;
 
   @override
   Future<BeaconRoomStateRecord?> getBeaconRoomState(String beaconId) async =>
@@ -115,8 +111,7 @@ class _MarkSeenStubRoom extends Fake
   Future<DateTime?> getMainRoomLastSeen({
     required String beaconId,
     required String userId,
-  }) async =>
-      existingSeen;
+  }) async => existingSeen;
 
   @override
   Future<DateTime> markBeaconRoomSeen({
@@ -139,8 +134,7 @@ class _MarkSeenStubRoom extends Fake
     required String beaconId,
     DateTime? after,
     String? excludeAuthorId,
-  }) async =>
-      0;
+  }) async => 0;
 }
 
 void main() {
@@ -155,21 +149,21 @@ void main() {
   const planItemId = 'CIplanaaaaaaa';
 
   BeaconRoomCase buildSut(DiscussionProductPolicyPort policy) => BeaconRoomCase(
-        room,
-        items,
-        FakeBeaconFactCardRepository(),
-        FakeImageRepositoryPort(),
-        FakeTaskRepositoryPort(),
-        FakeRemoteStorage(),
-        FakePollingRepository(),
-        FakeUploadQuota(),
-        FakeUserBlockRepository(),
-        PassThroughMutatingUnitOfWork(),
-        FakeBeaconHierarchyRepository(),
-        policy,
-        env: Env(environment: Environment.test),
-        logger: Logger('BeaconRoomCaseMarkSeenTest'),
-      );
+    room,
+    items,
+    FakeBeaconFactCardRepository(),
+    FakeImageRepositoryPort(),
+    FakeTaskRepositoryPort(),
+    FakeRemoteStorage(),
+    FakePollingRepository(),
+    FakeUploadQuota(),
+    FakeUserBlockRepository(),
+    PassThroughMutatingUnitOfWork(),
+    FakeBeaconHierarchyRepository(),
+    policy,
+    env: Env(environment: Environment.test),
+    logger: Logger('BeaconRoomCaseMarkSeenTest'),
+  );
 
   CoordinationItemRecord sampleItem({
     required String id,
@@ -221,36 +215,40 @@ void main() {
     },
   );
 
-  test('markThreadSeen general never regresses below existing seen watermark',
-      () async {
-    final existing = DateTime.utc(2026, 5, 1, 16);
-    final readThrough = DateTime.utc(2026, 5, 1, 12);
-    room.existingSeen = existing;
-    room.latestMessageAt = DateTime.utc(2026, 5, 1, 14);
+  test(
+    'markThreadSeen general never regresses below existing seen watermark',
+    () async {
+      final existing = DateTime.utc(2026, 5, 1, 16);
+      final readThrough = DateTime.utc(2026, 5, 1, 12);
+      room.existingSeen = existing;
+      room.latestMessageAt = DateTime.utc(2026, 5, 1, 14);
 
-    final out = await sut.markThreadSeen(
-      beaconId: beaconId,
-      userId: userId,
-      threadId: 'general',
-      readThroughAtIso: readThrough.toIso8601String(),
-    );
+      final out = await sut.markThreadSeen(
+        beaconId: beaconId,
+        userId: userId,
+        threadId: 'general',
+        readThroughAtIso: readThrough.toIso8601String(),
+      );
 
-    expect(out['seenAt'], existing.toUtc().toIso8601String());
-    expect(room.persistedAt, existing);
-  });
+      expect(out['seenAt'], existing.toUtc().toIso8601String());
+      expect(room.persistedAt, existing);
+    },
+  );
 
-  test('markThreadSeen general sentinel reaches repository as null threadItemId',
-      () async {
-    final out = await sut.markThreadSeen(
-      beaconId: beaconId,
-      userId: userId,
-      threadId: 'general',
-    );
+  test(
+    'markThreadSeen general sentinel reaches repository as null threadItemId',
+    () async {
+      final out = await sut.markThreadSeen(
+        beaconId: beaconId,
+        userId: userId,
+        threadId: 'general',
+      );
 
-    expect(out['threadItemId'], null);
-    expect(room.persistedThreadItemId, null);
-    expect(room.persistedThreadItemId, isNot('general'));
-  });
+      expect(out['threadItemId'], null);
+      expect(room.persistedThreadItemId, null);
+      expect(room.persistedThreadItemId, isNot('general'));
+    },
+  );
 
   test(
     'markThreadSeen passes real item id unchanged',
@@ -303,18 +301,24 @@ void main() {
     );
   });
 
-  test('markThreadSeen rejects plan item thread under internal policy', () async {
-    items.itemById = sampleItem(id: planItemId, kind: coordinationItemKindPlan);
+  test(
+    'markThreadSeen rejects plan item thread under internal policy',
+    () async {
+      items.itemById = sampleItem(
+        id: planItemId,
+        kind: coordinationItemKindPlan,
+      );
 
-    expect(
-      () => internalSut.markThreadSeen(
-        beaconId: beaconId,
-        userId: userId,
-        threadId: planItemId,
-      ),
-      throwsA(isA<IdWrongException>()),
-    );
-  });
+      expect(
+        () => internalSut.markThreadSeen(
+          beaconId: beaconId,
+          userId: userId,
+          threadId: planItemId,
+        ),
+        throwsA(isA<IdWrongException>()),
+      );
+    },
+  );
 
   test('markThreadSeen rejects empty threadId after trim', () async {
     expect(
@@ -414,8 +418,7 @@ class FakeBeaconFactCardRepository extends Fake
   @override
   Future<Map<String, String>> publicFactSnippetsByBeaconIds(
     List<String> beaconIds,
-  ) async =>
-      const {};
+  ) async => const {};
 }
 
 class FakeImageRepositoryPort extends Fake implements ImageRepositoryPort {}
@@ -432,6 +435,5 @@ class FakeUploadQuota extends Fake implements UploadQuotaRepositoryPort {
     required String userId,
     required int bytes,
     required int dailyCapBytes,
-  }) async =>
-      true;
+  }) async => true;
 }

@@ -8,7 +8,7 @@ import 'package:tentura_server/domain/entity/quoted_fact_entity.dart';
 
 import 'package:tentura_server/domain/entity/room_message_snapshot.dart';
 import 'package:tentura_server/domain/port/room_message_snapshot_lookup_port.dart';
-import 'package:tentura_server/domain/util/room_reply_excerpt.dart';
+import 'package:tentura_server/domain/room/room_reply_excerpt.dart';
 
 import '../database/tentura_db.dart';
 
