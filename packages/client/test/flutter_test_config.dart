@@ -1,7 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:get_it/get_it.dart';
 
+import 'package:tentura/domain/port/unsaved_changes_guard_port.dart';
 import 'package:tentura/features/constellation/ui/util/constellation_forward_tree_request.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_field_topo_backdrop.dart';
 
@@ -28,6 +30,11 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   // a test that schedules it and never mounts the Field would leave it pending
   // for the next Field test in the same bundle isolate, which then draws the
   // overlay and rebuilds every node tile.
-  tearDown(() => ConstellationForwardTreeRequest.instance.take());
+  tearDown(() {
+    ConstellationForwardTreeRequest.instance.take();
+    if (GetIt.I.isRegistered<UnsavedChangesGuardPort>()) {
+      GetIt.I<UnsavedChangesGuardPort>().resetForTest();
+    }
+  });
   await testMain();
 }
