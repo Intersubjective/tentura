@@ -1,7 +1,11 @@
 import 'package:injectable/injectable.dart';
 import 'package:tentura_server/domain/attention/attention_models.dart';
+import 'package:tentura_server/domain/attention/attention_transaction.dart';
 import 'package:tentura_server/domain/port/attention_dispatch_port.dart';
 import 'package:tentura_server/domain/port/mutating_unit_of_work_port.dart';
+
+export 'package:tentura_server/domain/attention/attention_transaction.dart'
+    show AttentionTransaction;
 
 /// Runs one domain mutation and its occurrence/receipt/job materialization atomically.
 @Singleton(order: 1)
@@ -17,7 +21,7 @@ class TransactionalAttentionCase {
   }) async {
     return _unitOfWork.run(
       actorUserId: actorUserId,
-      action: () => action(AttentionTransaction._(_dispatch)),
+      action: () => action(_DispatchAttentionTransaction(_dispatch)),
     );
   }
 
@@ -37,11 +41,12 @@ class TransactionalAttentionCase {
   }
 }
 
-final class AttentionTransaction {
-  AttentionTransaction._(this._dispatch);
+final class _DispatchAttentionTransaction implements AttentionTransaction {
+  _DispatchAttentionTransaction(this._dispatch);
 
   final AttentionDispatchPort _dispatch;
 
+  @override
   Future<void> record(AttentionDispatchIntent intent) =>
       _dispatch.record(intent);
 }
