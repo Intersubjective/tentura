@@ -52,13 +52,18 @@ void main() {
       }
     });
 
-    test('the field targeted Request read routes to Tentura V2 (#671); '
-        'the relation read stays on Hasura (#672)', () {
-      expect(
-        isTenturaDirectOperation('ConstellationFieldRequestsFetch'),
-        isTrue,
-      );
-      expect(isTenturaDirectOperation('ConstellationViewerRelations'), isFalse);
+    test('Field constellation reads route to Tentura V2 (#671, #1046)', () {
+      const operationNames = [
+        'ConstellationFieldRequestsFetch',
+        'ConstellationViewerRelations',
+        'FieldSearch',
+        'FieldHiddenItems',
+        'PersonFieldItems',
+        'BeaconMemberWebs',
+      ];
+      for (final name in operationNames) {
+        expect(isTenturaDirectOperation(name), isTrue, reason: name);
+      }
     });
 
     test('the tag magnet read and writes route to Tentura V2', () {

@@ -534,6 +534,56 @@ void main() {
     );
 
     testWidgets(
+      'server search failure shows unavailable copy and ends loading (RU, phone)',
+      (tester) async {
+        await usePhoneSurface(tester);
+        final l10nRu = lookupL10n(const Locale('ru'));
+        final port = _FakeSearchPort(
+          emptyConstellationFieldSearchResult,
+          fail: true,
+        );
+        final cubit = await _loadCubit(
+          field: _fieldWithFilteredRequest(),
+          searchCase: _searchCase(port),
+        );
+        addTearDown(cubit.close);
+
+        await tester.pumpPeopleTagsWidget(
+          _app(
+            BlocProvider.value(
+              value: cubit,
+              child: const Scaffold(body: ConstellationPersonSearchButton()),
+            ),
+            locale: const Locale('ru'),
+          ),
+        );
+
+        final controller = SearchController();
+        addTearDown(controller.dispose);
+        final widgets = await _suggestionsAfterQuery(tester, controller, 'zz');
+        await tester.pumpPeopleTagsWidget(
+          _app(
+            Scaffold(body: ListView(children: widgets)),
+            locale: const Locale('ru'),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(tester.takeException(), isNull);
+        expect(find.byType(TenturaCircularProgress), findsNothing);
+        expect(
+          find.byKey(const Key('constellation.field_search.error')),
+          findsOneWidget,
+        );
+        expect(
+          find.text(l10nRu.constellationFieldSearchUnavailable),
+          findsOneWidget,
+        );
+        expect(port.queries, ['zz']);
+      },
+    );
+
+    testWidgets(
       'one-character query shows minimum-length hint instead of spinner',
       (tester) async {
         final cubit = await _loadCubit(

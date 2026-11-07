@@ -36,6 +36,7 @@ Future<void> withRemoteWire(
   Map<String, Map<String, dynamic>> errors = const {},
   Future<Map<String, dynamic>> Function(WireSent request)? responseFor,
   FutureOr<Map<String, dynamic>?> Function(WireSent request)? errorFor,
+  List<String>? requestPaths,
 }) => http.runWithClient(
   () async {
     final remote = RemoteApiService(
@@ -69,6 +70,7 @@ Future<void> withRemoteWire(
           .cast<String, dynamic>(),
     );
     sent.add(wireRequest);
+    requestPaths?.add(request.url.path);
     final error = errors[name] ?? await errorFor?.call(wireRequest);
     return http.Response(
       jsonEncode(
