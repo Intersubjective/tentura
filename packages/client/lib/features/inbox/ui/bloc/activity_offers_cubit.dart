@@ -440,9 +440,12 @@ final class ActivityOffersCubit extends Cubit<ActivityOffersState> {
     try {
       final totalCount = await _attention.activityOffersCount();
       if (isClosed) return;
+      final visiblePinned =
+          state.items.length + state.heldBackIds.length;
+      final reconciled = state.hasMore ? totalCount : visiblePinned;
       emit(
         state.copyWith(
-          totalCount: totalCount,
+          totalCount: reconciled,
           countLoadFailed: false,
         ),
       );
@@ -547,6 +550,10 @@ final class ActivityOffersCubit extends Cubit<ActivityOffersState> {
     _heldBackOrder.remove(beaconId);
     _attention.forgetOfferGroup(beaconId);
     final eventsByBeacon = _attention.activityOfferGroupsSnapshot;
+    final priorTotal = state.totalCount;
+    final nextTotal = hadItem && priorTotal != null && priorTotal > 0
+        ? priorTotal - 1
+        : priorTotal;
     emit(
       state.copyWith(
         items: [
@@ -555,6 +562,7 @@ final class ActivityOffersCubit extends Cubit<ActivityOffersState> {
         ],
         heldBackIds: {...state.heldBackIds}..remove(beaconId),
         eventsByBeacon: eventsByBeacon,
+        totalCount: nextTotal,
       ),
     );
     if (hadItem && !_demotedController.isClosed) {
