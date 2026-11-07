@@ -848,8 +848,8 @@ LIMIT $2::integer
   }
 
   static DateTime _readTimestamp(QueryRow row, String column) =>
-      readRowTimestamp(row, column)!.toUtc();
+      readCustomSelectTimestamptz(row.data[column])!;
 
   static DateTime? _readNullableTimestamp(QueryRow row, String column) =>
-      readRowTimestamp(row, column)?.toUtc();
+      readCustomSelectTimestamptz(row.data[column]);
 }

@@ -17,3 +17,21 @@ DateTime? readRowTimestamp(QueryRow row, String column) {
   }
   return DateTime.parse(value.toString());
 }
+
+/// A raw `customSelect` timestamp value as UTC (null for null).
+///
+/// Use it instead of Drift's `read<DateTime>`, which treats customSelect
+/// `timestamptz` as unix seconds and `int.parse`s the driver's
+/// `DateTime.toString()` (`yyyy-mm-dd hh:mm:ss.mmmZ`).
+DateTime? readCustomSelectTimestamptz(Object? value) {
+  if (value == null) {
+    return null;
+  }
+  if (value is DateTime) {
+    return value.toUtc();
+  }
+  if (value is PgDateTime) {
+    return value.dateTime.toUtc();
+  }
+  return DateTime.parse(value.toString()).toUtc();
+}

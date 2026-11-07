@@ -12,11 +12,11 @@ import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/port/user_availability_repository_port.dart';
 import 'package:tentura_server/domain/port/user_profile_batch_lookup_port.dart';
 
+import '../database/query_row_timestamp.dart';
 import '../database/tentura_db.dart';
 import '../mapper/user_availability_mapper.dart';
 import '../mapper/user_mapper.dart';
 import '../mapper/user_presence_mapper.dart';
-import 'constellation_field_repository.dart' show readCustomSelectTimestamptz;
 
 @LazySingleton(as: UserProfileBatchLookup)
 class DriftUserProfileBatchLookup implements UserProfileBatchLookup {

@@ -3,8 +3,8 @@ import 'package:injectable/injectable.dart';
 import 'package:tentura_server/domain/entity/person_list_meta_record.dart';
 import 'package:tentura_server/domain/port/people_list_meta_repository_port.dart';
 
+import '../database/query_row_timestamp.dart';
 import '../database/tentura_db.dart';
-import 'constellation_field_repository.dart' show readCustomSelectTimestamptz;
 import 'people_list_meta_sql.dart';
 
 @LazySingleton(as: PeopleListMetaRepositoryPort)

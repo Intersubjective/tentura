@@ -1,4 +1,3 @@
-import 'package:drift_postgres/drift_postgres.dart';
 import 'package:injectable/injectable.dart';
 import 'package:meta/meta.dart';
 import 'package:postgres/postgres.dart' show Type, TypedValue;
@@ -11,10 +10,13 @@ import 'package:tentura_server/domain/port/constellation_field_repository_port.d
 import 'package:tentura_server/domain/port/constellation_new_people_repository_port.dart';
 import 'package:tentura_server/domain/port/user_profile_batch_lookup_port.dart';
 
+import '../database/query_row_timestamp.dart';
 import '../database/tentura_db.dart';
 import 'constellation_field_snapshot_reader.dart';
 import 'constellation_new_people_repository.dart';
 import 'room_unread_sql.dart';
+
+export '../database/query_row_timestamp.dart' show readCustomSelectTimestamptz;
 
 /// Effective activity of beacon alias `b` in Field reads.
 const constellationLastActivitySql =
@@ -315,21 +317,6 @@ LIMIT \$3
       for (final id in sortedIds) ?profiles[id],
     ];
   }
-}
-
-/// Drift's `read<DateTime>` treats customSelect `timestamptz` as unix seconds
-/// and `int.parse`s the driver's `DateTime.toString()` (`yyyy-mm-dd hh:mm:ss.mmmZ`).
-DateTime? readCustomSelectTimestamptz(Object? value) {
-  if (value == null) {
-    return null;
-  }
-  if (value is DateTime) {
-    return value.toUtc();
-  }
-  if (value is PgDateTime) {
-    return value.dateTime.toUtc();
-  }
-  return DateTime.parse(value.toString()).toUtc();
 }
 
 ConstellationRequestRecord readConstellationRequestRow(

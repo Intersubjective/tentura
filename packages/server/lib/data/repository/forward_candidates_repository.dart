@@ -4,8 +4,8 @@ import 'package:postgres/postgres.dart' show Type, TypedValue;
 import 'package:tentura_server/domain/entity/forward_candidate_peer_row.dart';
 import 'package:tentura_server/domain/port/forward_candidates_repository_port.dart';
 
+import '../database/query_row_timestamp.dart';
 import '../database/tentura_db.dart';
-import 'constellation_field_repository.dart' show readCustomSelectTimestamptz;
 import 'forward_candidates_sql.dart';
 import '../mapper/mr_score_value.dart';
 

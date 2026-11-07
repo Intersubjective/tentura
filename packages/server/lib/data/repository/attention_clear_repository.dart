@@ -4,9 +4,9 @@ import 'package:tentura_server/domain/attention/attention_clear_models.dart';
 import 'package:tentura_server/domain/attention/attention_undo_models.dart';
 import 'package:tentura_server/domain/port/attention_clear_port.dart';
 
+import '../database/query_row_timestamp.dart';
 import '../database/tentura_db.dart';
 import 'attention_dismissible_sql.dart';
-import 'constellation_field_repository.dart' show readCustomSelectTimestamptz;
 import 'field_open_sql.dart';
 
 /// U08 — storage for the clear command.
