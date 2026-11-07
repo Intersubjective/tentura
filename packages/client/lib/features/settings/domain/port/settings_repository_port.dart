@@ -1,8 +1,6 @@
 import 'package:tentura/features/notification/domain/entity/last_fcm_registration.dart';
-import 'package:tentura/features/settings/data/repository/settings_repository.dart'
-    show SettingsRepository;
 
-/// Drift-backed settings (implemented by [SettingsRepository]).
+/// Drift-backed settings (implemented by `SettingsRepository`).
 abstract class SettingsRepositoryPort {
   Future<String?> getAppId();
 
