@@ -1,6 +1,6 @@
 import 'package:test/test.dart';
 
-import 'package:tentura_server/utils/room_mention_utils.dart';
+import 'package:tentura_server/domain/room/room_mention_utils.dart';
 
 void main() {
   group('extractMentionHandleTokens', () {

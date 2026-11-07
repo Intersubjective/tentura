@@ -1,6 +1,6 @@
 import 'package:test/test.dart';
 
-import 'package:tentura_server/utils/sanitized_attachment_name.dart';
+import 'package:tentura_server/domain/room/attachment_filename.dart';
 
 void main() {
   group('sanitizedAttachmentBaseName', () {

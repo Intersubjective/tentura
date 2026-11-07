@@ -4,7 +4,7 @@ import 'package:tentura_server/domain/entity/fcm_token_entity.dart';
 import 'package:tentura_server/domain/port/fcm_remote_repository_port.dart';
 import 'package:tentura_server/domain/port/fcm_token_repository_port.dart';
 
-import 'package:tentura_server/domain/util/debug_send_rate_limiter.dart';
+import 'package:tentura_server/domain/policy/debug_send_rate_limiter.dart';
 
 import '_use_case_base.dart';
 
