@@ -2,9 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:get_it/get_it.dart';
 
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
+import 'package:tentura/domain/port/unsaved_changes_guard_port.dart';
 import 'package:tentura/data/repository/clipboard_image_repository.dart';
 import 'package:tentura/data/repository/image_repository.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -109,9 +111,20 @@ class _PostCreateScreenState extends State<PostCreateScreen>
   void dispose() {
     // A draft not yet made must not outlive the screen.
     _createCubit.postContentChanged(hasContent: false);
+    if (GetIt.I.isRegistered<UnsavedChangesGuardPort>()) {
+      GetIt.I<UnsavedChangesGuardPort>().setDirty(this, false);
+    }
     _text.dispose();
     _textFocus.dispose();
     super.dispose();
+  }
+
+  void _updateUnsavedLeaveGuard() {
+    if (!GetIt.I.isRegistered<UnsavedChangesGuardPort>()) return;
+    GetIt.I<UnsavedChangesGuardPort>().setDirty(
+      this,
+      _createCubit.hasUnpersistedEdits,
+    );
   }
 
   void _reportContent() {
@@ -120,6 +133,7 @@ class _PostCreateScreenState extends State<PostCreateScreen>
     if (hasContent == _hasContent || !mounted) return;
     _createCubit.postContentChanged(hasContent: hasContent);
     setState(() => _hasContent = hasContent);
+    _updateUnsavedLeaveGuard();
   }
 
   /// Ctrl/Cmd+V also attaches a copied image; the field still pastes text.
@@ -204,55 +218,67 @@ class _PostCreateScreenState extends State<PostCreateScreen>
           unawaited(_close());
         }
       },
-      child: Scaffold(
-        appBar: TenturaTopBar.of(
-          context,
-          title: Text(
-            onRecipients ? l10n.beaconRecipients : l10n.postsTabNewPost,
-          ),
-          leading: onRecipients
-              ? IconButton(
-                  icon: const Icon(Icons.arrow_back),
-                  tooltip: MaterialLocalizations.of(context).backButtonTooltip,
-                  onPressed: _showForm,
-                )
-              : IconButton(
+      child: BlocListener<BeaconCreateCubit, BeaconCreateState>(
+        bloc: _createCubit,
+        listenWhen: (previous, current) =>
+            previous.draftId != current.draftId ||
+            previous.isAutosaving != current.isAutosaving,
+        listener: (_, _) => _updateUnsavedLeaveGuard(),
+        child: Scaffold(
+          appBar: TenturaTopBar.of(
+            context,
+            title: Text(
+              onRecipients ? l10n.beaconRecipients : l10n.postsTabNewPost,
+            ),
+            leading: onRecipients
+                ? IconButton(
+                    icon: const Icon(Icons.arrow_back),
+                    tooltip: MaterialLocalizations.of(
+                      context,
+                    ).backButtonTooltip,
+                    onPressed: _showForm,
+                  )
+                : IconButton(
+                    icon: const Icon(Icons.close),
+                    tooltip: MaterialLocalizations.of(
+                      context,
+                    ).closeButtonTooltip,
+                    onPressed: () => unawaited(_close()),
+                  ),
+            actions: [
+              if (onRecipients)
+                IconButton(
                   icon: const Icon(Icons.close),
                   tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
                   onPressed: () => unawaited(_close()),
+                )
+              else
+                PopupMenuButton<void>(
+                  icon: const Icon(Icons.more_vert),
+                  tooltip: MaterialLocalizations.of(context).showMenuTooltip,
+                  itemBuilder: (_) => [
+                    PopupMenuItem<void>(
+                      onTap: () =>
+                          context.read<ScreenCubit>().showBeaconCreate(),
+                      child: Text(l10n.postCreateNeedHelp),
+                    ),
+                  ],
                 ),
-          actions: [
-            if (onRecipients)
-              IconButton(
-                icon: const Icon(Icons.close),
-                tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
-                onPressed: () => unawaited(_close()),
-              )
-            else
-              PopupMenuButton<void>(
-                icon: const Icon(Icons.more_vert),
-                tooltip: MaterialLocalizations.of(context).showMenuTooltip,
-                itemBuilder: (_) => [
-                  PopupMenuItem<void>(
-                    onTap: () => context.read<ScreenCubit>().showBeaconCreate(),
-                    child: Text(l10n.postCreateNeedHelp),
-                  ),
-                ],
-              ),
-          ],
-          progress: BlocSelector<BeaconCreateCubit, BeaconCreateState, bool>(
-            selector: (state) => state.isLoading,
-            builder: TenturaTopBar.loadingBar,
-          ),
-        ),
-        bottomNavigationBar: onRecipients ? null : _nextBar(context, l10n),
-        body: SafeArea(
-          child: TenturaContentColumn(
-            child: BlocSelector<BeaconCreateCubit, BeaconCreateState, bool>(
+            ],
+            progress: BlocSelector<BeaconCreateCubit, BeaconCreateState, bool>(
               selector: (state) => state.isLoading,
-              builder: (context, busy) => onRecipients
-                  ? _recipientsStep(context, l10n, busy: busy)
-                  : _formStep(context, l10n, busy: busy),
+              builder: TenturaTopBar.loadingBar,
+            ),
+          ),
+          bottomNavigationBar: onRecipients ? null : _nextBar(context, l10n),
+          body: SafeArea(
+            child: TenturaContentColumn(
+              child: BlocSelector<BeaconCreateCubit, BeaconCreateState, bool>(
+                selector: (state) => state.isLoading,
+                builder: (context, busy) => onRecipients
+                    ? _recipientsStep(context, l10n, busy: busy)
+                    : _formStep(context, l10n, busy: busy),
+              ),
             ),
           ),
         ),
