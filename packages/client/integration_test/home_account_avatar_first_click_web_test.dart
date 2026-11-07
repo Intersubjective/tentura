@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
 import 'package:tentura/consts.dart';
-import 'package:tentura/features/home/ui/widget/home_account_avatar_button.dart';
+import 'package:tentura/features/home/ui/widget/home_rail_account_footer.dart';
 import 'package:tentura/main.dart' as app;
 import 'package:tentura/ui/l10n/l10n.dart';
 
@@ -14,7 +14,7 @@ void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets(
-    'web: first tap on home avatar opens the account menu (semantics on)',
+    'web: first tap on home account (rail at wide width) opens the menu',
     (tester) async {
       expect(kIsWeb, isTrue, reason: 'Run with flutter drive on Chrome');
 
@@ -30,17 +30,20 @@ void main() {
       await pumpSettleBounded(tester);
 
       final semantics = tester.ensureSemantics();
-      addTearDown(semantics.dispose);
 
       final l10n = lookupL10n(const Locale('en'));
+      // Default integration browser is 1600×1024 — [WindowClass.expanded], so
+      // the account lives in the rail foot, not the compact top bar.
       await tapAndSettle(
         tester,
-        find.byKey(HomeAccountAvatarButton.buttonKey),
+        find.byKey(HomeRailAccountFooter.footerKey),
       );
       await pumpSettleBounded(tester);
 
       expect(find.text(l10n.accountMenuViewProfile), findsOneWidget);
       expect(find.text(l10n.labelSettings), findsOneWidget);
+
+      semantics.dispose();
     },
   );
 }
