@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 
 import 'package:tentura/domain/port/unsaved_changes_guard_port.dart';
+import 'package:tentura/features/beacon_create/data/service/post_create_composer_draft_store.dart';
 import 'package:tentura/features/constellation/ui/util/constellation_forward_tree_request.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_field_topo_backdrop.dart';
 
@@ -35,6 +36,7 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) async {
     if (GetIt.I.isRegistered<UnsavedChangesGuardPort>()) {
       GetIt.I<UnsavedChangesGuardPort>().resetForTest();
     }
+    resetPostCreateComposerDraftStoreForTest();
   });
   await testMain();
 }

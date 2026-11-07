@@ -1,57 +1,78 @@
 import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/entity/realtime/realtime_connection_status.dart';
 import 'package:tentura/ui/bloc/realtime_status_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/utils/ui_utils.dart';
 
-/// Non-blocking app-root banner shown only after a sustained live outage, or
-/// at once when the network is unreachable (#513).
-class RealtimeStatusPresenter extends StatelessWidget {
+const _kRealtimePausedSnackDuration = Duration(seconds: 6);
+
+/// Non-blocking app-root banner for offline (#513); paused live updates use a
+/// floating SnackBar so controls do not jump (#1061).
+class RealtimeStatusPresenter extends StatefulWidget {
   const RealtimeStatusPresenter({required this.child, super.key});
 
   final Widget child;
 
   @override
+  State<RealtimeStatusPresenter> createState() =>
+      _RealtimeStatusPresenterState();
+}
+
+class _RealtimeStatusPresenterState extends State<RealtimeStatusPresenter> {
+  bool _pausedSnackShownThisEpisode = false;
+
+  void _onRealtimeState(BuildContext context, RealtimeStatusState state) {
+    final paused = state.showPausedBanner && !state.showOfflineBanner;
+    if (paused && !_pausedSnackShownThisEpisode) {
+      _pausedSnackShownThisEpisode = true;
+      showSnackBar(
+        context,
+        text: L10n.of(context)!.realtimeUpdatesPausedBanner,
+        duration: _kRealtimePausedSnackDuration,
+      );
+    }
+    if (state.phase == RealtimeConnectionPhase.authenticated &&
+        !state.showPausedBanner) {
+      _pausedSnackShownThisEpisode = false;
+    }
+  }
+
+  @override
   Widget build(BuildContext context) =>
-      BlocSelector<
-        RealtimeStatusCubit,
-        RealtimeStatusState,
-        ({bool offline, bool paused})
-      >(
-        selector: (state) =>
-            (offline: state.showOfflineBanner, paused: state.showPausedBanner),
-        // The banner takes its own room at the top and pushes the screen
-        // down instead of overlaying the app bar title (#513). The child
-        // keeps its slot either way, so showing the banner keeps its state.
-        builder: (context, banners) {
-          final shown = banners.offline || banners.paused;
-          return Column(
-            children: [
-              // Offline explains a paused socket too, so it wins.
-              if (shown) _RealtimeStatusBanner(offline: banners.offline),
-              Expanded(
-                // The banner already pads for the status bar inset.
-                child: MediaQuery.removePadding(
-                  context: context,
-                  removeTop: shown,
-                  child: child,
+      BlocListener<RealtimeStatusCubit, RealtimeStatusState>(
+        listenWhen: (previous, current) =>
+            previous.showPausedBanner != current.showPausedBanner ||
+            previous.showOfflineBanner != current.showOfflineBanner ||
+            previous.phase != current.phase,
+        listener: _onRealtimeState,
+        child: BlocSelector<RealtimeStatusCubit, RealtimeStatusState, bool>(
+          selector: (state) => state.showOfflineBanner,
+          builder: (context, showOffline) {
+            return Column(
+              children: [
+                if (showOffline) const _RealtimeOfflineBanner(),
+                Expanded(
+                  child: MediaQuery.removePadding(
+                    context: context,
+                    removeTop: showOffline,
+                    child: widget.child,
+                  ),
                 ),
-              ),
-            ],
-          );
-        },
+              ],
+            );
+          },
+        ),
       );
 }
 
-class _RealtimeStatusBanner extends StatelessWidget {
-  const _RealtimeStatusBanner({required this.offline});
-
-  final bool offline;
+class _RealtimeOfflineBanner extends StatelessWidget {
+  const _RealtimeOfflineBanner();
 
   @override
   Widget build(BuildContext context) {
     final tt = context.tt;
-    // The banner's colour fills the status bar inset it pads for.
     return Material(
       color: Theme.of(context).colorScheme.surfaceContainerHighest,
       child: SafeArea(
@@ -68,18 +89,11 @@ class _RealtimeStatusBanner extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                offline
-                    ? Icons.cloud_off_outlined
-                    : Icons.sync_problem_outlined,
-                color: tt.warn,
-              ),
+              Icon(Icons.cloud_off_outlined, color: tt.warn),
               SizedBox(width: tt.iconTextGap),
               Flexible(
                 child: Text(
-                  offline
-                      ? L10n.of(context)!.connectivityOfflineBanner
-                      : L10n.of(context)!.realtimeUpdatesPausedBanner,
+                  L10n.of(context)!.connectivityOfflineBanner,
                   style: TenturaText.bodySmall(tt.text),
                   textAlign: TextAlign.center,
                 ),

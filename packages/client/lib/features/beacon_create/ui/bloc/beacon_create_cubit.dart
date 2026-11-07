@@ -546,8 +546,9 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
       if (!_postHasContent) return false;
       if (_postDraftTimer?.isActive ?? false) return true;
       if (_draftCreateInFlight != null) return true;
-      if (!hasPostDraft) return true;
-      return false;
+      // Server Post draft only reserves an id (#1117); body ships in
+      // postPublish, so any non-empty composer stays dirty until live.
+      return true;
     }
     if (state.isEditMode || state.isLive || state.isPostBud) return false;
     if (isUntouchedCopy) return false;

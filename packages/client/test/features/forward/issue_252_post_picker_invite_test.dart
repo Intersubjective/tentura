@@ -14,6 +14,7 @@ import 'package:mockito/mockito.dart';
 import 'package:tentura_root/domain/enums.dart';
 
 import 'package:tentura/app/router/root_router.dart';
+import 'package:tentura/consts.dart';
 import 'package:tentura/data/repository/clipboard_image_repository.dart';
 import 'package:tentura/data/repository/image_repository.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -121,6 +122,12 @@ class _FakeInvitationRepository extends Fake implements InvitationRepository {
 class _NavRouter extends Fake implements StackRouter {
   late BuildContext host;
   final calls = <String>[];
+
+  @override
+  String get currentUrl => kPathPostNew;
+
+  @override
+  void markUrlStateForReplace() {}
 
   @override
   dynamic noSuchMethod(Invocation invocation) {
