@@ -5,7 +5,7 @@ import 'package:tentura_server/domain/port/constellation_db_admission_port.dart'
 import 'package:tentura_server/env.dart';
 
 import '../database/main_db_pool.dart';
-import 'main_db_scope_admission.dart';
+import '../database/main_db_scope_admission.dart';
 
 export 'package:tentura_server/domain/port/constellation_db_admission_port.dart'
     show ConstellationDbWorkKind;

@@ -38,7 +38,7 @@ import 'package:tentura_server/data/repository/constellation_anchor_repository.d
 import 'package:tentura_server/data/repository/constellation_field_repository.dart';
 import 'package:tentura_server/data/repository/user_availability_repository.dart';
 import 'package:tentura_server/data/repository/user_profile_batch_lookup.dart';
-import 'package:tentura_server/data/service/main_db_scope_admission.dart';
+import 'package:tentura_server/data/database/main_db_scope_admission.dart';
 import 'package:tentura_server/data/service/pg_notification_connection.dart';
 import 'package:tentura_server/data/service/pg_notification_service.dart';
 import 'package:tentura_server/domain/entity/constellation_anchor_projection.dart';

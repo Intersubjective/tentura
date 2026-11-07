@@ -21,7 +21,7 @@ import 'package:tentura_server/api/controllers/session_controller.dart';
 import 'package:tentura_server/api/http/request_context_io_adapter.dart';
 import 'package:tentura_server/app/sentry/sentry_event_scrub.dart';
 import 'package:tentura_server/app/sentry/sentry_request_tracing.dart';
-import 'package:tentura_server/data/service/main_db_scope_admission.dart';
+import 'package:tentura_server/data/database/main_db_scope_admission.dart';
 import 'package:tentura_server/domain/entity/account_session_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/session_repository_port.dart';
