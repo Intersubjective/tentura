@@ -453,15 +453,15 @@ void main() {
     );
   });
 
-  test('unknown hash deep link schedules a one-time notice', () {
+  test('unknown hash deep link schedules a one-time notice', () async {
     UnknownHashRouteNotice.instance.resetForTest();
-    router.deepLinkTransformer(Uri.parse('/doesnotexist'));
+    await router.deepLinkTransformer(Uri.parse('/doesnotexist'));
     expect(UnknownHashRouteNotice.instance.takePending(), isTrue);
     UnknownHashRouteNotice.instance.resetForTest();
-    router.deepLinkTransformer(Uri.parse(kPathHomePostsAlias));
+    await router.deepLinkTransformer(Uri.parse(kPathHomePostsAlias));
     expect(UnknownHashRouteNotice.instance.takePending(), isFalse);
     UnknownHashRouteNotice.instance.resetForTest();
-    router.deepLinkTransformer(Uri(path: kPathHome));
+    await router.deepLinkTransformer(Uri(path: kPathHome));
     expect(UnknownHashRouteNotice.instance.takePending(), isFalse);
   });
 }

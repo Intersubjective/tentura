@@ -4,10 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
-import 'package:tentura/app/router/home_tab_branches.dart';
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/app/router/unknown_hash_route_notice.dart';
-import 'package:tentura/consts.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/post_join_navigation_cubit.dart';
 import 'package:tentura/features/settings/ui/bloc/settings_cubit.dart';
@@ -53,7 +51,7 @@ class _NoticeHarness extends StatelessWidget {
         return Scaffold(
           body: UnknownHashRouteNoticeListener(
             tabsRouter: context.tabsRouter,
-            child: child ?? const SizedBox.shrink(),
+            child: child,
           ),
         );
       },
@@ -83,32 +81,26 @@ void main() {
     );
     MyWorkRoute.page = _labelPage(MyWorkRoute.name, 'work-root');
     for (final spec in HomeTabSpec.all) {
-      final route = spec.rootRoute();
+      if (spec.tab == HomeTab.work) continue;
+      final name = spec.rootRoute().routeName;
+      final page = PageInfo(
+        name,
+        builder: (_) => Text('$name-root', textDirection: TextDirection.ltr),
+      );
       switch (spec.tab) {
+        case HomeTab.conversations:
+          ConversationsRoute.page = page;
+        case HomeTab.inbox:
+        case HomeTab.updates:
+          InboxRoute.page = page;
+        case HomeTab.constellation:
+          ConstellationRoute.page = page;
+        case HomeTab.network:
+          FriendsRoute.page = page;
+        case HomeTab.me:
+          ProfileRoute.page = page;
         case HomeTab.work:
-          continue;
-        default:
-          final name = route.routeName;
-          final page = PageInfo(
-            name,
-            builder: (_) =>
-                Text('$name-root', textDirection: TextDirection.ltr),
-          );
-          switch (spec.tab) {
-            case HomeTab.conversations:
-              ConversationsRoute.page = page;
-            case HomeTab.inbox:
-              InboxRoute.page = page;
-            case HomeTab.constellation:
-              ConstellationRoute.page = page;
-            case HomeTab.network:
-              FriendsRoute.page = page;
-            case HomeTab.me:
-              ProfileRoute.page = page;
-            case HomeTab.work:
-            case HomeTab.updates:
-              break;
-          }
+          break;
       }
     }
     AuthLoginRoute.page = _labelPage(AuthLoginRoute.name, 'auth-login');
@@ -164,7 +156,7 @@ void main() {
   ) async {
     await pumpUnknownHashRoute(tester);
     if (!UnknownHashRouteNotice.instance.hasPending) {
-      router.deepLinkTransformer(Uri.parse('/doesnotexist'));
+      await router.deepLinkTransformer(Uri.parse('/doesnotexist'));
       await tester.pump();
       await tester.pumpAndSettle();
     }
