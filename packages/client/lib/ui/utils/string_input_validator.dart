@@ -27,10 +27,11 @@ mixin StringInputValidator {
   }
 
   String? displayNameValidator(L10n l10n, String? name) {
-    if (name == null || name.length < kTitleMinLength) {
+    final trimmed = (name ?? '').trim();
+    if (trimmed.length < kTitleMinLength) {
       return l10n.displayNameTooShort;
     }
-    if (name.length > kTitleMaxLength) {
+    if ((name ?? '').length > kTitleMaxLength) {
       return l10n.displayNameTooLong;
     }
     return null;

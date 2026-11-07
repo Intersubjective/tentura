@@ -181,9 +181,10 @@ class ProfileEditCubit extends Cubit<ProfileEditState> {
       emit(state.copyWith(status: StateStatus.isLoading));
     }
     try {
+      final displayName = state.displayName.trim();
       await _profileRepository.update(
         state.original,
-        displayName: state.displayName,
+        displayName: displayName,
         updateHandle: true,
         handle: state.handle.trim().toLowerCase(),
         description: state.description,
@@ -195,8 +196,9 @@ class ProfileEditCubit extends Cubit<ProfileEditState> {
         emit(
           state.copyWith(
             handle: savedHandle,
+            displayName: displayName,
             original: state.original.copyWith(
-              displayName: state.displayName,
+              displayName: displayName,
               handle: savedHandle,
               description: state.description,
             ),

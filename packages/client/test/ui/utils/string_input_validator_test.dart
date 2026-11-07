@@ -56,6 +56,17 @@ void main() {
     });
   });
 
+  group('displayNameValidator', () {
+    test('rejects whitespace-only names (#1118)', () {
+      expect(validator.displayNameValidator(l10n, '   '), l10n.displayNameTooShort);
+      expect(validator.displayNameValidator(l10n, '  \u00a0  '), l10n.displayNameTooShort);
+    });
+
+    test('accepts Unicode name with surrounding spaces trimmed', () {
+      expect(validator.displayNameValidator(l10n, '  José  '), isNull);
+    });
+  });
+
   group('titleValidator', () {
     test('accepts valid title', () {
       expect(validator.titleValidator(l10n, 'abc'), isNull);

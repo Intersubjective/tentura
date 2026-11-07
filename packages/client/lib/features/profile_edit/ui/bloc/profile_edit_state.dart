@@ -1,3 +1,4 @@
+import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
@@ -29,4 +30,11 @@ abstract class ProfileEditState extends StateBase with _$ProfileEditState {
       original.displayName != displayName ||
       original.handle != handle ||
       original.description != description;
+
+  /// Whether [displayName] is acceptable to persist (trimmed length rules).
+  bool get canSave {
+    final trimmed = displayName.trim();
+    return trimmed.length >= kTitleMinLength &&
+        displayName.length <= kTitleMaxLength;
+  }
 }
