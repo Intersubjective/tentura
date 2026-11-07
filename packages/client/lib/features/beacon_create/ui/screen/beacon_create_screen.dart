@@ -1,6 +1,8 @@
 import 'dart:async' show TimeoutException, unawaited;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:get_it/get_it.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/app/router/root_router.dart';
@@ -8,6 +10,7 @@ import 'package:tentura_root/domain/entity/beacon_creation_context.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/port/unsaved_changes_guard_port.dart';
 import 'package:tentura/features/beacon/ui/dialog/beacon_delete_dialog.dart';
 import 'package:tentura/features/beacon_plan/domain/entity/plan_fork_copy.dart';
 import 'package:tentura/features/context/ui/bloc/context_cubit.dart';
@@ -138,7 +141,8 @@ class BeaconCreateScreen extends StatefulWidget implements AutoRouteWrapper {
   );
 }
 
-class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
+class _BeaconCreateScreenState extends State<BeaconCreateScreen>
+    with WidgetsBindingObserver {
   static const _formStep = 0;
   static const _recipientsStep = 1;
 
@@ -161,6 +165,7 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     if (widget.initialTab == kBeaconCreateTabRecipients) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
@@ -168,12 +173,55 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
         }
       });
     }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _updateUnsavedLeaveGuard();
+    });
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    if (GetIt.I.isRegistered<UnsavedChangesGuardPort>()) {
+      GetIt.I<UnsavedChangesGuardPort>().setDirty(this, false);
+    }
     unawaited(_forwardCubit?.close());
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.hidden) {
+      unawaited(_beaconCreateCubit.flushAutosave());
+    }
+  }
+
+  void _syncDraftIdToBrowserUrl(String draftId) {
+    if (draftId.isEmpty || !mounted) return;
+    final router = context.router;
+    final String currentUrl;
+    try {
+      currentUrl = router.currentUrl;
+    } on Object {
+      return;
+    }
+    if (currentUrl.isEmpty) return;
+    final uri = Uri.parse(currentUrl);
+    if (uri.queryParameters[kQueryBeaconDraftId] == draftId) return;
+    final query = Map<String, String>.from(uri.queryParameters)
+      ..[kQueryBeaconDraftId] = draftId;
+    router.markUrlStateForReplace();
+    SystemNavigator.routeInformationUpdated(
+      uri: uri.replace(queryParameters: query),
+      replace: true,
+    );
+  }
+
+  void _updateUnsavedLeaveGuard() {
+    if (!GetIt.I.isRegistered<UnsavedChangesGuardPort>()) return;
+    GetIt.I<UnsavedChangesGuardPort>().setDirty(
+      this,
+      _beaconCreateCubit.hasUnpersistedEdits,
+    );
   }
 
   Future<void> _openRecipientsStep() async {
@@ -482,177 +530,213 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
         }
         await _leaveForm(askAboutDraft: true);
       },
-      child: Scaffold(
-        appBar: TenturaTopBar.of(
-          context,
-          leading: isRecipients
-              ? IconButton(
-                  icon: const Icon(Icons.arrow_back),
-                  tooltip: MaterialLocalizations.of(context).backButtonTooltip,
-                  onPressed: () => setState(() => _step = _formStep),
-                )
-              : AutoLeadingWithFallback(
-                  fallbackPath: kPathMyWork,
-                  onPressed: () => unawaited(_leaveForm(askAboutDraft: true)),
-                ),
-          trailingIsIcon: false,
-          title:
-              BlocSelector<
-                BeaconCreateCubit,
-                BeaconCreateState,
-                ({bool isDraft, bool isEdit, bool isLive, bool isBud})
-              >(
-                bloc: _beaconCreateCubit,
-                selector: (s) => (
-                  isDraft: s.draftId != null,
-                  isEdit: s.isEditMode,
-                  isLive: s.isLive,
-                  isBud: s.isPostBud,
-                ),
-                // The title names the step, and a fresh request keeps
-                // "Create new request" after autosave quietly made a draft —
-                // it used to flip to "Edit draft" mid-typing (UI review).
-                builder: (context, mode) => Text(
-                  mode.isBud
-                      ? (isRecipients
-                            ? l10n.postBudInviteTitle
-                            : l10n.postBudAction)
-                      : isRecipients
-                      ? l10n.beaconRecipients
-                      : mode.isEdit
-                      ? l10n.editBeaconTitle
-                      : mode.isLive
-                      ? l10n.liveRequestTitle
-                      : mode.isDraft && widget.draftId.isNotEmpty
-                      ? l10n.editDraftTitle
-                      : l10n.createNewBeacon,
-                ),
-              ),
-          actions: [
-            // The info step has one exit, «←» (#428); «✕» only on the
-            // recipients step, where «←» goes back a step (#265).
-            if (isRecipients)
-              IconButton(
-                icon: Icon(Icons.close, semanticLabel: l10n.buttonClose),
-                tooltip: l10n.buttonClose,
-                onPressed: () => unawaited(_leaveForm()),
-              ),
-            if (!isRecipients)
-              BlocBuilder<BeaconCreateCubit, BeaconCreateState>(
-                bloc: _beaconCreateCubit,
-                buildWhen: (p, c) =>
-                    p.isEditMode != c.isEditMode ||
-                    p.isLive != c.isLive ||
-                    p.isLoading != c.isLoading ||
-                    p.draftId != c.draftId ||
-                    p.isPostBud != c.isPostBud,
-                builder: (context, state) {
-                  if (state.isEditMode || state.isLive || state.isPostBud) {
-                    return const SizedBox.shrink();
-                  }
-                  return TenturaTextAction(
-                    label: l10n.beaconCreateDraftAction,
-                    tone: TenturaTone.neutral,
-                    onPressed: state.isLoading
-                        ? null
-                        : () => unawaited(
-                            _openDraftMenu(
-                              context,
-                              l10n,
-                              hasDraft: state.draftId != null,
-                            ),
-                          ),
-                  );
-                },
-              ),
-          ],
-          progress: BlocSelector<BeaconCreateCubit, BeaconCreateState, bool>(
-            key: const Key('BeaconCreate.LoadIndicator'),
+      child: MultiBlocListener(
+        listeners: [
+          BlocListener<BeaconCreateCubit, BeaconCreateState>(
             bloc: _beaconCreateCubit,
-            selector: (state) => state.isLoading,
-            builder: TenturaTopBar.loadingBar,
+            listenWhen: (previous, current) {
+              final prev = previous.draftId;
+              final next = current.draftId;
+              return widget.draftId.isEmpty &&
+                  (prev == null || prev.isEmpty) &&
+                  next != null &&
+                  next.isNotEmpty;
+            },
+            listener: (context, state) {
+              final id = state.draftId;
+              if (id != null && id.isNotEmpty) {
+                _syncDraftIdToBrowserUrl(id);
+              }
+            },
           ),
-        ),
-        bottomNavigationBar: _bottomBar(context, l10n, tt, contextName),
-        body: SafeArea(
-          child: TenturaContentColumn(
-            child: BlocListener<BeaconCreateCubit, BeaconCreateState>(
-              bloc: _beaconCreateCubit,
-              listenWhen: (p, c) =>
-                  p.publishBlocker != c.publishBlocker ||
-                  p.draftId != c.draftId,
-              listener: (context, state) {
-                if (!mounted) return;
-                if (_step != _recipientsStep) return;
-                if (state.isEditMode || state.isPostBud) return;
-                if (state.publishBlocker != null) return;
-                if (state.draftId != null) return;
-                if (_recipientsDraftEnsuring) return;
-                unawaited(_prepareRecipientsTab());
-              },
-              child: BlocBuilder<BeaconCreateCubit, BeaconCreateState>(
-                bloc: _beaconCreateCubit,
-                buildWhen: (p, c) =>
-                    p.status != c.status ||
-                    p.draftId != c.draftId ||
-                    p.isEditMode != c.isEditMode ||
-                    p.isPostBud != c.isPostBud,
-                builder: (context, state) {
-                  if (state.isEditMode && _step != _formStep) {
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      if (mounted && _step != _formStep) {
-                        setState(() => _step = _formStep);
-                      }
-                    });
-                  }
-                  if ((widget.draftId.isNotEmpty && state.draftId == null ||
-                          widget.editId.isNotEmpty && state.editId == null ||
-                          widget.forkSourceId.isNotEmpty &&
-                              state.forkSourceTitle.isEmpty) &&
-                      state.isLoading) {
-                    return const Center(
-                      child: TenturaCircularProgress(adaptive: true),
-                    );
-                  }
-                  return Form(
-                    key: _formKey,
-                    child: Padding(
-                      padding: EdgeInsets.only(
-                        left: tt.screenHPadding,
-                        top: tt.sectionGap * 2,
-                        right: tt.screenHPadding,
-                      ),
-                      child:
-                          BlocSelector<
-                            BeaconCreateCubit,
-                            BeaconCreateState,
-                            bool
-                          >(
-                            key: const Key('BeaconCreate.FormBody'),
-                            bloc: _beaconCreateCubit,
-                            selector: (state) => state.isLoading,
-                            builder: (context, isLoading) => AbsorbPointer(
-                              absorbing: isLoading,
-                              child: IndexedStack(
-                                index: state.isEditMode ? _formStep : _step,
-                                children: [
-                                  InfoTab(
-                                    key: const ValueKey('BeaconCreate.InfoTab'),
-                                    openImagesInitially:
-                                        widget.initialTab ==
-                                        kBeaconCreateTabImage,
-                                  ),
-                                  if (state.isPostBud)
-                                    const PostBudInviteStep()
-                                  else
-                                    _buildRecipientsTab(state, contextName),
-                                ],
+          BlocListener<BeaconCreateCubit, BeaconCreateState>(
+            bloc: _beaconCreateCubit,
+            listenWhen: (previous, current) {
+              if (previous.draftId != current.draftId) return true;
+              if (previous.title != current.title) return true;
+              if (previous.description != current.description) return true;
+              if (previous.isAutosaving != current.isAutosaving) return true;
+              return false;
+            },
+            listener: (context, state) => _updateUnsavedLeaveGuard(),
+          ),
+        ],
+        child: Scaffold(
+          appBar: TenturaTopBar.of(
+            context,
+            leading: isRecipients
+                ? IconButton(
+                    icon: const Icon(Icons.arrow_back),
+                    tooltip: MaterialLocalizations.of(
+                      context,
+                    ).backButtonTooltip,
+                    onPressed: () => setState(() => _step = _formStep),
+                  )
+                : AutoLeadingWithFallback(
+                    fallbackPath: kPathMyWork,
+                    onPressed: () => unawaited(_leaveForm(askAboutDraft: true)),
+                  ),
+            trailingIsIcon: false,
+            title:
+                BlocSelector<
+                  BeaconCreateCubit,
+                  BeaconCreateState,
+                  ({bool isDraft, bool isEdit, bool isLive, bool isBud})
+                >(
+                  bloc: _beaconCreateCubit,
+                  selector: (s) => (
+                    isDraft: s.draftId != null,
+                    isEdit: s.isEditMode,
+                    isLive: s.isLive,
+                    isBud: s.isPostBud,
+                  ),
+                  // The title names the step, and a fresh request keeps
+                  // "Create new request" after autosave quietly made a draft —
+                  // it used to flip to "Edit draft" mid-typing (UI review).
+                  builder: (context, mode) => Text(
+                    mode.isBud
+                        ? (isRecipients
+                              ? l10n.postBudInviteTitle
+                              : l10n.postBudAction)
+                        : isRecipients
+                        ? l10n.beaconRecipients
+                        : mode.isEdit
+                        ? l10n.editBeaconTitle
+                        : mode.isLive
+                        ? l10n.liveRequestTitle
+                        : mode.isDraft && widget.draftId.isNotEmpty
+                        ? l10n.editDraftTitle
+                        : l10n.createNewBeacon,
+                  ),
+                ),
+            actions: [
+              // The info step has one exit, «←» (#428); «✕» only on the
+              // recipients step, where «←» goes back a step (#265).
+              if (isRecipients)
+                IconButton(
+                  icon: Icon(Icons.close, semanticLabel: l10n.buttonClose),
+                  tooltip: l10n.buttonClose,
+                  onPressed: () => unawaited(_leaveForm()),
+                ),
+              if (!isRecipients)
+                BlocBuilder<BeaconCreateCubit, BeaconCreateState>(
+                  bloc: _beaconCreateCubit,
+                  buildWhen: (p, c) =>
+                      p.isEditMode != c.isEditMode ||
+                      p.isLive != c.isLive ||
+                      p.isLoading != c.isLoading ||
+                      p.draftId != c.draftId ||
+                      p.isPostBud != c.isPostBud,
+                  builder: (context, state) {
+                    if (state.isEditMode || state.isLive || state.isPostBud) {
+                      return const SizedBox.shrink();
+                    }
+                    return TenturaTextAction(
+                      label: l10n.beaconCreateDraftAction,
+                      tone: TenturaTone.neutral,
+                      onPressed: state.isLoading
+                          ? null
+                          : () => unawaited(
+                              _openDraftMenu(
+                                context,
+                                l10n,
+                                hasDraft: state.draftId != null,
                               ),
                             ),
-                          ),
-                    ),
-                  );
+                    );
+                  },
+                ),
+            ],
+            progress: BlocSelector<BeaconCreateCubit, BeaconCreateState, bool>(
+              key: const Key('BeaconCreate.LoadIndicator'),
+              bloc: _beaconCreateCubit,
+              selector: (state) => state.isLoading,
+              builder: TenturaTopBar.loadingBar,
+            ),
+          ),
+          bottomNavigationBar: _bottomBar(context, l10n, tt, contextName),
+          body: SafeArea(
+            child: TenturaContentColumn(
+              child: BlocListener<BeaconCreateCubit, BeaconCreateState>(
+                bloc: _beaconCreateCubit,
+                listenWhen: (p, c) =>
+                    p.publishBlocker != c.publishBlocker ||
+                    p.draftId != c.draftId,
+                listener: (context, state) {
+                  if (!mounted) return;
+                  if (_step != _recipientsStep) return;
+                  if (state.isEditMode || state.isPostBud) return;
+                  if (state.publishBlocker != null) return;
+                  if (state.draftId != null) return;
+                  if (_recipientsDraftEnsuring) return;
+                  unawaited(_prepareRecipientsTab());
                 },
+                child: BlocBuilder<BeaconCreateCubit, BeaconCreateState>(
+                  bloc: _beaconCreateCubit,
+                  buildWhen: (p, c) =>
+                      p.status != c.status ||
+                      p.draftId != c.draftId ||
+                      p.isEditMode != c.isEditMode ||
+                      p.isPostBud != c.isPostBud,
+                  builder: (context, state) {
+                    if (state.isEditMode && _step != _formStep) {
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (mounted && _step != _formStep) {
+                          setState(() => _step = _formStep);
+                        }
+                      });
+                    }
+                    if ((widget.draftId.isNotEmpty && state.draftId == null ||
+                            widget.editId.isNotEmpty && state.editId == null ||
+                            widget.forkSourceId.isNotEmpty &&
+                                state.forkSourceTitle.isEmpty) &&
+                        state.isLoading) {
+                      return const Center(
+                        child: TenturaCircularProgress(adaptive: true),
+                      );
+                    }
+                    return Form(
+                      key: _formKey,
+                      child: Padding(
+                        padding: EdgeInsets.only(
+                          left: tt.screenHPadding,
+                          top: tt.sectionGap * 2,
+                          right: tt.screenHPadding,
+                        ),
+                        child:
+                            BlocSelector<
+                              BeaconCreateCubit,
+                              BeaconCreateState,
+                              bool
+                            >(
+                              key: const Key('BeaconCreate.FormBody'),
+                              bloc: _beaconCreateCubit,
+                              selector: (state) => state.isLoading,
+                              builder: (context, isLoading) => AbsorbPointer(
+                                absorbing: isLoading,
+                                child: IndexedStack(
+                                  index: state.isEditMode ? _formStep : _step,
+                                  children: [
+                                    InfoTab(
+                                      key: const ValueKey(
+                                        'BeaconCreate.InfoTab',
+                                      ),
+                                      openImagesInitially:
+                                          widget.initialTab ==
+                                          kBeaconCreateTabImage,
+                                    ),
+                                    if (state.isPostBud)
+                                      const PostBudInviteStep()
+                                    else
+                                      _buildRecipientsTab(state, contextName),
+                                  ],
+                                ),
+                              ),
+                            ),
+                      ),
+                    );
+                  },
+                ),
               ),
             ),
           ),

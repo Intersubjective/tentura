@@ -309,10 +309,7 @@ class TenturaAvatar extends StatelessWidget {
   /// (usually the profile's user id) still drives the stable background colour and
   /// can collide across users.
   static String initialsForProfile(Profile profile) {
-    final t = profile.shownName.trim();
-    if (t.isEmpty) {
-      return '?';
-    }
+    final letter = RegExp(r'\p{L}', unicode: true);
 
     String upperEachGrapheme(String s) =>
         s.characters.map((g) => g.toUpperCase()).join();
@@ -342,55 +339,89 @@ class TenturaAvatar extends StatelessWidget {
       }
     }
 
-    final tokens = t.split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
-    if (tokens.length >= 2) {
-      var firstIdx = -1;
-      String? firstCluster;
-      for (var i = 0; i < tokens.length; i++) {
-        final c = leadingLetterCluster(tokens[i]);
-        if (c != null) {
-          firstIdx = i;
-          firstCluster = c;
-          break;
-        }
+    /// Visible / objective names: grapheme-aware letters; `Q`+digits second word
+    /// uses the last digit (#1066).
+    String fromOrdinaryVisibleName(String name) {
+      final t = name.trim();
+      if (t.isEmpty) {
+        return '';
       }
-      if (firstCluster != null) {
-        final firstU = upperEachGrapheme(firstCluster);
-        for (var j = firstIdx + 1; j < tokens.length; j++) {
-          final qMatch = _qTrailingDigits.firstMatch(tokens[j]);
-          if (qMatch != null) {
-            final digits = qMatch.group(1)!;
-            if (digits.isNotEmpty) {
-              return '$firstU${digits[digits.length - 1]}';
+
+      final tokens = t.split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+      if (tokens.length >= 2) {
+        var firstIdx = -1;
+        String? firstCluster;
+        for (var i = 0; i < tokens.length; i++) {
+          final c = leadingLetterCluster(tokens[i]);
+          if (c != null) {
+            firstIdx = i;
+            firstCluster = c;
+            break;
+          }
+        }
+        if (firstCluster != null) {
+          final firstU = upperEachGrapheme(firstCluster);
+          for (var j = firstIdx + 1; j < tokens.length; j++) {
+            final qMatch = _qTrailingDigits.firstMatch(tokens[j]);
+            if (qMatch != null) {
+              final digits = qMatch.group(1)!;
+              if (digits.isNotEmpty) {
+                return '$firstU${digits[digits.length - 1]}';
+              }
             }
           }
-        }
-        for (var j = firstIdx + 1; j < tokens.length; j++) {
-          final c2 = leadingLetterCluster(tokens[j]);
-          if (c2 != null) {
-            return upperEachGrapheme('$firstCluster$c2');
+          for (var j = firstIdx + 1; j < tokens.length; j++) {
+            final c2 = leadingLetterCluster(tokens[j]);
+            if (c2 != null) {
+              return upperEachGrapheme('$firstCluster$c2');
+            }
           }
+          return firstU;
         }
-        return firstU;
       }
+
+      final fromOneWord = letterClustersInWord(t).take(2).toList();
+      if (fromOneWord.length >= 2) {
+        return upperEachGrapheme('${fromOneWord[0]}${fromOneWord[1]}');
+      }
+      if (fromOneWord.length == 1) {
+        return upperEachGrapheme(fromOneWord[0]);
+      }
+
+      final graphemes = t.characters.toList();
+      if (graphemes.isEmpty) {
+        return '';
+      }
+      if (graphemes.length == 1) {
+        return upperEachGrapheme(graphemes.first);
+      }
+      return upperEachGrapheme('${graphemes[0]}${graphemes[1]}');
     }
 
-    final fromOneWord = letterClustersInWord(t).take(2).toList();
-    if (fromOneWord.length >= 2) {
-      return upperEachGrapheme('${fromOneWord[0]}${fromOneWord[1]}');
-    }
-    if (fromOneWord.length == 1) {
-      return upperEachGrapheme(fromOneWord[0]);
+    /// Contact alias: any `\p{L}` graphemes in order; if none, caller falls back to objective name (#1075).
+    String fromContactAlias(String alias) {
+      final letters = letter.allMatches(alias.trim()).map((m) => m[0]!).toList();
+      if (letters.length >= 2) {
+        return '${letters[0]}${letters[1]}'.toUpperCase();
+      }
+      if (letters.length == 1) {
+        return letters[0].toUpperCase();
+      }
+      return '';
     }
 
-    final graphemes = t.characters.toList();
-    if (graphemes.isEmpty) {
-      return '?';
+    final trimmedContact = profile.contactName.trim();
+    if (trimmedContact.isNotEmpty) {
+      final fromAlias = fromContactAlias(trimmedContact);
+      if (fromAlias.isNotEmpty) {
+        return fromAlias;
+      }
+      final objective = fromOrdinaryVisibleName(profile.objectiveDisplayNameForViewer);
+      return objective.isNotEmpty ? objective : '?';
     }
-    if (graphemes.length == 1) {
-      return upperEachGrapheme(graphemes.first);
-    }
-    return upperEachGrapheme('${graphemes[0]}${graphemes[1]}');
+
+    final fromShown = fromOrdinaryVisibleName(profile.shownName);
+    return fromShown.isNotEmpty ? fromShown : '?';
   }
 
   static final RegExp _qTrailingDigits = RegExp(r'^[Qq](\d+)$');

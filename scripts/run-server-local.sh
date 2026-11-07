@@ -15,11 +15,24 @@ if [[ ! -f "$ROOT/.env" ]]; then
   exit 1
 fi
 
+# Snapshot exported names before .env so caller/runner overrides are not overwritten
+# by the same keys in .env. Unset keys still pick up .env; duplicate keys in .env
+# still apply last-wins (not in the snapshot until exported from an earlier .env line).
+declare -A __run_server_local_env_prekeys=()
+while IFS= read -r __n; do
+  __run_server_local_env_prekeys["$__n"]=1
+done < <(compgen -e)
+
 while IFS= read -r line || [[ -n "$line" ]]; do
   [[ "$line" =~ ^[[:space:]]*# ]] && continue
   [[ -z "${line//[[:space:]]/}" ]] && continue
+  key="${line%%=*}"
+  if [[ "$key" != "$line" ]] && [[ -n "${__run_server_local_env_prekeys[$key]+x}" ]]; then
+    continue
+  fi
   export "$line"
 done < "$ROOT/.env"
+unset __run_server_local_env_prekeys
 
 bash "$ROOT/scripts/validate_local_server_env.sh"
 

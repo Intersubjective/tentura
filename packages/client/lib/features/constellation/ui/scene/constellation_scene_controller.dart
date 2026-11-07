@@ -23,8 +23,10 @@ import '../../../graph/domain/entity/node_details.dart';
 import '../../../graph/ui/utils/graph_scene_ids.dart';
 import '../../../graph/ui/utils/tentura_layout_algorithms.dart';
 import 'package:tentura/ui/utils/frame_slice_scheduler.dart';
+import 'package:tentura/ui/utils/rearrange_preview_scheduler.dart';
 
 import '../utils/constellation_graph_scene.dart';
+import '../utils/constellation_presentation_frame.dart';
 import '../util/constellation_perf.dart';
 import 'constellation_interaction_controller.dart';
 import 'scene_update_gate.dart';
@@ -76,12 +78,24 @@ void runAfterNextFrame(void Function() callback) {
 /// the layout inputs derived from the last build and the layout hand-off.
 /// It holds no cubit state; the cubit passes everything it needs per call.
 class ConstellationSceneController {
-  ConstellationSceneController({this._slicer});
+  ConstellationSceneController({
+    FrameSliceScheduler? slicer,
+    this.rearrangePreviewScheduler,
+  }) : _slicer = slicer;
 
   final FrameSliceScheduler? _slicer;
 
+  /// Synchronous slicing for field layout only (pointer pause + starvation).
+  FrameSliceScheduler? get layoutSliceScheduler => _slicer;
+
+  /// Bounded stepping for «Rearrange everyone» preview.
+  final RearrangePreviewScheduler? rearrangePreviewScheduler;
+
   /// Cancels the layout job in flight and releases the scheduler.
-  void dispose() => _slicer?.dispose();
+  void dispose() {
+    _slicer?.dispose();
+    rearrangePreviewScheduler?.dispose();
+  }
 
   late final GraphController<NodeDetails, EdgeDetails> graphController =
       GraphController(
@@ -152,7 +166,7 @@ class ConstellationSceneController {
   /// graph topology stays stable when the overlay toggles or rebuilds (#774,
   /// placement_phase_node_rebuild_test).
   Map<String, ConstellationForwardTreeRecipientMarker>
-      forwardTreeRecipientMarkerByPersonId = const {};
+  forwardTreeRecipientMarkerByPersonId = const {};
 
   Set<String> forwardTreeTemporaryOutlinePersonIds = const {};
 
@@ -277,7 +291,7 @@ class ConstellationSceneController {
           anchorByNodeId: layoutAnchorByNodeId,
           forgetPriorHintNodeIds: forgetPriorHints,
           footprints: layoutFootprints,
-          slicer: _slicer,
+          slicer: layoutSliceScheduler,
         );
     // The forgotten prior hints only matter to the layout that consumed them.
     // Once they are cleared, an otherwise identical algorithm is the one the
@@ -583,8 +597,8 @@ class ConstellationSceneController {
       final anon = sender ? e.senderAnonymousCount : e.recipientAnonymousCount;
       final marker = sender ? null : markerFor(e);
       final isGhost = personId.startsWith('ftghost:');
-      final onVisibleField = !isGhost &&
-          (personId == viewer.id || keptPeerIds.contains(personId));
+      final onVisibleField =
+          !isGhost && (personId == viewer.id || keptPeerIds.contains(personId));
       final tempOutline = !isGhost && !onVisibleField && anon == 0;
       if (marker != null) {
         final merged = mergeMarker(markers[personId], marker);
@@ -597,8 +611,7 @@ class ConstellationSceneController {
       }
       if (anon > 0) {
         final prev = anonByPerson[personId];
-        anonByPerson[personId] =
-            prev == null ? anon : math.max(prev, anon);
+        anonByPerson[personId] = prev == null ? anon : math.max(prev, anon);
       }
       final existing = nodeById[personId];
       if (existing is FieldPersonNode) {
@@ -623,19 +636,20 @@ class ConstellationSceneController {
         ? {focusOfferer}
         : graph.helpOffererIds;
     for (final hoId in offererIds) {
-      final intoHo = [
-        for (final edge in graph.edges)
-          if (edge.recipientId == hoId) edge,
-      ]..sort(
-          (a, b) {
-            final at = a.createdAt;
-            final bt = b.createdAt;
-            if (at != null && bt != null && at != bt) {
-              return at.compareTo(bt);
-            }
-            return a.id.compareTo(b.id);
-          },
-        );
+      final intoHo =
+          [
+            for (final edge in graph.edges)
+              if (edge.recipientId == hoId) edge,
+          ]..sort(
+            (a, b) {
+              final at = a.createdAt;
+              final bt = b.createdAt;
+              if (at != null && bt != null && at != bt) {
+                return at.compareTo(bt);
+              }
+              return a.id.compareTo(b.id);
+            },
+          );
       var current = intoHo.isEmpty ? null : intoHo.last;
       final seen = <String>{};
       while (current != null && seen.add(current.id)) {
@@ -717,8 +731,8 @@ class ConstellationSceneController {
       }
       final srcId = edge.source.id;
       final dstId = edge.destination.id;
-      final touches = activePersonIds.contains(srcId) ||
-          activePersonIds.contains(dstId);
+      final touches =
+          activePersonIds.contains(srcId) || activePersonIds.contains(dstId);
       if (touches) {
         continue;
       }
@@ -1218,7 +1232,11 @@ class ConstellationSceneController {
 
   // Camera.
 
-  void fitWholeField(EdgeInsets insets) => fitNodes(insets);
+  void fitWholeField(EdgeInsets insets, {GraphNodeId? focus}) => fitNodes(
+    insets,
+    minScale: kConstellationDistrictDetailScale,
+    focus: focus,
+  );
 
   /// Scene pixels [GraphController.fitToRect] reserves around a fitted rect
   /// by default.
@@ -1245,7 +1263,7 @@ class ConstellationSceneController {
     }
     final focusPoint = focus == null
         ? null
-        : graphController.renderSnapshot.resolvePosition(focus);
+        : graphController.renderSnapshot.resolveTargetPosition(focus);
     final viewport = graphController.viewportSize;
     if (minScale != null &&
         focusPoint != null &&
@@ -1297,7 +1315,7 @@ class ConstellationSceneController {
       if (include != null && !include(graphId)) {
         continue;
       }
-      final point = snapshot.resolvePosition(graphId);
+      final point = snapshot.resolveTargetPosition(graphId);
       if (point == null) {
         continue;
       }
@@ -1417,6 +1435,89 @@ class ConstellationSceneController {
       from: graphController.viewportLocalToScene(viewportCentre),
       to: graphController.viewportLocalToScene(viewportCentre - delta),
     );
+  }
+
+  Rect _fieldCameraSafeRect(EdgeInsets insets) {
+    final pixel = graphController.viewportSize;
+    if (pixel == null) {
+      return Rect.zero;
+    }
+    return Rect.fromLTRB(
+      insets.left,
+      insets.top,
+      pixel.width - insets.right,
+      pixel.height - insets.bottom,
+    );
+  }
+
+  Rect? _fieldNodeBodyViewportRect(GraphNodeId graphId) {
+    final pixel = graphController.viewportSize;
+    if (!graphController.canLayout || pixel == null) {
+      return null;
+    }
+    final snapshot = graphController.renderSnapshot;
+    final sceneNode = snapshot.topology.nodesById[graphId];
+    final point = snapshot.resolvePosition(graphId);
+    if (sceneNode == null || point == null) {
+      return null;
+    }
+    final payload = sceneNode.payload;
+    if (payload is! FieldPersonNode && payload is! FieldBeaconNode) {
+      return null;
+    }
+    final bounds = constellationPlacedNodeBounds(
+      centre: (x: point.x, y: point.y),
+      footprint: layoutFootprints[graphId],
+      size: (width: sceneNode.size.width, height: sceneNode.size.height),
+    );
+    final topLeft = graphController.sceneToViewportLocal(
+      Offset(bounds.left, bounds.top),
+    );
+    final bottomRight = graphController.sceneToViewportLocal(
+      Offset(bounds.right, bounds.bottom),
+    );
+    return Rect.fromPoints(topLeft, bottomRight);
+  }
+
+  /// Whether any Field map body (person, Request, or Post) overlaps the safe
+  /// viewport inside [insets].
+  bool anyFieldNodeBodyIntersectsSafeRect(EdgeInsets insets) {
+    final safe = _fieldCameraSafeRect(insets);
+    if (safe.width <= 0 || safe.height <= 0) {
+      return true;
+    }
+    for (final graphId
+        in graphController.renderSnapshot.topology.nodesById.keys) {
+      final viewportRect = _fieldNodeBodyViewportRect(graphId);
+      if (viewportRect != null && safe.overlaps(viewportRect)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /// The Field node whose body centre is nearest the safe-rect centre.
+  GraphNodeId? nearestFieldNodeGraphIdToSafeRectCenter(EdgeInsets insets) {
+    final safe = _fieldCameraSafeRect(insets);
+    if (safe.width <= 0 || safe.height <= 0) {
+      return null;
+    }
+    final target = safe.center;
+    GraphNodeId? nearestId;
+    var nearestDistSq = double.infinity;
+    for (final graphId
+        in graphController.renderSnapshot.topology.nodesById.keys) {
+      final viewportRect = _fieldNodeBodyViewportRect(graphId);
+      if (viewportRect == null) {
+        continue;
+      }
+      final distSq = (viewportRect.center - target).distanceSquared;
+      if (distSq < nearestDistSq) {
+        nearestDistSq = distSq;
+        nearestId = graphId;
+      }
+    }
+    return nearestId;
   }
 
   /// Centres the full viewport on [sceneCentre] at the current scale.

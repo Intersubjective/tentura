@@ -41,6 +41,10 @@ class GraphLegendContent extends StatelessWidget {
     final tt = context.tt;
     final scheme = Theme.of(context).colorScheme;
     final edgeColors = GraphEdgeColors.fromTokens(tt);
+    // Post forwards graphs omit the help-offerer ring; reuse that signal for
+    // marker copy that must not speak of Requests (#501, #611).
+    final forwardsPostLegend =
+        mode == GraphLegendMode.forwards && !showHelpOffererRing;
 
     // Tab walks the legend's rows in order before leaving it, instead of
     // weaving in whatever lies beside the panel (map nodes, #678).
@@ -60,6 +64,85 @@ class GraphLegendContent extends StatelessWidget {
               l10n.graphLegendForwardEligible,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                 color: scheme.onSurfaceVariant,
+              ),
+            ),
+            SizedBox(height: tt.sectionGap),
+            Text(
+              l10n.graphLegendForwardMarkersTitle,
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
+            SizedBox(height: tt.rowGap),
+            Padding(
+              padding: EdgeInsets.only(bottom: tt.tightGap),
+              child: _LegendRow(
+                swatch: _ForwardMarkerLetterSwatch(
+                  letter: 'V',
+                  color: scheme.primary,
+                ),
+                label: l10n.graphLegendForwardMarkerHelped,
+              ),
+            ),
+            Padding(
+              padding: EdgeInsets.only(bottom: tt.tightGap),
+              child: _LegendRow(
+                swatch: _ForwardMarkerLetterSwatch(
+                  letter: 'O',
+                  color: scheme.primary,
+                ),
+                label: forwardsPostLegend
+                    ? l10n.graphLegendForwardMarkerOfferedPost
+                    : l10n.graphLegendForwardMarkerOffered,
+              ),
+            ),
+            Padding(
+              padding: EdgeInsets.only(bottom: tt.tightGap),
+              child: _LegendRow(
+                swatch: _ForwardMarkerLetterSwatch(
+                  letter: 'D',
+                  color: scheme.primary,
+                ),
+                label: l10n.graphLegendForwardMarkerCantHelp,
+              ),
+            ),
+            Padding(
+              padding: EdgeInsets.only(bottom: tt.tightGap),
+              child: _LegendRow(
+                swatch: _ForwardMarkerLetterSwatch(
+                  letter: 'R',
+                  color: scheme.primary,
+                ),
+                label: forwardsPostLegend
+                    ? l10n.graphLegendForwardMarkerOpenedPost
+                    : l10n.graphLegendForwardMarkerOpened,
+              ),
+            ),
+            Padding(
+              padding: EdgeInsets.only(bottom: tt.tightGap),
+              child: _LegendRow(
+                swatch: _ForwardMarkerLetterSwatch(
+                  letter: 'K',
+                  color: scheme.primary,
+                ),
+                label: l10n.graphLegendForwardMarkerNotOpened,
+              ),
+            ),
+            Padding(
+              padding: EdgeInsets.only(bottom: tt.tightGap),
+              child: _LegendRow(
+                swatch: _ForwardIconSwatch(color: tt.good),
+                label: forwardsPostLegend
+                    ? l10n.graphLegendForwardForwardedOnPost
+                    : l10n.graphLegendForwardForwardedOn,
+              ),
+            ),
+            Padding(
+              padding: EdgeInsets.only(bottom: tt.tightGap),
+              child: _LegendRow(
+                swatch: TenturaCountBadge(
+                  count: 1,
+                  backgroundColor: scheme.primary,
+                ),
+                label: l10n.graphLegendForwardAnonymous,
               ),
             ),
           ],
@@ -445,7 +528,6 @@ class _NegativeEdgeToggleRow extends StatelessWidget {
               child: Padding(
                 padding: EdgeInsets.symmetric(vertical: tt.tightGap / 2),
                 child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     SizedBox(
                       width: tt.avatarSize,
@@ -651,6 +733,51 @@ class _LegendRowState extends State<_LegendRow> {
 /// Long enough to read one sentence after a tap.
 const _legendHintShowDuration = Duration(seconds: 6);
 
+class _ForwardMarkerLetterSwatch extends StatelessWidget {
+  const _ForwardMarkerLetterSwatch({
+    required this.letter,
+    required this.color,
+  });
+
+  final String letter;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final size = context.tt.avatarSize;
+    return SizedBox(
+      width: size,
+      height: size,
+      child: Center(
+        child: Text(
+          letter,
+          style: TenturaText.labelLarge(color),
+        ),
+      ),
+    );
+  }
+}
+
+class _ForwardIconSwatch extends StatelessWidget {
+  const _ForwardIconSwatch({required this.color});
+
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final size = context.tt.avatarSize;
+    return SizedBox(
+      width: size,
+      height: size,
+      child: Icon(
+        Icons.forward,
+        size: size * 0.45,
+        color: color,
+      ),
+    );
+  }
+}
+
 class _SelfHaloSwatch extends StatelessWidget {
   const _SelfHaloSwatch({required this.color});
 
@@ -746,20 +873,21 @@ class _RatingArcSwatchPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2
       ..strokeCap = StrokeCap.round;
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      -0.8,
-      1.2,
-      false,
-      paint,
-    );
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      0.6,
-      0.9,
-      false,
-      paint,
-    );
+    canvas
+      ..drawArc(
+        Rect.fromCircle(center: center, radius: radius),
+        -0.8,
+        1.2,
+        false,
+        paint,
+      )
+      ..drawArc(
+        Rect.fromCircle(center: center, radius: radius),
+        0.6,
+        0.9,
+        false,
+        paint,
+      );
   }
 
   @override

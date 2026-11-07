@@ -147,7 +147,7 @@ void main() {
 
       final pan = cubit.revealPanFor(
         node!,
-        insets: ConstellationCameraControls.cameraViewportInsets(
+        insets: cubit.fieldCameraViewportInsets(
           context,
           contextPanelVisible: true,
           compactSheetHeight: peekSheet,

@@ -1,6 +1,8 @@
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
+import 'package:tentura/features/forward/domain/entity/forward_graph.dart';
+import 'package:tentura/features/forward/domain/entity/help_path_node.dart';
 
 import '../../domain/entity/edge_directed.dart';
 import 'graph_source_repository.dart';
@@ -14,6 +16,7 @@ typedef ForwardsGraphPayload = ({
   Set<String> helpOffererIds,
   String authorId,
   String? viewerId,
+  List<HelpPathNode> path,
 });
 
 /// Builds a directed graph from the V2 `beaconForwardGraph` query for one
@@ -29,6 +32,11 @@ class ForwardsGraphRepository implements GraphSourceRepository {
 
   static const _weight = 1.0;
 
+  /// Stable synthetic id for an endpoint hidden by [ForwardGraphEdge]'s
+  /// anonymousCount (blocked / off-graph recipients).
+  static String forwardGhostId(String edgeId, {required bool sender}) =>
+      'Ufg:${edgeId}_${sender ? 's' : 'r'}';
+
   /// Forwards-graph specific fetch that also surfaces the help offerer ids so the
   /// renderer can highlight help-offered users. Source/destination user nodes are
   /// not pre-populated on the returned edges; the cubit lazy-fetches them.
@@ -40,16 +48,7 @@ class ForwardsGraphRepository implements GraphSourceRepository {
     );
 
     final edges = <EdgeDirected>{
-      for (final e in graph.edges)
-        (
-          src: e.senderId,
-          dst: e.recipientId,
-          weight: _weight,
-          node: null,
-          branch: null,
-          srcTotalNeighborCount: null,
-          dstTotalNeighborCount: null,
-        ),
+      for (final e in graph.edges) _edgeDirectedFromForward(e),
     };
 
     return (
@@ -57,6 +56,7 @@ class ForwardsGraphRepository implements GraphSourceRepository {
       helpOffererIds: graph.helpOffererIds,
       authorId: graph.authorId,
       viewerId: graph.viewerId,
+      path: graph.path,
     );
   }
 
@@ -76,16 +76,7 @@ class ForwardsGraphRepository implements GraphSourceRepository {
     );
 
     final edges = <EdgeDirected>{
-      for (final e in graph.edges)
-        (
-          src: e.senderId,
-          dst: e.recipientId,
-          weight: _weight,
-          node: null,
-          branch: null,
-          srcTotalNeighborCount: null,
-          dstTotalNeighborCount: null,
-        ),
+      for (final e in graph.edges) _edgeDirectedFromForward(e),
     };
 
     return (
@@ -93,6 +84,7 @@ class ForwardsGraphRepository implements GraphSourceRepository {
       helpOffererIds: graph.helpOffererIds,
       authorId: graph.authorId,
       viewerId: graph.viewerId,
+      path: graph.path,
     );
   }
 
@@ -122,4 +114,30 @@ class ForwardsGraphRepository implements GraphSourceRepository {
     required Set<String> nodeIds,
     bool positiveOnly = true,
   }) async => const {};
+
+  static EdgeDirected _edgeDirectedFromForward(ForwardGraphEdge e) {
+    final senderGhost = e.senderAnonymousCount > 0;
+    final recipientGhost = e.recipientAnonymousCount > 0;
+    final src = senderGhost ? forwardGhostId(e.id, sender: true) : e.senderId;
+    final dst =
+        recipientGhost ? forwardGhostId(e.id, sender: false) : e.recipientId;
+    return (
+      src: src,
+      dst: dst,
+      weight: _weight,
+      node: null,
+      branch: null,
+      srcTotalNeighborCount: null,
+      dstTotalNeighborCount: null,
+      forwardEdgeId: e.id,
+      forwardRecipientIsGhostEndpoint: recipientGhost,
+      forwardOfferStatus: e.offerStatus,
+      forwardDeclinedInvite: e.declinedInvite,
+      forwardReadAt: e.readAt,
+      forwardForwardedOn: e.forwardedOn,
+      forwardSenderAnonymousCount: e.senderAnonymousCount,
+      forwardRecipientAnonymousCount: e.recipientAnonymousCount,
+      forwardParentEdgeId: e.parentEdgeId,
+    );
+  }
 }

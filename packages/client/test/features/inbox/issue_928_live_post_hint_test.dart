@@ -33,7 +33,6 @@ import 'package:tentura/features/attention/data/gql/_g/attention_feed.req.gql.da
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
 import 'package:tentura/features/inbox/domain/entity/inbox_item.dart';
-import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/features/inbox/ui/bloc/activity_offers_cubit.dart';
 import 'package:tentura/features/inbox/ui/bloc/inbox_cubit.dart';
 import 'package:tentura/features/inbox/ui/widget/activity_invite_card.dart';

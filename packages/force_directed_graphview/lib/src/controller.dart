@@ -46,6 +46,7 @@ class GraphController<N, E> with ChangeNotifier {
 
   Size? _currentSize;
   var _centered = false;
+  var _centerOnFirstLayout = true;
   var _relayoutInFlight = false;
   var _relayoutInvocationCount = 0;
   GraphLayoutTicket? _lastHandledLayoutSuccessTicket;
@@ -140,6 +141,9 @@ class GraphController<N, E> with ChangeNotifier {
       _transitionFrom != null &&
       _transitionTarget != null &&
       _scene.snapshot.transition != null;
+
+  /// True while a layout request is still running (outcome not yet terminal).
+  bool get isRelayoutInFlight => _relayoutInFlight;
 
   /// True while relayout is in flight or a layout transition is animating.
   bool get isLayoutSettling => _relayoutInFlight || isLayoutTransitioning;
@@ -757,8 +761,9 @@ class GraphController<N, E> with ChangeNotifier {
     }
     final isNewLayoutSuccess = successTicket != null &&
         successTicket != _lastHandledLayoutSuccessTicket;
-    final shouldCenterAfterLayout =
-        outcome is GraphLayoutOutcomeSucceeded && !_centered;
+    final shouldCenterAfterLayout = _centerOnFirstLayout &&
+        outcome is GraphLayoutOutcomeSucceeded &&
+        !_centered;
 
     if (isNewLayoutSuccess) {
       _ticker?.stop();
@@ -1269,6 +1274,7 @@ class GraphController<N, E> with ChangeNotifier {
     required Map<GraphNodeId, LayoutTransitionStage> transitionStages,
     required double minScale,
     required double maxScale,
+    required bool centerOnFirstLayout,
   }) async {
     if (_viewOwner != null && !identical(_viewOwner, viewOwner)) {
       throw StateError(
@@ -1282,6 +1288,7 @@ class GraphController<N, E> with ChangeNotifier {
     _transitionStages = transitionStages;
     _minScale = minScale;
     _maxScale = maxScale;
+    _centerOnFirstLayout = centerOnFirstLayout;
     final previousSize = _currentSize;
     final topologyRevision = _scene.topologyRevision;
 

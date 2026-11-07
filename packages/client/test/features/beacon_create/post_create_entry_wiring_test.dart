@@ -10,12 +10,10 @@ import 'dart:async';
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:get_it/get_it.dart';
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
-import 'package:tentura/consts.dart';
 import 'package:tentura/data/repository/mock/client_repository_mocks.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/attention/attention_case.dart';

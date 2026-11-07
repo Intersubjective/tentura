@@ -6,7 +6,6 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../bloc/constellation_cubit.dart';
-import 'constellation_camera_controls.dart';
 
 /// Measured size of [ConstellationOverflowGroup] for a [label] at the current
 /// theme, tokens, and text scaler — matches the widget layout math.
@@ -158,7 +157,7 @@ class _ConstellationOverflowGroupState
     final state = cubit.state;
     cubit.toggleSatelliteOverflow(
       authorId,
-      refitInsets: ConstellationCameraControls.cameraViewportInsets(
+      refitInsets: cubit.fieldCameraViewportInsets(
         context,
         contextPanelVisible:
             state.selectedPersonId != null || state.selectedRequestId != null,

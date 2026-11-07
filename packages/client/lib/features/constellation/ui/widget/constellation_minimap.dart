@@ -11,19 +11,23 @@ import '../../domain/layout/layout_geometry.dart';
 
 const _personDotRadius = 2.0;
 const _viewerDotRadius = 3.5;
-const _viewerNodeId = 'fp:ego';
 const _personNodePrefix = 'fp:';
+const _minimapFrameStrokeWidth = 2.0;
 
 /// A collapsible overview of the whole Field: everyone as a dot and a frame
 /// for the part the camera shows. A tap moves the camera there, same zoom.
 class ConstellationMinimap extends StatefulWidget {
   const ConstellationMinimap({
     required this.controller,
+    required this.viewerGraphId,
     required this.expanded,
     super.key,
   });
 
   final GraphController<NodeDetails, EdgeDetails> controller;
+
+  /// Graph id for the viewer's person node (`fp:<viewerId>`).
+  final String viewerGraphId;
 
   /// Kept by the owner so the choice survives zooming to the close level.
   final ValueNotifier<bool> expanded;
@@ -78,7 +82,7 @@ class _ConstellationMinimapState extends State<ConstellationMinimap> {
       if (!id.startsWith(_personNodePrefix)) continue;
       final at = controller.getPositionOrNullForId(id);
       if (at == null) continue;
-      if (id == _viewerNodeId) {
+      if (id == widget.viewerGraphId) {
         viewer = at;
       } else {
         people.add(at);
@@ -164,6 +168,7 @@ class _ConstellationMinimapState extends State<ConstellationMinimap> {
                           people: _people,
                           viewer: _viewer,
                           frame: frame,
+                          scheme: scheme,
                         ),
                       ),
                     ),
@@ -183,16 +188,17 @@ class _MinimapContent extends StatelessWidget {
     required this.people,
     required this.viewer,
     required this.frame,
+    required this.scheme,
   });
 
   final ConstellationMinimapProjection projection;
   final List<Offset> people;
   final Offset? viewer;
   final LRect? frame;
+  final ColorScheme scheme;
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     final frame = this.frame;
     return Stack(
       children: [
@@ -217,7 +223,10 @@ class _MinimapContent extends StatelessWidget {
               child: DecoratedBox(
                 key: const Key('constellation.minimap.frame'),
                 decoration: BoxDecoration(
-                  border: Border.all(color: scheme.secondary),
+                  border: Border.all(
+                    color: scheme.primary,
+                    width: _minimapFrameStrokeWidth,
+                  ),
                 ),
               ),
             ),

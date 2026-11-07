@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura/features/constellation/domain/constellation_tidy_offset_layer.dart';
-import 'package:tentura/features/constellation/domain/layout/layout_geometry.dart';
 
 /// The tidy offsets are a post-layout layer: every layout pass is shifted by
 /// them, so a data refresh that re-runs the layout keeps the tidied positions.

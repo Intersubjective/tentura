@@ -5,10 +5,13 @@ import 'package:tentura/features/constellation/domain/constellation_layout.dart'
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
+import 'package:tentura/features/constellation/domain/constellation_minimap.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_camera_controls.dart';
+import 'package:tentura/features/constellation/ui/utils/constellation_presentation_frame.dart';
 import 'package:tentura/features/graph/ui/utils/graph_scene_ids.dart';
 import 'package:tentura/ui/test_ids.dart';
+import '../../support/phone_surface.dart';
 import 'fixtures/constellation_reference_fixture.dart';
 import 'package:tentura/features/constellation/ui/utils/constellation_tap_resolver.dart';
 import 'dart:math' as math;
@@ -26,7 +29,7 @@ Rect _usableViewport(
   required bool contextPanelVisible,
 }) {
   final context = tester.element(find.byType(ConstellationBody));
-  final insets = ConstellationCameraControls.cameraViewportInsets(
+  final insets = cubit.fieldCameraViewportInsets(
     context,
     contextPanelVisible: contextPanelVisible,
   );
@@ -101,6 +104,33 @@ void _expectFootprintsInsideUsable(
       lessThanOrEqualTo(usable.bottom + 1),
       reason: '$graphId bottom outside usable',
     );
+  }
+}
+
+void _expectFitAllFramingPolicy(
+  WidgetTester tester,
+  ConstellationCubit cubit, {
+  required bool contextPanelVisible,
+}) {
+  final controller = cubit.graphController;
+  expect(
+    controller.cameraScale,
+    greaterThanOrEqualTo(kConstellationDistrictDetailScale),
+  );
+  expect(controller.cameraScale, lessThanOrEqualTo(1.0));
+  const egoGraphId = '${TenturaGraphNodeKind.fieldPerson}:ego';
+  final usable = _usableViewport(
+    tester,
+    cubit,
+    contextPanelVisible: contextPanelVisible,
+  );
+  final egoScene = controller.renderSnapshot.resolvePosition(egoGraphId);
+  if (egoScene != null) {
+    final egoViewport = controller.sceneToViewportLocal(
+      Offset(egoScene.x, egoScene.y),
+    );
+    expect(egoViewport.dx, closeTo(usable.center.dx, 24));
+    expect(egoViewport.dy, closeTo(usable.center.dy, 24));
   }
 }
 
@@ -221,20 +251,95 @@ void main() {
       final context = element as BuildContext;
       final media = MediaQuery.of(context);
       final tt = context.tt;
-      final insets = ConstellationCameraControls.cameraViewportInsets(
+      final insets = cubit.fieldCameraViewportInsets(
         context,
         contextPanelVisible: false,
       );
       expect(
         insets.right,
-        media.padding.right +
-            tt.screenHPadding +
-            tt.buttonHeight +
-            tt.rowGap,
+        media.padding.right + tt.screenHPadding + tt.buttonHeight + tt.rowGap,
         reason:
             'fit/recenter must reserve the full camera column plus breathing room',
       );
+      expect(
+        insets.top,
+        media.padding.top + tt.rowGap,
+        reason: '1055 U2 drops the full-width FAB band from the top inset',
+      );
     });
+
+    testWidgets(
+      'compact phone keeps minimap collapsed by default (#1055 U2)',
+      (tester) async {
+        await usePhoneSurface(tester);
+        final cubit = await loadReferenceCubit();
+        addTearDown(cubit.close);
+        await pumpConstellationBody(
+          tester,
+          cubit,
+          size: kPhoneSurface,
+          locale: const Locale('ru'),
+        );
+        await tester.pumpAndSettle();
+        expect(cubit.fieldCameraMinimapExpanded, isFalse);
+      },
+    );
+
+    testWidgets(
+      'expanded minimap reserves minimap block in bottom inset (#1055 U2, 375 RU)',
+      (tester) async {
+        await usePhoneSurface(tester);
+        final cubit = await loadReferenceCubit();
+        addTearDown(cubit.close);
+        await pumpConstellationBody(
+          tester,
+          cubit,
+          size: kPhoneSurface,
+          locale: const Locale('ru'),
+        );
+        await tester.pumpAndSettle(const Duration(milliseconds: 400));
+        cubit.graphController.zoomBy(
+          0.6 / cubit.graphController.cameraScale,
+        );
+        await tester.pumpAndSettle();
+
+        final context = tester.element(find.byType(ConstellationBody));
+        final tt = context.tt;
+        final media = MediaQuery.of(context);
+        final bottomChrome = cubit.fieldCameraBottomChromeHeight;
+
+        final collapsed = cubit.fieldCameraViewportSnapshotForTest;
+        expect(
+          find.byKey(const Key('constellation.minimap.toggle')),
+          findsOneWidget,
+        );
+        await tester.tap(find.byKey(const Key('constellation.minimap.toggle')));
+        await tester.pumpAndSettle();
+        expect(cubit.fieldCameraMinimapExpanded, isTrue);
+
+        final expanded = cubit.fieldCameraViewportSnapshotForTest;
+        final minimapBlock =
+            tt.buttonHeight +
+            tt.tightGap * 2 +
+            kConstellationMinimapSize +
+            tt.rowGap * 2;
+        final expectedBottom =
+            media.padding.bottom + math.max(bottomChrome, minimapBlock);
+        expect(expanded.bottom, closeTo(expectedBottom, 1));
+        expect(
+          expanded.bottom - collapsed.bottom,
+          closeTo(math.max(0, minimapBlock - bottomChrome), 1),
+        );
+
+        await tester.tap(find.byKey(TestIds.key(TestIds.constellationFitAll)));
+        await tester.pump();
+        _expectFitAllFramingPolicy(
+          tester,
+          cubit,
+          contextPanelVisible: false,
+        );
+      },
+    );
 
     testWidgets('fit whole field after zoom and pan', (tester) async {
       final cubit = await loadReferenceCubit();
@@ -249,8 +354,7 @@ void main() {
       await tester.tap(find.byKey(TestIds.key(TestIds.constellationFitAll)));
       await tester.pump();
 
-      _expectFootprintsInsideUsable(tester, cubit, contextPanelVisible: false);
-      expect(cubit.graphController.cameraScale, lessThanOrEqualTo(1.0));
+      _expectFitAllFramingPolicy(tester, cubit, contextPanelVisible: false);
     });
 
     testWidgets('center on ego restores scale and centres in usable region', (
@@ -400,17 +504,19 @@ void main() {
       // beyond the visible area unless the camera refits.
       const egoGraphId = '${TenturaGraphNodeKind.fieldPerson}:ego';
       final egoPoint = controller.renderSnapshot.resolvePosition(egoGraphId)!;
-      final insets = ConstellationCameraControls.cameraViewportInsets(
+      final insets = cubit.fieldCameraViewportInsets(
         tester.element(find.byType(ConstellationBody)),
         contextPanelVisible: false,
       );
-      controller.zoomBy(10);
+      for (var i = 0; i < 30 && controller.cameraScale < 2; i++) {
+        controller.zoomBy(1.15);
+      }
       controller.jumpToPosition(
         Offset(egoPoint.x, egoPoint.y),
         viewportInsets: insets,
       );
       await tester.pump();
-      expect(controller.cameraScale, greaterThan(2.5));
+      expect(controller.cameraScale, closeTo(2.0, 0.02));
 
       final chip = find.byKey(const Key('constellation.overflow.ego'));
       expect(chip, findsOneWidget);
@@ -459,7 +565,7 @@ void main() {
       await pumpConstellationBody(tester, cubit);
       await tester.pumpAndSettle();
 
-      cubit.graphController.zoomBy(0.5);
+      cubit.graphController.zoomBy(1.2);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
 

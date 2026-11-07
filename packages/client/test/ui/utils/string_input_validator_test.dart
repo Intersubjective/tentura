@@ -45,6 +45,17 @@ void main() {
     });
   });
 
+  group('inviteLabelValidator', () {
+    test('mirrors length rules with invite-label messages', () {
+      expect(validator.inviteLabelValidator(l10n, 'ab'), l10n.inviteLabelTooShort);
+      expect(validator.inviteLabelValidator(l10n, 'abc'), isNull);
+      expect(
+        validator.inviteLabelValidator(l10n, 'a' * (kTitleMaxLength + 1)),
+        l10n.inviteLabelTooLong,
+      );
+    });
+  });
+
   group('titleValidator', () {
     test('accepts valid title', () {
       expect(validator.titleValidator(l10n, 'abc'), isNull);

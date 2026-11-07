@@ -1,6 +1,5 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 
 import 'package:tentura/consts.dart';
@@ -438,6 +437,9 @@ class ForwardRecipientRow extends StatelessWidget {
     required ForwardRecipientPersonalNoteSlot personalNoteSlot,
     required Widget Function() forwardManageActionsRow,
   }) {
+    final compactPhone = context.windowClass == WindowClass.compact;
+    final leadingCheckbox = compactPhone;
+
     Widget nameLine(ProfileState profileState) {
       final displayProfile = profileWithContactOverlay(candidate.profile);
       return Text(
@@ -446,7 +448,7 @@ class ForwardRecipientRow extends StatelessWidget {
           displayProfile,
           profileState.profile.id,
         ),
-        maxLines: 1,
+        maxLines: compactPhone ? 2 : 1,
         overflow: TextOverflow.ellipsis,
         style: SelfUserHighlight.nameStyle(
           theme,
@@ -582,6 +584,19 @@ class ForwardRecipientRow extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              if (leadingCheckbox) ...[
+                _ForwardRowCheckbox(
+                  key: TestIds.key(
+                    TestIds.forwardRecipientCheckbox(candidate.id),
+                  ),
+                  identifier: TestIds.forwardRecipientCheckbox(candidate.id),
+                  name: displayName,
+                  isSelected: isSelected,
+                  enabled: checkboxEnabled,
+                  onTap: onToggle,
+                ),
+                SizedBox(width: tt.tightGap),
+              ],
               Expanded(
                 child: PersonMenuGestures(
                   enabled: hasPersonMenu,
@@ -631,22 +646,25 @@ class ForwardRecipientRow extends StatelessWidget {
                   personalNoteSlot,
                 SizedBox(width: tt.iconTextGap),
               ],
-              if (hasPersonMenu) ...[
+              if (hasPersonMenu && !leadingCheckbox) ...[
                 PersonMenuButton(personId: candidate.id),
                 SizedBox(width: tt.iconTextGap),
               ],
-              ?detailsButton,
-              if (detailsButton != null) SizedBox(width: tt.iconTextGap),
-              _ForwardRowCheckbox(
-                key: TestIds.key(
-                  TestIds.forwardRecipientCheckbox(candidate.id),
+              if (!leadingCheckbox) ...[
+                ?detailsButton,
+                if (detailsButton != null) SizedBox(width: tt.iconTextGap),
+              ],
+              if (!leadingCheckbox)
+                _ForwardRowCheckbox(
+                  key: TestIds.key(
+                    TestIds.forwardRecipientCheckbox(candidate.id),
+                  ),
+                  identifier: TestIds.forwardRecipientCheckbox(candidate.id),
+                  name: displayName,
+                  isSelected: isSelected,
+                  enabled: checkboxEnabled,
+                  onTap: onToggle,
                 ),
-                identifier: TestIds.forwardRecipientCheckbox(candidate.id),
-                name: displayName,
-                isSelected: isSelected,
-                enabled: checkboxEnabled,
-                onTap: onToggle,
-              ),
             ],
           ),
         ),

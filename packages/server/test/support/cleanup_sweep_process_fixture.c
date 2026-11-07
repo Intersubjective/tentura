@@ -32,10 +32,22 @@ DIR *opendir(const char *path) {
 #include <sys/types.h>
 
 static void ready(const char *path, pid_t process_id) {
-  FILE *file = fopen(path, "w");
+  // The launcher and compiler both publish the compiler PID. Give each write
+  // its own file so neither can truncate a marker another process is reading.
+  char *staging;
+  if (asprintf(&staging, "%s.XXXXXX", path) < 0) {
+    perror("fixture ready path"); exit(2);
+  }
+  int fd = mkstemp(staging);
+  if (fd < 0) { perror("fixture ready create"); free(staging); exit(2); }
+  FILE *file = fdopen(fd, "w");
   if (!file) { perror("fixture ready"); exit(2); }
-  fprintf(file, "%ld\n", (long)process_id);
+  if (fprintf(file, "%ld\n", (long)process_id) < 0) {
+    perror("fixture ready write"); exit(2);
+  }
   if (fclose(file)) { perror("fixture ready close"); exit(2); }
+  if (rename(staging, path)) { perror("fixture ready rename"); exit(2); }
+  free(staging);
 }
 
 // kill(pid, sig) is allowed only for the two stand-ins. Also block alternate

@@ -14,6 +14,7 @@ void main() {
   late Directory runtime;
   late File executable;
   late File procViewLibrary;
+  late File publicationLibrary;
 
   setUpAll(() async {
     expect(
@@ -28,7 +29,20 @@ void main() {
     final source = File(
       'test/support/cleanup_sweep_process_fixture.c',
     ).absolute.path;
+    publicationLibrary = File('${runtime.path}/publication-probe.so');
     for (final args in [
+      [
+        '-O2',
+        '-Wall',
+        '-Wextra',
+        '-Werror',
+        '-shared',
+        '-fPIC',
+        'test/support/cleanup_sweep_publication_probe.c',
+        '-ldl',
+        '-o',
+        publicationLibrary.path,
+      ],
       ['-O2', '-Wall', '-Wextra', '-Werror', source, '-o', executable.path],
       [
         '-O2',
@@ -135,6 +149,136 @@ void main() {
       expect(outcome.flutterCache, isNull, reason: outcome.diagnostics);
     });
   });
+
+  group('fixture publication through the sweep runner', () {
+    Future<Map<String, String>> probe(String marker, String mode) async {
+      final records = await Directory.systemTemp.createTemp(
+        'publication-pids-',
+      );
+      addTearDown(() async {
+        await for (final entry in records.list()) {
+          final processId = int.parse(entry.uri.pathSegments.last);
+          if (await _isFixture(processId, executable)) {
+            Process.killPid(processId, ProcessSignal.sigkill);
+          }
+        }
+        await records.delete(recursive: true);
+      });
+      return {
+        'LD_PRELOAD': publicationLibrary.path,
+        'PUBLICATION_MARKER': marker,
+        'PUBLICATION_MODE': mode,
+        'PUBLICATION_RECORDS': records.path,
+      };
+    }
+
+    for (final marker in ['compiler.pid', 'owner.pid']) {
+      test('$marker publication preserves the live owner and caches', () async {
+        final outcome = await _sweepRunner(
+          executable,
+          procViewLibrary,
+          wrapped: true,
+          separateTmpdir: false,
+          fixtureEnvironment: await probe(marker, 'transient'),
+        );
+        _expectHealthySweep(outcome);
+        expect(outcome.ownerAlive, isTrue, reason: outcome.diagnostics);
+        expect(outcome.compilerAlive, isTrue, reason: outcome.diagnostics);
+        expect(
+          outcome.kernel,
+          'compiled test kernel',
+          reason: outcome.diagnostics,
+        );
+        expect(outcome.flutterCache, 'test cache', reason: outcome.diagnostics);
+      });
+
+      test(
+        '$marker readiness failure prints the observed whitespace content',
+        () async {
+          // Whitespace is non-numeric content that the current readiness poll
+          // never accepts. Unlike FormatException for a non-empty token, its
+          // current timeout diagnostic loses the observed file contents.
+          final whitespace = List.generate(
+            8 + DateTime.now().microsecond % 13,
+            (index) => index.isEven ? ' ' : '\t',
+          ).join();
+          final content = '$whitespace\n';
+          File? observedMarker;
+          final environment = await probe(marker, 'persistent');
+          environment['PUBLICATION_CONTENT'] = content;
+          Object? failure;
+          try {
+            await _sweepRunner(
+              executable,
+              procViewLibrary,
+              wrapped: true,
+              separateTmpdir: false,
+              fixtureEnvironment: environment,
+              observeMarkers: (compiler, owner) {
+                observedMarker = marker == 'compiler.pid' ? compiler : owner;
+              },
+            );
+          } catch (error) {
+            failure = error;
+          }
+          expect(
+            failure,
+            isNotNull,
+            reason: 'An invalid PID must fail readiness.',
+          );
+          final observed = await observedMarker!.readAsString();
+          expect(observed, content);
+          final printed = failure.toString();
+          expect(
+            printed.contains(observed) ||
+                printed.contains(jsonEncode(observed)) ||
+                printed.contains(
+                  jsonEncode(
+                    observed,
+                  ).substring(1, jsonEncode(observed).length - 1),
+                ),
+            isTrue,
+            reason:
+                'Failure must print the actual marker contents, literally or escaped: ${jsonEncode(observed)}; got $printed',
+          );
+        },
+      );
+    }
+
+    test(
+      'client cache sweep preserves live PID markers and referenced temporary files',
+      () async {
+        // Establish full-wrapper cache isolation with ordinary publication
+        // first, then demand the same outcome when publication overlaps reads.
+        for (final environment in [
+          <String, String>{},
+          await probe('compiler.pid', 'transient'),
+        ]) {
+          final outcome = await _sweepRunner(
+            executable,
+            procViewLibrary,
+            wrapped: false,
+            separateTmpdir: false,
+            fixtureEnvironment: environment,
+            checkClientCacheSweep: true,
+          );
+          _expectHealthySweep(outcome);
+          expect(outcome.ownerAlive, isTrue, reason: outcome.diagnostics);
+          expect(outcome.compilerAlive, isTrue, reason: outcome.diagnostics);
+          expect(
+            outcome.kernel,
+            'compiled test kernel',
+            reason: outcome.diagnostics,
+          );
+          expect(
+            outcome.flutterCache,
+            'test cache',
+            reason: outcome.diagnostics,
+          );
+        }
+      },
+    );
+  });
 }
 
 void _expectHealthySweep(_Outcome outcome) {
@@ -158,6 +302,9 @@ Future<_Outcome> _sweepRunner(
   required bool wrapped,
   required bool separateTmpdir,
   bool liveOwner = true,
+  Map<String, String> fixtureEnvironment = const {},
+  bool checkClientCacheSweep = false,
+  void Function(File compiler, File owner)? observeMarkers,
 }) async {
   final scratch = await Directory.systemTemp.createTemp('cleanup-sweep-');
   addTearDown(() => scratch.delete(recursive: true));
@@ -167,8 +314,10 @@ Future<_Outcome> _sweepRunner(
       : outerTmp;
   final procView = await Directory('${scratch.path}/proc-view').create();
   final bin = await Directory('${scratch.path}/bin').create();
-  final compilerReady = File('${scratch.path}/compiler.pid');
-  final ownerReady = File('${scratch.path}/owner.pid');
+  final markerRoot = checkClientCacheSweep ? outerTmp.path : scratch.path;
+  final compilerReady = File('$markerRoot/compiler.pid');
+  final ownerReady = File('$markerRoot/owner.pid');
+  observeMarkers?.call(compilerReady, ownerReady);
   final kernel = await File(
     '${outerTmp.path}/dart_test.kernel.outer/output.dill',
   ).create(recursive: true);
@@ -184,7 +333,8 @@ Future<_Outcome> _sweepRunner(
 
   final environment = Map<String, String>.of(Platform.environment)
     ..remove('TENTURA_TEST_CLEANUP_RUN')
-    ..['TMPDIR'] = outerTmp.path;
+    ..['TMPDIR'] = outerTmp.path
+    ..addAll(fixtureEnvironment);
   if (wrapped) {
     environment['TENTURA_TEST_CLEANUP_RUN'] = scratch.path;
   }
@@ -208,6 +358,9 @@ Future<_Outcome> _sweepRunner(
       '${File(Platform.resolvedExecutable).parent.path}/snapshots/'
           'frontend_server_aot.dart.snapshot',
       ...runnerArgv,
+      // The bare owner explicitly references this cache in the cache-sweep
+      // scenario, so both tmp resources have live owners during the sweep.
+      if (checkClientCacheSweep) flutterCache.path,
     ],
     environment: environment,
     includeParentEnvironment: false,
@@ -230,15 +383,11 @@ Future<_Outcome> _sweepRunner(
     await stderr;
   });
 
-  await _waitReady(compilerReady);
-  final compilerProcessId = int.parse(
-    (await compilerReady.readAsString()).trim(),
-  );
+  final compilerProcessId = await _waitReady(compilerReady);
   compilerId = compilerProcessId;
   await _waitCompiler(compilerProcessId);
   if (liveOwner) {
-    await _waitReady(ownerReady);
-    expect(int.parse(await ownerReady.readAsString()), owner.pid);
+    expect(await _waitReady(ownerReady), owner.pid);
   } else {
     expect(await owner.exitCode, 0, reason: await stderr);
   }
@@ -259,6 +408,32 @@ Future<_Outcome> _sweepRunner(
   for (final processId in [if (liveOwner) owner.pid, compilerProcessId]) {
     await Link('${procView.path}/$processId').create('/proc/$processId');
   }
+  var sweepScript = File('../../scripts/run_with_test_cleanup.sh').absolute;
+  File? staleClientCache;
+  String? compilerBeforeSweep;
+  String? ownerBeforeSweep;
+  if (checkClientCacheSweep) {
+    // Execute the complete, unchanged wrapper in an isolated repository root.
+    // Its real build-cache cleanup must run, rather than merely be skipped
+    // because a wrapped peer is active. The expired cache proves it ran.
+    expect(wrapped, isFalse);
+    final isolatedScript = await File(
+      '${scratch.path}/cache-root/scripts/run_with_test_cleanup.sh',
+    ).create(recursive: true);
+    await isolatedScript.writeAsBytes(await sweepScript.readAsBytes());
+    sweepScript = isolatedScript;
+    staleClientCache = await File(
+      '${scratch.path}/cache-root/packages/client/build/pack.dill',
+    ).create(recursive: true);
+    await staleClientCache.writeAsString('expired client cache');
+    await staleClientCache.setLastModified(
+      DateTime.now().subtract(const Duration(days: 1)),
+    );
+    compilerBeforeSweep = await compilerReady.readAsString();
+    ownerBeforeSweep = await ownerReady.readAsString();
+    expect(int.tryParse(compilerBeforeSweep.trim()), compilerProcessId);
+    expect(int.tryParse(ownerBeforeSweep.trim()), owner.pid);
+  }
   final result = await Process.run(
     executable.path,
     [
@@ -266,7 +441,7 @@ Future<_Outcome> _sweepRunner(
       liveOwner ? '${owner.pid}' : '0',
       '$compilerProcessId',
       'bash',
-      File('../../scripts/run_with_test_cleanup.sh').absolute.path,
+      sweepScript.path,
       '--sweep-only',
     ],
     environment: {
@@ -281,6 +456,18 @@ Future<_Outcome> _sweepRunner(
     }..remove('TENTURA_TEST_CLEANUP_RUN'),
     includeParentEnvironment: false,
   );
+  if (checkClientCacheSweep) {
+    expect(staleClientCache, isNotNull);
+    expect(
+      await staleClientCache!.exists(),
+      isFalse,
+      reason: '${result.stdout}\n${result.stderr}',
+    );
+    expect(await compilerReady.readAsString(), compilerBeforeSweep);
+    expect(await ownerReady.readAsString(), ownerBeforeSweep);
+    expect(await kernel.readAsString(), 'compiled test kernel');
+    expect(await flutterCache.readAsString(), 'test cache');
+  }
   return (
     exitCode: result.exitCode,
     ownerAlive: liveOwner && await _isFixture(owner.pid, executable),
@@ -293,12 +480,17 @@ Future<_Outcome> _sweepRunner(
   );
 }
 
-Future<void> _waitReady(File marker) async {
+Future<int> _waitReady(File marker) async {
   final deadline = DateTime.now().add(const Duration(seconds: 5));
-  while (!await marker.exists() ||
-      (await marker.readAsString()).trim().isEmpty) {
+  while (true) {
+    final content = marker.existsSync() ? await marker.readAsString() : null;
+    final processId = content == null ? null : int.tryParse(content.trim());
+    if (processId != null && processId > 0) return processId;
     if (DateTime.now().isAfter(deadline)) {
-      fail('Process fixture failed to become ready: ${marker.path}');
+      fail(
+        'Process fixture failed to become ready: ${marker.path}; '
+        'content: ${jsonEncode(content)}',
+      );
     }
     await Future<void>.delayed(const Duration(milliseconds: 10));
   }

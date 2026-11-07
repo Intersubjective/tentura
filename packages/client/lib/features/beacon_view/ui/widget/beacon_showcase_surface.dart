@@ -517,6 +517,7 @@ class _ShowcaseBottomPanel extends StatelessWidget {
               BeaconShowcaseTeamStrip(
                 team: team,
                 finished: finished,
+                suppressEmptyCaption: offerPending && team.isEmpty,
                 onTap: team.isEmpty
                     ? null
                     : () => unawaited(
@@ -774,6 +775,7 @@ class BeaconShowcaseTeamStrip extends StatelessWidget {
     this.onTap,
     this.maxFaces = 5,
     this.finished = false,
+    this.suppressEmptyCaption = false,
     super.key,
   });
 
@@ -783,6 +785,9 @@ class BeaconShowcaseTeamStrip extends StatelessWidget {
 
   /// The Request is closed or cancelled: the strip speaks in the past tense.
   final bool finished;
+
+  /// Hides «Nobody yet…» when the viewer already has a pending offer (#1113).
+  final bool suppressEmptyCaption;
 
   @override
   Widget build(BuildContext context) {
@@ -794,6 +799,7 @@ class BeaconShowcaseTeamStrip extends StatelessWidget {
       l10n,
       team,
       finished: finished,
+      suppressEmptyInvite: suppressEmptyCaption,
     );
 
     return InkWell(
@@ -828,15 +834,17 @@ class BeaconShowcaseTeamStrip extends StatelessWidget {
                 ],
               ],
             ),
-            SizedBox(height: tt.tightGap),
-            Text(
-              caption,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: TenturaText.bodySmall(
-                team.acquaintances.isNotEmpty ? tt.text : tt.textMuted,
+            if (caption.isNotEmpty) ...[
+              SizedBox(height: tt.tightGap),
+              Text(
+                caption,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TenturaText.bodySmall(
+                  team.acquaintances.isNotEmpty ? tt.text : tt.textMuted,
+                ),
               ),
-            ),
+            ],
           ],
         ),
       ),
@@ -850,8 +858,10 @@ String beaconShowcaseTeamCaption(
   L10n l10n,
   BeaconShowcaseTeam team, {
   bool finished = false,
+  bool suppressEmptyInvite = false,
 }) {
   if (team.isEmpty) {
+    if (!finished && suppressEmptyInvite) return '';
     return finished
         ? l10n.beaconShowcaseTeamEmptyClosed
         : l10n.beaconShowcaseTeamEmpty;

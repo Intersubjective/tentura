@@ -15,7 +15,6 @@ import 'package:tentura/features/constellation/domain/constellation_trust_chain.
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_presence_cubit.dart';
 import 'package:tentura/features/constellation/ui/utils/constellation_presentation_frame.dart';
-import 'package:tentura/features/constellation/ui/widget/constellation_node_ring_layer.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_presence_halo_layer.dart';
 import 'package:tentura/ui/test_ids.dart';
 

@@ -9,8 +9,6 @@ import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart'
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
 import 'package:tentura/features/constellation/ui/utils/constellation_graph_scene.dart';
 import 'package:tentura/features/constellation/ui/utils/constellation_tap_resolver.dart';
-import 'package:tentura/features/constellation/ui/widget/constellation_camera_controls.dart';
-
 import 'fixtures/constellation_reference_fixture.dart';
 
 const _chipKey = Key('constellation.overflow.ego');
@@ -71,7 +69,7 @@ Matrix4 _collapsedFit(WidgetTester tester, ConstellationCubit cubit) {
     constellationGraphNodeIdForDomain('ego'),
   )!;
   final pixel = controller.viewportSize!;
-  final insets = ConstellationCameraControls.cameraViewportInsets(
+  final insets = cubit.fieldCameraViewportInsets(
     tester.element(find.byType(ConstellationBody)),
     contextPanelVisible: false,
   );
