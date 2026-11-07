@@ -575,9 +575,7 @@ class Env {
        sentryTracesSampleRate =
            sentryTracesSampleRate ??
            double.tryParse(_env['SENTRY_TRACES_SAMPLE_RATE'] ?? '') ??
-           1.0
-  //
-  {
+           1.0 {
     if (environment == Environment.dev || environment == Environment.prod) {
       _assertServingUrls(
         serverName: kServerName.isNotEmpty ? kServerName : serverUri.toString(),
@@ -1038,8 +1036,6 @@ class Env {
     if (fbPrivateKey.trim().isEmpty) 'FB_PRIVATE_KEY',
   ];
 
-  //
-  //
   static void _assertServingUrls({
     required String serverName,
     required String imageServer,

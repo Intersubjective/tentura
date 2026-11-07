@@ -73,15 +73,11 @@ class App {
     receivePort.sendPort.send(null);
   }
 
-  //
-  //
   Future<void> _stopSignal() => Future.any([
     ProcessSignal.sigint.watch().first,
     ProcessSignal.sigterm.watch().first,
   ]);
 
-  //
-  //
   Future<void> _uploadGraph(Connection connection) async {
     try {
       // Until the trust cutover is done the graph must stay untouched.
