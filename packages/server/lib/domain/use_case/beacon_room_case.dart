@@ -578,6 +578,38 @@ class BeaconRoomCase extends UseCaseBase {
         !await _userBlockRepository.isBlockedPair(a: userId, b: authorId);
   }
 
+  /// Loads [messageId] (must belong to [beaconId]) and checks [userId] may
+  /// mutate it; with [authorOnlyAction] the caller must also be its author
+  /// (the action names the refusal: "Only the message author can …").
+  Future<BeaconRoomMessageRecord> _requireMutableMessage({
+    required String beaconId,
+    required String messageId,
+    required String userId,
+    String? authorOnlyAction,
+  }) async {
+    final msg = await _room.getRoomMessageById(messageId);
+    if (msg == null || msg.beaconId != beaconId) {
+      throw IdNotFoundException(
+        id: messageId,
+        description: 'Room message not found',
+      );
+    }
+    final allowed = await _canMutateMessage(
+      beaconId: beaconId,
+      userId: userId,
+      msg: msg,
+    );
+    if (!allowed) {
+      throw const UnauthorizedException(description: 'Room access required');
+    }
+    if (authorOnlyAction != null && msg.authorId != userId) {
+      throw UnauthorizedException(
+        description: 'Only the message author can $authorOnlyAction',
+      );
+    }
+    return msg;
+  }
+
   void _assertBodyWithinLimit(String trimmedBody) {
     if (trimmedBody.length > kMaxRoomMessageBodyLength) {
       throw const BeaconCreateException(
@@ -1868,23 +1900,11 @@ class BeaconRoomCase extends UseCaseBase {
     required String emoji,
   }) async {
     return _translateRoomWriteError(() async {
-      final msg = await _room.getRoomMessageById(messageId);
-      if (msg == null || msg.beaconId != beaconId) {
-        throw IdNotFoundException(
-          id: messageId,
-          description: 'Room message not found',
-        );
-      }
-      final allowed = await _canMutateMessage(
+      final msg = await _requireMutableMessage(
         beaconId: beaconId,
+        messageId: messageId,
         userId: userId,
-        msg: msg,
       );
-      if (!allowed) {
-        throw const UnauthorizedException(
-          description: 'Room access required',
-        );
-      }
       await _guardMessageMutation(beaconId: beaconId, msg: msg);
       final postAuthorId = await _postAuthorId(beaconId);
       if (postAuthorId == null || postAuthorId == userId) {
@@ -1935,26 +1955,12 @@ class BeaconRoomCase extends UseCaseBase {
     String? attachmentMimeType,
   }) async {
     return _translateRoomWriteError(() async {
-      final msg = await _room.getRoomMessageById(messageId);
-      if (msg == null || msg.beaconId != beaconId) {
-        throw IdNotFoundException(
-          id: messageId,
-          description: 'Room message not found',
-        );
-      }
-      final canMutate = await _canMutateMessage(
+      final msg = await _requireMutableMessage(
         beaconId: beaconId,
+        messageId: messageId,
         userId: userId,
-        msg: msg,
+        authorOnlyAction: 'add attachments',
       );
-      if (!canMutate) {
-        throw const UnauthorizedException(description: 'Room access required');
-      }
-      if (msg.authorId != userId) {
-        throw const UnauthorizedException(
-          description: 'Only the message author can add attachments',
-        );
-      }
       // No attachments in Request Questions (see createMessage).
       if ((msg.threadItemId ?? '').isNotEmpty) {
         throw const DiscussionScopeDisabledException();
@@ -2000,26 +2006,12 @@ class BeaconRoomCase extends UseCaseBase {
           postLock == null) {
         throw StateError('Post deletion requires PostLockPort');
       }
-      final msg = await _room.getRoomMessageById(messageId);
-      if (msg == null || msg.beaconId != beaconId) {
-        throw IdNotFoundException(
-          id: messageId,
-          description: 'Room message not found',
-        );
-      }
-      final allowed = await _canMutateMessage(
+      final msg = await _requireMutableMessage(
         beaconId: beaconId,
+        messageId: messageId,
         userId: userId,
-        msg: msg,
+        authorOnlyAction: 'delete messages',
       );
-      if (!allowed) {
-        throw const UnauthorizedException(description: 'Room access required');
-      }
-      if (msg.authorId != userId) {
-        throw const UnauthorizedException(
-          description: 'Only the message author can delete messages',
-        );
-      }
       // The Post-root branch runs before the lifecycle guard (plan C5): the
       // author may still delete a Post closed by budding (6 -> 2), which the
       // read-only guard below would refuse. Posts only; the child survives.
@@ -2063,26 +2055,12 @@ class BeaconRoomCase extends UseCaseBase {
     bool explicitMentionsProvided = false,
   }) async {
     return _translateRoomWriteError(() async {
-      final msg = await _room.getRoomMessageById(messageId);
-      if (msg == null || msg.beaconId != beaconId) {
-        throw IdNotFoundException(
-          id: messageId,
-          description: 'Room message not found',
-        );
-      }
-      final allowed = await _canMutateMessage(
+      final msg = await _requireMutableMessage(
         beaconId: beaconId,
+        messageId: messageId,
         userId: userId,
-        msg: msg,
+        authorOnlyAction: 'edit messages',
       );
-      if (!allowed) {
-        throw const UnauthorizedException(description: 'Room access required');
-      }
-      if (msg.authorId != userId) {
-        throw const UnauthorizedException(
-          description: 'Only the message author can edit messages',
-        );
-      }
       await _guardMessageMutation(beaconId: beaconId, msg: msg);
       final trimmed = newBody.trim();
       if (trimmed.isEmpty) {
