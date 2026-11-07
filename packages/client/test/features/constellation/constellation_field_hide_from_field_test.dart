@@ -416,6 +416,119 @@ void main() {
       expect(find.text('Hide from Field'), findsOneWidget);
     });
 
+    testWidgets('list row ⋯ opens menu without selecting the Request', (
+      tester,
+    ) async {
+      final port = _RecordingHidePort();
+      final cubit = await _cubitWithHide(
+        field: _singleRequestField(requestId: 'req-list-menu-1'),
+        port: port,
+      );
+      addTearDown(cubit.close);
+
+      await _pumpList(tester, cubit);
+      expect(cubit.state.selectedRequestId, isNull);
+
+      await tester.tap(find.byIcon(Icons.more_vert));
+      await tester.pumpAndSettle();
+
+      expect(cubit.state.selectedRequestId, isNull);
+      expect(find.text('Hide from Field'), findsOneWidget);
+    });
+
+    testWidgets('Undo snackbar stays visible after the preview unmounts', (
+      tester,
+    ) async {
+      await usePhoneSurface(tester);
+
+      const requestId = 'req-snack-1';
+      final port = _RecordingHidePort();
+      final cubit = await _cubitWithHide(
+        field: _singleRequestField(requestId: requestId),
+        port: port,
+      );
+      addTearDown(cubit.close);
+
+      final request = cubit.state.field!.requests.single;
+      await _pumpPreview(tester, cubit, request);
+
+      await tester.tap(
+        find.byKey(TestIds.key(TestIds.constellationHideFromField)),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+
+      await tester.pumpWidget(
+        _themedApp(
+          child: BlocProvider<ConstellationCubit>.value(
+            value: cubit,
+            child: const SizedBox.shrink(),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('Hidden from your Field.'), findsOneWidget);
+      expect(find.text('Undo'), findsOneWidget);
+    });
+
+    testWidgets(
+      'RU phone peek-height preview shows Pin and Hide without scrolling',
+      (tester) async {
+        await usePhoneSurface(tester);
+
+        final port = _RecordingHidePort();
+        final cubit = await _cubitWithHide(
+          field: _singleRequestField(requestId: 'req-peek-1'),
+          port: port,
+        );
+        addTearDown(cubit.close);
+
+        final request = cubit.state.field!.requests.single;
+        final l10n = await L10n.delegate.load(const Locale('ru'));
+        const peekHeight = 220.0;
+
+        await tester.pumpPeopleTagsWidget(
+          MaterialApp(
+            locale: const Locale('ru'),
+            theme: TenturaTheme.light(),
+            localizationsDelegates: L10n.localizationsDelegates,
+            supportedLocales: L10n.supportedLocales,
+            home: TenturaResponsiveScope(
+              child: BlocProvider.value(
+                value: cubit,
+                child: Scaffold(
+                  body: Align(
+                    alignment: Alignment.bottomCenter,
+                    child: SizedBox(
+                      height: peekHeight,
+                      child: ConstellationRequestPreviewSheet(
+                        request: request,
+                        authorDisplayName: 'Алекс',
+                        onPrimaryAction: () {},
+                        onClose: () {},
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+
+        final hideLabel = l10n.constellationHideFromField;
+        final pinLabel = l10n.constellationPinTarget;
+        final hideFinder = find.text(hideLabel);
+        final pinFinder = find.text(pinLabel);
+        expect(hideFinder, findsOneWidget);
+        expect(pinFinder, findsOneWidget);
+
+        await tester.ensureVisible(hideFinder);
+        expect(tester.takeException(), isNull);
+      },
+    );
+
     testWidgets('failed fieldHide restores the node and shows error snackbar', (
       tester,
     ) async {

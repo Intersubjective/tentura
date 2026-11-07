@@ -181,6 +181,27 @@ Future<TimeOfDay?> showAppTimePicker({
   ),
 );
 
+/// Like [showSnackBar] but when the originating [BuildContext] may already be
+/// unmounted (e.g. Field hide removed the preview sheet, #255).
+ScaffoldFeatureController<SnackBar, SnackBarClosedReason>? showSnackBarOn(
+  ScaffoldMessengerState? messenger, {
+  required String text,
+  bool isError = false,
+}) {
+  final resolved = messenger ?? snackbarKey.currentState;
+  if (resolved == null) {
+    if (GetIt.I.isRegistered<Logger>()) {
+      GetIt.I<Logger>().warning('showSnackBarOn: no ScaffoldMessenger: $text');
+    }
+    return null;
+  }
+  if (isError) {
+    GetIt.I<Logger>().warning(text);
+  }
+  resolved.clearSnackBars();
+  return resolved.showSnackBar(SnackBar(content: Text(text)));
+}
+
 /// Returns null (and shows nothing) when no [ScaffoldMessenger] is reachable:
 /// neither above [context] nor mounted under [snackbarKey] (#613).
 ScaffoldFeatureController<SnackBar, SnackBarClosedReason>? showSnackBar(

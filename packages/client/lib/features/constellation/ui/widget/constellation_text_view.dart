@@ -692,62 +692,71 @@ class _PostTile extends StatelessWidget {
           : titleLabel,
       excludeSemantics: true,
       child: Material(
+        key: Key('constellation.text.post.${post.id}'),
         color: selected
             ? theme.colorScheme.primaryContainer.withValues(alpha: 0.35)
             : theme.colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(tt.cardRadius),
-        child: InkWell(
-          key: Key('constellation.text.post.${post.id}'),
-          onTap: onSelect,
-          borderRadius: BorderRadius.circular(tt.cardRadius),
-          child: Padding(
-            padding: tt.cardPadding,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(
-                  Icons.chat_bubble_outline,
-                  size: tt.iconSize,
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-                SizedBox(width: tt.iconTextGap),
-                Expanded(
-                  child: Column(
+        child: Padding(
+          padding: tt.cardPadding,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: InkWell(
+                  onTap: onSelect,
+                  borderRadius: BorderRadius.circular(tt.cardRadius),
+                  child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _ConstellationFieldListBeaconTitleRow(
-                        title: post.rootExcerpt,
-                        hasUnread: hasUnread,
-                        beaconId: post.id,
+                      Icon(
+                        Icons.chat_bubble_outline,
+                        size: tt.iconSize,
+                        color: theme.colorScheme.onSurfaceVariant,
                       ),
-                      if (post.expiresAt != null) ...[
-                        SizedBox(height: tt.tightGap),
-                        PostLifetimeTicker(
-                          expiresAt: post.expiresAt,
-                          archived: !constellationPostActive(
-                            post,
-                            RelativeTimestampTicker.now(),
-                          ),
-                          builder: (context, label) {
-                            if (label.isEmpty) return const SizedBox.shrink();
-                            return Text(
-                              label,
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant,
+                      SizedBox(width: tt.iconTextGap),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _ConstellationFieldListBeaconTitleRow(
+                              title: post.rootExcerpt,
+                              hasUnread: hasUnread,
+                              beaconId: post.id,
+                            ),
+                            if (post.expiresAt != null) ...[
+                              SizedBox(height: tt.tightGap),
+                              PostLifetimeTicker(
+                                expiresAt: post.expiresAt,
+                                archived: !constellationPostActive(
+                                  post,
+                                  RelativeTimestampTicker.now(),
+                                ),
+                                builder: (context, label) {
+                                  if (label.isEmpty) {
+                                    return const SizedBox.shrink();
+                                  }
+                                  return Text(
+                                    label,
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: theme.colorScheme.onSurfaceVariant,
+                                    ),
+                                  );
+                                },
                               ),
-                            );
-                          },
+                            ],
+                          ],
                         ),
-                      ],
+                      ),
                     ],
                   ),
                 ),
-                ConstellationFieldItemOverflowMenu(
-                  targetKind: ConstellationFieldTargetKind.post,
-                  beaconId: post.id,
-                ),
-              ],
-            ),
+              ),
+              ConstellationFieldItemOverflowMenu(
+                targetKind: ConstellationFieldTargetKind.post,
+                beaconId: post.id,
+              ),
+            ],
           ),
         ),
       ),
@@ -810,30 +819,29 @@ class _RequestTile extends StatelessWidget {
         ...markerSemantics,
       ].join('. '),
       child: Material(
+        key: Key('constellation.text.request.${request.id}'),
         color: selected
             ? theme.colorScheme.primaryContainer.withValues(alpha: 0.35)
             : theme.colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(tt.cardRadius),
-        child: InkWell(
-          key: Key('constellation.text.request.${request.id}'),
-          onTap: onSelect,
-          borderRadius: BorderRadius.circular(tt.cardRadius),
-          child: Padding(
-            padding: tt.cardPadding,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // The card is read once, by its label (#678); the visible
-                // title, meta and status are excluded, the Pin button below
-                // stays its own node.
-                ExcludeSemantics(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
+        child: Padding(
+          padding: tt.cardPadding,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: InkWell(
+                      onTap: onSelect,
+                      borderRadius: BorderRadius.circular(tt.cardRadius),
+                      child: ExcludeSemantics(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            // The card is read once, by its label (#678); the
+                            // visible title, meta and status are excluded.
                             _ConstellationFieldListBeaconTitleRow(
                               title: card.title,
                               hasUnread: hasUnread,
@@ -855,41 +863,41 @@ class _RequestTile extends StatelessWidget {
                           ],
                         ),
                       ),
-                      ConstellationFieldItemOverflowMenu(
-                        targetKind: ConstellationFieldTargetKind.request,
-                        beaconId: request.id,
-                      ),
-                    ],
+                    ),
                   ),
-                ),
+                  ConstellationFieldItemOverflowMenu(
+                    targetKind: ConstellationFieldTargetKind.request,
+                    beaconId: request.id,
+                  ),
+                ],
+              ),
+              SizedBox(height: tt.tightGap),
+              ConstellationAnchorTargetButton(
+                target: ConstellationAnchorTarget.beacon(request.id),
+              ),
+              if (connectionLabel != null) ...[
                 SizedBox(height: tt.tightGap),
-                ConstellationAnchorTargetButton(
-                  target: ConstellationAnchorTarget.beacon(request.id),
+                ExcludeSemantics(
+                  child: Text(
+                    connectionLabel!,
+                    key: Key('constellation.text.connection.${request.id}'),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
                 ),
-                if (connectionLabel != null) ...[
-                  SizedBox(height: tt.tightGap),
-                  ExcludeSemantics(
-                    child: Text(
-                      connectionLabel!,
-                      key: Key('constellation.text.connection.${request.id}'),
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ),
-                ],
-                if (held != null) ...[
-                  SizedBox(height: tt.tightGap),
-                  ExcludeSemantics(
-                    child: TenturaStatusText(
-                      held,
-                      tone: TenturaTone.info,
-                      maxLines: 2,
-                    ),
-                  ),
-                ],
               ],
-            ),
+              if (held != null) ...[
+                SizedBox(height: tt.tightGap),
+                ExcludeSemantics(
+                  child: TenturaStatusText(
+                    held,
+                    tone: TenturaTone.info,
+                    maxLines: 2,
+                  ),
+                ),
+              ],
+            ],
           ),
         ),
       ),
