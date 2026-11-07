@@ -339,6 +339,11 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   /// Forward-tree fit uses this so it matches the map stack without a context.
   EdgeInsets _fieldCameraViewportSnapshot = EdgeInsets.zero;
 
+  /// FCP §I: automatic initial framing and re-frame on newly arrived people.
+  var _fieldInitialFrameCompleted = false;
+  int? _userInputRevisionAtLastProgrammaticFrame;
+  Set<String>? _fieldPeerIdsAtLastProgrammaticFrame;
+
   /// A store publication or an outbox change arrived while the scene was
   /// frozen; the release applies them together in one compose and layout.
   bool _storeInputHeld = false;
@@ -1177,6 +1182,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     _fieldCameraBottomChromeHeight = 0;
     _fieldCameraMinimapExpanded = false;
     _fieldCameraViewportSnapshot = EdgeInsets.zero;
+    _resetFieldAutomaticFramingState();
     _anchorCase?.deactivate(token: _anchorLifecycleToken);
     _forwardTreePulseTickerDisposed = true;
     _scene.dispose();
@@ -1207,6 +1213,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     required double bottomChromeHeight,
     required bool minimapExpanded,
   }) {
+    final hadViewportSnapshot = _fieldCameraViewportSnapshot != EdgeInsets.zero;
     if (_fieldCameraViewportSnapshot == snapshotInsets &&
         _fieldCameraBottomChromeHeight == bottomChromeHeight &&
         _fieldCameraMinimapExpanded == minimapExpanded) {
@@ -1215,6 +1222,11 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     _fieldCameraViewportSnapshot = snapshotInsets;
     _fieldCameraBottomChromeHeight = bottomChromeHeight;
     _fieldCameraMinimapExpanded = minimapExpanded;
+    if (!hadViewportSnapshot &&
+        snapshotInsets != EdgeInsets.zero &&
+        !_fieldInitialFrameCompleted) {
+      runAfterNextFrame(_runAutomaticFieldFramingIfNeeded);
+    }
   }
 
   /// §C insets for widgets under the Field screen (may be outside ConstellationBody).
@@ -1520,6 +1532,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (outcome is GraphLayoutOutcomeSucceeded) {
       _runPendingFieldCamera();
       _runPendingOverflowRefit();
+      _scheduleAutomaticFieldFraming();
       if (_footprintMetricsPending) {
         // Scene notifications cannot rebuild topology reentrantly.
         scheduleMicrotask(() {
@@ -1651,7 +1664,13 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   }
 
   void _applyLoadedField(ConstellationField field) {
+    final previous = _lastAppliedStoreField;
+    final reload =
+        previous == null || previous.loadedAt != field.loadedAt;
     _lastAppliedStoreField = field;
+    if (reload) {
+      _resetFieldAutomaticFramingState();
+    }
     _armExpiry(field);
     _shownAsOfUtc = _case.nowUtc();
     if (_magnetsStale) unawaited(_loadTagMagnets());
@@ -3445,7 +3464,91 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       minScale: floor,
       focus: 'fp:${_viewer.id}',
     );
+    _recordProgrammaticFieldCamera();
   }
+
+  void _recordProgrammaticFieldCamera() {
+    _fieldInitialFrameCompleted = true;
+    _userInputRevisionAtLastProgrammaticFrame =
+        graphController.userCameraInputRevision.value;
+    _fieldPeerIdsAtLastProgrammaticFrame = _fieldPeerIdsExceptViewer();
+  }
+
+  Set<String> _fieldPeerIdsExceptViewer() {
+    final field = state.field;
+    if (field == null) {
+      return const {};
+    }
+    return {
+      for (final peer in field.peers)
+        if (peer.id != _viewer.id) peer.id,
+    };
+  }
+
+  void _resetFieldAutomaticFramingState() {
+    _fieldInitialFrameCompleted = false;
+    _userInputRevisionAtLastProgrammaticFrame = null;
+    _fieldPeerIdsAtLastProgrammaticFrame = null;
+  }
+
+  void _scheduleAutomaticFieldFraming() {
+    if (state.viewMode != ConstellationViewMode.map) {
+      return;
+    }
+    if (state.tagView != null ||
+        state.isComposing ||
+        state.forwardTreeOverlay != null) {
+      return;
+    }
+    runAfterNextFrame(() {
+      if (isClosed ||
+          state.placementPhase != ConstellationPlacementPhase.idle) {
+        return;
+      }
+      _runAutomaticFieldFramingIfNeeded();
+    });
+  }
+
+  void _runAutomaticFieldFramingIfNeeded() {
+    if (state.field == null || state.viewMode != ConstellationViewMode.map) {
+      return;
+    }
+    if (_fieldCameraViewportSnapshot == EdgeInsets.zero) {
+      runAfterNextFrame(() {
+        if (!isClosed &&
+            _fieldCameraViewportSnapshot != EdgeInsets.zero &&
+            state.placementPhase == ConstellationPlacementPhase.idle) {
+          _runAutomaticFieldFramingIfNeeded();
+        }
+      });
+      return;
+    }
+    final insets = _fieldCameraViewportSnapshot;
+    if (!_fieldInitialFrameCompleted) {
+      frameField(insets: insets, floor: kConstellationCloseDetailScale);
+      return;
+    }
+    final previous = _fieldPeerIdsAtLastProgrammaticFrame;
+    if (previous == null) {
+      return;
+    }
+    final currentPeers = _fieldPeerIdsExceptViewer();
+    if (currentPeers.difference(previous).isEmpty) {
+      return;
+    }
+    if (graphController.userCameraInputRevision.value !=
+        _userInputRevisionAtLastProgrammaticFrame) {
+      return;
+    }
+    frameField(insets: insets, floor: kConstellationCloseDetailScale);
+  }
+
+  @visibleForTesting
+  bool get fieldInitialFrameCompletedForTest => _fieldInitialFrameCompleted;
+
+  @visibleForTesting
+  int get fieldPeerCountAtLastProgrammaticFrameForTest =>
+      _fieldPeerIdsAtLastProgrammaticFrame?.length ?? 0;
 
   void _runPendingFieldCamera() {
     final pending = _pendingFieldCamera;
@@ -3461,6 +3564,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (pending.centerOnEgo) {
       _restoreNormalFieldPositionsBeforeFraming();
       _scene.centreOnEgo(_viewer.id, pending.insets);
+      _recordProgrammaticFieldCamera();
       return;
     }
     _runFieldFrame(insets: pending.insets, floor: pending.frameFloor!);
@@ -3534,6 +3638,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     }
     _restoreNormalFieldPositionsBeforeFraming();
     _scene.centreOnEgo(_viewer.id, insets);
+    _recordProgrammaticFieldCamera();
   }
 
   void updateLabelBudgetContext({

@@ -565,7 +565,7 @@ void main() {
       await pumpConstellationBody(tester, cubit);
       await tester.pumpAndSettle();
 
-      cubit.graphController.zoomBy(0.5);
+      cubit.graphController.zoomBy(1.2);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
 

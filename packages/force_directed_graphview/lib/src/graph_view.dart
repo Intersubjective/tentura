@@ -34,6 +34,7 @@ class GraphView<N, E> extends StatefulWidget {
     this.builder,
     this.minScale = 0.5,
     this.maxScale = 2,
+    this.centerOnFirstLayout = true,
     this.layoutTransitionDuration = Duration.zero,
     this.layoutTransitionCurve = Curves.easeOutCubic,
     this.layoutTransitionStages = const {},
@@ -88,6 +89,11 @@ class GraphView<N, E> extends StatefulWidget {
 
   /// The maximum scale of the [InteractiveViewer] that wraps the graph.
   final double maxScale;
+
+  /// When true (default), the first successful layout jumps the camera to the
+  /// canvas centre at scale 1.0. Set false when the app performs its own
+  /// initial framing (e.g. Tentura Field).
+  final bool centerOnFirstLayout;
 
   /// How long the graph takes to move from the previous layout to a newly
   /// computed one. [Duration.zero] (the default) applies layouts instantly,
@@ -203,6 +209,7 @@ class _GraphViewState<N, E> extends State<GraphView<N, E>>
       transitionStages: widget.layoutTransitionStages,
       minScale: widget.minScale,
       maxScale: widget.maxScale,
+      centerOnFirstLayout: widget.centerOnFirstLayout,
     );
   }
 
