@@ -42,35 +42,49 @@ Color constellationFieldUnreadGlowColor({
   return tt.attentionHighlight;
 }
 
-/// Shared white radial sprite; tinted at draw time.
+/// Shared radial sprites tinted at draw time: white (additive on dark) and black
+/// (soft tinted shadow on light — white sprites vanish on light backgrounds).
 class ConstellationFieldUnreadGlowAtlas {
-  ConstellationFieldUnreadGlowAtlas._(this.image);
+  ConstellationFieldUnreadGlowAtlas._(this._dark, this._light);
 
-  final ui.Image image;
+  final ui.Image _dark;
+  final ui.Image _light;
+
+  ui.Image imageFor({required bool isDark}) => isDark ? _dark : _light;
 
   static ConstellationFieldUnreadGlowAtlas? _instance;
 
   static ConstellationFieldUnreadGlowAtlas get instance {
-    return _instance ??= ConstellationFieldUnreadGlowAtlas._(_build());
+    return _instance ??= ConstellationFieldUnreadGlowAtlas._(
+      _buildRadialSprite(center: const Color(0xFFFFFFFF), midAlpha: 0.38),
+      _buildRadialSprite(
+        center: Colors.black,
+        midAlpha: 0.62,
+      ),
+    );
   }
 
   @visibleForTesting
   static void resetForTest() {
-    _instance?.image.dispose();
+    _instance?._dark.dispose();
+    _instance?._light.dispose();
     _instance = null;
   }
 
-  static ui.Image _build() {
+  static ui.Image _buildRadialSprite({
+    required Color center,
+    required double midAlpha,
+  }) {
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
     const size = kConstellationFieldUnreadGlowSpriteSize;
-    final rect = Rect.fromLTWH(0, 0, size, size);
+    const rect = Rect.fromLTWH(0, 0, size, size);
     final paint = Paint()
       ..shader = RadialGradient(
         colors: [
-          const Color(0xFFFFFFFF),
-          const Color(0xFFFFFFFF).withValues(alpha: 0.38),
-          const Color(0xFFFFFFFF).withValues(alpha: 0),
+          center,
+          center.withValues(alpha: midAlpha),
+          center.withValues(alpha: 0),
         ],
         stops: const [0, 0.42, 1],
       ).createShader(rect);
@@ -286,12 +300,13 @@ class ConstellationFieldUnreadGlowPainter extends CustomPainter {
       _paintHighContrastDots(canvas);
       return;
     }
-    final src = const Rect.fromLTWH(
+    const src = Rect.fromLTWH(
       0,
       0,
       kConstellationFieldUnreadGlowSpriteSize,
       kConstellationFieldUnreadGlowSpriteSize,
     );
+    final sprite = atlas.imageFor(isDark: isDark);
     final baseAlpha = isDark ? alphaDark : alphaLight;
     for (final entry in glowSites.entries) {
       final body = frame.bodies[entry.key];
@@ -311,10 +326,8 @@ class ConstellationFieldUnreadGlowPainter extends CustomPainter {
         ..color = color.withValues(alpha: alpha);
       if (isDark) {
         paint.blendMode = BlendMode.plus;
-        canvas.drawImageRect(atlas.image, src, dst, paint);
-      } else {
-        canvas.drawImageRect(atlas.image, src, dst, paint);
       }
+      canvas.drawImageRect(sprite, src, dst, paint);
     }
   }
 

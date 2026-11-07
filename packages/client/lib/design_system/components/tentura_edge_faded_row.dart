@@ -26,8 +26,26 @@ class TenturaEdgeFadedRow extends StatefulWidget {
 class _TenturaEdgeFadedRowState extends State<TenturaEdgeFadedRow> {
   static const _fadeWidth = TenturaSpacing.scrollEdgeFade;
 
+  final _scrollableContentKey = GlobalKey();
+
   var _moreBefore = false;
   var _moreAfter = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _syncInitialMetrics());
+  }
+
+  void _syncInitialMetrics() {
+    if (!mounted) return;
+    final scrollContext = _scrollableContentKey.currentContext;
+    if (scrollContext == null) return;
+    final position = Scrollable.maybeOf(scrollContext)?.position;
+    if (position != null) {
+      _onMetrics(position);
+    }
+  }
 
   bool _onMetrics(ScrollMetrics metrics) {
     if (metrics.axis != Axis.horizontal) return false;
@@ -75,7 +93,10 @@ class _TenturaEdgeFadedRowState extends State<TenturaEdgeFadedRow> {
         child: NotificationListener<ScrollNotification>(
           onNotification: (notification) =>
               notification.depth == 0 && _onMetrics(notification.metrics),
-          child: widget.child,
+          child: KeyedSubtree(
+            key: _scrollableContentKey,
+            child: widget.child,
+          ),
         ),
       ),
       if (_moreBefore)

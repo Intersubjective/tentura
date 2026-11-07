@@ -136,15 +136,18 @@ class _Harness {
     return box.localToGlobal(Offset.zero) & box.size;
   }
 
-  List<Element> beside(String name, Finder label) {
-    final nameRect = tester.getRect(find.text(name));
-    return label.evaluate().where((e) {
+  /// Arrival note / role line under the name (subtitle), not on the same row.
+  bool hasSubtitleFor(String name, Finder label) {
+    final nameFinder = find.text(name);
+    if (nameFinder.evaluate().isEmpty) return false;
+    final nameRect = tester.getRect(nameFinder);
+    return label.evaluate().any((e) {
       final r = _rect(e);
-      return (r.center.dy - nameRect.center.dy).abs() < nameRect.height;
-    }).toList();
+      return r.top >= nameRect.bottom - 1 &&
+          r.left >= nameRect.left - 4 &&
+          r.left <= nameRect.left + 8;
+    });
   }
-
-  bool hasBeside(String name, Finder label) => beside(name, label).isNotEmpty;
 
   double top(Finder f) => tester.getRect(f).top;
 }
@@ -230,7 +233,7 @@ void main() {
     ) async {
       final h = await _pump(tester);
 
-      expect(h.hasBeside('Олег', find.text('автор')), isTrue);
+      expect(h.hasSubtitleFor('Олег', find.text('автор')), isTrue);
       expect(find.text('Вы'), findsOneWidget);
       expect(find.text(_viewer.displayName), findsNothing);
     });
@@ -328,7 +331,7 @@ void main() {
     ) async {
       final h = await _pump(tester);
 
-      expect(h.hasBeside('Света', find.text('через Мария')), isTrue);
+      expect(h.hasSubtitleFor('Света', find.text('через Мария')), isTrue);
     });
 
     testWidgets('participant rows offer no inline trust control', (
@@ -422,13 +425,50 @@ void main() {
         tester,
       ) async {
         await usePhoneSurface(tester);
-        await _pump(tester, surface: kPhoneSurface);
+        final h = await _pump(tester, surface: kPhoneSurface);
 
         expect(tester.takeException(), isNull);
         expect(find.text('Участники · 7'), findsOneWidget);
         expect(find.text('В ПОСТЕ · 5'), findsOneWidget);
-        expect(find.text('через Мария'), findsOneWidget);
+        expect(h.hasSubtitleFor('Света', find.text('через Мария')), isTrue);
         expect(find.byType(Switch), findsNothing);
+      },
+    );
+
+    testWidgets(
+      '375×667 RU: invited-by line shows in full without overflow',
+      (tester) async {
+        await usePhoneSurface(tester);
+        const inviter = 'Q71VeryLongInviterNameThatPreviouslyEllipsizedOnPhone';
+        final l10n = lookupL10n(const Locale('ru'));
+        await _pump(
+          tester,
+          surface: kPhoneSurface,
+          participants: [
+            _participant(
+              'Uauthor',
+              'Олег',
+              role: BeaconParticipantRoleBits.author,
+              lastSeenRoomAt: _seenAt,
+            ),
+            _participant(
+              _viewerId,
+              _viewer.displayName,
+              lastSeenRoomAt: _seenAt,
+            ),
+            _participant(
+              'Uinvitee',
+              'Катя',
+              lastSeenRoomAt: _seenAt,
+              broughtByName: inviter,
+              broughtHow: BeaconParticipantBroughtHow.invite,
+            ),
+          ],
+        );
+
+        final note = l10n.postParticipantInvitedBy(inviter);
+        expect(find.text(note), findsOneWidget);
+        expect(tester.takeException(), isNull);
       },
     );
   });
@@ -464,7 +504,7 @@ void main() {
         ],
       );
 
-      expect(h.hasBeside('Sam', find.text('invited by Bob GQ')), isTrue);
+      expect(h.hasSubtitleFor('Sam', find.text('invited by Bob GQ')), isTrue);
     });
 
     testWidgets('forward: shows via from server', (tester) async {
@@ -495,7 +535,7 @@ void main() {
         ],
       );
 
-      expect(h.hasBeside('Sam', find.text('via Bob GQ')), isTrue);
+      expect(h.hasSubtitleFor('Sam', find.text('via Bob GQ')), isTrue);
     });
 
     testWidgets('omits a line when broughtBy is null', (tester) async {
