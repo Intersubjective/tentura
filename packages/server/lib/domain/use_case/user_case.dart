@@ -50,11 +50,9 @@ final class UserCase extends UseCaseBase {
 
   final AccountErasureCase _accountErasure;
 
-  //
   Future<UserEntity> getProfile({required String id}) =>
       _userRepository.getById(id);
 
-  //
   Future<UserEntity> updateProfile({
     required String id,
     String? displayName,
@@ -64,9 +62,7 @@ final class UserCase extends UseCaseBase {
     bool setHandle = false,
     String? handle,
   }) async {
-    if (setHandle &&
-        handle != null &&
-        handle.trim().isNotEmpty) {
+    if (setHandle && handle != null && handle.trim().isNotEmpty) {
       final h = handle.trim().toLowerCase();
       if (!isValidUserHandleFormat(h)) {
         throw const IdWrongException(

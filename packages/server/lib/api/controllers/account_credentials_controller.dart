@@ -143,8 +143,6 @@ final class AccountCredentialsController {
     }
   }
 
-  //
-  //
   String? _accountId(Request request) {
     final jwt = request.context[kContextJwtKey] as JwtEntity?;
     return (jwt == null || jwt.sub.isEmpty) ? null : jwt.sub;

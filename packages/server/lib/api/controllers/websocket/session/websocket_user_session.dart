@@ -13,16 +13,12 @@ class WebsocketUserSession {
 
   DateTime get lastSeen => _lastSeen;
 
-  //
   void touch() => _lastSeen = DateTime.now();
 
-  //
   void addWorker(Timer worker) => _workers.add(worker);
 
-  //
   void removeWorker(Timer worker) => _workers.remove(worker);
 
-  //
   void cancel() {
     for (final worker in _workers) {
       worker.cancel();

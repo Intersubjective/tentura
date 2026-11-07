@@ -132,8 +132,6 @@ class FcmRemoteRepository implements FcmRemoteRepositoryPort {
     return results;
   }
 
-  //
-  //
   Future<String> _getAccessToken() async {
     final now = DateTime.timestamp();
 
