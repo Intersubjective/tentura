@@ -191,7 +191,7 @@ void _expectTitleWhole(WidgetTester tester, String title) {
 }
 
 void main() {
-  testWidgets('RU 375×667: «Обновления» fits; post expiry row is Russian', (
+  testWidgets('RU 375×667: «История» fits; post expiry row is Russian', (
     tester,
   ) async {
     await usePhoneSurface(tester);
@@ -201,7 +201,11 @@ void main() {
       repository: _HistoryFeedRepo([_postExpiringReceipt()]),
     );
 
-    _expectTitleWhole(tester, ru.notificationHistoryTitle);
+    final title = find.text(ru.notificationHistoryScreenTitle);
+    expect(title, findsOneWidget);
+    final titleRect = tester.getRect(title);
+    expect(titleRect.right, lessThanOrEqualTo(kPhoneSurface.width));
+    expect(titleRect.left, greaterThanOrEqualTo(0));
     expect(find.textContaining('Пост скоро истечёт'), findsOneWidget);
     expect(find.textContaining('about to expire'), findsNothing);
     expect(find.byType(UpdatesFeedTile), findsOneWidget);

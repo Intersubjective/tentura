@@ -99,7 +99,13 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Garden cleanup'), findsOneWidget);
-    expect(find.textContaining('ago'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(UpdatesFeedTile),
+        matching: find.textContaining('Aug'),
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('live obligation shows explicit next-step hint', (tester) async {
