@@ -542,6 +542,7 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
     _cancelCanvasPress();
     _captureNode(nodeId, pointer, scenePosition);
     if (_capturedNodeId == null) {
+      _configuration.onCanvasLongPressDragFailed?.call(nodeId);
       return true;
     }
     _stillLiftDownGlobal = downGlobal;

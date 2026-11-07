@@ -32,6 +32,10 @@ class ConstellationInteractionController {
       {};
   final Map<GraphNodeId, Offset> clusterStartCentres = {};
   final Map<GraphNodeId, double> groupMemberWeights = {};
+
+  /// How much of the pointer's travel the held node itself follows (a person
+  /// in several tags moves by a share of a tag drag, like the group members).
+  double parentWeight = 1;
   final List<(Offset start, double weight)> virtualWeightedMembers = [];
 
   /// When dragging a tag hull (see [virtualWeightedMembers]), the magnet that
@@ -61,6 +65,7 @@ class ConstellationInteractionController {
     placementClusterTargets.clear();
     clusterStartCentres.clear();
     groupMemberWeights.clear();
+    parentWeight = 1;
     virtualWeightedMembers.clear();
     tagAreaMagnetTagId = null;
     tagAreaMagnetStartScene = null;
@@ -139,6 +144,16 @@ class ConstellationInteractionController {
     return weightedLimitedDelta(parentGraphId, proposedDelta);
   }
 
+  /// The pointer's centre that put the held [parentGraphId] node at
+  /// [heldCentre]: the inverse of the weighted share the node follows.
+  Offset pointerCentreFor(GraphNodeId parentGraphId, Offset heldCentre) {
+    final start = clusterStartCentres[parentGraphId];
+    if (start == null || parentWeight == 1 || parentWeight <= 0) {
+      return heldCentre;
+    }
+    return start + (heldCentre - start) / parentWeight;
+  }
+
   void clearClusterPresentations() {
     placementClusterGraphIds.forEach(
       _graphController.clearPresentationForNodeId,
@@ -213,11 +228,13 @@ class ConstellationInteractionController {
     required List<ConstellationAnchor> fallbackAnchors,
     Iterable<ConstellationAnchorTarget> group = const [],
     Map<ConstellationAnchorTarget, double> groupWeights = const {},
+    double parentWeight = 1,
     List<(Offset sceneStart, double weight)> virtualMembers = const [],
     String? tagAreaMagnetTagId,
     Offset? tagAreaMagnetStartScene,
   }) {
     clearPlacementClusterState();
+    this.parentWeight = parentWeight;
     _beginDragPresentation(target);
     final parentGraphId = constellationGraphNodeIdForTarget(target);
     placementClusterGraphIds.add(parentGraphId);
@@ -363,8 +380,8 @@ class ConstellationInteractionController {
     final start = clusterStartCentres[graphId]!;
     if (graphId == parentGraphId) {
       return Offset(
-        start.dx + parentDelta.x,
-        start.dy + parentDelta.y,
+        start.dx + parentDelta.x * parentWeight,
+        start.dy + parentDelta.y * parentWeight,
       );
     }
     if (groupMemberGraphIds.contains(graphId)) {

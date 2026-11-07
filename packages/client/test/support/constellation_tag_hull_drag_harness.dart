@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
@@ -15,6 +17,7 @@ import 'package:tentura/features/constellation/ui/bloc/constellation_composer_cu
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_selection_cubit.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_tag_lens_cubit.dart';
+import 'package:tentura/features/constellation/ui/scene/constellation_scene_controller.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
 import 'package:tentura/features/graph/domain/use_case/graph_trust_write_case.dart';
@@ -58,9 +61,11 @@ final class HullDragHarness {
     required this.selection,
     required this.lens,
     required this.server,
+    required this.scene,
   });
 
   final ConstellationCubit cubit;
+  final ConstellationSceneController scene;
   final ConstellationSelectionCubit selection;
   final ConstellationTagLensCubit lens;
   final ArrangeAnchorRepository server;
@@ -146,7 +151,7 @@ final class _Layout implements SceneLayoutAlgorithm {
   }
 }
 
-Map<String, dynamic> _peer(String id) => {
+Map<String, dynamic> _peer(String id, {bool contactOnly = false}) => {
   '__typename': 'v2_ConstellationPeer',
   'id': id,
   'displayName': switch (id) {
@@ -156,9 +161,9 @@ Map<String, dynamic> _peer(String id) => {
     'dan' => 'Денис',
     _ => 'Елена',
   },
-  'contactOnly': false,
-  'visible': true,
-  'presence': 'visible',
+  'contactOnly': contactOnly,
+  'visible': !contactOnly,
+  'presence': contactOnly ? 'contactOnly' : 'visible',
   'temporaryBeaconId': null,
   'bondContexts': <dynamic>[],
   'handle': null,
@@ -167,7 +172,10 @@ Map<String, dynamic> _peer(String id) => {
   'isNew': false,
 };
 
-Map<String, dynamic> _fieldWire(ArrangeAnchorRepository server) => {
+Map<String, dynamic> _fieldWire(
+  ArrangeAnchorRepository server, {
+  required List<String> unreachablePeerIds,
+}) => {
   '__typename': 'query_root',
   'constellationField': {
     '__typename': 'v2_ConstellationField',
@@ -176,7 +184,12 @@ Map<String, dynamic> _fieldWire(ArrangeAnchorRepository server) => {
     'peersCapped': false,
     'requestsCapped': false,
     'directContactIds': hullDragPeople,
-    'peers': [for (final id in hullDragPeople) _peer(id)],
+    // Unreachable peers are tagged contacts the server lists as contact-only:
+    // the map draws no node for them.
+    'peers': [
+      for (final id in hullDragPeople) _peer(id),
+      for (final id in unreachablePeerIds) _peer(id, contactOnly: true),
+    ],
     'edges': [
       for (final id in hullDragPeople)
         {
@@ -261,6 +274,14 @@ Future<void> withHullDragField(
   Future<void> Function(HullDragHarness harness) body, {
   required bool arranging,
   bool overlapping = false,
+  // Replaces the default tag membership: tag id -> member ids, one own tag
+  // per entry in map order.
+  Map<String, List<String>>? tagMembers,
+  // Tagged people the server lists but the map does not draw.
+  List<String> unreachablePeerIds = const [],
+  // Keeps the mocked wire open for the whole test body, so a test can change
+  // [tagMembers] and have `PeopleTagsCase.load()` fetch the new membership.
+  bool keepWireOpen = false,
   Locale locale = const Locale('ru'),
 }) async {
   await usePhoneSurface(tester);
@@ -277,8 +298,14 @@ Future<void> withHullDragField(
   late Future<void> Function() dispose;
   // Finish network setup in the real async zone, as other wire/widget
   // fixtures do. Pointer timers and pumps below stay in widget fake time.
-  await tester.runAsync(
-    () => withRemoteWire(
+  // Created inside runAsync so they complete in the real-async zone.
+  late Completer<void> wireReady;
+  late Completer<void> wireGate;
+  Future<void>? wireRun;
+  await tester.runAsync(() async {
+    wireReady = Completer<void>();
+    wireGate = Completer<void>();
+    wireRun = withRemoteWire(
       const {},
       sent,
       (remote) async {
@@ -308,7 +335,9 @@ Future<void> withHullDragField(
           env: const Env(),
           logger: Logger('TagHullDrag'),
         );
+        final scene = ConstellationSceneController();
         final cubit = ConstellationCubit(
+          scene: scene,
           case_: store,
           placementCase: placement,
           viewer: const Profile(id: 'ego', displayName: 'Я'),
@@ -323,6 +352,7 @@ Future<void> withHullDragField(
           selection: selection,
           lens: lens,
           server: server,
+          scene: scene,
         );
         dispose = () async {
           await lens.close();
@@ -333,28 +363,47 @@ Future<void> withHullDragField(
           await tags.dispose();
           await sync.port.dispose();
         };
+        if (keepWireOpen) {
+          wireReady.complete();
+          await wireGate.future;
+        }
       },
       responseFor: (request) async => switch (request.operationName) {
         'ConstellationFieldFetch' || 'ConstellationAnchorsFetch' => _fieldWire(
           server,
+          unreachablePeerIds: unreachablePeerIds,
         ),
         'PersonTags' => {
           '__typename': 'query_root',
-          'personTags': [
-            _tag('tag-a', 'Соседи', 0),
-            if (overlapping) _tag('tag-b', 'Мастерская', 1),
-          ],
+          'personTags': tagMembers == null
+              ? [
+                  _tag('tag-a', 'Соседи', 0),
+                  if (overlapping) _tag('tag-b', 'Мастерская', 1),
+                ]
+              : [
+                  for (final (i, id) in tagMembers.keys.indexed)
+                    _tag(id, 'Тег $id', i),
+                ],
         },
         'PersonTagMemberships' => {
           '__typename': 'query_root',
           'personTagMemberships': [
-            {
-              '__typename': 'PersonTagMembership',
-              'tagId': 'tag-a',
-              'personIds': hullDragMembers,
-              'inherited': <dynamic>[],
-            },
-            if (overlapping)
+            if (tagMembers != null)
+              for (final entry in tagMembers.entries)
+                {
+                  '__typename': 'PersonTagMembership',
+                  'tagId': entry.key,
+                  'personIds': entry.value,
+                  'inherited': <dynamic>[],
+                },
+            if (tagMembers == null)
+              {
+                '__typename': 'PersonTagMembership',
+                'tagId': 'tag-a',
+                'personIds': hullDragMembers,
+                'inherited': <dynamic>[],
+              },
+            if (tagMembers == null && overlapping)
               {
                 '__typename': 'PersonTagMembership',
                 'tagId': 'tag-b',
@@ -367,8 +416,13 @@ Future<void> withHullDragField(
           'Unexpected wire operation: ${request.operationName}',
         ),
       },
-    ),
-  );
+    );
+    if (keepWireOpen) {
+      await wireReady.future;
+    } else {
+      await wireRun;
+    }
+  });
   final cubit = harness.cubit;
   final selection = harness.selection;
   final lens = harness.lens;
@@ -448,6 +502,10 @@ Future<void> withHullDragField(
     await body(harness);
   } finally {
     await tester.pumpWidget(const SizedBox.shrink());
-    await tester.runAsync(dispose);
+    await tester.runAsync(() async {
+      await dispose();
+      if (!wireGate.isCompleted) wireGate.complete();
+      await wireRun;
+    });
   }
 }

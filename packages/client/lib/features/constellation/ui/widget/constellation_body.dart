@@ -2265,6 +2265,12 @@ class _ConstellationBodyState extends State<ConstellationBody>
                       composer.createCubit != null
                   ? null
                   : (scene) => _liftTagHull(cubit, scene),
+              // The hold named a member the map could not grab: no node drag
+              // follows, so the lifted tag is put down here.
+              onCanvasLongPressDragFailed: (_) {
+                _lowerTagHull();
+                cubit.onPointerCancelDuringDrag();
+              },
               minScale: 0.1,
               maxScale: 2,
               centerOnFirstLayout: false,
