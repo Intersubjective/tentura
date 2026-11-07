@@ -386,6 +386,12 @@ class _V2RoutingLink extends Link {
     'ConstellationAcknowledgeNew',
     'FieldHide',
     'FieldUnhide',
+    // #1046: Field reads implemented on V2 — bypass Hasura remote schema.
+    'FieldSearch',
+    'FieldHiddenItems',
+    'PersonFieldItems',
+    'ConstellationViewerRelations',
+    'BeaconMemberWebs',
     'ConstellationLayoutSnapshotRestore',
     'ConstellationLayoutSnapshotSave',
     'ConstellationLayoutFavouriteRestore',

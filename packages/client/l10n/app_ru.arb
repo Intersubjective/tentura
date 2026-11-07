@@ -6686,6 +6686,7 @@
   "constellationFieldSearchPrompt": "Начните вводить текст, чтобы искать по «Полю».",
   "constellationFieldSearchMinChars": "Введите не меньше двух символов.",
   "constellationFieldSearchSelfOnly": "Совпадаете только вы — остальных на «Поле» смотрите на карте.",
+  "constellationFieldSearchUnavailable": "Поиск по «Полю» сейчас недоступен. Показаны только люди с карты.",
   "constellationFieldSearchStatusHidden": "Скрыто",
   "constellationFieldSearchStatusClosed": "Закрыто",
   "constellationListDirectContacts": "Кому вы доверяете",

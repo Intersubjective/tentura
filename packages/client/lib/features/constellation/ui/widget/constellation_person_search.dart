@@ -322,6 +322,14 @@ class _ConstellationPersonSearchButtonState
     final widgets = <Widget>[];
 
     if (useOfflinePeople) {
+      if (_searchError != null) {
+        widgets.add(
+          ListTile(
+            key: const Key('constellation.field_search.error'),
+            title: Text(l10n.constellationFieldSearchUnavailable),
+          ),
+        );
+      }
       widgets.addAll(
         _localPeopleSuggestions(
           context,
