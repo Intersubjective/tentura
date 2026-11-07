@@ -1135,7 +1135,6 @@ class _ConstellationBodyState extends State<ConstellationBody>
         return;
       }
       setState(() {});
-      _syncCameraViewportInsetsFromController();
     });
   }
 
@@ -4054,6 +4053,9 @@ class _ConstellationFieldHoldHintBanner extends StatelessWidget {
           return const SizedBox.shrink();
         }
         if (RendererBinding.instance.mouseTracker.mouseIsConnected) {
+          return const SizedBox.shrink();
+        }
+        if (context.windowClass != WindowClass.compact) {
           return const SizedBox.shrink();
         }
         final l10n = L10n.of(context)!;

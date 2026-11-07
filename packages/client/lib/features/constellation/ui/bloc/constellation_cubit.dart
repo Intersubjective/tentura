@@ -1741,6 +1741,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     _reconcileSelection(composition);
     if (deferTargets.isEmpty && !unchangedLayout) {
       _reconcileLayout(immediateHandoff: true);
+    } else if (deferTargets.isEmpty) {
+      _scene.syncLabelDisplayPlan(composition.labelPlan);
     }
   }
 
@@ -5272,6 +5274,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   }
 
   ConstellationComposedPresentation? _peopleFor;
+  ConstellationField? _peopleFieldFor;
   List<ConstellationFieldPerson> _people = const [];
 
   /// The field's people, the same population the map draws (#253): the
@@ -5282,8 +5285,10 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (field == null || composition == null) {
       return const [];
     }
-    if (!identical(composition, _peopleFor)) {
+    if (!identical(composition, _peopleFor) ||
+        !identical(field, _peopleFieldFor)) {
       _peopleFor = composition;
+      _peopleFieldFor = field;
       _people = constellationFieldPeople(
         field: field,
         composition: composition,
