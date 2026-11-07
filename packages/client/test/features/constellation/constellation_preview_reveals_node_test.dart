@@ -8,7 +8,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
-import 'package:tentura/features/constellation/ui/widget/constellation_camera_controls.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura/features/graph/ui/utils/graph_scene_ids.dart';
 import 'package:tentura/features/graph/ui/widget/graph_person_context_panel.dart';
@@ -317,7 +316,7 @@ void main() {
         final context = tester.element(find.byType(ConstellationBody));
         final tt = context.tt;
         final mapH = size.height - tt.appBarHeight - tt.bottomNavHeight;
-        final insets = ConstellationCameraControls.cameraViewportInsets(
+        final insets = cubit.fieldCameraViewportInsets(
           context,
           contextPanelVisible: true,
           compactSheetHeight: mapH * tt.fieldSheetPeekFraction,

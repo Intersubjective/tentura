@@ -158,6 +158,15 @@ EdgeDirected _e(
   branch: null,
   srcTotalNeighborCount: srcTotal,
   dstTotalNeighborCount: dstTotal,
+  forwardEdgeId: null,
+  forwardRecipientIsGhostEndpoint: null,
+  forwardOfferStatus: null,
+  forwardDeclinedInvite: null,
+  forwardReadAt: null,
+  forwardForwardedOn: null,
+  forwardSenderAnonymousCount: null,
+  forwardRecipientAnonymousCount: null,
+  forwardParentEdgeId: null,
 );
 
 GraphCubit _cubit(_FakeGraphSource source) => GraphCubit(

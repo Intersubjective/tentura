@@ -58,6 +58,15 @@ EdgeDirected _edge(String src, String dst) => (
   branch: null,
   srcTotalNeighborCount: null,
   dstTotalNeighborCount: null,
+          forwardEdgeId: null,
+          forwardRecipientIsGhostEndpoint: null,
+          forwardOfferStatus: null,
+          forwardDeclinedInvite: null,
+          forwardReadAt: null,
+          forwardForwardedOn: null,
+          forwardSenderAnonymousCount: null,
+          forwardRecipientAnonymousCount: null,
+          forwardParentEdgeId: null,
 );
 
 void main() {
@@ -78,6 +87,7 @@ void main() {
         helpOffererIds: const <String>{},
         authorId: 'Ume',
         viewerId: 'Ume',
+        path: const [],
       )),
       beaconRepository: _FakeBeaconRepository(),
       profileRepository: _FakeProfileRepository(),

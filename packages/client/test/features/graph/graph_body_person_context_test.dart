@@ -166,6 +166,15 @@ EdgeDirected _e(
   branch: null,
   srcTotalNeighborCount: null,
   dstTotalNeighborCount: dstTotal,
+  forwardEdgeId: null,
+  forwardRecipientIsGhostEndpoint: null,
+  forwardOfferStatus: null,
+  forwardDeclinedInvite: null,
+  forwardReadAt: null,
+  forwardForwardedOn: null,
+  forwardSenderAnonymousCount: null,
+  forwardRecipientAnonymousCount: null,
+  forwardParentEdgeId: null,
 );
 
 Future<void> _settleGraph(WidgetTester tester) async {
