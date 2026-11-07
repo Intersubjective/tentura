@@ -186,15 +186,36 @@ INSERT INTO public.notification_outbox (
       );
     }
 
-    Future<void> insertLiveObligationNoise({
-      required String accountId,
-      required int index,
+    Future<void> seedNoiseBeacons({
+      required String ownerId,
+      required int count,
     }) async {
-      final beaconId = '$otherBeaconPrefix${index.toString().padLeft(3, '0')}';
-      final receiptId = 'Nbrdgob${accountId.hashCode.abs()}${index.toString().padLeft(4, '0')}';
-      await seedBeacon(id: beaconId, ownerId: accountId);
       await writer.execute(
-        Sql.named('''
+        Sql.named("""
+INSERT INTO public.beacon (id, user_id, title, description, status)
+SELECT @prefix || lpad(i::text, 3, '0'), @ownerId, 'Fixture', 'Fixture', 0
+FROM generate_series(0, CAST(@count AS int) - 1) AS i
+ON CONFLICT (id) DO NOTHING
+"""),
+        parameters: {
+          'prefix': otherBeaconPrefix,
+          'ownerId': ownerId,
+          'count': count,
+        },
+      );
+    }
+
+    /// Set-based insert (one round trip) so the fixture stays fast under
+    /// parallel load; [obligation] rows carry requires_action + thread key.
+    Future<void> insertNoise({
+      required String accountId,
+      required int count,
+      required bool obligation,
+    }) async {
+      await seedNoiseBeacons(ownerId: accountId, count: count);
+      final idPrefix = 'Nbrdg${obligation ? 'ob' : 'op'}${accountId.hashCode.abs()}';
+      await writer.execute(
+        Sql.named("""
 INSERT INTO public.notification_outbox (
   id, account_id, category, kind, priority,
   title, body, action_url, dedup_key, created_at,
@@ -202,59 +223,30 @@ INSERT INTO public.notification_outbox (
   destination_kind, presentation_key, presentation_payload,
   suppression_class, access_policy,
   requires_action, attention_thread_key
-) VALUES (
-  @id, @accountId, 'asksOfMe', 'needsMe', 'normal',
-  'Obligation', 'Body', '/attention', @dedupKey,
-  CAST(@createdAt AS timestamptz),
-  @beaconId, @sourceEventKey,
+)
+SELECT
+  r.id, @accountId,
+  CASE WHEN CAST(@obligation AS boolean) THEN 'asksOfMe' ELSE 'coordination' END,
+  CASE WHEN CAST(@obligation AS boolean) THEN 'needsMe' ELSE 'coordinationChanged' END,
+  'normal', 'Noise', 'Body', '/attention', 'dedup-' || r.id,
+  CAST('2026-07-' || ((r.i % 28) + 1) || 'T12:00:00Z' AS timestamptz),
+  @beaconPrefix || lpad(r.i::text, 3, '0'), 'source-' || r.id,
   'beacon', 'request_status_changed', '{"eventType":"fixture"}'::jsonb,
   'standard', 'beacon_content',
-  true, @threadKey
-)
-'''),
+  CAST(@obligation AS boolean),
+  CASE WHEN CAST(@obligation AS boolean)
+    THEN 'v1|needsMe|' || r.id || '|' || @accountId END
+FROM (
+  SELECT i, @idPrefix || lpad(i::text, 4, '0') AS id
+  FROM generate_series(0, CAST(@count AS int) - 1) AS i
+) r
+"""),
         parameters: {
-          'id': receiptId,
           'accountId': accountId,
-          'dedupKey': 'dedup-$receiptId',
-          'createdAt': '2026-07-${(index % 28) + 1}T12:00:00Z',
-          'beaconId': beaconId,
-          'sourceEventKey': 'source-$receiptId',
-          'threadKey': 'v1|needsMe|$receiptId|$accountId',
-        },
-      );
-    }
-
-    Future<void> insertOptionalNoise({
-      required String accountId,
-      required int index,
-    }) async {
-      final beaconId = '$otherBeaconPrefix${index.toString().padLeft(3, '0')}';
-      final receiptId = 'Nbrdgop${accountId.hashCode.abs()}${index.toString().padLeft(4, '0')}';
-      await seedBeacon(id: beaconId, ownerId: accountId);
-      await writer.execute(
-        Sql.named('''
-INSERT INTO public.notification_outbox (
-  id, account_id, category, kind, priority,
-  title, body, action_url, dedup_key, created_at,
-  beacon_id, source_event_key,
-  destination_kind, presentation_key, presentation_payload,
-  suppression_class, access_policy
-) VALUES (
-  @id, @accountId, 'coordination', 'coordinationChanged', 'normal',
-  'Optional', 'Body', '/attention', @dedupKey,
-  CAST(@createdAt AS timestamptz),
-  @beaconId, @sourceEventKey,
-  'beacon', 'request_status_changed', '{"eventType":"fixture"}'::jsonb,
-  'standard', 'beacon_content'
-)
-'''),
-        parameters: {
-          'id': receiptId,
-          'accountId': accountId,
-          'dedupKey': 'dedup-$receiptId',
-          'createdAt': '2026-07-${(index % 28) + 1}T12:00:00Z',
-          'beaconId': beaconId,
-          'sourceEventKey': 'source-$receiptId',
+          'count': count,
+          'obligation': obligation,
+          'beaconPrefix': otherBeaconPrefix,
+          'idPrefix': idPrefix,
         },
       );
     }
@@ -312,12 +304,11 @@ WHERE n.account_id = @accountId
         await seedUser(authorAccountId, 1);
         await seedBeacon(id: targetBeaconId, ownerId: authorAccountId);
 
-        for (var i = 0; i < 180; i++) {
-          await insertLiveObligationNoise(
-            accountId: authorAccountId,
-            index: i,
-          );
-        }
+        await insertNoise(
+          accountId: authorAccountId,
+          count: 180,
+          obligation: true,
+        );
 
         for (var i = 0; i < 20; i++) {
           final messageId = 'Rbrdgplnauth${i.toString().padLeft(2, '0')}';
@@ -354,9 +345,11 @@ WHERE n.account_id = @accountId
         await seedUser(helperAccountId, 2);
         await seedBeacon(id: targetBeaconId, ownerId: helperAccountId);
 
-        for (var i = 0; i < 180; i++) {
-          await insertOptionalNoise(accountId: helperAccountId, index: i);
-        }
+        await insertNoise(
+          accountId: helperAccountId,
+          count: 180,
+          obligation: false,
+        );
 
         for (var i = 0; i < 20; i++) {
           final messageId = 'Rbrdgplnhelp${i.toString().padLeft(2, '0')}';

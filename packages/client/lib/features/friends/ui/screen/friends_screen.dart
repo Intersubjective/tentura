@@ -24,6 +24,7 @@ import 'package:tentura/ui/widget/first_load_gate.dart';
 
 import '../bloc/friends_cubit.dart';
 import '../invite_pending_subtitle.dart';
+import '../invite_pending_title.dart';
 import '../widget/accepted_invite_list_tile.dart';
 import '../widget/friends_app_bar_actions.dart';
 import '../widget/pending_invites_empty_state.dart';
@@ -131,12 +132,10 @@ class _FriendsScreenState extends State<FriendsScreen>
     } else {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!_invitesScrollController.hasClients || !mounted) return;
-        unawaited(
-          _invitesScrollController.animateTo(
-            _invitesScrollController.position.maxScrollExtent,
-            duration: const Duration(milliseconds: 250),
-            curve: Curves.easeOut,
-          ),
+        _invitesScrollController.animateTo(
+          _invitesScrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOut,
         );
       });
       unawaited(
@@ -493,7 +492,8 @@ class _InvitesSegmentList extends StatelessWidget {
             ),
           )
         else ...[
-          if (peopleInvites.isNotEmpty) ...[
+          if (peopleInvites.isNotEmpty &&
+              (isAccepted || beaconInvites.isNotEmpty)) ...[
             SliverToBoxAdapter(
               child: Padding(
                 padding: EdgeInsets.fromLTRB(
@@ -609,9 +609,7 @@ class _InvitesSegmentList extends StatelessWidget {
     final emphasize =
         invitation.id == emphasizedInvitationId && !disableAnimations;
     final addressee = invitation.addresseeName;
-    final name = addressee == null || addressee.isEmpty
-        ? invitation.id
-        : addressee;
+    final name = pendingPeopleInviteTitle(l10n, invitation);
     // "Waiting · Just now" keeps counting while the list is open (U092).
     return RelativeTimestampTicker(
       key: ValueKey(invitation),
@@ -626,7 +624,7 @@ class _InvitesSegmentList extends StatelessWidget {
         onEdit: () async {
           final newName = await InvitationAddresseeDialog.show(
             context,
-            initialName: addressee ?? '',
+            initialName: addressee?.trim() ?? '',
             isEdit: true,
           );
           if (newName == null) return;

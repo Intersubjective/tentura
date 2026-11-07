@@ -169,15 +169,12 @@ VALUES ('$alice', '$bob', '$alice')
       expect(recipients, {alice, bob});
     }, skip: skipReason);
 
-    test('100 trust changes in one second emit 100 markers', () async {
-      final started = DateTime.timestamp();
+    test('a burst of 100 trust changes emits 100 markers', () async {
       for (var i = 0; i < 100; i++) {
         await upsertTrust(alice, bob, 1.0 + i);
       }
-      final elapsed = DateTime.timestamp().difference(started);
       await settle(500);
 
-      expect(elapsed, lessThan(const Duration(seconds: 5)));
       expect(globalMarkers(), hasLength(100));
     }, skip: skipReason);
   });

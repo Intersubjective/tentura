@@ -36,6 +36,17 @@ mixin StringInputValidator {
     return null;
   }
 
+  /// Private invite / addressee label (People → Invitations), not profile display name.
+  String? inviteLabelValidator(L10n l10n, String? name) {
+    if (name == null || name.length < kTitleMinLength) {
+      return l10n.inviteLabelTooShort;
+    }
+    if (name.length > kTitleMaxLength) {
+      return l10n.inviteLabelTooLong;
+    }
+    return null;
+  }
+
   String? beaconTitleValidator(L10n l10n, String? title) {
     if (title == null || title.length < kTitleMinLength) {
       return l10n.titleTooShort;

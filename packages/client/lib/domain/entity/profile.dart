@@ -61,6 +61,10 @@ abstract class Profile with _$Profile implements Likable, Scorable {
   String get shownName =>
       contactName.isNotEmpty ? contactName : localizedDisplayName(displayName);
 
+  /// The person's self-chosen name in the viewer's locale (not the private contact alias).
+  /// Use when [shownName] is a subjective alias that may yield no initials (#1075).
+  String get objectiveDisplayNameForViewer => localizedDisplayName(displayName);
+
   /// Public identity join: non-empty [displayName] and `@handle`, separated
   /// by ` · `. Empty when neither is set. No contact-name overlay.
   String get canonicalPublicLabel {

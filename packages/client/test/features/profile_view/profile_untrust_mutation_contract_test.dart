@@ -8,7 +8,6 @@ import 'package:get_it/get_it.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:logging/logging.dart';
-import 'package:mockito/mockito.dart' show Fake;
 import 'package:rxdart/rxdart.dart';
 
 import 'package:tentura/data/service/remote_api_service.dart';

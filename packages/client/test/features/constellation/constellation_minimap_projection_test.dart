@@ -14,14 +14,48 @@ void main() {
   group('minimap projection', () {
     test('is 104 points square', () {
       expect(kConstellationMinimapSize, 104);
+      expect(kConstellationMinimapInset, 8);
+    });
+
+    test('puts bbox corners at least inset from every edge', () {
+      final projection = ConstellationMinimapProjection.fromPoints(const [
+        (x: 0.0, y: 0.0),
+        (x: 100.0, y: 0.0),
+        (x: 0.0, y: 100.0),
+        (x: 100.0, y: 100.0),
+      ]);
+      const inset = kConstellationMinimapInset;
+      for (final p in [
+        (x: 0.0, y: 0.0),
+        (x: 100.0, y: 0.0),
+        (x: 0.0, y: 100.0),
+        (x: 100.0, y: 100.0),
+      ]) {
+        final dot = projection.worldToMinimap(p);
+        expect(
+          dot.x,
+          inInclusiveRange(inset, kConstellationMinimapSize - inset),
+        );
+        expect(
+          dot.y,
+          inInclusiveRange(inset, kConstellationMinimapSize - inset),
+        );
+      }
     });
 
     test('puts every person inside the minimap square', () {
       final projection = ConstellationMinimapProjection.fromPoints(_people);
+      final inset = projection.inset;
       for (final person in _people) {
         final dot = projection.worldToMinimap(person);
-        expect(dot.x, inInclusiveRange(0, kConstellationMinimapSize));
-        expect(dot.y, inInclusiveRange(0, kConstellationMinimapSize));
+        expect(
+          dot.x,
+          inInclusiveRange(inset, kConstellationMinimapSize - inset),
+        );
+        expect(
+          dot.y,
+          inInclusiveRange(inset, kConstellationMinimapSize - inset),
+        );
       }
     });
 
@@ -35,7 +69,8 @@ void main() {
           dots.map((d) => d.y).reduce((a, b) => a > b ? a : b) -
           dots.map((d) => d.y).reduce((a, b) => a < b ? a : b);
       final longer = width > height ? width : height;
-      expect(longer, greaterThan(kConstellationMinimapSize * 0.8));
+      const inner = kConstellationMinimapSize - 2 * kConstellationMinimapInset;
+      expect(longer, greaterThan(inner * 0.8));
     });
 
     test('keeps the aspect ratio: one scale for both axes', () {
@@ -65,7 +100,7 @@ void main() {
         expect(back.x, closeTo(person.x, 1e-6));
         expect(back.y, closeTo(person.y, 1e-6));
       }
-      const tap = (x: 52.0, y: 13.0);
+      const tap = (x: 52.0, y: 20.0);
       final world = projection.minimapToWorld(tap);
       final again = projection.worldToMinimap(world);
       expect(again.x, closeTo(tap.x, 1e-6));
@@ -108,10 +143,16 @@ void main() {
         right: 9000.0,
         bottom: 9000.0,
       ));
-      expect(frame.left, 0);
-      expect(frame.top, 0);
-      expect(frame.right, kConstellationMinimapSize);
-      expect(frame.bottom, kConstellationMinimapSize);
+      expect(frame.left, kConstellationMinimapFrameClampInset);
+      expect(frame.top, kConstellationMinimapFrameClampInset);
+      expect(
+        frame.right,
+        kConstellationMinimapSize - kConstellationMinimapFrameClampInset,
+      );
+      expect(
+        frame.bottom,
+        kConstellationMinimapSize - kConstellationMinimapFrameClampInset,
+      );
     });
 
     test('clamps only the side of the frame that overhangs the field', () {
@@ -125,8 +166,14 @@ void main() {
       final inside = projection.worldToMinimap((x: 1000, y: 800));
       expect(frame.left, closeTo(inside.x, 1e-9));
       expect(frame.top, closeTo(inside.y, 1e-9));
-      expect(frame.right, kConstellationMinimapSize);
-      expect(frame.bottom, kConstellationMinimapSize);
+      expect(
+        frame.right,
+        kConstellationMinimapSize - kConstellationMinimapFrameClampInset,
+      );
+      expect(
+        frame.bottom,
+        kConstellationMinimapSize - kConstellationMinimapFrameClampInset,
+      );
     });
 
     test('never leaves the minimap square, even for a far-away camera', () {
@@ -138,15 +185,33 @@ void main() {
           right: shift + 800,
           bottom: shift + 600,
         ));
-        expect(frame.left, inInclusiveRange(0, kConstellationMinimapSize));
-        expect(frame.top, inInclusiveRange(0, kConstellationMinimapSize));
+        expect(
+          frame.left,
+          inInclusiveRange(
+            kConstellationMinimapFrameClampInset,
+            kConstellationMinimapSize - kConstellationMinimapFrameClampInset,
+          ),
+        );
+        expect(
+          frame.top,
+          inInclusiveRange(
+            kConstellationMinimapFrameClampInset,
+            kConstellationMinimapSize - kConstellationMinimapFrameClampInset,
+          ),
+        );
         expect(
           frame.right,
-          inInclusiveRange(frame.left, kConstellationMinimapSize),
+          inInclusiveRange(
+            frame.left,
+            kConstellationMinimapSize - kConstellationMinimapFrameClampInset,
+          ),
         );
         expect(
           frame.bottom,
-          inInclusiveRange(frame.top, kConstellationMinimapSize),
+          inInclusiveRange(
+            frame.top,
+            kConstellationMinimapSize - kConstellationMinimapFrameClampInset,
+          ),
         );
       }
     });

@@ -91,6 +91,19 @@ final class SessionAuthRejectedException extends AuthException {
   String get toRu => '${super.toRu} сессия истекла или недействительна';
 }
 
+/// The browser cookie belongs to someone other than the selected account.
+final class SessionAccountMismatchException extends AuthException {
+  const SessionAccountMismatchException(this.displayName);
+
+  final String displayName;
+
+  @override
+  String get toEn => 'Sign in again as $displayName';
+
+  @override
+  String get toRu => 'Войдите снова как $displayName';
+}
+
 /// Authenticated API call failed because the session or bearer token is gone.
 final class AuthSessionLostException extends AuthException {
   const AuthSessionLostException();
@@ -100,6 +113,17 @@ final class AuthSessionLostException extends AuthException {
 
   @override
   String get toRu => 'Не удалось проверить вашу сессию';
+}
+
+/// Another tab replaced the shared cookie with a different account's session.
+final class AuthSessionAccountChangedException extends AuthException {
+  const AuthSessionAccountChangedException();
+
+  @override
+  String get toEn => 'Your account changed in another tab. Reloading…';
+
+  @override
+  String get toRu => 'Аккаунт изменён в другой вкладке. Перезагружаем…';
 }
 
 /// Session could not be verified because the server was slow or unreachable

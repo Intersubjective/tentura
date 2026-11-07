@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -58,17 +57,10 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
                 leading: const AutoLeadingWithFallback(
                   fallbackPath: kPathInbox,
                 ),
-                // #258: back + title + «Read all» text + search on a 375 px
-                // phone leaves the RU title ~18 px short; it scales down a
-                // little instead of being clipped.
-                title: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: AlignmentDirectional.centerStart,
-                  child: Text(
-                    l10n.notificationHistoryTitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.clip,
-                  ),
+                title: Text(
+                  l10n.notificationHistoryScreenTitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 actions: [
                   // #258: text at every width, never an icon-only ✓✓.
