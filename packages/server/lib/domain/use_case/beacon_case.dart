@@ -219,7 +219,6 @@ final class BeaconCase extends UseCaseBase {
     }
   }
 
-  //
   Future<BeaconEntity> create({
     required String userId,
     required String title,
@@ -1013,7 +1012,6 @@ final class BeaconCase extends UseCaseBase {
     },
   );
 
-  //
   Future<bool> deleteById({
     required String beaconId,
     required String userId,

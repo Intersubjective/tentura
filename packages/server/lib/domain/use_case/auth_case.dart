@@ -59,8 +59,6 @@ final class AuthCase extends UseCaseBase {
     )..validate();
   }
 
-  //
-  //
   Future<JwtEntity> signIn({
     required String authRequestToken,
   }) async {
@@ -82,8 +80,6 @@ final class AuthCase extends UseCaseBase {
     return _issueJwt(user.id, credentialId: credentialId);
   }
 
-  //
-  //
   Future<JwtEntity> signUp({
     required String authRequestToken,
     required String displayName,
@@ -215,8 +211,6 @@ final class AuthCase extends UseCaseBase {
     );
   }
 
-  //
-  //
   Future<bool> signOut({
     required JwtEntity jwt,
   }) async => true;
@@ -230,8 +224,6 @@ final class AuthCase extends UseCaseBase {
               as Map)[AuthRequestIntent.keyPublicKey]
           as String;
 
-  //
-  //
   JWT _verifyAuthRequest(String token) {
     final jwtDecoded = JWT.decode(token);
 
@@ -282,7 +274,6 @@ final class AuthCase extends UseCaseBase {
     );
   }
 
-  //
   static const _uuid = Uuid();
 
   /// JWT claim carrying the authenticating `account_credential.id`.

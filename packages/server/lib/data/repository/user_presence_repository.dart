@@ -22,8 +22,6 @@ class UserPresenceRepository implements UserPresenceRepositoryPort {
 
   final TenturaDb _database;
 
-  //
-  //
   @override
   Future<UserPresenceEntity?> get(String userId) => _database
       .managers
@@ -32,8 +30,6 @@ class UserPresenceRepository implements UserPresenceRepositoryPort {
       .getSingleOrNull()
       .then((e) => e == null ? null : userPresenceModelToEntity(e));
 
-  //
-  //
   @override
   Future<void> update(
     String userId, {
