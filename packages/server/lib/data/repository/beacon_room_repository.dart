@@ -19,6 +19,8 @@ import 'package:tentura_server/domain/entity/beacon_room_record.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/entity/room_read_watermark_record.dart';
 import 'package:tentura_server/domain/entity/room_latest_activity.dart';
+import 'package:tentura_server/domain/entity/room_baton.dart'
+    show BatonResponse, BatonSelectionMode, BatonStatus;
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/domain/util/room_reply_excerpt.dart';
 import 'package:tentura_server/utils/id.dart';
@@ -779,23 +781,16 @@ ORDER BY tier, user_id
       return DateTime.tryParse(v.toString())?.toUtc().toIso8601String();
     }
 
-    String responseName(int v) => switch (v) {
-      1 => 'can_help',
-      2 => 'cant_help',
-      _ => 'waiting',
-    };
+    BatonResponse responseOf(QueryRow c) =>
+        BatonResponse.fromSmallint(c.read<int>('response'));
 
     final out = <String, String?>{};
     for (final b in batonRows) {
       final batonId = b.read<String>('id');
-      final status = b.read<int>('status');
-      final statusName = switch (status) {
-        1 => 'taken',
-        2 => 'cancelled',
-        _ => 'collecting',
-      };
+      final status = BatonStatus.fromSmallint(b.read<int>('status'));
+      final statusName = status.wireName;
       final takerId = b.readNullable<String>('taker_id');
-      final taken = status == 1 && takerId != null;
+      final taken = status == BatonStatus.taken && takerId != null;
       Map<String, Object?> taker() => {
         'id': takerId,
         'title': titleById[takerId] ?? '',
@@ -814,19 +809,21 @@ ORDER BY tier, user_id
                 'userId': c.read<String>('user_id'),
                 'title': titleById[c.read<String>('user_id')] ?? '',
                 'tier': c.read<int>('tier'),
-                'response': responseName(c.read<int>('response')),
+                'response': responseOf(c).wireName,
                 'respondedAt': isoOrNull(c, 'responded_at'),
               },
           ],
           'allAnswered': candidates.every(
-            (c) => c.read<int>('response') != 0,
+            (c) => responseOf(c) != BatonResponse.waiting,
           ),
           'eligibleCount': candidates
-              .where((c) => c.read<int>('response') == 1)
+              .where((c) => responseOf(c) == BatonResponse.canHelp)
               .length,
           if (taken) ...{
             'taker': taker(),
-            'selectionMode': b.readNullable<int>('selection_mode') == 2
+            'selectionMode':
+                b.readNullable<int>('selection_mode') ==
+                    BatonSelectionMode.manual.smallintValue
                 ? 'manual'
                 : 'auto',
           },
@@ -837,19 +834,21 @@ ORDER BY tier, user_id
           if (c.read<String>('user_id') == viewerUserId) mine = c;
         }
         if (mine != null) {
-          final myResponse = mine.read<int>('response');
-          final outcome = status == 0
+          final myResponse = responseOf(mine);
+          final outcome = status == BatonStatus.collecting
               ? null
               : takerId == viewerUserId
               ? 'you'
-              : status == 1 && myResponse == 1
+              : status == BatonStatus.taken &&
+                    myResponse == BatonResponse.canHelp
               ? 'someoneElse'
               : 'closed';
           payload = {
             'id': batonId,
             'status': statusName,
             'viewerRole': 'candidate',
-            if (status != 2) 'myResponse': responseName(myResponse),
+            if (status != BatonStatus.cancelled)
+              'myResponse': myResponse.wireName,
             'outcome': ?outcome,
             if (outcome == 'you') 'taker': taker(),
           };
