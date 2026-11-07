@@ -1,4 +1,5 @@
 import 'package:get_it/get_it.dart';
+import 'package:logging/logging.dart';
 
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
@@ -17,6 +18,8 @@ part 'help_offer_tile_sheet_state.dart';
 part 'help_offer_tile_sheet_cubit.freezed.dart';
 
 class HelpOfferTileSheetCubit extends Cubit<HelpOfferTileSheetState> {
+  static final _logger = Logger('HelpOfferTileSheetCubit');
+
   HelpOfferTileSheetCubit({
     required String beaconId,
     required String offerUserId,
@@ -75,7 +78,9 @@ class HelpOfferTileSheetCubit extends Cubit<HelpOfferTileSheetState> {
       if (state.isAuthorOrSteward) {
         try {
           await _case.markPeopleSeen(state.beaconId);
-        } catch (_) {}
+        } catch (e, st) {
+          _logger.warning('markPeopleSeen failed', e, st);
+        }
       }
     } catch (e) {
       if (isClosed) return;
