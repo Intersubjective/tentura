@@ -113,7 +113,7 @@ class PersonTagChip extends StatelessWidget {
       style: TenturaText.labelSmall(swatch.onContainer),
     );
     if (maxWidth != null) {
-      namePart = Expanded(
+      namePart = Flexible(
         child: Text(
           name,
           maxLines: 1,
@@ -145,11 +145,11 @@ class PersonTagChip extends StatelessWidget {
       excludeSemantics: true,
       child: labelRow,
     );
-    Widget row = Row(
+    final row = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         if (maxWidth != null)
-          Expanded(child: labelSemantics)
+          Flexible(child: labelSemantics)
         else
           labelSemantics,
         if (onKeep != null)
@@ -182,16 +182,13 @@ class PersonTagChip extends StatelessWidget {
           ),
       ],
     );
-    if (maxWidth != null) {
-      row = SizedBox(width: maxWidth, child: row);
-    }
     final fill = selected
         ? Color.alphaBlend(
             scheme.primary.withValues(alpha: 0.12),
             swatch.container,
           )
         : swatch.container;
-    final chip = DecoratedBox(
+    Widget chip = DecoratedBox(
       decoration: BoxDecoration(
         color: fill,
         borderRadius: BorderRadius.circular(TenturaRadii.avatar),
@@ -199,6 +196,12 @@ class PersonTagChip extends StatelessWidget {
       ),
       child: Padding(padding: EdgeInsets.all(tt.tightGap * 2), child: row),
     );
+    if (maxWidth != null) {
+      chip = ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: maxWidth),
+        child: chip,
+      );
+    }
     final tip = tooltipMessage ?? semanticsLabel;
     if (tip != null && tip.isNotEmpty) {
       return Tooltip(message: tip, child: chip);
