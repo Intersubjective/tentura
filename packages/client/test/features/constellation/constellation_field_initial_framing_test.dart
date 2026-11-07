@@ -166,7 +166,11 @@ void main() {
         final cubit = fixture.createCubit(viewer: kRefEgo);
         addTearDown(cubit.close);
         await cubit.load();
-        await pumpConstellationBody(tester, cubit);
+        await pumpConstellationBody(
+          tester,
+          cubit,
+          stabilizeFieldChrome: false,
+        );
         await tester.pumpAndSettle();
 
         final beforeMove = _cameraMatrix(tester);

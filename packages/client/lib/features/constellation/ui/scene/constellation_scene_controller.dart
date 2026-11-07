@@ -9,7 +9,6 @@ import '../../domain/constellation_anchor_composition.dart';
 import '../../domain/constellation_consts.dart';
 import '../../domain/constellation_layout.dart';
 import 'package:tentura_root/domain/constellation/constellation_path_resolution.dart';
-import '../../domain/constellation_offscreen_cues.dart';
 import '../../domain/constellation_post_fade.dart';
 import '../../domain/constellation_trust_chain.dart';
 import '../../domain/constellation_visibility.dart';
@@ -777,6 +776,20 @@ class ConstellationSceneController {
     ConstellationPerf.timeSync('scene.build', build);
   }
 
+  /// Updates overflow / text-view display metadata when composition changes
+  /// without relayout (same anchor projection and peer set).
+  void syncLabelDisplayPlan(ConstellationLabelDisplayPlan plan) {
+    final drawnSatellites = constellationDrawnSatellites(
+      plan,
+      hardPinnedRequestIds: layoutPinnedRequestIds,
+    );
+    layoutVisibleRequestsByAuthor = drawnSatellites.byAuthor;
+    layoutEgoOwnRequestIds = drawnSatellites.egoOwn;
+    displayedRequestIds = plan.drawnRequestIds;
+    overflowHiddenCountByAuthor = plan.overflowHiddenCountByAuthor;
+    expandedExtraCountByAuthor = plan.expandedExtraCountByAuthor;
+  }
+
   /// Reconciles the graph topology with [field]; returns the new node set and
   /// the node ids present before, so the caller can place composer nodes.
   ({Set<NodeDetails> nodes, Set<GraphNodeId> previousNodeIds}) buildGraphScene({
@@ -1495,76 +1508,6 @@ class ConstellationSceneController {
       }
     }
     return false;
-  }
-
-  ConstellationOffscreenSide _offscreenSideForNode({
-    required Offset nodeCentre,
-    required Rect safe,
-  }) {
-    final delta = nodeCentre - safe.center;
-    final halfW = safe.width / 2;
-    final halfH = safe.height / 2;
-    if (halfW <= 0 || halfH <= 0) {
-      return ConstellationOffscreenSide.below;
-    }
-    final nx = delta.dx / halfW;
-    final ny = delta.dy / halfH;
-    if (nx.abs() > ny.abs()) {
-      return nx < 0
-          ? ConstellationOffscreenSide.left
-          : ConstellationOffscreenSide.right;
-    }
-    return ny < 0
-        ? ConstellationOffscreenSide.above
-        : ConstellationOffscreenSide.below;
-  }
-
-  /// Off-screen Field nodes bucketed by safe-rect side (fully outside only).
-  ConstellationOffscreenCueSnapshot fieldOffscreenCues(EdgeInsets insets) {
-    final safe = _fieldCameraSafeRect(insets);
-    if (safe.width <= 0 || safe.height <= 0) {
-      return const ConstellationOffscreenCueSnapshot.empty();
-    }
-    var left = 0;
-    var right = 0;
-    var above = 0;
-    var below = 0;
-    final nearestDistSq = <ConstellationOffscreenSide, double>{};
-    final nearestId = <ConstellationOffscreenSide, GraphNodeId>{};
-    for (final graphId
-        in graphController.renderSnapshot.topology.nodesById.keys) {
-      final viewportRect = _fieldNodeBodyViewportRect(graphId);
-      if (viewportRect == null || safe.overlaps(viewportRect)) {
-        continue;
-      }
-      final side = _offscreenSideForNode(
-        nodeCentre: viewportRect.center,
-        safe: safe,
-      );
-      switch (side) {
-        case ConstellationOffscreenSide.left:
-          left++;
-        case ConstellationOffscreenSide.right:
-          right++;
-        case ConstellationOffscreenSide.above:
-          above++;
-        case ConstellationOffscreenSide.below:
-          below++;
-      }
-      final distSq = (viewportRect.center - safe.center).distanceSquared;
-      final best = nearestDistSq[side];
-      if (best == null || distSq < best) {
-        nearestDistSq[side] = distSq;
-        nearestId[side] = graphId;
-      }
-    }
-    return ConstellationOffscreenCueSnapshot(
-      left: left,
-      right: right,
-      above: above,
-      below: below,
-      nearestBySide: nearestId,
-    );
   }
 
   /// The Field node whose body centre is nearest the safe-rect centre.

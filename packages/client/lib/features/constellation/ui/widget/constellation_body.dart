@@ -63,7 +63,6 @@ import 'constellation_create_entry.dart';
 import 'constellation_filter_bar.dart';
 import 'constellation_forward_tree_overlay_bar.dart';
 import 'constellation_minimap.dart';
-import 'constellation_offscreen_cues.dart';
 import 'constellation_no_contacts.dart';
 import 'constellation_overflow_group.dart';
 import 'constellation_person_field_items_section.dart';
@@ -230,17 +229,6 @@ class _ConstellationBodyState extends State<ConstellationBody>
     if (_pointersDown == 0) {
       _zoom.update(_graphController.cameraScale, gestureActive: false);
       _rescheduleFieldSettleBack();
-      _syncOffscreenCuesGestureHidden();
-    }
-  }
-
-  void _syncOffscreenCuesGestureHidden() {
-    if (!mounted) {
-      return;
-    }
-    final hidden = _pointersDown > 0 || _revealPan != null || _applyingReveal;
-    if (_offscreenCuesGestureHidden.value != hidden) {
-      _offscreenCuesGestureHidden.value = hidden;
     }
   }
 
@@ -280,7 +268,6 @@ class _ConstellationBodyState extends State<ConstellationBody>
   ({Offset from, Offset to})? _revealPan;
   bool _applyingReveal = false;
   Timer? _fieldSettleBackTimer;
-  final _offscreenCuesGestureHidden = ValueNotifier<bool>(false);
 
   @override
   void initState() {
@@ -349,7 +336,6 @@ class _ConstellationBodyState extends State<ConstellationBody>
     _graphController.removeListener(_syncCameraViewportInsetsFromController);
     _minimapExpanded.removeListener(_onMinimapExpandedChanged);
     _fieldSettleBackTimer?.cancel();
-    _offscreenCuesGestureHidden.dispose();
     _graphController.cameraRevision.removeListener(_onCamera);
     _zoom.removeListener(_onZoomLevel);
     _ownZoom?.dispose();
@@ -365,8 +351,13 @@ class _ConstellationBodyState extends State<ConstellationBody>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.hidden) {
+      maybeConstellationSelection(context)?.exitArranging();
       context.read<ConstellationCubit>().onTabHidden();
     }
+  }
+
+  void _exitArrangingIfActive() {
+    maybeConstellationSelection(context)?.exitArranging();
   }
 
   double _strokeScale() {
@@ -374,7 +365,6 @@ class _ConstellationBodyState extends State<ConstellationBody>
     return scale < 1 ? scale : 1;
   }
 
-  // Only the pin badge is zoom-gated; rebuild solely on detail-level change.
   void _onCamera() {
     if (!_applyingReveal) {
       // Anyone else moving the camera (a pan, zoom, fit) wins over the reveal.
@@ -438,14 +428,12 @@ class _ConstellationBodyState extends State<ConstellationBody>
     }
     final t = Curves.easeOutCubic.transform(_reveal.value);
     _applyingReveal = true;
-    _syncOffscreenCuesGestureHidden();
     try {
       context.read<ConstellationCubit>().panCameraTo(
         Offset.lerp(pan.from, pan.to, t)!,
       );
     } finally {
       _applyingReveal = false;
-      _syncOffscreenCuesGestureHidden();
     }
   }
 
@@ -455,7 +443,6 @@ class _ConstellationBodyState extends State<ConstellationBody>
     }
     _revealPan = null;
     _reveal.stop();
-    _syncOffscreenCuesGestureHidden();
   }
 
   /// Pans (translation only, zoom kept) so [node] stays visible beside or
@@ -485,14 +472,10 @@ class _ConstellationBodyState extends State<ConstellationBody>
       return;
     }
     _revealPan = pan;
-    _syncOffscreenCuesGestureHidden();
     unawaited(
       _reveal.forward(from: 0).whenComplete(() {
         if (identical(_revealPan, pan)) {
           _revealPan = null;
-        }
-        if (mounted) {
-          _syncOffscreenCuesGestureHidden();
         }
       }),
     );
@@ -722,6 +705,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
     String beaconId, {
     String? viewTab,
   }) {
+    _exitArrangingIfActive();
     context.read<ConstellationCubit>().openedFieldBeacon(beaconId);
     unawaited(() async {
       await context.router.push(
@@ -775,6 +759,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
       case ConstellationRequestPreflightUnavailable(:final message):
         _showActionMessage(context, message);
       case ConstellationRequestPreflightReady(:final request):
+        _exitArrangingIfActive();
         await context.router.push(ForwardBeaconRoute(beaconId: request.id));
     }
   }
@@ -1387,6 +1372,28 @@ class _ConstellationBodyState extends State<ConstellationBody>
         ),
         BlocListener<ConstellationCubit, ConstellationState>(
           listenWhen: (previous, current) =>
+              previous.visibility != current.visibility ||
+              previous.field != current.field,
+          listener: (context, state) {
+            final selection = maybeConstellationSelection(context);
+            if (selection == null || !selection.state.arranging) {
+              return;
+            }
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!context.mounted) {
+                return;
+              }
+              if (!selection.state.arranging) {
+                return;
+              }
+              if (!context.read<ConstellationCubit>().canArrange) {
+                selection.exitArranging();
+              }
+            });
+          },
+        ),
+        BlocListener<ConstellationCubit, ConstellationState>(
+          listenWhen: (previous, current) =>
               previous.selectedPersonId != current.selectedPersonId ||
               previous.selectedRequestId != current.selectedRequestId,
           listener: (context, state) {
@@ -1732,6 +1739,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
               const ConstellationEmptyFilterBanner(),
               const ConstellationNoContactsBanner(),
               const ConstellationVisibilityBar(),
+              _ConstellationFieldHoldHintBanner(cubit: cubit),
             ],
             if (_selectionUnavailableMessage != null)
               Material(
@@ -1766,6 +1774,12 @@ class _ConstellationBodyState extends State<ConstellationBody>
   }
 
   Widget _buildTagRow(BuildContext context) {
+    final cubit = context.read<ConstellationCubit>();
+    final field = cubit.state.field;
+    if (field == null ||
+        constellationFieldHasNoContacts(field, cubit.viewerId)) {
+      return const SizedBox.shrink();
+    }
     final store = _peopleTags;
     final lensCubit = maybeConstellationTagLens(context);
     if (store == null || lensCubit == null) return const SizedBox.shrink();
@@ -2007,6 +2021,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
     ];
     final picked = await showConstellationTagLensRequestPicker(context, mine);
     if (picked == null || !context.mounted) return;
+    _exitArrangingIfActive();
     await context.router.push(
       ForwardBeaconRoute(
         beaconId: picked.id,
@@ -2178,7 +2193,6 @@ class _ConstellationBodyState extends State<ConstellationBody>
             _fieldSettleBackTimer = null;
             _stopReveal();
             _takeMapFocus();
-            _syncOffscreenCuesGestureHidden();
           },
           onPointerUp: (_) => _onPointerReleased(),
           onPointerCancel: (_) => _onPointerReleased(),
@@ -2458,18 +2472,6 @@ class _ConstellationBodyState extends State<ConstellationBody>
                               strokeWidth: tt.tightGap / 2,
                             )
                           : null,
-                      pinBadge:
-                          cubit.isAnchored(
-                            ConstellationAnchorTarget.person(person.id),
-                          )
-                          ? ExcludeSemantics(
-                              child: ConstellationMarkerBadge.pin(
-                                l10n: l10n,
-                                tt: tt,
-                                scheme: scheme,
-                              ),
-                            )
-                          : null,
                       child: GraphNodeWidget(
                         key: TestIds.key(TestIds.graphNode(node.id)),
                         nodeDetails: node,
@@ -2495,18 +2497,6 @@ class _ConstellationBodyState extends State<ConstellationBody>
                               dash: tt.tightGap * 1.5,
                               gap: tt.tightGap,
                               strokeWidth: tt.tightGap / 2,
-                            )
-                          : null,
-                      pinBadge:
-                          cubit.isAnchored(
-                            ConstellationAnchorTarget.beacon(request.id),
-                          )
-                          ? ExcludeSemantics(
-                              child: ConstellationMarkerBadge.pin(
-                                l10n: l10n,
-                                tt: tt,
-                                scheme: scheme,
-                              ),
                             )
                           : null,
                       statusBadge: request.isPlaceholder
@@ -2551,18 +2541,6 @@ class _ConstellationBodyState extends State<ConstellationBody>
                             dash: tt.tightGap * 1.5,
                             gap: tt.tightGap,
                             strokeWidth: tt.tightGap / 2,
-                          )
-                        : null,
-                    pinBadge:
-                        cubit.isAnchored(
-                          ConstellationAnchorTarget.beacon(post.id),
-                        )
-                        ? ExcludeSemantics(
-                            child: ConstellationMarkerBadge.pin(
-                              l10n: l10n,
-                              tt: tt,
-                              scheme: scheme,
-                            ),
                           )
                         : null,
                     child: GraphNodeWidget(
@@ -2667,12 +2645,6 @@ class _ConstellationBodyState extends State<ConstellationBody>
                     ),
                   ),
           ),
-        Positioned(
-          top: 0,
-          left: 0,
-          right: 0,
-          child: _ConstellationFieldHoldHintBanner(cubit: cubit),
-        ),
         Positioned.fill(
           child: ConstellationPlacementMarkerLayer(cubit: cubit),
         ),
@@ -2783,29 +2755,6 @@ class _ConstellationBodyState extends State<ConstellationBody>
             ),
           ),
         ),
-        if (state.viewMode == ConstellationViewMode.map)
-          Positioned(
-            left: cameraInsets.left,
-            top: cameraInsets.top,
-            right: cameraInsets.right,
-            bottom: cameraInsets.bottom,
-            child: ConstellationOffscreenCues(
-              cubit: cubit,
-              viewportInsets: cameraInsets,
-              gestureHiddenListenable: _offscreenCuesGestureHidden,
-              visible:
-                  _detail == ConstellationDetailLevel.close &&
-                  !state.isComposing &&
-                  state.forwardTreeOverlay == null &&
-                  state.placementPhase == ConstellationPlacementPhase.idle,
-              onReveal: (node, _) => _revealNode(
-                context,
-                cubit,
-                node,
-                contextPanelVisible: panelVisible,
-              ),
-            ),
-          ),
         if (panelVisible && state.viewMode == ConstellationViewMode.map)
           _buildContextOverlay(
             context,
@@ -3552,13 +3501,9 @@ class _ConstellationMapNode extends StatelessWidget {
     this.districtPerson,
     this.temporaryOutline,
     this.forwardTreeMarker,
-    this.pinBadge,
     this.statusBadge,
     this.ownTags = const [],
   });
-
-  /// Own tags drawn as glyphs on the top-end corner; two at most, then "+N".
-  static const _maxGlyphs = 2;
 
   final Widget child;
   final ConstellationDetailLevel detail;
@@ -3575,7 +3520,6 @@ class _ConstellationMapNode extends StatelessWidget {
 
   /// Small glyph for forward-tree recipient state (#774).
   final ConstellationForwardTreeRecipientMarker? forwardTreeMarker;
-  final Widget? pinBadge;
   final Widget? statusBadge;
   final List<PersonTag> ownTags;
 
@@ -3586,7 +3530,6 @@ class _ConstellationMapNode extends StatelessWidget {
         districtPerson: districtPerson,
         temporaryOutline: temporaryOutline,
         forwardTreeMarker: forwardTreeMarker,
-        pinBadge: pinBadge,
         statusBadge: statusBadge,
         ownTags: ownTags,
         child: child,
@@ -3619,7 +3562,6 @@ class _ConstellationMapNode extends StatelessWidget {
           )
         : child;
     final overhang = constellationMarkerBadgeOverhang(tt);
-    final pinBadge = this.pinBadge;
     final statusBadge = this.statusBadge;
     final markerChar = switch (forwardTreeMarker) {
       ConstellationForwardTreeRecipientMarker.helped => '✓',
@@ -3656,35 +3598,6 @@ class _ConstellationMapNode extends StatelessWidget {
             top: -overhang,
             start: -overhang,
             child: statusBadge,
-          ),
-        if ((pinBadge != null || ownTags.isNotEmpty) &&
-            detail == ConstellationDetailLevel.close)
-          PositionedDirectional(
-            top: -overhang,
-            end: -overhang,
-            // The pin sits left of the glyph cluster.
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              spacing: tt.tightGap / 2,
-              children: [
-                ?pinBadge,
-                for (final tag in ownTags.take(_maxGlyphs))
-                  ExcludeSemantics(
-                    child: TagGlyph(
-                      glyph: tag.glyph,
-                      colorIndex: tag.color,
-                      size: tt.iconSize * 0.85,
-                    ),
-                  ),
-                if (ownTags.length > _maxGlyphs)
-                  ExcludeSemantics(
-                    child: Text(
-                      '+${ownTags.length - _maxGlyphs}',
-                      style: TenturaText.labelSmall(tt.textMuted),
-                    ),
-                  ),
-              ],
-            ),
           ),
       ],
     );
@@ -4036,16 +3949,28 @@ class _ConstellationFieldHoldHintBanner extends StatelessWidget {
       bloc: cubit,
       buildWhen: (previous, current) =>
           previous.visibility.fieldHoldHintDismissed !=
-          current.visibility.fieldHoldHintDismissed,
+              current.visibility.fieldHoldHintDismissed ||
+          previous.visibilityRestored != current.visibilityRestored ||
+          previous.field != current.field ||
+          previous.composition != current.composition,
       builder: (context, state) {
-        if (state.visibility.fieldHoldHintDismissed ||
+        if (!state.visibilityRestored ||
+            state.visibility.fieldHoldHintDismissed ||
             state.viewMode != ConstellationViewMode.map) {
+          return const SizedBox.shrink();
+        }
+        final field = state.field;
+        if (field == null ||
+            constellationFieldHasNoContacts(field, cubit.viewerId)) {
           return const SizedBox.shrink();
         }
         if (selection?.state.arranging ?? false) {
           return const SizedBox.shrink();
         }
         if (RendererBinding.instance.mouseTracker.mouseIsConnected) {
+          return const SizedBox.shrink();
+        }
+        if (context.windowClass != WindowClass.compact) {
           return const SizedBox.shrink();
         }
         final l10n = L10n.of(context)!;

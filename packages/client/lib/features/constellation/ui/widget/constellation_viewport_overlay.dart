@@ -392,11 +392,10 @@ class _ConstellationViewportOverlayState
     required TenturaTokens tt,
   }) {
     return switch (node) {
-      FieldPersonNode(:final person) => cubit.isAnchored(
-        ConstellationAnchorTarget.person(person.id),
-      ),
+      FieldPersonNode(:final person) =>
+        cubit.fieldPersonById(person.id)?.pinState != null,
       FieldBeaconNode(request: final request?) =>
-        cubit.isAnchored(ConstellationAnchorTarget.beacon(request.id)) ||
+        request.isPlaceholder ||
             constellationRequestStatusPresentation(
                   rawStatus: request.status,
                   l10n: l10n,
@@ -487,7 +486,8 @@ class _ConstellationViewportOverlayState
             // Off the selected person's trust chain (#641) or forward-tree
             // overlay (#774) the node fades; trust marks and presence halo with it.
             final dimmedGraphIds = <GraphNodeId>{
-              if (widget.cubit.selectedTrustChain is ConstellationTrustChainFound)
+              if (widget.cubit.selectedTrustChain
+                  is ConstellationTrustChainFound)
                 for (final MapEntry(:key, :value) in nodeByGraphId.entries)
                   if (widget.cubit.isDimmedByTrustChain(value)) key,
               if (state.forwardTreeOverlay != null)
@@ -593,6 +593,7 @@ class _ConstellationViewportOverlayState
                     : 0.0,
                 bodyDiameter: bodyDiameter,
                 hasTrustBadge: rings.trust.containsKey(graphId),
+                trustBadge: rings.trust[graphId],
                 tt: tt,
               );
 

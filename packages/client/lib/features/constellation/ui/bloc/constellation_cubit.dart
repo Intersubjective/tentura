@@ -33,7 +33,6 @@ import '../scene/constellation_arrangement_layout.dart';
 import '../scene/constellation_magnet_layout.dart';
 import '../../domain/constellation_people.dart';
 import '../../domain/constellation_multi_selection.dart';
-import '../../domain/constellation_offscreen_cues.dart';
 import '../../domain/constellation_mutual_trust.dart';
 import '../../domain/constellation_shown_field.dart';
 import '../../domain/constellation_tag_filter.dart';
@@ -1706,6 +1705,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     _reconcileSelection(composition);
     if (deferTargets.isEmpty && !unchangedLayout) {
       _reconcileLayout(immediateHandoff: true);
+    } else if (deferTargets.isEmpty) {
+      _scene.syncLabelDisplayPlan(composition.labelPlan);
     }
   }
 
@@ -3587,30 +3588,6 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   bool fieldAnyNodeBodyInSafeRectForTest({required EdgeInsets insets}) =>
       _scene.anyFieldNodeBodyIntersectsSafeRect(insets);
 
-  ConstellationOffscreenCueSnapshot fieldOffscreenCues({
-    required EdgeInsets insets,
-  }) {
-    if (isClosed || !graphController.canLayout) {
-      return const ConstellationOffscreenCueSnapshot.empty();
-    }
-    return _scene.fieldOffscreenCues(insets);
-  }
-
-  NodeDetails? fieldOffscreenRevealTarget(
-    ConstellationOffscreenSide side, {
-    required EdgeInsets insets,
-  }) {
-    if (isClosed || state.viewMode != ConstellationViewMode.map) {
-      return null;
-    }
-    final snapshot = _scene.fieldOffscreenCues(insets);
-    final graphId = snapshot.nearestBySide[side];
-    if (graphId == null) {
-      return null;
-    }
-    return graphController.renderSnapshot.topology.nodesById[graphId]?.payload;
-  }
-
   void compensateViewportHeightDelta(double viewportDeltaY) {
     if (isClosed) {
       return;
@@ -4409,6 +4386,20 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     return anchorTargetForNode(node) != null;
   }
 
+  /// Whether Arranging may be offered: at least one draggable node besides
+  /// the viewer (#1048). Uses the composed eligibility sets so the gate does
+  /// not flicker before layout paints nodes.
+  bool get canArrange {
+    final composition = state.composition;
+    if (composition == null) {
+      return false;
+    }
+    if (composition.keptPeerIds.isNotEmpty) {
+      return true;
+    }
+    return composition.eligibleRequestIds.isNotEmpty;
+  }
+
   List<GraphNodeId> orderedNodeIdsForPaint() {
     return orderedNodesForPaint().map(tenturaGraphNodeId).toList();
   }
@@ -4589,12 +4580,23 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
 
   Future<void> _restoreVisibility() async {
     final visibilityCase = _visibilityCase;
-    if (visibilityCase == null) return;
+    if (visibilityCase == null) {
+      if (!isClosed && !state.visibilityRestored) {
+        emit(state.copyWith(visibilityRestored: true));
+      }
+      return;
+    }
     final stored = await visibilityCase.read(viewerId: _viewer.id);
+    if (isClosed) return;
     // A choice made while the store was read wins over the stored one.
-    if (isClosed || _visibilityTouched || stored == state.visibility) return;
-    emit(state.copyWith(visibility: stored));
-    if (state.field != null) _recomposeAndLayout();
+    if (!_visibilityTouched && stored != state.visibility) {
+      emit(state.copyWith(visibility: stored, visibilityRestored: true));
+      if (state.field != null) _recomposeAndLayout();
+      return;
+    }
+    if (!state.visibilityRestored) {
+      emit(state.copyWith(visibilityRestored: true));
+    }
   }
 
   bool _visibilityTouched = false;
@@ -5220,6 +5222,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   }
 
   ConstellationComposedPresentation? _peopleFor;
+  ConstellationField? _peopleFieldFor;
   List<ConstellationFieldPerson> _people = const [];
 
   /// The field's people, the same population the map draws (#253): the
@@ -5230,8 +5233,10 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (field == null || composition == null) {
       return const [];
     }
-    if (!identical(composition, _peopleFor)) {
+    if (!identical(composition, _peopleFor) ||
+        !identical(field, _peopleFieldFor)) {
       _peopleFor = composition;
+      _peopleFieldFor = field;
       _people = constellationFieldPeople(
         field: field,
         composition: composition,

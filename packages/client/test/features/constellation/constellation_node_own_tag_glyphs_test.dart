@@ -267,9 +267,10 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
   }
 
-  group('own-tag glyphs on Field person nodes', () {
-    testWidgets('a person without own tags shows no glyph and no overflow '
-        'count', (tester) async {
+  group('own tags on Field person nodes', () {
+    testWidgets('a person without own tags shows no tag glyph overlay', (
+      tester,
+    ) async {
       await mount(tester, _field());
 
       expect(_graphNode('no-tags'), findsOneWidget, reason: 'positive control');
@@ -280,48 +281,19 @@ void main() {
       );
     });
 
-    testWidgets('one own tag shows its glyph and no overflow count', (
+    testWidgets('own tags never draw glyph overlays on the map node', (
       tester,
     ) async {
       await mount(tester, _field());
 
-      expect(_glyphTextsOn(tester, 'one-tag'), ['N']);
-      expect(
-        find.descendant(
-          of: _marker('one-tag'),
-          matching: find.textContaining('+'),
-        ),
-        findsNothing,
-      );
-    });
-
-    testWidgets('two own tags show two glyphs and no overflow count', (
-      tester,
-    ) async {
-      await mount(tester, _field());
-
-      expect(_glyphTextsOn(tester, 'two-tags'), ['N', 'W']);
-      expect(
-        find.descendant(
-          of: _marker('two-tags'),
-          matching: find.textContaining('+'),
-        ),
-        findsNothing,
-      );
-    });
-
-    testWidgets('three own tags show the first two in tag order and "+1"', (
-      tester,
-    ) async {
-      await mount(tester, _field());
-
-      // Tag order is the tags' `ord` (Neighbour, Workshop, Garden), not the
-      // order the membership index lists them in.
-      expect(_glyphTextsOn(tester, 'three-tags'), ['N', 'W']);
-      expect(
-        find.descendant(of: _marker('three-tags'), matching: find.text('+1')),
-        findsOneWidget,
-      );
+      for (final personId in ['one-tag', 'two-tags', 'three-tags']) {
+        expect(_glyphsOn(personId), findsNothing, reason: personId);
+        expect(
+          find.descendant(of: _marker(personId), matching: find.text('+1')),
+          findsNothing,
+          reason: personId,
+        );
+      }
     });
 
     testWidgets('automatic tags are never drawn on a node', (tester) async {
@@ -334,8 +306,7 @@ void main() {
         reason: 'positive control',
       );
       expect(_glyphsOn('auto-only'), findsNothing);
-      // Own plus automatic: only the own tag is drawn.
-      expect(_glyphTextsOn(tester, 'auto-and-own'), ['N']);
+      expect(_glyphsOn('auto-and-own'), findsNothing);
       // Neither person's marker carries any automatic-tag UI: no auto chip,
       // no tag chip, no automatic tag name.
       for (final personId in ['auto-only', 'auto-and-own']) {
@@ -360,7 +331,7 @@ void main() {
       }
     });
 
-    testWidgets('glyphs follow the tag store when a tag is added', (
+    testWidgets('adding a tag updates semantics without a map glyph', (
       tester,
     ) async {
       await mount(tester, _field());
@@ -373,27 +344,27 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
 
-      expect(_glyphTextsOn(tester, 'no-tags'), ['W']);
+      expect(_glyphsOn('no-tags'), findsNothing);
+      final handle = tester.ensureSemantics();
+      final label = tester.getSemantics(_graphNode('no-tags')).label;
+      handle.dispose();
+      expect(label, contains('Workshop'));
     });
   });
 
-  group('pin badge next to own-tag glyphs', () {
-    testWidgets('a pinned person keeps the pin badge key, left of the glyphs', (
+  group('pin badge on map nodes', () {
+    testWidgets('a pinned person has no pin glyph on the node', (
       tester,
     ) async {
       await mount(tester, _field(pinLena: true));
 
-      final glyphs = _glyphsOn('lena');
-      expect(glyphs, findsNWidgets(2));
-      final pin = find.descendant(
-        of: _marker('lena'),
-        matching: find.byKey(TestIds.key(TestIds.constellationPinMarker)),
-      );
-      expect(pin, findsOneWidget);
+      expect(_glyphsOn('lena'), findsNothing);
       expect(
-        tester.getCenter(pin).dx,
-        lessThan(tester.getCenter(glyphs.first).dx),
-        reason: 'the pin sits left of the glyph cluster',
+        find.descendant(
+          of: _marker('lena'),
+          matching: find.byKey(TestIds.key(TestIds.constellationPinMarker)),
+        ),
+        findsNothing,
       );
     });
   });
@@ -414,7 +385,7 @@ void main() {
       );
     });
 
-    testWidgets('names every own tag, not just the drawn glyphs', (
+    testWidgets('names every own tag in semantics', (
       tester,
     ) async {
       final handle = tester.ensureSemantics();
