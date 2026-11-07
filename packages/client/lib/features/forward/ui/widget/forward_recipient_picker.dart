@@ -748,6 +748,17 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                 state.activeFilter != ForwardFilter.alreadyInvolved &&
                 state.band.isNotEmpty;
             final counts = state.scopeCountsForSearch(searchQuery);
+            final compactEmbedded =
+                widget.embedded && context.windowClass == WindowClass.compact;
+            final embeddedSearchChrome = compactEmbedded
+                ? tt.rowGap
+                : tt.rowGap * 2;
+            final showNewMutualHeader = _showsGroupedNewMutualHeader(
+              state: state,
+              visible: visible,
+              isFiltering: isFiltering,
+              now: cubit.now,
+            );
             // The band above lists people too (they are left out of
             // [visible]), so an empty list under a shown band is not an
             // empty picker (#252).
@@ -984,15 +995,19 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                                   delegate: ForwardPinnedSliverHeaderDelegate(
                                     height:
                                         (isFiltering
-                                                ? tt.buttonHeight * 2
-                                                : tt.buttonHeight) +
-                                            tt.rowGap * 2,
+                                            ? tt.buttonHeight * 2
+                                            : tt.buttonHeight) +
+                                        embeddedSearchChrome,
                                     child: Padding(
                                       padding: EdgeInsets.fromLTRB(
                                         tt.screenHPadding,
-                                        tt.rowGap,
+                                        compactEmbedded
+                                            ? tt.tightGap
+                                            : tt.rowGap,
                                         tt.screenHPadding,
-                                        tt.rowGap,
+                                        compactEmbedded
+                                            ? tt.tightGap
+                                            : tt.rowGap,
                                       ),
                                       child: Column(
                                         crossAxisAlignment:
@@ -1009,7 +1024,8 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                                             Align(
                                               alignment: Alignment.centerRight,
                                               child: TextButton(
-                                                onPressed: _finishEmbeddedSearch,
+                                                onPressed:
+                                                    _finishEmbeddedSearch,
                                                 child: Text(l10n.buttonOk),
                                               ),
                                             ),
@@ -1022,6 +1038,14 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                               // No one at all to send to: only the empty
                               // state, no «Not yet seen 0 / Already
                               // involved 0» row (#252).
+                              if (showNewMutualHeader)
+                                SliverToBoxAdapter(
+                                  child: _buildNewMutualSectionHeader(
+                                    context: context,
+                                    cubit: cubit,
+                                    compactEmbedded: compactEmbedded,
+                                  ),
+                                ),
                               if (!showGenuineEmptyMessage)
                                 SliverPersistentHeader(
                                   pinned: true,
@@ -1306,9 +1330,6 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
 
     final slots = <_RecipientListSlot>[];
 
-    if (newMutual.isNotEmpty) {
-      slots.add(const _RecipientListNewHeader());
-    }
     for (var i = 0; i < newMutual.length; i++) {
       if (i > 0) slots.add(const _RecipientListDivider());
       final candidate = newMutual[i];
@@ -1399,6 +1420,57 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
     setState(() => _widerNetworkExpanded = true);
   }
 
+  bool _showsGroupedNewMutualHeader({
+    required ForwardState state,
+    required List<ForwardCandidate> visible,
+    required bool isFiltering,
+    required DateTime now,
+  }) {
+    if (isFiltering || state.activeFilter == ForwardFilter.alreadyInvolved) {
+      return false;
+    }
+    return visible.any(
+      (candidate) => ForwardState.isNewMutualCandidate(candidate, now),
+    );
+  }
+
+  Widget _buildNewMutualSectionHeader({
+    required BuildContext context,
+    required ForwardCubit cubit,
+    required bool compactEmbedded,
+  }) {
+    final tt = context.tt;
+    final l10n = L10n.of(context)!;
+    return Padding(
+      key: ForwardRecipientPicker.newSectionKey,
+      padding: EdgeInsets.fromLTRB(
+        tt.screenHPadding,
+        compactEmbedded ? tt.rowGap : 0,
+        tt.screenHPadding,
+        tt.tightGap,
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: TenturaSectionHeader(
+              label: l10n.forwardSectionNewMutual,
+              helperText: l10n.forwardSectionNewMutualHint,
+            ),
+          ),
+          Padding(
+            padding: EdgeInsets.only(top: tt.sectionGap),
+            child: TextButton(
+              key: const Key('ForwardRecipientPicker.newSelectAll'),
+              onPressed: cubit.selectNewMutualCandidates,
+              child: Text(l10n.forwardSectionNewMutualSelectAll),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildVisibleRecipientSlot({
     required BuildContext context,
     required ForwardCubit cubit,
@@ -1409,31 +1481,6 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
     final tt = context.tt;
     final l10n = L10n.of(context)!;
     return switch (slot) {
-      _RecipientListNewHeader() => Padding(
-        key: ForwardRecipientPicker.newSectionKey,
-        padding: EdgeInsets.symmetric(horizontal: tt.screenHPadding),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: TenturaSectionHeader(
-                    label: l10n.forwardSectionNewMutual,
-                    helperText: l10n.forwardSectionNewMutualHint,
-                  ),
-                ),
-                TextButton(
-                  key: const Key('ForwardRecipientPicker.newSelectAll'),
-                  onPressed: cubit.selectNewMutualCandidates,
-                  child: Text(l10n.forwardSectionNewMutualSelectAll),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
       _RecipientListDirectHeader() => Padding(
         key: ForwardRecipientPicker.directSectionKey,
         padding: EdgeInsets.symmetric(horizontal: tt.screenHPadding),
@@ -1491,10 +1538,6 @@ sealed class _RecipientListSlot {
 
 final class _RecipientListDirectHeader extends _RecipientListSlot {
   const _RecipientListDirectHeader();
-}
-
-final class _RecipientListNewHeader extends _RecipientListSlot {
-  const _RecipientListNewHeader();
 }
 
 final class _RecipientListThroughHeader extends _RecipientListSlot {
