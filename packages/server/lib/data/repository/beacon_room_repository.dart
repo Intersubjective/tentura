@@ -31,7 +31,7 @@ import '../database/sql/request_unread_sql.dart'
         requestQuestionsUnreadCountSql;
 import 'beacon_room_participant_join_recorder.dart';
 import 'participant_activity_sql.dart';
-import 'mappers/coordination_row_mappers.dart';
+import '../mapper/coordination_row_mappers.dart';
 import 'offer_accepted_dismissal_repository.dart';
 
 /// Beacon Room messages + participants — Postgres via Drift.
