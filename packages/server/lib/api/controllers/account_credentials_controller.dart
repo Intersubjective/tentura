@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:injectable/injectable.dart';
+import 'package:logging/logging.dart';
 import 'package:shelf_plus/shelf_plus.dart';
 
 import 'package:tentura_server/api/http/json_body.dart';
@@ -9,6 +10,8 @@ import 'package:tentura_server/domain/entity/account_credential_entity.dart';
 import 'package:tentura_server/domain/entity/jwt_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/use_case/credential_case.dart';
+
+final _log = Logger('AccountCredentialsController');
 
 /// `/api/v2/accounts/me/credentials` — authenticated credential management for
 /// the calling account (`jwt.sub`). All routes are guarded by `verifyBearerJwt`
@@ -35,7 +38,8 @@ final class AccountCredentialsController {
       });
     } on ExceptionBase catch (e) {
       return _error(e);
-    } catch (_) {
+    } catch (e, st) {
+      _log.severe('credentials.list failed', e, st);
       return Response.internalServerError();
     }
   }
@@ -65,7 +69,8 @@ final class AccountCredentialsController {
       return _error(e, status: 409);
     } on ExceptionBase catch (e) {
       return _error(e);
-    } catch (_) {
+    } catch (e, st) {
+      _log.severe('credentials.link failed', e, st);
       return Response.internalServerError();
     }
   }
@@ -99,7 +104,8 @@ final class AccountCredentialsController {
       return _error(e, status: 409);
     } on ExceptionBase catch (e) {
       return _error(e);
-    } catch (_) {
+    } catch (e, st) {
+      _log.severe('credentials.linkGoogle failed', e, st);
       return Response.internalServerError();
     }
   }
@@ -125,7 +131,8 @@ final class AccountCredentialsController {
       return _error(e, status: 404);
     } on ExceptionBase catch (e) {
       return _error(e);
-    } catch (_) {
+    } catch (e, st) {
+      _log.severe('credentials.remove failed', e, st);
       return Response.internalServerError();
     }
   }

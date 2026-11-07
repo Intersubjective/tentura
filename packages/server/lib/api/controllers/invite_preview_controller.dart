@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:injectable/injectable.dart';
+import 'package:logging/logging.dart';
 
 import 'package:tentura_server/api/http/cookies.dart';
 import 'package:tentura_server/consts.dart';
@@ -9,6 +10,8 @@ import 'package:tentura_server/domain/enum.dart';
 import 'package:tentura_server/domain/use_case/invitation_case.dart';
 
 import '_base_controller.dart';
+
+final _log = Logger('InvitePreviewController');
 
 /// `GET /api/v2/invite/<code>/preview` — JSON preview of an invite for the
 /// caller, decided before any UI loads. Guarded by `extractJwtClaims`
@@ -42,7 +45,8 @@ final class InvitePreviewController extends BaseController {
         jsonEncode(result.toJson()),
         headers: _previewHeaders(request),
       );
-    } catch (_) {
+    } catch (e, st) {
+      _log.severe('invite.preview failed', e, st);
       return Response.internalServerError();
     }
   }
