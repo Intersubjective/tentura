@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:injectable/injectable.dart';
 import 'package:shelf_plus/shelf_plus.dart';
 
+import 'package:tentura_server/api/http/json_body.dart';
 import 'package:tentura_server/consts.dart';
 import 'package:tentura_server/domain/entity/account_credential_entity.dart';
 import 'package:tentura_server/domain/entity/jwt_entity.dart';
@@ -43,11 +44,9 @@ final class AccountCredentialsController {
     final accountId = _accountId(request);
     if (accountId == null) return Response.unauthorized(null);
 
-    final Map<String, dynamic> body;
-    try {
-      body = (await request.body.asJson as Map).cast<String, dynamic>();
-    } catch (_) {
-      return Response.badRequest(body: 'invalid JSON body');
+    final body = await readJsonObject(request);
+    if (body == null) {
+      return invalidJsonBodyResponse();
     }
 
     final authRequestToken = body['authRequestToken'] as String?;
@@ -78,11 +77,9 @@ final class AccountCredentialsController {
     final accountId = _accountId(request);
     if (accountId == null) return Response.unauthorized(null);
 
-    final Map<String, dynamic> body;
-    try {
-      body = (await request.body.asJson as Map).cast<String, dynamic>();
-    } catch (_) {
-      return Response.badRequest(body: 'invalid JSON body');
+    final body = await readJsonObject(request);
+    if (body == null) {
+      return invalidJsonBodyResponse();
     }
 
     final idToken = body['idToken'] as String?;

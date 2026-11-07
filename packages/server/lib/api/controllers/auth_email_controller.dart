@@ -7,6 +7,7 @@ import 'package:logging/logging.dart';
 import 'package:tentura_server/api/http/cookies.dart';
 import 'package:tentura_server/api/http/auth_invite_required_page.dart';
 import 'package:tentura_server/api/http/email_auth_failure_page.dart';
+import 'package:tentura_server/api/http/json_body.dart';
 import 'package:tentura_server/app/sentry/auth_telemetry.dart';
 import 'package:tentura_server/consts.dart';
 import 'package:tentura_server/domain/entity/email_auth_peek.dart';
@@ -33,11 +34,9 @@ final class AuthEmailController extends BaseController {
 
   /// `POST /api/v2/auth/email/start`
   Future<Response> start(Request request) async {
-    Map<String, dynamic> body;
-    try {
-      body = (await request.body.asJson as Map).cast<String, dynamic>();
-    } catch (_) {
-      return Response.badRequest(body: 'invalid JSON body');
+    final body = await readJsonObject(request);
+    if (body == null) {
+      return invalidJsonBodyResponse();
     }
     final email = body['email'] as String? ?? '';
     final inviteCode = body['inviteCode'] as String?;
@@ -72,11 +71,9 @@ final class AuthEmailController extends BaseController {
       return Response.notFound(null);
     }
 
-    Map<String, dynamic> body;
-    try {
-      body = (await request.body.asJson as Map).cast<String, dynamic>();
-    } catch (_) {
-      return Response.badRequest(body: 'invalid JSON body');
+    final body = await readJsonObject(request);
+    if (body == null) {
+      return invalidJsonBodyResponse();
     }
     final email = body['email'] as String? ?? '';
     final inviteCode = body['inviteCode'] as String?;
@@ -152,11 +149,9 @@ final class AuthEmailController extends BaseController {
     if (jwt == null || jwt.sub.isEmpty) {
       return Response.unauthorized(null);
     }
-    Map<String, dynamic> body;
-    try {
-      body = (await request.body.asJson as Map).cast<String, dynamic>();
-    } catch (_) {
-      return Response.badRequest(body: 'invalid JSON body');
+    final body = await readJsonObject(request);
+    if (body == null) {
+      return invalidJsonBodyResponse();
     }
     final email = body['email'] as String? ?? '';
     await _runEmailStart(
@@ -373,12 +368,8 @@ final class AuthEmailController extends BaseController {
         return '';
       }
     }
-    try {
-      final body = (await request.body.asJson as Map).cast<String, dynamic>();
-      return body['t'] as String? ?? '';
-    } catch (_) {
-      return '';
-    }
+    final token = (await readJsonObject(request))?['t'];
+    return token is String ? token : '';
   }
 
   Response _html(int status, String body) => Response(
