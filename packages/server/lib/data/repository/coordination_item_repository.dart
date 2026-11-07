@@ -17,7 +17,7 @@ import 'package:postgres/postgres.dart' show Type, TypedValue;
 import 'package:tentura_server/utils/id.dart';
 
 import '../database/tentura_db.dart';
-import 'mappers/coordination_row_mappers.dart';
+import '../mapper/coordination_row_mappers.dart';
 
 @LazySingleton(as: CoordinationItemRepositoryPort, order: 1)
 class CoordinationItemRepository implements CoordinationItemRepositoryPort {
