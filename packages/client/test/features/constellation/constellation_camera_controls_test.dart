@@ -8,6 +8,7 @@ import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart'
 import 'package:tentura/features/constellation/domain/constellation_minimap.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_camera_controls.dart';
+import 'package:tentura/features/constellation/ui/utils/constellation_presentation_frame.dart';
 import 'package:tentura/features/graph/ui/utils/graph_scene_ids.dart';
 import 'package:tentura/ui/test_ids.dart';
 import '../../support/phone_surface.dart';
@@ -103,6 +104,33 @@ void _expectFootprintsInsideUsable(
       lessThanOrEqualTo(usable.bottom + 1),
       reason: '$graphId bottom outside usable',
     );
+  }
+}
+
+void _expectFitAllFramingPolicy(
+  WidgetTester tester,
+  ConstellationCubit cubit, {
+  required bool contextPanelVisible,
+}) {
+  final controller = cubit.graphController;
+  expect(
+    controller.cameraScale,
+    greaterThanOrEqualTo(kConstellationDistrictDetailScale),
+  );
+  expect(controller.cameraScale, lessThanOrEqualTo(1.0));
+  const egoGraphId = '${TenturaGraphNodeKind.fieldPerson}:ego';
+  final usable = _usableViewport(
+    tester,
+    cubit,
+    contextPanelVisible: contextPanelVisible,
+  );
+  final egoScene = controller.renderSnapshot.resolvePosition(egoGraphId);
+  if (egoScene != null) {
+    final egoViewport = controller.sceneToViewportLocal(
+      Offset(egoScene.x, egoScene.y),
+    );
+    expect(egoViewport.dx, closeTo(usable.center.dx, 24));
+    expect(egoViewport.dy, closeTo(usable.center.dy, 24));
   }
 }
 
@@ -305,7 +333,7 @@ void main() {
 
         await tester.tap(find.byKey(TestIds.key(TestIds.constellationFitAll)));
         await tester.pump();
-        _expectFootprintsInsideUsable(
+        _expectFitAllFramingPolicy(
           tester,
           cubit,
           contextPanelVisible: false,
@@ -326,8 +354,7 @@ void main() {
       await tester.tap(find.byKey(TestIds.key(TestIds.constellationFitAll)));
       await tester.pump();
 
-      _expectFootprintsInsideUsable(tester, cubit, contextPanelVisible: false);
-      expect(cubit.graphController.cameraScale, lessThanOrEqualTo(1.0));
+      _expectFitAllFramingPolicy(tester, cubit, contextPanelVisible: false);
     });
 
     testWidgets('center on ego restores scale and centres in usable region', (
@@ -481,13 +508,15 @@ void main() {
         tester.element(find.byType(ConstellationBody)),
         contextPanelVisible: false,
       );
-      controller.zoomBy(10);
+      for (var i = 0; i < 30 && controller.cameraScale < 2; i++) {
+        controller.zoomBy(1.15);
+      }
       controller.jumpToPosition(
         Offset(egoPoint.x, egoPoint.y),
         viewportInsets: insets,
       );
       await tester.pump();
-      expect(controller.cameraScale, greaterThan(2.5));
+      expect(controller.cameraScale, closeTo(2.0, 0.02));
 
       final chip = find.byKey(const Key('constellation.overflow.ego'));
       expect(chip, findsOneWidget);

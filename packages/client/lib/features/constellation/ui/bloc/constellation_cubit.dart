@@ -1119,7 +1119,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
                 if (!isAnchored(ConstellationAnchorTarget.person(person.id)))
                   'fp:${person.id}': [
                     for (final tagId in _magnetTagsOf(person.id))
-                      if (_tagMagnets[tagId] case final at?) (x: at.dx, y: at.dy),
+                      if (_tagMagnets[tagId] case final at?)
+                        (x: at.dx, y: at.dy),
                   ],
             }
           : const {},
@@ -1507,6 +1508,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     }
     _scene.awaitingLayoutOutcome = false;
     if (outcome is! GraphLayoutOutcomeSucceeded) {
+      _pendingFieldCamera = null;
       _pendingOverflowRefit = null;
     }
 
@@ -1516,6 +1518,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       _finishDropReflowSpans();
     }
     if (outcome is GraphLayoutOutcomeSucceeded) {
+      _runPendingFieldCamera();
       _runPendingOverflowRefit();
       if (_footprintMetricsPending) {
         // Scene notifications cannot rebuild topology reentrantly.
@@ -3397,12 +3400,78 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     emit(state.copyWith(viewMode: viewMode));
   }
 
-  void fitWholeField({required EdgeInsets insets}) {
-    if (state.placementPhase != ConstellationPlacementPhase.idle) {
+  /// Programmatic field framing entry point (FCP §F).
+  void frameField({required EdgeInsets insets, required double floor}) {
+    if (isClosed || state.placementPhase != ConstellationPlacementPhase.idle) {
       return;
     }
-    _scene.fitWholeField(insets);
+    if (_shouldDeferProgrammaticFieldCamera()) {
+      _pendingFieldCamera = (
+        insets: insets,
+        frameFloor: floor,
+        centerOnEgo: false,
+      );
+      return;
+    }
+    _runFieldFrame(insets: insets, floor: floor);
   }
+
+  void fitWholeField({required EdgeInsets insets}) {
+    frameField(
+      insets: insets,
+      floor: kConstellationDistrictDetailScale,
+    );
+  }
+
+  bool _shouldDeferProgrammaticFieldCamera() =>
+      !graphController.canLayout || graphController.isRelayoutInFlight;
+
+  void _restoreNormalFieldPositionsBeforeFraming() {
+    if (_overviewLayout &&
+        semanticZoomEnabled &&
+        !state.isComposing &&
+        state.tagView == null) {
+      final positions = _communityLayouts.normalPositions;
+      if (positions != null) {
+        graphController.animateTo(positions, animate: false);
+      }
+    }
+  }
+
+  void _runFieldFrame({required EdgeInsets insets, required double floor}) {
+    _restoreNormalFieldPositionsBeforeFraming();
+    _scene.fitNodes(
+      insets,
+      minScale: floor,
+      focus: 'fp:${_viewer.id}',
+    );
+  }
+
+  void _runPendingFieldCamera() {
+    final pending = _pendingFieldCamera;
+    if (pending == null ||
+        state.placementPhase != ConstellationPlacementPhase.idle) {
+      return;
+    }
+    _pendingFieldCamera = null;
+    if (_shouldDeferProgrammaticFieldCamera()) {
+      _pendingFieldCamera = pending;
+      return;
+    }
+    if (pending.centerOnEgo) {
+      _restoreNormalFieldPositionsBeforeFraming();
+      _scene.centreOnEgo(_viewer.id, pending.insets);
+      return;
+    }
+    _runFieldFrame(insets: pending.insets, floor: pending.frameFloor!);
+  }
+
+  /// Latest queued fit-all or centre-on-me while layout cannot run (FCP §F.1).
+  ({EdgeInsets insets, double? frameFloor, bool centerOnEgo})?
+  _pendingFieldCamera;
+
+  @visibleForTesting
+  bool get fieldCameraPendingForTest => _pendingFieldCamera != null;
 
   /// Selects [beaconId] (a Request or a Post) and centres the camera on its
   /// node when it is on the field. A beacon not on the field gets the usual
@@ -3452,20 +3521,18 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   }
 
   void centerOnEgo({required EdgeInsets insets}) {
-    if (state.placementPhase != ConstellationPlacementPhase.idle) {
+    if (isClosed || state.placementPhase != ConstellationPlacementPhase.idle) {
       return;
     }
-    // Recenter is an instant camera jump to close detail. Restore its cached
-    // geometry in the same turn, before labels are placed at the new scale.
-    if (_overviewLayout &&
-        semanticZoomEnabled &&
-        !state.isComposing &&
-        state.tagView == null) {
-      final positions = _communityLayouts.normalPositions;
-      if (positions != null) {
-        graphController.animateTo(positions, animate: false);
-      }
+    if (_shouldDeferProgrammaticFieldCamera()) {
+      _pendingFieldCamera = (
+        insets: insets,
+        frameFloor: null,
+        centerOnEgo: true,
+      );
+      return;
     }
+    _restoreNormalFieldPositionsBeforeFraming();
     _scene.centreOnEgo(_viewer.id, insets);
   }
 
@@ -5443,6 +5510,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   }
 
   void _recomposeAndLayout() {
+    _pendingFieldCamera = null;
     _pendingOverflowRefit = null;
     final field = state.field;
     if (field == null) {

@@ -400,4 +400,53 @@ void main() {
       );
     },
   );
+
+  testWidgets(
+    'triple fit-all during spawn transition settles to stable framing (#1055 U3)',
+    (tester) async {
+      e2eDrainExceptions = false;
+      await launchApp(app.main);
+      final fixture = await bootstrapFixture(
+        runId: uniqueRunId('fit-all-triple'),
+      );
+      await loginAs(tester, fixture.authorEmail);
+      final requestId = await createPublishedBeacon(
+        title: uniqueRequestTitle('Fit-all triple'),
+      );
+      final helper = ConstellationAnchorTarget.person(fixture.helperUserId);
+      await upsertConstellationAnchor(
+        targetKind: 'PERSON',
+        targetId: helper.id,
+        xUnits: 2,
+        yUnits: 0,
+      );
+      await upsertConstellationAnchor(
+        targetKind: 'BEACON',
+        targetId: requestId,
+        xUnits: -2,
+        yUnits: 0,
+      );
+      await openConstellation(tester);
+      await reloadConstellation(tester);
+      await setConstellationViewMode(tester, ConstellationViewMode.map);
+      final fit = find.byKey(TestIds.key(TestIds.constellationFitAll));
+      await tester.tap(fit);
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.tap(fit);
+      await tester.tap(fit);
+      await tester.pumpAndSettle(const Duration(seconds: 45));
+      final cubit = readConstellationCubit(tester);
+      final viewer = tester.widget<InteractiveViewer>(
+        find.byType(InteractiveViewer),
+      );
+      final matrix = viewer.transformationController!.value.storage;
+      await tester.tap(fit);
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(
+        viewer.transformationController!.value.storage,
+        matrix,
+      );
+      expect(cubit.graphController.cameraScale, greaterThanOrEqualTo(0.45));
+    },
+  );
 }

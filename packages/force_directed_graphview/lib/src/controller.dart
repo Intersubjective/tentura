@@ -141,6 +141,9 @@ class GraphController<N, E> with ChangeNotifier {
       _transitionTarget != null &&
       _scene.snapshot.transition != null;
 
+  /// True while a layout request is still running (outcome not yet terminal).
+  bool get isRelayoutInFlight => _relayoutInFlight;
+
   /// True while relayout is in flight or a layout transition is animating.
   bool get isLayoutSettling => _relayoutInFlight || isLayoutTransitioning;
 

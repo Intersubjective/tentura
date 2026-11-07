@@ -58,6 +58,18 @@ final class GraphSceneSnapshot<N, E> {
         seedPositions[id];
   }
 
+  /// Target position for camera framing (skips in-flight layout transition).
+  ///
+  /// Precedence: presentation override, accepted layout, seed.
+  ScenePoint? resolveTargetPosition(GraphNodeId id) {
+    if (!topology.nodesById.containsKey(id)) {
+      return null;
+    }
+    return presentation.overrides[id] ??
+        layout?.positions[id] ??
+        seedPositions[id];
+  }
+
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
