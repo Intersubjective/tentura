@@ -892,8 +892,16 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
             forgetPriorHintNodeIds: _forgetPriorHintNodeIds,
           ),
         );
-    return _withMagnets(normal);
+    final next = _withMagnets(normal);
+    // The graph view repeats a layout unless it is handed the very instance
+    // the cubit requested; an equal wrapper rebuilt on every read would
+    // restart that layout and strand the initial framing queued behind it.
+    final last = _lastGraphSceneLayoutAlgorithm;
+    if (last != null && last == next) return last;
+    return _lastGraphSceneLayoutAlgorithm = next;
   }
+
+  SceneLayoutAlgorithm? _lastGraphSceneLayoutAlgorithm;
 
   final _tagMagnets = <String, Offset>{};
   Map<String, ScenePoint> _magnetBasePositions = const {};
