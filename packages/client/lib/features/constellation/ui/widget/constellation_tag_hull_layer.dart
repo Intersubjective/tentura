@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
 
 import 'package:tentura/design_system/tentura_tag_colors.dart';
+import 'package:tentura/design_system/tentura_tokens.dart';
 import 'package:tentura/features/graph/domain/entity/edge_details.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura/features/people_tags/domain/entity/people_tags_entities.dart';
+import 'package:tentura/ui/l10n/l10n.dart';
 
 /// Scene-space margin the hull keeps around the nodes it encloses.
 const kConstellationTagHullPadding = 56.0;
@@ -148,8 +151,9 @@ bool _sameCentres(List<Offset> a, List<Offset> b) {
 
 /// A soft hull around the Field people of every own tag that has someone on
 /// the map: the padded convex hull of their nodes in the tag's colour.
-/// Selected tags are drawn brighter with a thin outline and on top. Sits in
-/// the scene beneath the nodes; reads positions only and never moves a node.
+/// Selected tags are drawn brighter with a thin outline and on top; the tag a
+/// press and hold lifted is outlined and casts a shadow. Sits in the scene
+/// beneath the nodes; reads positions only and never moves a node.
 /// Automatic tags never get a hull (callers pass own tags only).
 class ConstellationTagHullLayer extends StatelessWidget {
   const ConstellationTagHullLayer({
@@ -157,6 +161,7 @@ class ConstellationTagHullLayer extends StatelessWidget {
     required this.tags,
     required this.selectedTagIds,
     required this.peopleOf,
+    this.liftedTagId,
     super.key,
   });
 
@@ -174,11 +179,14 @@ class ConstellationTagHullLayer extends StatelessWidget {
   /// Ids of the people in the own tag with the given id.
   final Set<String> Function(String tagId) peopleOf;
 
+  /// The own tag a press and hold on its hull lifted into a drag, if any.
+  final String? liftedTagId;
+
   @override
   Widget build(BuildContext context) {
-    final swatches = Theme.of(
-      context,
-    ).extension<TenturaTagColors>()!.swatches;
+    final theme = Theme.of(context);
+    final swatches = theme.extension<TenturaTagColors>()!.swatches;
+    final l10n = L10n.of(context)!;
     final paintOrder = constellationTagHullPaintOrder(tags, selectedTagIds);
     return IgnorePointer(
       child: AnimatedBuilder(
@@ -198,9 +206,21 @@ class ConstellationTagHullLayer extends StatelessWidget {
                               ? _hullAlphaSelected
                               : _hullAlphaUnselected,
                         ),
-                    outlineColor: selectedTagIds.contains(tag.id)
+                    outlineColor:
+                        selectedTagIds.contains(tag.id) || liftedTagId == tag.id
                         ? swatches[tag.color % swatches.length].accent
                         : null,
+                    lift: liftedTagId == tag.id
+                        ? (
+                            color: theme.colorScheme.shadow,
+                            elevation: context.tt.fieldTagHullLiftElevation,
+                          )
+                        : null,
+                    semanticsLabel: l10n.peopleTagsPersonChipSemantics(
+                      tag.name,
+                    ),
+                    semanticsHint: l10n.constellationTagHullDragHint,
+                    textDirection: Directionality.of(context),
                   ),
                 ),
           ],
@@ -219,16 +239,29 @@ class _HullPainter extends CustomPainter {
   const _HullPainter({
     required this.centres,
     required this.fillColor,
+    required this.semanticsLabel,
+    required this.semanticsHint,
+    required this.textDirection,
     this.outlineColor,
+    this.lift,
   });
 
   final List<Offset> centres;
   final Color fillColor;
   final Color? outlineColor;
 
+  /// Set while the hull is lifted: the shadow it casts.
+  final ({Color color, double elevation})? lift;
+  final String semanticsLabel;
+  final String semanticsHint;
+  final TextDirection textDirection;
+
   @override
   void paint(Canvas canvas, Size size) {
     final hull = buildConstellationTagHullPath(centres);
+    if (lift case (:final color, :final elevation)) {
+      canvas.drawShadow(hull, color, elevation, false);
+    }
     canvas.drawPath(hull, Paint()..color = fillColor);
     final stroke = outlineColor;
     if (stroke != null) {
@@ -243,9 +276,30 @@ class _HullPainter extends CustomPainter {
   }
 
   @override
+  SemanticsBuilderCallback get semanticsBuilder =>
+      (_) => [
+        CustomPainterSemantics(
+          rect: buildConstellationTagHullPath(centres).getBounds(),
+          properties: SemanticsProperties(
+            label: semanticsLabel,
+            hint: semanticsHint,
+            textDirection: textDirection,
+          ),
+        ),
+      ];
+
+  @override
   bool shouldRepaint(_HullPainter old) =>
       old.fillColor != fillColor ||
       old.outlineColor != outlineColor ||
+      old.lift != lift ||
+      !_sameCentres(old.centres, centres);
+
+  @override
+  bool shouldRebuildSemantics(_HullPainter old) =>
+      old.semanticsLabel != semanticsLabel ||
+      old.semanticsHint != semanticsHint ||
+      old.textDirection != textDirection ||
       !_sameCentres(old.centres, centres);
 }
 

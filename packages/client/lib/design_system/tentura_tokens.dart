@@ -74,6 +74,7 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
     required this.fieldUnreadGlowSpread,
     required this.fieldUnreadGlowAlphaDark,
     required this.fieldUnreadGlowAlphaLight,
+    required this.fieldTagHullLiftElevation,
   });
 
   final Color bg;
@@ -221,6 +222,10 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
   /// Peak alpha of the unread glow sprite on light theme (normal blend).
   final double fieldUnreadGlowAlphaLight;
 
+  /// Shadow elevation (dp) of a tag hull a press and hold lifted (#1021);
+  /// Material 3 elevation level 2.
+  final double fieldTagHullLiftElevation;
+
   /// Light preset (compact density); colours from [TenturaColorPalette.light].
   static final TenturaTokens light = TenturaTokens.fromPalette(
     TenturaColorPalette.light,
@@ -296,6 +301,7 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
     fieldUnreadGlowSpread: 2.15,
     fieldUnreadGlowAlphaDark: 0.34,
     fieldUnreadGlowAlphaLight: 0.26,
+    fieldTagHullLiftElevation: 3,
   );
 
   /// Mine / secondary info on cards (sky-tinted border emphasis).
@@ -483,6 +489,7 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
     double? fieldUnreadGlowSpread,
     double? fieldUnreadGlowAlphaDark,
     double? fieldUnreadGlowAlphaLight,
+    double? fieldTagHullLiftElevation,
   }) {
     return TenturaTokens(
       bg: bg ?? this.bg,
@@ -569,6 +576,8 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
           fieldUnreadGlowAlphaDark ?? this.fieldUnreadGlowAlphaDark,
       fieldUnreadGlowAlphaLight:
           fieldUnreadGlowAlphaLight ?? this.fieldUnreadGlowAlphaLight,
+      fieldTagHullLiftElevation:
+          fieldTagHullLiftElevation ?? this.fieldTagHullLiftElevation,
     );
   }
 
@@ -732,6 +741,11 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
       fieldUnreadGlowAlphaLight: lerpDouble(
         fieldUnreadGlowAlphaLight,
         other.fieldUnreadGlowAlphaLight,
+        t,
+      )!,
+      fieldTagHullLiftElevation: lerpDouble(
+        fieldTagHullLiftElevation,
+        other.fieldTagHullLiftElevation,
         t,
       )!,
     );
