@@ -182,12 +182,7 @@ class _ConstellationViewportOverlayState
       (c.cameraScale, c.viewportSize);
 
   void _onCamera() {
-    final next = _shapeOf(widget.cubit.graphController);
-    final prev = _cameraShape.value;
-    if (prev.$1 == next.$1 && prev.$2 == next.$2) {
-      return;
-    }
-    _cameraShape.value = next;
+    _cameraShape.value = _shapeOf(widget.cubit.graphController);
     _frameTick.value++;
   }
 
