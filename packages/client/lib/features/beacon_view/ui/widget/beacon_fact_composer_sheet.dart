@@ -9,12 +9,29 @@ import 'package:tentura/data/repository/image_repository.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_fact_card_consts.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
+import 'package:tentura/features/beacon_threads/ui/room_fact_authoring.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/fact_attachment_preview_strip.dart';
 import 'package:tentura/domain/util/beacon_pinned_facts.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/widget/pending_attachments.dart';
+
+/// The room body's Add-fact hand-off (#481) for a Request: reads the
+/// permission from [BeaconViewCubit] and opens [showBeaconFactComposerSheet],
+/// so the cubit itself never opens UI.
+class BeaconViewRoomFactAuthoring implements RoomFactAuthoring {
+  const BeaconViewRoomFactAuthoring(this.cubit);
+
+  final BeaconViewCubit cubit;
+
+  @override
+  bool get canAddFact => cubit.canAddFact;
+
+  @override
+  Future<bool> openAddFact(BuildContext context) =>
+      showBeaconFactComposerSheet(context, cubit: cubit);
+}
 
 /// Opens the Add-fact form; completes with true when a fact was pinned, false
 /// when the form was cancelled or dismissed (#481).

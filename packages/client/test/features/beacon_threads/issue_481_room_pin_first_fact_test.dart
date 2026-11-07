@@ -14,8 +14,8 @@
 // PR #608 owner review (should-fix 2): the room body must not depend on
 // BeaconViewCubit. It finds the Add-fact hand-off through the
 // `RoomFactAuthoring` interface (beacon_threads/ui/room_fact_authoring.dart),
-// which BeaconViewCubit implements and BeaconViewScope provides. So this test
-// provides the cubit under that type too, and the guard test below checks a
+// which BeaconViewRoomFactAuthoring (over BeaconViewCubit) implements and
+// BeaconViewScope provides. So this test provides that adapter too, and the guard test below checks a
 // BeaconViewCubit alone (no RoomFactAuthoring) no longer enables the action.
 
 import 'package:flutter/material.dart';
@@ -31,6 +31,7 @@ import 'package:tentura/features/beacon_threads/ui/room_fact_authoring.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/beacon_room_body.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/fact_picker_sheet.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
+import 'package:tentura/features/beacon_view/ui/widget/beacon_fact_composer_sheet.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/presence_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -56,7 +57,7 @@ Beacon _beacon() => Beacon(
 /// (beacon_view_scope.dart). The viewer is the beacon author, so
 /// `canCoordinateInBeaconRoom` is true and the room is writable.
 ///
-/// [provideAuthoring]: also provide the cubit as [RoomFactAuthoring], as
+/// [provideAuthoring]: also provide the cubit's [RoomFactAuthoring] adapter, as
 /// beacon_view_scope.dart does. `RepositoryProvider` is a plain
 /// `Provider<T>` (flutter_bloc does not export `Provider` itself, and
 /// `provider` is not a direct dependency of the client package).
@@ -105,7 +106,9 @@ Future<void> _pumpRequestRoomWithNoFacts(
       providers: [
         BlocProvider<BeaconViewCubit>.value(value: viewCubit),
         if (provideAuthoring)
-          RepositoryProvider<RoomFactAuthoring>.value(value: viewCubit),
+          RepositoryProvider<RoomFactAuthoring>.value(
+            value: BeaconViewRoomFactAuthoring(viewCubit),
+          ),
         BlocProvider<RoomCubit>.value(value: roomCubit),
         BlocProvider<ProfileCubit>.value(value: profileCubit),
         BlocProvider<PresenceCubit>.value(value: presenceCubit),

@@ -14,7 +14,7 @@ import 'package:tentura/ui/widget/semantics_free_tooltip.dart';
 import '../../domain/constellation_people.dart';
 import '../../domain/entity/constellation_field_search_result.dart';
 import '../bloc/constellation_cubit.dart';
-import 'constellation_camera_controls.dart';
+import '../util/constellation_camera_viewport_insets.dart';
 
 /// Most people a name search lists at once; typing narrows it further.
 const kConstellationPersonSearchLimit = 200;
@@ -124,7 +124,7 @@ class _ConstellationPersonSearchButtonState
     } on ProviderNotFoundException {
       // List/search-only harnesses mount the cubit above this widget without
       // a Provider scope around the suggestion rows.
-      return ConstellationCameraControls.cameraViewportInsets(
+      return constellationCameraViewportInsets(
         context,
         contextPanelVisible: true,
       );

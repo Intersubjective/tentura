@@ -47,6 +47,7 @@ import '../bloc/constellation_cubit.dart';
 import '../bloc/constellation_selection_cubit.dart';
 import '../bloc/constellation_tag_lens_cubit.dart';
 import '../../domain/constellation_forward_tree_marker.dart';
+import '../util/constellation_camera_viewport_insets.dart';
 import '../util/constellation_perf.dart';
 import '../utils/constellation_edge_style.dart';
 import '../utils/constellation_graph_scene.dart';
@@ -1094,7 +1095,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
               ? _compactSheetHeight
               : _effectiveMapStackHeight * tt.fieldSheetPeekFraction)
         : 0.0;
-    return ConstellationCameraControls.cameraViewportInsets(
+    return constellationCameraViewportInsets(
       context,
       contextPanelVisible: contextPanelVisible,
       compactSheetHeight: sheetHeight,

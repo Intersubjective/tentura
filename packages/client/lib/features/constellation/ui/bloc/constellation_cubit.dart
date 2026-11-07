@@ -74,7 +74,7 @@ import '../scene/constellation_scene_controller.dart';
 import '../scene/constellation_forward_tree_scene_layout.dart';
 import '../scene/constellation_tag_view_field_layout.dart';
 import '../util/constellation_perf.dart';
-import '../widget/constellation_camera_controls.dart';
+import '../util/constellation_camera_viewport_insets.dart';
 import 'constellation_state.dart';
 
 export 'package:flutter_bloc/flutter_bloc.dart';
@@ -313,7 +313,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
 
   /// Measured bottom Field chrome (tag lens + arranging + selection) and
   /// minimap flag from ConstellationBody; combined with BuildContext in
-  /// ConstellationCameraControls.cameraViewportInsets for callers outside the
+  /// constellationCameraViewportInsets for callers outside the
   /// body subtree.
   double _fieldCameraBottomChromeHeight = 0;
   bool _fieldCameraMinimapExpanded = false;
@@ -1205,7 +1205,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     required bool contextPanelVisible,
     double compactSheetHeight = 0,
   }) {
-    return ConstellationCameraControls.cameraViewportInsets(
+    return constellationCameraViewportInsets(
       context,
       contextPanelVisible: contextPanelVisible,
       compactSheetHeight: compactSheetHeight,
