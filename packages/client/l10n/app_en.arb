@@ -11186,6 +11186,15 @@
   "@constellationTagHullDragHint": {
     "description": "Screen-reader hint on a tag's hull on the Field: a press and hold on its empty space lifts and drags all its people (#1021)"
   },
+  "constellationTagHullMoveArea": "Move area «{tagName}»",
+  "@constellationTagHullMoveArea": {
+    "description": "Field map context menu on a tag hull: lifts the tag so it follows the pointer until dropped (#1021)",
+    "placeholders": {
+      "tagName": {
+        "type": "String"
+      }
+    }
+  },
   "constellationTagAllTags": "All tags",
   "@constellationTagAllTags": {
     "description": "Field tag row: opens the full tag list sheet"

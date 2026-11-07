@@ -306,6 +306,36 @@ void main() {
       handle.dispose();
     });
 
+    testWidgets('maxWidth caps long names without stretching short chips', (
+      tester,
+    ) async {
+      const maxW = 280.0;
+      await _pump(
+        tester,
+        const PersonTagChip(
+          glyph: 'T',
+          name: 'Short',
+          colorIndex: 0,
+          maxWidth: maxW,
+        ),
+      );
+      expect(tester.getSize(find.byType(PersonTagChip)).width, lessThan(140));
+
+      await _pump(
+        tester,
+        const PersonTagChip(
+          glyph: 'L',
+          name: 'A very long neighbour tag name that should ellipsize',
+          colorIndex: 1,
+          maxWidth: maxW,
+        ),
+      );
+      expect(
+        tester.getSize(find.byType(PersonTagChip)).width,
+        lessThanOrEqualTo(maxW + 0.5),
+      );
+    });
+
     testWidgets('375×667 RU: tag name is visible and semantics stay Russian', (
       tester,
     ) async {

@@ -92,9 +92,9 @@ void main() {
           ownTags: _manyRuTags(6),
           surface: kPhoneSurface,
         );
-      expect(find.text('Снять все'), findsOneWidget);
-      expect(find.text('Выбрать все'), findsOneWidget);
-      final selectAllButton = find.byKey(ConstellationTagRow.selectAllKey);
+        expect(find.text('Снять все'), findsOneWidget);
+        expect(find.text('Выбрать все'), findsOneWidget);
+        final selectAllButton = find.byKey(ConstellationTagRow.selectAllKey);
         await tester.tap(selectAllButton);
         await tester.pumpAndSettle();
         expect(lens.state.selectedOwn.length, 6);
@@ -194,6 +194,47 @@ void main() {
         findsNWidgets(2),
       );
       expect(lens.state.selectedOwn, containsAll(['tag-0', 'tag-1']));
+    });
+
+    testWidgets('375×667 RU: short-name chips are content-sized in the wrap', (
+      tester,
+    ) async {
+      await usePhoneSurface(tester);
+      final lens = ConstellationTagLensCubit();
+      addTearDown(lens.close);
+      final ownTags = [
+        for (var i = 0; i < 6; i++)
+          PersonTag(
+            id: 'tag-$i',
+            name: i < 2 ? 'Тег $i' : '$_longRuName $i',
+            glyph: '$i',
+            color: i,
+            ord: i,
+          ),
+      ];
+      await _openSheet(
+        tester,
+        lens: lens,
+        ownTags: ownTags,
+        surface: kPhoneSurface,
+      );
+      final tt = TenturaTheme.light().extension<TenturaTokens>()!;
+      final maxLine = kPhoneSurface.width - 2 * tt.screenHPadding;
+      Finder chipForName(String name) => find.ancestor(
+        of: find.text(name),
+        matching: find.byType(PersonTagChip),
+      );
+      final shortChip = tester.getSize(chipForName('Тег 0'));
+      expect(shortChip.width, lessThan(maxLine * 0.45));
+      expect(shortChip.width, greaterThan(48));
+      final longChip = tester.getSize(chipForName('$_longRuName 2'));
+      expect(longChip.width, lessThanOrEqualTo(maxLine + 0.5));
+      expect(longChip.width, greaterThan(shortChip.width));
+      final short0 = tester.getRect(chipForName('Тег 0'));
+      final short1 = tester.getRect(chipForName('Тег 1'));
+      expect((short0.top - short1.top).abs(), lessThan(4));
+      expect(short1.left, greaterThan(short0.right));
+      expect(tester.takeException(), isNull);
     });
 
     testWidgets('wrap layout has no scroll-row gap SizedBox spacers', (
