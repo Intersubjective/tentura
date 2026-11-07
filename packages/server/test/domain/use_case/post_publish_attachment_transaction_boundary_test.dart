@@ -322,6 +322,10 @@ final class _Beacons extends Fake implements BeaconRepositoryPort {
     _post = _post.copyWith(postRootMessageId: messageId);
     events.add('root persisted');
   }
+
+  @override
+  Future<DateTime?> postExpiresAt(String postId) async =>
+      DateTime.utc(2026, 1, 3);
 }
 
 final class _PostLock extends Fake implements PostLockPort {

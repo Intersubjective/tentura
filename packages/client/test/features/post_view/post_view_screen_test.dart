@@ -763,7 +763,7 @@ void main() {
     }) async {
       final post = _post(viewerCanForward: true).copyWith(
         author: author,
-        expiresAt: DateTime.now().add(const Duration(days: 2, hours: 12)),
+        expiresAt: DateTime.now().add(const Duration(days: 2)),
         status: archived ? BeaconStatus.closed : BeaconStatus.open,
       );
       await _pumpPost(

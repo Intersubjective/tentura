@@ -9568,6 +9568,7 @@ input vote_user_variance_order_by {
 type v2_PostPublishResult {
   beaconId: String!
   rootMessageId: String!
+  expiresAt: String
 }
 
 type v2_PostParticipantPreview {
