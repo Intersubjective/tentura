@@ -13,9 +13,6 @@ Uri transformInviteDeepLink({
     return uri;
   }
   final id = normalizeInviteCode(Uri.decodeComponent(match.group(1)!));
-  if (!id.startsWith('I')) {
-    return uri;
-  }
   return uri.replace(
     path: isAuthenticated ? '$kPathAcceptInvite/$id' : '$kPathSignUp/$id',
     queryParameters: {kQueryIsDeepLink: 'true'},
