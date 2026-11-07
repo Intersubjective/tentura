@@ -300,7 +300,7 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
     fieldSheetDragHandleHitSize: 48,
     fieldUnreadGlowSpread: 2.15,
     fieldUnreadGlowAlphaDark: 0.34,
-    fieldUnreadGlowAlphaLight: 0.26,
+    fieldUnreadGlowAlphaLight: 0.48,
     fieldTagHullLiftElevation: 3,
   );
 

@@ -1,6 +1,8 @@
-import 'dart:ui' show PictureRecorder;
+import 'dart:typed_data';
+import 'dart:ui' as ui show PictureRecorder;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -34,7 +36,7 @@ void main() {
       forcedLabels: const {},
     );
     final atlas = ConstellationFieldUnreadGlowAtlas.instance;
-    final recorder = PictureRecorder();
+    final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
     ConstellationFieldUnreadGlowPainter(
       frame: frame,
@@ -45,7 +47,7 @@ void main() {
       atlas: atlas,
       spread: 2.15,
       alphaDark: 0.34,
-      alphaLight: 0.26,
+      alphaLight: TenturaTokens.light.fieldUnreadGlowAlphaLight,
       unreadDotSize: 10,
       unreadDotColor: Colors.blue,
       isDark: false,
@@ -53,6 +55,60 @@ void main() {
       pulseBoost: 1,
     ).paint(canvas, const Size(200, 100));
     expect(recorder.endRecording(), isNotNull);
+  });
+
+  testWidgets('light theme legend unread swatch shows glow outside icon', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: TenturaTheme.light(),
+        home: const Center(
+          child: RepaintBoundary(
+            key: ValueKey('constellation.legendUnreadGlowSwatch'),
+            child: ConstellationFieldUnreadGlowSwatch(),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final boundary = tester.renderObject<RenderRepaintBoundary>(
+      find.byKey(const ValueKey('constellation.legendUnreadGlowSwatch')),
+    );
+    late final Uint8List flat;
+    late final Uint8List glow;
+    await tester.runAsync(() async {
+      final bg = ui.PictureRecorder();
+      final bgCanvas = Canvas(bg);
+      final size = boundary.size;
+      bgCanvas.drawRect(
+        Offset.zero & size,
+        Paint()..color = TenturaTokens.light.bg,
+      );
+      final bgImg = await bg.endRecording().toImage(
+        size.width.ceil(),
+        size.height.ceil(),
+      );
+      final glowImg = await boundary.toImage();
+      flat = (await bgImg.toByteData())!.buffer.asUint8List();
+      glow = (await glowImg.toByteData())!.buffer.asUint8List();
+      bgImg.dispose();
+      glowImg.dispose();
+    });
+    final w = boundary.size.width.ceil();
+    final centre = (boundary.size.height / 2).round();
+    var max = 0;
+    for (var x = w ~/ 4; x < (3 * w) ~/ 4; x++) {
+      for (final y in [centre - 8, centre + 8]) {
+        if (y < 0 || y >= boundary.size.height.ceil()) continue;
+        final i = (y * w + x) * 4;
+        for (var c = 0; c < 3; c++) {
+          final d = (glow[i + c] - flat[i + c]).abs();
+          if (d > max) max = d;
+        }
+      }
+    }
+    expect(max, greaterThanOrEqualTo(10));
   });
 
   testWidgets('legend lists Unread row', (tester) async {

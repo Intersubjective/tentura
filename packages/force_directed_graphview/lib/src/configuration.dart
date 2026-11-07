@@ -94,6 +94,7 @@ class GraphViewConfiguration {
     this.onCanvasSecondaryTap,
     this.onCanvasLongPress,
     this.onCanvasLongPressDrag,
+    this.onCanvasLongPressDragFailed,
     this.onNodeLongPress,
     this.nodeTapHitTester,
     this.nodePaintOrder,
@@ -151,6 +152,12 @@ class GraphViewConfiguration {
   /// grab offset; a lift released before the pointer moves past touch slop
   /// ends as a cancel. Null leaves the press to [onCanvasLongPress].
   final GraphNodeId? Function(Offset scenePosition)? onCanvasLongPressDrag;
+
+  /// Called when [onCanvasLongPressDrag] named a node the press could not
+  /// grab (it has no position on the graph). No node drag started, so neither
+  /// [onNodeDragEnd] nor [onNodeDragCancel] will follow: the app must undo
+  /// whatever it set up when it named the node.
+  final void Function(GraphNodeId nodeId)? onCanvasLongPressDragFailed;
 
   /// Touch/stylus long press on a draggable node; never fires with canvas long
   /// press for the same gesture.
