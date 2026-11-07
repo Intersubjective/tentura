@@ -258,6 +258,7 @@ Future<void> _settleFrames(WidgetTester tester) async {
   await tester.pump(const Duration(milliseconds: 400));
   await tester.pump(const Duration(milliseconds: 400));
   await tester.pump(const Duration(milliseconds: 400));
+  await tester.pumpAndSettle(const Duration(milliseconds: 100));
 }
 
 void _expectNoTrustRingCaption() {
@@ -535,6 +536,9 @@ Future<_Harness> _mountWithTransitionInFlight(WidgetTester tester) async {
 
 /// Picks the request [_heldRequest] up with a real pointer.
 Future<TestGesture> _pickUpHeldRequest(WidgetTester tester, _Harness h) async {
+  h.cubit.graphController.jumpToNodeId(_heldRequestNodeId);
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 100));
   final gesture = await tester.startGesture(
     tester.getCenter(_nodeFinder(_heldRequest)),
     kind: PointerDeviceKind.mouse,

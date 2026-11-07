@@ -168,13 +168,21 @@ void main() {
       expect(Offset(peer.x, peer.y), scene);
 
       // Pan horizontally only so the fixed pin is within the compact width.
-      // At 1x it remains 425 pixels below the initially centered ego.
-      controller.jumpToPosition(
-        const Offset(
-          kConstellationCanvasCentre + 425,
-          kConstellationCanvasCentre,
-        ),
-      );
+      if (height == 950) {
+        // Short chrome: restore the legacy camera offset from scale 1 so the
+        // pin projects into the bottom nav, after U4's 0.85 initial frame.
+        controller.zoomBy(1 / controller.cameraScale);
+        await tester.pump();
+        controller.jumpToPosition(
+          const Offset(
+            kConstellationCanvasCentre + 425,
+            kConstellationCanvasCentre,
+          ),
+        );
+      } else {
+        final egoPos = controller.renderSnapshot.resolvePosition('fp:ego')!;
+        controller.jumpToPosition(Offset(scene.dx, egoPos.y));
+      }
       await tester.pumpAndSettle();
       Offset globalPin() => tester
           .renderObject<RenderBox>(

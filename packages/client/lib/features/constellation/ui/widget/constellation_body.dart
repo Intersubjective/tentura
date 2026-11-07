@@ -2173,6 +2173,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
                     },
               minScale: 0.1,
               maxScale: 2,
+              centerOnFirstLayout: false,
               layoutAlgorithm: layoutAlgorithm,
               // New Requests spring out from under their author along this
               // transition; reduced motion lands every node at once.
