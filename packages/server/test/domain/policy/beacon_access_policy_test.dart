@@ -1,6 +1,6 @@
 import 'package:tentura_root/domain/entity/beacon_access.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
-import 'package:tentura_server/domain/beacon_access_policy.dart';
+import 'package:tentura_server/domain/policy/beacon_access_policy.dart';
 import 'package:tentura_server/domain/beacon_visibility.dart';
 import 'package:test/test.dart';
 

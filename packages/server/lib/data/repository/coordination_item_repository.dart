@@ -6,7 +6,7 @@ import 'package:drift_postgres/drift_postgres.dart';
 
 import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/consts/coordination_item_consts.dart';
-import 'package:tentura_server/domain/coordination_stale_rules.dart';
+import 'package:tentura_server/domain/policy/coordination_stale_rules.dart';
 import 'package:tentura_server/domain/entity/beacon_activity_event_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_thread_record.dart';
 import 'package:tentura_server/domain/entity/coordination_responsibility_counts.dart';
