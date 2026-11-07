@@ -48,26 +48,20 @@ class _FakePlatformRepository implements PlatformRepositoryPort {
   }
 
   @override
-  Future<void> launchUrl(String uri) async {
-    launchedUri = Uri.parse(uri);
-  }
-
-  @override
   Future<void> launchUserLink(Uri uri) async {}
 }
 
 Beacon _openAuthorBeacon({
   BeaconStatus status = BeaconStatus.open,
-}) =>
-    Beacon(
-      id: 'b1',
-      title: 'T',
-      author: const Profile(id: 'uAuthor', displayName: 'Author'),
-      createdAt: DateTime.utc(2026, 6, 20),
-      updatedAt: DateTime.utc(2026, 6, 20),
-      status: status,
-      viewerCanForward: status.allowsForward,
-    );
+}) => Beacon(
+  id: 'b1',
+  title: 'T',
+  author: const Profile(id: 'uAuthor', displayName: 'Author'),
+  createdAt: DateTime.utc(2026, 6, 20),
+  updatedAt: DateTime.utc(2026, 6, 20),
+  status: status,
+  viewerCanForward: status.allowsForward,
+);
 
 Future<void> _pumpHeaderCard(
   WidgetTester tester, {
@@ -333,7 +327,9 @@ void main() {
         supportedLocales: L10n.supportedLocales,
         locale: const Locale('en'),
         home: BlocProvider<ProfileCubit>.value(
-          value: _MockProfileCubit(const Profile(id: 'viewer', displayName: 'Viewer')),
+          value: _MockProfileCubit(
+            const Profile(id: 'viewer', displayName: 'Viewer'),
+          ),
           child: TenturaResponsiveScope(
             child: Scaffold(
               body: BeaconOperationalHeaderCard(
@@ -399,7 +395,9 @@ void main() {
       expect(find.text('Forward'), findsNothing);
     });
 
-    testWidgets('author ACT effect line wraps at compact width', (tester) async {
+    testWidgets('author ACT effect line wraps at compact width', (
+      tester,
+    ) async {
       final state = BeaconViewState(
         beacon: _openAuthorBeacon(),
         myProfile: authorProfile,
@@ -614,7 +612,9 @@ void main() {
   });
 
   group('removed HUD CTAs', () {
-    testWidgets('waiting help offerer shows Edit help offer CTA', (tester) async {
+    testWidgets('waiting help offerer shows Edit help offer CTA', (
+      tester,
+    ) async {
       const viewer = Profile(id: 'uViewer', displayName: 'Viewer');
       final state = BeaconViewState(
         beacon: _openAuthorBeacon(),

@@ -33,9 +33,6 @@ class _FakePlatformRepository implements PlatformRepositoryPort {
   Future<void> launchUri(Uri uri) async {}
 
   @override
-  Future<void> launchUrl(String uri) async {}
-
-  @override
   Future<void> launchUserLink(Uri uri) async {}
 }
 
