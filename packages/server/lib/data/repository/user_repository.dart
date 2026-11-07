@@ -209,7 +209,6 @@ class UserRepository implements UserRepositoryPort {
     return true;
   }
 
-  // TBD: move to SQL
   @override
   Future<UserEntity> createInvited({
     required String invitationId,
@@ -911,7 +910,6 @@ class UserRepository implements UserRepositoryPort {
   Future<void> deleteById({required String id}) =>
       _database.managers.users.filter((e) => e.id(id)).delete();
 
-  // TBD: move to SQL
   @override
   Future<bool> bindMutual({
     required String invitationId,
