@@ -26,15 +26,14 @@ const _authorGraphId = 'fp:in';
 final _satellite = ConstellationAnchorTarget.beacon('req-in-2');
 const _satelliteGraphId = 'fr:req-in-2';
 
-/// One envelope unit in scene pixels and the canvas centre (10 units = 1700 px
-/// on each side of the centre).
-const _unit = 170.0;
+/// One envelope unit in scene pixels and the canvas centre.
+const _unit = kConstellationRingUnitPixels;
 const _centre = kConstellationCanvasCentre;
 
 /// The pinned Request sits just inside the top envelope edge, so the first
 /// few pixels of upward travel already push it against the wall.
-const _satelliteYUnits = -9.9;
-const _envelopeTopY = _centre - 10 * _unit;
+const _satelliteYUnits = kConstellationCoordinateMinUnits + 0.1;
+const _envelopeTopY = _centre + kConstellationCoordinateMinUnits * _unit;
 
 /// Pointer target well inside the envelope for the person's own body.
 const _targetY = _centre - 1448;
@@ -266,8 +265,14 @@ void main() {
           satelliteOp.xUnits,
           closeTo((satelliteStart.dx + _sidewaysShift - _centre) / _unit, 1e-2),
         );
-        expect(satelliteOp.yUnits, greaterThanOrEqualTo(-10));
-        expect(satelliteOp.yUnits, closeTo(-10, 1e-2));
+        expect(
+          satelliteOp.yUnits,
+          greaterThanOrEqualTo(kConstellationCoordinateMinUnits),
+        );
+        expect(
+          satelliteOp.yUnits,
+          closeTo(kConstellationCoordinateMinUnits, 1e-2),
+        );
       },
     );
   });
