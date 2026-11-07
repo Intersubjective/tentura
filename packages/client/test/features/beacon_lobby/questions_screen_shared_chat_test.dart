@@ -489,6 +489,7 @@ void main() {
 
       await _replyTo(tester, 'Bring your own gloves');
       await tester.enterText(_composer, 'What size?');
+      await tester.pump();
       await tester.tap(find.byTooltip(l10n.tooltipSendMessage));
       await _pumpFrames(tester);
 
@@ -525,6 +526,7 @@ void main() {
 
       expect(_composer, findsOneWidget);
       await tester.enterText(_composer, 'How many boxes?');
+      await tester.pump();
       await tester.tap(find.byTooltip(l10n.tooltipSendMessage));
       await _pumpFrames(tester);
 
