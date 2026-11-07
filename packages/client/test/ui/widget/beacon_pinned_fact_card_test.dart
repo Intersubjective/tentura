@@ -27,9 +27,6 @@ class _FakePlatformRepository implements PlatformRepositoryPort {
   Future<void> launchUri(Uri uri) async {}
 
   @override
-  Future<void> launchUrl(String uri) async {}
-
-  @override
   Future<void> launchUserLink(Uri uri) async {
     launchedUserLink = uri;
   }
@@ -39,27 +36,26 @@ BeaconFactCard _fact({
   required String id,
   String text = '',
   List<RoomMessageAttachment> attachments = const [],
-}) =>
-    BeaconFactCard(
-      id: id,
-      beaconId: 'b1',
-      factText: text,
-      visibility: BeaconFactCardVisibilityBits.public,
-      pinnedBy: 'u1',
-      createdAt: DateTime.utc(2025),
-      status: BeaconFactCardStatusBits.active,
-      attachments: attachments,
-    );
+}) => BeaconFactCard(
+  id: id,
+  beaconId: 'b1',
+  factText: text,
+  visibility: BeaconFactCardVisibilityBits.public,
+  pinnedBy: 'u1',
+  createdAt: DateTime.utc(2025),
+  status: BeaconFactCardStatusBits.active,
+  attachments: attachments,
+);
 
 RoomMessageAttachment _image(String id) => RoomMessageAttachment(
-      id: id,
-      kind: BeaconRoomMessageAttachmentKind.image,
-      position: 0,
-      mime: 'image/jpeg',
-      sizeBytes: 1,
-      imageId: 'img-$id',
-      imageAuthorId: 'auth',
-    );
+  id: id,
+  kind: BeaconRoomMessageAttachmentKind.image,
+  position: 0,
+  mime: 'image/jpeg',
+  sizeBytes: 1,
+  imageId: 'img-$id',
+  imageAuthorId: 'auth',
+);
 
 Widget _harness({
   required BeaconFactCard fact,
@@ -138,7 +134,9 @@ void main() {
 
   testWidgets('plain fact text still renders', (tester) async {
     await tester.pumpWidget(
-      _harness(fact: _fact(id: 'f1', text: 'No links in this one.')),
+      _harness(
+        fact: _fact(id: 'f1', text: 'No links in this one.'),
+      ),
     );
     await tester.pumpAndSettle();
 
@@ -147,7 +145,9 @@ void main() {
 
   testWidgets('public fact card shows visibility mark', (tester) async {
     await tester.pumpWidget(
-      _harness(fact: _fact(id: 'f1', text: 'Public pinned fact')),
+      _harness(
+        fact: _fact(id: 'f1', text: 'Public pinned fact'),
+      ),
     );
     await tester.pumpAndSettle();
 
