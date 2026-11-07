@@ -4,8 +4,12 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/design_system/components/tentura_avatar.dart';
+import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/domain/entity/lazy_write_notice.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/features/constellation/data/gql/_g/constellation_field_fetch.data.gql.dart';
+import 'package:tentura/features/constellation/data/model/constellation_field_mapper.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
@@ -83,12 +87,14 @@ final class _Person {
     this.name,
     this.depth = 1,
     this.pinned = false,
+    this.image,
   });
 
   final String id;
   final String? name;
   final int depth;
   final bool pinned;
+  final ImageEntity? image;
 }
 
 /// Everyone in [people] is a direct contact so all of them are drawn. A
@@ -101,7 +107,11 @@ ConstellationField _field(List<_Person> people) {
   ];
   final peers = [
     for (final p in people)
-      ConstellationPerson(id: p.id, displayName: p.name ?? 'Person ${p.id}'),
+      ConstellationPerson(
+        id: p.id,
+        displayName: p.name ?? 'Person ${p.id}',
+        image: p.image,
+      ),
     for (final relay in relays)
       ConstellationPerson(id: relay, displayName: 'Relay $relay'),
   ];
@@ -604,7 +614,179 @@ void main() {
         expect(_ringIn('dan', swatch.accent), findsNothing);
       }
     });
+
+    testWidgets(
+      'draw TenturaAvatar photo at district scale when peer has image, initials otherwise',
+      (tester) async {
+        const withPhoto = _Person(
+          'alice',
+          name: 'Alice Brown',
+          image: ImageEntity(id: 'img-alice', authorId: 'alice'),
+        );
+        const noPhoto = _Person('bob', name: 'Bob Stone');
+        await mount(
+          tester,
+          const [withPhoto, noPhoto],
+          at: const {
+            'ego': Offset(600, 700),
+            'alice': Offset(300, 300),
+            'bob': Offset(500, 300),
+          },
+        );
+
+        final aliceAvatar = find.descendant(
+          of: _graphNode('alice'),
+          matching: find.byWidgetPredicate(
+            (w) => w is TenturaAvatar && w.profile.id == 'alice',
+          ),
+        );
+        expect(aliceAvatar, findsOneWidget);
+        expect(
+          tester.widget<TenturaAvatar>(aliceAvatar).profile.hasAvatar,
+          isTrue,
+        );
+        expect(
+          find.descendant(
+            of: _graphNode('alice'),
+            matching: find.byType(Image),
+          ),
+          findsWidgets,
+        );
+
+        expect(
+          find.descendant(of: _graphNode('bob'), matching: find.text('BS')),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(
+            of: _graphNode('bob'),
+            matching: find.byWidgetPredicate(
+              (w) => w is TenturaAvatar && w.profile.hasNoAvatar,
+            ),
+          ),
+          findsOneWidget,
+        );
+      },
+    );
   });
+
+  testWidgets(
+    'district avatars on RU phone: long names fit, photo vs initials (#1149)',
+    (tester) async {
+      const longRu =
+          'Новый человек с очень длинным именем для телефона и раскладки меток';
+      const plainName = 'Без фотографии только инициалы';
+      await mount(
+        tester,
+        const [
+          _Person(
+            'photo',
+            name: longRu,
+            image: ImageEntity(id: 'img-ru', authorId: 'photo'),
+          ),
+          _Person('plain', name: plainName),
+        ],
+        at: const {
+          'ego': Offset(80, 620),
+          'photo': Offset(120, 280),
+          'plain': Offset(220, 280),
+        },
+        scale: 0.65,
+        phoneRu: true,
+      );
+
+      expect(tester.takeException(), isNull);
+      expect(
+        find.descendant(
+          of: _graphNode('photo'),
+          matching: find.byType(Image),
+        ),
+        findsWidgets,
+      );
+      final plainInitials = TenturaAvatar.initialsForProfile(
+        const Profile(id: 'plain', displayName: plainName),
+      );
+      expect(
+        find.descendant(
+          of: _graphNode('plain'),
+          matching: find.text(plainInitials),
+        ),
+        findsOneWidget,
+      );
+      final photoMarker = _screenRect(tester, _graphNode('photo'));
+      expect(photoMarker.width, closeTo(20, 0.5));
+      expect(photoMarker.height, closeTo(20, 0.5));
+    },
+  );
+
+  test(
+    'ConstellationFieldFetch maps peer image through to district avatar profile',
+    () {
+      final wire = {
+        '__typename': 'query_root',
+        'constellationField': {
+          '__typename': 'v2_ConstellationField',
+          'loadedAt': '2026-11-07T12:00:00.000Z',
+          'context': '',
+          'peersCapped': false,
+          'requestsCapped': false,
+          'directContactIds': ['peer-img'],
+          'peers': [
+            {
+              '__typename': 'v2_ConstellationPeer',
+              'id': 'peer-img',
+              'contactOnly': false,
+              'displayName': 'Photo Peer',
+              'handle': null,
+              'image': {
+                '__typename': 'v2_image',
+                'id': 'img-peer',
+                'hash': 'hash-1',
+                'height': 100,
+                'width': 100,
+                'author_id': 'peer-img',
+                'created_at': '2026-11-01',
+              },
+              'isNew': false,
+              'pinState': null,
+              'presence': 'visible',
+              'temporaryBeaconId': null,
+              'bondContexts': <dynamic>[],
+              'visible': true,
+            },
+          ],
+          'edges': <dynamic>[],
+          'requests': <dynamic>[],
+          'posts': <dynamic>[],
+          'memberWebs': <dynamic>[],
+          'anchorProjection': {
+            '__typename': 'v2_ConstellationAnchorProjection',
+            'revision': '0',
+            'anchors': <dynamic>[],
+            'pinnedPeers': <dynamic>[],
+            'pinnedRequests': <dynamic>[],
+            'supportPeers': <dynamic>[],
+            'supportEdges': <dynamic>[],
+            'serverFilteredBeaconIds': <dynamic>[],
+            'serverFilteredBeaconCount': 0,
+          },
+        },
+      };
+
+      final field = mapConstellationFieldFromFieldFetch(
+        GConstellationFieldFetchData.fromJson(wire)!.constellationField,
+      );
+      final peer = field.peers.single;
+      expect(peer.image?.id, 'img-peer');
+      final profile = Profile(
+        id: peer.id,
+        displayName: peer.displayName ?? '',
+        image: peer.image,
+      );
+      expect(profile.hasAvatar, isTrue);
+      expect(TenturaAvatar.initialsForProfile(profile), 'PP');
+    },
+  );
 
   group('district label budget', () {
     // Everyone in the crowd shares one screen point, so only the few names
