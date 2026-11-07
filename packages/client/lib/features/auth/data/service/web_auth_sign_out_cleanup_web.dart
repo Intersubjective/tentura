@@ -1,5 +1,6 @@
 import '../../domain/port/auth_local_repository_port.dart';
 import '../../domain/port/auth_remote_repository_port.dart';
+import '../../domain/use_case/session_sign_in.dart';
 
 /// Web sign-out: drop every locally stored account (seeds, session markers, rows).
 /// The landing surface owns re-auth; stale device state must not survive logout.
@@ -17,15 +18,19 @@ Future<bool> tryPreferCookieSessionSignIn(
   AuthLocalRepositoryPort local,
   String userId,
 ) async {
+  final String sessionUserId;
   try {
-    final sessionUserId = await remote.signInWithSession();
-    if (sessionUserId != userId) {
-      return false;
-    }
-    await local.addSessionAccount(userId);
-    await local.setCurrentAccountId(userId);
-    return true;
+    sessionUserId = await remote.signInWithSession();
   } catch (_) {
     return false;
   }
+  await requireMatchingSessionAccount(
+    remote,
+    local,
+    userId: userId,
+    sessionUserId: sessionUserId,
+  );
+  await local.addSessionAccount(sessionUserId);
+  await local.setCurrentAccountId(sessionUserId);
+  return true;
 }
