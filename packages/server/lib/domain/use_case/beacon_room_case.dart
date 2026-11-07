@@ -13,12 +13,12 @@ import 'package:tentura_server/consts.dart';
 import 'package:tentura_server/domain/port/beacon_fact_card_repository_port.dart';
 
 import 'package:tentura_server/domain/port/beacon_hierarchy_repository_port.dart';
+import 'package:tentura_server/domain/use_case/room_write_guard.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_lobby_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/domain/port/discussion_product_policy_port.dart';
 import 'package:tentura_server/domain/policy/beacon_kind_policy.dart';
-import 'package:tentura_server/domain/policy/beacon_room_lifecycle_write_policy.dart';
 import 'package:tentura_server/domain/port/mutating_unit_of_work_port.dart';
 import 'package:tentura_server/domain/port/post_lock_port.dart';
 import 'package:tentura_server/domain/port/request_change_log_port.dart';
@@ -411,39 +411,14 @@ class BeaconRoomCase extends UseCaseBase {
     return lobby;
   }
 
-  Future<void> _rejectOrdinaryUserWritesForLifecycle(String beaconId) async {
-    if (await _lifecycleBlocksOrdinaryWrites(beaconId)) {
-      throw const BeaconCreateException(
-        description: 'Discussion is read-only for this request',
-      );
-    }
-  }
+  Future<void> _rejectOrdinaryUserWritesForLifecycle(String beaconId) =>
+      _hierarchyRepository.rejectIfRoomReadOnly(beaconId);
 
-  Future<bool> _lifecycleBlocksOrdinaryWrites(String beaconId) async {
-    final status = await _hierarchyRepository.loadBeaconStatus(beaconId);
-    if (status != null &&
-        BeaconRoomLifecycleWritePolicy.blocksOrdinaryUserWrites(status)) {
-      return true;
-    }
-    final hierarchy = _hierarchyRepository;
-    return hierarchy is BeaconRoomWriteStatePort &&
-        await (hierarchy as BeaconRoomWriteStatePort).isExpiredPost(beaconId);
-  }
+  Future<bool> _lifecycleBlocksOrdinaryWrites(String beaconId) =>
+      _hierarchyRepository.isRoomReadOnly(beaconId);
 
-  Future<T> _translateRoomWriteError<T>(Future<T> Function() action) async {
-    try {
-      return await action();
-    } catch (error) {
-      final hierarchy = _hierarchyRepository;
-      if (hierarchy is BeaconRoomWriteStatePort &&
-          (hierarchy as BeaconRoomWriteStatePort).isReadOnlyWriteError(error)) {
-        throw const BeaconCreateException(
-          description: 'Discussion is read-only for this request',
-        );
-      }
-      rethrow;
-    }
-  }
+  Future<T> _translateRoomWriteError<T>(Future<T> Function() action) =>
+      _hierarchyRepository.translateRoomWriteError(action);
 
   Future<void> _guardMessageMutation({
     required String beaconId,
@@ -1022,12 +997,8 @@ class BeaconRoomCase extends UseCaseBase {
         if (sent == null) rethrow;
         return _alreadySent(sent, beaconId: beaconId);
       } catch (error) {
-        final hierarchy = _hierarchyRepository;
         if (attachment != null &&
-            hierarchy is BeaconRoomWriteStatePort &&
-            (hierarchy as BeaconRoomWriteStatePort).isReadOnlyWriteError(
-              error,
-            )) {
+            _hierarchyRepository.isReadOnlyRoomWriteError(error)) {
           await _compensateAttachment(
             attachment,
             userId,
@@ -2060,14 +2031,12 @@ class BeaconRoomCase extends UseCaseBase {
         }
         return _beaconCase!.deleteById(beaconId: beaconId, userId: userId);
       }
-      final hierarchy = _hierarchyRepository;
       final archivedPost =
           beacon != null &&
           beacon.kind == BeaconKind.post &&
           (beacon.status == BeaconStatus.closed ||
               (beacon.status == BeaconStatus.open &&
-                  hierarchy is BeaconRoomWriteStatePort &&
-                  await (hierarchy as BeaconRoomWriteStatePort).isExpiredPost(
+                  await _hierarchyRepository.isExpiredPostForRoomWrite(
                     beaconId,
                   )));
       if (archivedPost) {
@@ -2271,9 +2240,7 @@ class BeaconRoomCase extends UseCaseBase {
         position: position,
       );
     } catch (error) {
-      final hierarchy = _hierarchyRepository;
-      if (hierarchy is BeaconRoomWriteStatePort &&
-          (hierarchy as BeaconRoomWriteStatePort).isReadOnlyWriteError(error)) {
+      if (_hierarchyRepository.isReadOnlyRoomWriteError(error)) {
         await _compensateAttachment(attachment, userId, uniqueFile: uniqueFile);
       }
       rethrow;
