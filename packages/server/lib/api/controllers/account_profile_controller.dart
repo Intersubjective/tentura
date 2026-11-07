@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:get_it/get_it.dart';
 import 'package:injectable/injectable.dart';
+import 'package:logging/logging.dart';
 import 'package:meta/meta.dart';
 import 'package:shelf_plus/shelf_plus.dart';
 
@@ -11,6 +12,8 @@ import 'package:tentura_server/domain/entity/jwt_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/use_case/user_case.dart';
+
+final _log = Logger('AccountProfileController');
 
 /// `/api/v2/accounts/me/profile` — minimal profile read/update for the calling
 /// account. Guarded by `extractJwtOrSessionClaims` in `root_router`: Bearer JWT
@@ -45,7 +48,8 @@ final class AccountProfileController {
       return _json(_profileToMap(user));
     } on ExceptionBase catch (e) {
       return _error(e);
-    } catch (_) {
+    } catch (e, st) {
+      _log.severe('profile.get failed', e, st);
       return Response.internalServerError();
     }
   }
@@ -84,7 +88,8 @@ final class AccountProfileController {
       return _json(_profileToMap(user));
     } on ExceptionBase catch (e) {
       return _error(e);
-    } catch (_) {
+    } catch (e, st) {
+      _log.severe('profile.patch failed', e, st);
       return Response.internalServerError();
     }
   }
