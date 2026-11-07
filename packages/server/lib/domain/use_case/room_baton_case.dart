@@ -6,8 +6,8 @@ import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/domain/entity/room_baton.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/policy/baton_selection_policy.dart';
-import 'package:tentura_server/domain/policy/beacon_room_lifecycle_write_policy.dart';
 import 'package:tentura_server/domain/port/beacon_hierarchy_repository_port.dart';
+import 'package:tentura_server/domain/use_case/room_write_guard.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/domain/port/post_lock_port.dart';
 import 'package:tentura_server/domain/port/room_baton_repository_port.dart';
@@ -41,20 +41,8 @@ class RoomBatonCase extends UseCaseBase {
   final AttentionIntentCase _attentionIntents;
   final Random _random;
 
-  Future<void> _rejectIfRoomNotWritable(String beaconId) async {
-    final status = await _hierarchyRepository.loadBeaconStatus(beaconId);
-    final hierarchy = _hierarchyRepository;
-    if (status != null &&
-            BeaconRoomLifecycleWritePolicy.blocksOrdinaryUserWrites(status) ||
-        hierarchy is BeaconRoomWriteStatePort &&
-            await (hierarchy as BeaconRoomWriteStatePort).isExpiredPost(
-              beaconId,
-            )) {
-      throw const BeaconCreateException(
-        description: 'Discussion is read-only for this request',
-      );
-    }
-  }
+  Future<void> _rejectIfRoomNotWritable(String beaconId) =>
+      _hierarchyRepository.rejectIfRoomReadOnly(beaconId);
 
   Future<Set<String>> _admittedIds(String beaconId) async {
     final admitted = await _room.listAdmittedMentionParticipants(beaconId);
