@@ -1116,12 +1116,20 @@ class BeaconRoomCase extends UseCaseBase {
       }
     }
     final before = beforeIso != null ? DateTime.tryParse(beforeIso) : null;
-    return _room.listMessagesEnriched(
+    final messages = await _room.listMessagesEnriched(
       beaconId: beaconId,
       viewerUserId: userId,
       threadItemId: inThread ? tid : null,
       before: before,
     );
+    // Opening the General room (its first page) is what «Opened» means; the
+    // author's own open is not a recipient's.
+    if (!inThread &&
+        before == null &&
+        !await _room.isBeaconAuthor(beaconId: beaconId, userId: userId)) {
+      await markBeaconRoomSeen(beaconId: beaconId, userId: userId);
+    }
+    return messages;
   }
 
   /// Resolves one exact Chat target after checking the target's actual scope.

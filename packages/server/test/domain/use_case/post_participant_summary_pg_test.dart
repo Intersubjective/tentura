@@ -221,7 +221,14 @@ Future<void> main() async {
         );
         expect(peers, hasLength(viewer == _author ? 5 : 4));
         final result = await summary(viewer);
-        expect(result, containsPair('participantCount', peers.length));
+        // The author has no participant row; a recipient counts them too.
+        expect(
+          result,
+          containsPair(
+            'participantCount',
+            peers.length + (viewer == _author ? 0 : 1),
+          ),
+        );
       });
     }
 
@@ -370,14 +377,14 @@ Future<void> main() async {
       (
         viewer: _bob,
         role: 'forwarding recipients',
-        participants: 4,
+        participants: 5,
         declined: 1,
         peers: [_writer, _inviter, _seen, _idle],
       ),
       (
         viewer: _writer,
         role: 'replying recipients',
-        participants: 4,
+        participants: 5,
         declined: 0,
         peers: [_inviter, _bob, _seen, _idle],
       ),
