@@ -97,7 +97,7 @@ void main() {
       final version = await database
           .customSelect('PRAGMA user_version')
           .getSingle();
-      expect(version.data.values.single, 5);
+      expect(version.data.values.single, 6);
       final contacts = await database
           .customSelect(
             "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'contacts'",

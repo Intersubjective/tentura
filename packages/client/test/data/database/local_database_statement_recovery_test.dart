@@ -41,7 +41,7 @@ void main() {
 
       expect(await app.home.isActivated(userId: _userId), isTrue);
       expect(await _displayNames(app), ['Alice']);
-      expect(await _userVersion(app.database), 5);
+      expect(await _userVersion(app.database), 6);
       expect(app.poison.fired, isTrue);
     });
 
@@ -52,7 +52,7 @@ void main() {
       app.poison.arm();
 
       expect(await _displayNames(app), ['Alice']);
-      expect(await _userVersion(app.database), 5);
+      expect(await _userVersion(app.database), 6);
       expect(app.poison.fired, isTrue);
     });
 
@@ -67,7 +67,7 @@ void main() {
       );
 
       expect(await _displayNames(app), ['Alice']);
-      expect(await _userVersion(app.database), 5);
+      expect(await _userVersion(app.database), 6);
       expect(app.poison.fired, isTrue);
     });
 
@@ -87,7 +87,7 @@ void main() {
 
       expect(await app.home.isActivated(userId: _userId), isTrue);
       expect(await _displayNames(app), ['Alice']);
-      expect(await _userVersion(app.database), 5);
+      expect(await _userVersion(app.database), 6);
       expect(app.poison.fired, isTrue);
     });
   });
