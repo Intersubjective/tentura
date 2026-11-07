@@ -34,4 +34,5 @@ abstract class HelpOfferEntity with _$HelpOfferEntity {
 
   bool get isActive => status == 0;
   bool get isWithdrawn => status == 1;
+  bool get isBackup => offerKind == HelpOfferKind.backup;
 }
