@@ -63,6 +63,7 @@ import '../../domain/entity/constellation_field_target_kind.dart';
 import '../../domain/constellation_forward_tree_marker.dart';
 import '../../domain/constellation_forward_tree_overlay.dart';
 import '../../domain/constellation_field_patches.dart';
+import '../../domain/constellation_field_unread_glow.dart';
 import '../../domain/use_case/constellation_visibility_case.dart';
 import '../../../graph/domain/entity/edge_details.dart';
 import '../../../graph/domain/entity/node_details.dart';
@@ -1264,6 +1265,18 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       consider(request.id, request.hasUnread);
     }
     return ids;
+  }
+
+  /// Ids of unread Requests and Posts on the loaded Field (#1156).
+  Set<String> unreadFieldBeaconIds() {
+    final field = state.field;
+    if (field == null) {
+      return const {};
+    }
+    return {
+      for (final entry in constellationFieldUnreadBeaconEntries(field))
+        entry.beaconId,
+    };
   }
 
   /// Locally hides a Request or Post before the server answers (#255).

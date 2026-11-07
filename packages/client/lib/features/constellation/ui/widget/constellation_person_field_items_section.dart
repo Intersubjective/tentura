@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -20,6 +21,10 @@ class ConstellationPersonFieldItemsSection extends StatefulWidget {
   });
 
   final String personId;
+
+  @visibleForTesting
+  static Key personItemUnreadGlowKey(String beaconId) =>
+      Key('constellation.person_items.row.glow.$beaconId');
 
   @override
   State<ConstellationPersonFieldItemsSection> createState() =>
@@ -148,6 +153,7 @@ class _ConstellationPersonFieldItemsSectionState
 
   Future<void> _openItem(ConstellationPersonFieldItem item) async {
     context.read<ConstellationCubit>()
+      ..openedFieldBeacon(item.id)
       ..selectPerson(null)
       ..selectRequest(item.id);
   }
@@ -252,7 +258,9 @@ class _ConstellationPersonFieldItemsSectionState
           SizedBox(height: tt.tightGap),
           OutlinedButton(
             key: TestIds.key(TestIds.constellationPersonItemsLoadMore),
-            onPressed: _loadingMore ? null : () => unawaited(_reload(reset: false)),
+            onPressed: _loadingMore
+                ? null
+                : () => unawaited(_reload(reset: false)),
             child: _loadingMore
                 ? const TenturaCircularProgress()
                 : Text(l10n.constellationPersonItemsLoadMore),
@@ -281,13 +289,34 @@ class _PersonFieldItemRow extends StatelessWidget {
     final l10n = L10n.of(context)!;
     final theme = Theme.of(context);
     final tt = context.tt;
+    final isUnread = context.select<ConstellationCubit, bool>(
+      (cubit) => cubit.unreadFieldBeaconIds().contains(item.id),
+    );
     final icon = item.kind == ConstellationFieldTargetKind.post
         ? Icons.article_outlined
         : Icons.assignment_outlined;
 
+    final surfaceColor = theme.colorScheme.surfaceContainerLow;
+    final fillColor = isUnread
+        ? Color.alphaBlend(
+            tt.attentionHighlight.withValues(alpha: 0.08),
+            surfaceColor,
+          )
+        : surfaceColor;
+
     return Material(
-      color: theme.colorScheme.surfaceContainerLow,
+      key: isUnread
+          ? ConstellationPersonFieldItemsSection.personItemUnreadGlowKey(
+              item.id,
+            )
+          : null,
+      color: fillColor,
+      elevation: isUnread ? 3 : 0,
+      shadowColor: isUnread
+          ? tt.attentionHighlight.withValues(alpha: 0.45)
+          : Colors.transparent,
       borderRadius: BorderRadius.circular(tt.cardRadius),
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onOpen,
         borderRadius: BorderRadius.circular(tt.cardRadius),
