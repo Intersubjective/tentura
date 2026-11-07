@@ -535,6 +535,33 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     return _shouldQuietPersist;
   }
 
+  bool _postHasContent = false;
+
+  /// Whether the browser should warn before unload (#1059): form text that is
+  /// not yet on the server, or waiting on the autosave debounce.
+  bool get hasUnpersistedEdits {
+    if (isClosed || _discarded) return false;
+    if (kind == BeaconKind.post) {
+      if (state.isLive) return false;
+      if (!_postHasContent) return false;
+      if (_postDraftTimer?.isActive ?? false) return true;
+      if (_draftCreateInFlight != null) return true;
+      if (!hasPostDraft) return true;
+      return false;
+    }
+    if (state.isEditMode || state.isLive || state.isPostBud) return false;
+    if (isUntouchedCopy) return false;
+    final hasContent =
+        state.title.trim().isNotEmpty ||
+        state.description.trim().isNotEmpty ||
+        (state.draftId?.isNotEmpty ?? false);
+    if (!hasContent) return false;
+    if (_autosaveTimer?.isActive ?? false) return true;
+    if (state.isAutosaving) return true;
+    if (!keepsDraftOnLeave) return true;
+    return false;
+  }
+
   /// Autosave only once the server would accept the draft: a standalone
   /// request needs a description (`BeaconCreationPolicy`), so saving right
   /// after the title was typed failed and left a sticky "Description is
@@ -1573,6 +1600,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
   /// user pauses, a server draft gives the Post a stable id for `postPublish`.
   /// An untouched screen never reaches the server.
   void postContentChanged({required bool hasContent}) {
+    _postHasContent = hasContent;
     _postDraftTimer?.cancel();
     _postDraftTimer = null;
     if (!hasContent || isClosed || state.isLive) return;
