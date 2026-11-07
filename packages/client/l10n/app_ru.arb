@@ -6974,38 +6974,6 @@
   "requestAccessOpenParentPost": "Открыть пост",
   "constellationMinimapShow": "Показать миникарту",
   "constellationMinimapHide": "Скрыть миникарту",
-  "constellationOffscreenLeft": "Ещё {count} слева",
-  "@constellationOffscreenLeft": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "constellationOffscreenRight": "Ещё {count} справа",
-  "@constellationOffscreenRight": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "constellationOffscreenAbove": "Ещё {count} выше",
-  "@constellationOffscreenAbove": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "constellationOffscreenBelow": "Ещё {count} ниже",
-  "@constellationOffscreenBelow": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
   "constellationPlaceAsMagnet": "Разместить как магнит",
   "beaconCreateChildOfBanner": "Дочерний запрос для «{title}»",
   "inviteAcceptedSetupAddDetailsFor": "Отметить, чем может помочь {name}",
