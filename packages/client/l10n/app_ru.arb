@@ -36,6 +36,14 @@
   "@displayNameTooLong": {
     "context": "CommonErrors"
   },
+  "inviteLabelTooShort": "Имя приглашения слишком короткое",
+  "@inviteLabelTooShort": {
+    "context": "InvitationAddresseeDialog"
+  },
+  "inviteLabelTooLong": "Имя приглашения слишком длинное",
+  "@inviteLabelTooLong": {
+    "context": "InvitationAddresseeDialog"
+  },
   "userHandleHint": "3–30 символов: строчные буквы, цифры или подчёркивание (необязательно)",
   "@userHandleHint": {
     "context": "Utils"
@@ -272,6 +280,18 @@
   "@chooseAccount": {
     "context": "AuthLoginScreen"
   },
+  "accountMenuViewProfile": "Открыть профиль",
+  "@accountMenuViewProfile": {
+    "context": "HomeAccountMenu"
+  },
+  "accountUnnamed": "Аккаунт без имени",
+  "@accountUnnamed": {
+    "context": "HomeAccountMenu"
+  },
+  "semanticsAccountMenuHint": "Открывает меню аккаунта",
+  "@semanticsAccountMenuHint": {
+    "context": "HomeAccountAvatar"
+  },
   "alreadyHaveAccount": "У вас уже есть аккаунт?\nПолучите доступ, отсканировав QR-код на другом устройстве\nили используя сохранённый seed восстановления.",
   "@alreadyHaveAccount": {
     "context": "AuthLoginScreen"
@@ -475,7 +495,7 @@
       }
     }
   },
-  "friendsInviteAcceptedExistingAccount": "Вы и {name} теперь друзья благодаря этому приглашению",
+  "friendsInviteAcceptedExistingAccount": "Вы доверяете {name} по этому приглашению",
   "@friendsInviteAcceptedExistingAccount": {
     "context": "FriendsScreen",
     "placeholders": {
@@ -484,8 +504,20 @@
       }
     }
   },
-  "confirmInvitationRemoval": "Отменить приглашение? Ссылка перестанет работать.",
-  "@confirmInvitationRemoval": {
+  "friendsInvitePendingUntitled": "Приглашение без названия",
+  "@friendsInvitePendingUntitled": {
+    "context": "FriendsScreen"
+  },
+  "confirmInvitationRemovalTitle": "Удалить приглашение?",
+  "@confirmInvitationRemovalTitle": {
+    "context": "InvitationRemoveDialog"
+  },
+  "confirmInvitationRemovalBody": "Ссылка перестанет работать.",
+  "@confirmInvitationRemovalBody": {
+    "context": "InvitationRemoveDialog"
+  },
+  "buttonKeepInvite": "Оставить приглашение",
+  "@buttonKeepInvite": {
     "context": "InvitationRemoveDialog"
   },
   "confirmBeaconRemoval": "Вы уверены, что хотите удалить этот запрос?",
@@ -1060,6 +1092,50 @@
   "graphLegendForwardEligible": "Открытый глаз означает, что вы с этим человеком видите друг друга и можете пересылать друг другу: каждый доверяет другому — напрямую или через тех, кому доверяет",
   "@graphLegendForwardEligible": {
     "context": "ForwardsGraphScreen — mutual visibility via Trust or MeritRank per direction (#100)"
+  },
+  "graphLegendForwardMarkersTitle": "Метки у получателя (под аватаром)",
+  "@graphLegendForwardMarkersTitle": {
+    "context": "ForwardsGraphScreen legend — forward edge recipient states"
+  },
+  "graphLegendForwardMarkerHelped": "V — помог (приняли)",
+  "@graphLegendForwardMarkerHelped": {
+    "context": "ForwardsGraphScreen legend"
+  },
+  "graphLegendForwardMarkerOffered": "O — предложил помощь",
+  "@graphLegendForwardMarkerOffered": {
+    "context": "ForwardsGraphScreen legend"
+  },
+  "graphLegendForwardMarkerOfferedPost": "O — приглашение помочь отправлено",
+  "@graphLegendForwardMarkerOfferedPost": {
+    "context": "ForwardsGraphScreen legend — Post (#501, #611); без «предложил»"
+  },
+  "graphLegendForwardMarkerCantHelp": "D — не может помочь (отклонил приглашение)",
+  "@graphLegendForwardMarkerCantHelp": {
+    "context": "ForwardsGraphScreen legend"
+  },
+  "graphLegendForwardMarkerOpened": "R — открыл запрос",
+  "@graphLegendForwardMarkerOpened": {
+    "context": "ForwardsGraphScreen legend"
+  },
+  "graphLegendForwardMarkerOpenedPost": "R — открыл пост",
+  "@graphLegendForwardMarkerOpenedPost": {
+    "context": "ForwardsGraphScreen legend — пересылка поста (#501)"
+  },
+  "graphLegendForwardMarkerNotOpened": "K — не открывал (ещё не переслал дальше)",
+  "@graphLegendForwardMarkerNotOpened": {
+    "context": "ForwardsGraphScreen legend"
+  },
+  "graphLegendForwardForwardedOn": "Значок пересылки — этот человек переслал запрос дальше",
+  "@graphLegendForwardForwardedOn": {
+    "context": "ForwardsGraphScreen legend"
+  },
+  "graphLegendForwardForwardedOnPost": "Значок пересылки — этот человек переслал пост дальше",
+  "@graphLegendForwardForwardedOnPost": {
+    "context": "ForwardsGraphScreen legend — пересылка поста (#501)"
+  },
+  "graphLegendForwardAnonymous": "+N — скрытые люди (заблокированы или вне вашего графа)",
+  "@graphLegendForwardAnonymous": {
+    "context": "ForwardsGraphScreen legend — anonymous forward endpoint"
   },
   "graphBack": "Предыдущий фокус",
   "@graphBack": {
@@ -2772,6 +2848,11 @@
   "@myWorkFilterHelpOffered": {
     "context": "MyWorkScreen"
   },
+  "myWorkFilterHelpOfferedChip": "Помогаю",
+  "@myWorkFilterHelpOfferedChip": {
+    "context": "MyWorkScreen",
+    "description": "Короткая подпись фильтра в верхней панели на узких экранах (#1107); в меню — myWorkFilterHelpOffered."
+  },
   "myWorkFilterArchived": "Архив",
   "@myWorkFilterArchived": {
     "context": "MyWorkScreen"
@@ -3733,6 +3814,16 @@
         "type": "String"
       },
       "tenure": {
+        "type": "String"
+      }
+    }
+  },
+  "profileMemberSinceJoinedToday": "В Tentura с {date}",
+  "@profileMemberSinceJoinedToday": {
+    "context": "Profile",
+    "description": "Строка о дате регистрации в день присоединения без «0 дней» (#1077).",
+    "placeholders": {
+      "date": {
         "type": "String"
       }
     }

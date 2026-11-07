@@ -44,6 +44,7 @@ import 'post_attention_row.dart';
 import 'request_attention_card.dart';
 import 'request_attention_card_mapper.dart';
 import 'tombstone_row.dart';
+import 'activity_for_you_header_count.dart';
 import 'for_you_empty_state.dart';
 
 /// Activity redesign body: pinned offers, then activity-surface stream (§5).
@@ -514,11 +515,11 @@ class _ActivityStreamScrollBody extends StatelessWidget {
           padding: EdgeInsets.symmetric(horizontal: tt.listRowPadding.left),
           child: TenturaSectionHeader(
             label: l10n.activityForYouTitle,
-            // Counts decisions waiting in the pinned zone. "· 0" above a
-            // stream of updates read as "this list is empty".
-            count: offersState.countLoadFailed || offersState.totalCount == 0
-                ? null
-                : offersState.totalCount,
+            count: activityForYouHeaderCount(
+              offersState: offersState,
+              visiblePinnedCount:
+                  offersState.items.length + exitingOffers.length,
+            ),
             semanticsIdentifier: TestIds.activityForYouHeader,
           ),
         ),

@@ -1,7 +1,10 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/features/updates/updates_receipt_display_copy.dart';
 import 'package:tentura/ui/l10n/l10n_en.dart';
+import 'package:tentura/ui/l10n/l10n_ru.dart';
 
 void main() {
   final l10n = L10nEn();
@@ -302,6 +305,47 @@ void main() {
       // over the English body.
       expect(copy.headline, 'Anna offered help');
       expect(copy.body, isEmpty);
+    });
+  });
+
+  group('#1109 shared Post preview strips angle-bracket debris', () {
+    test('removes pseudo-tags from post excerpt and note (EN)', () {
+      final copy = resolveUpdatesFeedRowCopy(
+        title: 'Bob Q',
+        body: '',
+        presentationKey: 'relay_received',
+        presentationPayloadJson: jsonEncode({
+          'eventType': 'relayReceived',
+          'personal': true,
+          'actorUserId': 'u-bob',
+          'beaconId': 'P1',
+          'excerpt': '<i>note</i>',
+        }),
+        l10n: l10n,
+        isPost: true,
+        actorName: 'Bob Q',
+        postRootExcerpt: r'Hello <b>bold</b> · <script>alert(1)</script> end',
+      );
+
+      expect(copy.headline, l10n.postRowSharedBy('Bob Q'));
+      expect(copy.body, 'Hello bold · alert(1) end · note');
+    });
+
+    test('preserves comparisons and unicode (RU)', () {
+      final ru = L10nRu();
+      final copy = resolveUpdatesFeedRowCopy(
+        title: 'Боб',
+        body: '',
+        presentationKey: 'relay_received',
+        presentationPayloadJson: '{}',
+        l10n: ru,
+        isPost: true,
+        actorName: 'Боб',
+        postRootExcerpt: 'если a < b то ок مرحبا',
+      );
+
+      expect(copy.headline, ru.postRowSharedBy('Боб'));
+      expect(copy.body, 'если a < b то ок مرحبا');
     });
   });
 }

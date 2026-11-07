@@ -50,7 +50,6 @@ import '../bloc/constellation_tag_lens_cubit.dart';
 import '../scene/constellation_scene_controller.dart';
 import '../util/constellation_focus_request.dart';
 import '../util/constellation_forward_tree_request.dart';
-import '../widget/constellation_camera_controls.dart';
 import '../widget/constellation_app_bar.dart';
 import '../widget/constellation_body.dart';
 import '../widget/constellation_create_entry.dart';
@@ -113,6 +112,9 @@ class ConstellationScreen extends StatefulWidget implements AutoRouteWrapper {
               tagMagnetCase: GetIt.I<ConstellationTagMagnetCase>(),
               ownTagIdsOf: GetIt.I.isRegistered<PeopleTagsCase>()
                   ? GetIt.I<PeopleTagsCase>().tagsOfPerson
+                  : null,
+              peopleInTag: GetIt.I.isRegistered<PeopleTagsCase>()
+                  ? GetIt.I<PeopleTagsCase>().peopleInTag
                   : null,
               viewer: viewer,
               scene: ConstellationSceneController(
@@ -326,7 +328,7 @@ class _ConstellationScreenState extends State<ConstellationScreen> {
           tt.bottomNavHeight;
       cubit.focusBeacon(
         beaconId,
-        insets: ConstellationCameraControls.cameraViewportInsets(
+        insets: cubit.fieldCameraViewportInsets(
           context,
           contextPanelVisible: true,
           compactSheetHeight: context.windowClass == WindowClass.compact

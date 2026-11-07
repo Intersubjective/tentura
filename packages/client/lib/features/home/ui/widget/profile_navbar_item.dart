@@ -1,151 +1,15 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 
-import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
-import 'package:tentura/ui/widget/self_aware_profile_avatar.dart';
-import 'package:tentura/ui/widget/self_user_highlight.dart';
+import 'account_nav_bar_avatar.dart';
 
-import 'package:tentura/features/auth/domain/use_case/account_case.dart';
-import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
-import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
-
+/// Compact account glyph for Home chrome (see [AccountNavBarAvatar]).
+///
+/// Kept as a thin alias for call sites that still use this name (#1079).
 class ProfileNavBarItem extends StatelessWidget {
   const ProfileNavBarItem({super.key, this.selected = false});
 
   final bool selected;
 
   @override
-  Widget build(BuildContext context) {
-    final authCubit = GetIt.I<AuthCubit>();
-    final l10n = L10n.of(context)!;
-    return BlocBuilder<AuthCubit, AuthState>(
-      bloc: authCubit,
-      builder: (context, state) {
-        final menuController = MenuController();
-        return MenuAnchor(
-          controller: menuController,
-          menuChildren: [
-            for (final account in authCubit.state.accounts)
-              _AccountMenuItem(
-                key: ValueKey(account),
-                isMe: account.id == state.currentAccountId,
-                profile: AccountCase.fromAccountEntity(account),
-                onTap: () {
-                  menuController.close();
-                  unawaited(authCubit.signIn(account.id));
-                },
-              ),
-          ],
-          child: Semantics(
-            button: true,
-            label: l10n.profile,
-            hint: state.accounts.length > 1 ? l10n.chooseAccount : null,
-            child: GestureDetector(
-              key: Key('ProfileNavbarItem:${state.currentAccount}'),
-              onLongPress: state.accounts.length > 1
-                  ? menuController.open
-                  : null,
-              // Desktop parity for the long press (right click).
-              onSecondaryTap: state.accounts.length > 1
-                  ? menuController.open
-                  : null,
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: BlocBuilder<ProfileCubit, ProfileState>(
-                  bloc: GetIt.I<ProfileCubit>(),
-                  buildWhen: (p, c) =>
-                      p.profile.hasAvatar != c.profile.hasAvatar ||
-                      p.profile.image?.blurHash != c.profile.image?.blurHash ||
-                      p.profile.displayName != c.profile.displayName,
-                  builder: (context, state) {
-                    // Match Material nav icon metrics (24) so the tab aligns
-                    // with glyph destinations; medium list avatars are 36+.
-                    final avatar = SelfAwareAvatar.medium(
-                      profile: state.profile,
-                      size: IconTheme.of(context).size ?? 24,
-                    );
-                    if (!selected) {
-                      return avatar;
-                    }
-                    return DecoratedBox(
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: Theme.of(context).colorScheme.primary,
-                          width: 2,
-                        ),
-                      ),
-                      child: avatar,
-                    );
-                  },
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _AccountMenuItem extends StatelessWidget {
-  const _AccountMenuItem({
-    required this.profile,
-    required this.isMe,
-    this.onTap,
-    super.key,
-  });
-
-  final bool isMe;
-  final Profile profile;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) => GestureDetector(
-    onTap: onTap,
-    child: Row(
-      children: [
-        Padding(
-          padding: kPaddingAllS,
-          child: SelfAwareAvatar.small(
-            profile: profile,
-          ),
-        ),
-        Padding(
-          padding: kPaddingAllS,
-          child: BlocBuilder<ProfileCubit, ProfileState>(
-            buildWhen: (p, c) => p.profile.id != c.profile.id,
-            builder: (context, state) {
-              final l10n = L10n.of(context);
-              if (l10n == null) {
-                return Text(profile.shownName);
-              }
-              return Text(
-                SelfUserHighlight.displayName(
-                  l10n,
-                  profile,
-                  state.profile.id,
-                ),
-                maxLines: 1,
-                softWrap: false,
-                overflow: TextOverflow.ellipsis,
-                style: SelfUserHighlight.nameStyle(
-                  Theme.of(context),
-                  Theme.of(context).textTheme.bodyLarge,
-                  SelfUserHighlight.profileIsSelf(profile, state.profile.id),
-                ),
-              );
-            },
-          ),
-        ),
-        if (isMe)
-          const Padding(
-            padding: kPaddingAllS,
-            child: Icon(Icons.check),
-          ),
-      ],
-    ),
-  );
+  Widget build(BuildContext context) => AccountNavBarAvatar(selected: selected);
 }

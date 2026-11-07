@@ -1,20 +1,19 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 
-import 'package:tentura/app/router/root_router.dart';
-import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import 'account_menu.dart';
+import 'account_nav_bar_avatar.dart';
+import 'home_open_profile.dart';
 import 'own_paused_chip.dart';
-import 'profile_navbar_item.dart';
 
-/// The account avatar: opens the viewer's profile (Home's Me tab), and on a
-/// long press or secondary click switches accounts.
+/// The account avatar: opens a unified account menu (profile, settings,
+/// account switch, sign out). Long-press and secondary click open the same menu
+/// (#1079).
 ///
 /// Me is not a navigation destination. The avatar sits at the bottom of the
 /// rail on wide windows and at the end of each Home tab's top bar on compact
@@ -31,7 +30,8 @@ class HomeAccountAvatarButton extends StatelessWidget {
   /// The profile is open: the avatar carries the selection ring.
   final bool selected;
 
-  /// Defaults to [openMyProfile].
+  /// If set, invoked when the menu would open (e.g. custom tests). Otherwise
+  /// the menu is shown.
   final VoidCallback? onPressed;
 
   @override
@@ -54,15 +54,49 @@ class HomeAccountAvatarButton extends StatelessWidget {
       // A fixed glyph; the name (long ones too) goes to the tooltip.
       // #660: the name as shown, read on every build so a server placeholder
       // follows the app language.
-      builder: (context, profile) => IconButton(
-        key: buttonKey,
-        tooltip: profile.shownName.trim().isEmpty
-            ? L10n.of(context)!.profile
-            : profile.shownName,
-        isSelected: selected,
-        onPressed: onPressed ?? () => openMyProfile(context),
-        icon: ProfileNavBarItem(selected: selected),
-      ),
+      builder: (context, profile) {
+        final l10n = L10n.of(context)!;
+        final tooltip = profile.shownName.trim().isEmpty
+            ? l10n.profile
+            : profile.shownName;
+        return MenuAnchor(
+          menuChildren: buildAccountMenuChildren(context),
+          builder: (context, controller, _) {
+            void openMenu() {
+              if (onPressed != null) {
+                onPressed!();
+                return;
+              }
+              if (controller.isOpen) {
+                controller.close();
+              } else {
+                controller.open();
+              }
+            }
+
+            return Semantics(
+              button: true,
+              label: tooltip,
+              hint: l10n.semanticsAccountMenuHint,
+              expanded: controller.isOpen,
+              container: true,
+              excludeSemantics: true,
+              child: GestureDetector(
+                onSecondaryTap: openMenu,
+                behavior: HitTestBehavior.translucent,
+                child: IconButton(
+                  key: buttonKey,
+                  tooltip: tooltip,
+                  isSelected: selected,
+                  onPressed: openMenu,
+                  onLongPress: openMenu,
+                  icon: AccountNavBarAvatar(selected: selected),
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }
@@ -92,14 +126,3 @@ Widget? homeTopBarAccount(BuildContext context) =>
 
 /// Share of the window width the top bar's paused chip may take (#267).
 const kTopBarPausedChipWidthShare = 0.4;
-
-/// Opens Home's Me tab, from inside Home or from a route pushed above it.
-void openMyProfile(BuildContext context) {
-  final root = context.router.root;
-  root
-      .innerRouterOf<TabsRouter>(HomeRoute.name)
-      ?.setActiveIndex(HomeTabSpec.forTab(HomeTab.me).index);
-  if (root.current.name != HomeRoute.name) {
-    unawaited(root.replacePath(kPathProfile));
-  }
-}
