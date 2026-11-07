@@ -2163,7 +2163,7 @@ class RoomMessageTile extends StatelessWidget {
       padding: EdgeInsets.fromLTRB(
         isMine ? tt.bubbleFarGutter : tt.screenHPadding,
         topPad,
-        isMine ? tt.screenHPadding : tt.screenHPadding,
+        tt.screenHPadding,
         bottomPad,
       ),
       child: underBubble.isEmpty
