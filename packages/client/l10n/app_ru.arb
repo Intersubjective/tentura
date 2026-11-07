@@ -6871,6 +6871,7 @@
   "peopleTagsColorPink": "Розовый",
   "constellationTagRowAdd": "+ Тег",
   "constellationTagHullDragHint": "Нажмите и удерживайте пустое место внутри, чтобы переместить весь тег",
+  "constellationTagHullMoveArea": "Переместить область «{tagName}»",
   "constellationTagAllTags": "Все теги",
   "constellationTagAllTagsSelected": "Все теги, выбрано: {count}",
   "constellationTagsSection": "Теги",
