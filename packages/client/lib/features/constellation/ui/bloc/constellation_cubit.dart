@@ -3608,6 +3608,35 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     );
   }
 
+  /// Nearest Field node to reveal after settle-back (#1054) when the safe
+  /// viewport is empty; null when settle-back must not run.
+  NodeDetails? fieldSettleBackRevealTarget({required EdgeInsets insets}) {
+    if (isClosed || state.viewMode != ConstellationViewMode.map) {
+      return null;
+    }
+    if (state.isComposing || state.forwardTreeOverlay != null) {
+      return null;
+    }
+    if (state.placementPhase != ConstellationPlacementPhase.idle) {
+      return null;
+    }
+    if (!graphController.canLayout) {
+      return null;
+    }
+    if (_scene.anyFieldNodeBodyIntersectsSafeRect(insets)) {
+      return null;
+    }
+    final graphId = _scene.nearestFieldNodeGraphIdToSafeRectCenter(insets);
+    if (graphId == null) {
+      return null;
+    }
+    return graphController.renderSnapshot.topology.nodesById[graphId]?.payload;
+  }
+
+  @visibleForTesting
+  bool fieldAnyNodeBodyInSafeRectForTest({required EdgeInsets insets}) =>
+      _scene.anyFieldNodeBodyIntersectsSafeRect(insets);
+
   void compensateViewportHeightDelta(double viewportDeltaY) {
     if (isClosed) {
       return;
