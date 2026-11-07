@@ -51,7 +51,6 @@ final class AuthCase extends UseCaseBase {
     final roleList = (payload[AuthRequestIntent.keyRoles] as String? ?? '')
         .split(',');
 
-    // TBD: add all other claims
     return JwtEntity(
       sub: jwt.subject!,
       roles: UserRoles.values.where((e) => roleList.contains(e.name)).toSet(),
