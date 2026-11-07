@@ -1,7 +1,7 @@
 // Home's eager desk load calls MyWorkCase.loadDeskInit -> fetchInit ->
 // AttentionRepository.liveObligationBeacons, then MyWorkRepository.fetchInit.
-// Both repositories, and fetchArchived, use firstWhere(DataSource.Link).
-// A completed stream with no link response currently throws No element.
+// Both repositories, and fetchArchived, use firstLinkResponse.
+// A completed stream with no link response throws GraphQLNoDataException.
 // Keep those real call sites and the real Home/My Work widgets under test;
 // substitute only HTTP and unrelated shell dependencies.
 import 'dart:async';
@@ -49,6 +49,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/widget/screen_load_error_panel.dart';
 
+import '../../support/phone_surface.dart';
 import '../../support/remote_load_failure_matcher.dart';
 import '../../support/test_realtime_sync.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
@@ -266,7 +267,12 @@ class _EmptyPostsRepository implements PostsRepositoryPort {
 Future<MyWorkCubit> _pumpHome(
   WidgetTester tester, {
   required MyWorkCase deskCase,
+  Locale locale = const Locale('en'),
+  bool phoneSurface = false,
 }) async {
+  if (phoneSurface) {
+    await usePhoneSurface(tester);
+  }
   final homeActivation = HomeActivationCubit(_OrientationPreferences());
   final homeAttention = HomeAttentionCubit(
     buildStubAttentionCase(),
@@ -359,7 +365,7 @@ Future<MyWorkCubit> _pumpHome(
   await tester.pumpWidget(
     MaterialApp.router(
       theme: TenturaTheme.light(),
-      locale: const Locale('en'),
+      locale: locale,
       localizationsDelegates: L10n.localizationsDelegates,
       supportedLocales: L10n.supportedLocales,
       routerConfig: router.config(),
@@ -448,5 +454,39 @@ void main() {
         },
       );
     }
+
+    testWidgets(
+      'empty obligation stream shows recoverable RU copy at 375×667 (#999)',
+      (tester) async {
+        final attention = _CompletingAttentionClient(cacheOnly: false);
+        final scenario = _RemoteFailureScenario('');
+        await _withRemote(scenario, (remote) async {
+          await _pumpHome(
+            tester,
+            deskCase: _deskCase(remote, attentionClient: attention),
+            locale: const Locale('ru'),
+            phoneSurface: true,
+          );
+          await tester.pumpAndSettle();
+          expect(tester.takeException(), isNull, reason: 'no overflow on ru');
+          expect(find.byType(ScreenLoadErrorPanel), findsOneWidget);
+          final l10n = L10n.of(
+            tester.element(find.byType(ScreenLoadErrorPanel)),
+          )!;
+          final title = find.text(l10n.screenLoadErrorUnknownTitle);
+          final body = find.text(l10n.screenLoadErrorUnknownBody);
+          final retry = find.text(l10n.myWorkRetry);
+          expect(title, findsOneWidget);
+          expect(body, findsOneWidget);
+          expect(retry, findsOneWidget);
+          for (final finder in [title, body, retry]) {
+            final rect = tester.getRect(finder);
+            expect(rect.left, greaterThanOrEqualTo(0));
+            expect(rect.right, lessThanOrEqualTo(kPhoneSurface.width));
+          }
+          expect(find.textContaining('Bad state: No element'), findsNothing);
+        }, tester: tester);
+      },
+    );
   });
 }
