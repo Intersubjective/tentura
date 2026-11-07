@@ -9817,6 +9817,10 @@
   "@homeNavLandmark": {
     "context": "Screen-reader name of Home's navigation rail / bottom bar landmark (#500)"
   },
+  "unknownHashRouteSnackBar": "This link isn't available",
+  "@unknownHashRouteSnackBar": {
+    "description": "One-time snackbar after an unknown hash route falls back to Requests (#1106)."
+  },
   "skipToContent": "Skip to content",
   "@skipToContent": {
     "context": "Keyboard skip link before Home's navigation rail; moves focus to the page (#500)"

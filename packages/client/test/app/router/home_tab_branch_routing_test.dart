@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
 import 'package:tentura/app/router/root_router.dart';
+import 'package:tentura/app/router/unknown_hash_route_notice.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/post_join_navigation_cubit.dart';
@@ -67,6 +68,7 @@ void main() {
   late RootRouter router;
   late PageInfo homePage;
   late PageInfo workPage;
+  late PageInfo conversationsPage;
   late PageInfo inboxPage;
   late PageInfo updatesPage;
   late PageInfo friendsPage;
@@ -85,6 +87,7 @@ void main() {
   setUpAll(() {
     homePage = HomeRoute.page;
     workPage = MyWorkRoute.page;
+    conversationsPage = ConversationsRoute.page;
     inboxPage = InboxRoute.page;
     updatesPage = UpdatesRoute.page;
     friendsPage = FriendsRoute.page;
@@ -105,6 +108,10 @@ void main() {
       builder: (_) => const _TestHomeShell(),
     );
     MyWorkRoute.page = _labelPage(MyWorkRoute.name, 'work-root');
+    ConversationsRoute.page = _labelPage(
+      ConversationsRoute.name,
+      'conversations-root',
+    );
     InboxRoute.page = _labelPage(InboxRoute.name, 'inbox-root');
     UpdatesRoute.page = _labelPage(UpdatesRoute.name, 'updates-root');
     FriendsRoute.page = _labelPage(FriendsRoute.name, 'network-root');
@@ -162,6 +169,7 @@ void main() {
   tearDownAll(() {
     HomeRoute.page = homePage;
     MyWorkRoute.page = workPage;
+    ConversationsRoute.page = conversationsPage;
     InboxRoute.page = inboxPage;
     UpdatesRoute.page = updatesPage;
     FriendsRoute.page = friendsPage;
@@ -396,4 +404,64 @@ void main() {
       expect(find.text('updates-root'), findsOneWidget);
     },
   );
+
+  testWidgets('product alias /home/posts opens Conversations', (tester) async {
+    await pumpRouter(tester, initialPath: kPathHomePostsAlias);
+    expect(router.navigationHistory.urlState.url, kPathConversations);
+    expect(find.text('conversations-root'), findsOneWidget);
+  });
+
+  testWidgets('product alias /home/activity opens Activity', (tester) async {
+    await pumpRouter(tester, initialPath: kPathHomeActivityAlias);
+    expect(router.navigationHistory.urlState.url, kPathInbox);
+    expect(find.text('inbox-root'), findsOneWidget);
+  });
+
+  testWidgets('product alias /home/people opens People', (tester) async {
+    await pumpRouter(tester, initialPath: kPathHomePeopleAlias);
+    expect(router.navigationHistory.urlState.url, kPathNetwork);
+    expect(find.text('network-root'), findsOneWidget);
+  });
+
+  testWidgets('product alias /profile opens Me profile tab', (tester) async {
+    await pumpRouter(tester, initialPath: kPathProfileTabAlias);
+    expect(router.navigationHistory.urlState.url, kPathProfile);
+    expect(find.text('me-root'), findsOneWidget);
+  });
+
+  test('profile alias does not steal /profile/edit', () {
+    expect(
+      router.pathResolvesThroughWildcardFallback(kPathProfileEdit),
+      isFalse,
+    );
+    expect(
+      router.pathResolvesThroughWildcardFallback(kPathProfileTabAlias),
+      isFalse,
+    );
+  });
+
+  test('wildcard fallback detection matches unknown hash paths', () {
+    expect(router.pathResolvesThroughWildcardFallback('/doesnotexist'), isTrue);
+    expect(router.pathResolvesThroughWildcardFallback('/settings/zzz'), isTrue);
+    expect(
+      router.pathResolvesThroughWildcardFallback('$kPathBeaconView/fake'),
+      isFalse,
+    );
+    expect(
+      router.pathResolvesThroughWildcardFallback(kPathHomePostsAlias),
+      isFalse,
+    );
+  });
+
+  test('unknown hash deep link schedules a one-time notice', () {
+    UnknownHashRouteNotice.instance.resetForTest();
+    router.deepLinkTransformer(Uri.parse('/doesnotexist'));
+    expect(UnknownHashRouteNotice.instance.takePending(), isTrue);
+    UnknownHashRouteNotice.instance.resetForTest();
+    router.deepLinkTransformer(Uri.parse(kPathHomePostsAlias));
+    expect(UnknownHashRouteNotice.instance.takePending(), isFalse);
+    UnknownHashRouteNotice.instance.resetForTest();
+    router.deepLinkTransformer(Uri(path: kPathHome));
+    expect(UnknownHashRouteNotice.instance.takePending(), isFalse);
+  });
 }

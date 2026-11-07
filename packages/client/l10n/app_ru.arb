@@ -6601,6 +6601,7 @@
   "updatesRowMenuTooltip": "Действия с событием",
   "inboxOverflowMenuTooltip": "Меню активности",
   "homeNavLandmark": "Основная навигация",
+  "unknownHashRouteSnackBar": "Эта ссылка недоступна",
   "skipToContent": "Перейти к содержимому",
   "forwardEmptyNoContactsTitle": "Пока некому отправить",
   "trustWidensReachHint": "Люди, которым вы доверяете и которые доверяют вам, расширяют круг тех, кого вы видите и кому можете отправлять.",
