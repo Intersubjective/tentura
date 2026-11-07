@@ -249,6 +249,44 @@ void main() {
       expect(uWrap.y, closeTo(uBare.y, 0.5));
     });
 
+    test('a cold layout seats nobody: tagged people keep the base layout', () async {
+      // The first layout after load has no previous arrangement, so nobody
+      // is a newcomer; seating everyone squeezed each tag into a small disk
+      // until the next relayout spread it again (owner report 2026-11-07).
+      final base = ConstellationSceneLayoutAlgorithm(
+        egoId: _egoId,
+        paths: _paths({'m1', 'm2', 'm3', 'm4', 'n1', 'n2', 'ego'}),
+        keptPeerIds: const {'m1', 'm2', 'm3', 'm4', 'n1', 'n2', 'ego'},
+        maxHops: 3,
+        visibleRequestsByAuthor: const {},
+        egoOwnRequestIds: const {},
+      );
+      final algo = ConstellationMagnetLayout(
+        base: base,
+        viewerId: _egoId,
+        tagsOfPerson: tagsOf,
+        peopleInTag: peopleInTag,
+        priors: const {},
+        magnetsByPerson: const {},
+        followers: const {},
+      );
+      final nodes = {
+        for (final id in ['ego', 'm1', 'm2', 'm3', 'm4', 'n1', 'n2']) _p(id),
+      };
+      final cold = await layoutPositionsOnce(
+        base,
+        nodes: nodes,
+        edges: const {},
+        canvasSize: const Size(4200, 4200),
+      );
+      final wrapped = await _run(algo, nodes);
+      for (final node in nodes) {
+        final id = tenturaGraphNodeId(node);
+        expect(wrapped[id]!.x, closeTo(cold[id]!.x, 0.5), reason: id);
+        expect(wrapped[id]!.y, closeTo(cold[id]!.y, 0.5), reason: id);
+      }
+    });
+
     test('pinned people are not moved by tag seating', () async {
       final base = ConstellationSceneLayoutAlgorithm(
         egoId: _egoId,
