@@ -332,7 +332,7 @@ void main() {
     );
   });
 
-  group('BeaconCase.beaconStageImage', () {
+  group('BeaconCase.stageImage', () {
     test(
       'rejects image staging for every Post without leaving an image stage',
       () async {
@@ -341,7 +341,7 @@ void main() {
 
         Object? error;
         try {
-          await case_.beaconStageImage(
+          await case_.stageImage(
             beaconId: 'B1',
             userId: 'Uauth',
             imageBytes: const Stream.empty(),
@@ -356,10 +356,10 @@ void main() {
     );
 
     test(
-      'beaconStageImage: rejects an unauthorized caller before uploading',
+      'stageImage: rejects an unauthorized caller before uploading',
       () async {
         await expectLater(
-          case_.beaconStageImage(
+          case_.stageImage(
             beaconId: 'B1',
             userId: 'Uother',
             imageBytes: const Stream.empty(),
@@ -371,7 +371,7 @@ void main() {
     );
 
     test(
-      'beaconStageImage: rejects at the cap and compensates the upload',
+      'stageImage: rejects at the cap and compensates the upload',
       () async {
         beaconRepo.snapshot = const BeaconMediaSnapshot(
           attachedImageIds: [],
@@ -391,7 +391,7 @@ void main() {
         imageRepo.ownedIds = ['Inew'];
 
         await expectLater(
-          case_.beaconStageImage(
+          case_.stageImage(
             beaconId: 'B1',
             userId: 'Uauth',
             imageBytes: const Stream.empty(),
@@ -412,7 +412,7 @@ void main() {
         imageRepo.ownedIds = const [];
 
         await expectLater(
-          case_.beaconStageImage(
+          case_.stageImage(
             beaconId: 'B1',
             userId: 'Uauth',
             imageBytes: const Stream.empty(),
@@ -430,7 +430,7 @@ void main() {
     test('stages an invisible image without touching attachments', () async {
       imageRepo.ownedIds = ['Inew'];
 
-      final result = await case_.beaconStageImage(
+      final result = await case_.stageImage(
         beaconId: 'B1',
         userId: 'Uauth',
         imageBytes: const Stream.empty(),
@@ -445,12 +445,12 @@ void main() {
     });
 
     test(
-      'beaconStageImage: succeeds even when post-commit hash scheduling fails (non-fatal)',
+      'stageImage: succeeds even when post-commit hash scheduling fails (non-fatal)',
       () async {
         imageRepo.ownedIds = ['Inew'];
         taskRepo.failure = StateError('task queue unavailable');
 
-        final result = await case_.beaconStageImage(
+        final result = await case_.stageImage(
           beaconId: 'B1',
           userId: 'Uauth',
           imageBytes: const Stream.empty(),
@@ -461,7 +461,7 @@ void main() {
     );
   });
 
-  group('BeaconCase.beaconSetMedia', () {
+  group('BeaconCase.setMedia', () {
     test(
       'rejects publishing media for every Post without replacing attachments',
       () async {
@@ -472,7 +472,7 @@ void main() {
         );
 
         await expectLater(
-          case_.beaconSetMedia(
+          case_.setMedia(
             beaconId: 'B1',
             userId: 'Uauth',
             imageIds: const ['I1'],
@@ -487,7 +487,7 @@ void main() {
 
     test('rejects an unauthorized caller', () async {
       await expectLater(
-        case_.beaconSetMedia(
+        case_.setMedia(
           beaconId: 'B1',
           userId: 'Uother',
           imageIds: const [],
@@ -504,7 +504,7 @@ void main() {
       );
 
       await expectLater(
-        case_.beaconSetMedia(
+        case_.setMedia(
           beaconId: 'B1',
           userId: 'Uauth',
           imageIds: const ['I1', 'I1'],
@@ -531,7 +531,7 @@ void main() {
       );
 
       await expectLater(
-        case_.beaconSetMedia(
+        case_.setMedia(
           beaconId: 'B1',
           userId: 'Uauth',
           imageIds: ids,
@@ -549,7 +549,7 @@ void main() {
       );
 
       await expectLater(
-        case_.beaconSetMedia(
+        case_.setMedia(
           beaconId: 'B1',
           userId: 'Uauth',
           imageIds: const ['I1'],
@@ -567,7 +567,7 @@ void main() {
       );
 
       await expectLater(
-        case_.beaconSetMedia(
+        case_.setMedia(
           beaconId: 'B1',
           userId: 'Uauth',
           imageIds: const ['I1', 'Iunknown'],
@@ -593,7 +593,7 @@ void main() {
       );
 
       await expectLater(
-        case_.beaconSetMedia(
+        case_.setMedia(
           beaconId: 'B1',
           userId: 'Uauth',
           imageIds: const ['I1'],
@@ -619,7 +619,7 @@ void main() {
       );
 
       await expectLater(
-        case_.beaconSetMedia(
+        case_.setMedia(
           beaconId: 'B1',
           userId: 'Uauth',
           imageIds: const [],
@@ -637,7 +637,7 @@ void main() {
       );
 
       await expectLater(
-        case_.beaconSetMedia(
+        case_.setMedia(
           beaconId: 'B1',
           userId: 'Uauth',
           imageIds: const ['I1'],
@@ -656,7 +656,7 @@ void main() {
         );
         beaconRepo.replaceMediaReturns = ['I2'];
 
-        final result = await case_.beaconSetMedia(
+        final result = await case_.setMedia(
           beaconId: 'B1',
           userId: 'Uauth',
           imageIds: const ['I3', 'I1'],
@@ -698,7 +698,7 @@ void main() {
           // What the Postgres repository returned before the fix.
           ..replaceMediaReturns = ['Ithumb', 'Istale'];
 
-        await case_.beaconSetMedia(
+        await case_.setMedia(
           beaconId: 'B1',
           userId: 'Uauth',
           imageIds: const ['I1'],
@@ -727,7 +727,7 @@ void main() {
         );
         beaconRepo.replaceMediaReturns = const [];
 
-        await case_.beaconSetMedia(
+        await case_.setMedia(
           beaconId: 'B1',
           userId: 'Uauth',
           imageIds: const ['I1', 'I2'],
