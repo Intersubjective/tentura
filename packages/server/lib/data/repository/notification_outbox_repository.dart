@@ -3,6 +3,7 @@ import 'package:tentura_server/domain/entity/forward_helped_content.dart';
 
 import 'package:injectable/injectable.dart';
 
+import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/entity/notification_category.dart';
 import 'package:tentura_server/domain/entity/digest_post_content.dart';
 import 'package:tentura_server/domain/notification/notification_excerpt.dart';
@@ -266,7 +267,9 @@ WHERE seen_at IS NOT NULL
         'in_app_preference_class',
       ),
       suppressionClass: row.read<String>('suppression_class'),
-      accessPolicy: row.read<String>('access_policy'),
+      accessPolicy: attentionAccessPolicyFromWireName(
+        row.read<String>('access_policy'),
+      ),
     );
   }
 
