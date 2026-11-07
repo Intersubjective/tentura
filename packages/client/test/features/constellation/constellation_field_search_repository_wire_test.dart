@@ -11,6 +11,7 @@ void main() {
     'FieldSearch repository maps the wire and sends query + context',
     () async {
       final sent = <WireSent>[];
+      final paths = <String>[];
       await withRemoteWire(
         {
           'FieldSearch': {
@@ -37,10 +38,12 @@ void main() {
           expect(sent.single.operationName, 'FieldSearch');
           expect(sent.single.variables['query'], 'pa');
           expect(sent.single.variables['context'], 'ctx-a');
+          expect(paths.single, endsWith('/api/v2/graphql'));
           expect(r.people.single.id, 'peer-1');
           expect(r.people.single.displayName, 'Pat');
           expect(r.people.single.handle, '@pat');
         },
+        requestPaths: paths,
       );
     },
   );

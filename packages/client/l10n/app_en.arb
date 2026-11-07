@@ -10281,6 +10281,11 @@
     "description": "When server search only returns the signed-in user and there are no Requests or Posts (#1046)",
     "context": "ConstellationField"
   },
+  "constellationFieldSearchUnavailable": "Field search isn’t available right now. Showing people from the map only.",
+  "@constellationFieldSearchUnavailable": {
+    "description": "When the Field search query failed (timeout or server error) and local name matches are shown instead (#1046)",
+    "context": "ConstellationField"
+  },
   "constellationFieldSearchStatusHidden": "Hidden",
   "@constellationFieldSearchStatusHidden": {
     "description": "Status suffix on a hidden Field search hit",
