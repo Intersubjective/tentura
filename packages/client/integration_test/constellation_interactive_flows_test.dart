@@ -449,4 +449,49 @@ void main() {
       expect(cubit.graphController.cameraScale, greaterThanOrEqualTo(0.45));
     },
   );
+
+  testWidgets(
+    'touch pan with inertia settle-back reveals a node in view (#1054 U5)',
+    (tester) async {
+      e2eDrainExceptions = false;
+      await launchApp(app.main);
+      final fixture = await bootstrapFixture(
+        runId: uniqueRunId('settle-back-touch'),
+      );
+      await loginAs(tester, fixture.authorEmail);
+      await createPublishedBeacon(title: uniqueRequestTitle('Settle-back'));
+      await openConstellation(tester);
+      await waitForConstellationLoaded(tester);
+      await setConstellationViewMode(tester, ConstellationViewMode.map);
+      await tapConstellationControl(
+        tester,
+        find.byKey(TestIds.key(TestIds.constellationFitAll)),
+      );
+      await tester.pumpAndSettle(const Duration(seconds: 30));
+
+      final cubit = readConstellationCubit(tester);
+      final context = tester.element(find.byType(ConstellationBody));
+      final insets = cubit.fieldCameraViewportInsets(
+        context,
+        contextPanelVisible: false,
+      );
+      expect(
+        cubit.fieldAnyNodeBodyInSafeRectForTest(insets: insets),
+        isTrue,
+      );
+
+      await tester.drag(
+        find.byType(InteractiveViewer),
+        const Offset(0, -600),
+        kind: PointerDeviceKind.touch,
+      );
+      await tester.pumpAndSettle(const Duration(seconds: 30));
+      await tester.pump(const Duration(milliseconds: 500));
+
+      expect(
+        cubit.fieldAnyNodeBodyInSafeRectForTest(insets: insets),
+        isTrue,
+      );
+    },
+  );
 }

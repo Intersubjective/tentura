@@ -1437,6 +1437,89 @@ class ConstellationSceneController {
     );
   }
 
+  Rect _fieldCameraSafeRect(EdgeInsets insets) {
+    final pixel = graphController.viewportSize;
+    if (pixel == null) {
+      return Rect.zero;
+    }
+    return Rect.fromLTRB(
+      insets.left,
+      insets.top,
+      pixel.width - insets.right,
+      pixel.height - insets.bottom,
+    );
+  }
+
+  Rect? _fieldNodeBodyViewportRect(GraphNodeId graphId) {
+    final pixel = graphController.viewportSize;
+    if (!graphController.canLayout || pixel == null) {
+      return null;
+    }
+    final snapshot = graphController.renderSnapshot;
+    final sceneNode = snapshot.topology.nodesById[graphId];
+    final point = snapshot.resolvePosition(graphId);
+    if (sceneNode == null || point == null) {
+      return null;
+    }
+    final payload = sceneNode.payload;
+    if (payload is! FieldPersonNode && payload is! FieldBeaconNode) {
+      return null;
+    }
+    final bounds = constellationPlacedNodeBounds(
+      centre: (x: point.x, y: point.y),
+      footprint: layoutFootprints[graphId],
+      size: (width: sceneNode.size.width, height: sceneNode.size.height),
+    );
+    final topLeft = graphController.sceneToViewportLocal(
+      Offset(bounds.left, bounds.top),
+    );
+    final bottomRight = graphController.sceneToViewportLocal(
+      Offset(bounds.right, bounds.bottom),
+    );
+    return Rect.fromPoints(topLeft, bottomRight);
+  }
+
+  /// Whether any Field map body (person, Request, or Post) overlaps the safe
+  /// viewport inside [insets].
+  bool anyFieldNodeBodyIntersectsSafeRect(EdgeInsets insets) {
+    final safe = _fieldCameraSafeRect(insets);
+    if (safe.width <= 0 || safe.height <= 0) {
+      return true;
+    }
+    for (final graphId
+        in graphController.renderSnapshot.topology.nodesById.keys) {
+      final viewportRect = _fieldNodeBodyViewportRect(graphId);
+      if (viewportRect != null && safe.overlaps(viewportRect)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /// The Field node whose body centre is nearest the safe-rect centre.
+  GraphNodeId? nearestFieldNodeGraphIdToSafeRectCenter(EdgeInsets insets) {
+    final safe = _fieldCameraSafeRect(insets);
+    if (safe.width <= 0 || safe.height <= 0) {
+      return null;
+    }
+    final target = safe.center;
+    GraphNodeId? nearestId;
+    var nearestDistSq = double.infinity;
+    for (final graphId
+        in graphController.renderSnapshot.topology.nodesById.keys) {
+      final viewportRect = _fieldNodeBodyViewportRect(graphId);
+      if (viewportRect == null) {
+        continue;
+      }
+      final distSq = (viewportRect.center - target).distanceSquared;
+      if (distSq < nearestDistSq) {
+        nearestDistSq = distSq;
+        nearestId = graphId;
+      }
+    }
+    return nearestId;
+  }
+
   /// Centres the full viewport on [sceneCentre] at the current scale.
   void panCameraTo(Offset sceneCentre) {
     graphController.jumpToPosition(sceneCentre);
