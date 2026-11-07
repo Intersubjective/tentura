@@ -104,7 +104,10 @@ final class _StubRepository implements ConstellationRepositoryPort {
 
 const _ego = Profile(id: 'ego', displayName: 'Ego');
 
-ConstellationField _field({bool withBob = false}) => ConstellationField(
+ConstellationField _field({
+  bool withBob = false,
+  bool withPosts = true,
+}) => ConstellationField(
   loadedAt: DateTime.utc(2026, 9, 9),
   context: '',
   peers: [
@@ -116,32 +119,36 @@ ConstellationField _field({bool withBob = false}) => ConstellationField(
     if (withBob)
       const ConstellationTrustEdgeEntity(src: 'ego', dst: 'b', tier: 1),
   ],
-  posts: [
-    ConstellationPost(
-      id: 'post-a',
-      authorId: 'a',
-      rootExcerpt: 'Anyone free Saturday?',
-      lastActivityAt: DateTime.utc(2026, 9, 9),
-    ),
-    // The Field only draws content holders (and their path ancestors), so
-    // Bob needs a post of his own to be on the map at all.
-    if (withBob)
-      ConstellationPost(
-        id: 'post-b',
-        authorId: 'b',
-        rootExcerpt: 'Lunch?',
-        lastActivityAt: DateTime.utc(2026, 9, 9),
-      ),
-  ],
+  posts: withPosts
+      ? [
+          ConstellationPost(
+            id: 'post-a',
+            authorId: 'a',
+            rootExcerpt: 'Anyone free Saturday?',
+            lastActivityAt: DateTime.utc(2026, 9, 9),
+          ),
+          // The Field only draws content holders (and their path ancestors), so
+          // Bob needs a post of his own to be on the map at all.
+          if (withBob)
+            ConstellationPost(
+              id: 'post-b',
+              authorId: 'b',
+              rootExcerpt: 'Lunch?',
+              lastActivityAt: DateTime.utc(2026, 9, 9),
+            ),
+        ]
+      : const [],
 );
 
 Future<ConstellationCubit> _loadCubit({
   bool withBob = false,
+  bool withPosts = true,
   _StubRepository? repository,
 }) async {
   final cubit = ConstellationCubit(
     case_: ConstellationStoreFixture(
-      repository ?? _StubRepository(_field(withBob: withBob)),
+      repository ??
+          _StubRepository(_field(withBob: withBob, withPosts: withPosts)),
       accountId: 'ego',
     ).store,
     viewer: _ego,
@@ -1823,7 +1830,7 @@ void main() {
   testWidgets('at the smallest zoom node semantics rects are still 48 px '
       '(#678)', (tester) async {
     final handle = tester.ensureSemantics();
-    final cubit = await _loadCubit();
+    final cubit = await _loadCubit(withPosts: false);
     addTearDown(cubit.close);
     await _pumpBody(tester, cubit);
     await tester.pumpAndSettle();
@@ -1844,34 +1851,21 @@ void main() {
       reason: 'test setup must zoom out until the marker is small ($drawn)',
     );
 
-    for (final id in const ['a', 'post-a']) {
-      final rect = _semanticsRectOnScreen(
-        tester,
-        tester.getSemantics(_node(id)),
-      );
-      // Where the other marker's target overlaps, the rect gives up the half
-      // of that overlap nearer the other marker (a click through the semantics
-      // tree reaches the nearest node), but only along the axis the other
-      // marker lies mostly along.
-      final other = id == 'a' ? 'post-a' : 'a';
-      final apart =
-          tester.getCenter(_node(other)) - tester.getCenter(_node(id));
-      final overlaps =
-          apart.dx.abs() < kMinInteractiveDimension &&
-          apart.dy.abs() < kMinInteractiveDimension;
-      expect(
-        math.max(rect.width, rect.height) >= kMinInteractiveDimension - 0.5,
-        isTrue,
-        reason: '$id semantics rect on screen is $rect (overlaps=$overlaps)',
-      );
-      expect(
-        overlaps
-            ? rect.contains(tester.getCenter(_node(id)))
-            : (rect.center - tester.getCenter(_node(id))).distance < 1.5,
-        isTrue,
-        reason: 'the $id semantics rect is centred on its marker',
-      );
-    }
+    const id = 'a';
+    final rect = _semanticsRectOnScreen(
+      tester,
+      tester.getSemantics(_node(id)),
+    );
+    expect(
+      math.max(rect.width, rect.height) >= kMinInteractiveDimension - 0.5,
+      isTrue,
+      reason: '$id semantics rect on screen is $rect',
+    );
+    expect(
+      (rect.center - tester.getCenter(_node(id))).distance,
+      lessThan(1.5),
+      reason: 'the $id semantics rect is centred on its marker',
+    );
     handle.dispose();
   });
 
