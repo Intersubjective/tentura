@@ -3436,12 +3436,14 @@ class _OverviewDot extends StatelessWidget {
   );
 }
 
-/// A [kConstellationDistrictMarkerDiameter] circle of the person's initials on
-/// screen whatever the camera scale, ringed in the first own-tag colour (no
-/// ring without a tag), centred in the node's own scene box.
+/// A [kConstellationDistrictMarkerDiameter] avatar on screen whatever the camera
+/// scale — the same [TenturaAvatar] image path as the close level and ego,
+/// with initials only while loading or when the person has no photo — ringed in
+/// the first own-tag colour (no ring without a tag), centred in the node's own
+/// scene box.
 ///
-/// Lay out the initials at a fixed size and counter-scale their paint with the
-/// camera, avoiding per-frame text layout during zoom (#808).
+/// Counter-scale paint with the camera so the marker stays 20 pt on screen and
+/// avoids per-frame text layout during zoom (#808).
 class _DistrictMarker extends StatelessWidget {
   const _DistrictMarker({
     required this.spec,
@@ -3480,10 +3482,9 @@ class _DistrictMarker extends StatelessWidget {
               },
             ),
             child: ClipOval(
-              child: ProfileAvatarInitials(
-                lettering: TenturaAvatar.initialsForProfile(person),
+              child: TenturaAvatar(
+                profile: person,
                 size: kConstellationDistrictMarkerDiameter,
-                hueKey: person.id,
               ),
             ),
           ),
