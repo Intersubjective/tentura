@@ -19,6 +19,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/semantics_free_tooltip.dart';
 
 import '../../support/constellation_store_fixture.dart';
+import '../../support/phone_surface.dart';
 
 const _ego = Profile(id: 'ego', displayName: 'Ego');
 
@@ -730,6 +731,22 @@ void main() {
     final fadeStart = find.byKey(const Key('constellation.show.fade_start'));
     final fadeEnd = find.byKey(const Key('constellation.show.fade_end'));
     final lastChip = find.byKey(const Key('constellation.show.degree.further'));
+
+    testWidgets('375×667 shows end fade when degree chips overflow', (
+      tester,
+    ) async {
+      await usePhoneSurface(tester);
+      await pumpChips(tester, kPhoneSurface);
+      final degreeFirst = find.byKey(
+        const Key('constellation.show.degree.first'),
+      );
+      expect(
+        tester.getRect(degreeFirst).right,
+        greaterThan(kPhoneSurface.width),
+      );
+      expect(fadeEnd, findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
 
     testWidgets('fades where chips are hidden and scrolls to the last one', (
       tester,
