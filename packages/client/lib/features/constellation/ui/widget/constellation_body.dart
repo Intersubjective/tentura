@@ -213,7 +213,11 @@ class _ConstellationBodyState extends State<ConstellationBody>
   late final ConstellationZoomLevelController _zoom;
   ConstellationZoomLevelController? _ownZoom;
   // Outlives the minimap widget, which leaves at the close level.
-  final _minimapExpanded = ValueNotifier<bool>(true);
+  // FCP §C: compact surfaces start with the minimap collapsed; width is read
+  // in didChangeDependencies (first pass) so MediaQuery is available before
+  // the first build.
+  final _minimapExpanded = ValueNotifier<bool>(false);
+  bool _minimapExpandedInitialized = false;
   int _pointersDown = 0;
 
   ConstellationTagHullHitTester? _tagHullHitTester;
@@ -295,6 +299,17 @@ class _ConstellationBodyState extends State<ConstellationBody>
         for (final tag in _peopleTags.tags) tag.id,
       });
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_minimapExpandedInitialized) {
+      _minimapExpandedInitialized = true;
+      _minimapExpanded.value =
+          windowClassForWidth(MediaQuery.sizeOf(context).width) !=
+          WindowClass.compact;
+    }
   }
 
   // The screen provides the owner; a body mounted bare owns its own.
@@ -901,7 +916,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
       }
     }
     final maxBelowCentreViewport = math.max(
-      0.0,
+      0,
       lowestViewport - body.center.dy,
     );
     if (maxBelowCentreViewport <= 0) {
@@ -2604,6 +2619,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
                 padding: EdgeInsets.all(tt.rowGap),
                 child: ConstellationMinimap(
                   controller: cubit.graphController,
+                  viewerGraphId: 'fp:${cubit.viewerId}',
                   expanded: _minimapExpanded,
                 ),
               ),

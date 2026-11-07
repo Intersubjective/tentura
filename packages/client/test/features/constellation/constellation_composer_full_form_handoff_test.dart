@@ -4,7 +4,6 @@
 // then seeds its recipients `ForwardCubit` from the route's initial recipients.
 
 import 'dart:async';
-import 'dart:ui' show Offset;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';

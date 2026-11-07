@@ -13,7 +13,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:gql_exec/gql_exec.dart' show Request, Response;
 
 import 'package:tentura/data/service/remote_api_client/remote_api_client_web.dart';
-import 'package:tentura/domain/entity/room_read_watermark.dart';
 import 'package:tentura/features/beacon_threads/data/repository/beacon_threads_repository.dart';
 
 import '../../support/test_realtime_sync.dart';

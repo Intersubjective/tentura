@@ -82,6 +82,15 @@ EdgeDirected _e(String src, String dst) => (
   branch: null,
   srcTotalNeighborCount: null,
   dstTotalNeighborCount: null,
+          forwardEdgeId: null,
+          forwardRecipientIsGhostEndpoint: null,
+          forwardOfferStatus: null,
+          forwardDeclinedInvite: null,
+          forwardReadAt: null,
+          forwardForwardedOn: null,
+          forwardSenderAnonymousCount: null,
+          forwardRecipientAnonymousCount: null,
+          forwardParentEdgeId: null,
 );
 
 Future<void> _settleGraph(WidgetTester tester) async {

@@ -2,7 +2,6 @@
 // composer is open: it stays anchored, so the viewer can still unpin it, but
 // it is not drawn in the people-only composing scene.
 
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';

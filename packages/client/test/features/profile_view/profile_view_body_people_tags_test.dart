@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
 
@@ -25,7 +24,6 @@ import 'package:tentura/features/profile/domain/port/profile_repository_port.dar
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/features/profile_view/domain/use_case/profile_view_case.dart';
 import 'package:tentura/features/profile_view/ui/bloc/profile_view_cubit.dart';
-import 'package:tentura/features/profile_view/ui/widget/profile_info_sheet.dart';
 import 'package:tentura/features/profile_view/ui/widget/profile_view_body.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';

@@ -16,7 +16,6 @@ import 'package:tentura/features/my_work/ui/bloc/my_work_cubit.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_attention_reporter.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_tab_reentry_listener.dart';
 import 'package:tentura/features/notification/ui/widget/notification_permission_banner.dart';
-import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 
 import '../bloc/home_activation_cubit.dart';
 import '../bloc/home_tab_reselect_cubit.dart';

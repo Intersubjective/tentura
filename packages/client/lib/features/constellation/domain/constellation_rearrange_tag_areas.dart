@@ -1,14 +1,11 @@
 import 'dart:math' as math;
 
-import 'package:meta/meta.dart';
-
 import 'constellation_consts.dart';
 import 'constellation_drag_cluster.dart';
 import 'constellation_layout.dart';
 import 'layout/layout_geometry.dart';
 
 /// Result of staging tag areas before the settled layout pass.
-@visibleForTesting
 typedef ConstellationRearrangeTagStaging = ({
   Map<String, ConstellationPoint> areaPositions,
   Map<String, ConstellationPoint> tagCentres,
@@ -33,13 +30,35 @@ ConstellationRearrangeTagStaging constellationRearrangeTagStaging({
   required ConstellationPlacedLayoutInput input,
   required ConstellationLayout freeLayout,
 }) {
+  ConstellationRearrangeTagStaging? out;
+  for (final _ in constellationRearrangeTagStagingSteps(
+    input: input,
+    freeLayout: freeLayout,
+    onComplete: (r) => out = r,
+  )) {}
+  return out ?? (areaPositions: const {}, tagCentres: const {});
+}
+
+/// Checkpoints for bounded layout jobs ([ConstellationTagStagingLayoutJob]).
+/// Same granularity as [constellationPlacedLayoutSteps]: one yield per pass
+/// through a small amount of deterministic work.
+Iterable<void> constellationRearrangeTagStagingSteps({
+  required ConstellationPlacedLayoutInput input,
+  required ConstellationLayout freeLayout,
+  required void Function(ConstellationRearrangeTagStaging) onComplete,
+}) sync* {
+  void finish(ConstellationRearrangeTagStaging r) {
+    onComplete(r);
+  }
+
   final tagPeople = input.rearrangeOwnTagPeopleByTagId;
   if (tagPeople.isEmpty) {
-    return (areaPositions: const {}, tagCentres: const {});
+    finish((areaPositions: const {}, tagCentres: const {}));
+    return;
   }
-  // Synthetic `auto:*` keys alone carry no own-tag membership; skip work.
   if (!tagPeople.keys.any((id) => !id.startsWith('auto:'))) {
-    return (areaPositions: const {}, tagCentres: const {});
+    finish((areaPositions: const {}, tagCentres: const {}));
+    return;
   }
   final canvasCentre = constellationCanvasCentrePoint();
   final onFieldPeople = <String>{
@@ -60,10 +79,13 @@ ConstellationRearrangeTagStaging constellationRearrangeTagStaging({
       if (!onFieldPeople.contains(personId)) continue;
       if (freeLayout.positions[personId] == null) continue;
       personOwnTags.putIfAbsent(personId, () => {}).add(tagId);
+      yield null;
     }
+    yield null;
   }
   if (personOwnTags.isEmpty) {
-    return (areaPositions: const {}, tagCentres: const {});
+    finish((areaPositions: const {}, tagCentres: const {}));
+    return;
   }
 
   final depthsList = <int>{};
@@ -72,6 +94,7 @@ ConstellationRearrangeTagStaging constellationRearrangeTagStaging({
       input.paths.depth[id] ??
           (input.paths.ring.contains(id) ? input.maxHops + 1 : input.maxHops),
     );
+    yield null;
   }
   final depthsSorted = depthsList.toList()..sort();
   double ringRadius(int depth) =>
@@ -82,8 +105,6 @@ ConstellationRearrangeTagStaging constellationRearrangeTagStaging({
     y: ego.y + radius * math.sin(angle),
   );
 
-  /// Mean direction from ego and mean ring radius at member trust depths
-  /// (same construction as tag view clusters).
   final tagCentres = <String, ConstellationPoint>{};
   for (final tagId in tagIds) {
     final memberIds =
@@ -100,6 +121,7 @@ ConstellationRearrangeTagStaging constellationRearrangeTagStaging({
     final magnet = input.rearrangeTagMagnetsByTagId[tagId];
     if (magnet != null) {
       tagCentres[tagId] = constellationClampToDragBounds(magnet);
+      yield null;
       continue;
     }
     var sx = 0.0;
@@ -114,6 +136,7 @@ ConstellationRearrangeTagStaging constellationRearrangeTagStaging({
           input.paths.depth[id] ??
           (input.paths.ring.contains(id) ? input.maxHops + 1 : input.maxHops);
       radSum += ringRadius(depth);
+      yield null;
     }
     final angle = (sx.abs() < 1e-9 && sy.abs() < 1e-9)
         ? 0.0
@@ -122,11 +145,12 @@ ConstellationRearrangeTagStaging constellationRearrangeTagStaging({
     tagCentres[tagId] = constellationClampToDragBounds(
       polar(canvasCentre, angle, meanR),
     );
+    yield null;
   }
 
   final out = <String, ConstellationPoint>{};
 
-  void placeMultiTagMidpoints() {
+  {
     final multiIds =
         personOwnTags.entries
             .where((e) => e.value.length > 1)
@@ -147,10 +171,9 @@ ConstellationRearrangeTagStaging constellationRearrangeTagStaging({
           memberCentres.map((c) => c.y).reduce((a, b) => a + b) /
           memberCentres.length;
       out[id] = constellationClampToDragBounds((x: cx, y: cy));
+      yield null;
     }
   }
-
-  placeMultiTagMidpoints();
 
   final tagMemberCount = <String, int>{
     for (final tagId in tagIds)
@@ -333,6 +356,7 @@ ConstellationRearrangeTagStaging constellationRearrangeTagStaging({
         raw,
         size: input.nodeSizes[id] ?? (width: 64, height: 64),
       );
+      yield null;
     }
   }
 
@@ -349,13 +373,44 @@ ConstellationRearrangeTagStaging constellationRearrangeTagStaging({
         wasInside = true;
         break;
       }
+      yield null;
     }
     if (!wasInside) {
       continue;
     }
-    final pushed = pushOutOfDisks(hint, diskCentreIds, ut);
+    var pushed = hint;
+    for (var iter = 0; iter < 48; iter++) {
+      var adjusted = false;
+      for (final tagId in diskCentreIds) {
+        final c = tagCentres[tagId];
+        if (c == null) continue;
+        final radius = tagDiskRadius(tagId);
+        final dx = pushed.x - c.x;
+        final dy = pushed.y - c.y;
+        final dist = math.sqrt(dx * dx + dy * dy);
+        if (dist < 1e-9 || dist >= radius - 1e-6) {
+          yield null;
+          continue;
+        }
+        final ux = dx / dist;
+        final uy = dy / dist;
+        pushed = (
+          x: c.x + ux * (radius + 1),
+          y: c.y + uy * (radius + 1),
+        );
+        pushed = constellationClampToDragBounds(
+          pushed,
+          size: input.nodeSizes[ut] ?? (width: 64, height: 64),
+        );
+        adjusted = true;
+        yield null;
+      }
+      if (!adjusted) break;
+      yield null;
+    }
     out[ut] = pushed;
+    yield null;
   }
 
-  return (areaPositions: out, tagCentres: tagCentres);
+  finish((areaPositions: out, tagCentres: tagCentres));
 }

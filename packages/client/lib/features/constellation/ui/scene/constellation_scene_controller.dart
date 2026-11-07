@@ -23,6 +23,7 @@ import '../../../graph/domain/entity/node_details.dart';
 import '../../../graph/ui/utils/graph_scene_ids.dart';
 import '../../../graph/ui/utils/tentura_layout_algorithms.dart';
 import 'package:tentura/ui/utils/frame_slice_scheduler.dart';
+import 'package:tentura/ui/utils/rearrange_preview_scheduler.dart';
 
 import '../utils/constellation_graph_scene.dart';
 import '../util/constellation_perf.dart';
@@ -76,12 +77,24 @@ void runAfterNextFrame(void Function() callback) {
 /// the layout inputs derived from the last build and the layout hand-off.
 /// It holds no cubit state; the cubit passes everything it needs per call.
 class ConstellationSceneController {
-  ConstellationSceneController({this._slicer});
+  ConstellationSceneController({
+    FrameSliceScheduler? slicer,
+    this.rearrangePreviewScheduler,
+  }) : _slicer = slicer;
 
   final FrameSliceScheduler? _slicer;
 
+  /// Synchronous slicing for field layout only (pointer pause + starvation).
+  FrameSliceScheduler? get layoutSliceScheduler => _slicer;
+
+  /// Bounded stepping for «Rearrange everyone» preview.
+  final RearrangePreviewScheduler? rearrangePreviewScheduler;
+
   /// Cancels the layout job in flight and releases the scheduler.
-  void dispose() => _slicer?.dispose();
+  void dispose() {
+    _slicer?.dispose();
+    rearrangePreviewScheduler?.dispose();
+  }
 
   late final GraphController<NodeDetails, EdgeDetails> graphController =
       GraphController(
@@ -152,7 +165,7 @@ class ConstellationSceneController {
   /// graph topology stays stable when the overlay toggles or rebuilds (#774,
   /// placement_phase_node_rebuild_test).
   Map<String, ConstellationForwardTreeRecipientMarker>
-      forwardTreeRecipientMarkerByPersonId = const {};
+  forwardTreeRecipientMarkerByPersonId = const {};
 
   Set<String> forwardTreeTemporaryOutlinePersonIds = const {};
 
@@ -277,7 +290,7 @@ class ConstellationSceneController {
           anchorByNodeId: layoutAnchorByNodeId,
           forgetPriorHintNodeIds: forgetPriorHints,
           footprints: layoutFootprints,
-          slicer: _slicer,
+          slicer: layoutSliceScheduler,
         );
     // The forgotten prior hints only matter to the layout that consumed them.
     // Once they are cleared, an otherwise identical algorithm is the one the
@@ -583,8 +596,8 @@ class ConstellationSceneController {
       final anon = sender ? e.senderAnonymousCount : e.recipientAnonymousCount;
       final marker = sender ? null : markerFor(e);
       final isGhost = personId.startsWith('ftghost:');
-      final onVisibleField = !isGhost &&
-          (personId == viewer.id || keptPeerIds.contains(personId));
+      final onVisibleField =
+          !isGhost && (personId == viewer.id || keptPeerIds.contains(personId));
       final tempOutline = !isGhost && !onVisibleField && anon == 0;
       if (marker != null) {
         final merged = mergeMarker(markers[personId], marker);
@@ -597,8 +610,7 @@ class ConstellationSceneController {
       }
       if (anon > 0) {
         final prev = anonByPerson[personId];
-        anonByPerson[personId] =
-            prev == null ? anon : math.max(prev, anon);
+        anonByPerson[personId] = prev == null ? anon : math.max(prev, anon);
       }
       final existing = nodeById[personId];
       if (existing is FieldPersonNode) {
@@ -623,19 +635,20 @@ class ConstellationSceneController {
         ? {focusOfferer}
         : graph.helpOffererIds;
     for (final hoId in offererIds) {
-      final intoHo = [
-        for (final edge in graph.edges)
-          if (edge.recipientId == hoId) edge,
-      ]..sort(
-          (a, b) {
-            final at = a.createdAt;
-            final bt = b.createdAt;
-            if (at != null && bt != null && at != bt) {
-              return at.compareTo(bt);
-            }
-            return a.id.compareTo(b.id);
-          },
-        );
+      final intoHo =
+          [
+            for (final edge in graph.edges)
+              if (edge.recipientId == hoId) edge,
+          ]..sort(
+            (a, b) {
+              final at = a.createdAt;
+              final bt = b.createdAt;
+              if (at != null && bt != null && at != bt) {
+                return at.compareTo(bt);
+              }
+              return a.id.compareTo(b.id);
+            },
+          );
       var current = intoHo.isEmpty ? null : intoHo.last;
       final seen = <String>{};
       while (current != null && seen.add(current.id)) {
@@ -717,8 +730,8 @@ class ConstellationSceneController {
       }
       final srcId = edge.source.id;
       final dstId = edge.destination.id;
-      final touches = activePersonIds.contains(srcId) ||
-          activePersonIds.contains(dstId);
+      final touches =
+          activePersonIds.contains(srcId) || activePersonIds.contains(dstId);
       if (touches) {
         continue;
       }

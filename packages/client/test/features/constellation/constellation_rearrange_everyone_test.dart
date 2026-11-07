@@ -12,7 +12,9 @@ import 'package:tentura/features/constellation/domain/port/constellation_reposit
 import 'package:tentura/features/constellation/domain/use_case/constellation_anchor_case.dart';
 import 'package:tentura/features/constellation/domain/use_case/constellation_placement_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
+import 'package:tentura/features/constellation/ui/scene/constellation_scene_controller.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
+import 'package:tentura/ui/utils/rearrange_preview_scheduler.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 import 'package:tentura/features/graph/domain/use_case/graph_trust_write_case.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_person_context_cubit.dart';
@@ -269,9 +271,10 @@ Future<
     ConstellationCubit cubit,
     _FieldRepository fieldRepo,
     _AnchorServer server,
+    _SingleStepRearrangePreviewScheduler? singleStepPreview,
   })
 >
-_harness() async {
+_harness({RearrangePreviewScheduler? rearrangePreviewScheduler}) async {
   final fieldRepo = _FieldRepository(_fieldWithPinnedAndFreePeople());
   final server = _AnchorServer({
     for (final entry in _pinnedAt.entries)
@@ -283,6 +286,10 @@ _harness() async {
     accountId: 'ego',
     realtime: sync.case_,
   ).store;
+  final sched =
+      rearrangePreviewScheduler ?? _ImmediateRearrangePreviewScheduler();
+  final _SingleStepRearrangePreviewScheduler? single =
+      sched is _SingleStepRearrangePreviewScheduler ? sched : null;
   final cubit = ConstellationCubit(
     case_: store,
     anchorCase: ConstellationAnchorCase(
@@ -301,9 +308,15 @@ _harness() async {
     viewer: _ego,
     forwardCase: buildTestForwardCase(_FakeForwardRepository()),
     loadOnCreate: false,
+    scene: ConstellationSceneController(rearrangePreviewScheduler: sched),
   );
   await cubit.load();
-  return (cubit: cubit, fieldRepo: fieldRepo, server: server);
+  return (
+    cubit: cubit,
+    fieldRepo: fieldRepo,
+    server: server,
+    singleStepPreview: single,
+  );
 }
 
 Future<void> _pumpShell(
@@ -379,6 +392,75 @@ Map<ConstellationAnchorTarget, ConstellationAnchorPosition> _shownAnchors(
 
 const _previewCopySuffix = ' · your current layout is saved to history';
 
+final class _ImmediateRearrangePreviewScheduler
+    implements RearrangePreviewScheduler {
+  @override
+  void start({
+    required bool Function(int units) step,
+    required void Function() onComplete,
+  }) {
+    while (!step(1)) {}
+    onComplete();
+  }
+
+  @override
+  void cancel() {}
+
+  @override
+  void cancelJob(void Function() onComplete) {}
+
+  @override
+  void dispose() {}
+}
+
+final class _SingleStepRearrangePreviewScheduler
+    implements RearrangePreviewScheduler {
+  bool Function(int units)? _step;
+  void Function()? _onComplete;
+
+  @override
+  void start({
+    required bool Function(int units) step,
+    required void Function() onComplete,
+  }) {
+    _step = step;
+    _onComplete = onComplete;
+  }
+
+  /// One [FrameSliceScheduler] slice (`step(1)`). Completes the job when [step]
+  /// returns true.
+  bool runOneSlice() {
+    final s = _step;
+    final done = _onComplete;
+    if (s == null || done == null) {
+      return false;
+    }
+    if (s(1)) {
+      _step = null;
+      _onComplete = null;
+      done();
+      return true;
+    }
+    return false;
+  }
+
+  @override
+  void cancel() {
+    _step = null;
+    _onComplete = null;
+  }
+
+  @override
+  void cancelJob(void Function() onComplete) {
+    if (identical(_onComplete, onComplete)) {
+      cancel();
+    }
+  }
+
+  @override
+  void dispose() => cancel();
+}
+
 Finder _previewMessage(int count) =>
     find.text('$count people will move$_previewCopySuffix');
 
@@ -395,13 +477,18 @@ void main() {
       ConstellationCubit cubit,
       _FieldRepository fieldRepo,
       _AnchorServer server,
+      _SingleStepRearrangePreviewScheduler? singleStepPreview,
     })
   >
   openField(
     WidgetTester tester, {
     Locale locale = const Locale('en'),
+    RearrangePreviewScheduler? rearrangePreviewScheduler,
   }) async {
-    final harness = await _harness();
+    final harness = await _harness(
+      rearrangePreviewScheduler:
+          rearrangePreviewScheduler ?? _ImmediateRearrangePreviewScheduler(),
+    );
     addTearDown(harness.cubit.close);
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await _pumpShell(tester, harness.cubit, locale: locale);
@@ -479,6 +566,37 @@ void main() {
       expect(h.fieldRepo.fetchCount, fetchesBefore);
       expect(h.cubit.canUndoArrangement, isFalse);
     });
+
+    testWidgets(
+      'cancelling mid preview leaves no preview and writes nothing',
+      (tester) async {
+        final single = _SingleStepRearrangePreviewScheduler();
+        final h = await openField(
+          tester,
+          rearrangePreviewScheduler: single,
+        );
+        final fetchesBefore = h.fieldRepo.fetchCount;
+
+        h.cubit.previewRearrangeAll();
+        await tester.pump();
+        expect(h.cubit.state.rearrangePreview, isNull);
+
+        expect(single.runOneSlice(), isFalse);
+        await tester.pump();
+        expect(h.cubit.state.rearrangePreview, isNull);
+
+        h.cubit.cancelRearrangePreview();
+        for (var i = 0; i < 200; i++) {
+          if (single.runOneSlice()) {
+            fail('preview should not complete after cancel');
+          }
+          await tester.pump();
+        }
+        expect(h.cubit.state.rearrangePreview, isNull);
+        expect(h.server.events, isEmpty);
+        expect(h.fieldRepo.fetchCount, fetchesBefore);
+      },
+    );
 
     testWidgets('cancelling the preview leaves the Field as it was', (
       tester,

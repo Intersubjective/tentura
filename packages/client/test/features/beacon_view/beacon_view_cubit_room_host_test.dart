@@ -1,4 +1,3 @@
-import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
@@ -8,7 +7,6 @@ import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon_threads/domain/room_host.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
-import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'beacon_view_case_test_support.dart';

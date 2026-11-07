@@ -3,12 +3,10 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:get_it/get_it.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:logging/logging.dart';
 
-import 'package:tentura/consts.dart';
 import 'package:tentura/data/repository/presence_repository.dart';
 import 'package:tentura/data/service/invalidation_service.dart';
 import 'package:tentura/data/service/remote_api_service.dart';

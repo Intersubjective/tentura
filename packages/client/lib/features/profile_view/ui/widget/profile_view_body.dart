@@ -11,7 +11,6 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/domain/util/availability_presets.dart';
 import 'package:tentura/ui/model/person_action_policy.dart';
 import 'package:tentura/ui/utils/availability_line.dart';
-import 'package:tentura/ui/utils/capability_tag_presenter.dart';
 import 'package:tentura/features/capability/ui/widget/capability_tag_chip.dart';
 import 'package:tentura/ui/utils/profile_presence_line.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
