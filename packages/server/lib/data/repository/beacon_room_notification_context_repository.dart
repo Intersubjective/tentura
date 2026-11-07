@@ -34,9 +34,12 @@ class BeaconRoomNotificationContextRepository
     final stewards = await _room.listStewardUserIds(beaconId);
     final admitted = await _room.listAdmittedUserIds(beaconId);
     final helpOfferUserIds = await _activeHelpOfferUserIds(beaconId);
-    final requestParticipantUserIds =
-        await _activeRequestParticipantUserIds(beaconId);
-    final planParticipantUserIds = await _activePlanParticipantUserIds(beaconId);
+    final requestParticipantUserIds = await _activeRequestParticipantUserIds(
+      beaconId,
+    );
+    final planParticipantUserIds = await _activePlanParticipantUserIds(
+      beaconId,
+    );
     final inboxStances = await _inboxStanceUserIds(beaconId);
 
     return BeaconNotificationContext(
@@ -113,5 +116,5 @@ class BeaconRoomNotificationContextRepository
     return out;
   }
 
-  static bool _isActiveOffer(HelpOfferEntity offer) => offer.status == 0;
+  static bool _isActiveOffer(HelpOfferEntity offer) => offer.isActive;
 }
