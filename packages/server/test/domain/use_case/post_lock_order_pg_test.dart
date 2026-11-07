@@ -251,8 +251,8 @@ Future<void> main() async {
         );
         expect(
           await forwardStack.beaconCase.openForwarding(
-            authorId: _author,
-            id: _post,
+            beaconId: _post,
+            userId: _author,
           ),
           isTrue,
         );
@@ -306,7 +306,10 @@ Future<void> main() async {
           "INSERT INTO public.beacon (id, user_id, title, description, status, kind, is_discoverable, published_at, forward_policy, expires_at) VALUES ('$_post', '$_author', '', '', 0, 1, false, now(), 0, now() - interval '1 second')",
         );
         final outcome = await _settle(
-          forwardStack.beaconCase.openForwarding(authorId: _author, id: _post),
+          forwardStack.beaconCase.openForwarding(
+            beaconId: _post,
+            userId: _author,
+          ),
         );
         expect(outcome.error, isA<ExceptionBase>());
         expect(
@@ -386,7 +389,7 @@ Future<void> main() async {
           "UPDATE public.beacon SET expires_at = now() - interval '1 second' WHERE id = '$_post'",
         );
         final outcome = await _settle(
-          forwardStack.beaconCase.beaconStageImage(
+          forwardStack.beaconCase.stageImage(
             beaconId: _post,
             userId: _author,
             imageBytes: const Stream.empty(),
@@ -430,7 +433,7 @@ Future<void> main() async {
           "UPDATE public.beacon SET expires_at = now() - interval '1 second' WHERE id = '$_post'",
         );
         final outcome = await _settle(
-          forwardStack.beaconCase.beaconSetMedia(
+          forwardStack.beaconCase.setMedia(
             beaconId: _post,
             userId: _author,
             imageIds: const [],

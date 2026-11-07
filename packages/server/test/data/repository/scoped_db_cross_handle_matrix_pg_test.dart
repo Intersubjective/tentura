@@ -209,7 +209,7 @@ final _paths = <_Path>[
     _author,
     "SELECT forward_policy::text AS v FROM public.beacon WHERE id = '$_post'",
     (handle) =>
-        _beaconCase(handle).openForwarding(authorId: _author, id: _post),
+        _beaconCase(handle).openForwarding(beaconId: _post, userId: _author),
   ),
   _Path(
     'publishing a draft request',
