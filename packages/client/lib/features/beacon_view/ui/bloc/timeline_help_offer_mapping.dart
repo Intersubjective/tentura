@@ -1,6 +1,7 @@
 import 'package:tentura/domain/entity/commitment_stake_state.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/help_offer_admission_action.dart';
+import 'package:tentura/domain/entity/help_offer_status.dart';
 import 'package:tentura/domain/entity/profile.dart';
 
 import 'beacon_view_state.dart';
@@ -41,7 +42,7 @@ typedef HelpOfferWithCoordinationRow = ({
 /// People groups use helpOfferEndKind, which still has stake, response
 /// and withdraw reason (#783).
 bool _isWithdrawnRow(HelpOfferWithCoordinationRow c) =>
-    c.status == 1 &&
+    HelpOfferStatus.tryFromInt(c.status) == HelpOfferStatus.inactive &&
     !(HelpOfferAdmissionAction.tryFromInt(c.admissionAction) ==
             HelpOfferAdmissionAction.remove &&
         c.withdrawReason == null);

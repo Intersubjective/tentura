@@ -117,7 +117,11 @@ final class ConstellationPlacementCase extends UseCaseBase {
   Future<void> saveFavourite() async {
     await flushPendingPlacements();
     final previous = (await listLayoutSnapshots())
-        .where((s) => s.kind == 0)
+        .where(
+          (s) =>
+              ConstellationLayoutSnapshotKind.tryFromInt(s.kind) ==
+              ConstellationLayoutSnapshotKind.favourite,
+        )
         .firstOrNull;
     final saved = await _snapshots.saveFavourite(clientOpId: _uuid.v4());
     history.record(

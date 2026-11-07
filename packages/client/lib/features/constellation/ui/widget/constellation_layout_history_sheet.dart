@@ -75,7 +75,10 @@ class _HistoryState extends State<ConstellationLayoutHistorySheet> {
                             snapshot: snapshot,
                           ),
                           title: Text(
-                            snapshot.kind == 0
+                            ConstellationLayoutSnapshotKind.tryFromInt(
+                                      snapshot.kind,
+                                    ) ==
+                                    ConstellationLayoutSnapshotKind.favourite
                                 ? l10n.constellationFavouriteLayout
                                 : MaterialLocalizations.of(
                                     context,

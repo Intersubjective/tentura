@@ -3813,7 +3813,11 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
 
   Future<bool> restoreFavouriteLayout() async {
     final favourite = (await listLayoutSnapshots())
-        .where((s) => s.kind == 0)
+        .where(
+          (s) =>
+              ConstellationLayoutSnapshotKind.tryFromInt(s.kind) ==
+              ConstellationLayoutSnapshotKind.favourite,
+        )
         .firstOrNull;
     return favourite != null && await restoreLayout(favourite);
   }

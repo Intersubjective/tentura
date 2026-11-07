@@ -10,6 +10,7 @@ import 'package:tentura/data/model/user_public_model.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/domain/entity/help_offer_status.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/port/realtime_sync_port.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
@@ -513,7 +514,9 @@ class ForwardRepository {
                 withdrawReason: e.withdraw_reason,
                 createdAt: e.created_at,
                 updatedAt: e.updated_at,
-                isWithdrawn: e.status == 1,
+                isWithdrawn:
+                    HelpOfferStatus.tryFromInt(e.status) ==
+                    HelpOfferStatus.inactive,
               ),
             )
             .toList(),
@@ -673,7 +676,8 @@ class ForwardRepository {
     Gv2_ForwardRecipientOfferStatus.declinedByAuthor =>
       ForwardRecipientOfferStatus.declinedByAuthor,
     Gv2_ForwardRecipientOfferStatus.none => ForwardRecipientOfferStatus.none,
-    Gv2_ForwardRecipientOfferStatus.offered => ForwardRecipientOfferStatus.offered,
+    Gv2_ForwardRecipientOfferStatus.offered =>
+      ForwardRecipientOfferStatus.offered,
     Gv2_ForwardRecipientOfferStatus.withdrawn =>
       ForwardRecipientOfferStatus.withdrawn,
     _ => null,

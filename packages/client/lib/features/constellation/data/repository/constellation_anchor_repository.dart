@@ -204,7 +204,13 @@ final class ConstellationAnchorRepository
         final snapshots = response
             .dataOrThrow(label: 'ConstellationLayoutSnapshots')
             .constellationLayoutSnapshots;
-        return snapshots.firstWhere((snapshot) => snapshot.kind == 1).id;
+        return snapshots
+            .firstWhere(
+              (snapshot) =>
+                  ConstellationLayoutSnapshotKind.tryFromInt(snapshot.kind) ==
+                  ConstellationLayoutSnapshotKind.history,
+            )
+            .id;
       });
 
   static Gv2_ConstellationAnchorOpInput _opToWire(
