@@ -16,6 +16,8 @@ abstract class GraphState extends StateBase with _$GraphState {
     @Default('') String egoNodeId,
     @Default('') String genealogyTargetNodeKey,
     ForwardsGraphViewerRole? helpOffererViewerRole,
+    /// Committer / help-offerer path: ids drawn dimmed (off spine), empty in other modes.
+    @Default(<String>{}) Set<String> forwardsDimmedNodeIds,
     @Default(<String, int>{}) Map<String, int> hiddenNeighborCounts,
     @Default(1) int focusPathDepth,
     @Default(StateIsSuccess()) StateStatus status,

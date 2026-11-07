@@ -3,7 +3,8 @@
 
 import 'dart:async';
 import 'dart:developer' as developer;
-import 'dart:ui' show Offset, Rect, Size;
+
+import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
 import 'package:tentura/consts.dart';
@@ -25,6 +26,7 @@ import 'package:tentura/features/invite_genealogy/data/repository/invite_genealo
 import 'package:tentura/features/invite_genealogy/domain/entity/invite_genealogy_graph.dart';
 import 'package:tentura/features/like/domain/port/person_trust_writes_port.dart';
 import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
+import 'package:tentura/features/forward/domain/entity/help_path_node.dart';
 
 import '../../data/repository/forwards_graph_repository.dart';
 import '../../data/repository/graph_repository.dart';
@@ -33,8 +35,8 @@ import '../../domain/entity/edge_details.dart';
 import '../../domain/entity/graph_edge_colors.dart';
 import '../../domain/entity/graph_mode.dart';
 import '../../domain/entity/edge_directed.dart';
+import '../../domain/entity/forwards_recipient_marker.dart';
 import '../../domain/forward_graph_focus_rules.dart';
-import '../../domain/prune_directed_paths.dart';
 import '../../domain/entity/node_details.dart';
 import '../utils/graph_edge_style.dart';
 import '../utils/graph_scene_ids.dart';
@@ -270,7 +272,10 @@ class GraphCubit extends Cubit<GraphState> {
 
   final _totalNeighborCounts = <String, int>{};
 
-  final _addedEdgeEndpoints = <(String, String)>{};
+  final _addedEdgeEndpoints = <String>{};
+
+  bool _setsEqual(Set<String> a, Set<String> b) =>
+      a.length == b.length && a.containsAll(b);
 
   final _pinnedNodeIds = <String>{};
 
@@ -281,6 +286,180 @@ class GraphCubit extends Cubit<GraphState> {
   final _everFocusedIds = <String>{};
 
   String _forwardsAuthorId = '';
+
+  /// Non-empty only in help-offerer (committer) forwards mode: canonical path nodes.
+  List<HelpPathNode> _forwardsHelpPath = const [];
+
+  /// Anonymous/blocked forward endpoint counts keyed by synthetic `Ufg:` ids.
+  final _forwardGhostAnonymousCount = <String, int>{};
+
+  static const _forwardsEdgeDimAlpha = 0.45;
+
+  void _captureForwardGhostCounts(Iterable<EdgeDirected> edges) {
+    if (mode != GraphMode.forwards) {
+      return;
+    }
+    _forwardGhostAnonymousCount.clear();
+    for (final e in edges) {
+      if (e.src.startsWith('Ufg:')) {
+        final c = e.forwardSenderAnonymousCount ?? 0;
+        if (c > 0) {
+          _forwardGhostAnonymousCount[e.src] = c;
+        }
+      }
+      if (e.dst.startsWith('Ufg:')) {
+        final c = e.forwardRecipientAnonymousCount ?? 0;
+        if (c > 0) {
+          _forwardGhostAnonymousCount[e.dst] = c;
+        }
+      }
+    }
+  }
+
+  Set<String> _forwardsDimmedNodeIdsFromEdges(Set<EdgeDirected> edges) {
+    if (helpOffererFocusUserId == null ||
+        _forwardsHelpPath.isEmpty ||
+        edges.isEmpty) {
+      return {};
+    }
+    final authorId = _forwardsAuthorId;
+    final helpOffererId = helpOffererFocusUserId!;
+    final present = <String>{
+      for (final e in edges) ...[e.src, e.dst],
+    };
+    final adj = <String, Set<String>>{};
+    void link(String a, String b) {
+      if (a.startsWith('Ufg:') || b.startsWith('Ufg:')) {
+        return;
+      }
+      adj.putIfAbsent(a, () => <String>{}).add(b);
+      adj.putIfAbsent(b, () => <String>{}).add(a);
+    }
+
+    for (final e in edges) {
+      link(e.src, e.dst);
+    }
+    if (!present.contains(authorId) || !present.contains(helpOffererId)) {
+      return {};
+    }
+    final parent = <String, String?>{authorId: null};
+    final queue = <String>[authorId];
+    while (queue.isNotEmpty) {
+      final u = queue.removeAt(0);
+      if (u == helpOffererId) {
+        break;
+      }
+      for (final v in adj[u] ?? const <String>{}) {
+        if (parent.containsKey(v)) {
+          continue;
+        }
+        parent[v] = u;
+        queue.add(v);
+      }
+    }
+    if (!parent.containsKey(helpOffererId)) {
+      return {};
+    }
+    final spine = <String>[];
+    var step = helpOffererId;
+    while (true) {
+      spine.add(step);
+      final p = parent[step];
+      if (p == null) {
+        break;
+      }
+      step = p;
+    }
+    final spineSet = spine.toSet();
+    if (spine.length < 2) {
+      return {};
+    }
+    final stepTowardHelper = spine[spine.length - 2];
+    final dimmed = <String>{};
+    for (final branchRoot in adj[authorId] ?? const <String>{}) {
+      if (branchRoot == stepTowardHelper) {
+        continue;
+      }
+      final stack = <String>[branchRoot];
+      final visited = <String>{};
+      while (stack.isNotEmpty) {
+        final u = stack.removeLast();
+        if (!visited.add(u)) {
+          continue;
+        }
+        dimmed.add(u);
+        for (final v in adj[u] ?? const <String>{}) {
+          if (spineSet.contains(v)) {
+            continue;
+          }
+          stack.add(v);
+        }
+      }
+    }
+    return dimmed;
+  }
+
+  void _applyForwardsRecipientDecorations(
+    Set<EdgeDirected> edges, {
+    required Set<String> dimmedNodeIds,
+  }) {
+    if (mode != GraphMode.forwards) {
+      return;
+    }
+    if (!_setsEqual(state.forwardsDimmedNodeIds, dimmedNodeIds)) {
+      emit(state.copyWith(forwardsDimmedNodeIds: dimmedNodeIds));
+    }
+
+    final markerByRecipient = <String, ForwardsRecipientMarker?>{};
+    final forwardedTo = <String>{};
+
+    for (final e in edges) {
+      final recipientId = e.dst;
+      if (recipientId.startsWith('Ufg:')) {
+        continue;
+      }
+      final marker = forwardsMarkerFromEdge(
+        offerStatus: e.forwardOfferStatus,
+        declinedInvite: e.forwardDeclinedInvite,
+        readAt: e.forwardReadAt,
+        forwardedOn: e.forwardForwardedOn,
+      );
+      if (marker != null) {
+        markerByRecipient[recipientId] = mergeForwardsRecipientMarkers(
+          markerByRecipient[recipientId],
+          marker,
+        );
+      }
+      if (e.forwardForwardedOn == true) {
+        forwardedTo.add(recipientId);
+      }
+    }
+
+    for (final id in _nodes.keys.toList()) {
+      final node = _nodes[id];
+      if (node is! UserNode) {
+        continue;
+      }
+      final u = node;
+      final anon =
+          id.startsWith('Ufg:') ? (_forwardGhostAnonymousCount[id] ?? 1) : null;
+      final marker = id.startsWith('Ufg:') ? null : markerByRecipient[id];
+      final showFwd = id.startsWith('Ufg:') ? false : forwardedTo.contains(id);
+      final next = u.withForwardsDecorations(
+        forwardsRecipientMarker: marker,
+        forwardsShowForwardedOn: showFwd,
+        anonymousForwardCount: anon,
+      );
+      final needsRefresh = u.forwardsRecipientMarker != next.forwardsRecipientMarker ||
+          u.forwardsShowForwardedOn != next.forwardsShowForwardedOn ||
+          u.anonymousForwardCount != next.anonymousForwardCount;
+      _nodes[id] = next;
+      if (needsRefresh &&
+          graphController.nodes.any((n) => n.id == id)) {
+        _refreshControllerNodePayload(id, next);
+      }
+    }
+  }
 
   /// Every edge ever fetched this session, keyed by `(src, dst)` — the
   /// source of truth for focus-path visibility. Unlike `graphController`
@@ -368,6 +547,7 @@ class GraphCubit extends Cubit<GraphState> {
     graphController.clear();
     _fetchLimits.clear();
     _addedEdgeEndpoints.clear();
+    _forwardGhostAnonymousCount.clear();
     _allEdges.clear();
     _withdrawnViewerEdges.clear();
     _withdrawnAt.clear();
@@ -598,14 +778,17 @@ class GraphCubit extends Cubit<GraphState> {
   void _replaceUserNodePayload(Profile updated) {
     for (final entry in _nodes.entries) {
       final node = entry.value;
-      final NodeDetails? replacement = switch (node) {
-        UserNode userNode when userNode.user.id == updated.id => UserNode(
+      final replacement = switch (node) {
+        final UserNode userNode when userNode.user.id == updated.id => UserNode(
           user: updated,
           size: userNode.size,
           pinned: userNode.pinned,
           isHelpOfferer: userNode.isHelpOfferer,
+          forwardsRecipientMarker: userNode.forwardsRecipientMarker,
+          forwardsShowForwardedOn: userNode.forwardsShowForwardedOn,
+          anonymousForwardCount: userNode.anonymousForwardCount,
         ),
-        GenealogyUserNode genealogyNode
+        final GenealogyUserNode genealogyNode
             when genealogyNode.user.id == updated.id =>
           GenealogyUserNode(
             nodeKey: genealogyNode.nodeKey,
@@ -701,6 +884,15 @@ class GraphCubit extends Cubit<GraphState> {
             branch: null,
             srcTotalNeighborCount: null,
             dstTotalNeighborCount: null,
+            forwardEdgeId: null,
+            forwardRecipientIsGhostEndpoint: null,
+            forwardOfferStatus: null,
+            forwardDeclinedInvite: null,
+            forwardReadAt: null,
+            forwardForwardedOn: null,
+            forwardSenderAnonymousCount: null,
+            forwardRecipientAnonymousCount: null,
+            forwardParentEdgeId: null,
           );
     } else {
       return;
@@ -1169,6 +1361,7 @@ class GraphCubit extends Cubit<GraphState> {
     graphController.clear();
     _fetchLimits.clear();
     _addedEdgeEndpoints.clear();
+    _forwardGhostAnonymousCount.clear();
     _allEdges.clear();
     _withdrawnViewerEdges.clear();
     _withdrawnAt.clear();
@@ -1213,6 +1406,7 @@ class GraphCubit extends Cubit<GraphState> {
       var showNoHelpOffererPathMessage = false;
       var fitInvitePathAfterUpdate = false;
       var forwardsAuthorId = '';
+      var helpPathNodes = const <HelpPathNode>[];
       if (helpOffererFocusUserId != null &&
           forwardsGraphBeaconId != null &&
           source is ForwardsGraphRepository) {
@@ -1222,6 +1416,7 @@ class GraphCubit extends Cubit<GraphState> {
         );
         if (!_fetchStillValid(cacheEpoch, fetchEpoch)) return;
         edges = payload.edges;
+        helpPathNodes = payload.path;
         _helpOffererIds = payload.helpOffererIds;
         _forwardsAuthorId = payload.authorId;
         forwardsAuthorId = payload.authorId;
@@ -1255,14 +1450,8 @@ class GraphCubit extends Cubit<GraphState> {
         if (state.focus != derivedFocus) {
           emit(state.copyWith(focus: derivedFocus));
         }
-        // Help-offerer-card graph only: keep edges on some directed path from
-        // ego (viewer) to focus (help offerer, or author when viewer = help offerer).
-        edges = edgesOnSomeDirectedPath(
-          edges: edges,
-          root: state.me.id,
-          focus: derivedFocus,
-        );
         showNoHelpOffererPathMessage = !hasHelpOffererEndpoint;
+        _forwardsHelpPath = helpPathNodes;
       } else if (forwardsGraphBeaconId != null &&
           source is ForwardsGraphRepository) {
         final payload = await source.fetchForwardsGraph(
@@ -1273,6 +1462,10 @@ class GraphCubit extends Cubit<GraphState> {
         _helpOffererIds = payload.helpOffererIds;
         _forwardsAuthorId = payload.authorId;
         forwardsAuthorId = payload.authorId;
+        _forwardsHelpPath = const [];
+        if (state.forwardsDimmedNodeIds.isNotEmpty) {
+          emit(state.copyWith(forwardsDimmedNodeIds: {}));
+        }
       } else if (genealogyMode && source is InviteGenealogyRepository) {
         List<EdgeDirected> rawEdges;
         if (fetchFocus.isEmpty) {
@@ -1340,6 +1533,15 @@ class GraphCubit extends Cubit<GraphState> {
                 branch: null,
                 srcTotalNeighborCount: null,
                 dstTotalNeighborCount: null,
+                forwardEdgeId: null,
+                forwardRecipientIsGhostEndpoint: null,
+                forwardOfferStatus: null,
+                forwardDeclinedInvite: null,
+                forwardReadAt: null,
+                forwardForwardedOn: null,
+                forwardSenderAnonymousCount: null,
+                forwardRecipientAnonymousCount: null,
+                forwardParentEdgeId: null,
               ),
           ];
         }
@@ -1356,7 +1558,6 @@ class GraphCubit extends Cubit<GraphState> {
           positiveOnly: state.positiveOnly,
           context: state.context,
           focus: fetchFocus.isEmpty ? null : fetchFocus,
-          limit: kFetchWindowSize,
           viewerUserId: state.me.id,
           excludeNeighborIds: excludeNeighborIds,
         );
@@ -1411,6 +1612,9 @@ class GraphCubit extends Cubit<GraphState> {
         return;
       }
 
+      if (mode == GraphMode.forwards) {
+        _captureForwardGhostCounts(edges);
+      }
       await _resolveEdgeEndpoints(edges);
       if (!_fetchStillValid(cacheEpoch, fetchEpoch)) return;
 
@@ -1433,6 +1637,12 @@ class GraphCubit extends Cubit<GraphState> {
       loadingOwned = false;
 
       _updateGraph(edges);
+      if (mode == GraphMode.forwards) {
+        _applyForwardsRecipientDecorations(
+          edges,
+          dimmedNodeIds: _forwardsDimmedNodeIdsFromEdges(edges),
+        );
+      }
       if (fitInvitePathAfterUpdate) {
         _armOpenFit();
       }
@@ -1500,6 +1710,14 @@ class GraphCubit extends Cubit<GraphState> {
     String id, {
     bool pinned = false,
   }) async {
+    if (id.startsWith('Ufg:')) {
+      final count = _forwardGhostAnonymousCount[id] ?? 1;
+      return UserNode(
+        user: Profile(id: id, displayName: ''),
+        pinned: pinned,
+        anonymousForwardCount: count,
+      );
+    }
     if (id.startsWith('U')) {
       final profile = await _profileRepository.fetchById(id);
       return UserNode(
@@ -1578,6 +1796,15 @@ class GraphCubit extends Cubit<GraphState> {
               : null,
           srcTotalNeighborCount: null,
           dstTotalNeighborCount: null,
+          forwardEdgeId: null,
+          forwardRecipientIsGhostEndpoint: null,
+          forwardOfferStatus: null,
+          forwardDeclinedInvite: null,
+          forwardReadAt: null,
+          forwardForwardedOn: null,
+          forwardSenderAnonymousCount: null,
+          forwardRecipientAnonymousCount: null,
+          forwardParentEdgeId: null,
         ),
     ];
   }
@@ -1627,7 +1854,13 @@ class GraphCubit extends Cubit<GraphState> {
     if (graphController.renderSnapshot.resolvePosition(graphId) == null) {
       return;
     }
-    graphController.jumpToNodeId(graphId, resetScale: resetScale);
+    final jumped = graphController.jumpToNodeId(
+      graphId,
+      resetScale: resetScale,
+    );
+    if (jumped is Future<void>) {
+      unawaited(jumped);
+    }
   }
 
   void _refreshControllerNodePayload(String id, NodeDetails replacement) {
@@ -1743,6 +1976,7 @@ class GraphCubit extends Cubit<GraphState> {
         .map((node) => _nodes[node.id] ?? node)
         .toSet();
     final targetEdges = graphController.edges.toSet();
+    final isForwards = mode == GraphMode.forwards;
     for (final e in edges) {
       if (state.positiveOnly && e.weight < 0) {
         continue;
@@ -1755,10 +1989,16 @@ class GraphCubit extends Cubit<GraphState> {
       if (dst == null) {
         continue;
       }
-      targetNodes.add(src);
-      targetNodes.add(dst);
-      final endpointKey = (src.id, dst.id);
-      if (src.id != dst.id && _addedEdgeEndpoints.add(endpointKey)) {
+      targetNodes
+        ..add(src)
+        ..add(dst);
+      if (src.id == dst.id) {
+        continue;
+      }
+      final edgeKey = isForwards && e.forwardEdgeId != null
+          ? 'fwd:${e.forwardEdgeId}'
+          : '${src.id}->${dst.id}';
+      if (_addedEdgeEndpoints.add(edgeKey)) {
         targetEdges.add(_buildEdgeDetails(e, src, dst));
       }
     }
@@ -1916,6 +2156,12 @@ class GraphCubit extends Cubit<GraphState> {
             ? GraphEdgeKind.ego
             : GraphEdgeKind.other,
     }, _edgeColors);
+    var color = style.color;
+    if (mode == GraphMode.forwards &&
+        (state.forwardsDimmedNodeIds.contains(src.id) ||
+            state.forwardsDimmedNodeIds.contains(dst.id))) {
+      color = color.withValues(alpha: (color.a * _forwardsEdgeDimAlpha).clamp(0.0, 1.0));
+    }
     // Direction only on the selected node's edges, so the graph stays quiet.
     final focus = state.focus;
     final showArrows =
@@ -1925,13 +2171,16 @@ class GraphCubit extends Cubit<GraphState> {
     return EdgeDetails(
       source: src,
       destination: dst,
-      color: style.color,
+      color: color,
       strokeWidth: style.width,
       pattern: style.pattern,
       crossMark: style.crossMark,
       isReciprocal: isReciprocal,
       arrowAtDestination: showArrows,
       arrowAtSource: showArrows && isReciprocal,
+      semanticId: mode == GraphMode.forwards && e.forwardEdgeId != null
+          ? 'fwd:${e.forwardEdgeId}'
+          : null,
     );
   }
 

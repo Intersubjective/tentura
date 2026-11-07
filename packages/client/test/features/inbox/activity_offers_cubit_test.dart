@@ -276,6 +276,7 @@ void main() {
       await _settle(20);
 
       expect(cubit.state.items, isEmpty);
+      expect(cubit.state.totalCount, 0);
       expect(demoted, ['B1']);
       await sub.cancel();
     });

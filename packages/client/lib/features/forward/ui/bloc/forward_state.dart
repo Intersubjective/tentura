@@ -248,13 +248,36 @@ abstract class ForwardState extends StateBase with _$ForwardState {
     return byId.values.toList();
   }
 
-  ForwardScopeCounts get scopeCounts {
-    final base = _candidatesBase();
+  /// Tab counts for the scope link row (`ForwardScopeLinks`). When `query` is
+  /// non-empty, counts people who match the query within each tab’s list
+  /// (embedded search #1084).
+  ForwardScopeCounts scopeCountsForSearch(String query) {
+    final trimmed = query.trim();
+    if (trimmed.isEmpty) {
+      final base = _candidatesBase();
+      return ForwardScopeCounts(
+        unseen: base.where((c) => c.isUnseen).length,
+        involved: base.where(_inInvolvedScope).length,
+      );
+    }
+    int unseenCount() => filterCandidatesByQuery(
+      copyWith(activeFilter: ForwardFilter.unseen).visibleRecipients,
+      trimmed,
+    ).length;
+    int involvedCount() => filterCandidatesByQuery(
+      copyWith(
+        activeFilter: ForwardFilter.alreadyInvolved,
+      ).visibleRecipients,
+      trimmed,
+    ).length;
     return ForwardScopeCounts(
-      unseen: base.where((c) => c.isUnseen).length,
-      involved: base.where(_inInvolvedScope).length,
+      unseen: unseenCount(),
+      involved: involvedCount(),
     );
   }
+
+  /// Full-list scope sizes (no search filter).
+  ForwardScopeCounts get scopeCounts => scopeCountsForSearch('');
 
   /// Recipients for the active scope, MR-sorted.
   ///

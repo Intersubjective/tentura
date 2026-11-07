@@ -1,7 +1,5 @@
 import '../../domain/entity/edge_directed.dart';
 
-// ignore_for_file: one_member_abstracts -- two prod implementations + test mocks
-
 /// Pluggable backend for graph cubit (MeritRank graph vs forwards edges).
 abstract class GraphSourceRepository {
   /// Optional viewer id (GraphCubit passes the signed-in user). MeritRank

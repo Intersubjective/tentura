@@ -182,6 +182,28 @@ void main() {
     expect(filtered.map((c) => c.id).toList(), ['high', 'low']);
   });
 
+  test('scopeCountsForSearch reflects filtered candidates on each tab', () {
+    const unseenA = ForwardCandidate(
+      profile: Profile(id: 'a', displayName: 'Alice', rScore: 1, score: 50),
+    );
+    const unseenB = ForwardCandidate(
+      profile: Profile(id: 'b', displayName: 'Bob', rScore: 1, score: 40),
+    );
+    const involved = ForwardCandidate(
+      profile: Profile(id: 'c', displayName: 'Carol', rScore: 1, score: 30),
+      involvement: CandidateInvolvement.forwarded,
+    );
+    const state = ForwardState(
+      candidates: [unseenA, unseenB, involved],
+    );
+    expect(state.scopeCountsForSearch('').unseen, 2);
+
+    // "o" matches Bob on Unseen and Carol on Involved, not Alice.
+    final filtered = state.scopeCountsForSearch('o');
+    expect(filtered.unseen, 1);
+    expect(filtered.involved, 1);
+  });
+
   test('filterCandidatesByQuery respects involved scope input', () {
     const involved = ForwardCandidate(
       profile: Profile(

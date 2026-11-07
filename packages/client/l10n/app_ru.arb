@@ -1073,6 +1073,50 @@
   "@graphLegendForwardEligible": {
     "context": "ForwardsGraphScreen — mutual visibility via Trust or MeritRank per direction (#100)"
   },
+  "graphLegendForwardMarkersTitle": "Метки у получателя (под аватаром)",
+  "@graphLegendForwardMarkersTitle": {
+    "context": "ForwardsGraphScreen legend — forward edge recipient states"
+  },
+  "graphLegendForwardMarkerHelped": "V — помог (приняли)",
+  "@graphLegendForwardMarkerHelped": {
+    "context": "ForwardsGraphScreen legend"
+  },
+  "graphLegendForwardMarkerOffered": "O — предложил помощь",
+  "@graphLegendForwardMarkerOffered": {
+    "context": "ForwardsGraphScreen legend"
+  },
+  "graphLegendForwardMarkerOfferedPost": "O — приглашение помочь отправлено",
+  "@graphLegendForwardMarkerOfferedPost": {
+    "context": "ForwardsGraphScreen legend — Post (#501, #611); без «предложил»"
+  },
+  "graphLegendForwardMarkerCantHelp": "D — не может помочь (отклонил приглашение)",
+  "@graphLegendForwardMarkerCantHelp": {
+    "context": "ForwardsGraphScreen legend"
+  },
+  "graphLegendForwardMarkerOpened": "R — открыл запрос",
+  "@graphLegendForwardMarkerOpened": {
+    "context": "ForwardsGraphScreen legend"
+  },
+  "graphLegendForwardMarkerOpenedPost": "R — открыл пост",
+  "@graphLegendForwardMarkerOpenedPost": {
+    "context": "ForwardsGraphScreen legend — пересылка поста (#501)"
+  },
+  "graphLegendForwardMarkerNotOpened": "K — не открывал (ещё не переслал дальше)",
+  "@graphLegendForwardMarkerNotOpened": {
+    "context": "ForwardsGraphScreen legend"
+  },
+  "graphLegendForwardForwardedOn": "Значок пересылки — этот человек переслал запрос дальше",
+  "@graphLegendForwardForwardedOn": {
+    "context": "ForwardsGraphScreen legend"
+  },
+  "graphLegendForwardForwardedOnPost": "Значок пересылки — этот человек переслал пост дальше",
+  "@graphLegendForwardForwardedOnPost": {
+    "context": "ForwardsGraphScreen legend — пересылка поста (#501)"
+  },
+  "graphLegendForwardAnonymous": "+N — скрытые люди (заблокированы или вне вашего графа)",
+  "@graphLegendForwardAnonymous": {
+    "context": "ForwardsGraphScreen legend — anonymous forward endpoint"
+  },
   "graphBack": "Предыдущий фокус",
   "@graphBack": {
     "context": "GraphScreen — pop focus trail (#100)"
@@ -2783,6 +2827,11 @@
   "myWorkFilterHelpOffered": "Помощь предложена",
   "@myWorkFilterHelpOffered": {
     "context": "MyWorkScreen"
+  },
+  "myWorkFilterHelpOfferedChip": "Помогаю",
+  "@myWorkFilterHelpOfferedChip": {
+    "context": "MyWorkScreen",
+    "description": "Короткая подпись фильтра в верхней панели на узких экранах (#1107); в меню — myWorkFilterHelpOffered."
   },
   "myWorkFilterArchived": "Архив",
   "@myWorkFilterArchived": {
