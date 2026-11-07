@@ -280,6 +280,18 @@
   "@chooseAccount": {
     "context": "AuthLoginScreen"
   },
+  "accountMenuViewProfile": "View profile",
+  "@accountMenuViewProfile": {
+    "context": "HomeAccountMenu"
+  },
+  "accountUnnamed": "Unnamed account",
+  "@accountUnnamed": {
+    "context": "HomeAccountMenu"
+  },
+  "semanticsAccountMenuHint": "Opens the account menu",
+  "@semanticsAccountMenuHint": {
+    "context": "HomeAccountAvatar"
+  },
   "alreadyHaveAccount": "Already have an account?\nAccess it by scanning a QR code from another device\nor by using your saved recovery seed.",
   "@alreadyHaveAccount": {
     "context": "AuthLoginScreen"
@@ -1135,6 +1147,50 @@
   "graphLegendForwardEligible": "Open eye means you and this person see each other and can forward to each other: each of you trusts the other, directly or through people you trust",
   "@graphLegendForwardEligible": {
     "context": "ForwardsGraphScreen — mutual visibility via Trust or MeritRank per direction (#100)"
+  },
+  "graphLegendForwardMarkersTitle": "Recipient markers (under the avatar)",
+  "@graphLegendForwardMarkersTitle": {
+    "context": "ForwardsGraphScreen legend — forward edge recipient states"
+  },
+  "graphLegendForwardMarkerHelped": "V — helped (accepted)",
+  "@graphLegendForwardMarkerHelped": {
+    "context": "ForwardsGraphScreen legend"
+  },
+  "graphLegendForwardMarkerOffered": "O — offered help",
+  "@graphLegendForwardMarkerOffered": {
+    "context": "ForwardsGraphScreen legend"
+  },
+  "graphLegendForwardMarkerOfferedPost": "O — invitation to help sent",
+  "@graphLegendForwardMarkerOfferedPost": {
+    "context": "ForwardsGraphScreen legend — Post (#501, #611); avoid “offered help”"
+  },
+  "graphLegendForwardMarkerCantHelp": "D — can’t help (declined invite)",
+  "@graphLegendForwardMarkerCantHelp": {
+    "context": "ForwardsGraphScreen legend"
+  },
+  "graphLegendForwardMarkerOpened": "R — opened the Request",
+  "@graphLegendForwardMarkerOpened": {
+    "context": "ForwardsGraphScreen legend"
+  },
+  "graphLegendForwardMarkerOpenedPost": "R — opened the Post",
+  "@graphLegendForwardMarkerOpenedPost": {
+    "context": "ForwardsGraphScreen legend — Post forwards (#501)"
+  },
+  "graphLegendForwardMarkerNotOpened": "K — not opened (no onward forward yet)",
+  "@graphLegendForwardMarkerNotOpened": {
+    "context": "ForwardsGraphScreen legend"
+  },
+  "graphLegendForwardForwardedOn": "Forward icon — this person forwarded the Request onward",
+  "@graphLegendForwardForwardedOn": {
+    "context": "ForwardsGraphScreen legend"
+  },
+  "graphLegendForwardForwardedOnPost": "Forward icon — this person forwarded the Post onward",
+  "@graphLegendForwardForwardedOnPost": {
+    "context": "ForwardsGraphScreen legend — Post (#501)"
+  },
+  "graphLegendForwardAnonymous": "+N — hidden people (blocked or off your graph)",
+  "@graphLegendForwardAnonymous": {
+    "context": "ForwardsGraphScreen legend — anonymous forward endpoint"
   },
   "graphBack": "Previous focus",
   "@graphBack": {
@@ -3021,6 +3077,11 @@
   "myWorkFilterHelpOffered": "Help offered",
   "@myWorkFilterHelpOffered": {
     "context": "MyWorkScreen"
+  },
+  "myWorkFilterHelpOfferedChip": "Helping",
+  "@myWorkFilterHelpOfferedChip": {
+    "context": "MyWorkScreen",
+    "description": "Short filter label for the top bar on narrow phones (#1107); menu keeps myWorkFilterHelpOffered."
   },
   "myWorkFilterArchived": "Archived",
   "@myWorkFilterArchived": {
