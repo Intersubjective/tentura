@@ -82,8 +82,7 @@ class _StubRepository implements ConstellationRepositoryPort {
     ConstellationFieldMembershipFilters membershipFilters =
         ConstellationFieldMembershipFilters.defaults,
     ConstellationProjection projection = ConstellationProjection.full,
-  }) async =>
-      field;
+  }) async => field;
 }
 
 Future<void> _pumpMapHighlights(
@@ -237,7 +236,7 @@ void main() {
         atlas: atlas,
         spread: 2.15,
         alphaDark: 0.34,
-        alphaLight: 0.26,
+        alphaLight: TenturaTokens.light.fieldUnreadGlowAlphaLight,
         unreadDotSize: 10,
         unreadDotColor: Colors.blue,
         isDark: false,
