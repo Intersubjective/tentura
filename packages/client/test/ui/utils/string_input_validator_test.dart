@@ -81,6 +81,16 @@ void main() {
     });
   });
 
+  group('beaconTitleValidator', () {
+    test('rejects whitespace-only titles (#1137)', () {
+      expect(validator.beaconTitleValidator(l10n, '   '), l10n.titleTooShort);
+    });
+
+    test('accepts trimmed Unicode titles', () {
+      expect(validator.beaconTitleValidator(l10n, '  Café réunion  '), isNull);
+    });
+  });
+
   group('beaconDescriptionValidator', () {
     test('rejects empty and whitespace-only descriptions', () {
       expect(

@@ -1211,7 +1211,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
           ? ''
           : draftSafeTitle
           ? _draftSafeTitle(state.title)
-          : state.title,
+          : state.title.trim(),
       coordinates: state.coordinates,
       addressLabel: state.location.trim().isEmpty
           ? null
@@ -1804,6 +1804,12 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
   }) async {
     final id = state.editId ?? (state.isLive ? state.draftId : null);
     if (id == null || id.isEmpty) {
+      return;
+    }
+    if (state.editSaveBlocker != null) {
+      if (!isClosed) {
+        emit(state.copyWith(showValidationHints: true));
+      }
       return;
     }
     emit(state.copyWith(status: StateStatus.isLoading));

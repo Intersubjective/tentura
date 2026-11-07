@@ -711,9 +711,17 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
   Widget _titleField(BuildContext context, TenturaTokens tt) {
     return BlocBuilder<BeaconCreateCubit, BeaconCreateState>(
       bloc: _cubit,
-      buildWhen: (p, c) => p.showValidationHints != c.showValidationHints,
+      buildWhen: (p, c) =>
+          p.showValidationHints != c.showValidationHints ||
+          p.isEditMode != c.isEditMode ||
+          p.title != c.title,
       builder: (context, state) {
-        final show = _titleBlurred || state.showValidationHints;
+        final invalidTitle =
+            beaconTitleValidator(_l10n, _titleController.text.trim()) != null;
+        final show =
+            _titleBlurred ||
+            state.showValidationHints ||
+            (state.isEditMode && invalidTitle);
         final error = _titleError(show: show);
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
