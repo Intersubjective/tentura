@@ -1,7 +1,7 @@
 import 'package:tentura_server/domain/use_case/people_list_meta_case.dart';
 
 import '../custom_types.dart';
-import '../gql_nodel_base.dart';
+import '../gql_node_base.dart';
 
 /// Root query field [peopleListMeta]: sort keys for the JWT viewer's People
 /// tab, one row per trusted person.

@@ -1,6 +1,6 @@
 import 'package:tentura_server/domain/use_case/beacon_room_case.dart';
 
-import '../gql_nodel_base.dart';
+import '../gql_node_base.dart';
 import '../input/_input_types.dart';
 
 /// U088 — the author bans someone from the Request lobby, or lets them back.

@@ -4,7 +4,7 @@ import 'package:tentura_server/domain/port/user_block_repository_port.dart';
 import 'package:tentura_server/domain/port/user_profile_batch_lookup_port.dart';
 
 import '../custom_types.dart';
-import '../gql_nodel_base.dart';
+import '../gql_node_base.dart';
 import '../input/_input_types.dart';
 import '../mappers/gql_public_user_maps.dart';
 

@@ -1,7 +1,7 @@
 import 'package:tentura_server/domain/use_case/capability_routing_case.dart';
 import 'package:tentura_server/domain/use_case/invite_seed_attestation_case.dart';
 
-import '../gql_nodel_base.dart';
+import '../gql_node_base.dart';
 import '../input/_input_types.dart';
 
 final class MutationCapabilityRouting extends GqlNodeBase {

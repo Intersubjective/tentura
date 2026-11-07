@@ -8,7 +8,7 @@ import 'package:tentura_server/domain/port/attention_query_port.dart';
 import 'package:tentura_server/domain/use_case/attention_clear_case.dart';
 
 import '../custom_types.dart';
-import '../gql_nodel_base.dart';
+import '../gql_node_base.dart';
 import '../input/_input_types.dart';
 
 final class QueryAttention extends GqlNodeBase {

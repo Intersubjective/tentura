@@ -2,7 +2,7 @@ import 'package:tentura_server/domain/entity/post_summary.dart';
 import 'package:tentura_server/domain/use_case/post_case.dart';
 
 import '../custom_types.dart';
-import '../gql_nodel_base.dart';
+import '../gql_node_base.dart';
 import '../input/_input_types.dart';
 
 /// Viewer-scoped Post conversation summaries.

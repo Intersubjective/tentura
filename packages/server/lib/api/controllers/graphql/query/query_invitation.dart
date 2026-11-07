@@ -4,7 +4,7 @@ import 'package:tentura_server/domain/use_case/user_presence_case.dart';
 import 'package:tentura_server/domain/port/vote_user_friendship_lookup_port.dart';
 
 import '../custom_types.dart';
-import '../gql_nodel_base.dart';
+import '../gql_node_base.dart';
 import '../input/_input_types.dart';
 import '../mappers/gql_public_user_maps.dart';
 

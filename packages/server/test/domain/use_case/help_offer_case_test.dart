@@ -5,7 +5,7 @@ import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
 
-import 'package:tentura_server/api/controllers/graphql/gql_nodel_base.dart';
+import 'package:tentura_server/api/controllers/graphql/gql_node_base.dart';
 import 'package:tentura_server/api/controllers/graphql/input/_input_types.dart';
 import 'package:tentura_server/api/controllers/graphql/mutation/mutation_help_offer.dart';
 import 'package:tentura_server/domain/entity/jwt_entity.dart';

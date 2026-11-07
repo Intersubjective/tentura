@@ -2,7 +2,7 @@ import 'package:tentura_server/domain/entity/post_bud.dart';
 import 'package:tentura_server/domain/use_case/post_bud_case.dart';
 
 import '../custom_types.dart';
-import '../gql_nodel_base.dart';
+import '../gql_node_base.dart';
 import '../input/_input_types.dart';
 
 /// Invite candidates for budding a Request from a Post (plan C3).

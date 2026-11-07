@@ -1,7 +1,7 @@
 import 'package:tentura_server/domain/use_case/beacon_help_offerer_forward_path_case.dart';
 
 import '../custom_types.dart';
-import '../gql_nodel_base.dart';
+import '../gql_node_base.dart';
 import '../input/_input_types.dart';
 import '../mappers/gql_v2_dto_maps.dart';
 

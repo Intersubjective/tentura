@@ -4,7 +4,7 @@ import 'package:tentura_server/domain/entity/forward_delivery_result.dart';
 import 'package:tentura_server/domain/use_case/forward_case.dart';
 
 import '../custom_types.dart';
-import '../gql_nodel_base.dart';
+import '../gql_node_base.dart';
 import '../input/_input_types.dart';
 
 final class MutationForward extends GqlNodeBase {

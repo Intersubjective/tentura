@@ -1,7 +1,7 @@
 import 'package:tentura_server/domain/use_case/beacon_people_seen_case.dart';
 
 import '../custom_types.dart';
-import '../gql_nodel_base.dart';
+import '../gql_node_base.dart';
 import '../input/_input_types.dart';
 
 /// `String` scalar that accepts an explicit `null` variable, so the nullable

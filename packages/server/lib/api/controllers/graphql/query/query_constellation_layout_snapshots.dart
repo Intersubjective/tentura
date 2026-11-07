@@ -1,7 +1,7 @@
 import 'package:tentura_server/domain/use_case/constellation_layout_snapshot_case.dart';
 
 import '../custom_types.dart';
-import '../gql_nodel_base.dart';
+import '../gql_node_base.dart';
 import '../mappers/constellation_gql_maps.dart';
 
 final class QueryConstellationLayoutSnapshots extends GqlNodeBase {

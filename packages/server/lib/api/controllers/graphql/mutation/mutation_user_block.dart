@@ -1,6 +1,6 @@
 import 'package:tentura_server/domain/use_case/user_block_case.dart';
 
-import '../gql_nodel_base.dart';
+import '../gql_node_base.dart';
 import '../input/_input_types.dart';
 
 /// User blocking mutations — blocker id comes from JWT only.

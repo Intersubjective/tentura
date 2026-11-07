@@ -8,7 +8,7 @@ import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
-import 'package:tentura_server/api/controllers/graphql/gql_nodel_base.dart';
+import 'package:tentura_server/api/controllers/graphql/gql_node_base.dart';
 import 'package:tentura_server/api/controllers/graphql/input/_input_types.dart';
 import 'package:tentura_server/api/controllers/graphql/query/query_beacon_room.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'

@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:tentura_server/domain/use_case/beacon_plan_case.dart';
 
-import '../gql_nodel_base.dart';
+import '../gql_node_base.dart';
 import '../input/_input_types.dart';
 
 /// Request plan («либретто», #220) reads. Each returns one JSON document

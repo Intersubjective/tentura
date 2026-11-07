@@ -1,7 +1,7 @@
 import 'package:tentura_server/domain/port/person_capability_event_repository_port.dart';
 
 import '../custom_types.dart';
-import '../gql_nodel_base.dart';
+import '../gql_node_base.dart';
 import '../input/_input_types.dart';
 
 final class QueryForwardReasons extends GqlNodeBase {

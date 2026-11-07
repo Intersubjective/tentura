@@ -1,7 +1,7 @@
 import 'package:tentura_server/domain/use_case/offer_accepted_dismissal_case.dart';
 
 import '../custom_types.dart';
-import '../gql_nodel_base.dart';
+import '../gql_node_base.dart';
 
 /// B077b — the Requests on which the viewer dismissed the «Your help was
 /// accepted» sub-card (any device of the account).

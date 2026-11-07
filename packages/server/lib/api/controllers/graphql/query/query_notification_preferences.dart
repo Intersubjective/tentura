@@ -2,7 +2,7 @@ import 'package:tentura_server/domain/entity/notification_preferences_entity.dar
 import 'package:tentura_server/domain/use_case/notification_preference_case.dart';
 
 import '../custom_types.dart';
-import '../gql_nodel_base.dart';
+import '../gql_node_base.dart';
 
 /// Shared resolver projection for [NotificationPreferencesEntity] →
 /// the `NotificationPreferences` GraphQL object. Reused by the mutation.

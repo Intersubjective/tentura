@@ -8,7 +8,7 @@ import 'package:tentura_server/domain/use_case/attention_sweep_case.dart';
 import 'package:tentura_server/domain/use_case/obligation_reconciliation_case.dart';
 
 import '../custom_types.dart';
-import '../gql_nodel_base.dart';
+import '../gql_node_base.dart';
 import '../input/_input_types.dart';
 import '../query/query_attention.dart';
 

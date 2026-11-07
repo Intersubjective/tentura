@@ -3,7 +3,7 @@ import 'package:tentura_server/domain/entity/constellation_anchor_projection.dar
 import 'package:tentura_server/domain/use_case/constellation_field_case.dart';
 
 import '../custom_types.dart';
-import '../gql_nodel_base.dart';
+import '../gql_node_base.dart';
 import '../mappers/constellation_gql_maps.dart';
 
 /// Root query field [constellationField]: peers, trust edges, and requests for

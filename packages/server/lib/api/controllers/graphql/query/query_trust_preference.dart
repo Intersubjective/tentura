@@ -1,6 +1,6 @@
 import 'package:tentura_server/domain/use_case/trust_preference_case.dart';
 
-import '../gql_nodel_base.dart';
+import '../gql_node_base.dart';
 
 final class QueryTrustPreference extends GqlNodeBase {
   QueryTrustPreference({TrustPreferenceCase? useCase})

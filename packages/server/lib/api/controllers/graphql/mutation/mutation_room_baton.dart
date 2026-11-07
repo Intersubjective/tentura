@@ -4,7 +4,7 @@ import 'package:tentura_server/domain/port/room_baton_repository_port.dart';
 import 'package:tentura_server/domain/use_case/room_baton_case.dart';
 
 import '../custom_types.dart';
-import '../gql_nodel_base.dart';
+import '../gql_node_base.dart';
 import '../input/_input_types.dart';
 
 /// `[RoomBatonCandidateInput!]` typed over `dynamic`, so a decoded

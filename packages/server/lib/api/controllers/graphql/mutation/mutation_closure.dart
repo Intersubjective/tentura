@@ -3,7 +3,7 @@ import 'package:tentura_server/domain/use_case/closure_case.dart';
 
 import '../closure_gql_errors.dart';
 import '../custom_types.dart';
-import '../gql_nodel_base.dart';
+import '../gql_node_base.dart';
 
 /// `[ClosureSplitEntryInput!]` that also accepts an explicit `null` (delete
 /// the custom split) on executors without the null-safe argument coercion of

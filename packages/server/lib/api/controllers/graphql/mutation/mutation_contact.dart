@@ -1,6 +1,6 @@
 import 'package:tentura_server/domain/use_case/contact_case.dart';
 
-import '../gql_nodel_base.dart';
+import '../gql_node_base.dart';
 import '../input/_input_types.dart';
 
 /// Subjective profiles: per-viewer private contact names.

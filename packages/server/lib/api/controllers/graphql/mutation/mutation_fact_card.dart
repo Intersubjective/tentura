@@ -1,7 +1,7 @@
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/use_case/beacon_fact_card_case.dart';
 
-import '../gql_nodel_base.dart';
+import '../gql_node_base.dart';
 import '../input/_input_types.dart';
 
 final class MutationFactCard extends GqlNodeBase {

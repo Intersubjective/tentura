@@ -1,7 +1,7 @@
 import 'package:tentura_server/consts/constellation_consts.dart';
 import 'package:tentura_server/domain/use_case/constellation_mutual_trust_case.dart';
 
-import '../gql_nodel_base.dart';
+import '../gql_node_base.dart';
 
 /// Root query field [constellationMutualTrust]: by id, the people a selected
 /// person on the JWT viewer's field trusts both ways, among those the viewer

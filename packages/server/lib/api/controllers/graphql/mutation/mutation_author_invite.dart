@@ -2,7 +2,7 @@ import 'package:tentura_server/domain/entity/author_invite.dart';
 import 'package:tentura_server/domain/use_case/author_invite_case.dart';
 
 import '../custom_types.dart';
-import '../gql_nodel_base.dart';
+import '../gql_node_base.dart';
 import '../input/_input_types.dart';
 
 /// The author-invite lifecycle (plan C4, Arch §5): later invites, accept,

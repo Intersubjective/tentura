@@ -1,7 +1,7 @@
 import 'package:tentura_server/domain/use_case/constellation_tag_magnet_case.dart';
 
 import '../custom_types.dart';
-import '../gql_nodel_base.dart';
+import '../gql_node_base.dart';
 
 final class QueryConstellationTagMagnets extends GqlNodeBase {
   QueryConstellationTagMagnets({

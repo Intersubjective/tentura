@@ -1,7 +1,7 @@
 import 'package:tentura_server/domain/use_case/forward_candidates_case.dart';
 
 import '../custom_types.dart';
-import '../gql_nodel_base.dart';
+import '../gql_node_base.dart';
 import '../input/_input_types.dart';
 import '../mappers/gql_public_user_maps.dart';
 

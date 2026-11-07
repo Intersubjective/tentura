@@ -1,7 +1,7 @@
 import 'package:tentura_server/domain/use_case/email_test_case.dart';
 
 import '../custom_types.dart';
-import '../gql_nodel_base.dart';
+import '../gql_node_base.dart';
 
 final class MutationDebug extends GqlNodeBase {
   MutationDebug([EmailTestCase? emailTestCase])

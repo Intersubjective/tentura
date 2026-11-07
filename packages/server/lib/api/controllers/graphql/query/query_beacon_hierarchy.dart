@@ -4,7 +4,7 @@ import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/beacon_hierarchy_repository_port.dart';
 
 import '../custom_types.dart';
-import '../gql_nodel_base.dart';
+import '../gql_node_base.dart';
 import '../input/_input_types.dart';
 import '../mappers/gql_v2_dto_maps.dart';
 

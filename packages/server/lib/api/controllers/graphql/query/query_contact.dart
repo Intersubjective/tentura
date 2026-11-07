@@ -1,7 +1,7 @@
 import 'package:tentura_server/domain/use_case/contact_case.dart';
 
 import '../custom_types.dart';
-import '../gql_nodel_base.dart';
+import '../gql_node_base.dart';
 
 /// Subjective profiles: the viewer's full private contact map.
 final class QueryContact extends GqlNodeBase {

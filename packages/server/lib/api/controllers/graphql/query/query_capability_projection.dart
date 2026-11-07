@@ -4,7 +4,7 @@ import 'package:tentura_server/domain/use_case/capability_routing_case.dart';
 import 'package:tentura_server/domain/use_case/forward_band_case.dart';
 
 import '../custom_types.dart';
-import '../gql_nodel_base.dart';
+import '../gql_node_base.dart';
 import '../input/_input_types.dart';
 
 final class QueryCapabilityProjection extends GqlNodeBase {
