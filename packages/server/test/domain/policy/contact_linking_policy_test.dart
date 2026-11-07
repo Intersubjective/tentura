@@ -2,7 +2,7 @@ import 'package:test/test.dart';
 
 import 'package:tentura_server/domain/entity/account_credential_entity.dart';
 import 'package:tentura_server/domain/entity/asserted_contact.dart';
-import 'package:tentura_server/domain/util/contact_linking_policy.dart';
+import 'package:tentura_server/domain/policy/contact_linking_policy.dart';
 
 void main() {
   group('contact_linking_policy', () {
