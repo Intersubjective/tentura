@@ -202,7 +202,7 @@ void main() {
     });
 
     testWidgets(
-      'fit-all after overview zoom restores detail geometry (375 RU)',
+      'fit-all after overview zoom respects district scale floor (375 RU)',
       (
         tester,
       ) async {

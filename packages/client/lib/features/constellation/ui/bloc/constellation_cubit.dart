@@ -31,7 +31,6 @@ import '../../domain/entity/constellation_tag_magnet.dart';
 import '../../domain/use_case/constellation_arrangement_history.dart';
 import '../scene/constellation_arrangement_layout.dart';
 import '../scene/constellation_magnet_layout.dart';
-import '../scene/constellation_community_scene_layout.dart';
 import '../../domain/constellation_people.dart';
 import '../../domain/constellation_multi_selection.dart';
 import '../../domain/constellation_offscreen_cues.dart';
@@ -244,21 +243,6 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
 
   /// Overview community geometry (`kFieldSemanticZoomEnabled`).
   final bool semanticZoomEnabled;
-  final _communityLayouts = ConstellationCommunitySceneLayouts();
-
-  /// Staging of the overview bulk move by community, for the graph view.
-  Map<String, LayoutTransitionStage> get layoutTransitionStages =>
-      _communityLayouts.transitionStages;
-  bool _overviewLayout = false;
-
-  /// The screen's zoom-level owner selects geometry as well as presentation.
-  void setOverviewLayout(bool overview) {
-    if (_overviewLayout == overview) return;
-    _overviewLayout = overview;
-    if (semanticZoomEnabled && !state.isComposing && state.tagView == null) {
-      _scene.awaitingLayoutOutcome = true;
-    }
-  }
 
   /// Lazily fetched member webs per selected Request id (kept for the
   /// cubit's lifetime; a field reload does not invalidate it).
@@ -909,27 +893,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
             forgetPriorHintNodeIds: _forgetPriorHintNodeIds,
           ),
         );
-    final field = state.field;
-    if (!semanticZoomEnabled ||
-        field == null ||
-        state.isComposing ||
-        state.tagView != null ||
-        state.forwardTreeOverlay != null ||
-        _layoutPreviewAlgorithm != null ||
-        _scene.tagViewAlgorithm != null ||
-        _scene.testSceneLayoutAlgorithmOverride != null ||
-        _scene.ephemeralOwnedLayoutAlgorithm != null) {
-      return _withMagnets(normal);
-    }
-    return _communityLayouts.select(
-      normal: _withMagnets(normal),
-      field: field,
-      egoId: viewerId,
-      anchors: _scene.layoutAnchorByNodeId,
-      initialPositions:
-          graphController.renderSnapshot.layout?.positions ?? const {},
-      overview: _overviewLayout,
-    );
+    return _withMagnets(normal);
   }
 
   final _tagMagnets = <String, Offset>{};
@@ -1666,8 +1630,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
 
   void _applyLoadedField(ConstellationField field) {
     final previous = _lastAppliedStoreField;
-    final reload =
-        previous == null || previous.loadedAt != field.loadedAt;
+    final reload = previous == null || previous.loadedAt != field.loadedAt;
     _lastAppliedStoreField = field;
     if (reload) {
       _resetFieldAutomaticFramingState();
@@ -1864,7 +1827,6 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       return;
     }
     _cancelPersonFocus();
-    _communityLayouts.clear();
     _tagMagnets.clear();
     _magnetBasePositions = const {};
     _magnetTagsOf = _noTagViewOwnTags;
@@ -3446,20 +3408,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   bool _shouldDeferProgrammaticFieldCamera() =>
       !graphController.canLayout || graphController.isRelayoutInFlight;
 
-  void _restoreNormalFieldPositionsBeforeFraming() {
-    if (_overviewLayout &&
-        semanticZoomEnabled &&
-        !state.isComposing &&
-        state.tagView == null) {
-      final positions = _communityLayouts.normalPositions;
-      if (positions != null) {
-        graphController.animateTo(positions, animate: false);
-      }
-    }
-  }
-
   void _runFieldFrame({required EdgeInsets insets, required double floor}) {
-    _restoreNormalFieldPositionsBeforeFraming();
     _scene.fitNodes(
       insets,
       minScale: floor,
@@ -3563,7 +3512,6 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       return;
     }
     if (pending.centerOnEgo) {
-      _restoreNormalFieldPositionsBeforeFraming();
       _scene.centreOnEgo(_viewer.id, pending.insets);
       _recordProgrammaticFieldCamera();
       return;
@@ -3690,7 +3638,6 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       );
       return;
     }
-    _restoreNormalFieldPositionsBeforeFraming();
     _scene.centreOnEgo(_viewer.id, insets);
     _recordProgrammaticFieldCamera();
   }
