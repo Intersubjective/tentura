@@ -44,7 +44,7 @@ class MyWorkRepository {
           ),
         )
         .timeout(_kNetworkTimeout)
-        .firstWhere((e) => e.dataSource == DataSource.Link);
+        .firstLinkResponse(label: _label);
     final d = r.dataOrThrow(label: _label);
     return (
       authoredNonArchived: d.authoredNonArchived
@@ -76,7 +76,7 @@ class MyWorkRepository {
           ),
         )
         .timeout(_kNetworkTimeout)
-        .firstWhere((e) => e.dataSource == DataSource.Link);
+        .firstLinkResponse(label: _label);
     final rows =
         r.dataOrThrow(label: _label).myWorkLastActivityEvent?.toList() ??
         const [];
@@ -123,7 +123,7 @@ class MyWorkRepository {
           GMyWorkArchivedReq((b) => b..vars.userId = userId),
         )
         .timeout(_kNetworkTimeout)
-        .firstWhere((e) => e.dataSource == DataSource.Link);
+        .firstLinkResponse(label: _label);
     final d = r.dataOrThrow(label: _label);
     return (
       authoredArchived: d.archivedRows

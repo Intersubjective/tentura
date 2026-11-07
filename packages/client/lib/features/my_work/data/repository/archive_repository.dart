@@ -16,7 +16,7 @@ class ArchiveRepository {
   Future<void> archive(String beaconId) async {
     await _remoteApiService
         .request(GBeaconArchiveReq((b) => b.vars.beaconId = beaconId))
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label));
   }
 
@@ -32,7 +32,7 @@ class ArchiveRepository {
               ..userId = userId,
           ),
         )
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label));
   }
 }
