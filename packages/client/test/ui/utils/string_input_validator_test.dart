@@ -72,6 +72,16 @@ void main() {
       expect(validator.titleValidator(l10n, 'abc'), isNull);
     });
 
+    test('rejects whitespace-only and trim-too-short titles', () {
+      expect(validator.titleValidator(l10n, '   '), l10n.titleTooShort);
+      expect(validator.titleValidator(l10n, '  ab  '), l10n.titleTooShort);
+    });
+
+    test('accepts min-length title when padding trims to kTitleMinLength', () {
+      expect(validator.titleValidator(l10n, '  abc  '), isNull);
+      expect(validator.titleValidator(l10n, '  José  '), isNull);
+    });
+
     test('rejects too short and too long titles', () {
       expect(validator.titleValidator(l10n, 'ab'), l10n.titleTooShort);
       expect(
