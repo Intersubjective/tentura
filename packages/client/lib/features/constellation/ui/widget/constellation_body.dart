@@ -172,6 +172,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
   static const _tagViewTransitionDuration = Duration(milliseconds: 450);
 
   static const _revealDuration = Duration(milliseconds: 280);
+  static const _fieldSettleBackDelay = Duration(milliseconds: 150);
 
   Size? _lastLabelBudgetViewport;
   double? _lastLabelBudgetTextScale;
@@ -229,6 +230,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
     _pointersDown = math.max(0, _pointersDown - 1);
     if (_pointersDown == 0) {
       _zoom.update(_graphController.cameraScale, gestureActive: false);
+      _rescheduleFieldSettleBack();
     }
   }
 
@@ -267,6 +269,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
   late final AnimationController _reveal;
   ({Offset from, Offset to})? _revealPan;
   bool _applyingReveal = false;
+  Timer? _fieldSettleBackTimer;
 
   @override
   void initState() {
@@ -337,6 +340,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
     WidgetsBinding.instance.removeObserver(this);
     _graphController.removeListener(_syncCameraViewportInsetsFromController);
     _minimapExpanded.removeListener(_onMinimapExpandedChanged);
+    _fieldSettleBackTimer?.cancel();
     _graphController.cameraRevision.removeListener(_onCamera);
     _zoom.removeListener(_onZoomLevel);
     _ownZoom?.dispose();
@@ -371,6 +375,46 @@ class _ConstellationBodyState extends State<ConstellationBody>
     _zoom.update(
       _graphController.cameraScale,
       gestureActive: _pointersDown > 0,
+    );
+    _rescheduleFieldSettleBack();
+  }
+
+  void _rescheduleFieldSettleBack() {
+    _fieldSettleBackTimer?.cancel();
+    _fieldSettleBackTimer = null;
+    if (!mounted ||
+        _pointersDown > 0 ||
+        _applyingReveal ||
+        _revealPan != null) {
+      return;
+    }
+    _fieldSettleBackTimer = Timer(_fieldSettleBackDelay, () {
+      if (!mounted || _pointersDown > 0) {
+        return;
+      }
+      _tryFieldSettleBack();
+    });
+  }
+
+  void _tryFieldSettleBack() {
+    if (_applyingReveal || _revealPan != null) {
+      return;
+    }
+    final cubit = context.read<ConstellationCubit>();
+    final panelVisible =
+        cubit.state.selectedPersonId != null ||
+        cubit.state.selectedRequestId != null;
+    final target = cubit.fieldSettleBackRevealTarget(
+      insets: _cameraViewportInsets(context, panelVisible),
+    );
+    if (target == null) {
+      return;
+    }
+    _revealNode(
+      context,
+      cubit,
+      target,
+      contextPanelVisible: panelVisible,
     );
   }
 
@@ -2118,6 +2162,8 @@ class _ConstellationBodyState extends State<ConstellationBody>
             _lastPointerGlobal = event.position;
             _lastTagChipDropHint = null;
             _pointersDown++;
+            _fieldSettleBackTimer?.cancel();
+            _fieldSettleBackTimer = null;
             _stopReveal();
             _takeMapFocus();
           },
