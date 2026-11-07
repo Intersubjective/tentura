@@ -5,6 +5,7 @@ import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/domain/entity/profile.dart';
 
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
+import 'package:tentura/features/graph/domain/entity/forwards_recipient_marker.dart';
 import 'package:tentura/features/constellation/domain/layout/layout_node_spec.dart'
     show FieldBeaconGlyph;
 
@@ -77,6 +78,9 @@ final class UserNode extends NodeDetails {
     super.pinned,
     super.size,
     this.isHelpOfferer = false,
+    this.forwardsRecipientMarker,
+    this.forwardsShowForwardedOn = false,
+    this.anonymousForwardCount,
   });
 
   final Profile user;
@@ -84,6 +88,15 @@ final class UserNode extends NodeDetails {
   /// True when the user has an active help offer for the focused beacon
   /// (forwards graph only). Used by the renderer to draw a highlight ring.
   final bool isHelpOfferer;
+
+  /// Merged recipient marker from V2 forward edges (forwards graph only).
+  final ForwardsRecipientMarker? forwardsRecipientMarker;
+
+  /// True when any incoming forward edge had `forwardedOn: true`.
+  final bool forwardsShowForwardedOn;
+
+  /// `Ufg:` ghost endpoint: count of people hidden behind this node.
+  final int? anonymousForwardCount;
 
   @override
   String get userId => user.id;
@@ -111,6 +124,9 @@ final class UserNode extends NodeDetails {
     user: user,
     pinned: isPinned,
     isHelpOfferer: isHelpOfferer,
+    forwardsRecipientMarker: forwardsRecipientMarker,
+    forwardsShowForwardedOn: forwardsShowForwardedOn,
+    anonymousForwardCount: anonymousForwardCount,
   );
 
   UserNode copyWithIsHelpOfferer(bool value) => UserNode(
@@ -118,12 +134,33 @@ final class UserNode extends NodeDetails {
     size: size,
     pinned: pinned,
     isHelpOfferer: value,
+    forwardsRecipientMarker: forwardsRecipientMarker,
+    forwardsShowForwardedOn: forwardsShowForwardedOn,
+    anonymousForwardCount: anonymousForwardCount,
+  );
+
+  /// Sets forwards-only visuals in one shot (replacing prior values).
+  UserNode withForwardsDecorations({
+    required ForwardsRecipientMarker? forwardsRecipientMarker,
+    required bool forwardsShowForwardedOn,
+    required int? anonymousForwardCount,
+  }) => UserNode(
+    user: user,
+    size: size,
+    pinned: pinned,
+    isHelpOfferer: isHelpOfferer,
+    forwardsRecipientMarker: forwardsRecipientMarker,
+    forwardsShowForwardedOn: forwardsShowForwardedOn,
+    anonymousForwardCount: anonymousForwardCount,
   );
 
   @override
   int get hashCode =>
       super.hashCode ^
       isHelpOfferer.hashCode ^
+      forwardsRecipientMarker.hashCode ^
+      forwardsShowForwardedOn.hashCode ^
+      anonymousForwardCount.hashCode ^
       user.myVote.hashCode ^
       user.subjectExplicitlyTrustsViewer.hashCode ^
       user.isMutualFriend.hashCode;
@@ -133,6 +170,9 @@ final class UserNode extends NodeDetails {
       super == other &&
       other is UserNode &&
       other.isHelpOfferer == isHelpOfferer &&
+      other.forwardsRecipientMarker == forwardsRecipientMarker &&
+      other.forwardsShowForwardedOn == forwardsShowForwardedOn &&
+      other.anonymousForwardCount == anonymousForwardCount &&
       other.user.myVote == user.myVote &&
       other.user.subjectExplicitlyTrustsViewer ==
           user.subjectExplicitlyTrustsViewer &&

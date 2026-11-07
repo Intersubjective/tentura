@@ -175,6 +175,12 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
     setState(() => _searchActive = false);
   }
 
+  void _finishEmbeddedSearch() {
+    FocusManager.instance.primaryFocus?.unfocus();
+    _searchController.clear();
+    setState(() {});
+  }
+
   /// Keeps [candidates] in their order, dropping those that do not match
   /// [query] (same match rule as [ForwardState.filterCandidatesByQuery]).
   static List<ForwardCandidate> _filterInPlace(
@@ -741,7 +747,7 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                 profile.showsBand &&
                 state.activeFilter != ForwardFilter.alreadyInvolved &&
                 state.band.isNotEmpty;
-            final counts = state.scopeCounts;
+            final counts = state.scopeCountsForSearch(searchQuery);
             // The band above lists people too (they are left out of
             // [visible]), so an empty list under a shown band is not an
             // empty picker (#252).
@@ -976,7 +982,11 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                                 SliverPersistentHeader(
                                   pinned: true,
                                   delegate: ForwardPinnedSliverHeaderDelegate(
-                                    height: tt.buttonHeight + tt.rowGap * 2,
+                                    height:
+                                        (isFiltering
+                                                ? tt.buttonHeight * 2
+                                                : tt.buttonHeight) +
+                                            tt.rowGap * 2,
                                     child: Padding(
                                       padding: EdgeInsets.fromLTRB(
                                         tt.screenHPadding,
@@ -984,10 +994,27 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                                         tt.screenHPadding,
                                         tt.rowGap,
                                       ),
-                                      child: _buildSearchField(
-                                        tt: tt,
-                                        l10n: l10n,
-                                        autofocus: false,
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.stretch,
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          _buildSearchField(
+                                            tt: tt,
+                                            l10n: l10n,
+                                            autofocus: false,
+                                          ),
+                                          if (isFiltering) ...[
+                                            SizedBox(height: tt.tightGap),
+                                            Align(
+                                              alignment: Alignment.centerRight,
+                                              child: TextButton(
+                                                onPressed: _finishEmbeddedSearch,
+                                                child: Text(l10n.buttonOk),
+                                              ),
+                                            ),
+                                          ],
+                                        ],
                                       ),
                                     ),
                                   ),

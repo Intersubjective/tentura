@@ -124,6 +124,15 @@ EdgeDirected _e(
   branch: null,
   srcTotalNeighborCount: null,
   dstTotalNeighborCount: null,
+          forwardEdgeId: null,
+          forwardRecipientIsGhostEndpoint: null,
+          forwardOfferStatus: null,
+          forwardDeclinedInvite: null,
+          forwardReadAt: null,
+          forwardForwardedOn: null,
+          forwardSenderAnonymousCount: null,
+          forwardRecipientAnonymousCount: null,
+          forwardParentEdgeId: null,
 );
 
 Future<void> _settle() => pumpEventQueue(times: 5);

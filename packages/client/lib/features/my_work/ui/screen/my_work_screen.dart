@@ -29,6 +29,7 @@ import 'package:tentura/features/inbox/ui/bloc/inbox_operational_cubit.dart';
 import 'package:tentura/features/my_work/domain/derive_my_work_sections.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
 import 'package:tentura/features/my_work/domain/my_desk_caught_up.dart';
+import 'package:tentura/features/my_work/ui/my_work_filter_display_label.dart';
 import 'package:tentura/ui/widget/caught_up_panel.dart';
 import '../bloc/my_work_cubit.dart';
 import '../widget/my_work_cards.dart';
@@ -220,14 +221,8 @@ class _MyWorkTopBarPausedBottom extends StatelessWidget
   }
 }
 
-String _labelForFilter(L10n l10n, MyWorkFilter f) => switch (f) {
-  MyWorkFilter.active => l10n.myWorkFilterActive,
-  MyWorkFilter.all => l10n.myWorkFilterAll,
-  MyWorkFilter.authored => l10n.myWorkFilterAuthored,
-  MyWorkFilter.helpOffered => l10n.myWorkFilterHelpOffered,
-  MyWorkFilter.drafts => l10n.myWorkFilterDrafts,
-  MyWorkFilter.archived => l10n.myWorkFilterArchived,
-};
+String _labelForFilter(L10n l10n, MyWorkFilter f) =>
+    myWorkFilterDisplayLabel(l10n, f, forTopBarChip: false);
 
 Future<void> _showMyWorkFilterMenu(
   BuildContext buttonContext,
@@ -268,7 +263,11 @@ class _MyWorkTitleControls extends StatelessWidget {
           final tt = context.tt;
           final scheme = Theme.of(context).colorScheme;
           final titleStyle = TenturaText.titleLarge(scheme.onSurface);
-          final filterLabel = _labelForFilter(l10n, view.filter);
+          final filterLabel = myWorkFilterDisplayLabel(
+            l10n,
+            view.filter,
+            forTopBarChip: true,
+          );
           final sortLabel = _labelForSort(l10n, view.sort);
           final title =
               TenturaTopBarControl.textWidth(context, l10n.myWork, titleStyle) +
