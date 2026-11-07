@@ -18,6 +18,8 @@ import 'package:tentura/features/beacon_threads/data/gql/_g/participant_room_acc
 import 'package:tentura/features/forward/data/gql/_g/forward_beacon.req.gql.dart';
 import 'package:tentura/features/forward/data/gql/_g/forward_edges_fetch.req.gql.dart';
 import 'package:tentura/features/forward/data/gql/_g/post_first_responses_fetch.req.gql.dart';
+import 'package:tentura/features/people_tags/data/gql/_g/person_tag_create.req.gql.dart';
+import 'package:tentura/features/people_tags/data/gql/_g/person_tag_members_apply.req.gql.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:web/web.dart' as web;
@@ -1627,7 +1629,7 @@ Finder _constellationGraphLayoutFinder() {
 /// `NodeDragGesture` receives [PointerDownEvent.localPosition] in
 /// `GraphLayoutView` scene space (inside [InteractiveViewer]'s child). Map scene
 /// points with [RenderBox.localToGlobal], not [GraphController.sceneToViewportLocal].
-Offset _globalForConstellationScene(WidgetTester tester, Offset scene) {
+Offset globalForConstellationScene(WidgetTester tester, Offset scene) {
   final layoutFinder = _constellationGraphLayoutFinder();
   if (!finderHasMatch(layoutFinder)) {
     throw StateError('constellation GraphLayoutView not in tree');
@@ -1664,7 +1666,7 @@ Future<void> tapConstellationSceneCentre(
     timeout: const Duration(seconds: 45),
   );
   await tester.ensureVisible(layoutFinder);
-  final global = _globalForConstellationScene(tester, scene);
+  final global = globalForConstellationScene(tester, scene);
   final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
   await gesture.down(global);
   await tester.pump(const Duration(milliseconds: 50));
@@ -2086,6 +2088,48 @@ Future<Map<String, dynamic>> upsertConstellationAnchor({
       );
 }
 
+/// Creates an own people tag [name] for the signed-in user and adds
+/// [personIds] to it by a manual membership edit; returns the tag id.
+Future<String> createPersonTagWithMembers({
+  required String name,
+  required List<String> personIds,
+}) async {
+  final created = await _postGraphQlRequest(
+    GPersonTagCreateReq(
+      (b) => b.vars
+        ..name = name
+        ..clientOpId = uniqueRunId('tag-create'),
+    ),
+  );
+  final tagId =
+      ((created['data'] as Map<String, dynamic>?)?['personTagCreate']
+              as Map<String, dynamic>?)?['id']
+          as String?;
+  if (tagId == null) {
+    throw StateError('personTagCreate failed: $created');
+  }
+  final applied = await _postGraphQlRequest(
+    GPersonTagMembersApplyReq(
+      (b) => b.vars
+        ..clientOpId = uniqueRunId('tag-members')
+        ..ops.replace([
+          for (final personId in personIds)
+            Gv2_PersonTagMemberOpInput(
+              (o) => o
+                ..tagId = tagId
+                ..personId = personId
+                ..op = 'add'
+                ..source = 0,
+            ),
+        ]),
+    ),
+  );
+  if (applied['errors'] != null) {
+    throw StateError('personTagMembersApply failed: ${applied['errors']}');
+  }
+  return tagId;
+}
+
 Future<void> deleteConstellationAnchor({
   required String targetKind,
   required String targetId,
@@ -2324,7 +2368,7 @@ Future<void> startMapComposerAt(
     kind: PointerDeviceKind.mouse,
     buttons: kSecondaryMouseButton,
   );
-  await gesture.down(_globalForConstellationScene(tester, scene));
+  await gesture.down(globalForConstellationScene(tester, scene));
   await tester.pump(const Duration(milliseconds: 50));
   await gesture.up();
   await pumpBounded(tester, frames: 12);

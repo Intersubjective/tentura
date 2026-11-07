@@ -1923,7 +1923,9 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   /// weighted by how many of the viewer's tags (that still have someone on
   /// the map) each person shares; the tag's magnet moves at full weight when
   /// placed. [peopleOfTag] and [tagsOfPerson] come from `PeopleTagsCase`.
-  void beginDragTagArea({
+  /// Returns the member the pointer drags (the others follow it), or null
+  /// when nobody can be dragged.
+  ConstellationAnchorTarget? beginDragTagArea({
     required String tagId,
     required Set<String> Function(String tagId) peopleOfTag,
     required Set<String> Function(String personId) tagsOfPerson,
@@ -1932,11 +1934,11 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         state.tagView != null ||
         state.isComposing ||
         _placementCase == null) {
-      return;
+      return null;
     }
     final field = state.field;
     if (field == null) {
-      return;
+      return null;
     }
     final fieldPersonIds = <String>{
       for (final p in field.peers) p.id,
@@ -1946,7 +1948,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       tagId,
     ).intersection(fieldPersonIds).difference({viewerId}).toList()..sort();
     if (candidates.isEmpty) {
-      return;
+      return null;
     }
     int tagCountWithPeopleOnField(String personId) {
       var n = 0;
@@ -1967,7 +1969,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       weights[ConstellationAnchorTarget.person(id)] = 1.0 / k;
     }
     if (weights.isEmpty) {
-      return;
+      return null;
     }
     final memberIds = [
       for (final t in weights.keys)
@@ -1982,7 +1984,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     );
     final target = ConstellationAnchorTarget.person(rep);
     final group = <ConstellationAnchorTarget>[
-      for (final id in memberIds.skip(1)) ConstellationAnchorTarget.person(id),
+      for (final id in memberIds)
+        if (id != rep) ConstellationAnchorTarget.person(id),
     ];
     Offset? magnetStart;
     var virtualMembers = const <(Offset, double)>[];
@@ -2014,6 +2017,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         placementFailureMessage: null,
       ),
     );
+    return target;
   }
 
   /// People the composer may address (field peers and forward candidates,
