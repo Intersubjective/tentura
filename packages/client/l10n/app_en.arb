@@ -11170,6 +11170,10 @@
   "@constellationTagRowAdd": {
     "description": "Field tag row: opens the tag editor"
   },
+  "constellationTagHullDragHint": "Press and hold empty space inside to move the whole tag",
+  "@constellationTagHullDragHint": {
+    "description": "Screen-reader hint on a tag's hull on the Field: a press and hold on its empty space lifts and drags all its people (#1021)"
+  },
   "constellationTagAllTags": "All tags",
   "@constellationTagAllTags": {
     "description": "Field tag row: opens the full tag list sheet"

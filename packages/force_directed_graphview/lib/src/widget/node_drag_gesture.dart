@@ -23,10 +23,12 @@ class NodeDragGesture extends StatefulWidget {
 
 class _NodeDragGestureState extends State<NodeDragGesture> {
   final _activePointers = <int>{};
+  _NodeDragPanGestureRecognizer? _panRecognizer;
   int? _canvasPointer;
   Offset? _canvasDownGlobal;
   Offset? _canvasDownViewport;
   int? _canvasButtons;
+  PointerDeviceKind? _canvasKind;
   Timer? _canvasLongPressTimer;
   var _canvasLongPressed = false;
 
@@ -49,6 +51,9 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
   // [_grabOffset] was measured; the camera may move while the pointer stays.
   Offset? _grabGlobal;
   double _grabScale = 1;
+  // Press point of a canvas-hold lift until the pointer leaves its slop; a
+  // lift released while still set never moved and ends as a cancel.
+  Offset? _stillLiftDownGlobal;
 
   var _scaleBlocked = false;
   late GraphController<dynamic, dynamic> _controller;
@@ -119,13 +124,13 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
       gestures: {
         _NodeDragPanGestureRecognizer:
             GestureRecognizerFactoryWithHandlers<_NodeDragPanGestureRecognizer>(
-          () => _NodeDragPanGestureRecognizer(
-            canStart: _canStartTouchNodeDrag,
+          () => _panRecognizer = _NodeDragPanGestureRecognizer(
+            startFor: _nodeDragStartFor,
             isOwning: _isOwningNode,
           ),
           (recognizer) {
             recognizer
-              ..canStart = _canStartTouchNodeDrag
+              ..startFor = _nodeDragStartFor
               ..isOwning = _isOwningNode
               ..onStart = _onTouchNodeDragStart;
           },
@@ -170,7 +175,8 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
     final pass = _captureDragPassSnapshot();
     final canvasEnabled = _configuration.onCanvasTap != null ||
         _configuration.onCanvasSecondaryTap != null ||
-        _configuration.onCanvasLongPress != null;
+        _configuration.onCanvasLongPress != null ||
+        _configuration.onCanvasLongPressDrag != null;
     if (canvasEnabled) {
       final nodeId = _hitTestTopmostNodeIdInSnapshot(
         hitPos,
@@ -247,6 +253,8 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
       if (lift) {
         HapticFeedback.mediumImpact();
         _captureNode(bodyId, pointer, downScene);
+        // The viewer still contends for the held pointer; the lift takes it.
+        _panRecognizer?.claimHold();
         _updateCapturedPosition(downScene);
       }
     });
@@ -289,18 +297,16 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
 
   bool _isOwningNode() => _capturedNodeId != null;
 
-  bool _canStartTouchNodeDrag(PointerDownEvent event) {
+  /// How the pan recognizer joins the arena for [event], or null to stay out.
+  _NodeDragStart? _nodeDragStartFor(PointerDownEvent event) {
     // Keep every added touch in our already-won arena until the drag ends.
     // Camera gating rebuilds after a frame; allowing the viewer to recognize
     // a new pointer before then would still move the camera during a drag.
-    if (_capturedNodeId != null) return true;
+    if (_capturedNodeId != null) return _NodeDragStart.pan;
     if (!_configuration.nodeDragEnabled ||
         _scaleBlocked ||
         _activePointers.length >= 2) {
-      return false;
-    }
-    if (_configuration.touchNodeDragLocked && _isTouchLike(event.kind)) {
-      return false;
+      return null;
     }
     var nodeId = _pendingNodeId;
     if (nodeId == null) {
@@ -317,11 +323,26 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
     }
     final payload =
         nodeId == null ? null : _controller.nodePayloadForId(nodeId);
-    return payload != null && _configuration.isNodeDraggable(payload);
+    if (payload == null || !_configuration.isNodeDraggable(payload)) {
+      // An empty-canvas hold may lift a node; until then a move pans.
+      return _configuration.onCanvasLongPressDrag != null &&
+              event.buttons == kPrimaryButton
+          ? _NodeDragStart.hold
+          : null;
+    }
+    if (_configuration.touchNodeDragLocked && _isTouchLike(event.kind)) {
+      // A locked node lifts only by a hold; until then a move pans.
+      return _configuration.onNodeLongPress != null
+          ? _NodeDragStart.hold
+          : null;
+    }
+    return _NodeDragStart.pan;
   }
 
-  /// This recognizer joins the arena only for a draggable node. It therefore
-  /// wins an actual node drag while an empty canvas remains available for pan.
+  /// This recognizer joins the arena for a draggable node (hold mode while
+  /// touch drag is locked), and for an empty-canvas press only in hold mode
+  /// (see [_NodeDragStart]). It therefore wins an actual node drag while an
+  /// empty canvas remains available for pan.
   ///
   /// A mouse press on a draggable node also joins, only to keep the enclosing
   /// viewer from panning the camera before capture (its precise-pointer slop
@@ -364,6 +385,11 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
     if (_capturedNodeId != null) {
       if (event.pointer != _capturePointer) {
         return;
+      }
+      final stillDown = _stillLiftDownGlobal;
+      if (stillDown != null &&
+          (event.position - stillDown).distance >= kTouchSlop) {
+        _stillLiftDownGlobal = null;
       }
       // A pointer keeps the hit-test transforms of its press, which go stale
       // when the camera or the view origin moves mid-drag.
@@ -431,7 +457,11 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
         _grabGlobal = event.position;
       }
       if (_activePointers.isEmpty) {
-        _finishCapture();
+        if (_stillLiftDownGlobal != null) {
+          _releaseCapture(notifyCancel: true);
+        } else {
+          _finishCapture();
+        }
       }
       return;
     }
@@ -486,14 +516,42 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
     // coordinates for the controller's conversion at callback dispatch.
     _canvasDownViewport = _controller.sceneToViewportLocal(event.localPosition);
     _canvasButtons = event.buttons;
+    _canvasKind = event.kind;
     _canvasLongPressed = false;
     if (event.buttons == kPrimaryButton) {
       _canvasLongPressTimer = Timer(kLongPressTimeout, () {
         _canvasLongPressed = true;
         final position = _controller.viewportLocalToScene(_canvasDownViewport!);
-        _configuration.onCanvasLongPress?.call(position);
+        if (!_liftFromCanvasHold(position)) {
+          _configuration.onCanvasLongPress?.call(position);
+        }
       });
     }
+  }
+
+  /// Captures the node [GraphViewConfiguration.onCanvasLongPressDrag] names
+  /// for the held canvas pointer; returns whether the hold was taken.
+  bool _liftFromCanvasHold(Offset scenePosition) {
+    final nodeId = _configuration.onCanvasLongPressDrag?.call(scenePosition);
+    final pointer = _canvasPointer;
+    final downGlobal = _canvasDownGlobal;
+    if (nodeId == null || pointer == null || downGlobal == null) {
+      return false;
+    }
+    final kind = _canvasKind;
+    _cancelCanvasPress();
+    _captureNode(nodeId, pointer, scenePosition);
+    if (_capturedNodeId == null) {
+      return true;
+    }
+    _stillLiftDownGlobal = downGlobal;
+    // The viewer still contends for the held pointer; the lift takes it.
+    _panRecognizer?.claimHold();
+    _updateCapturedPosition(scenePosition, global: downGlobal);
+    if (_isTouchLike(kind)) {
+      unawaited(HapticFeedback.mediumImpact());
+    }
+    return true;
   }
 
   void _cancelCanvasPress() {
@@ -503,6 +561,7 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
     _canvasDownGlobal = null;
     _canvasDownViewport = null;
     _canvasButtons = null;
+    _canvasKind = null;
     _canvasLongPressed = false;
   }
 
@@ -660,6 +719,7 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
     _capturePointer = null;
     _grabOffset = Offset.zero;
     _grabGlobal = null;
+    _stillLiftDownGlobal = null;
 
     try {
       _controller.setCameraInteractionGated(false);
@@ -680,6 +740,7 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
     _capturePointer = null;
     _grabOffset = Offset.zero;
     _grabGlobal = null;
+    _stillLiftDownGlobal = null;
 
     if (nodeId == null) {
       return;
@@ -720,9 +781,15 @@ final class _DragPassSnapshot {
   final List<GraphNodeId> orderedNodeIds;
 }
 
+/// How the node pan recognizer takes part in a pointer's arena: [pan] wins a
+/// node drag at pan slop; [hold] never wins by moving, leaves a quick drag
+/// to the viewer, and is accepted only when a hold lifts (an empty-canvas
+/// hold, or a long press on a touch-locked node).
+enum _NodeDragStart { pan, hold }
+
 final class _NodeDragPanGestureRecognizer extends PanGestureRecognizer {
   _NodeDragPanGestureRecognizer({
-    required this.canStart,
+    required this.startFor,
     required this.isOwning,
   }) : super(
           supportedDevices: const {
@@ -732,7 +799,10 @@ final class _NodeDragPanGestureRecognizer extends PanGestureRecognizer {
           },
         );
 
-  bool Function(PointerDownEvent event) canStart;
+  _NodeDragStart? Function(PointerDownEvent event) startFor;
+
+  // Set by a hold-only press: its down position, until the press ends.
+  Offset? _holdDownGlobal;
 
   /// Whether a node drag already owns the gesture sequence.
   bool Function() isOwning;
@@ -751,13 +821,43 @@ final class _NodeDragPanGestureRecognizer extends PanGestureRecognizer {
   @override
   bool isPointerAllowed(PointerEvent event) {
     if (event is! PointerDownEvent) return false;
-    if (!canStart(event)) {
+    final start = startFor(event);
+    if (start == null) {
       // A second finger must release a pending node drag to the enclosing
       // scale recognizer. Refusing only the new pointer leaves the first
       // pointer in the arena and can still steal the pinch as a node pan.
       resolve(GestureDisposition.rejected);
       return false;
     }
+    _holdDownGlobal = start == _NodeDragStart.hold ? event.position : null;
     return super.isPointerAllowed(event);
+  }
+
+  /// Wins the held pointer from the viewer once a hold lifts a node.
+  void claimHold() => resolve(GestureDisposition.accepted);
+
+  @override
+  bool hasSufficientGlobalDistanceToAccept(
+    PointerDeviceKind pointerDeviceKind,
+    double? deviceTouchSlop,
+  ) =>
+      _holdDownGlobal == null &&
+      super.hasSufficientGlobalDistanceToAccept(
+        pointerDeviceKind,
+        deviceTouchSlop,
+      );
+
+  @override
+  void handleEvent(PointerEvent event) {
+    final holdDown = _holdDownGlobal;
+    if (holdDown != null &&
+        !isOwning() &&
+        event is PointerMoveEvent &&
+        (event.position - holdDown).distance >= kTouchSlop) {
+      // Moved before the hold lifted anything: a pan for the viewer.
+      resolve(GestureDisposition.rejected);
+      return;
+    }
+    super.handleEvent(event);
   }
 }

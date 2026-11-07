@@ -937,6 +937,41 @@ void main() {
     controller.dispose();
   });
 
+  testWidgets('touchNodeDragLocked hold lift never pans the camera',
+      (tester) async {
+    final controller = _TestHarness.newController();
+    final updates = <Offset>[];
+
+    await _pumpGraph(
+      tester,
+      controller: controller,
+      touchNodeDragLocked: true,
+      onNodeLongPress: (_, __) => true,
+      onNodeDragUpdate: (_, position, ___) => updates.add(position),
+    );
+
+    final viewer =
+        tester.widget<InteractiveViewer>(find.byType(InteractiveViewer));
+    viewer.transformationController!.value = Matrix4.identity()
+      ..translateByDouble(-100, -100, 0, 1)
+      ..scaleByDouble(2, 2, 1, 1);
+    await tester.pump();
+    final cameraBefore = viewer.transformationController!.value.clone();
+    final gesture = await tester.createGesture();
+    await gesture.down(_nodeCenter(tester, _TestHarness.bottom));
+    await tester.pump(kLongPressTimeout + const Duration(milliseconds: 1));
+    // The first moves arrive before the camera gate rebuilds the viewer.
+    await gesture.moveBy(const Offset(40, 0));
+    await gesture.moveBy(const Offset(40, 0));
+    await tester.pump();
+
+    expect(updates, isNotEmpty);
+    expect(viewer.transformationController!.value, cameraBefore);
+
+    await gesture.up();
+    controller.dispose();
+  });
+
   testWidgets('node long press does not call onCanvasLongPress',
       (tester) async {
     final controller = _TestHarness.newController();
