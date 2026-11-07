@@ -74,6 +74,7 @@ import '../scene/constellation_scene_controller.dart';
 import '../scene/constellation_forward_tree_scene_layout.dart';
 import '../scene/constellation_tag_view_field_layout.dart';
 import '../util/constellation_perf.dart';
+import '../widget/constellation_camera_controls.dart';
 import 'constellation_state.dart';
 
 export 'package:flutter_bloc/flutter_bloc.dart';
@@ -323,6 +324,17 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   /// value (from Field body while «Arranging» and the toolbar is visible,
   /// #1043); null when not constraining.
   double? _arrangingDragMaxParentCentreSceneY;
+
+  /// Measured bottom Field chrome (tag lens + arranging + selection) and
+  /// minimap flag from ConstellationBody; combined with BuildContext in
+  /// ConstellationCameraControls.cameraViewportInsets for callers outside the
+  /// body subtree.
+  double _fieldCameraBottomChromeHeight = 0;
+  bool _fieldCameraMinimapExpanded = false;
+
+  /// Full §C snapshot from the last body sync (panel + sheet as on the Field).
+  /// Forward-tree fit uses this so it matches the map stack without a context.
+  EdgeInsets _fieldCameraViewportSnapshot = EdgeInsets.zero;
 
   /// A store publication or an outbox change arrived while the scene was
   /// frozen; the release applies them together in one compose and layout.
@@ -698,7 +710,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       if (isClosed || state.forwardTreeOverlay == null) return;
       if (state.placementPhase != ConstellationPlacementPhase.idle) return;
       _scene.fitNodes(
-        EdgeInsets.zero,
+        _fieldCameraViewportSnapshot,
         minScale: kConstellationDistrictDetailScale,
         focus: 'fp:${state.forwardTreeOverlay!.graph?.authorId ?? ''}',
       );
@@ -1140,6 +1152,9 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     graphController.scene.removeListener(_onGraphSceneLayoutOutcomeChanged);
     graphController.removeListener(_onGraphControllerChanged);
     _arrangingDragMaxParentCentreSceneY = null;
+    _fieldCameraBottomChromeHeight = 0;
+    _fieldCameraMinimapExpanded = false;
+    _fieldCameraViewportSnapshot = EdgeInsets.zero;
     _anchorCase?.deactivate(token: _anchorLifecycleToken);
     _forwardTreePulseTickerDisposed = true;
     _scene.dispose();
@@ -1155,6 +1170,44 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       return;
     }
     _arrangingDragMaxParentCentreSceneY = value;
+  }
+
+  double get fieldCameraBottomChromeHeight => _fieldCameraBottomChromeHeight;
+
+  bool get fieldCameraMinimapExpanded => _fieldCameraMinimapExpanded;
+
+  @visibleForTesting
+  EdgeInsets get fieldCameraViewportSnapshotForTest =>
+      _fieldCameraViewportSnapshot;
+
+  void syncFieldCameraViewportFromBody({
+    required EdgeInsets snapshotInsets,
+    required double bottomChromeHeight,
+    required bool minimapExpanded,
+  }) {
+    if (_fieldCameraViewportSnapshot == snapshotInsets &&
+        _fieldCameraBottomChromeHeight == bottomChromeHeight &&
+        _fieldCameraMinimapExpanded == minimapExpanded) {
+      return;
+    }
+    _fieldCameraViewportSnapshot = snapshotInsets;
+    _fieldCameraBottomChromeHeight = bottomChromeHeight;
+    _fieldCameraMinimapExpanded = minimapExpanded;
+  }
+
+  /// §C insets for widgets under the Field screen (may be outside ConstellationBody).
+  EdgeInsets fieldCameraViewportInsets(
+    BuildContext context, {
+    required bool contextPanelVisible,
+    double compactSheetHeight = 0,
+  }) {
+    return ConstellationCameraControls.cameraViewportInsets(
+      context,
+      contextPanelVisible: contextPanelVisible,
+      compactSheetHeight: compactSheetHeight,
+      bottomChromeHeight: _fieldCameraBottomChromeHeight,
+      minimapExpanded: _fieldCameraMinimapExpanded,
+    );
   }
 
   /// Screen visibility contributes to the shared store's lease visibility.
