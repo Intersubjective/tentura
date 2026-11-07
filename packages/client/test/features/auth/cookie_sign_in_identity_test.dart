@@ -63,6 +63,8 @@ void main() {
               'cookie sign-in, even when no incorrect identity was published',
         );
         expect(await local.isSessionAccount(selectedAccountId), isFalse);
+        expect(await local.getAccountById(selectedAccountId), isNull);
+        expect(await local.getAccountById(unrelatedAccountId), isNull);
       },
     );
 

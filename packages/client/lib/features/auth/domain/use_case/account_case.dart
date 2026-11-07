@@ -114,6 +114,10 @@ final class AccountCase extends UseCaseBase {
   Future<List<AccountEntity>> getAccountsAll() =>
       _authLocalRepository.getAccountsAll();
 
+  /// One account per device: drop every stored row except [keepId].
+  Future<void> retainOnlyAccount(String keepId) =>
+      _authLocalRepository.retainOnlyAccount(keepId);
+
   ///
   /// Retrieves a user profile by its [id].
   /// Returns `null` if no account with the given [id] is found.
@@ -185,6 +189,7 @@ final class AccountCase extends UseCaseBase {
         );
         await _authLocalRepository.updateAccount(account);
         await _authLocalRepository.setCurrentAccountId(userId);
+        await _authLocalRepository.retainOnlyAccount(userId);
       } catch (e, st) {
         await captureSeedRecoveryFailed(
           authOutcome: 'local_store_failed',

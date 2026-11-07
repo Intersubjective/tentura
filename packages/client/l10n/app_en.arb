@@ -272,20 +272,8 @@
   "@pleaseEnterCode": {
     "context": "AccountAddDialog"
   },
-  "confirmAccountRemoval": "Are you sure you want to remove this account?",
-  "@confirmAccountRemoval": {
-    "context": "AccountRemoveDialog"
-  },
-  "chooseAccount": "Choose account",
-  "@chooseAccount": {
-    "context": "AuthLoginScreen"
-  },
   "accountMenuViewProfile": "View profile",
   "@accountMenuViewProfile": {
-    "context": "HomeAccountMenu"
-  },
-  "accountUnnamed": "Unnamed account",
-  "@accountUnnamed": {
     "context": "HomeAccountMenu"
   },
   "semanticsAccountMenuHint": "Opens the account menu",
@@ -336,17 +324,9 @@
   "@recoverCameraBlocked": {
     "context": "RecoverScreen"
   },
-  "shareAccount": "Share account",
-  "@shareAccount": {
-    "context": "AccountListTile"
-  },
   "showSeed": "Show recovery seed",
   "@showSeed": {
-    "context": "AccountListTile, SettingsScreen"
-  },
-  "removeFromList": "Remove from the list",
-  "@removeFromList": {
-    "context": "AccountListTile"
+    "context": "SettingsScreen"
   },
   "invitationScreenTitle": "Invitations",
   "@invitationScreenTitle": {
