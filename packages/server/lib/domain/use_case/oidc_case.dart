@@ -3,7 +3,7 @@ import 'package:injectable/injectable.dart';
 import 'package:tentura_server/domain/entity/account_credential_entity.dart';
 import 'package:tentura_server/domain/entity/oidc_identity.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
-import 'package:tentura_server/domain/util/contact_linking_policy.dart';
+import 'package:tentura_server/domain/policy/contact_linking_policy.dart';
 import 'package:tentura_server/domain/use_case/credential_auth_case.dart';
 
 import '_use_case_base.dart';
