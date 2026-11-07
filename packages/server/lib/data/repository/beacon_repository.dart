@@ -331,9 +331,18 @@ ${beaconId == null ? '' : r'WHERE posts.id = $2'}''',
     String? clientOpId,
   }) => _database.withMutatingUser(authorId, () async {
     if (clientOpId != null) {
+      // Serialize retries that share a client operation id so the second
+      // call sees the first's committed draft instead of racing its INSERT
+      // and tripping `beacon_author_client_op_id_key` on the UPDATE below.
+      await _database
+          .customSelect(
+            r'SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))',
+            variables: [Variable<String>(authorId), Variable<String>(clientOpId)],
+          )
+          .get();
       final existing = await _database
           .customSelect(
-            r'''SELECT id FROM public.beacon WHERE user_id = $1 AND client_op_id = $2''',
+            r'SELECT id, status FROM public.beacon WHERE user_id = $1 AND client_op_id = $2',
             variables: [
               Variable<String>(authorId),
               Variable<String>(clientOpId),
@@ -341,7 +350,31 @@ ${beaconId == null ? '' : r'WHERE posts.id = $2'}''',
           )
           .get();
       if (existing.isNotEmpty) {
-        return getBeaconById(beaconId: existing.first.read<String>('id'));
+        final row = existing.first;
+        final id = row.read<String>('id');
+        // A published beacon is returned as-is (idempotent retry); a draft
+        // picks up the fields the retry carries (When range, requirements).
+        if (BeaconStatus.fromSmallint(row.read<int>('status')) ==
+            BeaconStatus.draft) {
+          return updateDraftBeacon(
+            beaconId: id,
+            userId: authorId,
+            title: title,
+            description: description ?? '',
+            context: context,
+            tags: tags,
+            needs: needs,
+            primaryNeedSlug: primaryNeedSlug,
+            latitude: latitude,
+            longitude: longitude,
+            startAt: startAt,
+            endAt: endAt,
+            addressLabel: addressLabel,
+            isDiscoverable: isDiscoverable,
+            isDiscoverableProvided: isDiscoverable != null,
+          );
+        }
+        return getBeaconById(beaconId: id);
       }
     }
     final effectiveStatus = status ?? BeaconStatus.open;

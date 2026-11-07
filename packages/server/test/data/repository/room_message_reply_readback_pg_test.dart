@@ -361,20 +361,22 @@ INSERT INTO public.beacon_room_message (
 ON CONFLICT (id) DO UPDATE SET body = EXCLUDED.body
 ''',
       );
-      for (var i = 0; i < 50; i++) {
-        final id = 'Rreplypgfill${i.toString().padLeft(2, '0')}';
-        final created = '2026-01-02T12:${i.toString().padLeft(2, '0')}:00Z';
-        await database.customStatement(
-          '''
+      // One statement: seeding must cost a bounded number of round trips.
+      await database.customStatement(
+        '''
 INSERT INTO public.beacon_room_message (
   id, beacon_id, author_id, body, created_at
-) VALUES (
-  '$id', '$beaconId', '$replyAuthorId', 'Filler message $i', '$created'
 )
+SELECT
+  'Rreplypgfill' || lpad(i::text, 2, '0'),
+  '$beaconId',
+  '$replyAuthorId',
+  'Filler message ' || i,
+  timestamptz '2026-01-02T12:00:00Z' + i * interval '1 minute'
+FROM generate_series(0, 49) AS i
 ON CONFLICT (id) DO NOTHING
 ''',
-        );
-      }
+      );
       final reply = await room.insertRoomMessage(
         beaconId: beaconId,
         authorId: replyAuthorId,
@@ -416,20 +418,22 @@ INSERT INTO public.beacon_room_message (
 ON CONFLICT (id) DO UPDATE SET body = EXCLUDED.body
 ''',
       );
-      for (var i = 0; i < 50; i++) {
-        final id = 'Rreplypgpage${i.toString().padLeft(2, '0')}';
-        final created = '2026-01-02T12:${i.toString().padLeft(2, '0')}:00Z';
-        await database.customStatement(
-          '''
+      // One statement: seeding must cost a bounded number of round trips.
+      await database.customStatement(
+        '''
 INSERT INTO public.beacon_room_message (
   id, beacon_id, author_id, body, created_at
-) VALUES (
-  '$id', '$beaconId', '$replyAuthorId', 'Page filler $i', '$created'
 )
+SELECT
+  'Rreplypgpage' || lpad(i::text, 2, '0'),
+  '$beaconId',
+  '$replyAuthorId',
+  'Page filler ' || i,
+  timestamptz '2026-01-02T12:00:00Z' + i * interval '1 minute'
+FROM generate_series(0, 49) AS i
 ON CONFLICT (id) DO NOTHING
 ''',
-        );
-      }
+      );
       final reply = await room.insertRoomMessage(
         beaconId: beaconId,
         authorId: replyAuthorId,
