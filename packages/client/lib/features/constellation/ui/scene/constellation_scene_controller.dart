@@ -26,6 +26,7 @@ import 'package:tentura/ui/utils/frame_slice_scheduler.dart';
 import 'package:tentura/ui/utils/rearrange_preview_scheduler.dart';
 
 import '../utils/constellation_graph_scene.dart';
+import '../utils/constellation_presentation_frame.dart';
 import '../util/constellation_perf.dart';
 import 'constellation_interaction_controller.dart';
 import 'scene_update_gate.dart';
@@ -1231,7 +1232,11 @@ class ConstellationSceneController {
 
   // Camera.
 
-  void fitWholeField(EdgeInsets insets) => fitNodes(insets);
+  void fitWholeField(EdgeInsets insets, {GraphNodeId? focus}) => fitNodes(
+    insets,
+    minScale: kConstellationDistrictDetailScale,
+    focus: focus,
+  );
 
   /// Scene pixels [GraphController.fitToRect] reserves around a fitted rect
   /// by default.
@@ -1258,7 +1263,7 @@ class ConstellationSceneController {
     }
     final focusPoint = focus == null
         ? null
-        : graphController.renderSnapshot.resolvePosition(focus);
+        : graphController.renderSnapshot.resolveTargetPosition(focus);
     final viewport = graphController.viewportSize;
     if (minScale != null &&
         focusPoint != null &&
@@ -1310,7 +1315,7 @@ class ConstellationSceneController {
       if (include != null && !include(graphId)) {
         continue;
       }
-      final point = snapshot.resolvePosition(graphId);
+      final point = snapshot.resolveTargetPosition(graphId);
       if (point == null) {
         continue;
       }
