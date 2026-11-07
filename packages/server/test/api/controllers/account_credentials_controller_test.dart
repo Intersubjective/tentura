@@ -121,7 +121,7 @@ void main() {
     headers: {'content-type': 'application/json'},
     context: {
       if (accountId != null) kContextJwtKey: JwtEntity(sub: accountId),
-      if (params != null) 'shelf_router/params': params,
+      'shelf_router/params': ?params,
     },
   );
 
