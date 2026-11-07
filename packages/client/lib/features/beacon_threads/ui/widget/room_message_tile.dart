@@ -467,11 +467,6 @@ class RoomMessageTile extends StatelessWidget {
     return null;
   }
 
-  /// @deprecated Use [isCoordinationTimelineNotifyRow].
-  static bool isPromotePinNotification(RoomMessage m) =>
-      isCoordinationTimelineNotifyRow(m) &&
-      m.linkedEventKind == CoordinationItemEventKind.created.value;
-
   /// Plan updated from room menu (no linked chat message).
   static bool isPlanAnnounceBar(RoomMessage m) {
     if (m.linkedItemKind != CoordinationItemKind.plan.value) return false;
@@ -499,10 +494,6 @@ class RoomMessageTile extends StatelessWidget {
     if (ev == null) return false;
     return m.linkedCoordinationItem != null;
   }
-
-  /// @deprecated Use [showCoordinationItemFooter].
-  static bool showLifecycleFooter(RoomMessage m) =>
-      showCoordinationItemFooter(m) && m.isPromotedSourceMessage;
 
   @visibleForTesting
   static bool isThreadEntryKind(CoordinationItemKind kind) =>

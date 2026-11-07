@@ -441,8 +441,9 @@ class GraphCubit extends Cubit<GraphState> {
         continue;
       }
       final u = node;
-      final anon =
-          id.startsWith('Ufg:') ? (_forwardGhostAnonymousCount[id] ?? 1) : null;
+      final anon = id.startsWith('Ufg:')
+          ? (_forwardGhostAnonymousCount[id] ?? 1)
+          : null;
       final marker = id.startsWith('Ufg:') ? null : markerByRecipient[id];
       final showFwd = id.startsWith('Ufg:') ? false : forwardedTo.contains(id);
       final next = u.withForwardsDecorations(
@@ -450,12 +451,12 @@ class GraphCubit extends Cubit<GraphState> {
         forwardsShowForwardedOn: showFwd,
         anonymousForwardCount: anon,
       );
-      final needsRefresh = u.forwardsRecipientMarker != next.forwardsRecipientMarker ||
+      final needsRefresh =
+          u.forwardsRecipientMarker != next.forwardsRecipientMarker ||
           u.forwardsShowForwardedOn != next.forwardsShowForwardedOn ||
           u.anonymousForwardCount != next.anonymousForwardCount;
       _nodes[id] = next;
-      if (needsRefresh &&
-          graphController.nodes.any((n) => n.id == id)) {
+      if (needsRefresh && graphController.nodes.any((n) => n.id == id)) {
         _refreshControllerNodePayload(id, next);
       }
     }
@@ -628,10 +629,6 @@ class GraphCubit extends Cubit<GraphState> {
   /// Whether [id] has been focused before (rollback taps select only).
   @visibleForTesting
   bool hasEverFocused(String id) => _everFocusedIds.contains(id);
-
-  /// @deprecated Use [isCurrentFocus], [canPageMore], and [handleNodeTap].
-  @Deprecated('Use isCurrentFocus, canPageMore, and handleNodeTap')
-  bool canExpandNode(String id) => canPageMore(id);
 
   /// Highlights [node] on the graph and updates the exploration trail.
   /// Never pages neighbourhood — use [expandNode]. May request structural
@@ -1167,9 +1164,6 @@ class GraphCubit extends Cubit<GraphState> {
       );
     });
   }
-
-  @Deprecated('Use selectNode or expandNode')
-  void setFocus(NodeDetails node) => selectNode(node);
 
   void _syncFocusPathPins() {
     final pinIds = <String>{
@@ -2160,7 +2154,9 @@ class GraphCubit extends Cubit<GraphState> {
     if (mode == GraphMode.forwards &&
         (state.forwardsDimmedNodeIds.contains(src.id) ||
             state.forwardsDimmedNodeIds.contains(dst.id))) {
-      color = color.withValues(alpha: (color.a * _forwardsEdgeDimAlpha).clamp(0.0, 1.0));
+      color = color.withValues(
+        alpha: (color.a * _forwardsEdgeDimAlpha).clamp(0.0, 1.0),
+      );
     }
     // Direction only on the selected node's edges, so the graph stays quiet.
     final focus = state.focus;

@@ -112,10 +112,3 @@ class _ConstellationArrangeOverflowMenu extends StatelessWidget {
     );
   }
 }
-
-/// @deprecated Use [ConstellationArrangeActions.showOverflowMenu] from the
-/// arranging toolbar. Kept as a thin redirect for any stale call sites.
-Future<void> showConstellationArrangeSheet(
-  BuildContext context, {
-  required ConstellationCubit cubit,
-}) => ConstellationArrangeActions.showOverflowMenu(context, cubit: cubit);

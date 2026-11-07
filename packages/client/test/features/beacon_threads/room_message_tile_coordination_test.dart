@@ -16,26 +16,24 @@ RoomMessage _msg({
   String? linkedItemTargetPersonId,
   int? semanticMarker,
   String body = 'hello',
-}) =>
-    RoomMessage(
-      id: id,
-      beaconId: 'b1',
-      authorId: 'u1',
-      body: body,
-      createdAt: DateTime.utc(2026),
-      linkedItemId: linkedItemId,
-      linkedEventKind: linkedEventKind,
-      systemPayloadJson: systemPayloadJson,
-      linkedItemLinkedMessageId: linkedItemLinkedMessageId,
-      linkedItemKind: linkedItemKind,
-      linkedItemStatus:
-          linkedItemStatus ?? CoordinationItemStatus.open.value,
-      linkedItemCreatorId: linkedItemCreatorId,
-      linkedItemTargetPersonId: linkedItemTargetPersonId,
-      linkedItemCreatedAt: DateTime.utc(2026),
-      linkedItemUpdatedAt: DateTime.utc(2026),
-      semanticMarker: semanticMarker,
-    );
+}) => RoomMessage(
+  id: id,
+  beaconId: 'b1',
+  authorId: 'u1',
+  body: body,
+  createdAt: DateTime.utc(2026),
+  linkedItemId: linkedItemId,
+  linkedEventKind: linkedEventKind,
+  systemPayloadJson: systemPayloadJson,
+  linkedItemLinkedMessageId: linkedItemLinkedMessageId,
+  linkedItemKind: linkedItemKind,
+  linkedItemStatus: linkedItemStatus ?? CoordinationItemStatus.open.value,
+  linkedItemCreatorId: linkedItemCreatorId,
+  linkedItemTargetPersonId: linkedItemTargetPersonId,
+  linkedItemCreatedAt: DateTime.utc(2026),
+  linkedItemUpdatedAt: DateTime.utc(2026),
+  semanticMarker: semanticMarker,
+);
 
 void main() {
   group('isCoordinationTimelineNotifyRow', () {
@@ -80,23 +78,25 @@ void main() {
       );
       expect(m.isPromotedSourceMessage, isTrue);
       expect(RoomMessageTile.showCoordinationItemFooter(m), isTrue);
-      expect(RoomMessageTile.showLifecycleFooter(m), isTrue);
     });
 
-    test('legacy notify row resolves anchor without sourceMessageId payload', () {
-      final m = _msg(
-        id: 'notify',
-        linkedItemId: 'item1',
-        linkedEventKind: CoordinationItemEventKind.resolved.value,
-        linkedItemLinkedMessageId: 'source',
-        linkedItemKind: CoordinationItemKind.ask.value,
-      );
-      expect(RoomMessageTile.isCoordinationTimelineNotifyRow(m), isTrue);
-      expect(
-        RoomMessageTile.coordinationTimelineAnchorMessageId(m),
-        'source',
-      );
-    });
+    test(
+      'legacy notify row resolves anchor without sourceMessageId payload',
+      () {
+        final m = _msg(
+          id: 'notify',
+          linkedItemId: 'item1',
+          linkedEventKind: CoordinationItemEventKind.resolved.value,
+          linkedItemLinkedMessageId: 'source',
+          linkedItemKind: CoordinationItemKind.ask.value,
+        );
+        expect(RoomMessageTile.isCoordinationTimelineNotifyRow(m), isTrue);
+        expect(
+          RoomMessageTile.coordinationTimelineAnchorMessageId(m),
+          'source',
+        );
+      },
+    );
 
     test('unanchored plan superseded is timeline row not footer bubble', () {
       final m = _msg(
@@ -152,7 +152,6 @@ void main() {
       );
       expect(m.isPromotedSourceMessage, isFalse);
       expect(RoomMessageTile.showCoordinationItemFooter(m), isFalse);
-      expect(RoomMessageTile.showLifecycleFooter(m), isFalse);
     });
 
     test('standalone creation row is promoted source', () {
@@ -165,37 +164,41 @@ void main() {
       );
       expect(m.isPromotedSourceMessage, isTrue);
       expect(RoomMessageTile.showCoordinationItemFooter(m), isTrue);
-      expect(RoomMessageTile.showLifecycleFooter(m), isTrue);
     });
 
-    test('non-promoted linked item uses coordination footer not inline card', () {
-      final m = _msg(
-        id: 'notify',
-        linkedItemId: 'item1',
-        linkedEventKind: CoordinationItemEventKind.created.value,
-        linkedItemLinkedMessageId: 'source',
-        linkedItemKind: CoordinationItemKind.ask.value,
-        linkedItemCreatorId: 'u1',
-      );
-      expect(m.isPromotedSourceMessage, isFalse);
-      expect(RoomMessageTile.isCoordinationTimelineNotifyRow(m), isFalse);
-      expect(RoomMessageTile.showCoordinationItemFooter(m), isTrue);
-      expect(RoomMessageTile.showLifecycleFooter(m), isFalse);
-    });
+    test(
+      'non-promoted linked item uses coordination footer not inline card',
+      () {
+        final m = _msg(
+          id: 'notify',
+          linkedItemId: 'item1',
+          linkedEventKind: CoordinationItemEventKind.created.value,
+          linkedItemLinkedMessageId: 'source',
+          linkedItemKind: CoordinationItemKind.ask.value,
+          linkedItemCreatorId: 'u1',
+        );
+        expect(m.isPromotedSourceMessage, isFalse);
+        expect(RoomMessageTile.isCoordinationTimelineNotifyRow(m), isFalse);
+        expect(RoomMessageTile.showCoordinationItemFooter(m), isTrue);
+      },
+    );
 
-    test('orphan linkedItemId without item snapshot is not promoted source', () {
-      final m = RoomMessage(
-        id: 'orphan',
-        beaconId: 'b1',
-        authorId: 'u1',
-        body: '',
-        createdAt: DateTime.utc(2026),
-        linkedItemId: 'item1',
-        linkedEventKind: CoordinationItemEventKind.created.value,
-      );
-      expect(m.linkedCoordinationItem, isNull);
-      expect(m.isPromotedSourceMessage, isFalse);
-    });
+    test(
+      'orphan linkedItemId without item snapshot is not promoted source',
+      () {
+        final m = RoomMessage(
+          id: 'orphan',
+          beaconId: 'b1',
+          authorId: 'u1',
+          body: '',
+          createdAt: DateTime.utc(2026),
+          linkedItemId: 'item1',
+          linkedEventKind: CoordinationItemEventKind.created.value,
+        );
+        expect(m.linkedCoordinationItem, isNull);
+        expect(m.isPromotedSourceMessage, isFalse);
+      },
+    );
   });
 
   group('showCoordinationItemFooter with mark done', () {

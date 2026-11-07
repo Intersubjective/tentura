@@ -26,7 +26,12 @@ import '../../support/constellation_store_fixture.dart';
 import '../../support/phone_surface.dart';
 import '../graph/scene_layout_test_support.dart';
 
-const _legendViewer = Profile(id: 'Uviewer', displayName: 'Viewer', score: 3, rScore: 3);
+const _legendViewer = Profile(
+  id: 'Uviewer',
+  displayName: 'Viewer',
+  score: 3,
+  rScore: 3,
+);
 
 class _StubGraphCubit extends Cubit<GraphState> implements GraphCubit {
   _StubGraphCubit()
@@ -80,9 +85,6 @@ class _StubGraphCubit extends Cubit<GraphState> implements GraphCubit {
   Future<void> expandNode(NodeDetails node) async {}
 
   @override
-  bool canExpandNode(String id) => false;
-
-  @override
   bool canPageMore(String id) => false;
 
   @override
@@ -130,8 +132,7 @@ class _StubRepository implements ConstellationRepositoryPort {
     ConstellationFieldMembershipFilters membershipFilters =
         ConstellationFieldMembershipFilters.defaults,
     ConstellationProjection projection = ConstellationProjection.full,
-  }) async =>
-      field;
+  }) async => field;
 }
 
 ConstellationField _fieldWithNewPeer({required bool isNew}) =>
