@@ -13,7 +13,7 @@ import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/entity/beacon_activity_event_record.dart';
-import 'package:tentura_server/utils/room_mention_utils.dart';
+import 'package:tentura_server/domain/room/room_mention_utils.dart';
 import 'package:tentura_server/domain/entity/beacon_activity_event_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_room_record.dart';
 import 'package:tentura_server/domain/exception.dart';
