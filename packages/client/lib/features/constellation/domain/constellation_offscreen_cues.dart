@@ -1,5 +1,3 @@
-import 'package:force_directed_graphview/force_directed_graphview.dart';
-
 /// Edge of the Field safe viewport where off-screen nodes cluster.
 enum ConstellationOffscreenSide {
   left,
@@ -29,7 +27,8 @@ final class ConstellationOffscreenCueSnapshot {
   final int right;
   final int above;
   final int below;
-  final Map<ConstellationOffscreenSide, GraphNodeId> nearestBySide;
+  /// Graph scene node ids (e.g. `fp:<personId>`), keyed by cue side.
+  final Map<ConstellationOffscreenSide, String> nearestBySide;
 
   int countFor(ConstellationOffscreenSide side) => switch (side) {
     ConstellationOffscreenSide.left => left,
