@@ -353,7 +353,13 @@ class ConstellationSceneController {
     _placementHandoffGraphIds = {};
     final recovery = scheduleLayoutRecoveryAfterRebuild;
     scheduleLayoutRecoveryAfterRebuild = false;
-    final releaseOnTerminal = <GraphPresentationToken>{};
+    // A layout that supersedes a drop's handoff before its terminal frame
+    // takes over that drop's holds, or they would never be released.
+    final releaseOnTerminal = <GraphPresentationToken>{
+      for (final hold
+          in graphController.renderSnapshot.presentation.holds.values)
+        hold.token,
+    };
     if (recovery) {
       releaseOnTerminal.addAll(activePresentationReleaseTokens());
     } else if (handoffGraphIds.isNotEmpty) {

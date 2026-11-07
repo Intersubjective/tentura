@@ -53,8 +53,7 @@ final class _RecordingHidePort implements ConstellationFieldHidePort {
   @override
   Future<List<ConstellationFieldHiddenItem>> fetchHiddenItems({
     String? cursor,
-  }) async =>
-      hiddenItems;
+  }) async => hiddenItems;
 }
 
 ConstellationField _singleRequestField({
@@ -119,8 +118,7 @@ final class _StubFieldRepo implements ConstellationRepositoryPort {
     ConstellationFieldMembershipFilters membershipFilters =
         ConstellationFieldMembershipFilters.defaults,
     ConstellationProjection projection = ConstellationProjection.full,
-  }) async =>
-      field;
+  }) async => field;
 }
 
 final class _StubTargetedReadPort implements ConstellationTargetedReadPort {
@@ -129,14 +127,12 @@ final class _StubTargetedReadPort implements ConstellationTargetedReadPort {
     Set<String> beaconIds, {
     ConstellationFieldMembershipFilters membershipFilters =
         ConstellationFieldMembershipFilters.defaults,
-  }) async =>
-      const [];
+  }) async => const [];
 
   @override
   Future<List<ConstellationViewerRelation>> readViewerRelations(
     Set<String> personIds,
-  ) async =>
-      const [];
+  ) async => const [];
 }
 
 Future<void> _pumpPreview(
@@ -206,13 +202,12 @@ Future<void> _pumpList(WidgetTester tester, ConstellationCubit cubit) async {
 
 const _mapNodeKey = Key('field_hide.map_node');
 
-Future<void> _secondaryTapAt(WidgetTester tester, Offset global) async {
-  final gesture = await tester.startGesture(
-    global,
+Future<void> _secondaryTapAt(WidgetTester tester, Finder target) async {
+  await tester.tap(
+    target,
     kind: PointerDeviceKind.mouse,
     buttons: kSecondaryMouseButton,
   );
-  await gesture.up();
   await tester.pumpAndSettle();
 }
 
@@ -221,10 +216,12 @@ Future<void> _pumpMapChrome(
   ConstellationCubit cubit, {
   required String beaconId,
   TargetPlatform platform = TargetPlatform.android,
+  Locale locale = const Locale('en'),
 }) async {
   await tester.pumpPeopleTagsWidget(
     _themedApp(
       platform: platform,
+      locale: locale,
       child: BlocProvider<ConstellationCubit>.value(
         value: cubit,
         child: Center(
@@ -271,7 +268,9 @@ void main() {
       final request = cubit.state.field!.requests.single;
       await _pumpPreview(tester, cubit, request);
 
-      await tester.tap(find.byKey(TestIds.key(TestIds.constellationHideFromField)));
+      await tester.tap(
+        find.byKey(TestIds.key(TestIds.constellationHideFromField)),
+      );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
@@ -313,12 +312,56 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('pointer hover shows Pin and Hide toolbar; touch does not', (
+    testWidgets(
+      'pointer hover does not show toolbar or shift map node layout',
+      (
+        tester,
+      ) async {
+        final port = _RecordingHidePort();
+        final cubit = await _cubitWithHide(
+          field: _singleRequestField(requestId: 'req-hover-1'),
+          port: port,
+        );
+        addTearDown(cubit.close);
+
+        await _pumpMapChrome(
+          tester,
+          cubit,
+          platform: TargetPlatform.macOS,
+          beaconId: 'req-hover-1',
+        );
+
+        final node = find.byKey(_mapNodeKey);
+        final sizeBefore = tester.getSize(node);
+        final topLeftBefore = tester.getTopLeft(node);
+
+        final center = tester.getCenter(node);
+        final gesture = await tester.createGesture(
+          kind: PointerDeviceKind.mouse,
+        );
+        await gesture.addPointer(location: center);
+        addTearDown(gesture.removePointer);
+        await gesture.moveTo(center);
+        await tester.pump();
+
+        expect(find.text('Hide from Field'), findsNothing);
+        expect(find.text('Pin'), findsNothing);
+        expect(tester.getSize(node), sizeBefore);
+        expect(tester.getTopLeft(node), topLeftBefore);
+
+        await gesture.removePointer();
+        await tester.pump();
+      },
+    );
+
+    testWidgets('RU phone secondary tap on map chrome opens hide menu', (
       tester,
     ) async {
+      await usePhoneSurface(tester);
+
       final port = _RecordingHidePort();
       final cubit = await _cubitWithHide(
-        field: _singleRequestField(requestId: 'req-hover-1'),
+        field: _singleRequestField(requestId: 'req-ru-menu-1'),
         port: port,
       );
       addTearDown(cubit.close);
@@ -327,26 +370,14 @@ void main() {
         tester,
         cubit,
         platform: TargetPlatform.macOS,
-        beaconId: 'req-hover-1',
+        beaconId: 'req-ru-menu-1',
+        locale: const Locale('ru'),
       );
 
-      expect(find.text('Hide from Field'), findsNothing);
+      await _secondaryTapAt(tester, find.byKey(_mapNodeKey));
 
-      final center = tester.getCenter(find.byKey(_mapNodeKey));
-      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
-      await gesture.addPointer(location: center);
-      addTearDown(gesture.removePointer);
-      await gesture.moveTo(center);
-      await tester.pump();
-
-      expect(find.text('Hide from Field'), findsOneWidget);
-      expect(find.text('Pin'), findsOneWidget);
-
-      await gesture.removePointer();
-      await tester.pump();
-
-      await _pumpMapChrome(tester, cubit, beaconId: 'req-hover-1');
-      expect(find.text('Hide from Field'), findsNothing);
+      expect(find.text('Скрыть с «Поля»'), findsOneWidget);
+      expect(tester.takeException(), isNull);
     });
 
     testWidgets('secondary tap opens hide menu on map chrome', (tester) async {
@@ -364,8 +395,7 @@ void main() {
         beaconId: 'req-menu-1',
       );
 
-      final center = tester.getCenter(find.byKey(_mapNodeKey));
-      await _secondaryTapAt(tester, center);
+      await _secondaryTapAt(tester, find.byKey(_mapNodeKey));
 
       expect(find.text('Hide from Field'), findsOneWidget);
     });
@@ -397,7 +427,9 @@ void main() {
       addTearDown(cubit.close);
 
       await _pumpPreview(tester, cubit, cubit.state.field!.requests.single);
-      await tester.tap(find.byKey(TestIds.key(TestIds.constellationHideFromField)));
+      await tester.tap(
+        find.byKey(TestIds.key(TestIds.constellationHideFromField)),
+      );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 

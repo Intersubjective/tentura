@@ -93,6 +93,7 @@ class GraphViewConfiguration {
     this.onCanvasTap,
     this.onCanvasSecondaryTap,
     this.onCanvasLongPress,
+    this.onCanvasLongPressDrag,
     this.onNodeLongPress,
     this.nodeTapHitTester,
     this.nodePaintOrder,
@@ -145,6 +146,12 @@ class GraphViewConfiguration {
   /// Called for a primary long press that hits no node, in scene coordinates.
   final void Function(Offset scenePosition)? onCanvasLongPress;
 
+  /// Resolves the node an empty-canvas primary long press lifts, in scene
+  /// coordinates. The lift runs through the node drag hooks with the press's
+  /// grab offset; a lift released before the pointer moves past touch slop
+  /// ends as a cancel. Null leaves the press to [onCanvasLongPress].
+  final GraphNodeId? Function(Offset scenePosition)? onCanvasLongPressDrag;
+
   /// Touch/stylus long press on a draggable node; never fires with canvas long
   /// press for the same gesture.
   final NodeLongPressCallback<dynamic>? onNodeLongPress;
@@ -173,6 +180,7 @@ class GraphViewConfiguration {
       onCanvasTap != null ||
       onCanvasSecondaryTap != null ||
       onCanvasLongPress != null ||
+      onCanvasLongPressDrag != null ||
       onNodeLongPress != null;
 
   /// Returns whether [node] may be dragged.

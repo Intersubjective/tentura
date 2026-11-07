@@ -70,12 +70,12 @@ class ConstellationFieldHideButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     void onPressed() => unawaited(
-          _hideFromField(
-            context,
-            targetKind: targetKind,
-            beaconId: beaconId,
-          ),
-        );
+      _hideFromField(
+        context,
+        targetKind: targetKind,
+        beaconId: beaconId,
+      ),
+    );
     if (compact) {
       return Tooltip(
         message: l10n.constellationHideFromField,
@@ -172,7 +172,8 @@ Future<void> _undoHide(
   }
 }
 
-/// Pin + Hide toolbar for pointer hover; secondary tap opens the same menu.
+/// Secondary tap opens Pin / Hide menu; actions also live on preview sheets
+/// and list overflow (#255, #1154 — no hover toolbar on map nodes).
 class ConstellationFieldBeaconMapChrome extends StatefulWidget {
   const ConstellationFieldBeaconMapChrome({
     required this.targetKind,
@@ -192,29 +193,22 @@ class ConstellationFieldBeaconMapChrome extends StatefulWidget {
 
 class _ConstellationFieldBeaconMapChromeState
     extends State<ConstellationFieldBeaconMapChrome> {
-  bool _hovered = false;
   bool _menuPinned = false;
 
-  bool get _supportsHover {
-    final platform = Theme.of(context).platform;
-    return platform != TargetPlatform.android && platform != TargetPlatform.iOS;
-  }
-
-  bool get _showToolbar => _supportsHover && (_hovered || _menuPinned);
-
-  void _openMenu(TapDownDetails details) {
+  void _openMenuAt(Offset globalPosition) {
     final l10n = L10n.of(context)!;
     final cubit = context.read<ConstellationCubit>();
     final target = ConstellationAnchorTarget.beacon(widget.beaconId);
     final anchored = cubit.isAnchored(target);
+    final overlay =
+        Overlay.of(context).context.findRenderObject()! as RenderBox;
+    final local = overlay.globalToLocal(globalPosition);
     unawaited(
       showMenu<void>(
         context: context,
-        position: RelativeRect.fromLTRB(
-          details.globalPosition.dx,
-          details.globalPosition.dy,
-          details.globalPosition.dx,
-          details.globalPosition.dy,
+        position: RelativeRect.fromRect(
+          Rect.fromLTWH(local.dx, local.dy, 0, 0),
+          Offset.zero & overlay.size,
         ),
         items: [
           PopupMenuItem<void>(
@@ -246,65 +240,17 @@ class _ConstellationFieldBeaconMapChromeState
 
   @override
   Widget build(BuildContext context) {
-    final l10n = L10n.of(context)!;
-    final tt = context.tt;
-    final cubit = context.read<ConstellationCubit>();
-    final target = ConstellationAnchorTarget.beacon(widget.beaconId);
-    final anchored = cubit.isAnchored(target);
     return TapRegion(
-      onTapOutside: _menuPinned ? (_) => setState(() => _menuPinned = false) : null,
-      child: MouseRegion(
-        onEnter: _supportsHover ? (_) => setState(() => _hovered = true) : null,
-        onExit: _supportsHover ? (_) => setState(() => _hovered = false) : null,
-        child: GestureDetector(
-          behavior: HitTestBehavior.deferToChild,
-          onSecondaryTapDown: (details) {
-            setState(() => _menuPinned = true);
-            _openMenu(details);
-          },
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (_showToolbar)
-                Padding(
-                  padding: EdgeInsets.only(bottom: tt.tightGap),
-                  child: Material(
-                    elevation: 2,
-                    borderRadius: BorderRadius.circular(tt.buttonRadius),
-                    color: Theme.of(context).colorScheme.surface,
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: tt.tightGap),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          TenturaTextAction(
-                            label: anchored
-                                ? l10n.constellationUnpinTarget
-                                : l10n.constellationPinTarget,
-                            onPressed: () =>
-                                unawaited(cubit.pinFromText(target: target)),
-                            minInteractive: true,
-                          ),
-                          TenturaTextAction(
-                            label: l10n.constellationHideFromField,
-                            onPressed: () => unawaited(
-                              _hideFromField(
-                                context,
-                                targetKind: widget.targetKind,
-                                beaconId: widget.beaconId,
-                              ),
-                            ),
-                            minInteractive: true,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              widget.child,
-            ],
-          ),
-        ),
+      onTapOutside: _menuPinned
+          ? (_) => setState(() => _menuPinned = false)
+          : null,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onSecondaryTapUp: (details) {
+          setState(() => _menuPinned = true);
+          _openMenuAt(details.globalPosition);
+        },
+        child: widget.child,
       ),
     );
   }

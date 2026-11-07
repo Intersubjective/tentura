@@ -222,6 +222,9 @@ class _ConstellationBodyState extends State<ConstellationBody>
 
   ConstellationTagHullHitTester? _tagHullHitTester;
 
+  // The own tag whose hull a press-and-hold lifted into a drag (#1021).
+  String? _liftedTagId;
+
   // The level held back near a threshold while a gesture ran must catch up
   // with the scale once the last pointer is gone.
   void _onPointerReleased() {
@@ -254,6 +257,40 @@ class _ConstellationBodyState extends State<ConstellationBody>
       selectedTagIds: lensCubit.state.selectedOwn,
       peopleOf: store.peopleInTag,
     );
+  }
+
+  /// Lifts the own tag whose hull holds empty [scene] space: its people
+  /// start a weighted group drag; returns the node the pointer carries.
+  GraphNodeId? _liftTagHull(ConstellationCubit cubit, Offset scene) {
+    final store = _peopleTags;
+    if (store == null ||
+        cubit.state.tagView != null ||
+        cubit.state.isComposing) {
+      return null;
+    }
+    _updateTagHullHitTester(cubit);
+    final tagId = _tagHullHitTester?.tagHullAt(scene);
+    if (tagId == null) {
+      return null;
+    }
+    final handle = cubit.beginDragTagArea(
+      tagId: tagId,
+      peopleOfTag: store.peopleInTag,
+      tagsOfPerson: store.tagsOfPerson,
+    );
+    if (handle == null) {
+      return null;
+    }
+    // A long press lifts in Arranging, as a long press on a node does.
+    maybeConstellationSelection(context)?.enterArranging();
+    setState(() => _liftedTagId = tagId);
+    return constellationGraphNodeIdForTarget(handle);
+  }
+
+  void _lowerTagHull() {
+    if (mounted && _liftedTagId != null) {
+      setState(() => _liftedTagId = null);
+    }
   }
 
   ConstellationDetailLevel get _detail => _zoom.value;
@@ -1907,6 +1944,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
                             tag,
                       ],
                       selectedTagIds: filter.selectedOwn,
+                      liftedTagId: _liftedTagId,
                       peopleOf: store.peopleInTag,
                     );
                   },
@@ -2219,31 +2257,14 @@ class _ConstellationBodyState extends State<ConstellationBody>
               onCanvasLongPress:
                   composer == null || composer.createCubit != null
                   ? null
-                  : (scene) {
-                      final cubit = context.read<ConstellationCubit>();
-                      if (cubit.state.tagView != null ||
-                          cubit.state.isComposing ||
-                          !widget.peopleTagsEnabled) {
-                        offerCreate(scene);
-                        return;
-                      }
-                      _updateTagHullHitTester(cubit);
-                      final tagId = _tagHullHitTester?.tagHullAt(scene);
-                      if (tagId == null) {
-                        offerCreate(scene);
-                        return;
-                      }
-                      final store = _peopleTags;
-                      if (store == null) {
-                        offerCreate(scene);
-                        return;
-                      }
-                      cubit.beginDragTagArea(
-                        tagId: tagId,
-                        peopleOfTag: store.peopleInTag,
-                        tagsOfPerson: store.tagsOfPerson,
-                      );
-                    },
+                  : offerCreate,
+              // Holding empty space in a tag's hull lifts the whole tag.
+              onCanvasLongPressDrag:
+                  !widget.peopleTagsEnabled ||
+                      composer == null ||
+                      composer.createCubit != null
+                  ? null
+                  : (scene) => _liftTagHull(cubit, scene),
               minScale: 0.1,
               maxScale: 2,
               centerOnFirstLayout: false,
@@ -2275,8 +2296,9 @@ class _ConstellationBodyState extends State<ConstellationBody>
                       return true;
                     },
               onNodeDragStart: (node, position) {
-                // The tag view only looks; a drag there writes nothing.
-                if (cubit.state.tagView != null) {
+                // The tag view only looks; a drag there writes nothing. A
+                // lifted tag began its group drag when the hold lifted it.
+                if (cubit.state.tagView != null || _liftedTagId != null) {
                   return;
                 }
                 // While composing a person is only moved for the session.
@@ -2309,6 +2331,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
                 _syncComposerPersonPositions(cubit, composer);
                 _lastPointerGlobal = globalPosition;
                 if (_peopleTags != null &&
+                    _liftedTagId == null &&
                     !cubit.state.isComposing &&
                     cubit.state.tagView == null) {
                   _lastTagChipDropHint = constellationTagChipDropAt(
@@ -2318,6 +2341,8 @@ class _ConstellationBodyState extends State<ConstellationBody>
                 }
               },
               onNodeDragEnd: (node, position, globalPosition) {
+                final tagLifted = _liftedTagId != null;
+                _lowerTagHull();
                 if (cubit.state.tagView != null) {
                   cubit.endTagViewDrag(node);
                   return;
@@ -2328,7 +2353,8 @@ class _ConstellationBodyState extends State<ConstellationBody>
                   composer?.personDropped(node.id);
                   return;
                 }
-                if (node is FieldPersonNode &&
+                if (!tagLifted &&
+                    node is FieldPersonNode &&
                     _dropOnTagChip(
                       context,
                       cubit,
@@ -2363,6 +2389,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
                 }
               },
               onNodeDragCancel: (_) {
+                _lowerTagHull();
                 cubit.onPointerCancelDuringDrag();
                 _syncComposerPersonPositions(cubit, composer);
               },

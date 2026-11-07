@@ -48,6 +48,7 @@ class GraphView<N, E> extends StatefulWidget {
     this.onCanvasTap,
     this.onCanvasSecondaryTap,
     this.onCanvasLongPress,
+    this.onCanvasLongPressDrag,
     this.onNodeLongPress,
     this.nodeTapHitTester,
     this.nodePaintOrder,
@@ -144,6 +145,9 @@ class GraphView<N, E> extends StatefulWidget {
 
   /// Called for a primary long press that hits no node, in scene coordinates.
   final void Function(Offset scenePosition)? onCanvasLongPress;
+
+  /// Node an empty-canvas long press lifts into a node drag, or null.
+  final GraphNodeId? Function(Offset scenePosition)? onCanvasLongPressDrag;
 
   /// Touch/stylus long press on a draggable node within slop.
   final NodeLongPressCallback<N>? onNodeLongPress;
@@ -263,6 +267,7 @@ class _GraphViewState<N, E> extends State<GraphView<N, E>>
         onCanvasTap: widget.onCanvasTap,
         onCanvasSecondaryTap: widget.onCanvasSecondaryTap,
         onCanvasLongPress: widget.onCanvasLongPress,
+        onCanvasLongPressDrag: widget.onCanvasLongPressDrag,
         onNodeLongPress: widget.onNodeLongPress == null
             ? null
             : (node, position) => widget.onNodeLongPress!(node as N, position),
