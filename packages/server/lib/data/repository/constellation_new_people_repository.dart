@@ -2,7 +2,7 @@ import 'package:injectable/injectable.dart';
 import 'package:postgres/postgres.dart' show Type, TypedValue;
 
 import 'package:tentura_server/domain/port/constellation_new_people_repository_port.dart';
-import 'package:tentura_server/domain/use_case/people_tags_case.dart'
+import 'package:tentura_server/consts/people_tag_consts.dart'
     show kPersonTagSourceInherited;
 
 import '../database/tentura_db.dart';
