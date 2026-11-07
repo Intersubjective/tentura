@@ -61,6 +61,9 @@ Exception mapRemoteFailure(Object? error) {
   if (error is AuthSessionLostException) {
     return error;
   }
+  if (error is AuthSessionAccountChangedException) {
+    return error;
+  }
   if (error is ParallelWaitError) {
     final causes = parallelWaitCauses(error)?.map(mapRemoteFailure).toList();
     if (causes != null) {

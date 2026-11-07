@@ -9,6 +9,8 @@ import 'package:http/http.dart' as http;
 import 'package:tentura_root/consts.dart';
 
 import 'package:tentura/domain/exception/server_exception.dart';
+import 'package:tentura/features/auth/domain/exception.dart';
+import 'package:tentura/features/auth/domain/port/auth_session_account_change_source.dart';
 
 import 'auth_box.dart';
 import 'credentials.dart';
@@ -24,7 +26,8 @@ typedef GqlFetcher =
       forward,
     ]);
 
-abstract base class RemoteApiClientBase {
+abstract base class RemoteApiClientBase
+    implements AuthSessionAccountChangeSource {
   RemoteApiClientBase({
     required this.authJwtExpiresIn,
     required this.apiEndpointUrl,
@@ -60,6 +63,16 @@ abstract base class RemoteApiClientBase {
 
   Credentials? _sessionCredentials;
 
+  final _sessionAccountChanges =
+      StreamController<AuthSessionAccountChangedException>.broadcast();
+
+  @override
+  Stream<AuthSessionAccountChangedException> get sessionAccountChanges =>
+      _sessionAccountChanges.stream;
+
+  /// The authoritative signed-in account, once realtime has been bound.
+  String? get realtimeAccountId => null;
+
   bool get isSessionAuth => _sessionAuth;
 
   /// Decoded server frames of the realtime socket; empty for a client that
@@ -69,17 +82,17 @@ abstract base class RemoteApiClientBase {
   /// Sends a frame on the realtime socket; dropped without one.
   void webSocketSend(Object message) {}
 
-  bool get hasValidToken =>
-      _sessionAuth
-          ? (_sessionCredentials?.hasValidToken ?? false)
-          : (_authBox?.hasValidToken ?? false);
+  bool get hasValidToken => _sessionAuth
+      ? (_sessionCredentials?.hasValidToken ?? false)
+      : (_authBox?.hasValidToken ?? false);
 
   //
   //
   //
   @mustCallSuper
   Future<void> close() async {
-    return dropAuth();
+    await dropAuth();
+    await _sessionAccountChanges.close();
   }
 
   ///
@@ -179,8 +192,10 @@ abstract base class RemoteApiClientBase {
   @mustCallSuper
   Future<Credentials> getAuthToken() async {
     if (_sessionAuth) {
-      if (_sessionCredentials != null && _sessionCredentials!.hasValidToken) {
-        return _sessionCredentials!;
+      final credentials = _sessionCredentials;
+      if (credentials != null && credentials.hasValidToken) {
+        _checkSessionAccount(credentials);
+        return credentials;
       }
     } else {
       if (_authBox == null) {
@@ -211,6 +226,7 @@ abstract base class RemoteApiClientBase {
       if (generationAtStart != _authGeneration) {
         throw const AuthenticationNoKeyException();
       }
+      _checkSessionAccount(credentials);
       return _sessionCredentials = credentials;
     }
     final credentials = await _authBox!.fetchCredentials(request);
@@ -219,6 +235,16 @@ abstract base class RemoteApiClientBase {
     }
     _authBox = _authBox!.copyWith(credentials: credentials);
     return credentials;
+  }
+
+  void _checkSessionAccount(Credentials credentials) {
+    final accountId = realtimeAccountId;
+    if (accountId != null && credentials.userId != accountId) {
+      _sessionCredentials = null;
+      const error = AuthSessionAccountChangedException();
+      _sessionAccountChanges.add(error);
+      throw error;
+    }
   }
 
   /// Authenticated GET (e.g. private room attachment binary download).
