@@ -111,6 +111,16 @@ abstract class BeaconCreateState extends StateBase with _$BeaconCreateState {
 
   bool get isEditMode => editId != null;
 
+  /// First missing field that blocks Save changes in the edit-request editor.
+  BeaconPublishBlocker? get editSaveBlocker {
+    if (!isEditMode) return null;
+    final t = title.trim();
+    if (t.length < kTitleMinLength || t.length > kBeaconTitleMaxLength) {
+      return BeaconPublishBlocker.title;
+    }
+    return null;
+  }
+
   /// First missing field that blocks Publish on create / draft flows.
   BeaconPublishBlocker? get publishBlocker {
     if (isEditMode) {
