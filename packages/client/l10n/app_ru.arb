@@ -3412,8 +3412,14 @@
   "@activityShowInStream": {
     "context": "InboxScreen"
   },
-  "notificationHistoryTitle": "Обновления",
+  "notificationHistoryTitle": "История уведомлений",
   "@notificationHistoryTitle": {
+    "description": "Пункт меню Activity — глобальная история уведомлений",
+    "context": "InboxScreen"
+  },
+  "notificationHistoryScreenTitle": "История",
+  "@notificationHistoryScreenTitle": {
+    "description": "Заголовок экрана истории уведомлений (#1067)",
     "context": "UpdatesScreen"
   },
   "activityWatchingDigest": "{count, plural, one{Обновился {count} запрос, за которым вы следите} few{Обновились {count} запроса, за которыми вы следите} many{Обновились {count} запросов, за которыми вы следите} other{Обновились {count} запроса, за которыми вы следите}}",
