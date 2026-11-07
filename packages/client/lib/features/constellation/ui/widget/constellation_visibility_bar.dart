@@ -26,6 +26,13 @@ class ConstellationVisibilityBar extends StatelessWidget {
         if (counts == null) {
           return const SizedBox.shrink();
         }
+        final visibleTotal =
+            counts.requests +
+            counts.posts +
+            counts.people.values.fold<int>(0, (sum, n) => sum + n);
+        if (visibleTotal == 0) {
+          return const SizedBox.shrink();
+        }
         final l10n = L10n.of(context)!;
         final tt = context.tt;
         final theme = Theme.of(context);

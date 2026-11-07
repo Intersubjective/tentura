@@ -1665,8 +1665,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
 
   void _applyLoadedField(ConstellationField field) {
     final previous = _lastAppliedStoreField;
-    final reload =
-        previous == null || previous.loadedAt != field.loadedAt;
+    final reload = previous == null || previous.loadedAt != field.loadedAt;
     _lastAppliedStoreField = field;
     if (reload) {
       _resetFieldAutomaticFramingState();
@@ -4408,6 +4407,20 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     return anchorTargetForNode(node) != null;
   }
 
+  /// Whether Arranging may be offered: at least one draggable node besides
+  /// the viewer (#1048). Uses the composed eligibility sets so the gate does
+  /// not flicker before layout paints nodes.
+  bool get canArrange {
+    final composition = state.composition;
+    if (composition == null) {
+      return false;
+    }
+    if (composition.keptPeerIds.isNotEmpty) {
+      return true;
+    }
+    return composition.eligibleRequestIds.isNotEmpty;
+  }
+
   List<GraphNodeId> orderedNodeIdsForPaint() {
     return orderedNodesForPaint().map(tenturaGraphNodeId).toList();
   }
@@ -4588,12 +4601,23 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
 
   Future<void> _restoreVisibility() async {
     final visibilityCase = _visibilityCase;
-    if (visibilityCase == null) return;
+    if (visibilityCase == null) {
+      if (!isClosed && !state.visibilityRestored) {
+        emit(state.copyWith(visibilityRestored: true));
+      }
+      return;
+    }
     final stored = await visibilityCase.read(viewerId: _viewer.id);
+    if (isClosed) return;
     // A choice made while the store was read wins over the stored one.
-    if (isClosed || _visibilityTouched || stored == state.visibility) return;
-    emit(state.copyWith(visibility: stored));
-    if (state.field != null) _recomposeAndLayout();
+    if (!_visibilityTouched && stored != state.visibility) {
+      emit(state.copyWith(visibility: stored, visibilityRestored: true));
+      if (state.field != null) _recomposeAndLayout();
+      return;
+    }
+    if (!state.visibilityRestored) {
+      emit(state.copyWith(visibilityRestored: true));
+    }
   }
 
   bool _visibilityTouched = false;
