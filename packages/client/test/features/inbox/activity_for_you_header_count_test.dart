@@ -44,4 +44,95 @@ void main() {
       1,
     );
   });
+
+  group('activityForYouPinnedZoneHasRows (#1068)', () {
+    const zoneInput = (
+      offersState: base,
+      visiblePinnedCount: 0,
+      pinnedPromptRows: false,
+      collapsedInvitePrompt: false,
+    );
+
+    test('false when the pinned zone is empty', () {
+      expect(
+        activityForYouPinnedZoneHasRows(
+          offersState: zoneInput.offersState,
+          visiblePinnedCount: zoneInput.visiblePinnedCount,
+          pinnedPromptRows: zoneInput.pinnedPromptRows,
+          collapsedInvitePrompt: zoneInput.collapsedInvitePrompt,
+        ),
+        isFalse,
+      );
+    });
+
+    test('true for visible offers', () {
+      expect(
+        activityForYouPinnedZoneHasRows(
+          offersState: zoneInput.offersState,
+          visiblePinnedCount: 1,
+          pinnedPromptRows: false,
+          collapsedInvitePrompt: false,
+        ),
+        isTrue,
+      );
+    });
+
+    test('true while an offer is animating out', () {
+      expect(
+        activityForYouPinnedZoneHasRows(
+          offersState: zoneInput.offersState.copyWith(items: []),
+          visiblePinnedCount: 1,
+          pinnedPromptRows: false,
+          collapsedInvitePrompt: false,
+        ),
+        isTrue,
+        reason: 'exitingOffers still count as pinned-zone rows',
+      );
+    });
+
+    test(
+      'true for pinned prompts, collapsed batch, load failure, or unseen pages',
+      () {
+        expect(
+          activityForYouPinnedZoneHasRows(
+            offersState: zoneInput.offersState,
+            visiblePinnedCount: 0,
+            pinnedPromptRows: true,
+            collapsedInvitePrompt: false,
+          ),
+          isTrue,
+        );
+        expect(
+          activityForYouPinnedZoneHasRows(
+            offersState: zoneInput.offersState,
+            visiblePinnedCount: 0,
+            pinnedPromptRows: false,
+            collapsedInvitePrompt: true,
+          ),
+          isTrue,
+        );
+        expect(
+          activityForYouPinnedZoneHasRows(
+            offersState: zoneInput.offersState.copyWith(pageLoadFailed: true),
+            visiblePinnedCount: 0,
+            pinnedPromptRows: false,
+            collapsedInvitePrompt: false,
+          ),
+          isTrue,
+        );
+        expect(
+          activityForYouPinnedZoneHasRows(
+            offersState: zoneInput.offersState.copyWith(
+              hasMore: true,
+              totalCount: 3,
+            ),
+            visiblePinnedCount: 0,
+            pinnedPromptRows: false,
+            collapsedInvitePrompt: false,
+          ),
+          isTrue,
+        );
+      },
+    );
+  });
 }
