@@ -15,7 +15,8 @@ import 'package:tentura/features/graph/ui/utils/graph_scene_ids.dart';
 ///
 /// When [peopleInTag] / [tagsOfPerson] are set (#1020), newcomers without a
 /// prior sit near their tag area centroid (or between areas), then the magnet
-/// pass runs as before.
+/// pass runs as before. A cold layout (no previous positions) has no
+/// newcomers.
 @immutable
 class ConstellationMagnetLayout implements SceneLayoutAlgorithm {
   ConstellationMagnetLayout({
@@ -55,6 +56,8 @@ class ConstellationMagnetLayout implements SceneLayoutAlgorithm {
       other is ConstellationMagnetLayout &&
           base == other.base &&
           viewerId == other.viewerId &&
+          tagsOfPerson == other.tagsOfPerson &&
+          peopleInTag == other.peopleInTag &&
           _equality.equals(priors, other.priors) &&
           _equality.equals(magnetsByPerson, other.magnetsByPerson) &&
           _equality.equals(followers, other.followers) &&
@@ -64,6 +67,8 @@ class ConstellationMagnetLayout implements SceneLayoutAlgorithm {
   int get hashCode => Object.hash(
     base,
     viewerId,
+    tagsOfPerson,
+    peopleInTag,
     _equality.hash(priors),
     _equality.hash(magnetsByPerson),
     _equality.hash(followers),
@@ -136,6 +141,11 @@ class ConstellationMagnetLayout implements SceneLayoutAlgorithm {
               positions: {...previous.positions, ...priors},
             ),
     );
+    // Only a person new to an arrangement already on screen is a newcomer.
+    // A cold layout (first load, account change) has no arrangement yet: the
+    // base layout is the settled one, and seating everyone there would draw
+    // every tag squeezed until the next relayout spreads it again.
+    final seatNewcomers = previous != null && previous.positions.isNotEmpty;
     await for (final frame in base.layout(clean)) {
       final positions = Map.of(frame.positions);
 
@@ -154,7 +164,7 @@ class ConstellationMagnetLayout implements SceneLayoutAlgorithm {
       };
 
       for (final personId in fieldPersonIds) {
-        if (personId == viewerId) {
+        if (!seatNewcomers || personId == viewerId) {
           continue;
         }
         final graphId = _personGid(personId);
@@ -213,7 +223,10 @@ class ConstellationMagnetLayout implements SceneLayoutAlgorithm {
           for (final id in members) {
             maxCell = math.max(maxCell, cellFor(id));
           }
-          return constellationTagAreaRadiusForSeating(memberCount: n, maxCell: maxCell);
+          return constellationTagAreaRadiusForSeating(
+            memberCount: n,
+            maxCell: maxCell,
+          );
         }
 
         final target = constellationTagAreaSeatingTargetScene(
