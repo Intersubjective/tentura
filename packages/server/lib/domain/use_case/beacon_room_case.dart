@@ -14,6 +14,8 @@ import 'package:tentura_server/domain/port/beacon_fact_card_repository_port.dart
 
 import 'package:tentura_server/domain/port/beacon_hierarchy_repository_port.dart';
 import 'package:tentura_server/domain/use_case/room_write_guard.dart';
+import 'package:tentura_server/domain/use_case/room_message_rate_limit.dart';
+import 'package:tentura_server/domain/policy/room_access_policy.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_lobby_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
@@ -455,7 +457,7 @@ class BeaconRoomCase extends UseCaseBase {
   Future<bool> _canUseRoom({
     required String beaconId,
     required String userId,
-  }) => _roomGate(
+  }) => RoomAccessPolicy.canUseRoom(
     isAuthor: () => _room.isBeaconAuthor(beaconId: beaconId, userId: userId),
     isBlockedFromPost: () =>
         _isBlockedFromPost(beaconId: beaconId, userId: userId),
@@ -465,21 +467,6 @@ class BeaconRoomCase extends UseCaseBase {
       userId: userId,
     ))?.roomAccess,
   );
-
-  /// Who may use a Request's room, in this order: its author; nobody with a
-  /// block either way with a Post's author; a steward; an admitted
-  /// participant. Each fact is read only when the ones before do not decide.
-  static Future<bool> _roomGate({
-    required Future<bool> Function() isAuthor,
-    required Future<bool> Function() isBlockedFromPost,
-    required Future<bool> Function() isSteward,
-    required Future<int?> Function() roomAccess,
-  }) async {
-    if (await isAuthor()) return true;
-    if (await isBlockedFromPost()) return false;
-    if (await isSteward()) return true;
-    return await roomAccess() == RoomAccessBits.admitted;
-  }
 
   // DORMANT(item-threads): item-thread participant access helper.
   // Rooms are otherwise General-only (guard: beacon_room_message_general_only_guard, DiscussionScopeDisabledException); thread_item_id is NULL for every new row outside a Request lobby (U088). See #192.
@@ -614,21 +601,6 @@ class BeaconRoomCase extends UseCaseBase {
     if (trimmedBody.length > kMaxRoomMessageBodyLength) {
       throw const BeaconCreateException(
         description: 'Message is too long',
-      );
-    }
-  }
-
-  /// Spam control: reject when an author has posted too many room messages
-  /// within the configured trailing window (across all beacons/threads).
-  Future<void> _enforceMessageRateLimit(String userId) async {
-    final recent = await _room.countRecentMessagesByAuthor(
-      authorId: userId,
-      window: env.roomMessageRateWindow,
-    );
-    if (recent >= env.roomMessageMaxPerUser) {
-      logger.info('room message rate-limited for user $userId');
-      throw const RateLimitedException(
-        description: 'Too many messages sent, please slow down',
       );
     }
   }
@@ -843,7 +815,11 @@ class BeaconRoomCase extends UseCaseBase {
           );
         }
       }
-      await _enforceMessageRateLimit(userId);
+      await _room.enforceMessageRateLimit(
+        userId: userId,
+        env: env,
+        logger: logger,
+      );
       final trimmed = body.trim();
       _assertBodyWithinLimit(trimmed);
       Uint8List? payload;
@@ -1386,7 +1362,7 @@ class BeaconRoomCase extends UseCaseBase {
     );
     final members = <String, RoomViewerFacts>{
       for (final f in facts.values)
-        if (await _roomGate(
+        if (await RoomAccessPolicy.canUseRoom(
           isAuthor: () async => f.authorId == userId,
           isBlockedFromPost: () async =>
               f.kind == BeaconKind.post &&
@@ -2403,7 +2379,11 @@ class BeaconRoomCase extends UseCaseBase {
         throw const UnauthorizedException(description: 'Room access required');
       }
       await _rejectOrdinaryUserWritesForLifecycle(beaconId);
-      await _enforceMessageRateLimit(userId);
+      await _room.enforceMessageRateLimit(
+        userId: userId,
+        env: env,
+        logger: logger,
+      );
       final trimmedQuestion = question.trim();
       if (trimmedQuestion.isEmpty) {
         throw const BeaconCreateException(
