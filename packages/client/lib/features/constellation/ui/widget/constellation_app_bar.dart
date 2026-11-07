@@ -520,7 +520,7 @@ class _ConstellationOverflowMenu extends StatelessWidget {
                 ? l10n.graphLegendClose
                 : l10n.graphLegendOpen,
           ),
-        if (selection != null)
+        if (selection != null && cubit.canArrange)
           item(
             menuContext,
             action: _ConstellationOverflowAction.select,

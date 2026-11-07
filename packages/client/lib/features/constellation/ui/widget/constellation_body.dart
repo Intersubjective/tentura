@@ -356,8 +356,13 @@ class _ConstellationBodyState extends State<ConstellationBody>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.hidden) {
+      maybeConstellationSelection(context)?.exitArranging();
       context.read<ConstellationCubit>().onTabHidden();
     }
+  }
+
+  void _exitArrangingIfActive() {
+    maybeConstellationSelection(context)?.exitArranging();
   }
 
   double _strokeScale() {
@@ -710,6 +715,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
     String beaconId, {
     String? viewTab,
   }) {
+    _exitArrangingIfActive();
     context.read<ConstellationCubit>().openedFieldBeacon(beaconId);
     unawaited(() async {
       await context.router.push(
@@ -763,6 +769,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
       case ConstellationRequestPreflightUnavailable(:final message):
         _showActionMessage(context, message);
       case ConstellationRequestPreflightReady(:final request):
+        _exitArrangingIfActive();
         await context.router.push(ForwardBeaconRoute(beaconId: request.id));
     }
   }
@@ -1375,6 +1382,28 @@ class _ConstellationBodyState extends State<ConstellationBody>
         ),
         BlocListener<ConstellationCubit, ConstellationState>(
           listenWhen: (previous, current) =>
+              previous.visibility != current.visibility ||
+              previous.field != current.field,
+          listener: (context, state) {
+            final selection = maybeConstellationSelection(context);
+            if (selection == null || !selection.state.arranging) {
+              return;
+            }
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!context.mounted) {
+                return;
+              }
+              if (!selection.state.arranging) {
+                return;
+              }
+              if (!context.read<ConstellationCubit>().canArrange) {
+                selection.exitArranging();
+              }
+            });
+          },
+        ),
+        BlocListener<ConstellationCubit, ConstellationState>(
+          listenWhen: (previous, current) =>
               previous.selectedPersonId != current.selectedPersonId ||
               previous.selectedRequestId != current.selectedRequestId,
           listener: (context, state) {
@@ -1720,6 +1749,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
               const ConstellationEmptyFilterBanner(),
               const ConstellationNoContactsBanner(),
               const ConstellationVisibilityBar(),
+              _ConstellationFieldHoldHintBanner(cubit: cubit),
             ],
             if (_selectionUnavailableMessage != null)
               Material(
@@ -1754,6 +1784,12 @@ class _ConstellationBodyState extends State<ConstellationBody>
   }
 
   Widget _buildTagRow(BuildContext context) {
+    final cubit = context.read<ConstellationCubit>();
+    final field = cubit.state.field;
+    if (field == null ||
+        constellationFieldHasNoContacts(field, cubit.viewerId)) {
+      return const SizedBox.shrink();
+    }
     final store = _peopleTags;
     final lensCubit = maybeConstellationTagLens(context);
     if (store == null || lensCubit == null) return const SizedBox.shrink();
@@ -1995,6 +2031,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
     ];
     final picked = await showConstellationTagLensRequestPicker(context, mine);
     if (picked == null || !context.mounted) return;
+    _exitArrangingIfActive();
     await context.router.push(
       ForwardBeaconRoute(
         beaconId: picked.id,
@@ -2657,12 +2694,6 @@ class _ConstellationBodyState extends State<ConstellationBody>
                     ),
                   ),
           ),
-        Positioned(
-          top: 0,
-          left: 0,
-          right: 0,
-          child: _ConstellationFieldHoldHintBanner(cubit: cubit),
-        ),
         Positioned.fill(
           child: ConstellationPlacementMarkerLayer(cubit: cubit),
         ),
@@ -4003,16 +4034,28 @@ class _ConstellationFieldHoldHintBanner extends StatelessWidget {
       bloc: cubit,
       buildWhen: (previous, current) =>
           previous.visibility.fieldHoldHintDismissed !=
-          current.visibility.fieldHoldHintDismissed,
+              current.visibility.fieldHoldHintDismissed ||
+          previous.visibilityRestored != current.visibilityRestored ||
+          previous.field != current.field ||
+          previous.composition != current.composition,
       builder: (context, state) {
-        if (state.visibility.fieldHoldHintDismissed ||
+        if (!state.visibilityRestored ||
+            state.visibility.fieldHoldHintDismissed ||
             state.viewMode != ConstellationViewMode.map) {
+          return const SizedBox.shrink();
+        }
+        final field = state.field;
+        if (field == null ||
+            constellationFieldHasNoContacts(field, cubit.viewerId)) {
           return const SizedBox.shrink();
         }
         if (selection?.state.arranging ?? false) {
           return const SizedBox.shrink();
         }
         if (RendererBinding.instance.mouseTracker.mouseIsConnected) {
+          return const SizedBox.shrink();
+        }
+        if (context.windowClass != WindowClass.compact) {
           return const SizedBox.shrink();
         }
         final l10n = L10n.of(context)!;

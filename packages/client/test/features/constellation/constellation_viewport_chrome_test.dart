@@ -9,6 +9,7 @@ import 'package:tentura/features/constellation/domain/entity/constellation_ancho
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
+import 'package:tentura/features/constellation/ui/widget/constellation_no_contacts.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_person_context_cubit.dart';
 import 'package:tentura/domain/entity/lazy_write_notice.dart';
 import 'package:tentura/features/graph/domain/use_case/graph_trust_write_case.dart';
@@ -148,6 +149,10 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      if (!constellationFieldHasNoContacts(cubit.state.field!, cubit.viewerId)) {
+        cubit.dismissFieldHoldHint();
+        await tester.pumpAndSettle();
+      }
       final controller = cubit.graphController;
       final viewerFinder = find.byType(InteractiveViewer);
       final viewport = tester.getRect(viewerFinder);

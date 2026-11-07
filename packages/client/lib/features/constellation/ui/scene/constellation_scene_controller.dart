@@ -776,6 +776,20 @@ class ConstellationSceneController {
     ConstellationPerf.timeSync('scene.build', build);
   }
 
+  /// Updates overflow / text-view display metadata when composition changes
+  /// without relayout (same anchor projection and peer set).
+  void syncLabelDisplayPlan(ConstellationLabelDisplayPlan plan) {
+    final drawnSatellites = constellationDrawnSatellites(
+      plan,
+      hardPinnedRequestIds: layoutPinnedRequestIds,
+    );
+    layoutVisibleRequestsByAuthor = drawnSatellites.byAuthor;
+    layoutEgoOwnRequestIds = drawnSatellites.egoOwn;
+    displayedRequestIds = plan.drawnRequestIds;
+    overflowHiddenCountByAuthor = plan.overflowHiddenCountByAuthor;
+    expandedExtraCountByAuthor = plan.expandedExtraCountByAuthor;
+  }
+
   /// Reconciles the graph topology with [field]; returns the new node set and
   /// the node ids present before, so the caller can place composer nodes.
   ({Set<NodeDetails> nodes, Set<GraphNodeId> previousNodeIds}) buildGraphScene({

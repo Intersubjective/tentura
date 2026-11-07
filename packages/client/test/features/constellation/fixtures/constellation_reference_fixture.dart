@@ -246,6 +246,7 @@ Future<FakeUiEffectPort> pumpConstellationBody(
   bool touchNodeDragLocked = false,
   GraphPersonContextCubit? graphPersonContext,
   bool arrangeV2Enabled = false,
+  bool stabilizeFieldChrome = true,
 }) async {
   final resolvedScaler = textScaler ?? TextScaler.linear(textScale);
   await tester.binding.setSurfaceSize(size);
@@ -315,5 +316,8 @@ Future<FakeUiEffectPort> pumpConstellationBody(
   );
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 400));
+  if (stabilizeFieldChrome) {
+    await stabilizeConstellationFieldChromeForTests(tester, cubit);
+  }
   return fx;
 }

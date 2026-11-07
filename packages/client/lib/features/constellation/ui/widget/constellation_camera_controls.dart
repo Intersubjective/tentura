@@ -98,10 +98,15 @@ class ConstellationCameraControls extends StatelessWidget {
     return BlocBuilder<ConstellationCubit, ConstellationState>(
       buildWhen: (previous, current) =>
           previous.placementPhase != current.placementPhase ||
-          previous.hasUserPlacements != current.hasUserPlacements,
+          previous.hasUserPlacements != current.hasUserPlacements ||
+          previous.composition != current.composition ||
+          previous.visibility != current.visibility,
       builder: (context, state) {
         final enabled =
             state.placementPhase == ConstellationPlacementPhase.idle;
+        final canArrange = cubit.canArrange;
+        final arranging =
+            maybeConstellationSelection(context)?.state.arranging ?? false;
         final buttonSize = BoxConstraints.tightFor(
           width: tt.buttonHeight,
           height: tt.buttonHeight,
@@ -129,11 +134,12 @@ class ConstellationCameraControls extends StatelessWidget {
               constraints: buttonSize,
             ),
             if (arrangeV2Enabled) ...[
-              if (!tagViewActive) ...[
+              if (canArrange && !tagViewActive) ...[
                 SizedBox(height: tt.tightGap * 2),
                 IconButton.filledTonal(
                   key: const Key('constellation.camera.arrange'),
                   tooltip: l10n.constellationArrangingTitle,
+                  isSelected: arranging,
                   onPressed: enabled
                       ? () => maybeConstellationSelection(
                           context,
