@@ -4,6 +4,11 @@ import 'package:tentura_server/domain/attention/attention_transaction.dart';
 import 'package:tentura_server/domain/port/attention_dispatch_port.dart';
 import 'package:tentura_server/domain/port/mutating_unit_of_work_port.dart';
 
+// TODO(desloppify): remove once every file that names AttentionTransaction
+// through this library (the use cases under lib/domain/use_case and two tests
+// under test/domain/use_case) imports
+// domain/attention/attention_transaction.dart directly; tracked in the
+// deferred list of #1173.
 export 'package:tentura_server/domain/attention/attention_transaction.dart'
     show AttentionTransaction;
 
