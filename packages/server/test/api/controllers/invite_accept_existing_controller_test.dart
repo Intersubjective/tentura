@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:injectable/injectable.dart' show Environment;
+import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:shelf_plus/shelf_plus.dart';
 import 'package:test/test.dart';
@@ -13,6 +14,7 @@ import 'package:tentura_server/env.dart';
 
 import '../../domain/use_case/invitation_case_mocks.mocks.dart';
 import '../../support/build_test_invitation_case.dart';
+import '../../support/log_capture.dart';
 
 const _issuerId = 'Uissuer';
 
@@ -124,11 +126,34 @@ void main() {
     );
   });
 
-  test('500 on an unexpected error', () async {
+  test('400 with the exception body is not logged', () async {
+    stubInvitation(invitation());
+    final log = LogCapture('InviteAcceptExistingController');
+    addTearDown(log.cancel);
+
+    final r = await controller.handler(request(userId: _issuerId));
+
+    expect(r.statusCode, 400);
+    expect(log.records, isEmpty);
+  });
+
+  test('500 on an unexpected error, logged first', () async {
+    final error = StateError('db down');
     when(
       invitationRepo.getById(invitationId: anyNamed('invitationId')),
-    ).thenThrow(StateError('db down'));
+    ).thenThrow(error);
+    final log = LogCapture('InviteAcceptExistingController');
+    addTearDown(log.cancel);
+
     final r = await controller.handler(request());
+
     expect(r.statusCode, 500);
+    expect(await r.readAsString(), 'Internal Server Error');
+    expect(log.records, hasLength(1));
+    final record = log.records.single;
+    expect(record.level, Level.SEVERE);
+    expect(record.message, 'invite.acceptExisting failed');
+    expect(record.error, same(error));
+    expect(record.stackTrace, isNotNull);
   });
 }

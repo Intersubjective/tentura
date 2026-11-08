@@ -21,6 +21,7 @@ import 'package:tentura_server/env.dart';
 
 import '../../domain/use_case/invitation_case_mocks.mocks.dart';
 import '../../support/build_test_invitation_case.dart';
+import '../../support/log_capture.dart';
 
 /// Google id-token verification fails with [error] (the controller's
 /// exception mapping is what is under test, not the OIDC link itself).
@@ -128,6 +129,27 @@ void main() {
   Future<Map<String, Object?>> jsonOf(Response r) async =>
       jsonDecode(await r.readAsString()) as Map<String, Object?>;
 
+  LogCapture captureLog() {
+    final capture = LogCapture('AccountCredentialsController');
+    addTearDown(capture.cancel);
+    return capture;
+  }
+
+  /// The one SEVERE record an unexpected error leaves before the 500.
+  void expectLoggedFailure(LogCapture log, String message, Object error) {
+    expect(log.records, hasLength(1));
+    final record = log.records.single;
+    expect(record.level, Level.SEVERE);
+    expect(record.message, message);
+    expect(record.error, same(error));
+    expect(record.stackTrace, isNotNull);
+  }
+
+  Future<void> expectBare500(Response r) async {
+    expect(r.statusCode, 500);
+    expect(await r.readAsString(), 'Internal Server Error');
+  }
+
   group('auth', () {
     for (final accountId in [null, '']) {
       test('every route answers 401 without a usable jwt sub '
@@ -167,6 +189,19 @@ void main() {
       expect(credentials.single, containsPair('id', 'Cabc'));
       verify(userRepo.listCredentials(accountId: _account)).called(1);
     });
+
+    test('500 on an unexpected error, logged first', () async {
+      final error = StateError('db down');
+      when(
+        userRepo.listCredentials(accountId: anyNamed('accountId')),
+      ).thenThrow(error);
+      final log = captureLog();
+
+      final r = await controller.list(request('GET'));
+
+      await expectBare500(r);
+      expectLoggedFailure(log, 'credentials.list failed', error);
+    });
   });
 
   group('link', () {
@@ -175,7 +210,14 @@ void main() {
       expect(r.statusCode, 400);
     });
 
-    for (final token in [null, '', 1, true]) {
+    for (final token in <Object?>[
+      null,
+      '',
+      1,
+      true,
+      <Object?>[],
+      <String, Object?>{},
+    ]) {
       test('400 when authRequestToken is $token', () async {
         final r = await controller.link(
           request('POST', body: {'authRequestToken': token}),
@@ -220,6 +262,45 @@ void main() {
       expect(r.statusCode, 200);
       expect(await jsonOf(r), containsPair('id', 'Cabc'));
     });
+
+    test('409 is mapped, not logged', () async {
+      when(
+        userRepo.addCredential(
+          accountId: anyNamed('accountId'),
+          type: anyNamed('type'),
+          identifier: anyNamed('identifier'),
+          publicData: anyNamed('publicData'),
+        ),
+      ).thenThrow(const CredentialConflictException());
+      final log = captureLog();
+
+      final r = await controller.link(
+        request('POST', body: {'authRequestToken': _authRequestToken()}),
+      );
+
+      expect(r.statusCode, 409);
+      expect(log.records, isEmpty);
+    });
+
+    test('500 on an unexpected error, logged first', () async {
+      final error = StateError('db down');
+      when(
+        userRepo.addCredential(
+          accountId: anyNamed('accountId'),
+          type: anyNamed('type'),
+          identifier: anyNamed('identifier'),
+          publicData: anyNamed('publicData'),
+        ),
+      ).thenThrow(error);
+      final log = captureLog();
+
+      final r = await controller.link(
+        request('POST', body: {'authRequestToken': _authRequestToken()}),
+      );
+
+      await expectBare500(r);
+      expectLoggedFailure(log, 'credentials.link failed', error);
+    });
   });
 
   group('linkGoogle', () {
@@ -228,7 +309,14 @@ void main() {
       expect(r.statusCode, 400);
     });
 
-    for (final token in [null, '', 1]) {
+    for (final token in <Object?>[
+      null,
+      '',
+      1,
+      true,
+      ['tok'],
+      {'idToken': 'tok'},
+    ]) {
       test('400 when idToken is $token', () async {
         final r = await controller.linkGoogle(
           request('POST', body: {'idToken': token}),
@@ -251,12 +339,17 @@ void main() {
       });
     }
 
-    test('500 on an unexpected error', () async {
-      oidcProvider.error = Exception('boom');
+    test('500 on an unexpected error, logged first', () async {
+      final error = Exception('boom');
+      oidcProvider.error = error;
+      final log = captureLog();
+
       final r = await controller.linkGoogle(
         request('POST', body: {'idToken': 'tok'}),
       );
-      expect(r.statusCode, 500);
+
+      await expectBare500(r);
+      expectLoggedFailure(log, 'credentials.linkGoogle failed', error);
     });
   });
 
@@ -303,6 +396,17 @@ void main() {
       verify(
         userRepo.removeCredential(accountId: _account, credentialId: 'Cabc'),
       ).called(1);
+    });
+
+    test('500 on an unexpected error, logged first', () async {
+      final error = StateError('db down');
+      stubRemove(error);
+      final log = captureLog();
+
+      final r = await remove();
+
+      await expectBare500(r);
+      expectLoggedFailure(log, 'credentials.remove failed', error);
     });
   });
 }
