@@ -916,6 +916,8 @@ void main() {
           ),
           containsAll(['ego', 'author-capped']),
         );
+        // The author edge is drawn while its author is selected (#1192).
+        harness.cubit.selectPerson('author-capped');
         expect(
           harness.cubit.graphController.edges.map(
             (e) => (e.source.id, e.destination.id),

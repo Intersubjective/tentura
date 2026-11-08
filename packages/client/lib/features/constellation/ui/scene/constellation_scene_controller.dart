@@ -463,11 +463,14 @@ class ConstellationSceneController {
   /// (both directions), between placed people only (#964). Without
   /// [includeViewer], the edge to [viewerId] is left out: a chain through
   /// other people shows how the viewer reaches the focus person, and the
-  /// dashed indirect edge stands only for "no chain" (#1192).
+  /// dashed indirect edge stands only for "no chain" (#1192). With
+  /// [viewerOnly], only the edge to [viewerId] is kept: the focus person's
+  /// fan to everyone else is left out.
   void _addFocusPersonTrustEdges({
     required String focusPersonId,
     required String viewerId,
     required bool includeViewer,
+    required bool viewerOnly,
     required Iterable<ConstellationEdgeRef> trustEdges,
     required Map<String, NodeDetails> nodeById,
     required _AddTrustEdge addTrustEdge,
@@ -476,7 +479,8 @@ class ConstellationSceneController {
       if (edge.src != focusPersonId && edge.dst != focusPersonId) {
         continue;
       }
-      if (!includeViewer && (edge.src == viewerId || edge.dst == viewerId)) {
+      final touchesViewer = edge.src == viewerId || edge.dst == viewerId;
+      if (touchesViewer ? !includeViewer : viewerOnly) {
         continue;
       }
       if (!nodeById.containsKey(edge.src) || !nodeById.containsKey(edge.dst)) {
@@ -1060,7 +1064,15 @@ class ConstellationSceneController {
       );
     }
 
+    // The author → item edge only while the item or its author is selected
+    // (#1192): always on, it crowded the field.
+    bool showsAuthorEdge(String itemId, String authorId) =>
+        selectedRequestId == itemId || selectedPersonId == authorId;
+
     for (final request in drawnRequests) {
+      if (!showsAuthorEdge(request.id, request.authorId)) {
+        continue;
+      }
       addEdge(
         srcId: request.authorId,
         dstId: request.id,
@@ -1077,11 +1089,13 @@ class ConstellationSceneController {
         asOfUtc: asOfUtc,
       );
       postFade[post.id] = fade;
-      addEdge(
-        srcId: post.authorId,
-        dstId: post.id,
-        kind: ConstellationEdgeKind.attachment,
-      );
+      if (showsAuthorEdge(post.id, post.authorId)) {
+        addEdge(
+          srcId: post.authorId,
+          dstId: post.id,
+          kind: ConstellationEdgeKind.attachment,
+        );
+      }
       var visibleMembers = 0;
       var placedMembers = 0;
       final selected = selectedRequestId == post.id;
@@ -1221,6 +1235,9 @@ class ConstellationSceneController {
         focusPersonId: focusPersonId,
         viewerId: viewer.id,
         includeViewer: chain == null || chain.path.length <= 2,
+        // A selected Request/Post shows only the path to its author, not
+        // the author's trust fan (#1192).
+        viewerOnly: selectedPersonId == null,
         trustEdges: visibleTrustEdges,
         nodeById: nodeById,
         addTrustEdge: addTrustEdge,

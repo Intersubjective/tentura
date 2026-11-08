@@ -28,6 +28,9 @@ void main() {
         field: syntheticConstellationField(size: _fieldSize),
       );
       addTearDown(cubit.close);
+      // Edges are drawn around a selection (#1192): p0 is a direct contact
+      // many others hang off.
+      cubit.selectPerson('p0');
       await pumpConstellationBody(tester, cubit, size: const Size(1200, 800));
       await tester.pumpAndSettle();
       expect(cubit.edgeKindByPair, isNotEmpty);

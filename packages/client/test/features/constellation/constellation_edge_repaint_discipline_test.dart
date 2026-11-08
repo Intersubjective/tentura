@@ -15,6 +15,8 @@ void main() {
     testWidgets('panning the camera does not repaint edges', (tester) async {
       final cubit = await loadReferenceCubit();
       addTearDown(cubit.close);
+      // Edges are drawn around a selection (#1192).
+      cubit.selectPerson('am');
       await pumpConstellationBody(tester, cubit, size: const Size(1200, 900));
       await tester.pumpAndSettle();
       expect(cubit.edgeKindByPair, isNotEmpty);
@@ -52,6 +54,8 @@ void main() {
         'edges', (tester) async {
       final cubit = await loadReferenceCubit();
       addTearDown(cubit.close);
+      // Edges are drawn around a selection (#1192).
+      cubit.selectPerson('am');
       final theme = TenturaTheme.light();
       await pumpConstellationBody(
         tester,
@@ -101,6 +105,8 @@ void main() {
         ),
       );
       addTearDown(cubit.close);
+      // Edges are drawn around a selection (#1192).
+      cubit.selectPerson('am');
       await pumpConstellationBody(tester, cubit, size: const Size(1200, 900));
       await tester.pumpAndSettle();
       expect(cubit.edgeKindByPair, isNotEmpty);
@@ -135,6 +141,8 @@ void main() {
     ) async {
       final cubit = await loadReferenceCubit();
       addTearDown(cubit.close);
+      // Edges are drawn around a selection (#1192).
+      cubit.selectPerson('am');
       await pumpConstellationBody(tester, cubit, size: const Size(1200, 900));
       await tester.pumpAndSettle();
       expect(cubit.edgeKindByPair, isNotEmpty);
@@ -164,6 +172,8 @@ void main() {
     ) async {
       final cubit = await loadReferenceCubit();
       addTearDown(cubit.close);
+      // Edges are drawn around a selection (#1192).
+      cubit.selectPerson('am');
       await pumpConstellationBody(tester, cubit, size: const Size(1200, 900));
       await tester.pumpAndSettle();
 
@@ -194,6 +204,8 @@ void main() {
     testWidgets('a style change repaints the edges', (tester) async {
       final cubit = await loadReferenceCubit();
       addTearDown(cubit.close);
+      // Edges are drawn around a selection (#1192).
+      cubit.selectPerson('am');
       await pumpConstellationBody(
         tester,
         cubit,
