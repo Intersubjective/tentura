@@ -5,6 +5,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -37,6 +38,8 @@ const _ego = Profile(id: 'ego', displayName: 'Ego');
 const _peerId = 'Upeer00000001';
 const _contactName = 'Икс';
 const _displayName = 'Y-display';
+const _longRenamedContact =
+    'Яша Сосед Очень Длинное Имя Для Проверки Переименования';
 
 final class _StubRepository implements ConstellationRepositoryPort {
   _StubRepository(this.field);
@@ -221,6 +224,39 @@ void main() {
     );
 
     test(
+      'contact rename while selected refreshes map node and fieldPeople names',
+      () async {
+        final cubit = await _loadedCubit(
+          _peerField(wireDisplayName: _displayName),
+        );
+        addTearDown(() async {
+          if (!cubit.isClosed) await cubit.close();
+        });
+        cubit.selectPerson(_peerId);
+
+        FieldPersonNode node() => cubit.graphController.nodes
+            .whereType<FieldPersonNode>()
+            .firstWhere((n) => n.id == _peerId);
+
+        expect(node().person.shownName, _contactName);
+        final revisionBefore = cubit.state.graphRevision;
+        GetIt.I<ContactNameStore>().set(_peerId, _longRenamedContact);
+        await cubit.stream.firstWhere(
+          (state) => state.graphRevision > revisionBefore,
+        );
+        expect(
+          cubit.profileForPersonId(_peerId)!.shownName,
+          _longRenamedContact,
+        );
+        expect(node().person.shownName, _longRenamedContact);
+        expect(
+          cubit.fieldPeople.firstWhere((p) => p.id == _peerId).name,
+          _longRenamedContact,
+        );
+      },
+    );
+
+    test(
       'map node label uses the same shownName as profileForPersonId',
       () async {
         final cubit = await _loadedCubit(
@@ -359,45 +395,56 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('375×667 RU: map node semantics include contact shownName', (
-      tester,
-    ) async {
-      await usePhoneSurface(tester);
-      final cubit = await _loadedCubit(
-        _peerField(wireDisplayName: _displayName),
-      );
-      addTearDown(() async {
-        if (!cubit.isClosed) await cubit.close();
-      });
-      final node = cubit.graphController.nodes
-          .whereType<FieldPersonNode>()
-          .firstWhere((n) => n.id == _peerId);
-      final l10n = lookupL10n(const Locale('ru'));
-      await tester.pumpWidget(
-        MaterialApp(
-          locale: const Locale('ru'),
-          theme: TenturaTheme.light(),
-          localizationsDelegates: L10n.localizationsDelegates,
-          supportedLocales: L10n.supportedLocales,
-          home: TenturaResponsiveScope(
-            child: Builder(
-              builder: (context) {
-                final label = constellationNodeSemanticLabel(
-                  l10n: l10n,
-                  tt: context.tt,
-                  cubit: cubit,
-                  node: node,
-                );
-                return Scaffold(body: Text(label));
-              },
+    testWidgets(
+      '375×667 RU: map node semantics follow contact rename while selected',
+      (tester) async {
+        await usePhoneSurface(tester);
+        final cubit = await _loadedCubit(
+          _peerField(wireDisplayName: _displayName),
+        );
+        addTearDown(() async {
+          if (!cubit.isClosed) await cubit.close();
+        });
+        cubit.selectPerson(_peerId);
+        final node = cubit.graphController.nodes
+            .whereType<FieldPersonNode>()
+            .firstWhere((n) => n.id == _peerId);
+        final l10n = lookupL10n(const Locale('ru'));
+
+        Future<void> pumpLabel() => tester.pumpWidget(
+          MaterialApp(
+            locale: const Locale('ru'),
+            theme: TenturaTheme.light(),
+            localizationsDelegates: L10n.localizationsDelegates,
+            supportedLocales: L10n.supportedLocales,
+            home: TenturaResponsiveScope(
+              child: BlocProvider<ConstellationCubit>.value(
+                value: cubit,
+                child: Builder(
+                  builder: (context) {
+                    final label = constellationNodeSemanticLabel(
+                      l10n: l10n,
+                      tt: context.tt,
+                      cubit: cubit,
+                      node: node,
+                    );
+                    return Scaffold(body: Text(label));
+                  },
+                ),
+              ),
             ),
           ),
-        ),
-      );
+        );
 
-      expect(find.textContaining(_contactName), findsOneWidget);
-      expect(tester.takeException(), isNull);
-    });
+        await pumpLabel();
+        expect(find.textContaining(_contactName), findsOneWidget);
+
+        GetIt.I<ContactNameStore>().set(_peerId, _longRenamedContact);
+        await pumpLabel();
+        expect(find.textContaining(_longRenamedContact), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      },
+    );
 
     test('held forwarded annotation uses contact shownName', () {
       final l10n = lookupL10n(const Locale('en'));

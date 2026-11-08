@@ -35,15 +35,17 @@ String constellationNodeSemanticLabel({
             )[person.id];
       final pinState = cubit.fieldPersonById(person.id)?.pinState;
       final isNewOnField = cubit.fieldPersonById(person.id)?.isNew ?? false;
+      final shownName =
+          cubit.profileForPersonId(person.id)?.shownName ?? person.shownName;
       final base = [
         if (pinState == 'tombstone')
           l10n.constellationPinAccountDeleted
         else if (isNewOnField)
-          l10n.constellationFieldNewSemantics(person.shownName)
+          l10n.constellationFieldNewSemantics(shownName)
         else if (unreadAuthorRollup)
-          l10n.constellationFieldUnreadAuthorSemantics(person.shownName)
+          l10n.constellationFieldUnreadAuthorSemantics(shownName)
         else
-          person.shownName,
+          shownName,
         if (pinState == 'blockedByMe') l10n.constellationPinBlocked,
         if (trust != null) constellationTrustBadgeLabel(l10n, trust),
         if (online) l10n.chatPresenceOnline,
