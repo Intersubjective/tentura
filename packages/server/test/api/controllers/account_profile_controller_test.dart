@@ -14,6 +14,7 @@ import 'package:tentura_server/domain/use_case/user_case.dart';
 import 'package:tentura_server/domain/use_case/user_erasure_case.dart';
 import 'package:tentura_server/env.dart';
 
+import '../../support/invalid_json_body.dart';
 import '../../support/log_capture.dart';
 
 final class _FakeUserRepository implements UserRepositoryPort {
@@ -164,17 +165,19 @@ void main() {
       expect(res.statusCode, 400);
     });
 
-    test('400 on invalid JSON body', () async {
-      final res = await controller.patch(
-        Request(
-          'PATCH',
-          Uri.parse('http://localhost/api/v2/accounts/me/profile'),
-          body: 'not json',
-          headers: {'content-type': 'application/json'},
-          context: {kContextJwtKey: const JwtEntity(sub: 'Uabc')},
-        ),
-      );
-      expect(res.statusCode, 400);
+    kInvalidJsonBodies.forEach((name, rawBody) {
+      test('400 invalid JSON body on $name', () async {
+        final res = await controller.patch(
+          Request(
+            'PATCH',
+            Uri.parse('http://localhost/api/v2/accounts/me/profile'),
+            body: rawBody,
+            headers: {'content-type': 'application/json'},
+            context: {kContextJwtKey: const JwtEntity(sub: 'Uabc')},
+          ),
+        );
+        await expectInvalidJsonBody400(res);
+      });
     });
   });
 

@@ -14,6 +14,8 @@ import 'package:tentura_server/domain/port/fcm_remote_repository_port.dart';
 import 'package:tentura_server/domain/port/fcm_token_repository_port.dart';
 import 'package:tentura_server/env.dart';
 
+import '../../support/invalid_json_body.dart';
+
 void main() {
   Env env({
     String environment = Environment.test,
@@ -81,7 +83,10 @@ void main() {
     );
 
     final response = await controller.sendFcm(
-      request(body: {'userId': 'U1', 'title': 'T', 'body': 'B'}, queryToken: null),
+      request(
+        body: {'userId': 'U1', 'title': 'T', 'body': 'B'},
+        queryToken: null,
+      ),
     );
 
     expect(response.statusCode, 404);
@@ -138,24 +143,25 @@ void main() {
     expect(fcmRemote.lastTokens, {'device-token'});
   });
 
-  test('rejects invalid JSON body', () async {
-    final controller = QaSendFcmController(
-      env(),
-      _FakeFcmRemote(),
-      _FakeFcmTokens(),
-    );
+  kInvalidJsonBodies.forEach((name, rawBody) {
+    test('rejects $name as an invalid JSON body', () async {
+      final controller = QaSendFcmController(
+        env(),
+        _FakeFcmRemote(),
+        _FakeFcmTokens(),
+      );
 
-    final response = await controller.sendFcm(
-      Request(
-        'POST',
-        Uri.parse('http://localhost/_qa/send-fcm?_qa_token=secret'),
-        body: 'not-json',
-        headers: {'content-type': 'application/json'},
-      ),
-    );
+      final response = await controller.sendFcm(
+        Request(
+          'POST',
+          Uri.parse('http://localhost/_qa/send-fcm?_qa_token=secret'),
+          body: rawBody,
+          headers: {'content-type': 'application/json'},
+        ),
+      );
 
-    expect(response.statusCode, 400);
-    expect(await response.readAsString(), 'invalid JSON body');
+      await expectInvalidJsonBody400(response);
+    });
   });
 
   test('requires title and body', () async {
@@ -360,7 +366,8 @@ void main() {
       env(
         fbProjectId: 'tentura-dev',
         fbClientEmail: 'firebase@tentura-dev.iam.gserviceaccount.com',
-        fbPrivateKey: '-----BEGIN PRIVATE KEY-----\nkey\n-----END PRIVATE KEY-----',
+        fbPrivateKey:
+            '-----BEGIN PRIVATE KEY-----\nkey\n-----END PRIVATE KEY-----',
       ),
       _CapturingFcmRemote(),
       _FakeFcmTokens(),
@@ -380,8 +387,7 @@ class _FakeFcmRemote implements FcmRemoteRepositoryPort {
   Future<List<Exception>> sendChatNotification({
     required Iterable<String> fcmTokens,
     required FcmNotificationEntity message,
-  }) async =>
-      [];
+  }) async => [];
 }
 
 class _CapturingFcmRemote implements FcmRemoteRepositoryPort {
