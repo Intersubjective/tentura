@@ -154,7 +154,7 @@ void main() {
     );
   });
 
-  testWidgets('turning off 1st degree shows RU snack with Undo on phone', (
+  testWidgets('turning off 1st degree hides people without snack on phone RU', (
     tester,
   ) async {
     await usePhoneSurface(tester);
@@ -179,7 +179,6 @@ void main() {
     await cubit.load();
     await _pumpField(tester, cubit);
 
-    final l10n = lookupL10n(const Locale('ru'));
     expect(
       tester
           .widget<Text>(
@@ -201,8 +200,7 @@ void main() {
       containsAll(['anna', 'boris', 'dima', 'kira', 'vera']),
     );
 
-    final beforeHide = cubit.state.visibility;
-    expect(beforeHide.firstDegree, isTrue);
+    expect(cubit.state.visibility.firstDegree, isTrue);
 
     final chip = find.byKey(const Key('constellation.show.degree.first'));
     await tester.ensureVisible(chip);
@@ -211,15 +209,11 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
 
     expect(cubit.state.visibility.firstDegree, isFalse);
-    expect(find.byType(SnackBar), findsOneWidget);
-    expect(
-      find.widgetWithText(SnackBarAction, l10n.constellationUndo),
-      findsOneWidget,
-    );
+    expect(find.byType(SnackBar), findsNothing);
     expect(tester.takeException(), isNull);
     expect(peopleOnMap(), isNot(contains('anna')));
 
-    tester.widget<SnackBarAction>(find.byType(SnackBarAction)).onPressed();
+    await tester.tap(chip);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
 

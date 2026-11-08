@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/widget/undo_snack_bar.dart';
-
 import '../../domain/constellation_visibility.dart';
 import '../bloc/constellation_cubit.dart';
 
@@ -68,20 +66,7 @@ class ConstellationVisibilityBar extends StatelessWidget {
               ),
               selected: shown,
               onSelected: (value) {
-                final before = cubit.state.visibility;
-                final updated = next(value);
-                cubit.setVisibility(updated);
-                if (!value && count > 0) {
-                  showUndoSnackBar(
-                    context,
-                    text: l10n.constellationVisibilityHiddenSnack(
-                      label,
-                      count,
-                    ),
-                    undoLabel: l10n.constellationUndo,
-                    onUndo: () => cubit.setVisibility(before),
-                  );
-                }
+                cubit.setVisibility(next(value));
               },
             ),
           ),
