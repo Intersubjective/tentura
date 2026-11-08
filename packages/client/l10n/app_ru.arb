@@ -6794,6 +6794,7 @@
   "constellationArrangeEntry": "Расположить…",
   "constellationArrangingTitle": "Расположение",
   "constellationArrangingSelect": "Выбор",
+  "constellationArrangingMoreActions": "Другие действия расположения",
   "constellationArrangingHintTouch": "Перетащите узел, чтобы сдвинуть · пустое место — чтобы двигать карту",
   "constellationArrangingHintMouse": "Перетащите узел, чтобы сдвинуть",
   "constellationFieldHoldHint": "Удерживайте человека или запрос, чтобы сдвинуть. Удерживайте пустое место, чтобы создать что-то здесь.",

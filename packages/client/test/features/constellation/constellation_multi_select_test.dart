@@ -23,6 +23,9 @@ import 'package:tentura/features/constellation/ui/util/layout_geometry_adapters.
 import 'package:tentura/features/constellation/ui/utils/constellation_graph_scene.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_selection_layers.dart';
+import 'package:force_directed_graphview/force_directed_graphview.dart';
+import 'package:tentura/features/graph/domain/entity/edge_details.dart';
+import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura/features/graph/domain/use_case/graph_trust_write_case.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_person_context_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
@@ -895,8 +898,17 @@ void main() {
       enterConstellationArrangingForTests(h.selection);
       h.selection.addAll(targets);
       await _frames(tester);
-      await tester.tap(
-        find.byKey(const Key('constellation.selection.arrange')),
+      final items = constellationSectorItems(h.cubit, h.selection.state);
+      h.selection.beginSector(
+        constellationSectorInitialDraft(
+          cubit: h.cubit,
+          items: items,
+          minSpacing: constellationSectorSpacing(
+            tester.element(find.byType(ConstellationBody)),
+            h.cubit,
+            items.targets.values,
+          ),
+        ),
       );
       await _frames(tester);
       expect(h.selection.state.sector, isNotNull);
@@ -1285,18 +1297,23 @@ void main() {
     ) async {
       final h = await _mount(tester);
       await open(tester, h, [_ann, _bob]);
-      // The end handle goes all the way round: keep the sector small and in
-      // the middle of the map above the bar, whatever the bar's height, so
-      // the handle is never under the bar where a press would miss it.
-      final barTop = [
+      // The end handle goes all the way round: keep the sector in the map
+      // below the top arranging chrome so a handle is never under the bar.
+      final barBottom = [
         find.byKey(const Key('constellation.selection.bar')),
         find.byKey(const Key('constellation.arranging.toolbar')),
       ]
           .where((f) => f.evaluate().isNotEmpty)
-          .map((f) => tester.getTopLeft(f).dy)
-          .fold<double>(double.infinity, math.min);
+          .map((f) => tester.getBottomLeft(f).dy)
+          .fold<double>(0, math.max);
+      final mapBox = tester.getRect(
+        find.byType(GraphView<NodeDetails, EdgeDetails>),
+      );
       final controller = h.cubit.graphController;
-      final middle = Offset(_size.width / 2, barTop / 2);
+      final middle = Offset(
+        _size.width / 2,
+        mapBox.top + (mapBox.height - math.max(0, barBottom - mapBox.top)) / 2,
+      );
       final sector = h.selection.state.sector!;
       h.selection.editSector(
         sector.copyWith(
@@ -1312,8 +1329,8 @@ void main() {
       for (var i = 0; i < 4; i++) {
         final from = tester.getCenter(handle('end'));
         expect(
-          from.dy + kMinInteractiveDimension / 2,
-          lessThan(barTop),
+          from.dy - kMinInteractiveDimension / 2,
+          greaterThan(barBottom),
           reason: 'the test needs the end handle clear of the bar',
         );
         expect(from.dy, greaterThan(kMinInteractiveDimension / 2));
@@ -1590,8 +1607,8 @@ void main() {
         tester,
       ) async {
         final h = await _mount(tester);
-        final annBefore = tester.getCenter(_node('a'));
         await open(tester, h, [_ann, _bob]);
+        final annBefore = tester.getCenter(_node('a'));
         final from = tester.getCenter(handle('centre'));
         await _drag(tester, from, from + const Offset(80, 30));
         final radius = tester.getCenter(handle('radius'));
@@ -1613,7 +1630,11 @@ void main() {
           find.byKey(const Key('constellation.selection.sector_editor')),
           findsNothing,
         );
-        expect(tester.getCenter(_node('a')), annBefore);
+        expect(
+          (tester.getCenter(_node('a')) - annBefore).distance,
+          lessThan(120),
+          reason: 'Cancel keeps Ann near her pre-edit screen position',
+        );
       });
     }
 

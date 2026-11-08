@@ -138,7 +138,7 @@ class ConstellationCameraControls extends StatelessWidget {
               constraints: buttonSize,
             ),
             if (arrangeV2Enabled) ...[
-              if (canArrange && !tagViewActive) ...[
+              if (canArrange && !tagViewActive && !arranging) ...[
                 SizedBox(height: tt.tightGap * 2),
                 IconButton.filledTonal(
                   key: const Key('constellation.camera.arrange'),
