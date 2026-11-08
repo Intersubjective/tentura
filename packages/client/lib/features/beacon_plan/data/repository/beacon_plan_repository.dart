@@ -50,7 +50,7 @@ class BeaconPlanRepository {
 
   Future<BeaconPlan> fetch(String beaconId) => _remoteApiService
       .request(GBeaconPlanGetReq((b) => b.vars.beaconId = beaconId))
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: _label)
       .then((r) => BeaconPlan.decode(r.dataOrThrow(label: _label).beaconPlan));
 
   Future<PlanRevisionPage> revisions(String beaconId, {int? beforeSeq}) =>
@@ -62,7 +62,7 @@ class BeaconPlanRepository {
                 ..beforeSeq = beforeSeq,
             ),
           )
-          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .firstLinkResponse(label: _label)
           .then(
             (r) => PlanRevisionPage.decode(
               r.dataOrThrow(label: _label).beaconPlanRevisions,
@@ -78,7 +78,7 @@ class BeaconPlanRepository {
                 ..seq = seq,
             ),
           )
-          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .firstLinkResponse(label: _label)
           .then(
             (r) => PlanRevisionSnapshot.decode(
               r.dataOrThrow(label: _label).beaconPlanRevision,
@@ -101,7 +101,7 @@ class BeaconPlanRepository {
             ..comment = comment.trim().isEmpty ? null : comment.trim(),
         ),
       )
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: _label)
       .then(
         (r) =>
             PlanSaveOutcome.decode(r.dataOrThrow(label: _label).beaconPlanSave),
@@ -120,7 +120,7 @@ class BeaconPlanRepository {
             ..baseRevisionSeq = baseRevisionSeq,
         ),
       )
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: _label)
       .then(
         (r) => PlanSaveOutcome.decode(
           r.dataOrThrow(label: _label).beaconPlanRestore,
@@ -136,7 +136,7 @@ class BeaconPlanRepository {
                 ..done = done,
             ),
           )
-          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .firstLinkResponse(label: _label)
           .then((r) => r.dataOrThrow(label: _label));
 
   Future<void> ack({required String beaconId, required int uptoSeq}) =>
@@ -148,7 +148,7 @@ class BeaconPlanRepository {
                 ..uptoSeq = uptoSeq,
             ),
           )
-          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .firstLinkResponse(label: _label)
           .then((r) => r.dataOrThrow(label: _label));
 
   Future<PlanSaveOutcome> cantMake({
@@ -172,7 +172,7 @@ class BeaconPlanRepository {
             ..excerpt = excerpt,
         ),
       )
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: _label)
       .then(
         (r) => PlanSaveOutcome.decode(
           r.dataOrThrow(label: _label).beaconPlanStepCantMake,

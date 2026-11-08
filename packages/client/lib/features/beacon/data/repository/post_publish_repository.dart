@@ -55,7 +55,7 @@ class PostPublishRepository implements PostPublishPort {
                     ),
           ),
         )
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).postPublish);
     return PostPublishResult(
       beaconId: result.beaconId,
@@ -85,7 +85,7 @@ class PostPublishRepository implements PostPublishPort {
               ),
           ),
         )
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).RoomMessageAttachmentAdd);
   }
 }

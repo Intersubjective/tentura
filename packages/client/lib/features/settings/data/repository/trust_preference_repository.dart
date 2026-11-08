@@ -20,12 +20,12 @@ class TrustPreferenceRepository implements TrustPreferenceRepositoryPort {
   @override
   Future<bool> fetchNoisyWallEnabled() => _remoteApiService
       .request(GNoisyWallEnabledReq())
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: _label)
       .then((r) => r.dataOrThrow(label: _label).noisyWallEnabled);
 
   @override
   Future<bool> setNoisyWallEnabled({required bool enabled}) => _remoteApiService
       .request(GSetNoisyWallEnabledReq((r) => r..vars.enabled = enabled))
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: _label)
       .then((r) => r.dataOrThrow(label: _label).setNoisyWallEnabled);
 }

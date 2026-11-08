@@ -38,7 +38,7 @@ class BeaconActivityEventRepository {
         .request(
           GBeaconActivityEventListReq((b) => b.vars.beaconId = beaconId),
         )
-        .firstWhere((e) => e.dataSource == DataSource.Link);
+        .firstLinkResponse(label: _label);
     final rows =
         r.dataOrThrow(label: _label).BeaconActivityEventList?.toList() ??
         const [];

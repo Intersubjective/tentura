@@ -22,7 +22,7 @@ class MutualFriendsRepository {
       .request(
         GMutualFriendsFetchReq((b) => b.vars.id = userId),
       )
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: _label)
       .then((r) {
         final rows = r.dataOrThrow(label: _label).mutualFriends;
         if (rows == null) {

@@ -22,7 +22,8 @@ class BlockRepository {
 
   final RemoteApiService _remoteApiService;
 
-  final _controller = StreamController<RepositoryEvent<BlockIntent>>.broadcast();
+  final _controller =
+      StreamController<RepositoryEvent<BlockIntent>>.broadcast();
 
   Stream<RepositoryEvent<BlockIntent>> get changes => _controller.stream;
 
@@ -41,7 +42,7 @@ class BlockRepository {
               ..vars.cascadeMode = cascadeMode,
           ),
         )
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label));
     _controller.add(
       RepositoryEventCreate(BlockIntent(blocked: Profile(id: objectId))),
@@ -53,7 +54,7 @@ class BlockRepository {
         .request(
           GUserUnblockReq((r) => r..vars.objectId = objectId),
         )
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label));
     _controller.add(
       RepositoryEventDelete(BlockIntent(blocked: Profile(id: objectId))),
@@ -64,12 +65,12 @@ class BlockRepository {
       .request(
         GUserBlockPromoteReq((r) => r..vars.objectId = objectId),
       )
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: _label)
       .then((r) => r.dataOrThrow(label: _label));
 
   Future<List<BlockIntent>> fetchMyBlocks() => _remoteApiService
       .request(GMyBlocksReq())
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: _label)
       .then(
         (r) {
           final blocks = r.dataOrThrow(label: _label).myBlocks;
@@ -82,7 +83,7 @@ class BlockRepository {
           .request(
             GBlockInheritedReq((r) => r..vars.originId = originId),
           )
-          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .firstLinkResponse(label: _label)
           .then(
             (r) {
               final inherited = r.dataOrThrow(label: _label).blockInherited;
@@ -104,7 +105,7 @@ class BlockRepository {
             ..vars.cascadeMode = cascadeMode,
         ),
       )
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: _label)
       .then((r) {
         final row = r.dataOrThrow(label: _label).blockPreview;
         return BlockPreview(

@@ -16,16 +16,15 @@ class PollingRepository {
     required String pollingId,
     required List<String> variantIds,
     int? score,
-  }) =>
-      _remoteApiService
-          .request(
-            GPollingActReq(
-              (b) => b.vars
-                ..pollingId = pollingId
-                ..variantIds.replace(variantIds)
-                ..score = score,
-            ),
-          )
-          .firstWhere((e) => e.dataSource == DataSource.Link)
-          .then((r) => r.dataOrThrow(label: _label).pollingAct);
+  }) => _remoteApiService
+      .request(
+        GPollingActReq(
+          (b) => b.vars
+            ..pollingId = pollingId
+            ..variantIds.replace(variantIds)
+            ..score = score,
+        ),
+      )
+      .firstLinkResponse(label: _label)
+      .then((r) => r.dataOrThrow(label: _label).pollingAct);
 }

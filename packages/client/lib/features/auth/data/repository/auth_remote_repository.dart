@@ -66,7 +66,7 @@ class AuthRemoteRepository
     });
     final response = await remoteApiService
         .request(request)
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _repositoryKey)
         .then((r) => r.dataOrThrow(label: _repositoryKey).signUp);
     await remoteApiService.bindRealtimeAccount(response.subject);
     return response.subject;
@@ -167,7 +167,7 @@ class AuthRemoteRepository
       try {
         await remoteApiService
             .request(GSignOutReq())
-            .firstWhere((e) => e.dataSource == DataSource.Link);
+            .firstLinkResponse(label: 'SignOut');
       } catch (e, st) {
         log.fine('GraphQL signOut best-effort failed', e, st);
       }
@@ -186,7 +186,7 @@ class AuthRemoteRepository
       b.vars.authRequestToken = authRequestToken;
     });
     return fetcher(request)
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _repositoryKey)
         .then((r) => r.dataOrThrow(label: _repositoryKey).signIn)
         .then(
           (v) => Credentials(

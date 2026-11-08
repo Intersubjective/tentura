@@ -21,7 +21,7 @@ class BeaconKindRepository {
     if (cached != null) return cached;
     final row = await _remoteApiService
         .request(GBeaconKindFetchReq((b) => b.vars.id = beaconId))
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: 'BeaconKindFetch')
         .then((r) => r.dataOrThrow(label: 'BeaconKindFetch').beacon_by_pk);
     if (row == null) throw BeaconFetchException(beaconId);
     return _kinds[beaconId] = BeaconKind.fromValue(row.kind);
