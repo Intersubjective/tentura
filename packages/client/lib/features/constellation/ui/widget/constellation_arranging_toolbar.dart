@@ -12,16 +12,20 @@ import 'constellation_arrange_actions.dart';
 import 'constellation_selection_layers.dart';
 import 'constellation_tidied_snack_bar.dart';
 
-/// Bottom chrome while Field «Arranging» is active (#938).
+/// Field «Arranging» toolbar (#938); default top chrome on the map body.
 class ConstellationArrangingToolbar extends StatelessWidget {
   const ConstellationArrangingToolbar({
     required this.cubit,
     this.peopleTagsEnabled = true,
+    this.topEmbedded = false,
     super.key,
   });
 
   final ConstellationCubit cubit;
   final bool peopleTagsEnabled;
+
+  /// Rendered in the capped top chrome row instead of the bottom map overlay.
+  final bool topEmbedded;
 
   @override
   Widget build(BuildContext context) {
@@ -42,16 +46,17 @@ class ConstellationArrangingToolbar extends StatelessWidget {
         final enabled =
             cubit.state.placementPhase == ConstellationPlacementPhase.idle;
         final showSelectionRow = !state.isEmpty || state.sector != null;
-        return Padding(
-          padding: EdgeInsets.all(tt.rowGap),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(
-                maxWidth: TenturaSpacing.listPaneWidth,
-              ),
-              child: DecoratedBox(
-                key: const Key('constellation.arranging.toolbar'),
-                decoration: BoxDecoration(
+        final outerPadding = topEmbedded
+            ? EdgeInsets.symmetric(
+                horizontal: tt.screenHPadding,
+                vertical: tt.tightGap,
+              )
+            : EdgeInsets.all(tt.rowGap);
+        final inner = DecoratedBox(
+          key: const Key('constellation.arranging.toolbar'),
+          decoration: topEmbedded
+              ? const BoxDecoration()
+              : BoxDecoration(
                   color: theme.colorScheme.surfaceContainerHigh,
                   borderRadius: BorderRadius.circular(tt.cardRadius),
                   boxShadow: [
@@ -62,54 +67,66 @@ class ConstellationArrangingToolbar extends StatelessWidget {
                     ),
                   ],
                 ),
-                child: Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: tt.screenHPadding,
-                    vertical: tt.tightGap,
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: topEmbedded ? 0 : tt.screenHPadding,
+              vertical: tt.tightGap,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (showSelectionRow)
+                  ConstellationSelectionBar(
+                    cubit: cubit,
+                    peopleTagsEnabled: peopleTagsEnabled,
+                    arrangingEmbedded: true,
+                  )
+                else
+                  _mainToolbarRow(
+                    context,
+                    cubit: cubit,
+                    selection: selection,
+                    enabled: enabled,
                   ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      if (showSelectionRow)
-                        ConstellationSelectionBar(
-                          cubit: cubit,
-                          peopleTagsEnabled: peopleTagsEnabled,
-                          arrangingEmbedded: true,
-                        )
-                      else
-                        _mainToolbarRow(
-                          context,
-                          cubit: cubit,
-                          selection: selection,
-                          enabled: enabled,
+                if (!topEmbedded)
+                  ListenableBuilder(
+                    listenable: RendererBinding.instance.mouseTracker,
+                    builder: (context, _) {
+                      final mouse = RendererBinding
+                          .instance
+                          .mouseTracker
+                          .mouseIsConnected;
+                      return Padding(
+                        padding: EdgeInsets.only(top: tt.tightGap),
+                        child: Text(
+                          mouse
+                              ? l10n.constellationArrangingHintMouse
+                              : l10n.constellationArrangingHintTouch,
+                          key: const Key(
+                            'constellation.arranging.hint',
+                          ),
+                          style: theme.textTheme.bodySmall,
+                          textAlign: TextAlign.center,
                         ),
-                      ListenableBuilder(
-                        listenable: RendererBinding.instance.mouseTracker,
-                        builder: (context, _) {
-                          final mouse = RendererBinding
-                              .instance
-                              .mouseTracker
-                              .mouseIsConnected;
-                          return Padding(
-                            padding: EdgeInsets.only(top: tt.tightGap),
-                            child: Text(
-                              mouse
-                                  ? l10n.constellationArrangingHintMouse
-                                  : l10n.constellationArrangingHintTouch,
-                              key: const Key(
-                                'constellation.arranging.hint',
-                              ),
-                              style: theme.textTheme.bodySmall,
-                              textAlign: TextAlign.center,
-                            ),
-                          );
-                        },
-                      ),
-                    ],
+                      );
+                    },
                   ),
-                ),
+              ],
+            ),
+          ),
+        );
+        if (topEmbedded) {
+          return Padding(padding: outerPadding, child: inner);
+        }
+        return Padding(
+          padding: outerPadding,
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                maxWidth: TenturaSpacing.listPaneWidth,
               ),
+              child: inner,
             ),
           ),
         );
@@ -178,14 +195,17 @@ class ConstellationArrangingToolbar extends StatelessWidget {
         ),
         IconButton(
           key: const Key('constellation.arranging.more'),
-          tooltip: l10n.constellationArrange,
+          tooltip: l10n.constellationArrangingMoreActions,
           onPressed: enabled
               ? () => ConstellationArrangeActions.showOverflowMenu(
                   context,
                   cubit: cubit,
                 )
               : null,
-          icon: const Icon(Icons.more_horiz),
+          icon: Icon(
+            Icons.more_horiz,
+            semanticLabel: l10n.constellationArrangingMoreActions,
+          ),
         ),
       ],
     );

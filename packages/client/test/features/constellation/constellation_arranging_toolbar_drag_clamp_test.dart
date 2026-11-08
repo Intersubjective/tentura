@@ -1,8 +1,10 @@
-// #1043: while Arranging, the ego node's body and label stay above the toolbar.
+// #938: arranging toolbar lives in top chrome; bottom map stays unobstructed.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:force_directed_graphview/force_directed_graphview.dart';
 import 'package:tentura/features/constellation/ui/utils/constellation_tap_resolver.dart';
+import 'package:tentura/features/graph/domain/entity/edge_details.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura/ui/l10n/l10n_ru.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
@@ -13,7 +15,7 @@ import 'fixtures/constellation_reference_fixture.dart';
 
 void main() {
   testWidgets(
-    'Arranging drag keeps ego body and label above toolbar (375 RU, long label)',
+    'Arranging map drag is not clamped to a bottom toolbar (375 RU)',
     (tester) async {
       await usePhoneSurface(tester);
       final cubit = await loadReferenceCubit();
@@ -51,27 +53,12 @@ void main() {
       cubit.updateDragPresentation(nodeId: graphId, sceneCentre: deep);
       await tester.pump();
 
-      final frame = holder.frame;
-      expect(frame, isNotNull);
-      final body = frame!.bodies[graphId];
-      final label = frame.labels[graphId];
-      expect(body, isNotNull);
-      expect(label, isNotNull);
-
-      final toolbarBox = tester.renderObject<RenderBox>(
-        find.byKey(const Key('constellation.arranging.toolbar')),
-      );
-      final toolbarTop = toolbarBox.localToGlobal(Offset.zero).dy;
-
+      final toolbar = find.byKey(const Key('constellation.arranging.toolbar'));
+      final graph = find.byType(GraphView<NodeDetails, EdgeDetails>);
       expect(
-        body!.bottom,
-        lessThan(toolbarTop - 1),
-        reason: 'node body stays above toolbar',
-      );
-      expect(
-        label!.bottom,
-        lessThan(toolbarTop - 1),
-        reason: 'label plate stays above toolbar',
+        find.descendant(of: graph, matching: toolbar),
+        findsNothing,
+        reason: 'toolbar is not a bottom overlay on the map',
       );
 
       final hint = find.byKey(const Key('constellation.arranging.hint'));
