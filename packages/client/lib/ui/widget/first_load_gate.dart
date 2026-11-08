@@ -11,9 +11,12 @@ import 'package:tentura/ui/widget/screen_load_error_panel.dart';
 /// **Screen contract:** each screen cubit exposes a `firstLoadDone` flag that
 /// turns true once primary slices have arrived and **never goes back** —
 /// background refreshes update in place and must not re-open this gate. While
-/// `ready` is false, the gate shows `TenturaCircularProgress` only after 150 ms,
-/// `ScreenLoadErrorPanel` on a first-load error, and optionally reveals the
-/// child after 2.5 s when `revealOnTimeout` is true.
+/// `ready` is false, the gate shows `TenturaCircularProgress` only after 150 ms
+/// and `ScreenLoadErrorPanel` on a first-load error.
+///
+/// By default the gate does **not** reveal over unfinished primary data. Opt in
+/// with `revealOnTimeout: true` only when a **secondary** read may still be
+/// in flight after the primary slices are ready (for example Request child reads).
 class TenturaFirstLoadGate extends StatefulWidget {
   const TenturaFirstLoadGate({
     required this.ready,
@@ -21,7 +24,7 @@ class TenturaFirstLoadGate extends StatefulWidget {
     required this.onRetry,
     this.error,
     this.onSignInAgain,
-    this.revealOnTimeout = true,
+    this.revealOnTimeout = false,
     this.frameBuilder,
     super.key,
   });

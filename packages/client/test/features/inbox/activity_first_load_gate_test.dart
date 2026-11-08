@@ -586,11 +586,10 @@ void main() {
     );
 
     testWidgets(
-      'reveals available offers after 2.5 seconds when updates stall',
+      'withholds partial Activity feed past 2.5 s when updates stall',
       (tester) async {
         final repo = _ControlledAttentionRepo();
         try {
-          // The harness only flushes microtasks: elapsed gate time is zero.
           await _pumpInbox(
             tester,
             attentionRepo: repo,
@@ -608,33 +607,25 @@ void main() {
 
           await tester.pump(const Duration(milliseconds: 2)); // 2501 ms
           expect(repo.feedResponse.isCompleted, isFalse);
-          expect(find.text('Repair the garden gate'), findsOneWidget);
+          expect(find.text('Repair the garden gate'), findsNothing);
           expect(find.text('Delivery arranged for Friday'), findsNothing);
-          expect(find.byType(CircularProgressIndicator), findsNothing);
+          expect(
+            _visibleFrame(),
+            (gateSpinners: 1, allSpinners: 1, offers: 0, updates: 0),
+          );
 
-          // Revealing available data must not depend on the stalled source
-          // finishing, nor re-arm the spinner on the next frame.
-          await tester.pump(const Duration(seconds: 1));
-          expect(repo.feedResponse.isCompleted, isFalse);
-          expect(find.text('Repair the garden gate'), findsOneWidget);
-          expect(find.byType(CircularProgressIndicator), findsNothing);
-
-          // A late response still fills the revealed list in place.
           _finishFeed(repo);
           await _frames(tester);
           expect(find.text('Repair the garden gate'), findsOneWidget);
           expect(find.text('Delivery arranged for Friday'), findsOneWidget);
           expect(find.byType(CircularProgressIndicator), findsNothing);
 
-          // Assert last so the escape and late-response phases also execute
-          // against today's screen, which reveals available offers too early.
           expect(
             beforeTimeout,
             (gateSpinners: 1, allSpinners: 1, offers: 0, updates: 0),
             reason:
                 'At 2499 ms the gate must still withhold the partial list; '
-                'at 2501 ms it must reveal available offers without waiting '
-                'for the stalled updates source',
+                'primary slices must not escape via timeout at 2501 ms',
           );
         } finally {
           if (!repo.offersResponse.isCompleted) _finishOffers(repo);
