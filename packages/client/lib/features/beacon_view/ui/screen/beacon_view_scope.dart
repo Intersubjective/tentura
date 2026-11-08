@@ -40,6 +40,7 @@ class BeaconViewScope extends StatelessWidget {
           create: (_) {
             final cubit = BeaconHierarchyCubit(beaconId: id);
             unawaited(cubit.loadParentReference());
+            unawaited(cubit.load());
             return cubit;
           },
         ),
