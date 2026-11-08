@@ -121,8 +121,15 @@ LEFT JOIN LATERAL (
                       AND activity.user_id = bp.user_id
     WHERE bp.beacon_id = posts.id AND bp.room_access = 3
       AND bp.user_id <> \$1
+      -- A member who declined is not one of the "N people".
+      AND NOT EXISTS (
+        SELECT 1 FROM public.beacon_forward_edge e
+        WHERE e.beacon_id = bp.beacon_id AND e.recipient_id = bp.user_id
+          AND e.recipient_rejected
+      )
   )
-  SELECT count(*)::int AS participant_count,
+  -- The author has no participant row, so a non-author viewer adds them.
+  SELECT (count(*) + (posts.author_id <> \$1)::int)::int AS participant_count,
          (count(*) FILTER (WHERE active_at IS NULL))::int AS not_opened_count,
          (SELECT COALESCE(jsonb_agg(to_jsonb(preview) ORDER BY preview.active_at DESC NULLS LAST, preview.user_id), '[]'::jsonb)::text
           FROM (SELECT * FROM peers
@@ -337,7 +344,10 @@ ${beaconId == null ? '' : r'WHERE posts.id = $2'}''',
       await _database
           .customSelect(
             r'SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))',
-            variables: [Variable<String>(authorId), Variable<String>(clientOpId)],
+            variables: [
+              Variable<String>(authorId),
+              Variable<String>(clientOpId),
+            ],
           )
           .get();
       final existing = await _database
@@ -723,12 +733,13 @@ ${beaconId == null ? '' : r'WHERE posts.id = $2'}''',
     required String userId,
     required Future<T> Function(BeaconEntity locked) fn,
   }) => _database.withMutatingUser(userId, () async {
-    await _database
+    final row = await _database
         .customSelect(
           r'SELECT id FROM public.beacon WHERE id = $1 FOR UPDATE',
           variables: [Variable<String>(beaconId)],
         )
-        .getSingle();
+        .getSingleOrNull();
+    if (row == null) throw IdNotFoundException(id: beaconId);
 
     final locked = await getBeaconById(beaconId: beaconId);
     return fn(locked);

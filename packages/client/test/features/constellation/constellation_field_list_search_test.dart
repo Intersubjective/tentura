@@ -295,7 +295,7 @@ void main() {
         find.descendant(of: _personGroup('ann'), matching: post),
         findsOneWidget,
       );
-      await tester.tap(post);
+      await tester.tap(find.text('Who has a ladder?'));
       await tester.pumpAndSettle();
       expect(cubit.state.selectedRequestId, 'post-ann');
     });

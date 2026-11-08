@@ -211,6 +211,20 @@ VALUES ('$_hidden', '$_otherAuthor', 'Private', '', 0, false)
     );
 
     test(
+      'editing an unknown Request id answers with code 1002',
+      () async {
+        expectNotFound(
+          await run(
+            r'mutation ($id: String!) { beaconUpdate(id: $id, '
+            'title: "A new title", description: "Still needs a hand") '
+            '{ id } }',
+            {'id': _missing},
+          ),
+        );
+      },
+    );
+
+    test(
       'a Request query on an existing Request the viewer cannot read still '
       'answers unauthorized, not not-found',
       () async {

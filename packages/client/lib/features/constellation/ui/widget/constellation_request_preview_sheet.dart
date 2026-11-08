@@ -20,6 +20,10 @@ import 'constellation_request_status_marker.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import '../bloc/constellation_cubit.dart';
 
+/// Below this peek height the preview scrolls body and actions together so the
+/// layout never overflows; at phone peek sizes Pin / Hide stay pinned (#255).
+const _kFieldPreviewPinnedFooterMinHeight = 168.0;
+
 /// Primary action label for the preview action matrix (held state × coverage).
 String constellationPreviewPrimaryActionLabel(
   L10n l10n,
@@ -265,6 +269,9 @@ class ConstellationRequestPreviewSheet extends StatelessWidget {
         padding: tt.cardPadding,
         child: LayoutBuilder(
           builder: (context, constraints) {
+            final pinFooter =
+                constraints.maxHeight.isFinite &&
+                constraints.maxHeight >= _kFieldPreviewPinnedFooterMinHeight;
             if (!constraints.maxHeight.isFinite) {
               return Column(
                 mainAxisSize: MainAxisSize.min,
@@ -276,22 +283,28 @@ class ConstellationRequestPreviewSheet extends StatelessWidget {
                 ],
               );
             }
-            // Peek-height compact sheets: footer may exceed the cap; keep
-            // actions reachable by scrolling rather than overflowing (#974).
+            if (!pinFooter) {
+              return SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    body,
+                    SizedBox(height: tt.rowGap),
+                    footer,
+                  ],
+                ),
+              );
+            }
+            // Peek-height compact sheets: keep Pin / Hide on screen (#255, #974).
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Expanded(
+                Expanded(child: SingleChildScrollView(child: body)),
+                SizedBox(height: tt.rowGap),
+                Flexible(
                   child: SingleChildScrollView(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        body,
-                        SizedBox(height: tt.rowGap),
-                        footer,
-                      ],
-                    ),
+                    child: footer,
                   ),
                 ),
               ],

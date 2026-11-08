@@ -1116,11 +1116,48 @@ class BeaconRoomCase extends UseCaseBase {
       }
     }
     final before = beforeIso != null ? DateTime.tryParse(beforeIso) : null;
-    return _room.listMessagesEnriched(
+    final messages = await _room.listMessagesEnriched(
       beaconId: beaconId,
       viewerUserId: userId,
       threadItemId: inThread ? tid : null,
       before: before,
+    );
+    if (!inThread && before == null) {
+      await _recordPostFirstOpen(
+        beaconId: beaconId,
+        userId: userId,
+        page: messages,
+      );
+    }
+    return messages;
+  }
+
+  /// A Post recipient's first open of its General room is what «Opened»
+  /// means. The watermark goes only to the newest message on the page that
+  /// was read, so a reply that arrived meanwhile stays unread. Requests, the
+  /// author, refetches and older pages write nothing: reading is otherwise
+  /// acknowledged only through [markBeaconRoomSeen].
+  Future<void> _recordPostFirstOpen({
+    required String beaconId,
+    required String userId,
+    required List<Map<String, Object?>> page,
+  }) async {
+    if (page.isEmpty) return;
+    final postAuthorId = await _postAuthorId(beaconId);
+    if (postAuthorId == null || postAuthorId == userId) return;
+    final seen = await _room.getMainRoomLastSeen(
+      beaconId: beaconId,
+      userId: userId,
+    );
+    if (seen != null) return;
+    final newest = page
+        .map((message) => DateTime.parse(message['createdAt']! as String))
+        .reduce((a, b) => a.isAfter(b) ? a : b);
+    await _room.markBeaconRoomSeen(
+      userId: userId,
+      beaconId: beaconId,
+      threadItemId: null,
+      at: newest,
     );
   }
 

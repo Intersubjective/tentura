@@ -32,6 +32,7 @@ import 'package:tentura/features/people_tags/ui/widget/tag_editor_dialog.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/undo_snack_bar.dart';
 import 'package:tentura/ui/test_ids.dart';
+import 'package:tentura/ui/widget/browser_context_menu_hold.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
@@ -782,6 +783,9 @@ class _ConstellationBodyState extends State<ConstellationBody>
     ConstellationCubit cubit,
     NodeDetails node,
   ) {
+    if (ConstellationFieldBeaconMapChrome.suppressesPrimaryTap()) {
+      return;
+    }
     if (constellationSelectionTap(context, cubit, node)) return;
     cubit.selectMapNode(node);
     if (cubit.state.isComposing) {
@@ -1518,390 +1522,399 @@ class _ConstellationBodyState extends State<ConstellationBody>
 
   @override
   Widget build(BuildContext context) {
-    return MultiBlocListener(
-      listeners: [
-        BlocListener<ConstellationCubit, ConstellationState>(
-          listenWhen: (previous, current) =>
-              previous.selectedRequestId != current.selectedRequestId &&
-              current.selectedRequestId != null,
-          listener: (context, state) {
-            final requestId = state.selectedRequestId!;
-            final cubit = context.read<ConstellationCubit>();
-            final request = cubit.requestById(requestId);
-            if (request != null || cubit.isPostId(requestId)) {
-              setState(() => _selectionUnavailableMessage = null);
-              return;
-            }
-            final message = L10n.of(
-              context,
-            )!.constellationSelectionUnavailable;
-            setState(() => _selectionUnavailableMessage = message);
-            unawaited(
-              SemanticsService.sendAnnouncement(
-                View.of(context),
-                message,
-                TextDirection.ltr,
-              ),
-            );
-            cubit.selectRequest(null);
-          },
-        ),
-        // Select mode turned on from the toolbar: Escape leaves it (#680).
-        if (maybeConstellationSelection(context) case final selection?)
-          BlocListener<
-            ConstellationSelectionCubit,
-            ConstellationMultiSelection
-          >(
-            bloc: selection,
+    return BrowserContextMenuHold(
+      child: MultiBlocListener(
+        listeners: [
+          BlocListener<ConstellationCubit, ConstellationState>(
             listenWhen: (previous, current) =>
-                !previous.selecting && current.selecting,
-            listener: (_, _) => _takeMapFocus(),
-          ),
-        BlocListener<GraphPersonContextCubit, GraphPersonContextState>(
-          listenWhen: (previous, current) =>
-              previous.dismissedFocusId != current.dismissedFocusId &&
-              current.dismissedFocusId != null,
-          listener: (context, state) {
-            context.read<ConstellationCubit>().selectPerson(null);
-          },
-        ),
-        BlocListener<ConstellationCubit, ConstellationState>(
-          listenWhen: (previous, current) =>
-              previous.visibility != current.visibility ||
-              previous.field != current.field,
-          listener: (context, state) {
-            final selection = maybeConstellationSelection(context);
-            if (selection == null || !selection.state.arranging) {
-              return;
-            }
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (!context.mounted) {
-                return;
-              }
-              if (!selection.state.arranging) {
-                return;
-              }
-              if (!context.read<ConstellationCubit>().canArrange) {
-                selection.exitArranging();
-              }
-            });
-          },
-        ),
-        BlocListener<ConstellationCubit, ConstellationState>(
-          listenWhen: (previous, current) =>
-              previous.selectedPersonId != current.selectedPersonId ||
-              previous.selectedRequestId != current.selectedRequestId,
-          listener: (context, state) {
-            final cubit = context.read<ConstellationCubit>();
-            final panelVisible =
-                state.selectedPersonId != null ||
-                state.selectedRequestId != null;
-            _syncCompactPanelSideEffects(context, cubit, panelVisible);
-            _scheduleFieldContextSheetExpandedReport();
-          },
-        ),
-        // #1043: [activePlacementTarget] / phase change must recompute the drag
-        // clamp without rebuilding the map body (placement rebuild tests).
-        BlocListener<ConstellationCubit, ConstellationState>(
-          listenWhen: (previous, current) =>
-              previous.placementPhase != current.placementPhase ||
-              previous.activePlacementTarget != current.activePlacementTarget ||
-              previous.isComposing != current.isComposing ||
-              previous.tagView != current.tagView,
-          listener: (context, state) {
-            final cubit = context.read<ConstellationCubit>();
-            final selection = maybeConstellationSelection(context);
-            final mapArranging = selection?.state.arranging ?? false;
-            if (!mapArranging ||
-                !widget.arrangeV2Enabled ||
-                cubit.state.isComposing ||
-                cubit.state.tagView != null) {
-              return;
-            }
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (!mounted) {
-                return;
-              }
-              _measureBottomChromeColumnHeight();
-              _syncArrangingDragClamp(
-                context: context,
-                cubit: cubit,
-                arranging: true,
-              );
-            });
-          },
-        ),
-      ],
-      child: BlocBuilder<ConstellationCubit, ConstellationState>(
-        buildWhen: (previous, current) =>
-            (previous.graphRevision != current.graphRevision &&
-                context.read<ConstellationCubit>().graphSceneLayoutAlgorithm !=
-                    _mountedLayoutAlgorithm) ||
-            previous.status != current.status ||
-            previous.loadError != current.loadError ||
-            previous.selectedPersonId != current.selectedPersonId ||
-            previous.selectedRequestId != current.selectedRequestId ||
-            previous.expandedPersonIds != current.expandedPersonIds ||
-            previous.viewMode != current.viewMode ||
-            previous.tagView != current.tagView ||
-            previous.rearrangePreview != current.rearrangePreview ||
-            previous.loadedAt != current.loadedAt ||
-            previous.filterCapabilitySlugs != current.filterCapabilitySlugs ||
-            previous.filterLocation != current.filterLocation ||
-            previous.filterTiming != current.filterTiming ||
-            previous.filterIncludeUnspecified !=
-                current.filterIncludeUnspecified ||
-            previous.membershipFilters != current.membershipFilters,
-        builder: (context, state) {
-          return LayoutBuilder(
-            builder: (context, constraints) {
-              _scheduleLabelBudgetSync(
-                context,
-                Size(constraints.maxWidth, constraints.maxHeight),
-              );
+                previous.selectedRequestId != current.selectedRequestId &&
+                current.selectedRequestId != null,
+            listener: (context, state) {
+              final requestId = state.selectedRequestId!;
               final cubit = context.read<ConstellationCubit>();
-              final tt = context.tt;
-
-              if (state.status is StateIsLoading && state.field == null) {
-                return Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    const Center(child: TenturaCircularProgress()),
-                    Positioned(
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      child: LinearPiActive.builder(context, true),
-                    ),
-                  ],
-                );
+              final request = cubit.requestById(requestId);
+              if (request != null || cubit.isPostId(requestId)) {
+                setState(() => _selectionUnavailableMessage = null);
+                return;
               }
-
-              if (state.loadError != null && state.field == null) {
-                return Center(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: tt.screenHPadding,
-                    ),
-                    child: Text(
-                      state.loadError.toString(),
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                  ),
-                );
+              final message = L10n.of(
+                context,
+              )!.constellationSelectionUnavailable;
+              setState(() => _selectionUnavailableMessage = message);
+              unawaited(
+                SemanticsService.sendAnnouncement(
+                  View.of(context),
+                  message,
+                  TextDirection.ltr,
+                ),
+              );
+              cubit.selectRequest(null);
+            },
+          ),
+          // Select mode turned on from the toolbar: Escape leaves it (#680).
+          if (maybeConstellationSelection(context) case final selection?)
+            BlocListener<
+              ConstellationSelectionCubit,
+              ConstellationMultiSelection
+            >(
+              bloc: selection,
+              listenWhen: (previous, current) =>
+                  !previous.selecting && current.selecting,
+              listener: (_, _) => _takeMapFocus(),
+            ),
+          BlocListener<GraphPersonContextCubit, GraphPersonContextState>(
+            listenWhen: (previous, current) =>
+                previous.dismissedFocusId != current.dismissedFocusId &&
+                current.dismissedFocusId != null,
+            listener: (context, state) {
+              context.read<ConstellationCubit>().selectPerson(null);
+            },
+          ),
+          BlocListener<ConstellationCubit, ConstellationState>(
+            listenWhen: (previous, current) =>
+                previous.visibility != current.visibility ||
+                previous.field != current.field,
+            listener: (context, state) {
+              final selection = maybeConstellationSelection(context);
+              if (selection == null || !selection.state.arranging) {
+                return;
               }
-
-              final resolved = state.resolvedField;
-              if (resolved == null || cubit.layoutEgoId.isEmpty) {
-                return const SizedBox.shrink();
-              }
-
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (!context.mounted) {
+                  return;
+                }
+                if (!selection.state.arranging) {
+                  return;
+                }
+                if (!context.read<ConstellationCubit>().canArrange) {
+                  selection.exitArranging();
+                }
+              });
+            },
+          ),
+          BlocListener<ConstellationCubit, ConstellationState>(
+            listenWhen: (previous, current) =>
+                previous.selectedPersonId != current.selectedPersonId ||
+                previous.selectedRequestId != current.selectedRequestId,
+            listener: (context, state) {
+              final cubit = context.read<ConstellationCubit>();
               final panelVisible =
                   state.selectedPersonId != null ||
                   state.selectedRequestId != null;
-              final compactPanel = _compactContextPanelOpen(
-                context,
-                panelVisible,
-              );
-              final compactSheetExpanded = _compactSheetDetentExpanded;
+              _syncCompactPanelSideEffects(context, cubit, panelVisible);
+              _scheduleFieldContextSheetExpandedReport();
+            },
+          ),
+          // #1043: [activePlacementTarget] / phase change must recompute the drag
+          // clamp without rebuilding the map body (placement rebuild tests).
+          BlocListener<ConstellationCubit, ConstellationState>(
+            listenWhen: (previous, current) =>
+                previous.placementPhase != current.placementPhase ||
+                previous.activePlacementTarget !=
+                    current.activePlacementTarget ||
+                previous.isComposing != current.isComposing ||
+                previous.tagView != current.tagView,
+            listener: (context, state) {
+              final cubit = context.read<ConstellationCubit>();
+              final selection = maybeConstellationSelection(context);
+              final mapArranging = selection?.state.arranging ?? false;
+              if (!mapArranging ||
+                  !widget.arrangeV2Enabled ||
+                  cubit.state.isComposing ||
+                  cubit.state.tagView != null) {
+                return;
+              }
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (!mounted) {
+                  return;
+                }
+                _measureBottomChromeColumnHeight();
+                _syncArrangingDragClamp(
+                  context: context,
+                  cubit: cubit,
+                  arranging: true,
+                );
+              });
+            },
+          ),
+        ],
+        child: BlocBuilder<ConstellationCubit, ConstellationState>(
+          buildWhen: (previous, current) =>
+              (previous.graphRevision != current.graphRevision &&
+                  context
+                          .read<ConstellationCubit>()
+                          .graphSceneLayoutAlgorithm !=
+                      _mountedLayoutAlgorithm) ||
+              previous.status != current.status ||
+              previous.loadError != current.loadError ||
+              previous.selectedPersonId != current.selectedPersonId ||
+              previous.selectedRequestId != current.selectedRequestId ||
+              previous.expandedPersonIds != current.expandedPersonIds ||
+              previous.viewMode != current.viewMode ||
+              previous.tagView != current.tagView ||
+              previous.rearrangePreview != current.rearrangePreview ||
+              previous.loadedAt != current.loadedAt ||
+              previous.filterCapabilitySlugs != current.filterCapabilitySlugs ||
+              previous.filterLocation != current.filterLocation ||
+              previous.filterTiming != current.filterTiming ||
+              previous.filterIncludeUnspecified !=
+                  current.filterIncludeUnspecified ||
+              previous.membershipFilters != current.membershipFilters,
+          builder: (context, state) {
+            return LayoutBuilder(
+              builder: (context, constraints) {
+                _scheduleLabelBudgetSync(
+                  context,
+                  Size(constraints.maxWidth, constraints.maxHeight),
+                );
+                final cubit = context.read<ConstellationCubit>();
+                final tt = context.tt;
 
-              return Shortcuts(
-                shortcuts: {
-                  const SingleActivator(LogicalKeyboardKey.escape):
-                      const _CancelPlacementIntent(),
-                  if (widget.arrangeV2Enabled) ...{
-                    for (final (control, meta) in const [
-                      (true, false),
-                      (false, true),
-                    ]) ...{
-                      SingleActivator(
-                        LogicalKeyboardKey.keyZ,
-                        control: control,
-                        meta: meta,
-                      ): const _UndoArrangementIntent(),
-                      SingleActivator(
-                        LogicalKeyboardKey.keyZ,
-                        control: control,
-                        meta: meta,
-                        shift: true,
-                      ): const _RedoArrangementIntent(),
+                if (state.status is StateIsLoading && state.field == null) {
+                  return Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      const Center(child: TenturaCircularProgress()),
+                      Positioned(
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        child: LinearPiActive.builder(context, true),
+                      ),
+                    ],
+                  );
+                }
+
+                if (state.loadError != null && state.field == null) {
+                  return Center(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: tt.screenHPadding,
+                      ),
+                      child: Text(
+                        state.loadError.toString(),
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                    ),
+                  );
+                }
+
+                final resolved = state.resolvedField;
+                if (resolved == null || cubit.layoutEgoId.isEmpty) {
+                  return const SizedBox.shrink();
+                }
+
+                final panelVisible =
+                    state.selectedPersonId != null ||
+                    state.selectedRequestId != null;
+                final compactPanel = _compactContextPanelOpen(
+                  context,
+                  panelVisible,
+                );
+                final compactSheetExpanded = _compactSheetDetentExpanded;
+
+                return Shortcuts(
+                  shortcuts: {
+                    const SingleActivator(LogicalKeyboardKey.escape):
+                        const _CancelPlacementIntent(),
+                    if (widget.arrangeV2Enabled) ...{
+                      for (final (control, meta) in const [
+                        (true, false),
+                        (false, true),
+                      ]) ...{
+                        SingleActivator(
+                          LogicalKeyboardKey.keyZ,
+                          control: control,
+                          meta: meta,
+                        ): const _UndoArrangementIntent(),
+                        SingleActivator(
+                          LogicalKeyboardKey.keyZ,
+                          control: control,
+                          meta: meta,
+                          shift: true,
+                        ): const _RedoArrangementIntent(),
+                      },
                     },
                   },
-                },
-                child: Actions(
-                  actions: {
-                    _UndoArrangementIntent:
-                        CallbackAction<_UndoArrangementIntent>(
-                          onInvoke: (_) {
-                            unawaited(cubit.undoArrangement());
-                            return null;
-                          },
-                        ),
-                    _RedoArrangementIntent:
-                        CallbackAction<_RedoArrangementIntent>(
-                          onInvoke: (_) {
-                            unawaited(cubit.redoArrangement());
-                            return null;
-                          },
-                        ),
-                    _CancelPlacementIntent:
-                        CallbackAction<_CancelPlacementIntent>(
-                          onInvoke: (_) {
-                            // Select mode and the sector step back first;
-                            // nodes left selected after select mode only
-                            // once the open panel is closed (#680).
-                            final selection = maybeConstellationSelection(
-                              context,
-                            );
-                            final panelOpen =
-                                cubit.state.selectedPersonId != null ||
-                                cubit.state.selectedRequestId != null;
-                            if (!cubit.state.isComposing &&
-                                cubit.state.placementPhase ==
-                                    ConstellationPlacementPhase.idle &&
-                                selection != null &&
-                                (selection.state.arranging ||
-                                    selection.state.selecting ||
-                                    selection.state.sector != null ||
-                                    !panelOpen) &&
-                                selection.escape()) {
+                  child: Actions(
+                    actions: {
+                      _UndoArrangementIntent:
+                          CallbackAction<_UndoArrangementIntent>(
+                            onInvoke: (_) {
+                              unawaited(cubit.undoArrangement());
                               return null;
-                            }
-                            final composer = maybeConstellationComposer(
-                              context,
-                            );
-                            if (cubit.state.isComposing && composer != null) {
-                              unawaited(() async {
-                                await composer.cancel();
-                                await composer.finish();
-                              }());
-                            } else {
-                              final placing =
-                                  cubit.state.placementPhase !=
-                                  ConstellationPlacementPhase.idle;
-                              if (_tagHullMenuDragNodeId != null ||
-                                  (_liftedTagId != null && placing)) {
-                                _cancelTagHullMenuDrag(cubit);
-                              } else {
-                                cubit.cancelPlacement();
+                            },
+                          ),
+                      _RedoArrangementIntent:
+                          CallbackAction<_RedoArrangementIntent>(
+                            onInvoke: (_) {
+                              unawaited(cubit.redoArrangement());
+                              return null;
+                            },
+                          ),
+                      _CancelPlacementIntent:
+                          CallbackAction<_CancelPlacementIntent>(
+                            onInvoke: (_) {
+                              // Select mode and the sector step back first;
+                              // nodes left selected after select mode only
+                              // once the open panel is closed (#680).
+                              final selection = maybeConstellationSelection(
+                                context,
+                              );
+                              final panelOpen =
+                                  cubit.state.selectedPersonId != null ||
+                                  cubit.state.selectedRequestId != null;
+                              if (!cubit.state.isComposing &&
+                                  cubit.state.placementPhase ==
+                                      ConstellationPlacementPhase.idle &&
+                                  selection != null &&
+                                  (selection.state.arranging ||
+                                      selection.state.selecting ||
+                                      selection.state.sector != null ||
+                                      !panelOpen) &&
+                                  selection.escape()) {
+                                return null;
                               }
-                              // Nothing else to cancel: Escape closes the
-                              // person or Request panel (#680).
-                              if (!placing) _closePanelOnEscape(cubit);
-                            }
-                            return null;
-                          },
-                        ),
-                  },
-                  child: Listener(
-                    onPointerDown: (e) {
-                      _lastPointerGlobal = e.position;
-                      _lastTagChipDropHint = null;
+                              final composer = maybeConstellationComposer(
+                                context,
+                              );
+                              if (cubit.state.isComposing && composer != null) {
+                                unawaited(() async {
+                                  await composer.cancel();
+                                  await composer.finish();
+                                }());
+                              } else {
+                                final placing =
+                                    cubit.state.placementPhase !=
+                                    ConstellationPlacementPhase.idle;
+                                if (_tagHullMenuDragNodeId != null ||
+                                    (_liftedTagId != null && placing)) {
+                                  _cancelTagHullMenuDrag(cubit);
+                                } else {
+                                  cubit.cancelPlacement();
+                                }
+                                // Nothing else to cancel: Escape closes the
+                                // person or Request panel (#680).
+                                if (!placing) _closePanelOnEscape(cubit);
+                              }
+                              return null;
+                            },
+                          ),
                     },
-                    onPointerMove: (e) => _lastPointerGlobal = e.position,
-                    child: Focus(
-                      focusNode: _mapFocus,
-                      autofocus: true,
-                      child: LayoutBuilder(
-                        builder: (context, bodyConstraints) => Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            _buildCappedFieldTopChrome(
-                              context,
-                              bodyConstraints.maxHeight,
-                              state,
-                              cubit,
-                              hideMapChrome: compactPanel,
-                            ),
-                            Expanded(
-                              child: IndexedStack(
-                                index:
-                                    state.viewMode == ConstellationViewMode.map
-                                    ? 0
-                                    : 1,
-                                sizing: StackFit.expand,
-                                children: [
-                                  ValueListenableBuilder<int>(
-                                    valueListenable:
-                                        cubit.graphController.topologyRevision,
-                                    // Labels and chips drawn near the top edge
-                                    // pass under the chip row, as edges do: the
-                                    // clip stops their paint and hits at the
-                                    // map's edge (#675).
-                                    builder: (context, _, _) {
-                                      Widget graphStack() => LayoutBuilder(
-                                        builder: (context, mapConstraints) {
-                                          _layoutMapStackHeight =
-                                              mapConstraints.maxHeight;
-                                          _noteMapStackHeight(
-                                            mapConstraints.maxHeight,
-                                          );
-                                          return ClipRect(
-                                            child: _buildGraphStack(
+                    child: Listener(
+                      onPointerDown: (e) {
+                        _lastPointerGlobal = e.position;
+                        _lastTagChipDropHint = null;
+                      },
+                      onPointerMove: (e) => _lastPointerGlobal = e.position,
+                      child: Focus(
+                        focusNode: _mapFocus,
+                        autofocus: true,
+                        child: LayoutBuilder(
+                          builder: (context, bodyConstraints) => Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              _buildCappedFieldTopChrome(
+                                context,
+                                bodyConstraints.maxHeight,
+                                state,
+                                cubit,
+                                hideMapChrome: compactPanel,
+                              ),
+                              Expanded(
+                                child: IndexedStack(
+                                  index:
+                                      state.viewMode ==
+                                          ConstellationViewMode.map
+                                      ? 0
+                                      : 1,
+                                  sizing: StackFit.expand,
+                                  children: [
+                                    ValueListenableBuilder<int>(
+                                      valueListenable: cubit
+                                          .graphController
+                                          .topologyRevision,
+                                      // Labels and chips drawn near the top edge
+                                      // pass under the chip row, as edges do: the
+                                      // clip stops their paint and hits at the
+                                      // map's edge (#675).
+                                      builder: (context, _, _) {
+                                        Widget graphStack() => LayoutBuilder(
+                                          builder: (context, mapConstraints) {
+                                            _layoutMapStackHeight =
+                                                mapConstraints.maxHeight;
+                                            _noteMapStackHeight(
+                                              mapConstraints.maxHeight,
+                                            );
+                                            return ClipRect(
+                                              child: _buildGraphStack(
+                                                context,
+                                                cubit,
+                                                cubit.state,
+                                                cubit.graphSceneLayoutAlgorithm,
+                                                panelVisible,
+                                                compactSheetExpanded,
+                                              ),
+                                            );
+                                          },
+                                        );
+                                        // [touchNodeDragLocked] must track Arranging.
+                                        final selection =
+                                            maybeConstellationSelection(
+                                              context,
+                                            );
+                                        if (selection == null) {
+                                          return graphStack();
+                                        }
+                                        return BlocBuilder<
+                                          ConstellationSelectionCubit,
+                                          ConstellationMultiSelection
+                                        >(
+                                          bloc: selection,
+                                          buildWhen: (previous, current) =>
+                                              previous.arranging !=
+                                              current.arranging,
+                                          builder: (context, _) => graphStack(),
+                                        );
+                                      },
+                                    ),
+                                    // The map stack hosts the preview overlay; the
+                                    // text view needs its own or a tapped card shows
+                                    // nothing (#354).
+                                    Stack(
+                                      fit: StackFit.expand,
+                                      children: [
+                                        // Not mounted while hidden: its Pin
+                                        // buttons would keep running pin layouts
+                                        // on every map recompose.
+                                        if (state.viewMode ==
+                                            ConstellationViewMode.text) ...[
+                                          const ConstellationTextView(),
+                                          if (panelVisible)
+                                            _buildContextOverlay(
                                               context,
                                               cubit,
-                                              cubit.state,
-                                              cubit.graphSceneLayoutAlgorithm,
-                                              panelVisible,
-                                              compactSheetExpanded,
+                                              state,
+                                              mapStackHeight:
+                                                  _effectiveMapStackHeight,
                                             ),
-                                          );
-                                        },
-                                      );
-                                      // [touchNodeDragLocked] must track Arranging.
-                                      final selection =
-                                          maybeConstellationSelection(context);
-                                      if (selection == null) {
-                                        return graphStack();
-                                      }
-                                      return BlocBuilder<
-                                        ConstellationSelectionCubit,
-                                        ConstellationMultiSelection
-                                      >(
-                                        bloc: selection,
-                                        buildWhen: (previous, current) =>
-                                            previous.arranging !=
-                                            current.arranging,
-                                        builder: (context, _) => graphStack(),
-                                      );
-                                    },
-                                  ),
-                                  // The map stack hosts the preview overlay; the
-                                  // text view needs its own or a tapped card shows
-                                  // nothing (#354).
-                                  Stack(
-                                    fit: StackFit.expand,
-                                    children: [
-                                      // Not mounted while hidden: its Pin
-                                      // buttons would keep running pin layouts
-                                      // on every map recompose.
-                                      if (state.viewMode ==
-                                          ConstellationViewMode.text) ...[
-                                        const ConstellationTextView(),
-                                        if (panelVisible)
-                                          _buildContextOverlay(
-                                            context,
-                                            cubit,
-                                            state,
-                                            mapStackHeight:
-                                                _effectiveMapStackHeight,
-                                          ),
+                                        ],
                                       ],
-                                    ],
-                                  ),
-                                ],
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-              );
-            },
-          );
-        },
+                );
+              },
+            );
+          },
+        ),
       ),
     );
   }
@@ -2458,7 +2471,6 @@ class _ConstellationBodyState extends State<ConstellationBody>
                 cubit.onPointerCancelDuringDrag();
               },
               minScale: 0.1,
-              maxScale: 2,
               centerOnFirstLayout: false,
               layoutAlgorithm: layoutAlgorithm,
               // New Requests spring out from under their author along this
