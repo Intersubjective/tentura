@@ -1699,6 +1699,13 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                             selectedSurface: _selectedSurface,
                           );
                       final room = context.read<ThreadHostCubit>().roomCubit;
+                      final splitLayoutPending =
+                          showBeaconContent &&
+                          !showcase &&
+                          constraints.maxWidth >=
+                              minPaneWidth * 2 + splitHandleWidth &&
+                          !threadsState.isSuccess &&
+                          !threadsState.hasError;
                       return StreamBuilder<void>(
                         stream: room?.stream,
                         builder: (context, _) =>
@@ -1717,6 +1724,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                                         state.firstLoadDone &&
                                         (room?.state.firstLoadDone ??
                                             !roomExpected) &&
+                                        !splitLayoutPending &&
                                         (showcase ||
                                             (!isSplit &&
                                                 _selectedSurface !=

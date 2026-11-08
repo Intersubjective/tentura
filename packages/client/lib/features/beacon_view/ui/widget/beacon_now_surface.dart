@@ -457,7 +457,6 @@ class _BeaconNowSurfaceState extends State<BeaconNowSurface> {
                       ),
                     ),
                   if (admitted) ...[
-                    const SliverToBoxAdapter(child: _HierarchyBootstrap()),
                     SliverPadding(
                       // A section of its own: on the column edge with the Details /
                       // Facts cards and the Forward action above it, not on the HUD
@@ -502,25 +501,4 @@ class _BeaconNowSurfaceState extends State<BeaconNowSurface> {
       },
     );
   }
-}
-
-class _HierarchyBootstrap extends StatefulWidget {
-  const _HierarchyBootstrap();
-
-  @override
-  State<_HierarchyBootstrap> createState() => _HierarchyBootstrapState();
-}
-
-class _HierarchyBootstrapState extends State<_HierarchyBootstrap> {
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      unawaited(context.read<BeaconHierarchyCubit>().load());
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) => const SizedBox.shrink();
 }

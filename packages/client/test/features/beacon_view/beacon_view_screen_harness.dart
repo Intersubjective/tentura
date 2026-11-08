@@ -474,6 +474,7 @@ Future<BeaconViewHarness> pumpBeaconViewHarness(
   String? messageId,
   ThreadsCubit? threadsCubit,
   BeaconViewCubit? beaconViewCubit,
+  BeaconHierarchyCubit? hierarchyCubit,
   Locale locale = const Locale('en'),
   // Runs after the harness registered its GetIt fakes, before the pump: a
   // test swaps one of them for its own.
@@ -541,25 +542,33 @@ Future<BeaconViewHarness> pumpBeaconViewHarness(
               BlocProvider<ThreadHostCubit>.value(value: harnessHost),
               if (planCubit != null)
                 BlocProvider<PlanCubit>.value(value: planCubit),
-              BlocProvider<BeaconHierarchyCubit>(
-                create: (_) => BeaconHierarchyCubit(
-                  beaconId: beaconState.beacon.id,
-                  hierarchyCase: buildBeaconHierarchyCaseForTest(
-                    FakeBeaconHierarchyRepositoryPort(
-                      capabilities: const BeaconHierarchyCapabilities(
-                        canListChildren: false,
-                        canCreateChild: false,
+              if (hierarchyCubit != null)
+                BlocProvider<BeaconHierarchyCubit>.value(value: hierarchyCubit)
+              else
+                BlocProvider<BeaconHierarchyCubit>(
+                  create: (_) {
+                    final cubit = BeaconHierarchyCubit(
+                      beaconId: beaconState.beacon.id,
+                      hierarchyCase: buildBeaconHierarchyCaseForTest(
+                        FakeBeaconHierarchyRepositoryPort(
+                          capabilities: const BeaconHierarchyCapabilities(
+                            canListChildren: false,
+                            canCreateChild: false,
+                          ),
+                        ),
+                        createCase: BeaconCreateCase(
+                          _NoopBeaconWritePort(),
+                          _NoopImageRepository(),
+                        ),
+                        beacons: _NoopBeaconWritePort(),
+                        commandStore: InMemoryBeaconChildCommandStore(),
                       ),
-                    ),
-                    createCase: BeaconCreateCase(
-                      _NoopBeaconWritePort(),
-                      _NoopImageRepository(),
-                    ),
-                    beacons: _NoopBeaconWritePort(),
-                    commandStore: InMemoryBeaconChildCommandStore(),
-                  ),
+                    );
+                    unawaited(cubit.loadParentReference());
+                    unawaited(cubit.load());
+                    return cubit;
+                  },
                 ),
-              ),
               BlocProvider<ProfileCubit>.value(
                 value: _HarnessProfileCubit(beaconState.myProfile),
               ),
@@ -609,10 +618,7 @@ Widget buildBeaconViewHarnessWidget({
   final harnessHost = host ?? beaconViewHarnessHost(recorder: harnessRecorder);
   final beaconCubit = _HarnessBeaconViewCubit(beaconState);
   final harnessThreadsCubit =
-      threadsCubit ??
-      _HarnessThreadsCubit(
-        threadsState.copyWith(status: const StateIsLoading()),
-      );
+      threadsCubit ?? _HarnessThreadsCubit(threadsState);
 
   return MultiBlocProvider(
     providers: [
@@ -625,23 +631,28 @@ Widget buildBeaconViewHarnessWidget({
         BlocProvider<BeaconHierarchyCubit>.value(value: hierarchyCubit)
       else
         BlocProvider<BeaconHierarchyCubit>(
-          create: (_) => BeaconHierarchyCubit(
-            beaconId: beaconState.beacon.id,
-            hierarchyCase: buildBeaconHierarchyCaseForTest(
-              FakeBeaconHierarchyRepositoryPort(
-                capabilities: const BeaconHierarchyCapabilities(
-                  canListChildren: false,
-                  canCreateChild: false,
+          create: (_) {
+            final cubit = BeaconHierarchyCubit(
+              beaconId: beaconState.beacon.id,
+              hierarchyCase: buildBeaconHierarchyCaseForTest(
+                FakeBeaconHierarchyRepositoryPort(
+                  capabilities: const BeaconHierarchyCapabilities(
+                    canListChildren: false,
+                    canCreateChild: false,
+                  ),
                 ),
+                createCase: BeaconCreateCase(
+                  _NoopBeaconWritePort(),
+                  _NoopImageRepository(),
+                ),
+                beacons: _NoopBeaconWritePort(),
+                commandStore: InMemoryBeaconChildCommandStore(),
               ),
-              createCase: BeaconCreateCase(
-                _NoopBeaconWritePort(),
-                _NoopImageRepository(),
-              ),
-              beacons: _NoopBeaconWritePort(),
-              commandStore: InMemoryBeaconChildCommandStore(),
-            ),
-          ),
+            );
+            unawaited(cubit.loadParentReference());
+            unawaited(cubit.load());
+            return cubit;
+          },
         ),
       BlocProvider<ProfileCubit>.value(
         value: _HarnessProfileCubit(beaconState.myProfile),
