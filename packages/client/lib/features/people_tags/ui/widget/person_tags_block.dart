@@ -19,13 +19,25 @@ import 'people_tag_profiles.dart';
 /// The viewer's private tags on one person: own tags with ×, the automatic
 /// ones without, and "+ Tag" to edit the person's membership.
 class PersonTagsBlock extends StatefulWidget {
-  const PersonTagsBlock({required this.personId, this.trust, super.key});
+  const PersonTagsBlock({
+    required this.personId,
+    this.trust,
+    this.showHeading = true,
+    this.showOnlyYouSeeFooter = true,
+    super.key,
+  });
 
   final String personId;
 
   /// Live explicit trust from the selected profile, including pending writes.
   /// Other automatic tags still come from the person's server snapshot.
   final ({bool viewerTrusts, bool trustsViewer})? trust;
+
+  /// When embedded in the profile tags section, the outer title covers this block.
+  final bool showHeading;
+
+  /// Hidden on Profile (#897); kept on people-tags screens and sheets.
+  final bool showOnlyYouSeeFooter;
 
   @override
   State<PersonTagsBlock> createState() => _PersonTagsBlockState();
@@ -196,8 +208,10 @@ class _PersonTagsBlockState extends State<PersonTagsBlock> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(l10n.peopleTagsYourTags, style: textTheme.labelLarge),
-            SizedBox(height: runSpacing),
+            if (widget.showHeading) ...[
+              Text(l10n.peopleTagsYourTags, style: textTheme.labelLarge),
+              SizedBox(height: runSpacing),
+            ],
             Wrap(
               spacing: spacing,
               runSpacing: runSpacing,
@@ -251,8 +265,10 @@ class _PersonTagsBlockState extends State<PersonTagsBlock> {
                 );
               },
             ),
-            SizedBox(height: tt.rowGap),
-            Text(l10n.peopleTagsOnlyYouSee, style: textTheme.bodySmall),
+            if (widget.showOnlyYouSeeFooter) ...[
+              SizedBox(height: tt.rowGap),
+              Text(l10n.peopleTagsOnlyYouSee, style: textTheme.bodySmall),
+            ],
           ],
         );
       },
