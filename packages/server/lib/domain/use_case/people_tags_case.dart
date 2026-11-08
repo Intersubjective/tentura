@@ -12,6 +12,11 @@ import 'package:tentura_server/domain/port/people_tags_repository_port.dart';
 
 import '_use_case_base.dart';
 
+// TODO(desloppify): remove once
+// lib/data/repository/constellation_new_people_repository.dart imports
+// kPersonTagSourceInherited from consts/people_tag_consts.dart; tracked in the
+// deferred list of #1173 (constellation files are out of scope for the
+// desloppify PRs).
 /// Kept reachable from this library for callers that still import the
 /// constants from here (the constellation new-people repository).
 export 'package:tentura_server/consts/people_tag_consts.dart'
