@@ -4,9 +4,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
+import 'package:tentura/features/beacon_view/ui/widget/beacon_view_first_load_progress.dart';
 import 'package:tentura/features/my_work/ui/bloc/my_work_state.dart';
+import 'package:tentura/features/my_work/ui/widget/my_work_first_load_progress.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/widget/first_load_stage.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

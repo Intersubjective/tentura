@@ -17,7 +17,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/features/auth/domain/exception.dart';
 import 'package:tentura/ui/widget/screen_load_error_panel.dart';
 import 'package:tentura/ui/widget/first_load_gate.dart';
-import 'package:tentura/ui/widget/first_load_stage.dart';
+import 'package:tentura/features/my_work/ui/widget/my_work_first_load_progress.dart';
 import 'package:tentura/ui/widget/show_anchored_popup_menu.dart';
 
 import 'package:tentura/features/home/domain/entity/home_activation.dart';

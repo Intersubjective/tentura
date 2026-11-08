@@ -30,7 +30,7 @@ import 'package:tentura/ui/beacon/beacon_room_navigation_scope.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/first_load_gate.dart';
-import 'package:tentura/ui/widget/first_load_stage.dart';
+import 'package:tentura/features/beacon_view/ui/widget/beacon_view_first_load_progress.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/auto_leading_with_fallback.dart';
 
