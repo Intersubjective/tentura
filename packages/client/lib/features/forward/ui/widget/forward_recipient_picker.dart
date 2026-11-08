@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:logging/logging.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/app/router/root_router.dart';
@@ -41,6 +42,8 @@ import 'forward_scope_links.dart';
 import 'forward_tag_picker.dart';
 import 'forward_beacon_subtitle.dart';
 import 'lineage_forward_section.dart';
+
+final _logger = Logger('ForwardRecipientPicker');
 
 /// Shared recipient picker body for the forward route and beacon-create tab.
 class ForwardRecipientPicker extends StatefulWidget {
@@ -406,7 +409,9 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
         recipientId,
       );
       existingSlugs = cues.viewerVisible.map((c) => c.slug).toSet();
-    } catch (_) {}
+    } catch (e, st) {
+      _logger.warning('fetchCues failed', e, st);
+    }
 
     if (!context.mounted) return;
 

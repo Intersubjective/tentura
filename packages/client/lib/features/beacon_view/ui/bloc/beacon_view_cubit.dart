@@ -1,13 +1,11 @@
 import 'dart:async';
 
-import 'package:flutter/widgets.dart' show BuildContext;
 import 'package:tentura_root/domain/entity/beacon_access.dart';
 import 'package:tentura_root/domain/entity/beacon_parent_reference.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:get_it/get_it.dart';
 import 'package:tentura/features/beacon_threads/domain/room_host.dart';
-import 'package:tentura/features/beacon_threads/ui/room_fact_authoring.dart';
 
 import 'package:tentura/features/beacon_threads/domain/entity/beacon_room_invalidation.dart';
 import 'package:tentura/domain/entity/beacon_activity_event.dart';
@@ -21,6 +19,7 @@ import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/commitment_stake_state.dart';
 import 'package:tentura/domain/entity/beacon_room_state.dart';
 import 'package:tentura/domain/entity/help_offer_admission_action.dart';
+import 'package:tentura/domain/entity/help_offer_status.dart';
 import 'package:tentura/domain/entity/beacon_display_status_dto.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_read_watermark.dart';
@@ -56,7 +55,6 @@ import 'package:tentura/features/beacon_threads/ui/message/discussion_read_only_
 import 'package:tentura/features/beacon_threads/ui/message/beacon_room_fact_messages.dart';
 import '../message/beacon_status_messages.dart';
 import '../message/help_offer_messages.dart';
-import '../widget/beacon_fact_composer_sheet.dart';
 import 'beacon_view_state.dart';
 import 'timeline_help_offer_mapping.dart';
 
@@ -79,8 +77,7 @@ typedef _ForwardsRead = ({
   bool hasForwardedThisBeaconOnce,
 });
 
-class BeaconViewCubit extends Cubit<BeaconViewState>
-    implements RoomHost, RoomFactAuthoring {
+class BeaconViewCubit extends Cubit<BeaconViewState> implements RoomHost {
   BeaconViewCubit({
     required String id,
     required Profile myProfile,
@@ -155,12 +152,9 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
   @override
   bool get isAdmissionBlocked => state.isRoomAdmissionBlocked;
 
-  @override
+  /// Whether the viewer may pin a fact in this room right now
+  /// (read by `BeaconViewRoomFactAuthoring`).
   bool get canAddFact => state.canCoordinateInBeaconRoom;
-
-  @override
-  Future<bool> openAddFact(BuildContext context) =>
-      showBeaconFactComposerSheet(context, cubit: this);
 
   @override
   bool get coordinationDeniesAdmission =>
@@ -1570,7 +1564,10 @@ class BeaconViewCubit extends Cubit<BeaconViewState>
     return (
       helpOffers: _mergeLocalAuthorSeen(timelineHelpOffersFromRemote(rows)),
       isHelpOffered: rows.any(
-        (offer) => offer.status == 0 && offer.userId == myId,
+        (offer) =>
+            HelpOfferStatus.tryFromInt(offer.status) ==
+                HelpOfferStatus.active &&
+            offer.userId == myId,
       ),
       rows: rows,
     );
@@ -2207,7 +2204,7 @@ List<TimelineEntry> helpOfferRowsToTimelineEntries({
   final response = CoordinationResponseType.tryFromInt(row.responseType);
   final events = <TimelineEntry>[];
 
-  if (row.status == 1) {
+  if (HelpOfferStatus.tryFromInt(row.status) == HelpOfferStatus.inactive) {
     events.add(
       TimelineHelpOfferCreated(
         helpOfferer: row.user,

@@ -533,7 +533,7 @@ class _ActivityStreamScrollBody extends StatelessWidget {
         ),
       if (offersState.pageLoadFailed)
         SliverToBoxAdapter(
-          child: _ActivitySourceRetryRow(
+          child: UpdatesRefreshErrorRow(
             onRetry: () => unawaited(
               context.read<ActivityOffersCubit>().loadFirst(),
             ),
@@ -553,7 +553,7 @@ class _ActivityStreamScrollBody extends StatelessWidget {
           ),
         if (placement.collapsedCount >= 3)
           SliverToBoxAdapter(
-            child: _ActivityCollapsedInvitePromptRow(
+            child: UpdatesCollapsedInvitePromptRow(
               count: placement.collapsedCount,
               onOpenBatch: () => unawaited(
                 PromptBatchSheet.show(
@@ -628,7 +628,7 @@ class _ActivityStreamScrollBody extends StatelessWidget {
         if (offersState.hasMore)
           SliverToBoxAdapter(
             child: offersState.loadingMore
-                ? const _ActivityLoadMoreIndicator()
+                ? const UpdatesLoadMoreIndicator()
                 : const SizedBox.shrink(),
           ),
       ],
@@ -1088,7 +1088,7 @@ class _ActivityStreamCell extends StatelessWidget {
           ),
         );
       case UpdatesFeedCellKind.loadMore:
-        return const _ActivityLoadMoreIndicator();
+        return const UpdatesLoadMoreIndicator();
       case UpdatesFeedCellKind.row:
         final receipt = cell.receipt!;
         final row = _streamRow(context, receipt);
@@ -1347,82 +1347,4 @@ class _ActivityStreamCell extends StatelessWidget {
               provenance.senders.first.displayName,
         );
   }
-}
-
-class _ActivityCollapsedInvitePromptRow extends StatelessWidget {
-  const _ActivityCollapsedInvitePromptRow({
-    required this.count,
-    required this.onOpenBatch,
-  });
-
-  final int count;
-  final VoidCallback onOpenBatch;
-
-  @override
-  Widget build(BuildContext context) {
-    final tt = context.tt;
-    final l10n = L10n.of(context)!;
-    final label = l10n.activityPromptCollapsedBatch(count);
-
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-        tt.listRowPadding.left,
-        tt.tightGap,
-        tt.listRowPadding.right,
-        tt.tightGap,
-      ),
-      child: TenturaAttentionSummaryRow(
-        label: label,
-        maxLines: 2,
-        showChevron: false,
-        semanticsLabel: label,
-        inkWellKey: TestIds.key(TestIds.activityPromptCollapsed),
-        onTap: onOpenBatch,
-      ),
-    );
-  }
-}
-
-class _ActivitySourceRetryRow extends StatelessWidget {
-  const _ActivitySourceRetryRow({required this.onRetry});
-
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = L10n.of(context)!;
-    final tt = context.tt;
-    return Padding(
-      padding: EdgeInsets.symmetric(
-        horizontal: tt.listRowPadding.left,
-        vertical: tt.tightGap,
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.cloud_off_outlined, color: tt.warn),
-          SizedBox(width: tt.iconTextGap),
-          Expanded(
-            child: Text(
-              l10n.updatesRefreshFailedBanner,
-              style: TenturaText.bodySmall(tt.text),
-            ),
-          ),
-          TextButton(
-            onPressed: onRetry,
-            child: Text(l10n.myWorkRetry),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ActivityLoadMoreIndicator extends StatelessWidget {
-  const _ActivityLoadMoreIndicator();
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: context.tt.cardPadding,
-    child: const Center(child: TenturaCircularProgress(adaptive: true)),
-  );
 }

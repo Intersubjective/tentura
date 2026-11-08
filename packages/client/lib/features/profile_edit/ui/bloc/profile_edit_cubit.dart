@@ -17,7 +17,7 @@ export 'profile_edit_state.dart';
 
 class ProfileEditCubit extends Cubit<ProfileEditState> {
   // TODO(contract): Phase-2 DTO migration — route multi-repo orchestration through a *Case.
-  // ignore: tentura_lints/cubit_requires_use_case_for_multi_repos
+  // ignore: tentura_lints/cubit_requires_use_case_for_multi_repos -- image upload then profile save in one form; *Case pending (TODO above)
   ProfileEditCubit({
     required Profile profile,
     ImageRepository? imageRepository,
