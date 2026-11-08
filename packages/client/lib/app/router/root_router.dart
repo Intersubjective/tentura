@@ -23,6 +23,7 @@ import 'home_tab_branches.dart';
 import 'invite_deep_link.dart';
 import 'recover_route_guard.dart';
 import 'root_router.gr.dart';
+import 'unknown_hash_route_notice.dart';
 
 export 'package:auto_route/auto_route.dart';
 
@@ -183,6 +184,11 @@ class RootRouter extends RootStackRouter {
     ),
 
     RedirectRoute(path: kPathNotifications, redirectTo: kPathUpdates),
+
+    RedirectRoute(path: kPathHomePostsAlias, redirectTo: kPathConversations),
+    RedirectRoute(path: kPathHomeActivityAlias, redirectTo: kPathInbox),
+    RedirectRoute(path: kPathHomePeopleAlias, redirectTo: kPathNetwork),
+    RedirectRoute(path: kPathProfileTabAlias, redirectTo: kPathProfile),
 
     // Notification settings (full-screen stack route; no bottom tabs)
     AutoRoute(
@@ -590,7 +596,37 @@ class RootRouter extends RootStackRouter {
     if (invitePath.path != uri.path) {
       return invitePath;
     }
+    if (_shouldScheduleUnknownHashRouteNotice(uri.path)) {
+      UnknownHashRouteNotice.instance.schedule();
+    }
     return uri;
+  }
+
+  static const _productVocabularyAliasPaths = {
+    kPathHomePostsAlias,
+    kPathHomeActivityAlias,
+    kPathHomePeopleAlias,
+    kPathProfileTabAlias,
+  };
+
+  /// Whether [path] has no dedicated route and will fall back via `*`.
+  @visibleForTesting
+  bool pathResolvesThroughWildcardFallback(String path) {
+    final matches = matcher.match(path);
+    if (matches == null || matches.isEmpty) {
+      return true;
+    }
+    return matches.last.flattened.any((match) => match.redirectedFrom == '*');
+  }
+
+  bool _shouldScheduleUnknownHashRouteNotice(String path) {
+    if (path.isEmpty || path == '/' || path == kPathHome) {
+      return false;
+    }
+    if (_productVocabularyAliasPaths.contains(path)) {
+      return false;
+    }
+    return pathResolvesThroughWildcardFallback(path);
   }
 
   /// Opens a notification [rawLink] above the current root source.
