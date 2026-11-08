@@ -1,5 +1,6 @@
 import 'package:injectable/injectable.dart';
 
+import 'package:tentura/data/service/remote_api_client/remote_request_client.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/port/trust_preference_repository_port.dart';
 
@@ -13,7 +14,7 @@ import '../gql/_g/set_noisy_wall_enabled.req.gql.dart';
 class TrustPreferenceRepository implements TrustPreferenceRepositoryPort {
   const TrustPreferenceRepository(this._remoteApiService);
 
-  final RemoteApiService _remoteApiService;
+  final RemoteRequestClient _remoteApiService;
 
   static const _label = 'TrustPreference';
 

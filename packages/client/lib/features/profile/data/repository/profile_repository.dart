@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura/data/gql/tentura_v2_upload.dart';
+import 'package:tentura/data/service/remote_api_client/remote_request_client.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -25,7 +26,7 @@ import '../model/profile_user_mapper.dart';
 class ProfileRepository implements ProfileRepositoryPort {
   ProfileRepository(this._remoteApiService);
 
-  final RemoteApiService _remoteApiService;
+  final RemoteRequestClient _remoteApiService;
 
   final _controller = StreamController<RepositoryEvent<Profile>>.broadcast();
 

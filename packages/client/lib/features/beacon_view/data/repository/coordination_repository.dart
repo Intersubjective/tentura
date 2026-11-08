@@ -2,6 +2,7 @@ import 'package:injectable/injectable.dart';
 
 import 'package:tentura/data/model/image_model_v2.dart';
 import 'package:tentura/data/model/user_model.dart';
+import 'package:tentura/data/service/remote_api_client/remote_request_client.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/contacts/contact_name_overlay.dart';
 import 'package:tentura/domain/entity/availability.dart';
@@ -29,7 +30,7 @@ import '../gql/_g/set_coordination_response.req.gql.dart';
 class CoordinationRepository {
   CoordinationRepository(this._remoteApiService);
 
-  final RemoteApiService _remoteApiService;
+  final RemoteRequestClient _remoteApiService;
 
   static const _label = 'Coordination';
 

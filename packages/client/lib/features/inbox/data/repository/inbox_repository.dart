@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura/data/model/beacon_model.dart';
+import 'package:tentura/data/service/remote_api_client/remote_request_client.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 
 import '../../domain/entity/inbox_item.dart';
@@ -24,7 +25,7 @@ import 'package:tentura/features/beacon_threads/data/repository/beacon_room_hint
 class InboxRepository {
   InboxRepository(this._remoteApiService, this._roomHints);
 
-  final RemoteApiService _remoteApiService;
+  final RemoteRequestClient _remoteApiService;
 
   final BeaconRoomHintsRepository _roomHints;
 

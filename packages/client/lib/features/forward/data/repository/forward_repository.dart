@@ -7,6 +7,7 @@ import 'package:meta/meta.dart';
 
 import 'package:tentura/data/model/user_model.dart';
 import 'package:tentura/data/model/user_public_model.dart';
+import 'package:tentura/data/service/remote_api_client/remote_request_client.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -91,7 +92,7 @@ class ForwardRepository {
         });
   }
 
-  final RemoteApiService _remoteApiService;
+  final RemoteRequestClient _remoteApiService;
   final BeaconRepository _beaconRepository;
 
   late final StreamSubscription<RealtimeEntityChange> _helpOfferInvalidationSub;

@@ -1,5 +1,6 @@
 import 'package:injectable/injectable.dart';
 
+import 'package:tentura/data/service/remote_api_client/remote_request_client.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 
 import '../../domain/entity/notification_settings.dart';
@@ -10,7 +11,7 @@ import '../gql/_g/notification_preferences_update.req.gql.dart';
 class NotificationSettingsRepository {
   const NotificationSettingsRepository(this._remoteApiService);
 
-  final RemoteApiService _remoteApiService;
+  final RemoteRequestClient _remoteApiService;
 
   static const _label = 'NotificationSettings';
 

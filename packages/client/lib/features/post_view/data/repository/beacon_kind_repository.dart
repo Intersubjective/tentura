@@ -1,5 +1,6 @@
 import 'package:injectable/injectable.dart';
 
+import 'package:tentura/data/service/remote_api_client/remote_request_client.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/features/beacon/domain/exception.dart';
@@ -12,7 +13,7 @@ import '../gql/_g/beacon_kind_fetch.req.gql.dart';
 class BeaconKindRepository {
   BeaconKindRepository(this._remoteApiService);
 
-  final RemoteApiService _remoteApiService;
+  final RemoteRequestClient _remoteApiService;
 
   final _kinds = <String, BeaconKind>{};
 

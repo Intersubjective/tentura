@@ -2,6 +2,7 @@ import 'package:built_collection/built_collection.dart';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura/data/gql/_g/schema.schema.gql.dart';
+import 'package:tentura/data/service/remote_api_client/remote_request_client.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 
 import '../../domain/entity/people_tags_entities.dart';
@@ -28,7 +29,7 @@ import '../model/people_tags_mapper.dart';
 final class PeopleTagsRepository implements PeopleTagsRepositoryPort {
   PeopleTagsRepository(this._remoteApiService);
 
-  final RemoteApiService _remoteApiService;
+  final RemoteRequestClient _remoteApiService;
 
   @override
   Future<List<PersonTag>> personTags() => _remoteApiService

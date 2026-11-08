@@ -1,5 +1,6 @@
 import 'package:injectable/injectable.dart';
 
+import 'package:tentura/data/service/remote_api_client/remote_request_client.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/entity/author_invite.dart';
 import 'package:tentura/domain/entity/post_bud_invite_outcome.dart';
@@ -18,7 +19,7 @@ import '../gql/_g/my_pending_author_invites.req.gql.dart';
 class AuthorInviteRepository implements AuthorInvitePort {
   const AuthorInviteRepository(this._remoteApiService);
 
-  final RemoteApiService _remoteApiService;
+  final RemoteRequestClient _remoteApiService;
 
   static const _label = 'AuthorInvite';
 

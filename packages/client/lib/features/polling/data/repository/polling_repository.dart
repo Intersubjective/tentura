@@ -1,5 +1,6 @@
 import 'package:injectable/injectable.dart';
 
+import 'package:tentura/data/service/remote_api_client/remote_request_client.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 
 import '../gql/_g/polling_act.req.gql.dart';
@@ -10,7 +11,7 @@ class PollingRepository {
 
   PollingRepository(this._remoteApiService);
 
-  final RemoteApiService _remoteApiService;
+  final RemoteRequestClient _remoteApiService;
 
   Future<void> vote({
     required String pollingId,

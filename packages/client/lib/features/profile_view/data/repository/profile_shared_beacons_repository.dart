@@ -1,6 +1,7 @@
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura/data/model/beacon_model.dart';
+import 'package:tentura/data/service/remote_api_client/remote_request_client.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 
@@ -32,7 +33,7 @@ typedef ProfileSharedBeaconsData = ({
 class ProfileSharedBeaconsRepository {
   ProfileSharedBeaconsRepository(this._remoteApiService);
 
-  final RemoteApiService _remoteApiService;
+  final RemoteRequestClient _remoteApiService;
 
   static const _label = 'ProfileSharedBeacons';
 
