@@ -408,6 +408,7 @@ void main() {
         tabsRouter: tabs,
         tab: HomeTab.constellation,
         onLeave: selection.exitArranging,
+        onEnter: selection.exitArranging,
         child: const SizedBox(),
       ),
     );

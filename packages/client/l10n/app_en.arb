@@ -10667,6 +10667,10 @@
   "@constellationArrangingSelect": {
     "context": "Field arranging toolbar: toggle box-select (#938)"
   },
+  "constellationArrangingMoreActions": "More layout actions",
+  "@constellationArrangingMoreActions": {
+    "context": "Field arranging toolbar overflow (⋯) tooltip and semantics (#938)"
+  },
   "constellationArrangingHintTouch": "Drag a node to move it · drag empty space to pan",
   "@constellationArrangingHintTouch": {
     "context": "Field arranging mode hint on touch devices (#938)"

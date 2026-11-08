@@ -1112,77 +1112,6 @@ class _ConstellationBodyState extends State<ConstellationBody>
     bool contextPanelVisible,
   ) => _cameraViewportInsetsFromContext(context, contextPanelVisible);
 
-  /// Highest scene Y for the parent cluster centre so every member's bottom
-  /// (and at close detail a label plate below the body) stays above the
-  /// arranging toolbar (#1043).
-  double? _arrangingDragMaxParentCentreSceneY(
-    BuildContext context,
-    ConstellationCubit cubit,
-    bool arranging,
-  ) {
-    if (!arranging ||
-        !widget.arrangeV2Enabled ||
-        cubit.state.isComposing ||
-        cubit.state.tagView != null) {
-      return null;
-    }
-    final vp = cubit.graphController.viewportSize;
-    if (vp == null || vp.isEmpty) {
-      return null;
-    }
-    final tt = context.tt;
-    final insets = _cameraViewportInsets(context, false);
-    final viewportTop = insets.top;
-    final viewportBottom = vp.height - insets.bottom;
-    if (viewportBottom <= viewportTop) {
-      return null;
-    }
-    final scale = cubit.graphController.cameraScale;
-    final target = cubit.state.activePlacementTarget;
-    if (target == null) {
-      return null;
-    }
-    final parentGraphId = constellationGraphNodeIdForTarget(target);
-    final frame = _frameHolder.frame;
-    final atClose =
-        settledConstellationDetailLevel(scale) ==
-        ConstellationDetailLevel.close;
-    final body = frame?.bodies[parentGraphId];
-    if (body == null || body.isEmpty) {
-      return null;
-    }
-    var lowestViewport = body.bottom;
-    if (atClose && frame != null) {
-      final label = frame.labels[parentGraphId];
-      if (label != null && !label.isEmpty) {
-        lowestViewport = math.max(lowestViewport, label.bottom);
-      }
-    }
-    final maxBelowCentreViewport = math.max(
-      0,
-      lowestViewport - body.center.dy,
-    );
-    if (maxBelowCentreViewport <= 0) {
-      return null;
-    }
-    final lineViewport = Offset(vp.width / 2, viewportBottom - tt.tightGap);
-    final capViewport = Offset(
-      lineViewport.dx,
-      lineViewport.dy - maxBelowCentreViewport,
-    );
-    return cubit.graphController.viewportLocalToScene(capViewport).dy;
-  }
-
-  void _syncArrangingDragClamp({
-    required BuildContext context,
-    required ConstellationCubit cubit,
-    required bool arranging,
-  }) {
-    cubit.applyArrangingToolbarDragCentreLimit(
-      _arrangingDragMaxParentCentreSceneY(context, cubit, arranging),
-    );
-  }
-
   bool _compactContextPanelOpen(
     BuildContext context,
     bool panelVisible,
@@ -1552,7 +1481,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
             },
           ),
           // Select mode turned on from the toolbar: Escape leaves it (#680).
-          if (maybeConstellationSelection(context) case final selection?)
+          if (maybeConstellationSelection(context) case final selection?) ...[
             BlocListener<
               ConstellationSelectionCubit,
               ConstellationMultiSelection
@@ -1562,6 +1491,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
                   !previous.selecting && current.selecting,
               listener: (_, _) => _takeMapFocus(),
             ),
+          ],
           BlocListener<GraphPersonContextCubit, GraphPersonContextState>(
             listenWhen: (previous, current) =>
                 previous.dismissedFocusId != current.dismissedFocusId &&
@@ -1603,38 +1533,6 @@ class _ConstellationBodyState extends State<ConstellationBody>
                   state.selectedRequestId != null;
               _syncCompactPanelSideEffects(context, cubit, panelVisible);
               _scheduleFieldContextSheetExpandedReport();
-            },
-          ),
-          // #1043: [activePlacementTarget] / phase change must recompute the drag
-          // clamp without rebuilding the map body (placement rebuild tests).
-          BlocListener<ConstellationCubit, ConstellationState>(
-            listenWhen: (previous, current) =>
-                previous.placementPhase != current.placementPhase ||
-                previous.activePlacementTarget !=
-                    current.activePlacementTarget ||
-                previous.isComposing != current.isComposing ||
-                previous.tagView != current.tagView,
-            listener: (context, state) {
-              final cubit = context.read<ConstellationCubit>();
-              final selection = maybeConstellationSelection(context);
-              final mapArranging = selection?.state.arranging ?? false;
-              if (!mapArranging ||
-                  !widget.arrangeV2Enabled ||
-                  cubit.state.isComposing ||
-                  cubit.state.tagView != null) {
-                return;
-              }
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (!mounted) {
-                  return;
-                }
-                _measureBottomChromeColumnHeight();
-                _syncArrangingDragClamp(
-                  context: context,
-                  cubit: cubit,
-                  arranging: true,
-                );
-              });
             },
           ),
         ],
@@ -1933,21 +1831,19 @@ class _ConstellationBodyState extends State<ConstellationBody>
       return const SizedBox.shrink();
     }
     _measureFieldTopChromeHeight();
-    return ConstrainedBox(
-      constraints: BoxConstraints(maxHeight: capHeight),
-      child: SingleChildScrollView(
-        child: Column(
-          key: _fieldTopChromeKey,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (!state.isComposing) ...[
-              const ConstellationFieldNotices(),
-              const ConstellationEmptyFilterBanner(),
-              const ConstellationNoContactsBanner(),
-              const ConstellationVisibilityBar(),
-              _ConstellationFieldHoldHintBanner(cubit: cubit),
-            ],
+    final selection = maybeConstellationSelection(context);
+    final topChrome = SingleChildScrollView(
+      child: Column(
+        key: _fieldTopChromeKey,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (!state.isComposing) ...[
+            const ConstellationFieldNotices(),
+            const ConstellationEmptyFilterBanner(),
+            const ConstellationNoContactsBanner(),
+            const ConstellationVisibilityBar(),
+          ],
             if (_selectionUnavailableMessage != null)
               Material(
                 color: theme.colorScheme.errorContainer,
@@ -1965,17 +1861,49 @@ class _ConstellationBodyState extends State<ConstellationBody>
                   ),
                 ),
               ),
-            if (!state.isComposing) _buildTagRow(context),
-            if (state.tagView case final view?)
-              _buildTagViewHeader(context, cubit, view),
-            if (state.rearrangePreview case final preview?)
-              ConstellationRearrangePreviewBar(
-                movingCount: preview.movingCount,
-                onApply: () => unawaited(cubit.applyRearrangePreview()),
-                onCancel: cubit.cancelRearrangePreview,
-              ),
-          ],
-        ),
+          if (!state.isComposing) _buildTagRow(context),
+          if (state.tagView case final view?)
+            _buildTagViewHeader(context, cubit, view),
+          if (state.rearrangePreview case final preview?)
+            ConstellationRearrangePreviewBar(
+              movingCount: preview.movingCount,
+              onApply: () => unawaited(cubit.applyRearrangePreview()),
+              onCancel: cubit.cancelRearrangePreview,
+            ),
+        ],
+      ),
+    );
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxHeight: capHeight),
+      child: Stack(
+        clipBehavior: Clip.hardEdge,
+        children: [
+          topChrome,
+          if (selection != null)
+            BlocBuilder<ConstellationSelectionCubit, ConstellationMultiSelection>(
+              bloc: selection,
+              buildWhen: (previous, current) =>
+                  previous.arranging != current.arranging,
+              builder: (context, selectionState) {
+                if (!selectionState.arranging) {
+                  return const SizedBox.shrink();
+                }
+                return Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: ColoredBox(
+                    color: theme.scaffoldBackgroundColor,
+                    child: ConstellationArrangingToolbar(
+                      cubit: cubit,
+                      peopleTagsEnabled: widget.peopleTagsEnabled,
+                      topEmbedded: true,
+                    ),
+                  ),
+                );
+              },
+            ),
+        ],
       ),
     );
   }
@@ -2385,24 +2313,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
       return cubit.canDragNode(node);
     }
 
-    if (mapArranging &&
-        widget.arrangeV2Enabled &&
-        !cubit.state.isComposing &&
-        cubit.state.tagView == null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) {
-          return;
-        }
-        _measureBottomChromeColumnHeight();
-        _syncArrangingDragClamp(
-          context: context,
-          cubit: cubit,
-          arranging: true,
-        );
-      });
-    } else {
-      cubit.applyArrangingToolbarDragCentreLimit(null);
-    }
+    cubit.applyArrangingToolbarDragCentreLimit(null);
 
     return Stack(
       key: _graphStackKey,
@@ -2973,10 +2884,6 @@ class _ConstellationBodyState extends State<ConstellationBody>
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   if (!compactPanel) _buildTagLensPanel(context, cubit),
-                  ConstellationArrangingToolbar(
-                    cubit: cubit,
-                    peopleTagsEnabled: widget.peopleTagsEnabled,
-                  ),
                   ConstellationSelectionBar(
                     cubit: cubit,
                     peopleTagsEnabled: widget.peopleTagsEnabled,
@@ -2986,6 +2893,61 @@ class _ConstellationBodyState extends State<ConstellationBody>
             ),
           ),
         ),
+        Positioned(
+          left: 0,
+          right: cameraRightInset + tt.buttonHeight + tt.rowGap,
+          bottom: 0,
+          child: SafeArea(
+            top: false,
+            left: false,
+            child: _ConstellationFieldHoldHintBanner(cubit: cubit),
+          ),
+        ),
+        if (mapSelectionCubit != null)
+          Positioned(
+            left: 0,
+            right: cameraRightInset + tt.buttonHeight + tt.rowGap,
+            bottom: 0,
+            child:
+                BlocBuilder<
+                  ConstellationSelectionCubit,
+                  ConstellationMultiSelection
+                >(
+                  bloc: mapSelectionCubit,
+                  buildWhen: (previous, current) =>
+                      previous.arranging != current.arranging,
+                  builder: (context, selectionState) {
+                    if (!selectionState.arranging) {
+                      return const SizedBox.shrink();
+                    }
+                    return SafeArea(
+                      top: false,
+                      left: false,
+                      child: Padding(
+                        padding: EdgeInsets.all(tt.tightGap),
+                        child: ListenableBuilder(
+                          listenable: RendererBinding.instance.mouseTracker,
+                          builder: (context, _) {
+                            final mouse = RendererBinding
+                                .instance
+                                .mouseTracker
+                                .mouseIsConnected;
+                            final l10n = L10n.of(context)!;
+                            return Text(
+                              mouse
+                                  ? l10n.constellationArrangingHintMouse
+                                  : l10n.constellationArrangingHintTouch,
+                              key: const Key('constellation.arranging.hint'),
+                              style: Theme.of(context).textTheme.bodySmall,
+                              textAlign: TextAlign.center,
+                            );
+                          },
+                        ),
+                      ),
+                    );
+                  },
+                ),
+          ),
         if (panelVisible && state.viewMode == ConstellationViewMode.map)
           _buildContextOverlay(
             context,

@@ -29,6 +29,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
 import '../features/constellation/fixtures/constellation_arrange_harness.dart';
+import '../features/constellation/fixtures/constellation_field_test_harness.dart';
 import '../ui/effect/fake_ui_effect_port.dart';
 import 'constellation_store_fixture.dart';
 import 'fake_clock_port.dart';
@@ -469,6 +470,7 @@ Future<void> withHullDragField(
       ),
     );
     await pumpHullDragFrames(tester);
+    await stabilizeConstellationFieldChromeForTests(tester, cubit);
     if (arranging) {
       await tester.tap(
         find.byKey(const Key('constellation.camera.arrange')),

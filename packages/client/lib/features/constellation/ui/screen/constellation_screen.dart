@@ -51,6 +51,7 @@ import '../bloc/constellation_tag_lens_cubit.dart';
 import '../scene/constellation_scene_controller.dart';
 import '../util/constellation_focus_request.dart';
 import '../util/constellation_forward_tree_request.dart';
+import '../util/field_arranging_browser_back.dart';
 import '../widget/constellation_app_bar.dart';
 import '../widget/constellation_body.dart';
 import '../widget/constellation_create_entry.dart';
@@ -258,8 +259,22 @@ class _ConstellationScreenState extends State<ConstellationScreen> {
     _syncVisibility();
   }
 
+  void _syncArrangingBrowserBackSentinel(bool arranging) {
+    if (!mounted) return;
+    final selection = maybeConstellationSelection(context);
+    if (selection == null) return;
+    syncFieldArrangingBrowserBackSentinel(
+      arranging: arranging,
+      onPopWhileArranging: selection.exitArranging,
+    );
+  }
+
   @override
   void dispose() {
+    syncFieldArrangingBrowserBackSentinel(
+      arranging: false,
+      onPopWhileArranging: () {},
+    );
     _graphController.removeListener(_syncComposerPersonPositions);
     _rootRouter?.removeListener(_syncVisibility);
     _homeTabs?.removeListener(_syncVisibility);
@@ -501,27 +516,47 @@ class _ConstellationScreenState extends State<ConstellationScreen> {
         tabsRouter: tabs,
         tab: HomeTab.constellation,
         onLeave: selectionCubit.exitArranging,
+        onEnter: selectionCubit.exitArranging,
         child: wrapped,
       );
     }
     if (selectionCubit == null) {
       return wrapped;
     }
-    return BlocBuilder<
+    return BlocConsumer<
       ConstellationSelectionCubit,
       ConstellationMultiSelection
     >(
       bloc: selectionCubit,
-      builder: (context, selectionState) => PopScope(
-        canPop: !selectionState.arranging,
-        onPopInvokedWithResult: (didPop, result) {
-          if (didPop) return;
-          if (selectionState.arranging) {
-            selectionCubit.exitArranging();
-          }
-        },
-        child: wrapped,
-      ),
+      listenWhen: (previous, current) =>
+          previous.arranging != current.arranging,
+      listener: (context, state) =>
+          _syncArrangingBrowserBackSentinel(state.arranging),
+      builder: (context, selectionState) {
+        Widget child = PopScope(
+          canPop: !selectionState.arranging,
+          onPopInvokedWithResult: (didPop, result) {
+            if (didPop) return;
+            if (selectionState.arranging) {
+              selectionCubit.exitArranging();
+            }
+          },
+          child: wrapped,
+        );
+        if (Router.maybeOf(context) != null) {
+          child = BackButtonListener(
+            onBackButtonPressed: () async {
+              if (!selectionState.arranging) {
+                return false;
+              }
+              selectionCubit.exitArranging();
+              return true;
+            },
+            child: child,
+          );
+        }
+        return child;
+      },
     );
   }
 }
