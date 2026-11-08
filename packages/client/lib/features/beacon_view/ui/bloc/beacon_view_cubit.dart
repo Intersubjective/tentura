@@ -19,6 +19,7 @@ import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/commitment_stake_state.dart';
 import 'package:tentura/domain/entity/beacon_room_state.dart';
 import 'package:tentura/domain/entity/help_offer_admission_action.dart';
+import 'package:tentura/domain/entity/help_offer_status.dart';
 import 'package:tentura/domain/entity/beacon_display_status_dto.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_read_watermark.dart';
@@ -1563,7 +1564,10 @@ class BeaconViewCubit extends Cubit<BeaconViewState> implements RoomHost {
     return (
       helpOffers: _mergeLocalAuthorSeen(timelineHelpOffersFromRemote(rows)),
       isHelpOffered: rows.any(
-        (offer) => offer.status == 0 && offer.userId == myId,
+        (offer) =>
+            HelpOfferStatus.tryFromInt(offer.status) ==
+                HelpOfferStatus.active &&
+            offer.userId == myId,
       ),
       rows: rows,
     );
@@ -2200,7 +2204,7 @@ List<TimelineEntry> helpOfferRowsToTimelineEntries({
   final response = CoordinationResponseType.tryFromInt(row.responseType);
   final events = <TimelineEntry>[];
 
-  if (row.status == 1) {
+  if (HelpOfferStatus.tryFromInt(row.status) == HelpOfferStatus.inactive) {
     events.add(
       TimelineHelpOfferCreated(
         helpOfferer: row.user,
