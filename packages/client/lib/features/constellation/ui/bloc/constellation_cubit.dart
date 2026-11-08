@@ -7,6 +7,7 @@ import 'package:get_it/get_it.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura/domain/contacts/contact_name_overlay.dart';
+import 'package:tentura/domain/contacts/contact_name_store.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/lazy_write_notice.dart';
 import 'package:tentura/features/forward/domain/use_case/forward_case.dart';
@@ -212,6 +213,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     // ignore: invalid_use_of_visible_for_testing_member
     graphController.scene.addListener(_onGraphSceneLayoutOutcomeChanged);
     graphController.addListener(_onGraphControllerChanged);
+    _ensureContactNameSubscription();
     if (loadOnCreate) {
       unawaited(load());
     }
@@ -288,6 +290,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
 
   late final StoreLease _storeLease;
   StreamSubscription<ConstellationFieldStoreState>? _storeSub;
+  StreamSubscription<void>? _contactNameSub;
   StreamSubscription<PlacementOutboxState>? _placementSub;
   StreamSubscription<void>? _magnetHintSub;
 
@@ -1143,6 +1146,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     _placementSub = null;
     unawaited(_magnetHintSub?.cancel());
     _magnetHintSub = null;
+    unawaited(_contactNameSub?.cancel());
+    _contactNameSub = null;
     _placementCase?.tagMagnetUndo = null;
     _clearClusterPresentations();
     _finishDropReflowSpans();
@@ -1648,6 +1653,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   }
 
   void _applyLoadedField(ConstellationField field) {
+    _ensureContactNameSubscription();
     final previous = _lastAppliedStoreField;
     final reload = previous == null || previous.loadedAt != field.loadedAt;
     _lastAppliedStoreField = field;
@@ -5285,6 +5291,80 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       );
     }
     return _people;
+  }
+
+  void _ensureContactNameSubscription() {
+    if (_contactNameSub != null || !GetIt.I.isRegistered<ContactNameStore>()) {
+      return;
+    }
+    _contactNameSub = GetIt.I<ContactNameStore>().changes.listen((_) {
+      _onContactNamesChanged();
+    });
+  }
+
+  void _onContactNamesChanged() {
+    if (isClosed || state.field == null) {
+      return;
+    }
+    _peopleFor = null;
+    _peopleFieldFor = null;
+    if (_refreshFieldPersonNodeProfiles()) {
+      emit(state.copyWith(graphRevision: state.graphRevision + 1));
+    }
+  }
+
+  /// Keeps map node payloads aligned with [ContactNameStore] without relayout.
+  bool _refreshFieldPersonNodeProfiles() {
+    final currentNodes = graphController.nodes;
+    if (currentNodes.isEmpty) {
+      _rebuildGraphWithoutLayout();
+      return true;
+    }
+    var changed = false;
+    final next = <NodeDetails>{
+      for (final node in currentNodes)
+        switch (node) {
+          FieldPersonNode() when node.id == _viewer.id => () {
+            final live = profileWithContactOverlay(_viewer);
+            if (live == node.person) {
+              return node;
+            }
+            changed = true;
+            return FieldPersonNode(
+              person: live,
+              ring: node.ring,
+              isKept: node.isKept,
+              pinned: node.pinned,
+              size: node.size,
+            );
+          }(),
+          FieldPersonNode(:final person) => () {
+            final live = profileForPersonId(person.id);
+            if (live == null || live == person) {
+              return node;
+            }
+            changed = true;
+            return FieldPersonNode(
+              person: live,
+              ring: node.ring,
+              isKept: node.isKept,
+              pinned: node.pinned,
+              size: node.size,
+            );
+          }(),
+          _ => node,
+        },
+    };
+    if (!changed) {
+      return false;
+    }
+    graphController.reconcileTopology(
+      next,
+      graphController.edges,
+      requestLayout: false,
+      layoutOnTopologyChange: false,
+    );
+    return true;
   }
 
   /// [personId]'s Posts that are on the field, latest activity first.

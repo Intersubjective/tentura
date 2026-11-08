@@ -424,7 +424,10 @@ class _PersonRequestGroup extends StatelessWidget {
     final tt = context.tt;
     final authorId = person.id;
     final profile = cubit.profileForPersonId(authorId);
-    final shownName = profile?.shownName ?? person.name;
+    final shownName = constellationFieldPersonShownName(
+      person: person,
+      liveProfile: profile,
+    );
 
     final eligible = cubit.discoverableRequestsForPerson(authorId);
     final visibleIds = cubit.isSatelliteOverflowExpanded(authorId)
@@ -545,7 +548,10 @@ class _PersonRow extends StatelessWidget {
       selected: selected,
       label: isNewOnField
           ? l10n.constellationFieldNewSemantics(
-              profile?.shownName ?? person.name,
+              constellationFieldPersonShownName(
+                person: person,
+                liveProfile: profile,
+              ),
             )
           : null,
       child: Material(
@@ -564,7 +570,10 @@ class _PersonRow extends StatelessWidget {
                 ],
                 Expanded(
                   child: Text(
-                    profile?.shownName ?? person.name,
+                    constellationFieldPersonShownName(
+                      person: person,
+                      liveProfile: profile,
+                    ),
                     style: theme.textTheme.titleSmall?.copyWith(
                       color: selected ? theme.colorScheme.primary : null,
                     ),

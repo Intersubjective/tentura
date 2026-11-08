@@ -268,7 +268,8 @@ class _ConstellationViewportOverlayState
     FieldPersonNode(:final person) => (
       widget.cubit.fieldPersonById(person.id)?.pinState == 'tombstone'
           ? l10n.constellationPinAccountDeleted
-          : person.shownName,
+          : widget.cubit.profileForPersonId(person.id)?.shownName ??
+                person.shownName,
       1,
       tt.graphLabelMaxWidthPerson,
     ),

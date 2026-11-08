@@ -101,6 +101,21 @@ String? _nameOf(ConstellationPerson? peer) {
   return shown.isEmpty ? null : shown;
 }
 
+/// Map/list label for a field person when a live profile lookup is available.
+///
+/// Prefer [liveProfile]'s [Profile.shownName] (contact overlay applied) so
+/// in-app renames stay aligned with [ConstellationCubit.profileForPersonId].
+String constellationFieldPersonShownName({
+  required ConstellationFieldPerson person,
+  Profile? liveProfile,
+}) {
+  final live = liveProfile?.shownName.trim();
+  if (live != null && live.isNotEmpty) {
+    return live;
+  }
+  return person.name;
+}
+
 String _fold(String text) =>
     text.toLowerCase().replaceAll('ё', 'е').replaceAll('@', '');
 
