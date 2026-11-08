@@ -14,13 +14,21 @@ import 'package:tentura_server/domain/use_case/user_case.dart';
 import 'package:tentura_server/domain/use_case/user_erasure_case.dart';
 import 'package:tentura_server/env.dart';
 
+import '../../support/log_capture.dart';
+
 final class _FakeUserRepository implements UserRepositoryPort {
   UserEntity user = const UserEntity(id: 'Uabc', displayName: 'ada lovelace');
 
   String? lastUpdatedDisplayName;
 
+  /// When set, every call throws it (an unexpected repository failure).
+  Error? error;
+
   @override
-  Future<UserEntity> getById(String id) async => user;
+  Future<UserEntity> getById(String id) async {
+    if (error case final e?) throw e;
+    return user;
+  }
 
   @override
   Future<void> update({
@@ -32,6 +40,7 @@ final class _FakeUserRepository implements UserRepositoryPort {
     bool setHandle = false,
     String? handle,
   }) async {
+    if (error case final e?) throw e;
     lastUpdatedDisplayName = displayName;
     if (displayName != null) {
       user = UserEntity(id: user.id, displayName: displayName);
@@ -93,8 +102,7 @@ void main() {
     test('returns id and displayName for resolved account', () async {
       final res = await controller.get(request('GET', accountId: 'Uabc'));
       expect(res.statusCode, 200);
-      final json =
-          jsonDecode(await res.readAsString()) as Map<String, dynamic>;
+      final json = jsonDecode(await res.readAsString()) as Map<String, dynamic>;
       expect(json, {'id': 'Uabc', 'displayName': 'ada lovelace'});
     });
 
@@ -110,8 +118,7 @@ void main() {
         request('PATCH', accountId: 'Uabc', body: {'displayName': ' Ada L. '}),
       );
       expect(res.statusCode, 200);
-      final json =
-          jsonDecode(await res.readAsString()) as Map<String, dynamic>;
+      final json = jsonDecode(await res.readAsString()) as Map<String, dynamic>;
       expect(json['displayName'], 'Ada L.');
       expect(userRepo.lastUpdatedDisplayName, 'Ada L.');
     });
@@ -168,6 +175,43 @@ void main() {
         ),
       );
       expect(res.statusCode, 400);
+    });
+  });
+
+  group('unexpected errors', () {
+    late LogCapture log;
+    late StateError error;
+
+    setUp(() {
+      error = StateError('db down');
+      userRepo.error = error;
+      log = LogCapture('AccountProfileController');
+      addTearDown(log.cancel);
+    });
+
+    void expectLoggedFailure(String message) {
+      expect(log.records, hasLength(1));
+      final record = log.records.single;
+      expect(record.level, Level.SEVERE);
+      expect(record.message, message);
+      expect(record.error, same(error));
+      expect(record.stackTrace, isNotNull);
+    }
+
+    test('GET answers the bare 500, logged first', () async {
+      final res = await controller.get(request('GET', accountId: 'Uabc'));
+      expect(res.statusCode, 500);
+      expect(await res.readAsString(), 'Internal Server Error');
+      expectLoggedFailure('profile.get failed');
+    });
+
+    test('PATCH answers the bare 500, logged first', () async {
+      final res = await controller.patch(
+        request('PATCH', accountId: 'Uabc', body: {'displayName': 'Grace'}),
+      );
+      expect(res.statusCode, 500);
+      expect(await res.readAsString(), 'Internal Server Error');
+      expectLoggedFailure('profile.patch failed');
     });
   });
 }
