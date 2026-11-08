@@ -122,7 +122,10 @@ class BeaconCubit extends Cubit<BeaconState> {
   void _onBeaconChanged(RepositoryEvent<Beacon> event) => switch (event) {
     RepositoryEventUpdate<Beacon>(value: final b) => emit(
       state.copyWith(
-        beacons: [for (final e in state.beacons) e.id == b.id ? b : e],
+        beacons: [
+          for (final e in state.beacons)
+            if (e.id == b.id) b else e,
+        ],
         status: StateStatus.isSuccess,
       ),
     ),
