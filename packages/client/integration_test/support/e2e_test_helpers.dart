@@ -566,6 +566,18 @@ void syncBeaconCreateDraftFields(
     ..setDescription(description);
 }
 
+/// Web integration tests sometimes set [TextField] text without notifying
+/// [BeaconCreateCubit] on the Post composer.
+void syncPostCreateDraftContent(
+  WidgetTester tester, {
+  required String body,
+}) {
+  tester
+      .element(find.byKey(PostCreateScreen.textFieldKey))
+      .read<BeaconCreateCubit>()
+      .postContentChanged(hasContent: body.trim().isNotEmpty);
+}
+
 Future<void> _createRequestToRecipientsTab(
   WidgetTester tester, {
   required String authorEmail,

@@ -246,7 +246,7 @@ void main() {
           ...auth,
           'targetKind': 'PERSON',
           'targetId': peer,
-          'xUnits': 11.0,
+          'xUnits': kConstellationCoordinateMaxUnits + 1,
           'yUnits': 0.0,
           'coordinateSpaceVersion': kConstellationCoordinateSpaceVersionV1,
         }),

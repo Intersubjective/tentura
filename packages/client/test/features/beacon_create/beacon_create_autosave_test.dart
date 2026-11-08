@@ -1,9 +1,11 @@
 import 'dart:async';
 
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/features/beacon_create/ui/bloc/beacon_create_cubit.dart';
 
 import 'package:tentura/ui/effect/ui_effect.dart';
@@ -295,6 +297,48 @@ void main() {
       final cubit = build(FakeBeaconWritePort())..setTitle('Borrow a ladder');
       expect(cubit.hasUnpersistedEdits, isTrue);
     });
+
+    test(
+      'Post stays dirty after server draft id lands (#1117)',
+      () async {
+        final write = FakeBeaconWritePort();
+        final cubit = BeaconCreateCubit(
+          kind: BeaconKind.post,
+          beaconCreateCase: fakeBeaconCreateCase(write: write),
+          effects: FakeUiEffectPort(),
+        );
+        addTearDown(cubit.close);
+
+        cubit.postContentChanged(hasContent: true);
+        expect(cubit.hasUnpersistedEdits, isTrue);
+
+        await cubit.ensureDraft(context: '', showMessage: false);
+        expect(cubit.state.draftId, isNotNull);
+        expect(cubit.hasUnpersistedEdits, isTrue);
+      },
+    );
+
+    test(
+      'Post stays dirty two seconds after typing once draft id exists (#1117)',
+      () {
+        fakeAsync((async) {
+          final write = FakeBeaconWritePort();
+          final cubit = BeaconCreateCubit(
+            kind: BeaconKind.post,
+            beaconCreateCase: fakeBeaconCreateCase(write: write),
+            effects: FakeUiEffectPort(),
+          );
+          addTearDown(cubit.close);
+
+          cubit.postContentChanged(hasContent: true);
+          expect(cubit.hasUnpersistedEdits, isTrue);
+          async.elapse(const Duration(seconds: 2));
+          async.flushMicrotasks();
+          expect(cubit.state.draftId, isNotNull);
+          expect(cubit.hasUnpersistedEdits, isTrue);
+        });
+      },
+    );
   });
 
   // #607: «Keep draft» is offered only when leaving really keeps one.

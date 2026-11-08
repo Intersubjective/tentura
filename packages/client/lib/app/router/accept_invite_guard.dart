@@ -5,7 +5,7 @@ sealed class AcceptInviteGuardOutcome {}
 
 final class AcceptInviteGuardAllow extends AcceptInviteGuardOutcome {}
 
-/// Web: [goToLanding] returned true and the page is unloading.
+/// Web: landing redirect succeeded and the page is unloading.
 final class AcceptInviteGuardLeaving extends AcceptInviteGuardOutcome {}
 
 /// Native: redirect unauthenticated users to signup-with-invite.

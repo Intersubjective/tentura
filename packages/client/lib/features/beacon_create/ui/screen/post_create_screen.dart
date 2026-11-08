@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:get_it/get_it.dart';
 
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
@@ -20,6 +19,7 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/pending_attachments.dart';
 
+import '../../data/service/post_create_composer_draft_store.dart';
 import '../bloc/beacon_create_cubit.dart';
 import 'beacon_create_screen.dart' show popCreateAndOpenLiveBeacon;
 import 'package:tentura/features/beacon_threads/ui/widget/post_root_pin_card.dart';
@@ -33,12 +33,16 @@ import 'package:tentura/features/post_view/ui/post_remaining_label.dart';
 @RoutePage()
 class PostCreateScreen extends StatefulWidget implements AutoRouteWrapper {
   const PostCreateScreen({
+    @QueryParam(kQueryBeaconDraftId) this.draftId = '',
     @QueryParam(kQueryBeaconForwardTo) this.forwardToUserId = '',
     this.initialRecipientIds = const <String>{},
     this.onRecipientsChanged,
     this.onPublished,
     super.key,
   });
+
+  /// Server draft id when reopening after reload (#1117).
+  final String draftId;
 
   /// Optional profile-route recipient to preselect.
   final String forwardToUserId;
@@ -61,7 +65,12 @@ class PostCreateScreen extends StatefulWidget implements AutoRouteWrapper {
   @override
   Widget wrappedRoute(BuildContext context) => MultiBlocProvider(
     providers: [
-      BlocProvider(create: (_) => BeaconCreateCubit(kind: BeaconKind.post)),
+      BlocProvider(
+        create: (_) => BeaconCreateCubit(
+          kind: BeaconKind.post,
+          draftBeaconIdToLoad: draftId.isEmpty ? null : draftId,
+        ),
+      ),
       BlocProvider(
         create: (_) => ForwardCubit(
           beaconId: '',
@@ -79,7 +88,7 @@ class PostCreateScreen extends StatefulWidget implements AutoRouteWrapper {
 }
 
 class _PostCreateScreenState extends State<PostCreateScreen>
-    with PendingAttachmentsMixin {
+    with PendingAttachmentsMixin, WidgetsBindingObserver {
   late final BeaconCreateCubit _createCubit;
 
   final _text = TextEditingController();
@@ -98,25 +107,88 @@ class _PostCreateScreenState extends State<PostCreateScreen>
       GetIt.I<ClipboardImageRepository>();
 
   @override
-  void onPendingUploadsChanged() => _reportContent();
+  void onPendingUploadsChanged() => _onTextOrAttachmentChanged();
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _createCubit = context.read<BeaconCreateCubit>();
-    _text.addListener(_reportContent);
+    final snap = readPostCreateComposerDraft();
+    if (snap != null && snap.body.isNotEmpty) {
+      _text.text = snap.body;
+    }
+    _text.addListener(_onTextOrAttachmentChanged);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _onTextOrAttachmentChanged();
+      unawaited(_reconcileOrphanedEmptyDraft());
+    });
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     // A draft not yet made must not outlive the screen.
     _createCubit.postContentChanged(hasContent: false);
     if (GetIt.I.isRegistered<UnsavedChangesGuardPort>()) {
       GetIt.I<UnsavedChangesGuardPort>().setDirty(this, false);
     }
+    _text.removeListener(_onTextOrAttachmentChanged);
     _text.dispose();
     _textFocus.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.hidden && _hasContent) {
+      _persistComposerDraft();
+      unawaited(_createCubit.ensureDraft(context: '', showMessage: false));
+    }
+  }
+
+  void _syncDraftIdToBrowserUrl(String draftId) {
+    if (draftId.isEmpty || !mounted) return;
+    final router = context.router;
+    final String currentUrl;
+    try {
+      currentUrl = router.currentUrl;
+    } on Object {
+      return;
+    }
+    if (currentUrl.isEmpty) return;
+    final uri = Uri.parse(currentUrl);
+    if (uri.queryParameters[kQueryBeaconDraftId] == draftId) return;
+    final query = Map<String, String>.from(uri.queryParameters)
+      ..[kQueryBeaconDraftId] = draftId;
+    router.markUrlStateForReplace();
+    unawaited(
+      SystemNavigator.routeInformationUpdated(
+        uri: uri.replace(queryParameters: query),
+        replace: true,
+      ),
+    );
+  }
+
+  void _persistComposerDraft() {
+    writePostCreateComposerDraft(
+      draftId: _createCubit.state.draftId,
+      body: _text.text,
+    );
+  }
+
+  Future<void> _reconcileOrphanedEmptyDraft() async {
+    if (widget.draftId.isEmpty) return;
+    if (_text.text.trim().isNotEmpty || pendingUploads.isNotEmpty) return;
+    if (_createCubit.hasPostDraft) {
+      await _createCubit.discardPost();
+    }
+  }
+
+  void _onTextOrAttachmentChanged() {
+    _persistComposerDraft();
+    _reportContent();
   }
 
   void _updateUnsavedLeaveGuard() {
@@ -169,6 +241,7 @@ class _PostCreateScreenState extends State<PostCreateScreen>
       if (discard != true || !mounted) return;
     }
     if (_createCubit.hasPostDraft) await _createCubit.discardPost();
+    clearPostCreateComposerDraft();
     if (!mounted) return;
     final forward = context.read<ForwardCubit>().state;
     widget.onRecipientsChanged?.call(
@@ -199,6 +272,7 @@ class _PostCreateScreenState extends State<PostCreateScreen>
     );
     final id = cubit.state.draftId;
     if (sent && mounted && id != null) {
+      clearPostCreateComposerDraft();
       widget.onPublished?.call();
       await popCreateAndOpenLiveBeacon(context.router, beaconId: id);
     }
@@ -218,12 +292,34 @@ class _PostCreateScreenState extends State<PostCreateScreen>
           unawaited(_close());
         }
       },
-      child: BlocListener<BeaconCreateCubit, BeaconCreateState>(
-        bloc: _createCubit,
-        listenWhen: (previous, current) =>
-            previous.draftId != current.draftId ||
-            previous.isAutosaving != current.isAutosaving,
-        listener: (_, _) => _updateUnsavedLeaveGuard(),
+      child: MultiBlocListener(
+        listeners: [
+          BlocListener<BeaconCreateCubit, BeaconCreateState>(
+            bloc: _createCubit,
+            listenWhen: (previous, current) {
+              final prev = previous.draftId;
+              final next = current.draftId;
+              return widget.draftId.isEmpty &&
+                  (prev == null || prev.isEmpty) &&
+                  next != null &&
+                  next.isNotEmpty;
+            },
+            listener: (context, state) {
+              final id = state.draftId;
+              if (id != null && id.isNotEmpty) {
+                _syncDraftIdToBrowserUrl(id);
+              }
+              _persistComposerDraft();
+            },
+          ),
+          BlocListener<BeaconCreateCubit, BeaconCreateState>(
+            bloc: _createCubit,
+            listenWhen: (previous, current) =>
+                previous.draftId != current.draftId ||
+                previous.isAutosaving != current.isAutosaving,
+            listener: (_, _) => _updateUnsavedLeaveGuard(),
+          ),
+        ],
         child: Scaffold(
           appBar: TenturaTopBar.of(
             context,

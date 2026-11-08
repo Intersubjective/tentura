@@ -15,8 +15,8 @@ import 'package:tentura/ui/widget/basic_chat_body.dart';
 class _TestProfileCubit extends Mock implements ProfileCubit {
   @override
   ProfileState get state => const ProfileState(
-        profile: Profile(id: 'me', displayName: 'Me'),
-      );
+    profile: Profile(id: 'me', displayName: 'Me'),
+  );
 
   @override
   Stream<ProfileState> get stream => Stream<ProfileState>.value(state);
@@ -109,6 +109,7 @@ void main() {
         expect(_composerFieldHasFocus(tester), isTrue);
 
         await tester.enterText(_discussionComposerField(), 'first');
+        await tester.pump();
         await tester.tap(find.byIcon(Icons.send_rounded));
         await tester.pumpAndSettle();
 
@@ -121,6 +122,7 @@ void main() {
         );
 
         await tester.enterText(_discussionComposerField(), 'second');
+        await tester.pump();
         await tester.tap(find.byIcon(Icons.send_rounded));
         await tester.pumpAndSettle();
 
@@ -172,12 +174,14 @@ void main() {
 
         await _focusDiscussionComposer(tester);
         await tester.enterText(_discussionComposerField(), 'hello');
+        await tester.pump();
         await tester.tap(find.byIcon(Icons.send_rounded));
         await tester.pumpAndSettle();
 
         final primary = FocusManager.instance.primaryFocus;
-        final composerNode =
-            tester.widget<TextField>(_discussionComposerField()).focusNode;
+        final composerNode = tester
+            .widget<TextField>(_discussionComposerField())
+            .focusNode;
 
         expect(
           primary,

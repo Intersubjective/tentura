@@ -496,6 +496,7 @@ void main() {
 
     const draft = 'draft text to keep';
     await tester.enterText(find.byType(TextField), draft);
+    await tester.pump();
     await tester.tap(find.byIcon(Icons.send_rounded));
     await tester.pumpAndSettle();
 
@@ -545,6 +546,7 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.enterText(find.byType(TextField), 'clear after send');
+    await tester.pump();
     await tester.tap(find.byIcon(Icons.send_rounded));
     await tester.pumpAndSettle();
 

@@ -37,6 +37,12 @@ const kQueryCredentialLinked = 'linked';
 const kPathComplaint = '/complaint';
 const kPathInbox = '/home/inbox';
 const kPathConversations = '/home/conversations';
+
+/// Product-vocabulary path aliases for legacy bookmarks (#1106).
+const kPathHomePostsAlias = '/home/posts';
+const kPathHomeActivityAlias = '/home/activity';
+const kPathHomePeopleAlias = '/home/people';
+const kPathProfileTabAlias = '/profile';
 const kPathInboxRejected = '$kPathInbox/rejected';
 const kPathInboxTriage = '$kPathInbox/triage';
 const kPathInboxWatching = '$kPathInbox/watching';

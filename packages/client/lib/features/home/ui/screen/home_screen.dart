@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'package:tentura/app/router/root_router.dart';
+import 'package:tentura/app/router/unknown_hash_route_notice.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -176,11 +177,14 @@ class _HomeShellState extends State<_HomeShell> {
       navigatorObservers: () => [HomeShellNavObserver(_chrome)],
       builder: (context, child) {
         final tabsRouter = context.tabsRouter;
-        final content = HomePostJoinListener(
+        final content = UnknownHashRouteNoticeListener(
           tabsRouter: tabsRouter,
-          child: MyWorkTabReentryListener(
+          child: HomePostJoinListener(
             tabsRouter: tabsRouter,
-            child: NotificationPermissionPromptFrame(child: child),
+            child: MyWorkTabReentryListener(
+              tabsRouter: tabsRouter,
+              child: NotificationPermissionPromptFrame(child: child),
+            ),
           ),
         );
         return ListenableBuilder(
