@@ -9,11 +9,11 @@ import 'package:tentura_server/domain/entity/gql_public/user_availability_record
 import 'package:tentura_server/domain/entity/gql_public/user_presence_record.dart';
 import 'package:tentura_server/domain/entity/gql_public/user_public_record.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
+import 'package:tentura_server/domain/policy/public_user_availability_policy.dart';
 import 'package:tentura_server/domain/port/user_availability_repository_port.dart';
 import 'package:tentura_server/domain/port/user_profile_batch_lookup_port.dart';
 
 import '../database/tentura_db.dart';
-import '../mapper/user_availability_mapper.dart';
 import '../mapper/user_mapper.dart';
 import '../mapper/user_presence_mapper.dart';
 import 'constellation_field_repository.dart' show readCustomSelectTimestamptz;
