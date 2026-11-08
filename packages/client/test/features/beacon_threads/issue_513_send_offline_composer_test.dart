@@ -81,6 +81,7 @@ void main() {
       expect(find.text(l10n.beaconRoomSendFailedOffline), findsNothing);
 
       await tester.enterText(_composerField(), 'see you at 6');
+      await tester.pump();
       await tester.tap(find.byIcon(Icons.send_rounded));
       await tester.pumpAndSettle();
 
@@ -123,6 +124,7 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.enterText(_composerField(), 'see you at 6');
+      await tester.pump();
       await tester.tap(find.byIcon(Icons.send_rounded));
       await tester.pumpAndSettle();
 
@@ -150,6 +152,7 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.enterText(_composerField(), 'see you at 6');
+      await tester.pump();
       await tester.tap(find.byIcon(Icons.send_rounded));
       await tester.pumpAndSettle();
 
@@ -176,6 +179,7 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.enterText(_composerField(), 'see you at 6');
+      await tester.pump();
       await tester.tap(find.byIcon(Icons.send_rounded));
       await tester.pumpAndSettle();
 
@@ -201,6 +205,7 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.enterText(_composerField(), 'see you at 6');
+      await tester.pump();
       await tester.tap(find.byIcon(Icons.send_rounded));
       await tester.pumpAndSettle();
 

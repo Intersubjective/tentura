@@ -5,6 +5,11 @@ import 'package:tentura/features/constellation/domain/constellation_layout.dart'
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 
+/// The scene x of the +x placement envelope edge.
+const _envelopeRightEdge =
+    kConstellationCanvasCentre +
+    kConstellationCoordinateMaxUnits * kConstellationRingUnitPixels;
+
 void main() {
   group('constellationAuthorSatellites', () {
     test('partitions pinned vs unpinned from field and overlay', () {
@@ -72,8 +77,12 @@ void main() {
   });
 
   group('constellationClampToDragBounds', () {
-    const min = kConstellationCanvasCentre - 10 * 170.0;
-    const max = kConstellationCanvasCentre + 10 * 170.0;
+    const min =
+        kConstellationCanvasCentre +
+        kConstellationCoordinateMinUnits * kConstellationRingUnitPixels;
+    const max =
+        kConstellationCanvasCentre +
+        kConstellationCoordinateMaxUnits * kConstellationRingUnitPixels;
 
     test('keeps a point already inside', () {
       const inside = (
@@ -125,9 +134,9 @@ void main() {
         x: kConstellationCanvasCentre,
         y: kConstellationCanvasCentre,
       );
-      // Companion near +10 units edge.
+      // Companion 48 px inside the +x envelope edge.
       const companionStart = (
-        x: kConstellationCanvasCentre + 1652.0,
+        x: _envelopeRightEdge - 48,
         y: kConstellationCanvasCentre,
       );
       final limited = constellationLimitClusterDelta(
@@ -143,14 +152,17 @@ void main() {
 
     test('a companion follows the parent but stops inside the envelope', () {
       const companionStart = (
-        x: kConstellationCanvasCentre + 1652.0,
+        x: _envelopeRightEdge - 48,
         y: kConstellationCanvasCentre,
       );
       final next = constellationCompanionPosition(
         companionStart: companionStart,
         parentDelta: (x: 500.0, y: 100.0),
       );
-      expect((next.x - kConstellationCanvasCentre) / 170, closeTo(10, 1e-3));
+      expect(
+        (next.x - kConstellationCanvasCentre) / kConstellationRingUnitPixels,
+        closeTo(kConstellationCoordinateMaxUnits, 1e-3),
+      );
       expect(next.y, closeTo(kConstellationCanvasCentre + 100, 1e-6));
     });
   });
@@ -198,7 +210,8 @@ void main() {
 
   group('constellationLimitGroupDelta (group drag)', () {
     const centre = kConstellationCanvasCentre;
-    const unit = 170.0;
+    const unit = kConstellationRingUnitPixels;
+    const edge = kConstellationCoordinateMaxUnits * unit;
 
     test('a group well inside the envelope moves by the full delta', () {
       final limited = constellationLimitGroupDelta(
@@ -213,7 +226,7 @@ void main() {
     test('the member nearest a wall stops the whole group there, axis by '
         'axis, so the group stays rigid', () {
       // A member 100 px inside the right envelope edge.
-      const member = (x: centre + 10 * unit - 100, y: centre);
+      const member = (x: centre + edge - 100, y: centre);
       final limited = constellationLimitGroupDelta(
         parentStart: (x: centre, y: centre),
         proposedParent: (x: centre + 500, y: centre + 150),
@@ -230,8 +243,8 @@ void main() {
     });
 
     test('the parent alone limits as constellationLimitClusterDelta does', () {
-      const parentStart = (x: centre + 10 * unit - 50, y: centre);
-      const proposed = (x: centre + 10 * unit + 400, y: centre - 80);
+      const parentStart = (x: centre + edge - 50, y: centre);
+      const proposed = (x: centre + edge + 400, y: centre - 80);
       final group = constellationLimitGroupDelta(
         parentStart: parentStart,
         proposedParent: proposed,
@@ -248,7 +261,7 @@ void main() {
 
     test('a member already outside the bounds does not hold the group; it '
         'slides on its own', () {
-      const outside = (x: centre + 10 * unit + 200, y: centre);
+      const outside = (x: centre + edge + 200, y: centre);
       final limited = constellationLimitGroupDelta(
         parentStart: (x: centre, y: centre),
         proposedParent: (x: centre - 300, y: centre + 60),

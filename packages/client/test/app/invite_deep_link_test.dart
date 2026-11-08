@@ -38,12 +38,33 @@ void main() {
       );
     });
 
-    test('invite id not starting with I is unchanged', () {
-      final uri = Uri.parse('/invite/abc123');
-      expect(
-        transformInviteDeepLink(uri: uri, isAuthenticated: true),
-        uri,
+    test(
+      'malformed invite id routes to accept-invite when signed in (#1124)',
+      () {
+        final out = transformInviteDeepLink(
+          uri: Uri.parse('/invite/BADCODE123'),
+          isAuthenticated: true,
+        );
+        expect(out.path, '$kPathAcceptInvite/BADCODE123');
+        expect(out.queryParameters[kQueryIsDeepLink], 'true');
+      },
+    );
+
+    test('malformed invite id routes to sign-up when signed out (#1124)', () {
+      final out = transformInviteDeepLink(
+        uri: Uri.parse('/invite/BADCODE123'),
+        isAuthenticated: false,
       );
+      expect(out.path, '$kPathSignUp/BADCODE123');
+      expect(out.queryParameters[kQueryIsDeepLink], 'true');
+    });
+
+    test('invite segment without I prefix still routes (#1124)', () {
+      final out = transformInviteDeepLink(
+        uri: Uri.parse('/invite/abc123'),
+        isAuthenticated: true,
+      );
+      expect(out.path, '$kPathAcceptInvite/abc123');
     });
 
     test('decodes percent-encoded invite id', () {

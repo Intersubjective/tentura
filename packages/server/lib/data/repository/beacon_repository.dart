@@ -541,7 +541,8 @@ ${beaconId == null ? '' : r'WHERE posts.id = $2'}''',
               : (e) =>
                     e.id.equals(beaconId) & e.userId.id.equals(filterByUserId),
         )
-        .getSingle();
+        .getSingleOrNull();
+    if (beacon == null) throw IdNotFoundException(id: beaconId);
 
     final images = await _getBeaconImages(beaconId);
     final ownerId = beacon.userId;
@@ -557,7 +558,8 @@ ${beaconId == null ? '' : r'WHERE posts.id = $2'}''',
 
     final authorRow = await _database.managers.users
         .filter((e) => e.id.equals(ownerId))
-        .getSingle();
+        .getSingleOrNull();
+    if (authorRow == null) throw IdNotFoundException(id: beaconId);
 
     return _beaconRowToEntity(
       beacon,

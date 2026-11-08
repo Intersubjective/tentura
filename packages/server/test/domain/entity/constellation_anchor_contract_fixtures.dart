@@ -1,6 +1,8 @@
 /// Serializable C1/C2 contract fixtures for constellation anchor domain tests.
 library;
 
+import 'package:tentura_root/domain/constellation/constellation_geometry.dart';
+
 const constellationAnchorCoordinateFixtureCases = <Map<String, Object?>>[
   {
     'id': 'origin_v1',
@@ -11,21 +13,21 @@ const constellationAnchorCoordinateFixtureCases = <Map<String, Object?>>[
   },
   {
     'id': 'max_corner',
-    'xUnits': 10,
-    'yUnits': 10,
+    'xUnits': kConstellationCoordinateMaxUnits,
+    'yUnits': kConstellationCoordinateMaxUnits,
     'coordinateSpaceVersion': 1,
     'expect': 'valid',
   },
   {
     'id': 'min_corner',
-    'xUnits': -10,
-    'yUnits': -10,
+    'xUnits': kConstellationCoordinateMinUnits,
+    'yUnits': kConstellationCoordinateMinUnits,
     'coordinateSpaceVersion': 1,
     'expect': 'valid',
   },
   {
     'id': 'above_max',
-    'xUnits': 10.0000001,
+    'xUnits': kConstellationCoordinateMaxUnits + 0.0000001,
     'yUnits': 0,
     'coordinateSpaceVersion': 1,
     'expect': 'outOfRange',
@@ -33,7 +35,7 @@ const constellationAnchorCoordinateFixtureCases = <Map<String, Object?>>[
   {
     'id': 'below_min',
     'xUnits': 0,
-    'yUnits': -10.0000001,
+    'yUnits': kConstellationCoordinateMinUnits - 0.0000001,
     'coordinateSpaceVersion': 1,
     'expect': 'outOfRange',
   },

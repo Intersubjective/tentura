@@ -72,9 +72,11 @@ class _StubContextCubit extends Cubit<GraphPersonContextState>
 ConstellationAnchorRevision _revision(int value) =>
     ConstellationAnchorRevision(BigInt.from(value));
 
-/// Canvas centre and one envelope unit in scene pixels (10 units = 1700 px).
+/// Canvas centre, one envelope unit in scene pixels, and the envelope edge
+/// in units.
 const _centre = kConstellationCanvasCentre;
-const _unit = 170.0;
+const _unit = kConstellationRingUnitPixels;
+const _max = kConstellationCoordinateMaxUnits;
 
 /// The anchor store of the server: applies batches.
 final class _Server implements ConstellationAnchorRepositoryPort {
@@ -551,7 +553,7 @@ void main() {
     // Bob is pinned 0.3 units inside the right edge; Ann near the middle.
     final h = await _mount(
       tester,
-      seeded: {_ann: (1, 0), _bob: (9.7, 2)},
+      seeded: {_ann: (1, 0), _bob: (_max - 0.3, 2)},
     );
     h.selection
       ..toggle(_ann)
@@ -559,7 +561,7 @@ void main() {
     await _frames(tester);
     final annStart = _scene(h.cubit, 'a');
     final bobStart = _scene(h.cubit, 'b');
-    expect(bobStart.dx, closeTo(_centre + 9.7 * _unit, 1));
+    expect(bobStart.dx, closeTo(_centre + (_max - 0.3) * _unit, 1));
 
     final group = h.selection.state.dragGroupFor(_ann);
     h.cubit.beginDragExisting(target: _ann, group: group);
@@ -580,7 +582,7 @@ void main() {
     final ops = {for (final op in h.server.applies.single) op.target: op};
     expectOffset(_written(ops[_ann]!) - annStart, delta);
     expectOffset(_written(ops[_bob]!) - bobStart, delta);
-    expect(ops[_bob]!.position!.xUnits, lessThanOrEqualTo(10));
+    expect(ops[_bob]!.position!.xUnits, lessThanOrEqualTo(_max));
   });
 
   testWidgets('a member that starts outside the envelope is not written and '
@@ -593,10 +595,10 @@ void main() {
       tester,
       seeded: {
         _ann: (1, 0),
-        _bob: (10.6, 1),
+        _bob: (_max + 0.6, 1),
         _cat: (-1, 1.5),
         _postA: (2, 1),
-        _postB: (9.5, 2),
+        _postB: (_max - 0.5, 2),
       },
     );
     h.selection
@@ -611,7 +613,7 @@ void main() {
     final postBStart = _beacon(h.cubit, 'post-b');
     expect(
       bobStart.dx,
-      closeTo(_centre + 10.6 * _unit, 1),
+      closeTo(_centre + (_max + 0.6) * _unit, 1),
       reason: 'Bob must be laid out outside the envelope',
     );
 
@@ -659,7 +661,7 @@ void main() {
 
     // Bob is back where he was, his stored row untouched.
     expectOffset(_scene(h.cubit, 'b'), bobStart, reason: 'snaps back');
-    expect(h.server.anchors[_bob]!.position.xUnits, 10.6);
+    expect(h.server.anchors[_bob]!.position.xUnits, _max + 0.6);
     expectOffset(_beacon(h.cubit, 'post-b'), postBStart);
   });
 
@@ -684,7 +686,10 @@ void main() {
 
     final d = clamped - annStart;
     expectOffset(_scene(h.cubit, 'a') - annStart, d);
-    expectOffset(_scene(h.cubit, 'b') - bobStart, Offset(d.dx * 0.5, d.dy * 0.5));
+    expectOffset(
+      _scene(h.cubit, 'b') - bobStart,
+      Offset(d.dx * 0.5, d.dy * 0.5),
+    );
 
     await h.cubit.onExistingNodeDrop(target: _ann, sceneCentre: clamped);
     await _flushWrites(tester);

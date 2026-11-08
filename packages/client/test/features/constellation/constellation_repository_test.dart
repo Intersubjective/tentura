@@ -11,6 +11,7 @@ import 'package:tentura/features/constellation/data/gql/_g/constellation_anchors
 import 'package:tentura/features/constellation/data/gql/_g/constellation_field_fetch.req.gql.dart';
 import 'package:tentura/features/constellation/data/model/constellation_field_mapper.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
+import 'package:tentura_root/domain/constellation/constellation_geometry.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
@@ -334,7 +335,7 @@ void main() {
         () => mapWireAnchor(
           targetKind: Gv2_ConstellationAnchorTargetKind.PERSON,
           targetId: 'peer-a',
-          xUnits: 11,
+          xUnits: kConstellationCoordinateMaxUnits + 1,
           yUnits: 0,
           coordinateSpaceVersion: 1,
           revision: '1',

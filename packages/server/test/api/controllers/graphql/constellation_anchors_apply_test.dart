@@ -380,7 +380,7 @@ void main() {
     test('out of range position is 1701', () async {
       final op = _upsertOp('op-1', peerA)
         ..['position'] = {
-          'xUnits': 11.0,
+          'xUnits': kConstellationCoordinateMaxUnits + 1,
           'yUnits': 0.0,
           'coordinateSpaceVersion': kConstellationCoordinateSpaceVersionV1,
         };

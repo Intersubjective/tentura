@@ -14,6 +14,9 @@ export 'package:flutter_bloc/flutter_bloc.dart';
 
 export 'realtime_status_state.dart';
 
+/// How long the socket may stay out before the one-time paused notice (#1061).
+const kRealtimePausedNoticeDelay = Duration(seconds: 10);
+
 /// Global presentation state for actionable realtime transport outages.
 @singleton
 final class RealtimeStatusCubit extends Cubit<RealtimeStatusState> {
@@ -22,7 +25,7 @@ final class RealtimeStatusCubit extends Cubit<RealtimeStatusState> {
     NetworkReachabilityPort reachability,
   ) : this.forTesting(
         realtime,
-        pausedDelay: const Duration(seconds: 2),
+        pausedDelay: kRealtimePausedNoticeDelay,
         reachability: reachability,
       );
 
@@ -53,6 +56,7 @@ final class RealtimeStatusCubit extends Cubit<RealtimeStatusState> {
   Timer? _pausedTimer;
   int _statusGeneration = 0;
   bool _offline;
+  bool _pausedEpisodeNoticeArmed = true;
 
   void _onOnline(bool online) {
     _offline = !online;
@@ -74,12 +78,24 @@ final class RealtimeStatusCubit extends Cubit<RealtimeStatusState> {
         phase == RealtimeConnectionPhase.unbound ||
         status.accountId == null ||
         status.accountId!.isEmpty) {
+      _pausedEpisodeNoticeArmed = true;
       emit(RealtimeStatusState(phase: phase, showOfflineBanner: _offline));
+      return;
+    }
+    if (!_pausedEpisodeNoticeArmed) {
+      emit(
+        RealtimeStatusState(
+          phase: phase,
+          showPausedBanner: true,
+          showOfflineBanner: _offline,
+        ),
+      );
       return;
     }
     emit(RealtimeStatusState(phase: phase, showOfflineBanner: _offline));
     _pausedTimer = Timer(_pausedDelay, () {
       if (!isClosed && generation == _statusGeneration) {
+        _pausedEpisodeNoticeArmed = false;
         emit(
           RealtimeStatusState(
             phase: phase,

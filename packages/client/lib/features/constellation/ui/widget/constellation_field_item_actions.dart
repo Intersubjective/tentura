@@ -137,7 +137,7 @@ Future<void> _hideFromField(
   showUndoSnackBar(
     context,
     messenger: messenger,
-    undoActionLabel: undoLabel,
+    undoLabel: undoLabel,
     text: hiddenSnackText,
     onUndo: () => unawaited(
       _undoHideForCubit(

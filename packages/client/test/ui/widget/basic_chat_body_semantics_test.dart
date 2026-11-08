@@ -141,6 +141,13 @@ void main() {
   testWidgets('Send is a single named button node', (tester) async {
     final handle = tester.ensureSemantics();
     await _pumpBody(tester);
+    // #1104: Send has no tap action until the composer holds sendable content.
+    final field = find.descendant(
+      of: find.byType(BeaconRoomComposer),
+      matching: find.byType(TextField),
+    );
+    await tester.enterText(field, 'hello');
+    await tester.pump();
 
     _expectOneButtonNode(TestIds.roomMessageSend, 'Send');
     handle.dispose();
