@@ -1503,6 +1503,16 @@
     "description": "Opens the Request forward tree on the Field (#774).",
     "context": "ConstellationRequestPreviewSheet"
   },
+  "constellationPreviewParticipantsTitle": "Participants",
+  "@constellationPreviewParticipantsTitle": {
+    "description": "Label for the participants avatar stack on Field node preview sheets (#1202).",
+    "context": "ConstellationRequestPreviewSheet"
+  },
+  "constellationPreviewForwardedThroughTitle": "Forwarded through",
+  "@constellationPreviewForwardedThroughTitle": {
+    "description": "Label for the forward-chain avatar stack on Field node preview sheets (#1202).",
+    "context": "ConstellationRequestPreviewSheet"
+  },
   "constellationForwardTreeClose": "Close",
   "@constellationForwardTreeClose": {
     "description": "Tooltip for closing forward-tree overlay (#774).",

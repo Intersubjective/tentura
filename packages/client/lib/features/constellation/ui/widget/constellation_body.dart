@@ -73,6 +73,7 @@ import 'constellation_node_semantics.dart';
 import 'constellation_request_label.dart';
 import 'constellation_request_preview_sheet.dart';
 import 'constellation_pin_placeholder_sheet.dart';
+import 'constellation_field_preview_people_rows.dart';
 import 'constellation_post_preview_sheet.dart';
 import 'constellation_presence_line.dart';
 import 'constellation_temporary_outline.dart';
@@ -1404,6 +1405,16 @@ class _ConstellationBodyState extends State<ConstellationBody>
             authorDisplayName:
                 cubit.profileForPersonId(post.authorId)?.shownName ?? '',
             onOpen: () => _openBeacon(context, post.id),
+            onOpenParticipants: () =>
+                constellationFieldPreviewOpenPostParticipants(
+                  () => _openBeacon(context, post.id),
+                  post.id,
+                ),
+            onOpenForwardedThrough: () =>
+                constellationFieldPreviewOpenPostParticipants(
+                  () => _openBeacon(context, post.id),
+                  post.id,
+                ),
             onClose: () => cubit.selectRequest(null),
           ),
           mapStackHeight: mapStackHeight,
@@ -1443,6 +1454,20 @@ class _ConstellationBodyState extends State<ConstellationBody>
                 beaconId: request.id,
               )
             : null,
+        onOpenParticipants: () => _openBeacon(
+          context,
+          request.id,
+          viewTab: kBeaconViewTabPeople,
+        ),
+        onOpenForwardedThrough: request.viewerHasForwardEdge
+            ? () => context.read<ScreenCubit>().showConstellationForwardTreeFor(
+                beaconId: request.id,
+              )
+            : () => _openBeacon(
+                context,
+                request.id,
+                viewTab: kBeaconViewTabPeople,
+              ),
         onClose: () => unawaited(_dismissRequestPreview(cubit)),
       ),
       mapStackHeight: mapStackHeight,

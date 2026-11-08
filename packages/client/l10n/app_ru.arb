@@ -1358,6 +1358,14 @@
   "constellationPersonItemsLoadMore": "Загрузить ещё",
   "constellationShowAgain": "Показать снова",
   "constellationPreviewShowForwardTreeOnField": "Показать на поле",
+  "constellationPreviewParticipantsTitle": "Участники",
+  "@constellationPreviewParticipantsTitle": {
+    "context": "ConstellationRequestPreviewSheet"
+  },
+  "constellationPreviewForwardedThroughTitle": "Через пересылку",
+  "@constellationPreviewForwardedThroughTitle": {
+    "context": "ConstellationRequestPreviewSheet"
+  },
   "constellationForwardTreeClose": "Закрыть",
   "constellationForwardTreeReplay": "Повторить",
   "constellationForwardTreeArrangeAsTree": "Расположить как дерево",
