@@ -281,24 +281,16 @@ Future<void> main() async {
       },
     );
 
-    test('a second open advances the same seen row instead of adding '
-        'another', () async {
+    test('a second open neither adds a seen row nor moves the one the '
+        'first open wrote', () async {
       await seedPost([_first]);
       await open(_first);
-      await writer.execute('''
-        UPDATE public.beacon_room_seen SET last_seen_at = '2018-01-01Z'
-        WHERE beacon_id = '$_post' AND user_id = '$_first'
-          AND thread_item_id IS NULL
-      ''');
+      final first = await seenRows(_first);
+      expect(first, hasLength(1));
 
       await open(_first);
 
-      final rows = await seenRows(_first);
-      expect(rows, hasLength(1));
-      expect(
-        (rows.single! as DateTime).isAfter(DateTime.utc(2018, 1, 2)),
-        isTrue,
-      );
+      expect(await seenRows(_first), first);
     });
 
     test('only a user who can read the Post gets a seen row from opening '
@@ -368,7 +360,9 @@ Future<void> main() async {
             ),
           ),
         );
-        expect(await listRow(_first), containsPair('unreadCount', 0));
+        // Fetching the messages again is not reading them: the reply stays
+        // unread until the room marks it seen.
+        expect(await listRow(_first), containsPair('unreadCount', 1));
       },
     );
   });

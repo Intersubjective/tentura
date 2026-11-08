@@ -122,6 +122,34 @@ VALUES
       );
     });
 
+    test('locking a missing beacon for a state change is a typed not-found '
+        'and never runs the change', () async {
+      var ran = false;
+      await expectLater(
+        beacons.runInBeaconStateTransaction<void>(
+          beaconId: _missing,
+          userId: _owner,
+          fn: (_) async {
+            ran = true;
+          },
+        ),
+        throwsA(notFoundFor(_missing)),
+      );
+      expect(ran, isFalse);
+    });
+
+    test(
+      'locking an existing Request hands the change the locked Request',
+      () async {
+        final lockedId = await beacons.runInBeaconStateTransaction<String>(
+          beaconId: _request,
+          userId: _owner,
+          fn: (locked) async => locked.id,
+        );
+        expect(lockedId, _request);
+      },
+    );
+
     test('an existing Request still loads with its author', () async {
       final beacon = await beacons.getBeaconById(beaconId: _request);
       expect(beacon.id, _request);

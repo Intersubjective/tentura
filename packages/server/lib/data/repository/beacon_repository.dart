@@ -733,12 +733,13 @@ ${beaconId == null ? '' : r'WHERE posts.id = $2'}''',
     required String userId,
     required Future<T> Function(BeaconEntity locked) fn,
   }) => _database.withMutatingUser(userId, () async {
-    await _database
+    final row = await _database
         .customSelect(
           r'SELECT id FROM public.beacon WHERE id = $1 FOR UPDATE',
           variables: [Variable<String>(beaconId)],
         )
-        .getSingle();
+        .getSingleOrNull();
+    if (row == null) throw IdNotFoundException(id: beaconId);
 
     final locked = await getBeaconById(beaconId: beaconId);
     return fn(locked);
