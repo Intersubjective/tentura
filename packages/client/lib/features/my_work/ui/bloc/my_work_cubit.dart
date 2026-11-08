@@ -697,11 +697,15 @@ class MyWorkCubit extends Cubit<MyWorkState> {
               state.firstLoadDone || state.nonArchivedProjectionLoaded,
         ),
       );
-    } catch (_) {
+    } catch (e) {
       if (isClosed || seq != _fetchSeq) {
         return;
       }
-      emit(state.copyWith(attentionLoaded: false));
+      if (!state.firstLoadDone) {
+        emit(state.copyWith(loadError: e, status: const StateIsSuccess()));
+      } else {
+        emit(state.copyWith(attentionLoaded: false));
+      }
     } finally {
       if (--_attentionReadsInFlight == 0) _recentClears.clear();
     }

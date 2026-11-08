@@ -215,15 +215,27 @@ class _FriendsScreenState extends State<FriendsScreen>
             ),
           ],
           account: homeTopBarAccount(context),
-          progress: BlocSelector<InvitationCubit, InvitationState, bool>(
-            key: Key('Friends.InvitationLoader:${_invitationCubit.hashCode}'),
-            bloc: _invitationCubit,
-            selector: (state) => state.isLoading,
-            builder: (context, isLoading) => TenturaTopBar.loadingBar(
-              context,
-              isLoading,
-              tone: TenturaTopBarTone.primary,
-            ),
+          progress: BlocSelector<FriendsCubit, FriendsState, FriendsState>(
+            bloc: friendsCubit,
+            selector: (state) => state,
+            builder: (context, friendsState) =>
+                BlocSelector<InvitationCubit, InvitationState, bool>(
+                  key: Key(
+                    'Friends.InvitationLoader:${_invitationCubit.hashCode}',
+                  ),
+                  bloc: _invitationCubit,
+                  selector: (state) => state.isLoading,
+                  builder: (context, invitationLoading) {
+                    final show =
+                        friendsState.firstLoadDone &&
+                        (invitationLoading || friendsState.isLoading);
+                    return TenturaTopBar.loadingBar(
+                      context,
+                      show,
+                      tone: TenturaTopBarTone.primary,
+                    );
+                  },
+                ),
           ),
         ),
         body: SafeArea(

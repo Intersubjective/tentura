@@ -42,32 +42,26 @@ Color constellationFieldUnreadGlowColor({
   return tt.attentionHighlight;
 }
 
-/// Shared radial sprites tinted at draw time: white (additive on dark) and black
-/// (soft tinted shadow on light — white sprites vanish on light backgrounds).
+/// Shared white radial sprite, tinted at draw time: additive on dark, [BlendMode.srcIn]
+/// on light (#1191 — black sprites read as a gloomy halo on near-white backgrounds).
 class ConstellationFieldUnreadGlowAtlas {
-  ConstellationFieldUnreadGlowAtlas._(this._dark, this._light);
+  ConstellationFieldUnreadGlowAtlas._(this._sprite);
 
-  final ui.Image _dark;
-  final ui.Image _light;
+  final ui.Image _sprite;
 
-  ui.Image imageFor({required bool isDark}) => isDark ? _dark : _light;
+  ui.Image imageFor({required bool isDark}) => _sprite;
 
   static ConstellationFieldUnreadGlowAtlas? _instance;
 
   static ConstellationFieldUnreadGlowAtlas get instance {
     return _instance ??= ConstellationFieldUnreadGlowAtlas._(
       _buildRadialSprite(center: const Color(0xFFFFFFFF), midAlpha: 0.38),
-      _buildRadialSprite(
-        center: Colors.black,
-        midAlpha: 0.62,
-      ),
     );
   }
 
   @visibleForTesting
   static void resetForTest() {
-    _instance?._dark.dispose();
-    _instance?._light.dispose();
+    _instance?._sprite.dispose();
     _instance = null;
   }
 
@@ -322,10 +316,16 @@ class ConstellationFieldUnreadGlowPainter extends CustomPainter {
       final alpha = baseAlpha * entry.value.opacity * pulseBoost * fade;
       final paint = Paint()
         ..isAntiAlias = true
-        ..filterQuality = FilterQuality.medium
-        ..color = color.withValues(alpha: alpha);
+        ..filterQuality = FilterQuality.medium;
       if (isDark) {
-        paint.blendMode = BlendMode.plus;
+        paint
+          ..color = color.withValues(alpha: alpha)
+          ..blendMode = BlendMode.plus;
+      } else {
+        paint.colorFilter = ColorFilter.mode(
+          color.withValues(alpha: alpha),
+          BlendMode.srcIn,
+        );
       }
       canvas.drawImageRect(sprite, src, dst, paint);
     }
@@ -407,7 +407,7 @@ class ConstellationFieldUnreadGlowSwatch extends StatelessWidget {
                 glowSites: const {
                   'swatch': (authorId: 'author', opacity: 1),
                 },
-                colorForAuthor: (_) => scheme.secondary,
+                colorForAuthor: (_) => tt.attentionHighlight,
                 atlas: ConstellationFieldUnreadGlowAtlas.instance,
                 spread: tt.fieldUnreadGlowSpread,
                 alphaDark: tt.fieldUnreadGlowAlphaDark,
