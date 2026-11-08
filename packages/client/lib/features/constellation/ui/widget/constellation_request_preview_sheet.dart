@@ -13,6 +13,7 @@ import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/utils/capability_tag_presenter.dart';
 import '../../domain/entity/constellation_field_target_kind.dart';
 import 'constellation_field_item_actions.dart';
+import 'constellation_field_preview_people_rows.dart';
 import 'constellation_pin_placeholder_sheet.dart';
 import 'constellation_request_label.dart';
 import 'constellation_request_status_marker.dart';
@@ -65,6 +66,8 @@ class ConstellationRequestPreviewSheet extends StatelessWidget {
     this.onPrimaryAction,
     this.onForward,
     this.onShowForwardTreeOnField,
+    this.onOpenParticipants,
+    this.onOpenForwardedThrough,
     this.onClose,
     this.now,
     super.key,
@@ -77,6 +80,8 @@ class ConstellationRequestPreviewSheet extends StatelessWidget {
   final VoidCallback? onPrimaryAction;
   final VoidCallback? onForward;
   final VoidCallback? onShowForwardTreeOnField;
+  final VoidCallback? onOpenParticipants;
+  final VoidCallback? onOpenForwardedThrough;
   final VoidCallback? onClose;
   final DateTime? now;
 
@@ -249,6 +254,13 @@ class ConstellationRequestPreviewSheet extends StatelessWidget {
             ),
           ),
         ],
+        SizedBox(height: tt.sectionGap),
+        ConstellationFieldPreviewPeopleRows(
+          beaconId: request.id,
+          isPost: false,
+          onOpenParticipants: onOpenParticipants,
+          onOpenForwardedThrough: onOpenForwardedThrough,
+        ),
         SizedBox(height: tt.sectionGap),
         Text(
           l10n.constellationPreviewAuthorLine(authorDisplayName),

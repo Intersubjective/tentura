@@ -1503,6 +1503,16 @@
     "description": "Opens the Request forward tree on the Field (#774).",
     "context": "ConstellationRequestPreviewSheet"
   },
+  "constellationPreviewParticipantsTitle": "Participants",
+  "@constellationPreviewParticipantsTitle": {
+    "description": "Label for the participants avatar stack on Field node preview sheets (#1202).",
+    "context": "ConstellationRequestPreviewSheet"
+  },
+  "constellationPreviewForwardedThroughTitle": "Forwarded through",
+  "@constellationPreviewForwardedThroughTitle": {
+    "description": "Label for the forward-chain avatar stack on Field node preview sheets (#1202).",
+    "context": "ConstellationRequestPreviewSheet"
+  },
   "constellationForwardTreeClose": "Close",
   "@constellationForwardTreeClose": {
     "description": "Tooltip for closing forward-tree overlay (#774).",
@@ -10638,18 +10648,6 @@
   "constellationShowDegreeFurtherHint": "People three or more trust steps away, or with no chain of trust you can see, with their Requests and Posts",
   "@constellationShowDegreeFurtherHint": {
     "context": "Field: tooltip of the 3rd+ degree switch (#645)"
-  },
-  "constellationVisibilityHiddenSnack": "Hidden on the Field: {filter} ({count})",
-  "@constellationVisibilityHiddenSnack": {
-    "context": "Field: SnackBar after turning off a show/hide chip (#1061)",
-    "placeholders": {
-      "filter": {
-        "type": "String"
-      },
-      "count": {
-        "type": "int"
-      }
-    }
   },
   "constellationSelectMany": "Select several",
   "@constellationSelectMany": {

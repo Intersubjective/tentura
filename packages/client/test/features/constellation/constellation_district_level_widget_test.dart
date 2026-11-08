@@ -168,7 +168,6 @@ Finder _graphNode(String id) => find.byKey(TestIds.key(TestIds.graphNode(id)));
 Rect _screenRect(WidgetTester tester, Finder finder) =>
     Rect.fromPoints(tester.getTopLeft(finder), tester.getBottomRight(finder));
 
-/// The colour of a circular outline a widget draws (a border, not a fill).
 Color? _outlineColour(Widget w) {
   Color? ofDecoration(Decoration? d) => switch (d) {
     BoxDecoration(:final border?, shape: BoxShape.circle)
@@ -189,9 +188,8 @@ Color? _outlineColour(Widget w) {
   };
 }
 
-/// Circular outlines in [colour] drawn inside one node, as wide as the 20 pt
-/// circle they ring (a tag-coloured fill or a small glyph is not a ring).
-Finder _ringIn(String id, Color colour) => find.descendant(
+/// A tag-coloured ring at district marker size (not the avatar's neutral border).
+Finder _tagColouredMarkerRing(String id, Color colour) => find.descendant(
   of: _graphNode(id),
   matching: find.byWidgetPredicate((w) {
     if (_outlineColour(w) != colour) return false;
@@ -588,33 +586,6 @@ void main() {
       },
     );
 
-    testWidgets('ring a person in the colour of their first own tag', (
-      tester,
-    ) async {
-      await mount(tester, people, at: at);
-      const palette = TenturaTagColors.light;
-      final firstAccent = palette.swatches[_first.color].accent;
-      final secondAccent = palette.swatches[_second.color].accent;
-
-      expect(_ringIn('alice', firstAccent), findsWidgets);
-      expect(_ringIn('alice', secondAccent), findsNothing);
-      // In both tags: the first, never the second.
-      expect(_ringIn('bob', firstAccent), findsWidgets);
-      expect(_ringIn('bob', secondAccent), findsNothing);
-      expect(_ringIn('cara', secondAccent), findsWidgets);
-      expect(_ringIn('cara', firstAccent), findsNothing);
-    });
-
-    testWidgets('give a person with no tag no tag-coloured ring', (
-      tester,
-    ) async {
-      await mount(tester, people, at: at);
-
-      for (final swatch in TenturaTagColors.light.swatches) {
-        expect(_ringIn('dan', swatch.accent), findsNothing);
-      }
-    });
-
     testWidgets(
       'draw TenturaAvatar photo at district scale when peer has image, initials otherwise',
       (tester) async {
@@ -669,6 +640,42 @@ void main() {
       },
     );
   });
+
+  testWidgets(
+    'district tagged person on RU phone: no tag ring on the marker (#1208)',
+    (tester) async {
+      const longTaggedRu =
+          'Участник с меткой и очень длинным именем для проверки телефона';
+      await mount(
+        tester,
+        const [_Person('alice', name: longTaggedRu)],
+        at: const {
+          'ego': Offset(80, 620),
+          'alice': Offset(180, 280),
+        },
+        scale: 0.65,
+        phoneRu: true,
+      );
+
+      expect(tester.takeException(), isNull);
+      final initials = TenturaAvatar.initialsForProfile(
+        const Profile(
+          id: 'alice',
+          displayName: longTaggedRu,
+        ),
+      );
+      expect(
+        find.descendant(of: _graphNode('alice'), matching: find.text(initials)),
+        findsOneWidget,
+      );
+      for (final swatch in TenturaTagColors.light.swatches) {
+        expect(_tagColouredMarkerRing('alice', swatch.accent), findsNothing);
+      }
+      final marker = _screenRect(tester, _graphNode('alice'));
+      expect(marker.width, closeTo(20, 0.5));
+      expect(marker.height, closeTo(20, 0.5));
+    },
+  );
 
   testWidgets(
     'district avatars on RU phone: long names fit, photo vs initials (#1149)',

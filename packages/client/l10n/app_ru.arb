@@ -1358,6 +1358,14 @@
   "constellationPersonItemsLoadMore": "Загрузить ещё",
   "constellationShowAgain": "Показать снова",
   "constellationPreviewShowForwardTreeOnField": "Показать на поле",
+  "constellationPreviewParticipantsTitle": "Участники",
+  "@constellationPreviewParticipantsTitle": {
+    "context": "ConstellationRequestPreviewSheet"
+  },
+  "constellationPreviewForwardedThroughTitle": "Через пересылку",
+  "@constellationPreviewForwardedThroughTitle": {
+    "context": "ConstellationRequestPreviewSheet"
+  },
   "constellationForwardTreeClose": "Закрыть",
   "constellationForwardTreeReplay": "Повторить",
   "constellationForwardTreeArrangeAsTree": "Расположить как дерево",
@@ -6789,7 +6797,6 @@
   "constellationShowDegreeSecondHint": "Люди в двух шагах доверия от вас, с их запросами и постами",
   "constellationShowDegreeFurther": "3-й круг и дальше",
   "constellationShowDegreeFurtherHint": "Люди в трёх и более шагах доверия или без видимой вам цепочки доверия, с их запросами и постами",
-  "constellationVisibilityHiddenSnack": "Скрыто на «Поле»: {filter} ({count})",
   "constellationSelectMany": "Выбрать несколько",
   "constellationArrangeEntry": "Расположить…",
   "constellationArrangingTitle": "Расположение",
