@@ -11,21 +11,20 @@ import 'my_work_test_support.dart';
 AttentionReceipt _receipt({
   required String id,
   required String beaconId,
-}) =>
-    AttentionReceipt(
-      id: id,
-      category: 'requestProgress',
-      kind: 'commitmentAccepted',
-      priority: 'normal',
-      title: 'Title',
-      body: 'Body',
-      actionUrl: '/#/',
-      createdAt: DateTime.utc(2026, 8, 5, 10),
-      collapsedCount: 1,
-      presentationPayloadJson: '{}',
-      surface: AttentionSurface.myWork,
-      beaconId: beaconId,
-    );
+}) => AttentionReceipt(
+  id: id,
+  category: 'requestProgress',
+  kind: 'commitmentAccepted',
+  priority: 'normal',
+  title: 'Title',
+  body: 'Body',
+  actionUrl: '/#/',
+  createdAt: DateTime.utc(2026, 8, 5, 10),
+  collapsedCount: 1,
+  presentationPayloadJson: '{}',
+  surface: AttentionSurface.myWork,
+  beaconId: beaconId,
+);
 
 void main() {
   test('populates attentionByBeacon and attentionLoaded', () async {
@@ -104,31 +103,36 @@ void main() {
     await cubit.close();
   });
 
-  test('failed attention fetch keeps cards and attentionLoaded false', () async {
-    final attentionRepo = StubAttentionRepository()
-      ..myWorkAttentionError = Exception('attention failed');
-    final repo = FakeMyWorkRepository()
-      ..initResult = (
-        authoredNonArchived: [Beacon.empty.copyWith(id: 'b1')],
-        helpOfferedNonArchived: const [],
-        obligationBeacons: const [],
-        archivedCountHint: 0,
+  test(
+    'failed attention fetch on first load surfaces loadError and keeps cards',
+    () async {
+      final attentionRepo = StubAttentionRepository()
+        ..myWorkAttentionError = Exception('attention failed');
+      final repo = FakeMyWorkRepository()
+        ..initResult = (
+          authoredNonArchived: [Beacon.empty.copyWith(id: 'b1')],
+          helpOfferedNonArchived: const [],
+          obligationBeacons: const [],
+          archivedCountHint: 0,
+        );
+      final cubit = MyWorkCubit(
+        userId: 'user-1',
+        myWorkCase: buildTestMyWorkCase(
+          repo: repo,
+          attentionRepository: attentionRepo,
+        ),
       );
-    final cubit = MyWorkCubit(
-      userId: 'user-1',
-      myWorkCase: buildTestMyWorkCase(
-        repo: repo,
-        attentionRepository: attentionRepo,
-      ),
-    );
 
-    await cubit.stream.firstWhere((s) => s.isSuccess);
-    expect(cubit.state.nonArchivedCards, isNotEmpty);
-    expect(cubit.state.attentionLoaded, isFalse);
-    expect(cubit.state.attentionByBeacon, isEmpty);
+      await cubit.stream.firstWhere((s) => s.loadError != null);
+      expect(cubit.state.nonArchivedCards, isNotEmpty);
+      expect(cubit.state.attentionLoaded, isFalse);
+      expect(cubit.state.attentionByBeacon, isEmpty);
+      expect(cubit.state.firstLoadDone, isFalse);
+      expect(cubit.state.loadError, isNotNull);
 
-    await cubit.close();
-  });
+      await cubit.close();
+    },
+  );
 
   // U17a. Opening a Request is a **clear** gesture (§4), applied by the detail
   // host after the Request displays. My Desk only zeroes the badge

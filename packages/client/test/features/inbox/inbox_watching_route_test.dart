@@ -345,10 +345,12 @@ void main() {
     );
 
     await tester.tap(find.byIcon(Icons.more_vert));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
     expect(find.text('Following (2)'), findsOneWidget);
     await tester.tap(find.text('Following (2)'));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
 
     expect(router.pushCount, 1);
     expect(router.lastPush, isA<InboxWatchingRoute>());
@@ -418,11 +420,13 @@ void main() {
     await _pumpInboxOverflow(tester, router: router, items: const []);
 
     await tester.tap(find.byIcon(Icons.more_vert));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
     expect(find.text('Declined'), findsNothing);
     expect(find.text('Dismissed'), findsOneWidget);
     await tester.tap(find.text('Dismissed'));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
 
     expect(router.pushCount, 1);
     expect(router.lastPush, isA<InboxRejectedRoute>());

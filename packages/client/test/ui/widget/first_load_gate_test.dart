@@ -14,6 +14,7 @@ Future<void> _pumpGate(
   ValueNotifier<bool>? readiness,
   Object? error,
   VoidCallback? onRetry,
+  bool revealOnTimeout = false,
 }) {
   final ready = readiness ?? ValueNotifier(false);
   if (readiness == null) addTearDown(ready.dispose);
@@ -30,6 +31,7 @@ Future<void> _pumpGate(
             ready: isReady,
             error: error,
             onRetry: onRetry ?? () {},
+            revealOnTimeout: revealOnTimeout,
             child: const Text(_content),
           ),
         ),
@@ -40,7 +42,7 @@ Future<void> _pumpGate(
 
 void main() {
   group('Initial screen loading', () {
-    testWidgets('delays the spinner and reveals content after the timeout', (
+    testWidgets('delays the spinner and withholds content past the timeout', (
       tester,
     ) async {
       await _pumpGate(tester);
@@ -67,26 +69,41 @@ void main() {
       expect(find.text(_content), findsNothing);
 
       await tester.pump(const Duration(milliseconds: 2)); // 2501 ms
-      expect(find.text(_content), findsOneWidget);
-      expect(find.byType(TenturaCircularProgress), findsNothing);
+      expect(find.text(_content), findsNothing);
+      expect(find.byType(TenturaCircularProgress), findsOneWidget);
 
       await tester.pump(const Duration(milliseconds: 99)); // 2600 ms
-      expect(find.text(_content), findsOneWidget);
-      expect(find.byType(TenturaCircularProgress), findsNothing);
-    });
-
-    testWidgets('reveals available content even when readiness never arrives', (
-      tester,
-    ) async {
-      await _pumpGate(tester);
-      await tester.pump(const Duration(milliseconds: 2499));
       expect(find.text(_content), findsNothing);
-      await tester.pump(const Duration(milliseconds: 2));
-
-      expect(find.text(_content), findsOneWidget);
-      expect(find.byType(TenturaCircularProgress), findsNothing);
-      expect(find.byType(ScreenLoadErrorPanel), findsNothing);
+      expect(find.byType(TenturaCircularProgress), findsOneWidget);
     });
+
+    testWidgets(
+      'reveals after the timeout only when revealOnTimeout is enabled',
+      (tester) async {
+        await _pumpGate(tester, revealOnTimeout: true);
+        await tester.pump(const Duration(milliseconds: 2499));
+        expect(find.text(_content), findsNothing);
+        await tester.pump(const Duration(milliseconds: 2));
+
+        expect(find.text(_content), findsOneWidget);
+        expect(find.byType(TenturaCircularProgress), findsNothing);
+        expect(find.byType(ScreenLoadErrorPanel), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'keeps content hidden when readiness never arrives and timeout is off',
+      (tester) async {
+        await _pumpGate(tester);
+        await tester.pump(const Duration(milliseconds: 2499));
+        expect(find.text(_content), findsNothing);
+        await tester.pump(const Duration(milliseconds: 2));
+
+        expect(find.text(_content), findsNothing);
+        expect(find.byType(TenturaCircularProgress), findsOneWidget);
+        expect(find.byType(ScreenLoadErrorPanel), findsNothing);
+      },
+    );
 
     testWidgets('shows a load error panel with a working retry action', (
       tester,

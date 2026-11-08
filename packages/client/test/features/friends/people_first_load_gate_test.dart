@@ -31,8 +31,10 @@ import 'package:tentura/features/friends/domain/use_case/friends_case.dart';
 import 'package:tentura/features/friends/ui/bloc/friends_cubit.dart';
 import 'package:tentura/features/invitation/data/repository/invitation_repository.dart';
 import 'package:tentura/features/like/data/repository/like_remote_repository.dart';
+import 'package:tentura/ui/widget/linear_pi_active.dart';
 
 import '../../support/fake_block_case.dart';
+import '../../support/phone_surface.dart';
 import '../../support/test_realtime_sync.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../auth/auth_test_helpers.dart';
@@ -71,165 +73,190 @@ _Frame _frame() => (
 );
 
 void main() {
-  for (final localUpdate in [false, true]) {
-    testWidgets(
-      localUpdate
-          ? 'People withholds local friendships until ready or timed out and refreshes in place'
-          : 'People reveals available content when its initial list times out and refreshes in place',
-      (tester) async {
-        final harness = _FriendsHarness();
-        final screen = ScreenCubit.local(harness.effects);
-        final initial = Completer<Iterable<Profile>>();
-        harness.friendsRepository.pending.add(initial);
-        GetIt.I
-          ..registerSingleton<FriendsCubit>(harness.cubit)
-          ..registerSingleton<FriendsCase>(harness.friendsCase)
-          ..registerSingleton<AuthCase>(harness.authCase)
-          ..registerSingleton<InvitationRepository>(harness.invitations)
-          ..registerSingleton<UiEffectPort>(harness.effects);
-        addTearDown(() async {
-          await tester.pumpWidget(const SizedBox.shrink());
-          await screen.close();
-          await harness.dispose();
+  for (final locale in [const Locale('en'), const Locale('ru')]) {
+    for (final surface in [kPhoneSurface, const Size(1280, 800)]) {
+      testWidgets(
+        'People withholds the list past 2.5 s until primary data arrives '
+        '(${locale.languageCode}, ${surface.width.toInt()}×${surface.height.toInt()})',
+        (tester) async {
+          final harness = _FriendsHarness();
+          final screen = ScreenCubit.local(harness.effects);
+          final initial = Completer<Iterable<Profile>>();
+          harness.friendsRepository.pending.add(initial);
           GetIt.I
-            ..unregister<FriendsCubit>()
-            ..unregister<FriendsCase>()
-            ..unregister<AuthCase>()
-            ..unregister<InvitationRepository>()
-            ..unregister<UiEffectPort>();
-        });
-        await tester.binding.setSurfaceSize(const Size(360, 800));
-        addTearDown(() => tester.binding.setSurfaceSize(null));
-        harness.signIn();
-        await tester.pumpWidget(
-          MaterialApp(
-            theme: TenturaTheme.light(),
-            locale: const Locale('en'),
-            localizationsDelegates: L10n.localizationsDelegates,
-            supportedLocales: L10n.supportedLocales,
-            home: TenturaResponsiveScope(
-              child: MultiBlocProvider(
-                providers: [
-                  BlocProvider<ScreenCubit>.value(value: screen),
-                  BlocProvider<ProfileCubit>.value(value: _ViewerCubit()),
-                  BlocProvider<PresenceCubit>.value(value: _PresenceCubit()),
-                ],
-                child: const FriendsScreen(),
+            ..registerSingleton<FriendsCubit>(harness.cubit)
+            ..registerSingleton<FriendsCase>(harness.friendsCase)
+            ..registerSingleton<AuthCase>(harness.authCase)
+            ..registerSingleton<InvitationRepository>(harness.invitations)
+            ..registerSingleton<UiEffectPort>(harness.effects);
+          addTearDown(() async {
+            await tester.pumpWidget(const SizedBox.shrink());
+            await screen.close();
+            await harness.dispose();
+            GetIt.I
+              ..unregister<FriendsCubit>()
+              ..unregister<FriendsCase>()
+              ..unregister<AuthCase>()
+              ..unregister<InvitationRepository>()
+              ..unregister<UiEffectPort>();
+          });
+          await tester.binding.setSurfaceSize(surface);
+          addTearDown(() => tester.binding.setSurfaceSize(null));
+          harness.signIn();
+          await tester.pumpWidget(
+            MaterialApp(
+              theme: TenturaTheme.light(),
+              locale: locale,
+              localizationsDelegates: L10n.localizationsDelegates,
+              supportedLocales: L10n.supportedLocales,
+              home: TenturaResponsiveScope(
+                child: MultiBlocProvider(
+                  providers: [
+                    BlocProvider<ScreenCubit>.value(value: screen),
+                    BlocProvider<ProfileCubit>.value(value: _ViewerCubit()),
+                    BlocProvider<PresenceCubit>.value(value: _PresenceCubit()),
+                  ],
+                  child: const FriendsScreen(),
+                ),
               ),
             ),
-          ),
-        );
-        await _flush(tester);
-        expect(harness.friendsRepository.fetchCalls, 1);
-        const gated = (spinners: 1, ada: 0, boris: 0);
-        expect(initial.isCompleted, isFalse);
-        expect(find.text('Ada'), findsNothing);
-        expect(find.text('Boris'), findsNothing);
-        // Allow ample time for the approximate spinner delay, while staying
-        // comfortably inside the first-load timeout.
-        await tester.pump(const Duration(milliseconds: 500));
-        expect(initial.isCompleted, isFalse);
-        expect(
-          _frame(),
-          gated,
-          reason:
-              'A pending first list eventually shows one spinner and no rows',
-        );
-        Completer<Iterable<Profile>>? reconciliation;
-        if (localUpdate) {
-          // A real local trust event may arrive while the server list is
-          // pending. It must not reveal an incomplete initial list.
-          // Keep the reconciliation triggered by this event pending too.
-          reconciliation = Completer<Iterable<Profile>>();
-          harness.friendsRepository.pending.add(reconciliation);
-          harness.likes.emit(_friend('ada').copyWith(displayName: 'Ada'));
+          );
           await _flush(tester);
-          expect(harness.cubit.state.friends.containsKey('ada'), isTrue);
-          // Stay below the refresh debounce and the 2.5 second escape.
-          for (var i = 0; i < 4; i++) {
-            await tester.pump(const Duration(milliseconds: 16));
-            expect(initial.isCompleted, isFalse);
-            expect(
-              _frame(),
-              gated,
-              reason:
-                  'Local friendship rows must stay hidden behind the gate '
-                  'until the initial list is ready or the gate times out',
-            );
-          }
-        }
-        // 500 ms plus at most 64 ms above, then 2100 ms: beyond the
-        // proposal's 2.5 s escape without relying on a millisecond boundary.
-        await tester.pump(const Duration(milliseconds: 2100));
-        await _flush(tester);
-        expect(initial.isCompleted, isFalse);
-        if (localUpdate) {
-          expect(reconciliation!.isCompleted, isFalse);
-          expect(
-            find.text('Ada'),
-            findsOneWidget,
-            reason: 'Timeout reveals the available local friendship',
-          );
+          expect(harness.friendsRepository.fetchCalls, 1);
+          const gated = (spinners: 1, ada: 0, boris: 0);
+          expect(initial.isCompleted, isFalse);
+          expect(find.text('Ada'), findsNothing);
           expect(find.text('Boris'), findsNothing);
-        } else {
-          final l10n = L10n.of(tester.element(find.byType(FriendsScreen)))!;
+          // Allow ample time for the approximate spinner delay, while staying
+          // comfortably inside the first-load timeout.
+          await tester.pump(const Duration(milliseconds: 500));
+          expect(initial.isCompleted, isFalse);
           expect(
-            find.text(l10n.friendsEmptyTitle),
-            findsOneWidget,
+            _frame(),
+            gated,
             reason:
-                'Timeout reveals the current empty list while the read is pending',
+                'A pending first list eventually shows one spinner and no rows',
           );
-        }
-        expect(
-          find.byType(CircularProgressIndicator),
-          findsNothing,
-          reason: 'The first-load spinner must stop after the timeout',
-        );
-        // A late response still fills the revealed list in place.
-        expect(initial.isCompleted, isFalse);
-        initial.complete([
-          _friend('ada').copyWith(displayName: 'Ada'),
-          _friend('boris').copyWith(displayName: 'Boris'),
-        ]);
-        reconciliation?.complete([
-          _friend('ada').copyWith(displayName: 'Ada'),
-          _friend('boris').copyWith(displayName: 'Boris'),
-        ]);
-        await _flush(tester);
-        expect(find.text('Ada'), findsOneWidget);
-        expect(find.text('Boris'), findsOneWidget);
-        expect(find.byType(CircularProgressIndicator), findsNothing);
+          // 500 ms plus at most 64 ms above, then 2100 ms: beyond the
+          // proposal's 2.5 s escape without relying on a millisecond boundary.
+          await tester.pump(const Duration(milliseconds: 2100));
+          await _flush(tester);
+          expect(initial.isCompleted, isFalse);
+          final l10n = L10n.of(tester.element(find.byType(FriendsScreen)))!;
+          expect(find.text(l10n.friendsEmptyTitle), findsNothing);
+          expect(find.text('Ada'), findsNothing);
+          expect(find.text('Boris'), findsNothing);
+          expect(
+            _frame(),
+            gated,
+            reason:
+                'No partial list or empty state before primary data; '
+                'spinner stays past 2.5 s',
+          );
+          initial.complete([
+            _friend('ada').copyWith(displayName: 'Ada'),
+            _friend('boris').copyWith(displayName: 'Boris'),
+          ]);
+          await _flush(tester);
+          expect(find.text('Ada'), findsOneWidget);
+          expect(find.text('Boris'), findsOneWidget);
+          expect(find.byType(CircularProgressIndicator), findsNothing);
 
-        // Let a local event's debounced reconciliation finish before testing
-        // a separate catch-up from a missed server notification.
-        harness.friendsRepository.result = harness.cubit.state.friends.values;
-        await tester.pump(const Duration(milliseconds: 101));
-        await _flush(tester);
-        final refresh = Completer<Iterable<Profile>>();
-        harness.friendsRepository.pending.add(refresh);
-        final reads = harness.friendsRepository.fetchCalls;
-        harness.realtimePort.emitCatchUp();
-        await _flush(tester);
-        await tester.pump(const Duration(milliseconds: 101));
-        await _flush(tester);
-        expect(harness.friendsRepository.fetchCalls, reads + 1);
-        for (var i = 0; i < 30; i++) {
-          await tester.pump(const Duration(milliseconds: 100));
-          expect(refresh.isCompleted, isFalse);
-          expect(_frame(), (spinners: 0, ada: 1, boris: 1));
-        }
-        refresh.complete([
-          _friend('ada').copyWith(displayName: 'Ada refreshed'),
-          _friend('boris').copyWith(displayName: 'Boris'),
-        ]);
-        await _flush(tester);
-        expect(find.text('Ada refreshed'), findsOneWidget);
-        expect(find.text('Ada'), findsNothing);
-        expect(find.text('Boris'), findsOneWidget);
-        expect(find.byType(CircularProgressIndicator), findsNothing);
-        expect(harness.effects.emitted, isEmpty);
-      },
-    );
+          // Let a local event's debounced reconciliation finish before testing
+          // a separate catch-up from a missed server notification.
+          harness.friendsRepository.result = harness.cubit.state.friends.values;
+          await tester.pump(const Duration(milliseconds: 101));
+          await _flush(tester);
+          final refresh = Completer<Iterable<Profile>>();
+          harness.friendsRepository.pending.add(refresh);
+          final reads = harness.friendsRepository.fetchCalls;
+          harness.realtimePort.emitCatchUp();
+          await _flush(tester);
+          await tester.pump(const Duration(milliseconds: 101));
+          await _flush(tester);
+          expect(harness.friendsRepository.fetchCalls, reads + 1);
+          for (var i = 0; i < 30; i++) {
+            await tester.pump(const Duration(milliseconds: 100));
+            expect(refresh.isCompleted, isFalse);
+            expect(_frame(), (spinners: 0, ada: 1, boris: 1));
+          }
+          refresh.complete([
+            _friend('ada').copyWith(displayName: 'Ada refreshed'),
+            _friend('boris').copyWith(displayName: 'Boris'),
+          ]);
+          await _flush(tester);
+          expect(find.text('Ada refreshed'), findsOneWidget);
+          expect(find.text('Ada'), findsNothing);
+          expect(find.text('Boris'), findsOneWidget);
+          expect(find.byType(CircularProgressIndicator), findsNothing);
+          expect(harness.effects.emitted, isEmpty);
+        },
+      );
+    }
+  }
+
+  for (final locale in [const Locale('ru'), const Locale('en')]) {
+    for (final surface in [kPhoneSurface, const Size(1280, 800)]) {
+      testWidgets(
+        'People shows no top linear bar while the gate spinner is active '
+        '(${locale.languageCode}, ${surface.width.toInt()}×${surface.height.toInt()})',
+        (tester) async {
+          final harness = _FriendsHarness();
+          final screen = ScreenCubit.local(harness.effects);
+          final initial = Completer<Iterable<Profile>>();
+          harness.friendsRepository.pending.add(initial);
+          GetIt.I
+            ..registerSingleton<FriendsCubit>(harness.cubit)
+            ..registerSingleton<FriendsCase>(harness.friendsCase)
+            ..registerSingleton<AuthCase>(harness.authCase)
+            ..registerSingleton<InvitationRepository>(harness.invitations)
+            ..registerSingleton<UiEffectPort>(harness.effects);
+          addTearDown(() async {
+            await tester.pumpWidget(const SizedBox.shrink());
+            await screen.close();
+            await harness.dispose();
+            GetIt.I
+              ..unregister<FriendsCubit>()
+              ..unregister<FriendsCase>()
+              ..unregister<AuthCase>()
+              ..unregister<InvitationRepository>()
+              ..unregister<UiEffectPort>();
+          });
+          await tester.binding.setSurfaceSize(surface);
+          addTearDown(() => tester.binding.setSurfaceSize(null));
+          harness.signIn();
+          await tester.pumpWidget(
+            MaterialApp(
+              theme: TenturaTheme.light(),
+              locale: locale,
+              localizationsDelegates: L10n.localizationsDelegates,
+              supportedLocales: L10n.supportedLocales,
+              home: TenturaResponsiveScope(
+                child: MultiBlocProvider(
+                  providers: [
+                    BlocProvider<ScreenCubit>.value(value: screen),
+                    BlocProvider<ProfileCubit>.value(value: _ViewerCubit()),
+                    BlocProvider<PresenceCubit>.value(value: _PresenceCubit()),
+                  ],
+                  child: const FriendsScreen(),
+                ),
+              ),
+            ),
+          );
+          await _flush(tester);
+          await tester.pump(const Duration(milliseconds: 500));
+          expect(find.byType(LinearProgressIndicator), findsNothing);
+          expect(find.byType(LinearPiActive), findsNothing);
+          expect(
+            find.descendant(
+              of: find.byType(FriendsScreen),
+              matching: find.byType(CircularProgressIndicator),
+            ),
+            findsOneWidget,
+          );
+        },
+      );
+    }
   }
 }
 
