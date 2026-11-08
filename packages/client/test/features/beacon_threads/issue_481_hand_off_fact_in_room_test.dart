@@ -17,6 +17,7 @@ import 'package:tentura/features/beacon_threads/ui/room_fact_authoring.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/beacon_room_body.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/fact_picker_sheet.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
+import 'package:tentura/features/beacon_view/ui/widget/beacon_fact_composer_sheet.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/presence_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -142,7 +143,9 @@ Future<_RoomCubit> _pumpRoom(
     MultiBlocProvider(
       providers: [
         BlocProvider<BeaconViewCubit>.value(value: viewCubit),
-        RepositoryProvider<RoomFactAuthoring>.value(value: viewCubit),
+        RepositoryProvider<RoomFactAuthoring>.value(
+          value: BeaconViewRoomFactAuthoring(viewCubit),
+        ),
         BlocProvider<RoomCubit>.value(value: roomCubit),
         BlocProvider<ProfileCubit>.value(value: profileCubit),
         BlocProvider<PresenceCubit>.value(value: presenceCubit),
