@@ -10,6 +10,7 @@ import 'package:tentura_server/api/controllers/auth_email_controller.dart';
 import 'package:tentura_server/domain/entity/account_session_entity.dart';
 import 'package:tentura_server/domain/entity/email_auth_peek.dart';
 import 'package:tentura_server/domain/entity/email_auth_transaction_entity.dart';
+import 'package:tentura_server/domain/entity/jwt_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/email_auth_transaction_repository_port.dart';
@@ -25,11 +26,15 @@ import 'package:tentura_server/env.dart';
 
 import '../../domain/use_case/invitation_case_mocks.mocks.dart';
 import '../../support/build_test_invitation_case.dart';
+import '../../support/invalid_json_body.dart';
 import '../../support/test_attention_harness.dart';
 
 final class _FakeTxRepo implements EmailAuthTransactionRepositoryPort {
   EmailAuthTransactionEntity? _tx;
   var _consumed = false;
+
+  /// Every token [peekByToken] was asked about, in order.
+  final peekedTokens = <String>[];
 
   void seed(EmailAuthTransactionEntity tx) {
     _tx = tx;
@@ -59,6 +64,7 @@ final class _FakeTxRepo implements EmailAuthTransactionRepositoryPort {
 
   @override
   Future<EmailAuthTokenPeekRow> peekByToken(String plaintextToken) async {
+    peekedTokens.add(plaintextToken);
     if (plaintextToken.isEmpty || _tx == null) {
       return (status: EmailAuthTokenStatus.missing, tx: null);
     }
@@ -377,6 +383,135 @@ void main() {
       expect(body, {'ok': false, 'error': 'invalid_email'});
     },
   );
+
+  group('JSON body (pinned to main before readJsonObject, 4f40b9652)', () {
+    Request jsonRequest(
+      String path,
+      String rawBody, {
+      Map<String, Object>? context,
+    }) => Request(
+      'POST',
+      Uri.parse('https://dev.tentura.io$path'),
+      body: rawBody,
+      headers: {'content-type': 'application/json'},
+      context: context,
+    );
+
+    const jwtContext = {kContextJwtKey: JwtEntity(sub: 'Ulink')};
+
+    kInvalidJsonBodies.forEach((name, rawBody) {
+      test('start: 400 invalid JSON body on $name', () async {
+        await expectInvalidJsonBody400(
+          await controller.start(
+            jsonRequest('/api/v2/auth/email/start', rawBody),
+          ),
+        );
+      });
+
+      test('testLogin: 400 invalid JSON body on $name', () async {
+        final qaController = AuthEmailController(
+          Env(
+            environment: Environment.test,
+            publicOrigin: 'https://dev.tentura.io',
+            qaSimpleLoginMode: true,
+          ),
+          _buildEmailAuthCase(
+            env: env,
+            txRepo: txRepo,
+            userRepo: MockUserRepositoryPort(),
+            contactRepo: MockVerifiedContactRepositoryPort(),
+          ),
+          SessionCase(
+            _FakeSessionRepo(),
+            AuthCase(
+              MockUserRepositoryPort(),
+              MockInvitationRepositoryPort(),
+              env: env,
+              logger: Logger('AuthEmailControllerTest'),
+            ),
+            env: env,
+            logger: Logger('AuthEmailControllerTest'),
+          ),
+        );
+        await expectInvalidJsonBody400(
+          await qaController.testLogin(
+            jsonRequest('/api/v2/auth/email/test-login', rawBody),
+          ),
+        );
+      });
+
+      test('linkStart: 400 invalid JSON body on $name', () async {
+        await expectInvalidJsonBody400(
+          await controller.linkStart(
+            jsonRequest(
+              '/api/v2/auth/email/link/start',
+              rawBody,
+              context: jwtContext,
+            ),
+          ),
+        );
+      });
+    });
+
+    test('linkStart: a JSON object passes the body gate', () async {
+      final res = await controller.linkStart(
+        jsonRequest(
+          '/api/v2/auth/email/link/start',
+          '{"email":"link@example.com"}',
+          context: jwtContext,
+        ),
+      );
+      expect(res.statusCode, 200);
+      expect(jsonDecode(await res.readAsString()), {'ok': true});
+    });
+
+    group('verifyPost token from a JSON body', () {
+      // The missing-token page, as the (unchanged) form path renders it.
+      Future<String> missingTokenPage() async {
+        final res = await controller.verifyPost(
+          Request(
+            'POST',
+            Uri.parse('https://dev.tentura.io/auth/email/verify'),
+            body: 't=',
+            headers: {'content-type': 'application/x-www-form-urlencoded'},
+          ),
+        );
+        expect(res.statusCode, 400);
+        return res.readAsString();
+      }
+
+      // Main read `body['t'] as String? ?? ''` inside a try/catch that
+      // answered '' on any error: invalid JSON, a non-object, a missing or a
+      // non-string `t` all fall back to '' — the 400 missing-token page,
+      // with no token lookup.
+      for (final MapEntry(key: name, value: rawBody) in <String, String>{
+        ...kInvalidJsonBodies,
+        'an object without t': '{}',
+        'a null t': '{"t":null}',
+        'a numeric t': '{"t":5}',
+        'a list t': '{"t":["tok"]}',
+        'an empty t': '{"t":""}',
+      }.entries) {
+        test('falls back to an empty token on $name', () async {
+          final expectedPage = await missingTokenPage();
+          final res = await controller.verifyPost(
+            jsonRequest('/auth/email/verify', rawBody),
+          );
+          expect(res.statusCode, 400);
+          expect(res.headers['content-type'], 'text/html; charset=utf-8');
+          expect(await res.readAsString(), expectedPage);
+          expect(txRepo.peekedTokens, isEmpty);
+        });
+      }
+
+      test('reads a string t', () async {
+        await controller.verifyPost(
+          jsonRequest('/auth/email/verify', '{"t":"opaque-token"}'),
+        );
+        expect(txRepo.peekedTokens.firstOrNull, 'opaque-token');
+      });
+    });
+  });
 
   group('testLogin', () {
     Request qaRequest(String body) => Request(

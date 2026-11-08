@@ -21,6 +21,7 @@ import 'package:tentura_server/env.dart';
 
 import '../../domain/use_case/invitation_case_mocks.mocks.dart';
 import '../../support/build_test_invitation_case.dart';
+import '../../support/invalid_json_body.dart';
 import '../../support/log_capture.dart';
 
 /// Google id-token verification fails with [error] (the controller's
@@ -205,9 +206,12 @@ void main() {
   });
 
   group('link', () {
-    test('400 on a body that is not a JSON object', () async {
-      final r = await controller.link(request('POST', rawBody: 'not json'));
-      expect(r.statusCode, 400);
+    kInvalidJsonBodies.forEach((name, rawBody) {
+      test('400 invalid JSON body on $name', () async {
+        final r = await controller.link(request('POST', rawBody: rawBody));
+        await expectInvalidJsonBody400(r);
+        verifyZeroInteractions(userRepo);
+      });
     });
 
     for (final token in <Object?>[
@@ -304,9 +308,14 @@ void main() {
   });
 
   group('linkGoogle', () {
-    test('400 on a body that is not a JSON object', () async {
-      final r = await controller.linkGoogle(request('POST', rawBody: '[1]'));
-      expect(r.statusCode, 400);
+    kInvalidJsonBodies.forEach((name, rawBody) {
+      test('400 invalid JSON body on $name', () async {
+        final r = await controller.linkGoogle(
+          request('POST', rawBody: rawBody),
+        );
+        await expectInvalidJsonBody400(r);
+        verifyZeroInteractions(userRepo);
+      });
     });
 
     for (final token in <Object?>[
