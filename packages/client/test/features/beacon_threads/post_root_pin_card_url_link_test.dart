@@ -146,7 +146,7 @@ void main() {
   ) async {
     await usePhoneSurface(tester);
     const url =
-        'https://intersubjective.space/docs/tentura/posts/очень-длинный-путь';
+        'https://intersubjective.space/tentura/posts/очень-длинный-путь-к-ресурсу';
     const prefix = 'Ссылка: ';
     const body = '$prefix$url — напишите, если сможете.';
     await tester.pumpWidget(
