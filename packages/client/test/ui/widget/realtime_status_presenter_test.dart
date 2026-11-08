@@ -5,7 +5,7 @@ import 'package:tentura/domain/entity/realtime/realtime_connection_status.dart';
 import 'package:tentura/design_system/tentura_theme.dart';
 import 'package:tentura/ui/bloc/realtime_status_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/util/ui_utils.dart';
 import 'package:tentura/ui/widget/realtime_status_presenter.dart';
 
 import '../../support/phone_surface.dart';

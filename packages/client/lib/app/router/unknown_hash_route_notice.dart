@@ -5,7 +5,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:tentura/app/router/home_tab_branches.dart';
 import 'package:tentura/features/home/ui/widget/home_tab_transition_listener.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/util/ui_utils.dart';
 
 /// One-shot snackbar after a hash URL falls back through the `*` redirect (#1106).
 final class UnknownHashRouteNotice {

@@ -5,7 +5,7 @@ import 'dart:ui' as ui show PictureRecorder;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
-import 'package:tentura/features/constellation/ui/utils/constellation_presentation_frame.dart';
+import 'package:tentura/features/constellation/ui/util/constellation_presentation_frame.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_field_unread_glow_layer.dart';
 
 /// QA on #256 samples 28–48 px from the node centre on an outside arc.
