@@ -212,7 +212,7 @@ class _CompactDetentSheetState extends State<_CompactDetentSheet>
 
   void _onVerticalDragUpdate(DragUpdateDetails details) {
     setState(() {
-      _dragOffset -= details.delta.dy;
+      _dragOffset += details.delta.dy;
       _dragOffset = _dragOffset.clamp(
         -(_expandedCap - _peekCap),
         _targetHeight + _peekCap * _dismissDragFraction,

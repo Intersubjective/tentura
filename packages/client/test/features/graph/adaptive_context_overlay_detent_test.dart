@@ -91,6 +91,17 @@ void main() {
       );
     });
 
+    testWidgets('drag up on handle grows sheet height (#974)', (tester) async {
+      await _pumpSheet(tester, reduceMotion: true);
+      await tester.pump();
+      final handle = find.byKey(const Key('field.context_sheet.handle'));
+      final before = tester.getSize(find.byType(AnimatedContainer)).height;
+      await tester.drag(handle, const Offset(0, -72));
+      await tester.pump();
+      final after = tester.getSize(find.byType(AnimatedContainer)).height;
+      expect(after, greaterThan(before));
+    });
+
     testWidgets('reduced motion lands on target height after one pump', (
       tester,
     ) async {

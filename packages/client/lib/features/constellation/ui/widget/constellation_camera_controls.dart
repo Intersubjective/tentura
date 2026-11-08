@@ -61,11 +61,15 @@ class ConstellationCameraControls extends StatelessWidget {
               kConstellationMinimapSize +
               tt.rowGap * 2
         : 0.0;
-    var bottom = padding.bottom + math.max(bottomChromeHeight, minimapBlock);
-
-    if (contextPanelVisible && context.windowClass == WindowClass.compact) {
-      bottom += compactSheetHeight + tt.sectionGap;
-    }
+    final compactContextSheet =
+        contextPanelVisible &&
+        context.windowClass == WindowClass.compact &&
+        compactSheetHeight > 0;
+    final bottom =
+        padding.bottom +
+        (compactContextSheet
+            ? compactSheetHeight + tt.sectionGap
+            : math.max(bottomChromeHeight, minimapBlock));
     if (contextPanelVisible && context.windowClass != WindowClass.compact) {
       right += tt.graphPersonContextWidth + tt.screenHPadding;
     }

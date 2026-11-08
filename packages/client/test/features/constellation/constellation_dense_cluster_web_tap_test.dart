@@ -296,6 +296,9 @@ void main() {
                 final misses = <String>[];
                 for (var round = 0; round < 2; round++) {
                   for (final id in ids) {
+                    origin = tester.getTopLeft(
+                      find.byType(ConstellationViewportOverlay),
+                    );
                     final frame = holder.frame!;
                     await delivery.tap(
                       tester,
