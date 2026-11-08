@@ -8,6 +8,7 @@ import '../../domain/constellation_post_fade.dart';
 import '../../domain/entity/constellation_field.dart';
 import '../../domain/entity/constellation_field_target_kind.dart';
 import 'constellation_field_item_actions.dart';
+import 'constellation_field_preview_people_rows.dart';
 
 // Keep in sync with constellation_request_preview_sheet.dart (#255).
 const _kFieldPreviewPinnedFooterMinHeight = 168.0;
@@ -19,6 +20,8 @@ class ConstellationPostPreviewSheet extends StatelessWidget {
     required this.authorDisplayName,
     required this.onOpen,
     required this.onClose,
+    this.onOpenParticipants,
+    this.onOpenForwardedThrough,
     super.key,
   });
 
@@ -26,6 +29,8 @@ class ConstellationPostPreviewSheet extends StatelessWidget {
   final String authorDisplayName;
   final VoidCallback onOpen;
   final VoidCallback onClose;
+  final VoidCallback? onOpenParticipants;
+  final VoidCallback? onOpenForwardedThrough;
 
   @override
   Widget build(BuildContext context) {
@@ -91,6 +96,14 @@ class ConstellationPostPreviewSheet extends StatelessWidget {
             },
           ),
         ],
+        SizedBox(height: tt.sectionGap),
+        ConstellationFieldPreviewPeopleRows(
+          beaconId: post.id,
+          isPost: true,
+          hiddenReachCount: post.hiddenReachCount,
+          onOpenParticipants: onOpenParticipants,
+          onOpenForwardedThrough: onOpenForwardedThrough,
+        ),
         SizedBox(height: tt.sectionGap),
         Text(
           l10n.constellationPreviewAuthorLine(authorDisplayName),
