@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/widget/beacon_identity_tile.dart';
 
+import '../../domain/constellation_request_identity.dart';
 import '../../domain/entity/constellation_field.dart';
 
 /// Bottom panel of the tag lens: "{tags} · N people · M Requests" and the way
@@ -97,6 +99,7 @@ Future<ConstellationRequest?> showConstellationTagLensRequestPicker(
   showDragHandle: true,
   builder: (context) {
     final l10n = L10n.of(context)!;
+    final tt = context.tt;
     return SafeArea(
       child: ListView(
         shrinkWrap: true,
@@ -112,6 +115,11 @@ Future<ConstellationRequest?> showConstellationTagLensRequestPicker(
           else
             for (final request in requests)
               ListTile(
+                leading: BeaconIdentityTile(
+                  beacon: constellationRequestAsIdentityBeacon(request),
+                  size: tt.avatarSize,
+                  semanticsIncludeTitle: false,
+                ),
                 title: Text(request.title),
                 onTap: () => Navigator.of(context).pop(request),
               ),
