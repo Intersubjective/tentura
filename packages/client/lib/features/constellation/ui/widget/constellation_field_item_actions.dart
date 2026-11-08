@@ -135,7 +135,7 @@ Future<void> _hideFromField(
     return;
   }
   showUndoSnackBar(
-    context,
+    null,
     messenger: messenger,
     undoLabel: undoLabel,
     text: hiddenSnackText,
@@ -152,24 +152,6 @@ Future<void> _hideFromField(
   );
 }
 
-Future<void> _undoHide(
-  BuildContext context, {
-  required ConstellationFieldTargetKind targetKind,
-  required String beaconId,
-  required ConstellationFieldHideSnapshot snapshot,
-}) async {
-  final cubit = context.read<ConstellationCubit>();
-  final l10n = L10n.of(context)!;
-  await _undoHideForCubit(
-    cubit,
-    targetKind: targetKind,
-    beaconId: beaconId,
-    snapshot: snapshot,
-    errorText: l10n.errorGenericAction,
-    messenger: ScaffoldMessenger.maybeOf(context) ?? snackbarKey.currentState,
-  );
-}
-
 Future<void> _undoHideForCubit(
   ConstellationCubit cubit, {
   required ConstellationFieldTargetKind targetKind,
@@ -178,8 +160,9 @@ Future<void> _undoHideForCubit(
   required String errorText,
   ScaffoldMessengerState? messenger,
 }) async {
-  cubit.restoreHideFromField(snapshot, beaconId: beaconId);
-  cubit.noteHiddenByYouCountDelta(-1);
+  cubit
+    ..restoreHideFromField(snapshot, beaconId: beaconId)
+    ..noteHiddenByYouCountDelta(-1);
   final hideCase = cubit.fieldHideCase;
   if (hideCase == null) {
     return;
@@ -190,8 +173,9 @@ Future<void> _undoHideForCubit(
       targetId: beaconId,
     );
   } on Object {
-    cubit.cancelHideFromField(snapshot, beaconId: beaconId);
-    cubit.noteHiddenByYouCountDelta(1);
+    cubit
+      ..cancelHideFromField(snapshot, beaconId: beaconId)
+      ..noteHiddenByYouCountDelta(1);
     showSnackBarOn(messenger, text: errorText, isError: true);
   }
 }

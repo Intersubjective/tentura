@@ -11,7 +11,7 @@ const kUndoSnackBarDuration = Duration(seconds: 10);
 /// Stays [duration] (10 s, longer than an ordinary bar so the person has time
 /// to notice what happened and take it back).
 ScaffoldFeatureController<SnackBar, SnackBarClosedReason>? showUndoSnackBar(
-  BuildContext context, {
+  BuildContext? context, {
   required String text,
   required VoidCallback onUndo,
   Duration duration = kUndoSnackBarDuration,
@@ -21,10 +21,11 @@ ScaffoldFeatureController<SnackBar, SnackBarClosedReason>? showUndoSnackBar(
 }) {
   final resolved =
       messenger ??
-      ScaffoldMessenger.maybeOf(context) ??
+      (context == null ? null : ScaffoldMessenger.maybeOf(context)) ??
       snackbarKey.currentState;
   if (resolved == null) return null;
-  final resolvedUndoLabel = undoLabel ?? L10n.of(context)?.peopleTagsUndo;
+  final resolvedUndoLabel =
+      undoLabel ?? (context == null ? null : L10n.of(context)?.peopleTagsUndo);
   if (resolvedUndoLabel == null) return null;
   var undone = false;
   resolved.clearSnackBars();
