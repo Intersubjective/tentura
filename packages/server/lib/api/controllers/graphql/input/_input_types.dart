@@ -5,8 +5,6 @@ import 'package:tentura_root/domain/entity/coordinates.dart';
 
 import 'package:tentura_server/consts.dart';
 
-import '../custom_types.dart';
-
 part 'input_field_coordinates.dart';
 part 'input_field_beacon_ids.dart';
 part 'input_field_description.dart';

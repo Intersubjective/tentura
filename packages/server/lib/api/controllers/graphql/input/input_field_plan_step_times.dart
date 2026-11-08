@@ -44,6 +44,17 @@ abstract class InputFieldPlanStepTimes {
   static const _fieldKey = 'planStepTimes';
 }
 
+/// Request plan (#220) fork copy: the new time of one source step, computed
+/// by the client in the viewer's zone (plan §4.10, §5.11).
+final gqlInputPlanStepTime = GraphQLInputObjectType(
+  'PlanStepTimeInput',
+  inputFields: [
+    GraphQLInputObjectField('sourceStepId', graphQLString.nonNullable()),
+    GraphQLInputObjectField('startAt', graphQLString),
+    GraphQLInputObjectField('endAt', graphQLString),
+  ],
+);
+
 /// `[PlanStepTimeInput!]` typed over `dynamic`, so a decoded `List<dynamic>`
 /// of maps passes validation on executors that do not re-type variable lists.
 final class _PlanStepTimeListType extends GraphQLListType<dynamic, dynamic> {
