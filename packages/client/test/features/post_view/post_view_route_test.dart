@@ -20,6 +20,7 @@ import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/domain/use_case/beacon_hierarchy_case.dart';
 import 'package:tentura/features/beacon_view/domain/use_case/beacon_view_case.dart';
 import 'package:tentura/features/beacon_view/ui/screen/beacon_view_screen.dart';
+import 'package:tentura/features/beacon_view/ui/widget/beacon_view_loading_shell.dart';
 import 'package:tentura/features/home/ui/bloc/home_tab_reselect_cubit.dart';
 import 'package:tentura/features/inbox/domain/use_case/posts_case.dart';
 import 'package:tentura/features/inbox/ui/bloc/posts_cubit.dart';
@@ -260,7 +261,8 @@ void main() {
       await _pumpRoute(tester, id: _postId, kinds: kinds, beacons: beacons);
       await tester.pump();
 
-      expect(find.byType(CircularProgressIndicator), findsWidgets);
+      expect(find.byType(BeaconViewLoadingShellFrame), findsOneWidget);
+      expect(find.byType(CircularProgressIndicator), findsNothing);
       expect(find.byType(PostViewScreen), findsNothing);
       expect(find.byType(BeaconViewScreen), findsNothing);
 
