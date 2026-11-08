@@ -12,6 +12,7 @@ import 'package:tentura/features/constellation/ui/utils/constellation_presentati
 import 'package:tentura/features/graph/ui/utils/graph_scene_ids.dart';
 import 'package:tentura/ui/test_ids.dart';
 import '../../support/phone_surface.dart';
+import 'fixtures/constellation_field_test_harness.dart';
 import 'fixtures/constellation_reference_fixture.dart';
 import 'package:tentura/features/constellation/ui/utils/constellation_tap_resolver.dart';
 import 'dart:math' as math;
@@ -587,6 +588,7 @@ void main() {
 
       await pumpConstellationBody(tester, cubit);
       await tester.pumpAndSettle();
+      await frameConstellationFieldAtCloseDetailForTests(tester, cubit);
 
       final chip = find.byKey(const Key('constellation.overflow.ego'));
       final egoBody = find.byKey(TestIds.key(TestIds.graphNode('ego')));
@@ -626,6 +628,7 @@ void main() {
         locale: const Locale('ru'),
       );
       await tester.pumpAndSettle();
+      await frameConstellationFieldAtCloseDetailForTests(tester, cubit);
 
       final chip = find.byKey(const Key('constellation.overflow.ego'));
       await tester.tap(chip);
@@ -669,6 +672,7 @@ void main() {
         presentationFrameHolder: holder,
       );
       await tester.pumpAndSettle();
+      await frameConstellationFieldAtCloseDetailForTests(tester, cubit);
 
       final labelRects = _placedLabelRects(tester).toList();
 

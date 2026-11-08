@@ -24,6 +24,7 @@ import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
 import '../../support/fake_people_tags_repository.dart';
 import '../../support/test_realtime_sync.dart';
+import 'fixtures/constellation_field_test_harness.dart';
 import 'fixtures/constellation_reference_fixture.dart';
 
 const _tag = PersonTag(
@@ -169,6 +170,7 @@ void main() {
                 size: size,
                 locale: const Locale('en'),
               );
+              await frameConstellationFieldAtCloseDetailForTests(tester, cubit);
               repository.readGate?.complete();
               for (var frame = 0; frame < 90; frame++) {
                 await tester.pump(const Duration(milliseconds: 16));

@@ -5,13 +5,13 @@ import 'package:tentura/features/constellation/domain/entity/constellation_ancho
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
-import 'package:tentura/features/constellation/ui/utils/constellation_presentation_frame.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 
 import '../../support/constellation_store_fixture.dart';
 import '../../support/phone_surface.dart';
 import '../../support/test_forward_case.dart';
 import '../../support/test_realtime_sync.dart';
+import 'fixtures/constellation_field_test_harness.dart';
 import 'fixtures/constellation_reference_fixture.dart';
 
 const _ego = Profile(id: 'ego', displayName: 'Эго');
@@ -69,6 +69,7 @@ Future<ConstellationCubit> _pumpField(
   WidgetTester tester, {
   required Size size,
   required bool tags,
+  bool stabilizeFieldChrome = true,
 }) async {
   final cubit = ConstellationCubit(
     case_: ConstellationStoreFixture(
@@ -84,7 +85,12 @@ Future<ConstellationCubit> _pumpField(
   );
   addTearDown(cubit.close);
   await cubit.load();
-  await pumpConstellationBody(tester, cubit, size: size);
+  await pumpConstellationBody(
+    tester,
+    cubit,
+    size: size,
+    stabilizeFieldChrome: stabilizeFieldChrome,
+  );
   return cubit;
 }
 
@@ -128,8 +134,15 @@ void main() {
       });
 
       testWidgets('initial framing runs: ego in the safe viewport, '
-          'close detail', (tester) async {
-        final cubit = await _pumpField(tester, size: size, tags: true);
+          'at the fit-all camera', (tester) async {
+        // The entry camera is compared with fit-all under the same chrome:
+        // dismissing the hold hint later changes the framed area.
+        final cubit = await _pumpField(
+          tester,
+          size: size,
+          tags: true,
+          stabilizeFieldChrome: false,
+        );
         expect(
           identical(
             cubit.graphSceneLayoutAlgorithm,
@@ -140,11 +153,6 @@ void main() {
         );
         expect(cubit.fieldInitialFrameCompletedForTest, isTrue);
         expect(cubit.fieldCameraPendingForTest, isFalse);
-        final scale = cubit.graphController.cameraScale;
-        expect(
-          settledConstellationDetailLevel(scale),
-          ConstellationDetailLevel.close,
-        );
         final matrix = tester
             .widget<InteractiveViewer>(find.byType(InteractiveViewer))
             .transformationController!
@@ -158,6 +166,7 @@ void main() {
           Offset.zero & viewport,
         );
         expect(safe.contains(ego), isTrue, reason: 'ego $ego in $safe');
+        await expectConstellationCameraIsFitAllForTests(tester, cubit);
       });
     });
   }

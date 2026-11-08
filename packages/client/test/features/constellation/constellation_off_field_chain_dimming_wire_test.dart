@@ -50,6 +50,7 @@ import 'package:tentura/features/graph/domain/entity/node_details.dart';
 
 import '../../support/constellation_store_fixture.dart';
 import '../../support/remote_wire_harness.dart';
+import 'fixtures/constellation_field_test_harness.dart';
 import 'fixtures/constellation_reference_fixture.dart';
 
 const _viewer = Profile(id: 'Uviewer000001', displayName: 'Viewer');
@@ -550,6 +551,7 @@ void main() {
         disableAnimations: true,
       );
       await tester.pumpAndSettle();
+      await frameConstellationFieldAtCloseDetailForTests(tester, cubit);
       expect(tester.takeException(), isNull);
       _expectPlaced(cubit, xeniaOnField: xeniaOnField);
       return cubit;

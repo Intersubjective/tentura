@@ -8,6 +8,7 @@ import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart'
 import 'package:tentura/features/constellation/ui/utils/constellation_presentation_frame.dart';
 import 'package:tentura/features/constellation/ui/utils/constellation_tap_resolver.dart';
 
+import 'fixtures/constellation_field_test_harness.dart';
 import 'fixtures/constellation_reference_fixture.dart';
 
 typedef _Settled = ({
@@ -35,6 +36,7 @@ void main() {
         presentationFrameHolder: holder,
       );
       await tester.pumpAndSettle();
+      await frameConstellationFieldAtCloseDetailForTests(tester, cubit);
     }
 
     double scaleNow() => cubit.graphController.cameraScale;

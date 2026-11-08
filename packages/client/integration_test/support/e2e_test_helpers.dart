@@ -92,6 +92,11 @@ Future<void> launchApp(Future<void> Function() start) async {
   final binding = IntegrationTestWidgetsFlutterBinding.instance;
   binding.platformDispatcher.accessibilityFeaturesTestValue =
       const FakeAccessibilityFeatures(disableAnimations: true);
+  // Every test boots its own app in the same page: drop the previous test's
+  // dependencies (running their dispose hooks), or the app's dependency
+  // setup fails on already-registered types and shows the startup-failure
+  // screen.
+  await GetIt.I.reset();
   await start();
   FlutterError.onError = originalOnError;
   PlatformDispatcher.instance.onError = originalPlatformOnError;

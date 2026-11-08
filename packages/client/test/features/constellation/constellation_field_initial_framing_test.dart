@@ -9,12 +9,12 @@ import 'package:tentura/features/constellation/domain/entity/constellation_ancho
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
-import 'package:tentura/features/constellation/ui/utils/constellation_presentation_frame.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
 
 import '../../support/constellation_store_fixture.dart';
 import '../../support/phone_surface.dart';
 import '../../support/remote_wire_harness.dart';
+import 'fixtures/constellation_field_test_harness.dart';
 import 'fixtures/constellation_reference_fixture.dart';
 import 'package:tentura/features/constellation/data/repository/constellation_repository.dart';
 import 'package:tentura/features/constellation/domain/use_case/constellation_field_store_case.dart';
@@ -136,7 +136,7 @@ void main() {
   );
 
   group('Field initial framing U4 (#1055, #1056)', () {
-    testWidgets('cold start frames at close-detail floor on phone RU', (
+    testWidgets('cold start frames at the fit-all camera on phone RU', (
       tester,
     ) async {
       await usePhoneSurface(tester);
@@ -147,15 +147,15 @@ void main() {
         cubit,
         size: kPhoneSurface,
         locale: const Locale('ru'),
+        // The entry camera is compared with fit-all under the same chrome:
+        // dismissing the hold hint later changes the framed area.
+        stabilizeFieldChrome: false,
       );
       await tester.pumpAndSettle();
 
       expect(cubit.fieldInitialFrameCompletedForTest, isTrue);
-      expect(
-        cubit.graphController.cameraScale,
-        greaterThanOrEqualTo(kConstellationCloseDetailScale),
-      );
       expect(cubit.graphController.cameraScale, lessThanOrEqualTo(1.0));
+      await expectConstellationCameraIsFitAllForTests(tester, cubit);
     });
 
     testWidgets(
@@ -207,23 +207,20 @@ void main() {
       await pumpConstellationBody(tester, cubit);
       await tester.pumpAndSettle();
 
-        expect(cubit.fieldPeerCountAtLastProgrammaticFrameForTest, 3);
-        expect(cubit.graphController.userCameraInputRevision.value, 0);
-        repo.field = _fieldWithExtraPeer();
-        await fixture.store.requestRefresh(ConstellationRefreshReason.catchUp);
-        await tester.pumpAndSettle(const Duration(seconds: 2));
+      expect(cubit.fieldPeerCountAtLastProgrammaticFrameForTest, 3);
+      expect(cubit.graphController.userCameraInputRevision.value, 0);
+      repo.field = _fieldWithExtraPeer();
+      await fixture.store.requestRefresh(ConstellationRefreshReason.catchUp);
+      await tester.pumpAndSettle(const Duration(seconds: 2));
 
-        expect(cubit.state.field!.peers, hasLength(4));
-        expect(cubit.fieldInitialFrameCompletedForTest, isTrue);
-        expect(
-          cubit.graphController.cameraScale,
-          greaterThanOrEqualTo(kConstellationCloseDetailScale),
-        );
-        expect(
-          cubit.fieldPeerCountAtLastProgrammaticFrameForTest,
-          4,
-          reason: 'untouched camera should accept the automatic re-frame',
-        );
+      expect(cubit.state.field!.peers, hasLength(4));
+      expect(cubit.fieldInitialFrameCompletedForTest, isTrue);
+      expect(
+        cubit.fieldPeerCountAtLastProgrammaticFrameForTest,
+        4,
+        reason: 'untouched camera should accept the automatic re-frame',
+      );
+      await expectConstellationCameraIsFitAllForTests(tester, cubit);
     });
   });
 }

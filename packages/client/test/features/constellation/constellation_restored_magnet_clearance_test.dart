@@ -25,6 +25,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import '../../support/constellation_store_fixture.dart';
 import '../../support/constellation_tag_lens_body_harness.dart';
 import '../../support/test_realtime_sync.dart';
+import 'fixtures/constellation_field_test_harness.dart';
 
 class _FieldRepository implements ConstellationRepositoryPort {
   @override
@@ -324,6 +325,7 @@ void main() {
           await tester.binding.setSurfaceSize(size);
           addTearDown(() => tester.binding.setSurfaceSize(null));
           await _settle(tester);
+          await frameConstellationFieldAtCloseDetailForTests(tester, first);
           expect(holder.frame!.bodies, contains('fp:ego'));
           _expectClusterOverflow(tester, holder, 'ego');
           if (size.width > 1000) {
@@ -401,6 +403,7 @@ void main() {
           holder = ConstellationPresentationFrameHolder();
           active.value = restored;
           await _settle(tester);
+          await frameConstellationFieldAtCloseDetailForTests(tester, restored);
           expect(_magnet(), findsNothing);
           _expectClusterOverflow(tester, holder, 'ego');
           repository.readGate!.complete();

@@ -11,6 +11,7 @@ import 'package:tentura/features/graph/domain/entity/edge_details.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
 
 import '../../support/constellation_tag_lens_body_harness.dart';
+import 'fixtures/constellation_field_test_harness.dart';
 
 Finder _map() => find.byType(GraphView<NodeDetails, EdgeDetails>);
 
@@ -53,6 +54,7 @@ Future<TagLensBodyHarness> _mount(
   addTearDown(() => tester.binding.setSurfaceSize(null));
   body.field.updateLabelBudgetContext(viewport: size, textScaleFactor: 1);
   await settleTagLensBody(tester);
+  await frameConstellationFieldAtCloseDetailForTests(tester, body.field);
   expect(tester.getSize(_map()).width, size.width);
   expect(holder.frame, isNotNull);
   return body;

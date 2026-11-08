@@ -1226,6 +1226,16 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (!isClosed) _storeLease.setVisible(visible);
   }
 
+  /// A new visit to the Field tab starts fitted, like the first one: the
+  /// previous visit's camera is not kept (#1200).
+  void startFieldVisit() {
+    if (isClosed) {
+      return;
+    }
+    _resetFieldAutomaticFramingState();
+    _scheduleAutomaticFieldFraming();
+  }
+
   /// Optimistically clears unread on a Field item the viewer opened (#256).
   void openedFieldBeacon(String beaconId) =>
       _case.applyOpenedFieldBeacon(beaconId);
@@ -3395,6 +3405,13 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   }
 
   void _onGraphControllerChanged() {
+    // A Field camera queued before the viewport had a size runs once it has
+    // one (the viewport can be laid out several frames after entry).
+    if (_pendingFieldCamera != null && !_shouldDeferProgrammaticFieldCamera()) {
+      runAfterNextFrame(() {
+        if (!isClosed) _runPendingFieldCamera();
+      });
+    }
     if (_mutualTrustRedrawPending) {
       // Never change the topology from inside the controller's notification.
       scheduleMicrotask(_drainMutualTrustRedraw);
@@ -3461,7 +3478,9 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   }
 
   bool _shouldDeferProgrammaticFieldCamera() =>
-      !graphController.canLayout || graphController.isRelayoutInFlight;
+      !graphController.canLayout ||
+      graphController.isRelayoutInFlight ||
+      (graphController.viewportSize?.isEmpty ?? true);
 
   void _runFieldFrame({required EdgeInsets insets, required double floor}) {
     _scene.fitNodes(
@@ -3530,7 +3549,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     }
     final insets = _fieldCameraViewportSnapshot;
     if (!_fieldInitialFrameCompleted) {
-      frameField(insets: insets, floor: kConstellationCloseDetailScale);
+      fitWholeField(insets: insets);
       return;
     }
     final previous = _fieldPeerIdsAtLastProgrammaticFrame;
@@ -3545,7 +3564,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         _userInputRevisionAtLastProgrammaticFrame) {
       return;
     }
-    frameField(insets: insets, floor: kConstellationCloseDetailScale);
+    fitWholeField(insets: insets);
   }
 
   @visibleForTesting

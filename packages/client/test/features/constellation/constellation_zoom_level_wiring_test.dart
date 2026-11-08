@@ -99,6 +99,7 @@ Future<void> _pump(
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 400));
   await tester.pumpAndSettle();
+  await frameConstellationFieldAtCloseDetailForTests(tester, cubit);
 }
 
 void main() {

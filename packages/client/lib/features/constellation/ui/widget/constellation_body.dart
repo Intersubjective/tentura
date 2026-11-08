@@ -234,6 +234,12 @@ class _ConstellationBodyState extends State<ConstellationBody>
   // The level held back near a threshold while a gesture ran must catch up
   // with the scale once the last pointer is gone.
   void _onPointerReleased() {
+    // A pointer pressed on the map still reports its release along the hit
+    // path recorded at press time, even when the map went away meanwhile;
+    // a disposed body has no level left to catch up.
+    if (!mounted) {
+      return;
+    }
     _pointersDown = math.max(0, _pointersDown - 1);
     if (_pointersDown == 0) {
       _zoom.update(_graphController.cameraScale, gestureActive: false);

@@ -4,8 +4,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_selection_cubit.dart';
+import 'package:tentura/features/constellation/ui/utils/constellation_presentation_frame.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_no_contacts.dart';
+import 'package:tentura/ui/test_ids.dart';
 
 /// Field body widget tests after #938 touch node-drag lock.
 ///
@@ -134,4 +136,44 @@ Future<TestGesture> startConstellationFieldGesture(
     await tester.pumpAndSettle(const Duration(milliseconds: 100));
   }
   return tester.startGesture(globalPosition, kind: kind);
+}
+
+/// Frames the Field at close detail (scale ≥ 0.85, fitted toward Ego) for
+/// scenarios that start zoomed in on the map: overflow chips, labels and
+/// magnets at close detail. The Field itself opens at fit-all, which on a
+/// phone can be district detail.
+Future<void> frameConstellationFieldAtCloseDetailForTests(
+  WidgetTester tester,
+  ConstellationCubit cubit,
+) async {
+  cubit.frameField(
+    insets: cubit.fieldCameraViewportSnapshotForTest,
+    floor: kConstellationCloseDetailScale,
+  );
+  await tester.pumpAndSettle();
+}
+
+/// The current camera is the one the «fit all» control produces for this
+/// field: the Field opens at fit-all. Taps the control, so call it last.
+Future<void> expectConstellationCameraIsFitAllForTests(
+  WidgetTester tester,
+  ConstellationCubit cubit,
+) async {
+  final control = find.byKey(TestIds.key(TestIds.constellationFitAll));
+  expect(control.hitTestable(), findsOneWidget);
+  final scale = cubit.graphController.cameraScale;
+  final camera = tester
+      .widget<InteractiveViewer>(find.byType(InteractiveViewer))
+      .transformationController!
+      .value
+      .getTranslation();
+  await tester.tap(control);
+  await tester.pumpAndSettle();
+  final fitted = tester
+      .widget<InteractiveViewer>(find.byType(InteractiveViewer))
+      .transformationController!
+      .value
+      .getTranslation();
+  expect(scale, closeTo(cubit.graphController.cameraScale, 1e-3));
+  expect((camera - fitted).length, lessThan(1));
 }

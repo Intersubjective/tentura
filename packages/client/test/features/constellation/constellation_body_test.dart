@@ -442,6 +442,7 @@ void main() {
       addTearDown(cubit.close);
       await pumpConstellationBody(tester, cubit);
       await tester.pumpAndSettle();
+      await frameConstellationFieldAtCloseDetailForTests(tester, cubit);
 
       final pin = inRequestNode(TestIds.constellationPinMarker);
       final status = inRequestNode(TestIds.constellationRequestStatusMarker);

@@ -9,6 +9,7 @@ import 'package:tentura/features/constellation/ui/bloc/constellation_state.dart'
 import 'package:tentura/features/constellation/ui/utils/constellation_graph_scene.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
 import 'package:tentura/main.dart' as app;
+import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/features/constellation/ui/util/layout_geometry_adapters.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
@@ -52,6 +53,24 @@ Offset _anchorPoint(double xUnits, double yUnits) {
   );
   return Offset(point.x, point.y);
 }
+
+/// Runs «Re-arrange» where the released Field offers it (arrange v2): the
+/// Arrange camera control enters Arranging, and Re-arrange is in the
+/// Arranging toolbar's ⋯ menu.
+Future<void> _rearrangeFreeNodes(WidgetTester tester) async {
+  final toolbar = find.byKey(const Key('constellation.arranging.toolbar'));
+  if (!finderHasMatch(toolbar)) {
+    await tapConstellationControl(tester, _arrangeControl);
+  }
+  await tapConstellationControl(
+    tester,
+    find.byKey(const Key('constellation.arranging.more')),
+  );
+  final l10n = L10n.of(tester.element(find.byType(ConstellationBody)))!;
+  await tapConstellationControl(tester, find.text(l10n.constellationRearrange));
+}
+
+final _arrangeControl = find.byKey(const Key('constellation.camera.arrange'));
 
 void _expectPoint(Offset actual, Offset expected, {String? reason}) {
   expect(actual.dx, closeTo(expected.dx, 1), reason: reason);
@@ -250,23 +269,20 @@ void main() {
         'Re-arrange re-lays out free nodes deterministically, keeps the pins '
         'and sends nothing',
         () async {
-          final rearrange = find.byKey(
-            TestIds.key(TestIds.constellationRearrange),
-          );
           await pumpUntilVisible(
             tester,
-            rearrange,
-            label: 'Re-arrange after the user placed a node',
+            _arrangeControl,
+            label: 'Arrange after the user placed a node',
           );
           final personBefore = _position(tester, person);
           final requestBefore = _position(tester, request);
           network.clear();
-          await tapConstellationControl(tester, rearrange);
+          await _rearrangeFreeNodes(tester);
           await pumpBounded(tester, frames: 48);
           _expectPoint(_position(tester, person), personBefore);
           _expectPoint(_position(tester, request), requestBefore);
           final first = _allPositions(tester);
-          await tapConstellationControl(tester, rearrange);
+          await _rearrangeFreeNodes(tester);
           await pumpBounded(tester, frames: 48);
           final second = _allPositions(tester);
           expect(second.keys.toSet(), first.keys.toSet());
@@ -279,6 +295,10 @@ void main() {
           expect(cubit.isAnchored(person), isTrue);
           expect(cubit.isAnchored(request), isTrue);
           traffic['rearrange'] = network.entries;
+          await tapConstellationControl(
+            tester,
+            find.byKey(const Key('constellation.arranging.done')),
+          );
         },
       );
 

@@ -24,6 +24,7 @@ import '../../support/constellation_store_fixture.dart';
 import '../../support/fake_clock_port.dart';
 import '../../support/fake_wake_up_port.dart';
 import '../../support/test_realtime_sync.dart';
+import 'fixtures/constellation_field_test_harness.dart';
 import 'fixtures/constellation_reference_fixture.dart';
 
 const _authorCount = 30;
@@ -245,6 +246,7 @@ Future<void> _testRetention(WidgetTester tester, {required bool drop}) async {
     presentationFrameHolder: holder,
   );
   await tester.pumpAndSettle();
+  await frameConstellationFieldAtCloseDetailForTests(tester, cubit);
 
   expect(holder.frame!.labels, contains('fp:p0'));
 
@@ -450,6 +452,7 @@ void main() {
         size: const Size(1600, 1000),
       );
       await tester.pumpAndSettle();
+      await frameConstellationFieldAtCloseDetailForTests(tester, cubit);
 
       final chipCount = find
           .byType(ConstellationOverflowGroup)

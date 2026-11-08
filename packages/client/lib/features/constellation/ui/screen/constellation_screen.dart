@@ -211,6 +211,9 @@ class _ConstellationScreenState extends State<ConstellationScreen> {
   StackRouter? _rootRouter;
   TabsRouter? _homeTabs;
 
+  /// Whether the Field tab was the active Home tab at the last sync.
+  bool? _tabWasActive;
+
   /// The root's URL history. A root route popped by its navigator (the back
   /// button, a swipe, `maybePop`) leaves through `StackRouter.onPopPage`,
   /// which rebuilds the URL but does not notify the root router itself.
@@ -300,7 +303,13 @@ class _ConstellationScreenState extends State<ConstellationScreen> {
     if (!visible) {
       maybeConstellationSelection(context)?.exitArranging();
     }
-    context.read<ConstellationCubit>().setVisible(visible);
+    final cubit = context.read<ConstellationCubit>();
+    // Back on the Field tab from another tab: a new visit starts fitted.
+    if (_tabWasActive == false && tabActive) {
+      cubit.startFieldVisit();
+    }
+    _tabWasActive = tabActive;
+    cubit.setVisible(visible);
     // Hidden, the field asks for nobody's presence either.
     context.read<ConstellationPresenceCubit?>()?.setVisible(visible);
   }
