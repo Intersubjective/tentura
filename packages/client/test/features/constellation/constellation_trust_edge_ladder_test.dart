@@ -189,6 +189,43 @@ bool _isDashed(ConstellationEdgeKind kind) {
       0;
 }
 
+/// How much the drawn edge `src->dst#kind` between [x] and [y] is faded:
+/// 1 when it is drawn at full strength.
+double _fadeOf(ConstellationCubit cubit, String x, String y) {
+  final drawn = [
+    for (final edge
+        in cubit.graphController.renderSnapshot.topology.edgesById.values)
+      if ({edge.payload.source.id, edge.payload.destination.id}.containsAll({
+        x,
+        y,
+      }))
+        edge.payload.semanticId,
+  ];
+  expect(drawn, hasLength(1), reason: 'one edge joins $x and $y: $drawn');
+  return cubit.edgeFadeBySemanticId[drawn.single] ?? 1;
+}
+
+/// The viewer is on the scene and drawn at full strength, not dimmed as off
+/// a trust chain.
+void _expectViewerShownUndimmed(ConstellationCubit cubit) {
+  final viewer =
+      cubit.graphController.renderSnapshot.topology.nodesById['fp:$_ego'];
+  expect(viewer, isNotNull, reason: 'the viewer is on the scene');
+  expect(
+    cubit.isDimmedByTrustChain(viewer!.payload),
+    isFalse,
+    reason: 'the viewer is not faded',
+  );
+}
+
+/// [id] is beyond every chain of trust the Field holds from the viewer (it
+/// hangs on the outer ring).
+void _expectOnRing(ConstellationCubit cubit, String id) => expect(
+  cubit.state.paths!.ring,
+  contains(id),
+  reason: '$id must be beyond every chain the Field holds for this case',
+);
+
 void _expectPersonPlaced(ConstellationCubit cubit, String id) => expect(
   cubit.graphController.renderSnapshot.topology.nodesById.keys,
   contains('fp:$id'),
@@ -486,11 +523,23 @@ void main() {
       });
     }
 
-    test('with the server naming the chain Ego → Alice → Bob, selecting Bob '
-        'still draws mutual trust on both hops and no indirect Ego–Bob '
+    test('with only the server naming the chain Ego → Alice → Bob, selecting '
+        'Bob draws both hops of that chain and no indirect Ego–Bob '
         'edge', () async {
+      // The Field holds no edge between Alice and Bob and the server reports
+      // no mutual trust for Bob, so the Alice → Bob hop can come only from
+      // the server's chain. Bob trusts Ego only by derived trust, which
+      // reaches nobody from Ego: Bob is beyond every chain the Field holds.
       final cubit = await _load(
-        chainField(),
+        _field(
+          peers: ['alice', 'bob'],
+          edges: [
+            _e(_ego, 'alice'),
+            _e('alice', _ego),
+            _e('bob', _ego, tier: 2),
+          ],
+          directContactIds: ['alice'],
+        ),
         chainAnswers: {
           'bob': const [
             ConstellationTrustChainPerson(id: _ego, displayName: 'Ego'),
@@ -499,18 +548,33 @@ void main() {
           ],
         },
       );
+      _expectPersonPlaced(cubit, 'alice');
+      _expectOnRing(cubit, 'bob');
+      expect(
+        cubit.state.field!.edges.where(
+          (e) => {e.src, e.dst}.containsAll({'alice', 'bob'}),
+        ),
+        isEmpty,
+        reason: 'the Field itself holds no edge between Alice and Bob',
+      );
 
       await _select(cubit, 'bob');
 
       expect(
         _onlyKind(cubit, _ego, 'alice'),
         ConstellationEdgeKind.mutualTrust,
+        reason: 'the first hop, with the mutual trust the Field shows',
       );
       expect(
         _onlyKind(cubit, 'alice', 'bob'),
-        ConstellationEdgeKind.mutualTrust,
+        ConstellationEdgeKind.tier1Path,
+        reason: "the last hop, drawn from the server's chain alone",
       );
-      expect(_pairEdges(cubit, _ego, 'bob'), isEmpty);
+      expect(
+        _pairEdges(cubit, _ego, 'bob'),
+        isEmpty,
+        reason: 'Bob is reached through Alice: no indirect edge to him',
+      );
     });
   });
 
@@ -571,6 +635,207 @@ void main() {
       expect(
         cubit.graphController.renderSnapshot.topology.nodesById.keys,
         isNot(contains('fp:xenia')),
+      );
+    });
+
+    test('the dashed edge to a person no chain reaches is drawn at full '
+        'strength', () async {
+      final cubit = await _load(
+        _field(
+          peers: ['alice', 'carol'],
+          edges: [_e(_ego, 'alice'), _e('alice', _ego)],
+          directContactIds: ['alice'],
+        ),
+        chainAnswers: const {},
+      );
+      _expectOnRing(cubit, 'carol');
+
+      await _select(cubit, 'carol');
+
+      final kind = _onlyKind(cubit, _ego, 'carol');
+      expect(_isDashed(kind), isTrue, reason: 'drawn as $kind');
+      expect(_fadeOf(cubit, _ego, 'carol'), 1, reason: 'not faded');
+    });
+
+    test('a chain through someone not on the Field counts as no chain: the '
+        'dashed edge to the person is drawn at full strength', () async {
+      final cubit = await _load(
+        _field(
+          peers: ['alice', 'fay'],
+          edges: [_e(_ego, 'alice')],
+          directContactIds: ['alice'],
+        ),
+        chainAnswers: {
+          'fay': const [
+            ConstellationTrustChainPerson(id: _ego, displayName: 'Ego'),
+            ConstellationTrustChainPerson(id: 'alice', displayName: 'Alice'),
+            ConstellationTrustChainPerson(id: 'xenia', displayName: 'Xenia'),
+            ConstellationTrustChainPerson(id: 'fay', displayName: 'Fay'),
+          ],
+        },
+      );
+      _expectOnRing(cubit, 'fay');
+
+      await _select(cubit, 'fay');
+
+      final kind = _onlyKind(cubit, _ego, 'fay');
+      expect(_isDashed(kind), isTrue, reason: 'drawn as $kind');
+      expect(
+        _fadeOf(cubit, _ego, 'fay'),
+        1,
+        reason: 'no chain is drawn, so nothing is faded as off the chain',
+      );
+      _expectViewerShownUndimmed(cubit);
+    });
+
+    test('a chain through someone not on the Field counts as no chain: the '
+        "person's own trust edge to the viewer is drawn instead of the "
+        'dashed edge', () async {
+      // Fay trusts the viewer by derived trust; the viewer reaches Fay only
+      // through Xenia, who is on no Field.
+      final cubit = await _load(
+        _field(
+          peers: ['alice', 'fay'],
+          edges: [_e(_ego, 'alice'), _e('fay', _ego, tier: 2)],
+          directContactIds: ['alice'],
+        ),
+        chainAnswers: {
+          'fay': const [
+            ConstellationTrustChainPerson(id: _ego, displayName: 'Ego'),
+            ConstellationTrustChainPerson(id: 'alice', displayName: 'Alice'),
+            ConstellationTrustChainPerson(id: 'xenia', displayName: 'Xenia'),
+            ConstellationTrustChainPerson(id: 'fay', displayName: 'Fay'),
+          ],
+        },
+      );
+      _expectOnRing(cubit, 'fay');
+
+      await _select(cubit, 'fay');
+
+      expect(_onlyKind(cubit, _ego, 'fay'), ConstellationEdgeKind.tier2Path);
+      expect(_fadeOf(cubit, _ego, 'fay'), 1, reason: 'not faded');
+      _expectViewerShownUndimmed(cubit);
+    });
+  });
+
+  group('a person beyond every chain on the Field (on the outer ring) gets '
+      'one edge from the viewer, of the strongest type', () {
+    for (final (label, edges, mutual, expected) in [
+      (
+        'mutual trust the server reports',
+        <ConstellationTrustEdgeEntity>[],
+        {
+          'rae': {_ego},
+        },
+        ConstellationEdgeKind.mutualTrust,
+      ),
+      (
+        'direct one-way trust towards the viewer',
+        [_e('rae', _ego)],
+        <String, Set<String>>{},
+        ConstellationEdgeKind.tier1Path,
+      ),
+      (
+        'derived trust towards the viewer',
+        [_e('rae', _ego, tier: 2)],
+        <String, Set<String>>{},
+        ConstellationEdgeKind.tier2Path,
+      ),
+    ]) {
+      test('with $label: exactly one edge, of that type, and no dashed '
+          'placeholder beside it', () async {
+        final cubit = await _load(
+          _field(peers: ['rae'], edges: edges),
+          mutualAnswers: mutual,
+          chainAnswers: const {},
+        );
+        _expectOnRing(cubit, 'rae');
+
+        await _select(cubit, 'rae');
+
+        expect(_onlyKind(cubit, _ego, 'rae'), expected);
+      });
+    }
+
+    test('one-way trust from the viewer to the person takes the person off '
+        'the outer ring: one direct edge and no dashed placeholder', () async {
+      // A ring person can never be one the viewer trusts: any viewer → person
+      // edge the Field holds reaches the person in one hop. This pins that
+      // such a person gets the direct edge alone.
+      final cubit = await _load(
+        _field(peers: ['rae'], edges: [_e(_ego, 'rae')]),
+        chainAnswers: const {},
+      );
+      _expectPersonPlaced(cubit, 'rae');
+      expect(
+        cubit.state.paths!.ring,
+        isNot(contains('rae')),
+        reason: 'the viewer reaches rae in one hop',
+      );
+
+      await _select(cubit, 'rae');
+
+      expect(_onlyKind(cubit, _ego, 'rae'), ConstellationEdgeKind.tier1Path);
+    });
+
+    test('reached by a local chain longer than three hops: the chain is '
+        'drawn and no dashed edge from the viewer', () async {
+      final cubit = await _load(
+        _field(
+          peers: ['a', 'b', 'c', 'd'],
+          edges: [_e(_ego, 'a'), _e('a', 'b'), _e('b', 'c'), _e('c', 'd')],
+          directContactIds: ['a'],
+        ),
+        chainAnswers: const {},
+      );
+      for (final id in ['a', 'b', 'c']) {
+        _expectPersonPlaced(cubit, id);
+      }
+      _expectOnRing(cubit, 'd');
+
+      await _select(cubit, 'd');
+
+      for (final (x, y) in [(_ego, 'a'), ('a', 'b'), ('b', 'c'), ('c', 'd')]) {
+        expect(
+          _onlyKind(cubit, x, y),
+          ConstellationEdgeKind.tier1Path,
+          reason: 'the chain hop $x → $y is drawn',
+        );
+      }
+      expect(
+        _pairEdges(cubit, _ego, 'd'),
+        isEmpty,
+        reason: 'd is reached through the chain: no dashed edge to d',
+      );
+    });
+
+    test('reached by a chain only the server names: the chain is drawn and '
+        'no dashed edge from the viewer', () async {
+      final cubit = await _load(
+        _field(
+          peers: ['alice', 'bob'],
+          edges: [_e(_ego, 'alice')],
+          directContactIds: ['alice'],
+        ),
+        chainAnswers: {
+          'bob': const [
+            ConstellationTrustChainPerson(id: _ego, displayName: 'Ego'),
+            ConstellationTrustChainPerson(id: 'alice', displayName: 'Alice'),
+            ConstellationTrustChainPerson(id: 'bob', displayName: 'Bob'),
+          ],
+        },
+      );
+      _expectPersonPlaced(cubit, 'alice');
+      _expectOnRing(cubit, 'bob');
+
+      await _select(cubit, 'bob');
+
+      expect(_onlyKind(cubit, _ego, 'alice'), ConstellationEdgeKind.tier1Path);
+      expect(_onlyKind(cubit, 'alice', 'bob'), ConstellationEdgeKind.tier1Path);
+      expect(
+        _pairEdges(cubit, _ego, 'bob'),
+        isEmpty,
+        reason: 'Bob is reached through Alice: no dashed edge to him',
       );
     });
   });

@@ -4,11 +4,13 @@ library;
 // Real path for the chain Ego ⇄ Alice ⇄ Bob: the Field, mutual-trust and
 // trust-chain responses go through the real transport, GraphQL mappers and
 // repositories into the Field cubit (wired with the production use cases).
-// Selecting Alice, then Bob, must show one mutual trust (double blue) edge on
-// Ego–Alice and on Alice–Bob, no grey edge beside them, and no dashed Ego–Bob
-// edge. The same chain is then mounted on a 375x667 phone in Russian, and the
-// mounted Field's edge painter must style each hop as one double (twin),
-// solid edge in the primary colour.
+// In the first test the Field holds no edge between Alice and Bob and the
+// server reports no mutual trust for Bob, so only the server's trust-chain
+// answer can draw the Alice → Bob hop: selecting Bob must show that hop, the
+// mutual trust on Ego–Alice, and no dashed Ego–Bob edge. Then the chain
+// Ego ⇄ Alice ⇄ Bob, held whole by the Field, is mounted on a 375x667 phone
+// in Russian, and the mounted Field's edge painter must style each hop as one
+// double (twin), solid edge in the primary colour.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -58,8 +60,10 @@ Map<String, dynamic> _edge(String src, String dst, int tier) => {
 };
 
 /// Explicit trust both ways on Ego–Alice and Alice–Bob; Bob trusts Ego only
-/// by derived (tier 2) trust.
-Map<String, dynamic> _fieldResponse() => {
+/// by derived (tier 2) trust. Without [fieldHoldsChain] the Field leaves out
+/// both Alice–Bob edges, so it shows no chain from Ego to Bob and only the
+/// server can name it.
+Map<String, dynamic> _fieldResponse({bool fieldHoldsChain = true}) => {
   '__typename': 'query_root',
   'constellationField': {
     '__typename': 'v2_ConstellationField',
@@ -75,8 +79,8 @@ Map<String, dynamic> _fieldResponse() => {
     'edges': [
       _edge(_viewer.id, _alice, 1),
       _edge(_alice, _viewer.id, 1),
-      _edge(_alice, _bob, 1),
-      _edge(_bob, _alice, 1),
+      if (fieldHoldsChain) _edge(_alice, _bob, 1),
+      if (fieldHoldsChain) _edge(_bob, _alice, 1),
       _edge(_bob, _viewer.id, 2),
     ],
     'requests': <dynamic>[],
@@ -101,12 +105,11 @@ Map<String, dynamic> _fieldResponse() => {
 Map<String, dynamic> _wireAnswer(WireSent request) {
   final personId = request.variables['personId'] as String?;
   return switch (request.operationName) {
-    'ConstellationFieldFetch' => _fieldResponse(),
+    'ConstellationFieldFetch' => _fieldResponse(fieldHoldsChain: false),
     'ConstellationMutualTrustFetch' => {
       '__typename': 'query_root',
       'constellationMutualTrust': switch (personId) {
         _alice => [_viewer.id, _bob],
-        _bob => [_alice],
         _ => <String>[],
       },
     },
@@ -180,6 +183,30 @@ void _expectChainDrawnAsMutualTrust(ConstellationCubit cubit, String label) {
   );
 }
 
+/// Bob selected with the chain only the server names: one mutual trust edge
+/// on Ego–Alice (the Field shows trust both ways there), one direct trust
+/// edge on Alice–Bob (nothing but the server's chain gives that hop), and no
+/// dashed Ego–Bob edge.
+void _expectServerChainToBobDrawn(ConstellationCubit cubit, String label) {
+  for (final (x, y, pair, kind) in [
+    (_viewer.id, _alice, 'Ego–Alice', 'mutualTrust'),
+    (_alice, _bob, 'Alice–Bob', 'tier1Path'),
+  ]) {
+    final drawn = _pairEdges(cubit, x, y);
+    expect(
+      drawn,
+      hasLength(1),
+      reason: '$label: exactly one edge on $pair, drawn $drawn',
+    );
+    expect(drawn.single, endsWith('#$kind'), reason: '$label: $pair is $kind');
+  }
+  expect(
+    _pairEdges(cubit, _viewer.id, _bob),
+    isEmpty,
+    reason: '$label: Bob is reached through Alice, no indirect Ego–Bob edge',
+  );
+}
+
 /// The mounted Field paints [pair] as one double blue edge: the kind the
 /// mounted edge painter looks up for each edge of the pair, styled with the
 /// painter's own tokens and colour scheme, is a twin (two parallel strokes),
@@ -237,8 +264,8 @@ Future<void> _settle() async {
 }
 
 void main() {
-  test('the chain from the server is drawn as mutual trust on both hops, '
-      'with Alice and then Bob selected', () async {
+  test('the chain only the server names is drawn hop by hop, with Alice '
+      'and then Bob selected', () async {
     final sent = <WireSent>[];
     await withRemoteWire(
       const {},
@@ -269,6 +296,13 @@ void main() {
               .firstWhere((state) => state.status is StateIsSuccess)
               .timeout(const Duration(seconds: 15));
           _expectPeopleOnField(cubit);
+          expect(
+            cubit.state.field!.edges.where(
+              (e) => {e.src, e.dst}.containsAll({_alice, _bob}),
+            ),
+            isEmpty,
+            reason: 'the Field itself holds no edge between Alice and Bob',
+          );
 
           for (final (personId, label) in [
             (_alice, 'Alice selected'),
@@ -285,7 +319,20 @@ void main() {
               isNotEmpty,
               reason: '$label: the production mutual-trust query was sent',
             );
-            _expectChainDrawnAsMutualTrust(cubit, label);
+            if (personId == _bob) {
+              expect(
+                sent.where(
+                  (r) =>
+                      r.operationName == 'ConstellationTrustChainFetch' &&
+                      r.variables['personId'] == _bob,
+                ),
+                isNotEmpty,
+                reason: '$label: the chain comes from the trust-chain query',
+              );
+              _expectServerChainToBobDrawn(cubit, label);
+            } else {
+              _expectChainDrawnAsMutualTrust(cubit, label);
+            }
           }
         } finally {
           await cubit.close();

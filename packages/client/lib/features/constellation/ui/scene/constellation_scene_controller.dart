@@ -69,12 +69,14 @@ typedef _AddTrustEdge =
     });
 
 /// Rung of [kind] on the trust ladder (#1192): between two people only the
-/// strongest trust type is drawn. 0 for kinds that are not trust between
-/// two people.
+/// strongest trust type is drawn. The dashed ring placeholder is the lowest
+/// rung: any trust between the two replaces it. 0 for kinds that are not
+/// trust between two people.
 int _trustRung(ConstellationEdgeKind kind) => switch (kind) {
-  ConstellationEdgeKind.mutualTrust => 3,
-  ConstellationEdgeKind.tier1Path => 2,
-  ConstellationEdgeKind.tier2Path => 1,
+  ConstellationEdgeKind.mutualTrust => 4,
+  ConstellationEdgeKind.tier1Path => 3,
+  ConstellationEdgeKind.tier2Path => 2,
+  ConstellationEdgeKind.ringStub => 1,
   _ => 0,
 };
 
@@ -465,7 +467,8 @@ class ConstellationSceneController {
   /// other people shows how the viewer reaches the focus person, and the
   /// dashed indirect edge stands only for "no chain" (#1192). With
   /// [viewerOnly], only the edge to [viewerId] is kept: the focus person's
-  /// fan to everyone else is left out.
+  /// fan to everyone else is left out (none at all when the focus person is
+  /// the viewer).
   void _addFocusPersonTrustEdges({
     required String focusPersonId,
     required String viewerId,
@@ -479,8 +482,8 @@ class ConstellationSceneController {
       if (edge.src != focusPersonId && edge.dst != focusPersonId) {
         continue;
       }
-      final touchesViewer = edge.src == viewerId || edge.dst == viewerId;
-      if (touchesViewer ? !includeViewer : viewerOnly) {
+      final otherId = edge.src == focusPersonId ? edge.dst : edge.src;
+      if (otherId == viewerId ? !includeViewer : viewerOnly) {
         continue;
       }
       if (!nodeById.containsKey(edge.src) || !nodeById.containsKey(edge.dst)) {
@@ -496,17 +499,11 @@ class ConstellationSceneController {
     }
   }
 
-  /// The selected focus person's trust-chain hops (#641, #964), only when
-  /// every person on the chain is on the field: a chain that cannot be shown
-  /// whole is not drawn in part (#1192).
+  /// The selected focus person's trust-chain hops (#641, #964).
   void _addTrustChainHops({
     required ConstellationTrustChainFound chain,
-    required Map<String, NodeDetails> nodeById,
     required _AddTrustEdge addTrustEdge,
   }) {
-    if (!chain.path.every(nodeById.containsKey)) {
-      return;
-    }
     for (final (src, dst) in chain.hops) {
       addTrustEdge(
         srcId: src,
@@ -1045,25 +1042,6 @@ class ConstellationSceneController {
       }
     }
 
-    // Edges from ego fan out to every first-hop peer and crowd the field, so
-    // only the one leading to the selected person (or the selected Beacon's
-    // author) is drawn.
-    final egoEdgeTargets = _egoEdgeTargets(
-      viewerId: viewer.id,
-      paths: paths,
-      focusPersonId: selectedPersonId ?? nodeById[selectedRequestId]?.userId,
-    );
-
-    for (final ringPeer in paths.ring.intersection(
-      keptPeerIds.intersection(egoEdgeTargets),
-    )) {
-      addEdge(
-        srcId: viewer.id,
-        dstId: ringPeer,
-        kind: ConstellationEdgeKind.ringStub,
-      );
-    }
-
     // The author → item edge only while the item or its author is selected
     // (#1192): always on, it crowded the field.
     bool showsAuthorEdge(String itemId, String authorId) =>
@@ -1227,7 +1205,11 @@ class ConstellationSceneController {
       }
     }
 
-    final chain = trustChain is ConstellationTrustChainFound
+    // A chain that cannot be shown whole (someone on it is not on the
+    // field) counts as no chain: nothing of it is drawn or faded (#1192).
+    final chain =
+        trustChain is ConstellationTrustChainFound &&
+            trustChain.path.every(nodeById.containsKey)
         ? trustChain
         : null;
     if (focusPersonId != null && nodeById.containsKey(focusPersonId)) {
@@ -1244,11 +1226,26 @@ class ConstellationSceneController {
       );
     }
     if (chain != null) {
-      _addTrustChainHops(
-        chain: chain,
-        nodeById: nodeById,
-        addTrustEdge: addTrustEdge,
+      _addTrustChainHops(chain: chain, addTrustEdge: addTrustEdge);
+    } else {
+      // Edges from ego fan out to every first-hop peer and crowd the field,
+      // so only the one leading to the focus person is drawn; the dashed
+      // placeholder stands only for "no chain", on the ladder like any
+      // other trust edge of the pair (#1192).
+      final egoEdgeTargets = _egoEdgeTargets(
+        viewerId: viewer.id,
+        paths: paths,
+        focusPersonId: focusPersonId,
       );
+      for (final ringPeer in paths.ring.intersection(
+        keptPeerIds.intersection(egoEdgeTargets),
+      )) {
+        addTrustEdge(
+          srcId: viewer.id,
+          dstId: ringPeer,
+          kind: ConstellationEdgeKind.ringStub,
+        );
+      }
     }
     // Only between people on the field: addEdge drops the rest.
     if (selectedPersonId != null &&

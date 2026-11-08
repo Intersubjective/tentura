@@ -71,38 +71,31 @@ Future<ConstellationCubit> _loadCubit(ConstellationField field) async {
   return cubit;
 }
 
-/// Loads a field, then forces path resolution in which peer `a` is both a
-/// kept tier-1 child of the viewer and a ring peer, so the graph build has to
-/// emit two edges of different kinds between the same pair of nodes.
+/// Loads a field where peer `a` authored Request `r` and is on the field
+/// only because of it (a temporary person), then selects `a`: the graph build
+/// has to emit two edges of different kinds (the author edge and the
+/// temporary-presence edge) between the same pair of nodes.
 Future<ConstellationCubit> _loadCubitWithOverlappingPeerKinds() async {
   final cubit = await _loadCubit(
     ConstellationField(
       loadedAt: DateTime.utc(2026, 9, 9),
       context: '',
-      peers: [const ConstellationPerson(id: 'a')],
+      peers: [
+        const ConstellationPerson(
+          id: 'a',
+          fieldMembership: ConstellationFieldMembership.temporary,
+          temporaryBeaconId: 'r',
+        ),
+      ],
       edges: [
         const ConstellationTrustEdgeEntity(src: 'ego', dst: 'a', tier: 1),
       ],
-      requests: const [],
+      requests: const [
+        ConstellationRequest(id: 'r', authorId: 'a', title: 'R', status: 0),
+      ],
     ),
   );
-  cubit.emit(
-    cubit.state.copyWith(
-      keptPeerIds: {'a'},
-      selectedPersonId: 'a',
-      paths: (
-        depth: {'a': 1},
-        derived: <String, int>{},
-        parent: {'a': 'ego'},
-        parentTier: {'a': 1},
-        attributed: <String>{},
-        keep: {'a'},
-        ring: {'a'},
-      ),
-      graphLayoutFailureMessage: 'forced rebuild',
-    ),
-  );
-  cubit.retryGraphLayoutAfterFailure();
+  cubit.selectPerson('a');
   return cubit;
 }
 
@@ -200,23 +193,23 @@ void main() {
   });
 
   group('constellation cubit graph with parallel edges', () {
-    test('kept peer that is also a ring peer keeps both its path edge and '
-        'its ring stub', () async {
+    test('a temporary person who authored the Request that made them '
+        'temporary keeps both its author edge and its presence edge', () async {
       final cubit = await _loadCubitWithOverlappingPeerKinds();
       addTearDown(cubit.close);
 
-      final egoToPeer = cubit.graphController.edges
-          .where((e) => e.source.id == 'ego' && e.destination.id == 'a')
+      final peerToRequest = cubit.graphController.edges
+          .where((e) => e.source.id == 'a' && e.destination.id == 'r')
           .toList();
-      final ego = egoToPeer.first.source;
-      final peer = egoToPeer.first.destination;
+      final peer = peerToRequest.first.source;
+      final request = peerToRequest.first.destination;
 
-      expect(egoToPeer, hasLength(2));
+      expect(peerToRequest, hasLength(2));
       expect(
-        egoToPeer.map((e) => e.semanticId).toSet(),
+        peerToRequest.map((e) => e.semanticId).toSet(),
         {
-          _semanticId(ego, peer, ConstellationEdgeKind.tier1Path),
-          _semanticId(ego, peer, ConstellationEdgeKind.ringStub),
+          _semanticId(peer, request, ConstellationEdgeKind.attachment),
+          _semanticId(peer, request, ConstellationEdgeKind.temporaryPresence),
         },
       );
     });
@@ -230,7 +223,7 @@ void main() {
         final sceneEdges =
             cubit.graphController.renderSnapshot.topology.edgesById;
 
-        expect(sceneEdges, hasLength(2));
+        expect(sceneEdges, hasLength(3));
         expect(cubit.edgeKinds.keys.toSet(), sceneEdges.keys.toSet());
         for (final entry in sceneEdges.entries) {
           final edge = entry.value.payload;
@@ -250,7 +243,11 @@ void main() {
         }
         expect(
           cubit.edgeKinds.values.toSet(),
-          {ConstellationEdgeKind.tier1Path, ConstellationEdgeKind.ringStub},
+          {
+            ConstellationEdgeKind.tier1Path,
+            ConstellationEdgeKind.attachment,
+            ConstellationEdgeKind.temporaryPresence,
+          },
         );
       },
     );

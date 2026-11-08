@@ -3359,11 +3359,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     } finally {
       _serverTrustChainInFlight.remove(personId);
     }
-    final selectedRequestId = state.selectedRequestId;
-    if ((state.selectedPersonId == personId ||
-            (state.selectedPersonId == null &&
-                selectedRequestId != null &&
-                requestById(selectedRequestId)?.authorId == personId)) &&
+    if (_trustChainFocusPersonId == personId &&
         _serverTrustChains[personId]!.isNotEmpty) {
       _mutualTrustRedrawPending = true;
       _drainMutualTrustRedraw();
