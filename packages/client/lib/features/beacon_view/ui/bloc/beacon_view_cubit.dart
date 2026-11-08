@@ -1751,9 +1751,12 @@ class BeaconViewCubit extends Cubit<BeaconViewState> implements RoomHost {
         return displayStatus;
       }
 
-      // The author's forwards and the final-check snapshot need only
-      // the Request just read, so they leave with this round. Waiting until
-      // the round returns re-reads the Request and adds a dependent chain.
+      // The author's forwards (and forwards already on screen, on a reload)
+      // and the final-check snapshot need only the Request just read, so
+      // they leave with this round. Waiting until the round returns re-reads
+      // the Request and adds a dependent chain.
+      final joinsForwards =
+          needsAuthorForwards || (!skipRoom && wasForwardsLoaded);
       final closureFuture = _case
           .fetchClosureStateIfReviewOpenOrClosed(
             beaconId,
@@ -1763,7 +1766,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> implements RoomHost {
             (value) => value,
             onError: (Object _) => null,
           );
-      final forwardsFuture = needsAuthorForwards
+      final forwardsFuture = joinsForwards
           ? _readForwards(
               beaconId: beaconId,
               myUserId: myUserId,
@@ -1907,9 +1910,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> implements RoomHost {
           _refreshLatestUpdateReaders(beaconId, pending: updateReaders),
         );
       }
-      if (!skipRoom && wasForwardsLoaded) {
-        unawaited(_refreshForwards(beaconId, myUserId));
-      } else if (needsAuthorForwards) {
+      if (needsAuthorForwards) {
         // The read already ran with this round. A failure leaves the status
         // unknown; the screen still finishes loading.
         _authorForwardStatusTried = true;
@@ -2132,15 +2133,6 @@ class BeaconViewCubit extends Cubit<BeaconViewState> implements RoomHost {
       edge.recipient.id,
     },
   }..removeWhere((id) => id.isEmpty);
-
-  /// Best-effort refresh after main fetch when forwards were already shown.
-  Future<void> _refreshForwards(String beaconId, String myUserId) async {
-    try {
-      await _applyForwardsFromRemote(beaconId, myUserId);
-    } on Object catch (_) {
-      // Non-fatal: keep existing forwards visible.
-    }
-  }
 
   static final _zeroDateTime = DateTime.fromMillisecondsSinceEpoch(0);
   static final _emptyBeacon = Beacon(

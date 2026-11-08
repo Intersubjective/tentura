@@ -253,26 +253,15 @@ class BeaconHierarchyCubit extends Cubit<BeaconHierarchyState> {
           capabilitiesError: null,
         ),
       );
-      await _loadGroup(
-        BeaconHierarchyChildGroup.active,
-        generation: generation,
-        reset: true,
-        silent: true,
-      );
-      if (generation != _loadGeneration || isClosed) return;
-      await _loadGroup(
-        BeaconHierarchyChildGroup.finished,
-        generation: generation,
-        reset: true,
-        silent: true,
-      );
-      if (generation != _loadGeneration || isClosed) return;
-      await _loadGroup(
-        BeaconHierarchyChildGroup.deleted,
-        generation: generation,
-        reset: true,
-        silent: true,
-      );
+      await Future.wait<void>([
+        for (final group in BeaconHierarchyChildGroup.values)
+          _loadGroup(
+            group,
+            generation: generation,
+            reset: true,
+            silent: true,
+          ),
+      ]);
       if (generation != _loadGeneration || isClosed) return;
       await _refreshParentReferenceSilent(generation);
     } on Object catch (_) {

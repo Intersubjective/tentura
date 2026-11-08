@@ -49,9 +49,11 @@ class _ClosureResultCardState extends State<ClosureResultCard> {
 
   Future<void> _load() async {
     try {
-      final result = await _closureCase.fetchResultForViewer(widget.beaconId);
+      final (result, state) = await (
+        _closureCase.fetchResultForViewer(widget.beaconId),
+        _closureCase.fetchState(widget.beaconId),
+      ).wait;
       if (result == null) return;
-      final state = await _closureCase.fetchState(widget.beaconId);
       if (!mounted) return;
       setState(() {
         _result = result;
