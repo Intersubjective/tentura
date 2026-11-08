@@ -27,7 +27,10 @@ import 'package:tentura/features/beacon_plan/domain/use_case/beacon_plan_case.da
 import 'package:tentura/features/beacon_plan/domain/exception/beacon_plan_exceptions.dart';
 import 'package:tentura/features/beacon_plan/ui/bloc/plan_edit_state.dart'
     show PlanLimits;
+import 'package:tentura/domain/port/unsaved_changes_guard_port.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
+
+import '../../data/service/beacon_room_composer_draft_store.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
@@ -121,7 +124,24 @@ class RoomCubit extends Cubit<RoomState> {
           .where((item) => item.beaconId == beaconId)
           .listen(applyCoordinationItemSnapshot);
     }
+    _restoreComposerDraftFromStore();
     unawaited(load());
+  }
+
+  void _restoreComposerDraftFromStore() {
+    final body = readBeaconRoomComposerDraft(state.beaconId);
+    if (body == null || body.isEmpty) return;
+    emit(
+      state.copyWith(
+        composerPrefill: body,
+        composerPrefillSeq: state.composerPrefillSeq + 1,
+      ),
+    );
+  }
+
+  void _syncUnsavedLeaveGuard(String text) {
+    if (!GetIt.I.isRegistered<UnsavedChangesGuardPort>()) return;
+    GetIt.I<UnsavedChangesGuardPort>().setDirty(this, text.trim().isNotEmpty);
   }
 
   final BeaconThreadsCase _case;
@@ -272,6 +292,8 @@ class RoomCubit extends Cubit<RoomState> {
   /// members the viewer is typing (at most once per
   /// [_typingRefreshInterval]) and that they stopped when the text is empty.
   void composerTextChanged(String text) {
+    writeBeaconRoomComposerDraft(beaconId: state.beaconId, body: text);
+    _syncUnsavedLeaveGuard(text);
     if (_blocksDiscussionWrite) return;
     if (text.trim().isEmpty) {
       _stopTyping();
@@ -1600,6 +1622,8 @@ class RoomCubit extends Cubit<RoomState> {
       );
       _flushDeferredOwnPaints();
       _fireArmedComposerIntent(trimmed);
+      clearBeaconRoomComposerDraft(state.beaconId);
+      _syncUnsavedLeaveGuard('');
       await markSeenNowIfNeeded();
       if (uploads.isNotEmpty) {
         unawaited(_requestRefresh(scope: _RoomRefreshScope.messages));
@@ -2086,6 +2110,9 @@ class RoomCubit extends Cubit<RoomState> {
 
   @override
   Future<void> close() async {
+    if (GetIt.I.isRegistered<UnsavedChangesGuardPort>()) {
+      GetIt.I<UnsavedChangesGuardPort>().setDirty(this, false);
+    }
     _hintRefreshRequests.dispose();
     _pinnedOffWindowMessages.clear();
     _pendingLocalDeleteIds.clear();

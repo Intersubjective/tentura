@@ -6,6 +6,7 @@ import 'package:get_it/get_it.dart';
 import 'package:tentura/app/router/unknown_hash_route_notice.dart';
 import 'package:tentura/domain/port/unsaved_changes_guard_port.dart';
 import 'package:tentura/features/beacon_create/data/service/post_create_composer_draft_store.dart';
+import 'package:tentura/features/beacon_threads/data/service/beacon_room_composer_draft_store.dart';
 import 'package:tentura/features/constellation/ui/util/constellation_forward_tree_request.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_field_topo_backdrop.dart';
 
@@ -39,6 +40,7 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) async {
       GetIt.I<UnsavedChangesGuardPort>().resetForTest();
     }
     resetPostCreateComposerDraftStoreForTest();
+    resetBeaconRoomComposerDraftStoreForTest();
   });
   await testMain();
 }
