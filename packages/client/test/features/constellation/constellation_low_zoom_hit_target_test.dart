@@ -6,8 +6,8 @@ import 'package:force_directed_graphview/force_directed_graphview.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/constellation/domain/constellation_trust_chain.dart';
 import 'package:tentura/features/constellation/domain/constellation_trust_badge.dart';
-import 'package:tentura/features/constellation/ui/utils/constellation_presentation_frame.dart';
-import 'package:tentura/features/constellation/ui/utils/constellation_tap_resolver.dart';
+import 'package:tentura/features/constellation/ui/util/constellation_presentation_frame.dart';
+import 'package:tentura/features/constellation/ui/util/constellation_tap_resolver.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_node_ring_layer.dart';
 
 // #640: at low zoom the circles you tap or act on keep at least

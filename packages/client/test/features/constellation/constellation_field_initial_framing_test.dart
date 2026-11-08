@@ -9,7 +9,7 @@ import 'package:tentura/features/constellation/domain/entity/constellation_ancho
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
-import 'package:tentura/features/constellation/ui/utils/constellation_presentation_frame.dart';
+import 'package:tentura/features/constellation/ui/util/constellation_presentation_frame.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
 
 import '../../support/constellation_store_fixture.dart';
@@ -207,23 +207,23 @@ void main() {
       await pumpConstellationBody(tester, cubit);
       await tester.pumpAndSettle();
 
-        expect(cubit.fieldPeerCountAtLastProgrammaticFrameForTest, 3);
-        expect(cubit.graphController.userCameraInputRevision.value, 0);
-        repo.field = _fieldWithExtraPeer();
-        await fixture.store.requestRefresh(ConstellationRefreshReason.catchUp);
-        await tester.pumpAndSettle(const Duration(seconds: 2));
+      expect(cubit.fieldPeerCountAtLastProgrammaticFrameForTest, 3);
+      expect(cubit.graphController.userCameraInputRevision.value, 0);
+      repo.field = _fieldWithExtraPeer();
+      await fixture.store.requestRefresh(ConstellationRefreshReason.catchUp);
+      await tester.pumpAndSettle(const Duration(seconds: 2));
 
-        expect(cubit.state.field!.peers, hasLength(4));
-        expect(cubit.fieldInitialFrameCompletedForTest, isTrue);
-        expect(
-          cubit.graphController.cameraScale,
-          greaterThanOrEqualTo(kConstellationCloseDetailScale),
-        );
-        expect(
-          cubit.fieldPeerCountAtLastProgrammaticFrameForTest,
-          4,
-          reason: 'untouched camera should accept the automatic re-frame',
-        );
+      expect(cubit.state.field!.peers, hasLength(4));
+      expect(cubit.fieldInitialFrameCompletedForTest, isTrue);
+      expect(
+        cubit.graphController.cameraScale,
+        greaterThanOrEqualTo(kConstellationCloseDetailScale),
+      );
+      expect(
+        cubit.fieldPeerCountAtLastProgrammaticFrameForTest,
+        4,
+        reason: 'untouched camera should accept the automatic re-frame',
+      );
     });
   });
 }

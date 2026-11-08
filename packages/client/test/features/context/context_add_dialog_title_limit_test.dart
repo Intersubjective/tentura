@@ -5,7 +5,7 @@ import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/context/ui/dialog/context_add_dialog.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/string_input_validator.dart';
+import 'package:tentura/ui/util/string_input_validator.dart';
 
 // #603 (follow-up of #356): this field capped with TextField.maxLength, whose
 // counter and cap count user-perceived characters, while the validator and

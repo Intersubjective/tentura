@@ -8,8 +8,8 @@ import 'package:tentura/domain/capability/capability_tag.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/beacon_schedule_presenter.dart';
-import 'package:tentura/ui/utils/capability_tag_presenter.dart';
+import 'package:tentura/ui/util/beacon_schedule_presenter.dart';
+import 'package:tentura/ui/util/capability_tag_presenter.dart';
 
 import 'constellation_request_status_marker.dart';
 

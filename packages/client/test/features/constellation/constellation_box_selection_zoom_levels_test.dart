@@ -9,8 +9,8 @@ import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart'
 import 'package:tentura/features/constellation/ui/bloc/constellation_selection_cubit.dart';
 import 'fixtures/constellation_field_test_harness.dart';
 import 'package:tentura/features/constellation/ui/scene/constellation_zoom_level_controller.dart';
-import 'package:tentura/features/constellation/ui/utils/constellation_presentation_frame.dart';
-import 'package:tentura/features/constellation/ui/utils/constellation_tap_resolver.dart';
+import 'package:tentura/features/constellation/ui/util/constellation_presentation_frame.dart';
+import 'package:tentura/features/constellation/ui/util/constellation_tap_resolver.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
 import 'package:tentura/features/graph/domain/use_case/graph_trust_write_case.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_person_context_cubit.dart';
@@ -97,8 +97,7 @@ Future<Set<String>> _boxAround(
     semanticZoomEnabled: true,
   );
   await cubit.stream.firstWhere((state) => state.status is StateIsSuccess);
-  final selection = constellationSelectionForFieldBodyTests()
-    ..enterArranging();
+  final selection = constellationSelectionForFieldBodyTests()..enterArranging();
   final zoom = ConstellationZoomLevelController();
   final holder = ConstellationPresentationFrameHolder();
   addTearDown(() async {

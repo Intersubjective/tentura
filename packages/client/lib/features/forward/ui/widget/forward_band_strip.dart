@@ -11,7 +11,7 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/features/forward/domain/entity/forward_candidate.dart';
 import 'package:tentura/features/forward_candidate_context/ui/widget/forward_candidate_context_sheet.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/capability_tag_presenter.dart';
+import 'package:tentura/ui/util/capability_tag_presenter.dart';
 
 import 'forward_recipient_personal_note_slot.dart';
 import 'forward_recipient_row.dart';

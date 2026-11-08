@@ -9,7 +9,7 @@ import 'package:tentura/features/beacon_view/ui/presenter/beacon_hud_author_acti
 import 'package:tentura/features/beacon_view/ui/presenter/beacon_phase_input_from_view_state.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_hud_derivation.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/beacon_you_presentation.dart';
+import 'package:tentura/ui/util/beacon_you_presentation.dart';
 import 'package:tentura/ui/widget/beacon_hud_metadata_table.dart';
 import 'package:tentura/ui/widget/beacon_hud_row_lead.dart';
 import 'package:tentura/ui/widget/beacon_you_responsibility_line.dart';

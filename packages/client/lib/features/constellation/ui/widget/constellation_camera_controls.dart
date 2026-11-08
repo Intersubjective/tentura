@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
-import 'package:tentura/ui/utils/ui_utils.dart' show showSnackBar;
+import 'package:tentura/ui/util/ui_utils.dart' show showSnackBar;
 
 import '../bloc/constellation_cubit.dart';
 import '../bloc/constellation_selection_cubit.dart';

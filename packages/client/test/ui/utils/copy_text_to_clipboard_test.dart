@@ -1,7 +1,7 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:tentura/ui/utils/copy_text_to_clipboard.dart';
+import 'package:tentura/ui/util/copy_text_to_clipboard.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

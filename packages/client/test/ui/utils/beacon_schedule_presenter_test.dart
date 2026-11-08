@@ -6,7 +6,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_schedule.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/beacon_schedule_presenter.dart';
+import 'package:tentura/ui/util/beacon_schedule_presenter.dart';
 
 void main() {
   setUpAll(() async {
@@ -20,12 +20,11 @@ void main() {
     DateTime? startAt,
     DateTime? endAt,
     BeaconStatus status = BeaconStatus.open,
-  }) =>
-      Beacon.empty.copyWith(
-        startAt: startAt,
-        endAt: endAt,
-        status: status,
-      );
+  }) => Beacon.empty.copyWith(
+    startAt: startAt,
+    endAt: endAt,
+    status: status,
+  );
 
   BeaconSchedulePresentation present(Beacon b) =>
       beaconSchedulePresentation(beacon: b, l10n: l10n, now: now)!;
@@ -47,10 +46,12 @@ void main() {
     });
 
     test('upcoming window beyond threshold shows absolute range', () {
-      final p = present(beacon(
-        startAt: now.add(const Duration(days: 5)),
-        endAt: now.add(const Duration(days: 8)),
-      ));
+      final p = present(
+        beacon(
+          startAt: now.add(const Duration(days: 5)),
+          endAt: now.add(const Duration(days: 8)),
+        ),
+      );
       expect(p.visibleText, 'Jun 20 – Jun 23');
       expect(p.urgent, isFalse);
     });
@@ -69,39 +70,50 @@ void main() {
     });
 
     test('in progress with far end shows "until" absolute date', () {
-      final p = present(beacon(
-        startAt: now.subtract(const Duration(days: 1)),
-        endAt: now.add(const Duration(days: 5)),
-      ));
+      final p = present(
+        beacon(
+          startAt: now.subtract(const Duration(days: 1)),
+          endAt: now.add(const Duration(days: 5)),
+        ),
+      );
       expect(p.phase, BeaconSchedulePhase.inProgress);
       expect(p.visibleText, l10n.beaconCardScheduleUntil('Jun 20'));
       expect(p.urgent, isFalse);
     });
 
     test('in progress ending within threshold shows countdown', () {
-      final p = present(beacon(
-        startAt: now.subtract(const Duration(days: 1)),
-        endAt: now.add(const Duration(days: 2, hours: 3)),
-      ));
+      final p = present(
+        beacon(
+          startAt: now.subtract(const Duration(days: 1)),
+          endAt: now.add(const Duration(days: 2, hours: 3)),
+        ),
+      );
       expect(p.visibleText, l10n.beaconCardScheduleEndsIn('2d 3h'));
       expect(p.urgent, isFalse);
     });
 
     test('in progress without end shows "happening now"', () {
-      final p = present(beacon(startAt: now.subtract(const Duration(hours: 1))));
+      final p = present(
+        beacon(startAt: now.subtract(const Duration(hours: 1))),
+      );
       expect(p.visibleText, l10n.beaconCardScheduleHappeningNow);
       expect(p.urgent, isFalse);
     });
 
     test('finished event is quiet absolute date, never overdue', () {
-      final p = present(beacon(
-        startAt: now.subtract(const Duration(days: 5)),
-        endAt: now.subtract(const Duration(hours: 3)),
-      ));
+      final p = present(
+        beacon(
+          startAt: now.subtract(const Duration(days: 5)),
+          endAt: now.subtract(const Duration(hours: 3)),
+        ),
+      );
       expect(p.phase, BeaconSchedulePhase.finished);
       expect(p.visibleText, 'Jun 10 – Jun 15');
       expect(p.urgent, isFalse);
-      expect(p.semanticsLabel, l10n.beaconCardScheduleEndedOn('Jun 10 – Jun 15'));
+      expect(
+        p.semanticsLabel,
+        l10n.beaconCardScheduleEndedOn('Jun 10 – Jun 15'),
+      );
     });
   });
 

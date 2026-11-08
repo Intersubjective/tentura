@@ -4,8 +4,8 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_schedule.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/duration_format.dart';
-import 'package:tentura/ui/utils/schedule_date_format.dart';
+import 'package:tentura/ui/util/duration_format.dart';
+import 'package:tentura/ui/util/schedule_date_format.dart';
 
 /// Beyond this lead time the schedule line shows a self-evident absolute date
 /// (e.g. "5 May – 8 May") instead of a relative countdown ("starts in …"). A
@@ -170,15 +170,27 @@ BeaconSchedulePresentation? beaconSchedulePresentation({
   if (decision == null) return null;
 
   final localeName = l10n.localeName;
-  final remainingText = formatCompactDurationRemaining(decision.remaining, l10n);
+  final remainingText = formatCompactDurationRemaining(
+    decision.remaining,
+    l10n,
+  );
 
   String whenAbsolute() {
     final start = beacon.startAt;
     final end = beacon.endAt;
     if (start != null && end != null) {
-      return formatScheduleRange(start, end, localeName: localeName, now: clock);
+      return formatScheduleRange(
+        start,
+        end,
+        localeName: localeName,
+        now: clock,
+      );
     }
-    return formatScheduleDate(start ?? end!, localeName: localeName, now: clock);
+    return formatScheduleDate(
+      start ?? end!,
+      localeName: localeName,
+      now: clock,
+    );
   }
 
   String endDate() =>

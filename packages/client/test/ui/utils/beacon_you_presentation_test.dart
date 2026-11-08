@@ -7,7 +7,7 @@ import 'package:tentura/domain/entity/coordination_responsibility.dart';
 import 'package:tentura/domain/entity/beacon_coordination_phase.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/beacon_you_presentation.dart';
+import 'package:tentura/ui/util/beacon_you_presentation.dart';
 
 BeaconYouSituationInput _input({
   BeaconStatus lifecycle = BeaconStatus.open,
@@ -126,21 +126,24 @@ void main() {
     });
 
     // #472: an admitted helper's Now panel opened on a bare "No info" row.
-    test('noInfo fallback says nothing is needed from the viewer yet', () async {
-      const responsibility = CoordinationResponsibility(beaconId: 'b1');
-      BeaconYouPresentation build(L10n l10n) => buildBeaconYouPresentation(
-        l10n,
-        responsibility,
-        collapse: false,
-        situationInput: _input(),
-        emptyFallback: BeaconYouEmptyFallback.noInfo,
-        showNewBadges: false,
-      );
-      final ru = await L10n.delegate.load(const Locale('ru'));
+    test(
+      'noInfo fallback says nothing is needed from the viewer yet',
+      () async {
+        const responsibility = CoordinationResponsibility(beaconId: 'b1');
+        BeaconYouPresentation build(L10n l10n) => buildBeaconYouPresentation(
+          l10n,
+          responsibility,
+          collapse: false,
+          situationInput: _input(),
+          emptyFallback: BeaconYouEmptyFallback.noInfo,
+          showNewBadges: false,
+        );
+        final ru = await L10n.delegate.load(const Locale('ru'));
 
-      expect(build(l10n).fallbackText, 'Nothing needed from you yet');
-      expect(build(ru).fallbackText, 'Пока от вас ничего не нужно');
-    });
+        expect(build(l10n).fallbackText, 'Nothing needed from you yet');
+        expect(build(ru).fallbackText, 'Пока от вас ничего не нужно');
+      },
+    );
 
     test('empty responsibility hidden produces hidden presentation', () {
       const responsibility = CoordinationResponsibility(beaconId: 'b1');
@@ -323,37 +326,46 @@ void main() {
   });
 
   group('offer review segment icons', () {
-    test('authorReview and helperAwaitingAuthor keep non-null review icons', () {
-      const responsibility = CoordinationResponsibility(
-        beaconId: 'b1',
-        askOpen: 1,
-      );
-      final authorPresentation = buildBeaconYouPresentation(
-        l10n,
-        responsibility,
-        collapse: false,
-        situationInput: _input(
-          isAuthorOrSteward: true,
-          hasRoomObligations: true,
-          authorUnreviewedHelpOfferCount: 2,
-        ),
-        emptyFallback: BeaconYouEmptyFallback.noOpenItems,
-        showNewBadges: false,
-      );
-      expect(authorPresentation.segments.first.icon, Icons.rate_review_outlined);
+    test(
+      'authorReview and helperAwaitingAuthor keep non-null review icons',
+      () {
+        const responsibility = CoordinationResponsibility(
+          beaconId: 'b1',
+          askOpen: 1,
+        );
+        final authorPresentation = buildBeaconYouPresentation(
+          l10n,
+          responsibility,
+          collapse: false,
+          situationInput: _input(
+            isAuthorOrSteward: true,
+            hasRoomObligations: true,
+            authorUnreviewedHelpOfferCount: 2,
+          ),
+          emptyFallback: BeaconYouEmptyFallback.noOpenItems,
+          showNewBadges: false,
+        );
+        expect(
+          authorPresentation.segments.first.icon,
+          Icons.rate_review_outlined,
+        );
 
-      final helperPresentation = buildBeaconYouPresentation(
-        l10n,
-        responsibility,
-        collapse: false,
-        situationInput: _input(
-          hasRoomObligations: true,
-          isAwaitingAuthorReview: true,
-        ),
-        emptyFallback: BeaconYouEmptyFallback.noOpenItems,
-        showNewBadges: false,
-      );
-      expect(helperPresentation.segments.first.icon, Icons.rate_review_outlined);
-    });
+        final helperPresentation = buildBeaconYouPresentation(
+          l10n,
+          responsibility,
+          collapse: false,
+          situationInput: _input(
+            hasRoomObligations: true,
+            isAwaitingAuthorReview: true,
+          ),
+          emptyFallback: BeaconYouEmptyFallback.noOpenItems,
+          showNewBadges: false,
+        );
+        expect(
+          helperPresentation.segments.first.icon,
+          Icons.rate_review_outlined,
+        );
+      },
+    );
   });
 }

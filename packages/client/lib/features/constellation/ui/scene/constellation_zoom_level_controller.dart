@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 
-import 'package:tentura/features/constellation/ui/utils/constellation_presentation_frame.dart';
+import 'package:tentura/features/constellation/ui/util/constellation_presentation_frame.dart';
 
 /// The one owner of the map's zoom level, read by the body and the viewport
 /// overlay so they always agree.

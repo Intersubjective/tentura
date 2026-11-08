@@ -14,8 +14,8 @@ import 'package:tentura/features/updates/updates_receipt_display_copy.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
-import 'package:tentura/ui/utils/relative_time.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/util/relative_time.dart';
+import 'package:tentura/ui/util/ui_utils.dart';
 import 'package:tentura/ui/widget/relative_timestamp_ticker.dart';
 
 class UpdatesFeedGlyph {

@@ -36,7 +36,7 @@ import 'package:tentura/features/closure/domain/entity/closure_state.dart';
 import 'package:tentura/features/closure/domain/use_case/closure_case.dart';
 import 'package:tentura/features/closure/ui/widget/closure_result_card.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/beacon_activity_event_presenter.dart';
+import 'package:tentura/ui/util/beacon_activity_event_presenter.dart';
 
 import '../../support/phone_surface.dart';
 import '../../support/remote_wire_harness.dart';

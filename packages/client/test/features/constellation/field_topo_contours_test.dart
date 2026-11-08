@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:tentura/features/constellation/domain/utils/field_topo_contours.dart';
+import 'package:tentura/features/constellation/domain/util/field_topo_contours.dart';
 
 /// Endpoint coordinates (the other axis) of segments touching a tile edge.
 List<double> _edgeHits(

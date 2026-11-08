@@ -1,5 +1,5 @@
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/util/ui_utils.dart';
 
 /// Compact human-readable "time ago" label: just now → minutes → hours → days.
 String compactRelativeTimeAgo({
@@ -42,7 +42,8 @@ String cardRelativeAge({
   if (diff.isNegative || diff.inSeconds < 60) {
     return l10n.relativeTimeCompactNow;
   }
-  if (diff.inMinutes < 60) return l10n.relativeTimeCompactMinutes(diff.inMinutes);
+  if (diff.inMinutes < 60)
+    return l10n.relativeTimeCompactMinutes(diff.inMinutes);
   if (diff.inHours < 24) return l10n.relativeTimeCompactHours(diff.inHours);
   if (diff.inDays < 7) return l10n.relativeTimeCompactDays(diff.inDays);
   // #450/#609: past a week it is the app's weekday day, «Sat, Oct 31» /
@@ -62,7 +63,8 @@ String cardRelativeAgeSpoken({
   if (diff.isNegative || diff.inSeconds < 60) {
     return l10n.relativeTimeSpokenNow;
   }
-  if (diff.inMinutes < 60) return l10n.relativeTimeSpokenMinutes(diff.inMinutes);
+  if (diff.inMinutes < 60)
+    return l10n.relativeTimeSpokenMinutes(diff.inMinutes);
   if (diff.inHours < 24) return l10n.relativeTimeSpokenHours(diff.inHours);
   if (diff.inDays < 7) return l10n.relativeTimeSpokenDays(diff.inDays);
   return cardRelativeAge(when: when, now: now, l10n: l10n);

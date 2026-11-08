@@ -13,8 +13,8 @@ import 'package:tentura/features/forward_candidate_context/domain/use_case/load_
 import 'package:tentura/features/forward_candidate_context/ui/bloc/forward_candidate_context_cubit.dart';
 import 'package:tentura/features/forward_candidate_context/ui/bloc/forward_candidate_context_state.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/capability_tag_presenter.dart';
-import 'package:tentura/ui/utils/profile_member_since.dart';
+import 'package:tentura/ui/util/capability_tag_presenter.dart';
+import 'package:tentura/ui/util/profile_member_since.dart';
 
 import '../model/forward_recipient_row_host.dart';
 

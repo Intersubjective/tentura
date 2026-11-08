@@ -8,7 +8,7 @@ import 'package:tentura_root/domain/enums.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/domain/coordination/viewer_offer_accepted.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/util/ui_utils.dart';
 import 'package:tentura/domain/entity/beacon_people_lens.dart';
 import 'package:tentura/domain/entity/beacon_people_row.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';

@@ -2,7 +2,7 @@ import 'package:fake_async/fake_async.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:tentura/ui/utils/post_expiry_clock.dart';
+import 'package:tentura/ui/util/post_expiry_clock.dart';
 
 // Consumer contract: PostExpiryClock(clock: DateTime Function(), onTick: callback),
 // setDeadlines(Set<DateTime>), dispose(). The fake clock and Timer zone advance

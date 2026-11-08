@@ -11,7 +11,7 @@ import 'package:tentura/features/constellation/domain/constellation_layout.dart'
 import 'package:tentura/features/constellation/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
-import 'package:tentura/features/graph/ui/utils/graph_scene_ids.dart';
+import 'package:tentura/features/graph/ui/util/graph_scene_ids.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_anchor_repository_port.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
 import 'package:tentura/features/constellation/domain/use_case/constellation_anchor_case.dart';

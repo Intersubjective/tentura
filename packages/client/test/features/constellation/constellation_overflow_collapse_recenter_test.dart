@@ -27,7 +27,7 @@ import 'package:tentura/features/graph/ui/bloc/graph_person_context_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/home_tab_reselect_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/frame_slice_scheduler.dart';
+import 'package:tentura/ui/util/frame_slice_scheduler.dart';
 
 import '../../support/test_realtime_sync.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
@@ -286,7 +286,6 @@ Matrix4 _cameraMatrix(WidgetTester tester) => tester
     .transformationController!
     .value
     .clone();
-
 
 /// Where [matrix] sends a few scene points: an equality that reads in screen
 /// pixels, the unit a user sees a camera drift in.

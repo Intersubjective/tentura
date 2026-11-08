@@ -9,7 +9,7 @@ import 'package:tentura/features/beacon_create/ui/dialog/beacon_send_confirmatio
 import 'package:tentura/main.dart' as app;
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
-import 'package:tentura/ui/utils/capability_tag_presenter.dart';
+import 'package:tentura/ui/util/capability_tag_presenter.dart';
 import 'package:tentura/ui/widget/beacon_identity_tile.dart';
 
 import 'support/beacon_cover_list_identity_finder.dart';

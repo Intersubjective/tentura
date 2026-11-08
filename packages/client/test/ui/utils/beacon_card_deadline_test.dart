@@ -3,8 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/beacon_card_deadline.dart';
-import 'package:tentura/ui/utils/calendar_day_display.dart';
+import 'package:tentura/ui/util/beacon_card_deadline.dart';
+import 'package:tentura/ui/util/calendar_day_display.dart';
 
 void main() {
   setUpAll(() async {
@@ -67,19 +67,21 @@ void main() {
       expect(status?.overdue, isFalse);
     });
 
-    test('uses shared long date at seven calendar days without weekday due wrapper',
-        () {
-      final endAt = DateTime(2026, 6, 29, 18);
-      final todayDay = DateTime(now.year, now.month, now.day);
-      final endDay = DateTime(endAt.year, endAt.month, endAt.day);
-      final expected = formatFutureCalendarDayLabel(l10n, endDay, todayDay);
+    test(
+      'uses shared long date at seven calendar days without weekday due wrapper',
+      () {
+        final endAt = DateTime(2026, 6, 29, 18);
+        final todayDay = DateTime(now.year, now.month, now.day);
+        final endDay = DateTime(endAt.year, endAt.month, endAt.day);
+        final expected = formatFutureCalendarDayLabel(l10n, endDay, todayDay);
 
-      final status = beaconCardCalendarDeadlineStatus(l10n, endAt, now: now);
+        final status = beaconCardCalendarDeadlineStatus(l10n, endAt, now: now);
 
-      expect(status?.text, expected);
-      expect(status?.text, isNot(l10n.myWorkStatusDueWeekday('Mon')));
-      expect(status?.overdue, isFalse);
-    });
+        expect(status?.text, expected);
+        expect(status?.text, isNot(l10n.myWorkStatusDueWeekday('Mon')));
+        expect(status?.overdue, isFalse);
+      },
+    );
   });
 
   group('beaconCardDeadlineRemainingMeta', () {

@@ -370,9 +370,9 @@ TenturaTone? toneForCoordinationKind(CoordinationItemKind kind) =>
 TenturaTone toneForOfferReviewSegment(
   BeaconYouOfferReviewSegmentKind kind,
 ) => switch (kind) {
-      BeaconYouOfferReviewSegmentKind.authorReview => TenturaTone.info,
-      BeaconYouOfferReviewSegmentKind.helperAwaitingAuthor => TenturaTone.info,
-    };
+  BeaconYouOfferReviewSegmentKind.authorReview => TenturaTone.info,
+  BeaconYouOfferReviewSegmentKind.helperAwaitingAuthor => TenturaTone.info,
+};
 
 String _kindLabel(L10n l10n, CoordinationItemKind kind, int count) =>
     switch (kind) {

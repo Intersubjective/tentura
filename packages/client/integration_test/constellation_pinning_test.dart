@@ -5,7 +5,7 @@ import 'package:integration_test/integration_test.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_state.dart';
-import 'package:tentura/features/constellation/ui/utils/constellation_graph_scene.dart';
+import 'package:tentura/features/constellation/ui/util/constellation_graph_scene.dart';
 import 'package:tentura/main.dart' as app;
 import 'package:tentura/ui/test_ids.dart';
 
@@ -30,6 +30,7 @@ void main() {
     Future<void> journey(String name, Future<void> Function() body) async {
       await runE2eStep(name, body);
     }
+
     final warmupTitle = uniqueRequestTitle('Constellation warmup');
     final warmupBeaconId = await createPublishedBeacon(title: warmupTitle);
     await forwardBeaconTo(
@@ -91,18 +92,22 @@ void main() {
 
     await journey('independent person and Request anchor moves', () async {
       final before = await fetchConstellationAnchors();
-      final beforePersonX = (constellationAnchorByTarget(
-        before,
-        targetKind: 'PERSON',
-        targetId: fixture.helperUserId,
-      )?['xUnits'] as num?)
-          ?.toDouble();
-      final beforeRequestX = (constellationAnchorByTarget(
-        before,
-        targetKind: 'BEACON',
-        targetId: requestId,
-      )?['xUnits'] as num?)
-          ?.toDouble();
+      final beforePersonX =
+          (constellationAnchorByTarget(
+                    before,
+                    targetKind: 'PERSON',
+                    targetId: fixture.helperUserId,
+                  )?['xUnits']
+                  as num?)
+              ?.toDouble();
+      final beforeRequestX =
+          (constellationAnchorByTarget(
+                    before,
+                    targetKind: 'BEACON',
+                    targetId: requestId,
+                  )?['xUnits']
+                  as num?)
+              ?.toDouble();
       await dragConstellationAnchorViaGraph(
         tester: tester,
         target: helperTarget,
@@ -173,18 +178,18 @@ void main() {
         find.byKey(TestIds.key(TestIds.constellationFitAll)),
       );
       final cubitBeforeTap = readConstellationCubit(tester);
-      final personScene =
-          cubitBeforeTap.graphController.renderSnapshot.resolvePosition(
-        constellationGraphNodeIdForTarget(
-          ConstellationAnchorTarget.person(fixture.helperUserId),
-        ),
-      );
-      final requestScene =
-          cubitBeforeTap.graphController.renderSnapshot.resolvePosition(
-        constellationGraphNodeIdForTarget(
-          ConstellationAnchorTarget.beacon(requestId),
-        ),
-      );
+      final personScene = cubitBeforeTap.graphController.renderSnapshot
+          .resolvePosition(
+            constellationGraphNodeIdForTarget(
+              ConstellationAnchorTarget.person(fixture.helperUserId),
+            ),
+          );
+      final requestScene = cubitBeforeTap.graphController.renderSnapshot
+          .resolvePosition(
+            constellationGraphNodeIdForTarget(
+              ConstellationAnchorTarget.beacon(requestId),
+            ),
+          );
       expect(personScene, isNotNull);
       expect(requestScene, isNotNull);
       expect(personScene!.x, closeTo(requestScene!.x, 1));
@@ -217,61 +222,67 @@ void main() {
       );
     });
 
-    await journey('close hides Request until Show closed restores anchor', () async {
-      await upsertConstellationAnchor(
-        targetKind: 'BEACON',
-        targetId: requestId,
-        xUnits: -1.25,
-        yUnits: 0.75,
-      );
-      await reloadConstellation(tester);
-      await closeBeaconForReview(requestId);
-      await reloadConstellation(tester);
-      expect(
-        find.byKey(Key('constellation.text.request.$requestId')),
-        findsNothing,
-      );
-      await openConstellationFilters(tester);
-      await toggleConstellationShowClosed(tester);
-      await pumpBounded(tester, frames: 12);
-      final anchors = await fetchConstellationAnchors(showClosed: true);
-      final closedAnchor = constellationAnchorByTarget(
-        anchors,
-        targetKind: 'BEACON',
-        targetId: requestId,
-      );
-      expect(closedAnchor!['xUnits'], -1.25);
-      expect(closedAnchor['yUnits'], 0.75);
-    });
-
-    await journey('cancelled Request stays absent even with Show closed', () async {
-      final cancelledTitle = uniqueRequestTitle('Constellation cancelled');
-      final cancelledId = await createPublishedBeacon(title: cancelledTitle);
-      await upsertConstellationAnchor(
-        targetKind: 'BEACON',
-        targetId: cancelledId,
-        xUnits: 0.5,
-        yUnits: 0.5,
-      );
-      await deleteBeaconById(cancelledId);
-      await reloadConstellation(tester);
-      await openConstellationFilters(tester);
-      await toggleConstellationShowClosed(tester);
-      await pumpBounded(tester, frames: 12);
-      expect(
-        find.byKey(Key('constellation.text.request.$cancelledId')),
-        findsNothing,
-      );
-      final anchors = await fetchConstellationAnchors(showClosed: true);
-      expect(
-        constellationAnchorByTarget(
+    await journey(
+      'close hides Request until Show closed restores anchor',
+      () async {
+        await upsertConstellationAnchor(
+          targetKind: 'BEACON',
+          targetId: requestId,
+          xUnits: -1.25,
+          yUnits: 0.75,
+        );
+        await reloadConstellation(tester);
+        await closeBeaconForReview(requestId);
+        await reloadConstellation(tester);
+        expect(
+          find.byKey(Key('constellation.text.request.$requestId')),
+          findsNothing,
+        );
+        await openConstellationFilters(tester);
+        await toggleConstellationShowClosed(tester);
+        await pumpBounded(tester, frames: 12);
+        final anchors = await fetchConstellationAnchors(showClosed: true);
+        final closedAnchor = constellationAnchorByTarget(
           anchors,
           targetKind: 'BEACON',
+          targetId: requestId,
+        );
+        expect(closedAnchor!['xUnits'], -1.25);
+        expect(closedAnchor['yUnits'], 0.75);
+      },
+    );
+
+    await journey(
+      'cancelled Request stays absent even with Show closed',
+      () async {
+        final cancelledTitle = uniqueRequestTitle('Constellation cancelled');
+        final cancelledId = await createPublishedBeacon(title: cancelledTitle);
+        await upsertConstellationAnchor(
+          targetKind: 'BEACON',
           targetId: cancelledId,
-        ),
-        isNull,
-      );
-    });
+          xUnits: 0.5,
+          yUnits: 0.5,
+        );
+        await deleteBeaconById(cancelledId);
+        await reloadConstellation(tester);
+        await openConstellationFilters(tester);
+        await toggleConstellationShowClosed(tester);
+        await pumpBounded(tester, frames: 12);
+        expect(
+          find.byKey(Key('constellation.text.request.$cancelledId')),
+          findsNothing,
+        );
+        final anchors = await fetchConstellationAnchors(showClosed: true);
+        expect(
+          constellationAnchorByTarget(
+            anchors,
+            targetKind: 'BEACON',
+            targetId: cancelledId,
+          ),
+          isNull,
+        );
+      },
+    );
 
     await journey('participation filter toggles membership state', () async {
       await reloadConstellation(tester);
@@ -284,27 +295,30 @@ void main() {
       );
     });
 
-    await journey('authorization loss and physical deletion remove anchors', () async {
-      final lossTitle = uniqueRequestTitle('Constellation auth loss');
-      final lossId = await createPublishedBeacon(title: lossTitle);
-      await upsertConstellationAnchor(
-        targetKind: 'BEACON',
-        targetId: lossId,
-        xUnits: 1.0,
-        yUnits: -1.0,
-      );
-      await deleteBeaconById(lossId);
-      await reloadConstellation(tester);
-      final anchors = await fetchConstellationAnchors(showClosed: true);
-      expect(
-        constellationAnchorByTarget(
-          anchors,
+    await journey(
+      'authorization loss and physical deletion remove anchors',
+      () async {
+        final lossTitle = uniqueRequestTitle('Constellation auth loss');
+        final lossId = await createPublishedBeacon(title: lossTitle);
+        await upsertConstellationAnchor(
           targetKind: 'BEACON',
           targetId: lossId,
-        ),
-        isNull,
-      );
-    });
+          xUnits: 1.0,
+          yUnits: -1.0,
+        );
+        await deleteBeaconById(lossId);
+        await reloadConstellation(tester);
+        final anchors = await fetchConstellationAnchors(showClosed: true);
+        expect(
+          constellationAnchorByTarget(
+            anchors,
+            targetKind: 'BEACON',
+            targetId: lossId,
+          ),
+          isNull,
+        );
+      },
+    );
 
     await journey('cap overflow retains every seeded eligible pin', () async {
       final seeded = <String>[];

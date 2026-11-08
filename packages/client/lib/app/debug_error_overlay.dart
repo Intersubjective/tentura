@@ -3,7 +3,7 @@ import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:tentura/ui/utils/copy_text_to_clipboard.dart';
+import 'package:tentura/ui/util/copy_text_to_clipboard.dart';
 
 import 'sentry/sentry_benign_filter.dart';
 

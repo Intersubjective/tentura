@@ -21,7 +21,7 @@ import 'package:tentura/features/forward/ui/widget/beacon_invite_flow.dart';
 import 'package:tentura/features/invitation/ui/bloc/invitation_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/post_expiry_clock.dart';
+import 'package:tentura/ui/util/post_expiry_clock.dart';
 
 import '../bloc/post_view_cubit.dart';
 import '../post_remaining_label.dart';

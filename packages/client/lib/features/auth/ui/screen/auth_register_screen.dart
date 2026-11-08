@@ -7,9 +7,9 @@ import 'package:tentura/env.dart';
 import 'package:tentura/features/invitation/domain/invite_code.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/code_unit_length_formatter.dart';
-import 'package:tentura/ui/utils/string_input_validator.dart';
-import 'package:tentura/ui/utils/tentura_id_input_formatter.dart';
+import 'package:tentura/ui/util/code_unit_length_formatter.dart';
+import 'package:tentura/ui/util/string_input_validator.dart';
+import 'package:tentura/ui/util/tentura_id_input_formatter.dart';
 
 import '../bloc/auth_cubit.dart';
 import '../bloc/register_invite_cubit.dart';

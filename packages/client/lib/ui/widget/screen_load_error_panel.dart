@@ -14,7 +14,7 @@ import 'package:tentura/domain/exception/parallel_wait_failure.dart';
 import 'package:tentura/domain/exception/server_exception.dart';
 import 'package:tentura/features/auth/domain/exception.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/copy_text_to_clipboard.dart';
+import 'package:tentura/ui/util/copy_text_to_clipboard.dart';
 
 enum ScreenLoadErrorKind {
   /// Offline, or the request timed out (including a timeout wrapped by a

@@ -10,7 +10,7 @@ import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 
 import '../l10n/l10n.dart';
 import '../message/action_message_base.dart';
-import '../utils/ui_utils.dart';
+import '../util/ui_utils.dart';
 import 'ui_effect.dart';
 
 /// Executes a [UiEffect] using the given [BuildContext] (root adapter).

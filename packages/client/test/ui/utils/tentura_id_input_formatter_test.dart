@@ -1,7 +1,7 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:tentura/ui/utils/tentura_id_input_formatter.dart';
+import 'package:tentura/ui/util/tentura_id_input_formatter.dart';
 
 void main() {
   const empty = TextEditingValue();
@@ -9,9 +9,9 @@ void main() {
   const entityFormatter = EntityIdInputFormatter();
 
   TextEditingValue paste(String text) => inviteFormatter.formatEditUpdate(
-        empty,
-        TextEditingValue(text: text),
-      );
+    empty,
+    TextEditingValue(text: text),
+  );
 
   group('InviteCodeInputFormatter', () {
     test('ctrl-v full invite URL becomes bare code', () {

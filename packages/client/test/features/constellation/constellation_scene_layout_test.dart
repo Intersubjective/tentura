@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
@@ -8,8 +7,8 @@ import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/graph/domain/entity/edge_details.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
-import 'package:tentura/features/graph/ui/utils/graph_scene_ids.dart';
-import 'package:tentura/features/graph/ui/utils/tentura_layout_algorithms.dart';
+import 'package:tentura/features/graph/ui/util/graph_scene_ids.dart';
+import 'package:tentura/features/graph/ui/util/tentura_layout_algorithms.dart';
 
 import '../graph/scene_layout_test_support.dart';
 
@@ -128,7 +127,10 @@ void main() {
         previous: previous,
         canvasSize: const Size(4200, 4200),
       );
-      expect(second[tenturaGraphNodeId(refreshedPeer)], first[tenturaGraphNodeId(peerNode)]);
+      expect(
+        second[tenturaGraphNodeId(refreshedPeer)],
+        first[tenturaGraphNodeId(peerNode)],
+      );
     });
 
     test('forgetPriorHintNodeIds participates in equality', () {
@@ -236,8 +238,7 @@ void main() {
         final ego = baseline[tenturaGraphNodeId(egoNode)]!;
         final baselineRequest = baseline[tenturaGraphNodeId(requestNode)]!;
         expect(
-          (Offset(baselineRequest.x, baselineRequest.y) -
-                  Offset(ego.x, ego.y))
+          (Offset(baselineRequest.x, baselineRequest.y) - Offset(ego.x, ego.y))
               .distance,
           greaterThan(40),
           reason: 'baseline auto-layout must not seat request on ego',
@@ -245,8 +246,7 @@ void main() {
         final centreSeed = ScenePoint(x: ego.x, y: ego.y);
         final previous = sceneLayoutFromPositions({
           tenturaGraphNodeId(egoNode): ego,
-          tenturaGraphNodeId(peerNode):
-              baseline[tenturaGraphNodeId(peerNode)]!,
+          tenturaGraphNodeId(peerNode): baseline[tenturaGraphNodeId(peerNode)]!,
           tenturaGraphNodeId(requestNode): centreSeed,
         });
         final positions = await layoutPositionsOnce(
@@ -377,9 +377,10 @@ void main() {
         requestLayout: false,
         layoutOnTopologyChange: false,
       );
-      final peer = controller.nodes.singleWhere((n) => n.id == 'peer-a') as FieldPersonNode;
+      final peer =
+          controller.nodes.singleWhere((n) => n.id == 'peer-a')
+              as FieldPersonNode;
       expect(peer.person.displayName, 'Renamed');
     });
   });
-
 }

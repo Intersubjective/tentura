@@ -5,7 +5,7 @@ import 'package:tentura_root/domain/plan/plan.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/util/ui_utils.dart';
 import 'package:tentura/ui/widget/focus_flash_highlight.dart';
 
 import '../../domain/use_case/beacon_plan_case.dart';

@@ -40,7 +40,7 @@ import 'package:tentura/features/profile/ui/widget/profile_body.dart';
 import 'package:tentura/features/updates/domain/use_case/invite_accepted_setup_case.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/availability_line.dart';
+import 'package:tentura/ui/util/availability_line.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import '../../support/test_realtime_sync.dart';

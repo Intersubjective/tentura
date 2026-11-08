@@ -8,7 +8,7 @@ import 'package:tentura/features/friends/domain/entity/person_list_meta.dart';
 import 'package:tentura/features/friends/domain/people_list_order.dart';
 import 'package:tentura/features/friends/ui/people_new_subtitle.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/relative_time.dart';
+import 'package:tentura/ui/util/relative_time.dart';
 import 'package:tentura/ui/widget/relative_timestamp_ticker.dart';
 
 /// Trusted-people rows in #912 order: optional «New» section, then by activity.

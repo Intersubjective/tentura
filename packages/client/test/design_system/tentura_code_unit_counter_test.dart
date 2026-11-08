@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
-import 'package:tentura/ui/utils/code_unit_length_formatter.dart';
+import 'package:tentura/ui/util/code_unit_length_formatter.dart';
 
 // #603: the counter shared by the title fields that cap in code units. The
 // sign-up and Edit profile screens need the app's DI to pump, so their field

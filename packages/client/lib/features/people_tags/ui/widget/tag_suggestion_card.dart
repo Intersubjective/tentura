@@ -9,7 +9,7 @@ import 'package:tentura/features/people_tags/domain/entity/people_tags_entities.
 import 'package:tentura/features/people_tags/domain/use_case/people_tag_suggestion_case.dart';
 import 'package:tentura/features/people_tags/domain/use_case/people_tags_case.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/util/ui_utils.dart';
 
 /// "Tag them?": offers to put [personIds] into one of the own tags. Shown
 /// once per [event] and only when the server allows suggestions; Not now and

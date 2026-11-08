@@ -7,7 +7,7 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/capability/capability_tag.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/capability_tag_presenter.dart';
+import 'package:tentura/ui/util/capability_tag_presenter.dart';
 
 // --- Semantic colors (on neutral [ColorScheme.surface] / body text) ------------
 //
@@ -28,13 +28,12 @@ import 'package:tentura/ui/utils/capability_tag_presenter.dart';
 // [coordinationResponseInkColor] on neutral surfaces.
 // ----------------------------------------------------------------------------
 
-String coordinationStatusLabel(L10n l10n, BeaconStatus s) =>
-    switch (s) {
-      BeaconStatus.open => l10n.coordinationNeutral,
-      BeaconStatus.needsMoreHelp => l10n.coordinationMoreHelpNeeded,
-      BeaconStatus.enoughHelp => l10n.coordinationEnoughHelp,
-      _ => l10n.coordinationNeutral,
-    };
+String coordinationStatusLabel(L10n l10n, BeaconStatus s) => switch (s) {
+  BeaconStatus.open => l10n.coordinationNeutral,
+  BeaconStatus.needsMoreHelp => l10n.coordinationMoreHelpNeeded,
+  BeaconStatus.enoughHelp => l10n.coordinationEnoughHelp,
+  _ => l10n.coordinationNeutral,
+};
 
 String? coordinationResponseLabel(L10n l10n, CoordinationResponseType? r) {
   if (r == null) return null;
@@ -45,98 +44,96 @@ String? coordinationResponseLabel(L10n l10n, CoordinationResponseType? r) {
       l10n.coordinationNeedDifferentSkill,
     CoordinationResponseType.needCoordination =>
       l10n.coordinationNeedCoordination,
-      CoordinationResponseType.notSuitable => l10n.coordinationNotSuitable,
+    CoordinationResponseType.notSuitable => l10n.coordinationNotSuitable,
   };
 }
 
 /// Ink on neutral card/sheet surfaces (People tab footer, picker rows).
-Color coordinationResponseInkColor(TenturaTokens tt, CoordinationResponseType r) =>
-    switch (r) {
-      CoordinationResponseType.useful => tt.good,
-      CoordinationResponseType.overlapping => tt.info,
-      CoordinationResponseType.needCoordination => tt.warn,
-      CoordinationResponseType.needDifferentSkill => tt.warn,
-      CoordinationResponseType.notSuitable => tt.textMuted,
-    };
+Color coordinationResponseInkColor(
+  TenturaTokens tt,
+  CoordinationResponseType r,
+) => switch (r) {
+  CoordinationResponseType.useful => tt.good,
+  CoordinationResponseType.overlapping => tt.info,
+  CoordinationResponseType.needCoordination => tt.warn,
+  CoordinationResponseType.needDifferentSkill => tt.warn,
+  CoordinationResponseType.notSuitable => tt.textMuted,
+};
 
 Color coordinationStatusOnSurfaceColor(
   ColorScheme scheme,
   BeaconStatus s,
-) =>
-    switch (s) {
-      BeaconStatus.open => scheme.onSurfaceVariant,
-      BeaconStatus.needsMoreHelp => scheme.error,
-      BeaconStatus.enoughHelp => scheme.tertiary,
-      _ => scheme.onSurfaceVariant,
-    };
+) => switch (s) {
+  BeaconStatus.open => scheme.onSurfaceVariant,
+  BeaconStatus.needsMoreHelp => scheme.error,
+  BeaconStatus.enoughHelp => scheme.tertiary,
+  _ => scheme.onSurfaceVariant,
+};
 
 Color coordinationResponseOnSurfaceColor(
   ColorScheme scheme,
   CoordinationResponseType r,
-) =>
-    switch (r) {
-      CoordinationResponseType.useful => scheme.tertiary,
-      CoordinationResponseType.overlapping => scheme.secondary,
-      CoordinationResponseType.needDifferentSkill => scheme.onSurfaceVariant,
-      CoordinationResponseType.needCoordination => scheme.onSurfaceVariant,
-      CoordinationResponseType.notSuitable => scheme.onSurfaceVariant,
-    };
+) => switch (r) {
+  CoordinationResponseType.useful => scheme.tertiary,
+  CoordinationResponseType.overlapping => scheme.secondary,
+  CoordinationResponseType.needDifferentSkill => scheme.onSurfaceVariant,
+  CoordinationResponseType.needCoordination => scheme.onSurfaceVariant,
+  CoordinationResponseType.notSuitable => scheme.onSurfaceVariant,
+};
 
 /// Tinted pill fill; pair with [coordinationResponseInkColor] for label ink.
 ({Color bg, Color fg}) coordinationResponsePillColor(
   TenturaTokens tt,
   CoordinationResponseType r,
-) =>
-    switch (r) {
-      CoordinationResponseType.useful => (
-          bg: tt.good.withValues(alpha: 0.12),
-          fg: tt.good,
-        ),
-      CoordinationResponseType.overlapping => (
-          bg: tt.info.withValues(alpha: 0.12),
-          fg: tt.info,
-        ),
-      CoordinationResponseType.needDifferentSkill => (
-          bg: tt.warn.withValues(alpha: 0.12),
-          fg: tt.warn,
-        ),
-      CoordinationResponseType.needCoordination => (
-          bg: tt.warn.withValues(alpha: 0.12),
-          fg: tt.warn,
-        ),
-      CoordinationResponseType.notSuitable => (
-          bg: tt.borderSubtle,
-          fg: tt.textMuted,
-        ),
-    };
+) => switch (r) {
+  CoordinationResponseType.useful => (
+    bg: tt.good.withValues(alpha: 0.12),
+    fg: tt.good,
+  ),
+  CoordinationResponseType.overlapping => (
+    bg: tt.info.withValues(alpha: 0.12),
+    fg: tt.info,
+  ),
+  CoordinationResponseType.needDifferentSkill => (
+    bg: tt.warn.withValues(alpha: 0.12),
+    fg: tt.warn,
+  ),
+  CoordinationResponseType.needCoordination => (
+    bg: tt.warn.withValues(alpha: 0.12),
+    fg: tt.warn,
+  ),
+  CoordinationResponseType.notSuitable => (
+    bg: tt.borderSubtle,
+    fg: tt.textMuted,
+  ),
+};
 
 /// Tinted pill fill using [ColorScheme] containers (legacy).
 ({Color bg, Color fg}) coordinationResponseColor(
   ColorScheme scheme,
   CoordinationResponseType r,
-) =>
-    switch (r) {
-      CoordinationResponseType.useful => (
-          bg: scheme.tertiaryContainer,
-          fg: scheme.onTertiaryContainer,
-        ),
-      CoordinationResponseType.overlapping => (
-          bg: scheme.secondaryContainer,
-          fg: scheme.onSecondaryContainer,
-        ),
-      CoordinationResponseType.needDifferentSkill => (
-          bg: scheme.surfaceContainerHighest,
-          fg: scheme.onSurfaceVariant,
-        ),
-      CoordinationResponseType.needCoordination => (
-          bg: scheme.surfaceContainerHighest,
-          fg: scheme.onSurfaceVariant,
-        ),
-      CoordinationResponseType.notSuitable => (
-          bg: scheme.surfaceContainerHighest,
-          fg: scheme.onSurfaceVariant,
-        ),
-    };
+) => switch (r) {
+  CoordinationResponseType.useful => (
+    bg: scheme.tertiaryContainer,
+    fg: scheme.onTertiaryContainer,
+  ),
+  CoordinationResponseType.overlapping => (
+    bg: scheme.secondaryContainer,
+    fg: scheme.onSecondaryContainer,
+  ),
+  CoordinationResponseType.needDifferentSkill => (
+    bg: scheme.surfaceContainerHighest,
+    fg: scheme.onSurfaceVariant,
+  ),
+  CoordinationResponseType.needCoordination => (
+    bg: scheme.surfaceContainerHighest,
+    fg: scheme.onSurfaceVariant,
+  ),
+  CoordinationResponseType.notSuitable => (
+    bg: scheme.surfaceContainerHighest,
+    fg: scheme.onSurfaceVariant,
+  ),
+};
 
 /// Parses `beacon_help_offers.help_type`: a single slug, or JSON array (server
 /// stores jsonEncode of selected slugs; see server HelpOfferRepository).

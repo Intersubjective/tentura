@@ -5,7 +5,7 @@ import 'package:tentura_root/domain/constellation/constellation_path_resolution.
 import 'package:tentura/domain/scheduling/adaptive_slice_controller.dart';
 import 'package:tentura/features/constellation/ui/scene/constellation_scene_controller.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
-import 'package:tentura/ui/utils/frame_slice_scheduler.dart';
+import 'package:tentura/ui/util/frame_slice_scheduler.dart';
 
 import '../../support/fake_clock_port.dart';
 import '../../support/fake_wake_up_port.dart';
@@ -28,23 +28,24 @@ void main() {
     late SceneLayoutAlgorithm algorithm;
 
     setUp(() {
-      scene = ConstellationSceneController(
-        slicer: FrameSliceScheduler(
-          clock: FakeClockPort(),
-          wakeUpPort: FakeWakeUpPort(),
-          controller: AdaptiveSliceController(
-            initialUnitCost: const Duration(microseconds: 100),
-          ),
-        ),
-      )
-        ..layoutEgoId = 'a'
-        ..layoutKeptPeerIds = const {'b'}
-        ..layoutPaths = resolveConstellationPaths(
-          egoId: 'a',
-          visiblePeerIds: const {'b'},
-          holderIds: const {'a', 'b'},
-          edges: const [],
-        );
+      scene =
+          ConstellationSceneController(
+              slicer: FrameSliceScheduler(
+                clock: FakeClockPort(),
+                wakeUpPort: FakeWakeUpPort(),
+                controller: AdaptiveSliceController(
+                  initialUnitCost: const Duration(microseconds: 100),
+                ),
+              ),
+            )
+            ..layoutEgoId = 'a'
+            ..layoutKeptPeerIds = const {'b'}
+            ..layoutPaths = resolveConstellationPaths(
+              egoId: 'a',
+              visiblePeerIds: const {'b'},
+              holderIds: const {'a', 'b'},
+              edges: const [],
+            );
       addTearDown(scene.graphController.dispose);
       algorithm = scene.layoutAlgorithm(
         graphRevision: 1,
@@ -61,9 +62,7 @@ void main() {
     testWidgets('completion publishes the layout result', (tester) async {
       final frames = <GraphLayoutFrame>[];
       var done = false;
-      algorithm
-          .layout(request())
-          .listen(frames.add, onDone: () => done = true);
+      algorithm.layout(request()).listen(frames.add, onDone: () => done = true);
 
       for (var i = 0; i < 20 && !done; i++) {
         await tester.pump(const Duration(milliseconds: 16));

@@ -17,7 +17,7 @@ import 'package:tentura/features/forward/ui/bloc/person_forward_cubit.dart';
 import 'package:tentura/features/forward/ui/screen/person_forward_screen.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/util/ui_utils.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../../ui/snack_bar_clearance_support.dart';

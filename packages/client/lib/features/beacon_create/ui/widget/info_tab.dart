@@ -9,9 +9,9 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_schedule.dart';
 import 'package:tentura/domain/entity/coordinates.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/code_unit_length_formatter.dart';
-import 'package:tentura/ui/utils/schedule_date_format.dart';
-import 'package:tentura/ui/utils/string_input_validator.dart';
+import 'package:tentura/ui/util/code_unit_length_formatter.dart';
+import 'package:tentura/ui/util/schedule_date_format.dart';
+import 'package:tentura/ui/util/string_input_validator.dart';
 import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/widget/unfocus_sheet_body.dart';
 import 'package:tentura/features/beacon/ui/widget/beacon_discoverability_control.dart';
@@ -22,7 +22,7 @@ import 'package:tentura/features/geo/ui/dialog/choose_location_dialog.dart';
 
 import 'package:tentura_root/domain/entity/beacon_cover_source.dart';
 import 'package:tentura/domain/capability/capability_tag.dart';
-import 'package:tentura/ui/utils/capability_tag_presenter.dart';
+import 'package:tentura/ui/util/capability_tag_presenter.dart';
 
 import '../bloc/beacon_create_cubit.dart';
 import 'cover_block.dart';

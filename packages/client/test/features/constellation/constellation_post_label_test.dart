@@ -5,8 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
-import 'package:tentura/features/constellation/ui/utils/constellation_presentation_frame.dart';
-import 'package:tentura/features/constellation/ui/utils/constellation_tap_resolver.dart';
+import 'package:tentura/features/constellation/ui/util/constellation_presentation_frame.dart';
+import 'package:tentura/features/constellation/ui/util/constellation_tap_resolver.dart';
 
 import 'fixtures/constellation_reference_fixture.dart';
 
@@ -18,25 +18,24 @@ const _longExcerpt =
 ConstellationField _fieldWithPosts(
   Map<String, String> excerptByPostId, {
   DateTime? expiresAt,
-}) =>
-    ConstellationField(
-      loadedAt: DateTime.utc(2026, 10, 28),
-      context: '',
-      peers: [const ConstellationPerson(id: 'a', displayName: 'Ann')],
-      edges: [
-        const ConstellationTrustEdgeEntity(src: 'ego', dst: 'a', tier: 1),
-      ],
-      posts: [
-        for (final entry in excerptByPostId.entries)
-          ConstellationPost(
-            id: entry.key,
-            authorId: 'a',
-            rootExcerpt: entry.value,
-            lastActivityAt: DateTime.utc(2026, 10, 28),
-            expiresAt: expiresAt,
-          ),
-      ],
-    );
+}) => ConstellationField(
+  loadedAt: DateTime.utc(2026, 10, 28),
+  context: '',
+  peers: [const ConstellationPerson(id: 'a', displayName: 'Ann')],
+  edges: [
+    const ConstellationTrustEdgeEntity(src: 'ego', dst: 'a', tier: 1),
+  ],
+  posts: [
+    for (final entry in excerptByPostId.entries)
+      ConstellationPost(
+        id: entry.key,
+        authorId: 'a',
+        rootExcerpt: entry.value,
+        lastActivityAt: DateTime.utc(2026, 10, 28),
+        expiresAt: expiresAt,
+      ),
+  ],
+);
 
 void main() {
   group('Constellation post labels at the closest detail level', () {

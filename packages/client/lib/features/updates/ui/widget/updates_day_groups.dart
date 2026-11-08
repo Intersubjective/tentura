@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/schedule_date_format.dart';
+import 'package:tentura/ui/util/schedule_date_format.dart';
 
 /// Groups [items] by local calendar day, preserving feed order.
 List<(DateTime day, List<AttentionReceipt> items)> groupUpdatesByLocalDay(
@@ -22,7 +22,9 @@ List<(DateTime day, List<AttentionReceipt> items)> groupUpdatesByLocalDay(
       existing.add(item);
     }
   }
-  return [for (final day in order) (day, List<AttentionReceipt>.from(groups[day]!))];
+  return [
+    for (final day in order) (day, List<AttentionReceipt>.from(groups[day]!)),
+  ];
 }
 
 enum UpdatesFeedCellKind { header, row, loadMore }

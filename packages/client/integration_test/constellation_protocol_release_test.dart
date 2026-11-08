@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_state.dart';
-import 'package:tentura/features/constellation/ui/utils/constellation_graph_scene.dart';
+import 'package:tentura/features/constellation/ui/util/constellation_graph_scene.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_placement_marker.dart';
 import 'package:tentura/features/like/data/gql/_g/like_user_by_id.req.gql.dart';
 import 'package:tentura/main.dart' as app;

@@ -12,7 +12,7 @@ import 'package:tentura/app/router/home_tab_branches.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/home/ui/widget/home_rail_frame.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/util/ui_utils.dart';
 
 const _helpOffered = 'Help offered';
 const _busy = 'Busy right now. Try again in a few seconds.';

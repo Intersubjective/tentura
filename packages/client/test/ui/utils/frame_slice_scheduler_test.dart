@@ -1,12 +1,12 @@
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura/domain/scheduling/adaptive_slice_controller.dart';
-import 'package:tentura/ui/utils/frame_slice_scheduler.dart';
+import 'package:tentura/ui/util/frame_slice_scheduler.dart';
 
 import '../../support/fake_clock_port.dart';
 import '../../support/fake_wake_up_port.dart';
 
-// Contract under test (lib/ui/utils/frame_slice_scheduler.dart):
+// Contract under test (lib/ui/util/frame_slice_scheduler.dart):
 //
 //   FrameSliceScheduler({
 //     required ClockPort clock,          // deadline measurement
@@ -45,7 +45,11 @@ void main() {
     bool Function(int) stepper({required int totalUnits}) {
       var done = 0;
       return (units) {
-        expectSync(units, 1, reason: 'the deadline is checked after every unit');
+        expectSync(
+          units,
+          1,
+          reason: 'the deadline is checked after every unit',
+        );
         stepFrames.add(frameIndex);
         clock.advance(_unitCost);
         done += units;

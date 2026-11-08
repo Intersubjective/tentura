@@ -8,7 +8,7 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/room_message_attachment.dart';
 
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/util/ui_utils.dart';
 
 /// Inline PageView height for multi-image room messages, keyed to window class.
 double roomMessageInlineImageAlbumHeight(BuildContext context) =>

@@ -14,40 +14,43 @@ import 'package:tentura/features/home/ui/widget/home_rail_frame.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/util/ui_utils.dart';
 
 import '../../../../ui/effect/fake_ui_effect_port.dart';
 
 void main() {
   group('BlockUserSheetBody C3', () {
-    testWidgets('cascade switch off by default; on always sends mode 1 and re-fetches', (
-      tester,
-    ) async {
-      final fakeCase = FakeBlockCase()
-        ..previewResults = [
-          const BlockPreview(),
-          const BlockPreview(cascadeCandidateCount: 3),
-        ];
+    testWidgets(
+      'cascade switch off by default; on always sends mode 1 and re-fetches',
+      (
+        tester,
+      ) async {
+        final fakeCase = FakeBlockCase()
+          ..previewResults = [
+            const BlockPreview(),
+            const BlockPreview(cascadeCandidateCount: 3),
+          ];
 
-      await pumpBlockUserSheet(tester, fakeCase: fakeCase);
+        await pumpBlockUserSheet(tester, fakeCase: fakeCase);
 
-      final l10n = lookupL10n(const Locale('en'));
-      final switchFinder = find.byKey(const Key('block_cascade_switch'));
-      expect(tester.widget<SwitchListTile>(switchFinder).value, isFalse);
-      expect(fakeCase.previewCalls, [0]);
+        final l10n = lookupL10n(const Locale('en'));
+        final switchFinder = find.byKey(const Key('block_cascade_switch'));
+        expect(tester.widget<SwitchListTile>(switchFinder).value, isFalse);
+        expect(fakeCase.previewCalls, [0]);
 
-      await tester.tap(switchFinder);
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
-      await tester.pumpAndSettle();
+        await tester.tap(switchFinder);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+        await tester.pumpAndSettle();
 
-      expect(tester.widget<SwitchListTile>(switchFinder).value, isTrue);
-      expect(fakeCase.previewCalls, [0, 1]);
-      expect(
-        find.text(l10n.blockPreviewCascade(3)),
-        findsOneWidget,
-      );
-    });
+        expect(tester.widget<SwitchListTile>(switchFinder).value, isTrue);
+        expect(fakeCase.previewCalls, [0, 1]);
+        expect(
+          find.text(l10n.blockPreviewCascade(3)),
+          findsOneWidget,
+        );
+      },
+    );
   });
 
   group('BlockUserSheetBody C4', () {
@@ -110,7 +113,10 @@ void main() {
       final l10n = lookupL10n(const Locale('en'));
       expect(find.text(l10n.blockPreviewOpenCommitments), findsOneWidget);
       expect(find.byIcon(Icons.warning_amber_outlined), findsOneWidget);
-      expect(find.byKey(const Key('block_open_commitment_warning')), findsOneWidget);
+      expect(
+        find.byKey(const Key('block_open_commitment_warning')),
+        findsOneWidget,
+      );
     });
 
     testWidgets('open-commitment warning absent when count is 0', (
@@ -130,81 +136,89 @@ void main() {
   });
 
   group('BlockUserSheetBody P4', () {
-    testWidgets('cascade preview shows capped copy when cascadeCapped is true', (
-      tester,
-    ) async {
-      final fakeCase = FakeBlockCase()
-        ..previewResults = [
-          const BlockPreview(),
-          const BlockPreview(
-            cascadeCandidateCount: 5000,
-            cascadeCapped: true,
-          ),
-        ];
+    testWidgets(
+      'cascade preview shows capped copy when cascadeCapped is true',
+      (
+        tester,
+      ) async {
+        final fakeCase = FakeBlockCase()
+          ..previewResults = [
+            const BlockPreview(),
+            const BlockPreview(
+              cascadeCandidateCount: 5000,
+              cascadeCapped: true,
+            ),
+          ];
 
-      await pumpBlockUserSheet(tester, fakeCase: fakeCase);
+        await pumpBlockUserSheet(tester, fakeCase: fakeCase);
 
-      final l10n = lookupL10n(const Locale('en'));
-      final switchFinder = find.byKey(const Key('block_cascade_switch'));
+        final l10n = lookupL10n(const Locale('en'));
+        final switchFinder = find.byKey(const Key('block_cascade_switch'));
 
-      await tester.tap(switchFinder);
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
-      await tester.pumpAndSettle();
+        await tester.tap(switchFinder);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+        await tester.pumpAndSettle();
 
-      expect(
-        find.text(l10n.blockPreviewCascadeCapped(5000)),
-        findsOneWidget,
-      );
-      expect(find.text(l10n.blockPreviewCascade(5000)), findsNothing);
-    });
+        expect(
+          find.text(l10n.blockPreviewCascadeCapped(5000)),
+          findsOneWidget,
+        );
+        expect(find.text(l10n.blockPreviewCascade(5000)), findsNothing);
+      },
+    );
 
-    testWidgets('cascade preview shows uncapped copy when cascadeCapped is false', (
-      tester,
-    ) async {
-      final fakeCase = FakeBlockCase()
-        ..previewResults = [
-          const BlockPreview(),
-          const BlockPreview(cascadeCandidateCount: 3, cascadeCapped: false),
-        ];
+    testWidgets(
+      'cascade preview shows uncapped copy when cascadeCapped is false',
+      (
+        tester,
+      ) async {
+        final fakeCase = FakeBlockCase()
+          ..previewResults = [
+            const BlockPreview(),
+            const BlockPreview(cascadeCandidateCount: 3, cascadeCapped: false),
+          ];
 
-      await pumpBlockUserSheet(tester, fakeCase: fakeCase);
+        await pumpBlockUserSheet(tester, fakeCase: fakeCase);
 
-      final l10n = lookupL10n(const Locale('en'));
-      final switchFinder = find.byKey(const Key('block_cascade_switch'));
+        final l10n = lookupL10n(const Locale('en'));
+        final switchFinder = find.byKey(const Key('block_cascade_switch'));
 
-      await tester.tap(switchFinder);
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
-      await tester.pumpAndSettle();
+        await tester.tap(switchFinder);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+        await tester.pumpAndSettle();
 
-      expect(find.text(l10n.blockPreviewCascade(3)), findsOneWidget);
-      expect(find.text(l10n.blockPreviewCascadeCapped(3)), findsNothing);
-    });
+        expect(find.text(l10n.blockPreviewCascade(3)), findsOneWidget);
+        expect(find.text(l10n.blockPreviewCascadeCapped(3)), findsNothing);
+      },
+    );
   });
 
   group('BlockUserSheetBody P3.1', () {
-    testWidgets('successful block shows confirmation snackbar with manage action', (
-      tester,
-    ) async {
-      final fakeCase = FakeBlockCase()
-        ..previewResults = [const BlockPreview()];
+    testWidgets(
+      'successful block shows confirmation snackbar with manage action',
+      (
+        tester,
+      ) async {
+        final fakeCase = FakeBlockCase()
+          ..previewResults = [const BlockPreview()];
 
-      await pumpBlockUserSheet(tester, fakeCase: fakeCase);
-      final l10n = lookupL10n(const Locale('en'));
+        await pumpBlockUserSheet(tester, fakeCase: fakeCase);
+        final l10n = lookupL10n(const Locale('en'));
 
-      await tester.tap(find.byKey(const Key('block_confirm_button')));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
+        await tester.tap(find.byKey(const Key('block_confirm_button')));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
 
-      expect(find.byType(SnackBar), findsOneWidget);
-      expect(find.text(l10n.blockManageAction), findsOneWidget);
-      expect(fakeCase.blockCalls, [0]);
-    });
+        expect(find.byType(SnackBar), findsOneWidget);
+        expect(find.text(l10n.blockManageAction), findsOneWidget);
+        expect(fakeCase.blockCalls, [0]);
+      },
+    );
 
     testWidgets('manage action emits NavigateBlockedUsers', (tester) async {
-      final fakeCase = FakeBlockCase()
-        ..previewResults = [const BlockPreview()];
+      final fakeCase = FakeBlockCase()..previewResults = [const BlockPreview()];
       final effects = FakeUiEffectPort();
       final screenCubit = ScreenCubit.local(effects);
       final getIt = GetIt.instance;

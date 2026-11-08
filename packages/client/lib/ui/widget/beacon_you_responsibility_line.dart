@@ -7,8 +7,8 @@ import 'package:tentura/domain/entity/beacon_coordination_phase.dart';
 import 'package:tentura/domain/entity/coordination_responsibility.dart';
 import 'package:tentura/domain/entity/open_blocker_cue.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/beacon_you_presentation.dart';
-import 'package:tentura/ui/utils/duration_format.dart';
+import 'package:tentura/ui/util/beacon_you_presentation.dart';
+import 'package:tentura/ui/util/duration_format.dart';
 
 /// YOU responsibility body for metadata table rows (no lead icon).
 class BeaconYouResponsibilityLine extends StatelessWidget {

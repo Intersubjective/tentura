@@ -8,7 +8,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 /// Shared coordination-item presentation (colors, icons, compound glyphs).
 ///
 /// Lives in `ui/widget` (not in a single feature) so every feature and
-/// `ui/utils` depends inward on one stable interface-adapter module. Maps the
+/// `ui/util` depends inward on one stable interface-adapter module. Maps the
 /// pure domain enums ([CoordinationItemKind] / [CoordinationItemStatus] /
 /// [CoordinationItemEventKind]) onto Flutter `Color` / `IconData` / `Widget`.
 
@@ -46,13 +46,22 @@ Color coordinationItemEventColor(
   CoordinationItemEventKind eventKind,
 ) {
   return switch (eventKind) {
-    CoordinationItemEventKind.resolved =>
-      coordinationItemColor(tt, kind, CoordinationItemStatus.resolved),
+    CoordinationItemEventKind.resolved => coordinationItemColor(
+      tt,
+      kind,
+      CoordinationItemStatus.resolved,
+    ),
     CoordinationItemEventKind.cancelled ||
-    CoordinationItemEventKind.superseded =>
-      coordinationItemColor(tt, kind, CoordinationItemStatus.cancelled),
-    CoordinationItemEventKind.accepted =>
-      coordinationItemColor(tt, kind, CoordinationItemStatus.accepted),
+    CoordinationItemEventKind.superseded => coordinationItemColor(
+      tt,
+      kind,
+      CoordinationItemStatus.cancelled,
+    ),
+    CoordinationItemEventKind.accepted => coordinationItemColor(
+      tt,
+      kind,
+      CoordinationItemStatus.accepted,
+    ),
     _ => coordinationItemColor(tt, kind, CoordinationItemStatus.open),
   };
 }
@@ -63,14 +72,12 @@ Color coordinationItemEventColor(
 IconData coordinationKindIcon(
   CoordinationItemKind kind, {
   bool isPlanStep = false,
-}) =>
-    switch (kind) {
-      CoordinationItemKind.blocker => Icons.block,
-      CoordinationItemKind.ask => Icons.help_outline,
-      CoordinationItemKind.promise => Icons.front_hand_outlined,
-      CoordinationItemKind.plan =>
-        isPlanStep ? Icons.checklist : Icons.edit_note,
-    };
+}) => switch (kind) {
+  CoordinationItemKind.blocker => Icons.block,
+  CoordinationItemKind.ask => Icons.help_outline,
+  CoordinationItemKind.promise => Icons.front_hand_outlined,
+  CoordinationItemKind.plan => isPlanStep ? Icons.checklist : Icons.edit_note,
+};
 
 /// Slot 2: state-change glyph for a current status; `null` for `open`
 /// (kind glyph stands alone). `check_circle` (green) appears only for
@@ -89,8 +96,7 @@ IconData? coordinationStateIcon(CoordinationItemStatus status) =>
 IconData? coordinationEventStateIcon(CoordinationItemEventKind eventKind) =>
     switch (eventKind) {
       CoordinationItemEventKind.created ||
-      CoordinationItemEventKind.updated =>
-        null,
+      CoordinationItemEventKind.updated => null,
       CoordinationItemEventKind.accepted => Icons.thumb_up_alt_outlined,
       CoordinationItemEventKind.resolved => Icons.check_circle,
       CoordinationItemEventKind.cancelled => Icons.cancel_outlined,
@@ -129,13 +135,12 @@ Widget coordinationCompoundStatusIcon({
   required TenturaTokens tt,
   bool isPlanStep = false,
   double size = kCoordinationCompoundIconSize,
-}) =>
-    _coordinationCompound(
-      kindIcon: coordinationKindIcon(kind, isPlanStep: isPlanStep),
-      stateIcon: coordinationStateIcon(status),
-      accent: coordinationItemColor(tt, kind, status),
-      size: size,
-    );
+}) => _coordinationCompound(
+  kindIcon: coordinationKindIcon(kind, isPlanStep: isPlanStep),
+  stateIcon: coordinationStateIcon(status),
+  accent: coordinationItemColor(tt, kind, status),
+  size: size,
+);
 
 /// Compound for a lifecycle event (room timeline). [accentOverride] lets the
 /// caller substitute the thread-mark accent for thread-entry kinds.
@@ -146,13 +151,12 @@ Widget coordinationCompoundEventIcon({
   bool isPlanStep = false,
   double size = kCoordinationCompoundIconSize,
   Color? accentOverride,
-}) =>
-    _coordinationCompound(
-      kindIcon: coordinationKindIcon(kind, isPlanStep: isPlanStep),
-      stateIcon: coordinationEventStateIcon(eventKind),
-      accent: accentOverride ?? coordinationItemEventColor(tt, kind, eventKind),
-      size: size,
-    );
+}) => _coordinationCompound(
+  kindIcon: coordinationKindIcon(kind, isPlanStep: isPlanStep),
+  stateIcon: coordinationEventStateIcon(eventKind),
+  accent: accentOverride ?? coordinationItemEventColor(tt, kind, eventKind),
+  size: size,
+);
 
 /// Compound for an activity-log event; returns `null` for non-coordination
 /// events so the caller can fall back to a single `beaconActivityLogIcon`.
@@ -182,48 +186,46 @@ String coordinationEventTimelineLabel(
 }) {
   return switch (kind) {
     CoordinationItemKind.ask => switch (eventKind) {
-        CoordinationItemEventKind.created =>
-          l10n.coordinationSemanticAskOpened,
-        CoordinationItemEventKind.accepted =>
-          l10n.coordinationSemanticAskAccepted,
-        CoordinationItemEventKind.resolved =>
-          l10n.coordinationSemanticAskResolved,
-        CoordinationItemEventKind.cancelled =>
-          l10n.coordinationSemanticAskCancelled,
-        _ => l10n.coordinationAskCardLabel,
-      },
+      CoordinationItemEventKind.created => l10n.coordinationSemanticAskOpened,
+      CoordinationItemEventKind.accepted =>
+        l10n.coordinationSemanticAskAccepted,
+      CoordinationItemEventKind.resolved =>
+        l10n.coordinationSemanticAskResolved,
+      CoordinationItemEventKind.cancelled =>
+        l10n.coordinationSemanticAskCancelled,
+      _ => l10n.coordinationAskCardLabel,
+    },
     CoordinationItemKind.promise => switch (eventKind) {
-        CoordinationItemEventKind.created =>
-          l10n.coordinationSemanticPromiseOpened,
-        CoordinationItemEventKind.accepted =>
-          l10n.coordinationSemanticPromiseAccepted,
-        CoordinationItemEventKind.resolved =>
-          l10n.coordinationSemanticPromiseResolved,
-        CoordinationItemEventKind.cancelled =>
-          l10n.coordinationSemanticPromiseCancelled,
-        _ => l10n.coordinationPromiseCardLabel,
-      },
+      CoordinationItemEventKind.created =>
+        l10n.coordinationSemanticPromiseOpened,
+      CoordinationItemEventKind.accepted =>
+        l10n.coordinationSemanticPromiseAccepted,
+      CoordinationItemEventKind.resolved =>
+        l10n.coordinationSemanticPromiseResolved,
+      CoordinationItemEventKind.cancelled =>
+        l10n.coordinationSemanticPromiseCancelled,
+      _ => l10n.coordinationPromiseCardLabel,
+    },
     CoordinationItemKind.blocker => switch (eventKind) {
-        CoordinationItemEventKind.created =>
-          l10n.coordinationSemanticBlockerOpened,
-        CoordinationItemEventKind.resolved =>
-          l10n.coordinationSemanticBlockerResolved,
-        CoordinationItemEventKind.cancelled =>
-          l10n.coordinationSemanticBlockerCancelled,
-        _ => l10n.coordinationBlockerCardLabel,
-      },
+      CoordinationItemEventKind.created =>
+        l10n.coordinationSemanticBlockerOpened,
+      CoordinationItemEventKind.resolved =>
+        l10n.coordinationSemanticBlockerResolved,
+      CoordinationItemEventKind.cancelled =>
+        l10n.coordinationSemanticBlockerCancelled,
+      _ => l10n.coordinationBlockerCardLabel,
+    },
     CoordinationItemKind.plan => switch (eventKind) {
-        CoordinationItemEventKind.created ||
-        CoordinationItemEventKind.updated =>
-          l10n.coordinationSemanticPlanOpened,
-        CoordinationItemEventKind.superseded =>
-          l10n.coordinationSemanticPlanSuperseded,
-        CoordinationItemEventKind.resolved =>
-          isPlanStep
-              ? l10n.coordinationSemanticPlanStepResolved
-              : l10n.coordinationSemanticPlanOpened,
-        _ => l10n.coordinationPlanCardLabel,
-      },
+      CoordinationItemEventKind.created ||
+      CoordinationItemEventKind.updated => l10n.coordinationSemanticPlanOpened,
+      CoordinationItemEventKind.superseded =>
+        l10n.coordinationSemanticPlanSuperseded,
+      CoordinationItemEventKind.resolved =>
+        isPlanStep
+            ? l10n.coordinationSemanticPlanStepResolved
+            : l10n.coordinationSemanticPlanOpened,
+      _ => l10n.coordinationPlanCardLabel,
+    },
   };
 }
 
@@ -231,11 +233,10 @@ String coordinationEventTimelineLabel(
 String coordinationItemStatusLabel(
   L10n l10n,
   CoordinationItemStatus status,
-) =>
-    switch (status) {
-      CoordinationItemStatus.open => l10n.coordinationItemStatusOpen,
-      CoordinationItemStatus.accepted => l10n.coordinationItemStatusAccepted,
-      CoordinationItemStatus.resolved => l10n.coordinationItemStatusResolved,
-      CoordinationItemStatus.cancelled => l10n.coordinationItemStatusCancelled,
-      CoordinationItemStatus.superseded => l10n.coordinationItemStatusSuperseded,
-    };
+) => switch (status) {
+  CoordinationItemStatus.open => l10n.coordinationItemStatusOpen,
+  CoordinationItemStatus.accepted => l10n.coordinationItemStatusAccepted,
+  CoordinationItemStatus.resolved => l10n.coordinationItemStatusResolved,
+  CoordinationItemStatus.cancelled => l10n.coordinationItemStatusCancelled,
+  CoordinationItemStatus.superseded => l10n.coordinationItemStatusSuperseded,
+};

@@ -1,7 +1,7 @@
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_coordination_phase.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/duration_format.dart';
+import 'package:tentura/ui/util/duration_format.dart';
 
 /// Localized STATUS line + per-slot tones from domain phase result.
 class BeaconPhaseStatusPresentation {

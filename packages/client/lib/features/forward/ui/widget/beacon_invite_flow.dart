@@ -8,7 +8,7 @@ import 'package:tentura/consts.dart';
 import 'package:tentura/features/invitation/ui/bloc/invitation_cubit.dart';
 import 'package:tentura/ui/dialog/share_code_dialog.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/util/ui_utils.dart';
 
 /// «Invite new person»: mints an invite tied to [beaconId] (a plain one when
 /// it is empty) and shows its share dialog.

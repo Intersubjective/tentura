@@ -9,7 +9,7 @@ import 'package:tentura/features/block/domain/entity/user_block.dart';
 import 'package:tentura/features/block/domain/use_case/block_case.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/util/ui_utils.dart';
 
 /// Confirmation sheet for blocking another user (cascade toggle + impact preview).
 Future<void> showBlockUserSheet(
@@ -198,8 +198,12 @@ class _BlockUserSheetBodyState extends State<BlockUserSheetBody> {
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 TextButton(
-                  onPressed: _blocking ? null : () => Navigator.of(context).pop(),
-                  child: Text(MaterialLocalizations.of(context).cancelButtonLabel),
+                  onPressed: _blocking
+                      ? null
+                      : () => Navigator.of(context).pop(),
+                  child: Text(
+                    MaterialLocalizations.of(context).cancelButtonLabel,
+                  ),
                 ),
                 SizedBox(width: tt.rowGap),
                 FilledButton(
@@ -208,7 +212,9 @@ class _BlockUserSheetBodyState extends State<BlockUserSheetBody> {
                     backgroundColor: WidgetStatePropertyAll(scheme.error),
                     foregroundColor: WidgetStatePropertyAll(scheme.onError),
                   ),
-                  onPressed: _blocking || _previewLoading ? null : _confirmBlock,
+                  onPressed: _blocking || _previewLoading
+                      ? null
+                      : _confirmBlock,
                   child: Text(l10n.blockConfirmButton),
                 ),
               ],
@@ -241,7 +247,9 @@ class _WithdrawalNotice extends StatelessWidget {
       children: [
         Icon(Icons.info_outline, color: color, size: context.tt.iconSize),
         SizedBox(width: iconGap),
-        Expanded(child: Text(text, style: style?.copyWith(color: color))),
+        Expanded(
+          child: Text(text, style: style?.copyWith(color: color)),
+        ),
       ],
     );
   }
@@ -266,7 +274,11 @@ class _OpenCommitmentWarning extends StatelessWidget {
       key: const Key('block_open_commitment_warning'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(Icons.warning_amber_outlined, color: color, size: context.tt.iconSize),
+        Icon(
+          Icons.warning_amber_outlined,
+          color: color,
+          size: context.tt.iconSize,
+        ),
         SizedBox(width: iconGap),
         Expanded(child: Text(text, style: style)),
       ],

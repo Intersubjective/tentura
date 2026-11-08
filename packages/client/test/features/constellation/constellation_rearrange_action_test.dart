@@ -7,7 +7,7 @@ import 'package:logging/logging.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/env.dart';
-import 'package:tentura/features/graph/ui/utils/graph_scene_ids.dart';
+import 'package:tentura/features/graph/ui/util/graph_scene_ids.dart';
 import 'package:tentura/features/graph/domain/entity/edge_details.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
@@ -485,7 +485,10 @@ Future<Map<String, Offset>> _positionsAfterFreshPlacementAndRearrange(
   }
 }
 
-Future<void> _openArrange(WidgetTester tester, {bool arrangeV2Enabled = true}) async {
+Future<void> _openArrange(
+  WidgetTester tester, {
+  bool arrangeV2Enabled = true,
+}) async {
   if (arrangeV2Enabled) {
     await openConstellationArrangeOverflowMenu(tester);
     return;
@@ -494,7 +497,10 @@ Future<void> _openArrange(WidgetTester tester, {bool arrangeV2Enabled = true}) a
   await tester.pumpAndSettle();
 }
 
-Future<void> _tapRearrange(WidgetTester tester, {bool arrangeV2Enabled = true}) async {
+Future<void> _tapRearrange(
+  WidgetTester tester, {
+  bool arrangeV2Enabled = true,
+}) async {
   if (arrangeV2Enabled) {
     await tapConstellationArrangeOverflowAction(
       tester,

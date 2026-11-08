@@ -14,7 +14,7 @@ import 'package:tentura/features/post_view/data/repository/beacon_kind_repositor
 import 'package:tentura/features/home/ui/widget/home_rail_frame.dart';
 import 'package:tentura/features/post_view/ui/screen/post_view_scope.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/util/ui_utils.dart';
 
 import 'beacon_view_screen.dart';
 import 'beacon_view_scope.dart';

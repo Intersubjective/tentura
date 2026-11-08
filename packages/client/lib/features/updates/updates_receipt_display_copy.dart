@@ -10,8 +10,8 @@ import 'package:tentura/domain/attention/plan_receipt_event_type.dart';
 import 'package:tentura/features/beacon_view/domain/beacon_status_menu_presenter.dart';
 import 'forward_helped_receipt_copy.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/plain_text_preview.dart';
-import 'package:tentura/ui/utils/withdraw_reason_label.dart';
+import 'package:tentura/ui/util/plain_text_preview.dart';
+import 'package:tentura/ui/util/withdraw_reason_label.dart';
 
 /// Trust-change presentation keys emitted by the server (direction-encoded).
 const trustChangePresentationKeys = <String>{

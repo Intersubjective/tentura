@@ -19,8 +19,8 @@ import 'package:tentura/features/beacon_threads/ui/widget/fact_history_sheet.dar
 import 'package:tentura/features/beacon_threads/ui/widget/fact_provenance_line.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_attachment_widgets.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/copy_text_to_clipboard.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/util/copy_text_to_clipboard.dart';
+import 'package:tentura/ui/util/ui_utils.dart';
 import 'package:tentura/ui/widget/pending_attachments.dart';
 
 /// Actions for a single fact card (modal).
@@ -38,21 +38,22 @@ Future<void> showFactActionsSheet(
     onQuoteInChat: onQuoteInChat,
     // Base seq is the one the edit sheet opened with (plan §14.6); after a
     // revision conflict, "Save mine" retries against the conflict's seq.
-    onCorrect: ({
-      required factCardId,
-      required newText,
-      String? attachmentsJson,
-    }) {
-      final conflict = cubit.state.factEditConflict;
-      return cubit.correctFact(
-        factCardId: factCardId,
-        newText: newText,
-        baseRevisionSeq: conflict != null && conflict.id == factCardId
-            ? conflict.revisionSeq
-            : fact.revisionSeq,
-        attachmentsJson: attachmentsJson,
-      );
-    },
+    onCorrect:
+        ({
+          required factCardId,
+          required newText,
+          String? attachmentsJson,
+        }) {
+          final conflict = cubit.state.factEditConflict;
+          return cubit.correctFact(
+            factCardId: factCardId,
+            newText: newText,
+            baseRevisionSeq: conflict != null && conflict.id == factCardId
+                ? conflict.revisionSeq
+                : fact.revisionSeq,
+            attachmentsJson: attachmentsJson,
+          );
+        },
     readEditConflict: () => cubit.state.factEditConflict,
     onClearEditConflict: cubit.clearFactEditConflict,
     onRemove: ({required factCardId}) =>

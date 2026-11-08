@@ -11,8 +11,8 @@ import 'package:tentura/features/beacon_threads/domain/util/word_diff.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/fact_history_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/fact_history_state.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/relative_time.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/util/relative_time.dart';
+import 'package:tentura/ui/util/ui_utils.dart';
 
 /// Opens the fact history sheet (issue #181 plan §3/D2/D5): a modal listing
 /// [BeaconFactTimelineEntry] rows newest first, word-diffed against the
@@ -246,7 +246,8 @@ class _FactHistorySheetBody extends StatelessWidget {
                   entry: entries[i],
                   olderRevision: baselines[i],
                   canMutate: canMutate,
-                  isHead: entries[i] is BeaconFactHistoryEntry &&
+                  isHead:
+                      entries[i] is BeaconFactHistoryEntry &&
                       (entries[i] as BeaconFactHistoryEntry).seq == headSeq,
                   isFirst: i == 0,
                   isLast: i == entries.length - 1,
@@ -406,8 +407,7 @@ class _FactHistoryTimelineRow extends StatelessWidget {
                             style: TextButton.styleFrom(
                               padding: EdgeInsets.zero,
                               minimumSize: Size.zero,
-                              tapTargetSize:
-                                  MaterialTapTargetSize.shrinkWrap,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                             ),
                             onPressed: () =>
                                 unawaited(_onRestore(context, row.seq)),

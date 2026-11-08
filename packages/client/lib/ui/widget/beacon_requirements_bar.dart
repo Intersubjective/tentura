@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/capability/capability_tag.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/capability_tag_presenter.dart';
+import 'package:tentura/ui/util/capability_tag_presenter.dart';
 
 /// Read-only row of capability icons for [needs] slugs (comma-split beacon field).
 ///
@@ -51,8 +51,9 @@ class BeaconRequirementsBar extends StatelessWidget {
 
     final l10n = L10n.of(context)!;
     final effectiveMaxIcons = inline && maxIcons == 5 ? 3 : maxIcons;
-    final visibleCount =
-        effectiveMaxIcons < 1 ? tags.length : min(tags.length, effectiveMaxIcons);
+    final visibleCount = effectiveMaxIcons < 1
+        ? tags.length
+        : min(tags.length, effectiveMaxIcons);
     final overflow = tags.length - visibleCount;
 
     final iconChildren = <Widget>[

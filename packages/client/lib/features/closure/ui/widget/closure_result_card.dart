@@ -12,7 +12,7 @@ import 'package:tentura/features/closure/domain/entity/closure_result.dart';
 import 'package:tentura/features/closure/domain/entity/closure_state.dart';
 import 'package:tentura/features/closure/domain/use_case/closure_case.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/util/ui_utils.dart';
 
 /// «Итоги для тебя»: what the finalized closure meant for the viewer — the
 /// author's outcome, the band, the draft flag — and the viewer's own

@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/domain/entity/lazy_write_notice.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/util/ui_utils.dart';
 
 /// Shows a non-blocking snackbar whenever [notices] emits; never takes part
 /// in the gestures of [child].

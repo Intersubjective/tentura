@@ -7,7 +7,7 @@ import 'package:tentura/features/capability/ui/widget/capability_search_field.da
 import 'package:tentura/features/profile_view/ui/dialog/edit_capabilities_dialog.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
-import 'package:tentura/ui/utils/capability_tag_presenter.dart';
+import 'package:tentura/ui/util/capability_tag_presenter.dart';
 
 // #741 QA round 1: at 375×667 the profile «Edit labels» search field's
 // floating label «Search» / «Поиск» was cut off by the top of the scroll

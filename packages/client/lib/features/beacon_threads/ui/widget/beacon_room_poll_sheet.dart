@@ -9,7 +9,7 @@ import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
 import 'package:tentura/features/polling/ui/widget/polling_question_input.dart';
 import 'package:tentura/features/polling/ui/widget/polling_variant_input.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/util/ui_utils.dart';
 
 Future<void> showBeaconRoomPollSheet(
   BuildContext context, {
@@ -226,8 +226,9 @@ class _PollCreateSheetState extends State<_PollCreateSheet> {
                             TextButton.icon(
                               icon: const Icon(Icons.add),
                               label: Text(l10n.addOptionButton),
-                              onPressed:
-                                  _variants.length < 10 ? _addVariant : null,
+                              onPressed: _variants.length < 10
+                                  ? _addVariant
+                                  : null,
                             ),
                             SizedBox(height: tt.sectionGap),
 
@@ -268,7 +269,8 @@ class _PollCreateSheetState extends State<_PollCreateSheet> {
                                 l10n.beaconRoomPollAnonymousSubtitle,
                               ),
                               value: _isAnonymous,
-                              onChanged: (v) => setState(() => _isAnonymous = v),
+                              onChanged: (v) =>
+                                  setState(() => _isAnonymous = v),
                             ),
 
                             // Allow revote toggle

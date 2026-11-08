@@ -7,7 +7,7 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_location_maps_uri.dart';
 import 'package:tentura/domain/port/platform_repository_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/copy_text_to_clipboard.dart';
+import 'package:tentura/ui/util/copy_text_to_clipboard.dart';
 
 String beaconHudLocationDisplayLabel(Beacon beacon, L10n l10n) {
   final label = beacon.addressLabel?.trim();

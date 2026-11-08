@@ -20,7 +20,7 @@ import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart'
 import 'package:tentura/features/constellation/domain/constellation_sector_arrangement.dart';
 import 'package:tentura/features/constellation/domain/constellation_layout.dart';
 import 'package:tentura/features/constellation/ui/util/layout_geometry_adapters.dart';
-import 'package:tentura/features/constellation/ui/utils/constellation_graph_scene.dart';
+import 'package:tentura/features/constellation/ui/util/constellation_graph_scene.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_selection_layers.dart';
 import 'package:tentura/features/graph/domain/use_case/graph_trust_write_case.dart';
@@ -1288,13 +1288,14 @@ void main() {
       // The end handle goes all the way round: keep the sector small and in
       // the middle of the map above the bar, whatever the bar's height, so
       // the handle is never under the bar where a press would miss it.
-      final barTop = [
-        find.byKey(const Key('constellation.selection.bar')),
-        find.byKey(const Key('constellation.arranging.toolbar')),
-      ]
-          .where((f) => f.evaluate().isNotEmpty)
-          .map((f) => tester.getTopLeft(f).dy)
-          .fold<double>(double.infinity, math.min);
+      final barTop =
+          [
+                find.byKey(const Key('constellation.selection.bar')),
+                find.byKey(const Key('constellation.arranging.toolbar')),
+              ]
+              .where((f) => f.evaluate().isNotEmpty)
+              .map((f) => tester.getTopLeft(f).dy)
+              .fold<double>(double.infinity, math.min);
       final controller = h.cubit.graphController;
       final middle = Offset(_size.width / 2, barTop / 2);
       final sector = h.selection.state.sector!;

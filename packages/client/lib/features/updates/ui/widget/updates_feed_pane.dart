@@ -14,7 +14,7 @@ import 'package:tentura/features/updates/ui/widget/forward_helped_see_path_actio
 import 'package:tentura/features/updates/updates_receipt_display_copy.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/util/ui_utils.dart';
 
 import '../bloc/updates_feed_cubit.dart';
 import 'invite_accepted_receipt_card.dart';

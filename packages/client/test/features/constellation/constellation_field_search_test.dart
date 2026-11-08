@@ -21,7 +21,7 @@ import 'package:tentura/features/constellation/ui/widget/constellation_visibilit
 import 'package:tentura/features/constellation/ui/widget/constellation_request_preview_sheet.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/util/ui_utils.dart';
 
 import '../../support/constellation_store_fixture.dart';
 import '../../support/people_tags_widget_harness.dart';

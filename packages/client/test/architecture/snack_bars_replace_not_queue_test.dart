@@ -8,13 +8,13 @@ import 'package:flutter_test/flutter_test.dart';
 /// #495 / #605: a bar shown straight through `ScaffoldMessenger.showSnackBar`
 /// queues behind whatever bar is already up, so a fresh notice waited out the
 /// old one's whole duration. The app `showSnackBar` helper in
-/// `lib/ui/utils/ui_utils.dart` clears first (replace semantics); every other
+/// `lib/ui/util/ui_utils.dart` clears first (replace semantics); every other
 /// call site goes through it.
 ///
 /// [_legacy] freezes how many direct calls each older file still has. A count
 /// may only go down, and an entry whose count reaches 0 is removed; the last
 /// five were migrated in #605, so it is empty and must stay so.
-const _helper = 'lib/ui/utils/ui_utils.dart';
+const _helper = 'lib/ui/util/ui_utils.dart';
 
 /// Other helpers with the same replace semantics: they clear the messenger
 /// before showing their bar. `undo_snack_bar.dart` builds the Undo bar

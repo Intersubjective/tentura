@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/code_unit_length_formatter.dart';
-import 'package:tentura/ui/utils/string_input_validator.dart';
+import 'package:tentura/ui/util/code_unit_length_formatter.dart';
+import 'package:tentura/ui/util/string_input_validator.dart';
 
 /// Asks "for whom is this invite?" (required) — the name is the issuer's
 /// private contact name for the future joiner, never shown to the invitee.

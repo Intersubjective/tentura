@@ -5,7 +5,7 @@ import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/invitation/ui/dialog/invitation_addressee_dialog.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/string_input_validator.dart';
+import 'package:tentura/ui/util/string_input_validator.dart';
 
 // #356: the invite-name field capped with TextField.maxLength, whose counter
 // counts user-perceived characters, while `displayNameValidator` and the
@@ -106,16 +106,19 @@ void main() {
     expect(_cutsEmoji.characters.length, 32);
   });
 
-  test('guard: invite label validator keeps counting code units like the server', () {
-    final validator = _Validator();
-    final l10n = lookupL10n(const Locale('en'));
-    expect(validator.inviteLabelValidator(l10n, _exact), isNull);
-    // 25 characters but 39 code units: the server refuses it, so must we.
-    expect(
-      validator.inviteLabelValidator(l10n, _typed),
-      l10n.inviteLabelTooLong,
-    );
-  });
+  test(
+    'guard: invite label validator keeps counting code units like the server',
+    () {
+      final validator = _Validator();
+      final l10n = lookupL10n(const Locale('en'));
+      expect(validator.inviteLabelValidator(l10n, _exact), isNull);
+      // 25 characters but 39 code units: the server refuses it, so must we.
+      expect(
+        validator.inviteLabelValidator(l10n, _typed),
+        l10n.inviteLabelTooLong,
+      );
+    },
+  );
 
   group('Edit invite name dialog', () {
     testWidgets('the issue repro is capped at 32 code units and saves', (

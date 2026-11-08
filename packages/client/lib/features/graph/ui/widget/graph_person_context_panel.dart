@@ -10,7 +10,7 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/model/person_action_policy.dart';
 import 'package:tentura/ui/test_ids.dart';
-import 'package:tentura/ui/utils/availability_line.dart';
+import 'package:tentura/ui/util/availability_line.dart';
 import 'package:tentura/ui/widget/trust_toggle_line.dart';
 
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';

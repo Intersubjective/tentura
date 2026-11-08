@@ -4,12 +4,12 @@ import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
 import '../../../graph/domain/entity/edge_details.dart';
 import '../../../graph/domain/entity/node_details.dart';
-import '../../../graph/ui/utils/graph_scene_ids.dart';
+import '../../../graph/ui/util/graph_scene_ids.dart';
 import '../../domain/constellation_anchor_composition.dart';
 import '../../domain/constellation_drag_cluster.dart';
 import '../../domain/constellation_layout.dart';
 import '../../domain/entity/constellation_field.dart';
-import '../utils/constellation_graph_scene.dart';
+import '../util/constellation_graph_scene.dart';
 import 'constellation_scene_controller.dart';
 
 /// Owns the drag-cluster state (dragged node, placement cluster and its start

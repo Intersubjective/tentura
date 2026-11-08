@@ -4,28 +4,31 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/graph/domain/entity/edge_details.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
-import 'package:tentura/features/graph/ui/utils/graph_scene_ids.dart';
+import 'package:tentura/features/graph/ui/util/graph_scene_ids.dart';
 
 void main() {
-  test('person and request with the same raw id get distinct graph node ids', () {
-    const raw = 'shared-raw-key';
-    final person = FieldPersonNode(
-      person: Profile(id: raw),
-      ring: 1,
-      isKept: true,
-    );
-    final request = FieldBeaconNode(
-      request: ConstellationRequest(
-        id: raw,
-        authorId: 'author',
-        title: 'Title',
-        status: 0,
-      ),
-    );
-    expect(tenturaGraphNodeId(person), isNot(tenturaGraphNodeId(request)));
-    expect(tenturaLayoutDomainId(tenturaGraphNodeId(person)), raw);
-    expect(tenturaLayoutDomainId(tenturaGraphNodeId(request)), raw);
-  });
+  test(
+    'person and request with the same raw id get distinct graph node ids',
+    () {
+      const raw = 'shared-raw-key';
+      final person = FieldPersonNode(
+        person: Profile(id: raw),
+        ring: 1,
+        isKept: true,
+      );
+      final request = FieldBeaconNode(
+        request: ConstellationRequest(
+          id: raw,
+          authorId: 'author',
+          title: 'Title',
+          status: 0,
+        ),
+      );
+      expect(tenturaGraphNodeId(person), isNot(tenturaGraphNodeId(request)));
+      expect(tenturaLayoutDomainId(tenturaGraphNodeId(person)), raw);
+      expect(tenturaLayoutDomainId(tenturaGraphNodeId(request)), raw);
+    },
+  );
 
   test('genealogy nodes keep opaque nodeKey in graph id', () {
     const key = 'opaque-genealogy-key';
@@ -33,7 +36,10 @@ void main() {
       nodeKey: key,
       user: Profile(id: 'account-should-not-leak'),
     );
-    expect(tenturaGraphNodeId(live), '${TenturaGraphNodeKind.genealogyUser}:$key');
+    expect(
+      tenturaGraphNodeId(live),
+      '${TenturaGraphNodeKind.genealogyUser}:$key',
+    );
     expect(tenturaLayoutDomainId(tenturaGraphNodeId(live)), key);
   });
 

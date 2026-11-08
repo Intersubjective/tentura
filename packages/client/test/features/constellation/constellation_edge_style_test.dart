@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
-import 'package:tentura/features/constellation/ui/utils/constellation_edge_style.dart';
+import 'package:tentura/features/constellation/ui/util/constellation_edge_style.dart';
 
 Color compositeOverBackground(Color foreground, Color background) {
   if (foreground.a >= 1) {
@@ -43,9 +43,21 @@ void main() {
   test('path kinds differ by dash pattern', () {
     final tt = TenturaTheme.light().extension<TenturaTokens>()!;
     final scheme = TenturaTheme.light().colorScheme;
-    final tier1 = constellationEdgeStyle(ConstellationEdgeKind.tier1Path, tt, scheme);
-    final tier2 = constellationEdgeStyle(ConstellationEdgeKind.tier2Path, tt, scheme);
-    final stub = constellationEdgeStyle(ConstellationEdgeKind.ringStub, tt, scheme);
+    final tier1 = constellationEdgeStyle(
+      ConstellationEdgeKind.tier1Path,
+      tt,
+      scheme,
+    );
+    final tier2 = constellationEdgeStyle(
+      ConstellationEdgeKind.tier2Path,
+      tt,
+      scheme,
+    );
+    final stub = constellationEdgeStyle(
+      ConstellationEdgeKind.ringStub,
+      tt,
+      scheme,
+    );
 
     expect(tier1.dash, isNot(equals(tier2.dash)));
     expect((stub.dash, stub.gap), isNot((tier1.dash, tier1.gap)));

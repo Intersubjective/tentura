@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
-import 'package:tentura/features/constellation/ui/utils/constellation_edge_style.dart';
+import 'package:tentura/features/constellation/ui/util/constellation_edge_style.dart';
 
-import '../utils/graph_edge_stroke.dart';
-import '../utils/graph_edge_style.dart';
+import '../util/graph_edge_stroke.dart';
+import '../util/graph_edge_style.dart';
 
 /// Small horizontal edge sample for the graph legend, drawn from the same
 /// [GraphEdgeStyle] and [GraphEdgeStroke] geometry as the graph itself.

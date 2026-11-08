@@ -7,7 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_field_backdrop_colors.dart';
 
-import '../../domain/utils/field_topo_contours.dart';
+import '../../domain/util/field_topo_contours.dart';
 
 /// Topographic contour backdrop of the Field (#1022).
 ///

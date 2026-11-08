@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tentura/ui/utils/plain_text_preview.dart';
+import 'package:tentura/ui/util/plain_text_preview.dart';
 
 void main() {
   group('stripAngleBracketRegionsForPlainPreview', () {

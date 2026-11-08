@@ -6,7 +6,7 @@ import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/features/my_work/domain/use_case/my_work_case.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/message/action_message_base.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/util/ui_utils.dart';
 
 /// Archive from request detail (root route) where [MyWorkCubit] is not in the
 /// tree. Desk list refreshes via [MyWorkCase.archiveBeacon]'s bookkeeping signal.

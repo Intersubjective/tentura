@@ -15,7 +15,7 @@ import 'package:tentura/features/constellation/domain/constellation_layout.dart'
 import 'package:tentura/features/constellation/domain/layout/constellation_layout_engine.dart';
 import 'package:tentura/features/constellation/domain/layout/layout_geometry.dart';
 import 'package:tentura/features/constellation/domain/layout/spatial_index.dart';
-import 'package:tentura/ui/utils/frame_slice_scheduler.dart';
+import 'package:tentura/ui/util/frame_slice_scheduler.dart';
 import 'package:tentura_root/domain/constellation/constellation_path_resolution.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
@@ -116,15 +116,15 @@ final class RadialHopLayoutAlgorithm implements SceneLayoutAlgorithm {
         return da.compareTo(db);
       });
 
-    final rootPos = placed[rootId] ??
-        _sceneFromPoint(hop.positions[rootId]) ??
-        fallback;
+    final rootPos =
+        placed[rootId] ?? _sceneFromPoint(hop.positions[rootId]) ?? fallback;
 
     for (final parentId in parentIds) {
-      final childDomainIds = graphIdByDomain.keys
-          .where((id) => hop.parent[id] == parentId)
-          .toList()
-        ..sort();
+      final childDomainIds =
+          graphIdByDomain.keys
+              .where((id) => hop.parent[id] == parentId)
+              .toList()
+            ..sort();
 
       if (parentId == rootId) {
         for (final childId in childDomainIds) {
@@ -136,14 +136,15 @@ final class RadialHopLayoutAlgorithm implements SceneLayoutAlgorithm {
         continue;
       }
 
-      final parentPos = placed[parentId] ??
+      final parentPos =
+          placed[parentId] ??
           _sceneFromPoint(hop.positions[parentId]) ??
           fallback;
       final grandparentId = hop.parent[parentId];
       final grandparentPos = grandparentId == null
           ? null
           : (placed[grandparentId] ??
-              _sceneFromPoint(hop.positions[grandparentId]));
+                _sceneFromPoint(hop.positions[grandparentId]));
       final direction = branchUnitDirection(
         parentPos: (x: parentPos.x, y: parentPos.y),
         grandparentPos: grandparentPos == null
@@ -176,8 +177,7 @@ final class RadialHopLayoutAlgorithm implements SceneLayoutAlgorithm {
 
     final positions = <GraphNodeId, ScenePoint>{};
     for (final entry in graphIdByDomain.entries) {
-      positions[entry.value] =
-          placed[entry.key] ?? fallback;
+      positions[entry.value] = placed[entry.key] ?? fallback;
     }
     return positions;
   }
@@ -310,6 +310,7 @@ final class ConstellationSceneLayoutAlgorithm implements SceneLayoutAlgorithm {
   final Set<String> pinnedRequestIds;
   final Set<String> supportPersonIds;
   final Map<String, ConstellationAnchorPosition> anchorByNodeId;
+
   /// Domain ids that must not reuse session inertia from a former pin.
   final Set<String> forgetPriorHintNodeIds;
   final ConstellationLayoutPriorHints? priorHints;
@@ -512,8 +513,7 @@ final class ConstellationSceneLayoutAlgorithm implements SceneLayoutAlgorithm {
         continue;
       }
       final authorId = authorByRequestId[domainId];
-      final authorOffset =
-          authorId == null ? null : domainPositions[authorId];
+      final authorOffset = authorId == null ? null : domainPositions[authorId];
       if (authorOffset != null) {
         result[graphId] = ScenePoint(x: authorOffset.x, y: authorOffset.y);
         continue;
@@ -664,13 +664,12 @@ final class ConstellationSceneLayoutAlgorithm implements SceneLayoutAlgorithm {
 GraphLayoutFrame _frame(
   GraphLayoutRequest request,
   Map<GraphNodeId, ScenePoint> positions,
-) =>
-    GraphLayoutFrame(
-      ticket: request.ticket,
-      sequence: 0,
-      positions: positions,
-      isTerminal: true,
-    );
+) => GraphLayoutFrame(
+  ticket: request.ticket,
+  sequence: 0,
+  positions: positions,
+  isTerminal: true,
+);
 
 LSize _canvasSize(GraphLayoutRequest request) => (
   w: request.canvasSize.width,
@@ -693,7 +692,6 @@ Map<GraphNodeId, ScenePoint> _positionsFromDomainMap({
   final fallback = _centerPoint(canvasSize);
   return {
     for (final entry in graphIdByDomain.entries)
-      entry.value:
-          _sceneFromPoint(domainPositions[entry.key]) ?? fallback,
+      entry.value: _sceneFromPoint(domainPositions[entry.key]) ?? fallback,
   };
 }

@@ -14,7 +14,7 @@ import 'package:tentura/features/beacon_view/ui/widget/activity_list.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_showcase_surface.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_view_details_sheet.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/schedule_date_format.dart';
+import 'package:tentura/ui/util/schedule_date_format.dart';
 import 'package:tentura_root/domain/entity/beacon_access.dart';
 
 import '../../support/beacon_activity_event_visibility_bits.dart';

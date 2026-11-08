@@ -7,7 +7,7 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon_lobby/domain/use_case/beacon_lobby_case.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_hud_action_button.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_showcase_surface.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/util/ui_utils.dart';
 
 import '../../ui/snack_bar_clearance_support.dart';
 import '../beacon_lobby/fake_lobby_port.dart';

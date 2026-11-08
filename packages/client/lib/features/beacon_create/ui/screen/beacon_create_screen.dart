@@ -17,7 +17,7 @@ import 'package:tentura/features/context/ui/bloc/context_cubit.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
-import 'package:tentura/ui/utils/ui_utils.dart' show showSnackBar;
+import 'package:tentura/ui/util/ui_utils.dart' show showSnackBar;
 import 'package:tentura/ui/widget/auto_leading_with_fallback.dart';
 
 import '../bloc/beacon_create_cubit.dart';

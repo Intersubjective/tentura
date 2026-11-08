@@ -5,8 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
-import 'package:tentura/features/constellation/ui/utils/constellation_presentation_frame.dart';
-import 'package:tentura/features/constellation/ui/utils/constellation_tap_resolver.dart';
+import 'package:tentura/features/constellation/ui/util/constellation_presentation_frame.dart';
+import 'package:tentura/features/constellation/ui/util/constellation_tap_resolver.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_overflow_group.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
@@ -71,9 +71,9 @@ Map<String, int> _countChipBuilderRebuilds() {
   return rebuilds;
 }
 
-String _moreLabel(WidgetTester tester, int count) =>
-    L10n.of(tester.element(find.byKey(_egoChip)))!
-        .constellationMoreRequests(count);
+String _moreLabel(WidgetTester tester, int count) => L10n.of(
+  tester.element(find.byKey(_egoChip)),
+)!.constellationMoreRequests(count);
 
 void main() {
   group('ConstellationOverflowGroup rebuild discipline', () {
@@ -98,7 +98,10 @@ void main() {
         reason: 'stimulus must actually emit a new graph revision',
       );
       expect(
-        identical(cubit.constellationSceneLayoutAlgorithm, layoutAlgorithmBefore),
+        identical(
+          cubit.constellationSceneLayoutAlgorithm,
+          layoutAlgorithmBefore,
+        ),
         isFalse,
         reason: 'a new revision must still produce a fresh layout algorithm',
       );

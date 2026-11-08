@@ -3,8 +3,8 @@ import 'package:flutter/widgets.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/availability_line.dart';
-import 'package:tentura/ui/utils/profile_presence_line.dart';
+import 'package:tentura/ui/util/availability_line.dart';
+import 'package:tentura/ui/util/profile_presence_line.dart';
 import 'package:tentura_root/domain/enums.dart';
 
 import '../../domain/entity/candidate_involvement.dart';

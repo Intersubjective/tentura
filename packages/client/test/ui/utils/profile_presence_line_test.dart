@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/profile_presence_line.dart';
+import 'package:tentura/ui/util/profile_presence_line.dart';
 import 'package:tentura_root/domain/enums.dart';
 
 void main() {
@@ -90,12 +90,11 @@ void main() {
   test('returns formatted date for seven or more calendar days ago', () {
     final now = DateTime.now();
     final eightDaysAgo = DateTime(now.year, now.month, now.day - 8, 10);
-    final formatted =
-        profilePresenceDisplayLine(
-          l10n: l10n,
-          locale: locale,
-          lastSeenAt: eightDaysAgo,
-        );
+    final formatted = profilePresenceDisplayLine(
+      l10n: l10n,
+      locale: locale,
+      lastSeenAt: eightDaysAgo,
+    );
     expect(formatted, startsWith('Last seen '));
     expect(formatted, isNot(l10n.chatPresenceLastSeenDays(8)));
   });

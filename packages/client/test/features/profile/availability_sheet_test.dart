@@ -11,7 +11,7 @@ import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/features/profile/ui/sheet/availability_sheet.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/availability_line.dart';
+import 'package:tentura/ui/util/availability_line.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';
 
@@ -21,8 +21,9 @@ void main() {
   final todayUtc = availabilityTodayUtc(clock);
 
   group('AvailabilitySheetBody', () {
-    testWidgets('open profile shows limited switch off and no resume action',
-        (tester) async {
+    testWidgets('open profile shows limited switch off and no resume action', (
+      tester,
+    ) async {
       final cubit = _TestProfileCubit(
         profile: const Profile(id: 'U-me', displayName: 'Me'),
       );
@@ -32,17 +33,23 @@ void main() {
       final l10n = lookupL10n(const Locale('en'));
 
       expect(
-        tester.widget<SwitchListTile>(
-          find.byKey(const Key('availability_limited_switch')),
-        ).value,
+        tester
+            .widget<SwitchListTile>(
+              find.byKey(const Key('availability_limited_switch')),
+            )
+            .value,
         isFalse,
       );
       expect(find.text(l10n.availabilityResumeNow), findsNothing);
-      expect(find.byKey(const Key('availability_pause_button')), findsOneWidget);
+      expect(
+        find.byKey(const Key('availability_pause_button')),
+        findsOneWidget,
+      );
     });
 
-    testWidgets('limited profile reflects cubit-confirmed switch value',
-        (tester) async {
+    testWidgets('limited profile reflects cubit-confirmed switch value', (
+      tester,
+    ) async {
       final cubit = _TestProfileCubit(
         profile: Profile(
           id: 'U-me',
@@ -55,9 +62,11 @@ void main() {
       await pumpAvailabilitySheet(tester, cubit: cubit, clock: clock);
 
       expect(
-        tester.widget<SwitchListTile>(
-          find.byKey(const Key('availability_limited_switch')),
-        ).value,
+        tester
+            .widget<SwitchListTile>(
+              find.byKey(const Key('availability_limited_switch')),
+            )
+            .value,
         isTrue,
       );
     });
@@ -78,8 +87,9 @@ void main() {
       expect(find.text(l10n.availabilityResumeNow), findsOneWidget);
     });
 
-    testWidgets('limited+paused keeps limited switch on with resume action',
-        (tester) async {
+    testWidgets('limited+paused keeps limited switch on with resume action', (
+      tester,
+    ) async {
       final cubit = _TestProfileCubit(
         profile: Profile(
           id: 'U-me',
@@ -95,37 +105,43 @@ void main() {
       await pumpAvailabilitySheet(tester, cubit: cubit, clock: clock);
 
       expect(
-        tester.widget<SwitchListTile>(
-          find.byKey(const Key('availability_limited_switch')),
-        ).value,
+        tester
+            .widget<SwitchListTile>(
+              find.byKey(const Key('availability_limited_switch')),
+            )
+            .value,
         isTrue,
       );
       expect(find.byKey(const Key('availability_resume_now')), findsOneWidget);
     });
 
-    testWidgets('limited toggle stays open and reflects confirmed cubit state',
-        (tester) async {
-      final cubit = _TestProfileCubit(
-        profile: const Profile(id: 'U-me', displayName: 'Me'),
-      );
-      addTearDown(cubit.close);
+    testWidgets(
+      'limited toggle stays open and reflects confirmed cubit state',
+      (tester) async {
+        final cubit = _TestProfileCubit(
+          profile: const Profile(id: 'U-me', displayName: 'Me'),
+        );
+        addTearDown(cubit.close);
 
-      await pumpAvailabilitySheet(tester, cubit: cubit, clock: clock);
+        await pumpAvailabilitySheet(tester, cubit: cubit, clock: clock);
 
-      await tester.tap(find.byKey(const Key('availability_limited_switch')));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 50));
+        await tester.tap(find.byKey(const Key('availability_limited_switch')));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 50));
 
-      expect(cubit.setLimitedCalls, 1);
-      expect(cubit.lastSetLimitedValue, isTrue);
-      expect(find.byType(AvailabilitySheetBody), findsOneWidget);
-      expect(
-        tester.widget<SwitchListTile>(
-          find.byKey(const Key('availability_limited_switch')),
-        ).value,
-        isTrue,
-      );
-    });
+        expect(cubit.setLimitedCalls, 1);
+        expect(cubit.lastSetLimitedValue, isTrue);
+        expect(find.byType(AvailabilitySheetBody), findsOneWidget);
+        expect(
+          tester
+              .widget<SwitchListTile>(
+                find.byKey(const Key('availability_limited_switch')),
+              )
+              .value,
+          isTrue,
+        );
+      },
+    );
 
     testWidgets('pause in flight disables only pause controls', (tester) async {
       final cubit = _TestProfileCubit(
@@ -136,29 +152,37 @@ void main() {
       await pumpAvailabilitySheet(tester, cubit: cubit, clock: clock);
 
       expect(
-        tester.widget<SwitchListTile>(
-          find.byKey(const Key('availability_limited_switch')),
-        ).onChanged,
+        tester
+            .widget<SwitchListTile>(
+              find.byKey(const Key('availability_limited_switch')),
+            )
+            .onChanged,
         isNotNull,
       );
       expect(
-        tester.widget<FilledButton>(
-          find.byKey(const Key('availability_pause_button')),
-        ).onPressed,
+        tester
+            .widget<FilledButton>(
+              find.byKey(const Key('availability_pause_button')),
+            )
+            .onPressed,
         isNull,
       );
       expect(
-        tester.widget<OutlinedButton>(
-          find.descendant(
-            of: find.byKey(const Key('availability_preset_tomorrow')),
-            matching: find.byType(OutlinedButton),
-          ),
-        ).onPressed,
+        tester
+            .widget<OutlinedButton>(
+              find.descendant(
+                of: find.byKey(const Key('availability_preset_tomorrow')),
+                matching: find.byType(OutlinedButton),
+              ),
+            )
+            .onPressed,
         isNull,
       );
     });
 
-    testWidgets('limited in flight disables only limited switch', (tester) async {
+    testWidgets('limited in flight disables only limited switch', (
+      tester,
+    ) async {
       final cubit = _TestProfileCubit(
         profile: const Profile(id: 'U-me', displayName: 'Me'),
       )..limitedInFlight = true;
@@ -167,18 +191,22 @@ void main() {
       await pumpAvailabilitySheet(tester, cubit: cubit, clock: clock);
 
       expect(
-        tester.widget<SwitchListTile>(
-          find.byKey(const Key('availability_limited_switch')),
-        ).onChanged,
+        tester
+            .widget<SwitchListTile>(
+              find.byKey(const Key('availability_limited_switch')),
+            )
+            .onChanged,
         isNull,
       );
       expect(
-        tester.widget<OutlinedButton>(
-          find.descendant(
-            of: find.byKey(const Key('availability_preset_tomorrow')),
-            matching: find.byType(OutlinedButton),
-          ),
-        ).onPressed,
+        tester
+            .widget<OutlinedButton>(
+              find.descendant(
+                of: find.byKey(const Key('availability_preset_tomorrow')),
+                matching: find.byType(OutlinedButton),
+              ),
+            )
+            .onPressed,
         isNotNull,
       );
     });
@@ -196,72 +224,89 @@ void main() {
       await pumpAvailabilitySheet(tester, cubit: cubit, clock: clock);
 
       expect(
-        tester.widget<SwitchListTile>(
-          find.byKey(const Key('availability_limited_switch')),
-        ).onChanged,
+        tester
+            .widget<SwitchListTile>(
+              find.byKey(const Key('availability_limited_switch')),
+            )
+            .onChanged,
         isNotNull,
       );
       expect(
-        tester.widget<TextButton>(
-          find.descendant(
-            of: find.byKey(const Key('availability_resume_now')),
-            matching: find.byType(TextButton),
-          ),
-        ).onPressed,
+        tester
+            .widget<TextButton>(
+              find.descendant(
+                of: find.byKey(const Key('availability_resume_now')),
+                matching: find.byType(TextButton),
+              ),
+            )
+            .onPressed,
         isNull,
       );
     });
 
     group('dynamic in-flight via completer-backed commands', () {
-      testWidgets('limited command disables only limited switch until complete',
-          (tester) async {
-        final limitedCompleter = Completer<void>();
-        final cubit = _TestProfileCubit(
-          profile: const Profile(id: 'U-me', displayName: 'Me'),
-        )..limitedCommandCompleter = limitedCompleter;
-        addTearDown(cubit.close);
+      testWidgets(
+        'limited command disables only limited switch until complete',
+        (tester) async {
+          final limitedCompleter = Completer<void>();
+          final cubit = _TestProfileCubit(
+            profile: const Profile(id: 'U-me', displayName: 'Me'),
+          )..limitedCommandCompleter = limitedCompleter;
+          addTearDown(cubit.close);
 
-        await pumpAvailabilitySheet(tester, cubit: cubit, clock: clock);
+          await pumpAvailabilitySheet(tester, cubit: cubit, clock: clock);
 
-        await tester.tap(find.byKey(const Key('availability_limited_switch')));
-        await tester.pump();
-
-        expect(
-          tester.widget<SwitchListTile>(
+          await tester.tap(
             find.byKey(const Key('availability_limited_switch')),
-          ).onChanged,
-          isNull,
-        );
-        expect(
-          tester.widget<OutlinedButton>(
-            find.descendant(
-              of: find.byKey(const Key('availability_preset_tomorrow')),
-              matching: find.byType(OutlinedButton),
-            ),
-          ).onPressed,
-          isNotNull,
-        );
-        expect(cubit.setLimitedCalls, 1);
+          );
+          await tester.pump();
 
-        limitedCompleter.complete();
-        await tester.pumpAndSettle();
+          expect(
+            tester
+                .widget<SwitchListTile>(
+                  find.byKey(const Key('availability_limited_switch')),
+                )
+                .onChanged,
+            isNull,
+          );
+          expect(
+            tester
+                .widget<OutlinedButton>(
+                  find.descendant(
+                    of: find.byKey(const Key('availability_preset_tomorrow')),
+                    matching: find.byType(OutlinedButton),
+                  ),
+                )
+                .onPressed,
+            isNotNull,
+          );
+          expect(cubit.setLimitedCalls, 1);
 
-        expect(
-          tester.widget<SwitchListTile>(
-            find.byKey(const Key('availability_limited_switch')),
-          ).onChanged,
-          isNotNull,
-        );
-        expect(
-          tester.widget<SwitchListTile>(
-            find.byKey(const Key('availability_limited_switch')),
-          ).value,
-          isTrue,
-        );
-      });
+          limitedCompleter.complete();
+          await tester.pumpAndSettle();
 
-      testWidgets('pause command disables only pause controls until complete',
-          (tester) async {
+          expect(
+            tester
+                .widget<SwitchListTile>(
+                  find.byKey(const Key('availability_limited_switch')),
+                )
+                .onChanged,
+            isNotNull,
+          );
+          expect(
+            tester
+                .widget<SwitchListTile>(
+                  find.byKey(const Key('availability_limited_switch')),
+                )
+                .value,
+            isTrue,
+          );
+        },
+      );
+
+      testWidgets('pause command disables only pause controls until complete', (
+        tester,
+      ) async {
         final pauseCompleter = Completer<void>();
         final cubit = _TestProfileCubit(
           profile: const Profile(id: 'U-me', displayName: 'Me'),
@@ -276,24 +321,30 @@ void main() {
         await tester.pump();
 
         expect(
-          tester.widget<SwitchListTile>(
-            find.byKey(const Key('availability_limited_switch')),
-          ).onChanged,
+          tester
+              .widget<SwitchListTile>(
+                find.byKey(const Key('availability_limited_switch')),
+              )
+              .onChanged,
           isNotNull,
         );
         expect(
-          tester.widget<FilledButton>(
-            find.byKey(const Key('availability_pause_button')),
-          ).onPressed,
+          tester
+              .widget<FilledButton>(
+                find.byKey(const Key('availability_pause_button')),
+              )
+              .onPressed,
           isNull,
         );
         expect(
-          tester.widget<OutlinedButton>(
-            find.descendant(
-              of: find.byKey(const Key('availability_preset_tomorrow')),
-              matching: find.byType(OutlinedButton),
-            ),
-          ).onPressed,
+          tester
+              .widget<OutlinedButton>(
+                find.descendant(
+                  of: find.byKey(const Key('availability_preset_tomorrow')),
+                  matching: find.byType(OutlinedButton),
+                ),
+              )
+              .onPressed,
           isNull,
         );
         expect(cubit.pauseCalls, 1);
@@ -305,8 +356,9 @@ void main() {
         expect(find.text('Open sheet'), findsOneWidget);
       });
 
-      testWidgets('resume command disables only resume action until complete',
-          (tester) async {
+      testWidgets('resume command disables only resume action until complete', (
+        tester,
+      ) async {
         final resumeCompleter = Completer<void>();
         final cubit = _TestProfileCubit(
           profile: Profile(
@@ -323,18 +375,22 @@ void main() {
         await tester.pump();
 
         expect(
-          tester.widget<SwitchListTile>(
-            find.byKey(const Key('availability_limited_switch')),
-          ).onChanged,
+          tester
+              .widget<SwitchListTile>(
+                find.byKey(const Key('availability_limited_switch')),
+              )
+              .onChanged,
           isNotNull,
         );
         expect(
-          tester.widget<TextButton>(
-            find.descendant(
-              of: find.byKey(const Key('availability_resume_now')),
-              matching: find.byType(TextButton),
-            ),
-          ).onPressed,
+          tester
+              .widget<TextButton>(
+                find.descendant(
+                  of: find.byKey(const Key('availability_resume_now')),
+                  matching: find.byType(TextButton),
+                ),
+              )
+              .onPressed,
           isNull,
         );
         expect(cubit.resumeCalls, 1);
@@ -346,52 +402,64 @@ void main() {
         expect(find.text('Open sheet'), findsOneWidget);
       });
 
-      testWidgets('failed pause command re-enables pause controls and keeps sheet',
-          (tester) async {
-        final pauseCompleter = Completer<void>();
-        final cubit = _TestProfileCubit(
-          profile: const Profile(id: 'U-me', displayName: 'Me'),
-        )
-          ..pauseCommandCompleter = pauseCompleter
-          ..pauseError = Exception('offline');
-        addTearDown(cubit.close);
+      testWidgets(
+        'failed pause command re-enables pause controls and keeps sheet',
+        (tester) async {
+          final pauseCompleter = Completer<void>();
+          final cubit =
+              _TestProfileCubit(
+                  profile: const Profile(id: 'U-me', displayName: 'Me'),
+                )
+                ..pauseCommandCompleter = pauseCompleter
+                ..pauseError = Exception('offline');
+          addTearDown(cubit.close);
 
-        await pumpAvailabilitySheet(tester, cubit: cubit, clock: clock);
+          await pumpAvailabilitySheet(tester, cubit: cubit, clock: clock);
 
-        await tester.tap(find.byKey(const Key('availability_preset_tomorrow')));
-        await tester.pumpAndSettle();
-        await tester.tap(find.byKey(const Key('availability_pause_button')));
-        await tester.pump();
+          await tester.tap(
+            find.byKey(const Key('availability_preset_tomorrow')),
+          );
+          await tester.pumpAndSettle();
+          await tester.tap(find.byKey(const Key('availability_pause_button')));
+          await tester.pump();
 
-        expect(
-          tester.widget<FilledButton>(
-            find.byKey(const Key('availability_pause_button')),
-          ).onPressed,
-          isNull,
-        );
+          expect(
+            tester
+                .widget<FilledButton>(
+                  find.byKey(const Key('availability_pause_button')),
+                )
+                .onPressed,
+            isNull,
+          );
 
-        pauseCompleter.complete();
-        await tester.pumpAndSettle();
+          pauseCompleter.complete();
+          await tester.pumpAndSettle();
 
-        expect(find.byType(AvailabilitySheetBody), findsOneWidget);
-        expect(cubit.effects.emitted.whereType<ShowError>(), hasLength(1));
-        expect(
-          tester.widget<FilledButton>(
-            find.byKey(const Key('availability_pause_button')),
-          ).onPressed,
-          isNotNull,
-        );
-        expect(
-          tester.widget<SwitchListTile>(
-            find.byKey(const Key('availability_limited_switch')),
-          ).onChanged,
-          isNotNull,
-        );
-      });
+          expect(find.byType(AvailabilitySheetBody), findsOneWidget);
+          expect(cubit.effects.emitted.whereType<ShowError>(), hasLength(1));
+          expect(
+            tester
+                .widget<FilledButton>(
+                  find.byKey(const Key('availability_pause_button')),
+                )
+                .onPressed,
+            isNotNull,
+          );
+          expect(
+            tester
+                .widget<SwitchListTile>(
+                  find.byKey(const Key('availability_limited_switch')),
+                )
+                .onChanged,
+            isNotNull,
+          );
+        },
+      );
     });
 
-    testWidgets('pause failure retains sheet and emits one ShowError',
-        (tester) async {
+    testWidgets('pause failure retains sheet and emits one ShowError', (
+      tester,
+    ) async {
       final cubit = _TestProfileCubit(
         profile: const Profile(id: 'U-me', displayName: 'Me'),
       )..pauseError = Exception('offline');
@@ -450,7 +518,9 @@ void main() {
       expect(cubit.resumeCalls, 1);
     });
 
-    testWidgets('date picker bounds use tomorrow through today+90', (tester) async {
+    testWidgets('date picker bounds use tomorrow through today+90', (
+      tester,
+    ) async {
       final cubit = _TestProfileCubit(
         profile: const Profile(id: 'U-me', displayName: 'Me'),
       );
@@ -469,41 +539,47 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(DatePickerDialog), findsOneWidget);
-      final dialog = tester.widget<DatePickerDialog>(find.byType(DatePickerDialog));
+      final dialog = tester.widget<DatePickerDialog>(
+        find.byType(DatePickerDialog),
+      );
       expect(dialog.firstDate, tomorrow);
       expect(dialog.lastDate, maxDate);
       expect(dialog.initialDate, tomorrow);
     });
 
-    testWidgets('picked local date converts to UTC calendar echo before pause',
-        (tester) async {
-      final cubit = _TestProfileCubit(
-        profile: const Profile(id: 'U-me', displayName: 'Me'),
-      );
-      addTearDown(cubit.close);
+    testWidgets(
+      'picked local date converts to UTC calendar echo before pause',
+      (tester) async {
+        final cubit = _TestProfileCubit(
+          profile: const Profile(id: 'U-me', displayName: 'Me'),
+        );
+        addTearDown(cubit.close);
 
-      await pumpAvailabilitySheet(tester, cubit: cubit, clock: clock);
-      final l10n = lookupL10n(const Locale('en'));
+        await pumpAvailabilitySheet(tester, cubit: cubit, clock: clock);
+        final l10n = lookupL10n(const Locale('en'));
 
-      final resumeOn = availabilityOneWeekPreset(todayUtc);
-      await tester.tap(find.byKey(const Key('availability_preset_one_week')));
-      await tester.pumpAndSettle();
+        final resumeOn = availabilityOneWeekPreset(todayUtc);
+        await tester.tap(find.byKey(const Key('availability_preset_one_week')));
+        await tester.pumpAndSettle();
 
-      expect(
-        find.text(
-          l10n.availabilityResumeEcho(
-            availabilityWhenLabel(l10n, resumeOn, todayUtc),
+        expect(
+          find.text(
+            l10n.availabilityResumeEcho(
+              availabilityWhenLabel(l10n, resumeOn, todayUtc),
+            ),
           ),
-        ),
-        findsOneWidget,
-      );
-      expect(
-        tester.widget<FilledButton>(
-          find.byKey(const Key('availability_pause_button')),
-        ).onPressed,
-        isNotNull,
-      );
-    });
+          findsOneWidget,
+        );
+        expect(
+          tester
+              .widget<FilledButton>(
+                find.byKey(const Key('availability_pause_button')),
+              )
+              .onPressed,
+          isNotNull,
+        );
+      },
+    );
   });
 }
 
@@ -547,7 +623,8 @@ Future<void> pumpAvailabilitySheet(
   await tester.pumpAndSettle();
 }
 
-final class _TestProfileCubit extends Cubit<ProfileState> implements ProfileCubit {
+final class _TestProfileCubit extends Cubit<ProfileState>
+    implements ProfileCubit {
   _TestProfileCubit({required Profile profile})
     : effects = FakeUiEffectPort(),
       super(ProfileState(profile: profile));
@@ -591,7 +668,9 @@ final class _TestProfileCubit extends Cubit<ProfileState> implements ProfileCubi
     emit(
       state.copyWith(
         profile: state.profile.copyWith(
-          availability: state.profile.availability.copyWith(isLimited: isLimited),
+          availability: state.profile.availability.copyWith(
+            isLimited: isLimited,
+          ),
         ),
       ),
     );

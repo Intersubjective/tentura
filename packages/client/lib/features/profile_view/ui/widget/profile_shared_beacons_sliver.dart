@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/util/ui_utils.dart';
 import 'package:tentura/ui/widget/beacon_card_primitives.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
 
@@ -60,13 +60,23 @@ class ProfileSharedBeaconsSliver extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 if (forwarded.isNotEmpty) ...[
-                  _SectionHeader(label: l10n.profileSharedBeaconsForwardedSection),
-                  for (final entry in [...activeForwarded, ...archivedForwarded])
+                  _SectionHeader(
+                    label: l10n.profileSharedBeaconsForwardedSection,
+                  ),
+                  for (final entry in [
+                    ...activeForwarded,
+                    ...archivedForwarded,
+                  ])
                     _ForwardedBeaconCard(entry: entry),
                 ],
                 if (coHelpOffered.isNotEmpty) ...[
-                  _SectionHeader(label: l10n.profileSharedBeaconsCoHelpOfferedSection),
-                  for (final entry in [...activeCoHelpOffered, ...archivedCoHelpOffered])
+                  _SectionHeader(
+                    label: l10n.profileSharedBeaconsCoHelpOfferedSection,
+                  ),
+                  for (final entry in [
+                    ...activeCoHelpOffered,
+                    ...archivedCoHelpOffered,
+                  ])
                     _CoHelpOfferedBeaconCard(entry: entry),
                 ],
               ],
@@ -87,7 +97,10 @@ class _SectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.only(top: kSpacingMedium, bottom: kSpacingSmall),
+      padding: const EdgeInsets.only(
+        top: kSpacingMedium,
+        bottom: kSpacingSmall,
+      ),
       child: Text(
         label,
         style: theme.textTheme.titleSmall?.copyWith(
@@ -154,7 +167,8 @@ class _CoHelpOfferedBeaconCard extends StatelessWidget {
             ),
             const SizedBox(height: kSpacingSmall),
             _LifecyclePill(beacon: entry.beacon),
-            if (hasNote) _ForwardNote(note: entry.targetOfferHelpMessage.trim()),
+            if (hasNote)
+              _ForwardNote(note: entry.targetOfferHelpMessage.trim()),
             const _ReactionRow(
               reaction: TargetBeaconReaction.helpOffered,
               rejectionMessage: '',

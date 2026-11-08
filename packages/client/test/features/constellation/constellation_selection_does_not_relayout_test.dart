@@ -5,8 +5,8 @@ import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart'
 import 'package:tentura/features/constellation/ui/scene/constellation_scene_controller.dart';
 import 'package:tentura/features/graph/domain/entity/edge_details.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
-import 'package:tentura/features/graph/ui/utils/tentura_layout_algorithms.dart';
-import 'package:tentura/ui/utils/frame_slice_scheduler.dart';
+import 'package:tentura/features/graph/ui/util/tentura_layout_algorithms.dart';
+import 'package:tentura/ui/util/frame_slice_scheduler.dart';
 
 import 'fixtures/constellation_reference_fixture.dart';
 

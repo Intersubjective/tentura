@@ -5,7 +5,7 @@ import 'package:tentura/design_system/tentura_theme.dart';
 import 'package:tentura/domain/entity/beacon_activity_event.dart';
 import 'package:tentura/domain/entity/beacon_activity_event_consts.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/beacon_activity_event_presenter.dart';
+import 'package:tentura/ui/util/beacon_activity_event_presenter.dart';
 
 void main() {
   final l10n = lookupL10n(const Locale('en'));

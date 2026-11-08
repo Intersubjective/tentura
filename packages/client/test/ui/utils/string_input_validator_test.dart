@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/string_input_validator.dart';
+import 'package:tentura/ui/util/string_input_validator.dart';
 
 class _Validator with StringInputValidator {}
 
@@ -47,7 +47,10 @@ void main() {
 
   group('inviteLabelValidator', () {
     test('mirrors length rules with invite-label messages', () {
-      expect(validator.inviteLabelValidator(l10n, 'ab'), l10n.inviteLabelTooShort);
+      expect(
+        validator.inviteLabelValidator(l10n, 'ab'),
+        l10n.inviteLabelTooShort,
+      );
       expect(validator.inviteLabelValidator(l10n, 'abc'), isNull);
       expect(
         validator.inviteLabelValidator(l10n, 'a' * (kTitleMaxLength + 1)),
@@ -58,8 +61,14 @@ void main() {
 
   group('displayNameValidator', () {
     test('rejects whitespace-only names (#1118)', () {
-      expect(validator.displayNameValidator(l10n, '   '), l10n.displayNameTooShort);
-      expect(validator.displayNameValidator(l10n, '  \u00a0  '), l10n.displayNameTooShort);
+      expect(
+        validator.displayNameValidator(l10n, '   '),
+        l10n.displayNameTooShort,
+      );
+      expect(
+        validator.displayNameValidator(l10n, '  \u00a0  '),
+        l10n.displayNameTooShort,
+      );
     });
 
     test('accepts Unicode name with surrounding spaces trimmed', () {
@@ -114,7 +123,10 @@ void main() {
     });
 
     test('accepts trimmed non-empty description', () {
-      expect(validator.beaconDescriptionValidator(l10n, '  Need help  '), isNull);
+      expect(
+        validator.beaconDescriptionValidator(l10n, '  Need help  '),
+        isNull,
+      );
     });
 
     test('rejects descriptions over beacon max length', () {

@@ -10,7 +10,7 @@ import 'package:tentura/features/people_tags/domain/use_case/people_tags_case.da
 import 'package:tentura/features/people_tags/ui/widget/tag_suggestion_card.dart';
 import 'package:tentura_root/domain/entity/localizable.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/util/ui_utils.dart';
 
 import '../bloc/closure_author_cubit.dart';
 import '../widget/closure_footer.dart';

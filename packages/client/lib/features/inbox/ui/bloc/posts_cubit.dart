@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:get_it/get_it.dart';
 
 import 'package:tentura/features/beacon_threads/domain/room_read_watermark_store.dart';
-import 'package:tentura/ui/utils/post_expiry_clock.dart';
+import 'package:tentura/ui/util/post_expiry_clock.dart';
 
 import '../../domain/entity/post_summary.dart';
 import '../../domain/use_case/posts_case.dart';

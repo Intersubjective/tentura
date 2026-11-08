@@ -27,7 +27,7 @@ import 'package:tentura/features/beacon_threads/domain/entity/committed_mention.
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
-import 'package:tentura/ui/utils/string_input_validator.dart'
+import 'package:tentura/ui/util/string_input_validator.dart'
     show StringInputValidator;
 
 import '../message/beacon_create_message.dart';

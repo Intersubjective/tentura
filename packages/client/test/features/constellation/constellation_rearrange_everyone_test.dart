@@ -14,11 +14,11 @@ import 'package:tentura/features/constellation/domain/use_case/constellation_pla
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/scene/constellation_scene_controller.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
-import 'package:tentura/ui/utils/rearrange_preview_scheduler.dart';
+import 'package:tentura/ui/util/rearrange_preview_scheduler.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 import 'package:tentura/features/graph/domain/use_case/graph_trust_write_case.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_person_context_cubit.dart';
-import 'package:tentura/features/graph/ui/utils/graph_scene_ids.dart';
+import 'package:tentura/features/graph/ui/util/graph_scene_ids.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';

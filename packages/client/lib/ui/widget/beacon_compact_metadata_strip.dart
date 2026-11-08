@@ -8,9 +8,9 @@ import 'package:tentura/domain/entity/beacon_involved_profiles.dart';
 import 'package:tentura/domain/entity/beacon_schedule.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/beacon_location_actions.dart';
-import 'package:tentura/ui/utils/beacon_schedule_presenter.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/util/beacon_location_actions.dart';
+import 'package:tentura/ui/util/beacon_schedule_presenter.dart';
+import 'package:tentura/ui/util/ui_utils.dart';
 import 'package:tentura/ui/widget/beacon_card_primitives.dart';
 import 'package:tentura/ui/widget/beacon_involved_people_face_pile.dart';
 
@@ -86,10 +86,9 @@ class BeaconCompactMetadataStrip extends StatelessWidget {
       involvedProfiles: involvedProfiles,
       helperCount: helperCount,
     );
-    final hasSchedule =
-        includeScheduleAndLocation && beacon.hasScheduleDates;
-    final hasLocation = includeScheduleAndLocation &&
-        (beacon.coordinates?.isNotEmpty ?? false);
+    final hasSchedule = includeScheduleAndLocation && beacon.hasScheduleDates;
+    final hasLocation =
+        includeScheduleAndLocation && (beacon.coordinates?.isNotEmpty ?? false);
 
     if (!hasPile && !hasSchedule && !hasLocation) {
       return const SizedBox.shrink();
@@ -122,18 +121,22 @@ class BeaconCompactMetadataStrip extends StatelessWidget {
                 // Icon + gap inside [_ScheduleMeta] / [BeaconCardMetaItem].
                 const scheduleChrome =
                     _LocationMeta.metaIconSize + _LocationMeta.metaIconGap;
-                final locationReserve =
-                    hasLocation ? _LocationMeta.layoutExtent : 0.0;
+                final locationReserve = hasLocation
+                    ? _LocationMeta.layoutExtent
+                    : 0.0;
                 final scheduleTextMax = hasSchedule
                     ? (both
-                            ? available - gap - locationReserve - scheduleChrome
-                            : _ScheduleMeta.textMaxWidth)
-                        .clamp(0.0, _ScheduleMeta.textMaxWidth)
+                              ? available -
+                                    gap -
+                                    locationReserve -
+                                    scheduleChrome
+                              : _ScheduleMeta.textMaxWidth)
+                          .clamp(0.0, _ScheduleMeta.textMaxWidth)
                     : 0.0;
                 final locationMax = hasLocation
                     ? (both
-                        ? available - gap - scheduleChrome - scheduleTextMax
-                        : available)
+                          ? available - gap - scheduleChrome - scheduleTextMax
+                          : available)
                     : 0.0;
 
                 return Align(
@@ -274,6 +277,7 @@ class _LocationMeta extends StatelessWidget {
 
   static const double metaIconSize = 16;
   static const double metaIconGap = 4;
+
   /// Layout width for icon-only mode (tap target expands via [OverflowBox]).
   static const double layoutExtent = metaIconSize;
   static const double _minTapExtent = 44;
@@ -315,7 +319,8 @@ class _LocationMeta extends StatelessWidget {
     final width = maxWidth;
     final textDirection = Directionality.of(context);
     final tapRadius = BorderRadius.circular(TenturaRadii.cardDense);
-    final showIconOnly = width != null &&
+    final showIconOnly =
+        width != null &&
         width.isFinite &&
         width > 0 &&
         !_rowFitsWidth(

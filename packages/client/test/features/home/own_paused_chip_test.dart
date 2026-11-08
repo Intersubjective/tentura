@@ -14,7 +14,7 @@ import 'package:tentura/features/home/ui/widget/home_account_avatar_button.dart'
 import 'package:tentura/features/home/ui/widget/own_paused_chip.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/availability_line.dart';
+import 'package:tentura/ui/util/availability_line.dart';
 
 void main() {
   final fixedNow = DateTime.utc(2026, 8, 14, 15, 30);

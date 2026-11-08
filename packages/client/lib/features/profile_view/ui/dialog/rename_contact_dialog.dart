@@ -8,9 +8,9 @@ import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/code_unit_length_formatter.dart';
-import 'package:tentura/ui/utils/string_input_validator.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/util/code_unit_length_formatter.dart';
+import 'package:tentura/ui/util/string_input_validator.dart';
+import 'package:tentura/ui/util/ui_utils.dart';
 
 import 'package:tentura/features/contacts/domain/use_case/contacts_case.dart';
 

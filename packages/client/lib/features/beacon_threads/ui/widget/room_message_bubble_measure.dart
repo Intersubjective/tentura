@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/util/ui_utils.dart';
 
 /// Avatar / icon sizes for lifecycle footer tap rows (see `_MessageLifecycleFooter`).
 const double kLifecycleFooterAvatarSize = 16;

@@ -6,7 +6,7 @@ import 'package:force_directed_graphview/src/scene/graph_layout_ticket.dart';
 
 import 'package:tentura/features/graph/domain/entity/edge_details.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
-import 'package:tentura/features/graph/ui/utils/graph_scene_ids.dart';
+import 'package:tentura/features/graph/ui/util/graph_scene_ids.dart';
 
 final Object _testLayoutTicketOwner = Object();
 
@@ -53,16 +53,15 @@ GraphLayoutRequest sceneLayoutRequest({
 
 SceneLayout sceneLayoutFromPositions(
   Map<GraphNodeId, ScenePoint> positions,
-) =>
-    SceneLayout(
-      ticket: mintGraphLayoutTicket(
-        owner: _testLayoutTicketOwner,
-        topologyRevision: 1,
-        generation: 1,
-      ),
-      revision: 0,
-      positions: positions,
-    );
+) => SceneLayout(
+  ticket: mintGraphLayoutTicket(
+    owner: _testLayoutTicketOwner,
+    topologyRevision: 1,
+    generation: 1,
+  ),
+  revision: 0,
+  positions: positions,
+);
 
 Future<Map<GraphNodeId, ScenePoint>> layoutPositionsOnce(
   SceneLayoutAlgorithm algorithm, {

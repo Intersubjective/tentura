@@ -9,8 +9,8 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/features/profile_view/ui/widget/mutual_friends_button.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/availability_line.dart';
-import 'package:tentura/ui/utils/snack_bar_clearance.dart';
+import 'package:tentura/ui/util/availability_line.dart';
+import 'package:tentura/ui/util/snack_bar_clearance.dart';
 import 'package:tentura/ui/widget/focus_flash_highlight.dart';
 
 import '../../domain/entity/person_forward_row.dart';
@@ -276,7 +276,8 @@ class _PersonForwardRowTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
-    final enabled = row.isEligible && (state.person?.isMutuallyVisible ?? false);
+    final enabled =
+        row.isEligible && (state.person?.isMutuallyVisible ?? false);
     final alreadySent = row.block == PersonForwardBlock.alreadySent;
     final showForwardEdgeActions = alreadySent && row.isForwardEdgeCancellable;
     final muted = !enabled;
@@ -291,9 +292,9 @@ class _PersonForwardRowTile extends StatelessWidget {
         child: InkWell(
           borderRadius: BorderRadius.circular(tt.cardRadius),
           onTap: enabled
-              ? () => context
-                    .read<PersonForwardCubit>()
-                    .selectBeacon(row.beacon.id)
+              ? () => context.read<PersonForwardCubit>().selectBeacon(
+                  row.beacon.id,
+                )
               : alreadySent
               ? () => unawaited(
                   context.router.push(
@@ -366,9 +367,9 @@ class _PersonForwardRowTile extends StatelessWidget {
                       size: tt.iconSize,
                     ),
                     onPressed: () => unawaited(
-                      context
-                          .read<PersonForwardCubit>()
-                          .cancelSelectedOr(row.beacon.id),
+                      context.read<PersonForwardCubit>().cancelSelectedOr(
+                        row.beacon.id,
+                      ),
                     ),
                   ),
                 ],

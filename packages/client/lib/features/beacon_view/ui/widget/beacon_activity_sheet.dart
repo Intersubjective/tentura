@@ -5,7 +5,7 @@ import 'package:tentura/domain/entity/beacon_activity_event.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/widget/activity_list.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/beacon_activity_event_presenter.dart';
+import 'package:tentura/ui/util/beacon_activity_event_presenter.dart';
 
 Future<void> showBeaconActivitySheet(
   BuildContext pageContext, {

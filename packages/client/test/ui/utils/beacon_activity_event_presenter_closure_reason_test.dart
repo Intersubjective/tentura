@@ -7,7 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura/domain/entity/beacon_activity_event.dart';
 import 'package:tentura/domain/entity/beacon_activity_event_consts.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/beacon_activity_event_presenter.dart';
+import 'package:tentura/ui/util/beacon_activity_event_presenter.dart';
 
 /// Server [`beacon_activity_event.diff.reason`] wire values (see server consts).
 const _serverClosureOpenedReason = 'closureOpened';
@@ -68,19 +68,22 @@ void main() {
       expect(beaconActivityLogTier(e), BeaconActivityLogTier.high);
     });
 
-    test('presentation matches legacy reviewExpired wire for stored events', () {
-      final server = _lifecycleEvent(_serverClosureExpiredReason);
-      final legacy = _lifecycleEvent(_legacyReviewExpiredReason);
-      expect(
-        beaconActivityEventLabel(l10n, server),
-        beaconActivityEventLabel(l10n, legacy),
-      );
-      expect(beaconActivityLogIcon(server), beaconActivityLogIcon(legacy));
-      expect(
-        beaconLifecycleEventIsSystem(server),
-        beaconLifecycleEventIsSystem(legacy),
-      );
-    });
+    test(
+      'presentation matches legacy reviewExpired wire for stored events',
+      () {
+        final server = _lifecycleEvent(_serverClosureExpiredReason);
+        final legacy = _lifecycleEvent(_legacyReviewExpiredReason);
+        expect(
+          beaconActivityEventLabel(l10n, server),
+          beaconActivityEventLabel(l10n, legacy),
+        );
+        expect(beaconActivityLogIcon(server), beaconActivityLogIcon(legacy));
+        expect(
+          beaconLifecycleEventIsSystem(server),
+          beaconLifecycleEventIsSystem(legacy),
+        );
+      },
+    );
   });
 
   // #347: a status change to "More or different help needed" (and "Enough

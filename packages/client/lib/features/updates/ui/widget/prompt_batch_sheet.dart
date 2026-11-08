@@ -8,7 +8,7 @@ import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/capability/prompt_state_value.dart';
 import 'package:tentura/features/updates/domain/entity/prompt_projection.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/util/ui_utils.dart';
 
 import '../../domain/use_case/invite_accepted_setup_case.dart';
 import '../bloc/updates_feed_cubit.dart';

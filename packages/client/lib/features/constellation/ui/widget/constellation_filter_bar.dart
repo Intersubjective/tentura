@@ -7,7 +7,7 @@ import 'package:tentura/domain/capability/capability_group.dart';
 import 'package:tentura/domain/capability/capability_tag.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
-import 'package:tentura/ui/utils/capability_tag_presenter.dart';
+import 'package:tentura/ui/util/capability_tag_presenter.dart';
 
 import '../../domain/constellation_filters.dart';
 import '../bloc/constellation_cubit.dart';
@@ -624,15 +624,20 @@ class _ActivityRecencyFilters extends StatelessWidget {
               selected: activityRecency is ActivityRecencyFilterAny,
               onSelected: (selected) {
                 if (selected) {
-                  cubit.setFilterActivityRecency(const ActivityRecencyFilterAny());
+                  cubit.setFilterActivityRecency(
+                    const ActivityRecencyFilterAny(),
+                  );
                 }
               },
             ),
             for (final days in [7, 30, 90])
               FilterChip(
                 key: Key('constellation.filter.activity.within_$days'),
-                label: Text(l10n.constellationFilterActivityRecencyWithinDays(days)),
-                selected: activityRecency is ActivityRecencyFilterWithinDays &&
+                label: Text(
+                  l10n.constellationFilterActivityRecencyWithinDays(days),
+                ),
+                selected:
+                    activityRecency is ActivityRecencyFilterWithinDays &&
                     activityRecency.days == days,
                 onSelected: (selected) {
                   if (selected) {

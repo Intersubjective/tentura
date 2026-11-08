@@ -9,7 +9,7 @@ import 'package:tentura/features/graph/data/repository/forwards_graph_repository
 import 'package:tentura/ui/widget/auto_leading_with_fallback.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/util/ui_utils.dart';
 
 import '../bloc/graph_cubit.dart';
 import '../../domain/entity/graph_edge_colors.dart';
