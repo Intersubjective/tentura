@@ -93,19 +93,34 @@ class BeaconViewHostScreen extends StatelessWidget implements AutoRouteWrapper {
   );
 }
 
-/// Post detail URL alias — same behaviour as [BeaconViewHostScreen] (`#1082`).
+/// Post detail URL alias — opens the Post screen directly (`#1082`).
+///
+/// Path and query params must be declared here (not only on the superclass)
+/// so AutoRoute wires `/post/view/:id` into [PostViewRoute] args.
 @RoutePage(name: 'PostViewRoute')
 class PostViewHostScreen extends BeaconViewHostScreen {
   const PostViewHostScreen({
-    required super.id,
-    super.isDeepLink,
-    super.viewTab,
-    super.peopleTabAttention,
-    super.entry,
-    super.threadId,
-    super.messageId,
+    @PathParam('id') required super.id,
+    @QueryParam(kQueryIsDeepLink) super.isDeepLink,
+    @QueryParam(kQueryBeaconViewTab) super.viewTab,
+    @QueryParam(kQueryBeaconPeopleTabAttention) super.peopleTabAttention,
+    @QueryParam(kQueryBeaconEntry) super.entry,
+    @QueryParam(kQueryThreadId) super.threadId,
+    @QueryParam(kQueryMessageId) super.messageId,
     super.key,
   });
+
+  @override
+  Widget wrappedRoute(BuildContext context) => localScreenCubitScope(
+    child: BlocBuilder<ProfileCubit, ProfileState>(
+      buildWhen: (previous, current) =>
+          previous.profile.id != current.profile.id,
+      builder: (context, profileState) => HomeRailFrame(
+        selectedTab: HomeTab.conversations,
+        child: PostViewScope(id: id, myProfile: profileState.profile),
+      ),
+    ),
+  );
 }
 
 /// Resolves the beacon kind once, then builds the matching scope.

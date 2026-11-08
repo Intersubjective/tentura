@@ -18,6 +18,7 @@ import 'package:tentura/features/settings/ui/bloc/settings_cubit.dart';
 import 'accept_invite_guard.dart';
 import 'beacon_view_route_normalizer.dart';
 import 'browse_deep_link.dart';
+import 'entity_path_param_guard.dart';
 import 'credential_link_deep_link.dart';
 import 'home_tab_branches.dart';
 import 'invite_deep_link.dart';
@@ -446,6 +447,17 @@ class RootRouter extends RootStackRouter {
       usesPathAsKey: true,
       page: BeaconViewRoute.page,
       path: '$kPathBeaconView/:id',
+      guards: [
+        AutoRouteGuard.simple((resolver, router) {
+          final id = resolver.route.params.getString('id');
+          if (!isSubstitutedEntityIdPathParam(id)) {
+            resolver.next(false);
+            unawaited(router.replacePath(kPathHome));
+            return;
+          }
+          resolver.next();
+        }),
+      ],
       children: [
         AutoRoute(
           page: BeaconViewOperationalRoute.page,
@@ -460,6 +472,17 @@ class RootRouter extends RootStackRouter {
       usesPathAsKey: true,
       page: PostViewRoute.page,
       path: '$kPathPostView/:id',
+      guards: [
+        AutoRouteGuard.simple((resolver, router) {
+          final id = resolver.route.params.getString('id');
+          if (!isSubstitutedEntityIdPathParam(id)) {
+            resolver.next(false);
+            unawaited(router.replacePath(kPathHome));
+            return;
+          }
+          resolver.next();
+        }),
+      ],
       children: [
         AutoRoute(
           page: BeaconViewOperationalRoute.page,
