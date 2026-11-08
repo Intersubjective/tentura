@@ -5,6 +5,7 @@ import 'package:image/image.dart' as img;
 import 'package:injectable/injectable.dart';
 import 'package:blurhash_dart/blurhash_dart.dart';
 import 'package:logging/logging.dart';
+import 'package:meta/meta.dart';
 
 import 'package:tentura_server/env.dart';
 import 'package:tentura_server/domain/port/image_object_gc_port.dart';
@@ -113,6 +114,8 @@ final class TaskWorkerCase extends UseCaseBase {
     this._tasksRepository,
     this._emailDigestCase,
     this._notificationOutbox, {
+    required super.env,
+    required super.logger,
     ImageObjectGcPort? imageObjectGc,
     BeaconCase? beaconCase,
     AttentionChannelDeliveryCase? attentionChannelDelivery,
@@ -136,8 +139,7 @@ final class TaskWorkerCase extends UseCaseBase {
     this._postExpirySweep,
     this._postExpiryWarningSweep,
     this._attentionCaptureSettlement,
-    required super.env,
-    required super.logger,
+    this._clock = DateTime.timestamp,
   }) : _imageObjectGc = imageObjectGc,
        _beaconCase = beaconCase,
        _attentionChannelDelivery = attentionChannelDelivery,
@@ -189,6 +191,9 @@ final class TaskWorkerCase extends UseCaseBase {
   final PostExpiryWarningSweepCase? _postExpiryWarningSweep;
   final AttentionCaptureSettlementCase? _attentionCaptureSettlement;
 
+  /// Reads "now" for every cadence check; tests drive it by hand.
+  final DateTime Function() _clock;
+
   /// Per-process identity for `image_object_gc` lease ownership (§3.4).
   final _gcLeaseOwner = generateId('W');
 
@@ -229,7 +234,7 @@ final class TaskWorkerCase extends UseCaseBase {
     () async {
       final publisher = _trustPublisher;
       if (publisher == null) return;
-      final now = DateTime.timestamp();
+      final now = _clock();
       if (!publisher.consumeNudge() &&
           now.difference(_lastTrustPublish) < const Duration(seconds: 10)) {
         return;
@@ -239,7 +244,7 @@ final class TaskWorkerCase extends UseCaseBase {
     },
     // Closure finalize: epochs whose closing window has elapsed.
     () async {
-      final now = DateTime.timestamp();
+      final now = _clock();
       if (now.difference(_lastClosureFinalizeSweep) <
           const Duration(seconds: 60)) {
         return;
@@ -249,7 +254,7 @@ final class TaskWorkerCase extends UseCaseBase {
     },
     // Closure draft reminder: voters whose draft differs from their commit.
     () async {
-      final now = DateTime.timestamp();
+      final now = _clock();
       if (now.difference(_lastClosureDraftReminderSweep) <
           const Duration(hours: 1)) {
         return;
@@ -259,7 +264,7 @@ final class TaskWorkerCase extends UseCaseBase {
     },
     // Noisy contact: forwards unanswered past their deadline.
     () async {
-      final now = DateTime.timestamp();
+      final now = _clock();
       if (now.difference(_lastContactResolutionSweep) <
           env.contactResolutionSweepInterval) {
         return;
@@ -271,7 +276,7 @@ final class TaskWorkerCase extends UseCaseBase {
     () async {
       final sweep = _budAnchorSweep;
       if (sweep == null) return;
-      final now = DateTime.timestamp();
+      final now = _clock();
       if (!sweep.consumeNudge() &&
           now.difference(_lastBudAnchorSweep) < const Duration(seconds: 10)) {
         return;
@@ -281,7 +286,7 @@ final class TaskWorkerCase extends UseCaseBase {
     },
     // Dismiss-all captures abandoned mid-capture: resume or expire them.
     () async {
-      final now = DateTime.timestamp();
+      final now = _clock();
       if (now.difference(_lastAttentionCaptureSettlement) <
           const Duration(minutes: 1)) {
         return;
@@ -291,7 +296,7 @@ final class TaskWorkerCase extends UseCaseBase {
     },
     // Weekly nudge to the author of a stale open request.
     () async {
-      final now = DateTime.timestamp();
+      final now = _clock();
       if (now.difference(_lastStaleRequestReminderSweep) <
           const Duration(hours: 1)) {
         return;
@@ -300,7 +305,7 @@ final class TaskWorkerCase extends UseCaseBase {
       await _staleRequestReminderSweep?.runDue(now: now);
     },
     () async {
-      final now = DateTime.timestamp();
+      final now = _clock();
       if (now.difference(_lastAttentionDeliverySweep) <
           const Duration(seconds: 10)) {
         return;
@@ -312,7 +317,7 @@ final class TaskWorkerCase extends UseCaseBase {
       );
     },
     () async {
-      final now = DateTime.timestamp();
+      final now = _clock();
       if (now.difference(_lastBeaconHierarchyDeliverySweep) <
           const Duration(seconds: 10)) {
         return;
@@ -324,7 +329,7 @@ final class TaskWorkerCase extends UseCaseBase {
       );
     },
     () async {
-      final now = DateTime.timestamp();
+      final now = _clock();
       if (now.difference(_lastDeadlineReminderSweep) <
           const Duration(minutes: 5)) {
         return;
@@ -333,7 +338,7 @@ final class TaskWorkerCase extends UseCaseBase {
       await _deadlineReminderSweep?.runDue(now: now);
     },
     () async {
-      final now = DateTime.timestamp();
+      final now = _clock();
       if (now.difference(_lastPostExpirySweep) < const Duration(seconds: 30)) {
         return;
       }
@@ -341,7 +346,7 @@ final class TaskWorkerCase extends UseCaseBase {
       await _postExpirySweep?.runDue();
     },
     () async {
-      final now = DateTime.timestamp();
+      final now = _clock();
       if (now.difference(_lastPostExpiryWarningSweep) <
           const Duration(minutes: 1)) {
         return;
@@ -352,7 +357,7 @@ final class TaskWorkerCase extends UseCaseBase {
     // Request plan («либретто», #220) §4.5: step reminders, due, overdue.
     () async {
       if (!env.planEnabled) return;
-      final now = DateTime.timestamp();
+      final now = _clock();
       if (now.difference(_lastPlanStepSweep) < const Duration(seconds: 30)) {
         return;
       }
@@ -360,7 +365,7 @@ final class TaskWorkerCase extends UseCaseBase {
       await _planStepSweep?.runDue(now: now);
     },
     () async {
-      final now = DateTime.timestamp();
+      final now = _clock();
       if (now.difference(_lastTrustMaintenanceSweep) <
           const Duration(minutes: 1)) {
         return;
@@ -369,7 +374,7 @@ final class TaskWorkerCase extends UseCaseBase {
       await _trustMaintenance?.runDue(now: now);
     },
     () async {
-      final now = DateTime.timestamp();
+      final now = _clock();
       if (now.difference(_lastBlockCascadeSweep) < const Duration(minutes: 1)) {
         return;
       }
@@ -377,7 +382,7 @@ final class TaskWorkerCase extends UseCaseBase {
       await _blockCascade?.runDue(now: now);
     },
     () async {
-      final now = DateTime.timestamp();
+      final now = _clock();
       if (now.difference(_lastBlockReleaseSweep) <
           env.blockReleaseSweepInterval) {
         return;
@@ -410,7 +415,7 @@ final class TaskWorkerCase extends UseCaseBase {
     },
     // Email digest sweep (self-gates per account; throttle the sweep itself).
     () async {
-      final now = DateTime.timestamp();
+      final now = _clock();
       if (now.difference(_lastDigestSweep) < const Duration(minutes: 10)) {
         return;
       }
@@ -419,7 +424,7 @@ final class TaskWorkerCase extends UseCaseBase {
     },
     // Notification outbox retention (delete read+emailed rows older than 30d).
     () async {
-      final now = DateTime.timestamp();
+      final now = _clock();
       if (now.difference(_lastRetentionSweep) < const Duration(hours: 6)) {
         return;
       }
@@ -432,7 +437,7 @@ final class TaskWorkerCase extends UseCaseBase {
     // deleted from the database, only after their owning transaction
     // committed.
     () async {
-      final now = DateTime.timestamp();
+      final now = _clock();
       if (now.difference(_lastImageGcSweep) < const Duration(seconds: 30)) {
         return;
       }
@@ -463,7 +468,7 @@ final class TaskWorkerCase extends UseCaseBase {
     },
     // Beacon stage expiry (§3.3): sweeps invisible stages older than 24h.
     () async {
-      final now = DateTime.timestamp();
+      final now = _clock();
       if (now.difference(_lastStageExpirySweep) < const Duration(minutes: 5)) {
         return;
       }
@@ -472,7 +477,7 @@ final class TaskWorkerCase extends UseCaseBase {
     },
     // Capability evidence cell expiry sweep (D3): bounded lease claim + rebuild.
     () async {
-      final now = DateTime.timestamp();
+      final now = _clock();
       if (now.difference(_lastCapCellSweep) < const Duration(minutes: 15)) {
         return;
       }
@@ -481,7 +486,7 @@ final class TaskWorkerCase extends UseCaseBase {
     },
     // Capability telemetry (G1b): population-wide mute rate + seed renewal gauges.
     () async {
-      final now = DateTime.timestamp();
+      final now = _clock();
       if (now.difference(_lastCapTelemetrySweep) <
           const Duration(minutes: 45)) {
         return;
@@ -491,7 +496,7 @@ final class TaskWorkerCase extends UseCaseBase {
     },
     // Witness-window cache GC: rows past read-time TTL (storage only).
     () async {
-      final now = DateTime.timestamp();
+      final now = _clock();
       if (now.difference(_lastEwwGcSweep) < const Duration(hours: 1)) {
         return;
       }
@@ -500,7 +505,7 @@ final class TaskWorkerCase extends UseCaseBase {
     },
     // Orphan capability_evidence_generation GC (D3).
     () async {
-      final now = DateTime.timestamp();
+      final now = _clock();
       if (now.difference(_lastCapGenGcSweep) < const Duration(hours: 6)) {
         return;
       }
@@ -509,7 +514,7 @@ final class TaskWorkerCase extends UseCaseBase {
     },
     // Availability stale-row janitor (hygiene only; reads stay correct without it).
     () async {
-      final now = DateTime.timestamp();
+      final now = _clock();
       if (now.difference(_lastAvailabilityCleanupSweep) <
           const Duration(hours: 6)) {
         return;
@@ -529,15 +534,22 @@ final class TaskWorkerCase extends UseCaseBase {
   Future<void> run() async {
     while (_canRun) {
       await Future<void>.delayed(env.taskOnEmptyDelay);
-      for (final task in _tasks) {
-        try {
-          if (_canRun) await task();
-        } catch (e) {
-          if (env.isDebugModeOn) print(e);
-        }
-      }
+      await tick();
     }
     _runnerCompleter.complete();
+  }
+
+  /// One pass over every job, in order; a job that throws does not stop the
+  /// jobs after it.
+  @visibleForTesting
+  Future<void> tick() async {
+    for (final task in _tasks) {
+      try {
+        if (_canRun) await task();
+      } catch (e) {
+        if (env.isDebugModeOn) print(e);
+      }
+    }
   }
 
   /// Exponential backoff capped at 16 minutes, keyed by the post-claim
