@@ -1869,23 +1869,23 @@ class _ConstellationBodyState extends State<ConstellationBody>
             const ConstellationNoContactsBanner(),
             const ConstellationVisibilityBar(),
           ],
-            if (_selectionUnavailableMessage != null)
-              Material(
-                color: theme.colorScheme.errorContainer,
-                child: Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: tt.screenHPadding,
-                    vertical: tt.tightGap,
-                  ),
-                  child: Text(
-                    _selectionUnavailableMessage!,
-                    key: const Key('constellation.selection_unavailable'),
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onErrorContainer,
-                    ),
+          if (_selectionUnavailableMessage != null)
+            Material(
+              color: theme.colorScheme.errorContainer,
+              child: Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: tt.screenHPadding,
+                  vertical: tt.tightGap,
+                ),
+                child: Text(
+                  _selectionUnavailableMessage!,
+                  key: const Key('constellation.selection_unavailable'),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onErrorContainer,
                   ),
                 ),
               ),
+            ),
           if (!state.isComposing) _buildTagRow(context),
           if (state.tagView case final view?)
             _buildTagViewHeader(context, cubit, view),
@@ -1905,7 +1905,10 @@ class _ConstellationBodyState extends State<ConstellationBody>
         children: [
           topChrome,
           if (selection != null)
-            BlocBuilder<ConstellationSelectionCubit, ConstellationMultiSelection>(
+            BlocBuilder<
+              ConstellationSelectionCubit,
+              ConstellationMultiSelection
+            >(
               bloc: selection,
               buildWhen: (previous, current) =>
                   previous.arranging != current.arranging,
@@ -3656,9 +3659,8 @@ class _OverviewDot extends StatelessWidget {
 
 /// A [kConstellationDistrictMarkerDiameter] avatar on screen whatever the camera
 /// scale — the same [TenturaAvatar] image path as the close level and ego,
-/// with initials only while loading or when the person has no photo — ringed in
-/// the first own-tag colour (no ring without a tag), centred in the node's own
-/// scene box.
+/// with initials only while loading or when the person has no photo, centred
+/// in the node's own scene box.
 ///
 /// Counter-scale paint with the camera so the marker stays 20 pt on screen and
 /// avoids per-frame text layout during zoom (#808).
@@ -3666,16 +3668,12 @@ class _DistrictMarker extends StatelessWidget {
   const _DistrictMarker({
     required this.spec,
     required this.person,
-    required this.ringColor,
     required this.markerKey,
   });
 
   final _OverviewDotSpec spec;
   final Profile person;
-  final Color? ringColor;
   final Key? markerKey;
-
-  static const _ringWidth = 2.0;
 
   @override
   Widget build(BuildContext context) => SizedBox.square(
@@ -3690,20 +3688,10 @@ class _DistrictMarker extends StatelessWidget {
         child: SizedBox.square(
           key: markerKey,
           dimension: kConstellationDistrictMarkerDiameter,
-          child: DecoratedBox(
-            position: DecorationPosition.foreground,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: switch (ringColor) {
-                final color? => Border.all(color: color, width: _ringWidth),
-                null => null,
-              },
-            ),
-            child: ClipOval(
-              child: TenturaAvatar(
-                profile: person,
-                size: kConstellationDistrictMarkerDiameter,
-              ),
+          child: ClipOval(
+            child: TenturaAvatar(
+              profile: person,
+              size: kConstellationDistrictMarkerDiameter,
             ),
           ),
         ),
@@ -3775,9 +3763,6 @@ class _ConstellationMapNode extends StatelessWidget {
             spec: dot,
             person: districtPerson,
             markerKey: child.key,
-            ringColor: ownTags.isEmpty
-                ? null
-                : context.tagColors.swatchFor(ownTags.first.color).accent,
           )
         : child;
     final overhang = constellationMarkerBadgeOverhang(tt);
