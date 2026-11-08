@@ -116,48 +116,31 @@ final class TaskWorkerCase extends UseCaseBase {
     this._notificationOutbox, {
     required super.env,
     required super.logger,
-    ImageObjectGcPort? imageObjectGc,
-    BeaconCase? beaconCase,
-    AttentionChannelDeliveryCase? attentionChannelDelivery,
-    BeaconHierarchyDeliveryCase? beaconHierarchyDelivery,
-    TrustMaintenancePort? trustMaintenance,
-    BlockCascadeCase? blockCascade,
-    BlockReleaseSweepCase? blockReleaseSweep,
-    CapabilityCellExpirySweepCase? capabilityCellExpirySweep,
-    CapabilityTelemetryCase? capabilityTelemetry,
-    WitnessWindowPort? witnessWindow,
-    CapabilityCellPort? capabilityCellPort,
-    UserAvailabilityCase? userAvailabilityCase,
-    DeadlineReminderSweepCase? deadlineReminderSweep,
-    TrustPublisherCase? trustPublisher,
-    ClosureFinalizeSweepCase? closureFinalizeSweep,
-    ClosureDraftReminderSweepCase? closureDraftReminderSweep,
-    StaleRequestReminderSweepCase? staleRequestReminderSweep,
-    ContactResolutionSweepCase? contactResolutionSweep,
+    this._imageObjectGc,
+    this._beaconCase,
+    this._attentionChannelDelivery,
+    this._beaconHierarchyDelivery,
+    this._trustMaintenance,
+    this._blockCascade,
+    this._blockReleaseSweep,
+    this._capabilityCellExpirySweep,
+    this._capabilityTelemetry,
+    this._witnessWindow,
+    this._capabilityCellPort,
+    this._userAvailabilityCase,
+    this._deadlineReminderSweep,
+    this._trustPublisher,
+    this._closureFinalizeSweep,
+    this._closureDraftReminderSweep,
+    this._staleRequestReminderSweep,
+    this._contactResolutionSweep,
     this._budAnchorSweep,
     this._planStepSweep,
     this._postExpirySweep,
     this._postExpiryWarningSweep,
     this._attentionCaptureSettlement,
     this._clock = DateTime.timestamp,
-  }) : _imageObjectGc = imageObjectGc,
-       _beaconCase = beaconCase,
-       _attentionChannelDelivery = attentionChannelDelivery,
-       _beaconHierarchyDelivery = beaconHierarchyDelivery,
-       _trustMaintenance = trustMaintenance,
-       _blockCascade = blockCascade,
-       _blockReleaseSweep = blockReleaseSweep,
-       _capabilityCellExpirySweep = capabilityCellExpirySweep,
-       _capabilityTelemetry = capabilityTelemetry,
-       _witnessWindow = witnessWindow,
-       _capabilityCellPort = capabilityCellPort,
-       _userAvailabilityCase = userAvailabilityCase,
-       _deadlineReminderSweep = deadlineReminderSweep,
-       _trustPublisher = trustPublisher,
-       _closureFinalizeSweep = closureFinalizeSweep,
-       _closureDraftReminderSweep = closureDraftReminderSweep,
-       _staleRequestReminderSweep = staleRequestReminderSweep,
-       _contactResolutionSweep = contactResolutionSweep;
+  });
 
   final ImageRepositoryPort _imageRepository;
 
@@ -199,330 +182,172 @@ final class TaskWorkerCase extends UseCaseBase {
 
   final _runnerCompleter = Completer<void>();
 
-  var _lastDigestSweep = DateTime.fromMillisecondsSinceEpoch(0);
-
-  var _lastRetentionSweep = DateTime.fromMillisecondsSinceEpoch(0);
-
-  var _lastAttentionDeliverySweep = DateTime.fromMillisecondsSinceEpoch(0);
-  var _lastBeaconHierarchyDeliverySweep = DateTime.fromMillisecondsSinceEpoch(
-    0,
-  );
-  var _lastTrustMaintenanceSweep = DateTime.fromMillisecondsSinceEpoch(0);
-  var _lastBlockCascadeSweep = DateTime.fromMillisecondsSinceEpoch(0);
-  var _lastBlockReleaseSweep = DateTime.fromMillisecondsSinceEpoch(0);
-  var _lastImageGcSweep = DateTime.fromMillisecondsSinceEpoch(0);
-  var _lastStageExpirySweep = DateTime.fromMillisecondsSinceEpoch(0);
-  var _lastCapCellSweep = DateTime.fromMillisecondsSinceEpoch(0);
-  var _lastCapTelemetrySweep = DateTime.fromMillisecondsSinceEpoch(0);
-  var _lastEwwGcSweep = DateTime.fromMillisecondsSinceEpoch(0);
-  var _lastCapGenGcSweep = DateTime.fromMillisecondsSinceEpoch(0);
-  var _lastAvailabilityCleanupSweep = DateTime.fromMillisecondsSinceEpoch(0);
-  var _lastDeadlineReminderSweep = DateTime.fromMillisecondsSinceEpoch(0);
-  var _lastTrustPublish = DateTime.fromMillisecondsSinceEpoch(0);
-  var _lastClosureFinalizeSweep = DateTime.fromMillisecondsSinceEpoch(0);
-  var _lastClosureDraftReminderSweep = DateTime.fromMillisecondsSinceEpoch(0);
-  var _lastStaleRequestReminderSweep = DateTime.fromMillisecondsSinceEpoch(0);
-  var _lastContactResolutionSweep = DateTime.fromMillisecondsSinceEpoch(0);
-  var _lastBudAnchorSweep = DateTime.fromMillisecondsSinceEpoch(0);
-  var _lastPlanStepSweep = DateTime.fromMillisecondsSinceEpoch(0);
-  var _lastPostExpirySweep = DateTime.fromMillisecondsSinceEpoch(0);
-  var _lastPostExpiryWarningSweep = DateTime.fromMillisecondsSinceEpoch(0);
-  var _lastAttentionCaptureSettlement = DateTime.fromMillisecondsSinceEpoch(0);
-
-  late final _tasks = <Future<void> Function()>[
+  /// The worker's jobs in tick order. A job whose collaborator is null keeps
+  /// its slot and does nothing when due.
+  late final _jobs = <_Job>[
     // Trust publisher: cadence 10 s; nudge() forces the next tick.
-    () async {
-      final publisher = _trustPublisher;
-      if (publisher == null) return;
-      final now = _clock();
-      if (!publisher.consumeNudge() &&
-          now.difference(_lastTrustPublish) < const Duration(seconds: 10)) {
-        return;
-      }
-      _lastTrustPublish = now;
-      await publisher.run();
-    },
+    _Job(
+      const Duration(seconds: 10),
+      (_) => _trustPublisher?.run(),
+      nudged: () => _trustPublisher?.consumeNudge() ?? false,
+    ),
     // Closure finalize: epochs whose closing window has elapsed.
-    () async {
-      final now = _clock();
-      if (now.difference(_lastClosureFinalizeSweep) <
-          const Duration(seconds: 60)) {
-        return;
-      }
-      _lastClosureFinalizeSweep = now;
-      await _closureFinalizeSweep?.run();
-    },
+    _Job(const Duration(seconds: 60), (_) => _closureFinalizeSweep?.run()),
     // Closure draft reminder: voters whose draft differs from their commit.
-    () async {
-      final now = _clock();
-      if (now.difference(_lastClosureDraftReminderSweep) <
-          const Duration(hours: 1)) {
-        return;
-      }
-      _lastClosureDraftReminderSweep = now;
-      await _closureDraftReminderSweep?.runDue(now: now);
-    },
+    _Job(
+      const Duration(hours: 1),
+      (now) => _closureDraftReminderSweep?.runDue(now: now),
+    ),
     // Noisy contact: forwards unanswered past their deadline.
-    () async {
-      final now = _clock();
-      if (now.difference(_lastContactResolutionSweep) <
-          env.contactResolutionSweepInterval) {
-        return;
-      }
-      _lastContactResolutionSweep = now;
-      await _contactResolutionSweep?.run();
-    },
+    _Job(
+      env.contactResolutionSweepInterval,
+      (_) => _contactResolutionSweep?.run(),
+    ),
     // Bud anchor inheritance (Arch §8.1): cadence 10 s; a bud nudges it.
-    () async {
-      final sweep = _budAnchorSweep;
-      if (sweep == null) return;
-      final now = _clock();
-      if (!sweep.consumeNudge() &&
-          now.difference(_lastBudAnchorSweep) < const Duration(seconds: 10)) {
-        return;
-      }
-      _lastBudAnchorSweep = now;
-      await sweep.run();
-    },
+    _Job(
+      const Duration(seconds: 10),
+      (_) => _budAnchorSweep?.run(),
+      nudged: () => _budAnchorSweep?.consumeNudge() ?? false,
+    ),
     // Dismiss-all captures abandoned mid-capture: resume or expire them.
-    () async {
-      final now = _clock();
-      if (now.difference(_lastAttentionCaptureSettlement) <
-          const Duration(minutes: 1)) {
-        return;
-      }
-      _lastAttentionCaptureSettlement = now;
-      await _attentionCaptureSettlement?.runDue();
-    },
+    _Job(
+      const Duration(minutes: 1),
+      (_) => _attentionCaptureSettlement?.runDue(),
+    ),
     // Weekly nudge to the author of a stale open request.
-    () async {
-      final now = _clock();
-      if (now.difference(_lastStaleRequestReminderSweep) <
-          const Duration(hours: 1)) {
-        return;
-      }
-      _lastStaleRequestReminderSweep = now;
-      await _staleRequestReminderSweep?.runDue(now: now);
-    },
-    () async {
-      final now = _clock();
-      if (now.difference(_lastAttentionDeliverySweep) <
-          const Duration(seconds: 10)) {
-        return;
-      }
-      _lastAttentionDeliverySweep = now;
-      await _attentionChannelDelivery?.runDue(
+    _Job(
+      const Duration(hours: 1),
+      (now) => _staleRequestReminderSweep?.runDue(now: now),
+    ),
+    _Job(
+      const Duration(seconds: 10),
+      (now) => _attentionChannelDelivery?.runDue(
         workerId: 'task-worker',
         now: now,
-      );
-    },
-    () async {
-      final now = _clock();
-      if (now.difference(_lastBeaconHierarchyDeliverySweep) <
-          const Duration(seconds: 10)) {
-        return;
-      }
-      _lastBeaconHierarchyDeliverySweep = now;
-      await _beaconHierarchyDelivery?.runDue(
+      ),
+    ),
+    _Job(
+      const Duration(seconds: 10),
+      (now) => _beaconHierarchyDelivery?.runDue(
         workerId: 'task-worker',
         now: now,
-      );
-    },
-    () async {
-      final now = _clock();
-      if (now.difference(_lastDeadlineReminderSweep) <
-          const Duration(minutes: 5)) {
-        return;
-      }
-      _lastDeadlineReminderSweep = now;
-      await _deadlineReminderSweep?.runDue(now: now);
-    },
-    () async {
-      final now = _clock();
-      if (now.difference(_lastPostExpirySweep) < const Duration(seconds: 30)) {
-        return;
-      }
-      _lastPostExpirySweep = now;
-      await _postExpirySweep?.runDue();
-    },
-    () async {
-      final now = _clock();
-      if (now.difference(_lastPostExpiryWarningSweep) <
-          const Duration(minutes: 1)) {
-        return;
-      }
-      _lastPostExpiryWarningSweep = now;
-      await _postExpiryWarningSweep?.runDue();
-    },
+      ),
+    ),
+    _Job(
+      const Duration(minutes: 5),
+      (now) => _deadlineReminderSweep?.runDue(now: now),
+    ),
+    _Job(const Duration(seconds: 30), (_) => _postExpirySweep?.runDue()),
+    _Job(const Duration(minutes: 1), (_) => _postExpiryWarningSweep?.runDue()),
     // Request plan («либретто», #220) §4.5: step reminders, due, overdue.
-    () async {
-      if (!env.planEnabled) return;
-      final now = _clock();
-      if (now.difference(_lastPlanStepSweep) < const Duration(seconds: 30)) {
-        return;
-      }
-      _lastPlanStepSweep = now;
-      await _planStepSweep?.runDue(now: now);
-    },
-    () async {
-      final now = _clock();
-      if (now.difference(_lastTrustMaintenanceSweep) <
-          const Duration(minutes: 1)) {
-        return;
-      }
-      _lastTrustMaintenanceSweep = now;
-      await _trustMaintenance?.runDue(now: now);
-    },
-    () async {
-      final now = _clock();
-      if (now.difference(_lastBlockCascadeSweep) < const Duration(minutes: 1)) {
-        return;
-      }
-      _lastBlockCascadeSweep = now;
-      await _blockCascade?.runDue(now: now);
-    },
-    () async {
-      final now = _clock();
-      if (now.difference(_lastBlockReleaseSweep) <
-          env.blockReleaseSweepInterval) {
-        return;
-      }
-      _lastBlockReleaseSweep = now;
-      await _blockReleaseSweep?.runDue(now: now);
-    },
-    // Calculate Image Hash
-    () async {
-      final task = await _tasksRepository
-          .acquire<TaskEntity<TaskCalculateImageHashDetails>>();
-      if (task == null) return;
-      try {
-        final imageBytes = await _imageRepository.get(
-          id: task.details.imageId,
-        );
-        final (:hash, :height, :width) = processImage(imageBytes);
-
-        await _imageRepository.update(
-          id: task.details.imageId,
-          blurHash: hash,
-          height: height,
-          width: width,
-        );
-        await _tasksRepository.complete(task.id);
-      } catch (e) {
-        await _tasksRepository.fail(task.id);
-        rethrow;
-      }
-    },
+    _Job(
+      const Duration(seconds: 30),
+      (now) => env.planEnabled ? _planStepSweep?.runDue(now: now) : null,
+    ),
+    _Job(
+      const Duration(minutes: 1),
+      (now) => _trustMaintenance?.runDue(now: now),
+    ),
+    _Job(const Duration(minutes: 1), (now) => _blockCascade?.runDue(now: now)),
+    _Job(
+      env.blockReleaseSweepInterval,
+      (now) => _blockReleaseSweep?.runDue(now: now),
+    ),
+    // Calculate Image Hash: every tick.
+    _Job.everyTick(_calculateImageHash),
     // Email digest sweep (self-gates per account; throttle the sweep itself).
-    () async {
-      final now = _clock();
-      if (now.difference(_lastDigestSweep) < const Duration(minutes: 10)) {
-        return;
-      }
-      _lastDigestSweep = now;
-      await _emailDigestCase.runDue(now: now);
-    },
+    _Job(
+      const Duration(minutes: 10),
+      (now) => _emailDigestCase.runDue(now: now),
+    ),
     // Notification outbox retention (delete read+emailed rows older than 30d).
-    () async {
-      final now = _clock();
-      if (now.difference(_lastRetentionSweep) < const Duration(hours: 6)) {
-        return;
-      }
-      _lastRetentionSweep = now;
-      await _notificationOutbox.deleteSettledOlderThan(
+    _Job(
+      const Duration(hours: 6),
+      (_) => _notificationOutbox.deleteSettledOlderThan(
         const Duration(days: 30),
-      );
-    },
+      ),
+    ),
     // Image object GC (§3.4): removes remote objects for rows already
     // deleted from the database, only after their owning transaction
     // committed.
-    () async {
-      final now = _clock();
-      if (now.difference(_lastImageGcSweep) < const Duration(seconds: 30)) {
-        return;
-      }
-      _lastImageGcSweep = now;
-      final leases = await _imageObjectGc!.claim(
-        leaseOwner: _gcLeaseOwner,
-        now: now,
-      );
-      for (final lease in leases) {
-        try {
-          await _imageObjectGc.removeObject(
-            imageId: lease.imageId,
-            authorId: lease.authorId,
-          );
-          await _imageObjectGc.complete(
-            imageId: lease.imageId,
-            leaseOwner: _gcLeaseOwner,
-          );
-        } catch (e) {
-          await _imageObjectGc.fail(
-            imageId: lease.imageId,
-            leaseOwner: _gcLeaseOwner,
-            retryAt: now.add(_gcRetryBackoff(lease.attempts)),
-            error: e.toString(),
-          );
-        }
-      }
-    },
+    _Job(const Duration(seconds: 30), _collectImageObjects),
     // Beacon stage expiry (§3.3): sweeps invisible stages older than 24h.
-    () async {
-      final now = _clock();
-      if (now.difference(_lastStageExpirySweep) < const Duration(minutes: 5)) {
-        return;
-      }
-      _lastStageExpirySweep = now;
-      await _beaconCase!.expireStaleStages(now: now);
-    },
+    _Job(
+      const Duration(minutes: 5),
+      (now) => _beaconCase!.expireStaleStages(now: now),
+    ),
     // Capability evidence cell expiry sweep (D3): bounded lease claim + rebuild.
-    () async {
-      final now = _clock();
-      if (now.difference(_lastCapCellSweep) < const Duration(minutes: 15)) {
-        return;
-      }
-      _lastCapCellSweep = now;
-      await _capabilityCellExpirySweep?.runDue(now: now);
-    },
+    _Job(
+      const Duration(minutes: 15),
+      (now) => _capabilityCellExpirySweep?.runDue(now: now),
+    ),
     // Capability telemetry (G1b): population-wide mute rate + seed renewal gauges.
-    () async {
-      final now = _clock();
-      if (now.difference(_lastCapTelemetrySweep) <
-          const Duration(minutes: 45)) {
-        return;
-      }
-      _lastCapTelemetrySweep = now;
-      await _capabilityTelemetry?.runDue(now: now);
-    },
+    _Job(
+      const Duration(minutes: 45),
+      (now) => _capabilityTelemetry?.runDue(now: now),
+    ),
     // Witness-window cache GC: rows past read-time TTL (storage only).
-    () async {
-      final now = _clock();
-      if (now.difference(_lastEwwGcSweep) < const Duration(hours: 1)) {
-        return;
-      }
-      _lastEwwGcSweep = now;
-      await _witnessWindow?.gcStaleWindows();
-    },
+    _Job(const Duration(hours: 1), (_) => _witnessWindow?.gcStaleWindows()),
     // Orphan capability_evidence_generation GC (D3).
-    () async {
-      final now = _clock();
-      if (now.difference(_lastCapGenGcSweep) < const Duration(hours: 6)) {
-        return;
-      }
-      _lastCapGenGcSweep = now;
-      await _capabilityCellPort?.gcOrphanGenerations();
-    },
+    _Job(
+      const Duration(hours: 6),
+      (_) => _capabilityCellPort?.gcOrphanGenerations(),
+    ),
     // Availability stale-row janitor (hygiene only; reads stay correct without it).
-    () async {
-      final now = _clock();
-      if (now.difference(_lastAvailabilityCleanupSweep) <
-          const Duration(hours: 6)) {
-        return;
-      }
-      _lastAvailabilityCleanupSweep = now;
-      await _userAvailabilityCase?.cleanupExpired(now: now);
-    },
+    _Job(
+      const Duration(hours: 6),
+      (now) => _userAvailabilityCase?.cleanupExpired(now: now),
+    ),
   ];
+
+  Future<void> _calculateImageHash(DateTime _) async {
+    final task = await _tasksRepository
+        .acquire<TaskEntity<TaskCalculateImageHashDetails>>();
+    if (task == null) return;
+    try {
+      final imageBytes = await _imageRepository.get(
+        id: task.details.imageId,
+      );
+      final (:hash, :height, :width) = processImage(imageBytes);
+
+      await _imageRepository.update(
+        id: task.details.imageId,
+        blurHash: hash,
+        height: height,
+        width: width,
+      );
+      await _tasksRepository.complete(task.id);
+    } catch (e) {
+      await _tasksRepository.fail(task.id);
+      rethrow;
+    }
+  }
+
+  Future<void> _collectImageObjects(DateTime now) async {
+    final leases = await _imageObjectGc!.claim(
+      leaseOwner: _gcLeaseOwner,
+      now: now,
+    );
+    for (final lease in leases) {
+      try {
+        await _imageObjectGc.removeObject(
+          imageId: lease.imageId,
+          authorId: lease.authorId,
+        );
+        await _imageObjectGc.complete(
+          imageId: lease.imageId,
+          leaseOwner: _gcLeaseOwner,
+        );
+      } catch (e) {
+        await _imageObjectGc.fail(
+          imageId: lease.imageId,
+          leaseOwner: _gcLeaseOwner,
+          retryAt: now.add(_gcRetryBackoff(lease.attempts)),
+          error: e.toString(),
+        );
+      }
+    }
+  }
 
   bool _canRun = true;
 
@@ -543,9 +368,9 @@ final class TaskWorkerCase extends UseCaseBase {
   /// jobs after it.
   @visibleForTesting
   Future<void> tick() async {
-    for (final task in _tasks) {
+    for (final job in _jobs) {
       try {
-        if (_canRun) await task();
+        if (_canRun) await job.runIfDue(_clock);
       } catch (e) {
         if (env.isDebugModeOn) print(e);
       }
@@ -581,5 +406,33 @@ final class TaskWorkerCase extends UseCaseBase {
       height: image.height,
       width: image.width,
     );
+  }
+}
+
+/// One scheduled job: runs when [_interval] has passed since its last run
+/// (or at once when [_nudged] says so). The run is stamped before it starts,
+/// so a job that throws still waits out its interval.
+final class _Job {
+  _Job(Duration this._interval, this._run, {this._nudged});
+
+  /// A job with no cadence: it runs on every tick.
+  _Job.everyTick(this._run) : _interval = null, _nudged = null;
+
+  final Duration? _interval;
+  final Future<void>? Function(DateTime now) _run;
+  final bool Function()? _nudged;
+
+  var _lastRun = DateTime.fromMillisecondsSinceEpoch(0);
+
+  Future<void> runIfDue(DateTime Function() clock) async {
+    final now = clock();
+    final interval = _interval;
+    if (interval != null &&
+        !(_nudged?.call() ?? false) &&
+        now.difference(_lastRun) < interval) {
+      return;
+    }
+    _lastRun = now;
+    await _run(now);
   }
 }
