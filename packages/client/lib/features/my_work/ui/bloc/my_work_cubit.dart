@@ -235,6 +235,7 @@ class MyWorkCubit extends Cubit<MyWorkState> {
           state.copyWith(
             status: StateStatus.isLoading,
             archivedFetchInProgress: false,
+            deskInitLoaded: false,
             nonArchivedProjectionLoaded: false,
           ),
         );
@@ -244,6 +245,7 @@ class MyWorkCubit extends Cubit<MyWorkState> {
         if (isClosed || seq != _fetchSeq) {
           return;
         }
+        emit(state.copyWith(deskInitLoaded: true));
         final withClosureStates = await _myWorkCase.loadClosureStates(
           init.nonArchivedCards,
         );

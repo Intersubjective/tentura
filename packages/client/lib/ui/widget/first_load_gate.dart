@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/widget/first_load_progress.dart';
 import 'package:tentura/ui/widget/screen_load_error_panel.dart';
 
 /// Gates initial screen content until it is ready, fails, or optionally times out.
@@ -26,6 +27,7 @@ class TenturaFirstLoadGate extends StatefulWidget {
     this.onSignInAgain,
     this.revealOnTimeout = false,
     this.frameBuilder,
+    this.progress,
     super.key,
   });
 
@@ -46,6 +48,9 @@ class TenturaFirstLoadGate extends StatefulWidget {
   /// stays up while the gate is closed.
   final Widget Function(BuildContext context, bool revealed, Widget gated)?
   frameBuilder;
+
+  /// Optional step label and determinate progress while the gate is closed.
+  final FirstLoadProgress? progress;
 
   @override
   State<TenturaFirstLoadGate> createState() => _TenturaFirstLoadGateState();
@@ -116,7 +121,10 @@ class _TenturaFirstLoadGateState extends State<TenturaFirstLoadGate> {
             onSignInAgain: widget.onSignInAgain,
           )
         else if (!revealed && _showSpinner)
-          const Center(child: TenturaCircularProgress()),
+          if (widget.progress != null)
+            FirstLoadStatusPanel(progress: widget.progress)
+          else
+            const Center(child: TenturaCircularProgress()),
       ],
     );
     final frame = widget.frameBuilder;

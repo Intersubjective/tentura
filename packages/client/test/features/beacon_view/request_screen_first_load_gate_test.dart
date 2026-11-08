@@ -13,12 +13,11 @@ import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_now_surface.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
-import 'package:tentura/ui/widget/first_load_gate.dart';
-
 import '../../support/burst_coalescer_test_timing.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../beacon_threads/room_cubit_fakes.dart';
 import 'beacon_view_case_test_support.dart';
+import '../../support/first_load_gate_finders.dart';
 import 'beacon_view_screen_harness.dart';
 
 const _beaconId = 'BscreenFirstLoad';
@@ -36,23 +35,14 @@ Object? _roomFirstLoadDone(RoomState state) {
   }
 }
 
-int _gateSpinnerCount() => find
-    .descendant(
-      of: find.byType(TenturaFirstLoadGate),
-      matching: find.byType(CircularProgressIndicator),
-    )
-    .evaluate()
-    .length;
-
 /// Loading indicators the screen paints on its own, outside the shared gate.
 int _screenOwnSpinnerCount() =>
-    find.byType(CircularProgressIndicator).evaluate().length -
-    _gateSpinnerCount() +
+    find.byType(CircularProgressIndicator).evaluate().length +
     find.byType(CupertinoActivityIndicator).evaluate().length;
 
 ({int gateSpinners, int screenSpinners, int bodies, int messages})
 _visibleFrame() => (
-  gateSpinners: _gateSpinnerCount(),
+  gateSpinners: firstLoadGateOverlayCount(),
   screenSpinners: _screenOwnSpinnerCount(),
   bodies: find.byType(BeaconNowSurface).evaluate().length,
   messages: find.textContaining(_message, findRichText: true).evaluate().length,

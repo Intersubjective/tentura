@@ -15,9 +15,8 @@ import 'package:tentura/features/beacon_threads/ui/bloc/beacon_hierarchy_cubit.d
 import 'package:tentura/features/beacon_view/ui/widget/beacon_child_requests_section.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_now_surface.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/widget/first_load_gate.dart';
-
 import '../../domain/use_case/fake_beacon_hierarchy_ports.dart';
+import '../../support/first_load_gate_finders.dart';
 import 'beacon_view_screen_harness.dart';
 
 class _UnusedBeaconWritePort implements BeaconWritePort {
@@ -29,25 +28,6 @@ class _UnusedImageRepository implements ImageRepository {
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
-
-// The gate keeps screen content mounted under Visibility. Count only its
-// overlay spinner, excluding any indicators belonging to that content.
-int _gateSpinners() => find
-    .descendant(
-      of: find.byType(TenturaFirstLoadGate),
-      matching: find.byType(TenturaCircularProgress),
-    )
-    .evaluate()
-    .where((element) {
-      var insideContent = false;
-      element.visitAncestorElements((ancestor) {
-        if (ancestor.widget is TenturaFirstLoadGate) return false;
-        if (ancestor.widget is Visibility) insideContent = true;
-        return true;
-      });
-      return !insideContent;
-    })
-    .length;
 
 int _childSpinners() => find
     .descendant(
@@ -141,7 +121,7 @@ void main() {
         // Check the held response before advancing to the reveal phase.
         expect(
           (
-            gateSpinners: _gateSpinners(),
+            gateSpinners: firstLoadGateOverlayCount(),
             bodies: find.byType(BeaconNowSurface).evaluate().length,
             emptyLabels: find.text('No child requests yet').evaluate().length,
             childSpinners: _childSpinners(),
@@ -150,7 +130,6 @@ void main() {
           reason:
               'The Request must stay hidden while its child results are pending',
         );
-
         initialResponse.complete(const BeaconHierarchyPage(summaries: []));
         // Do not await initialLoad or settle animations before inspecting the
         // reveal: either could skip a frame with unfinished child content.
@@ -158,7 +137,7 @@ void main() {
         for (var i = 0; i < 20; i++) {
           await tester.pump(const Duration(milliseconds: 16));
           final frame = (
-            gateSpinners: _gateSpinners(),
+            gateSpinners: firstLoadGateOverlayCount(),
             bodies: find.byType(BeaconNowSurface).evaluate().length,
             emptyLabels: find.text('No child requests yet').evaluate().length,
             childSpinners: _childSpinners(),
@@ -189,7 +168,7 @@ void main() {
         await tester.pump(const Duration(milliseconds: 200));
         expect(find.byType(BeaconNowSurface), findsOneWidget);
         expect(
-          _gateSpinners(),
+          firstLoadGateOverlayCount(),
           0,
           reason: 'Child refresh must keep the body visible',
         );
@@ -198,7 +177,7 @@ void main() {
         await tester.pump();
         expect(find.text('No child requests yet'), findsOneWidget);
         expect(_childSpinners(), 0);
-        expect(_gateSpinners(), 0);
+        expect(firstLoadGateOverlayCount(), 0);
       } finally {
         await dispose();
       }

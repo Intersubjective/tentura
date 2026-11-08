@@ -5,7 +5,10 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/exception/generic_exception.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/first_load_gate.dart';
+import 'package:tentura/ui/widget/first_load_progress.dart';
 import 'package:tentura/ui/widget/screen_load_error_panel.dart';
+
+import '../../support/phone_surface.dart';
 
 const _content = 'Primary screen content';
 
@@ -15,6 +18,7 @@ Future<void> _pumpGate(
   Object? error,
   VoidCallback? onRetry,
   bool revealOnTimeout = false,
+  FirstLoadProgress? progress,
 }) {
   final ready = readiness ?? ValueNotifier(false);
   if (readiness == null) addTearDown(ready.dispose);
@@ -32,6 +36,7 @@ Future<void> _pumpGate(
             error: error,
             onRetry: onRetry ?? () {},
             revealOnTimeout: revealOnTimeout,
+            progress: progress,
             child: const Text(_content),
           ),
         ),
@@ -126,6 +131,111 @@ void main() {
       await tester.pump();
       expect(retries, 1);
     });
+
+    testWidgets('shows step line and determinate bar after the spinner delay', (
+      tester,
+    ) async {
+      await _pumpGate(
+        tester,
+        progress: const FirstLoadProgress(
+          step: 2,
+          totalSteps: 3,
+          stageLabel: 'Loading updates…',
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 149));
+      expect(find.byType(FirstLoadStatusPanel), findsNothing);
+
+      await tester.pump(const Duration(milliseconds: 2));
+      expect(find.byType(FirstLoadStatusPanel), findsOneWidget);
+      expect(find.byType(TenturaCircularProgress), findsNothing);
+      final context = tester.element(find.byType(FirstLoadStatusPanel));
+      final strings = L10n.of(context)!;
+      expect(
+        find.text(strings.firstLoadStepProgress(2, 3, 'Loading updates…')),
+        findsOneWidget,
+      );
+      final bar = tester.widget<LinearProgressIndicator>(
+        find.descendant(
+          of: find.byType(FirstLoadStatusPanel),
+          matching: find.byType(LinearProgressIndicator),
+        ),
+      );
+      expect(bar.value, closeTo(2 / 3, 0.001));
+    });
+
+    testWidgets('375×667 RU step line renders long stage copy without overflow', (
+      tester,
+    ) async {
+      await usePhoneSurface(tester);
+      const longStage =
+          'Загружаем обновления по всем активным запросам и уведомлениям на рабочем столе';
+      await tester.pumpWidget(
+        MaterialApp(
+          locale: const Locale('ru'),
+          theme: TenturaTheme.light(),
+          localizationsDelegates: L10n.localizationsDelegates,
+          supportedLocales: L10n.supportedLocales,
+          home: Scaffold(
+            body: TenturaFirstLoadGate(
+              ready: false,
+              onRetry: () {},
+              progress: const FirstLoadProgress(
+                step: 3,
+                totalSteps: 3,
+                stageLabel: longStage,
+              ),
+              child: const Text(_content),
+            ),
+          ),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 200));
+      final context = tester.element(find.byType(FirstLoadStatusPanel));
+      final strings = L10n.of(context)!;
+      expect(
+        find.text(strings.firstLoadStepProgress(3, 3, longStage)),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets(
+      'reduced motion uses a static indeterminate bar without steps',
+      (
+        tester,
+      ) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: TenturaTheme.light(),
+            localizationsDelegates: L10n.localizationsDelegates,
+            supportedLocales: L10n.supportedLocales,
+            home: MediaQuery(
+              data: const MediaQueryData(
+                disableAnimations: true,
+                size: Size(400, 800),
+              ),
+              child: Scaffold(
+                body: TenturaFirstLoadGate(
+                  ready: false,
+                  onRetry: () {},
+                  progress: const FirstLoadProgress(stageLabel: 'Loading…'),
+                  child: const Text(_content),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pump(const Duration(milliseconds: 200));
+        final bar = tester.widget<LinearProgressIndicator>(
+          find.descendant(
+            of: find.byType(FirstLoadStatusPanel),
+            matching: find.byType(LinearProgressIndicator),
+          ),
+        );
+        expect(bar.value, 0.35);
+      },
+    );
 
     testWidgets('keeps content visible during refresh after becoming ready', (
       tester,
