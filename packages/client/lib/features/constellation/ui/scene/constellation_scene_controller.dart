@@ -61,6 +61,38 @@ enum ConstellationEdgeKind {
 
 const kConstellationLayoutMaxHops = 3;
 
+typedef _AddTrustEdge =
+    void Function({
+      required String srcId,
+      required String dstId,
+      required ConstellationEdgeKind kind,
+    });
+
+/// Rung of [kind] on the trust ladder (#1192): between two people only the
+/// strongest trust type is drawn. 0 for kinds that are not trust between
+/// two people.
+int _trustRung(ConstellationEdgeKind kind) => switch (kind) {
+  ConstellationEdgeKind.mutualTrust => 3,
+  ConstellationEdgeKind.tier1Path => 2,
+  ConstellationEdgeKind.tier2Path => 1,
+  _ => 0,
+};
+
+/// The trust type the visible edges give a pair, from the lowest tier each
+/// way: explicit both ways is mutual trust, explicit one way a direct path,
+/// derived only a derived path; null with no edge.
+ConstellationEdgeKind? _visibleTrustKind(int? there, int? back) =>
+    switch ((there, back)) {
+      (1, 1) => ConstellationEdgeKind.mutualTrust,
+      (1, _) || (_, 1) => ConstellationEdgeKind.tier1Path,
+      (null, null) => null,
+      _ => ConstellationEdgeKind.tier2Path,
+    };
+
+/// A pair of people regardless of direction.
+(String, String) _personPair(String a, String b) =>
+    a.compareTo(b) <= 0 ? (a, b) : (b, a);
+
 typedef _LayoutRequest = ({
   Set<GraphPresentationToken> releaseOnTerminal,
   SceneLayoutAlgorithm algorithm,
@@ -428,27 +460,29 @@ class ConstellationSceneController {
   }
 
   /// Every visible trust edge on the field that touches [focusPersonId]
-  /// (both directions), between placed people only (#964).
-  void _drawFocusPersonTrustEdges({
+  /// (both directions), between placed people only (#964). Without
+  /// [includeViewer], the edge to [viewerId] is left out: a chain through
+  /// other people shows how the viewer reaches the focus person, and the
+  /// dashed indirect edge stands only for "no chain" (#1192).
+  void _addFocusPersonTrustEdges({
     required String focusPersonId,
+    required String viewerId,
+    required bool includeViewer,
     required Iterable<ConstellationEdgeRef> trustEdges,
     required Map<String, NodeDetails> nodeById,
-    required void Function({
-      required String srcId,
-      required String dstId,
-      required ConstellationEdgeKind kind,
-      double? fade,
-    })
-    addEdge,
+    required _AddTrustEdge addTrustEdge,
   }) {
     for (final edge in trustEdges) {
       if (edge.src != focusPersonId && edge.dst != focusPersonId) {
         continue;
       }
+      if (!includeViewer && (edge.src == viewerId || edge.dst == viewerId)) {
+        continue;
+      }
       if (!nodeById.containsKey(edge.src) || !nodeById.containsKey(edge.dst)) {
         continue;
       }
-      addEdge(
+      addTrustEdge(
         srcId: edge.src,
         dstId: edge.dst,
         kind: edge.tier == 1
@@ -458,44 +492,47 @@ class ConstellationSceneController {
     }
   }
 
-  /// Draws the selected focus person's trust-chain hops and fades every other
-  /// edge (#641, #964). Chain hops use tier path kinds; the focus person's
-  /// own trust edges are drawn separately.
-  void _highlightTrustChain({
+  /// The selected focus person's trust-chain hops (#641, #964), only when
+  /// every person on the chain is on the field: a chain that cannot be shown
+  /// whole is not drawn in part (#1192).
+  void _addTrustChainHops({
+    required ConstellationTrustChainFound chain,
+    required Map<String, NodeDetails> nodeById,
+    required _AddTrustEdge addTrustEdge,
+  }) {
+    if (!chain.path.every(nodeById.containsKey)) {
+      return;
+    }
+    for (final (src, dst) in chain.hops) {
+      addTrustEdge(
+        srcId: src,
+        dstId: dst,
+        kind: chain.derivedHops.contains((src, dst))
+            ? ConstellationEdgeKind.tier2Path
+            : ConstellationEdgeKind.tier1Path,
+      );
+    }
+  }
+
+  /// Fades every edge off the selected focus person's trust chain (#641):
+  /// all but the chain's hops, the focus person's trust edges and their own
+  /// items.
+  void _fadeOffTrustChain({
     required ConstellationTrustChainFound chain,
     required Set<EdgeDetails> edges,
-    required Map<String, NodeDetails> nodeById,
-    required void Function({
-      required String srcId,
-      required String dstId,
-      required ConstellationEdgeKind kind,
-      double? fade,
-    })
-    addEdge,
   }) {
-    final hopKeys = <String>{};
-    for (final (src, dst) in chain.hops) {
-      hopKeys.add('$src->$dst');
-      if (nodeById.containsKey(src) && nodeById.containsKey(dst)) {
-        addEdge(
-          srcId: src,
-          dstId: dst,
-          kind: chain.derivedHops.contains((src, dst))
-              ? ConstellationEdgeKind.tier2Path
-              : ConstellationEdgeKind.tier1Path,
-        );
-      }
-    }
+    final hopPairs = {
+      for (final (src, dst) in chain.hops) _personPair(src, dst),
+    };
     final personId = chain.path.last;
     for (final edge in edges) {
       final kind = edgeKindByPair[edge.semanticId];
+      final trust = kind != null && _trustRung(kind) > 0;
       final onChain =
-          (kind == ConstellationEdgeKind.tier1Path ||
-              kind == ConstellationEdgeKind.tier2Path) &&
-          hopKeys.contains('${edge.source.id}->${edge.destination.id}');
+          trust &&
+          hopPairs.contains(_personPair(edge.source.id, edge.destination.id));
       final touchesFocus =
-          (kind == ConstellationEdgeKind.tier1Path ||
-              kind == ConstellationEdgeKind.tier2Path) &&
+          trust &&
           (edge.source.id == personId || edge.destination.id == personId);
       final ownItem =
           kind == ConstellationEdgeKind.attachment &&
@@ -1155,38 +1192,86 @@ class ConstellationSceneController {
           (src: edge.src, dst: edge.dst, tier: edge.tier),
     ];
 
+    // One trust edge per pair of people, the strongest type wins (#1192):
+    // each pair keeps its strongest candidate (and that candidate's
+    // direction), then takes the type the visible trust between the two
+    // gives, when that is stronger.
+    final trustByPair =
+        <
+          (String, String),
+          ({String srcId, String dstId, ConstellationEdgeKind kind})
+        >{};
+    void addTrustEdge({
+      required String srcId,
+      required String dstId,
+      required ConstellationEdgeKind kind,
+    }) {
+      final pair = _personPair(srcId, dstId);
+      final current = trustByPair[pair];
+      if (current == null || _trustRung(kind) > _trustRung(current.kind)) {
+        trustByPair[pair] = (srcId: srcId, dstId: dstId, kind: kind);
+      }
+    }
+
+    final chain = trustChain is ConstellationTrustChainFound
+        ? trustChain
+        : null;
     if (focusPersonId != null && nodeById.containsKey(focusPersonId)) {
-      _drawFocusPersonTrustEdges(
+      _addFocusPersonTrustEdges(
         focusPersonId: focusPersonId,
+        viewerId: viewer.id,
+        includeViewer: chain == null || chain.path.length <= 2,
         trustEdges: visibleTrustEdges,
         nodeById: nodeById,
-        addEdge: addEdge,
+        addTrustEdge: addTrustEdge,
       );
     }
-
-    if (trustChain is ConstellationTrustChainFound) {
-      _highlightTrustChain(
-        chain: trustChain,
-        edges: edges,
+    if (chain != null) {
+      _addTrustChainHops(
+        chain: chain,
         nodeById: nodeById,
-        addEdge: addEdge,
+        addTrustEdge: addTrustEdge,
       );
     }
-
-    // After the chain highlight, so the chain's fade never reaches them.
     // Only between people on the field: addEdge drops the rest.
     if (selectedPersonId != null &&
         nodeById[selectedPersonId] is FieldPersonNode) {
       for (final personId in mutualTrustIds.toList()..sort()) {
         if (personId != selectedPersonId &&
             nodeById[personId] is FieldPersonNode) {
-          addEdge(
+          addTrustEdge(
             srcId: selectedPersonId,
             dstId: personId,
             kind: ConstellationEdgeKind.mutualTrust,
           );
         }
       }
+    }
+
+    final tierByHop = <(String, String), int>{};
+    for (final edge in visibleTrustEdges) {
+      final tier = tierByHop[(edge.src, edge.dst)];
+      if (tier == null || edge.tier < tier) {
+        tierByHop[(edge.src, edge.dst)] = edge.tier;
+      }
+    }
+    for (final candidate in trustByPair.values) {
+      final visible = _visibleTrustKind(
+        tierByHop[(candidate.srcId, candidate.dstId)],
+        tierByHop[(candidate.dstId, candidate.srcId)],
+      );
+      addEdge(
+        srcId: candidate.srcId,
+        dstId: candidate.dstId,
+        kind:
+            visible != null && _trustRung(visible) > _trustRung(candidate.kind)
+            ? visible
+            : candidate.kind,
+      );
+    }
+
+    if (chain != null) {
+      _fadeOffTrustChain(chain: chain, edges: edges);
     }
 
     _applyForwardTreeOverlay(
