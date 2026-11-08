@@ -15,6 +15,7 @@ class CapabilityTagFilterChip extends StatelessWidget {
     required this.selected,
     required this.isAutomatic,
     required this.onSelected,
+    this.readOnly = false,
     super.key,
   });
 
@@ -25,9 +26,14 @@ class CapabilityTagFilterChip extends StatelessWidget {
   final bool isAutomatic;
   final ValueChanged<bool>? onSelected;
 
+  /// Selected chips that only display on Profile must not use FilterChip's
+  /// disabled styling when [onSelected] is null (#897).
+  final bool readOnly;
+
   @override
   Widget build(BuildContext context) {
-    final onSelected = this.onSelected;
+    final onToggle = onSelected;
+    final interactive = onToggle != null && !readOnly;
     final swatch = context.capabilityColors.swatchFor(tag.group);
     // Selected: the app's primary accent, so selection looks the same in every
     // group and matches the rest of the app (#436); idle chips keep the pastel
@@ -38,6 +44,11 @@ class CapabilityTagFilterChip extends StatelessWidget {
     final idleBg = isAutomatic
         ? swatch.container.withValues(alpha: 0.55)
         : swatch.container.withValues(alpha: 0.4);
+    final chipOnSelected = interactive
+        ? onToggle
+        : readOnly
+        ? (_) {}
+        : null;
     final chip = FilterChip(
       key: TestIds.key(TestIds.capabilityChip(tag.slug)),
       // A trailing check marks selection by shape, not only by the accent
@@ -60,7 +71,7 @@ class CapabilityTagFilterChip extends StatelessWidget {
       ),
       showCheckmark: false,
       selected: selected,
-      onSelected: onSelected,
+      onSelected: chipOnSelected,
       labelStyle: TextStyle(
         color: selected ? selectedFg : idleFg,
         fontWeight: FontWeight.w600,
@@ -81,14 +92,16 @@ class CapabilityTagFilterChip extends StatelessWidget {
     // labelled node is also the one that can be tapped and focused (#360).
     final semanticChip = Semantics(
       identifier: TestIds.capabilityChip(tag.slug),
-      button: true,
-      enabled: onSelected != null,
-      focusable: onSelected != null,
+      button: interactive,
+      enabled: interactive,
+      focusable: interactive,
       selected: selected,
       label: '${tag.labelOf(l10n)}, ${tag.group.labelOf(l10n)}',
-      onTap: onSelected == null ? null : () => onSelected(!selected),
+      onTap: onToggle == null || readOnly
+          ? null
+          : () => onToggle(!selected),
       excludeSemantics: true,
-      child: chip,
+      child: readOnly ? AbsorbPointer(child: chip) : chip,
     );
     return semanticChip;
   }

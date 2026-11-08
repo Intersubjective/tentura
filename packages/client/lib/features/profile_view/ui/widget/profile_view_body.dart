@@ -138,12 +138,10 @@ class ProfileViewBody extends StatelessWidget {
                   ),
                 ],
                 const _SeenHelpingWithSection(),
-                _ProfileCapabilitySection(profile: profile),
-                if (peopleTagsEnabled && !isSelf && profile.id.isNotEmpty)
-                  Padding(
-                    padding: kPaddingSmallT,
-                    child: PersonTagsBlock(personId: profile.id),
-                  ),
+                _ProfileCapabilitySection(
+                  profile: profile,
+                  peopleTagsEnabled: peopleTagsEnabled,
+                ),
                 if (peopleTagsEnabled && !isSelf && profile.id.isNotEmpty)
                   MutualTrustTagSuggestion(
                     personId: profile.id,
@@ -421,9 +419,13 @@ class _ProfileSecondaryActions extends StatelessWidget {
 }
 
 class _ProfileCapabilitySection extends StatelessWidget {
-  const _ProfileCapabilitySection({required this.profile});
+  const _ProfileCapabilitySection({
+    required this.profile,
+    required this.peopleTagsEnabled,
+  });
 
   final Profile profile;
+  final bool peopleTagsEnabled;
 
   void _edit(BuildContext context, List<CapabilityWithSource> viewerVisible) {
     final cubit = context.read<ProfileViewCubit>();
@@ -466,28 +468,32 @@ class _ProfileCapabilitySection extends StatelessWidget {
         final (viewerVisible, isFriend) = rec;
         final myId = context.read<ProfileCubit>().state.profile.id;
         final isSelf = profile.id == myId;
-        if (isSelf || !isFriend) return const SizedBox.shrink();
+        final showPeopleTags =
+            peopleTagsEnabled && !isSelf && profile.id.isNotEmpty;
+        if (isSelf || profile.id.isEmpty) return const SizedBox.shrink();
+        if (!isFriend && !showPeopleTags) return const SizedBox.shrink();
         final name = profile.shownName;
         return Padding(
           padding: kPaddingSmallT,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      l10n.profileYourTagsFor(name),
-                      style: theme.textTheme.titleSmall,
+              if (isFriend)
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        l10n.profileYourTagsFor(name),
+                        style: theme.textTheme.titleSmall,
+                      ),
                     ),
-                  ),
-                  TextButton(
-                    onPressed: () => _edit(context, viewerVisible),
-                    child: Text(l10n.profileEditLabels),
-                  ),
-                ],
-              ),
-              if (viewerVisible.isNotEmpty) ...[
+                    TextButton(
+                      onPressed: () => _edit(context, viewerVisible),
+                      child: Text(l10n.profileEditLabels),
+                    ),
+                  ],
+                ),
+              if (isFriend && viewerVisible.isNotEmpty) ...[
                 SizedBox(height: tt.tightGap),
                 Wrap(
                   spacing: tt.tightGap,
@@ -501,9 +507,18 @@ class _ProfileCapabilitySection extends StatelessWidget {
                           theme: theme,
                           selected: true,
                           isAutomatic: !c.hasManualLabel,
+                          readOnly: true,
                           onSelected: null,
                         ),
                   ],
+                ),
+              ],
+              if (showPeopleTags) ...[
+                if (isFriend) SizedBox(height: tt.rowGap),
+                PersonTagsBlock(
+                  personId: profile.id,
+                  showHeading: !isFriend,
+                  showOnlyYouSeeFooter: false,
                 ),
               ],
             ],
