@@ -9,6 +9,7 @@ import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/threads_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/room_fact_authoring.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
+import 'package:tentura/features/beacon_view/ui/widget/beacon_fact_composer_sheet.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_open_clear_listener.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_status_sync.dart';
 
@@ -34,7 +35,8 @@ class BeaconViewScope extends StatelessWidget {
         // The room body's Add-fact hand-off (#481), without it importing
         // the Request feature.
         RepositoryProvider<RoomFactAuthoring>(
-          create: (context) => context.read<BeaconViewCubit>(),
+          create: (context) =>
+              BeaconViewRoomFactAuthoring(context.read<BeaconViewCubit>()),
         ),
         BlocProvider(
           create: (_) {
