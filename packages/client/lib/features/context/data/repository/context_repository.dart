@@ -32,7 +32,7 @@ class ContextRepository {
     if (!fromCache) {
       final response = await _remoteApiService
           .request(GContextFetchReq())
-          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .firstLinkResponse(label: _label)
           .then((r) => r.dataOrThrow(label: _label).user_context);
       _cache
         ..clear()
@@ -44,7 +44,7 @@ class ContextRepository {
   Future<void> add(String contextName) async {
     final response = await _remoteApiService
         .request(GContextAddReq((b) => b.vars.context_name = contextName))
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).insert_user_context_one);
     if (response == null) {
       throw ContextCreateException(contextName);
@@ -67,7 +67,7 @@ class ContextRepository {
               ..context_name = contextName,
           ),
         )
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).delete_user_context_by_pk);
     if (response == null) {
       throw ContextDeleteException(contextName);

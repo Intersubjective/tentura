@@ -101,7 +101,7 @@ class BeaconRepository implements BeaconWritePort {
     );
     return _remoteApiService
         .request(request)
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).beacon)
         .then((v) => v.map((e) => (e as BeaconModel).toEntity()));
   }
@@ -123,7 +123,7 @@ class BeaconRepository implements BeaconWritePort {
     );
     return _remoteApiService
         .request(request)
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).beacon)
         .then((v) => v.map((e) => (e as BeaconModel).toEntity()));
   }
@@ -133,7 +133,7 @@ class BeaconRepository implements BeaconWritePort {
   @override
   Future<Beacon> fetchBeaconById(String id) => _remoteApiService
       .request(GBeaconFetchByIdReq((b) => b.vars.id = id))
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: _label)
       .then(
         (r) =>
             r.dataOrThrow(label: _label).beacon_by_pk
@@ -144,7 +144,7 @@ class BeaconRepository implements BeaconWritePort {
   /// Full admitted-helper roster (no preview limit) for the People tab.
   Future<List<Profile>> fetchAdmittedHelpers(String id) => _remoteApiService
       .request(GBeaconAdmittedHelpersRosterReq((b) => b.vars.id = id))
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: _label)
       .then((r) {
         final beacon = r.dataOrThrow(label: _label).beacon_by_pk;
         if (beacon == null) return const <Profile>[];
@@ -159,7 +159,7 @@ class BeaconRepository implements BeaconWritePort {
   /// come back: the `user` select filter hides them.
   Future<Set<String>> fetchTeamAcquaintanceIds(String id) => _remoteApiService
       .request(GBeaconTeamAcquaintancesReq((b) => b.vars.id = id))
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: _label)
       .then((r) {
         final beacon = r.dataOrThrow(label: _label).beacon_by_pk;
         if (beacon == null) return const <String>{};
@@ -214,7 +214,7 @@ class BeaconRepository implements BeaconWritePort {
             planStepTimes: planStepTimes,
           ),
         )
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).beaconFork.id);
     return fetchBeaconById(newId);
   }
@@ -254,7 +254,7 @@ class BeaconRepository implements BeaconWritePort {
     });
     final beaconId = await _remoteApiService
         .request(request)
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).beaconCreate.id);
 
     final beaconNew = await fetchBeaconById(beaconId);
@@ -288,7 +288,7 @@ class BeaconRepository implements BeaconWritePort {
     });
     await _remoteApiService
         .request(request)
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).beaconUpdateDraft.id);
     final updated = await fetchBeaconById(beacon.id);
     _controller.add(RepositoryEventUpdate(updated));
@@ -321,7 +321,7 @@ class BeaconRepository implements BeaconWritePort {
     });
     await _remoteApiService
         .request(request)
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).beaconUpdate.id);
     final updated = await fetchBeaconById(beacon.id);
     _controller.add(RepositoryEventUpdate(updated));
@@ -335,7 +335,7 @@ class BeaconRepository implements BeaconWritePort {
   Future<void> publishDraft(String id) async {
     await _remoteApiService
         .request(GBeaconPublishReq((b) => b.vars.id = id))
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).beaconPublish.id);
     final updated = await fetchBeaconById(id);
     _controller.add(RepositoryEventUpdate(updated));
@@ -359,7 +359,7 @@ class BeaconRepository implements BeaconWritePort {
     });
     await _remoteApiService
         .request(request)
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).beaconAddImage);
   }
 
@@ -383,7 +383,7 @@ class BeaconRepository implements BeaconWritePort {
     });
     final staged = await _remoteApiService
         .request(request)
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).beaconStageImage);
     return staged.imageId;
   }
@@ -407,7 +407,7 @@ class BeaconRepository implements BeaconWritePort {
     });
     await _remoteApiService
         .request(request)
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).beaconSetMedia);
     final updated = await fetchBeaconById(beaconId);
     _controller.add(RepositoryEventUpdate(updated));
@@ -428,7 +428,7 @@ class BeaconRepository implements BeaconWritePort {
               ..imageId = imageId;
           }),
         )
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).beaconRemoveImage);
     if (!isOk) {
       throw BeaconUpdateException(beaconId);
@@ -441,7 +441,7 @@ class BeaconRepository implements BeaconWritePort {
   Future<void> delete(String id) async {
     final isOk = await _remoteApiService
         .request(GBeaconDeleteByIdReq((b) => b.vars.id = id))
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).beaconDeleteById);
     if (isOk) {
       _controller.add(
@@ -456,7 +456,7 @@ class BeaconRepository implements BeaconWritePort {
   Future<void> openForwarding(String id) async {
     await _remoteApiService
         .request(GBeaconForwardingOpenReq((b) => b.vars.id = id))
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label));
     await refreshAndNotify(id);
   }

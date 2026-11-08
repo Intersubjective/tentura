@@ -17,7 +17,7 @@ class NotificationSettingsRepository {
   Future<NotificationSettings> fetch() async {
     final data = await _remoteApiService
         .request(GNotificationPreferencesFetchReq())
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label));
     return _map(
       pushCategories: data.notificationPreferences.pushCategories,
@@ -63,7 +63,7 @@ class NotificationSettingsRepository {
               ),
           ),
         )
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label));
     final p = data.notificationPreferencesUpdate;
     return _map(

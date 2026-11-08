@@ -23,7 +23,7 @@ abstract class RemoteRepository {
   }) async {
     final response = await remoteApiService
         .request(req)
-        .firstWhere((e) => e.dataSource == DataSource.Link);
+        .firstLinkResponse(label: label ?? 'No label');
 
     if (response.hasErrors) {
       if (response.linkException != null) {

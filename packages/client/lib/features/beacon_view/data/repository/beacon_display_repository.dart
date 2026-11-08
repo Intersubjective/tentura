@@ -22,10 +22,12 @@ class BeaconDisplayRepository {
             (b) => b.vars.beaconIds.replace(beaconIds),
           ),
         )
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: 'BeaconDisplayStatuses')
         .then(
           (r) =>
-              r.dataOrThrow(label: 'BeaconDisplayStatuses').beaconDisplayStatuses
+              r
+                  .dataOrThrow(label: 'BeaconDisplayStatuses')
+                  .beaconDisplayStatuses
                   ?.toList() ??
               const <GBeaconDisplayStatusesData_beaconDisplayStatuses>[],
         );

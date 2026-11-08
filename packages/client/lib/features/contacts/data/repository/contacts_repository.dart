@@ -23,7 +23,7 @@ class ContactsRepository {
   /// The viewer's full contact map from the server: subjectId -> contactName.
   Future<Map<String, String>> fetchMine() => _remoteApiService
       .request(GMyContactsReq())
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: _label)
       .then(
         (r) => {
           for (final c in [...?r.dataOrThrow(label: _label).myContacts])
@@ -42,14 +42,14 @@ class ContactsRepository {
             ..vars.contactName = contactName,
         ),
       )
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: _label)
       .then((r) => r.dataOrThrow(label: _label));
 
   Future<void> deleteContact({required String subjectId}) => _remoteApiService
       .request(
         GContactDeleteReq((r) => r..vars.subjectUserId = subjectId),
       )
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: _label)
       .then((r) => r.dataOrThrow(label: _label));
 
   //

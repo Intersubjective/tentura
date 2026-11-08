@@ -53,63 +53,62 @@ class ProfileSharedBeaconsRepository {
   Future<List<ProfileForwardedBeaconEntry>> _fetchForwarded({
     required String meId,
     required String targetId,
-  }) =>
-      _remoteApiService
-          .request(
-            GProfileForwardedToUserReq(
-              (b) => b.vars
-                ..meId = meId
-                ..targetId = targetId,
-            ),
-          )
-          .firstWhere((e) => e.dataSource == DataSource.Link)
-          .then(
-            (r) => r
-                .dataOrThrow(label: _label)
-                .beacon_forward_edge
-                .map(
-                  (e) => (
-                    edgeId: e.id,
-                    beacon: BeaconModel(e.beacon).toEntity(),
-                    note: e.note,
-                    recipientRejected: e.recipient_rejected,
-                    recipientRejectionMessage: e.recipient_rejection_message,
-                    reaction: _deriveForwardedReaction(
-                      recipientRejected: e.recipient_rejected,
-                      hasTargetHelpOffer: e.beacon.help_offers.isNotEmpty,
-                      hasTargetOnwardEdge: e.beacon.forward_edges.isNotEmpty,
-                    ),
-                  ),
-                )
-                .toList(),
-          );
+  }) => _remoteApiService
+      .request(
+        GProfileForwardedToUserReq(
+          (b) => b.vars
+            ..meId = meId
+            ..targetId = targetId,
+        ),
+      )
+      .firstLinkResponse(label: _label)
+      .then(
+        (r) => r
+            .dataOrThrow(label: _label)
+            .beacon_forward_edge
+            .map(
+              (e) => (
+                edgeId: e.id,
+                beacon: BeaconModel(e.beacon).toEntity(),
+                note: e.note,
+                recipientRejected: e.recipient_rejected,
+                recipientRejectionMessage: e.recipient_rejection_message,
+                reaction: _deriveForwardedReaction(
+                  recipientRejected: e.recipient_rejected,
+                  hasTargetHelpOffer: e.beacon.help_offers.isNotEmpty,
+                  hasTargetOnwardEdge: e.beacon.forward_edges.isNotEmpty,
+                ),
+              ),
+            )
+            .toList(),
+      );
 
   Future<List<ProfileCoHelpOfferedEntry>> _fetchCoHelpOffered({
     required String meId,
     required String targetId,
-  }) =>
-      _remoteApiService
-          .request(
-            GProfileCoCommittedReq(
-              (b) => b.vars
-                ..meId = meId
-                ..targetId = targetId,
-            ),
-          )
-          .firstWhere((e) => e.dataSource == DataSource.Link)
-          .then(
-            (r) => r
-                .dataOrThrow(label: _label)
-                .beacon
-                .map(
-                  (e) => (
-                    beacon: BeaconModel(e).toEntity(),
-                    targetOfferHelpMessage: e.help_offers.firstOrNull?.message ?? '',
-                    targetHelpType: e.help_offers.firstOrNull?.help_type,
-                  ),
-                )
-                .toList(),
-          );
+  }) => _remoteApiService
+      .request(
+        GProfileCoCommittedReq(
+          (b) => b.vars
+            ..meId = meId
+            ..targetId = targetId,
+        ),
+      )
+      .firstLinkResponse(label: _label)
+      .then(
+        (r) => r
+            .dataOrThrow(label: _label)
+            .beacon
+            .map(
+              (e) => (
+                beacon: BeaconModel(e).toEntity(),
+                targetOfferHelpMessage:
+                    e.help_offers.firstOrNull?.message ?? '',
+                targetHelpType: e.help_offers.firstOrNull?.help_type,
+              ),
+            )
+            .toList(),
+      );
 
   static TargetBeaconReaction _deriveForwardedReaction({
     required bool recipientRejected,

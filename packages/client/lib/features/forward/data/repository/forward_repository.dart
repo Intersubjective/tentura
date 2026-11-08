@@ -180,7 +180,7 @@ class ForwardRepository {
           },
         ),
       )
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: _label)
       .then((r) {
         final payload = r.dataOrThrow(label: _label).beaconForward;
         final result = ForwardDeliveryResult(
@@ -209,7 +209,7 @@ class ForwardRepository {
       .request(
         GForwardInboundSourcesReq((r) => r..vars.beaconId = beaconId),
       )
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: _label)
       .then((r) => r.dataOrThrow(label: _label).beaconEligibleInboundForwards)
       .then(
         (rows) => (rows?.toList() ?? const [])
@@ -236,7 +236,7 @@ class ForwardRepository {
           .request(
             GForwardCandidatesFetchReq((r) => r..vars.context = context),
           )
-          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .firstLinkResponse(label: _label)
           .then((r) => r.dataOrThrow(label: _label).forwardCandidates)
           .then((rows) {
             final reachById = <String, ForwardReach?>{};
@@ -266,7 +266,7 @@ class ForwardRepository {
           .request(
             GBeaconInvolvementDataReq((r) => r..vars.id = beaconId),
           )
-          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .firstLinkResponse(label: _label)
           .then(
             (r) => r.dataOrThrow(label: _label).beaconInvolvement,
           ),
@@ -284,7 +284,7 @@ class ForwardRepository {
           .request(
             GBeaconInvolvementDataReq((r) => r..vars.id = beacon.id),
           )
-          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .firstLinkResponse(label: _label)
           .then(
             (r) => mapBeaconInvolvement(
               beacon: beacon,
@@ -302,7 +302,7 @@ class ForwardRepository {
         .request(
           GBeaconInvolvementsDataReq((r) => r.vars.ids.replace(byId.keys)),
         )
-        .firstWhere((e) => e.dataSource == DataSource.Link);
+        .firstLinkResponse(label: _label);
     final result = <String, BeaconInvolvementData>{};
     for (final inv in response.dataOrThrow(label: _label).beaconInvolvements) {
       final beacon = byId[inv.beaconId];
@@ -360,7 +360,7 @@ class ForwardRepository {
           .request(
             GBeaconInvolvementDataReq((r) => r..vars.id = beaconId),
           )
-          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .firstLinkResponse(label: _label)
           .then((r) {
             final inv = r.dataOrThrow(label: _label).beaconInvolvement;
             final list = inv.myForwardedRecipients;
@@ -382,7 +382,7 @@ class ForwardRepository {
       .request(
         GForwardReasonsFetchReq((r) => r..vars.beaconId = beaconId),
       )
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: _label)
       .then(
         (r) => {
           for (final row in [
@@ -404,7 +404,7 @@ class ForwardRepository {
           .request(
             GBeaconForwardGraphReq((r) => r..vars.id = beaconId),
           )
-          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .firstLinkResponse(label: _label)
           .then((r) => r.dataOrThrow(label: _label).beaconForwardGraph)
           .then(
             (g) => ForwardGraph(
@@ -436,7 +436,7 @@ class ForwardRepository {
             ..vars.helpOffererId = helpOffererId,
         ),
       )
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: _label)
       .then((r) => r.dataOrThrow(label: _label).beaconHelpOffererForwardPath)
       .then(
         (g) {
@@ -458,7 +458,7 @@ class ForwardRepository {
           .request(
             GForwardEdgesFetchReq((r) => r..vars.beaconId = beaconId),
           )
-          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .firstLinkResponse(label: _label)
           .then(
             (r) => r
                 .dataOrThrow(label: _label)
@@ -500,7 +500,7 @@ class ForwardRepository {
       .request(
         GHelpOffersFetchReq((r) => r..vars.beaconId = beaconId),
       )
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: _label)
       .then(
         (r) => r
             .dataOrThrow(label: _label)
@@ -522,12 +522,12 @@ class ForwardRepository {
   /// Tells the sender the viewer opened the Request they were sent.
   Future<bool> markForwardRead(String beaconId) => _remoteApiService
       .request(GBeaconForwardMarkReadReq((r) => r..vars.id = beaconId))
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: _label)
       .then((r) => r.dataOrThrow(label: _label).beaconForwardMarkRead);
 
   Future<bool> cancelForward(String edgeId) => _remoteApiService
       .request(GForwardCancelReq((r) => r..vars.id = edgeId))
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: _label)
       .then((r) => r.dataOrThrow(label: _label).beaconForwardCancel);
 
   Future<bool> updateForward({
@@ -545,7 +545,7 @@ class ForwardRepository {
                 : null,
         ),
       )
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: _label)
       .then((r) => r.dataOrThrow(label: _label).beaconForwardUpdate);
 
   Future<bool> offerHelp({
@@ -567,7 +567,7 @@ class ForwardRepository {
               ..vars.expectedOfferKind = expectedOfferKind,
           ),
         )
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).beaconOfferHelp);
     if (ok && notifyHelpOfferListeners) {
       notifyHelpOfferChanged(HelpOfferCreated(beaconId));
@@ -589,7 +589,7 @@ class ForwardRepository {
               ..vars.withdrawReason = withdrawReason,
           ),
         )
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).beaconWithdraw);
     if (ok) {
       notifyHelpOfferChanged(HelpOfferWithdrawn(beaconId));
@@ -603,7 +603,7 @@ class ForwardRepository {
       .request(
         GBeaconLineageForwardSuggestionsReq((r) => r..vars.id = beaconId),
       )
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: _label)
       .then((r) => r.dataOrThrow(label: _label).beaconLineageForwardSuggestions)
       .then(_mapLineageSuggestions);
 

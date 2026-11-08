@@ -20,7 +20,7 @@ class PostsRepository implements PostsRepositoryPort {
   Future<List<PostSummary>> myPosts() async {
     final rows = await _remoteApiService
         .request(GMyPostsReq())
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: 'MyPosts')
         .then((r) => r.dataOrThrow(label: 'MyPosts').myPosts);
     return [for (final row in rows) _toEntity(row)];
   }
@@ -29,7 +29,7 @@ class PostsRepository implements PostsRepositoryPort {
   Future<PostSummary?> postSummary(String id) async {
     final row = await _remoteApiService
         .request(GPostSummaryReq((b) => b.vars.id = id))
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: 'PostSummary')
         .then((r) => r.dataOrThrow(label: 'PostSummary').postSummary);
     return row == null ? null : _toEntity(row);
   }

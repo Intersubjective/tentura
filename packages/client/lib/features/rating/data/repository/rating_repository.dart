@@ -27,7 +27,7 @@ class RatingRepository {
                 ..vars.context = context,
             ),
           )
-          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .firstLinkResponse(label: _label)
           .then((r) => r.dataOrThrow(label: _label).rating)
           .then(profilesFromRows);
 

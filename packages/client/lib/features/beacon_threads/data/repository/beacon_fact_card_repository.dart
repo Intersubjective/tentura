@@ -55,7 +55,7 @@ class BeaconFactCardRepository {
   Future<List<BeaconFactCard>> list({required String beaconId}) async {
     final r = await _remoteApiService
         .request(GBeaconFactCardListReq((b) => b.vars.beaconId = beaconId))
-        .firstWhere((e) => e.dataSource == DataSource.Link);
+        .firstLinkResponse(label: _label);
     final raw =
         r.dataOrThrow(label: _label).BeaconFactCardList?.toList() ?? const [];
     return raw.map(_mapRow).toList(growable: false);
@@ -77,7 +77,7 @@ class BeaconFactCardRepository {
               ..sourceMessageId = sourceMessageId,
           ),
         )
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).BeaconFactCardPin);
   }
 
@@ -99,7 +99,7 @@ class BeaconFactCardRepository {
             ..attachmentsJson = attachmentsJson,
         ),
       )
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: _label)
       .then((r) => r.dataOrThrow(label: _label).BeaconFactCardCorrect);
 
   /// Stages one image; returns a single attachment JSON object string.
@@ -120,10 +120,9 @@ class BeaconFactCardRepository {
               ..file = file,
           ),
         )
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then(
-          (r) =>
-              r.dataOrThrow(label: _label).BeaconFactCardAttachmentUpload,
+          (r) => r.dataOrThrow(label: _label).BeaconFactCardAttachmentUpload,
         );
   }
 
@@ -143,7 +142,7 @@ class BeaconFactCardRepository {
             ..baseRevisionSeq = baseRevisionSeq,
         ),
       )
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: _label)
       .then((r) => r.dataOrThrow(label: _label).BeaconFactCardRestore);
 
   /// One page of the fact's history timeline; [before] is the opaque
@@ -162,7 +161,7 @@ class BeaconFactCardRepository {
               ..before = before,
           ),
         )
-        .firstWhere((e) => e.dataSource == DataSource.Link);
+        .firstLinkResponse(label: _label);
     final page = r.dataOrThrow(label: _label).BeaconFactCardRevisions;
     return (
       entries: page.entries
@@ -245,7 +244,7 @@ class BeaconFactCardRepository {
               ..factCardId = factCardId,
           ),
         )
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).BeaconFactCardRemove);
   }
 
@@ -263,7 +262,7 @@ class BeaconFactCardRepository {
               ..visibility = visibility,
           ),
         )
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).BeaconFactCardSetVisibility);
   }
 }
