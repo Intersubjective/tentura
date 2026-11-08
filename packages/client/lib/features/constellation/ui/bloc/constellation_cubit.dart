@@ -3200,13 +3200,25 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (selectedId == null || requestById(selectedId)?.isPlaceholder == true) {
       return const [];
     }
-    if (_isPostId(selectedId)) {
+    return memberWebsForBeacon(selectedId);
+  }
+
+  /// Member webs for a Request or Post preview (Field payload and Request cache).
+  List<ConstellationMemberWeb> memberWebsForBeacon(String beaconId) {
+    if (_isPostId(beaconId)) {
       return [
-        for (final web in state.field!.memberWebs)
-          if (web.beaconId == selectedId) web,
+        for (final web in state.field?.memberWebs ?? const <ConstellationMemberWeb>[])
+          if (web.beaconId == beaconId) web,
       ];
     }
-    return _requestWebsById[selectedId] ?? const [];
+    final cached = _requestWebsById[beaconId];
+    if (cached != null) {
+      return cached;
+    }
+    return [
+      for (final web in state.field?.memberWebs ?? const <ConstellationMemberWeb>[])
+        if (web.beaconId == beaconId) web,
+    ];
   }
 
   /// [_selectedRequestWebs] plus the people whose Requests or Posts a
