@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/attention/attention_dismissible_membership.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
@@ -385,6 +386,8 @@ class _UpdatesFeedPaneState extends State<UpdatesFeedPane>
       final viewerUserId = GetIt.I.isRegistered<ProfileCubit>()
           ? GetIt.I<ProfileCubit>().state.profile.id
           : null;
+      final onDismiss =
+          isActiveOptional(receipt) ? () => unawaited(_markSeen(receipt.id)) : null;
       return UpdatesReceiptCard(
         key: ValueKey(receipt.id),
         receipt: receipt,
@@ -395,6 +398,7 @@ class _UpdatesFeedPaneState extends State<UpdatesFeedPane>
         onSettle: settleCallback,
         unreadView: unreadView,
         viewerUserId: viewerUserId,
+        onDismiss: onDismiss,
         action: ForwardHelpedSeePathAction(receipt: receipt),
       );
     }

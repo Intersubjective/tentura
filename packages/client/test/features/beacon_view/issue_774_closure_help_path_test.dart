@@ -11,7 +11,9 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_operational_header_card.dart';
+import 'package:tentura/features/beacon_view/ui/widget/beacon_showcase_surface.dart';
 import 'package:tentura/features/beacon_view/ui/widget/help_path_chain_row.dart';
+import 'package:tentura_root/domain/entity/beacon_access.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 import 'package:tentura/features/forward/domain/entity/forward_graph.dart';
 import 'package:tentura/features/forward/domain/entity/help_path_node.dart';
@@ -21,6 +23,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../../support/phone_surface.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
+import 'beacon_view_screen_harness.dart';
 
 const _beaconId = 'b-closed-774';
 const _authorId = 'u-author';
@@ -30,12 +33,13 @@ const _strangerId = 'u-stranger';
 
 Profile _p(String id, String name) => Profile(id: id, displayName: name);
 
-Beacon _closedBeacon() => Beacon.empty.copyWith(
+Beacon _closedBeacon({BeaconAccessLevel? access}) => Beacon.empty.copyWith(
   id: _beaconId,
   title: 'Need a van',
   status: BeaconStatus.closed,
   author: _p(_authorId, 'Anna'),
   admittedHelperUsers: [_p(_helperId, 'Vera')],
+  accessLevel: access,
 );
 
 List<HelpPathNode> _multiHopPath({bool blockedMiddle = false}) => [
@@ -108,6 +112,47 @@ Future<void> _pumpHeader(
 }
 
 void main() {
+  tearDown(() async {
+    if (GetIt.I.isRegistered<ForwardRepository>()) {
+      await GetIt.I.unregister<ForwardRepository>();
+    }
+    await unregisterBeaconViewHarnessGetIt();
+  });
+
+  testWidgets('path forwarder on closed showcase sees Help came through', (
+    tester,
+  ) async {
+    GetIt.I.registerSingleton<ForwardRepository>(
+      _FakeForwardRepository({_helperId: _multiHopPath()}),
+    );
+    final author = beaconViewHarnessAuthorState();
+    await pumpBeaconViewHarness(
+      tester,
+      size: kBeaconViewHarnessCompact,
+      beaconState: author.copyWith(
+        beacon: _closedBeacon(access: BeaconAccessLevel.observer).copyWith(
+          id: author.beacon.id,
+          title: author.beacon.title,
+          author: author.beacon.author,
+        ),
+        myProfile: _p(_f1Id, 'Boris'),
+        admittedHelperRoster: [_p(_helperId, 'Vera')],
+        admittedHelpersLoaded: true,
+        roomParticipants: const [],
+      ),
+      threadsState: beaconViewHarnessThreadsState(),
+    );
+    await tester.pump();
+    await tester.runAsync(() async {
+      await Future<void>.delayed(Duration.zero);
+    });
+    await tester.pump();
+
+    expect(find.byType(BeaconShowcaseSurface), findsOneWidget);
+    expect(find.text('Help came through'), findsOneWidget);
+    expect(find.text('Boris'), findsOneWidget);
+  });
+
   testWidgets('author sees Help came through A → F1 → H on closed Request', (
     tester,
   ) async {

@@ -421,7 +421,12 @@ class _UpdatesFeedTileState extends State<UpdatesFeedTile> {
                   child: bodyColumn,
                 ),
               ),
-              if (!widget.activityRow)
+              if (widget.onDismiss != null)
+                _ActivityDismissControl(
+                  label: l10n.attentionEventDismiss,
+                  onPressed: widget.onDismiss!,
+                )
+              else if (!widget.activityRow)
                 _UpdatesFeedRowOverflow(
                   isUnread: isUnread,
                   dismissReadLabel: _canDismissRead
@@ -431,11 +436,6 @@ class _UpdatesFeedTileState extends State<UpdatesFeedTile> {
                   markUnseenLabel: l10n.updatesMarkUnseen,
                   onMarkSeen: _markSeen,
                   onMarkUnseen: _markUnseen,
-                )
-              else if (widget.onDismiss != null)
-                _ActivityDismissControl(
-                  label: l10n.attentionEventDismiss,
-                  onPressed: widget.onDismiss!,
                 ),
             ],
           ),

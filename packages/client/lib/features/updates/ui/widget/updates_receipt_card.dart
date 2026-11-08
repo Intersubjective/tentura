@@ -17,6 +17,7 @@ class UpdatesReceiptCard extends StatelessWidget {
     this.actor,
     this.unreadView = false,
     this.viewerUserId,
+    this.onDismiss,
     super.key,
   });
 
@@ -34,6 +35,9 @@ class UpdatesReceiptCard extends StatelessWidget {
   /// Replaces the viewer's name with «You» on forward-helped path rows (#774).
   final String? viewerUserId;
 
+  /// Optional optional-update ×; same control as Activity stream rows (#774).
+  final VoidCallback? onDismiss;
+
   @override
   Widget build(BuildContext context) => UpdatesFeedTile(
     receipt: receipt,
@@ -45,5 +49,6 @@ class UpdatesReceiptCard extends StatelessWidget {
     action: action,
     unreadView: unreadView,
     viewerUserId: viewerUserId,
+    onDismiss: onDismiss,
   );
 }
