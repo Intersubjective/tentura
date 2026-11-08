@@ -7,6 +7,7 @@ import 'package:tentura/data/gql/_g/schema.schema.gql.dart';
 import 'package:tentura/data/gql/tentura_v2_upload.dart';
 import 'package:tentura/data/model/beacon_model.dart';
 import 'package:tentura/data/model/user_model.dart';
+import 'package:tentura/data/service/remote_api_client/remote_request_client.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_kind.dart';
@@ -65,7 +66,7 @@ class BeaconRepository implements BeaconWritePort {
         );
   }
 
-  final RemoteApiService _remoteApiService;
+  final RemoteRequestClient _remoteApiService;
 
   late final StreamSubscription<RealtimeEntityChange> _invalidationSub;
 

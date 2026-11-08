@@ -1,6 +1,7 @@
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura/data/repository/fetch_by_id_batches.dart';
+import 'package:tentura/data/service/remote_api_client/remote_request_client.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/domain/entity/open_blocker_cue.dart';
@@ -17,7 +18,7 @@ import 'package:tentura/domain/entity/beacon_room_consts.dart';
 class BeaconRoomHintsRepository {
   BeaconRoomHintsRepository(this._remoteApiService);
 
-  final RemoteApiService _remoteApiService;
+  final RemoteRequestClient _remoteApiService;
 
   static const _label = 'InboxRoomContextBatch';
 

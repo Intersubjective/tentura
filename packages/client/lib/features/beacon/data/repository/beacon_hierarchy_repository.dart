@@ -15,6 +15,7 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_root/domain/entity/coordinates.dart';
 
 import 'package:tentura/data/gql/_g/schema.schema.gql.dart';
+import 'package:tentura/data/service/remote_api_client/remote_request_client.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/features/beacon/domain/port/beacon_hierarchy_repository_port.dart';
 
@@ -41,7 +42,7 @@ String? _scheduleDateTimeToIso(DateTime? dateTime) =>
 class BeaconHierarchyRepository implements BeaconHierarchyRepositoryPort {
   BeaconHierarchyRepository(this._remoteApiService);
 
-  final RemoteApiService _remoteApiService;
+  final RemoteRequestClient _remoteApiService;
 
   static const _label = 'BeaconHierarchy';
 

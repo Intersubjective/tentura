@@ -1,6 +1,7 @@
 import 'package:injectable/injectable.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
+import 'package:tentura/data/service/remote_api_client/remote_request_client.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 
 import '../../domain/entity/post_participant_preview.dart';
@@ -14,7 +15,7 @@ import '../gql/_g/post_summary_fields.data.gql.dart';
 class PostsRepository implements PostsRepositoryPort {
   const PostsRepository(this._remoteApiService);
 
-  final RemoteApiService _remoteApiService;
+  final RemoteRequestClient _remoteApiService;
 
   @override
   Future<List<PostSummary>> myPosts() async {

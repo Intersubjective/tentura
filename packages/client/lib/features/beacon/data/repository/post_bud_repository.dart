@@ -3,6 +3,7 @@ import 'package:injectable/injectable.dart';
 import 'package:tentura_root/domain/entity/coordinates.dart';
 
 import 'package:tentura/data/gql/_g/schema.schema.gql.dart';
+import 'package:tentura/data/service/remote_api_client/remote_request_client.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/entity/post_bud_invite_candidate.dart';
 import 'package:tentura/domain/entity/post_bud_invite_outcome.dart';
@@ -16,7 +17,7 @@ import '../gql/_g/post_bud_invite_candidates.req.gql.dart';
 class PostBudRepository implements PostBudPort {
   const PostBudRepository(this._remoteApiService);
 
-  final RemoteApiService _remoteApiService;
+  final RemoteRequestClient _remoteApiService;
 
   static const _label = 'PostBud';
 

@@ -1,5 +1,6 @@
 import 'package:injectable/injectable.dart';
 
+import 'package:tentura/data/service/remote_api_client/remote_request_client.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 
 import '../../domain/port/person_shared_context_port.dart';
@@ -12,7 +13,7 @@ import '../gql/_g/person_shared_contexts.req.gql.dart';
 final class PersonSharedContextRepository implements PersonSharedContextPort {
   PersonSharedContextRepository(this._remoteApiService);
 
-  final RemoteApiService _remoteApiService;
+  final RemoteRequestClient _remoteApiService;
 
   static const _label = 'PersonSharedContexts';
 
