@@ -888,8 +888,41 @@ void main() {
 
     Finder handle(String name) => find.byKey(Key('constellation.sector.$name'));
 
+    /// Activates a control in the top arranging chrome (embedded selection UI).
+    Future<void> tapChromeButton(WidgetTester tester, Key key) async {
+      final finder = find.byKey(key);
+      expect(finder, findsOneWidget);
+      await tester.ensureVisible(finder);
+      final element = finder.evaluate().single;
+      final widget = element.widget;
+      final onPressed = switch (widget) {
+        FilledButton(:final onPressed) => onPressed,
+        TextButton(:final onPressed) => onPressed,
+        IconButton(:final onPressed) => onPressed,
+        _ => null,
+      };
+      if (onPressed != null) {
+        expect(onPressed, isNotNull);
+        onPressed();
+        await tester.pumpAndSettle();
+        return;
+      }
+      final center = tester.getCenter(finder);
+      await tester.tapAt(center);
+      await tester.pumpAndSettle();
+    }
+
+    /// Bottom of the top arranging toolbar in global coords.
+    double arrangingChromeBottom(WidgetTester tester) {
+      final toolbar = find.byKey(const Key('constellation.arranging.toolbar'));
+      if (toolbar.evaluate().isEmpty) {
+        return 0;
+      }
+      return tester.getBottomLeft(toolbar).dy;
+    }
+
     /// Selects [targets], opens the sector editor and points it up, clear of
-    /// the bar at the bottom.
+    /// the arranging chrome at the top.
     Future<void> open(
       WidgetTester tester,
       _Harness h,
@@ -946,8 +979,9 @@ void main() {
     }
 
     Future<void> apply(WidgetTester tester) async {
-      await tester.tap(
-        find.byKey(const Key('constellation.selection.sector_apply')),
+      await tapChromeButton(
+        tester,
+        const Key('constellation.selection.sector_apply'),
       );
       await tester.runAsync(() => Future<void>.delayed(Duration.zero));
       await _settle(tester);
@@ -1299,13 +1333,7 @@ void main() {
       await open(tester, h, [_ann, _bob]);
       // The end handle goes all the way round: keep the sector in the map
       // below the top arranging chrome so a handle is never under the bar.
-      final barBottom = [
-        find.byKey(const Key('constellation.selection.bar')),
-        find.byKey(const Key('constellation.arranging.toolbar')),
-      ]
-          .where((f) => f.evaluate().isNotEmpty)
-          .map((f) => tester.getBottomLeft(f).dy)
-          .fold<double>(0, math.max);
+      final barBottom = arrangingChromeBottom(tester);
       final mapBox = tester.getRect(
         find.byType(GraphView<NodeDetails, EdgeDetails>),
       );
@@ -1547,6 +1575,7 @@ void main() {
       final applyButton = find.byKey(
         const Key('constellation.selection.sector_apply'),
       );
+      await tester.ensureVisible(applyButton);
       expect(tester.widget<FilledButton>(applyButton).onPressed, isNotNull);
 
       await apply(tester);
@@ -1615,8 +1644,9 @@ void main() {
         await _drag(tester, radius, radius + const Offset(-40, -40));
 
         if (how == 'Cancel') {
-          await tester.tap(
-            find.byKey(const Key('constellation.selection.sector_cancel')),
+          await tapChromeButton(
+            tester,
+            const Key('constellation.selection.sector_cancel'),
           );
         } else {
           await tester.sendKeyEvent(LogicalKeyboardKey.escape);
@@ -1630,11 +1660,7 @@ void main() {
           find.byKey(const Key('constellation.selection.sector_editor')),
           findsNothing,
         );
-        expect(
-          (tester.getCenter(_node('a')) - annBefore).distance,
-          lessThan(120),
-          reason: 'Cancel keeps Ann near her pre-edit screen position',
-        );
+        expect(tester.getCenter(_node('a')), annBefore);
       });
     }
 
