@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:tentura/design_system/tentura_design_system.dart';
 
 import 'package:tentura/app/router/beacon_view_route_normalizer.dart';
 import 'package:tentura/app/router/root_router.dart';
@@ -16,6 +15,7 @@ import 'package:tentura/features/post_view/ui/screen/post_view_scope.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
+import '../widget/beacon_view_loading_shell.dart';
 import 'beacon_view_screen.dart';
 import 'beacon_view_scope.dart';
 
@@ -60,6 +60,7 @@ class BeaconViewHostScreen extends StatelessWidget implements AutoRouteWrapper {
   Widget wrappedRoute(BuildContext context) => localScreenCubitScope(
     child: _BeaconKindGate(
       beaconId: id,
+      entry: entry,
       builder: (kind) => BlocBuilder<ProfileCubit, ProfileState>(
         buildWhen: (previous, current) =>
             previous.profile.id != current.profile.id,
@@ -125,9 +126,14 @@ class PostViewHostScreen extends BeaconViewHostScreen {
 
 /// Resolves the beacon kind once, then builds the matching scope.
 class _BeaconKindGate extends StatefulWidget {
-  const _BeaconKindGate({required this.beaconId, required this.builder});
+  const _BeaconKindGate({
+    required this.beaconId,
+    required this.entry,
+    required this.builder,
+  });
 
   final String beaconId;
+  final String? entry;
   final Widget Function(BeaconKind kind) builder;
 
   @override
@@ -152,13 +158,23 @@ class _BeaconKindGateState extends State<_BeaconKindGate> {
     if (oldWidget.beaconId != widget.beaconId) _kind = _resolve();
   }
 
+  void _leaveKindGate(BuildContext context) {
+    final router = context.router;
+    if (router.canPop()) {
+      unawaited(router.maybePop());
+      return;
+    }
+    unawaited(router.navigatePath(kPathMyWork));
+  }
+
   @override
   Widget build(BuildContext context) => FutureBuilder<BeaconKind>(
     future: _kind,
     builder: (context, snapshot) => snapshot.hasData
         ? widget.builder(snapshot.requireData)
-        : const Scaffold(
-            body: Center(child: TenturaCircularProgress(adaptive: true)),
+        : BeaconViewLoadingShellFrame(
+            entry: widget.entry,
+            onBack: () => _leaveKindGate(context),
           ),
   );
 }

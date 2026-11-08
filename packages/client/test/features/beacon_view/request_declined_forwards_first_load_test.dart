@@ -4,12 +4,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:tentura/app/router/root_router.dart';
+import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/beacon_display_status_dto.dart';
 import 'package:tentura/features/beacon_view/data/repository/coordination_repository.dart';
+import 'package:tentura/features/beacon_view/domain/use_case/beacon_view_case.dart';
 import 'package:tentura/features/beacon_view/ui/screen/beacon_view_screen.dart';
+import 'package:tentura/features/beacon_view/ui/widget/beacon_view_loading_shell.dart';
+import 'package:tentura/features/post_view/data/repository/beacon_kind_repository.dart';
+import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
+import 'package:tentura/ui/bloc/screen_cubit.dart';
+import 'package:mockito/mockito.dart';
 import 'package:tentura/ui/widget/beacon_involved_people_face_pile.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
@@ -193,6 +202,116 @@ Map<String, dynamic> _pendingHelperOffer() => {
   },
 };
 
+class _RouteProfileCubit extends Mock implements ProfileCubit {
+  @override
+  ProfileState get state => const ProfileState(profile: _author);
+
+  @override
+  Stream<ProfileState> get stream => Stream.value(state);
+}
+
+class _GatedBeaconKindRepository implements BeaconKindRepository {
+  final release = Completer<void>();
+
+  @override
+  Future<BeaconKind> fetchKind(String beaconId) =>
+      release.future.then((_) => BeaconKind.request);
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _LoadingShellRouteRouter extends RootStackRouter {
+  @override
+  List<AutoRoute> get routes => [
+    AutoRoute(
+      page: BeaconViewRoute.page,
+      path: '$kPathBeaconView/:id',
+      children: [
+        AutoRoute(
+          page: BeaconViewOperationalRoute.page,
+          path: '',
+          initial: true,
+        ),
+      ],
+    ),
+  ];
+}
+
+Future<void> _pumpBeaconViewRouteWithGatedKind(
+  WidgetTester tester, {
+  required _GatedBeaconKindRepository kinds,
+  required Size size,
+  Locale locale = const Locale('en'),
+}) async {
+  final forwards = _DelayedAuthorForwards();
+  final repository = TrackingBeaconRepository()
+    ..fetchByIdHandler = (_) async => _request;
+  addTearDown(() async {
+    await repository.dispose();
+    await forwards.dispose();
+  });
+
+  final effects = FakeUiEffectPort();
+  final screen = ScreenCubit(effects);
+  final profile = _RouteProfileCubit();
+  final router = _LoadingShellRouteRouter();
+  addTearDown(router.dispose);
+
+  await GetIt.I.reset();
+  addTearDown(unregisterBeaconViewHarnessGetIt);
+  addTearDown(GetIt.I.reset);
+
+  await registerBeaconViewHarnessGetIt(profile: _author);
+  GetIt.I
+    ..registerSingleton<ScreenCubit>(screen)
+    ..registerSingleton<BeaconKindRepository>(kinds)
+    ..registerSingleton<BeaconViewCase>(
+      buildTestBeaconViewCase(beaconRepo: repository, forward: forwards),
+    );
+
+  await tester.binding.setSurfaceSize(size);
+  addTearDown(() => tester.binding.setSurfaceSize(null));
+
+  await tester.pumpWidget(
+    MaterialApp.router(
+      theme: TenturaTheme.light(),
+      localizationsDelegates: L10n.localizationsDelegates,
+      supportedLocales: L10n.supportedLocales,
+      locale: locale,
+      builder: (context, child) => MultiBlocProvider(
+        providers: [
+          BlocProvider<ScreenCubit>.value(value: screen),
+          BlocProvider<ProfileCubit>.value(value: profile),
+        ],
+        child: child!,
+      ),
+      routerConfig: router.config(
+        deepLinkBuilder: (_) =>
+            DeepLink.path('$kPathBeaconView/${_request.id}'),
+      ),
+    ),
+  );
+  await tester.pump();
+}
+
+void _expectKindGateLoadingShell(WidgetTester tester, Size size) {
+  expect(find.byType(BeaconViewScreen), findsNothing);
+  expect(find.byType(BeaconViewLoadingShellFrame), findsOneWidget);
+  expect(find.byIcon(Icons.more_vert), findsNothing);
+  expect(find.textContaining(_request.title, findRichText: true), findsNothing);
+  expect(find.byIcon(Icons.arrow_back), findsOneWidget);
+  if (size.width >= 1280) {
+    expect(
+      find.descendant(
+        of: find.byType(BeaconViewLoadingShellFrame),
+        matching: find.byIcon(Icons.arrow_back),
+      ),
+      findsOneWidget,
+    );
+  }
+}
+
 int _gateSpinners() => find
     .descendant(
       of: find.byType(TenturaFirstLoadGate),
@@ -229,6 +348,7 @@ Future<void> _checkChromeReveal(
   bool timeout = false,
   bool delayOffersUntilForwardsFail = false,
   bool tablet = false,
+  bool split1280 = false,
   bool phone = false,
 }) async {
   final sent = <WireSent>[];
@@ -265,6 +385,7 @@ Future<void> _checkChromeReveal(
         recorder: timeout ? _PendingRoomRecorder() : null,
       );
       BeaconViewHarness? harness;
+      Offset? loadingBackOrigin;
       addTearDown(unregisterBeaconViewHarnessGetIt);
       try {
         // Normal author: offers/display finish, only fetchEdges is pending.
@@ -276,6 +397,8 @@ Future<void> _checkChromeReveal(
           tester,
           size: phone
               ? const Size(375, 667)
+              : split1280
+              ? const Size(1280, 800)
               : tablet
               ? const Size(1024, 900)
               : const Size(1365, 900),
@@ -317,6 +440,8 @@ Future<void> _checkChromeReveal(
         void expectHiddenChrome() {
           expect(_gateSpinners(), 1);
           expect(find.byType(BeaconNowSurface), findsNothing);
+          expect(find.byIcon(Icons.more_vert), findsNothing);
+          expect(headerText(_request.title), findsNothing);
           // Check the helper cue first so this test diagnoses its own leak.
           if (helper) expect(headerText('Offer sent'), findsNothing);
           expect(headerText('no offers yet'), findsNothing);
@@ -329,6 +454,15 @@ Future<void> _checkChromeReveal(
             findsNothing,
           );
           expect(find.byType(BeaconInvolvedPeopleFacePile), findsNothing);
+          final back = find.byIcon(Icons.arrow_back);
+          expect(back, findsOneWidget);
+          final origin = tester.getTopLeft(back);
+          loadingBackOrigin ??= origin;
+          expect(
+            origin,
+            loadingBackOrigin,
+            reason: 'the loading shell back control must not move',
+          );
         }
 
         if (helper) {
@@ -568,6 +702,14 @@ void main() {
   testWidgets(
     'Russian phone reveals declined status with the Request body',
     (tester) => _checkChromeReveal(tester, phone: true),
+  );
+  testWidgets(
+    '1280x800 split author loading shell keeps back-only chrome until reveal',
+    (tester) => _checkChromeReveal(tester, split1280: true),
+  );
+  testWidgets(
+    '1280x800 split helper loading shell keeps back-only chrome until reveal',
+    (tester) => _checkChromeReveal(tester, split1280: true, helper: true),
   );
 
   test(
@@ -895,5 +1037,44 @@ void main() {
       }
     },
     timeout: const Timeout(Duration(seconds: 30)),
+  );
+
+  testWidgets('kind gate uses the Request loading shell before kind resolves', (
+    tester,
+  ) async {
+    final kinds = _GatedBeaconKindRepository();
+    const size = Size(1280, 800);
+    await _pumpBeaconViewRouteWithGatedKind(tester, kinds: kinds, size: size);
+    _expectKindGateLoadingShell(tester, size);
+    expect(find.byType(TenturaCircularProgress), findsNothing);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+
+    for (var i = 0; i < 8; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+      _expectKindGateLoadingShell(tester, size);
+      expect(find.byType(TenturaCircularProgress), findsNothing);
+    }
+  });
+
+  testWidgets(
+    '375x667 RU route keeps the kind loading shell without an extra spinner',
+    (tester) async {
+      final kinds = _GatedBeaconKindRepository();
+      const size = Size(375, 667);
+      await _pumpBeaconViewRouteWithGatedKind(
+        tester,
+        kinds: kinds,
+        size: size,
+        locale: const Locale('ru'),
+      );
+      _expectKindGateLoadingShell(tester, size);
+      expect(find.byType(TenturaCircularProgress), findsNothing);
+
+      for (var i = 0; i < 8; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+        _expectKindGateLoadingShell(tester, size);
+      }
+      expect(tester.takeException(), isNull);
+    },
   );
 }
