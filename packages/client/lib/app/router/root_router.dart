@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:auto_route/auto_route.dart';
+import 'package:flutter/widgets.dart' show BuildContext;
 import 'package:injectable/injectable.dart';
 import 'package:logging/logging.dart';
 
@@ -14,6 +15,7 @@ import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/home_tab_reselect_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/post_join_navigation_cubit.dart';
 import 'package:tentura/features/settings/ui/bloc/settings_cubit.dart';
+import 'package:tentura/ui/navigation/app_navigator.dart';
 
 import 'accept_invite_guard.dart';
 import 'beacon_view_route_normalizer.dart';
@@ -51,7 +53,7 @@ Uri normalizeBeaconViewThreadDeepLink(Uri uri) {
 
 @singleton
 @AutoRouterConfig()
-class RootRouter extends RootStackRouter {
+class RootRouter extends RootStackRouter implements AppNavigator {
   RootRouter(
     this._logger,
     this._authCubit,
@@ -732,6 +734,7 @@ class RootRouter extends RootStackRouter {
     };
   }
 
+  @override
   Future<void> openFromUpdate(AttentionReceipt receipt) {
     final link = attentionDestination(receipt).toString();
     final branchTab = receipt.surface == AttentionSurface.myWork
@@ -748,6 +751,7 @@ class RootRouter extends RootStackRouter {
   /// visible. Scoped [popUntilRouteWithName] does not clear nested tab stacks.
   /// Cold-start (no mounted home tabs) builds
   /// `HomeRoute → NetworkTabShell → FriendsRoute(tab=invitations)`.
+  @override
   Future<void> openInvitations() async {
     popUntilRouteWithName(HomeRoute.name);
     final tabs = innerRouterOf<TabsRouter>(HomeRoute.name);
@@ -782,6 +786,7 @@ class RootRouter extends RootStackRouter {
   /// Warm, it pops root routes above Home first (the profile whose block
   /// sheet links here), as [openInvitations] does; otherwise Blocked users
   /// opened hidden under that profile (#942).
+  @override
   Future<void> openBlockedUsers() async {
     final tabs = innerRouterOf<TabsRouter>(HomeRoute.name);
     if (tabs != null) {
@@ -807,6 +812,137 @@ class RootRouter extends RootStackRouter {
         ],
       ),
     );
+  }
+
+  // AppNavigator intents: each keeps the push / navigate / replace semantics
+  // its call sites had when they built the route themselves.
+
+  @override
+  BuildContext? get rootContext => navigatorKey.currentContext;
+
+  @override
+  Future<void> openBeacon(
+    String id, {
+    String? entry,
+    String? viewTab,
+    String? threadId,
+    String? messageId,
+    String? peopleTabAttention,
+  }) => push(
+    BeaconViewRoute(
+      id: id,
+      entry: entry,
+      viewTab: viewTab,
+      threadId: threadId,
+      messageId: messageId,
+      peopleTabAttention: peopleTabAttention,
+    ),
+  );
+
+  @override
+  Future<void> navigateToBeacon(String id, {String? entry}) async {
+    await navigate(BeaconViewRoute(id: id, entry: entry));
+  }
+
+  @override
+  Future<void> openBeaconLobby(String beaconId) =>
+      push(BeaconLobbyRoute(beaconId: beaconId));
+
+  @override
+  Future<void> forwardBeacon(String beaconId, {String? tags}) =>
+      push(ForwardBeaconRoute(beaconId: beaconId, tags: tags));
+
+  @override
+  Future<void> createBeacon({
+    String draftId = '',
+    String editId = '',
+    String initialTab = '',
+    String forwardToUserId = '',
+    String parentBeaconId = '',
+    String sourceMessageId = '',
+    String forkSourceId = '',
+    String forkPlanTimes = '',
+    Set<String> initialRecipientIds = const {},
+    Map<String, String> initialNotes = const {},
+    void Function(Set<String>, Map<String, String>)? onRecipientsChanged,
+    VoidCallback? onPublished,
+  }) => push(
+    BeaconCreateRoute(
+      draftId: draftId,
+      editId: editId,
+      initialTab: initialTab,
+      forwardToUserId: forwardToUserId,
+      parentBeaconId: parentBeaconId,
+      sourceMessageId: sourceMessageId,
+      forkSourceId: forkSourceId,
+      forkPlanTimes: forkPlanTimes,
+      initialRecipientIds: initialRecipientIds,
+      initialNotes: initialNotes,
+      onRecipientsChanged: onRecipientsChanged,
+      onPublished: onPublished,
+    ),
+  );
+
+  @override
+  Future<void> createPost({
+    String draftId = '',
+    String forwardToUserId = '',
+    Set<String> initialRecipientIds = const {},
+    void Function(Set<String>, Map<String, String>)? onRecipientsChanged,
+    VoidCallback? onPublished,
+  }) => push(
+    PostCreateRoute(
+      draftId: draftId,
+      forwardToUserId: forwardToUserId,
+      initialRecipientIds: initialRecipientIds,
+      onRecipientsChanged: onRecipientsChanged,
+      onPublished: onPublished,
+    ),
+  );
+
+  @override
+  Future<void> openProfile(String id) => push(ProfileViewRoute(id: id));
+
+  @override
+  Future<void> openPeopleTags() => push(const PeopleTagsRoute());
+
+  @override
+  Future<void> openInboxWatching({String? highlightBeaconId}) =>
+      push(InboxWatchingRoute(highlightBeaconId: highlightBeaconId));
+
+  @override
+  Future<void> openInboxWatchingFromHome(String beaconId) async {
+    await replaceAll([
+      HomeRoute(
+        children: [
+          inboxTabShell(children: [InboxRoute()]),
+        ],
+      ),
+    ]);
+    await push(InboxWatchingRoute(highlightBeaconId: beaconId));
+  }
+
+  @override
+  Future<void> openRecover() => push(RecoverRoute());
+
+  @override
+  Future<void> resetToRecover() => replaceAll([RecoverRoute()]);
+
+  @override
+  Future<void> resetToLogin() => replaceAll([const AuthLoginRoute()]);
+
+  @override
+  Future<void> openPath(String path) => pushPath(
+    path,
+    includePrefixMatches: true,
+    onFailure: _logger.fine,
+  );
+
+  @override
+  Future<void> popOrGoHome([Object? result]) async {
+    if (!await maybePop(result)) {
+      await replaceAll([const HomeRoute()]);
+    }
   }
 
   Uri _notificationUriFromRaw(String raw) {

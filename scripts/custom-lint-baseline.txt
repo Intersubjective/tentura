@@ -16,5 +16,10 @@
 #   severity and 15 legacy use cases still return Map<String, dynamic>, so
 #   enabling it would fail `dart analyze` outright. Tracked there, not here.
 
-packages/client 21
+# packages/client (2026-11-09): +51 no_router_import_outside_app (warning) —
+#   the feature files that still import lib/app/router/ when the rule landed
+#   (router decoupling 1/7). Each unit of that refactor lowers it; at 6/7 the
+#   rule is an error and none are left.
+
+packages/client 72
 packages/server 0

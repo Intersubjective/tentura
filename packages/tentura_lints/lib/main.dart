@@ -14,6 +14,7 @@ import 'src/rules/no_raw_circular_progress_in_features.dart';
 import 'src/rules/no_raw_edge_insets.dart';
 import 'src/rules/no_raw_graphql_in_dart.dart';
 import 'src/rules/no_request_domain_entity.dart';
+import 'src/rules/no_router_import_outside_app.dart';
 import 'src/rules/use_tentura_top_bar.dart';
 
 final plugin = TenturaLintsPlugin();
@@ -38,6 +39,7 @@ class TenturaLintsPlugin extends Plugin {
       ..registerLintRule(NoRawBorderRadius())
       ..registerLintRule(NoRawCircularProgressInFeatures())
       ..registerLintRule(NoRequestDomainEntity())
+      ..registerLintRule(NoRouterImportOutsideApp())
       ..registerLintRule(UseTenturaTopBar());
   }
 }

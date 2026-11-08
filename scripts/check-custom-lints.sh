@@ -24,7 +24,7 @@
 
 set -euo pipefail
 
-CUSTOM_RULES='no_domain_to_data_or_ui_import|no_cubit_to_data_service_import|no_map_dynamic_in_use_case_api|no_raw_graphql_in_dart|no_inline_font_size|cubit_requires_use_case_for_multi_repos|no_operational_raw_color|no_operational_raw_text_style|no_operational_pill_widgets_in_beacon_view|no_raw_edge_insets|no_raw_border_radius|no_raw_circular_progress_in_features|no_request_domain_entity|use_tentura_top_bar'
+CUSTOM_RULES='no_domain_to_data_or_ui_import|no_cubit_to_data_service_import|no_map_dynamic_in_use_case_api|no_raw_graphql_in_dart|no_inline_font_size|cubit_requires_use_case_for_multi_repos|no_operational_raw_color|no_operational_raw_text_style|no_operational_pill_widgets_in_beacon_view|no_raw_edge_insets|no_raw_border_radius|no_raw_circular_progress_in_features|no_request_domain_entity|no_router_import_outside_app|use_tentura_top_bar'
 
 if [[ "${1:-}" == "--print-rules" ]]; then
   echo "$CUSTOM_RULES"
@@ -97,8 +97,10 @@ fi
 # script failure — hence the explicit `|| true`.
 hits="$(mktemp)"
 trap 'rm -f "$out" "$hits"' EXIT
-{ grep -E "^[[:space:]]+(info|warning|error) - .* - ($CUSTOM_RULES)\$" "$out" \
-    | sed -E 's/^[[:space:]]+[a-z]+ - ([^ ]+) - .* - ([a-z_]+)$/\2 \1/' \
+# `warning` lines carry no leading space (the severity is right-aligned to
+# `info`'s width), so the indent is optional.
+{ grep -E "^[[:space:]]*(info|warning|error) - .* - ($CUSTOM_RULES)\$" "$out" \
+    | sed -E 's/^[[:space:]]*[a-z]+ - ([^ ]+) - .* - ([a-z_]+)$/\2 \1/' \
     | sort -u; } >"$hits" || true
 
 count="$(wc -l <"$hits" | tr -d ' ')"

@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/attention/attention_dismissible_membership.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
@@ -14,6 +13,7 @@ import 'package:tentura/features/updates/forward_helped_receipt_copy.dart';
 import 'package:tentura/features/updates/ui/widget/forward_helped_see_path_action.dart';
 import 'package:tentura/features/updates/updates_receipt_display_copy.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/navigation/app_navigator.dart';
 import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
@@ -386,8 +386,9 @@ class _UpdatesFeedPaneState extends State<UpdatesFeedPane>
       final viewerUserId = GetIt.I.isRegistered<ProfileCubit>()
           ? GetIt.I<ProfileCubit>().state.profile.id
           : null;
-      final onDismiss =
-          isActiveOptional(receipt) ? () => unawaited(_markSeen(receipt.id)) : null;
+      final onDismiss = isActiveOptional(receipt)
+          ? () => unawaited(_markSeen(receipt.id))
+          : null;
       return UpdatesReceiptCard(
         key: ValueKey(receipt.id),
         receipt: receipt,
@@ -488,7 +489,7 @@ class _UpdatesFeedPaneState extends State<UpdatesFeedPane>
   Future<void> _open(BuildContext context, AttentionReceipt receipt) async {
     // Opening reads the row; it stays on Unread until cleared by hand.
     unawaited(context.read<UpdatesFeedCubit>().markRead(receipt.id));
-    await GetIt.I<RootRouter>().openFromUpdate(receipt);
+    await GetIt.I<AppNavigator>().openFromUpdate(receipt);
   }
 }
 

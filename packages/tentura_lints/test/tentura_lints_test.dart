@@ -8,6 +8,7 @@ import 'package:tentura_lints/src/rules/no_raw_circular_progress_in_features.dar
 import 'package:tentura_lints/src/rules/no_raw_edge_insets.dart';
 import 'package:tentura_lints/src/rules/no_raw_graphql_in_dart.dart';
 import 'package:tentura_lints/src/rules/no_request_domain_entity.dart';
+import 'package:tentura_lints/src/rules/no_router_import_outside_app.dart';
 import 'package:tentura_lints/src/rules/use_tentura_top_bar.dart';
 import 'package:test_reflective_loader/test_reflective_loader.dart';
 
@@ -424,6 +425,101 @@ class Beacon {}
 }
 
 @reflectiveTest
+class NoRouterImportOutsideAppTest extends AnalysisRuleTest {
+  @override
+  String get testFileName => 'features/foo/ui/widget/foo_card.dart';
+
+  @override
+  void setUp() {
+    rule = NoRouterImportOutsideApp();
+    super.setUp();
+  }
+
+  Future<void> test_reports_router_package_import() async {
+    await assertDiagnostics(
+      '''
+import 'package:tentura/app/router/root_router.dart';
+''',
+      [
+        lint(0, 53),
+        error(diag.uriDoesNotExist, 7, 45),
+      ],
+    );
+  }
+
+  Future<void> test_reports_relative_router_import() async {
+    newFile('$testPackageLibPath/app/router/home_tab_branches.dart', '');
+    await assertDiagnostics(
+      '''
+import '../../../../app/router/home_tab_branches.dart';
+''',
+      [
+        lint(0, 55),
+        error(diag.unusedImport, 7, 47),
+      ],
+    );
+  }
+
+  Future<void> test_reports_router_export() async {
+    await assertDiagnostics(
+      '''
+export 'package:tentura/app/router/root_router.dart';
+''',
+      [
+        lint(0, 53),
+        error(diag.uriDoesNotExist, 7, 45),
+      ],
+    );
+  }
+
+  Future<void> test_allows_navigation_port_import() async {
+    await assertDiagnostics(
+      '''
+import 'package:tentura/ui/navigation/app_navigator.dart';
+''',
+      [error(diag.uriDoesNotExist, 7, 50)],
+    );
+  }
+
+  Future<void> test_allows_route_page_screen() async {
+    await assertDiagnostics(
+      '''
+import 'package:tentura/app/router/root_router.dart';
+
+class RoutePage {
+  const RoutePage();
+}
+
+@RoutePage()
+class FooScreen {}
+''',
+      [error(diag.uriDoesNotExist, 7, 45)],
+    );
+  }
+}
+
+@reflectiveTest
+class NoRouterImportOutsideAppInAppTest extends AnalysisRuleTest {
+  @override
+  String get testFileName => 'app/di/modules.dart';
+
+  @override
+  void setUp() {
+    rule = NoRouterImportOutsideApp();
+    super.setUp();
+  }
+
+  Future<void> test_allows_router_import_in_app() async {
+    await assertDiagnostics(
+      '''
+import 'package:tentura/app/router/root_router.dart';
+''',
+      [error(diag.uriDoesNotExist, 7, 45)],
+    );
+  }
+}
+
+@reflectiveTest
 class UseTenturaTopBarTest extends AnalysisRuleTest {
   @override
   String get testFileName =>
@@ -533,6 +629,8 @@ void main() {
     defineReflectiveTests(NoRawBorderRadiusTest);
     defineReflectiveTests(NoRawCircularProgressInFeaturesTest);
     defineReflectiveTests(NoRequestDomainEntityTest);
+    defineReflectiveTests(NoRouterImportOutsideAppTest);
+    defineReflectiveTests(NoRouterImportOutsideAppInAppTest);
     defineReflectiveTests(UseTenturaTopBarTest);
   });
 }

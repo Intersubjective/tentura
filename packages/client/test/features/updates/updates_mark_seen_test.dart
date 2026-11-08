@@ -2,15 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:get_it/get_it.dart';
 import 'package:logging/logging.dart';
-import 'package:mockito/mockito.dart';
 
-import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/attention/attention_case.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
-import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/attention/feed_session_registry.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
@@ -20,6 +16,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
 import '../block/support/controllable_block_case.dart';
+import '../../support/fake_app_navigator.dart';
 import '../../support/noop_attention_actor_profiles.dart';
 import '../../support/test_realtime_sync.dart';
 import 'support/mark_seen_server_fake.dart';
@@ -198,9 +195,7 @@ void main() {
     'tapping a row on Unread opens it read-only: marked seen, NOT cleared, '
     'stays on Unread (#336 guard)',
     (tester) async {
-      final router = _StubRootRouter();
-      GetIt.I.registerSingleton<RootRouter>(router);
-      addTearDown(() => GetIt.I.unregister<RootRouter>());
+      final navigator = registerFakeAppNavigator();
       final server = MarkSeenServerFake([
         markSeenTestReceipt('r1', minute: 2),
         markSeenTestReceipt('r2', minute: 1),
@@ -234,7 +229,13 @@ void main() {
       await _drain();
       await tester.pumpAndSettle();
 
-      expect(router.opened, ['r1'], reason: 'the tap opened the update');
+      expect(
+        navigator.intents,
+        [
+          const NavIntent('openFromUpdate', {'receipt': 'r1'}),
+        ],
+        reason: 'the tap opened the update',
+      );
       expect(
         server.markSeenIds,
         contains('r1'),
@@ -267,16 +268,6 @@ Finder _unreadTabCount(String count) => find.descendant(
   of: find.byKey(const ValueKey<String>('updates-unread')),
   matching: find.text(count),
 );
-
-/// Records which update was opened; everything else is unused here.
-class _StubRootRouter extends Mock implements RootRouter {
-  final opened = <String>[];
-
-  @override
-  Future<void> openFromUpdate(AttentionReceipt receipt) async {
-    opened.add(receipt.id);
-  }
-}
 
 List<String> _ids(UpdatesFeedCubit cubit) =>
     cubit.state.items.map((r) => r.id).toList(growable: false);

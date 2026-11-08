@@ -3,11 +3,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
-import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/features/invitation/ui/bloc/invitation_cubit.dart';
 import 'package:tentura/ui/dialog/share_code_dialog.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/navigation/app_navigator.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
 /// «Invite new person»: mints an invite tied to [beaconId] (a plain one when
@@ -70,7 +70,8 @@ Future<void> runBeaconInviteFlow(
     action: offerViewInvitations
         ? SnackBarAction(
             label: l10n.forwardViewInvitations,
-            onPressed: () => unawaited(GetIt.I<RootRouter>().openInvitations()),
+            onPressed: () =>
+                unawaited(GetIt.I<AppNavigator>().openInvitations()),
           )
         : null,
   );

@@ -11,6 +11,7 @@ import 'package:tentura/data/database/open_local_database.dart'
 
 import 'package:tentura/data/database/reopening_query_executor.dart';
 
+import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/data/repository/image_repository.dart';
 import 'package:tentura/data/service/network_reachability.dart';
 import 'package:tentura/data/service/remote_api_client/auth_remote_client.dart';
@@ -27,6 +28,7 @@ import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 import 'package:tentura/features/like/data/repository/like_remote_repository.dart';
 import 'package:tentura/features/like/domain/port/like_write_port.dart';
 import 'package:tentura/features/like/domain/port/person_trust_writes_port.dart';
+import 'package:tentura/ui/navigation/app_navigator.dart';
 
 @module
 abstract class RegisterModule {
@@ -64,6 +66,11 @@ abstract class RegisterModule {
   NetworkReachabilityPort networkReachabilityPort(
     NetworkReachability reachability,
   ) => reachability;
+
+  /// Feature UI navigates through this port; the root router is the one
+  /// implementation (same instance, so no second navigation owner).
+  @singleton
+  AppNavigator appNavigator(RootRouter router) => router;
 
   @singleton
   Logger get logger => Logger.root;
