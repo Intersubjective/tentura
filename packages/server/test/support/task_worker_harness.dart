@@ -73,136 +73,139 @@ final class SweepHalted implements Exception {
 /// Base for the harness fakes: any call logs its job name and throws [SweepHalted].
 /// A fake that should never be reached logs `unexpected:<what>`.
 class _Logged {
-  _Logged(List<String> log, String job) : _log = log, _job = job;
+  _Logged(TaskWorkerHarness harness, String job)
+    : _harness = harness,
+      _job = job;
 
-  final List<String> _log;
+  final TaskWorkerHarness _harness;
   final String _job;
 
   @override
   dynamic noSuchMethod(Invocation invocation) {
-    _log.add(_job);
+    _harness.runs.add(_job);
+    _harness.calls.add((job: _job, invocation: invocation));
     throw const SweepHalted();
   }
 }
 
 class _Tasks extends _Logged implements TaskRepositoryPort {
-  _Tasks(super.log, super.job);
+  _Tasks(super.harness, super.job);
 }
 
 class _Images extends _Logged implements ImageRepositoryPort {
-  _Images(super.log, super.job);
+  _Images(super.harness, super.job);
 }
 
 class _ImageGc extends _Logged implements ImageObjectGcPort {
-  _ImageGc(super.log, super.job);
+  _ImageGc(super.harness, super.job);
 }
 
 class _Outbox extends _Logged implements NotificationOutboxRepositoryPort {
-  _Outbox(super.log, super.job);
+  _Outbox(super.harness, super.job);
 }
 
 class _Digest extends _Logged implements EmailDigestCase {
-  _Digest(super.log, super.job);
+  _Digest(super.harness, super.job);
 }
 
 class _Deliveries extends _Logged implements AttentionChannelDeliveryPort {
-  _Deliveries(super.log, super.job);
+  _Deliveries(super.harness, super.job);
 }
 
 class _Channels extends _Logged implements BeaconNotificationPort {
-  _Channels(super.log, super.job);
+  _Channels(super.harness, super.job);
 }
 
 class _HierarchyOutbox extends _Logged implements BeaconHierarchyOutboxPort {
-  _HierarchyOutbox(super.log, super.job);
+  _HierarchyOutbox(super.harness, super.job);
 }
 
 class _TrustMaintenance extends _Logged implements TrustMaintenancePort {
-  _TrustMaintenance(super.log, super.job);
+  _TrustMaintenance(super.harness, super.job);
 }
 
 class _UserBlocks extends _Logged implements UserBlockRepositoryPort {
-  _UserBlocks(super.log, super.job);
+  _UserBlocks(super.harness, super.job);
 }
 
 class _Cells extends _Logged implements CapabilityCellPort {
-  _Cells(super.log, super.job);
+  _Cells(super.harness, super.job);
 }
 
 class _RoutingMute extends _Logged implements RoutingMutePort {
-  _RoutingMute(super.log, super.job);
+  _RoutingMute(super.harness, super.job);
 }
 
 class _Telemetry extends _Logged implements CapabilityTelemetryPort {
-  _Telemetry(super.log, super.job);
+  _Telemetry(super.harness, super.job);
 }
 
 class _WitnessWindow extends _Logged implements WitnessWindowPort {
-  _WitnessWindow(super.log, super.job);
+  _WitnessWindow(super.harness, super.job);
 }
 
 class _Availability extends _Logged implements UserAvailabilityRepositoryPort {
-  _Availability(super.log, super.job);
+  _Availability(super.harness, super.job);
 }
 
 class _Beacons extends _Logged implements BeaconRepositoryPort {
-  _Beacons(super.log, super.job);
+  _Beacons(super.harness, super.job);
 }
 
 class _Publish extends _Logged implements TrustPublishPort {
-  _Publish(super.log, super.job);
+  _Publish(super.harness, super.job);
 }
 
 class _Closures extends _Logged implements ClosureRepositoryPort {
-  _Closures(super.log, super.job);
+  _Closures(super.harness, super.job);
 }
 
 class _Finalizer extends _Logged implements ClosureFinalizerPort {
-  _Finalizer(super.log, super.job);
+  _Finalizer(super.harness, super.job);
 }
 
 class _Reminders extends _Logged implements ClosureReminderSweepPort {
-  _Reminders(super.log, super.job);
+  _Reminders(super.harness, super.job);
 }
 
 class _ForwardEdges extends _Logged implements ForwardEdgeRepositoryPort {
-  _ForwardEdges(super.log, super.job);
+  _ForwardEdges(super.harness, super.job);
 }
 
 class _Ledger extends _Logged implements TrustLedgerPort {
-  _Ledger(super.log, super.job);
+  _Ledger(super.harness, super.job);
 }
 
 class _BudSweep extends _Logged implements BudAnchorSweepPort {
-  _BudSweep(super.log, super.job);
+  _BudSweep(super.harness, super.job);
 }
 
 class _Anchors extends _Logged implements ConstellationAnchorRepositoryPort {
-  _Anchors(super.log, super.job);
+  _Anchors(super.harness, super.job);
 }
 
 class _Plans extends _Logged implements BeaconPlanRepositoryPort {
-  _Plans(super.log, super.job);
+  _Plans(super.harness, super.job);
 }
 
 class _Admission extends _Logged implements BeaconHierarchyCommandPort {
-  _Admission(super.log, super.job);
+  _Admission(super.harness, super.job);
 }
 
 class _PlanStore extends _Logged implements PlanAttentionRepositoryPort {
-  _PlanStore(super.log, super.job);
+  _PlanStore(super.harness, super.job);
 }
 
 class _PlanAttention extends _Logged implements PlanAttentionCase {
-  _PlanAttention(super.log, super.job);
+  _PlanAttention(super.harness, super.job);
 }
 
 class _Captures extends _Logged implements AttentionCaptureSettlementPort {
-  _Captures(super.log, super.job);
+  _Captures(super.harness, super.job);
 }
 
 class _PostLock extends _Logged implements PostLockPort {
-  _PostLock(super.log, super.job);
+  _PostLock(super.harness, super.job);
 }
 
 class _PassThroughUnitOfWork implements MutatingUnitOfWorkPort {
@@ -223,7 +226,7 @@ final class TaskWorkerHarness {
     this.blockReleaseSweepInterval = const Duration(minutes: 3),
     this.planEnabled = true,
   }) {
-    final log = runs;
+    final log = this;
     String unexpected(String what) => 'unexpected:$what';
     final attention = TestAttentionHarness();
     final uow = _PassThroughUnitOfWork();
@@ -370,6 +373,13 @@ final class TaskWorkerHarness {
 
   /// Job names in the order the worker ran them, across ticks.
   final runs = <String>[];
+
+  /// The port call each run stopped at, with its arguments.
+  final calls = <({String job, Invocation invocation})>[];
+
+  /// The arguments of the latest port call [job] made.
+  Invocation lastCall(String job) =>
+      calls.lastWhere((c) => c.job == job).invocation;
 
   /// The worker's clock.
   DateTime now = DateTime.utc(2026, 11, 8, 12);
