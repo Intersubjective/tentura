@@ -17,8 +17,6 @@ import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/domain/port/beacon_write_port.dart';
-import 'package:tentura/domain/use_case/beacon_create_case.dart';
 import 'package:tentura/features/beacon/ui/widget/beacon_overflow_menu.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
 import 'package:tentura/features/beacon_threads/domain/use_case/beacon_threads_case.dart';
@@ -38,10 +36,11 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
-import 'package:tentura_root/domain/entity/beacon_hierarchy_capabilities.dart';
-
 import '../../support/beacon_activity_event_visibility_bits.dart';
-import '../../domain/use_case/fake_beacon_hierarchy_ports.dart';
+import 'beacon_view_screen_harness.dart'
+    show
+        awaitBeaconViewHarnessHierarchyBoot,
+        createBeaconViewHarnessHierarchyCubit;
 import '../inbox/author_invite_test_support.dart'
     show registerEmptyAuthorInvitesGetIt;
 import '../../ui/effect/fake_ui_effect_port.dart';
@@ -52,11 +51,6 @@ const _kBeaconId = 'b-activity-sheet';
 const _kAuthorId = 'author-sheet';
 const _kHelperId = 'helper-sheet';
 final _kNow = DateTime.utc(2026, 8, 14, 12);
-
-class _NoopBeaconWritePort implements BeaconWritePort {
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
 
 class _HarnessBeaconViewCubit extends Mock implements BeaconViewCubit {
   _HarnessBeaconViewCubit(this._state) {
@@ -408,6 +402,7 @@ Future<void> _pumpBeaconViewScreen(
   final threadsCubit = _HarnessThreadsCubit(
     threadsState.copyWith(status: const StateIsLoading()),
   );
+  late final BeaconHierarchyCubit harnessHierarchy;
 
   await tester.pumpPeopleTagsWidget(
     StackRouterScope(
@@ -426,23 +421,8 @@ Future<void> _pumpBeaconViewScreen(
               BlocProvider<ThreadsCubit>.value(value: threadsCubit),
               BlocProvider<ThreadHostCubit>.value(value: host),
               BlocProvider<BeaconHierarchyCubit>(
-                create: (_) => BeaconHierarchyCubit(
-                  beaconId: _kBeaconId,
-                  hierarchyCase: buildBeaconHierarchyCaseForTest(
-                    FakeBeaconHierarchyRepositoryPort(
-                      capabilities: const BeaconHierarchyCapabilities(
-                        canListChildren: false,
-                        canCreateChild: false,
-                      ),
-                    ),
-                    createCase: BeaconCreateCase(
-                      _NoopBeaconWritePort(),
-                      ImageRepository(),
-                    ),
-                    beacons: _NoopBeaconWritePort(),
-                    commandStore: InMemoryBeaconChildCommandStore(),
-                  ),
-                ),
+                create: (_) => harnessHierarchy =
+                    createBeaconViewHarnessHierarchyCubit(_kBeaconId),
               ),
               BlocProvider<ProfileCubit>.value(
                 value: _MockProfileCubit(beaconState.myProfile),
@@ -460,6 +440,7 @@ Future<void> _pumpBeaconViewScreen(
   threadsCubit.emit(threadsState);
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 50));
+  await awaitBeaconViewHarnessHierarchyBoot(tester, harnessHierarchy);
 }
 
 Future<void> _openActivityFromOverflow(WidgetTester tester) async {

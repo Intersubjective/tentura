@@ -24,11 +24,6 @@ import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/threads_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/threads_state.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/beacon_hierarchy_cubit.dart';
-import 'package:tentura/domain/port/beacon_write_port.dart';
-import 'package:tentura/domain/use_case/beacon_create_case.dart';
-import 'package:tentura_root/domain/entity/beacon_hierarchy_capabilities.dart';
-
-import '../../domain/use_case/fake_beacon_hierarchy_ports.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/thread_detail.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/screen/beacon_view_screen.dart';
@@ -45,18 +40,12 @@ import '../inbox/author_invite_test_support.dart'
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'room_cubit_fakes.dart';
 import '../../support/people_tags_widget_harness.dart';
+import '../beacon_view/beacon_view_screen_harness.dart'
+    show
+        awaitBeaconViewHarnessHierarchyBoot,
+        createBeaconViewHarnessHierarchyCubit;
 
 const _kBeaconId = 'b-adaptive-test';
-
-class _NoopBeaconWritePort implements BeaconWritePort {
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
-
-class _NoopImageRepository implements ImageRepository {
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
 
 const _kAuthorId = 'author-adaptive';
 const _kHelperId = 'helper-adaptive';
@@ -472,6 +461,7 @@ Future<_Harness> _pumpHarness(
     threadsState.copyWith(status: const StateIsLoading()),
   );
   final mediaKey = GlobalKey<_ResizableMediaQueryState>();
+  late final BeaconHierarchyCubit harnessHierarchy;
 
   await _setupGetIt(profile: beaconState.myProfile);
 
@@ -491,23 +481,8 @@ Future<_Harness> _pumpHarness(
       BlocProvider<ThreadsCubit>.value(value: threadsCubit),
       BlocProvider<ThreadHostCubit>.value(value: harnessHost),
       BlocProvider<BeaconHierarchyCubit>(
-        create: (_) => BeaconHierarchyCubit(
-          beaconId: _kBeaconId,
-          hierarchyCase: buildBeaconHierarchyCaseForTest(
-            FakeBeaconHierarchyRepositoryPort(
-              capabilities: const BeaconHierarchyCapabilities(
-                canListChildren: false,
-                canCreateChild: false,
-              ),
-            ),
-            createCase: BeaconCreateCase(
-              _NoopBeaconWritePort(),
-              _NoopImageRepository(),
-            ),
-            beacons: _NoopBeaconWritePort(),
-            commandStore: InMemoryBeaconChildCommandStore(),
-          ),
-        ),
+        create: (_) =>
+            harnessHierarchy = createBeaconViewHarnessHierarchyCubit(_kBeaconId),
       ),
       BlocProvider<ProfileCubit>.value(
         value: _MockProfileCubit(beaconState.myProfile),
@@ -537,6 +512,7 @@ Future<_Harness> _pumpHarness(
   threadsCubit.emitState(threadsState);
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 50));
+  await awaitBeaconViewHarnessHierarchyBoot(tester, harnessHierarchy);
 
   return _Harness(
     router: harnessRouter,
@@ -886,6 +862,7 @@ void main() {
       final threadsCubit = _HarnessThreadsCubit(
         threads.copyWith(status: const StateIsLoading()),
       );
+      late final BeaconHierarchyCubit harnessHierarchy;
 
       await tester.pumpPeopleTagsWidget(
         StackRouterScope(
@@ -908,23 +885,8 @@ void main() {
                     value: _HarnessBeaconViewCubit(_authorBeaconState()),
                   ),
                   BlocProvider<BeaconHierarchyCubit>(
-                    create: (_) => BeaconHierarchyCubit(
-                      beaconId: _kBeaconId,
-                      hierarchyCase: buildBeaconHierarchyCaseForTest(
-                        FakeBeaconHierarchyRepositoryPort(
-                          capabilities: const BeaconHierarchyCapabilities(
-                            canListChildren: false,
-                            canCreateChild: false,
-                          ),
-                        ),
-                        createCase: BeaconCreateCase(
-                          _NoopBeaconWritePort(),
-                          _NoopImageRepository(),
-                        ),
-                        beacons: _NoopBeaconWritePort(),
-                        commandStore: InMemoryBeaconChildCommandStore(),
-                      ),
-                    ),
+                    create: (_) => harnessHierarchy =
+                        createBeaconViewHarnessHierarchyCubit(_kBeaconId),
                   ),
                   BlocProvider<ProfileCubit>.value(
                     value: _MockProfileCubit(
@@ -943,6 +905,7 @@ void main() {
       threadsCubit.emitState(threads);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 50));
+      await awaitBeaconViewHarnessHierarchyBoot(tester, harnessHierarchy);
 
       await _tapChatTab(tester);
       expect(find.byType(ThreadDetail), findsOneWidget);
