@@ -34,6 +34,7 @@ import 'package:tentura/features/updates/domain/use_case/invite_accepted_setup_c
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/first_load_gate.dart';
+import 'package:tentura/ui/widget/screen_load_error_panel.dart';
 
 import '../../support/burst_coalescer_test_timing.dart';
 import '../../support/test_realtime_sync.dart';
@@ -153,6 +154,8 @@ Future<({_VisibleFrame frame, DateTime mountedAt})> _pumpMyWork(
   required MyWorkCubit cubit,
   required HomeAttentionCubit homeAttention,
   double textScale = 1,
+  Locale locale = const Locale('en'),
+  Size surface = const Size(360, 1200),
 }) async {
   final homeActivation = HomeActivationCubit(_FakeOrientationPrefs());
   final inboxOperational = InboxOperationalCubit()
@@ -166,18 +169,18 @@ Future<({_VisibleFrame frame, DateTime mountedAt})> _pumpMyWork(
     myWorkLoaded: true,
   );
 
-  await tester.binding.setSurfaceSize(const Size(360, 1200));
+  await tester.binding.setSurfaceSize(surface);
   addTearDown(() => tester.binding.setSurfaceSize(null));
 
   DateTime? mountedAt;
   await tester.pumpWidget(
     MediaQuery(
       data: MediaQueryData(
-        size: const Size(360, 1200),
+        size: surface,
         textScaler: TextScaler.linear(textScale),
       ),
       child: MaterialApp(
-        locale: const Locale('en'),
+        locale: locale,
         theme: TenturaTheme.light(),
         localizationsDelegates: L10n.localizationsDelegates,
         supportedLocales: L10n.supportedLocales,
@@ -308,8 +311,10 @@ Future<
 _startMyWork(
   WidgetTester tester,
   _ControlledMyWorkRepository repo,
-  _ControlledAttentionRepository attentionRepo,
-) async {
+  _ControlledAttentionRepository attentionRepo, {
+  Locale locale = const Locale('en'),
+  Size surface = const Size(360, 1200),
+}) async {
   repo.initResult = (
     authoredNonArchived: [
       _beacon(_beaconActive, 'Active request'),
@@ -355,6 +360,8 @@ _startMyWork(
     tester,
     cubit: cubit,
     homeAttention: homeAttention,
+    locale: locale,
+    surface: surface,
   );
   // The card read may begin before the widget mounts, but both occur at
   // exactly the same fake-clock instant. No elapsed load time is uncounted.
@@ -555,7 +562,7 @@ void main() {
   );
 
   testWidgets(
-    'My Work reveals available cards after 2.5 seconds when attention stalls',
+    'My Work withholds section groupings past 2.5 s while attention stalls',
     (tester) async {
       final repo = _ControlledMyWorkRepository();
       final attentionRepo = _ControlledAttentionRepository();
@@ -567,15 +574,12 @@ void main() {
       expect(attentionRepo.reads, 1);
       expect(attentionRepo.response.isCompleted, isFalse);
 
-      // The origin is the first screen build (gate initState), and the
-      // harness proved the card read began at that same fake-clock instant.
       await _pumpToElapsed(
         tester,
         harness.mountedAt,
         const Duration(milliseconds: 151),
       );
       final beforeTimeout = <_VisibleFrame>[_visibleFrame()];
-      // Poll the whole waiting interval, then check the exact boundary.
       for (var i = 0; i < 146; i++) {
         await _pumpToElapsed(
           tester,
@@ -584,32 +588,18 @@ void main() {
         );
         expect(attentionRepo.response.isCompleted, isFalse);
         beforeTimeout.add(_visibleFrame());
-      } // 2487 ms
-      await _pumpToElapsed(
-        tester,
-        harness.mountedAt,
-        const Duration(milliseconds: 2499),
-      );
-      beforeTimeout.add(_visibleFrame());
+      }
       await _pumpToElapsed(
         tester,
         harness.mountedAt,
         const Duration(milliseconds: 2501),
       );
       expect(attentionRepo.response.isCompleted, isFalse);
-      expect(find.text('Active request'), findsOneWidget);
-      expect(find.text('Review request'), findsOneWidget);
-      expect(find.textContaining('IN PROGRESS'), findsOneWidget);
-      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.textContaining('IN PROGRESS'), findsNothing);
+      expect(find.text('Active request'), findsNothing);
+      expect(find.text('Review request'), findsNothing);
+      expect(_visibleFrame(), _waiting);
 
-      for (var i = 0; i < 30; i++) {
-        await tester.pump(const Duration(milliseconds: 16));
-        expect(attentionRepo.response.isCompleted, isFalse);
-        expect(find.text('Active request'), findsOneWidget);
-        expect(find.text('Review request'), findsOneWidget);
-        expect(find.byType(CircularProgressIndicator), findsNothing);
-      }
-      // A late source response fills the visible sections in place.
       attentionRepo.response.complete(attentionRepo.myWorkAttentionResult);
       await _flush(tester);
       expect(_visibleFrame(), _loaded);
@@ -620,9 +610,37 @@ void main() {
         beforeTimeout,
         everyElement(_waiting),
         reason:
-            'Withhold partial sections through 2499 ms, then reveal '
-            'available cards at 2501 ms without waiting for attention',
+            'No IN PROGRESS grouping before the attention read returns, '
+            'including past 2.5 s',
       );
     },
   );
+
+  for (final locale in [const Locale('ru'), const Locale('en')]) {
+    for (final surface in [const Size(375, 667), const Size(1280, 800)]) {
+      testWidgets(
+        'My Work first-load attention failure shows the error panel '
+        '(${locale.languageCode}, ${surface.width.toInt()}×${surface.height.toInt()})',
+        (tester) async {
+          final repo = _ControlledMyWorkRepository();
+          final attentionRepo = _ControlledAttentionRepository();
+          await _startMyWork(
+            tester,
+            repo,
+            attentionRepo,
+            locale: locale,
+            surface: surface,
+          );
+          await _flush(tester);
+          repo.response.complete(repo.initResult);
+          await _flush(tester);
+          attentionRepo.response.completeError(Exception('attention failed'));
+          await _flush(tester);
+
+          expect(find.byType(ScreenLoadErrorPanel), findsOneWidget);
+          expect(find.text('Active request'), findsNothing);
+        },
+      );
+    }
+  }
 }
