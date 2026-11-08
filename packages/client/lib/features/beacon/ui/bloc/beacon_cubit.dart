@@ -22,7 +22,7 @@ export 'beacon_state.dart';
 
 class BeaconCubit extends Cubit<BeaconState> {
   // TODO(contract): Phase-2 DTO migration — route multi-repo orchestration through a *Case.
-  // ignore: tentura_lints/cubit_requires_use_case_for_multi_repos
+  // ignore: tentura_lints/cubit_requires_use_case_for_multi_repos -- reads the viewer id beside the beacon list; *Case pending (TODO above)
   BeaconCubit({
     required String profileId,
     BeaconRepository? beaconRepository,
@@ -120,14 +120,18 @@ class BeaconCubit extends Cubit<BeaconState> {
   }
 
   void _onBeaconChanged(RepositoryEvent<Beacon> event) => switch (event) {
-    RepositoryEventUpdate<Beacon>(value: final b) => emit(state.copyWith(
-      beacons: [for (final e in state.beacons) e.id == b.id ? b : e],
-      status: StateStatus.isSuccess,
-    )),
-    RepositoryEventDelete<Beacon>(value: final b) => emit(state.copyWith(
-      beacons: state.beacons.where((e) => e.id != b.id).toList(),
-      status: StateStatus.isSuccess,
-    )),
+    RepositoryEventUpdate<Beacon>(value: final b) => emit(
+      state.copyWith(
+        beacons: [for (final e in state.beacons) e.id == b.id ? b : e],
+        status: StateStatus.isSuccess,
+      ),
+    ),
+    RepositoryEventDelete<Beacon>(value: final b) => emit(
+      state.copyWith(
+        beacons: state.beacons.where((e) => e.id != b.id).toList(),
+        status: StateStatus.isSuccess,
+      ),
+    ),
     RepositoryEventInvalidate<Beacon>() when state.isMine => _refetchAll(),
     _ => null,
   };
