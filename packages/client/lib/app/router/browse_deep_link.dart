@@ -54,6 +54,7 @@ BrowseDeepLinkStack? buildBrowseDeepLinkStack(Uri input) {
     ).firstMatch(path);
     if (beaconMatch == null) continue;
     final beaconId = beaconMatch.group(1)!;
+    if (_isUnsubstitutedPathParam(beaconId)) continue;
     final pathThreadId = beaconMatch.group(2);
     final normalized = normalizeBeaconViewRouteQuery(
       pathThreadId: pathThreadId,
@@ -135,8 +136,14 @@ BrowseDeepLinkStack? buildBrowseDeepLinkStack(Uri input) {
   return null;
 }
 
+bool _isUnsubstitutedPathParam(String segment) =>
+    segment == ':id' || segment.startsWith(':');
+
 String? _singleId(String path, String prefix) {
   if (!path.startsWith('$prefix/')) return null;
   final id = path.substring(prefix.length + 1);
-  return id.isEmpty || id.contains('/') ? null : id;
+  if (id.isEmpty || id.contains('/') || _isUnsubstitutedPathParam(id)) {
+    return null;
+  }
+  return id;
 }
