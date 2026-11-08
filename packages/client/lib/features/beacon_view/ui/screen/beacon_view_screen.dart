@@ -30,6 +30,7 @@ import 'package:tentura/ui/beacon/beacon_room_navigation_scope.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/first_load_gate.dart';
+import 'package:tentura/features/beacon_view/ui/widget/beacon_view_first_load_progress.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/auto_leading_with_fallback.dart';
 
@@ -1713,37 +1714,58 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                               BeaconHierarchyCubit,
                               BeaconHierarchyState
                             >(
-                              builder: (context, hierarchy) =>
-                                  TenturaFirstLoadGate(
-                                    // Timeout may reveal other partial data,
-                                    // but child/forward reads must finish first.
-                                    revealOnTimeout:
-                                        !hierarchy.isLoading &&
-                                        !state.forwardsLoading,
-                                    ready:
-                                        state.firstLoadDone &&
-                                        (room?.state.firstLoadDone ??
-                                            !roomExpected) &&
-                                        !splitLayoutPending &&
-                                        (showcase ||
-                                            (!isSplit &&
-                                                _selectedSurface !=
-                                                    BeaconSurface.now) ||
-                                            (!hierarchy.isLoading &&
-                                                (hierarchy.hasCapabilities ||
-                                                    hierarchy
-                                                            .capabilitiesError !=
-                                                        null))),
-                                    onRetry: () => unawaited(
-                                      beaconViewCubit.retryInitialLoad(),
-                                    ),
-                                    frameBuilder: (_, revealed, gated) =>
-                                        screenFrame(
-                                          frameBody: gated,
-                                          phaseStatusVisible: revealed,
-                                        ),
-                                    child: body,
+                              builder: (context, hierarchy) {
+                                final hierarchyBlocks =
+                                    requestHierarchyBlocksFirstLoad(
+                                      showcase: showcase,
+                                      isSplit: isSplit,
+                                      nowSurfaceSelected:
+                                          _selectedSurface == BeaconSurface.now,
+                                      hierarchyLoading: hierarchy.isLoading,
+                                      hierarchyHasCapabilities:
+                                          hierarchy.hasCapabilities,
+                                      hierarchyCapabilitiesError:
+                                          hierarchy.capabilitiesError,
+                                    );
+                                return TenturaFirstLoadGate(
+                                  progress: requestFirstLoadProgress(
+                                    l10n: l10n,
+                                    beacon: state,
+                                    roomExpected: roomExpected,
+                                    roomFirstLoadDone:
+                                        room?.state.firstLoadDone ??
+                                        !roomExpected,
+                                    hierarchyBlocks: hierarchyBlocks,
                                   ),
+                                  // Timeout may reveal other partial data,
+                                  // but child/forward reads must finish first.
+                                  revealOnTimeout:
+                                      !hierarchy.isLoading &&
+                                      !state.forwardsLoading,
+                                  ready:
+                                      state.firstLoadDone &&
+                                      (room?.state.firstLoadDone ??
+                                          !roomExpected) &&
+                                      !splitLayoutPending &&
+                                      (showcase ||
+                                          (!isSplit &&
+                                              _selectedSurface !=
+                                                  BeaconSurface.now) ||
+                                          (!hierarchy.isLoading &&
+                                              (hierarchy.hasCapabilities ||
+                                                  hierarchy.capabilitiesError !=
+                                                      null))),
+                                  onRetry: () => unawaited(
+                                    beaconViewCubit.retryInitialLoad(),
+                                  ),
+                                  frameBuilder: (_, revealed, gated) =>
+                                      screenFrame(
+                                        frameBody: gated,
+                                        phaseStatusVisible: revealed,
+                                      ),
+                                  child: body,
+                                );
+                              },
                             ),
                       );
                     },

@@ -20,6 +20,7 @@ abstract class MyWorkState extends StateBase with _$MyWorkState {
     @Default(0) int archivedCountHint,
     @Default(false) bool archivedDataFetched,
     @Default(false) bool archivedFetchInProgress,
+    @Default(false) bool deskInitLoaded,
     @Default(false) bool nonArchivedProjectionLoaded,
     @Default(MyWorkFilter.active) MyWorkFilter filter,
     @Default(MyWorkSort.recent) MyWorkSort sort,

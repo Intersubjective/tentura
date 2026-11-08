@@ -18,9 +18,8 @@ import 'package:tentura/features/beacon_threads/ui/bloc/beacon_hierarchy_cubit.d
 import 'package:tentura/features/beacon_view/ui/widget/beacon_child_requests_section.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_now_surface.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/widget/first_load_gate.dart';
-
 import '../../domain/use_case/fake_beacon_hierarchy_ports.dart';
+import '../../support/first_load_gate_finders.dart';
 import 'beacon_view_screen_harness.dart';
 
 class _UnusedBeaconWritePort implements BeaconWritePort {
@@ -32,25 +31,6 @@ class _UnusedImageRepository implements ImageRepository {
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
-
-// The gate keeps screen content mounted under Visibility. Count only its
-// overlay spinner, excluding any indicators belonging to that content.
-int _gateSpinners() => find
-    .descendant(
-      of: find.byType(TenturaFirstLoadGate),
-      matching: find.byType(CircularProgressIndicator),
-    )
-    .evaluate()
-    .where((element) {
-      var insideContent = false;
-      element.visitAncestorElements((ancestor) {
-        if (ancestor.widget is TenturaFirstLoadGate) return false;
-        if (ancestor.widget is Visibility) insideContent = true;
-        return true;
-      });
-      return !insideContent;
-    })
-    .length;
 
 int _childSpinners() => find
     .descendant(
@@ -114,7 +94,7 @@ void main() {
           var revealed = false;
           void inspectFrame() {
             final frame = (
-              gate: _gateSpinners(),
+              gate: firstLoadGateOverlayCount(),
               bodies: find.byType(BeaconNowSurface).evaluate().length,
               headers: find.text('Child requests').evaluate().length,
               empty: find.text('No child requests yet').evaluate().length,
@@ -263,7 +243,7 @@ void main() {
               find.text('Bring folding chairs'),
               hasChildren ? findsOneWidget : findsNothing,
             );
-            expect(_gateSpinners(), 0);
+            expect(firstLoadGateOverlayCount(), 0);
             expect(_childSpinners(), 0);
             expect(
               unfinishedFrames,

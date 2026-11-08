@@ -3092,6 +3092,45 @@
       }
     }
   },
+  "firstLoadStepProgress": "{step} из {totalSteps} · {stage}",
+  "@firstLoadStepProgress": {
+    "context": "TenturaFirstLoadGate",
+    "placeholders": {
+      "step": {
+        "type": "int"
+      },
+      "totalSteps": {
+        "type": "int"
+      },
+      "stage": {
+        "type": "String"
+      }
+    }
+  },
+  "firstLoadStageMyWorkDesk": "Загружаем рабочий стол…",
+  "@firstLoadStageMyWorkDesk": {
+    "context": "TenturaFirstLoadGate"
+  },
+  "firstLoadStageMyWorkClosure": "Загружаем статусы…",
+  "@firstLoadStageMyWorkClosure": {
+    "context": "TenturaFirstLoadGate"
+  },
+  "firstLoadStageMyWorkAttention": "Загружаем обновления…",
+  "@firstLoadStageMyWorkAttention": {
+    "context": "TenturaFirstLoadGate"
+  },
+  "firstLoadStageRequestBeacon": "Загружаем запрос…",
+  "@firstLoadStageRequestBeacon": {
+    "context": "TenturaFirstLoadGate"
+  },
+  "firstLoadStageRequestThread": "Загружаем обсуждение…",
+  "@firstLoadStageRequestThread": {
+    "context": "TenturaFirstLoadGate"
+  },
+  "firstLoadStageRequestHierarchy": "Загружаем структуру…",
+  "@firstLoadStageRequestHierarchy": {
+    "context": "TenturaFirstLoadGate"
+  },
   "myWorkChipReviewWindowOpen": "Подводим итоги",
   "@myWorkChipReviewWindowOpen": {
     "context": "MyWorkScreen"

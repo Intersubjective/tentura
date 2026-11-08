@@ -3322,6 +3322,45 @@
       }
     }
   },
+  "firstLoadStepProgress": "{step} of {totalSteps} · {stage}",
+  "@firstLoadStepProgress": {
+    "context": "TenturaFirstLoadGate",
+    "placeholders": {
+      "step": {
+        "type": "int"
+      },
+      "totalSteps": {
+        "type": "int"
+      },
+      "stage": {
+        "type": "String"
+      }
+    }
+  },
+  "firstLoadStageMyWorkDesk": "Loading your desk…",
+  "@firstLoadStageMyWorkDesk": {
+    "context": "TenturaFirstLoadGate"
+  },
+  "firstLoadStageMyWorkClosure": "Loading status…",
+  "@firstLoadStageMyWorkClosure": {
+    "context": "TenturaFirstLoadGate"
+  },
+  "firstLoadStageMyWorkAttention": "Loading updates…",
+  "@firstLoadStageMyWorkAttention": {
+    "context": "TenturaFirstLoadGate"
+  },
+  "firstLoadStageRequestBeacon": "Loading Request…",
+  "@firstLoadStageRequestBeacon": {
+    "context": "TenturaFirstLoadGate"
+  },
+  "firstLoadStageRequestThread": "Loading discussion…",
+  "@firstLoadStageRequestThread": {
+    "context": "TenturaFirstLoadGate"
+  },
+  "firstLoadStageRequestHierarchy": "Loading structure…",
+  "@firstLoadStageRequestHierarchy": {
+    "context": "TenturaFirstLoadGate"
+  },
   "myWorkChipReviewWindowOpen": "Final check",
   "@myWorkChipReviewWindowOpen": {
     "context": "MyWorkScreen"

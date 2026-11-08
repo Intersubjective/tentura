@@ -33,13 +33,14 @@ import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/features/updates/domain/use_case/invite_accepted_setup_case.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/widget/first_load_gate.dart';
+import 'package:tentura/ui/widget/first_load_progress.dart';
 import 'package:tentura/ui/widget/screen_load_error_panel.dart';
 
 import '../../support/burst_coalescer_test_timing.dart';
 import '../../support/test_realtime_sync.dart';
 import '../block/support/controllable_block_case.dart';
 import '../updates/support/noop_invite_setup_port.dart';
+import '../../support/first_load_gate_finders.dart';
 import 'my_work_test_support.dart';
 
 const _accountId = 'user-first-load';
@@ -256,13 +257,7 @@ typedef _VisibleFrame = ({
 });
 
 _VisibleFrame _visibleFrame() => (
-  gateSpinners: find
-      .descendant(
-        of: find.byType(TenturaFirstLoadGate),
-        matching: find.byType(CircularProgressIndicator),
-      )
-      .evaluate()
-      .length,
+  gateSpinners: firstLoadGateOverlayCount(),
   allSpinners: find.byType(CircularProgressIndicator).evaluate().length,
   needsYou: find.textContaining('NEEDS YOU').evaluate().length,
   inProgress: find.textContaining('IN PROGRESS').evaluate().length,
@@ -273,7 +268,7 @@ _VisibleFrame _visibleFrame() => (
 
 const _waiting = (
   gateSpinners: 1,
-  allSpinners: 1,
+  allSpinners: 0,
   needsYou: 0,
   inProgress: 0,
   cards: 0,
@@ -439,14 +434,16 @@ void main() {
       );
       expect(repo.response.isCompleted, isFalse);
       expect(attentionRepo.response.isCompleted, isFalse);
+      expect(find.byType(FirstLoadStatusPanel), findsOneWidget);
+      final gateContext = tester.element(find.byType(FirstLoadStatusPanel));
+      final l10n = L10n.of(gateContext)!;
       expect(
-        find.descendant(
-          of: find.byType(TenturaFirstLoadGate),
-          matching: find.byType(CircularProgressIndicator),
+        find.text(
+          l10n.firstLoadStepProgress(1, 3, l10n.firstLoadStageMyWorkDesk),
         ),
         findsOneWidget,
         reason:
-            'The gate spinner must be visible after its 150 ms delay '
+            'The gate must show step 1 after its 150 ms delay '
             'while the first card response is still pending',
       );
       expect(_visibleFrame(), _waiting);

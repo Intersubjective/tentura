@@ -18,11 +18,10 @@ import 'package:tentura/features/beacon_view/ui/screen/beacon_view_screen.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_now_surface.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/widget/first_load_gate.dart';
-
 import '../../domain/use_case/fake_beacon_hierarchy_ports.dart';
 import '../../support/people_tags_widget_harness.dart';
 import '../../support/phone_surface.dart';
+import '../../support/first_load_gate_finders.dart';
 import '../../support/remote_wire_harness.dart';
 import 'beacon_view_screen_harness.dart';
 
@@ -45,23 +44,6 @@ class _DelayedThreadsCubit extends Cubit<ThreadsState> implements ThreadsCubit {
   Future<void> fetch({bool silent = false}) async {}
 }
 
-int _gateSpinners() => find
-    .descendant(
-      of: find.byType(TenturaFirstLoadGate),
-      matching: find.byType(TenturaCircularProgress),
-    )
-    .evaluate()
-    .where((element) {
-      var inContent = false;
-      element.visitAncestorElements((ancestor) {
-        if (ancestor.widget is TenturaFirstLoadGate) return false;
-        if (ancestor.widget is Visibility) inContent = true;
-        return true;
-      });
-      return !inContent;
-    })
-    .length;
-
 Future<BeaconHierarchyCubit> _hierarchyWithImmediateChildren(
   WidgetTester tester,
   String beaconId,
@@ -76,7 +58,10 @@ Future<BeaconHierarchyCubit> _hierarchyWithImmediateChildren(
     beaconId: beaconId,
     hierarchyCase: buildBeaconHierarchyCaseForTest(
       port,
-      createCase: BeaconCreateCase(_NoopBeaconWritePort(), _NoopImageRepository()),
+      createCase: BeaconCreateCase(
+        _NoopBeaconWritePort(),
+        _NoopImageRepository(),
+      ),
       beacons: _NoopBeaconWritePort(),
       commandStore: InMemoryBeaconChildCommandStore(),
     ),
@@ -92,8 +77,10 @@ void main() {
   testWidgets(
     'Request reveals on 1280×800 before the gate timeout when hierarchy starts in scope',
     (tester) async {
-      final hierarchy =
-          await _hierarchyWithImmediateChildren(tester, kBeaconViewHarnessBeaconId);
+      final hierarchy = await _hierarchyWithImmediateChildren(
+        tester,
+        kBeaconViewHarnessBeaconId,
+      );
       await registerBeaconViewHarnessGetIt();
       addTearDown(unregisterBeaconViewHarnessGetIt);
 
@@ -115,7 +102,7 @@ void main() {
         }
       }
       expect(revealed, isTrue);
-      expect(_gateSpinners(), 0);
+      expect(firstLoadGateOverlayCount(), 0);
       expect(find.byKey(beaconSplitChatHeaderKey), findsOneWidget);
     },
   );
@@ -150,18 +137,20 @@ void main() {
           hierarchyCubit: hierarchy,
           viewTab: tab,
           plan: tab == 'plan' ? kBeaconViewHarnessOneStepPlan : null,
-          afterGetItRegistered: tab == 'people' ? registerEmptyPeopleTags : null,
+          afterGetItRegistered: tab == 'people'
+              ? registerEmptyPeopleTags
+              : null,
         );
 
-        await tester.pump(const Duration(milliseconds: 100));
-        expect(_gateSpinners(), 1);
+        await tester.pump(const Duration(milliseconds: 200));
+        expect(firstLoadGateOverlayCount(), 1);
         response.complete(const BeaconHierarchyPage(summaries: []));
         await tester.runAsync(() => hierarchyLoad);
         var elapsedMs = 0;
         var revealed = false;
         for (elapsedMs = 0; elapsedMs < 500; elapsedMs += 16) {
           await tester.pump(const Duration(milliseconds: 16));
-          if (_gateSpinners() == 0) {
+          if (firstLoadGateOverlayCount() == 0) {
             revealed = true;
             break;
           }
@@ -175,10 +164,14 @@ void main() {
   testWidgets(
     'wide Request waits for threads before reveal so split layout is chosen first',
     (tester) async {
-      final hierarchy =
-          await _hierarchyWithImmediateChildren(tester, kBeaconViewHarnessBeaconId);
+      final hierarchy = await _hierarchyWithImmediateChildren(
+        tester,
+        kBeaconViewHarnessBeaconId,
+      );
       final threads = _DelayedThreadsCubit(
-        beaconViewHarnessThreadsState().copyWith(status: const StateIsLoading()),
+        beaconViewHarnessThreadsState().copyWith(
+          status: const StateIsLoading(),
+        ),
       );
       await registerBeaconViewHarnessGetIt();
       addTearDown(unregisterBeaconViewHarnessGetIt);
@@ -206,14 +199,14 @@ void main() {
         ),
       );
       await tester.pump(const Duration(milliseconds: 400));
-      expect(_gateSpinners(), 1);
+      expect(firstLoadGateOverlayCount(), 1);
       expect(find.byKey(beaconSplitChatHeaderKey), findsNothing);
 
       threads.emitState(beaconViewHarnessThreadsState());
       var revealedSplit = false;
       for (var i = 0; i < 30; i++) {
         await tester.pump(const Duration(milliseconds: 16));
-        if (_gateSpinners() == 0 &&
+        if (firstLoadGateOverlayCount() == 0 &&
             find.byKey(beaconSplitChatHeaderKey).evaluate().isNotEmpty) {
           revealedSplit = true;
           break;
@@ -227,8 +220,10 @@ void main() {
     '375×667 RU Request reveals without gate timeout when hierarchy is ready',
     (tester) async {
       await usePhoneSurface(tester);
-      final hierarchy =
-          await _hierarchyWithImmediateChildren(tester, kBeaconViewHarnessBeaconId);
+      final hierarchy = await _hierarchyWithImmediateChildren(
+        tester,
+        kBeaconViewHarnessBeaconId,
+      );
       await registerBeaconViewHarnessGetIt();
       addTearDown(unregisterBeaconViewHarnessGetIt);
 
@@ -245,7 +240,7 @@ void main() {
       var revealed = false;
       for (var ms = 0; ms < 500; ms += 16) {
         await tester.pump(const Duration(milliseconds: 16));
-        if (_gateSpinners() == 0) {
+        if (firstLoadGateOverlayCount() == 0) {
           revealed = true;
           break;
         }
@@ -310,7 +305,7 @@ void main() {
           var revealed = false;
           for (elapsedMs = 0; elapsedMs < 2000; elapsedMs += 16) {
             await tester.pump(const Duration(milliseconds: 16));
-            if (_gateSpinners() == 0 &&
+            if (firstLoadGateOverlayCount() == 0 &&
                 find.byKey(beaconSplitChatHeaderKey).evaluate().isNotEmpty) {
               revealed = true;
               break;

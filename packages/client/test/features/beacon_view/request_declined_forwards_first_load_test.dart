@@ -27,6 +27,8 @@ import 'package:tentura/features/forward/data/repository/forward_repository.dart
 import 'package:tentura/features/forward/domain/entity/forward_edge.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/first_load_gate.dart';
+
+import '../../support/first_load_gate_finders.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_now_surface.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';
@@ -312,23 +314,6 @@ void _expectKindGateLoadingShell(WidgetTester tester, Size size) {
   }
 }
 
-int _gateSpinners() => find
-    .descendant(
-      of: find.byType(TenturaFirstLoadGate),
-      matching: find.byType(TenturaCircularProgress),
-    )
-    .evaluate()
-    .where((element) {
-      var inContent = false;
-      element.visitAncestorElements((ancestor) {
-        if (ancestor.widget is TenturaFirstLoadGate) return false;
-        if (ancestor.widget is Visibility) inContent = true;
-        return true;
-      });
-      return !inContent;
-    })
-    .length;
-
 Finder _splitText(String text) => find.descendant(
   of: find.byKey(beaconSplitChatHeaderKey),
   matching: find.textContaining(text, findRichText: true),
@@ -425,7 +410,7 @@ Future<void> _checkChromeReveal(
           expect(find.byKey(beaconSplitChatHeaderKey), findsOneWidget);
         }
         await tester.pump(const Duration(milliseconds: 200));
-        expect(_gateSpinners(), 1);
+        expect(firstLoadGateOverlayCount(), 1);
         expect(find.byType(BeaconNowSurface), findsNothing);
 
         final header = phone
@@ -438,7 +423,7 @@ Future<void> _checkChromeReveal(
               )
             : _splitText(text);
         void expectHiddenChrome() {
-          expect(_gateSpinners(), 1);
+          expect(firstLoadGateOverlayCount(), 1);
           expect(find.byType(BeaconNowSurface), findsNothing);
           expect(find.byIcon(Icons.more_vert), findsNothing);
           expect(headerText(_request.title), findsNothing);
@@ -480,7 +465,7 @@ Future<void> _checkChromeReveal(
             reason:
                 'the pending offer must reach state through real Ferry mapping',
           );
-          expect(_gateSpinners(), 1);
+          expect(firstLoadGateOverlayCount(), 1);
           expect(find.byType(BeaconNowSurface), findsNothing);
         }
 
@@ -528,7 +513,7 @@ Future<void> _checkChromeReveal(
                   'before or after timeout',
             );
             if (find.byType(BeaconNowSurface).evaluate().isNotEmpty) {
-              expect(_gateSpinners(), 0);
+              expect(firstLoadGateOverlayCount(), 0);
               expect(
                 _splitText('no offers yet'),
                 findsNothing,
@@ -598,7 +583,7 @@ Future<void> _checkChromeReveal(
           );
           if (!bodyVisible) expectHiddenChrome();
           if (bodyVisible) {
-            expect(_gateSpinners(), 0);
+            expect(firstLoadGateOverlayCount(), 0);
             if (!phone) {
               expect(find.byType(BeaconInvolvedPeopleFacePile), findsOneWidget);
             }
@@ -802,28 +787,9 @@ void main() {
       BeaconViewHarness? harness;
       addTearDown(unregisterBeaconViewHarnessGetIt);
 
-      // Default finders skip the gate's offstage content. Count only the
-      // overlay spinner, excluding indicators in the hidden screen body.
-      int gateSpinners() => find
-          .descendant(
-            of: find.byType(TenturaFirstLoadGate),
-            matching: find.byType(CircularProgressIndicator),
-          )
-          .evaluate()
-          .where((element) {
-            var insideContent = false;
-            element.visitAncestorElements((ancestor) {
-              if (ancestor.widget is TenturaFirstLoadGate) return false;
-              if (ancestor.widget is Visibility) insideContent = true;
-              return true;
-            });
-            return !insideContent;
-          })
-          .length;
-
       ({int spinners, int bodies, int declinedCues, int interimCues}) frame() =>
           (
-            spinners: gateSpinners(),
+            spinners: firstLoadGateOverlayCount(),
             bodies: find.byType(BeaconNowSurface).evaluate().length,
             declinedCues: find
                 .text(
@@ -923,25 +889,6 @@ void main() {
       BeaconViewHarness? harness;
       addTearDown(unregisterBeaconViewHarnessGetIt);
 
-      // The overlay spinner only. Indicators inside the hidden body do not
-      // count: Visibility keeps that subtree mounted.
-      int gateSpinners() => find
-          .descendant(
-            of: find.byType(TenturaFirstLoadGate),
-            matching: find.byType(CircularProgressIndicator),
-          )
-          .evaluate()
-          .where((element) {
-            var insideContent = false;
-            element.visitAncestorElements((ancestor) {
-              if (ancestor.widget is TenturaFirstLoadGate) return false;
-              if (ancestor.widget is Visibility) insideContent = true;
-              return true;
-            });
-            return !insideContent;
-          })
-          .length;
-
       Finder barText(String text) => find.descendant(
         of: find.byType(TenturaTopBar),
         matching: find.textContaining(text, findRichText: true),
@@ -979,7 +926,7 @@ void main() {
         );
         await tester.pump(const Duration(milliseconds: 200));
 
-        expect(gateSpinners(), 1, reason: 'the gate spinner is up');
+        expect(firstLoadGateOverlayCount(), 1, reason: 'the gate spinner is up');
         expect(find.byType(BeaconNowSurface), findsNothing);
         expect(
           barStatusLines(),
@@ -1009,7 +956,7 @@ void main() {
             );
             continue;
           }
-          expect(gateSpinners(), 0);
+          expect(firstLoadGateOverlayCount(), 0);
           expect(statusLines, greaterThan(0));
           expect(barText('2 of 2 declined'), findsOneWidget);
           expect(barText('forward to someone else'), findsWidgets);
