@@ -27,7 +27,7 @@ final class ConstellationTagMagnetRepository
   @override
   Future<List<ConstellationTagMagnet>> list() => _remoteApiService
       .request(GConstellationTagMagnetsReq())
-      .firstWhere((response) => response.dataSource == DataSource.Link)
+      .firstLinkResponse(label: 'ConstellationTagMagnets')
       .then(
         (response) => [
           for (final m
@@ -59,7 +59,7 @@ final class ConstellationTagMagnetRepository
             ..clientOpId = clientOpId,
         ),
       )
-      .firstWhere((response) => response.dataSource == DataSource.Link)
+      .firstLinkResponse(label: 'ConstellationTagMagnetUpsert')
       .then((response) {
         final m = response
             .dataOrThrow(label: 'ConstellationTagMagnetUpsert')
@@ -82,7 +82,7 @@ final class ConstellationTagMagnetRepository
                 ..clientOpId = clientOpId,
             ),
           )
-          .firstWhere((response) => response.dataSource == DataSource.Link)
+          .firstLinkResponse(label: 'ConstellationTagMagnetRemove')
           .then(
             (response) =>
                 response.dataOrThrow(label: 'ConstellationTagMagnetRemove'),

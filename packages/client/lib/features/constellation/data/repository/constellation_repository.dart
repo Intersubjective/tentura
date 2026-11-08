@@ -33,7 +33,7 @@ final class ConstellationRepository implements ConstellationRepositoryPort {
                 ..participatedOnly = membershipFilters.participatedOnly;
             }),
           )
-          .firstWhere((response) => response.dataSource == DataSource.Link)
+          .firstLinkResponse(label: 'ConstellationAnchorsFetch')
           .then(
             (response) => mapConstellationFieldFromAnchorsFetch(
               response
@@ -52,7 +52,7 @@ final class ConstellationRepository implements ConstellationRepositoryPort {
               ..projection = projectionToWire(projection);
           }),
         )
-        .firstWhere((response) => response.dataSource == DataSource.Link)
+        .firstLinkResponse(label: 'ConstellationFieldFetch')
         .then(
           (response) => mapConstellationFieldFromFieldFetch(
             response

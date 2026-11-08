@@ -22,7 +22,7 @@ final class ConstellationMemberWebsRepository
   Future<List<ConstellationMemberWeb>> fetch(String beaconId) =>
       _remoteApiService
           .request(GBeaconMemberWebsReq((b) => b.vars.id = beaconId))
-          .firstWhere((response) => response.dataSource == DataSource.Link)
+          .firstLinkResponse(label: 'BeaconMemberWebs')
           .then(
             (response) => mapBeaconMemberWebs(
               response.dataOrThrow(label: 'BeaconMemberWebs').beaconMemberWebs,

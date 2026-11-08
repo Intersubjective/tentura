@@ -13,7 +13,8 @@ import '../../domain/entity/constellation_field_target_kind.dart';
   env: [Environment.dev, Environment.prod],
   order: 1,
 )
-final class ConstellationFieldHideRepository implements ConstellationFieldHidePort {
+final class ConstellationFieldHideRepository
+    implements ConstellationFieldHidePort {
   ConstellationFieldHideRepository(this._remoteApiService);
 
   final RemoteApiService _remoteApiService;
@@ -31,7 +32,7 @@ final class ConstellationFieldHideRepository implements ConstellationFieldHidePo
               ..targetId = targetId,
           ),
         )
-        .firstWhere((response) => response.dataSource == DataSource.Link)
+        .firstLinkResponse(label: 'FieldHide')
         .then(
           (response) => response.dataOrThrow(label: 'FieldHide').fieldHide,
         );
@@ -50,7 +51,7 @@ final class ConstellationFieldHideRepository implements ConstellationFieldHidePo
               ..targetId = targetId,
           ),
         )
-        .firstWhere((response) => response.dataSource == DataSource.Link)
+        .firstLinkResponse(label: 'FieldUnhide')
         .then(
           (response) => response.dataOrThrow(label: 'FieldUnhide').fieldUnhide,
         );
@@ -66,7 +67,7 @@ final class ConstellationFieldHideRepository implements ConstellationFieldHidePo
             (b) => b.vars..cursor = cursor,
           ),
         )
-        .firstWhere((response) => response.dataSource == DataSource.Link)
+        .firstLinkResponse(label: 'FieldHiddenItems')
         .then(
           (response) =>
               response.dataOrThrow(label: 'FieldHiddenItems').fieldHiddenItems,
@@ -74,15 +75,15 @@ final class ConstellationFieldHideRepository implements ConstellationFieldHidePo
     final list = rows?.toList() ?? const [];
     return [
       for (final row in list)
-          ConstellationFieldHiddenItem(
-            targetKind: ConstellationFieldTargetKind.fromWireValue(
-              row.targetKind,
-            ),
-            targetId: row.targetId,
-            title: row.title,
-            authorId: row.authorId,
-            hiddenAt: DateTime.parse(row.hiddenAt).toUtc(),
+        ConstellationFieldHiddenItem(
+          targetKind: ConstellationFieldTargetKind.fromWireValue(
+            row.targetKind,
           ),
+          targetId: row.targetId,
+          title: row.title,
+          authorId: row.authorId,
+          hiddenAt: DateTime.parse(row.hiddenAt).toUtc(),
+        ),
     ];
   }
 }

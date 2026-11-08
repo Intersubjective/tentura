@@ -20,7 +20,7 @@ final class PersonSharedContextRepository implements PersonSharedContextPort {
   Future<List<PersonSharedContext>> fetchSharedContexts(String userId) =>
       _remoteApiService
           .request(GPersonSharedContextsReq((b) => b.vars.userId = userId))
-          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .firstLinkResponse(label: _label)
           .then(
             (r) => [
               for (final row

@@ -30,7 +30,7 @@ final class ForwardCandidateContextRepository
             ..vars.context = context,
         ),
       )
-      .firstWhere((response) => response.dataSource == DataSource.Link)
+      .firstLinkResponse(label: 'ForwardCandidateContextFetch')
       .then((response) {
         final payload = response
             .dataOrThrow(

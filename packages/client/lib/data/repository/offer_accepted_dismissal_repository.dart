@@ -24,7 +24,7 @@ class OfferAcceptedDismissalRepository implements OfferAcceptedDismissalPort {
   Future<Set<String>> load({required String viewerId}) async {
     final row = await _remoteApiService
         .request(GOfferAcceptedDismissalsReq())
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).offerAcceptedDismissals);
     return _forViewer(viewerId, row.userId, row.beaconIds);
   }
@@ -37,7 +37,7 @@ class OfferAcceptedDismissalRepository implements OfferAcceptedDismissalPort {
     try {
       final row = await _remoteApiService
           .request(GDismissOfferAcceptedReq((b) => b.vars.beaconId = beaconId))
-          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .firstLinkResponse(label: _label)
           .then((r) => r.dataOrThrow(label: _label).DismissOfferAccepted);
       return _forViewer(viewerId, row.userId, row.beaconIds);
     } on Object catch (e) {

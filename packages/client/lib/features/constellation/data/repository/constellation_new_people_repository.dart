@@ -11,7 +11,8 @@ import '../gql/_g/constellation_acknowledge_new.req.gql.dart';
   env: [Environment.dev, Environment.prod],
   order: 1,
 )
-final class ConstellationNewPeopleRepository implements ConstellationNewPeoplePort {
+final class ConstellationNewPeopleRepository
+    implements ConstellationNewPeoplePort {
   ConstellationNewPeopleRepository(this._remoteApiService);
 
   final RemoteApiService _remoteApiService;
@@ -28,7 +29,7 @@ final class ConstellationNewPeopleRepository implements ConstellationNewPeoplePo
             (b) => b.vars.peerIds.replace(BuiltList<String>(ids)),
           ),
         )
-        .firstWhere((response) => response.dataSource == DataSource.Link)
+        .firstLinkResponse(label: 'ConstellationAcknowledgeNew')
         .then(
           (response) => response
               .dataOrThrow(label: 'ConstellationAcknowledgeNew')

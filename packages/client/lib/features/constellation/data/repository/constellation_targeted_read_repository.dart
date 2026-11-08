@@ -33,7 +33,7 @@ final class ConstellationTargetedReadRepository
               ..vars.ids.replace(ids);
           }),
         )
-        .firstWhere((response) => response.dataSource == DataSource.Link)
+        .firstLinkResponse(label: 'ConstellationViewerRelations')
         .then(
           (response) =>
               response.dataOrThrow(label: 'ConstellationViewerRelations').user,
@@ -66,7 +66,7 @@ final class ConstellationTargetedReadRepository
               ..vars.participatedOnly = membershipFilters.participatedOnly;
           }),
         )
-        .firstWhere((response) => response.dataSource == DataSource.Link)
+        .firstLinkResponse(label: 'ConstellationFieldRequestsFetch')
         .then(
           (response) => response
               .dataOrThrow(label: 'ConstellationFieldRequestsFetch')

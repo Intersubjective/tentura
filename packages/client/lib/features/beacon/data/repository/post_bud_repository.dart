@@ -26,7 +26,7 @@ class PostBudRepository implements PostBudPort {
   }) async {
     final rows = await _remoteApiService
         .request(GPostBudInviteCandidatesReq((b) => b.vars.postId = postId))
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).postBudInviteCandidates);
     return [
       for (final row in rows)
@@ -66,8 +66,9 @@ class PostBudRepository implements PostBudPort {
           GPostBudFromPostReq(
             (b) => b.vars
               ..postId = postId
-              ..sourceMessageId =
-                  (source == null || source.isEmpty) ? null : source
+              ..sourceMessageId = (source == null || source.isEmpty)
+                  ? null
+                  : source
               ..clientCommandId = clientCommandId
               ..title = title
               ..description = description
@@ -95,7 +96,7 @@ class PostBudRepository implements PostBudPort {
               ..closePost = closePost,
           ),
         )
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).beaconBudFromPost);
     return PostBudResult(
       outcome: PostBudOutcome.fromWire(data.outcome),

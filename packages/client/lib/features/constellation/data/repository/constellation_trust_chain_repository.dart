@@ -28,7 +28,7 @@ final class ConstellationTrustChainRepository
             ..vars.personId = personId;
         }),
       )
-      .firstWhere((response) => response.dataSource == DataSource.Link)
+      .firstLinkResponse(label: 'ConstellationTrustChainFetch')
       .then(
         (response) => [
           for (final person

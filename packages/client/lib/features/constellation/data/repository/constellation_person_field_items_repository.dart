@@ -35,7 +35,7 @@ final class ConstellationPersonFieldItemsRepository
               ..cursor = cursor,
           ),
         )
-        .firstWhere((response) => response.dataSource == DataSource.Link)
+        .firstLinkResponse(label: 'PersonFieldItems')
         .then(
           (response) =>
               response.dataOrThrow(label: 'PersonFieldItems').personFieldItems,
@@ -46,20 +46,20 @@ final class ConstellationPersonFieldItemsRepository
       items: [
         for (final row in items)
           ConstellationPersonFieldItem(
-              id: row.id,
-              kind: row.kind == 1
-                  ? ConstellationFieldTargetKind.post
-                  : ConstellationFieldTargetKind.request,
-              authorId: row.authorId,
-              title: row.title,
-              rootExcerpt: row.rootExcerpt,
-              status: row.status,
-              hidden: row.hidden,
-              lastActivityAt: DateTime.parse(row.lastActivityAt).toUtc(),
-              expiresAt: row.expiresAt == null
-                  ? null
-                  : DateTime.parse(row.expiresAt!).toUtc(),
-            ),
+            id: row.id,
+            kind: row.kind == 1
+                ? ConstellationFieldTargetKind.post
+                : ConstellationFieldTargetKind.request,
+            authorId: row.authorId,
+            title: row.title,
+            rootExcerpt: row.rootExcerpt,
+            status: row.status,
+            hidden: row.hidden,
+            lastActivityAt: DateTime.parse(row.lastActivityAt).toUtc(),
+            expiresAt: row.expiresAt == null
+                ? null
+                : DateTime.parse(row.expiresAt!).toUtc(),
+          ),
       ],
       nextCursor: payload.nextCursor,
       counts: ConstellationPersonFieldCounts(

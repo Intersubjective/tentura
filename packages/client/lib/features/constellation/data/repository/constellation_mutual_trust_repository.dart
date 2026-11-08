@@ -25,7 +25,7 @@ final class ConstellationMutualTrustRepository
             ..vars.personId = personId;
         }),
       )
-      .firstWhere((response) => response.dataSource == DataSource.Link)
+      .firstLinkResponse(label: 'ConstellationMutualTrustFetch')
       .then(
         (response) => response
             .dataOrThrow(label: 'ConstellationMutualTrustFetch')

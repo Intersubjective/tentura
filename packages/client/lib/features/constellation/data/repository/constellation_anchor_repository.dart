@@ -44,7 +44,7 @@ final class ConstellationAnchorRepository
           b.vars.ops.replace([for (final op in ops) _opToWire(op)]);
         }),
       )
-      .firstWhere((response) => response.dataSource == DataSource.Link)
+      .firstLinkResponse(label: 'ConstellationAnchorsApply')
       .then((response) {
         final payload = response
             .dataOrThrow(label: 'ConstellationAnchorsApply')
@@ -64,7 +64,7 @@ final class ConstellationAnchorRepository
             ..saveHistory = saveHistory;
         }),
       )
-      .firstWhere((response) => response.dataSource == DataSource.Link)
+      .firstLinkResponse(label: 'ConstellationAnchorsReset')
       .then((response) {
         final payload = response
             .dataOrThrow(label: 'ConstellationAnchorsReset')
@@ -94,7 +94,7 @@ final class ConstellationAnchorRepository
             ..clientOpId = clientOpId;
         }),
       )
-      .firstWhere((response) => response.dataSource == DataSource.Link)
+      .firstLinkResponse(label: 'ConstellationLayoutSnapshotSave')
       .then(
         (response) => response
             .dataOrThrow(label: 'ConstellationLayoutSnapshotSave')
@@ -106,7 +106,7 @@ final class ConstellationAnchorRepository
   Future<List<ConstellationLayoutSnapshot>> listLayoutSnapshots() =>
       _remoteApiService
           .request(GConstellationLayoutSnapshotsReq())
-          .firstWhere((response) => response.dataSource == DataSource.Link)
+          .firstLinkResponse(label: 'ConstellationLayoutSnapshots')
           .then(
             (response) => [
               for (final s
@@ -144,7 +144,7 @@ final class ConstellationAnchorRepository
                 ..clientOpId = clientOpId,
             ),
           )
-          .firstWhere((response) => response.dataSource == DataSource.Link)
+          .firstLinkResponse(label: 'ConstellationLayoutSnapshotSave')
           .then(
             (response) => response
                 .dataOrThrow(label: 'ConstellationLayoutSnapshotSave')
@@ -165,7 +165,7 @@ final class ConstellationAnchorRepository
               ..clientOpId = clientOpId,
           ),
         )
-        .firstWhere((response) => response.dataSource == DataSource.Link);
+        .firstLinkResponse(label: 'ConstellationLayoutFavouriteRestore');
     response.dataOrThrow(label: 'ConstellationLayoutFavouriteRestore');
   }
 
@@ -187,7 +187,7 @@ final class ConstellationAnchorRepository
               ..clientOpId = clientOpId;
           }),
         )
-        .firstWhere((response) => response.dataSource == DataSource.Link)
+        .firstLinkResponse(label: 'ConstellationLayoutSnapshotRestore')
         .then(
           (response) => response.dataOrThrow(
             label: 'ConstellationLayoutSnapshotRestore',
@@ -199,7 +199,7 @@ final class ConstellationAnchorRepository
   /// Favourite first, then history newest first (kind 1 is history).
   Future<String> _newestHistorySnapshotId() => _remoteApiService
       .request(GConstellationLayoutSnapshotsReq())
-      .firstWhere((response) => response.dataSource == DataSource.Link)
+      .firstLinkResponse(label: 'ConstellationLayoutSnapshots')
       .then((response) {
         final snapshots = response
             .dataOrThrow(label: 'ConstellationLayoutSnapshots')
