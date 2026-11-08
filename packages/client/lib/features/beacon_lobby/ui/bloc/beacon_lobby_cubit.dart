@@ -132,7 +132,9 @@ class BeaconLobbyCubit extends Cubit<BeaconLobbyState> {
           await _open();
         } on BeaconLobbyUnavailableException {
           _showUnavailable();
-        } catch (_) {}
+        } catch (e, st) {
+          _logger.warning('Lobby refresh failed', e, st);
+        }
       } while (_refreshAgain && !isClosed);
     } finally {
       _refreshing = false;
@@ -175,7 +177,9 @@ class BeaconLobbyCubit extends Cubit<BeaconLobbyState> {
       final access = await _case.access(beaconId);
       if (isClosed || !state.unavailable) return;
       emit(state.copyWith(unavailableReason: access.limitReason));
-    } catch (_) {}
+    } catch (e, st) {
+      _logger.fine('Lobby unavailable-reason probe failed', e, st);
+    }
   }
 
   @override

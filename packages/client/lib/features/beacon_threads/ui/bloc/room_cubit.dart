@@ -1577,15 +1577,7 @@ class RoomCubit extends Cubit<RoomState> {
         threadItemId: state.threadItemId,
         replyToMessageId: target?.id,
         uploads: uploads,
-        explicitMentionUserIds: [
-          for (final mention in normalizedMentions) mention.userId,
-        ],
-        explicitMentionOffsets: [
-          for (final mention in normalizedMentions) mention.start,
-        ],
-        explicitMentionLengths: [
-          for (final mention in normalizedMentions) mention.end - mention.start,
-        ],
+        explicitMentions: normalizedMentions,
         quotedFactCardId: quotedFact?.factCardId,
         quotedFactRevisionSeq: quotedFact?.seq,
       );
@@ -1696,10 +1688,8 @@ class RoomCubit extends Cubit<RoomState> {
     } on Object catch (e) {
       if (previousMessages != null) {
         emit(state.copyWith(messages: previousMessages));
-        _showSnackError(e);
-      } else {
-        _showSnackError(e);
       }
+      _showSnackError(e);
     }
   }
 

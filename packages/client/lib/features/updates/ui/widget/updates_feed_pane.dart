@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/attention/attention_dismissible_membership.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
@@ -297,7 +298,7 @@ class _UpdatesFeedPaneState extends State<UpdatesFeedPane>
                       ),
                     if (placement.collapsedCount >= 3)
                       SliverToBoxAdapter(
-                        child: _CollapsedInvitePromptRow(
+                        child: UpdatesCollapsedInvitePromptRow(
                           count: placement.collapsedCount,
                           onOpenBatch: () => unawaited(
                             PromptBatchSheet.show(
@@ -346,7 +347,7 @@ class _UpdatesFeedPaneState extends State<UpdatesFeedPane>
           ),
         );
       case UpdatesFeedCellKind.loadMore:
-        return const _LoadMoreIndicator();
+        return const UpdatesLoadMoreIndicator();
       case UpdatesFeedCellKind.row:
         final receipt = cell.receipt!;
         final row = _receiptRow(context, receipt);
@@ -385,6 +386,8 @@ class _UpdatesFeedPaneState extends State<UpdatesFeedPane>
       final viewerUserId = GetIt.I.isRegistered<ProfileCubit>()
           ? GetIt.I<ProfileCubit>().state.profile.id
           : null;
+      final onDismiss =
+          isActiveOptional(receipt) ? () => unawaited(_markSeen(receipt.id)) : null;
       return UpdatesReceiptCard(
         key: ValueKey(receipt.id),
         receipt: receipt,
@@ -395,6 +398,7 @@ class _UpdatesFeedPaneState extends State<UpdatesFeedPane>
         onSettle: settleCallback,
         unreadView: unreadView,
         viewerUserId: viewerUserId,
+        onDismiss: onDismiss,
         action: ForwardHelpedSeePathAction(receipt: receipt),
       );
     }
@@ -567,8 +571,10 @@ class _EmptyUpdates extends StatelessWidget {
   }
 }
 
-class _LoadMoreIndicator extends StatelessWidget {
-  const _LoadMoreIndicator();
+/// Paging spinner at the end of the updates feed and the inbox activity
+/// stream.
+class UpdatesLoadMoreIndicator extends StatelessWidget {
+  const UpdatesLoadMoreIndicator({super.key});
 
   @override
   Widget build(BuildContext context) => Padding(
@@ -577,10 +583,13 @@ class _LoadMoreIndicator extends StatelessWidget {
   );
 }
 
-class _CollapsedInvitePromptRow extends StatelessWidget {
-  const _CollapsedInvitePromptRow({
+/// One row standing for a batch of collapsed invite prompts (shared by the
+/// updates feed and the inbox activity stream).
+class UpdatesCollapsedInvitePromptRow extends StatelessWidget {
+  const UpdatesCollapsedInvitePromptRow({
     required this.count,
     required this.onOpenBatch,
+    super.key,
   });
 
   final int count;

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:logging/logging.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/domain/entity/beacon.dart';
@@ -707,6 +708,38 @@ void main() {
       expect(cubit.state.offer?.message, 'I can help');
       expect(effects.emitted.whereType<ShowError>(), isEmpty);
       await sub.cancel();
+      await cubit.close();
+    });
+
+    test('markPeopleSeen throwing is logged as a warning and still '
+        'swallowed', () async {
+      final coordination = _ThrowingPeopleSeenCoordination(
+        rows: [_row(userId: offerer.id)],
+      );
+      final effects = FakeUiEffectPort();
+      final cubit = build(
+        viewer: author,
+        coordination: coordination,
+        effects: effects,
+      );
+      final records = <LogRecord>[];
+      final logSub = Logger.root.onRecord
+          .where((r) => r.loggerName == 'HelpOfferTileSheetCubit')
+          .listen(records.add);
+      addTearDown(logSub.cancel);
+
+      await cubit.load();
+      final loaded = cubit.state;
+
+      expect(coordination.attempts, 1);
+      expect(records, hasLength(1));
+      expect(records.single.level, Level.WARNING);
+      expect(records.single.message, 'markPeopleSeen failed');
+      expect(records.single.error, isA<StateError>());
+      expect(records.single.stackTrace, isNotNull);
+      expect(loaded.isLoaded, isTrue);
+      expect(loaded.loadError, isNull);
+      expect(effects.emitted.whereType<ShowError>(), isEmpty);
       await cubit.close();
     });
   });

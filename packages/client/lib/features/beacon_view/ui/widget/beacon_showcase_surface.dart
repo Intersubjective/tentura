@@ -20,6 +20,7 @@ import 'package:tentura/features/beacon_view/ui/widget/beacon_my_invite_banner.d
 import 'package:tentura/features/beacon_view/ui/widget/beacon_view_app_bar_overflow.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_view_forward_overflow.dart';
 import 'package:tentura/features/beacon_view/ui/widget/closed_request_banner.dart';
+import 'package:tentura/features/beacon_view/ui/widget/closure_help_path_block.dart';
 import 'package:tentura/features/beacon_view/ui/widget/declined_offer_notice.dart';
 import 'package:tentura/features/beacon_view/ui/widget/request_access_reason_banner.dart';
 import 'package:tentura/features/capability/ui/widget/capability_requirement_tags.dart';
@@ -78,6 +79,13 @@ class BeaconShowcaseSurface extends StatelessWidget {
                     if (lineageParent != null && lineageParent.isNotEmpty)
                       BeaconLineageParentLink(parentBeaconId: lineageParent),
                     ClosedRequestBanner(beacon: beacon),
+                    if (beacon.status == BeaconStatus.closed)
+                      ClosureHelpPathBlock(
+                        beaconId: beacon.id,
+                        admittedHelpers: state.admittedHelpersLoaded
+                            ? state.admittedHelperRoster
+                            : beacon.admittedHelperUsers,
+                      ),
                     // #758: a helper who withdrew or was removed is no longer
                     // a member, so a closed Request shows them the showcase;
                     // their result card lives here. The card renders nothing

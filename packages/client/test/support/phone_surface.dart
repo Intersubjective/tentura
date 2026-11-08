@@ -13,3 +13,13 @@ Future<void> usePhoneSurface(WidgetTester tester) async {
   await tester.binding.setSurfaceSize(kPhoneSurface);
   addTearDown(() => tester.binding.setSurfaceSize(null));
 }
+
+/// iPhone SE logical size at @2x device pixel ratio (physical 750×1334).
+Future<void> usePhoneSurface2x(WidgetTester tester) async {
+  await tester.binding.setSurfaceSize(kPhoneSurface);
+  tester.view.devicePixelRatio = 2.0;
+  addTearDown(() {
+    tester.view.devicePixelRatio = 1.0;
+    tester.binding.setSurfaceSize(null);
+  });
+}
