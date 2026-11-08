@@ -293,13 +293,19 @@ cd "$CLIENT_DIR"
 FAILED=()
 for target in "${TARGETS[@]}"; do
   browser_dimension="${BROWSER_DIMENSION:-1600x1024}"
-  if [[ -z "${BROWSER_DIMENSION:-}" && \
-        "$target" == "integration_test/request_threads_navigation_test.dart" ]]; then
-    # This journey asserts the compact nested-route/browser-history contract.
-    # WidgetTester.setSurfaceSize is not a valid substitute on Flutter Web: it
-    # constrains the render surface while MediaQuery retains the real browser
-    # viewport, producing an impossible mixed window class/layout.
-    browser_dimension="390x844"
+  # Phone journeys get a phone window. WidgetTester.setSurfaceSize is not a
+  # valid substitute on Flutter Web: it constrains the render surface while
+  # MediaQuery retains the real browser viewport, producing an impossible
+  # mixed window class/layout.
+  if [[ -z "${BROWSER_DIMENSION:-}" ]]; then
+    case "$target" in
+      # Asserts the compact nested-route/browser-history contract.
+      integration_test/request_threads_navigation_test.dart)
+        browser_dimension="390x844" ;;
+      # Asserts a 375x667 app viewport; headless Chrome's toolbar takes 139 px.
+      integration_test/constellation_trust_chain_edges_phone_test.dart)
+        browser_dimension="375x806" ;;
+    esac
   fi
   log "=== flutter drive: $target (browser $browser_dimension)"
   if flutter drive \

@@ -4790,13 +4790,19 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   /// Whether [node] is off the selected person's highlighted trust chain
   /// (#641): everything is, except the chain's people, the people the
   /// selected person trusts both ways (their edges are drawn to them) and the
-  /// selected person's own Requests and Posts.
+  /// selected person's own Requests and Posts. A chain the field cannot show
+  /// whole dims nothing, as the scene draws none of it (#1192).
   bool isDimmedByTrustChain(NodeDetails node) {
     if (state.forwardTreeOverlay != null) {
       return false;
     }
-    final chain = selectedTrustChain;
-    if (chain is! ConstellationTrustChainFound) {
+    final placed = graphController.renderSnapshot.topology.nodesById;
+    final chain = constellationShownTrustChain(
+      selectedTrustChain,
+      isPlaced: (personId) =>
+          placed.containsKey(constellationFieldPersonGraphId(personId)),
+    );
+    if (chain == null) {
       return false;
     }
     return switch (node) {

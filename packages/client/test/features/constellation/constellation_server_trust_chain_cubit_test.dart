@@ -193,17 +193,18 @@ void main() {
       expect(found.intermediaryIds, ['a', 'x']);
     });
 
-    test('people on the field in the server chain stay undimmed, everyone '
-        'else off the chain is dimmed', () async {
+    test('a server chain through someone on no field is not shown whole, '
+        'so it dims no one, on the chain or off it', () async {
       cubit.selectPerson('f');
       port.answer('f', _chainToFay);
       await _flush();
 
+      expect(cubit.selectedTrustChain, isA<ConstellationTrustChainFound>());
       expect(cubit.isDimmedByTrustChain(_personNode(cubit, 'a')), isFalse);
       expect(cubit.isDimmedByTrustChain(_personNode(cubit, 'f')), isFalse);
       expect(cubit.isDimmedByTrustChain(_beaconNode(cubit, 'f')), isFalse);
-      expect(cubit.isDimmedByTrustChain(_personNode(cubit, 'c')), isTrue);
-      expect(cubit.isDimmedByTrustChain(_personNode(cubit, 'g')), isTrue);
+      expect(cubit.isDimmedByTrustChain(_personNode(cubit, 'c')), isFalse);
+      expect(cubit.isDimmedByTrustChain(_personNode(cubit, 'g')), isFalse);
     });
 
     test('an answer with no chain keeps "no chain"', () async {

@@ -40,6 +40,16 @@ final class ConstellationTrustChainFound extends ConstellationTrustChain {
   }
 }
 
+/// The part of [chain] the field shows: a found chain whose people are all
+/// on the field ([isPlaced]), else null. A chain that cannot be shown whole
+/// counts as no chain: nothing of it is drawn, faded or dimmed (#1192).
+ConstellationTrustChainFound? constellationShownTrustChain(
+  ConstellationTrustChain? chain, {
+  required bool Function(String personId) isPlaced,
+}) => chain is ConstellationTrustChainFound && chain.path.every(isPlaced)
+    ? chain
+    : null;
+
 /// No chain of visible trust edges reaches the person; nothing partial is
 /// drawn.
 final class ConstellationTrustChainNone extends ConstellationTrustChain {

@@ -1205,13 +1205,10 @@ class ConstellationSceneController {
       }
     }
 
-    // A chain that cannot be shown whole (someone on it is not on the
-    // field) counts as no chain: nothing of it is drawn or faded (#1192).
-    final chain =
-        trustChain is ConstellationTrustChainFound &&
-            trustChain.path.every(nodeById.containsKey)
-        ? trustChain
-        : null;
+    final chain = constellationShownTrustChain(
+      trustChain,
+      isPlaced: nodeById.containsKey,
+    );
     if (focusPersonId != null && nodeById.containsKey(focusPersonId)) {
       _addFocusPersonTrustEdges(
         focusPersonId: focusPersonId,
