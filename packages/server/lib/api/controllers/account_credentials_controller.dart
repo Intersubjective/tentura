@@ -1,13 +1,17 @@
 import 'dart:convert';
 
 import 'package:injectable/injectable.dart';
+import 'package:logging/logging.dart';
 import 'package:shelf_plus/shelf_plus.dart';
 
+import 'package:tentura_server/api/http/json_body.dart';
 import 'package:tentura_server/consts.dart';
 import 'package:tentura_server/domain/entity/account_credential_entity.dart';
 import 'package:tentura_server/domain/entity/jwt_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/use_case/credential_case.dart';
+
+final _log = Logger('AccountCredentialsController');
 
 /// `/api/v2/accounts/me/credentials` — authenticated credential management for
 /// the calling account (`jwt.sub`). All routes are guarded by `verifyBearerJwt`
@@ -34,7 +38,8 @@ final class AccountCredentialsController {
       });
     } on ExceptionBase catch (e) {
       return _error(e);
-    } catch (_) {
+    } catch (e, st) {
+      _log.severe('credentials.list failed', e, st);
       return Response.internalServerError();
     }
   }
@@ -43,15 +48,16 @@ final class AccountCredentialsController {
     final accountId = _accountId(request);
     if (accountId == null) return Response.unauthorized(null);
 
-    final Map<String, dynamic> body;
-    try {
-      body = (await request.body.asJson as Map).cast<String, dynamic>();
-    } catch (_) {
-      return Response.badRequest(body: 'invalid JSON body');
+    final body = await readJsonObject(request);
+    if (body == null) {
+      return invalidJsonBodyResponse();
     }
 
-    final authRequestToken = body['authRequestToken'] as String?;
-    if (authRequestToken == null || authRequestToken.isEmpty) {
+    final authRequestToken = switch (body['authRequestToken']) {
+      final String s when s.isNotEmpty => s,
+      _ => null,
+    };
+    if (authRequestToken == null) {
       return Response.badRequest(body: 'authRequestToken is required');
     }
 
@@ -66,7 +72,8 @@ final class AccountCredentialsController {
       return _error(e, status: 409);
     } on ExceptionBase catch (e) {
       return _error(e);
-    } catch (_) {
+    } catch (e, st) {
+      _log.severe('credentials.link failed', e, st);
       return Response.internalServerError();
     }
   }
@@ -78,15 +85,16 @@ final class AccountCredentialsController {
     final accountId = _accountId(request);
     if (accountId == null) return Response.unauthorized(null);
 
-    final Map<String, dynamic> body;
-    try {
-      body = (await request.body.asJson as Map).cast<String, dynamic>();
-    } catch (_) {
-      return Response.badRequest(body: 'invalid JSON body');
+    final body = await readJsonObject(request);
+    if (body == null) {
+      return invalidJsonBodyResponse();
     }
 
-    final idToken = body['idToken'] as String?;
-    if (idToken == null || idToken.isEmpty) {
+    final idToken = switch (body['idToken']) {
+      final String s when s.isNotEmpty => s,
+      _ => null,
+    };
+    if (idToken == null) {
       return Response.badRequest(body: 'idToken is required');
     }
 
@@ -102,7 +110,8 @@ final class AccountCredentialsController {
       return _error(e, status: 409);
     } on ExceptionBase catch (e) {
       return _error(e);
-    } catch (_) {
+    } catch (e, st) {
+      _log.severe('credentials.linkGoogle failed', e, st);
       return Response.internalServerError();
     }
   }
@@ -128,7 +137,8 @@ final class AccountCredentialsController {
       return _error(e, status: 404);
     } on ExceptionBase catch (e) {
       return _error(e);
-    } catch (_) {
+    } catch (e, st) {
+      _log.severe('credentials.remove failed', e, st);
       return Response.internalServerError();
     }
   }

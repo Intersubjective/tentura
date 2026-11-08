@@ -167,6 +167,8 @@ Future<ConstellationCubit> _loadCubit(
   );
   addTearDown(cubit.close);
   await cubit.stream.firstWhere((state) => state.status is StateIsSuccess);
+  // The Post's author edge is drawn while its author is selected (#1192).
+  cubit.selectPerson('peer-a');
   return cubit;
 }
 
@@ -641,6 +643,12 @@ void main() {
 
     test('the Post leaves the composed scene at its expiry, not before', () {
       withCubit((async, cubit, composer, repository) {
+        // The Post's author edge is drawn while its author is selected.
+        cubit.selectPerson('peer-a');
+        expect(
+          cubit.graphController.edges.map((e) => e.semanticId),
+          contains(_attachment),
+        );
         async.elapse(const Duration(hours: 2, minutes: 59));
         expect(composer.composes('post-1'), isTrue);
         final composedBefore = composer.composeCount;

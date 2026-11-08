@@ -289,7 +289,8 @@ void main() {
     );
 
     test(
-      'selecting a Request draws its author connections and chain',
+      "selecting a Request draws the chain to its author, not the author's "
+      'own trust edges',
       () async {
         final cubit = await _loadCubit();
         addTearDown(cubit.close);
@@ -300,7 +301,6 @@ void main() {
           {
             _edgeId(cubit, 'ego', 'ann', 'tier1Path'),
             _edgeId(cubit, 'ann', 'bob', 'tier1Path'),
-            _edgeId(cubit, 'bob', 'cid', 'tier1Path'),
           },
         );
         expect(
@@ -435,7 +435,8 @@ void main() {
       },
     );
 
-    test('chain edges are drawn bright, every other edge fades', () async {
+    test("chain edges and the person's own items are drawn bright; other "
+        "people's items get no edge", () async {
       final cubit = await _loadCubit();
       addTearDown(cubit.close);
 
@@ -448,8 +449,9 @@ void main() {
       expect(fades[chainDown], isNull);
       expect(fades[_edgeId(cubit, 'bob', 'req-bob', 'attachment')], isNull);
       expect(
-        fades[_edgeId(cubit, 'ann', 'req-ann', 'attachment')],
-        kConstellationTrustChainEdgeFade,
+        cubit.edgeKindByPair.keys.where((id) => id.contains('req-ann')),
+        isEmpty,
+        reason: "only the selected person's items have an author edge",
       );
 
       cubit.selectPerson(null);

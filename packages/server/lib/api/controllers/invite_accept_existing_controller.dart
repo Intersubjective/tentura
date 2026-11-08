@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:injectable/injectable.dart';
+import 'package:logging/logging.dart';
 
 import 'package:tentura_server/consts.dart';
 import 'package:tentura_server/domain/entity/jwt_entity.dart';
@@ -8,6 +9,8 @@ import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/use_case/invitation_case.dart';
 
 import '_base_controller.dart';
+
+final _log = Logger('InviteAcceptExistingController');
 
 /// `POST /api/v2/invite/<code>/accept-as-existing` — an already-authenticated
 /// user befriends the invite issuer (beacon forwarded when present). Guarded by
@@ -53,7 +56,8 @@ final class InviteAcceptExistingController extends BaseController {
         body: jsonEncode(e.toMap),
         headers: {kHeaderContentType: 'application/json'},
       );
-    } catch (_) {
+    } catch (e, st) {
+      _log.severe('invite.acceptExisting failed', e, st);
       return Response.internalServerError();
     }
   }

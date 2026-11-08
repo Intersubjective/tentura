@@ -19,6 +19,8 @@ import 'package:tentura_server/domain/util/email_auth_util.dart';
 
 import '_base_controller.dart';
 import '../http/cookies.dart';
+import '../http/json_body.dart';
+import '../http/qa_request_gate.dart';
 import 'websocket/session/qa_realtime_socket_gate.dart';
 
 @Injectable(order: 3)
@@ -49,15 +51,13 @@ final class QaIntegrationController extends BaseController {
   final ClosureFinalizeSweepCase _closureFinalizeSweep;
 
   Future<Response> bootstrap(Request request) async {
-    if (!_qaAllowed(request)) {
+    if (!isQaRequestAllowed(request, env)) {
       return Response.notFound(null);
     }
 
-    Map<String, dynamic> body;
-    try {
-      body = (await request.body.asJson as Map).cast<String, dynamic>();
-    } catch (_) {
-      return Response.badRequest(body: 'invalid JSON body');
+    final body = await readJsonObject(request);
+    if (body == null) {
+      return invalidJsonBodyResponse();
     }
 
     final runId = (body['runId'] as String? ?? '').trim().toLowerCase();
@@ -107,15 +107,13 @@ final class QaIntegrationController extends BaseController {
   /// browser test exercises. Distinct from [bootstrap]'s two-role contract;
   /// existing bootstrap-based integration tests are unaffected.
   Future<Response> witnessFixture(Request request) async {
-    if (!_qaAllowed(request)) {
+    if (!isQaRequestAllowed(request, env)) {
       return Response.notFound(null);
     }
 
-    Map<String, dynamic> body;
-    try {
-      body = (await request.body.asJson as Map).cast<String, dynamic>();
-    } catch (_) {
-      return Response.badRequest(body: 'invalid JSON body');
+    final body = await readJsonObject(request);
+    if (body == null) {
+      return invalidJsonBodyResponse();
     }
 
     final runId = (body['runId'] as String? ?? '').trim().toLowerCase();
@@ -213,15 +211,13 @@ final class QaIntegrationController extends BaseController {
   /// mutually befriended with the author, plus one published request with an
   /// acknowledged offer from each helper.
   Future<Response> closureFixture(Request request) async {
-    if (!_qaAllowed(request)) {
+    if (!isQaRequestAllowed(request, env)) {
       return Response.notFound(null);
     }
 
-    Map<String, dynamic> body;
-    try {
-      body = (await request.body.asJson as Map).cast<String, dynamic>();
-    } catch (_) {
-      return Response.badRequest(body: 'invalid JSON body');
+    final body = await readJsonObject(request);
+    if (body == null) {
+      return invalidJsonBodyResponse();
     }
 
     final runId = (body['runId'] as String? ?? '').trim().toLowerCase();
@@ -279,15 +275,13 @@ final class QaIntegrationController extends BaseController {
   }
 
   Future<Response> realtimeSocket(Request request) async {
-    if (!_qaAllowed(request)) {
+    if (!isQaRequestAllowed(request, env)) {
       return Response.notFound(null);
     }
 
-    Map<String, dynamic> body;
-    try {
-      body = (await request.body.asJson as Map).cast<String, dynamic>();
-    } catch (_) {
-      return Response.badRequest(body: 'invalid JSON body');
+    final body = await readJsonObject(request);
+    if (body == null) {
+      return invalidJsonBodyResponse();
     }
 
     final userId = (body['userId'] as String? ?? '').trim();
@@ -322,15 +316,13 @@ final class QaIntegrationController extends BaseController {
   /// window: moves `closes_at` just into the past, then runs one real
   /// [ClosureFinalizeSweepCase] pass (never a direct finalize).
   Future<Response> expireClosure(Request request) async {
-    if (!_qaAllowed(request)) {
+    if (!isQaRequestAllowed(request, env)) {
       return Response.notFound(null);
     }
 
-    Map<String, dynamic> body;
-    try {
-      body = (await request.body.asJson as Map).cast<String, dynamic>();
-    } catch (_) {
-      return Response.badRequest(body: 'invalid JSON body');
+    final body = await readJsonObject(request);
+    if (body == null) {
+      return invalidJsonBodyResponse();
     }
 
     final beaconId = (body['beaconId'] as String? ?? '').trim();
@@ -379,18 +371,6 @@ final class QaIntegrationController extends BaseController {
       code: invitation.id,
       userId: b.id,
     );
-  }
-
-  bool _qaAllowed(Request request) {
-    if (!env.isQaAuthEnabled) {
-      return false;
-    }
-    final queryToken = request.url.queryParameters['_qa_token'];
-    final authorization = request.headers['authorization'] ?? '';
-    final bearerToken = authorization.toLowerCase().startsWith('bearer ')
-        ? authorization.substring(7).trim()
-        : null;
-    return queryToken == env.qaAuthToken || bearerToken == env.qaAuthToken;
   }
 
   String? _normalizeQaEmail(String raw) {

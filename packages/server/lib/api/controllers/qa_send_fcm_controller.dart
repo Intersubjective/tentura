@@ -9,6 +9,8 @@ import 'package:tentura_server/domain/port/fcm_remote_repository_port.dart';
 import 'package:tentura_server/domain/port/fcm_token_repository_port.dart';
 
 import '../http/cookies.dart';
+import '../http/json_body.dart';
+import '../http/qa_request_gate.dart';
 import '_base_controller.dart';
 
 /// Development/staging-only endpoint to send a one-shot FCM push for QA.
@@ -25,15 +27,13 @@ final class QaSendFcmController extends BaseController {
   final FcmTokenRepositoryPort _fcmTokens;
 
   Future<Response> sendFcm(Request request) async {
-    if (!_qaAllowed(request)) {
+    if (!isQaRequestAllowed(request, env)) {
       return Response.notFound(null);
     }
 
-    Map<String, dynamic> body;
-    try {
-      body = (await request.body.asJson as Map).cast<String, dynamic>();
-    } catch (_) {
-      return Response.badRequest(body: 'invalid JSON body');
+    final body = await readJsonObject(request);
+    if (body == null) {
+      return invalidJsonBodyResponse();
     }
 
     final title = _nonEmptyString(body['title']);
@@ -110,19 +110,6 @@ final class QaSendFcmController extends BaseController {
       }),
       headers: _jsonNoStore,
     );
-  }
-
-  bool _qaAllowed(Request request) {
-    if (!env.isQaAuthEnabled) {
-      return false;
-    }
-
-    final queryToken = request.url.queryParameters['_qa_token'];
-    final authorization = request.headers['authorization'] ?? '';
-    final bearerToken = authorization.toLowerCase().startsWith('bearer ')
-        ? authorization.substring(7).trim()
-        : null;
-    return queryToken == env.qaAuthToken || bearerToken == env.qaAuthToken;
   }
 
   String? _nonEmptyString(Object? value) {

@@ -369,6 +369,8 @@ void main() {
           ],
         ),
       );
+      // The author edge is drawn while its author is selected (#1192).
+      cubit.selectPerson('a');
 
       expect(
         _edgeKindBetween(cubit, 'a', 'req-a'),
@@ -603,6 +605,9 @@ void main() {
       await _pumpBody(tester, cubit);
 
       expect(find.text('Need tools'), findsOneWidget);
+      // The author edge is drawn while its author is selected (#1192).
+      cubit.selectPerson('a');
+      await tester.pump();
       expect(
         _edgeKindBetween(cubit, 'a', 'req-a'),
         ConstellationEdgeKind.attachment,
@@ -638,6 +643,9 @@ void main() {
         findsOneWidget,
       );
       expect(find.byIcon(Icons.chat_bubble_outline), findsOneWidget);
+      // The author edge is drawn while its author is selected (#1192).
+      cubit.selectPerson('a');
+      await tester.pump();
       expect(
         _edgeKindBetween(cubit, 'a', 'post-a'),
         ConstellationEdgeKind.attachment,
