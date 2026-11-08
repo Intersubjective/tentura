@@ -32,10 +32,11 @@ const _title = 'Need a van';
 String _payload({
   bool done = false,
   bool blockedMiddle = false,
+  String beaconTitle = _title,
 }) => jsonEncode({
   'eventType': 'forwardHelped',
   'beaconId': _beaconId,
-  'beaconTitle': _title,
+  'beaconTitle': beaconTitle,
   'authorId': _authorId,
   'helperId': _helperId,
   'done': done,
@@ -193,37 +194,49 @@ void main() {
     expect(dismissed, isTrue);
   });
 
-  testWidgets('Updates feed card shows × for optional forwardHelped', (
-    tester,
-  ) async {
-    var dismissed = false;
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: TenturaTheme.light(),
-        localizationsDelegates: L10n.localizationsDelegates,
-        supportedLocales: L10n.supportedLocales,
-        home: TenturaResponsiveScope(
-          child: Scaffold(
-            body: UpdatesReceiptCard(
-              receipt: _receipt(),
-              viewerUserId: _viewerId,
-              onTap: () {},
-              onMarkSeen: () => dismissed = true,
-              onMarkUnseen: () {},
-              onDismiss: () => dismissed = true,
-              action: ForwardHelpedSeePathAction(receipt: _receipt()),
+  testWidgets(
+    'RU 375×667 @2x Updates feed card shows × for optional forwardHelped',
+    (tester) async {
+      await usePhoneSurface2x(tester);
+      const longTitle =
+          'QA774 Нужен фургон в субботу с очень длинным названием запроса';
+      var dismissed = false;
+      final receipt = _receipt(payload: _payload(beaconTitle: longTitle));
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: TenturaTheme.light(),
+          locale: const Locale('ru'),
+          localizationsDelegates: L10n.localizationsDelegates,
+          supportedLocales: L10n.supportedLocales,
+          home: TenturaResponsiveScope(
+            child: Scaffold(
+              body: UpdatesReceiptCard(
+                receipt: receipt,
+                viewerUserId: _viewerId,
+                onTap: () {},
+                onMarkSeen: () => dismissed = true,
+                onMarkUnseen: () {},
+                onDismiss: () => dismissed = true,
+                action: ForwardHelpedSeePathAction(receipt: receipt),
+              ),
             ),
           ),
         ),
-      ),
-    );
-    await tester.pump();
-    expect(find.byIcon(Icons.close), findsOneWidget);
-    expect(find.byIcon(Icons.more_vert), findsNothing);
-    await tester.tap(find.byIcon(Icons.close));
-    await tester.pump();
-    expect(dismissed, isTrue);
-  });
+      );
+      await tester.pump();
+      expect(find.textContaining('Ваша пересылка помогла'), findsOneWidget);
+      expect(find.byIcon(Icons.close), findsOneWidget);
+      expect(find.byIcon(Icons.more_vert), findsNothing);
+      expect(tester.takeException(), isNull);
+      final cardBox = tester.renderObject<RenderBox>(
+        find.byType(UpdatesReceiptCard),
+      );
+      expect(cardBox.size.width, lessThanOrEqualTo(kPhoneSurface.width));
+      await tester.tap(find.byIcon(Icons.close));
+      await tester.pump();
+      expect(dismissed, isTrue);
+    },
+  );
 
   test('forward helped receipt category maps to settings toggle', () {
     expect(
@@ -233,8 +246,10 @@ void main() {
     expect(L10nEn().notificationCatCoordination, isNotEmpty);
   });
 
-  testWidgets('RU locale at 375×667 renders without overflow', (tester) async {
-    await usePhoneSurface(tester);
+  testWidgets('RU locale at 375×667 @2x tile renders without overflow', (
+    tester,
+  ) async {
+    await usePhoneSurface2x(tester);
     await _pumpTile(
       tester,
       receipt: _receipt(),

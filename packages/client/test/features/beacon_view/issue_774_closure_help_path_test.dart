@@ -119,6 +119,57 @@ void main() {
     await unregisterBeaconViewHarnessGetIt();
   });
 
+  testWidgets('RU 375×667 @2x forwarder on closed showcase sees help path', (
+    tester,
+  ) async {
+    await usePhoneSurface2x(tester);
+    const longAuthor =
+        'Анна Константинопольская с очень длинным именем для проверки';
+    const longMid = 'Борис Пересылальщиков с длинным отображаемым именем';
+    const longHelper = 'Вера Помощница с длинным отображаемым именем';
+    GetIt.I.registerSingleton<ForwardRepository>(
+      _FakeForwardRepository({
+        _helperId: [
+          const HelpPathNode.named(userId: _authorId, displayName: longAuthor),
+          const HelpPathNode.named(userId: _f1Id, displayName: longMid),
+          const HelpPathNode.named(userId: _helperId, displayName: longHelper),
+        ],
+      }),
+    );
+    final author = beaconViewHarnessAuthorState();
+    await pumpBeaconViewHarness(
+      tester,
+      size: kPhoneSurface,
+      locale: const Locale('ru'),
+      beaconState: author.copyWith(
+        beacon: _closedBeacon(access: BeaconAccessLevel.observer).copyWith(
+          id: author.beacon.id,
+          title: 'QA774 Нужен фургон в субботу с очень длинным названием',
+          author: author.beacon.author.copyWith(displayName: longAuthor),
+        ),
+        myProfile: _p(_f1Id, longMid),
+        admittedHelperRoster: [_p(_helperId, longHelper)],
+        admittedHelpersLoaded: true,
+        roomParticipants: const [],
+      ),
+      threadsState: beaconViewHarnessThreadsState(),
+    );
+    await tester.pump();
+    await tester.runAsync(() async {
+      await Future<void>.delayed(Duration.zero);
+    });
+    await tester.pump();
+
+    expect(find.byType(BeaconShowcaseSurface), findsOneWidget);
+    expect(find.text('Помощь прошла через'), findsOneWidget);
+    expect(find.byType(HelpPathChainRow), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    final rowBox = tester.renderObject<RenderBox>(
+      find.byType(HelpPathChainRow),
+    );
+    expect(rowBox.size.width, lessThanOrEqualTo(kPhoneSurface.width));
+  });
+
   testWidgets('path forwarder on closed showcase sees Help came through', (
     tester,
   ) async {
@@ -295,10 +346,10 @@ void main() {
     expect(push.path, kPathConstellation);
   });
 
-  testWidgets('RU locale at 375×667 renders path without overflow', (
+  testWidgets('RU locale at 375×667 @2x HUD path renders without overflow', (
     tester,
   ) async {
-    await usePhoneSurface(tester);
+    await usePhoneSurface2x(tester);
     final effects = FakeUiEffectPort();
     const longName =
         'Александра Константинопольская с очень длинным именем для проверки';
