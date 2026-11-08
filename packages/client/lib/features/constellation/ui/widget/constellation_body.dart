@@ -1917,13 +1917,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
     final theme = Theme.of(context);
     final capHeight = bodyHeight * tt.fieldTopChromeMaxFraction;
     if (hideMapChrome) {
-      final box = _fieldTopChromeKey.currentContext?.findRenderObject();
-      if (box is RenderBox &&
-          box.hasSize &&
-          (_fieldTopChromeHeight - box.size.height).abs() >= 0.5) {
-        _fieldTopChromeHeight = box.size.height;
-      }
-      return SizedBox(height: _fieldTopChromeHeight);
+      return const SizedBox.shrink();
     }
     _measureFieldTopChromeHeight();
     return ConstrainedBox(

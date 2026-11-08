@@ -4,7 +4,6 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/screen/constellation_screen.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
-import 'package:tentura/features/constellation/ui/widget/constellation_camera_controls.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_visibility_bar.dart';
 import 'package:tentura/features/constellation/ui/widget/field_collapsing_app_bar.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
@@ -122,6 +121,56 @@ FieldPersonNode? _selectedPersonNode(ConstellationCubit cubit) {
 
 void main() {
   group('Field compact context sheet (#974)', () {
+    testWidgets(
+      '375×667 RU reclaims chip-row height for the map at peek (#974)',
+      (tester) async {
+        await usePhoneSurface(tester);
+        final cubit = await _pumpField(
+          tester,
+          size: kPhoneSurface,
+          locale: const Locale('ru'),
+        );
+        expect(find.byType(ConstellationVisibilityBar), findsOneWidget);
+        final bodyTop = tester.getTopLeft(find.byType(ConstellationBody)).dy;
+        final mapTopBefore = tester
+            .getTopLeft(find.byType(InteractiveViewer))
+            .dy;
+        expect(mapTopBefore - bodyTop, greaterThan(24));
+        await tester.tap(_personNode);
+        await tester.pumpAndSettle();
+        expect(find.byType(ConstellationVisibilityBar), findsNothing);
+        final mapTopAfter = tester
+            .getTopLeft(find.byType(InteractiveViewer))
+            .dy;
+        expect(mapTopAfter - bodyTop, lessThan(2));
+        expect(mapTopAfter, lessThan(mapTopBefore - 24));
+        expect(cubit.state.selectedPersonId, _personId);
+      },
+    );
+
+    testWidgets(
+      '375×667 RU centres the selected person in the strip above the sheet (#974)',
+      (tester) async {
+        await usePhoneSurface(tester);
+        await _pumpField(
+          tester,
+          size: kPhoneSurface,
+          locale: const Locale('ru'),
+        );
+        await tester.tap(_personNode);
+        await tester.pumpAndSettle();
+        await tester.pump(const Duration(milliseconds: 350));
+
+        final handle = find.byKey(const Key('field.context_sheet.handle'));
+        final sheetTop = tester.getTopLeft(handle).dy;
+        final mapTop = tester.getTopLeft(find.byType(InteractiveViewer)).dy;
+        final nodeY = tester.getCenter(_personNode).dy;
+        final mid = (mapTop + sheetTop) / 2;
+        expect(nodeY, closeTo(mid, 56));
+        expect(tester.takeException(), isNull);
+      },
+    );
+
     testWidgets('375×667 hides map chrome and revealPanFor is non-null', (
       tester,
     ) async {
