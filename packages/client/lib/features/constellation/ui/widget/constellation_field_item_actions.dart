@@ -102,6 +102,10 @@ Future<void> _hideFromField(
 }) async {
   final cubit = context.read<ConstellationCubit>();
   final l10n = L10n.of(context)!;
+  final messenger =
+      ScaffoldMessenger.maybeOf(context) ?? snackbarKey.currentState;
+  final undoLabel = l10n.peopleTagsUndo;
+  final hiddenSnackText = l10n.constellationHiddenFromFieldSnack;
   final snapshot = cubit.beginHideFromField(
     targetKind: targetKind,
     beaconId: beaconId,
@@ -124,36 +128,41 @@ Future<void> _hideFromField(
     if (context.mounted) {
       cubit.cancelHideFromField(snapshot, beaconId: beaconId);
       showSnackBar(context, text: l10n.errorGenericAction, isError: true);
+    } else {
+      cubit.cancelHideFromField(snapshot, beaconId: beaconId);
+      showSnackBarOn(messenger, text: l10n.errorGenericAction, isError: true);
     }
     return;
   }
-  if (!context.mounted) {
-    return;
-  }
   showUndoSnackBar(
-    context,
-    text: l10n.constellationHiddenFromFieldSnack,
+    null,
+    messenger: messenger,
+    undoLabel: undoLabel,
+    text: hiddenSnackText,
     onUndo: () => unawaited(
-      _undoHide(
-        context,
+      _undoHideForCubit(
+        cubit,
         targetKind: targetKind,
         beaconId: beaconId,
         snapshot: snapshot,
+        errorText: l10n.errorGenericAction,
+        messenger: messenger,
       ),
     ),
   );
 }
 
-Future<void> _undoHide(
-  BuildContext context, {
+Future<void> _undoHideForCubit(
+  ConstellationCubit cubit, {
   required ConstellationFieldTargetKind targetKind,
   required String beaconId,
   required ConstellationFieldHideSnapshot snapshot,
+  required String errorText,
+  ScaffoldMessengerState? messenger,
 }) async {
-  final cubit = context.read<ConstellationCubit>();
-  final l10n = L10n.of(context)!;
-  cubit.restoreHideFromField(snapshot, beaconId: beaconId);
-  cubit.noteHiddenByYouCountDelta(-1);
+  cubit
+    ..restoreHideFromField(snapshot, beaconId: beaconId)
+    ..noteHiddenByYouCountDelta(-1);
   final hideCase = cubit.fieldHideCase;
   if (hideCase == null) {
     return;
@@ -164,11 +173,10 @@ Future<void> _undoHide(
       targetId: beaconId,
     );
   } on Object {
-    if (context.mounted) {
-      cubit.cancelHideFromField(snapshot, beaconId: beaconId);
-      cubit.noteHiddenByYouCountDelta(1);
-      showSnackBar(context, text: l10n.errorGenericAction, isError: true);
-    }
+    cubit
+      ..cancelHideFromField(snapshot, beaconId: beaconId)
+      ..noteHiddenByYouCountDelta(1);
+    showSnackBarOn(messenger, text: errorText, isError: true);
   }
 }
 
@@ -186,6 +194,10 @@ class ConstellationFieldBeaconMapChrome extends StatefulWidget {
   final String beaconId;
   final Widget child;
 
+  /// Whether a map secondary-tap menu recently claimed this pointer (#255).
+  static bool suppressesPrimaryTap() =>
+      _ConstellationFieldBeaconMapChromeState.suppressesPrimaryTap();
+
   @override
   State<ConstellationFieldBeaconMapChrome> createState() =>
       _ConstellationFieldBeaconMapChromeState();
@@ -194,6 +206,19 @@ class ConstellationFieldBeaconMapChrome extends StatefulWidget {
 class _ConstellationFieldBeaconMapChromeState
     extends State<ConstellationFieldBeaconMapChrome> {
   bool _menuPinned = false;
+
+  /// Web may fire a primary activation right after secondary tap; ignore it.
+  static const _suppressPrimaryTapMs = 400;
+  static int _suppressPrimaryTapUntilMs = 0;
+
+  @visibleForTesting
+  static bool suppressesPrimaryTap() =>
+      DateTime.now().millisecondsSinceEpoch < _suppressPrimaryTapUntilMs;
+
+  static void _suppressPrimaryTapBriefly() {
+    _suppressPrimaryTapUntilMs =
+        DateTime.now().millisecondsSinceEpoch + _suppressPrimaryTapMs;
+  }
 
   void _openMenuAt(Offset globalPosition) {
     final l10n = L10n.of(context)!;
@@ -247,6 +272,7 @@ class _ConstellationFieldBeaconMapChromeState
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onSecondaryTapUp: (details) {
+          _suppressPrimaryTapBriefly();
           setState(() => _menuPinned = true);
           _openMenuAt(details.globalPosition);
         },

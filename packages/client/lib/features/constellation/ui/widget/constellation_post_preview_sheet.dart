@@ -9,6 +9,9 @@ import '../../domain/entity/constellation_field.dart';
 import '../../domain/entity/constellation_field_target_kind.dart';
 import 'constellation_field_item_actions.dart';
 
+// Keep in sync with constellation_request_preview_sheet.dart (#255).
+const _kFieldPreviewPinnedFooterMinHeight = 168.0;
+
 /// Post context card on the map, sharing the adaptive preview placement.
 class ConstellationPostPreviewSheet extends StatelessWidget {
   const ConstellationPostPreviewSheet({
@@ -106,6 +109,9 @@ class ConstellationPostPreviewSheet extends StatelessWidget {
         padding: tt.cardPadding,
         child: LayoutBuilder(
           builder: (context, constraints) {
+            final pinFooter =
+                constraints.maxHeight.isFinite &&
+                constraints.maxHeight >= _kFieldPreviewPinnedFooterMinHeight;
             if (!constraints.maxHeight.isFinite) {
               return Column(
                 mainAxisSize: MainAxisSize.min,
@@ -117,20 +123,27 @@ class ConstellationPostPreviewSheet extends StatelessWidget {
                 ],
               );
             }
+            if (!pinFooter) {
+              return SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    body,
+                    SizedBox(height: tt.rowGap),
+                    footer,
+                  ],
+                ),
+              );
+            }
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Expanded(
+                Expanded(child: SingleChildScrollView(child: body)),
+                SizedBox(height: tt.rowGap),
+                Flexible(
                   child: SingleChildScrollView(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        body,
-                        SizedBox(height: tt.rowGap),
-                        footer,
-                      ],
-                    ),
+                    child: footer,
                   ),
                 ),
               ],
