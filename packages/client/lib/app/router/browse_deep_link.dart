@@ -84,7 +84,10 @@ BrowseDeepLinkStack? buildBrowseDeepLinkStack(Uri input) {
                     children: [operational],
                   ))
             as PageRouteInfo;
-    return (owner: HomeTab.work, route: route);
+    final owner = prefix == kPathPostView
+        ? HomeTab.conversations
+        : HomeTab.work;
+    return (owner: owner, route: route);
   }
 
   final beaconAllId = _singleId(path, kPathBeaconViewAll);
