@@ -17,6 +17,10 @@ Future<void> _waitFor(bool Function() condition) async {
 }
 
 void main() {
+  test('production paused delay is 10 seconds (#1061)', () {
+    expect(kRealtimePausedNoticeDelay, const Duration(seconds: 10));
+  });
+
   test('brief reconnect stays quiet', () async {
     final realtime = buildTestRealtimeSync();
     final cubit = RealtimeStatusCubit.forTesting(
@@ -33,6 +37,36 @@ void main() {
     await cubit.close();
     await realtime.port.dispose();
   });
+
+  test(
+    'a second disconnected status in one episode keeps the paused flag',
+    () async {
+      final realtime = buildTestRealtimeSync();
+      final cubit = RealtimeStatusCubit.forTesting(
+        realtime.case_,
+        pausedDelay: _pausedDelay,
+      );
+
+      realtime.port.emitStatus(_status(RealtimeConnectionPhase.disconnected));
+      await _waitFor(() => cubit.state.showPausedBanner);
+      expect(cubit.state.showPausedBanner, isTrue);
+
+    realtime.port.emitStatus(
+      const RealtimeConnectionStatus(
+        connectionEpoch: 1,
+        phase: RealtimeConnectionPhase.connecting,
+        accountId: 'U-me',
+      ),
+    );
+      await _waitFor(
+        () => cubit.state.phase == RealtimeConnectionPhase.connecting,
+      );
+      expect(cubit.state.showPausedBanner, isTrue);
+
+      await cubit.close();
+      await realtime.port.dispose();
+    },
+  );
 
   test('sustained outage shows banner and authentication hides it', () async {
     final realtime = buildTestRealtimeSync();

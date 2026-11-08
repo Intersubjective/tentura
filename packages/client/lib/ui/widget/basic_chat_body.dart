@@ -1482,6 +1482,20 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer>
     });
   }
 
+  /// True when the composer holds something the server can send, the host
+  /// allows send, and the field is not locked.
+  bool get _composerCanSend {
+    if (widget.readOnlyHint != null ||
+        widget.isSending ||
+        _submitting ||
+        !widget.sendEnabled) {
+      return false;
+    }
+    return _text.text.trim().isNotEmpty ||
+        pendingUploads.isNotEmpty ||
+        widget.pendingQuotedFact != null;
+  }
+
   Future<void> _submit() async {
     if (widget.readOnlyHint != null || _submitting || !widget.sendEnabled) {
       return;
@@ -1714,9 +1728,6 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer>
     final isCompact = context.windowClass == WindowClass.compact;
     final showAttach =
         widget.enableAttachments && !readOnly && !(isCompact && _hasText);
-    final onSend = locked || !widget.sendEnabled
-        ? null
-        : () => unawaited(_submit());
     final showUnsent =
         (widget.sendFailedOffline || widget.sendUnconfirmed) &&
         !readOnly &&
@@ -1730,9 +1741,7 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer>
         if (showUnsent)
           _ComposerUnsentNotice(
             unconfirmed: !widget.sendFailedOffline,
-            onRetry: busy || !widget.sendEnabled
-                ? null
-                : () => unawaited(_submit()),
+            onRetry: _composerCanSend ? () => unawaited(_submit()) : null,
           ),
         if (widget.replyTarget != null)
           _ComposerReplyBanner(
@@ -1859,14 +1868,16 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer>
               // added `button` showed «Send» twice, nested (#723).
               child: OneNodeButton(
                 identifier: TestIds.roomMessageSend,
-                enabled: onSend != null,
+                enabled: _composerCanSend,
                 label: l10n.tooltipSendMessage,
-                onTap: onSend,
+                onTap: _composerCanSend ? () => unawaited(_submit()) : null,
                 child: IconButton(
                   key: TestIds.key(TestIds.roomMessageSend),
                   icon: const Icon(Icons.send_rounded),
                   tooltip: l10n.tooltipSendMessage,
-                  onPressed: onSend,
+                  onPressed: _composerCanSend
+                      ? () => unawaited(_submit())
+                      : null,
                 ),
               ),
             ),

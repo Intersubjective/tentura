@@ -10600,6 +10600,18 @@
   "@constellationShowDegreeFurtherHint": {
     "context": "Field: tooltip of the 3rd+ degree switch (#645)"
   },
+  "constellationVisibilityHiddenSnack": "Hidden on the Field: {filter} ({count})",
+  "@constellationVisibilityHiddenSnack": {
+    "context": "Field: SnackBar after turning off a show/hide chip (#1061)",
+    "placeholders": {
+      "filter": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "constellationSelectMany": "Select several",
   "@constellationSelectMany": {
     "context": "Field map: toolbar toggle for the select tool (#642). While on, dragging on empty map draws a selection box and a tap adds or removes a person, Request or Post instead of opening it; two fingers move the map. On a computer Shift-drag and Shift/Ctrl/Cmd-click work without the toggle"
