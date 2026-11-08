@@ -332,9 +332,7 @@ void main() {
       await tester.tap(_viewModeSegment(Icons.view_list_outlined));
       await tester.pumpAndSettle();
 
-      await tester.tap(
-        find.byKey(const Key('constellation.text.request.req-a1')),
-      );
+      await tester.tap(find.text('Tools'));
       await tester.pumpAndSettle();
 
       expect(cubit.state.selectedRequestId, 'req-a1');
@@ -533,9 +531,7 @@ void main() {
       );
       await _pumpTextView(tester, cubit);
 
-      await tester.tap(
-        find.byKey(const Key('constellation.text.request.req-0')),
-      );
+      await tester.tap(find.text('Need 0'));
       await tester.pump();
       expect(cubit.state.selectedRequestId, 'req-0');
 

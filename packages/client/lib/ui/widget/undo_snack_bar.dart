@@ -11,19 +11,25 @@ const kUndoSnackBarDuration = Duration(seconds: 10);
 /// Stays [duration] (10 s, longer than an ordinary bar so the person has time
 /// to notice what happened and take it back).
 ScaffoldFeatureController<SnackBar, SnackBarClosedReason>? showUndoSnackBar(
-  BuildContext context, {
+  BuildContext? context, {
   required String text,
   required VoidCallback onUndo,
   Duration duration = kUndoSnackBarDuration,
   AnimationStyle? animationStyle,
+  ScaffoldMessengerState? messenger,
   String? undoLabel,
 }) {
-  final messenger =
-      ScaffoldMessenger.maybeOf(context) ?? snackbarKey.currentState;
-  if (messenger == null) return null;
+  final resolved =
+      messenger ??
+      (context == null ? null : ScaffoldMessenger.maybeOf(context)) ??
+      snackbarKey.currentState;
+  if (resolved == null) return null;
+  final resolvedUndoLabel =
+      undoLabel ?? (context == null ? null : L10n.of(context)?.peopleTagsUndo);
+  if (resolvedUndoLabel == null) return null;
   var undone = false;
-  messenger.clearSnackBars();
-  return messenger.showSnackBar(
+  resolved.clearSnackBars();
+  return resolved.showSnackBar(
     snackBarAnimationStyle: animationStyle,
     SnackBar(
       content: Text(text),
@@ -31,7 +37,7 @@ ScaffoldFeatureController<SnackBar, SnackBarClosedReason>? showUndoSnackBar(
       // Flutter pins any bar that has an action unless told otherwise (#470).
       persist: false,
       action: SnackBarAction(
-        label: undoLabel ?? L10n.of(context)!.peopleTagsUndo,
+        label: resolvedUndoLabel,
         onPressed: () {
           if (undone) return;
           undone = true;

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -31,6 +32,7 @@ import 'package:tentura_root/domain/entity/person_auto_tag_kind.dart';
 
 import '../../support/fake_people_tags_repository.dart';
 import '../../support/fake_person_shared_context_port.dart';
+import '../../support/phone_surface.dart';
 import '../../support/test_realtime_sync.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../auth/auth_test_helpers.dart';
@@ -47,6 +49,28 @@ const _neighbours = PersonTag(
 
 const _viewer = Profile(id: 'U-viewer', displayName: 'Viewer');
 const _friend = Profile(id: 'U-peer', displayName: 'Peer', myVote: 1);
+
+double _relativeLuminance(Color color) {
+  double channel(double value) {
+    final c = value / 255;
+    return c <= 0.03928
+        ? c / 12.92
+        : math.pow((c + 0.055) / 1.055, 2.4).toDouble();
+  }
+
+  final r = channel(color.r * 255);
+  final g = channel(color.g * 255);
+  final b = channel(color.b * 255);
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+double contrastRatio(Color a, Color b) {
+  final l1 = _relativeLuminance(a);
+  final l2 = _relativeLuminance(b);
+  final lighter = math.max(l1, l2);
+  final darker = math.min(l1, l2);
+  return (lighter + 0.05) / (darker + 0.05);
+}
 
 void main() {
   group('person tags on the other-person profile', () {
@@ -142,23 +166,64 @@ void main() {
     Finder capabilitySection(L10n l10n, String name) =>
         find.text(l10n.profileYourTagsFor(name));
 
-    testWidgets('shows own tags with ×, automatic tags without ×, and says '
-        'only the viewer sees tags', (tester) async {
-      await pumpBody(tester, peopleTagsEnabled: true);
+    testWidgets(
+      'merged section: people tags without duplicate title or footer',
+      (tester) async {
+        await pumpBody(tester, peopleTagsEnabled: true);
+        final l10n = lookupL10n(const Locale('en'));
 
-      expect(find.text('Your tags'), findsOneWidget);
-      expect(find.text('Neighbours'), findsOneWidget);
-      expect(find.text('Automatic'), findsOneWidget);
-      expect(find.text('Mutual contact'), findsOneWidget);
-      expect(find.text('+ Tag'), findsOneWidget);
-      expect(find.textContaining('Only you see'), findsOneWidget);
-      expect(
-        find.descendant(
-          of: find.byType(PersonTagsBlock),
-          matching: find.byIcon(Icons.close),
-        ),
-        findsOneWidget,
+        expect(
+          find.text(l10n.profileYourTagsFor(_friend.displayName)),
+          findsOneWidget,
+        );
+        expect(find.text(l10n.peopleTagsYourTags), findsNothing);
+        expect(find.textContaining(l10n.peopleTagsOnlyYouSee), findsNothing);
+        expect(find.text('Neighbours'), findsOneWidget);
+        expect(find.text(l10n.peopleTagsAutomatic), findsOneWidget);
+        expect(find.text('Mutual contact'), findsOneWidget);
+        expect(find.text(l10n.constellationTagRowAdd), findsOneWidget);
+        expect(
+          find.descendant(
+            of: find.byType(PersonTagsBlock),
+            matching: find.byIcon(Icons.close),
+          ),
+          findsOneWidget,
+        );
+      },
+    );
+
+    testWidgets('375×667 RU: one section, long labels, chip semantics (#897)', (
+      tester,
+    ) async {
+      await usePhoneSurface(tester);
+      const longPeer = 'Алиса с очень длинным именем для проверки переноса';
+      await pumpBody(
+        tester,
+        subject: _friend.copyWith(displayName: longPeer),
+        locale: const Locale('ru'),
+        peopleTagsEnabled: true,
       );
+      final l10n = lookupL10n(const Locale('ru'));
+      expect(find.text(l10n.profileYourTagsFor(longPeer)), findsOneWidget);
+      expect(find.text(l10n.peopleTagsYourTags), findsNothing);
+      expect(find.text(l10n.capabilityTagTransport), findsOneWidget);
+      final semantics = tester.getSemantics(
+        find.text(l10n.capabilityTagTransport),
+      );
+      expect(semantics.label, contains(l10n.capabilityTagTransport));
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('capability chips on profile are not disabled-styled (#897)', (
+      tester,
+    ) async {
+      await pumpBody(tester, peopleTagsEnabled: true);
+      final chip = tester.widget<FilterChip>(find.byType(FilterChip).first);
+      final labelStyle = chip.labelStyle!;
+      final bg = chip.selectedColor ?? chip.backgroundColor;
+      expect(bg, isNotNull);
+      expect(labelStyle.color, isNotNull);
+      expect(contrastRatio(labelStyle.color!, bg!), greaterThanOrEqualTo(4.5));
     });
 
     testWidgets('the × removes the tag from the person', (tester) async {
@@ -181,15 +246,21 @@ void main() {
       );
     });
 
-    testWidgets('sits right after the capability section', (tester) async {
+    testWidgets('people tags live inside the capability section', (
+      tester,
+    ) async {
       await pumpBody(tester, peopleTagsEnabled: true);
       final l10n = lookupL10n(const Locale('en'));
       final section = capabilitySection(l10n, _friend.displayName);
 
       expect(section, findsOneWidget);
-      final capabilityBottom = tester.getBottomLeft(section).dy;
-      final blockTop = tester.getTopLeft(find.byType(PersonTagsBlock)).dy;
-      expect(blockTop, greaterThanOrEqualTo(capabilityBottom));
+      expect(
+        find.descendant(
+          of: find.ancestor(of: section, matching: find.byType(Column)).first,
+          matching: find.byType(PersonTagsBlock),
+        ),
+        findsOneWidget,
+      );
     });
 
     testWidgets('is absent on the own profile', (tester) async {

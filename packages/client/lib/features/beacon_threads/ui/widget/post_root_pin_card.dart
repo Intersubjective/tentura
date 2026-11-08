@@ -12,6 +12,7 @@ import 'package:tentura/features/beacon_threads/ui/widget/room_message_trailing_
 import 'package:tentura/features/post_view/ui/post_remaining_label.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/relative_time.dart';
+import 'package:tentura/ui/widget/url_link_annotations.dart';
 
 /// Expanded or collapsed Post root card for the Post room, composer preview,
 /// and recipient-picker header (#248). Collapsed matches the legacy pinned strip.
@@ -280,6 +281,7 @@ class _ExpandedBody extends StatelessWidget {
       textDirection: Directionality.of(context),
       textScaler: MediaQuery.textScalerOf(context),
     );
+    final bodyAnnotations = buildUrlAnnotations(linkColor: tt.info);
 
     return _PostRootMessageActionsHost(
       onActions: onMessageActions,
@@ -332,6 +334,7 @@ class _ExpandedBody extends StatelessWidget {
               bodyStyle: TenturaText.bodyMedium(tt.text),
               metaStyle: metaStyle,
               metrics: metrics,
+              mentionAnnotations: bodyAnnotations,
             ),
           ],
           if (message.attachments.isNotEmpty) ...[
@@ -378,7 +381,8 @@ class _PostRootMessageActionsHost extends StatefulWidget {
       _PostRootMessageActionsHostState();
 }
 
-class _PostRootMessageActionsHostState extends State<_PostRootMessageActionsHost> {
+class _PostRootMessageActionsHostState
+    extends State<_PostRootMessageActionsHost> {
   int? _secondaryPointer;
 
   void _onPointerDown(PointerDownEvent event) {
