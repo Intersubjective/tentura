@@ -32,6 +32,7 @@ import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/navigation/app_navigator.dart';
 import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura_root/domain/entity/beacon_hierarchy_capabilities.dart';
 
@@ -41,6 +42,7 @@ import '../inbox/author_invite_test_support.dart'
     show registerEmptyAuthorInvitesGetIt, unregisterEmptyAuthorInvitesGetIt;
 import '../beacon_plan/beacon_plan_test_support.dart';
 import '../beacon_threads/room_cubit_fakes.dart';
+import '../../support/fake_app_navigator.dart';
 import '../../support/people_tags_widget_harness.dart';
 
 const kBeaconViewHarnessBeaconId = 'b-view-harness';
@@ -480,6 +482,11 @@ Future<void> registerBeaconViewHarnessGetIt({
   getIt.registerSingleton<BeaconPlanCase>(
     planCaseFor(FakeBeaconPlanRepository(const BeaconPlan(beaconId: ''))),
   );
+  // Back with nothing to pop asks AppNavigator for the active Home tab; a
+  // test that registered its own navigator keeps it.
+  if (!getIt.isRegistered<AppNavigator>()) {
+    registerFakeAppNavigator();
+  }
 }
 
 Future<void> unregisterBeaconViewHarnessGetIt() async {
@@ -495,6 +502,9 @@ Future<void> unregisterBeaconViewHarnessGetIt() async {
   }
   if (getIt.isRegistered<UiEffectPort>()) {
     await getIt.unregister<UiEffectPort>();
+  }
+  if (getIt.isRegistered<AppNavigator>()) {
+    await getIt.unregister<AppNavigator>();
   }
   unregisterEmptyAuthorInvitesGetIt();
 }
@@ -585,10 +595,10 @@ Future<BeaconViewHarness> pumpBeaconViewHarness(
                 BlocProvider<BeaconHierarchyCubit>.value(value: hierarchyCubit)
               else
                 BlocProvider<BeaconHierarchyCubit>(
-                  create: (_) => defaultHierarchy =
-                      createBeaconViewHarnessHierarchyCubit(
-                    beaconState.beacon.id,
-                  ),
+                  create: (_) =>
+                      defaultHierarchy = createBeaconViewHarnessHierarchyCubit(
+                        beaconState.beacon.id,
+                      ),
                 ),
               BlocProvider<ProfileCubit>.value(
                 value: _HarnessProfileCubit(beaconState.myProfile),

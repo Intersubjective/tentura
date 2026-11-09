@@ -1,12 +1,16 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:get_it/get_it.dart';
 import 'package:mockito/mockito.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
+import 'package:tentura/ui/navigation/app_navigator.dart';
+import 'package:tentura/ui/navigation/home_tab.dart';
 
+import '../../support/fake_app_navigator.dart';
 import 'beacon_view_screen_harness.dart';
 
 const _kParentRequestId = 'B154parent';
@@ -109,5 +113,36 @@ void main() {
         );
       },
     );
+
+    // Without a lineage parent the screen asks AppNavigator which Home tab
+    // is active and replaces the path with that tab's root (My Work when
+    // none is known). HomeTab.updates is the Inbox tab (HomeTabSpec).
+    for (final (tab, path) in [
+      (HomeTab.inbox, kPathInbox),
+      (HomeTab.network, kPathNetwork),
+      (null, kPathMyWork),
+    ]) {
+      testWidgets('back without a lineage parent returns to the root of the '
+          '${tab?.name ?? 'unknown'} tab', (tester) async {
+        final router = _Issue154StackRouter();
+        final base = _closedChildWithLineageParentState();
+        await pumpBeaconViewHarness(
+          tester,
+          size: kBeaconViewHarnessCompact,
+          beaconState: base.copyWith(
+            beacon: base.beacon.copyWith(lineageParentBeaconId: ''),
+          ),
+          threadsState: beaconViewHarnessThreadsState(),
+          router: router,
+        );
+        final navigator = GetIt.I<AppNavigator>() as FakeAppNavigator
+          ..homeTabIndex = tab == null ? null : HomeTabSpec.forTab(tab).index;
+
+        await _tapAppBarBack(tester);
+
+        expect(router.rootReplacedPaths, [path]);
+        expect(navigator.intents, isEmpty);
+      });
+    }
   });
 }
