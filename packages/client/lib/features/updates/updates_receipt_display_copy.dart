@@ -1202,7 +1202,39 @@ RequestScopedEventCopy requestScopedEventCopy({
   String presentationPayloadJson = '',
   String? requestTitle,
   String? actorName,
+  String? viewerUserId,
+  int collapsedCount = 1,
 }) {
+  final forwardHelped = forwardHelpedReceiptDisplayCopy(
+    receiptTitle: title,
+    presentationKey: presentationKey,
+    presentationPayloadJson: presentationPayloadJson,
+    l10n: l10n,
+    collapsedCount: collapsedCount,
+    viewerUserId: viewerUserId,
+  );
+  if (forwardHelped != null) {
+    final requestTitles = {
+      ?_nonBlank(requestTitle),
+      ?beaconTitleFromPresentationPayload(presentationPayloadJson),
+    };
+    var excerpt = forwardHelped.body;
+    for (final request in requestTitles) {
+      final prefix = '$request · ';
+      if (excerpt.startsWith(prefix)) {
+        excerpt = excerpt.substring(prefix.length).trim();
+        break;
+      }
+      if (excerpt == request) {
+        excerpt = '';
+        break;
+      }
+    }
+    return RequestScopedEventCopy(
+      event: forwardHelped.headline,
+      excerpt: excerpt,
+    );
+  }
   final baton = batonReceiptDisplayCopy(
     title: title,
     presentationKey: presentationKey,
