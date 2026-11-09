@@ -4,6 +4,7 @@ import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
 
 import 'package:tentura_server/env.dart';
+import 'package:tentura_server/data/repository/mock/witness_window_repository_mock.dart';
 import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/enum.dart';
@@ -13,6 +14,16 @@ import 'package:tentura_server/domain/use_case/user_trust_edge_case.dart';
 import 'user_trust_edge_case_mocks.mocks.dart';
 import '../../support/fake_trust_maintenance_port.dart';
 import '../../support/test_attention_harness.dart';
+
+final class _RecordingWitnessWindow extends WitnessWindowRepositoryMock {
+  _RecordingWitnessWindow(this.order);
+
+  final List<String> order;
+
+  @override
+  Future<void> invalidateFor({required String userId}) async =>
+      order.add('invalidate:$userId');
+}
 
 void main() {
   late MockUserRepositoryPort userRepo;
@@ -107,6 +118,47 @@ void main() {
       expect(intent.recipients.single.recipientId, objectUserId);
       expect(intent.targetEntityId, subjectUserId);
     });
+
+    test(
+      'invalidates subject then object witness windows after the vote',
+      () async {
+        final order = <String>[];
+        final attention = TestAttentionHarness();
+        final witnessWindow = _RecordingWitnessWindow(order);
+        final withWindow = UserTrustEdgeCase(
+          userRepo,
+          trustEdgeRepo,
+          trustMaintenance,
+          attentionIntents: attention.intents,
+          attention: attention.transactional,
+          witnessWindow: witnessWindow,
+          env: Env(environment: Environment.test),
+          logger: Logger('UserTrustEdgeCaseTest'),
+        );
+        when(
+          trustEdgeRepo.setVoteAmountAndDetectMutualFormationInTransaction(
+            subjectUserId: anyNamed('subjectUserId'),
+            objectUserId: anyNamed('objectUserId'),
+            newAmount: anyNamed('newAmount'),
+          ),
+        ).thenAnswer((_) async {
+          order.add('vote');
+          return false;
+        });
+
+        await withWindow.setUserVote(
+          subjectUserId: subjectUserId,
+          objectUserId: objectUserId,
+          amount: 3,
+        );
+
+        expect(order, [
+          'vote',
+          'invalidate:$subjectUserId',
+          'invalidate:$objectUserId',
+        ]);
+      },
+    );
 
     test('unilateral and negative vote changes are non-producing', () async {
       final attention = TestAttentionHarness();

@@ -1,10 +1,10 @@
 import 'package:injectable/injectable.dart';
 import 'package:tentura_server/domain/port/beacon_hierarchy_repository_port.dart';
+import 'package:tentura_server/domain/use_case/room_write_guard.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/domain/port/discussion_product_policy_port.dart';
 import 'package:tentura_server/domain/port/polling_act_repository_port.dart';
 import 'package:tentura_server/domain/port/polling_repository_port.dart';
-import 'package:tentura_server/domain/policy/beacon_room_lifecycle_write_policy.dart';
 import 'package:tentura_server/domain/exception.dart';
 
 import '_use_case_base.dart';
@@ -61,12 +61,8 @@ final class PollingCase extends UseCaseBase {
       );
       return true;
     } catch (error) {
-      final hierarchy = _hierarchyRepository;
-      if (hierarchy is BeaconRoomWriteStatePort &&
-          (hierarchy as BeaconRoomWriteStatePort).isReadOnlyWriteError(error)) {
-        throw const BeaconCreateException(
-          description: 'Discussion is read-only for this request',
-        );
+      if (_hierarchyRepository.isReadOnlyRoomWriteError(error)) {
+        throw kRoomReadOnlyException;
       }
       rethrow;
     }
@@ -86,19 +82,6 @@ final class PollingCase extends UseCaseBase {
     )) {
       throw const DiscussionScopeDisabledException();
     }
-    final status = await _hierarchyRepository.loadBeaconStatus(
-      message.beaconId,
-    );
-    final hierarchy = _hierarchyRepository;
-    if ((status != null &&
-            BeaconRoomLifecycleWritePolicy.blocksOrdinaryUserWrites(status)) ||
-        (hierarchy is BeaconRoomWriteStatePort &&
-            await (hierarchy as BeaconRoomWriteStatePort).isExpiredPost(
-              message.beaconId,
-            ))) {
-      throw const BeaconCreateException(
-        description: 'Discussion is read-only for this request',
-      );
-    }
+    await _hierarchyRepository.rejectIfRoomReadOnly(message.beaconId);
   }
 }

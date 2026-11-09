@@ -1,10 +1,8 @@
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/consts/beacon_room_consts.dart';
-import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/entity/gql_public/forward_graph_result.dart';
-import 'package:tentura_server/domain/entity/help_offer_entity.dart';
 import 'package:tentura_server/domain/entity/forward_tree_edge.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/beacon_access_guard.dart';
@@ -12,6 +10,7 @@ import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
+import 'package:tentura_server/utils/typed_wait.dart';
 
 import '_use_case_base.dart';
 
@@ -56,18 +55,14 @@ final class BeaconForwardGraphCase extends UseCaseBase {
       );
     }
 
-    final results = await Future.wait([
+    final (beacon, tree, helpOffers) = await (
       _beaconRepository.getBeaconById(beaconId: beaconId),
       _forwardEdgeRepository.fetchForwardTree(
         beaconId: beaconId,
         viewerId: currentUserId,
       ),
       _helpOfferRepository.fetchAllByBeaconId(beaconId),
-    ]);
-
-    final beacon = results[0] as BeaconEntity;
-    final tree = results[1] as List<ForwardTreeEdge>;
-    final helpOffers = results[2] as List<HelpOfferEntity>;
+    ).waitAll;
 
     final authorId = beacon.author.id;
     final helpOffererIds = helpOffers

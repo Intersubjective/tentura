@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import 'package:drift_postgres/drift_postgres.dart' show PgDateTime;
 import 'package:injectable/injectable.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
@@ -15,6 +14,7 @@ import 'package:tentura_server/domain/port/attention_ack_port.dart';
 import 'package:tentura_server/domain/port/attention_query_port.dart';
 import 'package:tentura_server/domain/port/attention_settlement_port.dart';
 
+import '../database/query_row_timestamp.dart';
 import '../database/tentura_db.dart';
 import 'attention_dismissible_sql.dart';
 import 'field_open_sql.dart';
@@ -130,7 +130,7 @@ ORDER BY beacon_id, created_at DESC, id DESC
         continue;
       }
       byBeacon.putIfAbsent(beaconId, () => []).add(receipt);
-      final anchor = _readTimestamp(row, 'first_entry_at');
+      final anchor = readRowTimestamp(row, 'first_entry_at');
       if (anchor != null) {
         anchorByBeacon[beaconId] = anchor;
       }
@@ -940,12 +940,12 @@ ORDER BY page.created_at DESC NULLS LAST, page.id DESC NULLS LAST
           ? kBeaconUnavailableNotificationBody
           : row.read<String>('body'),
       actionUrl: row.read<String>('action_url'),
-      createdAt: _readTimestamp(row, 'created_at')!,
+      createdAt: readRowTimestamp(row, 'created_at')!,
       collapsedCount: row.read<int>('collapsed_count'),
       beaconId: row.readNullable<String>('beacon_id'),
       coordinationItemId: row.readNullable<String>('coordination_item_id'),
       actorUserId: row.readNullable<String>('actor_user_id'),
-      seenAt: _readTimestamp(row, 'seen_at'),
+      seenAt: readRowTimestamp(row, 'seen_at'),
       sourceEventKey: row.readNullable<String>('source_event_key'),
       destinationKind: destinationName == null
           ? null
@@ -970,12 +970,12 @@ ORDER BY page.created_at DESC NULLS LAST, page.id DESC NULLS LAST
           : attentionSettlementKindFromWireName(
               row.read<String>('settlement_kind'),
             ),
-      settledAt: _readTimestamp(row, 'settled_at'),
+      settledAt: readRowTimestamp(row, 'settled_at'),
       settledByUserId: row.readNullable<String>('settled_by_user_id'),
       settledByOccurrenceId: row.readNullable<String>(
         'settled_by_occurrence_id',
       ),
-      clearedAt: _readTimestamp(row, 'cleared_at'),
+      clearedAt: readRowTimestamp(row, 'cleared_at'),
       clearReason: row.data.containsKey('clear_reason')
           ? row.readNullable<String>('clear_reason')
           : null,
@@ -1239,7 +1239,7 @@ JOIN public."user" author ON author.id = readable.author_id
             'beacon_author_image_id',
           ),
           beaconImageId: row.readNullable<String>('beacon_image_id'),
-          beaconEndAt: _readTimestamp(row, 'beacon_end_at'),
+          beaconEndAt: readRowTimestamp(row, 'beacon_end_at'),
           allowsForward: row.read<bool>('allows_forward'),
         ),
     };
@@ -1503,9 +1503,9 @@ FROM eligible_pinned
       for (final row in rows)
         ActivityOfferSortRow(
           beaconId: row.read<String>('beacon_id'),
-          listPositionAt: _readTimestamp(row, 'list_position_at')!,
-          effectiveActivityAt: _readTimestamp(row, 'effective_activity_at')!,
-          latestForwardAt: _readTimestamp(row, 'latest_forward_at')!,
+          listPositionAt: readRowTimestamp(row, 'list_position_at')!,
+          effectiveActivityAt: readRowTimestamp(row, 'effective_activity_at')!,
+          latestForwardAt: readRowTimestamp(row, 'latest_forward_at')!,
           unseen: row.read<bool>('unseen'),
           eventTotal: row.read<int>('event_total'),
           eventUnseenCount: row.read<int>('event_unseen_count'),
@@ -1639,7 +1639,7 @@ WHERE \$2 NOT IN (SELECT scope.beacon_id FROM scope)
     final unseenCount = stats?.read<int>('event_unseen_count') ?? 0;
     final latestAt = stats == null
         ? null
-        : _readTimestamp(stats, 'max_created_at');
+        : readRowTimestamp(stats, 'max_created_at');
 
     final byBeacon = await _loadActivityChildReceipts(
       accountId: accountId,
@@ -1669,20 +1669,6 @@ WHERE \$2 NOT IN (SELECT scope.beacon_id FROM scope)
             )
           : null,
     );
-  }
-
-  static DateTime? _readTimestamp(QueryRow row, String column) {
-    final value = row.data[column];
-    if (value == null) {
-      return null;
-    }
-    if (value is DateTime) {
-      return value;
-    }
-    if (value is PgDateTime) {
-      return value.dateTime;
-    }
-    return DateTime.parse(value.toString());
   }
 
   static Map<String, Object?> _readJsonObject(QueryRow row, String column) {

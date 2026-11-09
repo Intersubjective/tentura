@@ -2,6 +2,7 @@ import 'package:injectable/injectable.dart';
 
 import 'package:tentura/data/model/image_model_v2.dart';
 import 'package:tentura/data/model/user_model.dart';
+import 'package:tentura/data/service/remote_api_client/remote_request_client.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/contacts/contact_name_overlay.dart';
 import 'package:tentura/domain/entity/availability.dart';
@@ -29,7 +30,7 @@ import '../gql/_g/set_coordination_response.req.gql.dart';
 class CoordinationRepository {
   CoordinationRepository(this._remoteApiService);
 
-  final RemoteApiService _remoteApiService;
+  final RemoteRequestClient _remoteApiService;
 
   static const _label = 'Coordination';
 
@@ -39,7 +40,7 @@ class CoordinationRepository {
       .request(
         GHelpOffersWithCoordinationReq((r) => r..vars.beaconId = beaconId),
       )
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: _label)
       .then((r) {
         final rows = r.dataOrThrow(label: _label).helpOffersWithCoordination;
         if (rows == null) {
@@ -53,7 +54,7 @@ class CoordinationRepository {
   Future<HelpOfferRowRecord?> fetchMyHelpOffer({required String beaconId}) =>
       _remoteApiService
           .request(GMyHelpOfferReq((r) => r..vars.beaconId = beaconId))
-          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .firstLinkResponse(label: _label)
           .then((r) {
             final row = r.dataOrThrow(label: _label).myHelpOffer;
             return row == null ? null : _helpOfferRowRecord(row);
@@ -66,7 +67,7 @@ class CoordinationRepository {
             (b) => b.vars.beaconId = beaconId,
           ),
         )
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).MarkBeaconPeopleSeen);
     return DateTime.parse(row.seenAt).toUtc();
   }
@@ -82,7 +83,7 @@ class CoordinationRepository {
             ..vars.offerUserId = offerUserId,
         ),
       )
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: _label)
       .then((r) {
         final res = r.dataOrThrow(label: _label).acceptHelpOffer;
         return (
@@ -106,7 +107,7 @@ class CoordinationRepository {
             ..vars.reason = reason,
         ),
       )
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: _label)
       .then((r) {
         final res = r.dataOrThrow(label: _label).declineHelpOffer;
         return (
@@ -129,7 +130,7 @@ class CoordinationRepository {
             ..vars.offerUserId = offerUserId,
         ),
       )
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: _label)
       .then((r) => r.dataOrThrow(label: _label).beaconHelpOfferKeepStandby);
 
   /// Declines every offer still waiting for an answer (after «Enough
@@ -145,7 +146,7 @@ class CoordinationRepository {
             ..vars.reason = reason,
         ),
       )
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: _label)
       .then((r) => r.dataOrThrow(label: _label).declineRemainingHelpOffers);
 
   Future<({BeaconStatus status, DateTime? updatedAt})> removeFromRoom({
@@ -161,7 +162,7 @@ class CoordinationRepository {
             ..vars.reason = reason,
         ),
       )
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: _label)
       .then((r) {
         final res = r.dataOrThrow(label: _label).removeFromRoom;
         return (
@@ -185,7 +186,7 @@ class CoordinationRepository {
             ..vars.reason = reason,
         ),
       )
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: _label)
       .then((r) {
         final res = r.dataOrThrow(label: _label).releaseCommitment;
         return (
@@ -213,7 +214,7 @@ class CoordinationRepository {
             ..vars.removeFromRoom = removeFromRoom,
         ),
       )
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: _label)
       .then((r) {
         final res = r.dataOrThrow(label: _label).setCoordinationResponse;
         return (
@@ -235,7 +236,7 @@ class CoordinationRepository {
             ..vars.status = status,
         ),
       )
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: _label)
       .then((r) {
         final res = r.dataOrThrow(label: _label).setBeaconStatus;
         return (
@@ -259,7 +260,7 @@ class CoordinationRepository {
             ..vars.roleLabel = roleLabel,
         ),
       )
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: _label)
       .then((r) => r.dataOrThrow(label: _label).beaconHelpOfferRoleLabelSet);
 }
 

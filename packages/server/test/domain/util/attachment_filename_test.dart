@@ -1,6 +1,6 @@
 import 'package:test/test.dart';
 
-import 'package:tentura_server/domain/util/attachment_filename.dart';
+import 'package:tentura_server/domain/room/attachment_filename.dart';
 
 void main() {
   group('attachmentDisplayName', () {

@@ -298,9 +298,6 @@ class RecoverFakePlatform implements PlatformRepositoryPort {
   Future<String> getAppVersion() async => '0.0.0';
 
   @override
-  Future<void> launchUrl(String uri) async {}
-
-  @override
   Future<void> launchUri(Uri uri) async {}
 
   @override

@@ -2,6 +2,7 @@ import 'package:built_collection/built_collection.dart';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura/data/gql/_g/schema.schema.gql.dart';
+import 'package:tentura/data/service/remote_api_client/remote_request_client.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 
 import '../../domain/entity/people_tags_entities.dart';
@@ -28,12 +29,12 @@ import '../model/people_tags_mapper.dart';
 final class PeopleTagsRepository implements PeopleTagsRepositoryPort {
   PeopleTagsRepository(this._remoteApiService);
 
-  final RemoteApiService _remoteApiService;
+  final RemoteRequestClient _remoteApiService;
 
   @override
   Future<List<PersonTag>> personTags() => _remoteApiService
       .request(GPersonTagsReq())
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: 'PersonTags')
       .then(
         (r) => mapPersonTags([
           for (final t in r.dataOrThrow(label: 'PersonTags').personTags)
@@ -44,7 +45,7 @@ final class PeopleTagsRepository implements PeopleTagsRepositoryPort {
   @override
   Future<PersonTagsOf> personTagsOf(String personId) => _remoteApiService
       .request(GPersonTagsOfReq((b) => b.vars.personId = personId))
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: 'PersonTagsOf')
       .then(
         (r) => mapPersonTagsOf(
           r.dataOrThrow(label: 'PersonTagsOf').personTagsOf.toJson(),
@@ -54,7 +55,7 @@ final class PeopleTagsRepository implements PeopleTagsRepositoryPort {
   @override
   Future<List<PersonTagMembers>> personTagMemberships() => _remoteApiService
       .request(GPersonTagMembershipsReq())
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: 'PersonTagMemberships')
       .then(
         (r) => mapPersonTagMembers([
           for (final m
@@ -68,7 +69,7 @@ final class PeopleTagsRepository implements PeopleTagsRepositoryPort {
   @override
   Future<List<PersonAutoTag>> personAutoTags() => _remoteApiService
       .request(GPersonAutoTagsReq())
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: 'PersonAutoTags')
       .then(
         (r) => [
           for (final t in r.dataOrThrow(label: 'PersonAutoTags').personAutoTags)
@@ -79,7 +80,7 @@ final class PeopleTagsRepository implements PeopleTagsRepositoryPort {
   @override
   Future<List<String>> personAutoTagMembers(int kind) => _remoteApiService
       .request(GPersonAutoTagMembersReq((b) => b.vars.kind = kind))
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: 'PersonAutoTagMembers')
       .then(
         (r) => mapPersonAutoTagMembers(
           r.dataOrThrow(label: 'PersonAutoTagMembers').personAutoTagMembers,
@@ -90,7 +91,7 @@ final class PeopleTagsRepository implements PeopleTagsRepositoryPort {
   Future<PersonTagSuggestionState> personTagSuggestionState() =>
       _remoteApiService
           .request(GPersonTagSuggestionStateReq())
-          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .firstLinkResponse(label: 'PersonTagSuggestionState')
           .then(
             (r) => mapPersonTagSuggestionState(
               r
@@ -120,7 +121,7 @@ final class PeopleTagsRepository implements PeopleTagsRepositoryPort {
             ..clientOpId = clientOpId,
         ),
       )
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: 'PersonTagCreate')
       .then(
         (r) => mapPersonTag(
           r.dataOrThrow(label: 'PersonTagCreate').personTagCreate.toJson(),
@@ -147,7 +148,7 @@ final class PeopleTagsRepository implements PeopleTagsRepositoryPort {
             ..clientOpId = clientOpId,
         ),
       )
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: 'PersonTagUpdate')
       .then(
         (r) => mapPersonTag(
           r.dataOrThrow(label: 'PersonTagUpdate').personTagUpdate.toJson(),
@@ -166,7 +167,7 @@ final class PeopleTagsRepository implements PeopleTagsRepositoryPort {
             ..clientOpId = clientOpId,
         ),
       )
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: 'PersonTagDelete')
       .then(
         (r) => mapPersonTagSnapshot(
           r.dataOrThrow(label: 'PersonTagDelete').personTagDelete.toJson(),
@@ -201,7 +202,7 @@ final class PeopleTagsRepository implements PeopleTagsRepositoryPort {
             ),
         ),
       )
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: 'PersonTagRestore')
       .then(
         (r) => mapPersonTag(
           r.dataOrThrow(label: 'PersonTagRestore').personTagRestore.toJson(),
@@ -229,7 +230,7 @@ final class PeopleTagsRepository implements PeopleTagsRepositoryPort {
             ]),
         ),
       )
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: 'PersonTagMembersApply')
       .then((r) => r.dataOrThrow(label: 'PersonTagMembersApply'));
 
   @override
@@ -244,7 +245,7 @@ final class PeopleTagsRepository implements PeopleTagsRepositoryPort {
             ..showInFilters = showInFilters,
         ),
       )
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: 'PersonAutoTagPrefSet')
       .then(
         (r) => mapPersonAutoTag(
           r
@@ -266,7 +267,7 @@ final class PeopleTagsRepository implements PeopleTagsRepositoryPort {
             ..clientOpId = clientOpId,
         ),
       )
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: 'PersonTagSuggestionRecord')
       .then(
         (r) => mapPersonTagSuggestionState(
           r

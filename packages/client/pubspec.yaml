@@ -2,7 +2,7 @@ name: tentura
 description: 'Social network for communities'
 publish_to: 'none'
 
-version: 7.61.116
+version: 7.61.117
 
 environment:
   sdk: ^3.12.0
@@ -27,7 +27,6 @@ dependencies:
   collection:
   injectable:
   tentura_root:
-  json_annotation:
   dart_jsonwebtoken:
   freezed_annotation:
 
@@ -106,7 +105,6 @@ dev_dependencies:
   freezed:
   build_runner:
   drift_dev:
-  json_serializable:
   very_good_analysis:
   injectable_generator:
 

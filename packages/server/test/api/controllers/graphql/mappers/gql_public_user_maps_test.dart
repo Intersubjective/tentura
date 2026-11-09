@@ -2,12 +2,12 @@ import 'package:test/test.dart';
 
 import 'package:tentura_server/api/controllers/graphql/mappers/gql_public_user_maps.dart';
 import 'package:tentura_server/api/controllers/graphql/mappers/invite_genealogy_gql_maps.dart';
-import 'package:tentura_server/data/mapper/user_availability_mapper.dart';
 import 'package:tentura_server/domain/entity/gql_public/user_availability_record.dart';
 import 'package:tentura_server/domain/entity/gql_public/user_public_record.dart';
 import 'package:tentura_server/domain/entity/invite_genealogy_graph_entity.dart';
 import 'package:tentura_server/domain/entity/user_availability_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
+import 'package:tentura_server/domain/policy/public_user_availability_policy.dart';
 
 void main() {
   final todayUtc = DateTime.utc(2026, 8, 13);

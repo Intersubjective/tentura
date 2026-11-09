@@ -7,7 +7,7 @@ import 'package:tentura_server/domain/entity/gql_public/user_presence_record.dar
 import 'package:tentura_server/domain/entity/gql_public/user_public_record.dart';
 import 'package:tentura_server/domain/entity/user_availability_entity.dart';
 
-import 'package:tentura_server/data/mapper/user_availability_mapper.dart';
+import 'package:tentura_server/domain/policy/public_user_availability_policy.dart';
 
 Map<String, dynamic> imagePublicToGqlMap(ImagePublicRecord image) => {
   'id': image.id,

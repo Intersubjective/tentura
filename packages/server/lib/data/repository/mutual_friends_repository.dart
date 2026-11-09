@@ -5,13 +5,13 @@ import 'package:tentura_server/domain/entity/gql_public/image_public_record.dart
 import 'package:tentura_server/domain/entity/gql_public/mutual_score_record.dart';
 import 'package:tentura_server/domain/entity/gql_public/user_presence_record.dart';
 import 'package:tentura_server/domain/entity/gql_public/user_public_record.dart';
+import 'package:tentura_server/domain/policy/public_user_availability_policy.dart';
 import 'package:tentura_server/domain/port/merit_score_lookup_port.dart';
 import 'package:tentura_server/domain/port/mutual_friends_repository_port.dart';
 import 'package:tentura_server/domain/port/user_availability_repository_port.dart';
 import 'package:tentura_server/domain/port/user_presence_repository_port.dart';
 
 import '../database/tentura_db.dart';
-import '../mapper/user_availability_mapper.dart';
 import 'package:tentura_server/domain/port/vote_user_friendship_lookup_port.dart';
 
 @Injectable(

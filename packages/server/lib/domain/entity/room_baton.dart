@@ -14,6 +14,9 @@ enum BatonStatus {
 
   final int smallintValue;
 
+  /// Wire name in the room message `batonData` payload.
+  String get wireName => name;
+
   static BatonStatus fromSmallint(int v) => switch (v) {
     0 => BatonStatus.collecting,
     1 => BatonStatus.taken,
@@ -32,6 +35,13 @@ enum BatonResponse {
   const BatonResponse(this.smallintValue);
 
   final int smallintValue;
+
+  /// Wire name in the room message `batonData` payload.
+  String get wireName => switch (this) {
+    BatonResponse.waiting => 'waiting',
+    BatonResponse.canHelp => 'can_help',
+    BatonResponse.cantHelp => 'cant_help',
+  };
 
   static BatonResponse fromSmallint(int v) => switch (v) {
     0 => BatonResponse.waiting,

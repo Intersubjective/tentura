@@ -1,4 +1,4 @@
-import 'package:tentura_server/data/service/main_db_scope_admission.dart';
+import 'package:tentura_server/data/database/main_db_scope_admission.dart';
 import 'package:test/test.dart';
 
 void main() {

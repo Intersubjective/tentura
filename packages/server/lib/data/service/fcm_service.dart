@@ -21,8 +21,6 @@ class FcmService {
     _env.fbPrivateKey.replaceAll(r'\n', '\n'),
   );
 
-  //
-  //
   Future<void> sendFcmMessage({
     required String fcmToken,
     required String accessToken,

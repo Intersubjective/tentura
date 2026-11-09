@@ -1,4 +1,4 @@
-import 'package:tentura_server/data/mapper/user_availability_mapper.dart';
+import 'package:tentura_server/domain/policy/public_user_availability_policy.dart';
 import 'package:tentura_server/domain/entity/gql_public/mutual_score_record.dart';
 import 'package:tentura_server/domain/entity/gql_public/user_availability_record.dart';
 import 'package:tentura_server/domain/entity/user_availability_entity.dart';

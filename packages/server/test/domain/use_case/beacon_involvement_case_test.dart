@@ -271,5 +271,20 @@ void main() {
       expect(r.myForwardedRecipients, isEmpty);
       expect(r.forwardedToIds, ['Ur1']);
     });
+    test(
+      'a failing parallel read surfaces its own exception, not a wrapper',
+      () async {
+        const error = IdNotFoundException(description: 'no admissions');
+        when(
+          helpOfferAdmissionRepo.latestForBeacon(beaconId),
+        ).thenAnswer((_) async => throw error);
+
+        await expectLater(
+          case_.asMap(beaconId: beaconId, currentUserId: viewerId),
+          throwsA(same(error)),
+        );
+        verifyNever(forwardEdgeRepo.markAsRead(any, any));
+      },
+    );
   });
 }

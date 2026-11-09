@@ -1,6 +1,6 @@
 import 'package:test/test.dart';
 
-import 'package:tentura_server/domain/util/debug_send_rate_limiter.dart';
+import 'package:tentura_server/domain/policy/debug_send_rate_limiter.dart';
 
 void main() {
   test('first acquire allowed, second within window denied', () {

@@ -47,8 +47,6 @@ class UserRepository implements UserRepositoryPort {
   final InviteGenealogyRepositoryPort _inviteGenealogyRepository;
   final InviteSeedPromptPort _inviteSeedPrompt;
 
-  //
-  //
   @override
   Future<UserEntity> create({
     required String publicKey,
@@ -211,8 +209,6 @@ class UserRepository implements UserRepositoryPort {
     return true;
   }
 
-  // TBD: move to SQL
-  //
   @override
   Future<UserEntity> createInvited({
     required String invitationId,
@@ -514,16 +510,12 @@ class UserRepository implements UserRepositoryPort {
     return user;
   });
 
-  //
-  //
   @override
   Future<UserEntity> getById(String id) => _database.managers.users
       .filter((e) => e.id(id))
       .getSingle()
       .then(userModelToEntity);
 
-  //
-  //
   @override
   Future<UserEntity> getByPublicKey(String publicKey) => _database
       .managers
@@ -532,8 +524,6 @@ class UserRepository implements UserRepositoryPort {
       .getSingle()
       .then(userModelToEntity);
 
-  //
-  //
   @override
   Future<UserEntity> getByCredential({
     required String type,
@@ -545,8 +535,6 @@ class UserRepository implements UserRepositoryPort {
     return getById(credential.accountId);
   }
 
-  //
-  //
   @override
   Future<List<AccountCredentialEntity>> listCredentials({
     required String accountId,
@@ -555,8 +543,6 @@ class UserRepository implements UserRepositoryPort {
       .get()
       .then((rows) => rows.map(_credentialModelToEntity).toList());
 
-  //
-  //
   @override
   Future<AccountCredentialEntity> addCredential({
     required String accountId,
@@ -592,8 +578,6 @@ class UserRepository implements UserRepositoryPort {
     }
   }
 
-  //
-  //
   @override
   Future<String> linkCredentialWithContacts({
     required String accountId,
@@ -654,8 +638,6 @@ class UserRepository implements UserRepositoryPort {
     }
   }, actorUserId: accountId);
 
-  //
-  //
   @override
   Future<AccountCredentialEntity> linkCredentialToAccountStrict({
     required String accountId,
@@ -733,8 +715,6 @@ class UserRepository implements UserRepositoryPort {
     }
   }, actorUserId: accountId);
 
-  //
-  //
   @override
   Future<String?> findCredentialId({
     required CredentialType type,
@@ -850,8 +830,6 @@ class UserRepository implements UserRepositoryPort {
     return null;
   }
 
-  //
-  //
   @override
   Future<void> removeCredential({
     required String accountId,
@@ -890,8 +868,6 @@ class UserRepository implements UserRepositoryPort {
         .delete();
   }, actorUserId: accountId);
 
-  //
-  //
   AccountCredentialEntity _credentialModelToEntity(AccountCredential row) =>
       AccountCredentialEntity(
         id: row.id,
@@ -902,8 +878,6 @@ class UserRepository implements UserRepositoryPort {
         createdAt: row.createdAt.dateTime,
       );
 
-  //
-  //
   @override
   Future<void> update({
     required String id,
@@ -932,14 +906,10 @@ class UserRepository implements UserRepositoryPort {
         ),
       );
 
-  //
-  //
   @override
   Future<void> deleteById({required String id}) =>
       _database.managers.users.filter((e) => e.id(id)).delete();
 
-  //
-  // TBD: move to SQL
   @override
   Future<bool> bindMutual({
     required String invitationId,
