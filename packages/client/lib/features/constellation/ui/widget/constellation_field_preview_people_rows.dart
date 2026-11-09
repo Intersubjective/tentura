@@ -116,11 +116,7 @@ class ConstellationFieldPreviewAvatarRow extends StatelessWidget {
     final extra = stack.plusBadgeCount;
     final avatarRow = Row(
       children: [
-        if (faces.isNotEmpty)
-          TenturaAvatarStack(
-            profiles: faces,
-            max: kConstellationFieldPreviewAvatarMax,
-          ),
+        if (faces.isNotEmpty) TenturaAvatarStack(profiles: faces),
         if (extra > 0) ...[
           if (faces.isNotEmpty) SizedBox(width: tt.tightGap),
           Text(

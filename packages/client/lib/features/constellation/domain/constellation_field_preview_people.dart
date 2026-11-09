@@ -2,7 +2,7 @@ import 'package:tentura/domain/entity/profile.dart';
 
 import 'entity/constellation_field.dart';
 
-/// Avatar cap for Field preview participant / forward rows ([TenturaAvatarStack]).
+/// Avatar cap for Field preview participant / forward rows (`TenturaAvatarStack`).
 const kConstellationFieldPreviewAvatarMax = 3;
 
 /// Visible face pile plus a [hiddenCount] folded into «+N» on the preview sheet.

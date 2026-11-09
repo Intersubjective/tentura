@@ -115,9 +115,74 @@ Future<ConstellationCubit> _cubit(ConstellationField field) async {
   return cubit;
 }
 
+ConstellationField _sevenForwardersField({required bool post}) {
+  const forwardIds = ['f01', 'f02', 'f03', 'f04', 'f05', 'f06', 'f07'];
+  final peers = [
+    for (final id in forwardIds)
+      ConstellationPerson(id: id, displayName: 'Участник $id'),
+  ];
+  final beaconId = post ? 'post-7' : 'req-7';
+  return ConstellationField(
+    loadedAt: _loadedAt,
+    context: '',
+    peers: peers,
+    edges: [
+      const ConstellationTrustEdgeEntity(src: 'ego', dst: 'f01', tier: 1),
+      for (final id in forwardIds.skip(1))
+        ConstellationTrustEdgeEntity(src: 'ego', dst: id, tier: 1),
+    ],
+    requests: post
+        ? const []
+        : [
+            ConstellationRequest(
+              id: beaconId,
+              authorId: 'f01',
+              title: 'Запрос с пересылкой',
+              status: 0,
+            ),
+          ],
+    posts: post
+        ? [
+            ConstellationPost(
+              id: beaconId,
+              authorId: 'f01',
+              rootExcerpt: 'Пост с пересылкой',
+              lastActivityAt: _loadedAt,
+            ),
+          ]
+        : const [],
+    memberWebs: [
+      for (final id in forwardIds)
+        ConstellationMemberWeb(
+          beaconId: beaconId,
+          personId: id,
+          state: ConstellationMemberWebState.forwarded,
+        ),
+    ],
+  );
+}
+
+Future<void> pumpPreviewSheet(
+  WidgetTester tester, {
+  required Widget sheet,
+  required Locale locale,
+}) async {
+  await usePhoneSurface(tester);
+  await tester.pumpPeopleTagsWidget(
+    MaterialApp(
+      locale: locale,
+      theme: TenturaTheme.light(),
+      localizationsDelegates: L10n.localizationsDelegates,
+      supportedLocales: L10n.supportedLocales,
+      home: TenturaResponsiveScope(child: sheet),
+    ),
+  );
+  await tester.pumpAndSettle();
+}
+
 void main() {
   group('constellationFieldPreviewMemberStack', () {
-    final peerOnFieldAll = (_) => true;
+    bool peerOnFieldAll(String id) => true;
     Profile profileFor(String id) => Profile(id: id, displayName: 'Peer $id');
 
     test('invisible members count toward hidden only', () {
@@ -253,77 +318,12 @@ void main() {
     });
   });
 
-  ConstellationField _sevenForwardersField({required bool post}) {
-    const forwardIds = ['f01', 'f02', 'f03', 'f04', 'f05', 'f06', 'f07'];
-    final peers = [
-      for (final id in forwardIds)
-        ConstellationPerson(id: id, displayName: 'Участник $id'),
-    ];
-    final beaconId = post ? 'post-7' : 'req-7';
-    return ConstellationField(
-      loadedAt: _loadedAt,
-      context: '',
-      peers: peers,
-      edges: [
-        const ConstellationTrustEdgeEntity(src: 'ego', dst: 'f01', tier: 1),
-        for (final id in forwardIds.skip(1))
-          ConstellationTrustEdgeEntity(src: 'ego', dst: id, tier: 1),
-      ],
-      requests: post
-          ? const []
-          : [
-              ConstellationRequest(
-                id: beaconId,
-                authorId: 'f01',
-                title: 'Запрос с пересылкой',
-                status: 0,
-              ),
-            ],
-      posts: post
-          ? [
-              ConstellationPost(
-                id: beaconId,
-                authorId: 'f01',
-                rootExcerpt: 'Пост с пересылкой',
-                lastActivityAt: _loadedAt,
-              ),
-            ]
-          : const [],
-      memberWebs: [
-        for (final id in forwardIds)
-          ConstellationMemberWeb(
-            beaconId: beaconId,
-            personId: id,
-            state: ConstellationMemberWebState.forwarded,
-          ),
-      ],
-    );
-  }
-
-  Future<void> _pumpPreviewSheet(
-    WidgetTester tester, {
-    required Widget sheet,
-    required Locale locale,
-  }) async {
-    await usePhoneSurface(tester);
-    await tester.pumpPeopleTagsWidget(
-      MaterialApp(
-        locale: locale,
-        theme: TenturaTheme.light(),
-        localizationsDelegates: L10n.localizationsDelegates,
-        supportedLocales: L10n.supportedLocales,
-        home: TenturaResponsiveScope(child: sheet),
-      ),
-    );
-    await tester.pumpAndSettle();
-  }
-
   group('Field preview people rows RU phone', () {
     testWidgets('seven forwarders show three faces and +4', (tester) async {
       final field = _sevenForwardersField(post: true);
       final cubit = await _cubit(field);
       cubit.selectRequest('post-7');
-      await _pumpPreviewSheet(
+      await pumpPreviewSheet(
         tester,
         locale: const Locale('ru'),
         sheet: BlocProvider.value(
@@ -350,7 +350,7 @@ void main() {
       final field = _manyPeopleField(post: false);
       final cubit = await _cubit(field);
       cubit.selectRequest('req-1');
-      await _pumpPreviewSheet(
+      await pumpPreviewSheet(
         tester,
         locale: const Locale('ru'),
         sheet: BlocProvider.value(
@@ -381,7 +381,7 @@ void main() {
       final field = _manyPeopleField(post: true, hiddenReachCount: 5);
       final cubit = await _cubit(field);
       cubit.selectRequest('post-1');
-      await _pumpPreviewSheet(
+      await pumpPreviewSheet(
         tester,
         locale: const Locale('en'),
         sheet: BlocProvider.value(
