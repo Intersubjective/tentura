@@ -6,6 +6,7 @@ import 'package:tentura_server/domain/port/trust_maintenance_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
 import 'package:tentura_server/domain/port/user_trust_edge_repository_port.dart';
 import 'package:tentura_server/domain/port/witness_window_port.dart';
+import 'package:tentura_server/domain/policy/witness_window_invalidation.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
 import 'package:tentura_server/utils/id.dart';
@@ -48,7 +49,11 @@ final class UserTrustEdgeCase extends UseCaseBase {
               objectUserId: objectUserId,
               newAmount: amount,
             );
-        await _invalidateWitnessWindows(subjectUserId, objectUserId);
+        await invalidateWitnessWindowsForPair(
+          _witnessWindow,
+          subjectUserId,
+          objectUserId,
+        );
         if (!formed) return;
         await transaction.record(
           await _attentionIntents!.mutualConnectionFormed(
@@ -76,16 +81,6 @@ final class UserTrustEdgeCase extends UseCaseBase {
   }) async {
     await _ensureMrPrivilege(userId: userId, userRoles: userRoles);
     await _trustMaintenance.forceRefreshAll();
-  }
-
-  Future<void> _invalidateWitnessWindows(
-    String subjectUserId,
-    String objectUserId,
-  ) async {
-    final witnessWindow = _witnessWindow;
-    if (witnessWindow == null) return;
-    await witnessWindow.invalidateFor(userId: subjectUserId);
-    await witnessWindow.invalidateFor(userId: objectUserId);
   }
 
   Future<void> _ensureMrPrivilege({
