@@ -19,6 +19,10 @@ abstract class ActivityOffersState extends StateBase
     int? totalCount,
     @Default(false) bool countLoadFailed,
     @Default(false) bool pageLoadFailed,
+
+    /// Why the last head page failed to load, for the first-load error panel
+    /// (#1110). Set together with [pageLoadFailed].
+    Object? pageLoadError,
     @Default(true) bool hasMore,
     @Default(false) bool loadingMore,
     @Default(<String>{}) Set<String> heldBackIds,

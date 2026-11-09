@@ -12,6 +12,7 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/lazy_write_notice.dart';
 import 'package:tentura/features/forward/domain/use_case/forward_case.dart';
 import 'package:tentura/features/forward/domain/entity/forward_graph.dart';
+import 'package:tentura/ui/bloc/reload_when_online.dart';
 import 'package:tentura/ui/utils/post_expiry_clock.dart';
 import '../utils/constellation_presentation_frame.dart';
 
@@ -214,6 +215,10 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     graphController.scene.addListener(_onGraphSceneLayoutOutcomeChanged);
     graphController.addListener(_onGraphControllerChanged);
     _ensureContactNameSubscription();
+    _reloadWhenOnline = ReloadWhenOnline(
+      lastLoadFailed: () => state.loadError != null,
+      reload: () => unawaited(load()),
+    );
     if (loadOnCreate) {
       unawaited(load());
     }
@@ -291,6 +296,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   late final StoreLease _storeLease;
   StreamSubscription<ConstellationFieldStoreState>? _storeSub;
   StreamSubscription<void>? _contactNameSub;
+  late final ReloadWhenOnline _reloadWhenOnline;
   StreamSubscription<PlacementOutboxState>? _placementSub;
   StreamSubscription<void>? _magnetHintSub;
 
@@ -1148,6 +1154,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     _magnetHintSub = null;
     unawaited(_contactNameSub?.cancel());
     _contactNameSub = null;
+    unawaited(_reloadWhenOnline.close());
     _placementCase?.tagMagnetUndo = null;
     _clearClusterPresentations();
     _finishDropReflowSpans();

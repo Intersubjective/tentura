@@ -33,6 +33,7 @@ import 'package:tentura/ui/beacon/beacon_room_composer_leave.dart';
 import 'package:tentura/ui/navigation/home_tab.dart';
 import 'package:tentura/ui/navigation/is_deep_link_query.dart';
 import 'package:tentura/ui/widget/first_load_gate.dart';
+import 'package:tentura/ui/widget/screen_load_error_panel.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_view_first_load_progress.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/auto_leading_with_fallback.dart';
@@ -1241,11 +1242,12 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                       state.timeline.isEmpty &&
                       state.helpOffers.isEmpty;
                   final showInitialUnavailable = state.beaconUnavailable;
-                  final showInitialError =
-                      state.hasError &&
+                  final initialError =
                       !showInitialUnavailable &&
-                      state.timeline.isEmpty &&
-                      state.helpOffers.isEmpty;
+                          state.timeline.isEmpty &&
+                          state.helpOffers.isEmpty
+                      ? state.loadError
+                      : null;
                   final showBeaconContent =
                       state.beaconContentLoaded && !state.beaconUnavailable;
 
@@ -1296,18 +1298,16 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                               unawaited(beaconViewCubit.retryInitialLoad()),
                           onGoBack: () => unawaited(_leaveBeaconView(context)),
                         );
-                      } else if (showInitialError) {
-                        body = _beaconViewErrorBody(
-                          theme: theme,
-                          scheme: scheme,
-                          tt: tt,
-                          title: l10n.beaconHudBeaconUnavailable,
-                          body: l10n.beaconViewLoadErrorBody,
-                          retryLabel: l10n.myWorkRetry,
-                          goBackLabel: l10n.beaconViewErrorGoBack,
+                      } else if (initialError != null) {
+                        // The same panel as every other screen whose load
+                        // failed (#1110).
+                        body = ScreenLoadErrorPanel(
+                          details: describeScreenLoadError(
+                            error: initialError,
+                            l10n: l10n,
+                          ),
                           onRetry: () =>
                               unawaited(beaconViewCubit.retryInitialLoad()),
-                          onGoBack: () => unawaited(_leaveBeaconView(context)),
                         );
                       } else {
                         final Widget content;

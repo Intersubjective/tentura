@@ -499,11 +499,15 @@ class _HudCounter extends StatelessWidget {
                     Icon(icon, size: kBeaconHudRowIconSize, color: color),
                     SizedBox(width: tt.tightGap),
                   ],
-                  Text(
-                    label,
-                    style: TenturaText.withTabular(
-                      TenturaText.status(
-                        icon == null && attention ? color : tt.text,
+                  // A long label («Пока нет помощников» on a phone) wraps
+                  // inside the pill instead of overflowing it.
+                  Flexible(
+                    child: Text(
+                      label,
+                      style: TenturaText.withTabular(
+                        TenturaText.status(
+                          icon == null && attention ? color : tt.text,
+                        ),
                       ),
                     ),
                   ),

@@ -621,10 +621,19 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
       _markStale();
       return Future<void>.value();
     }
-    if (reason == ConstellationRefreshReason.load ||
-        reason == ConstellationRefreshReason.resume ||
+    if (reason == ConstellationRefreshReason.load) {
+      // The screen's own load learns why the read failed, so it can say so
+      // and retry (#1110); background refreshes keep the last field.
+      final failure = await _dispatch();
+      if (failure != null) {
+        Error.throwWithStackTrace(failure.error, failure.stackTrace);
+      }
+      return;
+    }
+    if (reason == ConstellationRefreshReason.resume ||
         reason == ConstellationRefreshReason.catchUp) {
-      return _dispatch();
+      await _dispatch();
+      return;
     }
     _schedule();
     return Future<void>.value();
@@ -836,10 +845,11 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
     _dueAt = null;
   }
 
-  Future<void> _dispatch() {
+  /// Completes with the FULL read's failure, or null.
+  Future<_FullFailure?> _dispatch() {
     if (!_canFetch) {
       _markStale();
-      return Future<void>.value();
+      return Future<_FullFailure?>.value();
     }
     final busy = _fullInFlight;
     if (busy != null && busy.paramsGeneration == _paramsGeneration) {
@@ -848,13 +858,13 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
     final retryNotBefore = _retryNotBefore;
     if (retryNotBefore != null && _clock.now().isBefore(retryNotBefore)) {
       _schedule(immediate: true);
-      return Future<void>.value();
+      return Future<_FullFailure?>.value();
     }
     _cancelTimer();
     return _startFull();
   }
 
-  Future<void> _startFull() {
+  Future<_FullFailure?> _startFull() {
     final generation = _state.generation;
     final params = _params;
     final paramsGeneration = _paramsGeneration;
@@ -883,7 +893,8 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
     return flight.future;
   }
 
-  Future<void> _runFull(
+  /// Completes with the read's failure, or null once applied (or superseded).
+  Future<_FullFailure?> _runFull(
     int generation,
     ConstellationProjectionParams params,
     int paramsGeneration,
@@ -896,7 +907,7 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
       if (generation != _state.generation ||
           paramsGeneration != _paramsGeneration ||
           readSeq < _lastAppliedReadSeq) {
-        return;
+        return null;
       }
       _lastAppliedReadSeq = readSeq;
       _retryNotBefore = null;
@@ -924,6 +935,7 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
           generation: generation,
         ),
       );
+      return null;
     } on Object catch (error, stackTrace) {
       // A loader reading in parallel wraps the rejection in a ParallelWaitError.
       final failure = unwrapRetryLater(error);
@@ -932,8 +944,12 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
           paramsGeneration == _paramsGeneration) {
         _retryNotBefore = _clock.now().add(failure.retryAfter);
         _queued = true;
+        logger.warning('Constellation FULL refresh failed', error, stackTrace);
+        // Not a failed load: the store retries it after the server's delay.
+        return null;
       }
       logger.warning('Constellation FULL refresh failed', error, stackTrace);
+      return (error: error, stackTrace: stackTrace);
     }
   }
 
@@ -1079,12 +1095,16 @@ final class _HeldRequest {
   final int fullReadSeq;
 }
 
+/// A FULL read that could not be applied.
+typedef _FullFailure = ({Object error, StackTrace stackTrace});
+
 final class _FullFlight {
   _FullFlight(this.paramsGeneration);
 
   final int paramsGeneration;
 
-  late final Future<void> future;
+  /// The read's failure, or null.
+  late final Future<_FullFailure?> future;
 }
 
 final class _StoreLease implements StoreLease {
