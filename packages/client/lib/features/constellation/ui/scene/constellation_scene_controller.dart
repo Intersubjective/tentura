@@ -1075,12 +1075,14 @@ class ConstellationSceneController {
       }
       var visibleMembers = 0;
       var placedMembers = 0;
+      var unknownMembers = 0;
       final selected = selectedRequestId == post.id;
       for (final web in field.memberWebs) {
         if (web.beaconId != post.id) {
           continue;
         }
         if (web.personId != viewer.id && !peersById.containsKey(web.personId)) {
+          unknownMembers++;
           continue;
         }
         visibleMembers++;
@@ -1104,6 +1106,7 @@ class ConstellationSceneController {
         hiddenReachCount: post.hiddenReachCount,
         visibleMemberCount: visibleMembers,
         placedMemberCount: placedMembers,
+        unknownMemberCount: unknownMembers,
       );
       if (count > 0) {
         postOverflow[post.id] = count;

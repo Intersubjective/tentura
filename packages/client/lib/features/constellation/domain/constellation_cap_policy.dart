@@ -20,10 +20,12 @@ ConstellationResolvedField resolveAndCapConstellation({
   Set<String> ownTaggedPeerIds = const {},
   Set<String> directContactPeerIds = const {},
   Set<String> bondOrTemporaryPeerIds = const {},
+  Set<String> priorityHolderIds = const {},
 }) {
+  final visible = visiblePeerIds.toSet();
   final paths = resolveConstellationPaths(
     egoId: egoId,
-    visiblePeerIds: visiblePeerIds.toSet(),
+    visiblePeerIds: visible,
     holderIds: holderIds,
     edges: edges,
     maxHops: maxHops,
@@ -63,8 +65,7 @@ ConstellationResolvedField resolveAndCapConstellation({
     return byDepth != 0 ? byDepth : a.compareTo(b);
   }
 
-  final attributedSorted = paths.attributed.toList()..sort(byPriority);
-  for (final holder in attributedSorted) {
+  void keepAttributed(String holder) {
     final chain = _ancestorChain(
       holder: holder,
       parent: paths.parent,
@@ -72,13 +73,13 @@ ConstellationResolvedField resolveAndCapConstellation({
     );
     final missing = chain.difference(keptPeerIds);
     if (missing.isEmpty) {
-      continue;
+      return;
     }
     final chargeable = missing.difference(budgetExemptPeerIds);
     final free = missing.intersection(budgetExemptPeerIds);
     keptPeerIds.addAll(free);
     if (chargeable.isEmpty) {
-      continue;
+      return;
     }
     if (chargeable.length <= remaining) {
       keptPeerIds.addAll(chargeable);
@@ -88,18 +89,34 @@ ConstellationResolvedField resolveAndCapConstellation({
     }
   }
 
-  final ringSorted = paths.ring.toList()..sort(byPriority);
-  for (final holder in ringSorted) {
+  void keepRing(String holder) {
     if (remaining <= 0 && !budgetExemptPeerIds.contains(holder)) {
-      break;
+      return;
     }
-    if (!keptPeerIds.contains(holder)) {
-      keptPeerIds.add(holder);
-      if (!budgetExemptPeerIds.contains(holder)) {
-        remaining -= 1;
-      }
+    if (keptPeerIds.add(holder) && !budgetExemptPeerIds.contains(holder)) {
+      remaining -= 1;
     }
   }
+
+  // Priority holders (members of the selected Request or Post) are charged
+  // first, so a full budget never hides one its preview lists (#1192).
+  // Members the field does not know take no budget: they have no node.
+  final prioritySorted =
+      paths.attributed
+          .union(paths.ring)
+          .intersection(priorityHolderIds)
+          .intersection(visible)
+          .toList()
+        ..sort(byPriority);
+  for (final holder in prioritySorted) {
+    if (paths.ring.contains(holder)) {
+      keepRing(holder);
+    } else {
+      keepAttributed(holder);
+    }
+  }
+  (paths.attributed.toList()..sort(byPriority)).forEach(keepAttributed);
+  (paths.ring.toList()..sort(byPriority)).forEach(keepRing);
 
   final capped = paths.attributed
       .union(paths.ring)

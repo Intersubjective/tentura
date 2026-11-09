@@ -368,6 +368,10 @@ ConstellationComposedPresentation composeConstellationPresentation({
             peer.fieldMembership == ConstellationFieldMembership.temporary)
           peer.id,
     },
+    priorityHolderIds: {
+      for (final web in selectedRequestWebs)
+        if (web.beaconId.isNotEmpty) web.personId,
+    },
   );
 
   final keptPeerIds = {
