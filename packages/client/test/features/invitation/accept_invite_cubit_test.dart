@@ -32,6 +32,15 @@ void main() {
 
     tearDown(() => cubit.close());
 
+    test('trailing dash on invalid code prefers dash hint', () async {
+      await cubit.start('IQAFX0000000-');
+      expect(repo.previewCalls, 0);
+      expect(
+        effects.emitted.whereType<ShowMessage>().map((e) => e.message),
+        contains(isA<InviteTrailingDashHintMessage>()),
+      );
+    });
+
     test('invalid code emits messaging without preview call', () async {
       await cubit.start('bad');
       expect(repo.previewCalls, 0);

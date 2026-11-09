@@ -109,6 +109,26 @@ void main() {
     });
   });
 
+  group('diagnoseInviteCodeFormat', () {
+    test('invalid code without trailing dash', () {
+      expect(
+        diagnoseInviteCodeFormat('BADCODE123'),
+        InviteCodeFormatIssue.invalid,
+      );
+    });
+
+    test('invalid code with trailing dash prefers dash hint', () {
+      expect(
+        diagnoseInviteCodeFormat('IQAFX0000000-'),
+        InviteCodeFormatIssue.trailingDash,
+      );
+    });
+
+    test('valid code returns null', () {
+      expect(diagnoseInviteCodeFormat('I806d29daebbe'), isNull);
+    });
+  });
+
   group('inviteCodeHadTrailingDash', () {
     test('detects trailing dash', () {
       expect(inviteCodeHadTrailingDash('I806d29daebbe-'), isTrue);
