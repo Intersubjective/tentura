@@ -66,9 +66,11 @@ config); these rules cover those:
     tests that name, or reach code that names, a SQL object it creates,
     changes or writes (Drift spellings included), or a routine / view whose
     body in any migration uses one, plus the tests naming the migration.
-    Triggers on other tables are not followed (CI runs every pg test). A
-    statement it cannot attribute (a DO block, ...) or a migration list
-    change alone adds every pg-tagged test;
+    Triggers are not followed back to their tables, so a migration that
+    (re)defines a trigger function (RETURNS trigger) adds every pg-tagged
+    test, as does a statement it cannot attribute (a DO block, ...) or a
+    migration list change alone. A migration list change also adds the tests
+    importing the list itself (its order guard);
   * anything changed outside the package adds the package's tests tagged
     `repo-files` (they read other packages, docs, scripts; CI does the same,
     scripts/ci_changes.py).
@@ -184,6 +186,7 @@ SQL_ROUTINE = re.compile(r"^\s*CREATE\s+(?:OR\s+REPLACE\s+)?(?:FUNCTION|PROCEDUR
 # Routines and views: what calls or reads them depends on what their body
 # names. (Triggers are not followed: a trigger on a hub table such as beacon
 # would select every pg test; CI's full server-pg run covers that path.)
+SQL_TRIGGER_FUNCTION = re.compile(r"\bRETURNS\s+trigger\b", re.IGNORECASE)
 SQL_DEPENDENT = re.compile(
     r"^\s*CREATE\s+(?:OR\s+REPLACE\s+)?(?:MATERIALIZED\s+)?(?:FUNCTION|PROCEDURE|VIEW)\b",
     re.I,
@@ -777,6 +780,11 @@ def _migration_selection(
         if not old and not new:
             return f"{rel} has no SQL string to read"
         for statement in set(old) ^ set(new):
+            if SQL_TRIGGER_FUNCTION.search(statement):
+                # Triggers aren't followed back to their tables, and no Dart
+                # code names a trigger function: only every pg test is safe.
+                first = statement.split("\n", 1)[0][:60]
+                return f"{rel}: «{first}» is a trigger function"
             found = _sql_names(statement)
             if not found:
                 first = statement.split("\n", 1)[0][:60]
@@ -859,6 +867,13 @@ def select(
                 # Every pg test imports the migration list: the migration is
                 # followed from the code that names its SQL objects (below).
                 migrations_changed.append(path)
+                if rel == MIGRATION_REGISTRY:
+                    # Tests importing the list itself (its order guard) aren't
+                    # pg tests and name no SQL object: add them directly.
+                    sel.tests |= {
+                        t for t in all_tests
+                        if "_migrations.dart'" in graph.text(t)
+                    }
                 continue
             seeds.add(path)
             if rel == "test/flutter_test_config.dart":
@@ -968,7 +983,7 @@ def _show(root: Path, rev: str, path: str) -> str | None:
 
 
 def _working_tree_changes(root: Path, base: str) -> list[str]:
-    tracked = _git("diff", "--name-only", base, cwd=root).splitlines()
+    tracked = _git("diff", "--name-only", "--no-renames", base, cwd=root).splitlines()
     untracked = _git("ls-files", "--others", "--exclude-standard", cwd=root).splitlines()
     return sorted({p for p in tracked + untracked if p})
 
@@ -998,7 +1013,9 @@ def _snapshot_tree(root: Path) -> str:
 
 
 def _tree_changes(root: Path, since: str, now: str) -> list[str]:
-    return sorted(p for p in _git("diff", "--name-only", since, now, cwd=root).splitlines() if p)
+    return sorted(
+        p for p in _git("diff", "--name-only", "--no-renames", since, now, cwd=root).splitlines() if p
+    )
 
 
 def _read(root: Path, path: str) -> str | None:

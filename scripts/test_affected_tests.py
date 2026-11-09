@@ -188,6 +188,9 @@ FILES = {
         "import 'package:tentura_server/data/repository/widget_repository.dart';\n"
     ),
     f"{SERVER}/test/m0003_shape_test.dart": "const name = 'm0003';\n",
+    f"{SERVER}/test/migration_registry_test.dart": (
+        "import 'package:tentura_server/data/database/migration/_migrations.dart';\n"
+    ),
 }
 
 TRIPLE = "'" * 3
@@ -643,6 +646,22 @@ class SyntheticTreeTest(unittest.TestCase):
         self.assertEqual(self.names(sel), self.PG_TESTS)
         self.assertTrue(sel.notes)
 
+    def test_server_trigger_function_adds_every_pg_test(self):
+        # Its trigger isn't followed back to the table and no Dart code names
+        # the function (m0281 notify_entity_change selected 5 of 509).
+        sel = self.migration(
+            "CREATE OR REPLACE FUNCTION public.widget_touch() RETURNS trigger\n"
+            "LANGUAGE plpgsql AS $f$ BEGIN RETURN NEW; END $f$"
+        )
+        self.assertEqual(self.names(sel), self.PG_TESTS)
+        self.assertTrue(sel.notes)
+
+    def test_server_migration_list_change_adds_its_order_guard(self):
+        sel = self.sel(
+            f"{SERVER}/lib/data/database/migration/_migrations.dart", pkg=SERVER
+        )
+        self.assertIn("migration_registry_test.dart", self.names(sel))
+
 
 class SinceSnapshotTest(unittest.TestCase):
     """--since selects only what changed after a --snapshot (run_tests.sh's
@@ -687,6 +706,12 @@ class SinceSnapshotTest(unittest.TestCase):
         self.assertNotEqual(self.cli("--snapshot")[0], snapshot)
         # The real index is untouched: the new files stay untracked.
         self.assertIn("?? packages/client/test/c_test.dart", self.git("status", "--short"))
+
+    def test_since_lists_both_paths_of_a_move(self):
+        snapshot = self.cli("--snapshot")[0]
+        # A test still importing the old path must be selected.
+        (self.repo / CLIENT / "lib/a.dart").rename(self.repo / CLIENT / "lib/moved.dart")
+        self.assertIn("test/a_test.dart", self.cli(CLIENT, "--since", snapshot))
 
 
 class RealTreeTest(unittest.TestCase):
