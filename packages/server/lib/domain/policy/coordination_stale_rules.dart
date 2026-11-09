@@ -12,8 +12,10 @@ final class CoordinationStaleItemView {
     this.staleAfterDays,
   });
 
-  final int kind;
-  final int status;
+  /// `null` when the stored smallint is not a known kind/status; it then
+  /// matches no rule (not stale, no responsible user).
+  final CoordinationItemKind? kind;
+  final CoordinationItemStatus? status;
   final String creatorId;
   final String? targetPersonId;
   final String? acceptedById;
@@ -52,14 +54,15 @@ bool isItemStale(CoordinationStaleItemView item, DateTime nowUtc) {
   if (staleAt == null) {
     return false;
   }
-  if (item.status != coordinationItemStatusOpen &&
-      item.status != coordinationItemStatusAccepted) {
+  if (item.status != CoordinationItemStatus.open &&
+      item.status != CoordinationItemStatus.accepted) {
     return false;
   }
   return !staleAt.isAfter(nowUtc);
 }
 
-bool isRemindableKind(int kind) => kind == coordinationItemKindPlan;
+bool isRemindableKind(CoordinationItemKind? kind) =>
+    kind == CoordinationItemKind.plan;
 
 /// Status-aware responsible person for remind push.
 String? resolveResponsibleUserId(CoordinationStaleItemView item) {
@@ -70,15 +73,15 @@ String? resolveResponsibleUserId(CoordinationStaleItemView item) {
   final hasTarget = target != null && target.isNotEmpty;
 
   switch (item.kind) {
-    case coordinationItemKindPlan:
-      if (item.status != coordinationItemStatusOpen &&
-          item.status != coordinationItemStatusAccepted) {
+    case CoordinationItemKind.plan:
+      if (item.status != CoordinationItemStatus.open &&
+          item.status != CoordinationItemStatus.accepted) {
         return null;
       }
       return hasTarget ? target : item.creatorId;
 
-    case coordinationItemKindAsk:
-      if (item.status == coordinationItemStatusAccepted) {
+    case CoordinationItemKind.ask:
+      if (item.status == CoordinationItemStatus.accepted) {
         final accepted = item.acceptedById?.trim();
         if (accepted != null && accepted.isNotEmpty) {
           return accepted;
@@ -86,22 +89,22 @@ String? resolveResponsibleUserId(CoordinationStaleItemView item) {
       }
       return hasTarget ? target : null;
 
-    case coordinationItemKindPromise:
-      if (item.status == coordinationItemStatusOpen) {
+    case CoordinationItemKind.promise:
+      if (item.status == CoordinationItemStatus.open) {
         return hasTarget ? target : null;
       }
-      if (item.status == coordinationItemStatusAccepted) {
+      if (item.status == CoordinationItemStatus.accepted) {
         return item.creatorId;
       }
       return null;
 
-    case coordinationItemKindBlocker:
+    case CoordinationItemKind.blocker:
       if (hasTarget) {
         return target;
       }
       return item.creatorId;
 
-    default:
+    case CoordinationItemKind.planStep || CoordinationItemKind.lobby || null:
       return null;
   }
 }

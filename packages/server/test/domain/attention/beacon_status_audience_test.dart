@@ -91,13 +91,19 @@ void main() {
   });
 
   test('plan participant projection only includes published active plans', () {
-    const openPlanStatus = coordinationItemStatusOpen;
-    const acceptedPlanStatus = coordinationItemStatusAccepted;
-    const planKind = coordinationItemKindPlan;
+    final openPlanStatus = CoordinationItemStatus.open.smallintValue;
+    final acceptedPlanStatus = CoordinationItemStatus.accepted.smallintValue;
+    final planKind = CoordinationItemKind.plan.smallintValue;
 
-    expect(openPlanStatus, isNot(equals(coordinationItemStatusResolved)));
-    expect(acceptedPlanStatus, isNot(equals(coordinationItemStatusCancelled)));
-    expect(planKind, coordinationItemKindPlan);
+    expect(
+      openPlanStatus,
+      isNot(equals(CoordinationItemStatus.resolved.smallintValue)),
+    );
+    expect(
+      acceptedPlanStatus,
+      isNot(equals(CoordinationItemStatus.cancelled.smallintValue)),
+    );
+    expect(planKind, CoordinationItemKind.plan.smallintValue);
   });
 
   test('help offer projection uses active offers only', () {

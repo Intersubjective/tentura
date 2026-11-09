@@ -454,8 +454,8 @@ INSERT INTO public.coordination_item (
 )
 '''),
         parameters: {
-          'kind': coordinationItemKindPlan,
-          'status': coordinationItemStatusOpen,
+          'kind': CoordinationItemKind.plan.smallintValue,
+          'status': CoordinationItemStatus.open.smallintValue,
           'creator': erasedId,
           'target': BeaconHierarchyTopology.bobId,
           'acceptor': BeaconHierarchyTopology.carolId,
