@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -6,9 +8,8 @@ import 'package:tentura/features/auth/ui/dialog/sign_out_dialog.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/navigation/app_navigator.dart';
 import 'package:tentura/ui/widget/self_aware_profile_avatar.dart';
-
-import 'home_open_profile.dart';
 
 /// Items for the unified account menu (#1079): profile, settings, sign out.
 List<Widget> buildAccountMenuChildren(BuildContext context) {
@@ -24,7 +25,7 @@ List<Widget> buildAccountMenuChildren(BuildContext context) {
       style: _menuItemStyle(context),
       onPressed: () {
         closeMenu();
-        openMyProfile(context);
+        unawaited(GetIt.I<AppNavigator>().openMyProfile());
       },
       child: ConstrainedBox(
         constraints: const BoxConstraints(minHeight: kMinInteractiveDimension),

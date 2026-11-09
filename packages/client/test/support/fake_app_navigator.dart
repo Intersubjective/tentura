@@ -5,6 +5,7 @@ import 'package:get_it/get_it.dart';
 
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/ui/navigation/app_navigator.dart';
+import 'package:tentura/ui/navigation/home_tab.dart';
 
 /// One recorded [AppNavigator] call: the method name and the arguments the
 /// caller passed (null and default-valued arguments are left out).
@@ -58,6 +59,19 @@ class FakeAppNavigator implements AppNavigator {
 
   @override
   BuildContext? get rootContext => context;
+
+  /// Returned by [activeHomeTabIndex].
+  int? homeTabIndex;
+
+  @override
+  int? get activeHomeTabIndex => homeTabIndex;
+
+  @override
+  Future<void> openHomeTab(HomeTab tab) async =>
+      _record('openHomeTab', {'tab': tab});
+
+  @override
+  Future<void> openMyProfile() async => _record('openMyProfile');
 
   @override
   Future<void> openBeacon(

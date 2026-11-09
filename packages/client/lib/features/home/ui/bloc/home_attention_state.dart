@@ -1,6 +1,6 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
-import 'package:tentura/app/router/home_tab_branches.dart';
+import 'package:tentura/ui/navigation/home_tab.dart';
 import 'package:tentura/domain/attention/request_attention_predicate.dart';
 
 part 'home_attention_state.freezed.dart';
@@ -19,6 +19,7 @@ abstract class HomeAttentionState with _$HomeAttentionState {
     @Default(false) bool myWorkLoaded,
     @Default(false) bool markerQueryComplete,
     @Default(HomeTab.work) HomeTab activeHomeTab,
+
     /// §6 `my desk.dot` / `for you.dot`, as the server computed them from the
     /// predicates behind the lists (M1). They are booleans and not totals on
     /// purpose: §6 states a dot as a membership question, and a total is the

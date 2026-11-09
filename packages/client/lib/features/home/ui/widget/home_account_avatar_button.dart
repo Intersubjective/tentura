@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -5,10 +7,10 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/navigation/app_navigator.dart';
 
 import 'account_menu.dart';
 import 'account_nav_bar_avatar.dart';
-import 'home_open_profile.dart';
 import 'own_paused_chip.dart';
 
 /// The account avatar: opens a unified account menu (profile, settings,
@@ -43,7 +45,9 @@ class HomeAccountAvatarButton extends StatelessWidget {
         key: buttonKey,
         tooltip: L10n.of(context)!.profile,
         isSelected: selected,
-        onPressed: onPressed ?? () => openMyProfile(context),
+        onPressed:
+            onPressed ??
+            () => unawaited(GetIt.I<AppNavigator>().openMyProfile()),
         icon: Icon(selected ? Icons.person : Icons.person_outline),
       );
     }

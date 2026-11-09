@@ -2,7 +2,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import 'package:tentura/app/router/home_tab_branches.dart';
+import 'package:tentura/ui/navigation/home_tab.dart';
 import 'package:tentura/features/home/ui/widget/home_tab_transition_listener.dart';
 
 import '../bloc/my_work_cubit.dart';

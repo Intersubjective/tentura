@@ -5,7 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 import 'package:logging/logging.dart';
 
-import 'package:tentura/app/router/home_tab_branches.dart';
+import 'package:tentura/ui/navigation/home_tab.dart';
 import 'package:tentura/domain/attention/attention_case.dart';
 import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';

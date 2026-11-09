@@ -1,7 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 
-import 'package:tentura/app/router/home_tab_branches.dart';
+import 'package:tentura/ui/navigation/home_tab.dart';
 
 import 'home_tab_reselect_state.dart';
 

@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:auto_route/auto_route.dart';
-import 'package:tentura/app/router/home_tab_branches.dart';
+import 'package:tentura/ui/navigation/home_tab.dart';
 import 'package:tentura/app/router/root_router.gr.dart';
 import 'package:tentura/features/home/ui/widget/home_account_avatar_button.dart';
 import 'package:tentura/ui/widget/lazy_write_timeout_notice.dart';

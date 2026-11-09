@@ -1,9 +1,10 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 
-import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/home/ui/widget/home_rail_frame.dart';
@@ -29,6 +30,8 @@ import 'package:tentura/features/beacon_plan/ui/widget/beacon_plan_page.dart';
 import 'package:tentura/ui/beacon/beacon_room_navigation_scope.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/navigation/app_navigator.dart';
+import 'package:tentura/ui/navigation/home_tab.dart';
 import 'package:tentura/ui/widget/first_load_gate.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_view_first_load_progress.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
@@ -274,10 +277,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     // In deep-linked direct detail views we still want the back button to go back.
     // However, if we pop, we would pop out of the app.
     // Since we are inside Inbox, let's navigate to Inbox Route instead.
-    final rootRouter = context.router.root;
-    final tab = rootRouter
-        .innerRouterOf<TabsRouter>(HomeRoute.name)
-        ?.activeIndex;
+    final tab = GetIt.I<AppNavigator>().activeHomeTabIndex;
 
     // Only route to inbox if we are actually mounted inside the inbox tab.
     // In deep link operations we could be in 'My Work' tab.

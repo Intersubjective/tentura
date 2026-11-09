@@ -2,7 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import 'package:tentura/app/router/home_tab_branches.dart';
+import 'package:tentura/ui/navigation/home_tab.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
@@ -91,8 +91,9 @@ class HowTenturaWorksContent extends StatelessWidget {
             l10n.orientationWhereField,
           ),
           minHeight: math.max(tt.buttonHeight, 48),
-          onTap:
-              onOpenTab == null ? null : () => onOpenTab!(HomeTab.constellation),
+          onTap: onOpenTab == null
+              ? null
+              : () => onOpenTab!(HomeTab.constellation),
         ),
         _OrientNavRow(
           icon: Icons.people_outline,

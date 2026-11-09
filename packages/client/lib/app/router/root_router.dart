@@ -821,6 +821,27 @@ class RootRouter extends RootStackRouter implements AppNavigator {
   BuildContext? get rootContext => navigatorKey.currentContext;
 
   @override
+  int? get activeHomeTabIndex =>
+      innerRouterOf<TabsRouter>(HomeRoute.name)?.activeIndex;
+
+  @override
+  Future<void> openHomeTab(HomeTab tab) async {
+    final spec = HomeTabSpec.forTab(tab);
+    innerRouterOf<TabsRouter>(HomeRoute.name)?.setActiveIndex(spec.index);
+    await replacePath(spec.path);
+  }
+
+  @override
+  Future<void> openMyProfile() async {
+    innerRouterOf<TabsRouter>(
+      HomeRoute.name,
+    )?.setActiveIndex(HomeTabSpec.forTab(HomeTab.me).index);
+    if (current.name != HomeRoute.name) {
+      await replacePath(kPathProfile);
+    }
+  }
+
+  @override
   Future<void> openBeacon(
     String id, {
     String? entry,

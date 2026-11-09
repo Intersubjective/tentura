@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'package:tentura/app/router/home_tab_branches.dart';
+import 'package:tentura/ui/navigation/home_tab.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
@@ -11,7 +11,7 @@ import 'inbox_navbar_item.dart';
 import 'my_work_navbar_item.dart';
 
 /// One Home navigation destination, shared by the rail, the bottom bar and
-/// [HomeRailFrame] so their lists cannot drift apart.
+/// `HomeRailFrame` so their lists cannot drift apart.
 typedef HomeNavDestinationData = ({
   Widget icon,
   Widget selectedIcon,

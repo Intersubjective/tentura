@@ -2,6 +2,8 @@ import 'package:flutter/widgets.dart';
 
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 
+import 'home_tab.dart';
+
 /// Presentation-layer navigation port: one method per navigation intent.
 ///
 /// Feature UI navigates through this port instead of building route classes,
@@ -21,6 +23,17 @@ import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 abstract interface class AppNavigator {
   /// The root navigator's context, for dialogs opened outside any route.
   BuildContext? get rootContext;
+
+  /// The active tab index of Home's tabs router; null while Home has no
+  /// mounted tabs.
+  int? get activeHomeTabIndex;
+
+  /// Shows Home's [tab] and replaces the URL with the tab's path.
+  Future<void> openHomeTab(HomeTab tab);
+
+  /// Opens Home's Me tab, from inside Home or from a route pushed above it
+  /// (the URL changes only when Home is not the current root route).
+  Future<void> openMyProfile();
 
   /// Pushes the Request detail (`BeaconViewRoute`).
   Future<void> openBeacon(

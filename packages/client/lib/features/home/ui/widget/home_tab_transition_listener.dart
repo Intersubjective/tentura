@@ -1,7 +1,7 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/widgets.dart';
 
-import 'package:tentura/app/router/home_tab_branches.dart';
+import 'package:tentura/ui/navigation/home_tab.dart';
 
 /// Fires [onEnter] when [tab] becomes active and [onLeave] when it stops being
 /// active — whether from another bottom-nav tab or a URL change on the shell.

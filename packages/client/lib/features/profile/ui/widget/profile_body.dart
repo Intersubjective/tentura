@@ -1,12 +1,13 @@
+import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 
-import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/home/ui/sheet/how_tentura_works_sheet.dart';
 import 'package:tentura/domain/entity/availability.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/navigation/home_tab.dart';
 import 'package:tentura/ui/utils/availability_line.dart';
 import 'package:tentura/ui/widget/self_aware_profile_avatar.dart';
 import 'package:tentura/ui/widget/show_more_text.dart';

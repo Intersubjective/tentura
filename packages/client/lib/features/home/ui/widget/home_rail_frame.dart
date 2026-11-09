@@ -4,9 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 
-import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/navigation/app_navigator.dart';
+import 'package:tentura/ui/navigation/home_tab.dart';
 
 import '../bloc/home_attention_cubit.dart';
 import 'home_rail_account_footer.dart';
@@ -49,9 +50,7 @@ class HomeRailFrame extends StatelessWidget {
     void openTab(int index) {
       final spec = HomeTabSpec.fromIndex(index);
       if (spec == null) return;
-      final root = context.router.root;
-      root.innerRouterOf<TabsRouter>(HomeRoute.name)?.setActiveIndex(index);
-      unawaited(root.replacePath(spec.path));
+      unawaited(GetIt.I<AppNavigator>().openHomeTab(spec.tab));
     }
 
     final rail = NavigationRail(
