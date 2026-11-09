@@ -37,6 +37,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../../support/fake_app_navigator.dart';
 import '../../support/noop_attention_actor_profiles.dart';
+import '../../support/phone_surface.dart';
 import '../../support/test_realtime_sync.dart';
 import '../block/support/controllable_block_case.dart';
 import '../updates/support/noop_invite_setup_port.dart';
@@ -47,6 +48,16 @@ import 'inbox_case_test.dart'
 const _postId = 'Bpost000000001';
 const _requestId = 'Brequest00001';
 const _rootImageId = 'Iroot00000001';
+
+const _qaMarkupExcerpt =
+    'QA-FX 1109 <b>bold</b> and <script>alert(1)</script> test';
+
+void _expectNoLiteralMarkupOnScreen(WidgetTester tester) {
+  expect(find.textContaining('bold'), findsWidgets);
+  expect(find.textContaining('alert(1)'), findsWidgets);
+  expect(find.textContaining('<b>'), findsNothing);
+  expect(find.textContaining('<script>'), findsNothing);
+}
 
 void main() {
   group('attention receipt wire mapping of Post fields', () {
@@ -355,6 +366,73 @@ void main() {
       expect(find.byType(PostAttentionRow), findsOneWidget);
       expect(find.text('Оформить запрос'), findsNothing);
       expect(find.textContaining('Пост скоро закроется'), findsNothing);
+    });
+  });
+
+  group('#1109 For You PostAttentionRow preview strips markup', () {
+    testWidgets('RU 375×667 via wire-mapped Activity stream', (tester) async {
+      await usePhoneSurface(tester);
+      await _pumpFeed(
+        tester,
+        [
+          _groupWire(
+            beaconId: _postId,
+            beaconKind: 1,
+            postRootExcerpt: _qaMarkupExcerpt,
+            events: [_arrivalEvent('E1109ru')],
+          ),
+        ],
+        logicalSize: kPhoneSurface,
+      );
+
+      expect(find.byType(PostAttentionRow), findsOneWidget);
+      _expectNoLiteralMarkupOnScreen(tester);
+      expect(find.textContaining(_qaMarkupExcerpt), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('EN 375×667 on PostAttentionRow after wire mapping', (
+      tester,
+    ) async {
+      await usePhoneSurface(tester);
+      final remote = _FixtureRemoteClient()
+        ..feedData = _feedData([
+          _groupWire(
+            beaconId: _postId,
+            beaconKind: 1,
+            postRootExcerpt: _qaMarkupExcerpt,
+            events: [_arrivalEvent('E1109en')],
+          ),
+        ]);
+      final receipt = (await AttentionRepository(
+        remote,
+      ).fetch(view: AttentionView.all)).page.items.single;
+      expect(receipt.postRootExcerpt, _qaMarkupExcerpt);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          locale: const Locale('en'),
+          theme: TenturaTheme.light(),
+          localizationsDelegates: L10n.localizationsDelegates,
+          supportedLocales: L10n.supportedLocales,
+          home: MediaQuery(
+            data: const MediaQueryData(size: kPhoneSurface),
+            child: TenturaResponsiveScope(
+              child: Scaffold(
+                body: PostAttentionRow(
+                  receipt: receipt,
+                  onOpen: () {},
+                  onDismiss: () {},
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      _expectNoLiteralMarkupOnScreen(tester);
+      expect(tester.takeException(), isNull);
     });
   });
 }

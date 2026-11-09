@@ -1093,8 +1093,7 @@ UpdatesFeedRowCopy? _postSharedRowCopy({
       : actorNameFromPresentationPayload(presentationPayloadJson) ??
             localizedDisplayName(title.trim());
   if (name.trim().isEmpty) return null;
-  final postRaw = postRootExcerpt?.trim() ?? '';
-  final post = stripAngleBracketRegionsForPlainPreview(postRaw);
+  final post = postRootExcerptForPlainPreview(postRootExcerpt);
   final noteRaw = excerptFromPresentationPayload(presentationPayloadJson) ?? '';
   final note = stripAngleBracketRegionsForPlainPreview(noteRaw);
   return UpdatesFeedRowCopy(

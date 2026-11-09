@@ -13,6 +13,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/presenter/beacon_phase_input_builders.dart';
 import 'package:tentura/ui/presenter/beacon_phase_presenter.dart';
 import 'package:tentura/ui/utils/beacon_card_deadline.dart';
+import 'package:tentura/ui/utils/plain_text_preview.dart';
 import 'package:tentura/ui/widget/beacon_card_primitives.dart';
 import 'package:tentura/ui/widget/beacon_requirements_bar.dart';
 
@@ -119,7 +120,9 @@ class InboxWatchlistRow extends StatelessWidget {
     if (beacon == null) return const SizedBox.shrink();
 
     final isPost = !beacon.isRequest;
-    final postExcerpt = item.roomHints?.postRootExcerpt.trim() ?? '';
+    final postExcerpt = postRootExcerptForPlainPreview(
+      item.roomHints?.postRootExcerpt,
+    );
     final authorName = beacon.author.shownName.trim();
     final displayTitle = isPost
         ? (authorName.isEmpty ? '—' : l10n.postRowSharedBy(authorName))

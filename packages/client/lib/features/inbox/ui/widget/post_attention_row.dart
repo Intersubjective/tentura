@@ -9,6 +9,7 @@ import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/navigation/app_navigator.dart';
+import 'package:tentura/ui/utils/plain_text_preview.dart';
 import 'package:tentura/ui/utils/relative_time.dart';
 import 'package:tentura/ui/widget/beacon_image.dart';
 import 'package:tentura/ui/widget/relative_timestamp_ticker.dart';
@@ -103,7 +104,7 @@ class PostAttentionRow extends StatelessWidget {
       PostAttentionVariant.expiringSoon => l10n.postExpiringPushTitle,
     };
 
-    final rootExcerpt = receipt.postRootExcerpt?.trim() ?? '';
+    final rootExcerpt = postRootExcerptForPlainPreview(receipt.postRootExcerpt);
     final rootImageId = receipt.postRootImageId ?? '';
     final isMessageVariant =
         variant == PostAttentionVariant.reply ||
