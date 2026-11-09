@@ -28,6 +28,7 @@ import 'beacon_view_screen_harness.dart';
 const _beaconId = 'b-closed-774';
 const _authorId = 'u-author';
 const _f1Id = 'u-f1';
+const _f2Id = 'u-f2';
 const _helperId = 'u-helper';
 const _strangerId = 'u-stranger';
 
@@ -50,6 +51,26 @@ List<HelpPathNode> _multiHopPath({bool blockedMiddle = false}) => [
     const HelpPathNode.named(userId: _f1Id, displayName: 'Boris'),
   const HelpPathNode.named(userId: _helperId, displayName: 'Vera'),
 ];
+
+List<HelpPathNode> _fourHopPath() => [
+  const HelpPathNode.named(userId: _authorId, displayName: 'Anna'),
+  const HelpPathNode.named(userId: _f1Id, displayName: 'Boris'),
+  const HelpPathNode.named(userId: _f2Id, displayName: 'Kira'),
+  const HelpPathNode.named(userId: _helperId, displayName: 'Vera'),
+];
+
+void _expectNamesFullyInsideRow(WidgetTester tester, List<String> names) {
+  final rowRect = tester.getRect(find.byType(HelpPathChainRow));
+  for (final name in names) {
+    final textFinder = find.text(name);
+    expect(textFinder, findsOneWidget);
+    final textRect = tester.getRect(textFinder);
+    expect(textRect.left, greaterThanOrEqualTo(rowRect.left - 0.5));
+    expect(textRect.right, lessThanOrEqualTo(rowRect.right + 0.5));
+    expect(textRect.top, greaterThanOrEqualTo(rowRect.top - 0.5));
+    expect(textRect.bottom, lessThanOrEqualTo(rowRect.bottom + 0.5));
+  }
+}
 
 class _FakeForwardRepository implements ForwardRepository {
   _FakeForwardRepository(this._pathsByHelper);
@@ -342,6 +363,38 @@ void main() {
     await tester.tap(find.byType(HelpPathChainRow));
     await tester.pump();
 
+    final push = effects.emitted.whereType<NavigatePush>().last;
+    expect(push.path, kPathConstellation);
+  });
+
+  testWidgets('RU 375×667 @2x four-hop path shows every name in the row rect', (
+    tester,
+  ) async {
+    await usePhoneSurface2x(tester);
+    final effects = FakeUiEffectPort();
+    final forwardRepo = _FakeForwardRepository({
+      _helperId: _fourHopPath(),
+    });
+    await _pumpHeader(
+      tester,
+      effects: effects,
+      forwardRepo: forwardRepo,
+      locale: const Locale('ru'),
+      state: BeaconViewState(
+        beacon: _closedBeacon(),
+        myProfile: _p(_f2Id, 'Kira'),
+        load: BeaconViewLoad.ready,
+        admittedHelperRoster: [_p(_helperId, 'Vera')],
+        admittedHelpersLoaded: true,
+      ),
+    );
+
+    expect(find.text('Помощь прошла через'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    _expectNamesFullyInsideRow(tester, ['Anna', 'Boris', 'Kira', 'Vera']);
+    expect(find.byIcon(Icons.chevron_right), findsOneWidget);
+    await tester.tap(find.byType(HelpPathChainRow));
+    await tester.pump();
     final push = effects.emitted.whereType<NavigatePush>().last;
     expect(push.path, kPathConstellation);
   });

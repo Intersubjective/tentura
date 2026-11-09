@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'attention_event_classification.dart';
+import 'attention_event_classification.dart' show attentionEventTypeOf;
 import 'entity/attention_receipt.dart';
 import 'request_card_room_attention.dart';
 
@@ -20,6 +20,17 @@ bool attentionReceiptIsPersonal(AttentionReceipt receipt) {
   } on Object {
     return false;
   }
+}
+
+/// Viewer-addressed preview row: server *personal*, or a `forwardHelped` event.
+///
+/// `forwardHelped` never sets `personal` (no actor user id), but the contract
+/// has a single variant (`reason:pathForwarder`) — every recipient is the
+/// path forwarder («*Your* forward helped»).
+bool attentionReceiptAddressedToViewer(AttentionReceipt receipt) {
+  if (attentionReceiptIsPersonal(receipt)) return true;
+  return attentionEventTypeOf(receipt.presentationPayloadJson) ==
+      'forwardHelped';
 }
 
 /// One row of a card's «вам» zone: everything one sender sent the viewer,
@@ -63,7 +74,7 @@ class RequestCardZones {
     final order = <String>[];
     AttentionReceipt? change;
     for (final event in events) {
-      if (attentionReceiptIsPersonal(event)) {
+      if (attentionReceiptAddressedToViewer(event)) {
         final actor = event.actorUserId?.trim() ?? '';
         // No actor: nothing to group by, so the item keeps a row of its own.
         final key = actor.isEmpty ? 'receipt:${event.id}' : actor;

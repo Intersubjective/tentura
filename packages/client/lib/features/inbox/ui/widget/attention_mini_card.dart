@@ -63,6 +63,7 @@ class AttentionMiniCard extends StatefulWidget {
     this.dismissLabel,
     this.eventMaxLines = 2,
     this.dismissDuration = const Duration(milliseconds: 180),
+    this.viewerUserId,
     super.key,
   });
 
@@ -130,6 +131,9 @@ class AttentionMiniCard extends StatefulWidget {
   final int eventMaxLines;
 
   final Duration dismissDuration;
+
+  /// Hop on the frozen help path that reads as «You» / «Вы» (#774).
+  final String? viewerUserId;
 
   @override
   State<AttentionMiniCard> createState() => _AttentionMiniCardState();
@@ -205,6 +209,8 @@ class _AttentionMiniCardState extends State<AttentionMiniCard>
       requestTitle: widget.requestTitle,
       actorName: shownName,
       l10n: l10n,
+      viewerUserId: widget.viewerUserId,
+      collapsedCount: widget.receipt.collapsedCount,
     );
     final isBaton =
         batonReceiptDisplayCopy(
@@ -275,50 +281,88 @@ class _AttentionMiniCardState extends State<AttentionMiniCard>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 LayoutBuilder(
-                  builder: (context, rowConstraints) => Row(
-                    children: [
-                      Expanded(
-                        // With a CTA on the line the age moves under the
-                        // event: beside it, it took the width the event
-                        // needed and «Закройте цикл» broke over two lines.
-                        child: widget.trailing == null
-                            ? _eventText(eventLine, eventStyle)
-                            : Column(
-                                mainAxisSize: MainAxisSize.min,
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  _eventText(eventLine, eventStyle),
-                                  _ageText(tt, absoluteTime),
-                                ],
+                  builder: (context, rowConstraints) {
+                    final stackFieldAction =
+                        widget.trailing != null &&
+                        widget.onDismiss != null &&
+                        rowConstraints.maxWidth < 380;
+                    if (stackFieldAction) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    _eventText(eventLine, eventStyle),
+                                    _ageText(tt, absoluteTime),
+                                  ],
+                                ),
                               ),
-                      ),
-                      if (widget.trailing == null) ...[
-                        SizedBox(width: tt.iconTextGap),
-                        ConstrainedBox(
-                          constraints: BoxConstraints(
-                            maxWidth:
-                                rowConstraints.maxWidth *
-                                kMiniCardAgeWidthShare,
+                              _DismissControl(
+                                focusNode: _dismissFocus,
+                                label:
+                                    widget.dismissLabel ??
+                                    l10n.attentionEventDismiss,
+                                emphasised: _hovering,
+                                onPressed: _dismiss,
+                              ),
+                            ],
                           ),
-                          child: _ageText(tt, absoluteTime),
+                          widget.trailing!,
+                        ],
+                      );
+                    }
+                    return Row(
+                      children: [
+                        Expanded(
+                          // With a CTA on the line the age moves under the
+                          // event: beside it, it took the width the event
+                          // needed and «Закройте цикл» broke over two lines.
+                          child: widget.trailing == null
+                              ? _eventText(eventLine, eventStyle)
+                              : Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    _eventText(eventLine, eventStyle),
+                                    _ageText(tt, absoluteTime),
+                                  ],
+                                ),
                         ),
+                        if (widget.trailing == null) ...[
+                          SizedBox(width: tt.iconTextGap),
+                          ConstrainedBox(
+                            constraints: BoxConstraints(
+                              maxWidth:
+                                  rowConstraints.maxWidth *
+                                  kMiniCardAgeWidthShare,
+                            ),
+                            child: _ageText(tt, absoluteTime),
+                          ),
+                        ],
+                        if (widget.trailing case final trailing?) ...[
+                          SizedBox(width: tt.tightGap),
+                          Flexible(child: trailing),
+                        ],
+                        if (widget.onDismiss != null) ...[
+                          SizedBox(width: tt.tightGap),
+                          _DismissControl(
+                            focusNode: _dismissFocus,
+                            label:
+                                widget.dismissLabel ??
+                                l10n.attentionEventDismiss,
+                            emphasised: _hovering,
+                            onPressed: _dismiss,
+                          ),
+                        ],
                       ],
-                      if (widget.trailing case final trailing?) ...[
-                        SizedBox(width: tt.tightGap),
-                        trailing,
-                      ],
-                      if (widget.onDismiss != null) ...[
-                        SizedBox(width: tt.tightGap),
-                        _DismissControl(
-                          focusNode: _dismissFocus,
-                          label:
-                              widget.dismissLabel ?? l10n.attentionEventDismiss,
-                          emphasised: _hovering,
-                          onPressed: _dismiss,
-                        ),
-                      ],
-                    ],
-                  ),
+                    );
+                  },
                 ),
                 if (quoted.isNotEmpty || widget.capabilitySlugs.isNotEmpty)
                   Padding(

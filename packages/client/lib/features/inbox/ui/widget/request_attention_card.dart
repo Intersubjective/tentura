@@ -20,6 +20,7 @@ import 'package:tentura/ui/utils/beacon_schedule_presenter.dart';
 import 'package:tentura/ui/utils/relative_time.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/features/updates/updates_receipt_display_copy.dart';
+import 'package:tentura/features/updates/ui/widget/forward_helped_see_path_action.dart';
 import 'package:tentura/features/updates/ui/widget/updates_feed_tile.dart';
 import 'package:tentura/ui/widget/beacon_identity_tile.dart';
 import 'package:tentura/ui/widget/one_node_button.dart';
@@ -75,6 +76,7 @@ class RequestAttentionCard extends StatelessWidget {
     this.cantHelpLabel,
     this.onForwardsGraph,
     this.onComplaint,
+    this.viewerUserId,
     super.key,
   });
 
@@ -159,6 +161,9 @@ class RequestAttentionCard extends StatelessWidget {
 
   final VoidCallback? onForwardsGraph;
   final VoidCallback? onComplaint;
+
+  /// Hop on a forward-helped path that reads as «You» / «Вы» (#774).
+  final String? viewerUserId;
 
   bool get _isPinned => variant == RequestAttentionCardVariant.pinned;
 
@@ -493,6 +498,9 @@ class RequestAttentionCard extends StatelessWidget {
         ? ''
         : profileWithContactOverlay(actor).shownName.trim();
     final dismiss = _isPinned ? null : onClearEvent;
+    final isForwardHelped =
+        attentionEventTypeOf(receipt.presentationPayloadJson) ==
+        'forwardHelped';
     return AttentionMiniCard(
       key: ValueKey('personal:${row.senderId}:${receipt.id}'),
       receipt: receipt,
@@ -500,6 +508,10 @@ class RequestAttentionCard extends StatelessWidget {
       eventLine: _personalLine(l10n, receipt, name),
       requestTitle: beacon.title,
       compactAge: true,
+      viewerUserId: viewerUserId,
+      trailing: isForwardHelped
+          ? ForwardHelpedSeePathAction(receipt: receipt)
+          : null,
       dismissLabel: name.isEmpty ? null : l10n.attentionCardDismissRow(name),
       onTap: onEventTap == null ? null : () => onEventTap!(receipt),
       onDismiss: dismiss == null

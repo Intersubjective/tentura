@@ -42,12 +42,24 @@ class HelpPathChainRow extends StatelessWidget {
             child: Row(
               children: [
                 Expanded(
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: _segments(context, path),
-                    ),
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final maxChunkWidth =
+                          constraints.maxWidth.isFinite &&
+                              constraints.maxWidth > 0
+                          ? constraints.maxWidth * 0.45
+                          : 140.0;
+                      return Wrap(
+                        spacing: tt.tightGap,
+                        runSpacing: tt.tightGap,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: _segments(
+                          context,
+                          path,
+                          maxChunkWidth: maxChunkWidth,
+                        ),
+                      );
+                    },
                   ),
                 ),
                 Icon(
@@ -63,17 +75,23 @@ class HelpPathChainRow extends StatelessWidget {
     );
   }
 
-  List<Widget> _segments(BuildContext context, List<HelpPathNode> path) {
+  List<Widget> _segments(
+    BuildContext context,
+    List<HelpPathNode> path, {
+    required double maxChunkWidth,
+  }) {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
     final children = <Widget>[];
     for (var i = 0; i < path.length; i++) {
       if (i != 0) {
-        children.addAll([
-          SizedBox(width: tt.tightGap),
-          Icon(Icons.arrow_right_alt, size: _avatarSize, color: tt.textMuted),
-          SizedBox(width: tt.tightGap),
-        ]);
+        children.add(
+          Icon(
+            Icons.arrow_right_alt,
+            size: _avatarSize,
+            color: tt.textMuted,
+          ),
+        );
       }
       final node = path[i];
       if (node.isAnonymous) {
@@ -85,22 +103,29 @@ class HelpPathChainRow extends StatelessWidget {
         );
       } else {
         children.add(
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TenturaAvatar(
-                profile: Profile(
-                  id: node.userId!,
-                  displayName: node.displayName!,
+          ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: maxChunkWidth),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TenturaAvatar(
+                  profile: Profile(
+                    id: node.userId!,
+                    displayName: node.displayName!,
+                  ),
+                  size: _avatarSize,
                 ),
-                size: _avatarSize,
-              ),
-              SizedBox(width: tt.iconTextGap),
-              Text(
-                node.displayName!.trim(),
-                style: TenturaText.bodySmall(tt.text),
-              ),
-            ],
+                SizedBox(width: tt.iconTextGap),
+                Flexible(
+                  child: Text(
+                    node.displayName!.trim(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TenturaText.bodySmall(tt.text),
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       }
