@@ -167,8 +167,30 @@ FILES = {
     f"{SERVER}/lib/s.dart": "",
     f"{SERVER}/test/s_test.dart": "import 'package:tentura_server/s.dart';\n",
     f"{SERVER}/test/pg_test.dart": "@Tags(['pg'])\nlibrary;\n",
+    # Migrations: a routine reading the widget table, code naming the table
+    # in Drift's spelling, code calling the routine.
+    f"{SERVER}/lib/data/database/migration/m0002.dart": (
+        "final m0002 = Migration('0002', [\n  r" + "'" * 3 + "\n"
+        "CREATE FUNCTION public.widget_count() RETURNS int LANGUAGE sql\n"
+        "  AS $$ SELECT count(*)::int FROM public.widget $$\n" + "'" * 3 + "\n]);\n"
+    ),
+    f"{SERVER}/lib/data/database/table/widgets.dart": "class Widgets extends Table {}\n",
+    f"{SERVER}/lib/data/repository/widget_repository.dart": "final rows = db.widgets;\n",
+    f"{SERVER}/lib/data/repository/count_repository.dart": "const q = 'SELECT widget_count()';\n",
+    f"{SERVER}/test/widget_repo_pg_test.dart": (
+        "@Tags(['pg'])\nlibrary;\nimport 'package:tentura_server/data/repository/widget_repository.dart';\n"
+    ),
+    f"{SERVER}/test/count_pg_test.dart": (
+        "@Tags(['pg'])\nlibrary;\nimport 'package:tentura_server/data/repository/count_repository.dart';\n"
+    ),
+    f"{SERVER}/test/gadget_pg_test.dart": "@Tags(['pg'])\nlibrary;\nconst t = 'gadget';\n",
+    f"{SERVER}/test/widget_unit_test.dart": (
+        "import 'package:tentura_server/data/repository/widget_repository.dart';\n"
+    ),
+    f"{SERVER}/test/m0003_shape_test.dart": "const name = 'm0003';\n",
 }
 
+TRIPLE = "'" * 3
 L10N_ALWAYS = ["arb_contract_test.dart", "fake_l10n_test.dart"]
 # Selected with every Dart change under the client's lib/ (layering_test with
 # every Dart change of the client).
@@ -587,10 +609,84 @@ class SyntheticTreeTest(unittest.TestCase):
         sel = self.sel(f"{CLIENT}/README.md", f"{CLIENT}/android/app/x.xml")
         self.assertEqual((sel.tests, sel.fallbacks), (set(), []))
 
-    def test_server_migration_adds_pg_tests(self):
+    PG_TESTS = [
+        "count_pg_test.dart", "gadget_pg_test.dart", "pg_test.dart", "widget_repo_pg_test.dart",
+    ]
+
+    def migration(self, sql, name="m0003"):
+        return self.sel(
+            f"{SERVER}/lib/data/database/migration/{name}.dart",
+            pkg=SERVER,
+            before=absent,
+            after=lambda _p: f"final {name} = Migration('x', [\n  {TRIPLE}\n{sql}\n{TRIPLE},\n]);\n",
+        )
+
+    def test_server_migration_without_sql_adds_every_pg_test(self):
         sel = self.sel(f"{SERVER}/lib/data/database/migration/m0001.dart", pkg=SERVER)
-        self.assertEqual(self.names(sel), ["pg_test.dart"])
+        self.assertEqual(self.names(sel), self.PG_TESTS)
+        self.assertTrue(sel.notes)
         self.assertEqual(self.names(self.sel(f"{SERVER}/lib/s.dart", pkg=SERVER)), ["s_test.dart"])
+
+    def test_server_migration_selects_pg_tests_reaching_its_objects(self):
+        sel = self.migration("ALTER TABLE public.widget ADD COLUMN size int")
+        # Drift's spelling (widgets), the routine reading the table (to a fixed
+        # point) and the test naming the migration; not the unit test that
+        # imports the same repository, not a pg test about another table.
+        self.assertEqual(
+            self.names(sel),
+            ["count_pg_test.dart", "m0003_shape_test.dart", "widget_repo_pg_test.dart"],
+        )
+        self.assertEqual((sel.fallbacks, sel.notes), ([], []))
+
+    def test_server_migration_it_cannot_attribute_adds_every_pg_test(self):
+        sel = self.migration("DO $$ BEGIN PERFORM 1; END $$")
+        self.assertEqual(self.names(sel), self.PG_TESTS)
+        self.assertTrue(sel.notes)
+
+
+class SinceSnapshotTest(unittest.TestCase):
+    """--since selects only what changed after a --snapshot (run_tests.sh's
+    rerun after a green *-affected run)."""
+
+    def git(self, *args):
+        return subprocess.run(
+            ["git", "-c", "user.email=t@t", "-c", "user.name=t", *args],
+            cwd=self.repo, check=True, capture_output=True, text=True,
+        ).stdout.strip()
+
+    def cli(self, *args):
+        return subprocess.run(
+            [sys.executable, str(SCRIPT), *args, "--repo", str(self.repo)],
+            cwd=self.repo, check=True, capture_output=True, text=True,
+        ).stdout.split()
+
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory(prefix="affected-since-")
+        self.addCleanup(temporary.cleanup)
+        self.repo = Path(temporary.name)
+        for name in "ab":
+            for path, text in {
+                f"{CLIENT}/lib/{name}.dart": "library;\n",
+                f"{CLIENT}/test/{name}_test.dart": f"import 'package:tentura/{name}.dart';\n",
+            }.items():
+                (self.repo / path).parent.mkdir(parents=True, exist_ok=True)
+                (self.repo / path).write_text(text)
+        self.git("init", "-q")
+        self.git("add", "-A")
+        self.git("commit", "-qm", "base")
+
+    def test_since_selects_only_changes_after_the_snapshot(self):
+        (self.repo / CLIENT / "lib/a.dart").write_text("library; // a\n")
+        snapshot = self.cli("--snapshot")[0]
+        self.assertEqual(self.cli(CLIENT), ["test/a_test.dart"])
+        # A new untracked file and an edit after the snapshot.
+        (self.repo / CLIENT / "lib/b.dart").write_text("library; // b\n")
+        (self.repo / CLIENT / "test/c_test.dart").write_text("library;\n")
+        self.assertEqual(self.cli(CLIENT, "--since", snapshot), ["test/b_test.dart", "test/c_test.dart"])
+        self.assertEqual(self.cli("--snapshot"), self.cli("--snapshot"))
+        self.assertNotEqual(self.cli("--snapshot")[0], snapshot)
+        # The real index is untouched: the new files stay untracked.
+        self.assertIn("?? packages/client/test/c_test.dart", self.git("status", "--short"))
 
 
 class RealTreeTest(unittest.TestCase):

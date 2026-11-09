@@ -64,7 +64,8 @@ Iterate with `*-files`; before landing run `*-gates` + `*-affected`.
 `*-affected` selects every test the change reaches (transitive imports plus
 rules for ARB keys, GraphQL operations, source-reading tests, migrations and
 shared test configs: `scripts/affected_tests.py`), so it is the regression run
-for a change. `client-all`, `server-pg` and `server-regression` belong to ship
+for a change; a rerun on the same `HEAD` after a green one runs only what changed
+since (`AFFECTED_FULL=1` for all). `client-all`, `server-pg` and `server-regression` belong to ship
 beads and CI. Never `perf` / `load` in a routine run. Wrapped runs queue
 machine-wide (one at a time). Policy and measurements: [`docs/testing-resource-profile.md`](docs/testing-resource-profile.md).
 
