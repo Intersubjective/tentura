@@ -66,10 +66,12 @@ config); these rules cover those:
     tests that name, or reach code that names, a SQL object it creates,
     changes or writes (Drift spellings included), or a routine / view whose
     body in any migration uses one, plus the tests naming the migration.
-    Triggers are not followed back to their tables, so a migration that
-    (re)defines a trigger function (RETURNS trigger) adds every pg-tagged
-    test, as does a statement it cannot attribute (a DO block, ...) or a
-    migration list change alone. A migration list change also adds the tests
+    Its SQL is every triple-quoted string plus every one-line string that
+    starts with a SQL keyword. Triggers are not followed back to their
+    tables, so a migration that (re)defines a trigger function (RETURNS
+    trigger), or a routine a trigger function calls (to a fixed point), adds
+    every pg-tagged test, as does a statement it cannot attribute (a DO
+    block, ...) or a migration list change alone. A migration list change also adds the tests
     importing the list itself (its order guard);
   * anything changed outside the package adds the package's tests tagged
     `repo-files` (they read other packages, docs, scripts; CI does the same,
@@ -166,8 +168,16 @@ MIGRATION_REGISTRY = MIGRATIONS + "_migrations.dart"
 # objects instead.
 DATABASE_DIR = "lib/data/database/"
 GENERATED_L10N = "lib/ui/l10n/"
-# The SQL of a migration: its Dart triple-quoted strings.
-SQL_STRING = re.compile(r"r?'''(.*?)'''", re.S)
+# The SQL of a migration: its Dart triple-quoted strings, plus one-line
+# '...' / "..." strings that start with a SQL keyword (some migrations mix
+# both styles; m0267, m0271, m0276).
+SQL_STRING = re.compile(r"r?('''|\"\"\")(.*?)\1", re.S)
+SQL_LINE_STRING = re.compile(r"""r?(['"])((?:(?!\1)[^\\\n]|\\.)*)\1""")
+SQL_LEADING_KEYWORD = re.compile(
+    r"^\s*(?:CREATE|ALTER|DROP|INSERT|UPDATE|DELETE|TRUNCATE|GRANT|REVOKE|"
+    r"COMMENT|WITH|SELECT|DO|REFRESH|REINDEX|CLUSTER|LOCK|SET|RESET)\b",
+    re.I,
+)
 _SQL_NAME = r'((?:"?\w+"?\.)?"?\w+"?)'
 SQL_DEFINE = re.compile(
     r"\b(?:CREATE|ALTER|DROP)\s+(?:OR\s+REPLACE\s+)?(?:UNIQUE\s+)?(?:MATERIALIZED\s+)?"
@@ -707,7 +717,14 @@ def _naming(graph: Graph, pkg: str, name: str) -> set[str]:
 
 
 def _sql_statements(text: str | None) -> list[str]:
-    return [s.strip() for s in SQL_STRING.findall(text or "") if s.strip()]
+    text = text or ""
+    out = [m.group(2).strip() for m in SQL_STRING.finditer(text)]
+    rest = SQL_STRING.sub(" ", text)
+    out += [
+        m.group(2).strip() for m in SQL_LINE_STRING.finditer(rest)
+        if SQL_LEADING_KEYWORD.match(m.group(2))
+    ]
+    return [s for s in out if s]
 
 
 def _sql_bare(name: str) -> str:
@@ -728,9 +745,11 @@ def _sql_names(statement: str) -> set[str]:
     return {_sql_bare(n) for n in found} - SQL_WORDS
 
 
-def _sql_dependents(graph: Graph, pkg: str) -> list[tuple[set[str], set[str]]]:
-    """(defined objects, names its body uses) for every function, view,
-    trigger, policy and rule any migration of [pkg] defines."""
+def _sql_dependents(
+    graph: Graph, pkg: str
+) -> list[tuple[set[str], set[str], bool]]:
+    """(defined objects, names its body uses, is a trigger function) for every
+    function, procedure and view any migration of [pkg] defines."""
     out = []
     for f in sorted(graph.package_files(pkg)):
         if not f.startswith(f"{pkg}/{MIGRATIONS}"):
@@ -741,7 +760,9 @@ def _sql_dependents(graph: Graph, pkg: str) -> list[tuple[set[str], set[str]]]:
             defined = _sql_names(statement)
             body = {w.lower() for w in IDENTIFIER.findall(statement)} - defined
             if defined:
-                out.append((defined, body))
+                out.append(
+                    (defined, body, bool(SQL_TRIGGER_FUNCTION.search(statement)))
+                )
     return out
 
 
@@ -796,8 +817,15 @@ def _migration_selection(
     grew = True
     while grew:
         grew = False
-        for defined, body in dependents:
+        for defined, body, trigger in dependents:
             if not defined <= names and body & names:
+                if trigger:
+                    # A changed routine is called from a trigger function:
+                    # triggers aren't followed back to their tables.
+                    return (
+                        f"trigger function {min(defined)} calls "
+                        f"{', '.join(sorted(body & names))}"
+                    )
                 names |= defined
                 grew = True
     spellings: set[str] = set()

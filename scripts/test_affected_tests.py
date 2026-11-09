@@ -174,6 +174,12 @@ FILES = {
         "CREATE FUNCTION public.widget_count() RETURNS int LANGUAGE sql\n"
         "  AS $$ SELECT count(*)::int FROM public.widget $$\n" + "'" * 3 + "\n]);\n"
     ),
+    # A trigger function calling a plain routine (m0271's write guards).
+    f"{SERVER}/lib/data/database/migration/m0004.dart": (
+        "final m0004 = Migration('0004', [\n  r" + "'" * 3 + "\n"
+        "CREATE FUNCTION public.gadget_guard() RETURNS trigger LANGUAGE plpgsql\n"
+        "  AS $$ BEGIN PERFORM public.gadget_allowed(); RETURN NEW; END $$\n" + "'" * 3 + "\n]);\n"
+    ),
     f"{SERVER}/lib/data/database/table/widgets.dart": "class Widgets extends Table {}\n",
     f"{SERVER}/lib/data/repository/widget_repository.dart": "final rows = db.widgets;\n",
     f"{SERVER}/lib/data/repository/count_repository.dart": "const q = 'SELECT widget_count()';\n",
@@ -655,6 +661,32 @@ class SyntheticTreeTest(unittest.TestCase):
         )
         self.assertEqual(self.names(sel), self.PG_TESTS)
         self.assertTrue(sel.notes)
+
+    def test_server_routine_called_by_a_trigger_function_adds_every_pg_test(self):
+        # beacon_post_write_allowed is only called by m0271's trigger
+        # functions: following the call stops at a trigger (selected 1 of 509).
+        sel = self.migration(
+            "CREATE OR REPLACE FUNCTION public.gadget_allowed() RETURNS boolean\n"
+            "LANGUAGE sql AS $f$ SELECT true $f$"
+        )
+        self.assertEqual(self.names(sel), self.PG_TESTS)
+        self.assertTrue(sel.notes)
+
+    def test_server_one_line_sql_strings_are_read_beside_triple_quoted_ones(self):
+        # m0267/m0271/m0276 mix 'ALTER ...' with r\'\'\'...\'\'\' statements.
+        sel = self.sel(
+            f"{SERVER}/lib/data/database/migration/m0003.dart",
+            pkg=SERVER,
+            before=absent,
+            after=lambda _p: (
+                "final m0003 = Migration('x', [\n"
+                "  'ALTER TABLE public.widget ADD COLUMN size int',\n"
+                f"  r{TRIPLE}CREATE INDEX g_idx ON public.gadget (a){TRIPLE},\n"
+                "]);\n"
+            ),
+        )
+        self.assertIn("widget_repo_pg_test.dart", self.names(sel))
+        self.assertIn("gadget_pg_test.dart", self.names(sel))
 
     def test_server_migration_list_change_adds_its_order_guard(self):
         sel = self.sel(
