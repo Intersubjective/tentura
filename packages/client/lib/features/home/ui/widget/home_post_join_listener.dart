@@ -54,7 +54,10 @@ class _HomePostJoinListenerState extends State<HomePostJoinListener> {
     final dest = postJoin.takeDestination();
     if (dest == null || !dest.hasBeacon) return;
 
-    widget.tabsRouter.setActiveIndex(HomeTabSpec.forTab(HomeTab.inbox).index);
+    // A Post lives on Posts, so leaving it lands there; a Request invite
+    // lands in Inbox.
+    final tab = dest.isPost ? HomeTab.conversations : HomeTab.inbox;
+    widget.tabsRouter.setActiveIndex(HomeTabSpec.forTab(tab).index);
 
     GetIt.I<ScreenCubit>().showBeacon(
       dest.beaconId!,

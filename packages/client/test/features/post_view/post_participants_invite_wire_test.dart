@@ -1,5 +1,6 @@
 import 'package:ferry/ferry.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gql_exec/gql_exec.dart' show Request, Response;
 
@@ -206,6 +207,168 @@ void main() {
     expect(find.text(note), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  _arrivalNotesMatrix();
 }
 
 void _noop() {}
+
+/// A `BeaconParticipantList` wire row on the arrival-attribution Post.
+Map<String, dynamic> _arrivalRow({
+  required String userId,
+  required String title,
+  int role = BeaconParticipantRoleBits.addressee,
+  String? broughtById,
+  String? broughtByName,
+  String? broughtHow,
+}) => {
+  '__typename': 'v2_BeaconParticipantRow',
+  'id': 'p-$userId',
+  'beaconId': _beaconId,
+  'userId': userId,
+  'userTitle': title,
+  'userHandle': null,
+  'userHasPicture': false,
+  'userPicHeight': 0,
+  'userPicWidth': 0,
+  'userBlurHash': '',
+  'userImageId': '',
+  'role': role,
+  'status': 0,
+  'roomAccess': RoomAccessBits.admitted,
+  'offerNote': null,
+  'nextMoveText': null,
+  'nextMoveStatus': null,
+  'nextMoveSource': null,
+  'linkedMessageId': null,
+  'lastSeenRoomAt': '2026-11-01T10:00:00.000Z',
+  'opened': true,
+  'helpType': null,
+  'roleLabel': null,
+  'broughtById': broughtById,
+  'broughtBy': broughtById == null
+      ? null
+      : {
+          '__typename': 'v2_ProfileSummary',
+          'userId': broughtById,
+          'displayName': broughtByName,
+        },
+  'broughtHow': broughtHow,
+  'createdAt': '2026-11-01T10:00:00.000Z',
+  'updatedAt': '2026-11-01T10:00:00.000Z',
+};
+
+/// Reads the Post's members as the server reports them: Dave joined through
+/// Alice's Post invite (an account he had before), Carol through Bob's
+/// forward.
+Future<List<BeaconParticipant>> _fetchArrivals() async {
+  final client = Client(
+    link: _FakeLink(
+      Response(
+        data: {
+          '__typename': 'query_root',
+          'BeaconParticipantList': [
+            _arrivalRow(userId: _viewerId, title: 'Viewer'),
+            _arrivalRow(
+              userId: 'Ualice',
+              title: 'Alice',
+              role: BeaconParticipantRoleBits.author,
+            ),
+            _arrivalRow(
+              userId: 'Udave',
+              title: 'Dave',
+              broughtById: 'Ualice',
+              broughtByName: 'Alice',
+              broughtHow: BeaconParticipantBroughtHow.invite,
+            ),
+            _arrivalRow(
+              userId: 'Ucarol',
+              title: 'Carol',
+              broughtById: 'Ubob',
+              broughtByName: 'Bob',
+              broughtHow: BeaconParticipantBroughtHow.forward,
+            ),
+          ],
+        },
+        response: const {},
+      ),
+    ),
+    defaultFetchPolicies: const {OperationType.query: FetchPolicy.NoCache},
+  );
+  final realtime = buildTestRealtimeSync();
+  try {
+    return await BeaconThreadsRepository(
+      _StubRemoteApiClient(client),
+      realtime.port,
+    ).fetchParticipants(_beaconId);
+  } finally {
+    await realtime.port.dispose();
+  }
+}
+
+void _arrivalNotesMatrix() {
+  group('Participants sheet arrival notes from the wire', () {
+    for (final sample in [
+      (
+        locale: const Locale('en'),
+        size: const Size(1280, 800),
+        invited: 'invited by Alice',
+        forwarded: 'via Bob',
+      ),
+      (
+        locale: const Locale('ru'),
+        size: kPhoneSurface,
+        invited: 'приглашён(а) Alice',
+        forwarded: 'через Bob',
+      ),
+    ]) {
+      testWidgets(
+        'an invited member reads «${sample.invited}» and a forwarded one '
+        '«${sample.forwarded}» '
+        '(${sample.locale.languageCode} '
+        '${sample.size.width.toInt()}×${sample.size.height.toInt()})',
+        (tester) async {
+          final members = (await tester.runAsync(_fetchArrivals))!;
+          await tester.binding.setSurfaceSize(sample.size);
+          addTearDown(() => tester.binding.setSurfaceSize(null));
+          await tester.pumpWidget(
+            MaterialApp(
+              theme: TenturaTheme.light(),
+              localizationsDelegates: L10n.localizationsDelegates,
+              supportedLocales: L10n.supportedLocales,
+              locale: sample.locale,
+              home: TenturaResponsiveScope(
+                child: Scaffold(
+                  body: SingleChildScrollView(
+                    child: PostParticipantsList(
+                      viewerId: _viewerId,
+                      participants: members,
+                      forwardEdges: const [],
+                      onForwardsGraph: _noop,
+                      peopleTagsEnabled: false,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+          await tester.pump();
+
+          for (final note in [sample.invited, sample.forwarded]) {
+            final shown = find.text(note);
+            expect(shown, findsOneWidget, reason: note);
+            expect(
+              tester.renderObject<RenderParagraph>(shown).didExceedMaxLines,
+              isFalse,
+              reason: '«$note» is readable in full',
+            );
+          }
+          final l10n = lookupL10n(sample.locale);
+          expect(find.text(l10n.postParticipantVia('Alice')), findsNothing);
+          expect(find.text(l10n.postParticipantInvitedBy('Bob')), findsNothing);
+          expect(tester.takeException(), isNull);
+        },
+      );
+    }
+  });
+}

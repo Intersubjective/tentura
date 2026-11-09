@@ -1235,12 +1235,12 @@ LEFT JOIN LATERAL (
              SELECT 1 FROM public.invitation i
              WHERE i.beacon_id = e.beacon_id AND i.user_id = e.sender_id
                AND i.invited_id = e.recipient_id
-               AND i.invite_origin = 'new_account' AND i.accepted_at IS NOT NULL
+               AND i.accepted_at <= e.created_at
            ) AS via_invite
     FROM public.beacon_forward_edge e
     WHERE e.beacon_id = bp.beacon_id AND e.recipient_id = bp.user_id
     UNION ALL
-    SELECT i.user_id, i.accepted_at, i.id, i.invite_origin = 'new_account'
+    SELECT i.user_id, i.accepted_at, i.id, true
     FROM public.invitation i
     WHERE i.beacon_id = bp.beacon_id AND i.invited_id = bp.user_id
       AND i.accepted_at IS NOT NULL
