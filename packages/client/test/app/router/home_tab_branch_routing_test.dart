@@ -241,6 +241,7 @@ void main() {
       unawaited(
         router.pushPath(
           '$kPathProfileView/U2',
+          includePrefixMatches: true,
           onFailure: failures.add,
         ),
       );

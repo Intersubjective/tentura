@@ -968,9 +968,12 @@ class RootRouter extends RootStackRouter implements AppNavigator {
   @override
   Future<T?> pushPath<T extends Object?>(
     String path, {
-    bool includePrefixMatches = true,
+    bool includePrefixMatches = false,
     OnNavigationFailure? onFailure,
   }) {
+    // Side effect only (#1106): schedule unknown-hash notice; the transformed
+    // URI is not used here — invite/credential helpers in _transformDeepLink
+    // only rewrite paths for deep-link builder / transformer, not for pushPath.
     _transformDeepLink(Uri.parse(path));
     return super.pushPath<T>(
       path,
@@ -982,6 +985,7 @@ class RootRouter extends RootStackRouter implements AppNavigator {
   @override
   Future<void> openPath(String path) => pushPath(
     path,
+    includePrefixMatches: true,
     onFailure: _logger.fine,
   );
 
