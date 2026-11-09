@@ -199,6 +199,18 @@ class FakeAppNavigator implements AppNavigator {
       _record('popOrGoHome', {'result': result});
 
   @override
+  Future<void> leavePostDetail({bool retargetOwnerHomeTab = false}) async =>
+      _record('leavePostDetail', {
+        'retargetOwnerHomeTab': retargetOwnerHomeTab,
+      });
+
+  @override
+  Future<void> leaveRequestDetail({bool retargetOwnerHomeTab = false}) async =>
+      _record('leaveRequestDetail', {
+        'retargetOwnerHomeTab': retargetOwnerHomeTab,
+      });
+
+  @override
   void back() => _record('back');
 }
 

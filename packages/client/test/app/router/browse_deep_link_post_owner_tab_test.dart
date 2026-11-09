@@ -21,6 +21,16 @@ void main() {
     );
   });
 
+  test('markBrowseStackDetailColdStart sets is_deep_link on browse detail', () {
+    final stack = buildBrowseDeepLinkStack(
+      Uri.parse('$kPathPostView/post-42'),
+    )!;
+    final marked = markBrowseStackDetailColdStart(stack.detail);
+    expect(marked, isA<PostViewRoute>());
+    final args = (marked as PostViewRoute).args as PostViewRouteArgs;
+    expect(args.isDeepLink, 'true');
+  });
+
   test('beacon view deep link stays under Requests home tab', () {
     final stack = buildBrowseDeepLinkStack(
       Uri.parse('$kPathBeaconView/beacon-9'),

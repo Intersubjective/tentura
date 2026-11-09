@@ -581,7 +581,10 @@ class RootRouter extends RootStackRouter implements AppNavigator {
     final browseStack = buildBrowseDeepLinkStack(transformed);
     if (browseStack != null) {
       if (deepLink.initial) {
-        return DeepLink([browseStack.home, browseStack.detail]);
+        return DeepLink([
+          browseStack.home,
+          markBrowseStackDetailColdStart(browseStack.detail),
+        ]);
       }
       // Browser back/forward within the detail on top (e.g. a Request's
       // `tab=plan&page=history` → `tab=plan`): update it in place. Pushing
@@ -993,6 +996,38 @@ class RootRouter extends RootStackRouter implements AppNavigator {
   Future<void> popOrGoHome([Object? result]) async {
     if (!await maybePop(result)) {
       await replaceAll([const HomeRoute()]);
+    }
+  }
+
+  @override
+  Future<void> leavePostDetail({bool retargetOwnerHomeTab = false}) async {
+    const ownerTab = HomeTab.conversations;
+    if (canPop()) {
+      await maybePop();
+    } else {
+      await resetToHome(tab: ownerTab);
+      return;
+    }
+    if (!retargetOwnerHomeTab) return;
+    final ownerIndex = HomeTabSpec.forTab(ownerTab).index;
+    if (activeHomeTabIndex != ownerIndex) {
+      await openHomeTab(ownerTab);
+    }
+  }
+
+  @override
+  Future<void> leaveRequestDetail({bool retargetOwnerHomeTab = false}) async {
+    const ownerTab = HomeTab.work;
+    if (canPop()) {
+      await maybePop();
+    } else {
+      await resetToHome(tab: ownerTab);
+      return;
+    }
+    if (!retargetOwnerHomeTab) return;
+    final ownerIndex = HomeTabSpec.forTab(ownerTab).index;
+    if (activeHomeTabIndex != ownerIndex) {
+      await openHomeTab(ownerTab);
     }
   }
 

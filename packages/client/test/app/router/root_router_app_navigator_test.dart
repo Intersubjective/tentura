@@ -6,6 +6,7 @@ import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/post_join_navigation_cubit.dart';
 import 'package:tentura/features/settings/ui/bloc/settings_cubit.dart';
 import 'package:tentura/ui/navigation/app_navigator.dart';
+import 'package:tentura/ui/navigation/home_tab.dart';
 
 /// Pins the stack operation and the route (with all its args) behind each
 /// [AppNavigator] intent of [RootRouter]: feature UI used to build these
@@ -225,6 +226,30 @@ void main() {
 
     expect(router.calls, ['back']);
   });
+
+  test('leavePostDetail pops without retargeting when warm', () async {
+    router.canMaybePop = true;
+    router.stubHomeTabIndex = HomeTabSpec.forTab(HomeTab.constellation).index;
+    await navigator.leavePostDetail();
+    expect(router.calls, ['maybePop null']);
+  });
+
+  test('leavePostDetail retargets Posts after cold pop', () async {
+    router.canMaybePop = true;
+    router.stubHomeTabIndex = HomeTabSpec.forTab(HomeTab.work).index;
+    await navigator.leavePostDetail(retargetOwnerHomeTab: true);
+    expect(router.calls, [
+      'maybePop null',
+      'openHomeTab HomeTab.conversations',
+    ]);
+  });
+
+  test('leaveRequestDetail retargets Requests after cold pop', () async {
+    router.canMaybePop = true;
+    router.stubHomeTabIndex = HomeTabSpec.forTab(HomeTab.inbox).index;
+    await navigator.leaveRequestDetail(retargetOwnerHomeTab: true);
+    expect(router.calls, ['maybePop null', 'openHomeTab HomeTab.work']);
+  });
 }
 
 /// Route name, generated args (their toString lists every field) and
@@ -256,6 +281,24 @@ class _RecordingRootRouter extends RootRouter {
   final pushed = <PageRouteInfo>[];
 
   bool canMaybePop = true;
+
+  int? stubHomeTabIndex;
+
+  @override
+  int? get activeHomeTabIndex => stubHomeTabIndex;
+
+  @override
+  bool canPop({
+    bool ignoreChildRoutes = false,
+    bool ignorePagelessRoutes = false,
+    bool ignoreParentRoutes = false,
+  }) => canMaybePop;
+
+  @override
+  Future<void> openHomeTab(HomeTab tab) async {
+    calls.add('openHomeTab $tab');
+    stubHomeTabIndex = HomeTabSpec.forTab(tab).index;
+  }
 
   @override
   Future<T?> push<T extends Object?>(

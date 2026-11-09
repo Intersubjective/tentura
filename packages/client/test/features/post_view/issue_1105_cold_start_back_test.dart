@@ -1,5 +1,8 @@
 // #1105: cold start on `/beacon/view/<postId>` (and alias `/post/view/`) must
 // return to Posts on in-app Back, and unsent reply drafts ask before leaving.
+// Warm opens must return to the tab that was active underneath.
+
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -22,6 +25,9 @@ import 'package:tentura/features/post_view/ui/screen/post_view_screen.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/navigation/app_navigator.dart';
+import 'package:tentura/ui/navigation/home_tab.dart';
+import 'package:tentura/app/router/home_tab_branches.dart';
+import 'package:tentura/features/beacon_view/ui/widget/beacon_view_loading_shell.dart';
 
 import '../../support/fake_app_navigator.dart';
 import '../../support/phone_surface.dart' show kPhoneSurface, usePhoneSurface;
@@ -29,6 +35,7 @@ import '../../support/remote_wire_harness.dart';
 import '../beacon_view/beacon_view_screen_harness.dart';
 
 const _postId = 'B1105postcold1';
+const _requestId = 'B1105reqwarm01';
 const _viewer = Profile(id: 'Uviewer', displayName: 'Viewer');
 const _author = Profile(id: 'Uauthor', displayName: 'Author');
 
@@ -57,12 +64,16 @@ class _BeaconOnlyRepository implements BeaconRepository {
 }
 
 class _FakeBeaconKindRepository implements BeaconKindRepository {
-  _FakeBeaconKindRepository(this.kinds);
+  _FakeBeaconKindRepository(this.kinds, {this.pending});
 
   final Map<String, BeaconKind> kinds;
+  final Completer<BeaconKind>? pending;
 
   @override
-  Future<BeaconKind> fetchKind(String beaconId) async => kinds[beaconId]!;
+  Future<BeaconKind> fetchKind(String beaconId) async {
+    if (pending != null) return pending!.future;
+    return kinds[beaconId]!;
+  }
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -101,6 +112,20 @@ class _ColdStartRouter extends RootStackRouter {
           path: 'conversations',
           children: [
             AutoRoute(initial: true, page: ConversationsRoute.page, path: ''),
+          ],
+        ),
+        AutoRoute(
+          page: inboxTabShell.page,
+          path: 'inbox',
+          children: [
+            AutoRoute(initial: true, page: InboxRoute.page, path: ''),
+          ],
+        ),
+        AutoRoute(
+          page: constellationTabShell.page,
+          path: 'constellation',
+          children: [
+            AutoRoute(initial: true, page: ConstellationRoute.page, path: ''),
           ],
         ),
       ],
@@ -162,11 +187,68 @@ class _RoutingAppNavigator extends FakeAppNavigator {
       ]);
     }
   }
+
+  @override
+  Future<void> leavePostDetail({bool retargetOwnerHomeTab = false}) async {
+    await super.leavePostDetail(retargetOwnerHomeTab: retargetOwnerHomeTab);
+    if (router.canPop()) {
+      await router.maybePop();
+    } else {
+      await resetToHome(tab: HomeTab.conversations);
+      return;
+    }
+    if (retargetOwnerHomeTab &&
+        homeTabIndex != HomeTabSpec.forTab(HomeTab.conversations).index) {
+      await openHomeTab(HomeTab.conversations);
+    }
+  }
+
+  @override
+  Future<void> leaveRequestDetail({bool retargetOwnerHomeTab = false}) async {
+    await super.leaveRequestDetail(retargetOwnerHomeTab: retargetOwnerHomeTab);
+    if (router.canPop()) {
+      await router.maybePop();
+    } else {
+      await resetToHome(tab: HomeTab.work);
+      return;
+    }
+    if (retargetOwnerHomeTab &&
+        homeTabIndex != HomeTabSpec.forTab(HomeTab.work).index) {
+      await openHomeTab(HomeTab.work);
+    }
+  }
 }
 
 late PageInfo _savedHomePage;
 late PageInfo _savedWorkPage;
 late PageInfo _savedConversationsPage;
+late PageInfo _savedInboxPage;
+late PageInfo _savedConstellationPage;
+
+Future<_ColdStartRouter> _pumpWarmStack(
+  WidgetTester tester, {
+  required HomeTab homeTab,
+  required PageRouteInfo detail,
+  BeaconKindRepository? kinds,
+  Locale locale = const Locale('en'),
+  Size? surfaceSize,
+}) async {
+  final spec = HomeTabSpec.forTab(homeTab);
+  final stack = BrowseDeepLinkStack(
+    home: HomeRoute(
+      children: [spec.shell(children: [spec.rootRoute()])],
+    ),
+    detail: detail,
+  );
+  return _pumpBrowseStack(
+    tester,
+    stack: stack,
+    kinds: kinds,
+    locale: locale,
+    surfaceSize: surfaceSize,
+    initialTabIndex: spec.index,
+  );
+}
 
 Future<_ColdStartRouter> _pumpAt(
   WidgetTester tester, {
@@ -174,19 +256,49 @@ Future<_ColdStartRouter> _pumpAt(
   Locale locale = const Locale('en'),
   Size? surfaceSize,
 }) async {
+  final stack = buildBrowseDeepLinkStack(coldUri)!;
+  return _pumpBrowseStack(
+    tester,
+    stack: BrowseDeepLinkStack(
+      home: stack.home,
+      detail: markBrowseStackDetailColdStart(stack.detail),
+    ),
+    locale: locale,
+    surfaceSize: surfaceSize,
+    initialTabIndex: HomeTabSpec.forTab(HomeTab.work).index,
+  );
+}
+
+Future<_ColdStartRouter> _pumpBrowseStack(
+  WidgetTester tester, {
+  required BrowseDeepLinkStack stack,
+  BeaconKindRepository? kinds,
+  Locale locale = const Locale('en'),
+  Size? surfaceSize,
+  required int initialTabIndex,
+}) async {
   _savedHomePage = HomeRoute.page;
   _savedWorkPage = MyWorkRoute.page;
   _savedConversationsPage = ConversationsRoute.page;
+  _savedInboxPage = InboxRoute.page;
+  _savedConstellationPage = ConstellationRoute.page;
   addTearDown(() {
     HomeRoute.page = _savedHomePage;
     MyWorkRoute.page = _savedWorkPage;
     ConversationsRoute.page = _savedConversationsPage;
+    InboxRoute.page = _savedInboxPage;
+    ConstellationRoute.page = _savedConstellationPage;
   });
 
   HomeRoute.page = PageInfo(
     HomeRoute.name,
     builder: (_) => AutoTabsRouter(
-      routes: [workTabShell(), conversationsTabShell()],
+      routes: [
+        workTabShell(),
+        conversationsTabShell(),
+        inboxTabShell(),
+        constellationTabShell(),
+      ],
       duration: Duration.zero,
       transitionBuilder: (_, child, _) => child,
       builder: (_, child) => child,
@@ -197,11 +309,20 @@ Future<_ColdStartRouter> _pumpAt(
     ConversationsRoute.name,
     'conversations-root',
   );
+  InboxRoute.page = _rootLabel(InboxRoute.name, 'inbox-root');
+  ConstellationRoute.page = _rootLabel(
+    ConstellationRoute.name,
+    'constellation-root',
+  );
 
-  final beaconId = coldUri.pathSegments.last;
-  final kinds = _FakeBeaconKindRepository({beaconId: BeaconKind.post});
+  final beaconId = stack.detail.rawPathParams['id'] as String;
+  final kindRepo =
+      kinds ?? _FakeBeaconKindRepository({beaconId: BeaconKind.post});
+  final resolvedKind = kindRepo is _FakeBeaconKindRepository
+      ? (kindRepo.kinds[beaconId] ?? BeaconKind.post)
+      : BeaconKind.post;
   final beacons = _BeaconOnlyRepository({
-    beaconId: _beacon(beaconId, BeaconKind.post),
+    beaconId: _beacon(beaconId, resolvedKind),
   });
 
   await registerBeaconViewHarnessGetIt(profile: _viewer);
@@ -221,11 +342,11 @@ Future<_ColdStartRouter> _pumpAt(
   final router = _ColdStartRouter();
   navigator.router = router;
   GetIt.I
-    ..registerSingleton<BeaconKindRepository>(kinds)
+    ..registerSingleton<BeaconKindRepository>(kindRepo)
     ..registerSingleton<BeaconRepository>(beacons)
     ..registerSingleton<UnsavedChangesGuardPort>(UnsavedChangesGuard())
     ..registerSingleton<AppNavigator>(navigator);
-  navigator.homeTabIndex = HomeTabSpec.forTab(HomeTab.work).index;
+  navigator.homeTabIndex = initialTabIndex;
 
   addTearDown(() async {
     await GetIt.I.unregister<BeaconKindRepository>();
@@ -234,8 +355,6 @@ Future<_ColdStartRouter> _pumpAt(
     await GetIt.I.unregister<AppNavigator>();
     await unregisterBeaconViewHarnessGetIt();
   });
-
-  final stack = buildBrowseDeepLinkStack(coldUri)!;
 
   final size = surfaceSize ?? kBeaconViewHarnessCompact;
   tester.view
@@ -332,6 +451,51 @@ void main() {
 
       expect(find.byType(PostViewScreen), findsNothing);
       expect(find.text('conversations-root'), findsOneWidget);
+    });
+  });
+
+  group('#1105 warm back keeps active Home tab', () {
+    testWidgets('Post from Field tab back stays on Field', (tester) async {
+      final router = await _pumpWarmStack(
+        tester,
+        homeTab: HomeTab.constellation,
+        detail: PostViewRoute(id: _postId),
+      );
+      expect(find.byType(PostViewScreen), findsOneWidget);
+      await _tapBack(tester);
+      expect(find.text('constellation-root'), findsOneWidget);
+      expect(find.text('conversations-root'), findsNothing);
+      expect(router.navigationHistory.urlState.url, kPathConstellation);
+    });
+
+    testWidgets('Post from Posts tab back stays on Posts', (tester) async {
+      final router = await _pumpWarmStack(
+        tester,
+        homeTab: HomeTab.conversations,
+        detail: PostViewRoute(id: _postId),
+      );
+      await _tapBack(tester);
+      expect(find.text('conversations-root'), findsOneWidget);
+      expect(router.navigationHistory.urlState.url, kPathConversations);
+    });
+
+    testWidgets('Request from Activity back stays on Activity', (tester) async {
+      final pending = Completer<BeaconKind>();
+      final router = await _pumpWarmStack(
+        tester,
+        homeTab: HomeTab.inbox,
+        detail: BeaconViewRoute(id: _requestId),
+        kinds: _FakeBeaconKindRepository(
+          {_requestId: BeaconKind.request},
+          pending: pending,
+        ),
+      );
+      expect(find.byType(BeaconViewLoadingShellFrame), findsOneWidget);
+      await tester.tap(find.byType(BackButton));
+      await tester.pumpAndSettle();
+      expect(find.text('inbox-root'), findsOneWidget);
+      expect(find.text('work-root'), findsNothing);
+      expect(router.navigationHistory.urlState.url, kPathInbox);
     });
   });
 

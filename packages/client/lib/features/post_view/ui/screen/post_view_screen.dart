@@ -63,6 +63,7 @@ class PostViewScreen extends StatefulWidget {
     required this.id,
     this.inPane = false,
     this.postBuddingEnabled = kPostBuddingEnabled,
+    this.retargetOwnerHomeTabOnLeave = false,
     super.key,
   });
 
@@ -73,6 +74,9 @@ class PostViewScreen extends StatefulWidget {
 
   /// Shown beside Inbox's conversation list: nothing to go back to.
   final bool inPane;
+
+  /// Cold deep link: Back retargets Home to Posts (#1105).
+  final bool retargetOwnerHomeTabOnLeave;
 
   @override
   State<PostViewScreen> createState() => _PostViewScreenState();
@@ -129,7 +133,11 @@ class _PostViewScreenState extends State<PostViewScreen> {
               ? null
               : BackButton(
                   onPressed: () => unawaited(
-                    leavePostDetailScreen(context, beaconId: widget.id),
+                    leavePostDetailScreen(
+                      context,
+                      beaconId: widget.id,
+                      retargetOwnerHomeTab: widget.retargetOwnerHomeTabOnLeave,
+                    ),
                   ),
                 ),
           actions: [

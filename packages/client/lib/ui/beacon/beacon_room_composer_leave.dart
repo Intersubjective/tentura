@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:auto_route/auto_route.dart';
 import 'package:flutter/widgets.dart';
 import 'package:get_it/get_it.dart';
 
@@ -10,7 +9,6 @@ import 'package:tentura/features/beacon_threads/data/service/beacon_room_compose
 import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/navigation/app_navigator.dart';
-import 'package:tentura/ui/navigation/home_tab.dart';
 
 /// In-app back/close when the room composer may hold an unsent reply (#1105).
 ///
@@ -46,11 +44,11 @@ void abandonBeaconRoomComposerDraft(BuildContext context, String beaconId) {
   }
 }
 
-/// Leaves a Post detail, targeting the Posts (Conversations) home tab even when
-/// a cold `/beacon/view/<postId>` reload left Requests underneath.
+/// Leaves a Post detail above Home.
 Future<void> leavePostDetailScreen(
   BuildContext context, {
   required String beaconId,
+  bool retargetOwnerHomeTab = false,
 }) async {
   if (!await confirmDiscardBeaconRoomComposerIfNeeded(context, beaconId)) {
     return;
@@ -58,27 +56,16 @@ Future<void> leavePostDetailScreen(
   if (!context.mounted) return;
   abandonBeaconRoomComposerDraft(context, beaconId);
 
-  final navigator = GetIt.I<AppNavigator>();
-  final root = context.router.root;
-  const ownerTab = HomeTab.conversations;
-  final ownerIndex = HomeTabSpec.forTab(ownerTab).index;
-
-  if (root.canPop()) {
-    await root.maybePop();
-  } else {
-    await navigator.resetToHome(tab: ownerTab);
-    return;
-  }
-  if (!context.mounted) return;
-  if (navigator.activeHomeTabIndex != ownerIndex) {
-    await navigator.openHomeTab(ownerTab);
-  }
+  await GetIt.I<AppNavigator>().leavePostDetail(
+    retargetOwnerHomeTab: retargetOwnerHomeTab,
+  );
 }
 
 /// Leaves a Request detail opened on the root browse stack.
 Future<void> leaveRequestDetailScreen(
   BuildContext context, {
   required String beaconId,
+  bool retargetOwnerHomeTab = false,
 }) async {
   if (!await confirmDiscardBeaconRoomComposerIfNeeded(context, beaconId)) {
     return;
@@ -86,19 +73,7 @@ Future<void> leaveRequestDetailScreen(
   if (!context.mounted) return;
   abandonBeaconRoomComposerDraft(context, beaconId);
 
-  final navigator = GetIt.I<AppNavigator>();
-  final root = context.router.root;
-  const ownerTab = HomeTab.work;
-  final ownerIndex = HomeTabSpec.forTab(ownerTab).index;
-
-  if (root.canPop()) {
-    await root.maybePop();
-  } else {
-    await navigator.resetToHome(tab: ownerTab);
-    return;
-  }
-  if (!context.mounted) return;
-  if (navigator.activeHomeTabIndex != ownerIndex) {
-    await navigator.openHomeTab(ownerTab);
-  }
+  await GetIt.I<AppNavigator>().leaveRequestDetail(
+    retargetOwnerHomeTab: retargetOwnerHomeTab,
+  );
 }

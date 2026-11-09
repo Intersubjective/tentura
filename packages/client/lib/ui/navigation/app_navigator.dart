@@ -123,6 +123,18 @@ abstract interface class AppNavigator {
   /// when nothing can pop.
   Future<void> popOrGoHome([Object? result]);
 
+  /// Pops the Post detail, or resets to Posts when nothing can pop.
+  ///
+  /// When [retargetOwnerHomeTab] is true (cold deep link), switches Home to
+  /// Posts if a different tab is still active underneath.
+  Future<void> leavePostDetail({bool retargetOwnerHomeTab = false});
+
+  /// Pops the Request detail, or resets to Requests when nothing can pop.
+  ///
+  /// When [retargetOwnerHomeTab] is true (cold deep link), switches Home to
+  /// Requests if a different tab is still active underneath.
+  Future<void> leaveRequestDetail({bool retargetOwnerHomeTab = false});
+
   /// Pops the root router's top route (`StackRouter.back`).
   void back();
 }
