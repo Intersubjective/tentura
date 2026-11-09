@@ -15,7 +15,7 @@ import 'ui_effect.dart';
 
 /// Executes a [UiEffect] using the given [BuildContext] (root adapter).
 ///
-/// Navigation uses [AppNavigator] from GetIt because [UiEffectHandler] lives
+/// Navigation uses `AppNavigator` from `GetIt` because `UiEffectHandler` lives
 /// in `MaterialApp.router`'s builder — above the AutoRouter subtree — so
 /// `context.router` is unavailable there.
 void dispatchUiEffect(
@@ -59,11 +59,11 @@ void dispatchUiEffect(
         }
       }
 
-      // [ClearSnackBarsOnPushObserver] clears bars in a microtask on didPush
+      // ClearSnackBarsOnPushObserver clears bars in a microtask on didPush
       // (#470). A ShowMessage immediately before NavigateReplace (invalid invite
-      // → home, etc.) lost the bar once navigation went through [AppNavigator]
+      // → home, etc.) lost the bar once navigation went through AppNavigator
       // (d528f8ca6, #1124). Yield one frame plus that microtask, same as
-      // [HomePostJoinListener] after a route push.
+      // HomePostJoinListener after a route push.
       WidgetsBinding.instance.addPostFrameCallback((_) {
         scheduleMicrotask(() {
           if (!context.mounted) return;

@@ -3,7 +3,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:get_it/get_it.dart';
 import 'package:logging/logging.dart';
 
 import 'package:tentura/app/router/root_router.dart';
@@ -14,7 +13,6 @@ import 'package:tentura/features/home/ui/bloc/post_join_navigation_cubit.dart';
 import 'package:tentura/features/invitation/ui/message/accept_invite_messages.dart';
 import 'package:tentura/features/settings/ui/bloc/settings_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
-import 'package:tentura/ui/effect/ui_effect_dispatcher.dart';
 import 'package:tentura/ui/effect/ui_effect_handler.dart';
 import 'package:tentura/ui/effect/ui_effect_bus.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
@@ -57,11 +55,6 @@ class _TestHomeShell extends StatelessWidget {
     builder: (_, child) => child,
   );
 }
-
-PageInfo _labelPage(String name, String label) => PageInfo(
-  name,
-  builder: (_) => Text(label, textDirection: TextDirection.ltr),
-);
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -121,7 +114,8 @@ void main() {
     MyWorkRoute.page = workPage;
   });
 
-  setUp(() {
+  setUp(() async {
+    await GetIt.I.reset();
     effects = UiEffectBus();
     router = RootRouter(
       Logger('UiEffectNavigateRaceTest'),
@@ -130,14 +124,13 @@ void main() {
       PostJoinNavigationCubit(),
     );
     GetIt.I
-      ..reset()
       ..registerSingleton<AppNavigator>(router)
       ..registerSingleton<UiEffectPort>(effects);
   });
 
-  tearDown(() {
+  tearDown(() async {
     router.dispose();
-    GetIt.I.reset();
+    await GetIt.I.reset();
   });
 
   Future<void> pumpHarness(
@@ -178,8 +171,9 @@ void main() {
     await pumpHarness(tester, initialPath: kPathHome);
 
     // Mirror AcceptInviteCubit._finishWithMessage ordering.
-    effects.emit(const ShowMessage(InviteInvalidCodeMessage()));
-    effects.emit(const NavigateReplace(NavigateReplaceTarget.home));
+    effects
+      ..emit(const ShowMessage(InviteInvalidCodeMessage()))
+      ..emit(const NavigateReplace(NavigateReplaceTarget.home));
 
     await tester.pump();
     await tester.pump();

@@ -3,7 +3,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:get_it/get_it.dart';
 import 'package:logging/logging.dart';
 
 import 'package:tentura/app/router/invite_deep_link.dart';
@@ -13,7 +12,6 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/post_join_navigation_cubit.dart';
 import 'package:tentura/features/invitation/domain/entity/invite_preview.dart';
-import 'package:tentura/features/invitation/domain/exception.dart';
 import 'package:tentura/features/invitation/ui/bloc/accept_invite_cubit.dart';
 import 'package:tentura/features/invitation/ui/message/accept_invite_messages.dart';
 import 'package:tentura/features/invitation/ui/screen/accept_invite_screen.dart';
@@ -141,7 +139,8 @@ void main() {
     AcceptInviteRoute.page = acceptInvitePage;
   });
 
-  setUp(() {
+  setUp(() async {
+    await GetIt.I.reset();
     repo = FakeInvitationAcceptPort();
     effects = UiEffectBus();
     router = RootRouter(
@@ -151,7 +150,6 @@ void main() {
       PostJoinNavigationCubit(),
     );
     GetIt.I
-      ..reset()
       ..registerSingleton<AppNavigator>(router)
       ..registerSingleton<UiEffectPort>(effects)
       ..registerSingleton<PostJoinNavigationCubit>(PostJoinNavigationCubit())
@@ -164,9 +162,9 @@ void main() {
       );
   });
 
-  tearDown(() {
+  tearDown(() async {
     router.dispose();
-    GetIt.I.reset();
+    await GetIt.I.reset();
   });
 
   Future<void> pumpInviteDeepLink(
@@ -183,8 +181,9 @@ void main() {
       _FakeSettingsCubit(),
       GetIt.I<PostJoinNavigationCubit>(),
     );
-    GetIt.I.unregister<AppNavigator>();
-    GetIt.I.registerSingleton<AppNavigator>(router);
+    GetIt.I
+      ..unregister<AppNavigator>()
+      ..registerSingleton<AppNavigator>(router);
 
     final initial = skipDeepLinkTransform
         ? rawInvitePath
@@ -230,7 +229,7 @@ void main() {
     await tester.pump();
   }
 
-  String _snackPlainText(WidgetTester tester) {
+  String snackPlainText(WidgetTester tester) {
     return find
         .descendant(
           of: find.byType(SnackBar),
@@ -250,7 +249,7 @@ void main() {
     expect(find.text('work-root'), findsOneWidget);
     expect(find.byType(SnackBar), findsOneWidget);
     expect(
-      _snackPlainText(tester),
+      snackPlainText(tester),
       contains('Этот код приглашения недействителен.'),
     );
     expect(tester.takeException(), isNull);
@@ -270,7 +269,7 @@ void main() {
       expect(find.text('work-root'), findsOneWidget);
       expect(find.byType(SnackBar), findsOneWidget);
       expect(
-        _snackPlainText(tester),
+        snackPlainText(tester),
         contains('лишний дефис'),
       );
     },
@@ -310,8 +309,9 @@ void main() {
         skipDeepLinkTransform: true,
       );
 
-      effects.emit(const ShowMessage(InviteInvalidCodeMessage()));
-      effects.emit(const NavigateReplace(NavigateReplaceTarget.authLogin));
+      effects
+        ..emit(const ShowMessage(InviteInvalidCodeMessage()))
+        ..emit(const NavigateReplace(NavigateReplaceTarget.authLogin));
       await tester.pump();
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
