@@ -115,15 +115,18 @@ void main() {
     );
 
     // Without a lineage parent the screen asks AppNavigator which Home tab
-    // is active and replaces the path with that tab's root (My Work when
-    // none is known). HomeTab.updates is the Inbox tab (HomeTabSpec).
+    // is active: Inbox (HomeTab.updates is the Inbox tab) and Network go to
+    // their roots; every other tab, and an unknown one, goes to My Work.
     for (final (tab, path) in [
       (HomeTab.inbox, kPathInbox),
       (HomeTab.network, kPathNetwork),
+      (HomeTab.constellation, kPathMyWork),
       (null, kPathMyWork),
     ]) {
-      testWidgets('back without a lineage parent returns to the root of the '
-          '${tab?.name ?? 'unknown'} tab', (tester) async {
+      testWidgets('back without a lineage parent from the '
+          '${tab?.name ?? 'unknown'} tab replaces the path with $path', (
+        tester,
+      ) async {
         final router = _Issue154StackRouter();
         final base = _closedChildWithLineageParentState();
         await pumpBeaconViewHarness(
