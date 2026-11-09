@@ -1667,7 +1667,9 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     final previous = _lastAppliedStoreField;
     final reload = previous == null || previous.loadedAt != field.loadedAt;
     _lastAppliedStoreField = field;
-    if (reload) {
+    // A refresh within a visit never overrides a camera the user moved; only
+    // an untouched camera re-fits (a new visit resets in [startFieldVisit]).
+    if (reload && !_userMovedCameraSinceProgrammaticFrame) {
       _resetFieldAutomaticFramingState();
     }
     _armExpiry(field);
@@ -3454,6 +3456,10 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     }
     _cancelUnsentPlacement(write: false);
     emit(state.copyWith(viewMode: viewMode));
+    // A visit that started in text view is framed on its first switch to map.
+    if (viewMode == ConstellationViewMode.map) {
+      _scheduleAutomaticFieldFraming();
+    }
   }
 
   /// Programmatic field framing entry point (FCP §F).
@@ -3509,6 +3515,12 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       for (final peer in field.peers)
         if (peer.id != _viewer.id) peer.id,
     };
+  }
+
+  bool get _userMovedCameraSinceProgrammaticFrame {
+    final atFrame = _userInputRevisionAtLastProgrammaticFrame;
+    return atFrame != null &&
+        graphController.userCameraInputRevision.value != atFrame;
   }
 
   void _resetFieldAutomaticFramingState() {
@@ -3569,8 +3581,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (currentPeers.difference(previous).isEmpty) {
       return;
     }
-    if (graphController.userCameraInputRevision.value !=
-        _userInputRevisionAtLastProgrammaticFrame) {
+    if (_userMovedCameraSinceProgrammaticFrame) {
       return;
     }
     fitWholeField(insets: insets);
