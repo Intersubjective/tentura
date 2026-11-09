@@ -4286,14 +4286,17 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     _clearArrangementPriors();
     if (writes.isEmpty) {
       _reconcileLayout(immediateHandoff: true);
-      return true;
+    } else {
+      _submitUpsert(
+        target: writes.first.target,
+        position: writes.first.position,
+        companions: writes.sublist(1),
+        saveManualHistory: false,
+      );
     }
-    _submitUpsert(
-      target: writes.first.target,
-      position: writes.first.position,
-      companions: writes.sublist(1),
-      saveManualHistory: false,
-    );
+    // Everyone has a new place, so the old camera may frame empty canvas:
+    // show the whole rearranged Field once its layout lands.
+    fitWholeField(insets: _fieldCameraViewportSnapshot);
     return true;
   }
 
