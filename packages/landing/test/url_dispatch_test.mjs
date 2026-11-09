@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 import { inviterDisplayName } from '../onboarding.js';
+import { renderLanding } from './landing_browser_fake.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const mainJs = readFileSync(join(root, 'main.js'), 'utf8');
@@ -80,14 +81,21 @@ test('createSignInReveal offers invite-mode undo', () => {
   assert.match(block, /for \(const node of hideOnReveal\) node\.hidden = false/);
 });
 
-test('renderInvalid offers recovery paths', () => {
-  const block = mainJs.slice(
-    mainJs.indexOf('function renderInvalid'),
-    mainJs.indexOf('function renderIsInviter'),
+test('renderInvalid keeps the invite code in the recovery entry field', async () => {
+  const card = await renderLanding(
+    {
+      pathname: '/invite/BADCODE123',
+      preview: {
+        codeStatus: 'invalid',
+        callerStatus: 'anonymous',
+        suggestedAction: 'invalid',
+      },
+    },
+    'url-dispatch-invalid-prefill',
   );
-  assert.match(block, /renderInviteEntryForm/);
-  assert.match(block, /Back to invite entry/);
-  assert.match(block, /inviteCodeHadTrailingDash/);
+  assert.equal(card.querySelector('#invite-entry')?.value, 'BADCODE123');
+  assert.match(card.textContent, /no longer valid/i);
+  assert.match(card.textContent, /Try another invite/i);
 });
 
 test('own-invite page offers a copy-link button', () => {
