@@ -20,3 +20,10 @@ String stripAngleBracketRegionsForPlainPreview(String input) {
   s = s.replaceAll(RegExp(r'\s+'), ' ').trim();
   return s;
 }
+
+/// One-line/clamped preview of a Post's root excerpt from GQL (#1109).
+String postRootExcerptForPlainPreview(String? raw) {
+  final trimmed = raw?.trim() ?? '';
+  if (trimmed.isEmpty) return '';
+  return stripAngleBracketRegionsForPlainPreview(trimmed);
+}

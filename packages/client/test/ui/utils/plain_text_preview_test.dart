@@ -2,6 +2,19 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura/ui/utils/plain_text_preview.dart';
 
 void main() {
+  group('postRootExcerptForPlainPreview', () {
+    test('strips tags from nullable excerpt', () {
+      expect(
+        postRootExcerptForPlainPreview(
+          'QA-FX 1109 <b>bold</b> and <script>alert(1)</script> test',
+        ),
+        'QA-FX 1109 bold and alert(1) test',
+      );
+      expect(postRootExcerptForPlainPreview(null), '');
+      expect(postRootExcerptForPlainPreview('  '), '');
+    });
+  });
+
   group('stripAngleBracketRegionsForPlainPreview', () {
     test('removes pseudo-markup tags while keeping surrounding words', () {
       expect(

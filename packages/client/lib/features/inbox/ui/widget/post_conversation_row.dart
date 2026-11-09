@@ -4,6 +4,7 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/post_view/ui/post_remaining_label.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/utils/plain_text_preview.dart';
 import 'package:tentura/ui/utils/relative_time.dart';
 import 'package:tentura/ui/widget/relative_timestamp_ticker.dart';
 
@@ -69,11 +70,14 @@ class PostConversationRow extends StatelessWidget {
       for (final peer in post.previewParticipants) peer.toProfile(),
     ];
 
+    final rootExcerptPreview = postRootExcerptForPlainPreview(
+      post.rootExcerpt,
+    );
     return Semantics(
       label: [
         addressing,
         ?lifetime,
-        post.rootExcerpt,
+        rootExcerptPreview,
         ?participantsLine,
         if (lastMessageText.isNotEmpty) lastMessageText,
       ].join(', '),
@@ -127,10 +131,10 @@ class PostConversationRow extends StatelessWidget {
                           ],
                         ],
                       ),
-                      if (post.rootExcerpt.isNotEmpty) ...[
+                      if (rootExcerptPreview.isNotEmpty) ...[
                         SizedBox(height: tt.tightGap),
                         Text(
-                          post.rootExcerpt,
+                          rootExcerptPreview,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TenturaText.bodyMedium(tt.text),
