@@ -2441,6 +2441,14 @@ class _ConstellationBodyState extends State<ConstellationBody>
               _tickTagHullMenuDrag(cubit, event.position);
             }
           },
+          // The area lifted from the menu follows the mouse with no button
+          // held, until the next click.
+          onPointerHover: (event) {
+            _lastPointerGlobal = event.position;
+            if (_tagHullMenuDragNodeId != null) {
+              _tickTagHullMenuDrag(cubit, event.position);
+            }
+          },
           onPointerUp: (event) {
             _lastPointerGlobal = event.position;
             if (_tagHullMenuDragNodeId != null) {
