@@ -22,7 +22,8 @@ ARB = {"@@locale": "en", "greeting": "Hi", "farewell": "Bye", "@farewell": {}}
 
 # A small workspace: client lib a <- b <- c with tests on each; l10n users,
 # an ARB reader, GraphQL documents around a serializers hub, a fixture, a
-# repo-files test; a server pg test and a migration.
+# repo-files test, source readers, hook/ and web/ files; a server pg test and
+# a migration.
 FILES = {
     f"{CLIENT}/lib/a.dart": "class A {}\n",
     f"{CLIENT}/lib/b.dart": "import 'package:tentura/a.dart';\n",
@@ -68,6 +69,27 @@ FILES = {
     f"{CLIENT}/test/via_helper_test.dart": "import 'helper.dart';\n",
     f"{CLIENT}/test/root_test.dart": "import 'package:tentura_root/shared.dart';\n",
     "lib/shared.dart": "",
+    # Source readers: one by place (no path: every change), one reading all
+    # of lib/, one reading lib/feat/ only; a dart:io read of a fixture alone
+    # is not one.
+    f"{CLIENT}/test/architecture/layering_test.dart": "void main() {}\n",
+    f"{CLIENT}/test/scan_test.dart": (
+        "import 'dart:io';\nfinal files = Directory('lib').listSync();\n"
+    ),
+    f"{CLIENT}/test/feat_scan_test.dart": (
+        "import 'dart:io';\nfinal d = Directory('${root}/lib/feat/$name');\n"
+    ),
+    f"{CLIENT}/test/fixture_io_test.dart": "import 'dart:io';\nfinal f = File('data/x.json');\n",
+    # GraphQL schema and a test reading a document by name.
+    f"{CLIENT}/lib/data/gql/schema.graphql": "type Query { x: Int }\n",
+    f"{CLIENT}/test/q_doc_test.dart": "final doc = 'q.graphql';\n",
+    f"{CLIENT}/test/schema_doc_test.dart": "final doc = 'schema.graphql';\n",
+    # hook/ is source too; web/ files are read by what names them.
+    f"{CLIENT}/hook/build/version.dart": "import 'manifest_name.dart';\n",
+    f"{CLIENT}/hook/build/manifest_name.dart": "const name = 'manifest.json';\n",
+    f"{CLIENT}/test/hook/version_test.dart": "import '../../hook/build/version.dart';\n",
+    f"{CLIENT}/web/manifest.json": "{}\n",
+    f"{CLIENT}/web/index.html": "<html></html>\n",
     f"{SERVER}/lib/data/database/migration/m0001.dart": "",
     f"{SERVER}/lib/s.dart": "",
     f"{SERVER}/test/s_test.dart": "import 'package:tentura_server/s.dart';\n",
@@ -75,6 +97,13 @@ FILES = {
 }
 
 L10N_ALWAYS = ["arb_contract_test.dart", "fake_l10n_test.dart"]
+# Selected with every Dart change under the client's lib/ (layering_test with
+# every Dart change of the client).
+READERS = ["layering_test.dart", "scan_test.dart"]
+
+
+def with_readers(*names):
+    return sorted([*names, *READERS])
 
 
 def absent(_path: str):
@@ -116,24 +145,58 @@ class SyntheticTreeTest(unittest.TestCase):
     def test_transitive_imports_and_exports(self):
         self.assertEqual(
             self.names(self.sel(f"{CLIENT}/lib/a.dart")),
-            ["a_test.dart", "c_test.dart", "via_helper_test.dart"],
+            with_readers("a_test.dart", "c_test.dart", "via_helper_test.dart"),
         )
 
-    def test_unimported_change_selects_nothing(self):
+    def test_unimported_change_selects_only_source_readers(self):
         sel = self.sel(f"{CLIENT}/lib/orphan.dart")
-        self.assertEqual((sel.tests, sel.fallbacks), (set(), []))
+        self.assertEqual((self.names(sel), sel.fallbacks), (READERS, []))
+
+    def test_source_readers_found_by_place_and_by_dart_io_reads(self):
+        self.assertEqual(
+            sorted(Path(f).name for f in self.graph.source_readers(CLIENT)),
+            sorted(["feat_scan_test.dart", *READERS]),
+        )
+        self.assertEqual(self.graph.source_readers(SERVER), frozenset())
+        self.assertEqual(
+            {Path(f).name: v for f, v in self.graph.reader_prefixes(CLIENT).items()},
+            {"layering_test.dart": (), "scan_test.dart": ("lib",), "feat_scan_test.dart": ("lib/feat",)},
+        )
+
+    def test_source_reader_scoped_to_the_path_it_names(self):
+        self.assertEqual(
+            self.names(self.sel(f"{CLIENT}/lib/feat/repo.dart")),
+            with_readers("feat_scan_test.dart", "repo_test.dart"),
+        )
+        self.assertEqual(
+            self.names(self.sel(f"{CLIENT}/test/helper.dart")),
+            ["layering_test.dart", "via_helper_test.dart"],
+        )
+
+    def test_source_readers_not_selected_by_outside_or_non_source_changes(self):
+        self.assertEqual(self.names(self.sel("lib/shared.dart")), ["docs_test.dart", "root_test.dart"])
+        self.assertEqual(self.names(self.sel(f"{CLIENT}/test/data/sample.json")), ["fixture_test.dart"])
 
     def test_conditional_import_both_branches(self):
         for f in ("js.dart", "stub.dart"):
-            self.assertEqual(self.names(self.sel(f"{CLIENT}/lib/{f}")), ["js_test.dart"])
+            self.assertEqual(self.names(self.sel(f"{CLIENT}/lib/{f}")), with_readers("js_test.dart"))
 
     def test_changed_test_selects_itself(self):
-        self.assertEqual(self.names(self.sel(f"{CLIENT}/test/a_test.dart")), ["a_test.dart"])
+        self.assertEqual(
+            self.names(self.sel(f"{CLIENT}/test/a_test.dart")),
+            ["a_test.dart", "layering_test.dart"],
+        )
+
+    def test_hook_dart_is_in_the_graph(self):
+        self.assertEqual(
+            self.names(self.sel(f"{CLIENT}/hook/build/manifest_name.dart")),
+            ["layering_test.dart", "version_test.dart"],
+        )
 
     def test_generated_l10n_dart_change_reaches_every_user(self):
         self.assertEqual(
             self.names(self.sel(f"{CLIENT}/lib/ui/l10n/l10n.dart")),
-            ["bye_test.dart", "hello_test.dart"],
+            with_readers("bye_test.dart", "hello_test.dart"),
         )
 
     def test_root_package_dart_reaches_client_and_adds_repo_files(self):
@@ -176,13 +239,23 @@ class SyntheticTreeTest(unittest.TestCase):
 
     def test_graphql_selects_its_document_users_not_through_serializers(self):
         self.assertEqual(
-            self.names(self.sel(f"{CLIENT}/lib/feat/q.graphql")), ["repo_test.dart"]
+            self.names(self.sel(f"{CLIENT}/lib/feat/q.graphql")),
+            with_readers("feat_scan_test.dart", "q_doc_test.dart", "repo_test.dart"),
+        )
+
+    def test_graphql_schema_selects_every_generated_file_user_and_its_readers(self):
+        self.assertEqual(
+            self.names(self.sel(f"{CLIENT}/lib/data/gql/schema.graphql")),
+            with_readers(
+                "gql_client_test.dart", "repo2_test.dart", "repo_test.dart",
+                "schema_doc_test.dart",
+            ),
         )
 
     def test_dart_change_under_serializers_still_goes_through_them(self):
         self.assertEqual(
             self.names(self.sel(f"{CLIENT}/lib/data/gql/custom_serializer.dart")),
-            ["gql_client_test.dart", "repo2_test.dart", "repo_test.dart"],
+            with_readers("gql_client_test.dart", "repo2_test.dart", "repo_test.dart"),
         )
 
     def test_graphql_without_generated_files_selects_whole_package(self):
@@ -233,8 +306,16 @@ class SyntheticTreeTest(unittest.TestCase):
         self.assertEqual(self.names(self.sel("docs/x.md")), ["docs_test.dart"])
         self.assertEqual(self.names(self.sel(f"{SERVER}/lib/s.dart")), ["docs_test.dart"])
 
-    def test_non_test_input_of_the_package_selects_nothing(self):
-        sel = self.sel(f"{CLIENT}/web/index.html", f"{CLIENT}/README.md")
+    def test_web_file_selects_what_names_it(self):
+        self.assertEqual(
+            self.names(self.sel(f"{CLIENT}/web/manifest.json")), ["version_test.dart"]
+        )
+
+    def test_unnamed_web_file_selects_whole_package(self):
+        self.assert_whole(self.sel(f"{CLIENT}/web/index.html"))
+
+    def test_other_unnamed_file_of_the_package_selects_nothing(self):
+        sel = self.sel(f"{CLIENT}/README.md", f"{CLIENT}/android/app/x.xml")
         self.assertEqual((sel.tests, sel.fallbacks), (set(), []))
 
     def test_server_migration_adds_pg_tests(self):
@@ -264,8 +345,19 @@ class RealTreeTest(unittest.TestCase):
         hub = f"{CLIENT}/lib/data/gql/_g/serializers.gql.dart"
         if (REPO / hub).is_file():
             self.assertGreater(len(graph.importers[hub]), 100)
-        # The generated L10n the ARB rule maps keys to.
-        self.assertTrue((REPO / CLIENT / "lib/ui/l10n/l10n.dart").is_file())
+        # The generated L10n the ARB rule maps keys to (git-ignored: the CI
+        # lints shard runs no codegen).
+        l10n = f"{CLIENT}/lib/ui/l10n/l10n.dart"
+        if (REPO / l10n).is_file():
+            self.assertIn(l10n, graph.files)
+        # hook/ is walked; source readers are found without a list.
+        self.assertIn(f"{CLIENT}/hook/build/web_build_version.dart", graph.files)
+        readers = graph.source_readers(CLIENT)
+        for name in ("home_tab_spec_test.dart", "verify_web_version_consistency_test.dart"):
+            self.assertTrue(any(f.endswith("/" + name) for f in readers), name)
+        self.assertTrue(
+            any(f.endswith("/scoped_main_db_access_test.dart") for f in graph.source_readers(SERVER))
+        )
 
 
 if __name__ == "__main__":

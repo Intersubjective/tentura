@@ -3,10 +3,21 @@
 
 A test file is selected when it imports a changed Dart file directly or
 through any chain of `import` / `export` / `part` directives (conditional
-imports included), across the workspace packages. Dart only compiles what a
-test imports, so this never misses a Dart change. It can miss non-Dart
-inputs (ARB, GraphQL documents, fixtures, pubspec, test config) and runtime
-reads of other files; these rules cover those:
+imports included), across the workspace packages; every Dart file of a
+package (lib/, test/, hook/, tool/, bin/, ...) is in the graph. Dart only
+compiles what a test imports, so the graph finds every test that compiles a
+changed Dart file. It cannot see a test that reads files at runtime, nor
+non-Dart inputs (ARB, GraphQL documents, fixtures, web files, pubspec, test
+config); these rules cover those:
+
+  * source readers: every Dart file under test/architecture/ and every Dart
+    file under test/ that reads the package's sources through dart:io (it
+    calls `File(` / `Directory(` and has a string naming lib/, test/, hook/,
+    bin/, tool/ or integration_test/), with what imports them, are selected
+    when a Dart file of the package or a file under its lib/ changes under a
+    path the reader names: each such string gives a prefix (`'lib/features'`,
+    `'${root}/lib'` -> `lib`, cut at the first interpolation), and a reader
+    with no such string (test/architecture/ only) takes every change;
 
   * an ARB file (l10n/*.arb) selects the files that name a key whose text or
     metadata changed (the generated L10n getter has the key's name), the
@@ -14,6 +25,10 @@ reads of other files; these rules cover those:
     and the classes that implement or extend L10n, and what imports them.
     An ARB file that is added, removed, not valid JSON or changes
     `@@locale` selects the whole package;
+  * the GraphQL schema (lib/**/schema.graphql) counts as a change to every
+    Ferry file generated in the package (lib/**/_g/*.gql.dart, the
+    serializers included: the schema shapes all of them), plus the files
+    that name it; without generated files the whole package is selected;
   * a GraphQL document (lib/**/x.graphql) counts as a change to the Ferry
     files generated from it (lib/**/_g/x.*.gql.dart). From those files the
     graph is followed without passing through `_g/serializers.gql.dart`: it
@@ -25,8 +40,12 @@ reads of other files; these rules cover those:
   * a test fixture (non-Dart file under test/) counts as a change to every
     Dart file under test/ that names it (its basename), when one does;
     otherwise the whole package;
-  * any other non-Dart file under the package's lib/, integration_test/ or
-    assets/ selects the whole package;
+  * any other non-Dart file under the package's lib/, integration_test/,
+    assets/, fonts/ or images/ selects the whole package;
+  * any other non-Dart file of the package (web/, android/, README, ...)
+    counts as a change to every Dart file of the package that names its
+    basename; a file under web/ that no Dart file names selects the whole
+    package, any other selects nothing;
   * env/*.env, test/flutter_test_config.dart, dart_test.yaml, build.yaml,
     l10n.yaml or analysis_options.yaml of the package select the whole
     package;
@@ -57,6 +76,7 @@ from __future__ import annotations
 import argparse
 import collections
 import difflib
+import functools
 import json
 import os
 import re
@@ -90,7 +110,18 @@ REPO_FILES_TAG = re.compile(r"""['"]repo-files['"]""")
 IDENTIFIER = re.compile(r"[A-Za-z_$][A-Za-z0-9_$]*")
 ARB_READER = re.compile(r"\.arb\b|l10n/app_")
 L10N_SUBTYPE = re.compile(r"\b(?:implements|extends)\s+L10n\b")
-SKIP_DIRS = {".dart_tool", "build", ".git", "node_modules", ".pub-cache"}
+SKIP_DIRS = {"node_modules"}
+# Directories skipped at a package's top level only (hook/build/ is source).
+SKIP_TOP_DIRS = {"build", "packages"}
+# A source reader: a dart:io File / Directory and a string naming a source dir.
+IO_CALL = re.compile(r"\b(?:File|Directory)\s*\(")
+STRING = re.compile(r"""['"]([^'"\n]*)['"]""")
+# A source dir inside a string: at its start or after `/` or `}`.
+SOURCE_DIR = re.compile(r"(?:^|(?<=[/}]))(?:lib|test|hook|bin|tool|integration_test)(?=/|$)")
+SOURCE_PATH = re.compile(
+    r"""['"](?!package:|dart:)(?:[^'"\n]*[/}])?"""
+    r"""(?:lib|test|hook|bin|tool|integration_test)(?:/|['"])"""
+)
 
 WHOLE_PACKAGE_CONFIG = {
     "dart_test.yaml",
@@ -128,15 +159,16 @@ class Graph:
         self.files: set[str] = set()
         for pkg in PACKAGES.values():
             base = root / pkg
-            for subdir in ("lib", "test", "integration_test", "bin", "tool"):
-                top = base / subdir
-                if not top.is_dir():
-                    continue
-                for d, dirs, fs in os.walk(top):
-                    dirs[:] = [x for x in dirs if x not in SKIP_DIRS]
-                    for f in fs:
-                        if f.endswith(".dart"):
-                            self.files.add(os.path.relpath(os.path.join(d, f), root))
+            for d, dirs, fs in os.walk(base):
+                top = Path(d) == base
+                dirs[:] = [
+                    x for x in dirs
+                    if not x.startswith(".") and x not in SKIP_DIRS
+                    and not (top and x in SKIP_TOP_DIRS)
+                ]
+                for f in fs:
+                    if f.endswith(".dart"):
+                        self.files.add(os.path.relpath(os.path.join(d, f), root))
         self._text_cache: dict[str, str] = {}
         self._identifier_cache: dict[str, frozenset[str]] = {}
         for f in self.files:
@@ -162,6 +194,56 @@ class Graph:
 
     def tagged(self, pkg: str, tag: re.Pattern[str]) -> set[str]:
         return {t for t in self.tests(pkg) if tag.search(self.text(t))}
+
+    @functools.cache
+    def package_files(self, pkg: str) -> frozenset[str]:
+        return frozenset(f for f in self.files if _owner(f) == pkg)
+
+    @functools.cache
+    def reader_prefixes(self, pkg: str) -> dict[str, tuple[str, ...]]:
+        """Source readers of [pkg] -> the package-relative path prefixes they
+        name; an empty tuple means every path."""
+        out = {}
+        for f in self.source_readers(pkg):
+            prefixes = set()
+            for line in self.text(f).splitlines():
+                if DIRECTIVE.match(line):
+                    continue
+                for literal in STRING.findall(line):
+                    if literal.startswith(("package:", "dart:")):
+                        continue
+                    for m in SOURCE_DIR.finditer(literal):
+                        # From the dir to the first interpolation.
+                        prefixes.add(literal[m.start():].split("$", 1)[0].rstrip("/"))
+            out[f] = tuple(sorted(prefixes))
+        return out
+
+    def readers_of(self, pkg: str, rels: set[str]) -> set[str]:
+        """Source readers of [pkg] that name a prefix of one of [rels]."""
+        return {
+            f for f, prefixes in self.reader_prefixes(pkg).items()
+            if not prefixes or any(r.startswith(x) for r in rels for x in prefixes)
+        }
+
+    @functools.cache
+    def source_readers(self, pkg: str) -> frozenset[str]:
+        """Dart files under [pkg]/test/ that read the package's sources at
+        runtime (see the module docstring)."""
+        out = set()
+        for f in self.files:
+            if not f.startswith(f"{pkg}/test/"):
+                continue
+            if f.startswith(f"{pkg}/test/architecture/"):
+                out.add(f)
+                continue
+            text = self.text(f)
+            if IO_CALL.search(text) and any(
+                SOURCE_PATH.search(line)
+                for line in text.splitlines()
+                if not DIRECTIVE.match(line)
+            ):
+                out.add(f)
+        return frozenset(out)
 
     def reach(self, changed: set[str], skip: Callable[[str], bool] = lambda _: False) -> set[str]:
         """[changed] plus every file that imports one of them, transitively,
@@ -230,6 +312,18 @@ def _graphql_outputs(graph: Graph, path: str) -> set[str]:
     return {f for f in graph.files if f.startswith(prefix) and f.endswith(".gql.dart")}
 
 
+def _generated_gql(graph: Graph, pkg: str) -> set[str]:
+    return {
+        f for f in graph.package_files(pkg)
+        if f.startswith(f"{pkg}/lib/") and "/_g/" in f and f.endswith(".gql.dart")
+    }
+
+
+def _naming(graph: Graph, pkg: str, name: str) -> set[str]:
+    """Dart files of [pkg] whose text names the basename [name]."""
+    return {f for f in graph.package_files(pkg) if name in graph.text(f)}
+
+
 def select(
     graph: Graph,
     pkg: str,
@@ -245,6 +339,8 @@ def select(
     arb_keys: set[str] = set()
     arb_changed = False
     outside = False
+    sources_changed: set[str] = set()
+    schema_changed = False
 
     def whole(reason: str) -> None:
         sel.fallbacks.append(reason)
@@ -267,7 +363,9 @@ def select(
             seeds.add(path)
             if rel is None:
                 outside = True
-            elif rel == "test/flutter_test_config.dart":
+                continue
+            sources_changed.add(rel)
+            if rel == "test/flutter_test_config.dart":
                 whole(rel)
             elif pkg == "packages/server" and rel.startswith(MIGRATIONS):
                 # The schema changed under every pg test, imported or not.
@@ -279,6 +377,8 @@ def select(
             # scripts, ARB of the client for the server, ...).
             outside = True
             continue
+        if rel.startswith("lib/"):
+            sources_changed.add(rel)
 
         if rel == "pubspec.yaml":
             if not _pubspec_only_version(before(path), after(path)):
@@ -292,7 +392,13 @@ def select(
             else:
                 arb_changed = True
                 arb_keys |= keys
+        elif rel.startswith("lib/") and name == "schema.graphql":
+            seeds |= _naming(graph, pkg, name)
+            schema_changed = True
+            if not _generated_gql(graph, pkg):
+                whole(f"{rel} (GraphQL schema, no generated Ferry files)")
         elif rel.startswith("lib/") and rel.endswith(".graphql"):
+            seeds |= _naming(graph, pkg, name)
             outputs = _graphql_outputs(graph, path)
             if outputs:
                 gql_seeds |= outputs
@@ -307,10 +413,14 @@ def select(
                 seeds |= naming
             else:
                 whole(f"{rel} (fixture named by no test file)")
-        elif rel.startswith(("lib/", "integration_test/", "assets/")):
+        elif rel.startswith(("lib/", "integration_test/", "assets/", "fonts/", "images/")):
             whole(rel)
-        # Anything else of the package (web/, android/, tool/, README, ...)
-        # is not a test input.
+        else:
+            # web/, android/, README, ...: what names the file reads it.
+            naming = _naming(graph, pkg, name)
+            seeds |= naming
+            if not naming and rel.startswith("web/"):
+                whole(f"{rel} (web file named by no Dart file)")
 
     if sel.fallbacks:
         sel.tests = set(all_tests)
@@ -327,6 +437,10 @@ def select(
                 or not arb_keys.isdisjoint(graph.identifiers(f))
             ):
                 seeds.add(f)
+    if sources_changed:
+        seeds |= graph.readers_of(pkg, sources_changed)
+    if schema_changed:
+        seeds |= _generated_gql(graph, pkg)
     reached = graph.reach(seeds)
     reached |= graph.reach(gql_seeds, skip=lambda f: f.endswith(SERIALIZERS_HUB))
     sel.tests |= reached & all_tests
@@ -426,7 +540,11 @@ def _reason_key(reason: str) -> str:
         return "ARB locale added / removed / invalid"
     if base.startswith("test/"):
         return "unnamed test fixture"
-    if base.startswith(("lib/", "assets/", "integration_test/")):
+    if base.startswith("web/"):
+        return "unnamed web/ file"
+    if base.startswith(("lib/", "assets/", "integration_test/", "fonts/", "images/")):
+        if base.endswith("schema.graphql"):
+            return "GraphQL schema"
         return "non-Dart file under " + base.split("/")[0] + "/"
     return base
 
