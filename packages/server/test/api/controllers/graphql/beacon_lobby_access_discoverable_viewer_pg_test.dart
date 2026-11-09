@@ -173,15 +173,16 @@ Future<void> main() async {
       expect(probe['canPost'], isFalse);
     });
 
-    test('reads but no longer posts once the Request is closed', () async {
+    test('has no Questions once the Request is closed and the content wall '
+        'hides it from them', () async {
       expect((await access(viewer))['canPost'], isTrue, reason: 'open');
       await writer.execute(
         "UPDATE public.beacon SET status = 6 WHERE id = '$requestId'",
       );
+      expect(await canReadContent(), isFalse, reason: 'fixture: closed');
       final probe = await access(viewer);
-      expect(probe['canRead'], isTrue);
+      expect(probe['canRead'], isFalse);
       expect(probe['canPost'], isFalse);
-      expect(probe['readOnlyReason'], 'closed');
     });
 
     test('reads but no longer posts after withdrawing a help offer', () async {

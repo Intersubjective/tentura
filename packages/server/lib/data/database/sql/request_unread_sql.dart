@@ -1,6 +1,8 @@
 import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/consts/coordination_item_consts.dart';
 
+import 'questions_audience_sql.dart';
+
 /// Shared by the Request card's discussion count and the Field unread flag.
 /// The caller supplies message `m` and its viewer's General cursor `seen`.
 String discussionUnreadMessageSql(String viewer) =>
@@ -14,17 +16,21 @@ AND (seen.last_seen_at IS NULL OR m.created_at > seen.last_seen_at)
 
 /// Questions counts after the caller has checked `questions_access_levels`.
 /// Used by both the Questions read and the Field, with the same scope cursor
-/// and message visibility. System lines contribute no unread messages.
+/// and message visibility. System lines contribute no unread messages, and
+/// nothing is unread for a reader outside the Questions audience (someone who
+/// only found a discoverable Request and never wrote there).
 String questionsMessageCountsSql({
   required String lobbyId,
   required String viewer,
 }) =>
     '''
 SELECT count(*)::integer AS message_count,
-  count(*) FILTER (WHERE m.author_id <> $viewer
-    AND m.system_message_kind IS NULL
-    AND (s.last_seen_at IS NULL OR m.created_at > s.last_seen_at)
-  )::integer AS unread_count
+  (CASE WHEN ${questionsAudienceCandidateSql(lobbyId: lobbyId, viewer: viewer)}
+    THEN count(*) FILTER (WHERE m.author_id <> $viewer
+      AND m.system_message_kind IS NULL
+      AND (s.last_seen_at IS NULL OR m.created_at > s.last_seen_at))
+    ELSE 0
+  END)::integer AS unread_count
 FROM public.beacon_room_message m
 LEFT JOIN public.beacon_room_seen s
   ON s.thread_item_id = m.thread_item_id AND s.user_id = $viewer

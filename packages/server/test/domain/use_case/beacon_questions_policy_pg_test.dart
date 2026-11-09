@@ -672,12 +672,14 @@ Future<void> main() async {
         final denied = await probe(cancelled);
         expect(denied['messageCount'], 0);
         expect(denied['unreadCount'], 0);
-        // A discoverable viewer reads Questions, so the count is theirs too:
-        // nothing marked seen yet, and they are blocked with nobody, so the
-        // message hidden from the author counts for them.
+        // A discoverable viewer reads Questions (they are blocked with nobody,
+        // so the message hidden from the author is visible to them), but
+        // while they have not written, answered or been mentioned there
+        // nothing in Questions is unread for them: same rule as the hint and
+        // notification audience.
         final discoverable = await probe(discovery);
         expect(discoverable['messageCount'], 5);
-        expect(discoverable['unreadCount'], 5);
+        expect(discoverable['unreadCount'], 0);
       },
     );
 
@@ -1044,9 +1046,13 @@ Future<void> main() async {
         userIds: [for (final c in matrix) c.id],
       );
       for (final c in matrix) {
+        // The content wall hides a closed Request from someone who only
+        // found it, so their Questions close with it.
         expect(
           levels[c.id],
-          c.expected.canRead ? QuestionsAccess.read : QuestionsAccess.none,
+          c.expected.canRead && c.id != discovery
+              ? QuestionsAccess.read
+              : QuestionsAccess.none,
           reason: c.name,
         );
       }
@@ -1310,7 +1316,8 @@ Future<void> main() async {
         },
       );
 
-      test('a closed Request leaves them read-only', () async {
+      test('a closed Request takes Questions away from them, while a '
+          'recipient keeps reading', () async {
         final lobbyId = await openAsAuthor();
         expect(await levelOf(discovery), QuestionsAccess.write);
         await sql("UPDATE public.beacon SET status = 6 WHERE id = '$beaconId'");
@@ -1318,13 +1325,19 @@ Future<void> main() async {
           hierarchy: FakeBeaconHierarchyRepository()
             ..statusOverride = BeaconStatus.closed,
         );
-        expect(await levelOf(discovery), QuestionsAccess.read);
+        // The content wall hides a closed Request from a discoverable-only
+        // viewer, so Questions does too.
+        expect(await canReadContent(discovery), isFalse);
+        expect(await levelOf(discovery), QuestionsAccess.none);
         final access = await probe(discovery, via: closedRooms);
-        expect(access['canRead'], isTrue);
+        expect(access['canRead'], isFalse);
         expect(access['canPost'], isFalse);
-        expect(access['readOnlyReason'], 'closed');
-        // Posting is refused exactly as for a recipient: the closed
-        // Request's read-only discussion lifecycle (1301).
+        // Positive control: the forward recipient still reads, read-only.
+        expect(await levelOf(forwardee), QuestionsAccess.read);
+        final recipient = await probe(forwardee, via: closedRooms);
+        expect(recipient['canRead'], isTrue);
+        expect(recipient['canPost'], isFalse);
+        expect(recipient['readOnlyReason'], 'closed');
         for (final id in [forwardee, discovery]) {
           await expectLater(
             closedRooms.createMessage(
@@ -1338,6 +1351,105 @@ Future<void> main() async {
           );
         }
         expect(await bodiesFor(author, lobbyId), isNot(contains('Still on?')));
+      });
+
+      group('Questions open and close with the content wall', () {
+        Future<void> setStatus(int status) => sql(
+          "UPDATE public.beacon SET status = $status WHERE id = '$beaconId'",
+        );
+
+        for (final status in const [0, 7, 8]) {
+          test('while the Request is ${BeaconStatus.fromSmallint(status).name} '
+              '(status $status) they may read and ask', () async {
+            final lobbyId = await openAsAuthor();
+            await setStatus(status);
+            final inState = buildRooms(
+              hierarchy: FakeBeaconHierarchyRepository()
+                ..statusOverride = BeaconStatus.fromSmallint(status),
+            );
+            expect(await canReadContent(discovery), isTrue);
+            expect(await levelOf(discovery), QuestionsAccess.write);
+            await inState.createMessage(
+              beaconId: beaconId,
+              userId: discovery,
+              body: 'Asked at status $status',
+              threadItemId: lobbyId,
+            );
+            expect(
+              await bodiesFor(author, lobbyId),
+              contains('Asked at status $status'),
+            );
+          });
+        }
+
+        // Legacy closed (4) cannot be stored any more (beacon_status_range).
+        for (final status in const [5, 1, 6]) {
+          test('once the Request is ${BeaconStatus.fromSmallint(status).name} '
+              '(status $status) they can neither read nor ask', () async {
+            final lobbyId = await openAsAuthor();
+            await seedMessage(forwardee, lobbyId, 'Is there a lift?');
+            await setStatus(status);
+            expect(await canReadContent(discovery), isFalse);
+            expect(await levelOf(discovery), QuestionsAccess.none);
+            final access = await probe(discovery);
+            expect(access['canRead'], isFalse);
+            expect(access['canPost'], isFalse);
+            expect(access['messageCount'] ?? 0, 0);
+            await expectLater(
+              rooms.beaconLobby(beaconId: beaconId, userId: discovery),
+              throwsA(isA<BeaconLobbyAccessException>()),
+            );
+            await expectLater(
+              bodiesFor(discovery, lobbyId),
+              throwsA(isA<UnauthorizedException>()),
+            );
+            await expectLater(
+              rooms.createMessage(
+                beaconId: beaconId,
+                userId: discovery,
+                body: 'Asked at status $status',
+                threadItemId: lobbyId,
+              ),
+              throwsA(isA<UnauthorizedException>()),
+            );
+            expect(
+              await bodiesFor(author, lobbyId),
+              isNot(contains('Asked at status $status')),
+            );
+          });
+        }
+
+        test('for every Request status they have Questions exactly when the '
+            'content wall lets them read the Request', () async {
+          final mismatches = <String>[];
+          for (final status in const [0, 1, 2, 3, 5, 6, 7, 8]) {
+            await setStatus(status);
+            final wall = await canReadContent(discovery);
+            final level = await levelOf(discovery);
+            if ((level != QuestionsAccess.none) != wall) {
+              mismatches.add('status $status: wall=$wall, Questions=$level');
+            }
+          }
+          expect(mismatches, isEmpty);
+        });
+
+        test('legacy closed (status 4) can no longer be stored, so closed '
+            'Requests are covered by status 6', () async {
+          await expectLater(
+            setStatus(4),
+            throwsA(
+              isA<ServerException>().having((e) => e.code, 'code', '23514'),
+            ),
+          );
+          expect(BeaconStatus.fromSmallint(4), BeaconStatus.closed);
+        });
+
+        test('a forward recipient of a closed (cancelled) discoverable '
+            'Request keeps read-only Questions', () async {
+          await setStatus(1);
+          expect(await levelOf(forwardee), QuestionsAccess.read);
+          expect(await levelOf(discovery), QuestionsAccess.none);
+        });
       });
 
       test('withdrawing an offer turns them read-only; offering again '
@@ -1413,6 +1525,43 @@ Future<void> main() async {
         // Positive control: the hint went out to the audience.
         expect(recipients(), contains(author));
         expect(recipients(), isNot(contains(discovery)));
+      });
+
+      test('Questions unread reaches them only once they have written '
+          'there', () async {
+        final lobbyId = await openAsAuthor();
+        for (final sender in [forwardee, addressee]) {
+          await rooms.createMessage(
+            beaconId: beaconId,
+            userId: sender,
+            body: 'Question from $sender',
+            threadItemId: lobbyId,
+          );
+        }
+        final before = await probe(discovery);
+        expect(before['canRead'], isTrue);
+        expect(before['messageCount'], 2);
+        expect(before['unreadCount'], 0);
+
+        await rooms.createMessage(
+          beaconId: beaconId,
+          userId: discovery,
+          body: 'Is the sofa included?',
+          threadItemId: lobbyId,
+        );
+        await rooms.markThreadSeen(
+          beaconId: beaconId,
+          userId: discovery,
+          threadId: lobbyId,
+        );
+        expect((await probe(discovery))['unreadCount'], 0);
+        await rooms.createMessage(
+          beaconId: beaconId,
+          userId: author,
+          body: 'Yes, the sofa too',
+          threadItemId: lobbyId,
+        );
+        expect((await probe(discovery))['unreadCount'], 1);
       });
 
       test(

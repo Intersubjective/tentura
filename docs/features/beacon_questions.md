@@ -31,9 +31,7 @@ re-implements it and only shows what the server returns.
 A person has access when **all** of these hold:
 
 1. The Request content is readable to them (`beacon_can_read_content`: no
-   block with the author either way, not deleted, not someone else's draft),
-   or they have discoverable standing (below), which keeps a closed Request's
-   Questions readable after the discovery wall itself has closed.
+   block with the author either way, not deleted, not someone else's draft).
 2. They have **current standing** on this Request:
 
    | Standing | Access |
@@ -47,7 +45,7 @@ A person has access when **all** of these hold:
    | Live forward edge they answered **"Can't help"** | read-only (Q4) |
    | Withdrawn or declined help offer, no other standing | read-only (Q4); offering again restores writing |
    | Cancelled forward, historical inbox item only | **none** |
-   | Discoverable viewer (reads the Request only through discoverability, nobody sent it; m0299) | **write** like a recipient; read-only after a withdrawn or declined offer or on a closed Request (the standing outlives closing, like a forward edge); **none** when blocked with the author, removed, or once the Request is made private |
+   | Discoverable viewer (reads the Request only through discoverability, nobody sent it; m0300) | **write** like a recipient, but only while the content wall's own discoverability reason lets them read the Request (open family: status 0, 7, 8); **none** from Final check or closing on, when blocked with the author, removed, or once the Request is made private; read-only after a withdrawn or declined offer while the Request is open |
    | Member of the parent Post of a budded Request (bud snapshot, m0284) | **write** (read-only after a withdrawn offer or on a closed Request) |
    | Other hierarchy / context readers (parent or child Requests) | **none** |
 
@@ -70,8 +68,12 @@ mention candidates and realtime hints.
 Discoverable viewers are **not** enumerated into the audience
 (`questions_audience`) just because they could find the Request: a
 discoverable viewer joins it — mention candidates, reply notices, realtime
-hints — once they have written in Questions (m0299). Questions never admits
-anyone to the discussion.
+hints and Questions unread (Request card count, Field unread flag, entry-row
+count) — once they have written in Questions. Before that, other people's
+questions are never unread for them. Recipients and the other standing
+sources keep read-only Questions after the Request closes. Questions never
+admits anyone to the discussion. The audience list and the unread rule share
+one candidate list (`questionsAudienceCandidateIdsSql`, m0300).
 
 - The author gets an attention item for every question (undirected or not);
   @mentions are drawn from the Questions audience; reply notices reach only
