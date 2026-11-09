@@ -221,7 +221,7 @@ WHERE id = '$edgeId'
         final edgeId = await createEdge();
         await pastDeadline(edgeId);
 
-        await sweep.run();
+        await sweep.runDue();
 
         final contact = await _contact(writer, edgeId);
         expect(contact.outcome, 3);
@@ -247,7 +247,7 @@ WHERE id = '$edgeId'
         );
         await pastDeadline(cancelled);
 
-        await sweep.run();
+        await sweep.runDue();
 
         expect((await _contact(writer, future)).resolvedAt, isNull);
         expect((await _contact(writer, cancelled)).outcome, isNull);
@@ -262,8 +262,8 @@ WHERE id = '$edgeId'
         final edgeId = await createEdge();
         await pastDeadline(edgeId);
 
-        await sweep.run();
-        await sweep.run();
+        await sweep.runDue();
+        await sweep.runDue();
 
         expect(await _contactEvidenceCount(writer), 1);
         expect((await _contact(writer, edgeId)).outcome, 3);
@@ -283,7 +283,7 @@ WHERE id = '$edgeId'
         );
         await pastDeadline(edgeId);
 
-        await sweep.run();
+        await sweep.runDue();
 
         expect(await _contactEvidenceCount(writer), 0);
         expect((await _contact(writer, edgeId)).outcome, isNot(3));
@@ -296,7 +296,7 @@ WHERE id = '$edgeId'
       () async {
         final edgeId = await createEdge();
         await pastDeadline(edgeId);
-        await sweep.run();
+        await sweep.runDue();
         expect((await _contact(writer, edgeId)).outcome, 3);
 
         await helpOfferCase.offerHelp(
@@ -320,7 +320,7 @@ WHERE id = '$edgeId'
       () async {
         final edgeId = await createEdge();
         await pastDeadline(edgeId);
-        await sweep.run();
+        await sweep.runDue();
 
         await forwardCase.forward(
           senderId: _recipientId,

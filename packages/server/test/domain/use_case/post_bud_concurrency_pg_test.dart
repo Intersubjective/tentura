@@ -912,7 +912,7 @@ Future<void> main() async {
           await writer.execute(
             "SELECT pg_advisory_xact_lock(hashtextextended('tentura.beacon_hierarchy.v1', 0))",
           );
-          sweeping = _settle(sweep.run());
+          sweeping = _settle(sweep.runDue());
           // The correct sweep queues for the hierarchy lock before anything
           // else; the wrong one already holds the child lock and runs on.
           await Future<void>.delayed(const Duration(milliseconds: 300));
@@ -1086,7 +1086,7 @@ Future<void> main() async {
             await writer.execute(
               "SELECT pg_advisory_xact_lock(hashtextextended('tentura.beacon_hierarchy.v1', 0))",
             );
-            sweeping = _settle(sweep.run());
+            sweeping = _settle(sweep.runDue());
             await _waitForBlockedBackends(writer, [sweepPid], 1);
             acting = _settle(switch (action) {
               'accept' => b.coordination.acceptHelpOffer(

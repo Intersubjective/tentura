@@ -188,11 +188,11 @@ final class TaskWorkerCase extends UseCaseBase {
     // Trust publisher: cadence 10 s; nudge() forces the next tick.
     _Job(
       const Duration(seconds: 10),
-      (_) => _trustPublisher?.run(),
+      (_) => _trustPublisher?.runDue(),
       nudged: () => _trustPublisher?.consumeNudge() ?? false,
     ),
     // Closure finalize: epochs whose closing window has elapsed.
-    _Job(const Duration(seconds: 60), (_) => _closureFinalizeSweep?.run()),
+    _Job(const Duration(seconds: 60), (_) => _closureFinalizeSweep?.runDue()),
     // Closure draft reminder: voters whose draft differs from their commit.
     _Job(
       const Duration(hours: 1),
@@ -201,12 +201,12 @@ final class TaskWorkerCase extends UseCaseBase {
     // Noisy contact: forwards unanswered past their deadline.
     _Job(
       env.contactResolutionSweepInterval,
-      (_) => _contactResolutionSweep?.run(),
+      (_) => _contactResolutionSweep?.runDue(),
     ),
     // Bud anchor inheritance (Arch §8.1): cadence 10 s; a bud nudges it.
     _Job(
       const Duration(seconds: 10),
-      (_) => _budAnchorSweep?.run(),
+      (_) => _budAnchorSweep?.runDue(),
       nudged: () => _budAnchorSweep?.consumeNudge() ?? false,
     ),
     // Dismiss-all captures abandoned mid-capture: resume or expire them.

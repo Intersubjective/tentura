@@ -29,7 +29,7 @@ final class BudAnchorSweepCase extends UseCaseBase {
 
   var _nudged = false;
 
-  /// Asks the worker to run [run] on its next tick (bypassing the cadence
+  /// Asks the worker to run [runDue] on its next tick (bypassing the cadence
   /// gate); never runs the sweep itself.
   void nudge() => _nudged = true;
 
@@ -40,7 +40,7 @@ final class BudAnchorSweepCase extends UseCaseBase {
     return was;
   }
 
-  Future<void> run() async {
+  Future<void> runDue() async {
     final rows = await _port.pendingBuds(limit: _batchSize);
     for (final row in rows) {
       try {

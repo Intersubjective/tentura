@@ -32,7 +32,7 @@ final class ContactResolutionSweepCase extends UseCaseBase {
   final ForwardEdgeRepositoryPort _forwardEdges;
   final TrustLedgerPort _ledger;
 
-  Future<void> run() async {
+  Future<void> runDue() async {
     final batchSize = env.contactResolutionBatchSize;
     final rowBudget = env.contactResolutionRunRowBudget;
     final timeBudget = env.contactResolutionRunTimeBudget;

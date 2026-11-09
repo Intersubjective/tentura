@@ -331,7 +331,7 @@ final class QaIntegrationController extends BaseController {
     }
 
     await _closureRepository.expireLiveEpoch(beaconId);
-    await _closureFinalizeSweep.run();
+    await _closureFinalizeSweep.runDue();
 
     return Response.ok(
       jsonEncode({'beaconId': beaconId}),

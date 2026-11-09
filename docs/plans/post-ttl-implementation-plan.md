@@ -430,7 +430,7 @@ unchanged (closed Request: delete still refused).
   `kind = 1 AND status = 0 AND expires_at <= now()` ordered by `expires_at` (port method on the
   beacon repository), then per id: `_uow.run(actorUserId: null)` → `PostLockPort.lockForPostMutation`
   → re-read → if still open and expired, `PostCloseOperation.expire`. Errors are logged per row and
-  do not stop the batch (template: `ClosureFinalizeSweepCase.run`, `closure_finalize_sweep_case.dart:34-56`).
+  do not stop the batch (template: `ClosureFinalizeSweepCase.runDue`, `closure_finalize_sweep_case.dart:34-56`).
 - `domain/use_case/task_worker_case.dart`: register with a `_lastPostExpirySweep` throttle of 30 s
   (pattern `:315-321`).
 - tests: `test/domain/use_case/post_expiry_sweep_pg_test.dart`.

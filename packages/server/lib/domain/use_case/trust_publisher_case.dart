@@ -22,7 +22,7 @@ final class TrustPublisherCase extends UseCaseBase {
 
   var _nudged = false;
 
-  /// Asks the worker to run [run] on its next tick (bypassing the cadence
+  /// Asks the worker to run [runDue] on its next tick (bypassing the cadence
   /// gate); never runs a publisher itself.
   void nudge() => _nudged = true;
 
@@ -33,7 +33,7 @@ final class TrustPublisherCase extends UseCaseBase {
     return was;
   }
 
-  Future<void> run() async {
+  Future<void> runDue() async {
     if (await _port.cutoverPending()) return;
     final token = await _port.acquireLease(_instanceId);
     if (token == null) return;

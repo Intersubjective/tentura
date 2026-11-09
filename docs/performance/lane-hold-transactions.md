@@ -75,7 +75,7 @@ The sweep used to claim up to 200 expired contact edges, record evidence and
 project trust in ONE transaction: worst lane hold 1422-1496 ms (table above),
 about 7 ms per `trust_project_pair` call.
 
-`ContactResolutionSweepCase.run()` now loops chunk by chunk, each chunk (claim,
+`ContactResolutionSweepCase.runDue()` now loops chunk by chunk, each chunk (claim,
 record, project) in its own transaction, oldest deadline first, until the
 backlog is empty or the row/time budget is spent. The default chunk is 25 rows,
 so the expected worst hold is about 25 x 7 ms = ~175 ms (derived from the

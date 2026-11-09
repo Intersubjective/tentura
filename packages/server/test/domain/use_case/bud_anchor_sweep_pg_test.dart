@@ -112,7 +112,7 @@ Future<void> main() async {
 
     test('one run anchors the budder and another viewer next to the Post, '
         'keeps a moved anchor, skips a non-reader, marks the row', () async {
-      await sweep.run();
+      await sweep.runDue();
 
       final placed = await _anchorsOn(writer, _child);
       const offset = AnchorInheritOperation.offsetUnits;
@@ -129,7 +129,7 @@ Future<void> main() async {
         "UPDATE public.beacon SET status = 6 WHERE id = '$_post'",
       );
 
-      await sweep.run();
+      await sweep.runDue();
 
       final placed = await _anchorsOn(writer, _child);
       expect(placed[_budder], (_postX, _postY));
@@ -137,25 +137,25 @@ Future<void> main() async {
     });
 
     test('an already-promoted command row is never swept', () async {
-      await sweep.run();
+      await sweep.runDue();
 
       expect(await _anchorsOn(writer, _promotedChild), isEmpty);
       expect(await _inheritedAt(writer, _promotedCommand), isNull);
     });
 
     test('a second run is a no-op', () async {
-      await sweep.run();
+      await sweep.runDue();
       final anchorsBefore = await _anchorsOn(writer, _child);
       final cursorsBefore = await _cursors(writer);
 
-      await sweep.run();
+      await sweep.runDue();
 
       expect(await _anchorsOn(writer, _child), anchorsBefore);
       expect(await _cursors(writer), cursorsBefore);
     });
 
     test('two concurrent runs produce one anchor per viewer', () async {
-      await Future.wait([sweep.run(), newSweep().run()]);
+      await Future.wait([sweep.runDue(), newSweep().runDue()]);
 
       final rows = await writer.execute(
         'SELECT viewer_id, count(*)::int FROM public.constellation_anchor '
@@ -172,19 +172,19 @@ Future<void> main() async {
       expect([for (final r in ops) r[0]], [_budder, _viewer]);
       // An interrupted overlap leaves the row for the next run, which then
       // finishes it.
-      await sweep.run();
+      await sweep.runDue();
       expect(await _inheritedAt(writer, _command), isNotNull);
     });
 
     test('a replayed op does not re-anchor a child the viewer moved after '
         'inheritance', () async {
-      await sweep.run();
+      await sweep.runDue();
       await place(_viewer, _child, -3, -3);
       await writer.execute(
         'UPDATE public.beacon_child_commands SET anchor_inherited_at = NULL',
       );
 
-      await sweep.run();
+      await sweep.runDue();
 
       expect((await _anchorsOn(writer, _child))[_viewer], (-3.0, -3.0));
     });

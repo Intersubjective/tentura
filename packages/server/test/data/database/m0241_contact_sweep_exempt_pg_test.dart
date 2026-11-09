@@ -107,7 +107,7 @@ Future<void> main() async {
       final edge = await _edge(writer, _recipients[0], exempt: true);
       await _pastDeadline(writer, edge);
 
-      await sweep.run();
+      await sweep.runDue();
 
       final contact = await _contact(writer, edge);
       expect(contact.outcome, isNull);
@@ -153,7 +153,7 @@ WHERE beacon_id = '$_beacon' AND user_id = '${_recipients[0]}'
       expect(resolved.resolvedAt, isNotNull);
       expect(await _contactEvidence(writer), isEmpty);
 
-      await sweep.run();
+      await sweep.runDue();
 
       final after = await _contact(writer, edge);
       expect(after.outcome, isNull);
@@ -164,7 +164,7 @@ WHERE beacon_id = '$_beacon' AND user_id = '${_recipients[0]}'
     test('resolving is a no-op on an already resolved contact', () async {
       final edge = await _edge(writer, _recipients[0]);
       await _pastDeadline(writer, edge);
-      await sweep.run();
+      await sweep.runDue();
       expect((await _contact(writer, edge)).outcome, 3);
 
       expect(await _resolve(writer, edge), isFalse);
