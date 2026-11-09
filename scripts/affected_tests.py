@@ -62,17 +62,33 @@ config); these rules cover those:
   * pubspec.yaml of the package or of the workspace root selects the whole
     package unless only its `version:` line changed; pubspec.lock selects
     every package;
-  * server: a migration (lib/data/database/migration/**) adds every
-    pg-tagged test;
+  * server: a migration (lib/data/database/migration/**) adds the pg-tagged
+    tests that name, or reach code that names, a SQL object it creates,
+    changes or writes (Drift spellings included), or a routine / view whose
+    body in any migration uses one, plus the tests naming the migration.
+    Its SQL is every triple-quoted string plus every one-line string that
+    starts with a SQL keyword. Triggers are not followed back to their
+    tables, so a migration that (re)defines a trigger function (RETURNS
+    trigger), or a routine a trigger function calls (to a fixed point), adds
+    every pg-tagged test, as does a statement it cannot attribute (a DO
+    block, ...) or a migration list change alone. A migration list change also adds the tests
+    importing the list itself (its order guard);
   * anything changed outside the package adds the package's tests tagged
     `repo-files` (they read other packages, docs, scripts; CI does the same,
     scripts/ci_changes.py).
 
 Usage (from anywhere):
-  scripts/affected_tests.py <package-dir> [--base REV]
-      Changed files = working tree + untracked vs REV (default HEAD). Prints
-      the selected `*_test.dart` paths relative to the package, one per line;
-      the reason for a whole-package fallback goes to stderr.
+  scripts/affected_tests.py <package-dir> [--base REV | --since TREE]
+      Changed files = working tree + untracked vs REV (default HEAD), or vs a
+      tree from --snapshot. Prints the selected `*_test.dart` paths relative
+      to the package, one per line; the reason for a whole-package fallback
+      goes to stderr.
+  scripts/affected_tests.py --snapshot
+      Prints a git tree of the working tree, untracked files included.
+      run_tests.sh stores it after a green `*-affected` run; the next run on
+      the same HEAD selects only what changed since (`--since`): the tests
+      outside that selection were green on the snapshot and nothing they
+      reach changed.
   scripts/affected_tests.py --replay [N] [--repo PATH]
       Runs the selector over the last N (default 300) non-merge commits with
       today's graph and prints, per package, the p25 / p50 / p75 / mean share
@@ -146,7 +162,52 @@ WHOLE_PACKAGE_CONFIG = {
     "test/flutter_test_config.dart",
 }
 MIGRATIONS = "lib/data/database/migration/"
+MIGRATION_REGISTRY = MIGRATIONS + "_migrations.dart"
+# Table definitions, the database class and the migrations: every repository
+# imports them, so a migration is followed from the code that names its SQL
+# objects instead.
+DATABASE_DIR = "lib/data/database/"
 GENERATED_L10N = "lib/ui/l10n/"
+# The SQL of a migration: its Dart triple-quoted strings, plus one-line
+# '...' / "..." strings that start with a SQL keyword (some migrations mix
+# both styles; m0267, m0271, m0276).
+SQL_STRING = re.compile(r"r?('''|\"\"\")(.*?)\1", re.S)
+SQL_LINE_STRING = re.compile(r"""r?(['"])((?:(?!\1)[^\\\n]|\\.)*)\1""")
+SQL_LEADING_KEYWORD = re.compile(
+    r"^\s*(?:CREATE|ALTER|DROP|INSERT|UPDATE|DELETE|TRUNCATE|GRANT|REVOKE|"
+    r"COMMENT|WITH|SELECT|DO|REFRESH|REINDEX|CLUSTER|LOCK|SET|RESET)\b",
+    re.I,
+)
+_SQL_NAME = r'((?:"?\w+"?\.)?"?\w+"?)'
+SQL_DEFINE = re.compile(
+    r"\b(?:CREATE|ALTER|DROP)\s+(?:OR\s+REPLACE\s+)?(?:UNIQUE\s+)?(?:MATERIALIZED\s+)?"
+    r"(?:TABLE|FUNCTION|PROCEDURE|VIEW|INDEX|TRIGGER|TYPE|SEQUENCE|POLICY|DOMAIN|AGGREGATE|RULE)\s+"
+    r"(?:CONCURRENTLY\s+)?(?:IF\s+(?:NOT\s+)?EXISTS\s+)?(?:ONLY\s+)?" + _SQL_NAME,
+    re.I,
+)
+SQL_ON = re.compile(r"\bON\s+(?:TABLE\s+)?(?:ONLY\s+)?" + _SQL_NAME, re.I)
+SQL_DML = re.compile(
+    r"\b(?:INSERT\s+INTO|UPDATE|DELETE\s+FROM|TRUNCATE(?:\s+TABLE)?|REFERENCES)\s+(?:ONLY\s+)?"
+    + _SQL_NAME,
+    re.I,
+)
+# A statement that only defines a routine: its body is not a schema change.
+SQL_ROUTINE = re.compile(r"^\s*CREATE\s+(?:OR\s+REPLACE\s+)?(?:FUNCTION|PROCEDURE)\b", re.I)
+# Routines and views: what calls or reads them depends on what their body
+# names. (Triggers are not followed: a trigger on a hub table such as beacon
+# would select every pg test; CI's full server-pg run covers that path.)
+SQL_TRIGGER_FUNCTION = re.compile(r"\bRETURNS\s+trigger\b", re.IGNORECASE)
+SQL_DEPENDENT = re.compile(
+    r"^\s*CREATE\s+(?:OR\s+REPLACE\s+)?(?:MATERIALIZED\s+)?(?:FUNCTION|PROCEDURE|VIEW)\b",
+    re.I,
+)
+# Words the name patterns above can catch that name no object.
+SQL_WORDS = {
+    "conflict", "of", "only", "table", "each", "row", "statement", "column",
+    "schema", "public", "set", "delete", "update", "insert", "truncate",
+    "function", "procedure", "new", "old", "if", "exists", "not", "do",
+    "nothing", "commit", "database", "constraint", "cascade", "restrict",
+}
 SERIALIZERS_HUB = "/_g/serializers.gql.dart"
 SCHEMA_HUB = "/_g/schema.schema.gql.dart"
 # Ferry's generated files and the two that list every type (with their
@@ -310,6 +371,8 @@ class Selection:
     tests: set[str] = field(default_factory=set)
     # Why the whole package was selected; empty when the graph decided.
     fallbacks: list[str] = field(default_factory=list)
+    # Why a narrower rule fell back to a wider set (stderr, not a fallback).
+    notes: list[str] = field(default_factory=list)
 
 
 def _owner(path: str) -> str:
@@ -653,6 +716,138 @@ def _naming(graph: Graph, pkg: str, name: str) -> set[str]:
     }
 
 
+def _sql_statements(text: str | None) -> list[str]:
+    text = text or ""
+    out = [m.group(2).strip() for m in SQL_STRING.finditer(text)]
+    rest = SQL_STRING.sub(" ", text)
+    out += [
+        m.group(2).strip() for m in SQL_LINE_STRING.finditer(rest)
+        if SQL_LEADING_KEYWORD.match(m.group(2))
+    ]
+    return [s for s in out if s]
+
+
+def _sql_bare(name: str) -> str:
+    return name.replace('"', "").split(".")[-1].lower()
+
+
+def _sql_names(statement: str) -> set[str]:
+    """The tables, routines, views, triggers, ... that [statement] creates,
+    changes or writes. A routine definition names only the routine."""
+    if SQL_ROUTINE.match(statement):
+        found = SQL_DEFINE.findall(statement)[:1]
+    else:
+        found = (
+            SQL_DEFINE.findall(statement)
+            + SQL_ON.findall(statement)
+            + SQL_DML.findall(statement)
+        )
+    return {_sql_bare(n) for n in found} - SQL_WORDS
+
+
+def _sql_dependents(
+    graph: Graph, pkg: str
+) -> list[tuple[set[str], set[str], bool]]:
+    """(defined objects, names its body uses, is a trigger function) for every
+    function, procedure and view any migration of [pkg] defines."""
+    out = []
+    for f in sorted(graph.package_files(pkg)):
+        if not f.startswith(f"{pkg}/{MIGRATIONS}"):
+            continue
+        for statement in _sql_statements(graph.text(f)):
+            if not SQL_DEPENDENT.match(statement):
+                continue
+            defined = _sql_names(statement)
+            body = {w.lower() for w in IDENTIFIER.findall(statement)} - defined
+            if defined:
+                out.append(
+                    (defined, body, bool(SQL_TRIGGER_FUNCTION.search(statement)))
+                )
+    return out
+
+
+def _dart_spellings(sql_name: str) -> set[str]:
+    """How Dart code names a SQL object: as is (raw SQL), and Drift's table
+    class / row class / accessor spellings."""
+    parts = [p for p in sql_name.split("_") if p]
+    if not parts:
+        return set()
+    pascal = "".join(p[:1].upper() + p[1:] for p in parts)
+    camel = pascal[:1].lower() + pascal[1:]
+    return {sql_name, pascal, camel, pascal + "s", camel + "s"}
+
+
+def _migration_selection(
+    graph: Graph,
+    pkg: str,
+    changed: list[str],
+    before: Version,
+    after: Version,
+    sel: Selection,
+) -> str:
+    """Selects for changed migrations: the pg tests that name, or reach code
+    that names, a SQL object the migrations create, change or write (or a
+    routine / view whose body in any migration uses one, to a fixed point),
+    plus the tests naming the migration. Returns why every pg test is needed
+    instead, or ''."""
+    names: set[str] = set()
+    stems: set[str] = set()
+    for path in changed:
+        rel = path[len(pkg) + 1:]
+        if rel == MIGRATION_REGISTRY:
+            continue
+        stems.add(os.path.basename(path).removesuffix(".dart"))
+        old, new = _sql_statements(before(path)), _sql_statements(after(path))
+        if not old and not new:
+            return f"{rel} has no SQL string to read"
+        for statement in set(old) ^ set(new):
+            if SQL_TRIGGER_FUNCTION.search(statement):
+                # Triggers aren't followed back to their tables, and no Dart
+                # code names a trigger function: only every pg test is safe.
+                first = statement.split("\n", 1)[0][:60]
+                return f"{rel}: «{first}» is a trigger function"
+            found = _sql_names(statement)
+            if not found:
+                first = statement.split("\n", 1)[0][:60]
+                return f"{rel}: «{first}» names no table or routine"
+            names |= found
+    if not names:
+        return "the migration list changed without a migration"
+    dependents = _sql_dependents(graph, pkg)
+    grew = True
+    while grew:
+        grew = False
+        for defined, body, trigger in dependents:
+            if not defined <= names and body & names:
+                if trigger:
+                    # A changed routine is called from a trigger function:
+                    # triggers aren't followed back to their tables.
+                    return (
+                        f"trigger function {min(defined)} calls "
+                        f"{', '.join(sorted(body & names))}"
+                    )
+                names |= defined
+                grew = True
+    spellings: set[str] = set()
+    for n in names:
+        spellings |= _dart_spellings(n)
+    database = f"{pkg}/{DATABASE_DIR}"
+    lib_seeds = {
+        f for f in graph.package_files(pkg)
+        if f.endswith(".dart") and f.startswith(f"{pkg}/lib/")
+        and not f.startswith(database) and graph.identifiers(f) & spellings
+    }
+    # Only a test that runs against Postgres can see a schema change.
+    pg = graph.tagged(pkg, PG_TAG)
+    reached = graph.reach(lib_seeds) & pg
+    for t in graph.tests(pkg):
+        ids = graph.identifiers(t)
+        if ids & stems or (t in pg and ids & spellings):
+            reached.add(t)
+    sel.tests |= reached
+    return ""
+
+
 def select(
     graph: Graph,
     pkg: str,
@@ -669,6 +864,7 @@ def select(
     arb_changed = False
     outside = False
     sources_changed: set[str] = set()
+    migrations_changed: list[str] = []
     schema_changed = False
     schema_seeds: set[str] = set()
 
@@ -690,16 +886,26 @@ def select(
             continue
 
         if path.endswith(".dart"):
-            seeds.add(path)
             if rel is None:
+                seeds.add(path)
                 outside = True
                 continue
             sources_changed.add(rel)
+            if pkg == "packages/server" and rel.startswith(MIGRATIONS):
+                # Every pg test imports the migration list: the migration is
+                # followed from the code that names its SQL objects (below).
+                migrations_changed.append(path)
+                if rel == MIGRATION_REGISTRY:
+                    # Tests importing the list itself (its order guard) aren't
+                    # pg tests and name no SQL object: add them directly.
+                    sel.tests |= {
+                        t for t in all_tests
+                        if "_migrations.dart'" in graph.text(t)
+                    }
+                continue
+            seeds.add(path)
             if rel == "test/flutter_test_config.dart":
                 whole(rel)
-            elif pkg == "packages/server" and rel.startswith(MIGRATIONS):
-                # The schema changed under every pg test, imported or not.
-                sel.tests |= graph.tagged(pkg, PG_TAG)
             continue
 
         if rel is None:
@@ -771,6 +977,12 @@ def select(
                 or not arb_keys.isdisjoint(graph.identifiers(f))
             ):
                 seeds.add(f)
+    if migrations_changed:
+        why = _migration_selection(graph, pkg, migrations_changed, before, after, sel)
+        if why:
+            # The schema changed under every pg test, imported or not.
+            sel.notes.append(f"every pg test: {why}")
+            sel.tests |= graph.tagged(pkg, PG_TAG)
     if sources_changed:
         seeds |= graph.readers_of(pkg, sources_changed)
     if schema_changed:
@@ -799,9 +1011,39 @@ def _show(root: Path, rev: str, path: str) -> str | None:
 
 
 def _working_tree_changes(root: Path, base: str) -> list[str]:
-    tracked = _git("diff", "--name-only", base, cwd=root).splitlines()
+    tracked = _git("diff", "--name-only", "--no-renames", base, cwd=root).splitlines()
     untracked = _git("ls-files", "--others", "--exclude-standard", cwd=root).splitlines()
     return sorted({p for p in tracked + untracked if p})
+
+
+def _snapshot_tree(root: Path) -> str:
+    """A git tree of the working tree as it is, untracked files included
+    (ignored ones not), written through a copy of the index so the real
+    index and the stash stay untouched. '' when git cannot make one."""
+    index = Path(_git("rev-parse", "--git-path", "index", cwd=root, check=False).strip() or ".")
+    if not index.is_absolute():
+        index = root / index
+    if not index.is_file():
+        return ""
+    tmp = index.with_name(f"affected-snapshot-{os.getpid()}.index")
+    env = {**os.environ, "GIT_INDEX_FILE": str(tmp)}
+    try:
+        tmp.write_bytes(index.read_bytes())
+        added = subprocess.run(["git", "add", "-A"], cwd=root, env=env, capture_output=True)
+        out = subprocess.run(
+            ["git", "write-tree"], cwd=root, env=env, capture_output=True, text=True
+        )
+        if added.returncode or out.returncode:
+            return ""
+        return out.stdout.strip()
+    finally:
+        tmp.unlink(missing_ok=True)
+
+
+def _tree_changes(root: Path, since: str, now: str) -> list[str]:
+    return sorted(
+        p for p in _git("diff", "--name-only", "--no-renames", since, now, cwd=root).splitlines() if p
+    )
 
 
 def _read(root: Path, path: str) -> str | None:
@@ -887,25 +1129,37 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("package", nargs="?", help="packages/client or packages/server")
     ap.add_argument("--base", default="HEAD")
+    ap.add_argument("--since", metavar="TREE")
+    ap.add_argument("--snapshot", action="store_true")
     ap.add_argument("--replay", nargs="?", type=int, const=300)
     ap.add_argument("--repo", default=str(REPO))
     args = ap.parse_args()
     root = Path(args.repo).resolve()
+    if args.snapshot:
+        print(_snapshot_tree(root))
+        return 0
     if args.replay is not None:
         _replay(root, args.replay)
         return 0
     pkg = (args.package or "").rstrip("/")
     if pkg not in SELECTABLE:
         ap.error(f"package must be one of {', '.join(SELECTABLE)}")
-    changed = _working_tree_changes(root, args.base)
+    base = args.since or args.base
+    changed = (
+        _tree_changes(root, args.since, _snapshot_tree(root))
+        if args.since
+        else _working_tree_changes(root, args.base)
+    )
     graph = Graph(root)
     sel = select(
         graph, pkg, changed,
-        lambda path: _show(root, args.base, path),
+        lambda path: _show(root, base, path),
         lambda path: _read(root, path),
     )
     for reason in sel.fallbacks:
         print(f"affected_tests: whole {pkg}: {reason} changed", file=sys.stderr)
+    for note in sel.notes:
+        print(f"affected_tests: {pkg}: {note}", file=sys.stderr)
     for t in sorted(sel.tests):
         print(t[len(pkg) + 1:])
     return 0

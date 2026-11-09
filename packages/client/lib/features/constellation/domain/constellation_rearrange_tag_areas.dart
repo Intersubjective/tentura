@@ -5,6 +5,9 @@ import 'constellation_drag_cluster.dart';
 import 'constellation_layout.dart';
 import 'layout/layout_geometry.dart';
 
+/// Turn between successive members of one tag area (≈137.5°).
+const _kGoldenAngle = 2.399963229728653; // π(3 − √5)
+
 /// Result of staging tag areas before the settled layout pass.
 typedef ConstellationRearrangeTagStaging = ({
   Map<String, ConstellationPoint> areaPositions,
@@ -148,33 +151,6 @@ Iterable<void> constellationRearrangeTagStagingSteps({
     yield null;
   }
 
-  final out = <String, ConstellationPoint>{};
-
-  {
-    final multiIds =
-        personOwnTags.entries
-            .where((e) => e.value.length > 1)
-            .map((e) => e.key)
-            .toList()
-          ..sort();
-    for (final id in multiIds) {
-      final tags = personOwnTags[id]!.toList()..sort();
-      final memberCentres = [
-        for (final t in tags)
-          if (tagCentres[t] != null) tagCentres[t]!,
-      ];
-      if (memberCentres.length < 2) continue;
-      final cx =
-          memberCentres.map((c) => c.x).reduce((a, b) => a + b) /
-          memberCentres.length;
-      final cy =
-          memberCentres.map((c) => c.y).reduce((a, b) => a + b) /
-          memberCentres.length;
-      out[id] = constellationClampToDragBounds((x: cx, y: cy));
-      yield null;
-    }
-  }
-
   final tagMemberCount = <String, int>{
     for (final tagId in tagIds)
       if (tagPeople[tagId] != null)
@@ -211,6 +187,78 @@ Iterable<void> constellationRearrangeTagStagingSteps({
       maxCell = 80;
     }
     return 2.5 * math.sqrt(n) * maxCell;
+  }
+
+  // Tags with no member in common never overlap: two such centres closer
+  // than both disk radii plus the layout spacing are pushed apart along the
+  // line joining them. Tags that share people stay close, so those people
+  // sit between them. A magnet centre is where the viewer put it, so only
+  // the other one moves.
+  bool shareMembers(String a, String b) => personOwnTags.values.any(
+    (tags) => tags.contains(a) && tags.contains(b),
+  );
+  final centreIds = tagCentres.keys.toList()..sort();
+  for (var iter = 0; iter < 64; iter++) {
+    var moved = false;
+    for (var i = 0; i < centreIds.length; i++) {
+      for (var j = i + 1; j < centreIds.length; j++) {
+        final idA = centreIds[i];
+        final idB = centreIds[j];
+        final fixedA = input.rearrangeTagMagnetsByTagId.containsKey(idA);
+        final fixedB = input.rearrangeTagMagnetsByTagId.containsKey(idB);
+        if ((fixedA && fixedB) || shareMembers(idA, idB)) continue;
+        final a = tagCentres[idA]!;
+        final b = tagCentres[idB]!;
+        final minGap =
+            tagDiskRadius(idA) + tagDiskRadius(idB) + input.spacing + 1;
+        final dx = b.x - a.x;
+        final dy = b.y - a.y;
+        final d = math.sqrt(dx * dx + dy * dy);
+        if (d >= minGap) continue;
+        final (ux, uy) = d < 1e-9 ? (1.0, 0.0) : (dx / d, dy / d);
+        final push = minGap - d;
+        final shareA = fixedA ? 0.0 : (fixedB ? 1.0 : 0.5);
+        final shareB = 1 - shareA;
+        tagCentres[idA] = constellationClampToDragBounds((
+          x: a.x - ux * push * shareA,
+          y: a.y - uy * push * shareA,
+        ));
+        tagCentres[idB] = constellationClampToDragBounds((
+          x: b.x + ux * push * shareB,
+          y: b.y + uy * push * shareB,
+        ));
+        moved = true;
+        yield null;
+      }
+    }
+    if (!moved) break;
+  }
+
+  final out = <String, ConstellationPoint>{};
+
+  {
+    final multiIds =
+        personOwnTags.entries
+            .where((e) => e.value.length > 1)
+            .map((e) => e.key)
+            .toList()
+          ..sort();
+    for (final id in multiIds) {
+      final tags = personOwnTags[id]!.toList()..sort();
+      final memberCentres = [
+        for (final t in tags)
+          if (tagCentres[t] != null) tagCentres[t]!,
+      ];
+      if (memberCentres.length < 2) continue;
+      final cx =
+          memberCentres.map((c) => c.x).reduce((a, b) => a + b) /
+          memberCentres.length;
+      final cy =
+          memberCentres.map((c) => c.y).reduce((a, b) => a + b) /
+          memberCentres.length;
+      out[id] = constellationClampToDragBounds((x: cx, y: cy));
+      yield null;
+    }
   }
 
   final untaggedFieldPeople = <String>{
@@ -309,14 +357,16 @@ Iterable<void> constellationRearrangeTagStagingSteps({
       final id = sortedMembers[i];
 
       final cell = cellFor(id);
+      // A compact group: a golden-angle spiral within half the disk, so any
+      // two members stand closer than the disk radius.
       final t = (i + 0.5) / nMem;
-      final radial = diskR * math.sqrt(t) * 0.92;
-      final angle = 2 * math.pi * i / nMem + tagPhase;
+      final radial = diskR * 0.5 * math.sqrt(t) * 0.92;
+      final angle = i * _kGoldenAngle + tagPhase;
       var raw = (
         x: centreTag.x + radial * math.cos(angle),
         y: centreTag.y + radial * math.sin(angle),
       );
-      raw = pushOutOfDisks(raw, {tagId}, id);
+      raw = pushOutOfDisks(raw, diskCentreIds.difference({tagId}), id);
       final rdx = raw.x - centreTag.x;
       final rdy = raw.y - centreTag.y;
       final rd = math.sqrt(rdx * rdx + rdy * rdy);

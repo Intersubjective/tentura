@@ -32,6 +32,7 @@ import 'package:tentura/ui/test_ids.dart';
 import '../../support/constellation_store_fixture.dart';
 import '../../support/phone_surface.dart';
 import '../../support/remote_wire_harness.dart';
+import 'fixtures/constellation_field_test_harness.dart';
 import 'fixtures/constellation_reference_fixture.dart';
 
 const _viewerId = 'Uviewer000001';
@@ -347,6 +348,9 @@ Future<_Field> _mountField(WidgetTester tester) async {
     presentationFrameHolder: holder,
   );
   await tester.pumpAndSettle();
+  // The default zoom these tests compare against is district detail; fit-all
+  // may open this field lower.
+  await frameConstellationFieldAtDistrictDetailForTests(tester, cubit);
   expect(tester.takeException(), isNull);
   final context = tester.element(find.byType(ConstellationBody));
   expect(Localizations.localeOf(context), const Locale('ru'));
@@ -354,7 +358,7 @@ Future<_Field> _mountField(WidgetTester tester) async {
   expect(
     holder.frame?.detail,
     isNot(ConstellationDetailLevel.overview),
-    reason: 'the Field opens at the default zoom, not the overview',
+    reason: 'the default zoom is not the overview',
   );
   expect(cubit.state.selectedRequestId, isNull);
   expect(cubit.state.selectedPersonId, isNull);

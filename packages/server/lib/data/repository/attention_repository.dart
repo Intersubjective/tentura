@@ -371,6 +371,14 @@ eligible_forward AS (
     ii.forward_count,
     ii.latest_forward_at,
     COALESCE(re.first_entry_at, ii.latest_forward_at) AS entry_at,
+    -- #601-a: the outcome tick. Somebody other than the viewer relabelled
+    -- the row (a NULL actor is a system change, not the viewer) after the
+    -- viewer last marked it seen.
+    ii.outcome_changed_at,
+    (
+      ii.outcome_changed_at > COALESCE(ii.outcome_seen_at, '-infinity')
+      AND ii.outcome_changed_by IS DISTINCT FROM \$1
+    ) AS outcome_unseen,
     ii.tombstone_dismissed_at,
     b.title AS beacon_title,
     b.status AS beacon_status,
@@ -490,15 +498,20 @@ page_stream AS (
     -- U10c: the *position* key. A forward row sits where the Request
     -- entered, not where its newest child event is (see the contract's
     -- section 6). The latest-event key stays available via the stats.
-    ef.entry_at AS created_at,
+    -- #601-a: a relabel to an outcome moves it up (GREATEST skips NULL).
+    GREATEST(ef.entry_at, ef.outcome_changed_at) AS created_at,
     0 AS collapsed_count,
     ef.beacon_id,
     NULL::text AS coordination_item_id,
     NULL::text AS actor_user_id,
-    -- U15R-a / R1: never null. An outcome row has no unread axis of its own
-    -- (owner decision B, contract section 7 — "no dot"); its Request's live
-    -- attention lights the `requestActivity` row instead.
-    ef.latest_forward_at AS seen_at,
+    -- U15R-a / R1: an outcome row carries no dot (owner decision B,
+    -- contract section 7); its Request's live attention lights the
+    -- `requestActivity` row instead. #601-a: its one read marker is the
+    -- outcome tick — unseen only after somebody else relabelled it.
+    CASE
+      WHEN ef.outcome_unseen THEN NULL::timestamptz
+      ELSE ef.latest_forward_at
+    END AS seen_at,
     NULL::text AS source_event_key,
     'beacon'::text AS destination_kind,
     ef.beacon_id AS target_entity_id,
@@ -1728,7 +1741,24 @@ class AttentionAckRepository implements AttentionAckPort {
       ids.length,
       (index) => '\$${index + 2}',
     ).join(', ');
-    return _database.customUpdate(
+    // #601-a: an `inbox:<beaconId>` id is the viewer's forward row; marking
+    // it seen clears its outcome tick and leaves its position alone.
+    final forwardRows = await _database.customUpdate(
+      '''
+UPDATE public.inbox_item ii
+SET outcome_seen_at = now()
+WHERE ii.user_id = \$1
+  AND ii.outcome_changed_at > COALESCE(ii.outcome_seen_at, '-infinity')
+  AND ('inbox:' || ii.beacon_id) IN ($placeholders)
+''',
+      variables: [
+        Variable<String>(accountId),
+        for (final id in ids) Variable<String>(id),
+      ],
+      updates: {_database.inboxItems},
+      updateKind: UpdateKind.update,
+    );
+    final receipts = await _database.customUpdate(
       '''
 UPDATE public.notification_outbox outbox
 SET
@@ -1747,6 +1777,7 @@ WHERE outbox.account_id = \$1
       ],
       updateKind: UpdateKind.update,
     );
+    return forwardRows + receipts;
   }
 
   @override

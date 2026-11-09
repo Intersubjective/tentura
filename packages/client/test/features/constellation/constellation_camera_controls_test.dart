@@ -8,7 +8,6 @@ import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart'
 import 'package:tentura/features/constellation/domain/constellation_minimap.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_camera_controls.dart';
-import 'package:tentura/features/constellation/ui/utils/constellation_presentation_frame.dart';
 import 'package:tentura/features/graph/ui/utils/graph_scene_ids.dart';
 import 'package:tentura/ui/test_ids.dart';
 import '../../support/phone_surface.dart';
@@ -113,26 +112,8 @@ void _expectFitAllFramingPolicy(
   ConstellationCubit cubit, {
   required bool contextPanelVisible,
 }) {
-  final controller = cubit.graphController;
-  expect(
-    controller.cameraScale,
-    greaterThanOrEqualTo(kConstellationDistrictDetailScale),
-  );
-  expect(controller.cameraScale, lessThanOrEqualTo(1.0));
-  const egoGraphId = '${TenturaGraphNodeKind.fieldPerson}:ego';
-  final usable = _usableViewport(
-    tester,
-    cubit,
-    contextPanelVisible: contextPanelVisible,
-  );
-  final egoScene = controller.renderSnapshot.resolvePosition(egoGraphId);
-  if (egoScene != null) {
-    final egoViewport = controller.sceneToViewportLocal(
-      Offset(egoScene.x, egoScene.y),
-    );
-    expect(egoViewport.dx, closeTo(usable.center.dx, 24));
-    expect(egoViewport.dy, closeTo(usable.center.dy, 24));
-  }
+  expect(cubit.graphController.cameraScale, lessThanOrEqualTo(1.0));
+  expectEveryFieldNodeBodyInSafeRectForTests(cubit);
 }
 
 Future<void> _disorientCamera(ConstellationCubit cubit) async {
@@ -565,6 +546,7 @@ void main() {
 
       await pumpConstellationBody(tester, cubit);
       await tester.pumpAndSettle();
+      await frameConstellationFieldAtDistrictDetailForTests(tester, cubit);
 
       cubit.graphController.zoomBy(1.2);
       await tester.pump();

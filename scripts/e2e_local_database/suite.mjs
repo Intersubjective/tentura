@@ -4,3 +4,4 @@ import './opfs_account_carry_over.test.mjs';
 import './seed_account_recovery.test.mjs';
 import './single_tab_database_fallback.test.mjs';
 import './storage_mode_telemetry.test.mjs';
+import './held_database_lock.test.mjs';

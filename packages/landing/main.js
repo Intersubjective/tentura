@@ -544,7 +544,7 @@ function renderQaTestLoginForm(inviteCode) {
   );
 }
 
-function renderInviteEntryForm() {
+function renderInviteEntryForm(prefill) {
   const errorEl = el('p', { class: 'error', role: 'alert' });
   const input = el('input', {
     class: 'input',
@@ -557,6 +557,9 @@ function renderInviteEntryForm() {
     spellcheck: 'false',
     'data-lpignore': 'true',
   });
+  if (prefill != null && String(prefill) !== '') {
+    input.value = String(prefill);
+  }
 
   const onSubmit = (e) => {
     e.preventDefault();
@@ -647,7 +650,7 @@ function renderInvalid(p) {
         )
       : null,
     el('p', { class: 'section-label' }, t('Try another invite')),
-    renderInviteEntryForm(),
+    renderInviteEntryForm(rawCode),
     el(
       'a',
       {
@@ -824,14 +827,18 @@ function render(p) {
 function renderError() {
   setState('invalid');
   setPageTitle(t('Something went wrong — Tentura'));
-  card.replaceChildren(
-    el(
-      'div',
-      { class: 'content' },
-      el('h1', {}, t('Something went wrong')),
-      el('p', {}, t('Please try opening this link again.')),
-    ),
-  );
+  const rawCode = parseInviteCodeRaw();
+  const children = [
+    el('h1', {}, t('Something went wrong')),
+    el('p', {}, t('Please try opening this link again.')),
+  ];
+  if (rawCode) {
+    children.push(
+      el('p', { class: 'section-label' }, t('Try another invite')),
+      renderInviteEntryForm(rawCode),
+    );
+  }
+  card.replaceChildren(el('div', { class: 'content' }, ...children));
 }
 
 // Landing visited with no `/invite/:code` — e.g. the WASM app bounced a
@@ -877,9 +884,31 @@ function applyGoogleReturnAttemptId() {
   if (id) setAttemptId(id, 'google');
 }
 
+/** Legacy app hash routes on `/` → canonical `/invite/:code` (keeps query + locale). */
+function redirectAppHashInviteToPath() {
+  const path = location.pathname;
+  if (path !== '/' && path !== '') return false;
+  const hash = (location.hash || '').replace(/^#/, '');
+  const m = hash.match(/^\/?(?:invite|sign\/up|accept-invite)\/([^/?#]+)/);
+  if (!m) return false;
+  let seg;
+  try {
+    seg = decodeURIComponent(m[1]).trim();
+  } catch {
+    return false;
+  }
+  if (!seg) return false;
+  const next = withPreservedLocale(
+    `/invite/${encodeURIComponent(seg)}${location.search}`,
+  );
+  location.replace(next);
+  return true;
+}
+
 async function main() {
   try {
     initAnalytics();
+    if (redirectAppHashInviteToPath()) return;
     const rawCode = parseInviteCodeRaw();
     const code = parseInviteCode();
     initVisit({ env, hasCode: Boolean(code) });

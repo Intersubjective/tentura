@@ -128,6 +128,31 @@ final class LocalDatabaseOpenException implements Exception {
       'after $attempts attempts: $cause';
 }
 
+/// Another tab holds the local database's cross-tab lock and did not let go
+/// of it within the bounded wait, asked for [attempts] times (#1123): e.g. a
+/// frozen or background tab stopped in the middle of its own open. Opening
+/// again at once would only wait on the same lock, so it is not retried; the
+/// app asks the user to close other Tentura tabs instead.
+final class LocalDatabaseLockHeldException implements Exception {
+  const LocalDatabaseLockHeldException({
+    required this.lockName,
+    required this.attempts,
+    required this.waitPerAttempt,
+  });
+
+  final String lockName;
+
+  final int attempts;
+
+  final Duration waitPerAttempt;
+
+  @override
+  String toString() =>
+      'LocalDatabaseLockHeldException: another tab holds "$lockName"; '
+      'asked $attempts times, waiting ${waitPerAttempt.inMilliseconds} ms '
+      'each';
+}
+
 /// A [QueryExecutor] that opens the local database again, on a brand-new
 /// connection, when opening fails (#674).
 ///
@@ -251,7 +276,9 @@ final class ReopeningQueryExecutor extends QueryExecutor {
         return;
       } catch (error, stackTrace) {
         _failedOpens++;
-        if (_isClosed) {
+        // A held lock never touched the connection, so it stays usable for a
+        // later call; the opener already waited and asked again (#1123).
+        if (_isClosed || error is LocalDatabaseLockHeldException) {
           rethrow;
         }
         if (attempt > _retryDelays.length) {
@@ -330,7 +357,17 @@ final class ReopeningQueryExecutor extends QueryExecutor {
       return await run(executor);
     } catch (error, stackTrace) {
       _report(statement, error, stackTrace);
-      if (!isStorageError(error) || !await _reopenAfter(executor)) rethrow;
+      if (!isStorageError(error)) rethrow;
+      final bool reopened;
+      try {
+        reopened = await _reopenAfter(executor);
+      } catch (reopenError, reopenStackTrace) {
+        // The statement fails with the reopen (e.g. the cross-tab lock is
+        // held, #1123): report that, not only the storage error before it.
+        _report(statement, reopenError, reopenStackTrace);
+        rethrow;
+      }
+      if (!reopened) rethrow;
     }
     try {
       return await run(_inner);

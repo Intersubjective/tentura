@@ -15,6 +15,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 
 import 'fixtures/constellation_reference_fixture.dart'
     show pumpConstellationBody;
+import 'fixtures/constellation_field_test_harness.dart';
 import 'package:tentura/features/constellation/domain/constellation_consts.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_overflow_group.dart';
 
@@ -387,6 +388,7 @@ void main() {
 
       await pumpConstellationBody(tester, cubit, locale: const Locale('en'));
       await tester.pumpAndSettle();
+      await frameConstellationFieldAtDistrictDetailForTests(tester, cubit);
       const chipKey = Key('constellation.postOverflow.post-1');
       expect(find.byKey(chipKey), findsNothing);
 

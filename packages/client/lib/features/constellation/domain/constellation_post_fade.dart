@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'entity/constellation_field.dart';
@@ -35,13 +37,16 @@ double constellationPostFade({
 }
 
 /// «+N» chip count: members the server hid plus visible members that were not
-/// placed because of the render cap.
+/// placed because of the render cap. Members the field does not know
+/// ([unknownMemberCount]) are hidden ones too; the server's
+/// [hiddenReachCount] may already count them, so they add only beyond it.
 int constellationPostOverflowCount({
   required int hiddenReachCount,
   required int visibleMemberCount,
   required int placedMemberCount,
+  int unknownMemberCount = 0,
 }) =>
-    hiddenReachCount +
+    math.max(hiddenReachCount, unknownMemberCount) +
     (visibleMemberCount > placedMemberCount
         ? visibleMemberCount - placedMemberCount
         : 0);
