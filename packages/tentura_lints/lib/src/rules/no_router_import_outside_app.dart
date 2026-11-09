@@ -67,11 +67,16 @@ final class _Visitor extends SimpleAstVisitor<void> {
       if (d is! NamespaceDirective) {
         continue;
       }
-      final uri = d.uri.stringValue;
-      if (uri == null) {
-        continue;
-      }
-      if (_targetsRouter(uri, from: path, libRoot: libRoot)) {
+      // The default URI and every conditional one (`if (dart.library.x)`):
+      // import-graph test selection follows them all.
+      final uris = [
+        d.uri.stringValue,
+        for (final c in d.configurations) c.uri.stringValue,
+      ];
+      if (uris.any(
+        (uri) =>
+            uri != null && _targetsRouter(uri, from: path, libRoot: libRoot),
+      )) {
         rule.reportAtNode(d);
       }
     }

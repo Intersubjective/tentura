@@ -480,6 +480,20 @@ export 'package:tentura/app/router/root_router.dart';
     );
   }
 
+  /// Import-graph test selection follows conditional URIs, so the lint does.
+  Future<void> test_reports_conditional_router_import() async {
+    await assertDiagnostics(
+      '''
+import 'package:tentura/ui/navigation/app_navigator.dart'
+    if (dart.library.js_interop) 'package:tentura/app/router/root_router.dart';
+''',
+      [
+        lint(0, 137),
+        error(diag.uriDoesNotExist, 7, 50),
+      ],
+    );
+  }
+
   Future<void> test_allows_navigation_port_import() async {
     await assertDiagnostics(
       '''
