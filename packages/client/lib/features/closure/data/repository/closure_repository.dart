@@ -3,6 +3,7 @@ import 'package:injectable/injectable.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/data/gql/_g/schema.schema.gql.dart';
+import 'package:tentura/data/service/remote_api_client/remote_request_client.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 
 import '../../domain/entity/beacon_close_result.dart';
@@ -32,13 +33,13 @@ import '../gql/_g/closure_toggle_support.req.gql.dart';
 class ClosureRepository {
   ClosureRepository(this._remoteApiService);
 
-  final RemoteApiService _remoteApiService;
+  final RemoteRequestClient _remoteApiService;
 
   static const _label = 'ClosureRepository';
 
   Future<ClosureState> fetchState(String beaconId) => _remoteApiService
       .request(GClosureStateReq((b) => b.vars.beaconId = beaconId))
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: _label)
       .then((r) {
         final s = r.dataOrThrow(label: _label).closureState;
         return ClosureState(
@@ -85,7 +86,7 @@ class ClosureRepository {
           .request(
             GClosureResultForViewerReq((b) => b.vars.beaconId = beaconId),
           )
-          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .firstLinkResponse(label: _label)
           .then((r) {
             final s = r.dataOrThrow(label: _label).closureResultForViewer;
             if (s == null) return null;
@@ -116,7 +117,7 @@ class ClosureRepository {
                 : Gv2_ClosureOutcome.valueOf(outcome.wire),
         ),
       )
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: _label)
       .then((r) => r.dataOrThrow(label: _label));
 
   /// A null [split] clears the custom split.
@@ -142,7 +143,7 @@ class ClosureRepository {
                   ]),
         ),
       )
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: _label)
       .then((r) => r.dataOrThrow(label: _label));
 
   /// Returns the id of the target whose support was released to make room,
@@ -162,7 +163,7 @@ class ClosureRepository {
             ..on = on,
         ),
       )
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: _label)
       .then((r) => r.dataOrThrow(label: _label).closureToggleSupport.released);
 
   Future<void> done({required String beaconId, required int expectedEpoch}) =>
@@ -174,7 +175,7 @@ class ClosureRepository {
                 ..expectedEpoch = expectedEpoch,
             ),
           )
-          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .firstLinkResponse(label: _label)
           .then((r) => r.dataOrThrow(label: _label));
 
   Future<void> skip({required String beaconId, required int expectedEpoch}) =>
@@ -186,7 +187,7 @@ class ClosureRepository {
                 ..expectedEpoch = expectedEpoch,
             ),
           )
-          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .firstLinkResponse(label: _label)
           .then((r) => r.dataOrThrow(label: _label));
 
   Future<void> setMark({
@@ -204,7 +205,7 @@ class ClosureRepository {
             ..on = on,
         ),
       )
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: _label)
       .then((r) => r.dataOrThrow(label: _label));
 
   Future<void> saveStory({
@@ -220,12 +221,12 @@ class ClosureRepository {
             ..body = body,
         ),
       )
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: _label)
       .then((r) => r.dataOrThrow(label: _label));
 
   Future<void> close(String beaconId) => _remoteApiService
       .request(GBeaconCloseReq((b) => b.vars.beaconId = beaconId))
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: _label)
       .then((r) => r.dataOrThrow(label: _label));
 
   Future<void> closeNow({
@@ -239,7 +240,7 @@ class ClosureRepository {
             ..expectedEpoch = expectedEpoch,
         ),
       )
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: _label)
       .then((r) => r.dataOrThrow(label: _label));
 
   Future<void> extendClosure({
@@ -253,7 +254,7 @@ class ClosureRepository {
             ..expectedEpoch = expectedEpoch,
         ),
       )
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: _label)
       .then((r) => r.dataOrThrow(label: _label));
 
   Future<void> reopen({
@@ -267,13 +268,13 @@ class ClosureRepository {
             ..expectedEpoch = expectedEpoch,
         ),
       )
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: _label)
       .then((r) => r.dataOrThrow(label: _label));
 
   Future<BeaconLifecycleMutationResult> beaconCancel(String beaconId) =>
       _remoteApiService
           .request(GBeaconCancelReq((b) => b.vars.id = beaconId))
-          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .firstLinkResponse(label: _label)
           .then((r) {
             final result = r.dataOrThrow(label: _label).beaconCancel;
             return BeaconLifecycleMutationResult(

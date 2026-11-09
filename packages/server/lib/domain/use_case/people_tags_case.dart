@@ -4,6 +4,7 @@ import 'package:crypto/crypto.dart';
 import 'package:injectable/injectable.dart';
 import 'package:tentura_root/domain/entity/person_auto_tag_kind.dart';
 
+import 'package:tentura_server/consts/people_tag_consts.dart';
 import 'package:tentura_server/domain/entity/person_tag.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
@@ -11,19 +12,15 @@ import 'package:tentura_server/domain/port/people_tags_repository_port.dart';
 
 import '_use_case_base.dart';
 
-const kPersonTagMaxNameLength = 32;
-const kPersonTagMaxGlyphUnits = 8;
-const kPersonTagColors = 8;
-const kPersonTagMaxOpsPerCall = 400;
-
-/// `person_tag_member.source`: how a person came to be in a tag.
-const kPersonTagSourceManual = 0;
-const kPersonTagSourceFromAutoTag = 2;
-const kPersonTagSourceFromRequest = 3;
-
-/// Copied from the person's inviter when they were first seen on the Field.
-const kPersonTagSourceInherited = 4;
-const kPersonTagMaxSource = kPersonTagSourceInherited;
+// TODO(desloppify): remove once
+// lib/data/repository/constellation_new_people_repository.dart imports
+// kPersonTagSourceInherited from consts/people_tag_consts.dart; tracked in the
+// deferred list of #1173 (constellation files are out of scope for the
+// desloppify PRs).
+/// Kept reachable from this library for callers that still import the
+/// constants from here (the constellation new-people repository).
+export 'package:tentura_server/consts/people_tag_consts.dart'
+    show kPersonTagSourceInherited;
 
 /// An owner's own tags: create, update, delete and restore. Names and glyphs
 /// are private; they never go into exception text or log lines.

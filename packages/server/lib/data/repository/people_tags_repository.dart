@@ -8,7 +8,7 @@ import 'package:tentura_server/domain/entity/person_tag.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
 import 'package:tentura_server/domain/port/people_tags_repository_port.dart';
-import 'package:tentura_server/domain/use_case/people_tags_case.dart'
+import 'package:tentura_server/consts/people_tag_consts.dart'
     show
         kPersonTagSourceFromAutoTag,
         kPersonTagSourceFromRequest,

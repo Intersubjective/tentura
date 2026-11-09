@@ -201,7 +201,9 @@ final class AuthCase extends UseCaseBase {
 
   ///
   /// Signs in with the account corresponding to the given [userId].
-  /// Throws [AuthSeedIsWrongException] if the seed for the account is not found.
+  /// Throws [AuthIdNotFoundException] (from the local repository) when no
+  /// seed is stored for the account, and [AuthSeedIsWrongException] when the
+  /// stored seed is empty.
   ///
   Future<void> signIn({required String userId}) => _runAuthTransition(() async {
     if (await _authLocalRepository.isSessionAccount(userId)) {

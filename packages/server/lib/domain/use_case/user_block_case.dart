@@ -19,6 +19,7 @@ import 'package:tentura_server/domain/port/user_block_repository_port.dart';
 import 'package:tentura_server/domain/port/user_contact_repository_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
 import 'package:tentura_server/domain/port/witness_window_port.dart';
+import 'package:tentura_server/domain/policy/witness_window_invalidation.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 import 'package:tentura_server/domain/use_case/beacon_plan_case.dart';
 import 'package:tentura_server/domain/use_case/closure_case.dart';
@@ -117,7 +118,11 @@ final class UserBlockCase extends UseCaseBase {
         blockerId: blockerId,
         blockedId: blockedId,
       );
-      await _invalidateWitnessWindows(blockerId, blockedId);
+      await invalidateWitnessWindowsForPair(
+        _witnessWindow,
+        blockerId,
+        blockedId,
+      );
       await _trustLedger.project([(blockerId, blockedId)]);
     }
 
@@ -140,7 +145,11 @@ final class UserBlockCase extends UseCaseBase {
         blockerId: blockerId,
         blockedId: blockedId,
       );
-      await _invalidateWitnessWindows(blockerId, blockedId);
+      await invalidateWitnessWindowsForPair(
+        _witnessWindow,
+        blockerId,
+        blockedId,
+      );
       await _trustLedger.project([(blockerId, blockedId)]);
     },
   );
@@ -156,16 +165,6 @@ final class UserBlockCase extends UseCaseBase {
       blockedId: blockedId,
     ),
   );
-
-  Future<void> _invalidateWitnessWindows(
-    String blockerId,
-    String blockedId,
-  ) async {
-    final witnessWindow = _witnessWindow;
-    if (witnessWindow == null) return;
-    await witnessWindow.invalidateFor(userId: blockerId);
-    await witnessWindow.invalidateFor(userId: blockedId);
-  }
 
   Future<void> _requireUserExists(String userId) async {
     try {

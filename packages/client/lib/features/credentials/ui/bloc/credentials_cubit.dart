@@ -97,7 +97,7 @@ class CredentialsCubit extends Cubit<CredentialsState> {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
       final url = await _case.googleLinkStartUrl();
-      await _platformRepository.launchUrl(url);
+      await _platformRepository.launchUri(Uri.parse(url));
       emit(state.copyWith(status: StateStatus.isSuccess));
     } catch (e) {
       _emitSnackError(_case.mapLinkError(e));

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura/data/model/beacon_model.dart';
+import 'package:tentura/data/service/remote_api_client/remote_request_client.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 
 import '../../domain/entity/inbox_item.dart';
@@ -24,7 +25,7 @@ import 'package:tentura/features/beacon_threads/data/repository/beacon_room_hint
 class InboxRepository {
   InboxRepository(this._remoteApiService, this._roomHints);
 
-  final RemoteApiService _remoteApiService;
+  final RemoteRequestClient _remoteApiService;
 
   final BeaconRoomHintsRepository _roomHints;
 
@@ -46,7 +47,7 @@ class InboxRepository {
   Future<List<InboxItem>> fetch({required String userId}) async {
     final rows = await _remoteApiService
         .request(GInboxFetchReq((r) => r..vars.userId = userId))
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).inbox_item);
     return _mapInboxItemRows(rows, userId);
   }
@@ -86,7 +87,7 @@ class InboxRepository {
   Future<int> fetchOpenForwardsCount() async {
     final aggregate = await _remoteApiService
         .request(GActivityOffersCountReq())
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).inbox_item_aggregate);
     return aggregate.aggregate?.count ?? 0;
   }
@@ -104,7 +105,7 @@ class InboxRepository {
               ..vars.beaconIds.addAll(beaconIds),
           ),
         )
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).inbox_item);
     return _mapInboxItemRows(rows, userId);
   }
@@ -127,7 +128,7 @@ class InboxRepository {
               ..vars.limit = limit,
           ),
         )
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label));
     return (
       rows: response.inbox_item.toList(growable: false),
@@ -184,7 +185,7 @@ class InboxRepository {
           (r) => r..vars.beaconId = beaconId,
         ),
       )
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: _label)
       .then((r) {
         final rows = r.dataOrThrow(label: _label).inbox_item;
         if (rows.isEmpty) {
@@ -216,7 +217,7 @@ class InboxRepository {
               ..vars.rejectionMessage = rejectionMessage,
           ),
         )
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label));
     if (!_localMutationController.isClosed) {
       _localMutationController.add(null);
@@ -241,7 +242,7 @@ class InboxRepository {
               ..vars.message = message,
           ),
         )
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).beaconCantHelp);
     if (!_localMutationController.isClosed) {
       _localMutationController.add(null);
@@ -263,7 +264,7 @@ class InboxRepository {
               ..vars.privateNote = privateNote,
           ),
         )
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label));
     if (!_localMutationController.isClosed) {
       _localMutationController.add(null);
@@ -283,7 +284,7 @@ class InboxRepository {
               ..vars.dismissedAt = at,
           ),
         )
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label));
     if (!_localMutationController.isClosed) {
       _localMutationController.add(null);

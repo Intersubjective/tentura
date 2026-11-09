@@ -5,7 +5,7 @@ import 'package:tentura_server/domain/entity/beacon_room_record.dart';
 import 'package:tentura_server/domain/port/polling_repository_port.dart';
 
 import '../database/tentura_db.dart';
-import 'mappers/coordination_row_mappers.dart';
+import '../mapper/coordination_row_mappers.dart';
 
 @Injectable(
   as: PollingRepositoryPort,

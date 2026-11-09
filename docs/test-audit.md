@@ -52,7 +52,7 @@ Postgres); both reproduce without these changes.
 
 **Dead code + its tests — done (second pass):** removed `coordination_target_candidates`, `admitted_chat_members`,
 `ui/utils/normalize`, `mock/data/fixtures` (client) and `acknowledged_committer` (server) with their tests; rules/docs
-that pointed at `mock/data/` updated. Kept on purpose: `server/lib/domain/beacon_access_policy.dart` (Dart mirror of the
+that pointed at `mock/data/` updated. Kept on purpose: `server/lib/domain/policy/beacon_access_policy.dart` (Dart mirror of the
 SQL access matrix, checked by `beacon_access_level_parity_pg_test`). Other orphans without tests: `orphans.csv`.
 
 **Widget-file merges — done (second pass)** with `scripts/test_audit/merge_tests.py` (unions imports/helpers, appends

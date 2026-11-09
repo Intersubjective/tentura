@@ -121,14 +121,16 @@ final class BeaconDisplayCase extends UseCaseBase {
           : BeaconDisplayTier.public;
 
       final offers = offersByBeacon[beaconId] ?? const <HelpOfferEntity>[];
-      final activeOffers = offers.where((o) => o.status == 0).length;
+      final activeOffers = offers.where((o) => o.isActive).length;
       final coords = coordsByBeacon[beaconId] ?? const <String, int>{};
 
       final hasUnreviewed =
           beacon.status.isOpenFamily &&
           offers.any(
             (o) =>
-                o.status == 0 && o.offerKind == 0 && coords[o.userId] == null,
+                o.isActive &&
+                o.offerKind == HelpOfferKind.normal &&
+                coords[o.userId] == null,
           );
 
       final admittedHelpers = admittedHelpersByBeacon[beaconId]!

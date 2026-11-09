@@ -33,9 +33,6 @@ class PlatformRepository implements PlatformRepositoryPort {
   }
 
   @override
-  Future<void> launchUrl(String uri) => url.launchUrl(Uri.parse(uri));
-
-  @override
   Future<void> launchUri(Uri uri) async {
     try {
       await url.launchUrl(uri);

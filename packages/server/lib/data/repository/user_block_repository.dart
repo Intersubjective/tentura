@@ -5,6 +5,7 @@ import 'package:postgres/postgres.dart' show Type, TypedValue;
 import 'package:tentura_server/domain/entity/user_block_entity.dart';
 import 'package:tentura_server/domain/port/user_block_repository_port.dart';
 import 'package:tentura_server/domain/port/witness_window_port.dart';
+import 'package:tentura_server/domain/policy/witness_window_invalidation.dart';
 import 'package:tentura_server/env.dart';
 
 import '../database/tentura_db.dart';
@@ -125,7 +126,7 @@ SELECT EXISTS (
       subject: blockerId,
       object: blockedId,
     );
-    await _invalidateWitnessWindows(blockerId, blockedId);
+    await invalidateWitnessWindowsForPair(_witnessWindow, blockerId, blockedId);
   }
 
   @override
@@ -173,7 +174,7 @@ WHERE blocker_id = $1 AND blocked_id = $2
         subject: blockerId,
         object: pair,
       );
-      await _invalidateWitnessWindows(blockerId, pair);
+      await invalidateWitnessWindowsForPair(_witnessWindow, blockerId, pair);
     }
   }, actorUserId: blockerId);
 
@@ -823,7 +824,11 @@ SELECT EXISTS (
           subject: blockerId,
           object: blockedId,
         );
-        await _invalidateWitnessWindows(blockerId, blockedId);
+        await invalidateWitnessWindowsForPair(
+          _witnessWindow,
+          blockerId,
+          blockedId,
+        );
       }
 
       return (
@@ -934,14 +939,4 @@ WHERE blocker_id = $1 AND blocked_id = $2
     r'SELECT public.trust_project_pair($1, $2)',
     [subject, object],
   );
-
-  Future<void> _invalidateWitnessWindows(
-    String blockerId,
-    String blockedId,
-  ) async {
-    final witnessWindow = _witnessWindow;
-    if (witnessWindow == null) return;
-    await witnessWindow.invalidateFor(userId: blockerId);
-    await witnessWindow.invalidateFor(userId: blockedId);
-  }
 }

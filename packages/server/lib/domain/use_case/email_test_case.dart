@@ -1,6 +1,6 @@
 import 'package:injectable/injectable.dart';
 
-import 'package:tentura_server/domain/util/debug_send_rate_limiter.dart';
+import 'package:tentura_server/domain/policy/debug_send_rate_limiter.dart';
 import 'package:tentura_server/domain/entity/email_notification_content.dart';
 import 'package:tentura_server/domain/port/email_link_port.dart';
 import 'package:tentura_server/domain/port/email_sender_port.dart';

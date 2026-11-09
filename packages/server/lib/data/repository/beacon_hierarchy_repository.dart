@@ -11,7 +11,7 @@ import 'package:tentura_root/domain/entity/beacon_promotion_source.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura_server/consts/beacon_room_consts.dart';
-import 'package:tentura_server/domain/beacon_hierarchy_cursor.dart';
+import 'package:tentura_server/data/repository/beacon_hierarchy_cursor.dart';
 import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/entity/beacon_structural_record.dart';
 import 'package:tentura_server/domain/exception.dart';

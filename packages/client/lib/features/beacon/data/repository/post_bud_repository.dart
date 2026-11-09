@@ -3,6 +3,7 @@ import 'package:injectable/injectable.dart';
 import 'package:tentura_root/domain/entity/coordinates.dart';
 
 import 'package:tentura/data/gql/_g/schema.schema.gql.dart';
+import 'package:tentura/data/service/remote_api_client/remote_request_client.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/entity/post_bud_invite_candidate.dart';
 import 'package:tentura/domain/entity/post_bud_invite_outcome.dart';
@@ -16,7 +17,7 @@ import '../gql/_g/post_bud_invite_candidates.req.gql.dart';
 class PostBudRepository implements PostBudPort {
   const PostBudRepository(this._remoteApiService);
 
-  final RemoteApiService _remoteApiService;
+  final RemoteRequestClient _remoteApiService;
 
   static const _label = 'PostBud';
 
@@ -26,7 +27,7 @@ class PostBudRepository implements PostBudPort {
   }) async {
     final rows = await _remoteApiService
         .request(GPostBudInviteCandidatesReq((b) => b.vars.postId = postId))
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).postBudInviteCandidates);
     return [
       for (final row in rows)
@@ -66,8 +67,9 @@ class PostBudRepository implements PostBudPort {
           GPostBudFromPostReq(
             (b) => b.vars
               ..postId = postId
-              ..sourceMessageId =
-                  (source == null || source.isEmpty) ? null : source
+              ..sourceMessageId = (source == null || source.isEmpty)
+                  ? null
+                  : source
               ..clientCommandId = clientCommandId
               ..title = title
               ..description = description
@@ -95,7 +97,7 @@ class PostBudRepository implements PostBudPort {
               ..closePost = closePost,
           ),
         )
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).beaconBudFromPost);
     return PostBudResult(
       outcome: PostBudOutcome.fromWire(data.outcome),

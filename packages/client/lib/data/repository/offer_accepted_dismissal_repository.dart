@@ -1,6 +1,7 @@
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura/data/service/remote_api_client/auth_loss_classifier.dart';
+import 'package:tentura/data/service/remote_api_client/remote_request_client.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/attention/offer_accepted_dismissals.dart';
 import 'package:tentura/features/attention/data/gql/_g/dismiss_offer_accepted.req.gql.dart';
@@ -16,7 +17,7 @@ import 'package:tentura/features/attention/data/gql/_g/offer_accepted_dismissals
 class OfferAcceptedDismissalRepository implements OfferAcceptedDismissalPort {
   OfferAcceptedDismissalRepository(this._remoteApiService);
 
-  final RemoteApiService _remoteApiService;
+  final RemoteRequestClient _remoteApiService;
 
   static const _label = 'OfferAcceptedDismissals';
 
@@ -24,7 +25,7 @@ class OfferAcceptedDismissalRepository implements OfferAcceptedDismissalPort {
   Future<Set<String>> load({required String viewerId}) async {
     final row = await _remoteApiService
         .request(GOfferAcceptedDismissalsReq())
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).offerAcceptedDismissals);
     return _forViewer(viewerId, row.userId, row.beaconIds);
   }
@@ -37,7 +38,7 @@ class OfferAcceptedDismissalRepository implements OfferAcceptedDismissalPort {
     try {
       final row = await _remoteApiService
           .request(GDismissOfferAcceptedReq((b) => b.vars.beaconId = beaconId))
-          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .firstLinkResponse(label: _label)
           .then((r) => r.dataOrThrow(label: _label).DismissOfferAccepted);
       return _forViewer(viewerId, row.userId, row.beaconIds);
     } on Object catch (e) {

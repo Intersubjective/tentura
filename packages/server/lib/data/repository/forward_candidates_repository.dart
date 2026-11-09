@@ -7,7 +7,7 @@ import 'package:tentura_server/domain/port/forward_candidates_repository_port.da
 import '../database/tentura_db.dart';
 import 'constellation_field_repository.dart' show readCustomSelectTimestamptz;
 import 'forward_candidates_sql.dart';
-import 'mappers/mr_score_value.dart';
+import '../mapper/mr_score_value.dart';
 
 @LazySingleton(as: ForwardCandidatesRepositoryPort)
 class ForwardCandidatesRepository implements ForwardCandidatesRepositoryPort {

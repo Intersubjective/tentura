@@ -26,7 +26,7 @@ import 'db_pipeline_trace.dart';
 import 'main_db_pool.dart';
 import 'request_db_scope.dart';
 import 'package:tentura_server/domain/request_context.dart';
-import '../service/main_db_scope_admission.dart';
+import 'main_db_scope_admission.dart';
 import 'postgres_serialization_retry.dart';
 import 'custom_types/mentions_text_array_type.dart';
 import 'table/account_credentials.dart';
@@ -84,8 +84,15 @@ import 'table/user_trust_edges.dart';
 import 'table/vote_users.dart';
 
 export 'package:drift/drift.dart';
-export '../service/main_db_scope_admission.dart' show MainDbWorkKind;
-export 'package:postgres/src/exceptions.dart';
+export 'main_db_scope_admission.dart' show MainDbWorkKind;
+export 'package:postgres/postgres.dart'
+    show
+        BadCertificateException,
+        ForeignKeyViolationException,
+        PgException,
+        ServerException,
+        Severity,
+        UniqueViolationException;
 
 part 'tentura_db.g.dart';
 

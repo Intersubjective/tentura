@@ -4,7 +4,7 @@ import 'package:injectable/injectable.dart';
 import 'package:postgres/postgres.dart';
 import 'package:tentura_server/env.dart';
 
-import '../service/main_db_scope_admission.dart';
+import 'main_db_scope_admission.dart';
 
 /// Owns the main connection budget; database handles do not own another pool.
 @lazySingleton
