@@ -22,12 +22,24 @@ void main() {
       expect(out.queryParameters[kQueryIsDeepLink], 'true');
     });
 
-    test('strips trailing dash from invite id', () {
+    test(
+      'keeps trailing dash in invite id for accept-invite validation (#1124)',
+      () {
+        final out = transformInviteDeepLink(
+          uri: Uri.parse('/invite/IQAFX0000000-'),
+          isAuthenticated: true,
+        );
+        expect(out.path, '$kPathAcceptInvite/IQAFX0000000-');
+        expect(out.queryParameters[kQueryIsDeepLink], 'true');
+      },
+    );
+
+    test('keeps trailing dash on signup deep link (#1124)', () {
       final out = transformInviteDeepLink(
         uri: Uri.parse('/invite/I806d29daebbe-'),
         isAuthenticated: false,
       );
-      expect(out.path, '$kPathSignUp/I806d29daebbe');
+      expect(out.path, '$kPathSignUp/I806d29daebbe-');
     });
 
     test('non-invite path is unchanged', () {

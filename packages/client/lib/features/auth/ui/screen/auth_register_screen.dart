@@ -59,12 +59,12 @@ class _AuthRegisterScreenState extends State<AuthRegisterScreen>
   @override
   void initState() {
     super.initState();
-    final invitationId = normalizeInviteCode(widget.id);
-    if (invitationId.isNotEmpty) {
-      _codeController.text = invitationId;
+    final rawInviteId = widget.id.trim();
+    if (rawInviteId.isNotEmpty) {
+      _codeController.text = rawInviteId;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        unawaited(context.read<RegisterInviteCubit>().load(invitationId));
+        unawaited(context.read<RegisterInviteCubit>().load(rawInviteId));
       });
     } else {
       unawaited(_getCodeFromClipboard(supressError: true));

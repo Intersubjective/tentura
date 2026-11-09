@@ -1,5 +1,4 @@
 import 'package:tentura/consts.dart';
-import 'package:tentura/features/invitation/domain/invite_code.dart';
 
 final _invitePathPattern = RegExp(r'^/invite/([^/]+)$');
 
@@ -12,7 +11,7 @@ Uri transformInviteDeepLink({
   if (match == null) {
     return uri;
   }
-  final id = normalizeInviteCode(Uri.decodeComponent(match.group(1)!));
+  final id = Uri.decodeComponent(match.group(1)!);
   return uri.replace(
     path: isAuthenticated ? '$kPathAcceptInvite/$id' : '$kPathSignUp/$id',
     queryParameters: {kQueryIsDeepLink: 'true'},
