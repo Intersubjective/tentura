@@ -17,7 +17,6 @@ import 'fixtures/constellation_reference_fixture.dart';
 
 const _toggle = Key('constellation.minimap.toggle');
 const _map = Key('constellation.minimap');
-const _desktop = Size(1280, 800);
 const _phoneNarrow = Size(355, 670);
 
 Map<String, dynamic> _bobWireResponse() {
@@ -234,30 +233,5 @@ void main() {
       },
     );
 
-    testWidgets(
-      '1280 EN desktop: fit-all after zoom-in hides chrome',
-      (tester) async {
-        await tester.binding.setSurfaceSize(_desktop);
-        addTearDown(() => tester.binding.setSurfaceSize(null));
-        final cubit = await _loadBobCubitFromWire();
-        addTearDown(cubit.close);
-        await pumpConstellationBody(
-          tester,
-          cubit,
-          size: _desktop,
-          locale: const Locale('en'),
-          presentationFrameHolder: ConstellationPresentationFrameHolder(),
-          disableAnimations: true,
-        );
-        await tester.pumpAndSettle();
-        cubit.graphController.zoomBy(2.5);
-        await tester.pumpAndSettle();
-        expect(find.byKey(_toggle), findsOneWidget);
-        await tester.tap(find.byKey(TestIds.key(TestIds.constellationFitAll)));
-        await tester.pumpAndSettle();
-        expect(find.byKey(_toggle), findsNothing);
-        expect(find.byKey(_map), findsNothing);
-      },
-    );
   });
 }

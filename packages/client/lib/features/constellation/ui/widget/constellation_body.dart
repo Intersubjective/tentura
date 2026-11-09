@@ -40,6 +40,7 @@ import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import '../../domain/constellation_consts.dart';
 import '../../domain/constellation_minimap.dart';
+import '../../domain/layout/layout_geometry.dart';
 import '../../domain/constellation_trust_chain.dart';
 import '../../domain/constellation_field_unread_glow.dart';
 import '../../domain/entity/constellation_field.dart';
@@ -222,6 +223,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
   final _minimapExpanded = ValueNotifier<bool>(false);
   bool _minimapExpandedInitialized = false;
   final _minimapChromeVisible = ValueNotifier<bool>(false);
+  bool _minimapChromeVisibleInitialized = false;
   int _pointersDown = 0;
 
   ConstellationTagHullHitTester? _tagHullHitTester;
@@ -525,6 +527,13 @@ class _ConstellationBodyState extends State<ConstellationBody>
           windowClassForWidth(MediaQuery.sizeOf(context).width) !=
           WindowClass.compact;
     }
+    if (!_minimapChromeVisibleInitialized) {
+      _minimapChromeVisibleInitialized = true;
+      _minimapChromeVisible.value =
+          windowClassForWidth(MediaQuery.sizeOf(context).width) !=
+          WindowClass.compact;
+      _recomputeMinimapChromeVisible();
+    }
   }
 
   // The screen provides the owner; a body mounted bare owns its own.
@@ -585,11 +594,6 @@ class _ConstellationBodyState extends State<ConstellationBody>
       gestureActive: _pointersDown > 0,
     );
     _recomputeMinimapChromeVisible();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        _recomputeMinimapChromeVisible();
-      }
-    });
     _rescheduleFieldSettleBack();
   }
 
@@ -622,15 +626,20 @@ class _ConstellationBodyState extends State<ConstellationBody>
       viewportInsets: insets,
     );
     if (viewport == null) {
-      if (_minimapChromeVisible.value) {
-        _minimapChromeVisible.value = false;
-      }
       return;
     }
-    final nodeBounds = constellationMinimapNodeBounds(
-      _graphController,
-      layoutFootprints: cubit.layoutFootprints,
-    );
+    final snapshot = _graphController.renderSnapshot;
+    final nodeBounds = <LRect>[
+      for (final id in snapshot.topology.nodesById.keys)
+        if (id.startsWith('fp:') || id.startsWith('fr:'))
+          if (snapshot.resolveTargetPosition(id) case final point?)
+            (
+              left: point.x,
+              top: point.y,
+              right: point.x,
+              bottom: point.y,
+            ),
+    ];
     final needed = constellationMinimapNeededForViewport(
       viewport: viewport,
       nodeBounds: nodeBounds,
