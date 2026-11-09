@@ -52,7 +52,7 @@ BeaconCoverSource _parseCoverSourceStrict(int wireValue) {
   throw const BeaconMediaInvalidException();
 }
 
-/// Resolves the thumb id to persist for [beaconSetMedia].
+/// Resolves the thumb id to persist for [setMedia].
 String? _resolveCoverThumbId({
   required BeaconEntity locked,
   required String? coverImageId,
@@ -219,7 +219,6 @@ final class BeaconCase extends UseCaseBase {
     }
   }
 
-  //
   Future<BeaconEntity> create({
     required String userId,
     required String title,
@@ -578,8 +577,8 @@ final class BeaconCase extends UseCaseBase {
   }
 
   /// Uploads an invisible stage image (§3.3). No reader of the beacon can see
-  /// the stage until [beaconSetMedia] promotes it.
-  Future<BeaconImageStagedResult> beaconStageImage({
+  /// the stage until [setMedia] promotes it.
+  Future<BeaconImageStagedResult> stageImage({
     required String beaconId,
     required String userId,
     required Stream<Uint8List> imageBytes,
@@ -640,7 +639,7 @@ final class BeaconCase extends UseCaseBase {
 
   /// Reconciles attached media to exactly [imageIds], promoting any staged
   /// ids, then sets the cover (§3.3). Strictly validated (§3.5).
-  Future<BeaconEntity> beaconSetMedia({
+  Future<BeaconEntity> setMedia({
     required String beaconId,
     required String userId,
     required List<String> imageIds,
@@ -972,17 +971,17 @@ final class BeaconCase extends UseCaseBase {
 
   /// One-way: switches an open Post from author-only to open forwarding.
   Future<bool> openForwarding({
-    required String authorId,
-    required String id,
+    required String beaconId,
+    required String userId,
   }) => _attention!.runAction(
-    actorUserId: authorId,
+    actorUserId: userId,
     action: (_) async {
-      await _beaconRepository.lockPostForMutation(id);
+      await _beaconRepository.lockPostForMutation(beaconId);
       return _beaconRepository.runInBeaconStateTransaction(
-        beaconId: id,
-        userId: authorId,
+        beaconId: beaconId,
+        userId: userId,
         fn: (beacon) async {
-          if (beacon.author.id != authorId) {
+          if (beacon.author.id != userId) {
             throw const UnauthorizedException(
               description: 'Only the author can open forwarding',
             );
@@ -1004,7 +1003,7 @@ final class BeaconCase extends UseCaseBase {
             );
           }
           await _beaconRepository.setForwardPolicy(
-            beaconId: id,
+            beaconId: beaconId,
             policy: BeaconForwardPolicyValue.open,
           );
           return true;
@@ -1013,7 +1012,6 @@ final class BeaconCase extends UseCaseBase {
     },
   );
 
-  //
   Future<bool> deleteById({
     required String beaconId,
     required String userId,

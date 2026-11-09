@@ -77,7 +77,7 @@ final class AttentionRepository implements AttentionRepositoryPort {
               ..surface = surface?.wireName,
           ),
         )
-        .firstWhere((response) => response.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((response) => response.dataOrThrow(label: _label));
     final feed = data.attentionFeed;
     return AttentionFeed(
@@ -371,7 +371,7 @@ final class AttentionRepository implements AttentionRepositoryPort {
             (request) => request.vars.beaconIds.addAll(beaconIds),
           ),
         )
-        .firstWhere((response) => response.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((response) => response.dataOrThrow(label: _label));
     return data.attentionMarkers.unreadBeaconIds.toSet();
   }
@@ -395,7 +395,7 @@ final class AttentionRepository implements AttentionRepositoryPort {
         .request(
           GAttentionMarkSeenReq((request) => request.vars.ids.addAll(ids)),
         )
-        .firstWhere((response) => response.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((response) => response.dataOrThrow(label: _label));
     return data.attentionMarkSeen;
   }
@@ -407,7 +407,7 @@ final class AttentionRepository implements AttentionRepositoryPort {
         .request(
           GAttentionMarkUnseenReq((request) => request.vars.ids.addAll(ids)),
         )
-        .firstWhere((response) => response.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((response) => response.dataOrThrow(label: _label));
     return data.attentionMarkUnseen;
   }
@@ -419,7 +419,7 @@ final class AttentionRepository implements AttentionRepositoryPort {
         .request(
           GAttentionMarkUnreadReq((request) => request.vars.ids.addAll(ids)),
         )
-        .firstWhere((response) => response.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((response) => response.dataOrThrow(label: _label));
     return data.attentionMarkUnread;
   }
@@ -432,7 +432,7 @@ final class AttentionRepository implements AttentionRepositoryPort {
             (request) => request.vars.surface = surface?.wireName,
           ),
         )
-        .firstWhere((response) => response.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((response) => response.dataOrThrow(label: _label));
     return data.attentionMarkAllSeen;
   }
@@ -441,7 +441,7 @@ final class AttentionRepository implements AttentionRepositoryPort {
   Future<AttentionSurfaceSummary> surfaceSummary() async {
     final data = await _remoteClient
         .request(GAttentionSurfaceSummaryReq())
-        .firstWhere((response) => response.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((response) => response.dataOrThrow(label: _label));
     final summary = data.attentionSurfaceSummary;
     return AttentionSurfaceSummary(
@@ -464,7 +464,7 @@ final class AttentionRepository implements AttentionRepositoryPort {
             (request) => request.vars.beaconId = beaconId,
           ),
         )
-        .firstWhere((response) => response.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((response) => response.dataOrThrow(label: _label));
     return data.attentionMarkSeenForBeacon;
   }
@@ -480,7 +480,7 @@ final class AttentionRepository implements AttentionRepositoryPort {
             (request) => request.vars.beaconIds.addAll(beaconIds),
           ),
         )
-        .firstWhere((response) => response.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((response) => response.dataOrThrow(label: _label));
     return [
       for (final row in data.myWorkAttention)
@@ -519,7 +519,7 @@ final class AttentionRepository implements AttentionRepositoryPort {
               ..beaconId = beaconId,
           ),
         )
-        .firstWhere((response) => response.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((response) => response.dataOrThrow(label: _label));
     final page = data.activityOffers;
     return ActivityOfferPage(
@@ -561,7 +561,7 @@ final class AttentionRepository implements AttentionRepositoryPort {
               ..limit = limit,
           ),
         )
-        .firstWhere((response) => response.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((response) => response.dataOrThrow(label: _label));
     final page = data.activityAttention;
     return ActivityBeaconAttention(
@@ -589,7 +589,7 @@ final class AttentionRepository implements AttentionRepositoryPort {
               ..kind = kind,
           ),
         )
-        .firstWhere((response) => response.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((response) => response.dataOrThrow(label: _label));
     return data.attentionSettle;
   }
@@ -609,7 +609,7 @@ final class AttentionRepository implements AttentionRepositoryPort {
               ..receiptId = receiptId,
           ),
         )
-        .firstWhere((response) => response.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((response) => response.dataOrThrow(label: _label));
     final snapshot = data.attentionClearSnapshot;
     return AttentionClearSnapshot(
@@ -633,7 +633,7 @@ final class AttentionRepository implements AttentionRepositoryPort {
               ..operationId = operationId,
           ),
         )
-        .firstWhere((response) => response.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((response) => response.dataOrThrow(label: _label));
     final result = data.attentionClear;
     return AttentionClearResult(
@@ -658,7 +658,7 @@ final class AttentionRepository implements AttentionRepositoryPort {
               ..maxBatches = maxBatches,
           ),
         )
-        .firstWhere((response) => response.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((response) => response.dataOrThrow(label: _label));
     final result = data.attentionDismissAll;
     return AttentionDismissAllResult(
@@ -698,7 +698,7 @@ final class AttentionRepository implements AttentionRepositoryPort {
               ..undoToken = undoToken,
           ),
         )
-        .firstWhere((response) => response.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((response) => response.dataOrThrow(label: _label));
     final result = data.attentionUndo;
     final refusal = AttentionUndoRefusal.fromWire(result.refusal);
@@ -730,7 +730,7 @@ final class AttentionRepository implements AttentionRepositoryPort {
   Future<AttentionReconcileResult> reconcile() async {
     final data = await _remoteClient
         .request(GAttentionReconcileReq())
-        .firstWhere((response) => response.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((response) => response.dataOrThrow(label: _label));
     final result = data.attentionReconcile;
     return AttentionReconcileResult(
@@ -768,7 +768,7 @@ final class AttentionRepository implements AttentionRepositoryPort {
               ..limit = limit,
           ),
         )
-        .firstWhere((response) => response.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((response) => response.dataOrThrow(label: _label));
     final page = data.attentionRequestHistory;
     return AttentionFeedPage(

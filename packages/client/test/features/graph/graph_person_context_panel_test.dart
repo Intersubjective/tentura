@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -124,7 +126,7 @@ Future<void> _pumpPanel(
   final expand =
       onExpand ??
       () {
-        graphCubit.expandNode(focusedNode);
+        unawaited(graphCubit.expandNode(focusedNode));
       };
 
   await tester.pumpPeopleTagsWidget(
@@ -534,7 +536,6 @@ void main() {
           focus: 'U-peer',
           hiddenNeighborCounts: {'U-peer': 2},
         ),
-        canPageMoreFor: const {},
       );
       await _pumpPanel(
         tester,

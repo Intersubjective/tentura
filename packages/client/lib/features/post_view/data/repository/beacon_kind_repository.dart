@@ -1,5 +1,6 @@
 import 'package:injectable/injectable.dart';
 
+import 'package:tentura/data/service/remote_api_client/remote_request_client.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/features/beacon/domain/exception.dart';
@@ -12,7 +13,7 @@ import '../gql/_g/beacon_kind_fetch.req.gql.dart';
 class BeaconKindRepository {
   BeaconKindRepository(this._remoteApiService);
 
-  final RemoteApiService _remoteApiService;
+  final RemoteRequestClient _remoteApiService;
 
   final _kinds = <String, BeaconKind>{};
 
@@ -21,7 +22,7 @@ class BeaconKindRepository {
     if (cached != null) return cached;
     final row = await _remoteApiService
         .request(GBeaconKindFetchReq((b) => b.vars.id = beaconId))
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: 'BeaconKindFetch')
         .then((r) => r.dataOrThrow(label: 'BeaconKindFetch').beacon_by_pk);
     if (row == null) throw BeaconFetchException(beaconId);
     return _kinds[beaconId] = BeaconKind.fromValue(row.kind);

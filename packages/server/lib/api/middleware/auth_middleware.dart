@@ -102,8 +102,6 @@ class AuthMiddleware {
     }
   }
 
-  //
-  //
   String _extractAuthTokenFromHeaders(Map<String, String> headers) {
     const bearerPrefixLength = 'Bearer '.length;
     final authHeader = headers[kHeaderAuthorization];

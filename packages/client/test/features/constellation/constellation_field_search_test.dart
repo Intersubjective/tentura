@@ -43,10 +43,11 @@ final class _StubRepository implements ConstellationRepositoryPort {
 }
 
 final class _FakeSearchPort implements ConstellationFieldSearchPort {
-  _FakeSearchPort(this.result, {this.fail = false});
+  _FakeSearchPort(this.result, {this.fail = false, this.delay = Duration.zero});
 
   final ConstellationFieldSearchResult result;
   final bool fail;
+  final Duration delay;
   final queries = <String>[];
 
   @override
@@ -55,10 +56,33 @@ final class _FakeSearchPort implements ConstellationFieldSearchPort {
     required String context,
   }) async {
     queries.add(query);
+    if (delay > Duration.zero) {
+      await Future<void>.delayed(delay);
+    }
     if (fail) {
       throw StateError('offline');
     }
     return result;
+  }
+}
+
+final class _QueryKeyedFakeSearchPort implements ConstellationFieldSearchPort {
+  _QueryKeyedFakeSearchPort(this.resultsByQuery, {this.delay = Duration.zero});
+
+  final Map<String, ConstellationFieldSearchResult> resultsByQuery;
+  final Duration delay;
+  final queries = <String>[];
+
+  @override
+  Future<ConstellationFieldSearchResult> search({
+    required String query,
+    required String context,
+  }) async {
+    queries.add(query);
+    if (delay > Duration.zero) {
+      await Future<void>.delayed(delay);
+    }
+    return resultsByQuery[query] ?? emptyConstellationFieldSearchResult;
   }
 }
 
@@ -178,20 +202,37 @@ Widget _app(
   home: TenturaResponsiveScope(child: child),
 );
 
-Future<List<Widget>> _suggestionsAfterQuery(
-  WidgetTester tester,
-  SearchController controller,
-  String query,
-) async {
-  controller.text = query;
+/// Drives search through the real [SearchAnchor] overlay (not a manual second
+/// [SearchAnchor.suggestionsBuilder] call). Prior tests used a helper that
+/// re-invoked `suggestionsBuilder` after completion, which masked #1046.
+Future<void> _openFieldSearchOverlay(WidgetTester tester) async {
+  await tester.tap(find.byKey(const Key('constellation.app_bar.search')));
   await tester.pump();
-  final anchor = tester.widget<SearchAnchor>(find.byType(SearchAnchor));
-  final context = tester.element(find.byType(SearchAnchor));
-  await anchor.suggestionsBuilder(context, controller);
+  await tester.pump(const Duration(milliseconds: 400));
+}
+
+Future<void> _typeFieldSearchQuery(WidgetTester tester, String query) async {
+  await tester.enterText(find.byType(TextField).last, query);
+  await tester.pump();
+}
+
+Future<void> _waitFieldSearchSettle(
+  WidgetTester tester, {
+  Duration afterDebounce = const Duration(milliseconds: 80),
+}) async {
   await tester.pump(const Duration(milliseconds: 350));
-  await tester.pumpAndSettle();
-  final built = await anchor.suggestionsBuilder(context, controller);
-  return built.toList();
+  await tester.pump(afterDebounce);
+  await tester.pump();
+}
+
+Future<void> _searchInOpenOverlay(
+  WidgetTester tester,
+  String query, {
+  Duration afterDebounce = const Duration(milliseconds: 80),
+}) async {
+  await _openFieldSearchOverlay(tester);
+  await _typeFieldSearchQuery(tester, query);
+  await _waitFieldSearchSettle(tester, afterDebounce: afterDebounce);
 }
 
 void main() {
@@ -265,12 +306,7 @@ void main() {
         ),
       );
 
-      final controller = SearchController();
-      addTearDown(controller.dispose);
-      final widgets = await _suggestionsAfterQuery(tester, controller, 'move');
-      await tester.pumpPeopleTagsWidget(
-        _app(Scaffold(body: ListView(children: widgets))),
-      );
+      await _searchInOpenOverlay(tester, 'move');
 
       expect(find.text('PEOPLE'), findsOneWidget);
       expect(find.text('REQUESTS'), findsOneWidget);
@@ -303,12 +339,7 @@ void main() {
         ),
       );
 
-      final controller = SearchController();
-      addTearDown(controller.dispose);
-      final widgets = await _suggestionsAfterQuery(tester, controller, 'alex');
-      await tester.pumpPeopleTagsWidget(
-        _app(Scaffold(body: ListView(children: widgets))),
-      );
+      await _searchInOpenOverlay(tester, 'alex');
 
       expect(find.text('Alex'), findsOneWidget);
       expect(find.text('Requests'), findsNothing);
@@ -558,16 +589,7 @@ void main() {
           ),
         );
 
-        final controller = SearchController();
-        addTearDown(controller.dispose);
-        final widgets = await _suggestionsAfterQuery(tester, controller, 'zz');
-        await tester.pumpPeopleTagsWidget(
-          _app(
-            Scaffold(body: ListView(children: widgets)),
-            locale: const Locale('ru'),
-          ),
-        );
-        await tester.pumpAndSettle();
+        await _searchInOpenOverlay(tester, 'zz');
 
         expect(tester.takeException(), isNull);
         expect(find.byType(TenturaCircularProgress), findsNothing);
@@ -652,12 +674,7 @@ void main() {
           ),
         );
 
-        final controller = SearchController();
-        addTearDown(controller.dispose);
-        final widgets = await _suggestionsAfterQuery(tester, controller, 'bo');
-        await tester.pumpPeopleTagsWidget(
-          _app(Scaffold(body: ListView(children: widgets))),
-        );
+        await _searchInOpenOverlay(tester, 'bo');
 
         expect(port.queries, ['bo']);
         expect(
@@ -703,19 +720,196 @@ void main() {
         ),
       );
 
-      final controller = SearchController();
-      addTearDown(controller.dispose);
-      final widgets = await _suggestionsAfterQuery(tester, controller, 'кор');
-      await tester.pumpPeopleTagsWidget(
-        _app(
-          Scaffold(body: ListView(children: widgets)),
-          locale: const Locale('ru'),
-        ),
-      );
-      await tester.pumpAndSettle();
+      await _searchInOpenOverlay(tester, 'кор');
 
       expect(tester.takeException(), isNull);
       expect(find.textContaining('коробок'), findsOneWidget);
+    });
+
+    group('#1046 Field search spinner', () {
+      testWidgets(
+        'Boris query shows hits when search completes without another keystroke (RU, phone)',
+        (tester) async {
+          await usePhoneSurface(tester);
+          final port = _FakeSearchPort(
+            const ConstellationFieldSearchResult(
+              people: [
+                ConstellationFieldSearchPersonHit(
+                  id: 'boris',
+                  displayName: 'Boris',
+                ),
+              ],
+            ),
+            delay: const Duration(milliseconds: 80),
+          );
+          final cubit = await _loadCubit(
+            field: _fieldWithFilteredRequest(),
+            searchCase: _searchCase(port),
+          );
+          addTearDown(cubit.close);
+
+          await tester.pumpPeopleTagsWidget(
+            _app(
+              BlocProvider.value(
+                value: cubit,
+                child: const Scaffold(body: ConstellationPersonSearchButton()),
+              ),
+              locale: const Locale('ru'),
+            ),
+          );
+
+          await _searchInOpenOverlay(
+            tester,
+            'Boris',
+            afterDebounce: const Duration(milliseconds: 120),
+          );
+
+          expect(tester.takeException(), isNull);
+          expect(find.byType(TenturaCircularProgress), findsNothing);
+          expect(
+            find.byKey(const Key('constellation.field_search.person.boris')),
+            findsOneWidget,
+          );
+          expect(port.queries, ['Boris']);
+        },
+      );
+
+      testWidgets(
+        'no-match query shows finished empty copy in the open overlay (EN, phone)',
+        (tester) async {
+          await usePhoneSurface(tester);
+          final port = _FakeSearchPort(
+            emptyConstellationFieldSearchResult,
+            delay: const Duration(milliseconds: 50),
+          );
+          final cubit = await _loadCubit(
+            field: _fieldWithFilteredRequest(),
+            searchCase: _searchCase(port),
+          );
+          addTearDown(cubit.close);
+
+          await tester.pumpPeopleTagsWidget(
+            _app(
+              BlocProvider.value(
+                value: cubit,
+                child: const Scaffold(body: ConstellationPersonSearchButton()),
+              ),
+            ),
+          );
+
+          await _searchInOpenOverlay(tester, 'zzqyx');
+
+          expect(find.byType(TenturaCircularProgress), findsNothing);
+          expect(
+            find.byKey(const Key('constellation.field_search.empty')),
+            findsOneWidget,
+          );
+          expect(find.text('No matches on your Field.'), findsOneWidget);
+        },
+      );
+
+      testWidgets(
+        'search failure shows error state without re-opening suggestions (RU, phone)',
+        (tester) async {
+          await usePhoneSurface(tester);
+          final l10nRu = lookupL10n(const Locale('ru'));
+          final port = _FakeSearchPort(
+            emptyConstellationFieldSearchResult,
+            fail: true,
+            delay: const Duration(milliseconds: 40),
+          );
+          final cubit = await _loadCubit(
+            field: _fieldWithFilteredRequest(),
+            searchCase: _searchCase(port),
+          );
+          addTearDown(cubit.close);
+
+          await tester.pumpPeopleTagsWidget(
+            _app(
+              BlocProvider.value(
+                value: cubit,
+                child: const Scaffold(body: ConstellationPersonSearchButton()),
+              ),
+              locale: const Locale('ru'),
+            ),
+          );
+
+          await _searchInOpenOverlay(tester, 'zzq');
+
+          expect(find.byType(TenturaCircularProgress), findsNothing);
+          expect(
+            find.byKey(const Key('constellation.field_search.error')),
+            findsOneWidget,
+          );
+          expect(
+            find.text(l10nRu.constellationFieldSearchUnavailable),
+            findsOneWidget,
+          );
+        },
+      );
+
+      testWidgets('fast typing keeps only the last query results (RU, phone)', (
+        tester,
+      ) async {
+        await usePhoneSurface(tester);
+        final port = _QueryKeyedFakeSearchPort(
+          {
+            'Bori': const ConstellationFieldSearchResult(
+              people: [
+                ConstellationFieldSearchPersonHit(
+                  id: 'stale',
+                  displayName: 'Stale hit',
+                ),
+              ],
+            ),
+            'Boris': const ConstellationFieldSearchResult(
+              people: [
+                ConstellationFieldSearchPersonHit(
+                  id: 'boris',
+                  displayName: 'Boris',
+                ),
+              ],
+            ),
+          },
+          delay: const Duration(milliseconds: 60),
+        );
+        final cubit = await _loadCubit(
+          field: _fieldWithFilteredRequest(),
+          searchCase: ConstellationFieldSearchCase(
+            port,
+            env: const Env.fromEnvironment(),
+            logger: Logger('test'),
+          ),
+        );
+        addTearDown(cubit.close);
+
+        await tester.pumpPeopleTagsWidget(
+          _app(
+            BlocProvider.value(
+              value: cubit,
+              child: const Scaffold(body: ConstellationPersonSearchButton()),
+            ),
+            locale: const Locale('ru'),
+          ),
+        );
+
+        await _openFieldSearchOverlay(tester);
+        final field = find.byType(TextField).last;
+        await tester.enterText(field, 'Bori');
+        await tester.pump();
+        await tester.enterText(field, 'Boris');
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 350));
+        await tester.pump(const Duration(milliseconds: 100));
+        await tester.pump();
+
+        expect(
+          find.byKey(const Key('constellation.field_search.person.boris')),
+          findsOneWidget,
+        );
+        expect(find.text('Stale hit'), findsNothing);
+        expect(port.queries.last, 'Boris');
+      });
     });
 
     testWidgets(

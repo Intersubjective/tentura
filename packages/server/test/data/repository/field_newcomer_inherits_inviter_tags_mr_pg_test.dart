@@ -9,6 +9,7 @@ import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
 import 'package:tentura_root/domain/entity/auth_request_intent.dart';
+import 'package:tentura_server/consts/people_tag_consts.dart';
 import 'package:tentura_server/app/di.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;

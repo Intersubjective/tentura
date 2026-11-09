@@ -1,5 +1,6 @@
 import 'package:injectable/injectable.dart';
 
+import 'package:tentura/data/service/remote_api_client/remote_request_client.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 
 import '../../domain/entity/notification_settings.dart';
@@ -10,14 +11,14 @@ import '../gql/_g/notification_preferences_update.req.gql.dart';
 class NotificationSettingsRepository {
   const NotificationSettingsRepository(this._remoteApiService);
 
-  final RemoteApiService _remoteApiService;
+  final RemoteRequestClient _remoteApiService;
 
   static const _label = 'NotificationSettings';
 
   Future<NotificationSettings> fetch() async {
     final data = await _remoteApiService
         .request(GNotificationPreferencesFetchReq())
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label));
     return _map(
       pushCategories: data.notificationPreferences.pushCategories,
@@ -63,7 +64,7 @@ class NotificationSettingsRepository {
               ),
           ),
         )
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label));
     final p = data.notificationPreferencesUpdate;
     return _map(

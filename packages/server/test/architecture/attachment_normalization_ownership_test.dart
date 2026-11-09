@@ -17,10 +17,9 @@ import 'package:tentura_server/domain/port/remote_storage_port.dart';
 import 'package:tentura_server/domain/port/task_repository_port.dart';
 import 'package:tentura_server/domain/port/upload_quota_repository_port.dart';
 import 'package:tentura_server/domain/use_case/beacon_room_case.dart';
-import 'package:tentura_server/domain/util/attachment_filename.dart'
-    show attachmentDisplayName;
+import 'package:tentura_server/domain/room/attachment_filename.dart'
+    show attachmentDisplayName, sanitizedAttachmentBaseName;
 import 'package:tentura_server/env.dart';
-import 'package:tentura_server/utils/sanitized_attachment_name.dart';
 import 'package:test/test.dart';
 
 import '../support/attachment_normalization_probe.dart';
@@ -133,11 +132,11 @@ void main() {
       expect(attachmentDisplayName('/uploads/Отчёт.pdf  '), 'Отчёт.pdf');
       expect(sanitizedAttachmentBaseName('/uploads/Отчёт.pdf  '), '_.pdf');
       final display = graph.reachable(
-        'packages/server/lib/domain/util/attachment_filename.dart',
+        'packages/server/lib/domain/room/attachment_filename.dart',
         'attachmentDisplayName',
       );
       final download = graph.reachable(
-        'packages/server/lib/utils/sanitized_attachment_name.dart',
+        'packages/server/lib/domain/room/attachment_filename.dart',
         'sanitizedAttachmentBaseName',
       );
       expect(

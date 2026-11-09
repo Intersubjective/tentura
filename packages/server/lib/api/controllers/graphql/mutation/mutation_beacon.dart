@@ -72,8 +72,8 @@ final class MutationBeacon extends GqlNodeBase {
         graphQLBoolean,
         arguments: [InputFieldId.field],
         resolve: (_, args) => _beaconCase.openForwarding(
-          authorId: getCredentials(args).sub,
-          id: InputFieldId.fromArgsNonNullable(args),
+          beaconId: InputFieldId.fromArgsNonNullable(args),
+          userId: getCredentials(args).sub,
         ),
       );
 
@@ -281,7 +281,7 @@ final class MutationBeacon extends GqlNodeBase {
       InputFieldUpload.fieldImage,
     ],
     resolve: (_, args) => _beaconCase
-        .beaconStageImage(
+        .stageImage(
           beaconId: InputFieldId.fromArgsNonNullable(args),
           userId: getCredentials(args).sub,
           imageBytes: InputFieldUpload.fromArgs(args)!,
@@ -300,7 +300,7 @@ final class MutationBeacon extends GqlNodeBase {
       InputFieldBeaconMedia.coverSource,
     ],
     resolve: (_, args) => _beaconCase
-        .beaconSetMedia(
+        .setMedia(
           beaconId: InputFieldId.fromArgsNonNullable(args),
           userId: getCredentials(args).sub,
           imageIds: InputFieldBeaconMedia.imageIdsFromArgs(args),

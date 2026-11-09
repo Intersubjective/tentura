@@ -9,10 +9,11 @@ import 'package:ferry/ferry.dart'
         OperationRequest,
         OperationResponse,
         OperationType;
-import 'package:gql_exec/gql_exec.dart' show Request, Response;
+import 'package:gql_exec/gql_exec.dart' show GraphQLError, Request, Response;
 import 'package:gql_http_link/gql_http_link.dart';
 import 'package:gql_error_link/gql_error_link.dart';
 import 'package:http/http.dart' as http;
+import 'package:meta/meta.dart' show visibleForTesting;
 import 'package:sentry_flutter/sentry_flutter.dart';
 
 import 'package:tentura/app/sentry/sentry_init.dart';
@@ -89,31 +90,7 @@ Future<Client> buildClient({
         },
         onGraphQLError: (request, forward, response) {
           log(response.errors.toString());
-          final errs = response.errors;
-          if (errs != null && errs.isNotEmpty) {
-            final ext = errs.first.extensions;
-            if (ext != null) {
-              final code = int.tryParse(ext['code']?.toString() ?? '');
-              final factId = ext['factCardId'] as String?;
-              if (code == BeaconFactAlreadyPinnedException.codeNumber &&
-                  factId != null &&
-                  factId.isNotEmpty) {
-                throw BeaconFactAlreadyPinnedException(
-                  factCardId: factId,
-                );
-              }
-              throwIfBeaconHierarchyError(code, ext);
-              throwIfConstellationError(code, ext);
-              throwIfClosureError(code);
-              throwIfBatonError(code);
-              throwIfPeopleTagsError(code);
-              throwIfBeaconPlanError(code, ext);
-              throwIfBeaconLobbyError(code);
-              throwIfNowLineError(code, ext);
-            }
-            throw mapRemoteFailure(errs);
-          }
-          throw Exception(response.errors.toString());
+          throwGraphQLErrors(response.errors);
         },
       ),
 
@@ -255,6 +232,40 @@ class _ReachabilityLink extends Link {
           },
         ),
       );
+}
+
+/// The error link's GraphQL-error handler: a typed domain exception for a
+/// known server code, else [mapRemoteFailure]. A null or empty [errs]
+/// (which `ErrorLink` itself never passes) maps like every other failure
+/// path, to `UnknownException` / `RemoteApiException`, not a bare
+/// `Exception`.
+@visibleForTesting
+Never throwGraphQLErrors(List<GraphQLError>? errs) {
+  if (errs != null && errs.isNotEmpty) {
+    final ext = errs.first.extensions;
+    if (ext != null) {
+      final code = int.tryParse(ext['code']?.toString() ?? '');
+      final factId = ext['factCardId'] as String?;
+      if (code == BeaconFactAlreadyPinnedException.codeNumber &&
+          factId != null &&
+          factId.isNotEmpty) {
+        throw BeaconFactAlreadyPinnedException(
+          factCardId: factId,
+        );
+      }
+      throwIfBeaconHierarchyError(code, ext);
+      throwIfConstellationError(code, ext);
+      throwIfClosureError(code);
+      throwIfBatonError(code);
+      throwIfPeopleTagsError(code);
+      throwIfBeaconPlanError(code, ext);
+      throwIfBeaconLobbyError(code);
+      throwIfNowLineError(code, ext);
+    }
+  }
+  // Same exception family as every other failure path: a null or
+  // empty error list maps to UnknownException / RemoteApiException.
+  throw mapRemoteFailure(errs);
 }
 
 http.Client _createGraphqlHttpClient() {

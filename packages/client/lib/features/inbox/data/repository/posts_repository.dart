@@ -1,6 +1,7 @@
 import 'package:injectable/injectable.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
+import 'package:tentura/data/service/remote_api_client/remote_request_client.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 
 import '../../domain/entity/post_participant_preview.dart';
@@ -14,13 +15,13 @@ import '../gql/_g/post_summary_fields.data.gql.dart';
 class PostsRepository implements PostsRepositoryPort {
   const PostsRepository(this._remoteApiService);
 
-  final RemoteApiService _remoteApiService;
+  final RemoteRequestClient _remoteApiService;
 
   @override
   Future<List<PostSummary>> myPosts() async {
     final rows = await _remoteApiService
         .request(GMyPostsReq())
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: 'MyPosts')
         .then((r) => r.dataOrThrow(label: 'MyPosts').myPosts);
     return [for (final row in rows) _toEntity(row)];
   }
@@ -29,7 +30,7 @@ class PostsRepository implements PostsRepositoryPort {
   Future<PostSummary?> postSummary(String id) async {
     final row = await _remoteApiService
         .request(GPostSummaryReq((b) => b.vars.id = id))
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: 'PostSummary')
         .then((r) => r.dataOrThrow(label: 'PostSummary').postSummary);
     return row == null ? null : _toEntity(row);
   }

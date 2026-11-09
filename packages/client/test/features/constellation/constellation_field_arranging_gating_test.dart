@@ -212,7 +212,6 @@ void main() {
     await pumpConstellationBody(
       tester,
       cubit,
-      locale: const Locale('ru'),
       arrangeV2Enabled: true,
       presentationFrameHolder: holder,
     );
@@ -315,7 +314,6 @@ void main() {
     await pumpConstellationBody(
       tester,
       cubit,
-      locale: const Locale('ru'),
       arrangeV2Enabled: true,
     );
     await tester.pump(const Duration(milliseconds: 400));
@@ -381,7 +379,6 @@ void main() {
     await pumpConstellationBody(
       tester,
       cubit,
-      locale: const Locale('ru'),
       arrangeV2Enabled: true,
     );
     await tester.pump();

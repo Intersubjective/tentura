@@ -2084,17 +2084,6 @@ final gqlInputRoomBatonCandidate = GraphQLInputObjectType(
   ],
 );
 
-/// Request plan (#220) fork copy: the new time of one source step, computed
-/// by the client in the viewer's zone (plan §4.10, §5.11).
-final gqlInputPlanStepTime = GraphQLInputObjectType(
-  'PlanStepTimeInput',
-  inputFields: [
-    GraphQLInputObjectField('sourceStepId', graphQLString.nonNullable()),
-    GraphQLInputObjectField('startAt', graphQLString),
-    GraphQLInputObjectField('endAt', graphQLString),
-  ],
-);
-
 final gqlInputClosureSplitEntry = GraphQLInputObjectType(
   'ClosureSplitEntryInput',
   inputFields: [

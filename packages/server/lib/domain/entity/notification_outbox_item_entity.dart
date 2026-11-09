@@ -1,5 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import 'package:tentura_server/domain/attention/attention_models.dart';
+
 import 'notification_category.dart';
 import 'forward_helped_content.dart';
 import 'digest_post_content.dart';
@@ -39,7 +41,7 @@ abstract class NotificationOutboxItemEntity
     String? inAppPreferenceClass,
     @Default(<String, Object?>{}) Map<String, Object?> presentationPayload,
     @Default('standard') String suppressionClass,
-    @Default('legacy') String accessPolicy,
+    @Default(AttentionAccessPolicy.legacy) AttentionAccessPolicy accessPolicy,
   }) = _NotificationOutboxItemEntity;
 
   const NotificationOutboxItemEntity._();

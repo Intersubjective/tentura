@@ -108,33 +108,29 @@ final class MutationBeaconRoom extends GqlNodeBase {
           final uploadMeta = InputFieldUpload.uploadVariablesFromArgs(args);
           final rawName = uploadMeta?['filename'];
           final rawType = uploadMeta?['type'];
-          return _case
-              .createMessage(
-                beaconId: _beaconIdStr.fromArgsNonNullable(args),
-                userId: getCredentials(args).sub,
-                body: _body.fromArgs(args) ?? '',
-                replyToMessageId: _replyToMessageId.fromArgs(args),
-                threadItemId: _threadItemId.fromArgs(args),
-                explicitMentionUserIds:
-                    _explicitMentionUserIds.fromArgs(args) ?? const [],
-                explicitMentionOffsets:
-                    _explicitMentionOffsets.fromArgs(args) ?? const [],
-                explicitMentionLengths:
-                    _explicitMentionLengths.fromArgs(args) ?? const [],
-                attachmentBytes: InputFieldUpload.fromArgs(args),
-                attachmentFilename:
-                    rawName is String && rawName.trim().isNotEmpty
-                    ? rawName
-                    : null,
-                attachmentMimeType:
-                    rawType is String && rawType.trim().isNotEmpty
-                    ? rawType
-                    : null,
-                quotedFactCardId: _quotedFactCardId.fromArgs(args),
-                quotedFactRevisionSeq: _quotedFactRevisionSeq.fromArgs(args),
-                clientMessageId: _clientMessageId.fromArgs(args),
-              )
-              .then((m) => m);
+          return _case.createMessage(
+            beaconId: _beaconIdStr.fromArgsNonNullable(args),
+            userId: getCredentials(args).sub,
+            body: _body.fromArgs(args) ?? '',
+            replyToMessageId: _replyToMessageId.fromArgs(args),
+            threadItemId: _threadItemId.fromArgs(args),
+            explicitMentionUserIds:
+                _explicitMentionUserIds.fromArgs(args) ?? const [],
+            explicitMentionOffsets:
+                _explicitMentionOffsets.fromArgs(args) ?? const [],
+            explicitMentionLengths:
+                _explicitMentionLengths.fromArgs(args) ?? const [],
+            attachmentBytes: InputFieldUpload.fromArgs(args),
+            attachmentFilename: rawName is String && rawName.trim().isNotEmpty
+                ? rawName
+                : null,
+            attachmentMimeType: rawType is String && rawType.trim().isNotEmpty
+                ? rawType
+                : null,
+            quotedFactCardId: _quotedFactCardId.fromArgs(args),
+            quotedFactRevisionSeq: _quotedFactRevisionSeq.fromArgs(args),
+            clientMessageId: _clientMessageId.fromArgs(args),
+          );
         },
       );
 

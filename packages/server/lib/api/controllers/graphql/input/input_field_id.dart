@@ -16,7 +16,7 @@ abstract class InputFieldId {
       args[_fieldKey] as String?;
 
   static String fromArgsNonNullable(Map<String, dynamic> args) =>
-      args[_fieldKey] as String? ?? '';
+      args[_fieldKey]! as String;
 
   static const _fieldKey = 'id';
 }

@@ -77,7 +77,7 @@ class CapabilityRepository implements CapabilityRepositoryPort {
               (r) => r..vars.subjectUserId = subjectId,
             ),
           )
-          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .firstLinkResponse(label: _label)
           .then(
             (r) =>
                 r.dataOrThrow(label: _label).myPrivateLabelsForUser?.toList() ??
@@ -96,7 +96,7 @@ class CapabilityRepository implements CapabilityRepositoryPort {
             ..vars.slugs.addAll(slugs),
         ),
       )
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: _label)
       .then((r) => r.dataOrThrow(label: _label));
 
   @override
@@ -106,7 +106,7 @@ class CapabilityRepository implements CapabilityRepositoryPort {
           (r) => r..vars.subjectUserId = subjectId,
         ),
       )
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: _label)
       .then((r) => r.dataOrThrow(label: _label).personCapabilityCues)
       .then((p) {
         return PersonCapabilityCues(
@@ -183,7 +183,7 @@ class CapabilityRepository implements CapabilityRepositoryPort {
             ..vars.slugs.addAll(slugs),
         ),
       )
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: _label)
       .then((r) => r.dataOrThrow(label: _label));
 
   @override
@@ -202,16 +202,13 @@ class CapabilityRepository implements CapabilityRepositoryPort {
             ),
         ),
       )
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: _label)
       .then((r) {
-        final entries = r
-            .dataOrThrow(label: _label)
-            .personTopCapabilitiesBatch
-            ?.toList() ??
+        final entries =
+            r.dataOrThrow(label: _label).personTopCapabilitiesBatch?.toList() ??
             const [];
         return {
-          for (final e in entries)
-            e.subjectId: e.slugs?.toList() ?? const [],
+          for (final e in entries) e.subjectId: e.slugs?.toList() ?? const [],
         };
       });
 
@@ -227,7 +224,7 @@ class CapabilityRepository implements CapabilityRepositoryPort {
             (r) => r..vars.subjectUserIds.addAll(subjectIds),
           ),
         )
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).personFriendContextBatch)
         .then(
           (rows) => {
@@ -246,11 +243,10 @@ class CapabilityRepository implements CapabilityRepositoryPort {
           .request(
             GSubjectiveTagsReq((r) => r..vars.targetId = targetId),
           )
-          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .firstLinkResponse(label: _label)
           .then((r) => r.dataOrThrow(label: _label).subjectiveTags)
           .then(
-            (rows) =>
-                rows?.map(_tagProjectionFromGql).toList() ?? const [],
+            (rows) => rows?.map(_tagProjectionFromGql).toList() ?? const [],
           );
 
   @override
@@ -265,7 +261,7 @@ class CapabilityRepository implements CapabilityRepositoryPort {
             ..vars.context = context,
         ),
       )
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: _label)
       .then((r) => r.dataOrThrow(label: _label).forwardContext)
       .then(
         (rows) => rows?.map(_forwardBandRowFromGql).toList() ?? const [],
@@ -274,7 +270,7 @@ class CapabilityRepository implements CapabilityRepositoryPort {
   @override
   Future<List<String>> fetchMyRoutingTags() => _remoteApiService
       .request(GMyRoutingTagsReq())
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: _label)
       .then((r) => r.dataOrThrow(label: _label).myRoutingTags.toList());
 
   @override
@@ -289,7 +285,7 @@ class CapabilityRepository implements CapabilityRepositoryPort {
             ..vars.slug = slug,
         ),
       )
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: _label)
       .then((r) => r.dataOrThrow(label: _label).tagExplanation);
 
   @override
@@ -304,7 +300,7 @@ class CapabilityRepository implements CapabilityRepositoryPort {
             ..vars.slugs.addAll(slugs),
         ),
       )
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: _label)
       .then((r) => r.dataOrThrow(label: _label));
 
   @override
@@ -321,7 +317,7 @@ class CapabilityRepository implements CapabilityRepositoryPort {
             ..vars.slug = slug,
         ),
       )
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: _label)
       .then((r) => r.dataOrThrow(label: _label));
 
   @override
@@ -336,7 +332,7 @@ class CapabilityRepository implements CapabilityRepositoryPort {
             ..vars.muted = muted,
         ),
       )
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: _label)
       .then((r) => r.dataOrThrow(label: _label));
 
   @override
@@ -346,7 +342,7 @@ class CapabilityRepository implements CapabilityRepositoryPort {
       .request(
         GInviteSeedPromptStateReq((r) => r..vars.subjectId = subjectId),
       )
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: _label)
       .then((r) => r.dataOrThrow(label: _label).inviteSeedPromptState)
       .then(_inviteSeedPromptStateFromGql);
 
@@ -360,7 +356,7 @@ class CapabilityRepository implements CapabilityRepositoryPort {
         .request(
           GInvitePromptStatesReq((r) => r..vars.subjectIds.addAll(ids)),
         )
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).invitePromptStates)
         .then(_inviteSeedPromptStatesFromGql);
   }
@@ -377,7 +373,7 @@ class CapabilityRepository implements CapabilityRepositoryPort {
             ..vars.slugs.addAll(slugs),
         ),
       )
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: _label)
       .then((r) => r.dataOrThrow(label: _label));
 
   @override
@@ -385,7 +381,7 @@ class CapabilityRepository implements CapabilityRepositoryPort {
       .request(
         GInviteSeedPromptSkipReq((r) => r..vars.subjectId = subjectId),
       )
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: _label)
       .then((r) => r.dataOrThrow(label: _label));
 
   TagProjection _tagProjectionFromGql(GSubjectiveTagsData_subjectiveTags row) =>
@@ -407,9 +403,7 @@ class CapabilityRepository implements CapabilityRepositoryPort {
     GForwardContextData_forwardContext row,
   ) => ForwardBandRow(
     userId: row.userId,
-    rowTier: row.rowTier == null
-        ? null
-        : ProjectionTier.fromWire(row.rowTier!),
+    rowTier: row.rowTier == null ? null : ProjectionTier.fromWire(row.rowTier!),
     labels: row.labels.map(_forwardBandLabelFromGql).toList(),
     rank: row.rank,
     isExploration: row.isExploration,

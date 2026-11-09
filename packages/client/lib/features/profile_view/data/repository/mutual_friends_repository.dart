@@ -1,6 +1,7 @@
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura/data/model/user_model.dart';
+import 'package:tentura/data/service/remote_api_client/remote_request_client.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/contacts/contact_name_overlay.dart';
 import 'package:tentura/domain/entity/availability.dart';
@@ -14,7 +15,7 @@ import '../gql/_g/mutual_friends_fetch.req.gql.dart';
 class MutualFriendsRepository {
   MutualFriendsRepository(this._remoteApiService);
 
-  final RemoteApiService _remoteApiService;
+  final RemoteRequestClient _remoteApiService;
 
   static const _label = 'MutualFriends';
 
@@ -22,7 +23,7 @@ class MutualFriendsRepository {
       .request(
         GMutualFriendsFetchReq((b) => b.vars.id = userId),
       )
-      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .firstLinkResponse(label: _label)
       .then((r) {
         final rows = r.dataOrThrow(label: _label).mutualFriends;
         if (rows == null) {

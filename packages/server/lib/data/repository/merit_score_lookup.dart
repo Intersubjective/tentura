@@ -4,7 +4,7 @@ import 'package:tentura_server/domain/entity/gql_public/mutual_score_record.dart
 import 'package:tentura_server/domain/port/merit_score_lookup_port.dart';
 
 import '../database/tentura_db.dart';
-import 'mappers/mr_score_value.dart';
+import '../mapper/mr_score_value.dart';
 
 /// Batch MeritRank reciprocal-positive scores for one viewer, shared by any
 /// feature that needs to attach `Profile.score`/`Profile.rScore` to a list of

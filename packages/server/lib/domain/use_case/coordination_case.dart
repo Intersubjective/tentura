@@ -586,7 +586,7 @@ final class CoordinationCase extends UseCaseBase {
           offerUserId: offerUserId,
           actorUserId: actorUserId,
         );
-        if (prepared.offer.offerKind != HelpOfferKind.backup) {
+        if (!prepared.offer.isBackup) {
           throw HelpOfferCoordinationException(
             coordinationCode:
                 HelpOfferCoordinationExceptionCode.offerKindChanged,
@@ -674,7 +674,9 @@ final class CoordinationCase extends UseCaseBase {
       beacon.id,
     )) {
       final userId = offer.userId;
-      if (!offer.isActive || offer.offerKind != 0 || userId == authorId) {
+      if (!offer.isActive ||
+          offer.offerKind != HelpOfferKind.normal ||
+          userId == authorId) {
         continue;
       }
       if (await _userBlockRepository.isBlockedPair(a: authorId, b: userId) ||

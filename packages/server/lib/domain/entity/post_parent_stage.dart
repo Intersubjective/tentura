@@ -1,5 +1,5 @@
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
-import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
+import 'package:tentura_server/domain/attention/attention_transaction.dart';
 
 /// Post-parent stage of the child pipeline (budding, Arch §4.2 step 2).
 ///

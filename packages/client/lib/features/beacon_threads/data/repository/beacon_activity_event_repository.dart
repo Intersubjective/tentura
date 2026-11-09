@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:injectable/injectable.dart';
 
+import 'package:tentura/data/service/remote_api_client/remote_request_client.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/entity/beacon_activity_event.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
@@ -25,7 +26,7 @@ class BeaconActivityEventRepository {
 
   static const _label = 'BeaconActivityEvent';
 
-  final RemoteApiService _remote;
+  final RemoteRequestClient _remote;
 
   late final StreamSubscription<RealtimeEntityChange> _sub;
 
@@ -38,7 +39,7 @@ class BeaconActivityEventRepository {
         .request(
           GBeaconActivityEventListReq((b) => b.vars.beaconId = beaconId),
         )
-        .firstWhere((e) => e.dataSource == DataSource.Link);
+        .firstLinkResponse(label: _label);
     final rows =
         r.dataOrThrow(label: _label).BeaconActivityEventList?.toList() ??
         const [];

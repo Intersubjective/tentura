@@ -9,9 +9,8 @@ import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
 import 'package:tentura_server/domain/port/inbox_repository_port.dart';
 import 'package:tentura_server/domain/entity/help_offer_admission_event.dart';
-import 'package:tentura_server/domain/entity/help_offer_entity.dart';
-import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
+import 'package:tentura_server/utils/typed_wait.dart';
 
 import '_use_case_base.dart';
 
@@ -55,21 +54,21 @@ final class BeaconInvolvementCase extends UseCaseBase {
       );
     }
 
-    final results = await Future.wait([
+    final (
+      edges,
+      helpOffers,
+      latestAdmissions,
+      rejectedIds,
+      watchingIds,
+      onwardForwarderIds,
+    ) = await (
       _forwardEdgeRepository.fetchByBeaconId(beaconId),
       _helpOfferRepository.fetchAllByBeaconId(beaconId),
       _helpOfferAdmissionRepository.latestForBeacon(beaconId),
       _inboxRepository.fetchRejectedUserIdsByBeacon(beaconId),
       _inboxRepository.fetchWatchingUserIdsByBeacon(beaconId),
       _forwardEdgeRepository.fetchDistinctSenderIdsByBeaconId(beaconId),
-    ]);
-
-    final edges = results[0] as List<ForwardEdgeEntity>;
-    final helpOffers = results[1] as List<HelpOfferEntity>;
-    final latestAdmissions = results[2] as Map<String, HelpOfferAdmissionEvent>;
-    final rejectedIds = results[3] as List<String>;
-    final watchingIds = results[4] as List<String>;
-    final onwardForwarderIds = results[5] as List<String>;
+    ).waitAll;
 
     for (final edge in edges) {
       if (edge.recipientId == currentUserId && edge.recipientReadAt == null) {

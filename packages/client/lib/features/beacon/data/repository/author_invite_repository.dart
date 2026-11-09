@@ -1,5 +1,6 @@
 import 'package:injectable/injectable.dart';
 
+import 'package:tentura/data/service/remote_api_client/remote_request_client.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/entity/author_invite.dart';
 import 'package:tentura/domain/entity/post_bud_invite_outcome.dart';
@@ -18,7 +19,7 @@ import '../gql/_g/my_pending_author_invites.req.gql.dart';
 class AuthorInviteRepository implements AuthorInvitePort {
   const AuthorInviteRepository(this._remoteApiService);
 
-  final RemoteApiService _remoteApiService;
+  final RemoteRequestClient _remoteApiService;
 
   static const _label = 'AuthorInvite';
 
@@ -37,7 +38,7 @@ class AuthorInviteRepository implements AuthorInvitePort {
               ..note = note,
           ),
         )
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).beaconAuthorInviteCreate);
     return AuthorInviteCreateResult(
       outcome: PostBudInviteOutcome.fromWire(data.outcome.name),
@@ -49,7 +50,7 @@ class AuthorInviteRepository implements AuthorInvitePort {
   Future<AuthorInvite> accept({required String inviteId}) async {
     final data = await _remoteApiService
         .request(GAuthorInviteAcceptReq((b) => b.vars.inviteId = inviteId))
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).beaconAuthorInviteAccept);
     return _transition(data.inviteId, data.beaconId, data.status.name);
   }
@@ -58,7 +59,7 @@ class AuthorInviteRepository implements AuthorInvitePort {
   Future<AuthorInvite> decline({required String inviteId}) async {
     final data = await _remoteApiService
         .request(GAuthorInviteDeclineReq((b) => b.vars.inviteId = inviteId))
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).beaconAuthorInviteDecline);
     return _transition(data.inviteId, data.beaconId, data.status.name);
   }
@@ -69,7 +70,7 @@ class AuthorInviteRepository implements AuthorInvitePort {
         .request(
           GAuthorInviteRevertDeclineReq((b) => b.vars.inviteId = inviteId),
         )
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then(
           (r) => r.dataOrThrow(label: _label).beaconAuthorInviteRevertDecline,
         );
@@ -80,7 +81,7 @@ class AuthorInviteRepository implements AuthorInvitePort {
   Future<AuthorInvite> withdraw({required String inviteId}) async {
     final data = await _remoteApiService
         .request(GAuthorInviteWithdrawReq((b) => b.vars.inviteId = inviteId))
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).beaconAuthorInviteWithdraw);
     return _transition(data.inviteId, data.beaconId, data.status.name);
   }
@@ -89,7 +90,7 @@ class AuthorInviteRepository implements AuthorInvitePort {
   Future<List<PendingAuthorInvite>> myPending() async {
     final rows = await _remoteApiService
         .request(GMyPendingAuthorInvitesReq())
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).myPendingAuthorInvites);
     return [
       for (final row in rows)
@@ -109,7 +110,7 @@ class AuthorInviteRepository implements AuthorInvitePort {
   Future<List<AuthorInvite>> beaconInvites({required String beaconId}) async {
     final rows = await _remoteApiService
         .request(GBeaconAuthorInvitesReq((b) => b.vars.beaconId = beaconId))
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).beaconAuthorInvites);
     return [
       for (final row in rows)
@@ -128,7 +129,7 @@ class AuthorInviteRepository implements AuthorInvitePort {
   Future<List<String>> budObservers({required String beaconId}) async {
     final rows = await _remoteApiService
         .request(GBeaconBudObserversReq((b) => b.vars.beaconId = beaconId))
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).beaconBudObservers);
     return rows.toList(growable: false);
   }

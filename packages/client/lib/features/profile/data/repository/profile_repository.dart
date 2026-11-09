@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura/data/gql/tentura_v2_upload.dart';
+import 'package:tentura/data/service/remote_api_client/remote_request_client.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -25,7 +26,7 @@ import '../model/profile_user_mapper.dart';
 class ProfileRepository implements ProfileRepositoryPort {
   ProfileRepository(this._remoteApiService);
 
-  final RemoteApiService _remoteApiService;
+  final RemoteRequestClient _remoteApiService;
 
   final _controller = StreamController<RepositoryEvent<Profile>>.broadcast();
 
@@ -42,7 +43,7 @@ class ProfileRepository implements ProfileRepositoryPort {
     final request = GUserFetchByIdReq((b) => b.vars.id = id);
     final response = await _remoteApiService
         .request(request)
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).user_by_pk)
         .then((r) => r == null ? null : profileFromUserFetchRow(r));
     if (response == null) throw ProfileFetchException(id);
@@ -58,7 +59,7 @@ class ProfileRepository implements ProfileRepositoryPort {
     );
     final rows = await _remoteApiService
         .request(request)
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).user);
     return rows.map(profileFromUsersFetchRow).toList();
   }
@@ -94,7 +95,7 @@ class ProfileRepository implements ProfileRepositoryPort {
 
     await _remoteApiService
         .request(request)
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label));
 
     _controller.add(RepositoryEventUpdate(await fetchById(profile.id)));
@@ -105,7 +106,7 @@ class ProfileRepository implements ProfileRepositoryPort {
   Future<void> delete(String id) async {
     final isOk = await _remoteApiService
         .request(GProfileDeleteReq())
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).userDelete);
     if (isOk) {
       _controller.add(RepositoryEventDelete(Profile(id: id)));
@@ -127,7 +128,7 @@ class ProfileRepository implements ProfileRepositoryPort {
               ..vars.isLimited = isLimited,
           ),
         )
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).userAvailabilitySetLimited);
 
     _controller.add(RepositoryEventUpdate(await fetchById(profileId)));
@@ -147,7 +148,7 @@ class ProfileRepository implements ProfileRepositoryPort {
               ..vars.resumeOn = resumeOnWire,
           ),
         )
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).userAvailabilityPause);
 
     _controller.add(RepositoryEventUpdate(await fetchById(profileId)));
@@ -161,7 +162,7 @@ class ProfileRepository implements ProfileRepositoryPort {
             (b) => b.fetchPolicy = FetchPolicy.NoCache,
           ),
         )
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).userAvailabilityResume);
 
     _controller.add(RepositoryEventUpdate(await fetchById(profileId)));

@@ -61,7 +61,7 @@ class InvitationRepository implements InvitationAcceptPort {
   Future<InvitationFetchByIdResult?> fetchById(String id) async {
     final invitation = await _remoteApiService
         .request(GInvitationByIdReq((b) => b.vars.id = id))
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).invitationById);
     if (invitation == null) {
       return null;
@@ -86,7 +86,7 @@ class InvitationRepository implements InvitationAcceptPort {
     if (cached != null) return cached;
     final hours = await _remoteApiService
         .request(GInvitationTtlReq())
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).invitationTtlHours);
     return _ttlHours = hours;
   }
@@ -115,7 +115,7 @@ class InvitationRepository implements InvitationAcceptPort {
               ..accepted_limit = acceptedLimit,
           ),
         )
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label));
     return (
       pending: data.pending.map(_invitationFromRow).toList(),
@@ -150,7 +150,7 @@ class InvitationRepository implements InvitationAcceptPort {
               ..beaconId = beaconId,
           ),
         )
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).invitationCreate);
     final entity = InvitationEntity(
       id: result.id,
@@ -177,7 +177,7 @@ class InvitationRepository implements InvitationAcceptPort {
               ..addresseeName = addresseeName,
           ),
         )
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).invitationUpdate);
     final entity = InvitationEntity(
       id: result.id,
@@ -194,7 +194,7 @@ class InvitationRepository implements InvitationAcceptPort {
   Future<void> deleteById(String id) async {
     final result = await _remoteApiService
         .request(GInvitationDeleteByIdReq((b) => b.vars.id = id))
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).invitationDelete);
     if (!result) {
       throw InvitationDeleteException(id);
@@ -205,7 +205,7 @@ class InvitationRepository implements InvitationAcceptPort {
   Future<void> accept(String id) async {
     final result = await _remoteApiService
         .request(GInvitationAcceptReq((b) => b.vars.id = id))
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).invitationAccept);
     if (!result) {
       throw InvitationAcceptException(id);
@@ -243,17 +243,20 @@ class InvitationRepository implements InvitationAcceptPort {
     }
   }
 
-  Uri _inviteApiUri(String path) =>
-      Uri.parse(_remoteApiService.apiEndpointUrlV2).replace(path: path, query: '');
+  Uri _inviteApiUri(String path) => Uri.parse(
+    _remoteApiService.apiEndpointUrlV2,
+  ).replace(path: path, query: '');
 
   @visibleForTesting
-  static InvitationException mapAcceptExistingStatus(int statusCode, String code) =>
-      switch (statusCode) {
-        404 => const InvitationNoLongerValid(),
-        400 => const InvitationSelfOrInvalid(),
-        401 || 403 => const InvitationAuthLost(),
-        _ => InvitationAcceptException(code),
-      };
+  static InvitationException mapAcceptExistingStatus(
+    int statusCode,
+    String code,
+  ) => switch (statusCode) {
+    404 => const InvitationNoLongerValid(),
+    400 => const InvitationSelfOrInvalid(),
+    401 || 403 => const InvitationAuthLost(),
+    _ => InvitationAcceptException(code),
+  };
 
   @visibleForTesting
   static InvitationException? mapPreviewAuthStatus(int statusCode) =>

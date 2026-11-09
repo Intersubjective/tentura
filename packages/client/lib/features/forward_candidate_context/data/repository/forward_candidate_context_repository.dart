@@ -1,5 +1,6 @@
 import 'package:injectable/injectable.dart';
 import 'package:tentura/data/model/image_model_v2.dart';
+import 'package:tentura/data/service/remote_api_client/remote_request_client.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 
 import '../../domain/entity/candidate_connection_context.dart';
@@ -16,7 +17,7 @@ final class ForwardCandidateContextRepository
     implements ForwardCandidateContextRepositoryPort {
   ForwardCandidateContextRepository(this._remoteApiService);
 
-  final RemoteApiService _remoteApiService;
+  final RemoteRequestClient _remoteApiService;
 
   @override
   Future<CandidateConnectionContext> load({
@@ -30,7 +31,7 @@ final class ForwardCandidateContextRepository
             ..vars.context = context,
         ),
       )
-      .firstWhere((response) => response.dataSource == DataSource.Link)
+      .firstLinkResponse(label: 'ForwardCandidateContextFetch')
       .then((response) {
         final payload = response
             .dataOrThrow(

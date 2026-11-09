@@ -13,12 +13,14 @@ import 'package:tentura_server/consts.dart';
 import 'package:tentura_server/domain/port/beacon_fact_card_repository_port.dart';
 
 import 'package:tentura_server/domain/port/beacon_hierarchy_repository_port.dart';
+import 'package:tentura_server/domain/use_case/room_write_guard.dart';
+import 'package:tentura_server/domain/use_case/room_message_rate_limit.dart';
+import 'package:tentura_server/domain/policy/room_access_policy.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_lobby_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/domain/port/discussion_product_policy_port.dart';
 import 'package:tentura_server/domain/policy/beacon_kind_policy.dart';
-import 'package:tentura_server/domain/policy/beacon_room_lifecycle_write_policy.dart';
 import 'package:tentura_server/domain/port/mutating_unit_of_work_port.dart';
 import 'package:tentura_server/domain/port/post_lock_port.dart';
 import 'package:tentura_server/domain/port/request_change_log_port.dart';
@@ -43,12 +45,12 @@ import 'package:tentura_root/utils/infer_image_mime_from_bytes.dart';
 import 'package:tentura_root/utils/attachment_mime.dart';
 import 'package:tentura_root/domain/mention_span_validation.dart';
 
-import 'package:tentura_server/domain/util/attachment_filename.dart';
-import 'package:tentura_server/domain/util/room_attachment_storage_key.dart';
+import 'package:tentura_server/domain/room/attachment_filename.dart';
+import 'package:tentura_server/domain/room/room_attachment_storage_key.dart';
 import 'package:tentura_server/domain/util/room_reply_excerpt.dart';
 import 'package:tentura_server/utils/id.dart';
 import 'package:tentura_server/utils/read_uint8_stream_with_limit.dart';
-import 'package:tentura_server/utils/room_mention_utils.dart';
+import 'package:tentura_server/domain/room/room_mention_utils.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 import 'package:tentura_server/domain/use_case/beacon_case.dart';
 import 'package:tentura_server/domain/use_case/beacon_plan_case.dart';
@@ -411,39 +413,14 @@ class BeaconRoomCase extends UseCaseBase {
     return lobby;
   }
 
-  Future<void> _rejectOrdinaryUserWritesForLifecycle(String beaconId) async {
-    if (await _lifecycleBlocksOrdinaryWrites(beaconId)) {
-      throw const BeaconCreateException(
-        description: 'Discussion is read-only for this request',
-      );
-    }
-  }
+  Future<void> _rejectOrdinaryUserWritesForLifecycle(String beaconId) =>
+      _hierarchyRepository.rejectIfRoomReadOnly(beaconId);
 
-  Future<bool> _lifecycleBlocksOrdinaryWrites(String beaconId) async {
-    final status = await _hierarchyRepository.loadBeaconStatus(beaconId);
-    if (status != null &&
-        BeaconRoomLifecycleWritePolicy.blocksOrdinaryUserWrites(status)) {
-      return true;
-    }
-    final hierarchy = _hierarchyRepository;
-    return hierarchy is BeaconRoomWriteStatePort &&
-        await (hierarchy as BeaconRoomWriteStatePort).isExpiredPost(beaconId);
-  }
+  Future<bool> _lifecycleBlocksOrdinaryWrites(String beaconId) =>
+      _hierarchyRepository.isRoomReadOnly(beaconId);
 
-  Future<T> _translateRoomWriteError<T>(Future<T> Function() action) async {
-    try {
-      return await action();
-    } catch (error) {
-      final hierarchy = _hierarchyRepository;
-      if (hierarchy is BeaconRoomWriteStatePort &&
-          (hierarchy as BeaconRoomWriteStatePort).isReadOnlyWriteError(error)) {
-        throw const BeaconCreateException(
-          description: 'Discussion is read-only for this request',
-        );
-      }
-      rethrow;
-    }
-  }
+  Future<T> _translateRoomWriteError<T>(Future<T> Function() action) =>
+      _hierarchyRepository.translateRoomWriteError(action);
 
   Future<void> _guardMessageMutation({
     required String beaconId,
@@ -480,7 +457,7 @@ class BeaconRoomCase extends UseCaseBase {
   Future<bool> _canUseRoom({
     required String beaconId,
     required String userId,
-  }) => _roomGate(
+  }) => RoomAccessPolicy.canUseRoom(
     isAuthor: () => _room.isBeaconAuthor(beaconId: beaconId, userId: userId),
     isBlockedFromPost: () =>
         _isBlockedFromPost(beaconId: beaconId, userId: userId),
@@ -490,21 +467,6 @@ class BeaconRoomCase extends UseCaseBase {
       userId: userId,
     ))?.roomAccess,
   );
-
-  /// Who may use a Request's room, in this order: its author; nobody with a
-  /// block either way with a Post's author; a steward; an admitted
-  /// participant. Each fact is read only when the ones before do not decide.
-  static Future<bool> _roomGate({
-    required Future<bool> Function() isAuthor,
-    required Future<bool> Function() isBlockedFromPost,
-    required Future<bool> Function() isSteward,
-    required Future<int?> Function() roomAccess,
-  }) async {
-    if (await isAuthor()) return true;
-    if (await isBlockedFromPost()) return false;
-    if (await isSteward()) return true;
-    return await roomAccess() == RoomAccessBits.admitted;
-  }
 
   // DORMANT(item-threads): item-thread participant access helper.
   // Rooms are otherwise General-only (guard: beacon_room_message_general_only_guard, DiscussionScopeDisabledException); thread_item_id is NULL for every new row outside a Request lobby (U088). See #192.
@@ -603,25 +565,42 @@ class BeaconRoomCase extends UseCaseBase {
         !await _userBlockRepository.isBlockedPair(a: userId, b: authorId);
   }
 
+  /// Loads [messageId] (must belong to [beaconId]) and checks [userId] may
+  /// mutate it; with [authorOnlyAction] the caller must also be its author
+  /// (the action names the refusal: "Only the message author can …").
+  Future<BeaconRoomMessageRecord> _requireMutableMessage({
+    required String beaconId,
+    required String messageId,
+    required String userId,
+    String? authorOnlyAction,
+  }) async {
+    final msg = await _room.getRoomMessageById(messageId);
+    if (msg == null || msg.beaconId != beaconId) {
+      throw IdNotFoundException(
+        id: messageId,
+        description: 'Room message not found',
+      );
+    }
+    final allowed = await _canMutateMessage(
+      beaconId: beaconId,
+      userId: userId,
+      msg: msg,
+    );
+    if (!allowed) {
+      throw const UnauthorizedException(description: 'Room access required');
+    }
+    if (authorOnlyAction != null && msg.authorId != userId) {
+      throw UnauthorizedException(
+        description: 'Only the message author can $authorOnlyAction',
+      );
+    }
+    return msg;
+  }
+
   void _assertBodyWithinLimit(String trimmedBody) {
     if (trimmedBody.length > kMaxRoomMessageBodyLength) {
       throw const BeaconCreateException(
         description: 'Message is too long',
-      );
-    }
-  }
-
-  /// Spam control: reject when an author has posted too many room messages
-  /// within the configured trailing window (across all beacons/threads).
-  Future<void> _enforceMessageRateLimit(String userId) async {
-    final recent = await _room.countRecentMessagesByAuthor(
-      authorId: userId,
-      window: env.roomMessageRateWindow,
-    );
-    if (recent >= env.roomMessageMaxPerUser) {
-      logger.info('room message rate-limited for user $userId');
-      throw const RateLimitedException(
-        description: 'Too many messages sent, please slow down',
       );
     }
   }
@@ -836,7 +815,11 @@ class BeaconRoomCase extends UseCaseBase {
           );
         }
       }
-      await _enforceMessageRateLimit(userId);
+      await _room.enforceMessageRateLimit(
+        userId: userId,
+        env: env,
+        logger: logger,
+      );
       final trimmed = body.trim();
       _assertBodyWithinLimit(trimmed);
       Uint8List? payload;
@@ -1022,12 +1005,8 @@ class BeaconRoomCase extends UseCaseBase {
         if (sent == null) rethrow;
         return _alreadySent(sent, beaconId: beaconId);
       } catch (error) {
-        final hierarchy = _hierarchyRepository;
         if (attachment != null &&
-            hierarchy is BeaconRoomWriteStatePort &&
-            (hierarchy as BeaconRoomWriteStatePort).isReadOnlyWriteError(
-              error,
-            )) {
+            _hierarchyRepository.isReadOnlyRoomWriteError(error)) {
           await _compensateAttachment(
             attachment,
             userId,
@@ -1383,7 +1362,7 @@ class BeaconRoomCase extends UseCaseBase {
     );
     final members = <String, RoomViewerFacts>{
       for (final f in facts.values)
-        if (await _roomGate(
+        if (await RoomAccessPolicy.canUseRoom(
           isAuthor: () async => f.authorId == userId,
           isBlockedFromPost: () async =>
               f.kind == BeaconKind.post &&
@@ -1897,23 +1876,11 @@ class BeaconRoomCase extends UseCaseBase {
     required String emoji,
   }) async {
     return _translateRoomWriteError(() async {
-      final msg = await _room.getRoomMessageById(messageId);
-      if (msg == null || msg.beaconId != beaconId) {
-        throw IdNotFoundException(
-          id: messageId,
-          description: 'Room message not found',
-        );
-      }
-      final allowed = await _canMutateMessage(
+      final msg = await _requireMutableMessage(
         beaconId: beaconId,
+        messageId: messageId,
         userId: userId,
-        msg: msg,
       );
-      if (!allowed) {
-        throw const UnauthorizedException(
-          description: 'Room access required',
-        );
-      }
       await _guardMessageMutation(beaconId: beaconId, msg: msg);
       final postAuthorId = await _postAuthorId(beaconId);
       if (postAuthorId == null || postAuthorId == userId) {
@@ -1964,26 +1931,12 @@ class BeaconRoomCase extends UseCaseBase {
     String? attachmentMimeType,
   }) async {
     return _translateRoomWriteError(() async {
-      final msg = await _room.getRoomMessageById(messageId);
-      if (msg == null || msg.beaconId != beaconId) {
-        throw IdNotFoundException(
-          id: messageId,
-          description: 'Room message not found',
-        );
-      }
-      final canMutate = await _canMutateMessage(
+      final msg = await _requireMutableMessage(
         beaconId: beaconId,
+        messageId: messageId,
         userId: userId,
-        msg: msg,
+        authorOnlyAction: 'add attachments',
       );
-      if (!canMutate) {
-        throw const UnauthorizedException(description: 'Room access required');
-      }
-      if (msg.authorId != userId) {
-        throw const UnauthorizedException(
-          description: 'Only the message author can add attachments',
-        );
-      }
       // No attachments in Request Questions (see createMessage).
       if ((msg.threadItemId ?? '').isNotEmpty) {
         throw const DiscussionScopeDisabledException();
@@ -2029,26 +1982,12 @@ class BeaconRoomCase extends UseCaseBase {
           postLock == null) {
         throw StateError('Post deletion requires PostLockPort');
       }
-      final msg = await _room.getRoomMessageById(messageId);
-      if (msg == null || msg.beaconId != beaconId) {
-        throw IdNotFoundException(
-          id: messageId,
-          description: 'Room message not found',
-        );
-      }
-      final allowed = await _canMutateMessage(
+      final msg = await _requireMutableMessage(
         beaconId: beaconId,
+        messageId: messageId,
         userId: userId,
-        msg: msg,
+        authorOnlyAction: 'delete messages',
       );
-      if (!allowed) {
-        throw const UnauthorizedException(description: 'Room access required');
-      }
-      if (msg.authorId != userId) {
-        throw const UnauthorizedException(
-          description: 'Only the message author can delete messages',
-        );
-      }
       // The Post-root branch runs before the lifecycle guard (plan C5): the
       // author may still delete a Post closed by budding (6 -> 2), which the
       // read-only guard below would refuse. Posts only; the child survives.
@@ -2060,14 +1999,12 @@ class BeaconRoomCase extends UseCaseBase {
         }
         return _beaconCase!.deleteById(beaconId: beaconId, userId: userId);
       }
-      final hierarchy = _hierarchyRepository;
       final archivedPost =
           beacon != null &&
           beacon.kind == BeaconKind.post &&
           (beacon.status == BeaconStatus.closed ||
               (beacon.status == BeaconStatus.open &&
-                  hierarchy is BeaconRoomWriteStatePort &&
-                  await (hierarchy as BeaconRoomWriteStatePort).isExpiredPost(
+                  await _hierarchyRepository.isExpiredPostForRoomWrite(
                     beaconId,
                   )));
       if (archivedPost) {
@@ -2094,26 +2031,12 @@ class BeaconRoomCase extends UseCaseBase {
     bool explicitMentionsProvided = false,
   }) async {
     return _translateRoomWriteError(() async {
-      final msg = await _room.getRoomMessageById(messageId);
-      if (msg == null || msg.beaconId != beaconId) {
-        throw IdNotFoundException(
-          id: messageId,
-          description: 'Room message not found',
-        );
-      }
-      final allowed = await _canMutateMessage(
+      final msg = await _requireMutableMessage(
         beaconId: beaconId,
+        messageId: messageId,
         userId: userId,
-        msg: msg,
+        authorOnlyAction: 'edit messages',
       );
-      if (!allowed) {
-        throw const UnauthorizedException(description: 'Room access required');
-      }
-      if (msg.authorId != userId) {
-        throw const UnauthorizedException(
-          description: 'Only the message author can edit messages',
-        );
-      }
       await _guardMessageMutation(beaconId: beaconId, msg: msg);
       final trimmed = newBody.trim();
       if (trimmed.isEmpty) {
@@ -2271,9 +2194,7 @@ class BeaconRoomCase extends UseCaseBase {
         position: position,
       );
     } catch (error) {
-      final hierarchy = _hierarchyRepository;
-      if (hierarchy is BeaconRoomWriteStatePort &&
-          (hierarchy as BeaconRoomWriteStatePort).isReadOnlyWriteError(error)) {
+      if (_hierarchyRepository.isReadOnlyRoomWriteError(error)) {
         await _compensateAttachment(attachment, userId, uniqueFile: uniqueFile);
       }
       rethrow;
@@ -2458,7 +2379,11 @@ class BeaconRoomCase extends UseCaseBase {
         throw const UnauthorizedException(description: 'Room access required');
       }
       await _rejectOrdinaryUserWritesForLifecycle(beaconId);
-      await _enforceMessageRateLimit(userId);
+      await _room.enforceMessageRateLimit(
+        userId: userId,
+        env: env,
+        logger: logger,
+      );
       final trimmedQuestion = question.trim();
       if (trimmedQuestion.isEmpty) {
         throw const BeaconCreateException(

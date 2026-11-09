@@ -15,6 +15,7 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_root/domain/entity/coordinates.dart';
 
 import 'package:tentura/data/gql/_g/schema.schema.gql.dart';
+import 'package:tentura/data/service/remote_api_client/remote_request_client.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/features/beacon/domain/port/beacon_hierarchy_repository_port.dart';
 
@@ -41,7 +42,7 @@ String? _scheduleDateTimeToIso(DateTime? dateTime) =>
 class BeaconHierarchyRepository implements BeaconHierarchyRepositoryPort {
   BeaconHierarchyRepository(this._remoteApiService);
 
-  final RemoteApiService _remoteApiService;
+  final RemoteRequestClient _remoteApiService;
 
   static const _label = 'BeaconHierarchy';
 
@@ -53,7 +54,7 @@ class BeaconHierarchyRepository implements BeaconHierarchyRepositoryPort {
         .request(
           GBeaconHierarchyCapabilitiesReq((b) => b.vars.beaconId = beaconId),
         )
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).beaconHierarchyCapabilities);
     return mapCapabilities(data);
   }
@@ -86,7 +87,7 @@ class BeaconHierarchyRepository implements BeaconHierarchyRepositoryPort {
               ..after = after;
           }),
         )
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).beaconChildren);
     return mapChildrenPage(data);
   }
@@ -143,7 +144,7 @@ class BeaconHierarchyRepository implements BeaconHierarchyRepositoryPort {
   }) async {
     final data = await _remoteApiService
         .request(GBeaconChildPreviewReq((b) => b.vars.beaconId = beaconId))
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).beaconChildPreview);
     if (data == null) return null;
     return mapChildPreview(data);
@@ -193,7 +194,7 @@ class BeaconHierarchyRepository implements BeaconHierarchyRepositoryPort {
   }) async {
     final data = await _remoteApiService
         .request(GBeaconParentReferenceReq((b) => b.vars.beaconId = beaconId))
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).beaconParentReference);
     return mapParentReference(data);
   }
@@ -221,7 +222,7 @@ class BeaconHierarchyRepository implements BeaconHierarchyRepositoryPort {
               ..sourceMessageId = sourceMessageId;
           }),
         )
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).beaconPromotionSource);
     return mapPromotionSource(data);
   }
@@ -281,7 +282,7 @@ class BeaconHierarchyRepository implements BeaconHierarchyRepositoryPort {
               ..draft = draft;
           }),
         )
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).beaconChildCreate);
     return mapChildCreateOutcome(data);
   }

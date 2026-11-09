@@ -2,6 +2,7 @@ import 'package:injectable/injectable.dart';
 import 'package:meta/meta.dart';
 
 import 'package:tentura/data/model/user_model.dart';
+import 'package:tentura/data/service/remote_api_client/remote_request_client.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/entity/profile.dart';
 
@@ -14,7 +15,7 @@ class RatingRepository {
 
   RatingRepository(this._remoteApiService);
 
-  final RemoteApiService _remoteApiService;
+  final RemoteRequestClient _remoteApiService;
 
   Future<Iterable<Profile>> fetch({required String context}) =>
       _remoteApiService
@@ -27,7 +28,7 @@ class RatingRepository {
                 ..vars.context = context,
             ),
           )
-          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .firstLinkResponse(label: _label)
           .then((r) => r.dataOrThrow(label: _label).rating)
           .then(profilesFromRows);
 

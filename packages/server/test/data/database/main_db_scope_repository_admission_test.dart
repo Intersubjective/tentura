@@ -18,7 +18,7 @@ import 'package:tentura_server/data/repository/trust_publish_repository.dart';
 import 'package:tentura_server/data/repository/user_availability_repository.dart';
 import 'package:tentura_server/data/repository/user_block_repository.dart';
 import 'package:tentura_server/data/repository/witness_window_repository.dart';
-import 'package:tentura_server/data/service/main_db_scope_admission.dart';
+import 'package:tentura_server/data/database/main_db_scope_admission.dart';
 import 'package:tentura_server/domain/attention/attention_clear_models.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';

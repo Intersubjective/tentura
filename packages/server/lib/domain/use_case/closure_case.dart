@@ -16,6 +16,7 @@ import 'package:tentura_server/domain/commitment/commitment_event.dart';
 import 'package:tentura_server/domain/commitment/commitment_event_kind.dart';
 import 'package:tentura_server/domain/commitment/commitment_state.dart';
 import 'package:tentura_server/domain/entity/author_invite.dart';
+import 'package:tentura_server/domain/entity/help_offer_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/policy/beacon_kind_policy.dart';
 import 'package:tentura_server/domain/port/attention_system_settlement_port.dart';
@@ -1005,7 +1006,7 @@ final class ClosureCase extends UseCaseBase {
   }) async {
     final offers = await _helpOffers.fetchByBeaconId(beaconId);
     for (final offer in offers) {
-      if (!offer.isActive || offer.offerKind != 0) continue;
+      if (!offer.isActive || offer.offerKind != HelpOfferKind.normal) continue;
       if (offer.roleLabel?.trim().isNotEmpty ?? false) continue;
       final events = await _commitments.eventsForPair(
         beaconId: beaconId,

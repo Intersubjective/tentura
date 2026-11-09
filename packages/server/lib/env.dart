@@ -969,8 +969,6 @@ class Env {
     if (fbPrivateKey.trim().isEmpty) 'FB_PRIVATE_KEY',
   ];
 
-  //
-  //
   static void _assertServingUrls({
     required String serverName,
     required String imageServer,

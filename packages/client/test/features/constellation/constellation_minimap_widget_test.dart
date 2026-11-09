@@ -1,7 +1,11 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura/features/constellation/domain/constellation_minimap.dart';
+import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
+import 'package:tentura/features/constellation/ui/widget/constellation_minimap.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/domain/layout/layout_geometry.dart';
@@ -82,26 +86,30 @@ final class _Mounted {
         _lPoint(worldViewer),
       ]);
 
-  /// The part of the scene the camera shows right now.
-  LRect get viewportWorld {
-    final controller = cubit.graphController;
-    final size = controller.viewportSize!;
-    final topLeft = controller.viewportLocalToScene(Offset.zero);
-    final bottomRight = controller.viewportLocalToScene(
-      Offset(size.width, size.height),
+  /// The usable scene area the camera shows (matches minimap / fit-all insets).
+  LRect viewportWorld(WidgetTester tester) {
+    final insets = cubit.fieldCameraViewportInsets(
+      tester.element(find.byType(ConstellationBody)),
+      contextPanelVisible: false,
     );
-    return (
-      left: topLeft.dx,
-      top: topLeft.dy,
-      right: bottomRight.dx,
-      bottom: bottomRight.dy,
-    );
+    return constellationMinimapViewportWorld(
+      cubit.graphController,
+      viewportInsets: insets,
+    )!;
   }
 
-  Offset get viewportCentreWorld {
+  Offset viewportCentreWorld(WidgetTester tester) {
     final controller = cubit.graphController;
     final size = controller.viewportSize!;
-    return controller.viewportLocalToScene(size.center(Offset.zero));
+    final insets = cubit.fieldCameraViewportInsets(
+      tester.element(find.byType(ConstellationBody)),
+      contextPanelVisible: false,
+    );
+    final centre = Offset(
+      insets.left + (size.width - insets.horizontal) / 2,
+      insets.top + (size.height - insets.vertical) / 2,
+    );
+    return controller.viewportLocalToScene(centre);
   }
 
   /// Mounts the Field at camera [scale] (district 0.45–0.85, overview below
@@ -114,6 +122,9 @@ final class _Mounted {
     double? from,
     Set<String>? people,
     Offset? viewerAt,
+    Size size = _surface,
+    Locale locale = const Locale('en'),
+    bool layoutPositionsOnly = false,
   }) async {
     final cubit = await loadReferenceCubit(field: _field(people ?? _everyone));
     final holder = ConstellationPresentationFrameHolder();
@@ -121,8 +132,8 @@ final class _Mounted {
     await pumpConstellationBody(
       tester,
       cubit,
-      size: _surface,
-      locale: const Locale('en'),
+      size: size,
+      locale: locale,
       presentationFrameHolder: holder,
       disableAnimations: true,
     );
@@ -134,26 +145,41 @@ final class _Mounted {
     }
     controller.zoomBy(scale / controller.cameraScale);
     await tester.pumpAndSettle();
-    controller.clearAllPresentationPositions();
     final world = <String, Offset>{};
     late Offset viewer;
-    final placed = {
-      for (final entry in _screenPositions.entries)
-        if (entry.key == 'ego' || (people ?? _everyone).contains(entry.key))
-          entry.key: entry.key == 'ego'
-              ? (viewerAt ?? entry.value)
-              : entry.value,
-    };
-    for (final entry in placed.entries) {
-      final scene = controller.viewportLocalToScene(entry.value);
-      controller.beginNodePresentationDragForId('fp:${entry.key}', scene);
-      if (entry.key == 'ego') {
-        viewer = scene;
-      } else {
-        world[entry.key] = scene;
+    if (layoutPositionsOnly) {
+      await tester.pumpAndSettle();
+      for (final id in people ?? _everyone) {
+        final p = controller.getPositionOrNullForId('fp:$id');
+        if (p != null) {
+          world[id] = p;
+        }
       }
+      viewer =
+          controller.getPositionOrNullForId('fp:ego') ??
+          controller.viewportLocalToScene(
+            (viewerAt ?? _screenPositions['ego'])!,
+          );
+    } else {
+      controller.clearAllPresentationPositions();
+      final placed = {
+        for (final entry in _screenPositions.entries)
+          if (entry.key == 'ego' || (people ?? _everyone).contains(entry.key))
+            entry.key: entry.key == 'ego'
+                ? (viewerAt ?? entry.value)
+                : entry.value,
+      };
+      for (final entry in placed.entries) {
+        final scene = controller.viewportLocalToScene(entry.value);
+        controller.beginNodePresentationDragForId('fp:${entry.key}', scene);
+        if (entry.key == 'ego') {
+          viewer = scene;
+        } else {
+          world[entry.key] = scene;
+        }
+      }
+      await tester.pumpAndSettle();
     }
-    await tester.pumpAndSettle();
     // The minimap may start collapsed or expanded; the checks need it open.
     if (find.byKey(_map).evaluate().isEmpty &&
         find.byKey(_toggle).evaluate().isNotEmpty) {
@@ -337,17 +363,23 @@ void main() {
       ) async {
         final m = await mount(tester);
 
-        final expected = m.projection.frameOf(m.viewportWorld);
+        final expected = m.projection.frameOf(m.viewportWorld(tester));
         final frame = _within(tester, find.byKey(_frameKey), find.byKey(_map));
         expect(frame.left, closeTo(expected.left, 1));
         expect(frame.top, closeTo(expected.top, 1));
         expect(frame.right, closeTo(expected.right, 1));
         expect(frame.bottom, closeTo(expected.bottom, 1));
-        // The frame has the proportions of the viewport the camera shows.
+        // The frame matches the usable camera area (chrome insets excluded).
         final shown = m.cubit.graphController.viewportSize!;
+        final insets = m.cubit.fieldCameraViewportInsets(
+          tester.element(find.byType(ConstellationBody)),
+          contextPanelVisible: false,
+        );
+        final usableW = shown.width - insets.horizontal;
+        final usableH = shown.height - insets.vertical;
         expect(
           frame.width / frame.height,
-          closeTo(shown.width / shown.height, 0.02),
+          closeTo(usableW / usableH, 0.02),
         );
       });
 
@@ -358,7 +390,7 @@ void main() {
         m.cubit.graphController.jumpToPosition(m.worldPeople['p36']!);
         await tester.pumpAndSettle();
 
-        final expected = m.projection.frameOf(m.viewportWorld);
+        final expected = m.projection.frameOf(m.viewportWorld(tester));
         final after = _within(tester, find.byKey(_frameKey), find.byKey(_map));
         expect(after.left, greaterThan(before.left));
         expect(after.top, greaterThan(before.top));
@@ -375,7 +407,7 @@ void main() {
         m.cubit.graphController.jumpToPosition(m.worldPeople['p39']!);
         await tester.pumpAndSettle();
 
-        final viewport = m.viewportWorld;
+        final viewport = m.viewportWorld(tester);
         final reachesPast = m.projection.worldToMinimap((
           x: viewport.right,
           y: viewport.bottom,
@@ -407,7 +439,7 @@ void main() {
         m.cubit.graphController.zoomBy(1.25);
         await tester.pumpAndSettle();
 
-        final expected = m.projection.frameOf(m.viewportWorld);
+        final expected = m.projection.frameOf(m.viewportWorld(tester));
         final after = _within(tester, find.byKey(_frameKey), find.byKey(_map));
         expect(after.width, closeTo(before.width / 1.25, 0.5));
         expect(after.height, closeTo(before.height / 1.25, 0.5));
@@ -425,8 +457,8 @@ void main() {
         await tester.pumpAndSettle();
 
         final world = m.projection.minimapToWorld(_lPoint(tap));
-        expect(m.viewportCentreWorld.dx, closeTo(world.x, 1));
-        expect(m.viewportCentreWorld.dy, closeTo(world.y, 1));
+        expect(m.viewportCentreWorld(tester).dx, closeTo(world.x, 1));
+        expect(m.viewportCentreWorld(tester).dy, closeTo(world.y, 1));
         expect(m.cubit.graphController.cameraScale, closeTo(scaleBefore, 1e-6));
         final frame = _within(tester, find.byKey(_frameKey), find.byKey(_map));
         expect(frame.center.dx, closeTo(tap.dx, 1));
@@ -445,8 +477,8 @@ void main() {
         await tester.pumpAndSettle();
 
         final world = m.projection.minimapToWorld((x: 20, y: 90));
-        expect(m.viewportCentreWorld.dx, closeTo(world.x, 1));
-        expect(m.viewportCentreWorld.dy, closeTo(world.y, 1));
+        expect(m.viewportCentreWorld(tester).dx, closeTo(world.x, 1));
+        expect(m.viewportCentreWorld(tester).dy, closeTo(world.y, 1));
       });
 
       testWidgets('collapses to its toggle and expands again', (tester) async {
@@ -465,7 +497,7 @@ void main() {
         expect(find.byKey(_map), findsOneWidget);
         expect(tester.getSize(find.byKey(_map)), const Size(104, 104));
         expect(find.byKey(_frameKey), findsOneWidget);
-        final expected = m.projection.frameOf(m.viewportWorld);
+        final expected = m.projection.frameOf(m.viewportWorld(tester));
         final frame = _within(tester, find.byKey(_frameKey), find.byKey(_map));
         expect(frame.left, closeTo(expected.left, 1));
         expect(frame.top, closeTo(expected.top, 1));
@@ -474,6 +506,42 @@ void main() {
       });
     });
   }
+
+  group('minimap chrome on ConstellationBody (#1225)', () {
+    testWidgets(
+      'close level 375 RU: chrome on a wide field at close zoom',
+      (tester) async {
+        await usePhoneSurface(tester);
+        await _Mounted.mount(
+          tester,
+          scale: 1.2,
+          locale: const Locale('ru'),
+          size: kPhoneSurface,
+          people: _corners,
+        );
+        expect(find.byKey(_toggle), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      },
+    );
+
+    testWidgets('panning brings minimap chrome back when a node leaves view', (
+      tester,
+    ) async {
+      final m = await _Mounted.mount(tester, people: _corners, scale: 1.2);
+      expect(find.byKey(_toggle), findsOneWidget);
+      final insets = m.cubit.fieldCameraViewportInsets(
+        tester.element(find.byType(ConstellationBody)),
+        contextPanelVisible: false,
+      );
+      m.cubit.graphController.jumpToPosition(
+        m.worldPeople['p39']! + const Offset(1200, 900),
+        viewportInsets: insets,
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(_toggle), findsOneWidget);
+    });
+  });
 
   group('minimap phone RU (#1035 U1)', () {
     testWidgets('starts collapsed on compact width; RU toggle copy', (
@@ -573,30 +641,99 @@ void main() {
   });
 
   group('minimap by zoom level', () {
-    testWidgets('shows neither the minimap nor its toggle at close level', (
-      tester,
-    ) async {
+    testWidgets('stays available at close level when the field extends past '
+        'the viewport (#1225)', (tester) async {
       final m = await _Mounted.mount(tester, scale: 1.2);
       expect(m.holder.frame!.detail, ConstellationDetailLevel.close);
 
-      expect(find.byKey(_map), findsNothing);
-      expect(find.byKey(_frameKey), findsNothing);
-      expect(find.byKey(_toggle), findsNothing);
+      expect(find.byKey(_map), findsOneWidget);
+      expect(find.byKey(_toggle), findsOneWidget);
     });
 
-    testWidgets('disappears with its toggle when zooming in to close level', (
+    testWidgets('hides chrome after fit-all when every node is on screen', (
+      tester,
+    ) async {
+      final m = await _Mounted.mount(tester, people: _corners, scale: 1.2);
+      expect(find.byKey(_toggle), findsOneWidget);
+      if (find.byKey(_map).evaluate().isNotEmpty) {
+        await tester.tap(find.byKey(_toggle));
+        await tester.pumpAndSettle();
+      }
+
+      final insets = m.cubit.fieldCameraViewportInsets(
+        tester.element(find.byType(ConstellationBody)),
+        contextPanelVisible: false,
+      );
+      for (var i = 0; i < 8 && find.byKey(_toggle).evaluate().isNotEmpty; i++) {
+        m.cubit.fitWholeField(insets: insets);
+        await tester.pumpAndSettle();
+        m.cubit.graphController.zoomBy(0.7);
+        await tester.pumpAndSettle();
+      }
+
+      expect(find.byKey(_toggle), findsNothing);
+      expect(find.byKey(_map), findsNothing);
+    });
+  });
+
+  group('minimap frame drag (#1225)', () {
+    testWidgets('touch drag on the frame pans like mouse (#1225)', (
       tester,
     ) async {
       final m = await _Mounted.mount(tester);
-      expect(find.byKey(_map), findsOneWidget);
-      expect(find.byKey(_toggle), findsOneWidget);
-
-      final controller = m.cubit.graphController;
-      controller.zoomBy(1.2 / controller.cameraScale);
+      final centreBefore = m.viewportCentreWorld(tester);
+      final frame = _within(tester, find.byKey(_frameKey), find.byKey(_map));
+      final start = tester.getTopLeft(find.byKey(_map)) + frame.center;
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.touch);
+      await gesture.down(start);
+      await gesture.moveBy(const Offset(30, -18));
+      await gesture.up();
       await tester.pumpAndSettle();
 
-      expect(find.byKey(_map), findsNothing);
-      expect(find.byKey(_toggle), findsNothing);
+      final world = m.projection.minimapDeltaToWorld((x: 30, y: -18));
+      final centreAfter = m.viewportCentreWorld(tester);
+      expect(centreAfter.dx, closeTo(centreBefore.dx + world.x, 2));
+      expect(centreAfter.dy, closeTo(centreBefore.dy + world.y, 2));
+    });
+
+    testWidgets('dragging the frame pans the camera by the projected delta', (
+      tester,
+    ) async {
+      final m = await _Mounted.mount(tester);
+      final centreBefore = m.viewportCentreWorld(tester);
+      final frame = _within(tester, find.byKey(_frameKey), find.byKey(_map));
+      final start = tester.getTopLeft(find.byKey(_map)) + frame.center;
+      await tester.dragFrom(start, const Offset(-40, 25));
+      await tester.pumpAndSettle();
+
+      final world = m.projection.minimapDeltaToWorld((x: -40, y: 25));
+      final centreAfter = m.viewportCentreWorld(tester);
+      expect(
+        centreAfter.dx,
+        closeTo(centreBefore.dx + world.x, 2),
+      );
+      expect(
+        centreAfter.dy,
+        closeTo(centreBefore.dy + world.y, 2),
+      );
+      expect(m.cubit.graphController.cameraScale, closeTo(0.6, 1e-6));
+    });
+
+    testWidgets('tap still centres after a frame drag gesture', (tester) async {
+      final m = await _Mounted.mount(tester);
+      final origin = tester.getTopLeft(find.byKey(_map));
+      final frame = _within(tester, find.byKey(_frameKey), find.byKey(_map));
+      await tester.dragFrom(
+        origin + frame.center,
+        const Offset(12, 0),
+      );
+      await tester.pumpAndSettle();
+      const tap = Offset(22, 88);
+      await tester.tapAt(origin + tap);
+      await tester.pumpAndSettle();
+      final world = m.projection.minimapToWorld(_lPoint(tap));
+      expect(m.viewportCentreWorld(tester).dx, closeTo(world.x, 1.5));
+      expect(m.viewportCentreWorld(tester).dy, closeTo(world.y, 1.5));
     });
   });
 }

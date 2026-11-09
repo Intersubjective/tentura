@@ -10,7 +10,7 @@ import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/fcm_remote_repository_port.dart';
 import 'package:tentura_server/domain/port/fcm_token_repository_port.dart';
 import 'package:tentura_server/domain/use_case/fcm_case.dart';
-import 'package:tentura_server/domain/util/debug_send_rate_limiter.dart';
+import 'package:tentura_server/domain/policy/debug_send_rate_limiter.dart';
 import 'package:tentura_server/env.dart';
 
 void main() {

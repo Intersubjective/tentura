@@ -8,7 +8,7 @@ import 'package:shelf_multipart/shelf_multipart.dart';
 import 'package:tentura_server/app/sentry/sentry_error_classifier.dart';
 import 'package:tentura_server/app/sentry/sentry_request_context.dart';
 import 'package:tentura_server/consts.dart';
-import 'package:tentura_server/data/service/main_db_scope_admission.dart';
+import 'package:tentura_server/data/database/main_db_scope_admission.dart';
 import 'package:tentura_server/domain/entity/jwt_entity.dart';
 import 'package:tentura_server/domain/request_context.dart';
 import 'package:tentura_server/domain/exception.dart';

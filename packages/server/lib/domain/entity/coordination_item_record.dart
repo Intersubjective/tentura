@@ -1,6 +1,6 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
-import 'package:tentura_server/domain/coordination_stale_rules.dart';
+import 'package:tentura_server/domain/policy/coordination_stale_rules.dart';
 import 'package:tentura_server/utils/id.dart';
 
 part 'coordination_item_record.freezed.dart';

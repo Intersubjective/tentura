@@ -1,11 +1,12 @@
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/enum.dart';
-import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/trust_maintenance_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
 import 'package:tentura_server/domain/port/user_trust_edge_repository_port.dart';
 import 'package:tentura_server/domain/port/witness_window_port.dart';
+import 'package:tentura_server/domain/policy/witness_window_invalidation.dart';
+import 'package:tentura_server/domain/policy/mr_privilege_policy.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
 import 'package:tentura_server/utils/id.dart';
@@ -48,7 +49,11 @@ final class UserTrustEdgeCase extends UseCaseBase {
               objectUserId: objectUserId,
               newAmount: amount,
             );
-        await _invalidateWitnessWindows(subjectUserId, objectUserId);
+        await invalidateWitnessWindowsForPair(
+          _witnessWindow,
+          subjectUserId,
+          objectUserId,
+        );
         if (!formed) return;
         await transaction.record(
           await _attentionIntents!.mutualConnectionFormed(
@@ -66,7 +71,11 @@ final class UserTrustEdgeCase extends UseCaseBase {
     required String sourceUserId,
     Iterable<UserRoles>? userRoles,
   }) async {
-    await _ensureMrPrivilege(userId: userId, userRoles: userRoles);
+    await ensureMrPrivilege(
+      _userRepository,
+      userId: userId,
+      userRoles: userRoles,
+    );
     await _trustEdgeRepository.forceRefreshStar(sourceUserId);
   }
 
@@ -74,30 +83,11 @@ final class UserTrustEdgeCase extends UseCaseBase {
     required String userId,
     Iterable<UserRoles>? userRoles,
   }) async {
-    await _ensureMrPrivilege(userId: userId, userRoles: userRoles);
+    await ensureMrPrivilege(
+      _userRepository,
+      userId: userId,
+      userRoles: userRoles,
+    );
     await _trustMaintenance.forceRefreshAll();
-  }
-
-  Future<void> _invalidateWitnessWindows(
-    String subjectUserId,
-    String objectUserId,
-  ) async {
-    final witnessWindow = _witnessWindow;
-    if (witnessWindow == null) return;
-    await witnessWindow.invalidateFor(userId: subjectUserId);
-    await witnessWindow.invalidateFor(userId: objectUserId);
-  }
-
-  Future<void> _ensureMrPrivilege({
-    required String userId,
-    Iterable<UserRoles>? userRoles,
-  }) async {
-    if (userRoles != null && userRoles.contains(UserRoles.admin)) return;
-    if ((await _userRepository.getById(userId)).hasPrivilege(
-      UserPrivileges.mrInit,
-    )) {
-      return;
-    }
-    throw const UnauthorizedException();
   }
 }

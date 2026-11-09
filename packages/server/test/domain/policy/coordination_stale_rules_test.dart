@@ -1,6 +1,6 @@
 import 'package:test/test.dart';
 import 'package:tentura_server/consts/coordination_item_consts.dart';
-import 'package:tentura_server/domain/coordination_stale_rules.dart';
+import 'package:tentura_server/domain/policy/coordination_stale_rules.dart';
 
 void main() {
   group('validateStaleAfterDays', () {

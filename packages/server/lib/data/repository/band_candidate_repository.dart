@@ -1,12 +1,11 @@
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/capability/capability_evidence_models.dart';
-import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
-import 'package:tentura_server/domain/entity/help_offer_entity.dart';
 import 'package:tentura_server/domain/port/band_candidate_port.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
 import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
 import 'package:tentura_server/domain/port/inbox_repository_port.dart';
+import 'package:tentura_server/utils/typed_wait.dart';
 
 import '../database/tentura_db.dart';
 
@@ -39,19 +38,23 @@ class BandCandidateRepository implements BandCandidatePort {
       return const [];
     }
 
-    final results = await Future.wait([
+    final (
+      activeEdges,
+      helpOffers,
+      rejectedIdList,
+      allEdges,
+      visibilityPeers,
+    ) = await (
       _forwardEdgeRepository.fetchByBeaconId(beaconId),
       _helpOfferRepository.fetchAllByBeaconId(beaconId),
       _inboxRepository.fetchRejectedUserIdsByBeacon(beaconId),
       _forwardEdgeRepository.fetchAllByBeaconId(beaconId),
-      _fetchVisibilityPeers(egoId: egoId, normalizedContext: normalizedContext),
-    ]);
-
-    final activeEdges = results[0] as List<ForwardEdgeEntity>;
-    final helpOffers = results[1] as List<HelpOfferEntity>;
-    final rejectedIds = (results[2] as List<String>).toSet();
-    final allEdges = results[3] as List<ForwardEdgeEntity>;
-    final visibilityPeers = results[4] as List<_VisibilityPeer>;
+      _fetchVisibilityPeers(
+        egoId: egoId,
+        normalizedContext: normalizedContext,
+      ),
+    ).waitAll;
+    final rejectedIds = rejectedIdList.toSet();
     final helpOfferedIds = helpOffers
         .where((c) => c.status == 0)
         .map((c) => c.userId)
@@ -115,11 +118,10 @@ class BandCandidateRepository implements BandCandidatePort {
   Future<Set<String>> recentlyForwardedTo({
     required String egoId,
     required int withinDays,
-  }) =>
-      _forwardEdgeRepository.fetchRecipientIdsForwardedBySenderWithinDays(
-        senderId: egoId,
-        withinDays: withinDays,
-      );
+  }) => _forwardEdgeRepository.fetchRecipientIdsForwardedBySenderWithinDays(
+    senderId: egoId,
+    withinDays: withinDays,
+  );
 
   Future<String?> _fetchBeaconAuthorId(String beaconId) async {
     final row = await _database.managers.beacons

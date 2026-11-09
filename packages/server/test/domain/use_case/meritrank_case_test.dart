@@ -7,8 +7,10 @@ import 'package:tentura_server/env.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/enum.dart';
 import 'package:tentura_server/domain/exception.dart';
+import 'package:tentura_server/domain/exception_codes.dart';
 import 'package:tentura_server/domain/use_case/meritrank_case.dart';
 
+import '../../support/log_capture.dart';
 import 'meritrank_case_mocks.mocks.dart';
 
 void main() {
@@ -90,7 +92,15 @@ void main() {
     test('missing privilege throws UnauthorizedException', () async {
       await expectLater(
         case_.init(userId: userId),
-        throwsA(isA<UnauthorizedException>()),
+        throwsA(
+          isA<UnauthorizedException>().having(
+            (e) => e.code.codeNumber,
+            'code',
+            const AuthExceptionCodes(
+              AuthExceptionCode.authUnauthorizedException,
+            ).codeNumber,
+          ),
+        ),
       );
 
       verify(userRepo.getById(userId)).called(1);
@@ -102,6 +112,34 @@ void main() {
           timeout: anyNamed('timeout'),
         ),
       );
+    });
+
+    test('logs the caller at info before reset', () async {
+      final capture = LogCapture('MeritrankCaseTest');
+      addTearDown(capture.cancel);
+      int? recordsAtReset;
+      when(meritrankRepo.reset()).thenAnswer((_) async {
+        recordsAtReset = capture.records.length;
+      });
+
+      await case_.init(userId: userId, userRoles: [UserRoles.admin]);
+
+      final record = capture.records.single;
+      expect(record.level, Level.INFO);
+      expect(record.message, 'meritrank reset by $userId');
+      expect(recordsAtReset, 1);
+    });
+
+    test('no reset log when the caller is unauthorized', () async {
+      final capture = LogCapture('MeritrankCaseTest');
+      addTearDown(capture.cancel);
+
+      await expectLater(
+        case_.init(userId: userId),
+        throwsA(isA<UnauthorizedException>()),
+      );
+
+      expect(capture.records, isEmpty);
     });
 
     test('forceCalculate triggers calculate with env timeout', () async {

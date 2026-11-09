@@ -6,7 +6,7 @@ import 'package:test/test.dart';
 import 'package:tentura_root/domain/entity/beacon_access.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
-import 'package:tentura_server/domain/beacon_access_policy.dart';
+import 'package:tentura_server/domain/policy/beacon_access_policy.dart';
 
 import '../../support/beacon_hierarchy_fixture.dart';
 import '../../support/pg_test_public_keys.dart';

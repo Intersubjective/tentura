@@ -6,8 +6,10 @@ import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/domain/entity/room_baton.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/policy/baton_selection_policy.dart';
-import 'package:tentura_server/domain/policy/beacon_room_lifecycle_write_policy.dart';
 import 'package:tentura_server/domain/port/beacon_hierarchy_repository_port.dart';
+import 'package:tentura_server/domain/use_case/room_write_guard.dart';
+import 'package:tentura_server/domain/use_case/room_message_rate_limit.dart';
+import 'package:tentura_server/domain/policy/room_access_policy.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/domain/port/post_lock_port.dart';
 import 'package:tentura_server/domain/port/room_baton_repository_port.dart';
@@ -41,59 +43,30 @@ class RoomBatonCase extends UseCaseBase {
   final AttentionIntentCase _attentionIntents;
   final Random _random;
 
-  Future<void> _rejectIfRoomNotWritable(String beaconId) async {
-    final status = await _hierarchyRepository.loadBeaconStatus(beaconId);
-    final hierarchy = _hierarchyRepository;
-    if (status != null &&
-            BeaconRoomLifecycleWritePolicy.blocksOrdinaryUserWrites(status) ||
-        hierarchy is BeaconRoomWriteStatePort &&
-            await (hierarchy as BeaconRoomWriteStatePort).isExpiredPost(
-              beaconId,
-            )) {
-      throw const BeaconCreateException(
-        description: 'Discussion is read-only for this request',
-      );
-    }
-  }
+  Future<void> _rejectIfRoomNotWritable(String beaconId) =>
+      _hierarchyRepository.rejectIfRoomReadOnly(beaconId);
 
   Future<Set<String>> _admittedIds(String beaconId) async {
     final admitted = await _room.listAdmittedMentionParticipants(beaconId);
     return {for (final p in admitted) p.userId};
   }
 
-  /// Mirrors `BeaconRoomCase._canUseRoom`: the author and stewards always
-  /// have room access regardless of their `beacon_participant` row, which an
-  /// admitted-only check (the baton's actual candidate-eligibility rule)
-  /// would wrongly reject the author/steward for.
+  /// [RoomAccessPolicy.canUseRoom] without the Post-author block step: the
+  /// author and stewards always have room access regardless of their
+  /// `beacon_participant` row, which an admitted-only check (the baton's
+  /// actual candidate-eligibility rule) would wrongly reject them for.
   Future<bool> _isAdmitted({
     required String beaconId,
     required String userId,
-  }) async {
-    if (await _room.isBeaconAuthor(beaconId: beaconId, userId: userId)) {
-      return true;
-    }
-    if (await _room.isBeaconSteward(beaconId: beaconId, userId: userId)) {
-      return true;
-    }
-    final participant = await _room.findParticipant(
+  }) => RoomAccessPolicy.canUseRoom(
+    isAuthor: () => _room.isBeaconAuthor(beaconId: beaconId, userId: userId),
+    isBlockedFromPost: () async => false,
+    isSteward: () => _room.isBeaconSteward(beaconId: beaconId, userId: userId),
+    roomAccess: () async => (await _room.findParticipant(
       beaconId: beaconId,
       userId: userId,
-    );
-    return participant?.roomAccess == RoomAccessBits.admitted;
-  }
-
-  /// Same spam control as ordinary room messages (`BeaconRoomCase`).
-  Future<void> _enforceMessageRateLimit(String userId) async {
-    final recent = await _room.countRecentMessagesByAuthor(
-      authorId: userId,
-      window: env.roomMessageRateWindow,
-    );
-    if (recent >= env.roomMessageMaxPerUser) {
-      throw const RateLimitedException(
-        description: 'Too many messages sent, please slow down',
-      );
-    }
-  }
+    ))?.roomAccess,
+  );
 
   /// Posts a new «Who'll take it?» message ([text], optionally replying to
   /// [replyToMessageId]) at the end of the room and asks [candidates] on it.
@@ -132,7 +105,7 @@ class RoomBatonCase extends UseCaseBase {
           description: 'Room access required',
         );
       }
-      await _enforceMessageRateLimit(actorId);
+      await _room.enforceMessageRateLimit(userId: actorId, env: env);
 
       final admittedIds = await _admittedIds(beaconId);
       BatonSelectionPolicy.validateCandidates(

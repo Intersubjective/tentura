@@ -4,6 +4,7 @@ import 'package:built_collection/built_collection.dart';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura/data/gql/tentura_v2_upload.dart';
+import 'package:tentura/data/service/remote_api_client/remote_request_client.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
@@ -16,7 +17,7 @@ import '../gql/_g/post_publish.req.gql.dart';
 class PostPublishRepository implements PostPublishPort {
   const PostPublishRepository(this._remoteApiService);
 
-  final RemoteApiService _remoteApiService;
+  final RemoteRequestClient _remoteApiService;
 
   static const _label = 'PostPublish';
 
@@ -55,7 +56,7 @@ class PostPublishRepository implements PostPublishPort {
                     ),
           ),
         )
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).postPublish);
     return PostPublishResult(
       beaconId: result.beaconId,
@@ -85,7 +86,7 @@ class PostPublishRepository implements PostPublishPort {
               ),
           ),
         )
-        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .firstLinkResponse(label: _label)
         .then((r) => r.dataOrThrow(label: _label).RoomMessageAttachmentAdd);
   }
 }

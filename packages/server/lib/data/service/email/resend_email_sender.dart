@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:logging/logging.dart';
 import 'package:tentura_server/data/service/email/account_deletion_request_email_bodies.dart';
-import 'package:tentura_server/data/service/email/file_sink_email_sender.dart' show FileSinkEmailSender;
 import 'package:tentura_server/data/service/email/templates/email_template_renderer.dart';
 
 import 'package:tentura_server/domain/entity/account_deletion_request_email_payload.dart';
@@ -12,7 +11,7 @@ import 'package:tentura_server/domain/port/email_sender_port.dart';
 import 'package:tentura_server/env.dart';
 
 /// Production sender via the Resend API. Registered through
-/// `EmailSenderModule` (dev/prod), which swaps in [FileSinkEmailSender] when
+/// `EmailSenderModule` (dev/prod), which swaps in `FileSinkEmailSender` when
 /// `EMAIL_DEBUG_SINK_DIR` is set.
 class ResendEmailSender implements EmailSenderPort {
   ResendEmailSender(this._env) : _client = http.Client();
@@ -160,5 +159,6 @@ $inviterLine
     await _post(to: to, subject: r.subject, html: r.html, text: r.text);
   }
 
-  static String _escapeHtml(String s) => AccountDeletionRequestEmailBodies.escapeHtml(s);
+  static String _escapeHtml(String s) =>
+      AccountDeletionRequestEmailBodies.escapeHtml(s);
 }

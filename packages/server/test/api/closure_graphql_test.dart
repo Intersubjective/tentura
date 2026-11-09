@@ -13,7 +13,6 @@ import 'package:tentura_server/api/controllers/graphql/mutation/mutation_closure
 import 'package:tentura_server/api/controllers/graphql/query/query_closure.dart';
 import 'package:tentura_server/domain/closure/closure_band.dart';
 import 'package:tentura_server/domain/closure/closure_entities.dart';
-import 'package:tentura_server/domain/closure/closure_exception.dart';
 import 'package:tentura_server/domain/closure/closure_receipt_payload.dart';
 import 'package:tentura_server/domain/closure/closure_outcome.dart';
 import 'package:tentura_server/domain/closure/membership_reducer.dart';

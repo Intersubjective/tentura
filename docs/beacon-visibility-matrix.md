@@ -48,7 +48,7 @@ Four access levels (0 author, 1 member, 2 observer, 3 stranger).
 Reasons explain why a level-2 viewer sees a request; they drive UI copy
 and some rights (see rights table). Canonical SQL: `beacon_access_level`,
 `beacon_access_reasons` (bitmask); domain: `BeaconAccessPolicy` in
-`packages/server/lib/domain/beacon_access_policy.dart`.
+`packages/server/lib/domain/policy/beacon_access_policy.dart`.
 
 ### Access-reason bitmask
 
@@ -195,7 +195,7 @@ Per-candidate **selectability** (`ForwardCandidate.canForwardTo`):
 | What | File |
 |------|------|
 | Content-read predicate (Dart) | `packages/server/lib/domain/beacon_visibility.dart` |
-| Access policy (Dart) | `packages/server/lib/domain/beacon_access_policy.dart` |
+| Access policy (Dart) | `packages/server/lib/domain/policy/beacon_access_policy.dart` |
 | Content-read + reasons + level (SQL) | `packages/server/lib/data/database/migration/m0098.dart`, `m0123.dart`, `m0170.dart`, `m0171.dart` |
 | Ancestor closure (SQL) | `packages/server/lib/data/database/migration/m0171.dart` |
 | Drop linked-detail predicate (SQL) | `packages/server/lib/data/database/migration/m0172.dart` (history: added in `m0155.dart`) |
