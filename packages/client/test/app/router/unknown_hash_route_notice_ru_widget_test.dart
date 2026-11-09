@@ -145,6 +145,7 @@ void main() {
           deepLinkTransformer: router.deepLinkTransformer,
           reevaluateListenable: router.reevaluateListenable,
           includePrefixMatches: false,
+          navigatorObservers: () => [ClearSnackBarsOnPushObserver()],
         ),
       ),
     );
@@ -155,11 +156,6 @@ void main() {
     tester,
   ) async {
     await pumpUnknownHashRoute(tester);
-    if (!UnknownHashRouteNotice.instance.hasPending) {
-      await router.deepLinkTransformer(Uri.parse('/doesnotexist'));
-      await tester.pump();
-      await tester.pumpAndSettle();
-    }
 
     final messageText = find.descendant(
       of: find.byType(SnackBar),
@@ -177,6 +173,7 @@ void main() {
 
     unawaited(router.pushPath('/settings/zzz'));
     await tester.pumpAndSettle();
-    expect(find.byType(SnackBar), findsOneWidget);
+    expect(UnknownHashRouteNotice.instance.hasPending, isFalse);
+    expect(find.byType(SnackBar), findsNothing);
   });
 }
