@@ -4,11 +4,12 @@ import 'package:flutter/gestures.dart' show HitTestResult;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show RenderMetaData;
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:get_it/get_it.dart';
 
-import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/people_tags/domain/entity/people_tags_entities.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/navigation/app_navigator.dart';
 
 import '../../domain/entity/constellation_field.dart';
 import '../bloc/constellation_tag_lens_cubit.dart';
@@ -402,7 +403,7 @@ Future<void> showConstellationAllTagsSheet({
                       onPressed: () {
                         Navigator.of(sheetContext).pop();
                         unawaited(
-                          sheetContext.router.push(const PeopleTagsRoute()),
+                          GetIt.I<AppNavigator>().openPeopleTags(),
                         );
                       },
                       child: Text(l10n.constellationTagsManage),

@@ -13,14 +13,14 @@ import 'package:get_it/get_it.dart';
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 
-import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_theme.dart';
 import 'package:tentura/domain/exception/generic_exception.dart';
 import 'package:tentura/domain/exception/server_error_copy.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_dispatcher.dart';
+import 'package:tentura/ui/navigation/app_navigator.dart';
 
-class _UnusedRootRouter extends Mock implements RootRouter {}
+class _UnusedNavigator extends Mock implements AppNavigator {}
 
 /// The server's help-offer / coordination error names, in wire order
 /// (code = 1500 + index).
@@ -106,7 +106,7 @@ void main() {
   group('error bar', () {
     setUp(() {
       GetIt.I
-        ..registerSingleton<RootRouter>(_UnusedRootRouter())
+        ..registerSingleton<AppNavigator>(_UnusedNavigator())
         ..registerSingleton<Logger>(Logger('test'));
     });
 

@@ -9,7 +9,6 @@ import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:tentura_root/domain/entity/beacon_access.dart';
 
-import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_theme.dart';
 import 'package:tentura/domain/attention/attention_actor_profiles_case.dart';
 import 'package:tentura/domain/entity/author_invite.dart';
@@ -27,6 +26,7 @@ import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/l10n/l10n_en.dart';
 import 'package:tentura/ui/l10n/l10n_ru.dart';
+import 'package:tentura/ui/navigation/app_navigator.dart';
 import 'package:tentura/ui/widget/undo_snack_bar.dart';
 import 'package:tentura/ui/message/action_message_base.dart';
 
@@ -51,7 +51,7 @@ PendingAuthorInvite _invite(String id, String beaconId, {String? note}) =>
     );
 
 /// `dispatchUiEffect` resolves the router up front; ShowMessage never uses it.
-class _UnusedRootRouter extends Mock implements RootRouter {}
+class _UnusedNavigator extends Mock implements AppNavigator {}
 
 /// A snack bar line a person reads; its icon glyphs are `RichText`s too.
 bool _isCopy(String line) => RegExp(r'\p{L}', unicode: true).hasMatch(line);
@@ -392,7 +392,7 @@ void main() {
       effects = FakeUiEffectPort();
       GetIt.I
         ..registerSingleton<Logger>(Logger('undo-test')) // error bars log
-        ..registerSingleton<RootRouter>(_UnusedRootRouter())
+        ..registerSingleton<AppNavigator>(_UnusedNavigator())
         ..registerSingleton<UiEffectPort>(effects)
         ..registerSingleton<AuthorInviteCase>(buildAuthorInviteCase(port))
         ..registerSingleton<AttentionActorProfilesCase>(

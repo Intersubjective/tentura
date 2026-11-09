@@ -1,11 +1,11 @@
 import 'dart:async';
 
+import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 
-import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/attention/attention_actor_profiles_case.dart';
 import 'package:tentura/domain/attention/attention_case.dart';
@@ -66,9 +66,6 @@ import 'inbox_case_test.dart'
 import '../../support/noop_attention_actor_profiles.dart';
 
 class _HarnessRouter extends Mock implements StackRouter {}
-
-/// The Undo snack bar's effects resolve the dispatcher's router.
-class _MockRootRouter extends Mock implements RootRouter {}
 
 class _TestInboxCubit extends Cubit<InboxState> implements InboxCubit {
   _TestInboxCubit(super.initial);
@@ -490,9 +487,6 @@ Future<void> _pumpStreamView(
   GetIt.I.registerSingleton<AttentionCase>(boot.attention);
   ensureNoopAttentionActorProfilesRegistered();
   if (!GetIt.I.isRegistered<AppNavigator>()) registerFakeAppNavigator();
-  if (!GetIt.I.isRegistered<RootRouter>()) {
-    GetIt.I.registerSingleton<RootRouter>(_MockRootRouter());
-  }
   addTearDown(() {
     if (GetIt.I.isRegistered<AttentionCase>()) {
       GetIt.I.unregister<AttentionCase>();

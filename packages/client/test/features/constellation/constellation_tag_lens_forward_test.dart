@@ -7,6 +7,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../support/constellation_tag_lens_body_harness.dart';
+import '../../support/fake_app_navigator.dart';
 
 const _forwardLabel = 'Forward a request…';
 
@@ -17,7 +18,6 @@ int _shown(String title) => find.text(title).evaluate().length;
 Future<TagLensBodyHarness> _mount(WidgetTester tester) => mountTagLensBody(
   tester,
   field: tagLensHarnessFieldWithViewerRequests(),
-  withRouter: true,
 );
 
 Future<void> _selectNeighbourAndGarden(
@@ -67,8 +67,7 @@ void main() {
       await tester.tap(find.text(_forwardLabel));
       await tester.pumpAndSettle();
 
-      expect(find.text('forward-screen'), findsNothing);
-      expect(m.router!.current.name, isNot('ForwardBeaconRoute'));
+      expect(m.navigator.intents, isEmpty);
     });
 
     testWidgets("picking one opens that Request's forward screen with the "
@@ -80,12 +79,13 @@ void main() {
       await tester.tap(find.text('Help moving').last);
       await tester.pumpAndSettle();
 
-      expect(find.text('forward-screen'), findsOneWidget);
-      final route = m.router!.current;
-      expect(route.name, 'ForwardBeaconRoute');
-      expect(route.params.getString('id'), 'mine-needs-help');
+      // The forward screen of that Request; the tags ride in its `tags`
+      // query (root_router_app_navigator_test.dart).
+      final forward = m.navigator.intents.single;
+      expect(forward.method, 'forwardBeacon');
+      expect(forward.args['beaconId'], 'mine-needs-help');
       expect(
-        route.queryParams.getString('tags').split(',').toSet(),
+        (forward.args['tags']! as String).split(',').toSet(),
         {tagLensNeighbour.id, tagLensGarden.id},
       );
     });
@@ -104,9 +104,12 @@ void main() {
       await tester.tap(find.text('Borrow a drill').last);
       await tester.pumpAndSettle();
 
-      final route = m.router!.current;
-      expect(route.params.getString('id'), 'mine-open');
-      expect(route.queryParams.getString('tags'), tagLensGarden.id);
+      expect(m.navigator.intents, [
+        NavIntent('forwardBeacon', {
+          'beaconId': 'mine-open',
+          'tags': tagLensGarden.id,
+        }),
+      ]);
     });
   });
 }

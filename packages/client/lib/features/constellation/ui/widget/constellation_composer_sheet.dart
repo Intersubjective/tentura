@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:auto_route/auto_route.dart' show PageRouteInfo;
 import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -29,8 +28,8 @@ class ConstellationComposerSheet extends StatelessWidget {
 
   final ConstellationComposerCubit composer;
 
-  /// Receives the full-form route.
-  final ValueChanged<PageRouteInfo> onOpenFullForm;
+  /// Receives the opener of the full form (Post or Request create screen).
+  final ValueChanged<FullFormOpener> onOpenFullForm;
 
   @override
   Widget build(BuildContext context) {
@@ -66,7 +65,7 @@ class _SheetBody extends StatelessWidget {
 
   final ConstellationComposerCubit composer;
 
-  final ValueChanged<PageRouteInfo> onOpenFullForm;
+  final ValueChanged<FullFormOpener> onOpenFullForm;
 
   @override
   Widget build(BuildContext context) {
@@ -149,7 +148,8 @@ class _SheetBody extends StatelessWidget {
     final handoff = await composer.prepareFullFormHandoff();
     if (handoff == null || composer.isClosed) return;
     onOpenFullForm(
-      handoff.toRoute(
+      (navigator) => handoff.open(
+        navigator,
         onRecipientsChanged: composer.restoreRecipients,
         onPublished: () => unawaited(composer.finish()),
       ),

@@ -11,7 +11,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 
-import 'package:tentura/app/router/root_router.gr.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
@@ -21,6 +20,7 @@ import 'package:tentura/features/post_view/ui/widget/post_participants_list.dart
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../support/fake_app_navigator.dart';
 import '../../support/phone_surface.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 
@@ -121,11 +121,13 @@ class _Harness {
   _Harness({
     required this.tester,
     required this.router,
+    required this.navigator,
     required this.effects,
   });
 
   final WidgetTester tester;
   final _RecordingRouter router;
+  final FakeAppNavigator navigator;
   final FakeUiEffectPort effects;
 
   int graphTaps = 0;
@@ -166,6 +168,7 @@ Future<_Harness> _pump(
   final harness = _Harness(
     tester: tester,
     router: router,
+    navigator: registerFakeAppNavigator(),
     effects: effects,
   );
 
@@ -349,10 +352,9 @@ void main() {
       await tester.tap(find.text('Дима'));
       await tester.pump();
 
-      expect(h.router.pushed, hasLength(1));
-      final route = h.router.pushed.single;
-      expect(route, isA<ProfileViewRoute>());
-      expect((route.args! as ProfileViewRouteArgs).id, 'Udima');
+      expect(h.navigator.intents, [
+        const NavIntent('openProfile', {'id': 'Udima'}),
+      ]);
     });
 
     testWidgets('tapping a member who has not opened the Post opens the '
@@ -362,11 +364,9 @@ void main() {
       await tester.tap(find.text('Катя'));
       await tester.pump();
 
-      expect(h.router.pushed, hasLength(1));
-      expect(
-        (h.router.pushed.single.args! as ProfileViewRouteArgs).id,
-        'Ukatya',
-      );
+      expect(h.navigator.intents, [
+        const NavIntent('openProfile', {'id': 'Ukatya'}),
+      ]);
     });
 
     testWidgets('«Как пост дошёл до людей» opens the forwarding graph', (

@@ -80,6 +80,15 @@ void main() {
     ]);
   });
 
+  test('forwardBeacon puts the Request in the path and the tags in the '
+      'query (the forward picker preselects them on a reload)', () async {
+    await navigator.forwardBeacon('B2', tags: 't1,t2');
+
+    final route = router.pushed.single;
+    expect(route.rawPathParams, {'id': 'B2'});
+    expect(route.rawQueryParams, {'tags': 't1,t2'});
+  });
+
   test('createBeacon pushes BeaconCreateRoute with every arg', () async {
     void onRecipientsChanged(Set<String> ids, Map<String, String> notes) {}
     void onPublished() {}
@@ -172,6 +181,22 @@ void main() {
     ]);
   });
 
+  test('resetToHome replaces the stack with Home, or Home on a tab', () async {
+    await navigator.resetToHome();
+    await navigator.resetToHome(tab: HomeTab.inbox);
+
+    expect(router.calls, [
+      'replaceAll [${_describe(const HomeRoute())}]',
+      'replaceAll [${_describe(
+        HomeRoute(
+          children: [
+            inboxTabShell(children: [InboxRoute()]),
+          ],
+        ),
+      )}]',
+    ]);
+  });
+
   test('openPath pushes the path with prefix matches', () async {
     await navigator.openPath('/beacon/B1');
 
@@ -227,6 +252,9 @@ class _RecordingRootRouter extends RootRouter {
 
   final calls = <String>[];
 
+  /// The routes [push] received.
+  final pushed = <PageRouteInfo>[];
+
   bool canMaybePop = true;
 
   @override
@@ -235,6 +263,7 @@ class _RecordingRootRouter extends RootRouter {
     OnNavigationFailure? onFailure,
   }) async {
     calls.add('push ${_describe(route)}');
+    pushed.add(route);
     return null;
   }
 

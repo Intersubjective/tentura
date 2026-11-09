@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 
-import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
@@ -9,6 +9,7 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/forward/domain/entity/forward_edge.dart';
 import 'package:tentura/features/people_tags/ui/widget/person_menu.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/navigation/app_navigator.dart';
 import 'package:tentura/ui/widget/coordination_participant_lookup.dart';
 
 /// Who is in a Post's conversation and who has not opened it yet (M5): a
@@ -168,9 +169,7 @@ class _PersonRow extends StatelessWidget {
         ? l10n.postParticipantAuthor
         : _arrivalNote(l10n) ?? '';
     final row = InkWell(
-      onTap: () => context.router.root.push(
-        ProfileViewRoute(id: participant.userId),
-      ),
+      onTap: () => GetIt.I<AppNavigator>().openProfile(participant.userId),
       child: Padding(
         padding: EdgeInsets.symmetric(
           horizontal: tt.screenHPadding,

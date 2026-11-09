@@ -10,7 +10,6 @@ import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:web/web.dart' as web;
 
-import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/data/service/auth_platform_cleanup.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -30,6 +29,7 @@ import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_bus.dart';
 import 'package:tentura/ui/effect/ui_effect_handler.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/navigation/app_navigator.dart';
 
 import '../../test/features/auth/auth_test_helpers.dart';
 
@@ -103,7 +103,7 @@ Future<void> main() async {
   );
   GetIt.I
     ..registerSingleton<Logger>(log)
-    ..registerSingleton<RootRouter>(_UnusedRouter())
+    ..registerSingleton<AppNavigator>(_UnusedNavigator())
     ..registerSingleton<AuthCubit>(cubit);
   runApp(
     MaterialApp(
@@ -166,7 +166,7 @@ final class _SessionLocal extends EmptyAuthLocal {
   Future<bool> isSessionAccount(String id) async => true;
 }
 
-final class _UnusedRouter extends Mock implements RootRouter {}
+final class _UnusedNavigator extends Mock implements AppNavigator {}
 
 final class _UnusedPlatform extends Mock implements PlatformRepositoryPort {}
 

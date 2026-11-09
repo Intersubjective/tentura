@@ -13,17 +13,17 @@ import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:tentura_root/domain/entity/localizable.dart';
 
-import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_theme.dart';
 import 'package:tentura/features/beacon/data/repository/post_bud_repository.dart';
 import 'package:tentura/features/beacon/domain/beacon_hierarchy_exception.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_dispatcher.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/navigation/app_navigator.dart';
 
 import '../../support/remote_wire_harness.dart';
 
-class _UnusedRootRouter extends Mock implements RootRouter {}
+class _UnusedNavigator extends Mock implements AppNavigator {}
 
 /// What the server's PostCloseForbiddenException travels as.
 const _postCloseForbiddenCode = 1351;
@@ -107,7 +107,7 @@ void main() {
   group('bud refused because only the Post author may close the Post', () {
     setUp(() {
       GetIt.I
-        ..registerSingleton<RootRouter>(_UnusedRootRouter())
+        ..registerSingleton<AppNavigator>(_UnusedNavigator())
         ..registerSingleton<Logger>(Logger('PostCloseRefusedCopyTest'));
     });
     tearDown(GetIt.I.reset);

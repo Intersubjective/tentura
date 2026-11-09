@@ -5,7 +5,6 @@ import 'package:gql_exec/gql_exec.dart';
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
-import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/app/sentry/report_sentry_message.dart';
 import 'package:tentura/app/sentry/report_user_facing_error.dart';
 import 'package:tentura/app/sentry/sentry_init.dart';
@@ -20,6 +19,7 @@ import 'package:tentura/features/beacon_lobby/ui/widget/beacon_lobby_chat.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_dispatcher.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/navigation/app_navigator.dart';
 
 import '../features/beacon_lobby/fake_lobby_port.dart';
 
@@ -43,7 +43,7 @@ class _DeniedQuestionsPort extends FakeLobbyPort {
   }
 }
 
-class _UnusedRouter extends Mock implements RootRouter {}
+class _UnusedNavigator extends Mock implements AppNavigator {}
 
 class _RecordingTransport implements Transport {
   final events = <SentryEvent>[];
@@ -107,7 +107,7 @@ void main() {
     // ignore: invalid_use_of_internal_member
     await Sentry.init((_) {}, options: options);
     GetIt.I
-      ..registerSingleton<RootRouter>(_UnusedRouter())
+      ..registerSingleton<AppNavigator>(_UnusedNavigator())
       ..registerSingleton<Logger>(Logger.detached('domain-error-test'));
   });
 

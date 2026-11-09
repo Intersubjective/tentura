@@ -1,12 +1,13 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 
-import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/navigation/app_navigator.dart';
 import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/widget/semantics_free_tooltip.dart';
 
@@ -309,7 +310,7 @@ class ConstellationAppBarRow extends StatelessWidget {
               PopupMenuItem<void>(
                 key: const Key('constellation.app_bar.people_tags'),
                 onTap: () =>
-                    unawaited(context.router.push(const PeopleTagsRoute())),
+                    unawaited(GetIt.I<AppNavigator>().openPeopleTags()),
                 child: Text(l10n.peopleTagsScreenTitle),
               ),
             ],

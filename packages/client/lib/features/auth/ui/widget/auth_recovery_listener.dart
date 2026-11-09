@@ -2,11 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import 'package:tentura/features/auth/domain/entity/auth_recovery_outcome.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
+import 'package:tentura/ui/navigation/app_navigator.dart';
 
 /// Whether [AuthRecoveryListener] should react to an [AuthState] transition.
 bool authRecoveryListenerShouldListen(
@@ -24,27 +24,26 @@ class AuthRecoveryListener extends StatelessWidget {
   final Widget child;
 
   @override
-  Widget build(BuildContext context) =>
-      BlocListener<AuthCubit, AuthState>(
-        listenWhen: authRecoveryListenerShouldListen,
-        listener: (context, state) {
-          _handlePendingNavigation(context, state);
-          _handleRecoveryBanner(context, state);
-        },
-        child: child,
-      );
+  Widget build(BuildContext context) => BlocListener<AuthCubit, AuthState>(
+    listenWhen: authRecoveryListenerShouldListen,
+    listener: (context, state) {
+      _handlePendingNavigation(context, state);
+      _handleRecoveryBanner(context, state);
+    },
+    child: child,
+  );
 
   void _handlePendingNavigation(BuildContext context, AuthState state) {
     final pending = state.pendingRecoveryNavigation;
     if (pending == null) {
       return;
     }
-    final router = GetIt.I<RootRouter>();
+    final navigator = GetIt.I<AppNavigator>();
     switch (pending) {
       case AuthRecoveryNavigation.nativeLogin:
-        unawaited(router.replaceAll([const AuthLoginRoute()]));
+        unawaited(navigator.resetToLogin());
       case AuthRecoveryNavigation.nativeBack:
-        router.back();
+        navigator.back();
       case AuthRecoveryNavigation.webInviteLanding:
       case AuthRecoveryNavigation.none:
         break;
@@ -61,11 +60,7 @@ class AuthRecoveryListener extends StatelessWidget {
     if (state.authSessionLossCount >= 2 && state.authRecoveryNeeded) {
       messenger.clearMaterialBanners();
       unawaited(
-        GetIt.I<RootRouter>().replaceAll([
-          RecoverRoute(
-            
-          ),
-        ]),
+        GetIt.I<AppNavigator>().resetToRecover(),
       );
       return;
     }
@@ -89,9 +84,7 @@ class AuthRecoveryListener extends StatelessWidget {
               onPressed: () {
                 messenger.clearMaterialBanners();
                 unawaited(
-                  GetIt.I<RootRouter>().push(
-                    RecoverRoute(),
-                  ),
+                  GetIt.I<AppNavigator>().openRecover(),
                 );
               },
               child: Text(l10n?.authSessionProblemFixAction ?? 'Fix sign-in'),

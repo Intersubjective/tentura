@@ -22,6 +22,7 @@ import 'package:tentura/features/constellation/ui/widget/constellation_body.dart
 import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
+import '../../support/fake_app_navigator.dart';
 import '../../support/constellation_apply_via_writes.dart';
 import '../../support/constellation_tag_lens_body_harness.dart';
 import '../../support/fake_clock_port.dart';
@@ -86,7 +87,6 @@ Widget _body({bool reduceMotion = false}) => Builder(
 Future<_Mounted> _mount(
   WidgetTester tester, {
   bool reduceMotion = false,
-  bool withRouter = false,
   ConstellationField? field,
 }) async {
   final server = _SilentAnchorRepository();
@@ -95,7 +95,6 @@ Future<_Mounted> _mount(
   final body = await mountTagLensBody(
     tester,
     field: field,
-    withRouter: withRouter,
     bodyBuilder: () => _body(reduceMotion: reduceMotion),
     placementFor: (store) => ConstellationPlacementCase(
       server,
@@ -428,7 +427,6 @@ void main() {
         'screen', (tester) async {
       final m = await _mount(
         tester,
-        withRouter: true,
         field: tagLensHarnessFieldWithViewerRequests(),
       );
       _enterNeighbour(m.body);
@@ -439,10 +437,12 @@ void main() {
       await tester.tap(find.text('Borrow a drill').last);
       await tester.pumpAndSettle();
 
-      final route = m.body.router!.current;
-      expect(route.name, 'ForwardBeaconRoute');
-      expect(route.params.getString('id'), 'mine-open');
-      expect(route.queryParams.getString('tags'), tagLensNeighbour.id);
+      expect(m.body.navigator.intents, [
+        NavIntent('forwardBeacon', {
+          'beaconId': 'mine-open',
+          'tags': tagLensNeighbour.id,
+        }),
+      ]);
     });
   });
 

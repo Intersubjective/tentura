@@ -9,7 +9,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:mockito/mockito.dart';
 
-import 'package:tentura/app/router/root_router.gr.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
@@ -19,6 +18,7 @@ import 'package:tentura/features/post_view/ui/widget/post_participants_list.dart
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../support/fake_app_navigator.dart';
 import '../../support/add_to_tag_sheet_probe.dart';
 import '../../support/fake_people_tags_repository.dart';
 import '../../support/optional_gate_call.dart';
@@ -78,9 +78,11 @@ class _RecordingRouter extends Mock implements RootStackRouter {
 void main() {
   late PeopleTagsTestRig rig;
   late _RecordingRouter router;
+  late FakeAppNavigator navigator;
 
   setUp(() async {
     router = _RecordingRouter();
+    navigator = registerFakeAppNavigator();
     rig = await PeopleTagsTestRig.create(addToTagProbeRepository(_peerId));
     GetIt.I.registerSingleton<PeopleTagsCase>(rig.peopleTags);
   });
@@ -93,6 +95,7 @@ void main() {
   /// Replaces the people-tags rig with one whose probe tag holds [personId].
   Future<void> useRigFor(String personId) async {
     await GetIt.I.reset();
+    navigator = registerFakeAppNavigator();
     await rig.dispose();
     rig = await PeopleTagsTestRig.create(addToTagProbeRepository(personId));
     GetIt.I.registerSingleton<PeopleTagsCase>(rig.peopleTags);
@@ -185,7 +188,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Add to tag…'), findsNothing);
-      expect(router.pushed.single, isA<ProfileViewRoute>());
+      expect(navigator.named('openProfile'), hasLength(1));
+      expect(navigator.intents, hasLength(1));
     });
 
     for (final way in PersonMenuOpenWay.values) {

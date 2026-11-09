@@ -46,6 +46,7 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../support/fake_app_navigator.dart';
 import '../../support/test_realtime_sync.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../auth/auth_test_helpers.dart';
@@ -226,7 +227,7 @@ void main() {
       ..physicalSize = const Size(420, 900)
       ..devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    final opened = <PageRouteInfo>[];
+    final opened = <FullFormOpener>[];
 
     await tester.pumpWidget(
       MaterialApp(
@@ -255,12 +256,17 @@ void main() {
     await tester.tap(find.byKey(_createButton));
     await tester.pump();
 
-    final route = opened.single;
-    expect(route, isA<BeaconCreateRoute>());
-    final args = route.args! as BeaconCreateRouteArgs;
-    expect(args.draftId, '');
-    expect(args.initialRecipientIds, {'Ua', 'Ub', 'Uc'});
-    expect(args.initialNotes, isEmpty);
+    final navigator = FakeAppNavigator();
+    await opened.single(navigator);
+    // The Request create screen, no draftId and no initialNotes (both empty).
+    final intent = navigator.intents.single;
+    expect(intent.method, 'createBeacon');
+    expect(intent.args.keys, {
+      'initialRecipientIds',
+      'onRecipientsChanged',
+      'onPublished',
+    });
+    expect(intent.args['initialRecipientIds'], {'Ua', 'Ub', 'Uc'});
   });
 
   testWidgets('the full form opened with initial recipients and notes seeds '

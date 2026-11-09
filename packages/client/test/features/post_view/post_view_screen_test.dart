@@ -63,6 +63,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/basic_chat_body.dart';
 import 'package:tentura/ui/widget/hud_labeled_multiline.dart';
 
+import '../../support/fake_app_navigator.dart';
 import '../../support/graph_trust_write_fixture.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../beacon_threads/support/room_body_harness.dart';
@@ -276,6 +277,7 @@ class _Harness {
     required this.room,
     required this.effects,
     required this.router,
+    required this.navigator,
     required this.observer,
   });
 
@@ -284,12 +286,14 @@ class _Harness {
   final _RoomCubit room;
   final FakeUiEffectPort effects;
   final BeaconViewHarnessRouter router;
+  final FakeAppNavigator navigator;
   final _PushObserver observer;
 
-  /// Anything that takes the user somewhere: a router push, a navigation
-  /// effect, or a pushed route (dialog / sheet).
+  /// Anything that takes the user somewhere: a router push, an AppNavigator
+  /// intent, a navigation effect, or a pushed route (dialog / sheet).
   int get navigations =>
       router.pushCount +
+      navigator.intents.length +
       router.replacedPaths.length +
       effects.emitted.whereType<NavigatePush>().length +
       observer.pushes;
@@ -337,6 +341,7 @@ Future<_Harness> _pumpPost(
   final getIt = GetIt.I;
   await getIt.reset();
   addTearDown(getIt.reset);
+  final navigator = registerFakeAppNavigator();
   final profileCubit = _ProfileCubit(viewer);
   final profiles = GraphTrustWriteFixture();
   addTearDown(profiles.dispose);
@@ -473,6 +478,7 @@ Future<_Harness> _pumpPost(
     room: room,
     effects: effects,
     router: router,
+    navigator: navigator,
     observer: observer,
   );
 }
@@ -1193,6 +1199,11 @@ void main() {
       expect(
         h.router.pushCount,
         before,
+        reason: 'no detour through the Forward screen',
+      );
+      expect(
+        h.navigator.named('forwardBeacon'),
+        isEmpty,
         reason: 'no detour through the Forward screen',
       );
 

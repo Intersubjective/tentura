@@ -36,6 +36,7 @@ import 'package:tentura/ui/bloc/presence_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../support/fake_app_navigator.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../beacon_threads/support/room_body_harness.dart';
 import '../beacon_view/beacon_view_screen_harness.dart'
@@ -149,20 +150,7 @@ class _RoomCubit extends RoomBodyHarnessCubit {
   void prepareThreadScroll({String? messageId, String? coordinationItemId}) {}
 }
 
-class _Router extends BeaconViewHarnessRouter {
-  final pushed = <PageRouteInfo>[];
-
-  @override
-  Future<T?> push<T extends Object?>(
-    PageRouteInfo route, {
-    OnNavigationFailure? onFailure,
-  }) {
-    pushed.add(route);
-    return super.push(route, onFailure: onFailure);
-  }
-}
-
-Future<_Router> _pump(
+Future<FakeAppNavigator> _pump(
   WidgetTester tester, {
   required Profile viewer,
   required bool enabled,
@@ -172,6 +160,7 @@ Future<_Router> _pump(
   final getIt = GetIt.I;
   await getIt.reset();
   addTearDown(getIt.reset);
+  final navigator = registerFakeAppNavigator();
   final profileCubit = _ProfileCubit(viewer);
   getIt
     ..registerSingleton<ProfileCubit>(profileCubit)
@@ -227,7 +216,7 @@ Future<_Router> _pump(
     await closing;
   });
 
-  final router = _Router();
+  final router = BeaconViewHarnessRouter();
   const surface = Size(700, 900);
   await tester.binding.setSurfaceSize(surface);
   addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -282,7 +271,7 @@ Future<_Router> _pump(
     if (find.byType(BeaconRoomBody).evaluate().isNotEmpty) break;
   }
   await tester.pump(const Duration(milliseconds: 100));
-  return router;
+  return navigator;
 }
 
 Future<void> _settle(WidgetTester tester) async {
@@ -300,38 +289,39 @@ Future<void> _openOverflow(WidgetTester tester) async {
   await _settle(tester);
 }
 
-BeaconCreateRouteArgs _createArgs(_Router router) =>
-    router.pushed.single.args! as BeaconCreateRouteArgs;
-
 void main() {
   testWidgets('author: ⋮ «Оформить запрос» opens the form for the root', (
     tester,
   ) async {
-    final router = await _pump(tester, viewer: _author, enabled: true);
+    final navigator = await _pump(tester, viewer: _author, enabled: true);
     await _openOverflow(tester);
     await tester.tap(find.text('Оформить запрос'));
     await _settle(tester);
 
-    final args = _createArgs(router);
-    expect(args.parentBeaconId, _postId);
-    expect(args.sourceMessageId, _rootId);
+    expect(navigator.intents, [
+      const NavIntent('createBeacon', {
+        'parentBeaconId': _postId,
+        'sourceMessageId': _rootId,
+      }),
+    ]);
   });
 
   testWidgets('member: opens the form with no source message', (tester) async {
-    final router = await _pump(tester, viewer: _reader, enabled: true);
+    final navigator = await _pump(tester, viewer: _reader, enabled: true);
     await _openOverflow(tester);
     await tester.tap(find.text('Оформить запрос'));
     await _settle(tester);
 
     expect(find.byKey(const Key('PostBud.SourcePicker')), findsNothing);
-    final args = _createArgs(router);
-    expect(args.parentBeaconId, _postId);
-    expect(args.sourceMessageId, '');
+    // No sourceMessageId: it is empty.
+    expect(navigator.intents, [
+      const NavIntent('createBeacon', {'parentBeaconId': _postId}),
+    ]);
   });
 
   testWidgets('silent member: still gets «Оформить запрос»', (tester) async {
     final silent = const Profile(id: 'Ussilent', displayName: 'Тихон');
-    final router = await _pump(
+    final navigator = await _pump(
       tester,
       viewer: silent,
       enabled: true,
@@ -341,9 +331,9 @@ void main() {
     await tester.tap(find.text('Оформить запрос'));
     await _settle(tester);
 
-    final args = _createArgs(router);
-    expect(args.parentBeaconId, _postId);
-    expect(args.sourceMessageId, '');
+    expect(navigator.intents, [
+      const NavIntent('createBeacon', {'parentBeaconId': _postId}),
+    ]);
   });
 
   testWidgets('gate off: no entry in ⋮', (tester) async {

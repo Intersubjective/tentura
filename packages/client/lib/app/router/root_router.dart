@@ -953,6 +953,19 @@ class RootRouter extends RootStackRouter implements AppNavigator {
   Future<void> resetToLogin() => replaceAll([const AuthLoginRoute()]);
 
   @override
+  Future<void> resetToHome({HomeTab? tab}) {
+    if (tab == null) return replaceAll([const HomeRoute()]);
+    final spec = HomeTabSpec.forTab(tab);
+    return replaceAll([
+      HomeRoute(
+        children: [
+          spec.shell(children: [spec.rootRoute()]),
+        ],
+      ),
+    ]);
+  }
+
+  @override
   Future<void> openPath(String path) => pushPath(
     path,
     includePrefixMatches: true,

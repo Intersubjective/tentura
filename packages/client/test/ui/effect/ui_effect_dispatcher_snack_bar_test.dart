@@ -6,18 +6,18 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:mockito/mockito.dart';
 
-import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_theme.dart';
 import 'package:tentura/features/beacon_create/ui/message/beacon_create_message.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_dispatcher.dart';
+import 'package:tentura/ui/navigation/app_navigator.dart';
 
 /// [dispatchUiEffect] resolves the router up front; ShowMessage never uses it.
-class _UnusedRootRouter extends Mock implements RootRouter {}
+class _UnusedNavigator extends Mock implements AppNavigator {}
 
 void main() {
   setUp(() {
-    GetIt.I.registerSingleton<RootRouter>(_UnusedRootRouter());
+    GetIt.I.registerSingleton<AppNavigator>(_UnusedNavigator());
   });
 
   tearDown(GetIt.I.reset);

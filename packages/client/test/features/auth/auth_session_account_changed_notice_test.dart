@@ -11,7 +11,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart' show Mock;
 
-import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura_root/domain/entity/localizable.dart';
@@ -31,6 +30,7 @@ import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_handler.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/navigation/app_navigator.dart';
 import 'package:http/http.dart' as http;
 
 import '../../data/service/_session_account_test_harness.dart';
@@ -51,7 +51,7 @@ void _acceptAuth(FakeRealtimeSocket socket) {
 void main() {
   setUp(() {
     GetIt.I
-      ..registerSingleton<RootRouter>(_UnusedRootRouter())
+      ..registerSingleton<AppNavigator>(_UnusedNavigator())
       ..registerSingleton<Logger>(Logger('SessionAccountChangeTest'));
   });
   tearDown(GetIt.I.reset);
@@ -399,7 +399,7 @@ final class _RecordingPlatformCleanup extends TestAuthPlatformCleanup {
   }
 }
 
-final class _UnusedRootRouter extends Mock implements RootRouter {}
+final class _UnusedNavigator extends Mock implements AppNavigator {}
 
 final class _SessionLocal implements AuthLocalRepositoryPort {
   String _current = _accountA;

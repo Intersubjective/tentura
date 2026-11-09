@@ -3,9 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
-import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/navigation/app_navigator.dart';
 
 import '../../domain/entity/constellation_field.dart';
 import '../bloc/constellation_cubit.dart';
@@ -20,7 +20,7 @@ bool constellationFieldHasNoContacts(
 ) => field.peers.every((p) => p.id == viewerId);
 
 /// People › Invitations, where a new invite link is made.
-void _openInvitations() => unawaited(GetIt.I<RootRouter>().openInvitations());
+void _openInvitations() => unawaited(GetIt.I<AppNavigator>().openInvitations());
 
 /// Map-surface banner for a field with nobody on it but the viewer (#252):
 /// what is missing, why trust matters, and an invite.

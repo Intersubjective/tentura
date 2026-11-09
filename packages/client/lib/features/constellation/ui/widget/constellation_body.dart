@@ -8,7 +8,6 @@ import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
 
-import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/app/platform/web_semantics.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/features/block/domain/use_case/block_case.dart';
@@ -30,6 +29,7 @@ import 'package:tentura/features/people_tags/domain/entity/people_tags_entities.
 import 'package:tentura/features/people_tags/domain/use_case/people_tags_case.dart';
 import 'package:tentura/features/people_tags/ui/widget/tag_editor_dialog.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/navigation/app_navigator.dart';
 import 'package:tentura/ui/widget/undo_snack_bar.dart';
 import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/widget/browser_context_menu_hold.dart';
@@ -918,9 +918,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
     _exitArrangingIfActive();
     context.read<ConstellationCubit>().openedFieldBeacon(beaconId);
     unawaited(() async {
-      await context.router.push(
-        BeaconViewRoute(id: beaconId, viewTab: viewTab),
-      );
+      await GetIt.I<AppNavigator>().openBeacon(beaconId, viewTab: viewTab);
       if (context.mounted) await context.read<ConstellationCubit>().load();
     }());
   }
@@ -970,7 +968,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
         _showActionMessage(context, message);
       case ConstellationRequestPreflightReady(:final request):
         _exitArrangingIfActive();
-        await context.router.push(ForwardBeaconRoute(beaconId: request.id));
+        await GetIt.I<AppNavigator>().forwardBeacon(request.id);
     }
   }
 
@@ -2196,11 +2194,9 @@ class _ConstellationBodyState extends State<ConstellationBody>
     final picked = await showConstellationTagLensRequestPicker(context, mine);
     if (picked == null || !context.mounted) return;
     _exitArrangingIfActive();
-    await context.router.push(
-      ForwardBeaconRoute(
-        beaconId: picked.id,
-        tags: ownTagIds.isEmpty ? null : ownTagIds.join(','),
-      ),
+    await GetIt.I<AppNavigator>().forwardBeacon(
+      picked.id,
+      tags: ownTagIds.isEmpty ? null : ownTagIds.join(','),
     );
   }
 
@@ -2817,8 +2813,8 @@ class _ConstellationBodyState extends State<ConstellationBody>
                 : Positioned.fill(
                     child: ConstellationComposerSheet(
                       composer: composer,
-                      onOpenFullForm: (route) => unawaited(() async {
-                        await context.router.push(route);
+                      onOpenFullForm: (open) => unawaited(() async {
+                        await open(GetIt.I<AppNavigator>());
                         if (context.mounted) await cubit.load();
                       }()),
                     ),

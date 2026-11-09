@@ -111,6 +111,10 @@ abstract interface class AppNavigator {
   /// Replaces the whole stack with the sign-in screen.
   Future<void> resetToLogin();
 
+  /// Replaces the whole stack with Home: on [tab]'s root page when given,
+  /// else on Home's default tab.
+  Future<void> resetToHome({HomeTab? tab});
+
   /// Pushes [path] on the root stack, prefix matches allowed; a path that
   /// does not resolve is logged, not thrown.
   Future<void> openPath(String path);

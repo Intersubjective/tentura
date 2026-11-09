@@ -491,7 +491,7 @@ void main() {
       testWidgets('${archive.name}: «Оформить запрос» is offered', (
         tester,
       ) async {
-        final (:router, navigator: _) = await _pump(tester, archive: archive);
+        final (:router, :navigator) = await _pump(tester, archive: archive);
         router.pushed.clear();
 
         await _openOverflow(tester);
@@ -504,8 +504,10 @@ void main() {
         await tester.tap(menuEntry);
         await _settle(tester);
 
-        final args = router.pushed.single.args! as BeaconCreateRouteArgs;
-        expect(args.parentBeaconId, _postId);
+        expect(navigator.intents, [
+          const NavIntent('createBeacon', {'parentBeaconId': _postId}),
+        ]);
+        expect(router.pushed, isEmpty);
       });
 
       testWidgets('${archive.name}: a member can still leave', (tester) async {

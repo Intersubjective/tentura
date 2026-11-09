@@ -4,7 +4,6 @@ import 'package:get_it/get_it.dart';
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 
-import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_theme.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/port/realtime_sync_port.dart';
@@ -15,10 +14,11 @@ import 'package:tentura/features/invitation/data/repository/invitation_repositor
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_dispatcher.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/navigation/app_navigator.dart';
 
 import '../../support/remote_wire_harness.dart';
 
-class _UnusedRootRouter extends Mock implements RootRouter {}
+class _UnusedNavigator extends Mock implements AppNavigator {}
 
 class _UnusedBeaconRepository extends Mock implements BeaconRepository {}
 
@@ -33,7 +33,7 @@ void main() {
     () {
       setUp(() {
         GetIt.I
-          ..registerSingleton<RootRouter>(_UnusedRootRouter())
+          ..registerSingleton<AppNavigator>(_UnusedNavigator())
           ..registerSingleton<Logger>(Logger('ArchivedPostErrorCopyTest'));
       });
       tearDown(GetIt.I.reset);

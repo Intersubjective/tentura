@@ -8,7 +8,6 @@ import 'package:get_it/get_it.dart';
 import 'package:logging/logging.dart';
 
 import 'package:tentura/app/router/invite_deep_link.dart';
-import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/home/ui/bloc/post_join_navigation_cubit.dart';
@@ -17,18 +16,10 @@ import 'package:tentura/features/invitation/ui/screen/accept_invite_screen.dart'
 import 'package:tentura/ui/effect/ui_effect_handler.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../support/fake_app_navigator.dart';
 import '../../support/phone_surface.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'accept_invite_cubit_test.dart' show FakeInvitationAcceptPort;
-
-class _FakeRootRouter extends Fake implements RootRouter {
-  @override
-  Future<void> replaceAll(
-    List<PageRouteInfo<dynamic>> routes, {
-    OnNavigationFailure? onFailure,
-    bool updateExistingRoutes = true,
-  }) async {}
-}
 
 Future<void> _pumpInvalidInviteFromDeepLink(
   WidgetTester tester, {
@@ -43,18 +34,10 @@ Future<void> _pumpInvalidInviteFromDeepLink(
   addTearDown(cubit.close);
 
   final getIt = GetIt.I;
-  if (getIt.isRegistered<RootRouter>()) {
-    await getIt.unregister<RootRouter>();
-  }
-  getIt.registerSingleton<RootRouter>(_FakeRootRouter());
+  registerFakeAppNavigator();
   if (!getIt.isRegistered<Logger>()) {
     getIt.registerSingleton<Logger>(Logger('issue-1124-invite'));
   }
-  addTearDown(() async {
-    if (getIt.isRegistered<RootRouter>()) {
-      await getIt.unregister<RootRouter>();
-    }
-  });
 
   await tester.pumpWidget(
     MaterialApp(
@@ -103,7 +86,10 @@ void main() {
 
       expect(find.byType(SnackBar), findsOneWidget);
       final snackCopy = find
-          .descendant(of: find.byType(SnackBar), matching: find.byType(RichText))
+          .descendant(
+            of: find.byType(SnackBar),
+            matching: find.byType(RichText),
+          )
           .evaluate()
           .map((e) => (e.widget as RichText).text.toPlainText())
           .join(' ');

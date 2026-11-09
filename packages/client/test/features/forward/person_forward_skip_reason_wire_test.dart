@@ -20,7 +20,6 @@ import 'package:mockito/mockito.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_root/domain/entity/localizable.dart';
 
-import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/contacts/contact_name_store.dart';
@@ -42,6 +41,7 @@ import 'package:tentura/ui/effect/ui_effect_bus.dart';
 import 'package:tentura/ui/effect/ui_effect_handler.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/navigation/app_navigator.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
 import '../../support/remote_wire_harness.dart';
@@ -68,7 +68,7 @@ const _davePerson = Profile(
   rScore: 1,
 );
 
-class _UnusedRootRouter extends Mock implements RootRouter {}
+class _UnusedNavigator extends Mock implements AppNavigator {}
 
 class _OneBeaconRepository implements BeaconRepository {
   @override
@@ -322,11 +322,11 @@ void main() {
   group('the already-sent message on a 375×667 phone in Russian', () {
     setUp(() {
       GetIt.I
-        ..registerSingleton<RootRouter>(_UnusedRootRouter())
+        ..registerSingleton<AppNavigator>(_UnusedNavigator())
         ..registerSingleton<Logger>(Logger('PersonForwardSkipReasonTest'));
     });
     tearDown(() async {
-      await GetIt.I.unregister<RootRouter>();
+      await GetIt.I.unregister<AppNavigator>();
       await GetIt.I.unregister<Logger>();
     });
 

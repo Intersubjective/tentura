@@ -4,15 +4,14 @@
 // step afterward (drag the new node, same as any other beacon on the field)
 // — see constellation_cubit.dart's anchorTargetForNode.
 
-
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/features/beacon_create/ui/bloc/beacon_create_cubit.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_composer_cubit.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
 
+import '../../support/fake_app_navigator.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../beacon_create/fake_beacon_ports.dart';
 
@@ -76,17 +75,20 @@ void main() {
     });
 
     test(
-      'opens BeaconCreateRoute with empty draft id and current recipients',
-      () {
+      'opens the Request create screen with empty draft id and current '
+      'recipients',
+      () async {
         composer.start(BeaconKind.request, Offset.zero);
+        final navigator = FakeAppNavigator();
 
-        final route = composer.fullFormHandoff()!.toRoute();
+        await composer.fullFormHandoff()!.open(navigator);
 
-        expect(route, isA<BeaconCreateRoute>());
-        final args = route.args! as BeaconCreateRouteArgs;
-        expect(args.draftId, '');
-        expect(args.initialRecipientIds, {'Ua', 'Ub', 'Uc'});
-        expect(args.initialNotes, isEmpty);
+        // No draftId and no initialNotes: both are empty.
+        expect(navigator.intents, [
+          const NavIntent('createBeacon', {
+            'initialRecipientIds': {'Ua', 'Ub', 'Uc'},
+          }),
+        ]);
       },
     );
 
@@ -136,14 +138,18 @@ void main() {
       expect(handoff!.recipientIds, {'Ua', 'Uc'});
     });
 
-    test('opens PostCreateRoute with the current recipient selection', () {
+    test('opens the Post create screen with the current recipient '
+        'selection', () async {
       composer.start(BeaconKind.post, Offset.zero);
+      final navigator = FakeAppNavigator();
 
-      final route = composer.fullFormHandoff()!.toRoute();
+      await composer.fullFormHandoff()!.open(navigator);
 
-      expect(route, isA<PostCreateRoute>());
-      final args = route.args! as PostCreateRouteArgs;
-      expect(args.initialRecipientIds, {'Ua', 'Ub', 'Uc'});
+      expect(navigator.intents, [
+        const NavIntent('createPost', {
+          'initialRecipientIds': {'Ua', 'Ub', 'Uc'},
+        }),
+      ]);
     });
   });
 

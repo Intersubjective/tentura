@@ -4,23 +4,23 @@ import 'package:get_it/get_it.dart';
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 
-import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_theme.dart';
 import 'package:tentura/features/profile_view/data/repository/mutual_friends_repository.dart';
 import 'package:tentura/features/profile_view/ui/widget/mutual_friends_button.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_dispatcher.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/navigation/app_navigator.dart';
 
 import '../support/phone_surface.dart';
 import '../support/remote_wire_harness.dart';
 
 // Error effects resolve the router, but displaying the error never uses it.
-class _UnusedRootRouter extends Mock implements RootRouter {}
+class _UnusedNavigator extends Mock implements AppNavigator {}
 
 void main() {
   setUp(() {
-    GetIt.I.registerSingleton<RootRouter>(_UnusedRootRouter());
+    GetIt.I.registerSingleton<AppNavigator>(_UnusedNavigator());
     GetIt.I.registerSingleton<Logger>(Logger('generic-error-snackbar'));
   });
 

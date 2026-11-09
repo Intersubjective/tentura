@@ -12,7 +12,6 @@ import 'package:http/testing.dart';
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart' show Mock;
 
-import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
@@ -29,6 +28,7 @@ import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_handler.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/navigation/app_navigator.dart';
 
 import '../../data/service/_session_account_test_harness.dart';
 import '../../support/phone_surface.dart';
@@ -38,7 +38,7 @@ import 'cookie_sign_in_test_support.dart';
 void main() {
   setUp(() {
     GetIt.I
-      ..registerSingleton<RootRouter>(_UnusedRouter())
+      ..registerSingleton<AppNavigator>(_UnusedNavigator())
       ..registerSingleton<Logger>(Logger('CookieSignInRecoveryWireTest'));
   });
   tearDown(GetIt.I.reset);
@@ -456,7 +456,7 @@ final class _CurrentProfile extends Fake implements ProfileCubit {
   Stream<ProfileState> get stream => const Stream.empty();
 }
 
-final class _UnusedRouter extends Mock implements RootRouter {}
+final class _UnusedNavigator extends Mock implements AppNavigator {}
 
 final class _UnusedPlatform extends Fake implements PlatformRepositoryPort {}
 

@@ -1,10 +1,10 @@
 import 'dart:async';
-import 'dart:ui' show Offset;
+import 'dart:ui' show Offset, VoidCallback;
 
-import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/features/beacon_create/ui/bloc/beacon_create_cubit.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
+import 'package:tentura/ui/navigation/app_navigator.dart';
 
 import '../../domain/radius_recipient_selection.dart';
 import '../util/layout_geometry_adapters.dart';
@@ -35,18 +35,20 @@ class ConstellationComposerHandoff {
   final Set<String> recipientIds;
   final Map<String, String> notes;
 
-  PageRouteInfo toRoute({
+  /// Opens the full create screen (Post or Request) for this hand-off.
+  Future<void> open(
+    AppNavigator navigator, {
     void Function(Set<String>, Map<String, String>)? onRecipientsChanged,
     VoidCallback? onPublished,
   }) {
     if (kind == BeaconKind.post) {
-      return PostCreateRoute(
+      return navigator.createPost(
         initialRecipientIds: recipientIds,
         onRecipientsChanged: onRecipientsChanged,
         onPublished: onPublished,
       );
     }
-    return BeaconCreateRoute(
+    return navigator.createBeacon(
       draftId: draftId ?? '',
       initialRecipientIds: recipientIds,
       initialNotes: notes,
@@ -55,6 +57,10 @@ class ConstellationComposerHandoff {
     );
   }
 }
+
+/// Opens the full create form of a hand-off through [navigator]: the composer
+/// sheet builds it, the Field runs it.
+typedef FullFormOpener = Future<void> Function(AppNavigator navigator);
 
 /// Owns the graph composer: recipient selection, the draft position and the
 /// lazily created server draft with its embedded [ForwardCubit].

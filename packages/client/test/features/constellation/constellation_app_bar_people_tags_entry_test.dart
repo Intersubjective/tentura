@@ -10,6 +10,7 @@ import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart'
 import 'package:tentura/features/constellation/ui/widget/constellation_app_bar.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../support/fake_app_navigator.dart';
 import '../../support/constellation_store_fixture.dart';
 import '../../support/optional_gate_call.dart';
 
@@ -138,29 +139,39 @@ void main() {
     final cubit = await _loadCubit();
     addTearDown(cubit.close);
     final router = _RecordingRouter();
+    final navigator = registerFakeAppNavigator();
 
     await _pumpAppBar(tester, cubit: cubit, router: router, gate: true);
     await tester.tap(find.byKey(const Key('constellation.app_bar.menu')));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('constellation.app_bar.people_tags')));
+    await tester.tap(
+      find.byKey(const Key('constellation.app_bar.people_tags')),
+    );
     await tester.pumpAndSettle();
 
-    expect(router.pushed.map((r) => r.routeName), [PeopleTagsRoute.name]);
+    expect(navigator.intents, [const NavIntent('openPeopleTags')]);
+    expect(router.pushed, isEmpty);
   });
 
-  testWidgets('the Field menu has no People tags entry while the feature is off', (
-    tester,
-  ) async {
-    final cubit = await _loadCubit();
-    addTearDown(cubit.close);
-
-    await _pumpAppBar(
+  testWidgets(
+    'the Field menu has no People tags entry while the feature is off',
+    (
       tester,
-      cubit: cubit,
-      router: _RecordingRouter(),
-      gate: false,
-    );
+    ) async {
+      final cubit = await _loadCubit();
+      addTearDown(cubit.close);
 
-    expect(find.byKey(const Key('constellation.app_bar.people_tags')), findsNothing);
-  });
+      await _pumpAppBar(
+        tester,
+        cubit: cubit,
+        router: _RecordingRouter(),
+        gate: false,
+      );
+
+      expect(
+        find.byKey(const Key('constellation.app_bar.people_tags')),
+        findsNothing,
+      );
+    },
+  );
 }

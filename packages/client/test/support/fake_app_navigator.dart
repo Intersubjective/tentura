@@ -187,6 +187,10 @@ class FakeAppNavigator implements AppNavigator {
   Future<void> resetToLogin() async => _record('resetToLogin');
 
   @override
+  Future<void> resetToHome({HomeTab? tab}) async =>
+      _record('resetToHome', {'tab': tab});
+
+  @override
   Future<void> openPath(String path) async =>
       _record('openPath', {'path': path});
 

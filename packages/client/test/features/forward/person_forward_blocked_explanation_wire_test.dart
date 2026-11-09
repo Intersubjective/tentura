@@ -22,7 +22,6 @@ import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
-import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/contacts/contact_name_store.dart';
 import 'package:tentura/domain/entity/beacon.dart';
@@ -43,6 +42,7 @@ import 'package:tentura/ui/effect/ui_effect_bus.dart';
 import 'package:tentura/ui/effect/ui_effect_handler.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/navigation/app_navigator.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
 import '../../support/remote_wire_harness.dart';
@@ -64,7 +64,7 @@ final _beacon = Beacon.empty.copyWith(
   author: const Profile(id: _me),
 );
 
-class _UnusedRootRouter extends Mock implements RootRouter {}
+class _UnusedNavigator extends Mock implements AppNavigator {}
 
 class _OneBeaconRepository implements BeaconRepository {
   @override
@@ -382,10 +382,10 @@ void main() {
             addTearDown(() => tester.binding.setSurfaceSize(null));
           }
           GetIt.I
-            ..registerSingleton<RootRouter>(_UnusedRootRouter())
+            ..registerSingleton<AppNavigator>(_UnusedNavigator())
             ..registerSingleton<Logger>(Logger('BlockedForwardRefreshTest'));
           addTearDown(() async {
-            await GetIt.I.unregister<RootRouter>();
+            await GetIt.I.unregister<AppNavigator>();
             await GetIt.I.unregister<Logger>();
           });
           final bus = UiEffectBus();

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
-import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/lazy_write_notice.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -21,6 +20,7 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../ui/effect/fake_ui_effect_port.dart';
+import 'fake_app_navigator.dart';
 import 'constellation_store_fixture.dart';
 import 'fake_people_tags_repository.dart';
 
@@ -196,21 +196,18 @@ typedef TagLensBodyHarness = ({
   ConstellationCubit field,
   ConstellationTagLensCubit lens,
   PeopleTagsTestRig rig,
-  RootStackRouter? router,
+  FakeAppNavigator navigator,
 });
 
 /// Mounts [ConstellationBody] on the tag-lens field with the people-tags
 /// store registered in GetIt (as the app does) and a screen-scoped lens.
+/// Navigation is recorded on the returned [FakeAppNavigator].
 Future<TagLensBodyHarness> mountTagLensBody(
   WidgetTester tester, {
   ConstellationPlacementCase Function(ConstellationFieldStoreCase store)?
   placementFor,
   ConstellationField? field,
   List<PersonTag>? tagList,
-
-  /// Hosts the body in a router that knows the forward route, so a push to
-  /// it can be observed on the returned router.
-  bool withRouter = false,
 
   /// Replaces the default [ConstellationBody], e.g. to turn feature flags on
   /// or wrap it in a media query.
@@ -278,47 +275,18 @@ Future<TagLensBodyHarness> mountTagLensBody(
         bodyBuilder?.call() ??
         ConstellationBody(legendExpanded: false, onToggleLegend: () {}),
   );
-  RootStackRouter? router;
-  if (withRouter) {
-    router = RootStackRouter.build(
-      routes: [
-        AutoRoute(
-          page: PageInfo('TagLensHostRoute', builder: (_) => body()),
-          initial: true,
-        ),
-        AutoRoute(
-          page: PageInfo(
-            ForwardBeaconRoute.name,
-            builder: (_) => const Scaffold(body: Text('forward-screen')),
-          ),
-          path: '/forward/:id',
-        ),
-      ],
-    );
-    addTearDown(router.dispose);
-    await tester.pumpWidget(
-      MaterialApp.router(
-        locale: locale,
-        theme: TenturaTheme.light(),
-        localizationsDelegates: L10n.localizationsDelegates,
-        supportedLocales: L10n.supportedLocales,
-        routerConfig: router.config(),
-        builder: (_, child) => scoped(child!),
-      ),
-    );
-  } else {
-    await tester.pumpWidget(
-      MaterialApp(
-        locale: locale,
-        theme: TenturaTheme.light(),
-        localizationsDelegates: L10n.localizationsDelegates,
-        supportedLocales: L10n.supportedLocales,
-        home: scoped(body()),
-      ),
-    );
-  }
+  final navigator = registerFakeAppNavigator();
+  await tester.pumpWidget(
+    MaterialApp(
+      locale: locale,
+      theme: TenturaTheme.light(),
+      localizationsDelegates: L10n.localizationsDelegates,
+      supportedLocales: L10n.supportedLocales,
+      home: scoped(body()),
+    ),
+  );
   await settleTagLensBody(tester);
-  return (field: cubit, lens: lens, rig: rig, router: router);
+  return (field: cubit, lens: lens, rig: rig, navigator: navigator);
 }
 
 Future<void> settleTagLensBody(WidgetTester tester) async {

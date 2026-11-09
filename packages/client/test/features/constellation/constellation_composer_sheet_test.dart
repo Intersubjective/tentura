@@ -10,7 +10,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 
-import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/domain/entity/invitation_entity.dart';
@@ -27,6 +26,7 @@ import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
+import '../../support/fake_app_navigator.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../beacon_create/fake_beacon_ports.dart';
 
@@ -268,7 +268,7 @@ void main() {
       'for a Post: labeled «Создать», opens PostCreateRoute with the '
       'current selection, and closes the composer',
       (tester) async {
-        final opened = <PageRouteInfo>[];
+        final opened = <FullFormOpener>[];
         await startPost(tester);
         tester.view
           ..physicalSize = narrow
@@ -310,12 +310,16 @@ void main() {
         await tester.tap(find.byKey(_createButton));
         await tester.pump();
 
-        final route = opened.single;
-        expect(route, isA<PostCreateRoute>());
-        final args = route.args! as PostCreateRouteArgs;
-        expect(args.initialRecipientIds, selectedBefore);
-        expect(args.initialRecipientIds, contains('Ue'));
-        args.onRecipientsChanged!.call({'Ud', 'Ue'}, const {});
+        final navigator = FakeAppNavigator();
+        await opened.single(navigator);
+        final intent = navigator.intents.single;
+        expect(intent.method, 'createPost');
+        expect(intent.args['initialRecipientIds'], selectedBefore);
+        expect(intent.args['initialRecipientIds'], contains('Ue'));
+        final onRecipientsChanged =
+            intent.args['onRecipientsChanged']!
+                as void Function(Set<String>, Map<String, String>);
+        onRecipientsChanged({'Ud', 'Ue'}, const {});
         await tester.pumpAndSettle();
         expect(composer.selection.center, centerBefore);
         expect(composer.selection.radius, radiusBefore);

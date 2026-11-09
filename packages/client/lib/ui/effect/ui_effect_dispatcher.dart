@@ -1,12 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:logging/logging.dart';
 
-import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/domain/exception/generic_exception.dart';
 import 'package:tentura/features/auth/domain/exception.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
+import 'package:tentura/ui/navigation/app_navigator.dart';
+import 'package:tentura/ui/navigation/home_tab.dart';
 
 import '../l10n/l10n.dart';
 import '../message/action_message_base.dart';
@@ -15,8 +15,8 @@ import 'ui_effect.dart';
 
 /// Executes a [UiEffect] using the given [BuildContext] (root adapter).
 ///
-/// Navigation uses [RootRouter] from GetIt because [UiEffectHandler] lives in
-/// `MaterialApp.router`'s builder — above the AutoRouter subtree — so
+/// Navigation uses [AppNavigator] from GetIt because [UiEffectHandler] lives
+/// in `MaterialApp.router`'s builder — above the AutoRouter subtree — so
 /// `context.router` is unavailable there.
 void dispatchUiEffect(
   BuildContext context,
@@ -24,34 +24,22 @@ void dispatchUiEffect(
   String? localeName,
 }) {
   localeName ??= L10n.of(context)?.localeName;
-  final router = GetIt.I<RootRouter>();
+  final navigator = GetIt.I<AppNavigator>();
   switch (effect) {
     case NavigatePush(:final path):
-      router.pushPath(
-        path,
-        includePrefixMatches: true,
-        onFailure: GetIt.I<Logger>().fine,
-      );
+      unawaited(navigator.openPath(path));
     case NavigateBlockedUsers():
-      unawaited(router.openBlockedUsers());
+      unawaited(navigator.openBlockedUsers());
     case NavigateBack(:final result):
-      unawaited(_maybePopOrReplaceWithHome(router, result));
+      unawaited(navigator.popOrGoHome(result));
     case NavigateReplace(:final target):
       switch (target) {
         case NavigateReplaceTarget.home:
-          unawaited(router.replaceAll([const HomeRoute()]));
+          unawaited(navigator.resetToHome());
         case NavigateReplaceTarget.homeInboxTab:
-          unawaited(
-            router.replaceAll([
-              HomeRoute(
-                children: [
-                  inboxTabShell(children: [InboxRoute()]),
-                ],
-              ),
-            ]),
-          );
+          unawaited(navigator.resetToHome(tab: HomeTab.inbox));
         case NavigateReplaceTarget.authLogin:
-          unawaited(router.replaceAll([const AuthLoginRoute()]));
+          unawaited(navigator.resetToLogin());
       }
     case ShowMessage(:final message):
       void show() {
@@ -108,26 +96,5 @@ void dispatchUiEffect(
             error: error is AuthSessionLostException ? null : error,
           );
       }
-  }
-}
-
-Future<void> _maybePopOrReplaceWithHome(
-  RootRouter router,
-  Object? result,
-) => maybePopOrReplaceWithHomeForTesting(
-  result: result,
-  maybePop: (popResult) => router.maybePop(popResult),
-  replaceWithHome: () => router.replaceAll([const HomeRoute()]),
-);
-
-@visibleForTesting
-Future<void> maybePopOrReplaceWithHomeForTesting({
-  required Future<bool> Function(Object? result) maybePop,
-  required Future<void> Function() replaceWithHome,
-  Object? result,
-}) async {
-  final didPop = await maybePop(result);
-  if (!didPop) {
-    await replaceWithHome();
   }
 }

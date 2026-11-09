@@ -1,9 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
-import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
@@ -21,6 +21,7 @@ import 'package:tentura/features/forward/ui/widget/beacon_invite_flow.dart';
 import 'package:tentura/features/invitation/ui/bloc/invitation_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/navigation/app_navigator.dart';
 import 'package:tentura/ui/utils/post_expiry_clock.dart';
 
 import '../bloc/post_view_cubit.dart';
@@ -192,7 +193,7 @@ class _PostViewScreenState extends State<PostViewScreen> {
         final rootId = cubit.state.beacon.postRootMessageId;
         if (rootId != null) room?.requestScrollToMessage(rootId);
       case PostAction.forward:
-        await context.router.push(ForwardBeaconRoute(beaconId: id));
+        await GetIt.I<AppNavigator>().forwardBeacon(id);
       case PostAction.invite:
         // Straight to the invite dialog, not the Forward screen (#715).
         final invitations = InvitationCubit();
@@ -244,8 +245,9 @@ class _PostViewScreenState extends State<PostViewScreen> {
         final sourceId = cubit.state.beacon.author.id == cubit.myProfile.id
             ? (cubit.state.beacon.postRootMessageId ?? '')
             : '';
-        await context.router.push(
-          BeaconCreateRoute(parentBeaconId: id, sourceMessageId: sourceId),
+        await GetIt.I<AppNavigator>().createBeacon(
+          parentBeaconId: id,
+          sourceMessageId: sourceId,
         );
       case PostAction.complain:
         screenCubit.showComplaint(id);
