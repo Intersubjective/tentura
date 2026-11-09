@@ -18,6 +18,20 @@ bool isValidInviteCode(String code) {
 /// True when [raw] ends with `-` after trim (helps explain a common paste typo).
 bool inviteCodeHadTrailingDash(String raw) => raw.trim().endsWith('-');
 
+enum InviteCodeFormatIssue { trailingDash, invalid }
+
+/// Format validation shared by accept-invite and signup invite entry.
+InviteCodeFormatIssue? diagnoseInviteCodeFormat(String raw) {
+  final hadTrailingDash = inviteCodeHadTrailingDash(raw);
+  final code = normalizeInviteCode(raw);
+  if (!isValidInviteCode(code)) {
+    return hadTrailingDash
+        ? InviteCodeFormatIssue.trailingDash
+        : InviteCodeFormatIssue.invalid;
+  }
+  return null;
+}
+
 final _invitePathInText = RegExp(r'/invite/([^/?#\s]+)');
 
 /// Extracts and normalizes an invite code from raw text, a `/invite/…` URL, or

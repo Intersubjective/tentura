@@ -6,6 +6,8 @@ import 'package:tentura/consts.dart';
 import 'package:tentura/ui/message/action_message_base.dart';
 import 'package:tentura/ui/navigation/app_navigator.dart';
 
+import '../../domain/invite_code.dart';
+
 final class InviteNoLongerValidMessage extends LocalizableMessage {
   const InviteNoLongerValidMessage();
 
@@ -84,6 +86,14 @@ final class InviteAcceptedMessage extends LocalizableMessage {
 
   @override
   String get toRu => 'Приглашение принято.';
+}
+
+LocalizableMessage? inviteCodeFormatMessage(String rawCode) {
+  return switch (diagnoseInviteCodeFormat(rawCode)) {
+    InviteCodeFormatIssue.trailingDash => const InviteTrailingDashHintMessage(),
+    InviteCodeFormatIssue.invalid => const InviteInvalidCodeMessage(),
+    null => null,
+  };
 }
 
 final class InviteInvalidCodeMessage extends LocalizableMessage {

@@ -9,13 +9,14 @@ import 'package:tentura/app/router/invite_deep_link.dart';
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/env.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
+import 'package:tentura/features/auth/ui/bloc/register_invite_cubit.dart';
+import 'package:tentura/features/auth/ui/screen/auth_register_screen.dart';
 import 'package:tentura/features/home/ui/bloc/post_join_navigation_cubit.dart';
 import 'package:tentura/features/invitation/domain/entity/invite_preview.dart';
 import 'package:tentura/features/invitation/ui/bloc/accept_invite_cubit.dart';
-import 'package:tentura/features/invitation/ui/message/accept_invite_messages.dart';
 import 'package:tentura/features/invitation/ui/screen/accept_invite_screen.dart';
-import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/features/settings/ui/bloc/settings_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect_handler.dart';
 import 'package:tentura/ui/effect/ui_effect_bus.dart';
@@ -81,11 +82,15 @@ void main() {
   late PageInfo homePage;
   late PageInfo workPage;
   late PageInfo acceptInvitePage;
+  late PageInfo authRegisterPage;
+
+  const testEnv = Env(needInviteCode: true);
 
   setUpAll(() {
     homePage = HomeRoute.page;
     workPage = MyWorkRoute.page;
     acceptInvitePage = AcceptInviteRoute.page;
+    authRegisterPage = AuthRegisterRoute.page;
 
     HomeRoute.page = PageInfo(
       HomeRoute.name,
@@ -121,15 +126,11 @@ void main() {
         id: data.inheritedPathParams.getString('id', ''),
       ),
     );
-    AuthLoginRoute.page = PageInfo(
-      AuthLoginRoute.name,
-      builder: (_) => const Scaffold(
-        body: Center(child: Text('auth-login')),
-      ),
-    );
-    AuthRegisterRoute.page = _labelPage(
+    AuthRegisterRoute.page = PageInfo(
       AuthRegisterRoute.name,
-      'auth-register',
+      builder: (data) => AuthRegisterScreen(
+        id: data.inheritedPathParams.getString('id', ''),
+      ),
     );
   });
 
@@ -137,27 +138,37 @@ void main() {
     HomeRoute.page = homePage;
     MyWorkRoute.page = workPage;
     AcceptInviteRoute.page = acceptInvitePage;
+    AuthRegisterRoute.page = authRegisterPage;
   });
 
   setUp(() async {
     await GetIt.I.reset();
     repo = FakeInvitationAcceptPort();
     effects = UiEffectBus();
+    final postJoin = PostJoinNavigationCubit();
     router = RootRouter(
       Logger('Issue1124InviteSnackTest'),
       _FakeAuthCubit(),
       _FakeSettingsCubit(),
-      PostJoinNavigationCubit(),
+      postJoin,
     );
     GetIt.I
       ..registerSingleton<AppNavigator>(router)
       ..registerSingleton<UiEffectPort>(effects)
-      ..registerSingleton<PostJoinNavigationCubit>(PostJoinNavigationCubit())
+      ..registerSingleton<PostJoinNavigationCubit>(postJoin)
+      ..registerSingleton<Env>(testEnv)
+      ..registerSingleton<AuthCubit>(_FakeAuthCubit())
+      ..registerSingleton<RegisterInviteCubit>(
+        RegisterInviteCubit.withPort(
+          repo,
+          effects: effects,
+        ),
+      )
       ..registerSingleton<AcceptInviteCubit>(
         AcceptInviteCubit.withPort(
           repo,
           effects: effects,
-          postJoinNavigation: GetIt.I<PostJoinNavigationCubit>(),
+          postJoinNavigation: postJoin,
         ),
       );
   });
@@ -175,15 +186,20 @@ void main() {
     bool skipDeepLinkTransform = false,
   }) async {
     router.dispose();
+    final postJoin = GetIt.I<PostJoinNavigationCubit>();
     router = RootRouter(
       Logger('Issue1124InviteSnackTest'),
       _FakeAuthCubit(authenticated: authenticated),
       _FakeSettingsCubit(),
-      GetIt.I<PostJoinNavigationCubit>(),
+      postJoin,
     );
     GetIt.I
       ..unregister<AppNavigator>()
-      ..registerSingleton<AppNavigator>(router);
+      ..registerSingleton<AppNavigator>(router)
+      ..unregister<AuthCubit>()
+      ..registerSingleton<AuthCubit>(
+        _FakeAuthCubit(authenticated: authenticated),
+      );
 
     final initial = skipDeepLinkTransform
         ? rawInvitePath
@@ -256,14 +272,12 @@ void main() {
   });
 
   testWidgets(
-    'trailing-dash invite id shows hint on work tab (RU phone)',
+    'signed-in /invite/IQAFX0000000- shows trailing-dash hint (RU phone)',
     (tester) async {
       await usePhoneSurface(tester);
-      // Deep-link transform strips the dash; cold URL still carries it in the path.
       await pumpInviteDeepLink(
         tester,
-        rawInvitePath: '$kPathAcceptInvite/BADCODE123-',
-        skipDeepLinkTransform: true,
+        rawInvitePath: '/invite/IQAFX0000000-',
       );
 
       expect(find.text('work-root'), findsOneWidget);
@@ -299,28 +313,49 @@ void main() {
   );
 
   testWidgets(
-    'signed out invalid invite still shows copy on login after redirect',
+    'signed-out /invite/BADCODE123 cold start prefills code and shows invalid (RU phone)',
     (tester) async {
       await usePhoneSurface(tester);
       await pumpInviteDeepLink(
         tester,
-        rawInvitePath: kPathHome,
+        rawInvitePath: '/invite/BADCODE123',
         authenticated: false,
-        skipDeepLinkTransform: true,
       );
 
-      effects
-        ..emit(const ShowMessage(InviteInvalidCodeMessage()))
-        ..emit(const NavigateReplace(NavigateReplaceTarget.authLogin));
-      await tester.pump();
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
-      await tester.pump();
-
-      expect(find.text('auth-login'), findsOneWidget);
+      expect(find.byType(AuthRegisterScreen), findsOneWidget);
+      final inviteField = tester
+          .widgetList<TextFormField>(find.byType(TextFormField))
+          .first;
+      expect(inviteField.controller?.text, 'BADCODE123');
+      expect(find.byType(SnackBar), findsOneWidget);
       expect(
-        find.text('Этот код приглашения недействителен.', findRichText: true),
-        findsOneWidget,
+        snackPlainText(tester),
+        contains('Этот код приглашения недействителен.'),
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'signed-out /invite/IQAFX0000000- shows trailing-dash hint EN phone',
+    (tester) async {
+      await usePhoneSurface(tester);
+      await pumpInviteDeepLink(
+        tester,
+        rawInvitePath: '/invite/IQAFX0000000-',
+        authenticated: false,
+        locale: const Locale('en'),
+      );
+
+      expect(find.byType(AuthRegisterScreen), findsOneWidget);
+      final inviteField = tester
+          .widgetList<TextFormField>(find.byType(TextFormField))
+          .first;
+      expect(inviteField.controller?.text, 'IQAFX0000000-');
+      expect(find.byType(SnackBar), findsOneWidget);
+      expect(
+        snackPlainText(tester),
+        contains('extra dash'),
       );
     },
   );

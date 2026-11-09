@@ -71,15 +71,11 @@ class AcceptInviteCubit extends Cubit<AcceptInviteState> {
   Future<void> start(String rawCode) async {
     if (isClosed) return;
     final generation = ++_previewGeneration;
-    final hadTrailingDash = inviteCodeHadTrailingDash(rawCode);
     final code = normalizeInviteCode(rawCode);
     emit(AcceptInviteState(code: code));
-    if (!isValidInviteCode(code)) {
-      _finishWithMessage(
-        hadTrailingDash
-            ? const InviteTrailingDashHintMessage()
-            : const InviteInvalidCodeMessage(),
-      );
+    final formatMessage = inviteCodeFormatMessage(rawCode);
+    if (formatMessage != null) {
+      _finishWithMessage(formatMessage);
       return;
     }
     for (var attempt = 0; ; attempt++) {

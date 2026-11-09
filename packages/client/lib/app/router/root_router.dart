@@ -12,6 +12,7 @@ import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/app/platform/landing_redirect.dart';
 
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
+import 'package:tentura/features/invitation/domain/invite_code.dart';
 import 'package:tentura/features/home/ui/bloc/home_tab_reselect_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/post_join_navigation_cubit.dart';
 import 'package:tentura/features/settings/ui/bloc/settings_cubit.dart';
@@ -330,9 +331,14 @@ class RootRouter extends RootStackRouter implements AppNavigator {
             }
             return const ProfileRoute();
           }
-          goToLanding(
-            invitePath: '/invite/${resolver.route.params.getString('id')}',
-          );
+          final rawCode = resolver.route.params.getString('id');
+          // #1124: malformed codes cannot be previewed on the landing host
+          // (`parseInviteCode` drops them). Keep the user in WASM signup so the
+          // invite field and the shared format messages can show.
+          if (kIsWeb && diagnoseInviteCodeFormat(rawCode) != null) {
+            return null;
+          }
+          goToLanding(invitePath: '/invite/$rawCode');
           return null;
         }),
       ],
