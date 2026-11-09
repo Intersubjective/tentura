@@ -1,10 +1,10 @@
 import 'dart:async';
 
+import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:logging/logging.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
-import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
@@ -22,6 +22,7 @@ import 'package:tentura/features/forward_candidate_context/ui/widget/forward_can
 import 'package:tentura/features/invitation/ui/bloc/invitation_cubit.dart';
 import 'package:tentura/features/post_view/ui/post_remaining_label.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/navigation/app_navigator.dart';
 import 'package:tentura/ui/widget/screen_load_error_panel.dart';
 import 'package:tentura/ui/widget/tentura_info_hint_button.dart';
 import 'package:tentura/ui/widget/unfocus_sheet_body.dart';
@@ -588,7 +589,7 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
     } else if (_invitesOverComposer(context, state)) {
       await _invitePlainOverComposer(context);
     } else {
-      await GetIt.I<RootRouter>().openInvitations();
+      await GetIt.I<AppNavigator>().openInvitations();
     }
   }
 
@@ -810,11 +811,9 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                         unawaited(router.maybePop());
                       } else if (widget.beaconId.isNotEmpty) {
                         unawaited(
-                          router.navigate(
-                            BeaconViewRoute(
-                              id: widget.beaconId,
-                              entry: kBeaconEntryForward,
-                            ),
+                          GetIt.I<AppNavigator>().navigateToBeacon(
+                            widget.beaconId,
+                            entry: kBeaconEntryForward,
                           ),
                         );
                       }

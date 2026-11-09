@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
-import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/attention/attention_case.dart';
@@ -29,6 +28,7 @@ import 'package:tentura/features/updates/ui/widget/updates_feed_tile.dart';
 import 'package:tentura/features/updates/ui/widget/updates_refresh_error_banner.dart';
 import 'package:tentura/features/attention/ui/widget/request_attention_timeline_sheet.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/navigation/app_navigator.dart';
 import 'package:tentura/ui/widget/first_load_gate.dart';
 import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
@@ -703,8 +703,7 @@ class _ActivityStreamScrollBody extends StatelessWidget {
 }
 
 /// Opens the room that holds the oldest unread (#904), else the Request view.
-Future<void> openRequestCardByUnreadRoom(
-  StackRouter router, {
+Future<void> openRequestCardByUnreadRoom({
   required String beaconId,
   required String entry,
 }) async {
@@ -712,10 +711,10 @@ Future<void> openRequestCardByUnreadRoom(
     beaconId,
   ]);
   if (requestCardUnreadOpensQuestions(hints[beaconId]?.unreadRoom)) {
-    await router.push(BeaconLobbyRoute(beaconId: beaconId));
+    await GetIt.I<AppNavigator>().openBeaconLobby(beaconId);
     return;
   }
-  await router.push(BeaconViewRoute(id: beaconId, entry: entry));
+  await GetIt.I<AppNavigator>().openBeacon(beaconId, entry: entry);
 }
 
 /// A pinned row that carries the viewer's pending author invite (plan D3):
@@ -753,8 +752,9 @@ class _PinnedInviteCard extends StatelessWidget {
         inviter: inviter,
         note: invite?.note ?? '',
         onOpen: () => unawaited(
-          context.router.push(
-            BeaconViewRoute(id: beaconId, entry: kBeaconEntryInbox),
+          GetIt.I<AppNavigator>().openBeacon(
+            beaconId,
+            entry: kBeaconEntryInbox,
           ),
         ),
         onAccept: () => unawaited(offers.acceptInvite(beaconId)),
@@ -803,7 +803,6 @@ class _PinnedRequestCard extends StatelessWidget {
     // snapshot once the Request has actually displayed.
     Future<void> openBeacon() async {
       await openRequestCardByUnreadRoom(
-        context.router,
         beaconId: beaconId,
         entry: kBeaconEntryInbox,
       );
@@ -1040,7 +1039,7 @@ class _ActivityStreamPromptPin extends StatelessWidget {
     UpdatesFeedCubit cubit,
   ) async {
     unawaited(cubit.markSeen(receipt.id));
-    await GetIt.I<RootRouter>().openFromUpdate(receipt);
+    await GetIt.I<AppNavigator>().openFromUpdate(receipt);
   }
 }
 
@@ -1109,7 +1108,7 @@ class _ActivityStreamCell extends StatelessWidget {
         unawaited(streamCubit.markSeen(target.id));
       }
       if (!context.mounted) return;
-      await GetIt.I<RootRouter>().openFromUpdate(target);
+      await GetIt.I<AppNavigator>().openFromUpdate(target);
     }
 
     Future<void> onOpenParent() => onOpenReceipt(receipt);
@@ -1227,7 +1226,6 @@ class _ActivityStreamCell extends StatelessWidget {
             actors: streamCubit.state.actors,
             onOpenBeacon: () => unawaited(
               openRequestCardByUnreadRoom(
-                context.router,
                 beaconId: beaconId,
                 entry: kBeaconEntryInbox,
               ),

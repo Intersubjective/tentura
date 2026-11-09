@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
-import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/features/beacon_view/ui/dialog/help_offer_message_dialog.dart';
 import 'package:tentura/features/beacon_view/ui/message/help_offer_messages.dart';
@@ -14,6 +13,7 @@ import 'package:tentura/features/forward/domain/forward_target_profile.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/navigation/app_navigator.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
 import '../../domain/entity/inbox_item.dart';
@@ -58,7 +58,7 @@ Future<void> inboxOfferHelp(BuildContext context, Beacon beacon) async {
 
 Future<void> inboxForwardItem(BuildContext context, InboxItem item) async {
   final hadOutgoingEdgeBefore = item.isForwardedByMe;
-  await context.router.push(ForwardBeaconRoute(beaconId: item.beaconId));
+  await GetIt.I<AppNavigator>().forwardBeacon(item.beaconId);
   if (!context.mounted) return;
   final cubit = context.read<InboxCubit>();
   InboxItem? afterItem;

@@ -6,13 +6,14 @@
 // it, and the child card says what it is part of. A top-level Request says
 // nothing of the kind.
 
+import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
-import 'package:tentura/app/router/root_router.dart';
+import 'package:tentura/consts.dart';
 import 'package:tentura/data/repository/mock/client_repository_mocks.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/attention/offer_accepted_dismissals.dart';
@@ -31,6 +32,8 @@ import 'package:tentura/ui/l10n/l10n_en.dart';
 import 'package:tentura/ui/l10n/l10n_ru.dart';
 
 import 'my_work_test_support.dart';
+
+import '../../support/fake_app_navigator.dart';
 
 const _viewerId = 'author-487';
 const _parentId = 'b-couch';
@@ -309,16 +312,20 @@ void main() {
     }
 
     testWidgets('tapping "Part of" opens the parent Request', (tester) async {
-      final router = await pumpWithRouter(tester);
+      final navigator = registerFakeAppNavigator();
+      await pumpWithRouter(tester);
 
       await tester.tap(
         find.textContaining(L10nEn().myWorkPartOfParent(_parentTitle)),
       );
       await tester.pump();
 
-      final route = router.pushes.single;
-      expect(route, isA<BeaconViewRoute>());
-      expect((route as BeaconViewRoute).args!.id, _parentId);
+      expect(navigator.intents, [
+        const NavIntent('openBeacon', {
+          'id': _parentId,
+          'entry': kBeaconEntryMyWork,
+        }),
+      ]);
     });
 
     // Review r1 #6: one line of small text was a 16-20 dp target inside the
@@ -326,7 +333,8 @@ void main() {
     testWidgets('the "Part of" link is a full-height tap target', (
       tester,
     ) async {
-      final router = await pumpWithRouter(tester);
+      final navigator = registerFakeAppNavigator();
+      await pumpWithRouter(tester);
       final link = find.byKey(const ValueKey('myWorkPartOfParent:$_parentId'));
 
       expect(
@@ -338,9 +346,12 @@ void main() {
       await tester.tapAt(tester.getTopLeft(link) + const Offset(8, 4));
       await tester.pump();
 
-      final route = router.pushes.single;
-      expect(route, isA<BeaconViewRoute>());
-      expect((route as BeaconViewRoute).args!.id, _parentId);
+      expect(navigator.intents, [
+        const NavIntent('openBeacon', {
+          'id': _parentId,
+          'entry': kBeaconEntryMyWork,
+        }),
+      ]);
     });
   });
 }

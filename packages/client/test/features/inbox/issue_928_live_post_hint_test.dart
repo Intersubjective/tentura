@@ -5,6 +5,7 @@
 import 'dart:async';
 
 import 'package:ferry/ferry.dart';
+import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
@@ -12,7 +13,6 @@ import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
-import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/data/repository/attention_repository.dart';
 import 'package:tentura/data/service/remote_api_client/remote_request_client.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -42,6 +42,7 @@ import 'package:tentura/features/inbox/ui/widget/request_attention_card.dart';
 import 'package:tentura/features/updates/ui/bloc/updates_feed_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../support/fake_app_navigator.dart';
 import '../../support/noop_attention_actor_profiles.dart';
 import '../../support/phone_surface.dart';
 import '../../support/remote_wire_harness.dart';
@@ -333,8 +334,7 @@ Future<_Harness> _pumpActivity({
   }
   GetIt.I.registerSingleton<AttentionCase>(attention);
   ensureNoopAttentionActorProfilesRegistered();
-  if (GetIt.I.isRegistered<RootRouter>()) GetIt.I.unregister<RootRouter>();
-  GetIt.I.registerSingleton<RootRouter>(MockRootRouter());
+  registerFakeAppNavigator();
 
   await tester.pumpWidget(
     StackRouterScope(
@@ -653,5 +653,3 @@ final class _FixtureRemoteClient implements RemoteRequestClient {
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
-
-class MockRootRouter extends Mock implements RootRouter {}

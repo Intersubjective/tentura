@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 
-import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/attention/attention_event_classification.dart';
@@ -8,6 +8,7 @@ import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/navigation/app_navigator.dart';
 import 'package:tentura/ui/utils/relative_time.dart';
 import 'package:tentura/ui/widget/beacon_image.dart';
 import 'package:tentura/ui/widget/relative_timestamp_ticker.dart';
@@ -216,11 +217,10 @@ class PostAttentionRow extends StatelessWidget {
                         Align(
                           alignment: AlignmentDirectional.centerStart,
                           child: TextButton(
-                            onPressed: () => context.router.push(
-                              BeaconCreateRoute(
-                                parentBeaconId: receipt.beaconId ?? '',
-                              ),
-                            ),
+                            onPressed: () =>
+                                GetIt.I<AppNavigator>().createBeacon(
+                                  parentBeaconId: receipt.beaconId ?? '',
+                                ),
                             child: Text(l10n.postBudAction),
                           ),
                         ),

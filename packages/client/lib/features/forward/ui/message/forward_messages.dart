@@ -2,11 +2,11 @@ import 'dart:async' show unawaited;
 
 import 'package:flutter/material.dart' show Dialog, Navigator, showDialog;
 import 'package:get_it/get_it.dart';
-import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/features/people_tags/domain/entity/people_tag_suggestion_event.dart';
 import 'package:tentura/features/people_tags/domain/use_case/people_tag_suggestion_case.dart';
 import 'package:tentura/features/people_tags/ui/widget/tag_suggestion_card.dart';
 import 'package:tentura/ui/message/action_message_base.dart';
+import 'package:tentura/ui/navigation/app_navigator.dart';
 
 /// « — who was skipped, and why.» after a forward line, or '' when nobody
 /// was skipped. One person per reason is named; more are counted. A pause
@@ -251,17 +251,7 @@ final class ForwardLocationMessage extends LocalizableActionMessage {
 }
 
 Future<void> _openForwardedRequestInWatching(String beaconId) async {
-  final router = GetIt.I<RootRouter>();
-  await router.replaceAll([
-    HomeRoute(
-      children: [
-        inboxTabShell(children: [InboxRoute()]),
-      ],
-    ),
-  ]);
-  await router.push(
-    InboxWatchingRoute(highlightBeaconId: beaconId),
-  );
+  await GetIt.I<AppNavigator>().openInboxWatchingFromHome(beaconId);
 }
 
 /// Standalone forward success: ego home is My Work (author or active help offer).
@@ -329,7 +319,7 @@ final class ForwardLocationMyWorkAddToTagMessage
     } catch (_) {
       return;
     }
-    final context = GetIt.I<RootRouter>().navigatorKey.currentContext;
+    final context = GetIt.I<AppNavigator>().rootContext;
     if (context == null) return;
     unawaited(
       showDialog<void>(

@@ -2,13 +2,13 @@
 // Requests-tab card shows a visible Forward action, like the author's card,
 // whenever the viewer may forward the Request. The overflow menu entry stays.
 
+import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
-import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/data/repository/mock/client_repository_mocks.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
@@ -25,6 +25,8 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import 'my_work_test_support.dart';
+
+import '../../support/fake_app_navigator.dart';
 
 const _viewerId = 'helper-1';
 const _beaconId = 'open-597';
@@ -163,25 +165,28 @@ void main() {
 
   testWidgets('helper card shows a visible Forward when the viewer can '
       'forward; tapping it opens the forward screen', (tester) async {
-    final router = await _pump(tester, viewerCanForward: true);
+    final navigator = registerFakeAppNavigator();
+    await _pump(tester, viewerCanForward: true);
 
     expect(_forwardCta, findsOneWidget);
 
     await tester.tap(_forwardCta);
     await tester.pump();
 
-    final route = router.pushes.single;
-    expect(route, isA<ForwardBeaconRoute>());
-    expect((route as ForwardBeaconRoute).args!.beaconId, _beaconId);
+    expect(navigator.intents, [
+      const NavIntent('forwardBeacon', {'beaconId': _beaconId}),
+    ]);
   });
 
   testWidgets('helper card has no Forward when the viewer cannot forward', (
     tester,
   ) async {
+    final navigator = registerFakeAppNavigator();
     final router = await _pump(tester, viewerCanForward: false);
 
     expect(_forwardCta, findsNothing);
     expect(router.pushes, isEmpty);
+    expect(navigator.intents, isEmpty);
   });
 
   testWidgets('open helper card keeps its Archive action beside Forward', (

@@ -31,6 +31,7 @@ import 'package:tentura/features/updates/domain/use_case/invite_accepted_setup_c
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../support/fake_app_navigator.dart';
 import '../../support/test_realtime_sync.dart';
 import '../../support/noop_posts_case.dart';
 import '../block/support/controllable_block_case.dart';
@@ -60,29 +61,6 @@ class _HarnessRouter extends Mock implements StackRouter {
     OnNavigationFailure? onFailure,
   }) async {
     pushCount++;
-    lastPush = route;
-    return null;
-  }
-}
-
-class _RecordingRootRouter extends Mock implements RootRouter {
-  PageRouteInfo? lastPush;
-  List<PageRouteInfo>? lastReplaceAll;
-
-  @override
-  Future<void> replaceAll(
-    List<PageRouteInfo> routes, {
-    OnNavigationFailure? onFailure,
-    bool updateExistingRoutes = true,
-  }) async {
-    lastReplaceAll = routes;
-  }
-
-  @override
-  Future<T?> push<T extends Object?>(
-    PageRouteInfo route, {
-    OnNavigationFailure? onFailure,
-  }) async {
     lastPush = route;
     return null;
   }
@@ -488,25 +466,17 @@ void main() {
   test(
     'ForwardLocationMessage pushes Watching with highlight beacon',
     () async {
-      final router = _RecordingRootRouter();
-      if (GetIt.I.isRegistered<RootRouter>()) {
-        GetIt.I.unregister<RootRouter>();
-      }
-      GetIt.I.registerSingleton<RootRouter>(router);
-      addTearDown(() {
-        if (GetIt.I.isRegistered<RootRouter>()) {
-          GetIt.I.unregister<RootRouter>();
-        }
-      });
+      final navigator = registerFakeAppNavigator();
 
       const message = ForwardLocationMessage(beaconId: 'B-forward');
       message.onPressed?.call();
       await Future<void>.delayed(Duration.zero);
 
-      expect(router.lastReplaceAll, isNotNull);
-      expect(router.lastPush, isA<InboxWatchingRoute>());
-      final route = router.lastPush! as InboxWatchingRoute;
-      expect(route.args!.highlightBeaconId, 'B-forward');
+      // Reset to Home > Activity, then Watching with the Request highlighted
+      // (RootRouter side: root_router_app_navigator_test.dart).
+      expect(navigator.intents, [
+        const NavIntent('openInboxWatchingFromHome', {'beaconId': 'B-forward'}),
+      ]);
     },
   );
 }

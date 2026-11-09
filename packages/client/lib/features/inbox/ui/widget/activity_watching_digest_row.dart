@@ -1,10 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 
-import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/components/tentura_attention_summary_row.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/navigation/app_navigator.dart';
 import 'package:tentura/ui/test_ids.dart';
 
 /// Aggregate watching-updates row (design §5.3).
@@ -24,7 +25,7 @@ class ActivityWatchingDigestRow extends StatelessWidget {
       label: label,
       semanticsLabel: label,
       inkWellKey: TestIds.key(TestIds.activityWatchingDigest),
-      onTap: () => unawaited(context.router.push(InboxWatchingRoute())),
+      onTap: () => unawaited(GetIt.I<AppNavigator>().openInboxWatching()),
     );
   }
 }

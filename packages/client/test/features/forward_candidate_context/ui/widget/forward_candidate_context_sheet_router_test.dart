@@ -18,6 +18,7 @@ import 'package:tentura/features/home/ui/bloc/post_join_navigation_cubit.dart';
 import 'package:tentura/features/settings/ui/bloc/settings_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect_bus.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/navigation/app_navigator.dart';
 
 final class _Auth extends Fake implements AuthCubit {
   @override
@@ -165,6 +166,8 @@ void main() {
       _Settings(),
       PostJoinNavigationCubit(),
     );
+    // «View full profile» navigates through the port: the real router.
+    GetIt.I.registerSingleton<AppNavigator>(router);
   });
 
   tearDown(() async {

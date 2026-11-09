@@ -50,8 +50,10 @@ import 'package:tentura/ui/widget/undo_snack_bar.dart';
 import 'package:tentura/ui/widget/caught_up_panel.dart';
 import 'package:tentura/features/updates/ui/widget/updates_feed_tile.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/navigation/app_navigator.dart';
 import 'package:tentura/ui/test_ids.dart';
 
+import '../../support/fake_app_navigator.dart';
 import '../../support/test_realtime_sync.dart';
 import '../../support/phone_surface.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
@@ -65,6 +67,7 @@ import '../../support/noop_attention_actor_profiles.dart';
 
 class _HarnessRouter extends Mock implements StackRouter {}
 
+/// The Undo snack bar's effects resolve the dispatcher's router.
 class _MockRootRouter extends Mock implements RootRouter {}
 
 class _TestInboxCubit extends Cubit<InboxState> implements InboxCubit {
@@ -486,6 +489,7 @@ Future<void> _pumpStreamView(
   }
   GetIt.I.registerSingleton<AttentionCase>(boot.attention);
   ensureNoopAttentionActorProfilesRegistered();
+  if (!GetIt.I.isRegistered<AppNavigator>()) registerFakeAppNavigator();
   if (!GetIt.I.isRegistered<RootRouter>()) {
     GetIt.I.registerSingleton<RootRouter>(_MockRootRouter());
   }

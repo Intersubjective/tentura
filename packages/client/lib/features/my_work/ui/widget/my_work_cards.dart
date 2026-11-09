@@ -3,12 +3,12 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:flutter/material.dart';
 
-import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/features/attention/ui/widget/request_attention_timeline_sheet.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/navigation/app_navigator.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_card_metadata_row.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_status_line.dart';
@@ -147,7 +147,7 @@ class MyWorkCardRouter extends StatelessWidget {
 void _openBeacon(BuildContext context, String id) {
   unawaited(context.read<MyWorkCubit>().openedBeacon(id));
   unawaited(
-    context.router.push(BeaconViewRoute(id: id, entry: kBeaconEntryMyWork)),
+    GetIt.I<AppNavigator>().openBeacon(id, entry: kBeaconEntryMyWork),
   );
 }
 
@@ -160,20 +160,18 @@ void _openBeaconOrSelect(
   if (viewTab != null || peopleTabAttention != null) {
     unawaited(context.read<MyWorkCubit>().openedBeacon(vm.beaconId));
     unawaited(
-      context.router.push(
-        BeaconViewRoute(
-          id: vm.beaconId,
-          viewTab: viewTab,
-          peopleTabAttention: peopleTabAttention,
-          entry: kBeaconEntryMyWork,
-        ),
+      GetIt.I<AppNavigator>().openBeacon(
+        vm.beaconId,
+        viewTab: viewTab,
+        peopleTabAttention: peopleTabAttention,
+        entry: kBeaconEntryMyWork,
       ),
     );
     return;
   }
   if (requestCardUnreadOpensQuestions(vm.unreadRoom)) {
     unawaited(
-      context.router.push(BeaconLobbyRoute(beaconId: vm.beaconId)),
+      GetIt.I<AppNavigator>().openBeaconLobby(vm.beaconId),
     );
     return;
   }
@@ -480,16 +478,14 @@ void _openBeaconReviewHelpOffers(
 }
 
 void _openEditDraft(BuildContext context, String id) {
-  unawaited(context.router.push(BeaconCreateRoute(draftId: id)));
+  unawaited(GetIt.I<AppNavigator>().createBeacon(draftId: id));
 }
 
 void _openSendDraft(BuildContext context, String id) {
   unawaited(
-    context.router.push(
-      BeaconCreateRoute(
-        draftId: id,
-        initialTab: kBeaconCreateTabRecipients,
-      ),
+    GetIt.I<AppNavigator>().createBeacon(
+      draftId: id,
+      initialTab: kBeaconCreateTabRecipients,
     ),
   );
 }
@@ -644,9 +640,7 @@ class _AuthoredActiveCard extends StatelessWidget {
                   BeaconPhasePrimaryAction.forward =>
                     b.viewerCanForward
                         ? unawaited(
-                            context.router.push(
-                              ForwardBeaconRoute(beaconId: b.id),
-                            ),
+                            GetIt.I<AppNavigator>().forwardBeacon(b.id),
                           )
                         : _openBeaconOrSelect(context, vm),
                   BeaconPhasePrimaryAction.resolveBlocker =>
@@ -667,7 +661,7 @@ class _AuthoredActiveCard extends StatelessWidget {
                 label: l10n.inboxCardOpenBeacon,
                 icon: const Icon(Icons.arrow_forward),
                 onPressed: () => unawaited(
-                  context.router.push(ForwardBeaconRoute(beaconId: b.id)),
+                  GetIt.I<AppNavigator>().forwardBeacon(b.id),
                 ),
               ),
             ),
@@ -746,12 +740,12 @@ class _AuthoredActiveCard extends StatelessWidget {
                   : null,
               onEdit: beaconAllowsEdit(b)
                   ? () => unawaited(
-                      context.router.push(BeaconCreateRoute(editId: b.id)),
+                      GetIt.I<AppNavigator>().createBeacon(editId: b.id),
                     )
                   : null,
               onForward: b.viewerCanForward
                   ? () => unawaited(
-                      context.router.push(ForwardBeaconRoute(beaconId: b.id)),
+                      GetIt.I<AppNavigator>().forwardBeacon(b.id),
                     )
                   : null,
               onForwardsGraph: () =>
@@ -821,7 +815,7 @@ class _HelpOfferedActiveCard extends StatelessWidget {
               label: l10n.inboxCardOpenBeacon,
               icon: const Icon(Icons.arrow_forward),
               onPressed: () => unawaited(
-                context.router.push(ForwardBeaconRoute(beaconId: b.id)),
+                GetIt.I<AppNavigator>().forwardBeacon(b.id),
               ),
             ),
           )
@@ -857,7 +851,7 @@ class _HelpOfferedActiveCard extends StatelessWidget {
               beacon: b,
               onForward: b.viewerCanForward
                   ? () => unawaited(
-                      context.router.push(ForwardBeaconRoute(beaconId: b.id)),
+                      GetIt.I<AppNavigator>().forwardBeacon(b.id),
                     )
                   : null,
               onForwardsGraph: () =>
@@ -1069,12 +1063,12 @@ class _FinishedAuthoredCard extends StatelessWidget {
                   : null,
               onEdit: beaconAllowsEdit(b)
                   ? () => unawaited(
-                      context.router.push(BeaconCreateRoute(editId: b.id)),
+                      GetIt.I<AppNavigator>().createBeacon(editId: b.id),
                     )
                   : null,
               onForward: b.viewerCanForward
                   ? () => unawaited(
-                      context.router.push(ForwardBeaconRoute(beaconId: b.id)),
+                      GetIt.I<AppNavigator>().forwardBeacon(b.id),
                     )
                   : null,
               onForwardsGraph: () =>
@@ -1156,7 +1150,7 @@ class _FinishedHelpOfferedCard extends StatelessWidget {
               beacon: b,
               onForward: b.viewerCanForward
                   ? () => unawaited(
-                      context.router.push(ForwardBeaconRoute(beaconId: b.id)),
+                      GetIt.I<AppNavigator>().forwardBeacon(b.id),
                     )
                   : null,
               onForwardsGraph: () =>

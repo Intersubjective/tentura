@@ -1,12 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
-import 'package:tentura/app/router/root_router.dart';
+import 'package:tentura/ui/navigation/app_navigator.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/attention/attention_case.dart';
@@ -24,6 +25,7 @@ import 'package:tentura/features/inbox/ui/widget/activity_stream_view.dart';
 import 'package:tentura/features/updates/ui/bloc/updates_feed_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../support/fake_app_navigator.dart';
 import '../../support/noop_attention_actor_profiles.dart';
 import '../../support/test_realtime_sync.dart';
 import '../block/support/controllable_block_case.dart';
@@ -33,14 +35,6 @@ import 'inbox_case_test.dart'
     show FakeInboxRepository, buildTestBeaconThreadsCase, buildTestInboxCase;
 
 class _HarnessRouter extends Mock implements StackRouter {}
-
-class _MockRootRouter extends Mock implements RootRouter {
-  final opened = <AttentionReceipt>[];
-  @override
-  Future<void> openFromUpdate(AttentionReceipt receipt) async {
-    opened.add(receipt);
-  }
-}
 
 class _TestInboxCubit extends Cubit<InboxState> implements InboxCubit {
   _TestInboxCubit(super.initialState);
@@ -260,9 +254,7 @@ Future<void> _pumpStreamView(
   }
   GetIt.I.registerSingleton<AttentionCase>(boot.attention);
   ensureNoopAttentionActorProfilesRegistered();
-  if (!GetIt.I.isRegistered<RootRouter>()) {
-    GetIt.I.registerSingleton<RootRouter>(_MockRootRouter());
-  }
+  if (!GetIt.I.isRegistered<AppNavigator>()) registerFakeAppNavigator();
   addTearDown(() async {
     if (GetIt.I.isRegistered<AttentionCase>()) {
       await GetIt.I.unregister<AttentionCase>();
@@ -336,8 +328,9 @@ AttentionReceipt _batonReceipt(String type, int beaconKind) => AttentionReceipt(
 );
 
 void main() {
+  late FakeAppNavigator navigator;
   setUp(() {
-    GetIt.I.registerSingleton<RootRouter>(_MockRootRouter());
+    navigator = registerFakeAppNavigator();
   });
   tearDown(() async {
     await GetIt.I.reset();
@@ -397,9 +390,10 @@ void main() {
 
               await tester.tap(copy);
               await _pumpFrames(tester);
-              final router = GetIt.I<RootRouter>() as _MockRootRouter;
-              expect(router.opened, hasLength(1));
-              final destination = attentionDestination(router.opened.single);
+              expect(navigator.named('openFromUpdate'), hasLength(1));
+              final destination = attentionDestination(
+                navigator.openedReceipts.single,
+              );
               expect(destination.path, '$kPathBeaconView/B1');
               expect(
                 destination.queryParameters[kQueryBeaconViewTab],

@@ -161,10 +161,15 @@ class FakeAppNavigator implements AppNavigator {
   Future<void> openInboxWatchingFromHome(String beaconId) async =>
       _record('openInboxWatchingFromHome', {'beaconId': beaconId});
 
-  /// Records the receipt's id.
+  /// The receipts passed to [openFromUpdate], in call order.
+  final openedReceipts = <AttentionReceipt>[];
+
+  /// Records the receipt's id; the receipt itself goes to [openedReceipts].
   @override
-  Future<void> openFromUpdate(AttentionReceipt receipt) async =>
-      _record('openFromUpdate', {'receipt': receipt.id});
+  Future<void> openFromUpdate(AttentionReceipt receipt) async {
+    openedReceipts.add(receipt);
+    _record('openFromUpdate', {'receipt': receipt.id});
+  }
 
   @override
   Future<void> openInvitations() async => _record('openInvitations');

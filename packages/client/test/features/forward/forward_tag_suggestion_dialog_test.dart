@@ -3,7 +3,6 @@ import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:logging/logging.dart';
-import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_theme.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/features/forward/ui/message/forward_messages.dart';
@@ -12,12 +11,17 @@ import 'package:tentura/features/people_tags/domain/port/people_tags_repository_
 import 'package:tentura/features/people_tags/domain/use_case/people_tag_suggestion_case.dart';
 import 'package:tentura/features/people_tags/domain/use_case/people_tags_case.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/navigation/app_navigator.dart';
 
+import '../../support/fake_app_navigator.dart';
 import '../../support/test_realtime_sync.dart';
 
-class _Router extends Fake implements RootRouter {
-  @override
+/// Dialogs open on the root navigator's context ([rootContext]).
+class _Navigator extends FakeAppNavigator {
   final navigatorKey = GlobalKey<NavigatorState>();
+
+  @override
+  BuildContext? get rootContext => navigatorKey.currentContext;
 }
 
 class _RouteObserver extends NavigatorObserver {
@@ -60,7 +64,7 @@ class _Repository implements PeopleTagsRepositoryPort {
 
 void main() {
   late _Repository repository;
-  late _Router router;
+  late _Navigator router;
   late _RouteObserver observer;
   late PeopleTagsCase tags;
   late TestRealtimeSyncPort realtimePort;
@@ -68,7 +72,7 @@ void main() {
 
   setUp(() async {
     repository = _Repository();
-    router = _Router();
+    router = _Navigator();
     observer = _RouteObserver();
     final realtime = buildTestRealtimeSync();
     realtimePort = realtime.port;
@@ -80,7 +84,7 @@ void main() {
     );
     await tags.load();
     GetIt.I
-      ..registerSingleton<RootRouter>(router)
+      ..registerSingleton<AppNavigator>(router)
       ..registerSingleton<PeopleTagsCase>(tags)
       ..registerSingleton<PeopleTagSuggestionCase>(
         PeopleTagSuggestionCase(

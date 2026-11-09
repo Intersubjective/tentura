@@ -10,9 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:logging/logging.dart';
-import 'package:mockito/mockito.dart';
 
-import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/data/repository/attention_repository.dart';
 import 'package:tentura/data/service/remote_api_client/remote_request_client.dart';
@@ -37,6 +35,7 @@ import 'package:tentura/features/updates/ui/bloc/updates_feed_cubit.dart';
 import 'package:tentura/features/updates/ui/widget/updates_feed_tile.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../support/fake_app_navigator.dart';
 import '../../support/noop_attention_actor_profiles.dart';
 import '../../support/test_realtime_sync.dart';
 import '../block/support/controllable_block_case.dart';
@@ -56,36 +55,36 @@ void main() {
 
     tearDown(() => remote.feedData = null);
 
-    test('a Post group keeps its kind, root excerpt and root image id',
-        () async {
-      remote.feedData = _feedData([
-        _groupWire(
-          beaconId: _postId,
-          beaconKind: 1,
-          postRootExcerpt: 'Посоветуйте стоматолога в центре',
-          postRootImageId: _rootImageId,
-        ),
-      ]);
+    test(
+      'a Post group keeps its kind, root excerpt and root image id',
+      () async {
+        remote.feedData = _feedData([
+          _groupWire(
+            beaconId: _postId,
+            beaconKind: 1,
+            postRootExcerpt: 'Посоветуйте стоматолога в центре',
+            postRootImageId: _rootImageId,
+          ),
+        ]);
 
-      final receipt = (await repository.fetch(view: AttentionView.all))
-          .page
-          .items
-          .single;
+        final receipt = (await repository.fetch(
+          view: AttentionView.all,
+        )).page.items.single;
 
-      expect(receipt.beaconKind, 1);
-      expect(receipt.postRootExcerpt, 'Посоветуйте стоматолога в центре');
-      expect(receipt.postRootImageId, _rootImageId);
-    });
+        expect(receipt.beaconKind, 1);
+        expect(receipt.postRootExcerpt, 'Посоветуйте стоматолога в центре');
+        expect(receipt.postRootImageId, _rootImageId);
+      },
+    );
 
     test('a Request group keeps kind 0 and carries no Post root', () async {
       remote.feedData = _feedData([
         _groupWire(beaconId: _requestId, beaconKind: 0),
       ]);
 
-      final receipt = (await repository.fetch(view: AttentionView.all))
-          .page
-          .items
-          .single;
+      final receipt = (await repository.fetch(
+        view: AttentionView.all,
+      )).page.items.single;
 
       expect(receipt.beaconKind, 0);
       expect(receipt.postRootExcerpt, isNull);
@@ -101,10 +100,9 @@ void main() {
         ),
       ]);
 
-      final receipt = (await repository.fetch(view: AttentionView.all))
-          .page
-          .items
-          .single;
+      final receipt = (await repository.fetch(
+        view: AttentionView.all,
+      )).page.items.single;
 
       expect(receipt.beaconKind, 1);
       expect(receipt.postRootExcerpt, 'Без фото');
@@ -156,8 +154,9 @@ void main() {
       expect(_rootThumbnail(), findsOneWidget);
     });
 
-    testWidgets('an arrival whose root has no photo shows no thumbnail',
-        (tester) async {
+    testWidgets('an arrival whose root has no photo shows no thumbnail', (
+      tester,
+    ) async {
       final harness = await _pumpFeed(tester, [
         _groupWire(
           beaconId: _postId,
@@ -222,8 +221,9 @@ void main() {
       );
     });
 
-    testWidgets('a Request group still renders the Request card',
-        (tester) async {
+    testWidgets('a Request group still renders the Request card', (
+      tester,
+    ) async {
       final harness = await _pumpFeed(tester, [
         _groupWire(
           beaconId: _requestId,
@@ -256,8 +256,9 @@ void main() {
       expect(find.byType(PostAttentionRow), findsOneWidget);
     });
 
-    testWidgets('tapping the row opens the Post at /beacon/view/<id>',
-        (tester) async {
+    testWidgets('tapping the row opens the Post at /beacon/view/<id>', (
+      tester,
+    ) async {
       final harness = await _pumpFeed(tester, [
         _groupWire(
           beaconId: _postId,
@@ -270,7 +271,7 @@ void main() {
       await tester.tap(find.byType(PostAttentionRow));
       await tester.pump();
 
-      final opened = harness.router.opened.single;
+      final opened = harness.navigator.openedReceipts.single;
       expect(opened.beaconId, _postId);
       expect(attentionDestination(opened).path, '$kPathBeaconView/$_postId');
     });
@@ -284,16 +285,18 @@ void main() {
       events: [_expiringSoonEvent('Eevent000020')],
     );
 
-    test('the latest event of expiringSoon type picks the expiring variant',
-        () async {
-      final remote = _FixtureRemoteClient()..feedData = _feedData([warning]);
-      final receipt = (await AttentionRepository(
-        remote,
-      ).fetch(view: AttentionView.all)).page.items.single;
+    test(
+      'the latest event of expiringSoon type picks the expiring variant',
+      () async {
+        final remote = _FixtureRemoteClient()..feedData = _feedData([warning]);
+        final receipt = (await AttentionRepository(
+          remote,
+        ).fetch(view: AttentionView.all)).page.items.single;
 
-      expect(receipt.beaconKind, 1);
-      expect(postAttentionVariantOf(receipt).name, 'expiringSoon');
-    });
+        expect(receipt.beaconKind, 1);
+        expect(postAttentionVariantOf(receipt).name, 'expiringSoon');
+      },
+    );
 
     testWidgets('the warning row says the Post is about to close above the '
         'root excerpt', (tester) async {
@@ -319,9 +322,10 @@ void main() {
       await tester.tap(find.text('Оформить запрос'));
       await tester.pump();
 
-      final bud = _pushedRoutes.whereType<BeaconCreateRoute>().single;
-      expect((bud.args! as BeaconCreateRouteArgs).parentBeaconId, _postId);
-      expect(harness.router.opened, isEmpty);
+      // The bud form only: the Post itself is not opened.
+      expect(harness.navigator.intents, [
+        const NavIntent('createBeacon', {'parentBeaconId': _postId}),
+      ]);
     });
 
     testWidgets('tapping the warning row itself opens the Post at '
@@ -331,13 +335,14 @@ void main() {
       await tester.tap(find.textContaining('Пост скоро закроется'));
       await tester.pump();
 
-      final opened = harness.router.opened.single;
+      final opened = harness.navigator.openedReceipts.single;
       expect(opened.beaconId, _postId);
       expect(attentionDestination(opened).path, '$kPathBeaconView/$_postId');
     });
 
-    testWidgets('a reply on a Post gets no «Оформить запрос» action',
-        (tester) async {
+    testWidgets('a reply on a Post gets no «Оформить запрос» action', (
+      tester,
+    ) async {
       await _pumpFeed(tester, [
         _groupWire(
           beaconId: _postId,
@@ -595,38 +600,6 @@ class _MappedFeedRepo extends ConfigurableActivityOffersAttentionRepo {
       0;
 }
 
-/// Every route pushed through either router the row can reach.
-final _pushedRoutes = <PageRouteInfo>[];
-
-class _RecordingRootRouter extends Mock implements RootRouter {
-  final opened = <AttentionReceipt>[];
-
-  @override
-  Future<T?> push<T extends Object?>(
-    PageRouteInfo route, {
-    OnNavigationFailure? onFailure,
-  }) async {
-    _pushedRoutes.add(route);
-    return null;
-  }
-
-  @override
-  Future<void> openFromUpdate(AttentionReceipt receipt) async {
-    opened.add(receipt);
-  }
-}
-
-class _HarnessRouter extends Mock implements StackRouter {
-  @override
-  Future<T?> push<T extends Object?>(
-    PageRouteInfo route, {
-    OnNavigationFailure? onFailure,
-  }) async {
-    _pushedRoutes.add(route);
-    return null;
-  }
-}
-
 class _Accounts implements AttentionAccountPort {
   final _changes = StreamController<String>.broadcast();
 
@@ -676,14 +649,14 @@ class _Harness {
     required this.stream,
     required this.attention,
     required this.accounts,
-    required this.router,
+    required this.navigator,
   });
 
   final ActivityOffersCubit offers;
   final UpdatesFeedCubit stream;
   final AttentionCase attention;
   final _Accounts accounts;
-  final _RecordingRootRouter router;
+  final FakeAppNavigator navigator;
 
   Future<void> dispose() async {
     await offers.close();
@@ -692,9 +665,6 @@ class _Harness {
     await accounts.close();
     if (GetIt.I.isRegistered<AttentionCase>()) {
       GetIt.I.unregister<AttentionCase>();
-    }
-    if (GetIt.I.isRegistered<RootRouter>()) {
-      GetIt.I.unregister<RootRouter>();
     }
   }
 }
@@ -706,7 +676,6 @@ Future<_Harness> _pumpFeed(
   List<Map<String, dynamic>> wireItems, {
   Size logicalSize = const Size(360, 800),
 }) async {
-  _pushedRoutes.clear();
   final remote = _FixtureRemoteClient()..feedData = _feedData(wireItems);
   final fetched = await AttentionRepository(
     remote,
@@ -764,34 +733,28 @@ Future<_Harness> _pumpFeed(
   }
   GetIt.I.registerSingleton<AttentionCase>(attention);
   ensureNoopAttentionActorProfilesRegistered();
-  if (GetIt.I.isRegistered<RootRouter>()) GetIt.I.unregister<RootRouter>();
-  final router = _RecordingRootRouter();
-  GetIt.I.registerSingleton<RootRouter>(router);
+  final navigator = registerFakeAppNavigator();
 
   await tester.pumpWidget(
-    StackRouterScope(
-      controller: _HarnessRouter(),
-      stateHash: 0,
-      child: MultiBlocProvider(
-        providers: [
-          BlocProvider<ActivityOffersCubit>.value(value: offers),
-          BlocProvider<UpdatesFeedCubit>.value(value: stream),
-          BlocProvider<InboxCubit>.value(
-            value: _TestInboxCubit(
-              const InboxState(projectionLoaded: true),
-            ),
+    MultiBlocProvider(
+      providers: [
+        BlocProvider<ActivityOffersCubit>.value(value: offers),
+        BlocProvider<UpdatesFeedCubit>.value(value: stream),
+        BlocProvider<InboxCubit>.value(
+          value: _TestInboxCubit(
+            const InboxState(projectionLoaded: true),
           ),
-        ],
-        child: MaterialApp(
-          locale: const Locale('ru'),
-          theme: TenturaTheme.light(),
-          localizationsDelegates: L10n.localizationsDelegates,
-          supportedLocales: L10n.supportedLocales,
-          home: MediaQuery(
-            data: MediaQueryData(size: logicalSize),
-            child: const TenturaResponsiveScope(
-              child: Scaffold(body: ActivityStreamView()),
-            ),
+        ),
+      ],
+      child: MaterialApp(
+        locale: const Locale('ru'),
+        theme: TenturaTheme.light(),
+        localizationsDelegates: L10n.localizationsDelegates,
+        supportedLocales: L10n.supportedLocales,
+        home: MediaQuery(
+          data: MediaQueryData(size: logicalSize),
+          child: const TenturaResponsiveScope(
+            child: Scaffold(body: ActivityStreamView()),
           ),
         ),
       ),
@@ -807,7 +770,7 @@ Future<_Harness> _pumpFeed(
     stream: stream,
     attention: attention,
     accounts: accounts,
-    router: router,
+    navigator: navigator,
   );
   // Closing the cubits awaits stream cancellations that only complete outside
   // the test's fake-async zone, so it runs as a tearDown, not inline.

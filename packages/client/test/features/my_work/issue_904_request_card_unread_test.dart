@@ -1,12 +1,12 @@
 import 'dart:convert';
 
+import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
-import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/data/repository/mock/client_repository_mocks.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
@@ -26,6 +26,7 @@ import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../support/fake_app_navigator.dart';
 import '../../support/phone_surface.dart';
 import '../../support/remote_wire_harness.dart';
 import 'my_work_test_support.dart';
@@ -248,12 +249,13 @@ void main() {
             unreadRoom: 'questions',
           ),
         };
-      final desk = await _pumpAuthoredCard(tester, roomHints: hints);
+      final navigator = registerFakeAppNavigator();
+      await _pumpAuthoredCard(tester, roomHints: hints);
 
       await tester.tap(find.text('Move the garden shed'));
       await tester.pumpAndSettle();
 
-      expect(desk.router.pushedRouteNames, [BeaconLobbyRoute.name]);
+      expect(navigator.intents.map((i) => i.method), ['openBeaconLobby']);
     });
 
     testWidgets(
@@ -269,12 +271,13 @@ void main() {
               unreadRoom: 'discussion',
             ),
           };
-        final desk = await _pumpAuthoredCard(tester, roomHints: hints);
+        final navigator = registerFakeAppNavigator();
+        await _pumpAuthoredCard(tester, roomHints: hints);
 
         await tester.tap(find.text('Move the garden shed'));
         await tester.pumpAndSettle();
 
-        expect(desk.router.pushedRouteNames, [BeaconViewRoute.name]);
+        expect(navigator.intents.map((i) => i.method), ['openBeacon']);
       },
     );
   });

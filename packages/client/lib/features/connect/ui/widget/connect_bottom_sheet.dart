@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
-import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/dialog/qr_scan_dialog.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/navigation/app_navigator.dart';
 import 'package:tentura/ui/utils/tentura_id_input_formatter.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
@@ -159,14 +159,16 @@ class _ConnectBottomSheetState extends State<ConnectBottomSheet> {
 
     switch (code[0]) {
       case 'U':
-        await context.router.root.push(ProfileViewRoute(id: code));
+        await GetIt.I<AppNavigator>().openProfile(code);
       case 'B':
-        await context.pushRoute(
-          BeaconViewRoute(id: code, entry: kBeaconEntryUnknown),
+        await GetIt.I<AppNavigator>().openBeacon(
+          code,
+          entry: kBeaconEntryUnknown,
         );
       case 'C':
-        await context.pushRoute(
-          BeaconViewRoute(id: code, entry: kBeaconEntryUnknown),
+        await GetIt.I<AppNavigator>().openBeacon(
+          code,
+          entry: kBeaconEntryUnknown,
         );
       case 'I':
         final result = await _invitationRepository.fetchById(code);
@@ -203,9 +205,7 @@ class _ConnectBottomSheetState extends State<ConnectBottomSheet> {
             if (mounted) {
               // TBD: l10n
               showSnackBar(context, text: 'Invitation accepted!');
-              await context.router.root.push(
-                ProfileViewRoute(id: result.issuer.id),
-              );
+              await GetIt.I<AppNavigator>().openProfile(result.issuer.id);
             }
           }
         }
