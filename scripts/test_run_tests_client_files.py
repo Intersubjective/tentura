@@ -23,6 +23,7 @@ class ClientRunnerRoutingTest(unittest.TestCase):
         (self.repo / "scripts").mkdir()
         (self.repo / "packages/client").mkdir(parents=True)
         shutil.copy2(ROOT / "scripts/run_tests.sh", self.repo / "scripts/run_tests.sh")
+        shutil.copy2(ROOT / "scripts/affected_tests.py", self.repo / "scripts/affected_tests.py")
         self.write("scripts/run_with_test_cleanup.sh", """#!/bin/bash
 while [[ "$1" != -- ]]; do shift; done
 shift

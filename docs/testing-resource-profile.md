@@ -43,7 +43,7 @@ breaking each other. CI is unaffected (ephemeral runners, its own selection).
 | Profile | What | -j |
 |---|---|---|
 | `server-files <files>` | named server suites; `mr` files split into their own `-j 1` run | ≤ 4 |
-| `server-affected` | server tests changed vs `HEAD` + tests importing a changed `lib/` file (direct imports only) | ≤ 4 |
+| `server-affected` | server tests that the files changed vs `HEAD` reach through imports, transitively, with fallbacks for non-Dart inputs (`scripts/affected_tests.py`) | ≤ 4 |
 | `server-unit` | `--exclude-tags pg -x toolchain` | ≤ 8 |
 | `server-pg` | `--tags pg -x mr -x perf -x load`, only files carrying `pg` | ≤ 6 |
 | `server-mr` | `--tags mr -x perf -x load -j 1`, only files carrying `mr` | 1 |

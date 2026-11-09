@@ -1,4 +1,5 @@
-"""affected_tests selects the direct importer of every changed lib file."""
+"""client-affected selects every test that imports a changed lib file,
+directly or through other files (scripts/affected_tests.py), and no other."""
 
 import os
 from pathlib import Path
@@ -19,14 +20,19 @@ class AffectedTestsTest(unittest.TestCase):
         self.repo = Path(temporary.name)
         (self.repo / "scripts").mkdir()
         shutil.copy2(ROOT / "scripts/run_tests.sh", self.repo / "scripts/run_tests.sh")
+        shutil.copy2(ROOT / "scripts/affected_tests.py", self.repo / "scripts/affected_tests.py")
         self.write("bin/git", "#!/bin/sh\n" + "".join(
-            f"[ \"$1\" = diff ] && echo packages/client/{lib}\n" for lib in LIBS))
+            f"[ \"$1\" = diff ] && echo packages/client/{lib}\n" for lib in LIBS)
+            + "exit 0\n")
         for name in "abc":
             self.write(f"packages/client/lib/{name}.dart", "library;\n")
             self.write(
                 f"packages/client/test/{name}_test.dart",
                 f"import 'package:tentura/{name}.dart';\n")
         self.write("packages/client/test/other_test.dart", "import 'package:tentura/z.dart';\n")
+        # Reaches a.dart only through lib/via.dart.
+        self.write("packages/client/lib/via.dart", "export 'a.dart';\n")
+        self.write("packages/client/test/via_test.dart", "import 'package:tentura/via.dart';\n")
 
     def write(self, path, contents):
         target = self.repo / path
@@ -34,14 +40,14 @@ class AffectedTestsTest(unittest.TestCase):
         target.write_text(contents)
         target.chmod(0o755)
 
-    def test_each_changed_lib_selects_its_importer(self):
+    def test_each_changed_lib_selects_its_importers(self):
         result = subprocess.run(
             ["bash", str(self.repo / "scripts/run_tests.sh"), "--dry-run", "client-affected"],
             cwd=self.repo, text=True, capture_output=True, timeout=30,
             env={**os.environ, "PATH": f"{self.repo / 'bin'}:{os.environ['PATH']}"},
         )
         output = result.stdout + result.stderr
-        for name in "abc":
+        for name in ("a", "b", "c", "via"):
             self.assertIn(f"test/{name}_test.dart", output, output)
         self.assertNotIn("other_test.dart", output)
 

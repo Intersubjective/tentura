@@ -7,7 +7,8 @@
 #
 # Profiles (run from the repo root):
 #   server-files <test files...>  server suites you name (pg allowed)
-#   server-affected               server tests for files changed vs HEAD
+#   server-affected               server tests the files changed vs HEAD reach
+#                                 (scripts/affected_tests.py)
 #   server-unit                   dart test --exclude-tags pg, without toolchain
 #   server-pg                     pg suites, without mr / perf / load
 #   server-mr                     mr suites (always -j 1), without perf / load
@@ -16,7 +17,8 @@
 #                                 server-mr when the change touches Field /
 #                                 visibility / trust code
 #   client-files <test paths...>  flutter test on the paths you name
-#   client-affected               client tests for files changed vs HEAD
+#   client-affected               client tests the files changed vs HEAD reach
+#                                 (scripts/affected_tests.py)
 #   client-all                    the whole client suite
 #   client-gates                  analyzer baseline + custom lints
 #
@@ -140,26 +142,16 @@ changed_in() {
     sed -n "s|^$pkg/||p" | sort -u)
 }
 
-# Test files for changed files: changed tests themselves, plus tests that
-# import a changed lib file by package URI. Direct imports only; the
-# regression profile catches the rest.
+# Sets array $1 to the test files (relative to package $2) that the files
+# changed vs HEAD can reach: transitive import-graph selection with fallbacks
+# for inputs the graph cannot see (scripts/affected_tests.py; why a change
+# selected the whole package goes to stderr). A selector failure aborts the
+# profile instead of running nothing.
 affected_tests() {
-  local pkg="$1" package_name="$2" f
-  local -a libs=() tests=()
-  while IFS= read -r f; do
-    [[ -z "$f" ]] && continue
-    case "$f" in
-      test/*_test.dart) [[ -f "$ROOT/$pkg/$f" ]] && tests+=("$f") ;;
-      lib/*.dart) libs+=("${f#lib/}") ;;
-    esac
-  done < <(changed_in "$pkg")
-  if (( ${#libs[@]} > 0 )); then
-    local pattern
-    pattern="$(printf "package:${package_name}/%s\n" "${libs[@]}" | sed 's/[.]/\\./g' | paste -sd'|')"
-    while IFS= read -r f; do tests+=("$f"); done < <(
-      cd "$ROOT/$pkg" && grep -rlE "($pattern)['\"]" test --include='*_test.dart' 2>/dev/null || true)
-  fi
-  printf '%s\n' "${tests[@]}" | sort -u | sed '/^$/d'
+  local -n selected="$1"
+  local list
+  list="$(python3 "$ROOT/scripts/affected_tests.py" "$2")"
+  mapfile -t selected < <(printf '%s' "$list" | sed '/^$/d')
 }
 
 touches_mr_area() {
@@ -288,7 +280,7 @@ client_run() {
 
 case "$profile" in
   server-files) server_files "$@" ;;
-  server-affected) mapfile -t t < <(affected_tests packages/server tentura_server); server_files "${t[@]}" ;;
+  server-affected) affected_tests t packages/server; server_files "${t[@]}" ;;
   server-unit) server_unit ;;
   server-pg) server_pg ;;
   server-mr) server_mr ;;
@@ -302,7 +294,7 @@ case "$profile" in
     ;;
   client-files) client_run "$@" ;;
   client-affected)
-    mapfile -t t < <(affected_tests packages/client tentura)
+    affected_tests t packages/client
     if (( ${#t[@]} == 0 )); then log "no affected client tests"; else client_run "${t[@]}"; fi
     ;;
   client-all) client_run ;;
