@@ -7,7 +7,7 @@ import 'package:tentura_root/domain/plan/plan.dart';
 
 import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
 import 'package:tentura_server/consts/beacon_hierarchy_consts.dart';
-import 'package:tentura_server/consts/beacon_plan_consts.dart';
+import 'package:tentura_server/consts/coordination_item_consts.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/entity/beacon_plan.dart';
@@ -145,8 +145,8 @@ ON CONFLICT (beacon_id) DO NOTHING
           '''
 SELECT $_stepColumns
 FROM public.coordination_item
-WHERE beacon_id = \$1 AND kind = ${BeaconPlanConsts.stepKind}
-  AND status = ${BeaconPlanConsts.stepStatusLive}
+WHERE beacon_id = \$1 AND kind = ${CoordinationItemKind.planStep.smallintValue}
+  AND status = ${CoordinationItemStatus.open.smallintValue}
 ORDER BY ordering, created_seq, id
 ''',
           variables: [Variable<String>(beaconId)],
@@ -167,7 +167,7 @@ ORDER BY ordering, created_seq, id
           '''
 SELECT $_stepColumns
 FROM public.coordination_item
-WHERE beacon_id = \$1 AND kind = ${BeaconPlanConsts.stepKind}
+WHERE beacon_id = \$1 AND kind = ${CoordinationItemKind.planStep.smallintValue}
   AND id = ANY(\$2::text[])
 ''',
           variables: [
@@ -191,7 +191,7 @@ WHERE beacon_id = \$1 AND kind = ${BeaconPlanConsts.stepKind}
           '''
 SELECT id FROM public.coordination_item
 WHERE id = ANY(\$2::text[])
-  AND (beacon_id <> \$1 OR kind <> ${BeaconPlanConsts.stepKind})
+  AND (beacon_id <> \$1 OR kind <> ${CoordinationItemKind.planStep.smallintValue})
 ''',
           variables: [
             Variable<String>(beaconId),
@@ -209,7 +209,7 @@ WHERE id = ANY(\$2::text[])
           '''
 SELECT $_stepColumns
 FROM public.coordination_item
-WHERE id = \$1 AND kind = ${BeaconPlanConsts.stepKind}
+WHERE id = \$1 AND kind = ${CoordinationItemKind.planStep.smallintValue}
 ''',
           variables: [Variable<String>(stepId)],
         )
@@ -332,7 +332,7 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8::text::jsonb, $9::text::jsonb)
       await _database.customStatement(
         '''
 UPDATE public.coordination_item
-SET status = ${BeaconPlanConsts.stepStatusRemoved}, removed_seq = \$2,
+SET status = ${CoordinationItemStatus.cancelled.smallintValue}, removed_seq = \$2,
     cancelled_at = now(), updated_at = now(), ack_seq = \$2
 WHERE id = \$1
 ''',
@@ -350,8 +350,8 @@ INSERT INTO public.coordination_item
   (id, beacon_id, kind, status, title, body, creator_id, target_person_id,
    ordering, published, published_at, start_at, end_at,
    created_seq, content_seq, ack_seq)
-VALUES (\$1, \$2, ${BeaconPlanConsts.stepKind},
-        ${BeaconPlanConsts.stepStatusLive}, \$3, \$4, \$5, \$6, \$7, true,
+VALUES (\$1, \$2, ${CoordinationItemKind.planStep.smallintValue},
+        ${CoordinationItemStatus.open.smallintValue}, \$3, \$4, \$5, \$6, \$7, true,
         now(), \$8::timestamptz, \$9::timestamptz, \$10, \$10, \$10)
 ''',
           [
@@ -377,7 +377,7 @@ VALUES (\$1, \$2, ${BeaconPlanConsts.stepKind},
 UPDATE public.coordination_item
 SET title = \$2, body = \$3, target_person_id = \$4,
     start_at = \$5::timestamptz, end_at = \$6::timestamptz, ordering = \$7,
-    status = ${BeaconPlanConsts.stepStatusLive}, removed_seq = NULL,
+    status = ${CoordinationItemStatus.open.smallintValue}, removed_seq = NULL,
     cancelled_at = NULL,
     content_seq = CASE WHEN \$8 THEN \$10 ELSE content_seq END,
     ack_seq = CASE WHEN \$9 THEN \$10 ELSE ack_seq END,
@@ -406,7 +406,7 @@ WHERE id = \$1
           '''
 SELECT $_stepColumns
 FROM public.coordination_item
-WHERE beacon_id = \$1 AND kind = ${BeaconPlanConsts.stepKind}
+WHERE beacon_id = \$1 AND kind = ${CoordinationItemKind.planStep.smallintValue}
 ''',
           variables: [Variable<String>(beaconId)],
         )
@@ -453,8 +453,8 @@ UPDATE public.beacon_plan SET copied_from_beacon_id = $2 WHERE beacon_id = $1
           '''
 UPDATE public.coordination_item
 SET done_at = now(), done_by_id = \$2, updated_at = now()
-WHERE id = \$1 AND kind = ${BeaconPlanConsts.stepKind}
-  AND status = ${BeaconPlanConsts.stepStatusLive} AND done_at IS NULL
+WHERE id = \$1 AND kind = ${CoordinationItemKind.planStep.smallintValue}
+  AND status = ${CoordinationItemStatus.open.smallintValue} AND done_at IS NULL
 RETURNING id
 ''',
           variables: [Variable<String>(stepId), Variable<String>(actorId)],
@@ -470,8 +470,8 @@ RETURNING id
           '''
 UPDATE public.coordination_item
 SET done_at = NULL, done_by_id = NULL, updated_at = now()
-WHERE id = \$1 AND kind = ${BeaconPlanConsts.stepKind}
-  AND status = ${BeaconPlanConsts.stepStatusLive} AND done_at IS NOT NULL
+WHERE id = \$1 AND kind = ${CoordinationItemKind.planStep.smallintValue}
+  AND status = ${CoordinationItemStatus.open.smallintValue} AND done_at IS NOT NULL
 RETURNING id
 ''',
           variables: [Variable<String>(stepId)],
@@ -723,8 +723,8 @@ SELECT b.id AS beacon_id, b.status,
       'contentSeq', ci.content_seq, 'ackSeq', ci.ack_seq)
       ORDER BY ci.ordering, ci.created_seq, ci.id), '[]'::jsonb)
    FROM public.coordination_item ci
-   WHERE ci.beacon_id = b.id AND ci.kind = ${BeaconPlanConsts.stepKind}
-     AND ci.status = ${BeaconPlanConsts.stepStatusLive})::text AS steps,
+   WHERE ci.beacon_id = b.id AND ci.kind = ${CoordinationItemKind.planStep.smallintValue}
+     AND ci.status = ${CoordinationItemStatus.open.smallintValue})::text AS steps,
   (SELECT COALESCE(jsonb_agg(jsonb_build_object(
       'seq', r.seq, 'actorId', r.actor_id, 'changes', r.changes_json,
       'createdAt', r.created_at,

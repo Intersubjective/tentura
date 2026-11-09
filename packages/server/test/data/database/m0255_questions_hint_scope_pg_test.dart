@@ -134,7 +134,7 @@ Future<void> main() async {
       await sql(
         'INSERT INTO public.coordination_item (id, beacon_id, kind, status, '
         "creator_id, published, published_at) VALUES ('$lobbyId', "
-        "'$beaconId', $coordinationItemKindLobby, 0, '$author', true, now())",
+        "'$beaconId', ${CoordinationItemKind.lobby.smallintValue}, 0, '$author', true, now())",
       );
       // Settle every setup hint before the test watches the channel.
       await Future<void>.delayed(const Duration(milliseconds: 200));

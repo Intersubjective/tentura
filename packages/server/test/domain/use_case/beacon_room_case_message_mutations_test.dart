@@ -385,7 +385,7 @@ void main() {
         items.itemById = testCoordinationItem(
           id: _threadItemId,
           beaconId: _beaconId,
-          kind: coordinationItemKindAsk,
+          kind: CoordinationItemKind.ask.smallintValue,
           creatorId: _userId,
           targetPersonId: _thirdUserId,
         );
@@ -526,7 +526,7 @@ void main() {
         items.itemById = testCoordinationItem(
           id: _threadItemId,
           beaconId: _beaconId,
-          kind: coordinationItemKindAsk,
+          kind: CoordinationItemKind.ask.smallintValue,
           creatorId: _userId,
         );
         room.participant = null;
@@ -550,7 +550,7 @@ void main() {
         items.itemById = testCoordinationItem(
           id: _threadItemId,
           beaconId: _beaconId,
-          kind: coordinationItemKindAsk,
+          kind: CoordinationItemKind.ask.smallintValue,
           creatorId: _userId,
           targetPersonId: _otherUserId,
         );

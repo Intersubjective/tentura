@@ -98,15 +98,24 @@ void main() {
         )
         .body;
 
-    expect(accepted(coordinationItemKindAsk), 'Ваша просьба принята');
-    expect(accepted(coordinationItemKindPromise), 'Ваше обещание принято');
-    expect(accepted(coordinationItemKindBlocker), 'Ваш блокер принят');
+    expect(
+      accepted(CoordinationItemKind.ask.smallintValue),
+      'Ваша просьба принята',
+    );
+    expect(
+      accepted(CoordinationItemKind.promise.smallintValue),
+      'Ваше обещание принято',
+    );
+    expect(
+      accepted(CoordinationItemKind.blocker.smallintValue),
+      'Ваш блокер принят',
+    );
     expect(
       builder
           .build(
             intent: intent(
               NotificationKind.commitmentCancelled,
-              coordinationItemKind: coordinationItemKindBlocker,
+              coordinationItemKind: CoordinationItemKind.blocker.smallintValue,
             ),
             actorDisplayName: 'Anna',
             locale: 'ru',

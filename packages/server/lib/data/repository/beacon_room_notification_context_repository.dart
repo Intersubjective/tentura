@@ -91,12 +91,16 @@ class BeaconRoomNotificationContextRepository
     final rows =
         await (_db.select(_db.coordinationItems)
               ..where((t) => t.beaconId.equals(beaconId))
-              ..where((t) => t.kind.equals(coordinationItemKindPlan))
+              ..where(
+                (t) => t.kind.equals(CoordinationItemKind.plan.smallintValue),
+              )
               ..where((t) => t.published.equals(true))
               ..where(
                 (t) =>
-                    t.status.equals(coordinationItemStatusOpen) |
-                    t.status.equals(coordinationItemStatusAccepted),
+                    t.status.equals(CoordinationItemStatus.open.smallintValue) |
+                    t.status.equals(
+                      CoordinationItemStatus.accepted.smallintValue,
+                    ),
               ))
             .get();
     final out = <String>{};

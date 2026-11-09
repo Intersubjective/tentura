@@ -105,7 +105,7 @@ void main() {
       id: id,
       beaconId: beaconId,
       kind: kind,
-      status: coordinationItemStatusOpen,
+      status: CoordinationItemStatus.open.smallintValue,
       title: 't',
       body: '',
       creatorId: userId,
@@ -142,7 +142,10 @@ void main() {
   });
 
   test('createMessage rejects plan item thread in production', () async {
-    items.itemById = sampleItem(id: planItemId, kind: coordinationItemKindPlan);
+    items.itemById = sampleItem(
+      id: planItemId,
+      kind: CoordinationItemKind.plan.smallintValue,
+    );
 
     expect(
       () => sut.createMessage(
@@ -156,7 +159,10 @@ void main() {
   });
 
   test('createMessage rejects plan item thread under internal policy', () async {
-    items.itemById = sampleItem(id: planItemId, kind: coordinationItemKindPlan);
+    items.itemById = sampleItem(
+      id: planItemId,
+      kind: CoordinationItemKind.plan.smallintValue,
+    );
 
     expect(
       () => internalSut.createMessage(
@@ -176,7 +182,10 @@ void main() {
   });
 
   test('listMessages rejects plan item thread in production', () async {
-    items.itemById = sampleItem(id: planItemId, kind: coordinationItemKindPlan);
+    items.itemById = sampleItem(
+      id: planItemId,
+      kind: CoordinationItemKind.plan.smallintValue,
+    );
 
     expect(
       () => sut.listMessages(
@@ -189,7 +198,10 @@ void main() {
   });
 
   test('listMessages rejects plan item thread under internal policy', () async {
-    items.itemById = sampleItem(id: planItemId, kind: coordinationItemKindPlan);
+    items.itemById = sampleItem(
+      id: planItemId,
+      kind: CoordinationItemKind.plan.smallintValue,
+    );
 
     expect(
       () => internalSut.listMessages(
@@ -202,7 +214,10 @@ void main() {
   });
 
   test('markThreadSeen rejects plan item thread in production', () async {
-    items.itemById = sampleItem(id: planItemId, kind: coordinationItemKindPlan);
+    items.itemById = sampleItem(
+      id: planItemId,
+      kind: CoordinationItemKind.plan.smallintValue,
+    );
 
     expect(
       () => sut.markThreadSeen(
@@ -215,7 +230,10 @@ void main() {
   });
 
   test('markThreadSeen rejects plan item thread under internal policy', () async {
-    items.itemById = sampleItem(id: planItemId, kind: coordinationItemKindPlan);
+    items.itemById = sampleItem(
+      id: planItemId,
+      kind: CoordinationItemKind.plan.smallintValue,
+    );
 
     expect(
       () => internalSut.markThreadSeen(
@@ -262,7 +280,10 @@ void main() {
   test(
     'listMessages allows ask item thread',
     () async {
-      items.itemById = sampleItem(id: askItemId, kind: coordinationItemKindAsk);
+      items.itemById = sampleItem(
+        id: askItemId,
+        kind: CoordinationItemKind.ask.smallintValue,
+      );
 
       final out = await internalSut.listMessages(
         beaconId: beaconId,

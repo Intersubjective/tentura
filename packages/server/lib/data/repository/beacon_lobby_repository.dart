@@ -39,7 +39,7 @@ class BeaconLobbyRepository implements BeaconLobbyRepositoryPort {
       variables: [
         Variable.withString(generateId('L')),
         Variable.withString(beaconId),
-        const Variable<int>(coordinationItemKindLobby),
+        Variable<int>(CoordinationItemKind.lobby.smallintValue),
         Variable.withString(authorId),
       ],
     );
@@ -54,7 +54,7 @@ class BeaconLobbyRepository implements BeaconLobbyRepositoryPort {
           r'WHERE beacon_id = $1 AND kind = $2',
           variables: [
             Variable.withString(beaconId),
-            const Variable<int>(coordinationItemKindLobby),
+            Variable<int>(CoordinationItemKind.lobby.smallintValue),
           ],
         )
         .getSingleOrNull();
@@ -69,7 +69,7 @@ class BeaconLobbyRepository implements BeaconLobbyRepositoryPort {
           r'WHERE id = $1 AND kind = $2',
           variables: [
             Variable.withString(itemId),
-            const Variable<int>(coordinationItemKindLobby),
+            Variable<int>(CoordinationItemKind.lobby.smallintValue),
           ],
         )
         .getSingleOrNull();

@@ -39,8 +39,8 @@ void main() {
       expect(
         resolveResponsibleUserId(
           const CoordinationStaleItemView(
-            kind: coordinationItemKindPlan,
-            status: coordinationItemStatusOpen,
+            kind: CoordinationItemKind.plan,
+            status: CoordinationItemStatus.open,
             creatorId: 'c1',
             targetPersonId: 't1',
           ),
@@ -53,8 +53,8 @@ void main() {
       expect(
         resolveResponsibleUserId(
           const CoordinationStaleItemView(
-            kind: coordinationItemKindPlan,
-            status: coordinationItemStatusOpen,
+            kind: CoordinationItemKind.plan,
+            status: CoordinationItemStatus.open,
             creatorId: 'c1',
           ),
         ),
@@ -66,8 +66,8 @@ void main() {
       expect(
         resolveResponsibleUserId(
           const CoordinationStaleItemView(
-            kind: coordinationItemKindAsk,
-            status: coordinationItemStatusOpen,
+            kind: CoordinationItemKind.ask,
+            status: CoordinationItemStatus.open,
             creatorId: 'c1',
             targetPersonId: 't1',
           ),
@@ -80,8 +80,8 @@ void main() {
       expect(
         resolveResponsibleUserId(
           const CoordinationStaleItemView(
-            kind: coordinationItemKindPromise,
-            status: coordinationItemStatusAccepted,
+            kind: CoordinationItemKind.promise,
+            status: CoordinationItemStatus.accepted,
             creatorId: 'c1',
             targetPersonId: 't1',
           ),
@@ -94,8 +94,8 @@ void main() {
       expect(
         resolveResponsibleUserId(
           const CoordinationStaleItemView(
-            kind: coordinationItemKindBlocker,
-            status: coordinationItemStatusOpen,
+            kind: CoordinationItemKind.blocker,
+            status: CoordinationItemStatus.open,
             creatorId: 'c1',
           ),
         ),
@@ -110,8 +110,8 @@ void main() {
       expect(
         isItemStale(
           CoordinationStaleItemView(
-            kind: coordinationItemKindAsk,
-            status: coordinationItemStatusOpen,
+            kind: CoordinationItemKind.ask,
+            status: CoordinationItemStatus.open,
             creatorId: 'c1',
             staleAt: DateTime.utc(2026, 6, 10),
           ),
@@ -125,8 +125,8 @@ void main() {
       expect(
         isItemStale(
           CoordinationStaleItemView(
-            kind: coordinationItemKindAsk,
-            status: coordinationItemStatusResolved,
+            kind: CoordinationItemKind.ask,
+            status: CoordinationItemStatus.resolved,
             creatorId: 'c1',
             staleAt: DateTime.utc(2026, 6, 10),
           ),

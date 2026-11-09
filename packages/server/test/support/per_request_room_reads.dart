@@ -83,8 +83,8 @@ mixin OpenBlockersFromListByBeacon implements CoordinationItemRepositoryPort {
       if (await listByBeacon(
             id,
             viewerUserId: viewerUserId,
-            kind: coordinationItemKindBlocker,
-            status: coordinationItemStatusOpen,
+            kind: CoordinationItemKind.blocker.smallintValue,
+            status: CoordinationItemStatus.open.smallintValue,
           )
           case [final first, ...])
         id: first.item,

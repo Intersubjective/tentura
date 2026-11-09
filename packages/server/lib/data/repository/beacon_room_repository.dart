@@ -631,7 +631,8 @@ JOIN public.beacon_fact_card_revision r
         'semanticMarker': m.semanticMarker,
         'systemMessageKind': m.systemMessageKind,
         'linkedBlockerId':
-            linkedRow != null && linkedRow.kind == coordinationItemKindBlocker
+            linkedRow != null &&
+                linkedRow.kind == CoordinationItemKind.blocker.smallintValue
             ? linkedId
             : null,
         'linkedFactCardId': m.linkedFactCardId,
@@ -2066,7 +2067,7 @@ LEFT JOIN LATERAL (
     LEFT JOIN public.beacon_room_seen seen
       ON seen.thread_item_id = m.thread_item_id AND seen.user_id = \$2
       AND seen.beacon_id = m.beacon_id
-    WHERE ci.beacon_id = ids.beacon_id AND ci.kind = $coordinationItemKindLobby
+    WHERE ci.beacon_id = ids.beacon_id AND ci.kind = ${CoordinationItemKind.lobby.smallintValue}
       AND m.author_id <> \$2
       AND m.system_message_kind IS NULL
       AND (seen.last_seen_at IS NULL OR m.created_at > seen.last_seen_at)

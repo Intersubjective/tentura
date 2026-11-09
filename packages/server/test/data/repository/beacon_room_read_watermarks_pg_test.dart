@@ -163,8 +163,8 @@ ON CONFLICT (id) DO NOTHING
         parameters: {
           'id': askItemId,
           'beaconId': beaconId,
-          'kind': coordinationItemKindAsk,
-          'status': coordinationItemStatusOpen,
+          'kind': CoordinationItemKind.ask.smallintValue,
+          'status': CoordinationItemStatus.open.smallintValue,
           'creatorId': authorId,
           'source': coordinationItemSourceDefault,
         },

@@ -168,14 +168,14 @@ void main() {
     final askCopy = builder.build(
       intent: intent(
         kind: NotificationKind.commitmentAccepted,
-        coordinationItemKind: coordinationItemKindAsk,
+        coordinationItemKind: CoordinationItemKind.ask.smallintValue,
       ),
       actorDisplayName: 'Sam',
     );
     final promiseCopy = builder.build(
       intent: intent(
         kind: NotificationKind.commitmentAccepted,
-        coordinationItemKind: coordinationItemKindPromise,
+        coordinationItemKind: CoordinationItemKind.promise.smallintValue,
       ),
       actorDisplayName: 'Sam',
     );
@@ -217,7 +217,7 @@ void main() {
     final copy = builder.build(
       intent: intent(
         kind: NotificationKind.commitmentResolved,
-        coordinationItemKind: coordinationItemKindAsk,
+        coordinationItemKind: CoordinationItemKind.ask.smallintValue,
         beaconTitle: 'Garden cleanup',
         bodyExcerpt: 'Tools delivered',
       ),

@@ -157,7 +157,7 @@ void main() {
       items.itemById = testCoordinationItem(
         id: _threadItemId,
         beaconId: _beaconId,
-        kind: coordinationItemKindAsk,
+        kind: CoordinationItemKind.ask.smallintValue,
         creatorId: _userId,
       );
     });

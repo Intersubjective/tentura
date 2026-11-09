@@ -174,7 +174,7 @@ void main() {
       id: id,
       beaconId: beaconId,
       kind: kind,
-      status: coordinationItemStatusOpen,
+      status: CoordinationItemStatus.open.smallintValue,
       title: 't',
       body: '',
       creatorId: userId,
@@ -253,7 +253,10 @@ void main() {
   test(
     'markThreadSeen passes real item id unchanged',
     () async {
-      items.itemById = sampleItem(id: askItemId, kind: coordinationItemKindAsk);
+      items.itemById = sampleItem(
+        id: askItemId,
+        kind: CoordinationItemKind.ask.smallintValue,
+      );
 
       final out = await internalSut.markThreadSeen(
         beaconId: beaconId,
@@ -274,7 +277,10 @@ void main() {
       final existing = DateTime.utc(2026, 5, 1, 16);
       room.latestMessageAt = latest;
       room.existingSeen = existing;
-      items.itemById = sampleItem(id: askItemId, kind: coordinationItemKindAsk);
+      items.itemById = sampleItem(
+        id: askItemId,
+        kind: CoordinationItemKind.ask.smallintValue,
+      );
 
       final out = await internalSut.markThreadSeen(
         beaconId: beaconId,
@@ -289,7 +295,10 @@ void main() {
   );
 
   test('markThreadSeen rejects plan item thread in production', () async {
-    items.itemById = sampleItem(id: planItemId, kind: coordinationItemKindPlan);
+    items.itemById = sampleItem(
+      id: planItemId,
+      kind: CoordinationItemKind.plan.smallintValue,
+    );
 
     expect(
       () => sut.markThreadSeen(
@@ -306,7 +315,7 @@ void main() {
     () async {
       items.itemById = sampleItem(
         id: planItemId,
-        kind: coordinationItemKindPlan,
+        kind: CoordinationItemKind.plan.smallintValue,
       );
 
       expect(

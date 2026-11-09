@@ -649,12 +649,13 @@ class BeaconNotificationCopyBuilder {
     return ru ? '$h ч $rest мин' : '$h h $rest min';
   }
 
-  String _coordinationItemNoun(int? kind) => switch (kind) {
-    coordinationItemKindAsk => 'ask',
-    coordinationItemKindPromise => 'promise',
-    coordinationItemKindBlocker => 'blocker',
-    _ => 'commitment',
-  };
+  String _coordinationItemNoun(int? kind) =>
+      switch (CoordinationItemKind.fromSmallint(kind)) {
+        CoordinationItemKind.ask => 'ask',
+        CoordinationItemKind.promise => 'promise',
+        CoordinationItemKind.blocker => 'blocker',
+        _ => 'commitment',
+      };
 
   /// Russian forms of the coordination item noun, agreeing in gender (#367).
   ({
@@ -665,40 +666,41 @@ class BeaconNotificationCopyBuilder {
     String ending,
     String cancelled,
   })
-  _ruCoordinationItem(int? kind) => switch (kind) {
-    coordinationItemKindAsk => (
-      nom: 'Просьба',
-      acc: 'просьбу',
-      yourNom: 'Ваша просьба',
-      yourAcc: 'вашу просьбу',
-      ending: 'а',
-      cancelled: 'отменена',
-    ),
-    coordinationItemKindPromise => (
-      nom: 'Обещание',
-      acc: 'обещание',
-      yourNom: 'Ваше обещание',
-      yourAcc: 'ваше обещание',
-      ending: 'о',
-      cancelled: 'отменено',
-    ),
-    coordinationItemKindBlocker => (
-      nom: 'Блокер',
-      acc: 'блокер',
-      yourNom: 'Ваш блокер',
-      yourAcc: 'ваш блокер',
-      ending: '',
-      cancelled: 'отменён',
-    ),
-    _ => (
-      nom: 'Обязательство',
-      acc: 'обязательство',
-      yourNom: 'Ваше обязательство',
-      yourAcc: 'ваше обязательство',
-      ending: 'о',
-      cancelled: 'отменено',
-    ),
-  };
+  _ruCoordinationItem(int? kind) =>
+      switch (CoordinationItemKind.fromSmallint(kind)) {
+        CoordinationItemKind.ask => (
+          nom: 'Просьба',
+          acc: 'просьбу',
+          yourNom: 'Ваша просьба',
+          yourAcc: 'вашу просьбу',
+          ending: 'а',
+          cancelled: 'отменена',
+        ),
+        CoordinationItemKind.promise => (
+          nom: 'Обещание',
+          acc: 'обещание',
+          yourNom: 'Ваше обещание',
+          yourAcc: 'ваше обещание',
+          ending: 'о',
+          cancelled: 'отменено',
+        ),
+        CoordinationItemKind.blocker => (
+          nom: 'Блокер',
+          acc: 'блокер',
+          yourNom: 'Ваш блокер',
+          yourAcc: 'ваш блокер',
+          ending: '',
+          cancelled: 'отменён',
+        ),
+        _ => (
+          nom: 'Обязательство',
+          acc: 'обязательство',
+          yourNom: 'Ваше обязательство',
+          yourAcc: 'ваше обязательство',
+          ending: 'о',
+          cancelled: 'отменено',
+        ),
+      };
 
   String _bodyWithRequest({
     required String beaconTitle,

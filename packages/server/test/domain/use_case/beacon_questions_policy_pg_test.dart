@@ -1144,7 +1144,7 @@ Future<void> main() async {
       );
       expect(
         listed.map((i) => i.item.kind),
-        isNot(contains(coordinationItemKindLobby)),
+        isNot(contains(CoordinationItemKind.lobby.smallintValue)),
       );
     });
 

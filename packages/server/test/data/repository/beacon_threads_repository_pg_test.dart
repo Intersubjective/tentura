@@ -143,7 +143,7 @@ ON CONFLICT DO NOTHING
       required int kind,
       required String creatorId,
       bool published = true,
-      int status = coordinationItemStatusOpen,
+      int? status,
       String? targetPersonId,
       String title = 'Item',
     }) async {
@@ -167,7 +167,7 @@ ON CONFLICT (id) DO UPDATE SET
           'id': id,
           'beaconId': beaconId,
           'kind': kind,
-          'status': status,
+          'status': status ?? CoordinationItemStatus.open.smallintValue,
           'title': title,
           'creatorId': creatorId,
           'targetPersonId': targetPersonId,
@@ -296,7 +296,7 @@ ON CONFLICT (fact_card_id, seq) DO NOTHING
         await seedBaseUsersAndBeacon();
         await insertItem(
           id: 'Ithpgaskpub01',
-          kind: coordinationItemKindAsk,
+          kind: CoordinationItemKind.ask.smallintValue,
           creatorId: memberId,
           targetPersonId: targetId,
         );
@@ -321,7 +321,7 @@ ON CONFLICT (fact_card_id, seq) DO NOTHING
         await seedBaseUsersAndBeacon();
         await insertItem(
           id: 'Ithpgaskpub02',
-          kind: coordinationItemKindAsk,
+          kind: CoordinationItemKind.ask.smallintValue,
           creatorId: memberId,
           targetPersonId: targetId,
         );
@@ -346,7 +346,7 @@ ON CONFLICT (fact_card_id, seq) DO NOTHING
         await seedBaseUsersAndBeacon();
         await insertItem(
           id: 'Ithpgaskpub03',
-          kind: coordinationItemKindAsk,
+          kind: CoordinationItemKind.ask.smallintValue,
           creatorId: memberId,
           targetPersonId: targetId,
         );
@@ -370,7 +370,7 @@ ON CONFLICT (fact_card_id, seq) DO NOTHING
         await seedBaseUsersAndBeacon();
         await insertItem(
           id: 'Ithpgaskzero1',
-          kind: coordinationItemKindAsk,
+          kind: CoordinationItemKind.ask.smallintValue,
           creatorId: memberId,
           targetPersonId: targetId,
           title: 'Zero messages',
@@ -398,14 +398,14 @@ ON CONFLICT (fact_card_id, seq) DO NOTHING
         await seedBaseUsersAndBeacon();
         await insertItem(
           id: 'Ithpgdraftown',
-          kind: coordinationItemKindAsk,
+          kind: CoordinationItemKind.ask.smallintValue,
           creatorId: memberId,
           published: false,
           title: 'Own draft',
         );
         await insertItem(
           id: 'Ithpgdraftoth',
-          kind: coordinationItemKindAsk,
+          kind: CoordinationItemKind.ask.smallintValue,
           creatorId: otherId,
           published: false,
           title: 'Other draft',
@@ -431,10 +431,10 @@ ON CONFLICT (fact_card_id, seq) DO NOTHING
         await seedBaseUsersAndBeacon();
         await insertItem(
           id: 'Ithpgclosed1',
-          kind: coordinationItemKindAsk,
+          kind: CoordinationItemKind.ask.smallintValue,
           creatorId: memberId,
           targetPersonId: targetId,
-          status: coordinationItemStatusResolved,
+          status: CoordinationItemStatus.resolved.smallintValue,
           title: 'Closed ask',
         );
 
@@ -521,7 +521,7 @@ ON CONFLICT DO NOTHING
         await seedBaseUsersAndBeacon();
         await insertItem(
           id: 'Ithpgseenitem',
-          kind: coordinationItemKindAsk,
+          kind: CoordinationItemKind.ask.smallintValue,
           creatorId: memberId,
           targetPersonId: targetId,
         );
@@ -726,7 +726,7 @@ ON CONFLICT DO NOTHING
         await seedBaseUsersAndBeacon();
         await insertItem(
           id: 'Ithpgprev000',
-          kind: coordinationItemKindAsk,
+          kind: CoordinationItemKind.ask.smallintValue,
           creatorId: memberId,
           targetPersonId: targetId,
           title: 'Preview host',
