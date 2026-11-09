@@ -40,7 +40,6 @@ import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import '../../domain/constellation_consts.dart';
 import '../../domain/constellation_minimap.dart';
-import '../../domain/layout/layout_geometry.dart';
 import '../../domain/constellation_trust_chain.dart';
 import '../../domain/constellation_field_unread_glow.dart';
 import '../../domain/entity/constellation_field.dart';
@@ -222,7 +221,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
   // the first build.
   final _minimapExpanded = ValueNotifier<bool>(false);
   bool _minimapExpandedInitialized = false;
-  final _minimapChromeVisible = ValueNotifier<bool>(true);
+  final _minimapChromeVisible = ValueNotifier<bool>(false);
   int _pointersDown = 0;
 
   ConstellationTagHullHitTester? _tagHullHitTester;
@@ -586,6 +585,11 @@ class _ConstellationBodyState extends State<ConstellationBody>
       gestureActive: _pointersDown > 0,
     );
     _recomputeMinimapChromeVisible();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _recomputeMinimapChromeVisible();
+      }
+    });
     _rescheduleFieldSettleBack();
   }
 
@@ -610,28 +614,23 @@ class _ConstellationBodyState extends State<ConstellationBody>
       contextPanelVisible: panelVisible,
       compactSheetHeight: sheetHeight,
       bottomChromeHeight: _bottomChromeColumnHeight,
-      // Default minimapExpanded: visibility uses fit-all insets without
-      // reserving the expanded minimap block (chicken-and-egg).
+      // Visibility matches the fit-all camera rect; never reserve the expanded
+      // minimap block (only the map/sheet chrome that fit-all already uses).
     );
     final viewport = constellationMinimapViewportWorld(
       _graphController,
       viewportInsets: insets,
     );
     if (viewport == null) {
+      if (_minimapChromeVisible.value) {
+        _minimapChromeVisible.value = false;
+      }
       return;
     }
-    final snapshot = _graphController.renderSnapshot;
-    final nodeBounds = <LRect>[
-      for (final id in snapshot.topology.nodesById.keys)
-        if (id.startsWith('fp:') || id.startsWith('fr:'))
-          if (snapshot.resolveTargetPosition(id) case final point?)
-            (
-              left: point.x,
-              top: point.y,
-              right: point.x,
-              bottom: point.y,
-            ),
-    ];
+    final nodeBounds = constellationMinimapNodeBounds(
+      _graphController,
+      layoutFootprints: cubit.layoutFootprints,
+    );
     final needed = constellationMinimapNeededForViewport(
       viewport: viewport,
       nodeBounds: nodeBounds,

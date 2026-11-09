@@ -68,8 +68,8 @@ const _corners = {'p0', 'p7', 'p32', 'p39'};
 
 LPoint _lPoint(Offset o) => (x: o.dx, y: o.dy);
 
-final class _Mounted {
-  _Mounted(this.cubit, this.holder, this.worldPeople, this.worldViewer);
+final class ConstellationMinimapTestMount {
+  ConstellationMinimapTestMount(this.cubit, this.holder, this.worldPeople, this.worldViewer);
 
   final ConstellationCubit cubit;
   final ConstellationPresentationFrameHolder holder;
@@ -116,7 +116,7 @@ final class _Mounted {
   /// 0.45, close above) with [people] (default everyone) placed at [_screenPositions] and the
   /// viewer at [viewerAt] (default the middle). With
   /// [from], the camera first rests at that scale and then zooms to [scale].
-  static Future<_Mounted> mount(
+  static Future<ConstellationMinimapTestMount> mount(
     WidgetTester tester, {
     double scale = 0.6,
     double? from,
@@ -181,12 +181,24 @@ final class _Mounted {
       await tester.pumpAndSettle();
     }
     // The minimap may start collapsed or expanded; the checks need it open.
-    if (find.byKey(_map).evaluate().isEmpty &&
-        find.byKey(_toggle).evaluate().isNotEmpty) {
-      await tester.tap(find.byKey(_toggle));
-      await tester.pumpAndSettle();
+    if (find.byKey(_map).evaluate().isEmpty) {
+      for (var i = 0;
+          i < 8 && find.byKey(_toggle).evaluate().isEmpty;
+          i++) {
+        controller.zoomBy(1.2);
+        await tester.pumpAndSettle();
+      }
+      if (find.byKey(_toggle).evaluate().isNotEmpty &&
+          find.byKey(_map).evaluate().isEmpty) {
+        const showTooltips = {'Show minimap', 'Показать миникарту'};
+        final tip = tester.widget<IconButton>(find.byKey(_toggle)).tooltip;
+        if (showTooltips.contains(tip)) {
+          await tester.tap(find.byKey(_toggle));
+          await tester.pumpAndSettle();
+        }
+      }
     }
-    return _Mounted(cubit, holder, world, viewer);
+    return ConstellationMinimapTestMount(cubit, holder, world, viewer);
   }
 }
 
@@ -208,19 +220,13 @@ final class _Pixels {
   /// Captures the outermost repaint boundary that holds the whole minimap,
   /// whatever wrapper the minimap itself uses.
   static Future<_Pixels> capture(WidgetTester tester) async {
-    final map = tester.getRect(find.byKey(_map));
-    final boundary = find.byType(RepaintBoundary).evaluate().where((e) {
-      final box = e.renderObject! as RenderBox;
-      return box.attached &&
-          (box.localToGlobal(Offset.zero) & box.size)
-              .inflate(0.5)
-              .contains(
-                map.center,
-              ) &&
-          (box.localToGlobal(Offset.zero) & box.size)
-              .inflate(0.5)
-              .overlaps(map);
-    }).first;
+    final boundary = find
+        .ancestor(
+          of: find.byKey(_map),
+          matching: find.byType(RepaintBoundary),
+        )
+        .evaluate()
+        .first;
     final render = boundary.renderObject! as RenderRepaintBoundary;
     final origin = render.localToGlobal(Offset.zero);
     final captured = await tester.runAsync(() async {
@@ -275,11 +281,11 @@ void main() {
     ),
   ]) {
     group('minimap at $name level', () {
-      Future<_Mounted> mount(
+      Future<ConstellationMinimapTestMount> mount(
         WidgetTester tester, {
         Set<String>? people,
         Offset? viewerAt,
-      }) => _Mounted.mount(
+      }) => ConstellationMinimapTestMount.mount(
         tester,
         scale: scale,
         from: from,
@@ -301,6 +307,7 @@ void main() {
         // only the four corner people. What differs is exactly the dots of
         // the people left out, wherever the frame or background ink lies.
         final everyone = await mount(tester);
+        await tester.pumpAndSettle();
         final withEveryone = await _Pixels.capture(tester);
         final origin = tester.getTopLeft(find.byKey(_map));
         // The viewer is inside the field's extent, so fitting the projection
@@ -316,7 +323,25 @@ void main() {
             if (!_corners.contains(e.key)) e.key: dotOf(e.value),
         };
 
-        await mount(tester, people: _corners);
+        final cornersMount = await mount(tester, people: _corners);
+        if (find.byKey(_map).evaluate().isEmpty) {
+          final controller = cornersMount.cubit.graphController;
+          for (var i = 0;
+              i < 10 && find.byKey(_toggle).evaluate().isEmpty;
+              i++) {
+            controller.zoomBy(1.3);
+            await tester.pumpAndSettle();
+          }
+          const showTooltips = {'Show minimap', 'Показать миникарту'};
+          if (find.byKey(_toggle).evaluate().isNotEmpty &&
+              find.byKey(_map).evaluate().isEmpty) {
+            final tip = tester.widget<IconButton>(find.byKey(_toggle)).tooltip;
+            if (showTooltips.contains(tip)) {
+              await tester.tap(find.byKey(_toggle));
+              await tester.pumpAndSettle();
+            }
+          }
+        }
         final cornersOnly = await _Pixels.capture(tester);
         expect(tester.getTopLeft(find.byKey(_map)), origin);
 
@@ -332,6 +357,7 @@ void main() {
 
       testWidgets('draws the viewer as a dot where they are', (tester) async {
         final middle = await mount(tester);
+        await tester.pumpAndSettle();
         final viewerMiddle = await _Pixels.capture(tester);
         final origin = tester.getTopLeft(find.byKey(_map));
         final projection = middle.projection;
@@ -342,7 +368,28 @@ void main() {
 
         // The viewer stands between the people of the middle row; moving
         // them to the free space below changes only the viewer's dot.
-        final moved = await mount(tester, viewerAt: const Offset(600, 700));
+        final moved = await mount(
+          tester,
+          viewerAt: const Offset(600, 700),
+        );
+        if (find.byKey(_map).evaluate().isEmpty) {
+          final controller = moved.cubit.graphController;
+          for (var i = 0;
+              i < 10 && find.byKey(_toggle).evaluate().isEmpty;
+              i++) {
+            controller.zoomBy(1.3);
+            await tester.pumpAndSettle();
+          }
+          const showTooltips = {'Show minimap', 'Показать миникарту'};
+          if (find.byKey(_toggle).evaluate().isNotEmpty &&
+              find.byKey(_map).evaluate().isEmpty) {
+            final tip = tester.widget<IconButton>(find.byKey(_toggle)).tooltip;
+            if (showTooltips.contains(tip)) {
+              await tester.tap(find.byKey(_toggle));
+              await tester.pumpAndSettle();
+            }
+          }
+        }
         final viewerLower = await _Pixels.capture(tester);
         expect(tester.getTopLeft(find.byKey(_map)), origin);
 
@@ -512,7 +559,7 @@ void main() {
       'close level 375 RU: chrome on a wide field at close zoom',
       (tester) async {
         await usePhoneSurface(tester);
-        await _Mounted.mount(
+        await ConstellationMinimapTestMount.mount(
           tester,
           scale: 1.2,
           locale: const Locale('ru'),
@@ -527,7 +574,7 @@ void main() {
     testWidgets('panning brings minimap chrome back when a node leaves view', (
       tester,
     ) async {
-      final m = await _Mounted.mount(tester, people: _corners, scale: 1.2);
+      final m = await ConstellationMinimapTestMount.mount(tester, people: _corners, scale: 1.2);
       expect(find.byKey(_toggle), findsOneWidget);
       final insets = m.cubit.fieldCameraViewportInsets(
         tester.element(find.byType(ConstellationBody)),
@@ -573,7 +620,7 @@ void main() {
       'tertiary; frame inside border after fit-all',
       (tester) async {
         await usePhoneSurface(tester);
-        final m = await _Mounted.mount(
+        final m = await ConstellationMinimapTestMount.mount(
           tester,
           people: _corners,
         );
@@ -643,7 +690,7 @@ void main() {
   group('minimap by zoom level', () {
     testWidgets('stays available at close level when the field extends past '
         'the viewport (#1225)', (tester) async {
-      final m = await _Mounted.mount(tester, scale: 1.2);
+      final m = await ConstellationMinimapTestMount.mount(tester, scale: 1.2);
       expect(m.holder.frame!.detail, ConstellationDetailLevel.close);
 
       expect(find.byKey(_map), findsOneWidget);
@@ -653,7 +700,7 @@ void main() {
     testWidgets('hides chrome after fit-all when every node is on screen', (
       tester,
     ) async {
-      final m = await _Mounted.mount(tester, people: _corners, scale: 1.2);
+      final m = await ConstellationMinimapTestMount.mount(tester, people: _corners, scale: 1.2);
       expect(find.byKey(_toggle), findsOneWidget);
       if (find.byKey(_map).evaluate().isNotEmpty) {
         await tester.tap(find.byKey(_toggle));
@@ -680,7 +727,7 @@ void main() {
     testWidgets('touch drag on the frame pans like mouse (#1225)', (
       tester,
     ) async {
-      final m = await _Mounted.mount(tester);
+      final m = await ConstellationMinimapTestMount.mount(tester);
       final centreBefore = m.viewportCentreWorld(tester);
       final frame = _within(tester, find.byKey(_frameKey), find.byKey(_map));
       final start = tester.getTopLeft(find.byKey(_map)) + frame.center;
@@ -699,7 +746,7 @@ void main() {
     testWidgets('dragging the frame pans the camera by the projected delta', (
       tester,
     ) async {
-      final m = await _Mounted.mount(tester);
+      final m = await ConstellationMinimapTestMount.mount(tester);
       final centreBefore = m.viewportCentreWorld(tester);
       final frame = _within(tester, find.byKey(_frameKey), find.byKey(_map));
       final start = tester.getTopLeft(find.byKey(_map)) + frame.center;
@@ -720,7 +767,7 @@ void main() {
     });
 
     testWidgets('tap still centres after a frame drag gesture', (tester) async {
-      final m = await _Mounted.mount(tester);
+      final m = await ConstellationMinimapTestMount.mount(tester);
       final origin = tester.getTopLeft(find.byKey(_map));
       final frame = _within(tester, find.byKey(_frameKey), find.byKey(_map));
       await tester.dragFrom(
