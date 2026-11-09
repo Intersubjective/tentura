@@ -3,8 +3,8 @@
 # Enforced by test/architecture/scoped_main_db_access_test.dart: a new or changed
 # transaction root, joining wrapper or savepoint fails until listed here.
 # Derived from docs/plans/db-scope-self-deadlock-audit-2026-10-13.md (section B, rank 5).
-lib/domain/use_case/contact_resolution_sweep_case.dart | ContactResolutionSweepCase.run | MutatingUnitOfWorkPort.run | domain use case ContactResolutionSweepCase | Use case opens its mutating unit of work through the port; the data-layer unit of work owns BEGIN/COMMIT
-lib/domain/use_case/closure_finalize_sweep_case.dart | ClosureFinalizeSweepCase.run | MutatingUnitOfWorkPort.run | domain use case ClosureFinalizeSweepCase | Use case opens its mutating unit of work through the port; the data-layer unit of work owns BEGIN/COMMIT
+lib/domain/use_case/contact_resolution_sweep_case.dart | ContactResolutionSweepCase.runDue | MutatingUnitOfWorkPort.run | domain use case ContactResolutionSweepCase | Use case opens its mutating unit of work through the port; the data-layer unit of work owns BEGIN/COMMIT
+lib/domain/use_case/closure_finalize_sweep_case.dart | ClosureFinalizeSweepCase.runDue | MutatingUnitOfWorkPort.run | domain use case ClosureFinalizeSweepCase | Use case opens its mutating unit of work through the port; the data-layer unit of work owns BEGIN/COMMIT
 lib/domain/use_case/user_block_case.dart | UserBlockCase.block | MutatingUnitOfWorkPort.run | domain use case UserBlockCase | Use case opens its mutating unit of work through the port; the data-layer unit of work owns BEGIN/COMMIT
 lib/domain/use_case/user_block_case.dart | UserBlockCase.unblock | MutatingUnitOfWorkPort.run | domain use case UserBlockCase | Use case opens its mutating unit of work through the port; the data-layer unit of work owns BEGIN/COMMIT
 lib/domain/use_case/user_block_case.dart | UserBlockCase.promoteToDirect | MutatingUnitOfWorkPort.run | domain use case UserBlockCase | Use case opens its mutating unit of work through the port; the data-layer unit of work owns BEGIN/COMMIT
