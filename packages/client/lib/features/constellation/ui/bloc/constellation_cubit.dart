@@ -3047,10 +3047,11 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       deferTargets: deferTargets,
     );
     final mergedField = field.copyWith(anchorProjection: presentation);
+    final presentationField = _fieldForPresentation(mergedField);
     final composition = kReleaseMode
         ? _composePresentation(
             viewerId: _viewer.id,
-            field: _composerField(mergedField),
+            field: _composerField(presentationField),
             localFilters: state.filters,
             asOfUtc: _case.nowUtc(),
             labelBudget: _currentLabelBudget(),
@@ -3064,7 +3065,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
             'compose',
             () => _composePresentation(
               viewerId: _viewer.id,
-              field: _composerField(mergedField),
+              field: _composerField(presentationField),
               localFilters: state.filters,
               asOfUtc: _case.nowUtc(),
               labelBudget: _currentLabelBudget(),
@@ -3097,6 +3098,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         !composition.eligiblePersonIds.contains(selectedPersonId);
     final clearRequest =
         selectedRequestId != null &&
+        selectedRequestId != _searchPickBeaconId &&
+        !_searchRevealedBeaconIds.contains(selectedRequestId) &&
         !composition.eligibleRequestIds.contains(selectedRequestId);
     if (!clearPerson && !clearRequest) {
       return;
@@ -3202,8 +3205,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       beaconId != null &&
       (_requestWebsById.containsKey(beaconId) || _isPostId(beaconId));
 
-  bool _isPostId(String beaconId) =>
-      state.field?.posts.any((post) => post.id == beaconId) ?? false;
+  bool _isPostId(String beaconId) => isPostId(beaconId);
 
   /// Members of the selected Request or Post; only these become field holders,
   /// so a Post with many recipients shows them only while it is selected.
@@ -3472,6 +3474,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         insets: insets,
         frameFloor: floor,
         centerOnEgo: false,
+        centerOnBeaconId: null,
       );
       return;
     }
@@ -3605,6 +3608,14 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       _pendingFieldCamera = pending;
       return;
     }
+    if (pending.centerOnBeaconId case final beaconId?) {
+      if (_scene.centreOnBeacon(beaconId, pending.insets)) {
+        _recordProgrammaticFieldCamera();
+        return;
+      }
+      _pendingFieldCamera = pending;
+      return;
+    }
     if (pending.centerOnEgo) {
       _scene.centreOnEgo(_viewer.id, pending.insets);
       _recordProgrammaticFieldCamera();
@@ -3613,8 +3624,14 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     _runFieldFrame(insets: pending.insets, floor: pending.frameFloor!);
   }
 
-  /// Latest queued fit-all or centre-on-me while layout cannot run (FCP §F.1).
-  ({EdgeInsets insets, double? frameFloor, bool centerOnEgo})?
+  /// Latest queued fit-all, centre-on-me, or centre-on-beacon while layout
+  /// cannot run (FCP §F.1).
+  ({
+    EdgeInsets insets,
+    double? frameFloor,
+    bool centerOnEgo,
+    String? centerOnBeaconId,
+  })?
   _pendingFieldCamera;
 
   @visibleForTesting
@@ -3635,6 +3652,20 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       // The targeted camera is this visit's frame; the automatic fit-all of a
       // new visit («Show on Field» from another tab) must not replace it.
       _recordProgrammaticFieldCamera();
+      return;
+    }
+    _pendingFieldCamera = (
+      insets: insets,
+      frameFloor: null,
+      centerOnEgo: false,
+      centerOnBeaconId: beaconId,
+    );
+    if (!_shouldDeferProgrammaticFieldCamera()) {
+      runAfterNextFrame(() {
+        if (!isClosed) {
+          _runPendingFieldCamera();
+        }
+      });
     }
   }
 
@@ -3709,6 +3740,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         insets: insets,
         frameFloor: null,
         centerOnEgo: true,
+        centerOnBeaconId: null,
       );
       return;
     }
@@ -5247,6 +5279,9 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     for (final post in state.field?.posts ?? const <ConstellationPost>[]) {
       if (post.id == id) return post;
     }
+    for (final post in _searchInjectedPosts) {
+      if (post.id == id) return post;
+    }
     return null;
   }
 
@@ -5272,6 +5307,11 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       }
     }
     for (final request in field.requests) {
+      if (request.id == requestId) {
+        return request;
+      }
+    }
+    for (final request in _searchInjectedRequests) {
       if (request.id == requestId) {
         return request;
       }
@@ -5804,10 +5844,11 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (field == null) {
       return;
     }
+    final presentationField = _fieldForPresentation(field);
     final composition = kReleaseMode
         ? _composePresentation(
             viewerId: _viewer.id,
-            field: _composerField(field),
+            field: _composerField(presentationField),
             localFilters: state.filters,
             asOfUtc: _case.nowUtc(),
             labelBudget: _currentLabelBudget(),
@@ -5821,7 +5862,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
             'compose',
             () => _composePresentation(
               viewerId: _viewer.id,
-              field: _composerField(field),
+              field: _composerField(presentationField),
               localFilters: state.filters,
               asOfUtc: _case.nowUtc(),
               labelBudget: _currentLabelBudget(),
