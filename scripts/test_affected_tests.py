@@ -10,7 +10,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from affected_tests import Graph, select
+from affected_tests import Graph, _schema_changes, _sdl_definitions, _sdl_members, select
 
 REPO = Path(__file__).resolve().parent.parent
 SCRIPT = REPO / "scripts" / "affected_tests.py"
@@ -84,6 +84,35 @@ FILES = {
     f"{CLIENT}/lib/data/gql/schema.graphql": "type Query { x: Int }\n",
     f"{CLIENT}/test/q_doc_test.dart": "final doc = 'q.graphql';\n",
     f"{CLIENT}/test/schema_doc_test.dart": "final doc = 'schema.graphql';\n",
+    # Only a comment names the schema: not a reader of it.
+    f"{CLIENT}/lib/data/gql/comment_only.dart": "/// Types as in `schema.graphql`.\n",
+    f"{CLIENT}/test/comment_only_test.dart": "import 'package:tentura/data/gql/comment_only.dart';\n",
+    # Ferry output for SCHEMA below: input / enum classes in the schema hub;
+    # one operation on User (its data class sets the typename, has the
+    # selected fields as getters, uses the enum; its vars use the input),
+    # one on Post.
+    f"{CLIENT}/lib/data/gql/_g/schema.schema.gql.dart": (
+        "import 'serializers.gql.dart';\nclass GColor {}\nclass GUserInput {}\n"
+    ),
+    f"{CLIENT}/lib/users/_g/users.data.gql.dart": (
+        "import '../../data/gql/_g/schema.schema.gql.dart' as _i2;\n"
+        "abstract class GUsersData_users {\n"
+        "  static void _initializeBuilder(b) => b..G__typename = 'User';\n"
+        "  String get name;\n  _i2.GColor get color;\n}\n"
+    ),
+    f"{CLIENT}/lib/users/_g/users.var.gql.dart": (
+        "import '../../data/gql/_g/schema.schema.gql.dart' as _i2;\n"
+        "abstract class GUsersVars { _i2.GUserInput get input; }\n"
+    ),
+    f"{CLIENT}/lib/posts/_g/posts.data.gql.dart": (
+        "import '../../data/gql/_g/schema.schema.gql.dart' as _i2;\n"
+        "abstract class GPostsData_posts {\n"
+        "  static void _initializeBuilder(b) => b..G__typename = 'Post';\n"
+        "  String get name;\n}\n"
+    ),
+    f"{CLIENT}/test/users_test.dart": "import 'package:tentura/users/_g/users.data.gql.dart';\n",
+    f"{CLIENT}/test/user_vars_test.dart": "import 'package:tentura/users/_g/users.var.gql.dart';\n",
+    f"{CLIENT}/test/posts_test.dart": "import 'package:tentura/posts/_g/posts.data.gql.dart';\n",
     # hook/ is source too; web/ files are read by what names them.
     f"{CLIENT}/hook/build/version.dart": "import 'manifest_name.dart';\n",
     f"{CLIENT}/hook/build/manifest_name.dart": "const name = 'manifest.json';\n",
@@ -104,6 +133,47 @@ READERS = ["layering_test.dart", "scan_test.dart"]
 
 def with_readers(*names):
     return sorted([*names, *READERS])
+
+
+SCHEMA = '''schema { query: Query }
+
+"""A person."""
+type User {
+  "Display name"
+  name: String
+  color: Color
+  posts(
+    """Most recent first"""
+    limit: Int
+  ): [Post!]
+}
+
+type Post {
+  name: String
+}
+
+enum Color {
+  RED
+  GREEN
+}
+
+input UserInput {
+  name: String
+}
+
+type Query {
+  users: [User!]
+  posts: [Post!]
+}
+'''
+
+# Selected by every schema change: they name schema.graphql, or read lib/.
+SCHEMA_ALWAYS = ["schema_doc_test.dart"]
+# What a schema change no definition owns selects: every Ferry file's users.
+EVERY_FERRY_USER = [
+    "gql_client_test.dart", "posts_test.dart", "repo2_test.dart",
+    "repo_test.dart", "user_vars_test.dart", "users_test.dart",
+]
 
 
 def absent(_path: str):
@@ -243,19 +313,81 @@ class SyntheticTreeTest(unittest.TestCase):
             with_readers("feat_scan_test.dart", "q_doc_test.dart", "repo_test.dart"),
         )
 
-    def test_graphql_schema_selects_every_generated_file_user_and_its_readers(self):
+    def schema(self, after: str, before: str = SCHEMA):
+        return self.names(
+            self.sel(
+                f"{CLIENT}/lib/data/gql/schema.graphql",
+                before=lambda _p: before,
+                after=lambda _p: after,
+            )
+        )
+
+    def test_schema_changed_field_selects_its_type_operations_only(self):
+        self.assertEqual(
+            self.schema(SCHEMA.replace("  name: String\n  color", "  name: String!\n  color")),
+            with_readers(*SCHEMA_ALWAYS, "users_test.dart"),
+        )
+        self.assertEqual(
+            self.schema(SCHEMA.replace("type Post {\n  name: String", "type Post {\n  name: ID")),
+            with_readers(*SCHEMA_ALWAYS, "posts_test.dart"),
+        )
+
+    def test_schema_added_field_changes_no_operation(self):
+        # Ferry generates only the selected fields: no document selects a
+        # field that did not exist, so only the schema's readers run.
+        self.assertEqual(
+            self.schema(SCHEMA.replace("type Post {\n", "type Post {\n  body: String\n")),
+            with_readers(*SCHEMA_ALWAYS),
+        )
+
+    def test_schema_field_arguments_over_lines_are_one_field(self):
+        self.assertEqual(
+            self.schema(SCHEMA.replace("    limit: Int\n", "    limit: Int\n    offset: Int\n")),
+            with_readers(*SCHEMA_ALWAYS),  # User.posts: selected by no data class
+        )
+
+    def test_schema_descriptions_and_comments_are_not_changes(self):
+        self.assertEqual(
+            self.schema(SCHEMA.replace('"Display name"', '"Shown name"').replace(
+                '"""A person."""', "# a person\n")),
+            with_readers(*SCHEMA_ALWAYS),
+        )
+
+    def test_schema_enum_value_selects_the_enum_users(self):
+        self.assertEqual(
+            self.schema(SCHEMA.replace("  GREEN\n", "  GREEN\n  BLUE\n")),
+            with_readers(*SCHEMA_ALWAYS, "users_test.dart"),
+        )
+
+    def test_schema_input_type_selects_the_input_users(self):
+        self.assertEqual(
+            self.schema(SCHEMA.replace("input UserInput {\n", "input UserInput {\n  age: Int\n")),
+            with_readers(*SCHEMA_ALWAYS, "user_vars_test.dart"),
+        )
+
+    def test_schema_change_no_definition_owns_selects_every_ferry_user(self):
+        cases = {
+            "schema block": SCHEMA.replace("{ query: Query }", "{ query: Query mutation: Query }"),
+            "directive": SCHEMA + "directive @auth on FIELD_DEFINITION\n",
+            "unparseable": "garbage\n" + SCHEMA,
+        }
+        for case, after in cases.items():
+            with self.subTest(case=case):
+                self.assertEqual(
+                    self.schema(after), with_readers(*SCHEMA_ALWAYS, *EVERY_FERRY_USER)
+                )
         self.assertEqual(
             self.names(self.sel(f"{CLIENT}/lib/data/gql/schema.graphql")),
-            with_readers(
-                "gql_client_test.dart", "repo2_test.dart", "repo_test.dart",
-                "schema_doc_test.dart",
-            ),
+            with_readers(*SCHEMA_ALWAYS, *EVERY_FERRY_USER),
         )
+
+    def test_a_comment_naming_a_file_does_not_read_it(self):
+        self.assertNotIn("comment_only_test.dart", self.schema("garbage\n" + SCHEMA))
 
     def test_dart_change_under_serializers_still_goes_through_them(self):
         self.assertEqual(
             self.names(self.sel(f"{CLIENT}/lib/data/gql/custom_serializer.dart")),
-            with_readers("gql_client_test.dart", "repo2_test.dart", "repo_test.dart"),
+            with_readers(*EVERY_FERRY_USER),
         )
 
     def test_graphql_without_generated_files_selects_whole_package(self):
@@ -358,6 +490,23 @@ class RealTreeTest(unittest.TestCase):
         self.assertTrue(
             any(f.endswith("/scoped_main_db_access_test.dart") for f in graph.source_readers(SERVER))
         )
+
+    def test_real_schema_parses_into_definitions(self):
+        schema = REPO / CLIENT / "lib/data/gql/schema.graphql"
+        if not schema.is_file():
+            self.skipTest("no client schema")
+        text = schema.read_text()
+        definitions = _sdl_definitions(text)
+        self.assertIsNotNone(definitions)
+        self.assertIn(("type", "query_root"), definitions)
+        self.assertIsNotNone(_sdl_members(definitions[("type", "query_root")]))
+        self.assertEqual(_schema_changes(text, text), [])
+        # The Ferry form the rule looks for (generated, git-ignored: only
+        # where codegen ran).
+        hub = REPO / CLIENT / "lib/data/gql/_g/schema.schema.gql.dart"
+        if hub.is_file():
+            enum = next(name for kind, name in definitions if kind == "enum")
+            self.assertIn(f"class G{enum}", hub.read_text())
 
 
 if __name__ == "__main__":

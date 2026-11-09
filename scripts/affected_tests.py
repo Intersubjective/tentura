@@ -25,10 +25,17 @@ config); these rules cover those:
     and the classes that implement or extend L10n, and what imports them.
     An ARB file that is added, removed, not valid JSON or changes
     `@@locale` selects the whole package;
-  * the GraphQL schema (lib/**/schema.graphql) counts as a change to every
-    Ferry file generated in the package (lib/**/_g/*.gql.dart, the
-    serializers included: the schema shapes all of them), plus the files
-    that name it; without generated files the whole package is selected;
+  * the GraphQL schema (lib/**/schema.graphql) selects the files that name
+    it, plus the files that name what changed in it (see _schema_changes /
+    _schema_seeds): a changed input, enum or scalar N by its Ferry class
+    `GN` / `GNBuilder`; a changed field F of an object type or interface T
+    by the string `'T'` (Ferry's `G__typename = 'T'`) together with F; a
+    union U by `'U'`. The graph is then followed without passing through
+    the two Ferry files that list every type (schema.schema.gql.dart,
+    serializers.gql.dart). A change no definition owns (a `schema {}` or
+    directive definition, text that does not parse, the file added or
+    removed) counts as a change to every Ferry file generated in the package
+    instead; without generated files the whole package is selected;
   * a GraphQL document (lib/**/x.graphql) counts as a change to the Ferry
     files generated from it (lib/**/_g/x.*.gql.dart). From those files the
     graph is followed without passing through `_g/serializers.gql.dart`: it
@@ -44,8 +51,8 @@ config); these rules cover those:
     assets/, fonts/ or images/ selects the whole package;
   * any other non-Dart file of the package (web/, android/, README, ...)
     counts as a change to every Dart file of the package that names its
-    basename; a file under web/ that no Dart file names selects the whole
-    package, any other selects nothing;
+    basename outside a whole-line comment; a file under web/ that no Dart
+    file names selects the whole package, any other selects nothing;
   * env/*.env, test/flutter_test_config.dart, dart_test.yaml, build.yaml,
     l10n.yaml or analysis_options.yaml of the package select the whole
     package;
@@ -133,6 +140,14 @@ WHOLE_PACKAGE_CONFIG = {
 MIGRATIONS = "lib/data/database/migration/"
 GENERATED_L10N = "lib/ui/l10n/"
 SERIALIZERS_HUB = "/_g/serializers.gql.dart"
+SCHEMA_HUB = "/_g/schema.schema.gql.dart"
+
+# SDL top-level definitions; `schema` and `directive` cannot be attributed.
+SDL_DEFINITION = re.compile(
+    r"^(extend[ \t]+)?(type|input|enum|scalar|interface|union|schema|directive)\b[ \t]*@?(\w*)",
+    re.M,
+)
+SDL_MEMBER = re.compile(r"^\s*([A-Za-z_]\w*)")
 
 # (path) -> the file's text before / after the change; None when absent.
 Version = Callable[[str], "str | None"]
@@ -182,6 +197,18 @@ class Graph:
         if f not in self._text_cache:
             self._text_cache[f] = (self.root / f).read_text(encoding="utf-8", errors="ignore")
         return self._text_cache[f]
+
+    @functools.cache
+    def code(self, f: str) -> str:
+        """[f] without its whole-line comments."""
+        return "\n".join(
+            line for line in self.text(f).splitlines() if not line.lstrip().startswith("//")
+        )
+
+    @functools.cache
+    def strings(self, f: str) -> frozenset[str]:
+        """Contents of the one-line string literals of [f]."""
+        return frozenset(STRING.findall(self.text(f)))
 
     def identifiers(self, f: str) -> frozenset[str]:
         if f not in self._identifier_cache:
@@ -312,6 +339,128 @@ def _graphql_outputs(graph: Graph, path: str) -> set[str]:
     return {f for f in graph.files if f.startswith(prefix) and f.endswith(".gql.dart")}
 
 
+def _ferry_hub(f: str) -> bool:
+    """The Ferry files that list every type: following them would select
+    every GraphQL user for any one change."""
+    return f.endswith((SERIALIZERS_HUB, SCHEMA_HUB))
+
+
+def _sdl_definitions(sdl: str) -> dict[tuple[str, str], str] | None:
+    """(kind, name) -> normalised text of every top-level definition (an
+    `extend` form is its own kind); None when text outside a definition is
+    left after removing comments and descriptions."""
+    sdl = re.sub(r'"""[\s\S]*?"""', "", sdl)
+    # A one-line description alone on its line goes; other strings (default
+    # values) stay, emptied.
+    sdl = re.sub(r'^[ \t]*"(?:[^"\\\n]|\\.)*"[ \t]*$', "", sdl, flags=re.M)
+    sdl = re.sub(r'"(?:[^"\\\n]|\\.)*"', '""', sdl)
+    sdl = re.sub(r"#[^\n]*", "", sdl)
+    found = list(SDL_DEFINITION.finditer(sdl))
+    if sdl[: found[0].start() if found else len(sdl)].strip():
+        return None
+    out: dict[tuple[str, str], str] = {}
+    for i, m in enumerate(found):
+        end = found[i + 1].start() if i + 1 < len(found) else len(sdl)
+        key = (("extend " if m.group(1) else "") + m.group(2), m.group(3))
+        out[key] = out.get(key, "") + sdl[m.start():end]
+    return out
+
+
+def _sdl_members(definition: str) -> dict[str, str] | None:
+    """Field (or value) name -> normalised text of a definition's body, one
+    member per line as the schema is written (arguments may span lines);
+    None when a line cannot be assigned to one member."""
+    open_at, close_at = definition.find("{"), definition.rfind("}")
+    if open_at < 0 or close_at < open_at:
+        return None
+    members: dict[str, str] = {}
+    current, depth = None, 0
+    for line in definition[open_at + 1 : close_at].splitlines():
+        if not line.strip():
+            continue
+        if depth == 0:
+            m = SDL_MEMBER.match(line)
+            if not m:
+                return None
+            # A repeated member (the schema has had one) shares the entry.
+            current = m.group(1)
+            members.setdefault(current, "")
+        members[current] += " " + " ".join(line.split())
+        depth += line.count("(") - line.count(")")
+        if depth < 0:
+            return None
+    return members
+
+
+@dataclass(frozen=True)
+class SchemaChange:
+    kind: str  # type / interface / input / enum / scalar / union (no `extend`)
+    name: str
+    # Changed members of an object type or interface; None: the whole type.
+    fields: frozenset[str] | None = None
+
+
+def _schema_changes(before: str | None, after: str | None) -> list[SchemaChange] | None:
+    """What a schema.graphql change touches, definition by definition; None
+    when some of it belongs to no named type (see the module docstring)."""
+    if before is None or after is None:
+        return None
+    old, new = _sdl_definitions(before), _sdl_definitions(after)
+    if old is None or new is None:
+        return None
+    changes = []
+    for key in sorted(old.keys() | new.keys()):
+        a, b = old.get(key), new.get(key)
+        if a is not None and b is not None and " ".join(a.split()) == " ".join(b.split()):
+            continue
+        kind, name = key[0].removeprefix("extend "), key[1]
+        if kind in ("schema", "directive") or not name:
+            return None
+        fields = None
+        if kind in ("type", "interface"):
+            ma = _sdl_members(a) if a is not None else {}
+            mb = _sdl_members(b) if b is not None else {}
+            if ma is not None and mb is not None:
+                fields = frozenset(f for f in ma.keys() | mb.keys() if ma.get(f) != mb.get(f))
+        changes.append(SchemaChange(kind, name, fields))
+    return changes
+
+
+def _schema_seeds(graph: Graph, pkg: str, changes: list[SchemaChange]) -> set[str]:
+    """Dart files of [pkg] (generated or not, the two Ferry hubs aside) that
+    name something [changes] touched, in the forms Ferry generates (checked
+    against packages/client/lib/**/_g/):
+      * input / enum / scalar N -> class `GN` in schema.schema.gql.dart,
+        used as `_i4.GN` by the .var / .data files (and their .g.dart parts)
+        of every operation whose variables or results use it, and
+        `GNBuilder` for inputs;
+      * object type / interface T -> no class of its own: each selection on
+        T is a data class named after the operation whose builder sets
+        `G__typename = 'T'`; the selected fields are its getters (and
+        `NameNode(value: 'F')` in the .ast file). So a changed field F
+        selects the files with the string 'T' that also name F. An added
+        type or field is named by nothing yet: a document that starts using
+        it changes in the same commit and is followed by its own rule;
+      * union U -> `'U'` (its data classes, fragment type conditions)."""
+    seeds = set()
+    for f in graph.package_files(pkg):
+        if _ferry_hub(f):
+            continue
+        ids = graph.identifiers(f)
+        strings = graph.strings(f)
+        for c in changes:
+            if c.kind in ("input", "enum", "scalar"):
+                hit = f"G{c.name}" in ids or f"G{c.name}Builder" in ids
+            elif c.kind == "union" or c.fields is None:
+                hit = c.name in strings
+            else:
+                hit = c.name in strings and not c.fields.isdisjoint(ids)
+            if hit:
+                seeds.add(f)
+                break
+    return seeds
+
+
 def _generated_gql(graph: Graph, pkg: str) -> set[str]:
     return {
         f for f in graph.package_files(pkg)
@@ -320,8 +469,12 @@ def _generated_gql(graph: Graph, pkg: str) -> set[str]:
 
 
 def _naming(graph: Graph, pkg: str, name: str) -> set[str]:
-    """Dart files of [pkg] whose text names the basename [name]."""
-    return {f for f in graph.package_files(pkg) if name in graph.text(f)}
+    """Dart files of [pkg] whose code names the basename [name] (a line that
+    is only a `//` or `///` comment does not read anything)."""
+    return {
+        f for f in graph.package_files(pkg)
+        if name in graph.text(f) and name in graph.code(f)
+    }
 
 
 def select(
@@ -341,6 +494,7 @@ def select(
     outside = False
     sources_changed: set[str] = set()
     schema_changed = False
+    schema_seeds: set[str] = set()
 
     def whole(reason: str) -> None:
         sel.fallbacks.append(reason)
@@ -394,9 +548,13 @@ def select(
                 arb_keys |= keys
         elif rel.startswith("lib/") and name == "schema.graphql":
             seeds |= _naming(graph, pkg, name)
-            schema_changed = True
-            if not _generated_gql(graph, pkg):
-                whole(f"{rel} (GraphQL schema, no generated Ferry files)")
+            changes = _schema_changes(before(path), after(path))
+            if changes is not None:
+                schema_seeds |= _schema_seeds(graph, pkg, changes)
+            else:
+                schema_changed = True
+                if not _generated_gql(graph, pkg):
+                    whole(f"{rel} (GraphQL schema, no generated Ferry files)")
         elif rel.startswith("lib/") and rel.endswith(".graphql"):
             seeds |= _naming(graph, pkg, name)
             outputs = _graphql_outputs(graph, path)
@@ -442,7 +600,7 @@ def select(
     if schema_changed:
         seeds |= _generated_gql(graph, pkg)
     reached = graph.reach(seeds)
-    reached |= graph.reach(gql_seeds, skip=lambda f: f.endswith(SERIALIZERS_HUB))
+    reached |= graph.reach(gql_seeds | schema_seeds, skip=_ferry_hub)
     sel.tests |= reached & all_tests
     if outside:
         sel.tests |= graph.tagged(pkg, REPO_FILES_TAG)
