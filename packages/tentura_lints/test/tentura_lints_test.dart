@@ -1,3 +1,4 @@
+import 'package:analyzer/error/error.dart' show DiagnosticSeverity;
 import 'package:analyzer/src/diagnostic/diagnostic.dart' as diag;
 import 'package:analyzer_testing/analysis_rule/analysis_rule.dart';
 import 'package:tentura_lints/src/rules/cubit_requires_use_case_for_multi_repos.dart';
@@ -10,6 +11,7 @@ import 'package:tentura_lints/src/rules/no_raw_graphql_in_dart.dart';
 import 'package:tentura_lints/src/rules/no_request_domain_entity.dart';
 import 'package:tentura_lints/src/rules/no_router_import_outside_app.dart';
 import 'package:tentura_lints/src/rules/use_tentura_top_bar.dart';
+import 'package:test/test.dart' show expect;
 import 'package:test_reflective_loader/test_reflective_loader.dart';
 
 @reflectiveTest
@@ -433,6 +435,12 @@ class NoRouterImportOutsideAppTest extends AnalysisRuleTest {
   void setUp() {
     rule = NoRouterImportOutsideApp();
     super.setUp();
+  }
+
+  /// The migration is done, so a new router import fails `dart analyze`
+  /// (and with it scripts/check-custom-lints.sh), not only the baseline.
+  void test_is_an_error() {
+    expect(NoRouterImportOutsideApp.code.severity, DiagnosticSeverity.ERROR);
   }
 
   Future<void> test_reports_router_package_import() async {

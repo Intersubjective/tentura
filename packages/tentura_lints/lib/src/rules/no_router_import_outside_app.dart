@@ -26,7 +26,7 @@ final class NoRouterImportOutsideApp extends AnalysisRule {
     'no_router_import_outside_app',
     'Only lib/app/ and @RoutePage screens may import lib/app/router/; '
         'navigate through AppNavigator (lib/ui/navigation/app_navigator.dart).',
-    severity: DiagnosticSeverity.WARNING,
+    severity: DiagnosticSeverity.ERROR,
   );
 
   @override

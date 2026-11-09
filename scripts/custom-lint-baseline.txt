@@ -16,10 +16,11 @@
 #   severity and 15 legacy use cases still return Map<String, dynamic>, so
 #   enabling it would fail `dart analyze` outright. Tracked there, not here.
 
-# packages/client (2026-11-09): +51 no_router_import_outside_app (warning) —
-#   the feature files that still import lib/app/router/ when the rule landed
-#   (router decoupling 1/7). Each unit of that refactor lowers it; at 6/7 the
-#   rule is an error and none are left.
+# packages/client (2026-11-09): no_router_import_outside_app landed at warning
+#   severity with 51 feature files still importing lib/app/router/ (router
+#   decoupling 1/7); units 1-5 removed them all, and since 6/7 it reports at
+#   *error* severity, so a new router import fails `dart analyze` outright.
+#   The 21 left are no_raw_edge_insets 15 and no_raw_border_radius 6.
 
 packages/client 21
 packages/server 0

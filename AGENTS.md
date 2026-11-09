@@ -26,6 +26,7 @@ plugin). See `DEVELOPMENT.md` and `DEV_GUIDELINES.md`.
 ## Invariants (always true; most are lint-enforced)
 
 - **Dependency direction is inward:** domain stays pure; data implements domain ports; ui → domain/data. (lints: `no_domain_to_data_or_ui_import`, `no_cubit_to_data_service_import`)
+- **Feature UI navigates through the `AppNavigator` port** (`lib/ui/navigation/app_navigator.dart`, `GetIt.I<AppNavigator>()`; tests use `test/support/fake_app_navigator.dart`). Only `lib/app/` and `@RoutePage` screens import `lib/app/router/`: the generated routes reach every screen, so one such import puts the whole app in a feature's test selection. (lint, error: `no_router_import_outside_app`)
 - **Repositories return domain entities**, never Ferry/Drift types. Cubits coordinating ≥2 repos inject a `*Case`. (lint: `cubit_requires_use_case_for_multi_repos`)
 - **Client UI uses the design system:** no raw `Color`/`Colors.*`, `TextStyle(…)`, inline `fontSize:`, or `EdgeInsets`/`BorderRadius` from raw numbers in `features/**` / `ui/**`; use `context.tt` tokens and `TenturaText.*`. (lints: `no_inline_font_size`, `no_operational_raw_color`, `no_raw_edge_insets`, `no_raw_border_radius`)
 - **Never edit generated files** (`*.g.dart`, `*.freezed.dart`, `*.gr.dart`, `*.config.dart`, `*.schema.dart`); run codegen instead.

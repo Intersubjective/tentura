@@ -26,6 +26,7 @@ Rules live under `packages/tentura_lints/lib/src/rules/`; register in `lib/main.
 | `no_raw_border_radius` | Client feature / shared UI: no `BorderRadius`/`Radius` from raw numerics (use `context.tt.cardRadius` / `buttonRadius` / `TenturaRadii.*`). |
 | `no_operational_pill_widgets_in_beacon_view` | `features/beacon_view`: no `Chip`/`Badge`/`SegmentedButton` family (use `TenturaStatusText`, `TenturaTypeLabel`, `TenturaUnderlineTabs`). |
 | `use_tentura_top_bar` | Feature / shared UI app bars must use the design-system top bar; plain `AppBar`/`SliverAppBar` only for immersive overlays on an allow-list. |
+| `no_router_import_outside_app` | Client `lib/**` outside `lib/app/`: no `lib/app/router/` import (package or relative) unless the file declares `@RoutePage`; navigate through `AppNavigator` (`lib/ui/navigation/app_navigator.dart`). Error severity. |
 | `no_request_domain_entity` | No parallel `Request` domain types — Beacon stays the internal entity. |
 
 **Baselines:** existing debt uses `// TODO(contract): Phase-2 DTO migration — …` plus `// ignore: tentura_lints/<rule>` until Phase 2 DTO work removes them.
