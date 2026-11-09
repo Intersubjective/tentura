@@ -13,6 +13,50 @@ const kConstellationMinimapInset = 8.0;
 /// the 1px outline-variant border (FCP §M U1).
 const kConstellationMinimapFrameClampInset = 2.0;
 
+/// World-space hysteresis when deciding whether the minimap chrome is needed:
+/// roughly half a close-level person footprint so show/hide does not flicker
+/// at the viewport edge.
+const kConstellationMinimapVisibilityHysteresis = 28.0;
+
+bool _footprintFullyInside(LRect viewport, LRect node) =>
+    node.left >= viewport.left &&
+    node.right <= viewport.right &&
+    node.top >= viewport.top &&
+    node.bottom <= viewport.bottom;
+
+bool _footprintSpillsOutside(LRect viewport, LRect node) =>
+    node.right > viewport.right ||
+    node.left < viewport.left ||
+    node.bottom > viewport.bottom ||
+    node.top < viewport.top;
+
+/// Whether the minimap toggle should stay mounted (some drawn node is off-screen).
+///
+/// When [currentlyShown], hides only after every [nodeBounds] sits inside the
+/// viewport shrunk by [hysteresis]. When hidden, shows once any footprint
+/// crosses the viewport grown by [hysteresis].
+bool constellationMinimapNeededForViewport({
+  required LRect viewport,
+  required Iterable<LRect> nodeBounds,
+  required bool currentlyShown,
+  double hysteresis = kConstellationMinimapVisibilityHysteresis,
+}) {
+  final list = nodeBounds.toList();
+  if (list.isEmpty) {
+    return false;
+  }
+  if (currentlyShown) {
+    return list.any((n) => !_footprintFullyInside(viewport, n));
+  }
+  final outer = (
+    left: viewport.left - hysteresis,
+    top: viewport.top - hysteresis,
+    right: viewport.right + hysteresis,
+    bottom: viewport.bottom + hysteresis,
+  );
+  return list.any((n) => _footprintSpillsOutside(outer, n));
+}
+
 /// Maps the Field's scene coordinates into the minimap square and back.
 ///
 /// Fitted to the people alone (never the camera), with one scale for both
@@ -85,6 +129,12 @@ class ConstellationMinimapProjection {
   LPoint minimapToWorld(LPoint point) => (
     x: _centre.x + (point.x - inset - _innerHalf) / _scale,
     y: _centre.y + (point.y - inset - _innerHalf) / _scale,
+  );
+
+  /// Scene displacement matching a drag of [delta] logical px on the minimap.
+  LPoint minimapDeltaToWorld(LPoint delta) => (
+    x: delta.x / _scale,
+    y: delta.y / _scale,
   );
 
   /// The camera's [viewport] (in scene coordinates) on the minimap, clipped
