@@ -36,11 +36,12 @@ void main() {
 
     test('browser back while arranging only exits the mode', () {
       var arrangeExitCount = 0;
-      sync.sync(
-        arranging: true,
-        onPopWhileArranging: () => arrangeExitCount++,
-      );
-      sync.onPopState();
+      sync
+        ..sync(
+          arranging: true,
+          onPopWhileArranging: () => arrangeExitCount++,
+        )
+        ..onPopState();
       expect(arrangeExitCount, 1);
       expect(sync.sentinelPushed, isFalse);
       expect(sync.backInvocationCount, 0);
