@@ -60,10 +60,13 @@ that load only the tagged files, and the right timeout, all through the
 wrapper. Profiles: `server-files <files>`, `server-affected`, `server-unit`,
 `server-pg`, `server-mr`, `server-gates`, `server-regression`,
 `client-files <paths>`, `client-affected`, `client-all`, `client-gates`.
-Iterate with `*-files` / `*-affected`; run `server-regression` (or
-`client-gates` + `client-all`) once before landing; never `perf` / `load` in a
-routine run. Wrapped runs queue machine-wide (one at a time). Policy and
-measurements: [`docs/testing-resource-profile.md`](docs/testing-resource-profile.md).
+Iterate with `*-files`; before landing run `*-gates` + `*-affected`.
+`*-affected` selects every test the change reaches (transitive imports plus
+rules for ARB keys, GraphQL operations, source-reading tests, migrations and
+shared test configs: `scripts/affected_tests.py`), so it is the regression run
+for a change. `client-all`, `server-pg` and `server-regression` belong to ship
+beads and CI. Never `perf` / `load` in a routine run. Wrapped runs queue
+machine-wide (one at a time). Policy and measurements: [`docs/testing-resource-profile.md`](docs/testing-resource-profile.md).
 
 **Agents: run anything that may take over ~15 min detached, then poll it in
 bounded waits.** Whole profiles count (`client-all`, `server-pg`,
