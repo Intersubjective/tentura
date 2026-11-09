@@ -7,8 +7,6 @@ import '../../domain/constellation_field_preview_people.dart';
 import '../../domain/entity/constellation_field.dart';
 import '../bloc/constellation_cubit.dart';
 
-const _kFieldPreviewAvatarMax = 3;
-
 /// Participants and forward-chain avatar rows on Request/Post preview sheets.
 class ConstellationFieldPreviewPeopleRows extends StatelessWidget {
   const ConstellationFieldPreviewPeopleRows({
@@ -115,14 +113,10 @@ class ConstellationFieldPreviewAvatarRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final tt = context.tt;
     final faces = stack.profiles;
-    final extra = stack.hiddenCount;
+    final extra = stack.plusBadgeCount;
     final avatarRow = Row(
       children: [
-        if (faces.isNotEmpty)
-          TenturaAvatarStack(
-            profiles: faces,
-            max: _kFieldPreviewAvatarMax,
-          ),
+        if (faces.isNotEmpty) TenturaAvatarStack(profiles: faces),
         if (extra > 0) ...[
           if (faces.isNotEmpty) SizedBox(width: tt.tightGap),
           Text(
