@@ -6,7 +6,6 @@ import 'dart:convert';
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:get_it/get_it.dart';
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
@@ -56,7 +55,7 @@ const _veraId = 'u-vera';
 class _HarnessRouter extends Mock implements StackRouter {}
 
 class _TestInboxCubit extends Cubit<InboxState> implements InboxCubit {
-  _TestInboxCubit() : super(const InboxState(status: StateIsSuccess()));
+  _TestInboxCubit() : super(const InboxState());
 
   @override
   void clearPendingMovedNudge() {}
@@ -236,7 +235,7 @@ class _ClearSpyRepo extends AttentionRepositoryFake {
     String? receiptId,
   }) async => AttentionClearSnapshot(
     snapshotToken: 'token-$receiptId',
-    receiptIds: [if (receiptId != null) receiptId],
+    receiptIds: [?receiptId],
   );
 
   @override
@@ -335,7 +334,6 @@ Future<void> _pumpActivityStream(
     userId: viewerUserId,
     inboxCase: inboxCase,
     attentionCase: attention,
-    pageSize: 20,
     actorProfiles: buildNoopAttentionActorProfiles(),
     effects: FakeUiEffectPort(),
   );
@@ -347,9 +345,7 @@ Future<void> _pumpActivityStream(
     realtime: sync.case_,
     logger: Logger('issue-774-activity'),
   );
-  await attention.refresh(
-    destinationId: AttentionFeedDestinationId.activityStream,
-  );
+  await attention.refresh();
 
   if (GetIt.I.isRegistered<AttentionCase>()) {
     await GetIt.I.unregister<AttentionCase>();
@@ -448,10 +444,9 @@ class _CardHostState extends State<_CardHost> {
         title: _title,
         createdAt: DateTime.utc(2026, 11),
         updatedAt: DateTime.utc(2026, 11, 8),
-        status: BeaconStatus.open,
         author: const Profile(id: _annaId, displayName: 'Anna'),
       ),
-      facts: RequestAttentionFacts(requestId: _beaconId),
+      facts: const RequestAttentionFacts(requestId: _beaconId),
       eventsPreview: _events,
       eventTotal: _events.length,
       viewerUserId: widget.viewerUserId,
@@ -581,7 +576,7 @@ void main() {
           status: BeaconStatus.closed,
           author: const Profile(id: _annaId, displayName: 'Anna'),
         ),
-        facts: RequestAttentionFacts(requestId: _beaconId),
+        facts: const RequestAttentionFacts(requestId: _beaconId),
         eventsPreview: [done],
         eventTotal: 1,
         viewerUserId: _kiraId,
@@ -676,10 +671,9 @@ void main() {
           title: _title,
           createdAt: DateTime.utc(2026, 11),
           updatedAt: DateTime.utc(2026, 11, 8),
-          status: BeaconStatus.open,
           author: const Profile(id: _annaId, displayName: 'Anna'),
         ),
-        facts: RequestAttentionFacts(requestId: _beaconId),
+        facts: const RequestAttentionFacts(requestId: _beaconId),
         eventsPreview: [event],
         eventTotal: 1,
         viewerUserId: _kiraId,
