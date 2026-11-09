@@ -580,6 +580,11 @@ void main() {
         await tester.tap(find.byKey(TestIds.key(TestIds.constellationFitAll)));
         await tester.pumpAndSettle();
 
+        // Fit-all hides chrome when every corner node is on screen; zoom back
+        // in so the toggle is available for the dot projection checks.
+        m.cubit.graphController.zoomBy(2.2);
+        await tester.pumpAndSettle();
+
         if (find.byKey(_map).evaluate().isEmpty) {
           await tester.tap(find.byKey(_toggle));
           await tester.pumpAndSettle();

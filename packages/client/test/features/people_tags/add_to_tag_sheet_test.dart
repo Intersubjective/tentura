@@ -207,12 +207,29 @@ void main() {
       expect(repository.appliedOps, isEmpty);
     });
 
-    testWidgets('tells the person that only they see their tags', (
+    testWidgets('1280×800 EN: tag rows, no only-you-see footer (#897)', (
       tester,
     ) async {
+      await tester.binding.setSurfaceSize(const Size(1280, 800));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
       await _openSheet(tester);
 
-      expect(find.textContaining('Only you see'), findsOneWidget);
+      expect(_tagRowsInOrder(tester), ['Neighbours', 'Climbers', 'Cooks']);
+      expect(find.textContaining('Only you see'), findsNothing);
+      expect(find.textContaining('видите только вы'), findsNothing);
+    });
+
+    testWidgets('375×667 RU: tag rows, no only-you-see footer (#897)', (
+      tester,
+    ) async {
+      await tester.binding.setSurfaceSize(const Size(375, 667));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await _openSheet(tester, locale: const Locale('ru'));
+
+      expect(find.text('Neighbours'), findsOneWidget);
+      expect(find.textContaining('Only you see'), findsNothing);
+      expect(find.textContaining('видите только вы'), findsNothing);
+      expect(tester.takeException(), isNull);
     });
   });
 
@@ -314,7 +331,10 @@ void main() {
   });
 }
 
-Future<void> _openSheet(WidgetTester tester) async {
+Future<void> _openSheet(
+  WidgetTester tester, {
+  Locale locale = const Locale('en'),
+}) async {
   tester.view
     ..physicalSize = const Size(390, 844)
     ..devicePixelRatio = 1;
@@ -324,7 +344,7 @@ Future<void> _openSheet(WidgetTester tester) async {
       theme: TenturaTheme.light(),
       localizationsDelegates: L10n.localizationsDelegates,
       supportedLocales: L10n.supportedLocales,
-      locale: const Locale('en'),
+      locale: locale,
       home: Builder(
         builder: (context) => Scaffold(
           body: Center(

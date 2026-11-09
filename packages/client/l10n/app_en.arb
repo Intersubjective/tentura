@@ -2422,11 +2422,11 @@
   },
   "routingMuteScreenTitle": "Tags others can give me",
   "@routingMuteScreenTitle": {
-    "description": "Title for the routing-mute settings screen: private tags other people can give the user; each switch below controls whether third parties may see tags of that type."
+    "description": "Title for the routing-mute settings screen: tags other people can give the user; each switch below controls whether third parties may see tags of that type."
   },
   "routingMuteScreenDescription": "Other people can leave you tags — for example after a completed request. Tentura may show those tags to other users as a hint about the kinds of help you can provide. If you do not want some tags shown to anyone except the person who set them, turn those types off here. The person who tagged you can still see their own tag.",
   "@routingMuteScreenDescription": {
-    "description": "Explains that others may leave private tags and the user can hide them from third parties."
+    "description": "Explains that others may leave tags and the user can hide them from third parties."
   },
   "attentionResetCounters": "Reset counters",
   "@attentionResetCounters": {
@@ -5474,18 +5474,6 @@
     }
   },
   "profileEditLabels": "Edit",
-  "profileLabelsInfoTitle": "Labels about this person",
-  "profileLabelsInfoPrivate": "Notes marked with a lock are visible only to you: Tentura uses them to suggest this person to you when you forward.",
-  "profileLabelsInfoShared": "Labels marked with people come from your forwards and help acknowledgements. {name} sees them, and they help people who trust you find this person for similar requests.",
-  "@profileLabelsInfoShared": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
-  "profileLabelPrivate": "Your note, only you see it",
-  "profileLabelShared": "From forwards or help acknowledgements, visible to others",
   "profileSeedSuggestionInfo": "People who trust you will see this person in suggestions for these requests.",
   "capabilitySearchLabel": "Search",
   "@capabilitySearchLabel": {
@@ -5507,8 +5495,7 @@
       }
     }
   },
-  "capabilityDialogOnlyYou": "New labels are your notes, only you see them",
-  "capabilityCueMyLabels": "My labels: {tags}",
+  "capabilityCueMyLabels": "My tags: {tags}",
   "@capabilityCueMyLabels": {
     "placeholders": {
       "tags": {
@@ -11182,10 +11169,6 @@
   "peopleTagsFromParticipants": "Tag from participants",
   "@peopleTagsFromParticipants": {
     "description": "Creates a tag from the members of a Request"
-  },
-  "peopleTagsOnlyYouSee": "Only you see tags",
-  "@peopleTagsOnlyYouSee": {
-    "description": "Privacy footer of the add-to-tag sheet"
   },
   "peopleTagsEditorTitle": "New tag",
   "@peopleTagsEditorTitle": {

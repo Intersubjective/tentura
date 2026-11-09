@@ -23,7 +23,6 @@ class PersonTagsBlock extends StatefulWidget {
     required this.personId,
     this.trust,
     this.showHeading = true,
-    this.showOnlyYouSeeFooter = true,
     super.key,
   });
 
@@ -35,9 +34,6 @@ class PersonTagsBlock extends StatefulWidget {
 
   /// When embedded in the profile tags section, the outer title covers this block.
   final bool showHeading;
-
-  /// Hidden on Profile (#897); kept on people-tags screens and sheets.
-  final bool showOnlyYouSeeFooter;
 
   @override
   State<PersonTagsBlock> createState() => _PersonTagsBlockState();
@@ -265,10 +261,6 @@ class _PersonTagsBlockState extends State<PersonTagsBlock> {
                 );
               },
             ),
-            if (widget.showOnlyYouSeeFooter) ...[
-              SizedBox(height: tt.rowGap),
-              Text(l10n.peopleTagsOnlyYouSee, style: textTheme.bodySmall),
-            ],
           ],
         );
       },

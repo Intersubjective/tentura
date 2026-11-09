@@ -145,13 +145,44 @@ void main() {
       );
     });
 
-    testWidgets('tells the person that only they see their tags', (
-      tester,
-    ) async {
+    testWidgets('1280×800 EN: no only-you-see footer (#897)', (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1280, 800));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
       await setUpRig(_repository());
       await pumpBlock(tester);
 
-      expect(find.textContaining('Only you see'), findsOneWidget);
+      expect(find.text('+ Tag'), findsOneWidget);
+      expect(find.textContaining('Only you see'), findsNothing);
+      expect(find.textContaining('видите только вы'), findsNothing);
+    });
+
+    testWidgets('375×667 RU: tags and automatic rows, no footer (#897)', (
+      tester,
+    ) async {
+      await tester.binding.setSurfaceSize(const Size(375, 667));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await setUpRig(_repository());
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: TenturaTheme.light(),
+          localizationsDelegates: L10n.localizationsDelegates,
+          supportedLocales: L10n.supportedLocales,
+          locale: const Locale('ru'),
+          home: const TenturaResponsiveScope(
+            child: Scaffold(
+              body: SingleChildScrollView(
+                child: PersonTagsBlock(personId: _person),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Neighbours'), findsOneWidget);
+      expect(find.textContaining('Only you see'), findsNothing);
+      expect(find.textContaining('видите только вы'), findsNothing);
+      expect(tester.takeException(), isNull);
     });
 
     testWidgets('the × removes that tag from the person and sends one '

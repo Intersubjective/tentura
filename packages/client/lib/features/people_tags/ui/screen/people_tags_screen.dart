@@ -149,11 +149,6 @@ class _PeopleTagsScreenState extends State<PeopleTagsScreen> {
                             child: TenturaCircularProgress(strokeWidth: 2),
                           ),
                   ),
-                  SizedBox(height: tt.rowGap),
-                  Text(
-                    l10n.peopleTagsOnlyYouSee,
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
                 ],
               );
             },

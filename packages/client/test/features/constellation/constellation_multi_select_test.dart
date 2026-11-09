@@ -488,6 +488,33 @@ void main() {
     );
   });
 
+  testWidgets(
+    'selecting two people after open fit-all does not refit the camera (#1225)',
+    (tester) async {
+      final h = await _mount(tester);
+      await _settle(tester);
+      final cameraAfterFit = _cameraMatrix(tester);
+      final scaleAfterFit = h.cubit.graphController.cameraScale;
+      final annSceneBefore = _sceneCentre(h.cubit, 'a');
+
+      enableConstellationSelectToolForTests(h.selection);
+      await _frames(tester);
+      final from = _emptyCorner(tester);
+      final to = _farCorner(tester);
+      await _drag(tester, from, to, selection: h.selection);
+      await _settle(tester);
+
+      expect(h.selected, containsAll([_ann, _bob]));
+      expect(
+        _cameraMatrix(tester).storage,
+        cameraAfterFit.storage,
+        reason: 'selection bar chrome must not refit',
+      );
+      expect(h.cubit.graphController.cameraScale, closeTo(scaleAfterFit, 1e-9));
+      expect(_sceneCentre(h.cubit, 'a'), annSceneBefore);
+    },
+  );
+
   testWidgets('a plain drag on empty map still pans with the tool off', (
     tester,
   ) async {

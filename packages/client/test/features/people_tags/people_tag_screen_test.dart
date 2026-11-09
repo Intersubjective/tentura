@@ -24,6 +24,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import '../../support/fake_clock_port.dart';
 import '../../support/fake_wake_up_port.dart';
 import '../../support/mock_stack_router_scope.dart';
+import '../../support/phone_surface.dart';
 import '../../support/test_realtime_sync.dart';
 
 const _tag = PersonTag(
@@ -191,12 +192,16 @@ void main() {
     await realtimePort.dispose();
   });
 
-  Future<void> pumpScreen(WidgetTester tester) async {
-    await tester.binding.setSurfaceSize(const Size(900, 1400));
+  Future<void> pumpScreen(
+    WidgetTester tester, {
+    Locale locale = const Locale('en'),
+    Size surfaceSize = const Size(900, 1400),
+  }) async {
+    await tester.binding.setSurfaceSize(surfaceSize);
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(
       MaterialApp(
-        locale: const Locale('en'),
+        locale: locale,
         theme: TenturaTheme.light(),
         localizationsDelegates: L10n.localizationsDelegates,
         supportedLocales: L10n.supportedLocales,
@@ -399,6 +404,29 @@ void main() {
           ('Ta', 'Ueve', true),
         ]),
       );
+    });
+
+    testWidgets('1280×800 EN: members listed, no only-you-see footer (#897)', (
+      tester,
+    ) async {
+      await pumpScreen(tester, surfaceSize: const Size(1280, 800));
+
+      expect(find.text('Neighbours'), findsWidgets);
+      expect(find.byKey(_person('Uann')), findsOneWidget);
+      expect(find.textContaining('Only you see'), findsNothing);
+      expect(find.textContaining('видите только вы'), findsNothing);
+    });
+
+    testWidgets('375×667 RU: members listed, no footer (#897)', (
+      tester,
+    ) async {
+      await usePhoneSurface(tester);
+      await pumpScreen(tester, locale: const Locale('ru'));
+
+      expect(find.byKey(_person('Uann')), findsOneWidget);
+      expect(find.textContaining('Only you see'), findsNothing);
+      expect(find.textContaining('видите только вы'), findsNothing);
+      expect(tester.takeException(), isNull);
     });
   });
 }
