@@ -1191,6 +1191,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     required bool minimapExpanded,
   }) {
     final hadViewportSnapshot = _fieldCameraViewportSnapshot != EdgeInsets.zero;
+    final previousSnapshot = _fieldCameraViewportSnapshot;
+    final previousBottomChrome = _fieldCameraBottomChromeHeight;
     if (_fieldCameraViewportSnapshot == snapshotInsets &&
         _fieldCameraBottomChromeHeight == bottomChromeHeight &&
         _fieldCameraMinimapExpanded == minimapExpanded) {
@@ -1203,6 +1205,28 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         snapshotInsets != EdgeInsets.zero &&
         !_fieldInitialFrameCompleted) {
       runAfterNextFrame(_runAutomaticFieldFramingIfNeeded);
+      return;
+    }
+    final bottomChromeChanged =
+        (bottomChromeHeight - previousBottomChrome).abs() >= 0.5;
+    if (_fieldInitialFrameCompleted &&
+        !_userMovedCameraSinceProgrammaticFrame &&
+        bottomChromeChanged &&
+        hadViewportSnapshot &&
+        previousSnapshot != EdgeInsets.zero &&
+        !_shouldDeferProgrammaticFieldCamera() &&
+        state.placementPhase == ConstellationPlacementPhase.idle &&
+        state.viewMode == ConstellationViewMode.map &&
+        state.tagView == null &&
+        !state.isComposing &&
+        state.forwardTreeOverlay == null) {
+      runAfterNextFrame(() {
+        if (isClosed ||
+            state.placementPhase != ConstellationPlacementPhase.idle) {
+          return;
+        }
+        fitWholeField(insets: _fieldCameraViewportSnapshot);
+      });
     }
   }
 
