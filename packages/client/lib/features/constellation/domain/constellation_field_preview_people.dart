@@ -2,6 +2,9 @@ import 'package:tentura/domain/entity/profile.dart';
 
 import 'entity/constellation_field.dart';
 
+/// Avatar cap for Field preview participant / forward rows ([TenturaAvatarStack]).
+const kConstellationFieldPreviewAvatarMax = 3;
+
 /// Visible face pile plus a [hiddenCount] folded into «+N» on the preview sheet.
 class ConstellationFieldPreviewMemberStack {
   const ConstellationFieldPreviewMemberStack({
@@ -13,6 +16,12 @@ class ConstellationFieldPreviewMemberStack {
   final int hiddenCount;
 
   bool get isEmpty => profiles.isEmpty && hiddenCount <= 0;
+
+  /// «+N»: viewers not on the Field plus faces past [kConstellationFieldPreviewAvatarMax].
+  int get plusBadgeCount {
+    final pastCap = profiles.length - kConstellationFieldPreviewAvatarMax;
+    return hiddenCount + (pastCap > 0 ? pastCap : 0);
+  }
 }
 
 typedef ConstellationFieldPreviewProfileLookup =
