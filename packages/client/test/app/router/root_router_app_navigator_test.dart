@@ -287,7 +287,7 @@ class _RecordingRootRouter extends RootRouter {
   @override
   Future<T?> pushPath<T extends Object?>(
     String path, {
-    bool includePrefixMatches = false,
+    bool includePrefixMatches = true,
     OnNavigationFailure? onFailure,
   }) async {
     calls.add('pushPath $path includePrefixMatches: $includePrefixMatches');

@@ -966,9 +966,22 @@ class RootRouter extends RootStackRouter implements AppNavigator {
   }
 
   @override
+  Future<T?> pushPath<T extends Object?>(
+    String path, {
+    bool includePrefixMatches = true,
+    OnNavigationFailure? onFailure,
+  }) {
+    _transformDeepLink(Uri.parse(path));
+    return super.pushPath<T>(
+      path,
+      includePrefixMatches: includePrefixMatches,
+      onFailure: onFailure,
+    );
+  }
+
+  @override
   Future<void> openPath(String path) => pushPath(
     path,
-    includePrefixMatches: true,
     onFailure: _logger.fine,
   );
 
