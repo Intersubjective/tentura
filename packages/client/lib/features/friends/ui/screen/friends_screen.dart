@@ -505,7 +505,7 @@ class _InvitesSegmentList extends StatelessWidget {
           )
         else ...[
           if (peopleInvites.isNotEmpty &&
-              (isAccepted || beaconInvites.isNotEmpty)) ...[
+              (isAccepted || beaconInvites.isNotEmpty))
             SliverToBoxAdapter(
               child: Padding(
                 padding: EdgeInsets.fromLTRB(
@@ -522,6 +522,7 @@ class _InvitesSegmentList extends StatelessWidget {
                 ),
               ),
             ),
+          if (peopleInvites.isNotEmpty)
             SliverList.separated(
               itemCount: peopleInvites.length,
               separatorBuilder: separatorBuilder,
@@ -532,7 +533,6 @@ class _InvitesSegmentList extends StatelessWidget {
                 isBeaconSection: false,
               ),
             ),
-          ],
           if (beaconGroupKeys.isNotEmpty) ...[
             SliverToBoxAdapter(
               child: Padding(
