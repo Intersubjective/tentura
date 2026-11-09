@@ -236,6 +236,70 @@ void main() {
       );
     });
 
+    test('minimapDeltaToWorld matches minimapToWorld delta (#1225)', () {
+      final projection = ConstellationMinimapProjection.fromPoints(_people);
+      const delta = (x: 12.0, y: -7.0);
+      final a = projection.minimapToWorld((x: 50, y: 60));
+      final b = projection.minimapToWorld((x: 50 + delta.x, y: 60 + delta.y));
+      final viaDelta = projection.minimapDeltaToWorld(delta);
+      expect(b.x - a.x, closeTo(viaDelta.x, 1e-9));
+      expect(b.y - a.y, closeTo(viaDelta.y, 1e-9));
+    });
+
+    test(
+      'visibility hysteresis avoids flicker at the viewport edge (#1225)',
+      () {
+        const viewport = (
+          left: 0.0,
+          top: 0.0,
+          right: 400.0,
+          bottom: 300.0,
+        );
+        const inside = (
+          left: 190.0,
+          top: 140.0,
+          right: 210.0,
+          bottom: 160.0,
+        );
+        const spills = (
+          left: 410.0,
+          top: 140.0,
+          right: 440.0,
+          bottom: 160.0,
+        );
+        const onEdge = (
+          left: 380.0,
+          top: 140.0,
+          right: 405.0,
+          bottom: 160.0,
+        );
+        expect(
+          constellationMinimapNeededForViewport(
+            viewport: viewport,
+            nodeBounds: [inside],
+            currentlyShown: false,
+          ),
+          isFalse,
+        );
+        expect(
+          constellationMinimapNeededForViewport(
+            viewport: viewport,
+            nodeBounds: [spills],
+            currentlyShown: false,
+          ),
+          isTrue,
+        );
+        expect(
+          constellationMinimapNeededForViewport(
+            viewport: viewport,
+            nodeBounds: [onEdge],
+            currentlyShown: true,
+          ),
+          isTrue,
+        );
+      },
+    );
+
     test('copes with no people and with one person', () {
       for (final points in [
         const <LPoint>[],

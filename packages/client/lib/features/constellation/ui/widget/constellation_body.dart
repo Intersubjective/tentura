@@ -39,6 +39,8 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import '../../domain/constellation_consts.dart';
+import '../../domain/constellation_minimap.dart';
+import '../../domain/layout/layout_geometry.dart';
 import '../../domain/constellation_trust_chain.dart';
 import '../../domain/constellation_field_unread_glow.dart';
 import '../../domain/entity/constellation_field.dart';
@@ -214,12 +216,13 @@ class _ConstellationBodyState extends State<ConstellationBody>
   // The screen's single zoom-level owner, shared with the viewport overlay.
   late final ConstellationZoomLevelController _zoom;
   ConstellationZoomLevelController? _ownZoom;
-  // Outlives the minimap widget, which leaves at the close level.
+  // Outlives the minimap widget so expand/collapse survives visibility changes.
   // FCP §C: compact surfaces start with the minimap collapsed; width is read
   // in didChangeDependencies (first pass) so MediaQuery is available before
   // the first build.
   final _minimapExpanded = ValueNotifier<bool>(false);
   bool _minimapExpandedInitialized = false;
+  final _minimapChromeVisible = ValueNotifier<bool>(true);
   int _pointersDown = 0;
 
   ConstellationTagHullHitTester? _tagHullHitTester;
@@ -491,6 +494,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
       ..addListener(_onRevealTick);
     _graphController.cameraRevision.addListener(_onCamera);
     _graphController.addListener(_syncCameraViewportInsetsFromController);
+    _graphController.addListener(_recomputeMinimapChromeVisible);
     _minimapExpanded.addListener(_onMinimapExpandedChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) {
@@ -498,6 +502,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
       }
       _measureBottomChromeColumnHeight();
       _syncCameraViewportInsetsFromController();
+      _recomputeMinimapChromeVisible();
     });
     WidgetsBinding.instance.addObserver(this);
     final peopleTags = _peopleTags;
@@ -537,12 +542,14 @@ class _ConstellationBodyState extends State<ConstellationBody>
     unawaited(_magnetTagsSubscription?.cancel());
     WidgetsBinding.instance.removeObserver(this);
     _graphController.removeListener(_syncCameraViewportInsetsFromController);
+    _graphController.removeListener(_recomputeMinimapChromeVisible);
     _minimapExpanded.removeListener(_onMinimapExpandedChanged);
     _fieldSettleBackTimer?.cancel();
     _graphController.cameraRevision.removeListener(_onCamera);
     _zoom.removeListener(_onZoomLevel);
     _ownZoom?.dispose();
     _minimapExpanded.dispose();
+    _minimapChromeVisible.dispose();
     _reveal.dispose();
     _edgeStrokeScale.dispose();
     _mapFocus.dispose();
@@ -578,7 +585,61 @@ class _ConstellationBodyState extends State<ConstellationBody>
       _graphController.cameraScale,
       gestureActive: _pointersDown > 0,
     );
+    _recomputeMinimapChromeVisible();
     _rescheduleFieldSettleBack();
+  }
+
+  void _recomputeMinimapChromeVisible() {
+    if (!mounted) {
+      return;
+    }
+    final cubit = context.read<ConstellationCubit>();
+    final panelVisible =
+        cubit.state.selectedPersonId != null ||
+        cubit.state.selectedRequestId != null;
+    final tt = context.tt;
+    final compactSheet =
+        panelVisible && context.windowClass == WindowClass.compact;
+    final sheetHeight = compactSheet
+        ? (_compactSheetHeight > 0
+              ? _compactSheetHeight
+              : _effectiveMapStackHeight * tt.fieldSheetPeekFraction)
+        : 0.0;
+    final insets = ConstellationCameraControls.cameraViewportInsets(
+      context,
+      contextPanelVisible: panelVisible,
+      compactSheetHeight: sheetHeight,
+      bottomChromeHeight: _bottomChromeColumnHeight,
+      // Default minimapExpanded: visibility uses fit-all insets without
+      // reserving the expanded minimap block (chicken-and-egg).
+    );
+    final viewport = constellationMinimapViewportWorld(
+      _graphController,
+      viewportInsets: insets,
+    );
+    if (viewport == null) {
+      return;
+    }
+    final snapshot = _graphController.renderSnapshot;
+    final nodeBounds = <LRect>[
+      for (final id in snapshot.topology.nodesById.keys)
+        if (id.startsWith('fp:') || id.startsWith('fr:'))
+          if (snapshot.resolveTargetPosition(id) case final point?)
+            (
+              left: point.x,
+              top: point.y,
+              right: point.x,
+              bottom: point.y,
+            ),
+    ];
+    final needed = constellationMinimapNeededForViewport(
+      viewport: viewport,
+      nodeBounds: nodeBounds,
+      currentlyShown: _minimapChromeVisible.value,
+    );
+    if (needed != _minimapChromeVisible.value) {
+      _minimapChromeVisible.value = needed;
+    }
   }
 
   void _rescheduleFieldSettleBack() {
@@ -1308,6 +1369,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
       bottomChromeHeight: _bottomChromeColumnHeight,
       minimapExpanded: _minimapExpanded.value,
     );
+    _recomputeMinimapChromeVisible();
   }
 
   Widget _wrapAdaptiveContextOverlay(
@@ -2866,22 +2928,33 @@ class _ConstellationBodyState extends State<ConstellationBody>
             ),
           ),
         ),
-        if (_detail != ConstellationDetailLevel.close &&
-            !(panelVisible && context.windowClass == WindowClass.compact))
+        if (!(panelVisible && context.windowClass == WindowClass.compact))
           Positioned(
             right: cameraRightInset,
             bottom: 0,
-            child: SafeArea(
-              left: false,
-              top: false,
-              child: Padding(
-                padding: EdgeInsets.all(tt.rowGap),
-                child: ConstellationMinimap(
-                  controller: cubit.graphController,
-                  viewerGraphId: 'fp:${cubit.viewerId}',
-                  expanded: _minimapExpanded,
-                ),
-              ),
+            child: ListenableBuilder(
+              listenable: _minimapChromeVisible,
+              builder: (context, _) {
+                if (!_minimapChromeVisible.value) {
+                  return const SizedBox.shrink();
+                }
+                return SafeArea(
+                  left: false,
+                  top: false,
+                  child: Padding(
+                    padding: EdgeInsets.all(tt.rowGap),
+                    child: ConstellationMinimap(
+                      controller: cubit.graphController,
+                      viewerGraphId: 'fp:${cubit.viewerId}',
+                      expanded: _minimapExpanded,
+                      viewportInsets: _cameraViewportInsets(
+                        context,
+                        panelVisible,
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
           ),
         if (widget.legendExpanded &&
