@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'exception_codes.dart';
 
+part 'exception/closure_exception.dart';
 part 'exception/fcm_exceptions.dart';
 
 base class ExceptionBase implements Exception {

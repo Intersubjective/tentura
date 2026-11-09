@@ -9,8 +9,6 @@ import 'package:tentura/features/constellation/domain/entity/constellation_ancho
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
-import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
-
 import '../../support/constellation_store_fixture.dart';
 import '../../support/phone_surface.dart';
 import '../../support/remote_wire_harness.dart';

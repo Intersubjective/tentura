@@ -561,13 +561,13 @@ class _ConstellationBodyState extends State<ConstellationBody>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.hidden) {
-      maybeConstellationSelection(context)?.exitArranging();
+      maybeConstellationSelection(context)?.exitArrangingForNavigation();
       context.read<ConstellationCubit>().onTabHidden();
     }
   }
 
   void _exitArrangingIfActive() {
-    maybeConstellationSelection(context)?.exitArranging();
+    maybeConstellationSelection(context)?.exitArrangingForNavigation();
   }
 
   double _strokeScale() {
@@ -1422,6 +1422,9 @@ class _ConstellationBodyState extends State<ConstellationBody>
           profile: profile,
           isBlocked: cubit.fieldPersonById(personId)?.pinState == 'blockedByMe',
           onUnblock: () => unawaited(_unblockPerson(context, personId)),
+          onBeforeOpenProfile: () => maybeConstellationSelection(
+            context,
+          )?.exitArrangingForNavigation(),
           focusedNode: UserNode(user: profile),
           subtitle: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1612,7 +1615,7 @@ class _ConstellationBodyState extends State<ConstellationBody>
                   return;
                 }
                 if (!context.read<ConstellationCubit>().canArrange) {
-                  selection.exitArranging();
+                  selection.exitArrangingForNavigation();
                 }
               });
             },
@@ -1971,7 +1974,6 @@ class _ConstellationBodyState extends State<ConstellationBody>
     return ConstrainedBox(
       constraints: BoxConstraints(maxHeight: capHeight),
       child: Stack(
-        clipBehavior: Clip.hardEdge,
         children: [
           topChrome,
           if (selection != null)
