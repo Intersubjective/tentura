@@ -30,6 +30,7 @@ import 'package:tentura/features/beacon_plan/ui/widget/beacon_plan_page.dart';
 import 'package:tentura/ui/beacon/beacon_room_navigation_scope.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/beacon/beacon_room_composer_leave.dart';
 import 'package:tentura/ui/navigation/app_navigator.dart';
 import 'package:tentura/ui/navigation/home_tab.dart';
 import 'package:tentura/ui/widget/first_load_gate.dart';
@@ -247,7 +248,14 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     });
   }
 
-  void _leaveBeaconView(BuildContext context) {
+  Future<void> _leaveBeaconView(BuildContext context) async {
+    final beaconId = context.read<BeaconViewCubit>().state.beacon.id;
+    if (!await confirmDiscardBeaconRoomComposerIfNeeded(context, beaconId)) {
+      return;
+    }
+    if (!context.mounted) return;
+    abandonBeaconRoomComposerDraft(context, beaconId);
+
     final router = context.router;
 
     if (router.canPop()) {
@@ -1278,7 +1286,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                           goBackLabel: l10n.beaconViewErrorGoBack,
                           onRetry: () =>
                               unawaited(beaconViewCubit.retryInitialLoad()),
-                          onGoBack: () => _leaveBeaconView(context),
+                          onGoBack: () => unawaited(_leaveBeaconView(context)),
                         );
                       } else if (showInitialError) {
                         body = _beaconViewErrorBody(
@@ -1291,7 +1299,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                           goBackLabel: l10n.beaconViewErrorGoBack,
                           onRetry: () =>
                               unawaited(beaconViewCubit.retryInitialLoad()),
-                          onGoBack: () => _leaveBeaconView(context),
+                          onGoBack: () => unawaited(_leaveBeaconView(context)),
                         );
                       } else {
                         final Widget content;
@@ -1445,7 +1453,9 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                                 appBar: loadingShell
                                     ? beaconViewLoadingShellAppBar(
                                         context,
-                                        onBack: () => _leaveBeaconView(context),
+                                        onBack: () => unawaited(
+                                          _leaveBeaconView(context),
+                                        ),
                                         headerKey: isSplit && wideViewport
                                             ? beaconSplitChatHeaderKey
                                             : null,
@@ -1460,8 +1470,9 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                                             ? null
                                             : AutoLeadingWithFallback(
                                                 fallbackPath: kPathMyWork,
-                                                onFallback: () =>
-                                                    _leaveBeaconView(context),
+                                                onFallback: () => unawaited(
+                                                  _leaveBeaconView(context),
+                                                ),
                                               ),
                                         // The showcase carries the title under its
                                         // cover; the bar keeps only back and ⋮.
@@ -1622,8 +1633,10 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                                                                 fallbackPath:
                                                                     kPathMyWork,
                                                                 onFallback: () =>
-                                                                    _leaveBeaconView(
-                                                                      context,
+                                                                    unawaited(
+                                                                      _leaveBeaconView(
+                                                                        context,
+                                                                      ),
                                                                     ),
                                                               ),
                                                               Expanded(

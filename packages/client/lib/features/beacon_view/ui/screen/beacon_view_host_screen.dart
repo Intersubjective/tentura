@@ -13,6 +13,7 @@ import 'package:tentura/features/post_view/data/repository/beacon_kind_repositor
 import 'package:tentura/features/home/ui/widget/home_rail_frame.dart';
 import 'package:tentura/features/post_view/ui/screen/post_view_scope.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
+import 'package:tentura/ui/beacon/beacon_room_composer_leave.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
 import '../widget/beacon_view_loading_shell.dart';
@@ -164,7 +165,9 @@ class _BeaconKindGateState extends State<_BeaconKindGate> {
       unawaited(router.maybePop());
       return;
     }
-    unawaited(router.navigatePath(kPathMyWork));
+    unawaited(
+      leaveRequestDetailScreen(context, beaconId: widget.beaconId),
+    );
   }
 
   @override

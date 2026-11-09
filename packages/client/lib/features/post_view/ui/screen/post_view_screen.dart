@@ -21,6 +21,7 @@ import 'package:tentura/features/forward/ui/widget/beacon_invite_flow.dart';
 import 'package:tentura/features/invitation/ui/bloc/invitation_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/beacon/beacon_room_composer_leave.dart';
 import 'package:tentura/ui/navigation/app_navigator.dart';
 import 'package:tentura/ui/utils/post_expiry_clock.dart';
 
@@ -126,7 +127,11 @@ class _PostViewScreenState extends State<PostViewScreen> {
           ),
           leading: widget.inPane
               ? null
-              : BackButton(onPressed: () => Navigator.maybePop(context)),
+              : BackButton(
+                  onPressed: () => unawaited(
+                    leavePostDetailScreen(context, beaconId: widget.id),
+                  ),
+                ),
           actions: [
             if (state.beacon.viewerCanForward && !_isClosed(state))
               IconButton(
