@@ -407,6 +407,7 @@ jobs:
                   dart pub get
                   python3 scripts/test_ci_changes.py
                   python3 scripts/test_ci_select_tests.py
+                  python3 scripts/test_affected_tests.py
                   python3 scripts/check_repo_files_tags.py
                   python3 scripts/check_cross_package_imports.py
                   bash scripts/check-user-facing-terminology.sh
