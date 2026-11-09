@@ -1456,9 +1456,10 @@ class ConstellationSceneController {
     return bounds;
   }
 
-  void centreOnBeacon(String beaconId, EdgeInsets insets) {
+  /// Jumps the camera to [beaconId]'s node; false when it is not placed.
+  bool centreOnBeacon(String beaconId, EdgeInsets insets) {
     if (!graphController.canLayout) {
-      return;
+      return false;
     }
     for (final candidate
         in graphController.renderSnapshot.topology.nodesById.values) {
@@ -1475,9 +1476,11 @@ class ConstellationSceneController {
           Offset(point.x, point.y),
           viewportInsets: insets,
         );
+        return true;
       }
-      return;
+      return false;
     }
+    return false;
   }
 
   /// The pan (never a zoom) that brings [graphId]'s node inside the viewport

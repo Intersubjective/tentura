@@ -3217,7 +3217,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   List<ConstellationMemberWeb> memberWebsForBeacon(String beaconId) {
     if (_isPostId(beaconId)) {
       return [
-        for (final web in state.field?.memberWebs ?? const <ConstellationMemberWeb>[])
+        for (final web
+            in state.field?.memberWebs ?? const <ConstellationMemberWeb>[])
           if (web.beaconId == beaconId) web,
       ];
     }
@@ -3226,7 +3227,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       return cached;
     }
     return [
-      for (final web in state.field?.memberWebs ?? const <ConstellationMemberWeb>[])
+      for (final web
+          in state.field?.memberWebs ?? const <ConstellationMemberWeb>[])
         if (web.beaconId == beaconId) web,
     ];
   }
@@ -3537,6 +3539,13 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (state.field == null || state.viewMode != ConstellationViewMode.map) {
       return;
     }
+    // Re-checked here: the forward tree or a tag view may have opened between
+    // scheduling and this frame, and each frames its own camera.
+    if (state.tagView != null ||
+        state.isComposing ||
+        state.forwardTreeOverlay != null) {
+      return;
+    }
     if (_fieldCameraViewportSnapshot == EdgeInsets.zero) {
       runAfterNextFrame(() {
         if (!isClosed &&
@@ -3611,7 +3620,11 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (state.placementPhase != ConstellationPlacementPhase.idle) {
       return;
     }
-    _scene.centreOnBeacon(beaconId, insets);
+    if (_scene.centreOnBeacon(beaconId, insets)) {
+      // The targeted camera is this visit's frame; the automatic fit-all of a
+      // new visit («Show on Field» from another tab) must not replace it.
+      _recordProgrammaticFieldCamera();
+    }
   }
 
   /// The camera pan (no zoom) that keeps [node] clear of [insets], e.g.

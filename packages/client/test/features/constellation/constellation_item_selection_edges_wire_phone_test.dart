@@ -262,4 +262,68 @@ void main() {
     }
     _expectFieldEdgePainter(tester);
   });
+
+  testWidgets(
+    '«Show on Field» from another tab at 375x667 keeps the camera on the '
+    'Post instead of the new visit fit-all',
+    (tester) async {
+      await usePhoneSurface(tester);
+      late ConstellationCubit cubit;
+      await tester.runAsync(
+        () => withRemoteWire(
+          {'ConstellationFieldFetch': _fieldResponse()},
+          [],
+          (remote) async {
+            final store = ConstellationStoreFixture(
+              ConstellationRepository(remote),
+              accountId: _viewer.id,
+            );
+            cubit = store.createCubit(viewer: _viewer);
+            await store.ready();
+            await cubit.load().timeout(const Duration(seconds: 15));
+          },
+        ),
+      );
+      await pumpConstellationBody(
+        tester,
+        cubit,
+        size: kPhoneSurface,
+        disableAnimations: true,
+      );
+      await tester.pumpAndSettle();
+
+      final graphView = find.byWidgetPredicate((w) => w is GraphView);
+      final postNode = find.byKey(TestIds.key(TestIds.graphNode(_post)));
+      double postOffCentre() =>
+          (tester.getCenter(postNode) - tester.getCenter(graphView)).distance;
+      expect(
+        postOffCentre(),
+        greaterThan(20),
+        reason: 'precondition: the entry fit-all does not centre the Post',
+      );
+
+      // The app's order on «Show on Field» from a Post on another tab: the
+      // tab activation starts a new Field visit (its automatic framing waits
+      // for the next frame), and the focus request's post-frame callback
+      // focuses the Post before that framing runs.
+      cubit
+        ..startFieldVisit()
+        ..focusBeacon(_post, insets: EdgeInsets.zero);
+      expect(cubit.state.selectedRequestId, _post);
+      await tester.pump();
+      final focused = tester.getCenter(postNode);
+      expect(
+        postOffCentre(),
+        lessThan(40),
+        reason: 'the focus moved the camera onto the Post',
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        (tester.getCenter(postNode) - focused).distance,
+        lessThan(0.5),
+        reason: 'the new visit fit-all must not replace the focused camera',
+      );
+    },
+  );
 }
