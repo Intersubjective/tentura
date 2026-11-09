@@ -477,7 +477,7 @@ class BeaconRoomCase extends UseCaseBase {
 
   Future<void> _rejectPlanItemThread(String threadItemId) async {
     final item = await _items.getById(threadItemId);
-    if (item != null && item.kind == coordinationItemKindPlan) {
+    if (item != null && item.kind == CoordinationItemKind.plan.smallintValue) {
       throw const IdWrongException(
         description: 'Plan items do not support item discussion threads',
       );
@@ -860,7 +860,8 @@ class BeaconRoomCase extends UseCaseBase {
       // Request Questions: the author hears about every question, directed or
       // not (#543 review), as an ordinary room-message attention item.
       final questionsAuthorId =
-          inThread && threadItem?.kind == coordinationItemKindLobby
+          inThread &&
+              threadItem?.kind == CoordinationItemKind.lobby.smallintValue
           ? await _room.beaconAuthorUserId(beaconId)
           : null;
       // Questions is plain chat: its messages raise the unread counter only,
@@ -2434,8 +2435,8 @@ class BeaconRoomCase extends UseCaseBase {
     final rows = await _items.listByBeacon(
       beaconId,
       viewerUserId: viewerUserId,
-      kind: coordinationItemKindBlocker,
-      status: coordinationItemStatusOpen,
+      kind: CoordinationItemKind.blocker.smallintValue,
+      status: CoordinationItemStatus.open.smallintValue,
     );
     return rows.isEmpty ? null : rows.first.item;
   }

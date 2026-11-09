@@ -227,7 +227,7 @@ ON CONFLICT (id) DO NOTHING
       expect(await epochStatus(_beacon), 0);
       expect(await closesInThePast(_beacon), isFalse);
 
-      // `afterSelect` fires once per `ClosureFinalizeSweepCase.run()`, between
+      // `afterSelect` fires once per `ClosureFinalizeSweepCase.runDue()`, between
       // the due-epoch select and the per-row lock. The epoch is still
       // evaluating there, so this observes the action's `closes_at` move
       // (made before the sweep) without finalize overwriting it, and proves

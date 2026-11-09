@@ -283,7 +283,7 @@ UPDATE public.beacon_forward_edge
 SET contact_deadline_at = now() - interval '1 hour'
 WHERE id = '${row.forwardEdgeId}'
 ''');
-      await s.sweep.run();
+      await s.sweep.runDue();
       expect((await _contact(writer, row.forwardEdgeId!)).outcome, isNull);
       expect(await _contactEvidence(writer), isEmpty);
     }

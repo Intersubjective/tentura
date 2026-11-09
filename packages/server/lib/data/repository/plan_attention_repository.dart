@@ -3,7 +3,7 @@ import 'package:injectable/injectable.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_root/domain/plan/plan.dart';
 
-import 'package:tentura_server/consts/beacon_plan_consts.dart';
+import 'package:tentura_server/consts/coordination_item_consts.dart';
 import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/plan/plan_sweep_phase.dart';
@@ -149,8 +149,8 @@ JOIN public.beacon b
   AND b.status = ANY(\$4::bigint[])
 LEFT JOIN public.beacon_plan_revision r
   ON r.beacon_id = ci.beacon_id AND r.seq = ci.ack_seq
-WHERE ci.kind = ${BeaconPlanConsts.stepKind}
-  AND ci.status = ${BeaconPlanConsts.stepStatusLive}
+WHERE ci.kind = ${CoordinationItemKind.planStep.smallintValue}
+  AND ci.status = ${CoordinationItemStatus.open.smallintValue}
   AND ci.done_at IS NULL
   AND (
     ci.start_at <= \$1::timestamptz + \$5 * interval '1 second'

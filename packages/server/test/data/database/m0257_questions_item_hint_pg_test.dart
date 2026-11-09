@@ -169,7 +169,7 @@ Future<void> main() async {
         () => sql(
           'INSERT INTO public.coordination_item (id, beacon_id, kind, '
           'status, creator_id, published, published_at) VALUES '
-          "('$lobbyId', '$beaconId', $coordinationItemKindLobby, 0, "
+          "('$lobbyId', '$beaconId', ${CoordinationItemKind.lobby.smallintValue}, 0, "
           "'$author', true, now())",
         ),
       );
@@ -196,14 +196,14 @@ Future<void> main() async {
       await sql(
         'INSERT INTO public.coordination_item (id, beacon_id, kind, status, '
         'creator_id, title, published, published_at) VALUES '
-        "('Cqitem000009', '$beaconId', $coordinationItemKindAsk, 0, "
+        "('Cqitem000009', '$beaconId', ${CoordinationItemKind.ask.smallintValue}, 0, "
         "'$author', 'Van?', true, now())",
       );
       await Future<void>.delayed(const Duration(milliseconds: 300));
       final intoQuestions = await itemHintsAfter(
         () => sql(
           'UPDATE public.coordination_item '
-          'SET kind = $coordinationItemKindLobby '
+          'SET kind = ${CoordinationItemKind.lobby.smallintValue} '
           "WHERE id = 'Cqitem000009'",
         ),
       );
@@ -211,7 +211,7 @@ Future<void> main() async {
       final outOfQuestions = await itemHintsAfter(
         () => sql(
           'UPDATE public.coordination_item '
-          'SET kind = $coordinationItemKindAsk '
+          'SET kind = ${CoordinationItemKind.ask.smallintValue} '
           "WHERE id = 'Cqitem000009'",
         ),
       );
@@ -227,7 +227,7 @@ Future<void> main() async {
         () => sql(
           'INSERT INTO public.coordination_item (id, beacon_id, kind, '
           'status, creator_id, title, published, published_at) VALUES '
-          "('$itemId', '$beaconId', $coordinationItemKindAsk, 0, "
+          "('$itemId', '$beaconId', ${CoordinationItemKind.ask.smallintValue}, 0, "
           "'$helper', 'Who has a van?', true, now())",
         ),
         waitFor: general,

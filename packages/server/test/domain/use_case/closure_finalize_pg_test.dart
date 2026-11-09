@@ -1228,7 +1228,7 @@ WHERE beacon_id = '$_beacon' AND kind = $_kSupportedColleague
       () async {
         await seedEpoch();
         await member(_u1);
-        await sweep.run();
+        await sweep.runDue();
         expect(await epochStatus(1), 1);
         expect(await beaconStatus(), BeaconStatus.closed.smallintValue);
         expect(
@@ -1246,7 +1246,7 @@ SELECT finalize_reason FROM public.beacon_closure WHERE beacon_id = '$_beacon'
       () async {
         await seedEpoch(closesAt: "now() + interval '1 day'");
         await member(_u1);
-        await sweep.run();
+        await sweep.runDue();
         expect(await epochStatus(1), 0);
       },
       skip: skipReason,
@@ -1262,7 +1262,7 @@ UPDATE public.beacon_closure
 SET closes_at = now() + interval '7 days', extensions_used = 1
 WHERE beacon_id = '$_beacon' AND epoch = 1
 ''');
-        await sweep.run();
+        await sweep.runDue();
         expect(await epochStatus(1), 0);
         expect(await results(), isEmpty);
         expect(await beaconStatus(), BeaconStatus.reviewOpen.smallintValue);
@@ -1283,7 +1283,7 @@ WHERE beacon_id = '$_beacon' AND epoch = 1
           await seedEpoch(epoch: 2, closesAt: "now() + interval '7 days'");
           await member(_u1, epoch: 2, outcome: null);
         };
-        await sweep.run();
+        await sweep.runDue();
         expect(await epochStatus(1), 2);
         expect(await epochStatus(2), 0);
         expect(await results(), isEmpty);
@@ -1328,7 +1328,7 @@ EXECUTE FUNCTION public.clfin_fail()
         await seedEpoch();
         await member(_u1);
 
-        await sweep.run(); // must not throw
+        await sweep.runDue(); // must not throw
 
         expect(await epochStatus(1), 1, reason: 'healthy row finalized');
         final failed = await rows('''

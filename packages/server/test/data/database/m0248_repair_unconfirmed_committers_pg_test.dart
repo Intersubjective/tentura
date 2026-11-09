@@ -202,7 +202,7 @@ Future<void> main() async {
           trustLedger: TrustLedgerRepository(database),
           env: migrationTarget.databaseEnv,
           logger: Logger('M0248RepairSweepPgTest'),
-        ).run();
+        ).runDue();
 
         final after = await writer.execute(
           'SELECT contact_outcome, contact_resolved_at '

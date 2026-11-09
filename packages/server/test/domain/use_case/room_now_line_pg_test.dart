@@ -196,7 +196,7 @@ WHERE beacon_id = @beaconId
 '''),
         parameters: {
           'beaconId': beaconId,
-          'kind': coordinationItemKindPlan,
+          'kind': CoordinationItemKind.plan.smallintValue,
         },
       );
       return rows.single.first as int;
