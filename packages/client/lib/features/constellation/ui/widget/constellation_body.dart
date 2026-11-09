@@ -661,6 +661,10 @@ class _ConstellationBodyState extends State<ConstellationBody>
     final pan = cubit.revealPanFor(
       node,
       insets: _cameraViewportInsets(context, contextPanelVisible),
+      // On a phone the selection's sheet leaves a strip above it, and the
+      // selected node is centred in that strip at every zoom (#974 spec),
+      // not just kept clear of the sheet's edge.
+      centreVertically: _compactContextPanelOpen(context, contextPanelVisible),
     );
     if (pan == null) {
       return;

@@ -148,7 +148,11 @@ void main() {
               kind: PointerDeviceKind.mouse,
             );
             await zoomToScale(tester, target);
-            await gesture.up();
+            // A pinch ends without a tap. A still mouse lifted here would tap
+            // the node under it, and on a phone that selection centres the
+            // node above its sheet (#974), moving the camera; cancel releases
+            // the pointer through the same release path without the tap.
+            await gesture.cancel();
             final afterRelease = await settle(tester);
 
             expectSameSettledScene(afterRelease, reference);
