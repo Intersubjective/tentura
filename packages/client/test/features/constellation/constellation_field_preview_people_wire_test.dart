@@ -163,4 +163,90 @@ void main() {
     expect(find.text('+1'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('wire post with seven forwarders shows +4 past avatar cap', (
+    tester,
+  ) async {
+    await usePhoneSurface(tester);
+    final forwardIds = List.generate(
+      7,
+      (i) => 'Ufwd${i.toString().padLeft(8, '0')}',
+    );
+    final wire = _fieldWire();
+    final field = wire['constellationField']! as Map<String, dynamic>;
+    field['peers'] = [
+      for (var i = 0; i < forwardIds.length; i++)
+        _peer(forwardIds[i], 'Forward $i'),
+    ];
+    field['edges'] = [
+      for (final id in forwardIds)
+        {
+          '__typename': 'v2_ConstellationEdge',
+          'src': _viewer.id,
+          'dst': id,
+          'tier': 1,
+        },
+    ];
+    field['posts'] = [
+      {
+        '__typename': 'v2_ConstellationPost',
+        'id': _post,
+        'authorId': forwardIds.first,
+        'lastActivityAt': DateTime.utc(2026, 11, 8).toIso8601String(),
+        'expiresAt': null,
+        'status': 0,
+        'rootExcerpt': 'Need a drill',
+        'isPinned': false,
+        'hiddenReachCount': 0,
+        'has_unread': false,
+      },
+    ];
+    field['memberWebs'] = [
+      for (final id in forwardIds) _memberWeb(id, 'FORWARDED'),
+    ];
+
+    late ConstellationCubit cubit;
+    await tester.runAsync(
+      () => withRemoteWire(
+        {'ConstellationFieldFetch': wire},
+        [],
+        (remote) async {
+          final store = ConstellationStoreFixture(
+            ConstellationRepository(remote),
+            accountId: _viewer.id,
+          );
+          cubit = store.createCubit(viewer: _viewer);
+          await store.ready();
+          await cubit.load().timeout(const Duration(seconds: 15));
+        },
+      ),
+    );
+    cubit.selectRequest(_post);
+    await tester.pumpPeopleTagsWidget(
+      MaterialApp(
+        locale: const Locale('ru'),
+        theme: TenturaTheme.light(),
+        localizationsDelegates: L10n.localizationsDelegates,
+        supportedLocales: L10n.supportedLocales,
+        home: TenturaResponsiveScope(
+          child: BlocProvider.value(
+            value: cubit,
+            child: ConstellationPostPreviewSheet(
+              post: cubit.state.field!.posts.single,
+              authorDisplayName: 'Amy',
+              onOpen: () {},
+              onClose: () {},
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const Key('constellation.field_preview.forwarded')),
+      findsOneWidget,
+    );
+    expect(find.text('+4'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }
