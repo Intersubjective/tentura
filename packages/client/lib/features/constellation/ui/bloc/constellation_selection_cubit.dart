@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart' show BuildContext;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 
+import '../util/field_arranging_browser_back.dart';
 import '../../domain/constellation_multi_selection.dart';
 
 export '../../domain/constellation_multi_selection.dart';
@@ -34,6 +35,14 @@ class ConstellationSelectionCubit extends Cubit<ConstellationMultiSelection> {
     emit(
       state.withSector(null).withArranging(false).withSelecting(false),
     );
+  }
+
+  /// Leaves arranging when a route or tab change follows; drops the browser
+  /// back sentinel without `history.back()` so navigation is not undone (#1062).
+  void exitArrangingForNavigation() {
+    if (isClosed || !state.arranging) return;
+    onFieldArrangingExitForNavigation();
+    exitArranging();
   }
 
   /// The select tool (toolbar toggle, «Done»). Turning it off keeps what
