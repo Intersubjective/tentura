@@ -11,8 +11,6 @@ import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart'
 import 'package:tentura/features/constellation/ui/bloc/constellation_state.dart';
 import 'package:tentura/features/constellation/ui/utils/constellation_presentation_frame.dart';
 import 'package:tentura/features/constellation/ui/utils/constellation_tap_resolver.dart';
-import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
-
 import '../../support/phone_surface.dart';
 import '../../support/remote_wire_harness.dart';
 import 'fixtures/constellation_reference_fixture.dart';

@@ -301,7 +301,7 @@ class _ConstellationScreenState extends State<ConstellationScreen> {
     final homeOnTop = root == null || root.current.name == HomeRoute.name;
     final visible = tabActive && homeOnTop;
     if (!visible) {
-      maybeConstellationSelection(context)?.exitArranging();
+      maybeConstellationSelection(context)?.exitArrangingForNavigation();
     }
     final cubit = context.read<ConstellationCubit>();
     // Back on the Field tab from another tab: a new visit starts fitted.
@@ -391,7 +391,7 @@ class _ConstellationScreenState extends State<ConstellationScreen> {
 
   @override
   void deactivate() {
-    maybeConstellationSelection(context)?.exitArranging();
+    maybeConstellationSelection(context)?.exitArrangingForNavigation();
     final cubit = context.read<ConstellationCubit>();
     if (!cubit.state.isComposing) {
       cubit.onRouteLeave();
@@ -421,7 +421,9 @@ class _ConstellationScreenState extends State<ConstellationScreen> {
                 );
                 unawaited(constellation.load());
               } else {
-                context.read<ConstellationSelectionCubit>().exitArranging();
+                context
+                    .read<ConstellationSelectionCubit>()
+                    .exitArrangingForNavigation();
                 constellation.enterComposing(
                   draftCentre: selection.center.offset,
                   candidateIds: selection.eligible,
@@ -524,8 +526,8 @@ class _ConstellationScreenState extends State<ConstellationScreen> {
       wrapped = HomeTabTransitionListener(
         tabsRouter: tabs,
         tab: HomeTab.constellation,
-        onLeave: selectionCubit.exitArranging,
-        onEnter: selectionCubit.exitArranging,
+        onLeave: selectionCubit.exitArrangingForNavigation,
+        onEnter: selectionCubit.exitArrangingForNavigation,
         child: wrapped,
       );
     }

@@ -2,20 +2,26 @@ import 'dart:js_interop';
 
 import 'package:web/web.dart' as web;
 
-void Function()? _onPop;
-var _sentinelPushed = false;
-var _suppressNextPop = false;
+import 'field_arranging_browser_back_sync.dart';
+
+final _sync = FieldArrangingBrowserBackSync(
+  pushState: () => web.window.history.pushState(
+    ''.toJS,
+    '',
+    web.window.location.href,
+  ),
+  back: () => web.window.history.back(),
+  replaceState: () => web.window.history.replaceState(
+    ''.toJS,
+    '',
+    web.window.location.href,
+  ),
+);
+
 var _listenerAttached = false;
 
 void _onPopState(web.Event event) {
-  if (_suppressNextPop) {
-    _suppressNextPop = false;
-    return;
-  }
-  if (_sentinelPushed) {
-    _sentinelPushed = false;
-    _onPop?.call();
-  }
+  _sync.onPopState();
 }
 
 void _ensureListener() {
@@ -24,36 +30,27 @@ void _ensureListener() {
   _listenerAttached = true;
 }
 
+void onFieldArrangingExitForNavigation() {
+  _sync.onExitForNavigation();
+}
+
 /// Pushes a same-URL history entry while Arranging so the first browser Back
 /// only exits the mode (#938 QA).
 void syncFieldArrangingBrowserBackSentinel({
   required bool arranging,
   required void Function() onPopWhileArranging,
 }) {
-  _onPop = onPopWhileArranging;
   if (arranging) {
     _ensureListener();
-    if (!_sentinelPushed) {
-      web.window.history.pushState(
-        ''.toJS,
-        '',
-        web.window.location.href,
-      );
-      _sentinelPushed = true;
-    }
-    return;
   }
-  if (_sentinelPushed) {
-    _suppressNextPop = true;
-    web.window.history.back();
-    _sentinelPushed = false;
-  }
+  _sync.sync(
+    arranging: arranging,
+    onPopWhileArranging: onPopWhileArranging,
+  );
 }
 
 void tearDownFieldArrangingBrowserBackForTest() {
-  _onPop = null;
-  _sentinelPushed = false;
-  _suppressNextPop = false;
+  _sync.tearDown();
   if (_listenerAttached) {
     web.window.removeEventListener('popstate', _onPopState.toJS);
     _listenerAttached = false;

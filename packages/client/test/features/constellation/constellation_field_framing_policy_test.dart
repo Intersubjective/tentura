@@ -1,7 +1,6 @@
 @TestOn('vm')
 library;
 
-import 'dart:math' as math;
 import 'dart:ui' show PointerDeviceKind;
 
 import 'package:flutter/material.dart';
@@ -10,11 +9,9 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/constellation/data/repository/constellation_repository.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
-import 'package:tentura/features/constellation/ui/bloc/constellation_state.dart';
 import 'package:tentura/features/constellation/ui/utils/constellation_presentation_frame.dart';
 import 'package:tentura/features/constellation/ui/utils/constellation_tap_resolver.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
-import 'package:tentura/features/graph/ui/utils/graph_scene_ids.dart';
 import 'package:tentura/ui/test_ids.dart';
 
 import '../../support/phone_surface.dart';
@@ -168,6 +165,42 @@ void main() {
         expect(entry.value.height, greaterThanOrEqualTo(44));
       }
     });
+
+    testWidgets(
+      'wire Bob field: minimap off after fit-all, on when zoomed in',
+      (tester) async {
+        await usePhoneSurface(tester);
+        final cubit = await _loadBobCubitFromWire();
+        addTearDown(cubit.close);
+        await pumpConstellationBody(
+          tester,
+          cubit,
+          size: kPhoneSurface,
+          locale: const Locale('ru'),
+          presentationFrameHolder: ConstellationPresentationFrameHolder(),
+          disableAnimations: true,
+        );
+        await tester.pumpAndSettle();
+
+        final insets = cubit.fieldCameraViewportInsets(
+          tester.element(find.byType(ConstellationBody)),
+          contextPanelVisible: false,
+        );
+        cubit.fitWholeField(insets: insets);
+        await tester.pumpAndSettle();
+        expect(
+          find.byKey(const Key('constellation.minimap.toggle')),
+          findsNothing,
+        );
+
+        cubit.graphController.zoomBy(2.2);
+        await tester.pumpAndSettle();
+        expect(
+          find.byKey(const Key('constellation.minimap.toggle')),
+          findsOneWidget,
+        );
+      },
+    );
 
     testWidgets('three rapid fit-all taps share one camera matrix (375 RU)', (
       tester,
