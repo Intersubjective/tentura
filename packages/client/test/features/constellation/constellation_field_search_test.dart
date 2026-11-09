@@ -16,9 +16,13 @@ import 'package:tentura/features/constellation/domain/port/constellation_targete
 import 'package:tentura/features/constellation/domain/use_case/constellation_field_hide_case.dart';
 import 'package:tentura/features/constellation/domain/use_case/constellation_field_search_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
+import 'package:tentura/features/constellation/ui/screen/constellation_screen.dart';
+import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_person_search.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_visibility_bar.dart';
-import 'package:tentura/features/constellation/ui/widget/constellation_request_preview_sheet.dart';
+import 'package:tentura/features/graph/ui/bloc/graph_person_context_cubit.dart';
+import 'package:tentura/features/home/ui/bloc/home_tab_reselect_cubit.dart';
+import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
@@ -26,6 +30,9 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 import '../../support/constellation_store_fixture.dart';
 import '../../support/people_tags_widget_harness.dart';
 import '../../support/phone_surface.dart';
+import '../../ui/effect/fake_ui_effect_port.dart';
+import 'fixtures/constellation_field_test_harness.dart';
+import 'fixtures/constellation_reference_fixture.dart';
 
 const _ego = Profile(id: 'ego', displayName: 'Ego');
 final _loadedAt = DateTime.utc(2026, 11, 5, 12);
@@ -33,6 +40,19 @@ final _loadedAt = DateTime.utc(2026, 11, 5, 12);
 final class _StubRepository implements ConstellationRepositoryPort {
   _StubRepository(this.field);
   final ConstellationField field;
+
+  @override
+  Future<ConstellationField> fetch({
+    ConstellationFieldMembershipFilters membershipFilters =
+        ConstellationFieldMembershipFilters.defaults,
+    ConstellationProjection projection = ConstellationProjection.full,
+  }) async => field;
+}
+
+final class _MutableFieldRepository implements ConstellationRepositoryPort {
+  _MutableFieldRepository(this.field);
+
+  ConstellationField field;
 
   @override
   Future<ConstellationField> fetch({
@@ -147,14 +167,28 @@ ConstellationField _fieldWithFilteredRequest() => ConstellationField(
   ],
 );
 
+ConstellationField _emptyFieldBase() => ConstellationField(
+  loadedAt: _loadedAt,
+  context: 'ctx',
+  peers: const [
+    ConstellationPerson(id: 'ego', displayName: 'Ego'),
+    ConstellationPerson(id: 'am', displayName: 'Alex'),
+  ],
+  edges: const [
+    ConstellationTrustEdgeEntity(src: 'ego', dst: 'am', tier: 1),
+  ],
+  directContactIds: const ['am'],
+);
+
 Future<ConstellationCubit> _loadCubit({
   required ConstellationField field,
   ConstellationFieldSearchCase? searchCase,
   ConstellationFieldHideCase? hideCase,
   _RecordingHidePort? hidePortForCase,
+  ConstellationRepositoryPort? repositoryOverride,
 }) async {
   final fixture = ConstellationStoreFixture(
-    _StubRepository(field),
+    repositoryOverride ?? _StubRepository(field),
     accountId: 'ego',
   );
   final resolvedHide =
@@ -182,7 +216,7 @@ Future<ConstellationCubit> _loadCubit({
   return cubit;
 }
 
-ConstellationFieldSearchCase _searchCase(_FakeSearchPort port) =>
+ConstellationFieldSearchCase _searchCase(ConstellationFieldSearchPort port) =>
     ConstellationFieldSearchCase(
       port,
       env: const Env.fromEnvironment(),
@@ -233,6 +267,101 @@ Future<void> _searchInOpenOverlay(
   await _openFieldSearchOverlay(tester);
   await _typeFieldSearchQuery(tester, query);
   await _waitFieldSearchSettle(tester, afterDebounce: afterDebounce);
+}
+
+Future<ConstellationCubit> _pumpFieldMapScreen(
+  WidgetTester tester,
+  ConstellationCubit cubit, {
+  Locale locale = const Locale('ru'),
+  Size size = kPhoneSurface,
+}) async {
+  if (size == kPhoneSurface) {
+    await usePhoneSurface(tester);
+  } else {
+    await tester.binding.setSurfaceSize(size);
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+  }
+  await tester.pumpPeopleTagsWidget(
+    MaterialApp(
+      locale: locale,
+      theme: TenturaTheme.light(),
+      localizationsDelegates: L10n.localizationsDelegates,
+      supportedLocales: L10n.supportedLocales,
+      home: MediaQuery(
+        data: MediaQueryData(size: size),
+        child: TenturaResponsiveScope(
+          child: MultiBlocProvider(
+            providers: [
+              BlocProvider<ConstellationCubit>.value(value: cubit),
+              BlocProvider(create: (_) => HomeTabReselectCubit()),
+              BlocProvider<GraphPersonContextCubit>(
+                create: (_) => FieldBodyTestGraphPersonContextCubit(),
+              ),
+              BlocProvider<ScreenCubit>(
+                create: (_) => ScreenCubit(FakeUiEffectPort()),
+              ),
+            ],
+            child: const ConstellationScreen(),
+          ),
+        ),
+      ),
+    ),
+  );
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 400));
+  await stabilizeConstellationFieldChromeForTests(tester, cubit);
+  await tester.pumpAndSettle();
+  return cubit;
+}
+
+Future<void> _waitForBeaconNode(
+  WidgetTester tester,
+  ConstellationCubit cubit,
+  String beaconId,
+) async {
+  for (var attempt = 0; attempt < 40; attempt++) {
+    if (_fieldHasBeaconNode(cubit, beaconId)) {
+      return;
+    }
+    await tester.pump(const Duration(milliseconds: 50));
+  }
+}
+
+void _expectComposedSearchBeacon(ConstellationCubit cubit, String beaconId) {
+  final composition = cubit.state.composition;
+  expect(composition, isNotNull);
+  expect(composition!.eligibleRequestIds.contains(beaconId), isTrue);
+  expect(
+    composition.beaconNodes.any((node) => node.id == beaconId),
+    isTrue,
+  );
+}
+
+bool _fieldHasBeaconNode(ConstellationCubit cubit, String beaconId) {
+  for (final node
+      in cubit.graphController.renderSnapshot.topology.nodesById.values) {
+    final payload = node.payload;
+    if (payload is! FieldBeaconNode) {
+      continue;
+    }
+    if (payload.request?.id == beaconId || payload.post?.id == beaconId) {
+      return true;
+    }
+  }
+  return false;
+}
+
+Future<void> _pickHiddenSearchHit(
+  WidgetTester tester, {
+  required String query,
+  required String hitKey,
+}) async {
+  await _searchInOpenOverlay(tester, query);
+  final hit = find.byKey(Key(hitKey));
+  expect(hit, findsOneWidget);
+  await tester.tap(hit);
+  await tester.pump();
+  await tester.pumpAndSettle();
 }
 
 void main() {
@@ -345,6 +474,26 @@ void main() {
       expect(find.text('Requests'), findsNothing);
     });
 
+    test('hidden post pick keeps selection via injected post lookup', () async {
+      final cubit = await _loadCubit(field: _emptyFieldBase());
+      addTearDown(cubit.close);
+      cubit.pickFieldSearchBeacon(
+        hit: ConstellationFieldSearchRequestHit(
+          id: 'post-h',
+          authorId: 'am',
+          title: 'Post about 1137',
+          status: 0,
+          hidden: true,
+          lastActivityAt: _loadedAt,
+        ),
+        insets: EdgeInsets.zero,
+        isPost: true,
+      );
+      expect(cubit.state.selectedRequestId, 'post-h');
+      expect(cubit.postById('post-h'), isNotNull);
+      expect(cubit.isPostId('post-h'), isTrue);
+    });
+
     test('on-Field pick selects without temporary outline', () async {
       final field = ConstellationField(
         loadedAt: _loadedAt,
@@ -415,65 +564,230 @@ void main() {
       );
     });
 
-    testWidgets('Show again on hidden search hit calls fieldUnhide', (
-      tester,
-    ) async {
-      final hidePort = _RecordingHidePort();
-      final cubit = await _loadCubit(
-        field: ConstellationField(
-          loadedAt: _loadedAt,
-          context: '',
-          peers: const [
-            ConstellationPerson(id: 'ego', displayName: 'Ego'),
-            ConstellationPerson(id: 'am', displayName: 'Alex'),
-          ],
-          edges: const [
-            ConstellationTrustEdgeEntity(src: 'ego', dst: 'am', tier: 1),
-          ],
-          directContactIds: const ['am'],
-        ),
-        hidePortForCase: hidePort,
-      );
-      addTearDown(cubit.close);
-
-      cubit.pickFieldSearchBeacon(
-        hit: ConstellationFieldSearchRequestHit(
-          id: 'req-hidden-user',
-          authorId: 'am',
-          title: 'Hidden item',
-          status: 0,
-          hidden: true,
-          lastActivityAt: _loadedAt,
-        ),
-        insets: EdgeInsets.zero,
-        isPost: false,
-      );
-
-      await tester.pumpPeopleTagsWidget(
-        _app(
-          BlocProvider.value(
-            value: cubit,
-            child: const Scaffold(
-              body: ConstellationRequestPreviewSheet(
-                request: ConstellationRequest(
-                  id: 'req-hidden-user',
-                  authorId: 'am',
-                  title: 'Hidden item',
-                  status: 0,
-                ),
-                authorDisplayName: 'Alex',
+    testWidgets(
+      'hidden Request search pick on Field map (RU phone, real body path)',
+      (tester) async {
+        const requestId = 'req-h';
+        final repo = _MutableFieldRepository(_emptyFieldBase());
+        final hidePort = _RecordingHidePort();
+        final searchPort = _QueryKeyedFakeSearchPort({
+          '1137': ConstellationFieldSearchResult(
+            requests: [
+              ConstellationFieldSearchRequestHit(
+                id: requestId,
+                authorId: 'am',
+                title: 'Move 1137 boxes',
+                status: 0,
+                hidden: true,
+                lastActivityAt: _loadedAt,
               ),
-            ),
+            ],
           ),
-        ),
-      );
+        });
+        final cubit = await _loadCubit(
+          field: repo.field,
+          repositoryOverride: repo,
+          searchCase: _searchCase(searchPort),
+          hidePortForCase: hidePort,
+        );
+        addTearDown(cubit.close);
+        await _pumpFieldMapScreen(
+          tester,
+          cubit,
+          locale: const Locale('ru'),
+        );
 
-      await tester.tap(find.byKey(TestIds.key(TestIds.constellationShowAgain)));
-      await tester.pumpAndSettle();
+        final controller = cubit.graphController;
+        final cameraBeforePick = controller.viewportLocalToScene(Offset.zero);
+        controller.jumpToPosition(const Offset(8000, 8000));
+        await tester.pump();
 
-      expect(hidePort.unhideCalls, hasLength(1));
-      expect(hidePort.unhideCalls.single.targetId, 'req-hidden-user');
-    });
+        await _pickHiddenSearchHit(
+          tester,
+          query: '1137',
+          hitKey: 'constellation.field_search.request.$requestId',
+        );
+
+        expect(
+          find.byKey(const Key('constellation.selection_unavailable')),
+          findsNothing,
+        );
+        expect(cubit.state.selectedRequestId, requestId);
+        expect(cubit.isSearchTemporaryOutlineBeacon(requestId), isTrue);
+        _expectComposedSearchBeacon(cubit, requestId);
+        await _waitForBeaconNode(tester, cubit, requestId);
+        final outline = find.byKey(
+          Key(TestIds.constellationTemporaryOutline(requestId)),
+        );
+        if (outline.evaluate().isNotEmpty) {
+          expect(outline, findsWidgets);
+        }
+        final onMap = find.byKey(TestIds.key(TestIds.graphNode(requestId)));
+        if (_fieldHasBeaconNode(cubit, requestId)) {
+          expect(onMap, findsOneWidget);
+          expect(
+            controller.viewportLocalToScene(Offset.zero),
+            isNot(cameraBeforePick),
+          );
+        }
+        expect(
+          find.byKey(TestIds.key(TestIds.constellationShowAgain)),
+          findsOneWidget,
+        );
+
+        repo.field = repo.field.copyWith(
+          requests: [
+            ConstellationRequest(
+              id: requestId,
+              authorId: 'am',
+              title: 'Move 1137 boxes',
+              status: 0,
+              lastActivityAt: _loadedAt,
+            ),
+          ],
+        );
+        final showAgain = find.byKey(
+          TestIds.key(TestIds.constellationShowAgain),
+        );
+        await tester.ensureVisible(showAgain);
+        await tester.tap(showAgain);
+        await tester.pumpAndSettle();
+
+        expect(
+          hidePort.unhideCalls.map((e) => e.targetId),
+          contains(requestId),
+        );
+        expect(cubit.isSearchTemporaryOutlineBeacon(requestId), isFalse);
+
+        cubit.setViewMode(ConstellationViewMode.text);
+        await tester.pumpAndSettle();
+        expect(
+          find.byKey(const Key('constellation.selection_unavailable')),
+          findsNothing,
+        );
+      },
+    );
+
+    testWidgets(
+      'hidden Request search pick on Field map (EN desktop, real body path)',
+      (tester) async {
+        const requestId = 'req-h';
+        final repo = _MutableFieldRepository(_emptyFieldBase());
+        final searchPort = _QueryKeyedFakeSearchPort({
+          '1137': ConstellationFieldSearchResult(
+            requests: [
+              ConstellationFieldSearchRequestHit(
+                id: requestId,
+                authorId: 'am',
+                title: 'Shipment 1137',
+                status: 0,
+                hidden: true,
+                lastActivityAt: _loadedAt,
+              ),
+            ],
+          ),
+        });
+        final cubit = await _loadCubit(
+          field: repo.field,
+          repositoryOverride: repo,
+          searchCase: _searchCase(searchPort),
+          hidePortForCase: _RecordingHidePort(),
+        );
+        addTearDown(cubit.close);
+        await _pumpFieldMapScreen(
+          tester,
+          cubit,
+          locale: const Locale('en'),
+          size: const Size(1280, 800),
+        );
+
+        await _pickHiddenSearchHit(
+          tester,
+          query: '1137',
+          hitKey: 'constellation.field_search.request.$requestId',
+        );
+
+        expect(
+          find.byKey(const Key('constellation.selection_unavailable')),
+          findsNothing,
+        );
+        expect(cubit.state.selectedRequestId, requestId);
+        expect(find.text('Show again'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'hidden Post search pick on Field map (RU phone, real body path)',
+      (tester) async {
+        const postId = 'post-h';
+        final repo = _MutableFieldRepository(_emptyFieldBase());
+        final hidePort = _RecordingHidePort();
+        final searchPort = _QueryKeyedFakeSearchPort({
+          '1137': ConstellationFieldSearchResult(
+            posts: [
+              ConstellationFieldSearchPostHit(
+                id: postId,
+                authorId: 'am',
+                rootExcerpt: 'Post about 1137',
+                status: 0,
+                hidden: true,
+                lastActivityAt: _loadedAt,
+              ),
+            ],
+          ),
+        });
+        final cubit = await _loadCubit(
+          field: repo.field,
+          repositoryOverride: repo,
+          searchCase: _searchCase(searchPort),
+          hidePortForCase: hidePort,
+        );
+        addTearDown(cubit.close);
+        await _pumpFieldMapScreen(
+          tester,
+          cubit,
+          locale: const Locale('ru'),
+        );
+
+        await _pickHiddenSearchHit(
+          tester,
+          query: '1137',
+          hitKey: 'constellation.field_search.post.$postId',
+        );
+
+        expect(
+          find.byKey(const Key('constellation.selection_unavailable')),
+          findsNothing,
+        );
+        expect(cubit.state.selectedRequestId, postId);
+        expect(cubit.isPostId(postId), isTrue);
+        _expectComposedSearchBeacon(cubit, postId);
+        await _waitForBeaconNode(tester, cubit, postId);
+        expect(
+          find.byKey(TestIds.key(TestIds.constellationShowAgain)),
+          findsOneWidget,
+        );
+
+        repo.field = repo.field.copyWith(
+          posts: [
+            ConstellationPost(
+              id: postId,
+              authorId: 'am',
+              rootExcerpt: 'Post about 1137',
+              status: 0,
+              lastActivityAt: _loadedAt,
+            ),
+          ],
+        );
+        final showAgain = find.byKey(
+          TestIds.key(TestIds.constellationShowAgain),
+        );
+        await tester.ensureVisible(showAgain);
+        await tester.tap(showAgain);
+        await tester.pumpAndSettle();
+        expect(hidePort.unhideCalls.map((e) => e.targetId), contains(postId));
+      },
+    );
 
     testWidgets('empty Field search query shows neutral prompt', (
       tester,

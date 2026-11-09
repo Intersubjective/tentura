@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
@@ -69,28 +68,57 @@ class ConstellationFieldHideButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
-    void onPressed() => unawaited(
-      _hideFromField(
-        context,
-        targetKind: targetKind,
-        beaconId: beaconId,
-      ),
-    );
-    if (compact) {
-      return Tooltip(
-        message: l10n.constellationHideFromField,
-        child: IconButton(
+    return BlocBuilder<ConstellationCubit, ConstellationState>(
+      buildWhen: (previous, current) =>
+          previous.selectedRequestId != current.selectedRequestId ||
+          previous.graphRevision != current.graphRevision,
+      builder: (context, _) {
+        final cubit = context.read<ConstellationCubit>();
+        final showAgain = cubit.isSearchRevealedHiddenBeacon(beaconId);
+        if (showAgain) {
+          void onShowAgain() =>
+              unawaited(cubit.unhideSearchHiddenBeacon(beaconId));
+          if (compact) {
+            return Tooltip(
+              message: l10n.constellationShowAgain,
+              child: IconButton(
+                key: TestIds.key(TestIds.constellationShowAgain),
+                onPressed: onShowAgain,
+                icon: const Icon(Icons.visibility_outlined),
+              ),
+            );
+          }
+          return OutlinedButton.icon(
+            key: TestIds.key(TestIds.constellationShowAgain),
+            onPressed: onShowAgain,
+            icon: const Icon(Icons.visibility_outlined),
+            label: Text(l10n.constellationShowAgain),
+          );
+        }
+        void onPressed() => unawaited(
+          _hideFromField(
+            context,
+            targetKind: targetKind,
+            beaconId: beaconId,
+          ),
+        );
+        if (compact) {
+          return Tooltip(
+            message: l10n.constellationHideFromField,
+            child: IconButton(
+              key: TestIds.key(TestIds.constellationHideFromField),
+              onPressed: onPressed,
+              icon: const Icon(Icons.visibility_off_outlined),
+            ),
+          );
+        }
+        return OutlinedButton.icon(
           key: TestIds.key(TestIds.constellationHideFromField),
           onPressed: onPressed,
           icon: const Icon(Icons.visibility_off_outlined),
-        ),
-      );
-    }
-    return OutlinedButton.icon(
-      key: TestIds.key(TestIds.constellationHideFromField),
-      onPressed: onPressed,
-      icon: const Icon(Icons.visibility_off_outlined),
-      label: Text(l10n.constellationHideFromField),
+          label: Text(l10n.constellationHideFromField),
+        );
+      },
     );
   }
 }

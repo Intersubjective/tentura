@@ -1554,6 +1554,13 @@ class _ConstellationBodyState extends State<ConstellationBody>
         listeners: [
           BlocListener<ConstellationCubit, ConstellationState>(
             listenWhen: (previous, current) =>
+                previous.viewMode != current.viewMode,
+            listener: (context, state) {
+              setState(() => _selectionUnavailableMessage = null);
+            },
+          ),
+          BlocListener<ConstellationCubit, ConstellationState>(
+            listenWhen: (previous, current) =>
                 previous.selectedRequestId != current.selectedRequestId &&
                 current.selectedRequestId != null,
             listener: (context, state) {

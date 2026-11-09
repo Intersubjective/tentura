@@ -612,7 +612,8 @@ ConstellationLabelDisplayPlan _buildLabelDisplayPlan({
     allByAuthor.putIfAbsent(post.authorId, () => <String>[]).add(post.id);
   }
   final lastActivityAtById = {
-    for (final request in automatic.requests) request.id: request.lastActivityAt,
+    for (final request in automatic.requests)
+      request.id: request.lastActivityAt,
     for (final request in anchorOverlay.pinnedRequests)
       request.id: request.lastActivityAt,
     for (final post in activePosts) post.id: post.lastActivityAt,
@@ -663,13 +664,9 @@ ConstellationLabelDisplayPlan _buildLabelDisplayPlan({
     asOfUtc: asOfUtc,
     activityRecencyExemptIds: activityRecencyExemptIds,
   );
-  final allBeaconIds = {
-    for (final ids in allByAuthor.values) ...ids,
-  };
   final mergedFilteredIds = {
     ...filteredIds,
-    for (final id in searchRevealedBeaconIds)
-      if (allBeaconIds.contains(id)) id,
+    ...searchRevealedBeaconIds,
   };
 
   final pinnedRequestIds = {
@@ -744,9 +741,7 @@ ConstellationLabelDisplayPlan _buildLabelDisplayPlan({
       drawn.add(post.id);
     }
   }
-  drawn.addAll(
-    searchRevealedBeaconIds.intersection(allBeaconIds),
-  );
+  drawn.addAll(searchRevealedBeaconIds);
 
   return ConstellationLabelDisplayPlan(
     drawnRequestIds: drawn,
