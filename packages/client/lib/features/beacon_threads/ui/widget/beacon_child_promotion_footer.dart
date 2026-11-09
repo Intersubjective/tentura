@@ -1,10 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 
-import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/navigation/app_navigator.dart';
 
 import 'child_beacon_preview_loader.dart';
 
@@ -22,14 +23,13 @@ class BeaconChildPromotionFooter extends StatefulWidget {
       _BeaconChildPromotionFooterState();
 }
 
-class _BeaconChildPromotionFooterState
-    extends State<BeaconChildPromotionFooter>
+class _BeaconChildPromotionFooterState extends State<BeaconChildPromotionFooter>
     with ChildBeaconPreviewLoader {
   @override
   String get childBeaconId => widget.childBeaconId;
 
   void _openChild(String beaconId) {
-    unawaited(context.router.push(BeaconViewRoute(id: beaconId)));
+    unawaited(GetIt.I<AppNavigator>().openBeacon(beaconId));
   }
 
   @override

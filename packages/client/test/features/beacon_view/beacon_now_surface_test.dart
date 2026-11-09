@@ -24,6 +24,7 @@ import 'package:tentura_root/domain/entity/beacon_hierarchy_summary.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import '../../domain/use_case/fake_beacon_hierarchy_ports.dart';
+import '../../support/fake_app_navigator.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'beacon_view_case_test_support.dart';
 
@@ -67,18 +68,17 @@ class _HarnessRouter extends Mock implements StackRouter {
 BeaconHierarchySummary _childSummary({
   String id = 'child-1',
   String title = 'Child request',
-}) =>
-    BeaconHierarchySummary(
-      beaconId: id,
-      title: title,
-      status: BeaconStatus.open,
-      publishedAt: DateTime.utc(2026, 1, 1),
-      isTombstone: false,
-      owner: const BeaconHierarchyOwnerSummary(
-        id: 'owner-1',
-        displayName: 'Owner',
-      ),
-    );
+}) => BeaconHierarchySummary(
+  beaconId: id,
+  title: title,
+  status: BeaconStatus.open,
+  publishedAt: DateTime.utc(2026, 1, 1),
+  isTombstone: false,
+  owner: const BeaconHierarchyOwnerSummary(
+    id: 'owner-1',
+    displayName: 'Owner',
+  ),
+);
 
 Widget _wrap({
   required Widget child,
@@ -253,10 +253,12 @@ void main() {
     final childY = tester.getTopLeft(childFinder).dy;
     expect(childY, greaterThan(headerY));
 
+    final navigator = registerFakeAppNavigator();
     await tester.tap(childFinder);
     await tester.pump();
-    expect(router.pushCount, 1);
-    expect(router.lastPush, isA<BeaconViewRoute>());
-    expect((router.lastPush! as BeaconViewRoute).args!.id, 'child-1');
+    expect(navigator.intents, [
+      const NavIntent('openBeacon', {'id': 'child-1'}),
+    ]);
+    expect(router.pushCount, 0);
   });
 }

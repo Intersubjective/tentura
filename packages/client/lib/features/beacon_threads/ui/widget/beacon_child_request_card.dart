@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 import 'package:tentura_root/domain/entity/beacon_hierarchy_summary.dart';
 
-import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/navigation/app_navigator.dart';
 import 'package:tentura/ui/widget/beacon_card_primitives.dart';
 import 'package:tentura/ui/widget/beacon_request_preview_identity.dart';
 
@@ -50,7 +51,7 @@ class BeaconChildRequestCard extends StatelessWidget {
     );
 
     return BeaconCardShell(
-      onTap: () => context.router.push(BeaconViewRoute(id: summary.beaconId)),
+      onTap: () => GetIt.I<AppNavigator>().openBeacon(summary.beaconId),
       // #416: the visible title already names the card.
       tapSemanticsLabel: data.title.isEmpty ? null : '',
       child: BeaconRequestPreviewIdentity(

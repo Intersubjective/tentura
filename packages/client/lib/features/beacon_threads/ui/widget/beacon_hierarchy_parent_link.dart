@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 import 'package:tentura_root/domain/entity/beacon_parent_reference.dart';
 
-import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/navigation/app_navigator.dart';
 import 'package:tentura/ui/test_ids.dart';
 
 /// Immediate-parent link for a child request header (plan §6.1).
@@ -101,7 +102,7 @@ class _AvailableRow extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           key: TestIds.key(TestIds.childRequestParentLink),
-          onTap: () => context.router.push(BeaconViewRoute(id: parentBeaconId)),
+          onTap: () => GetIt.I<AppNavigator>().openBeacon(parentBeaconId),
           child: ConstrainedBox(
             constraints: const BoxConstraints(minHeight: 44),
             child: Padding(

@@ -1,11 +1,12 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 
-import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/navigation/app_navigator.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
 import 'beacon_tile.dart';
@@ -134,12 +135,8 @@ class _BeaconPagedListState extends State<BeaconPagedList> {
               key: ValueKey(beacon.id),
               beacon: beacon,
               showAuthor: widget.showAuthor,
-              onOpenBeacon: () => context.router.push(
-                BeaconViewRoute(id: beacon.id),
-              ),
-              onForward: () => context.router.push(
-                ForwardBeaconRoute(beaconId: beacon.id),
-              ),
+              onOpenBeacon: () => GetIt.I<AppNavigator>().openBeacon(beacon.id),
+              onForward: () => GetIt.I<AppNavigator>().forwardBeacon(beacon.id),
             ),
           );
         },

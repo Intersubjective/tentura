@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 
-import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/navigation/app_navigator.dart';
 
 import '../../domain/request_access_reason.dart';
 
@@ -113,7 +114,7 @@ class RequestAccessReasonBanner extends StatelessWidget {
                       label: l10n.requestAccessOpenParentPost,
                       flushStart: true,
                       onPressed: () =>
-                          context.router.push(BeaconViewRoute(id: post.id)),
+                          GetIt.I<AppNavigator>().openBeacon(post.id),
                     ),
                 ],
               ),

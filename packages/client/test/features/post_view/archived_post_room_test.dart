@@ -52,6 +52,7 @@ import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../support/fake_app_navigator.dart';
 import '../../support/graph_trust_write_fixture.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../beacon_threads/support/room_body_harness.dart';
@@ -240,7 +241,7 @@ class _Router extends BeaconViewHarnessRouter {
   }
 }
 
-Future<_Router> _pump(
+Future<({_Router router, FakeAppNavigator navigator})> _pump(
   WidgetTester tester, {
   required _Archive archive,
   Profile viewer = _reader,
@@ -263,6 +264,7 @@ Future<_Router> _pump(
     ..registerSingleton<ClipboardImageRepository>(ClipboardImageRepository())
     ..registerSingleton<ForwardRepository>(_ForwardRepository())
     ..registerSingleton<PostsRepositoryPort>(_PostsRepository());
+  final navigator = registerFakeAppNavigator();
 
   final screenEffects = effects ?? FakeUiEffectPort();
   final cubit = PostViewCubit(
@@ -373,7 +375,7 @@ Future<_Router> _pump(
     if (find.byType(BeaconRoomBody).evaluate().isNotEmpty) break;
   }
   await tester.pump(const Duration(milliseconds: 100));
-  return router;
+  return (router: router, navigator: navigator);
 }
 
 Future<void> _settle(WidgetTester tester) async {
@@ -468,16 +470,18 @@ void main() {
 
       testWidgets('${archive.name}: the room «Оформить запрос» opens the same '
           'form as ⋮', (tester) async {
-        final router = await _pump(tester, archive: archive);
+        final (:router, :navigator) = await _pump(tester, archive: archive);
         router.pushed.clear();
 
         await tester.tap(_inRoom(find.text(_budLabel)));
         await _settle(tester);
 
-        final args = router.pushed.single.args! as BeaconCreateRouteArgs;
-        expect(args.parentBeaconId, _postId);
-        // A member who is not the author starts blank, as from ⋮.
-        expect(args.sourceMessageId, '');
+        // A member who is not the author starts blank (no sourceMessageId),
+        // as from ⋮.
+        expect(navigator.intents, [
+          const NavIntent('createBeacon', {'parentBeaconId': _postId}),
+        ]);
+        expect(router.pushed, isEmpty);
       });
     }
   });
@@ -487,7 +491,7 @@ void main() {
       testWidgets('${archive.name}: «Оформить запрос» is offered', (
         tester,
       ) async {
-        final router = await _pump(tester, archive: archive);
+        final (:router, navigator: _) = await _pump(tester, archive: archive);
         router.pushed.clear();
 
         await _openOverflow(tester);

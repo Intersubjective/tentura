@@ -1,9 +1,10 @@
 import 'dart:async';
 
+import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
-import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/features/beacon/ui/dialog/beacon_delete_dialog.dart';
 import 'package:tentura/features/beacon/ui/util/beacon_delete_ui.dart';
@@ -29,6 +30,7 @@ import 'package:tentura/features/inbox/ui/widget/rejection_dialog.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/navigation/app_navigator.dart';
 import 'package:tentura/ui/presenter/beacon_phase_presenter.dart';
 
 import 'beacon_hud_author_confirm_sheets.dart';
@@ -464,7 +466,7 @@ Widget _beaconViewAppBarOverflowMenu({
           : null,
       onEdit: showBeaconManagementOverflow && beaconAllowsEdit(b)
           ? () => unawaited(
-              context.router.push(BeaconCreateRoute(editId: beaconId)),
+              GetIt.I<AppNavigator>().createBeacon(editId: beaconId),
             )
           : null,
       onCreateFrom:

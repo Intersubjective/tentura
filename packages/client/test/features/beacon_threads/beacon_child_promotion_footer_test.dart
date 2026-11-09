@@ -5,7 +5,6 @@ import 'package:tentura_root/domain/entity/beacon_hierarchy_owner_summary.dart';
 import 'package:tentura_root/domain/entity/beacon_hierarchy_summary.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
-import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/components/tentura_text_action.dart';
 import 'package:tentura/design_system/tentura_theme.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -18,6 +17,7 @@ import 'package:tentura/ui/widget/beacon_card_primitives.dart';
 
 import '../../domain/use_case/fake_beacon_hierarchy_ports.dart';
 import '../../features/beacon_create/fake_beacon_ports.dart';
+import '../../support/fake_app_navigator.dart';
 
 class _MockProfileCubit extends Mock implements ProfileCubit {
   @override
@@ -27,21 +27,6 @@ class _MockProfileCubit extends Mock implements ProfileCubit {
 
   @override
   Stream<ProfileState> get stream => Stream<ProfileState>.value(state);
-}
-
-class _HarnessRouter extends Mock implements StackRouter {
-  int pushCount = 0;
-  PageRouteInfo? lastPush;
-
-  @override
-  Future<T?> push<T extends Object?>(
-    PageRouteInfo route, {
-    OnNavigationFailure? onFailure,
-  }) async {
-    pushCount++;
-    lastPush = route;
-    return null;
-  }
 }
 
 BeaconHierarchySummary _summary({
@@ -67,8 +52,7 @@ _registerHierarchy({
   Map<String, BeaconHierarchySummary?>? previews,
   Object? error,
 }) {
-  final port = FakeBeaconHierarchyRepositoryPort()
-    ..childPreviewError = error;
+  final port = FakeBeaconHierarchyRepositoryPort()..childPreviewError = error;
   if (previews != null) {
     port.childPreviews.addAll(previews);
   }
@@ -82,21 +66,16 @@ _registerHierarchy({
   return (port: port, case_: case_);
 }
 
-Widget _harness(Widget child, {required StackRouter router}) =>
-    StackRouterScope(
-      controller: router,
-      stateHash: 0,
-      child: BlocProvider<ProfileCubit>.value(
-        value: _MockProfileCubit(),
-        child: MaterialApp(
-          theme: TenturaTheme.light(),
-          localizationsDelegates: L10n.localizationsDelegates,
-          supportedLocales: L10n.supportedLocales,
-          locale: const Locale('en'),
-          home: Scaffold(body: child),
-        ),
-      ),
-    );
+Widget _harness(Widget child) => BlocProvider<ProfileCubit>.value(
+  value: _MockProfileCubit(),
+  child: MaterialApp(
+    theme: TenturaTheme.light(),
+    localizationsDelegates: L10n.localizationsDelegates,
+    supportedLocales: L10n.supportedLocales,
+    locale: const Locale('en'),
+    home: Scaffold(body: child),
+  ),
+);
 
 void main() {
   setUp(() async {
@@ -115,12 +94,11 @@ void main() {
         'child-1': _summary(id: 'child-1', title: 'Fix the fence'),
       },
     );
-    final router = _HarnessRouter();
+    final navigator = registerFakeAppNavigator();
 
     await tester.pumpWidget(
       _harness(
         const BeaconChildPromotionFooter(childBeaconId: 'child-1'),
-        router: router,
       ),
     );
     await tester.pumpAndSettle();
@@ -133,22 +111,20 @@ void main() {
     await tester.tap(find.text('Fix the fence'));
     await tester.pump();
 
-    expect(router.pushCount, 1);
-    final push = router.lastPush;
-    expect(push, isA<BeaconViewRoute>());
-    expect((push! as BeaconViewRoute).args!.id, 'child-1');
+    expect(navigator.intents, [
+      const NavIntent('openBeacon', {'id': 'child-1'}),
+    ]);
   });
 
   testWidgets('inaccessible child renders a safe state with no leaked title', (
     tester,
   ) async {
     _registerHierarchy(error: Exception('not found'));
-    final router = _HarnessRouter();
+    final navigator = registerFakeAppNavigator();
 
     await tester.pumpWidget(
       _harness(
         const BeaconChildPromotionFooter(childBeaconId: 'child-hidden'),
-        router: router,
       ),
     );
     await tester.pumpAndSettle();
@@ -160,7 +136,7 @@ void main() {
 
     await tester.tap(find.text(l10n.beaconChildFooterUnavailable));
     await tester.pump();
-    expect(router.pushCount, 0);
+    expect(navigator.intents, isEmpty);
   });
 
   testWidgets('deleted child (null row) renders the same safe state', (
@@ -169,12 +145,11 @@ void main() {
     _registerHierarchy(
       previews: {'child-deleted': null},
     );
-    final router = _HarnessRouter();
+    registerFakeAppNavigator();
 
     await tester.pumpWidget(
       _harness(
         const BeaconChildPromotionFooter(childBeaconId: 'child-deleted'),
-        router: router,
       ),
     );
     await tester.pumpAndSettle();
@@ -195,12 +170,11 @@ void main() {
         ),
       },
     );
-    final router = _HarnessRouter();
+    registerFakeAppNavigator();
 
     await tester.pumpWidget(
       _harness(
         const BeaconChildPromotionFooter(childBeaconId: 'child-tomb'),
-        router: router,
       ),
     );
     await tester.pumpAndSettle();
@@ -222,7 +196,6 @@ void main() {
     await tester.pumpWidget(
       _harness(
         const BeaconChildPromotionFooter(childBeaconId: 'child-1'),
-        router: _HarnessRouter(),
       ),
     );
     await tester.pumpAndSettle();
@@ -243,7 +216,6 @@ void main() {
     await tester.pumpWidget(
       _harness(
         const BeaconChildPromotionFooter(childBeaconId: 'child-1'),
-        router: _HarnessRouter(),
       ),
     );
     await tester.pumpAndSettle();
@@ -252,7 +224,6 @@ void main() {
     await tester.pumpWidget(
       _harness(
         const BeaconChildPromotionFooter(childBeaconId: 'child-2'),
-        router: _HarnessRouter(),
       ),
     );
     await tester.pumpAndSettle();

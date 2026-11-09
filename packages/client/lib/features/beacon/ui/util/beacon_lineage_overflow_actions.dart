@@ -2,13 +2,14 @@ import 'dart:async';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 
-import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/features/beacon_plan/domain/entity/beacon_plan.dart';
 import 'package:tentura/features/beacon_plan/domain/entity/plan_fork_copy.dart';
 import 'package:tentura/features/beacon_plan/ui/widget/plan_copy_sheet.dart';
 import 'package:tentura/features/forward/ui/widget/lineage_suggestions_sheet.dart';
+import 'package:tentura/ui/navigation/app_navigator.dart';
 
 /// «Создать на основе этого запроса». When [sourcePlan] (loaded only for a
 /// viewer inside the Request) has steps, «Скопировать план» asks first
@@ -30,11 +31,9 @@ Future<void> runBeaconCreateFromAction(
     if (choice == null || !context.mounted) return;
     times = choice.stepTimes;
   }
-  await context.router.push(
-    BeaconCreateRoute(
-      forkSourceId: sourceBeaconId,
-      forkPlanTimes: encodePlanStepTimesQuery(times),
-    ),
+  await GetIt.I<AppNavigator>().createBeacon(
+    forkSourceId: sourceBeaconId,
+    forkPlanTimes: encodePlanStepTimesQuery(times),
   );
 }
 

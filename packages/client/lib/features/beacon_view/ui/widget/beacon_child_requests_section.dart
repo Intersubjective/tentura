@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 import 'package:tentura_root/domain/entity/beacon_hierarchy_child_group.dart';
 
-import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/beacon_hierarchy_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/beacon_hierarchy_state.dart';
@@ -9,6 +9,7 @@ import 'package:tentura/features/beacon_threads/ui/widget/beacon_child_request_c
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_hud_action_button.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/navigation/app_navigator.dart';
 import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/widget/accordion_expansion.dart';
 
@@ -71,8 +72,8 @@ class BeaconChildRequestsSection extends StatelessWidget {
         }
 
         final wide = context.windowClass != WindowClass.compact;
-        Future<Object?> onCreateChild() => context.router.push(
-          BeaconCreateRoute(parentBeaconId: beaconState.beacon.id),
+        Future<void> onCreateChild() => GetIt.I<AppNavigator>().createBeacon(
+          parentBeaconId: beaconState.beacon.id,
         );
 
         final title = Text(

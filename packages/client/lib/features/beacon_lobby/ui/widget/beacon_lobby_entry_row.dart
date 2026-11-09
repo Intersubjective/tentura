@@ -3,9 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
-import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/navigation/app_navigator.dart';
 
 import '../../domain/entity/beacon_lobby.dart';
 import '../../domain/use_case/beacon_lobby_case.dart';
@@ -67,9 +67,7 @@ class BeaconLobbyEntryRow extends StatelessWidget {
                   return const SizedBox.shrink();
                 }
                 Future<void> open() async {
-                  await context.router.push(
-                    BeaconLobbyRoute(beaconId: beaconId),
-                  );
+                  await GetIt.I<AppNavigator>().openBeaconLobby(beaconId);
                   if (context.mounted) {
                     await context.read<BeaconLobbyEntryCubit>().load();
                   }

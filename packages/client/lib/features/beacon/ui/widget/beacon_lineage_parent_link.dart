@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 
-import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/navigation/app_navigator.dart';
 
 /// Clickable reference to the lineage parent beacon (no title fetch).
 class BeaconLineageParentLink extends StatelessWidget {
@@ -25,8 +26,7 @@ class BeaconLineageParentLink extends StatelessWidget {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () =>
-              context.router.push(BeaconViewRoute(id: parentBeaconId)),
+          onTap: () => GetIt.I<AppNavigator>().openBeacon(parentBeaconId),
           child: ConstrainedBox(
             constraints: const BoxConstraints(minHeight: 44),
             child: Padding(

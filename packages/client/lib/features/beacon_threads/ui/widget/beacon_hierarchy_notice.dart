@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 import 'package:tentura_root/domain/entity/beacon_hierarchy_summary.dart';
 
-import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_message_hierarchy_payload.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/navigation/app_navigator.dart';
 import 'package:tentura/ui/utils/schedule_date_format.dart';
 import 'package:tentura/ui/widget/tentura_focus_semantics.dart';
 
@@ -217,7 +218,7 @@ class _ChildCreatedCenteredNoticeState
     final title = _titleFromSummary(childPreview);
     final label = title == null ? line : '$line. $title';
     void openChild() =>
-        context.router.push(BeaconViewRoute(id: widget.childBeaconId));
+        GetIt.I<AppNavigator>().openBeacon(widget.childBeaconId);
 
     return Padding(
       padding: EdgeInsets.fromLTRB(
@@ -351,7 +352,7 @@ class _CenteredLinkNotice extends StatelessWidget {
         ),
       );
     }
-    void openChild() => context.router.push(BeaconViewRoute(id: childId));
+    void openChild() => GetIt.I<AppNavigator>().openBeacon(childId);
     return Padding(
       padding: EdgeInsets.fromLTRB(
         tt.screenHPadding,

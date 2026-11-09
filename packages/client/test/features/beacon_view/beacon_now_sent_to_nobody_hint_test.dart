@@ -29,6 +29,7 @@ import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../../domain/use_case/fake_beacon_hierarchy_ports.dart';
+import '../../support/fake_app_navigator.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'beacon_view_case_test_support.dart';
 
@@ -388,16 +389,17 @@ void main() {
       viewer: _author,
       beacon: _liveRequest(),
     );
+    final navigator = registerFakeAppNavigator();
     expect(hint, findsOneWidget);
-    expect(pumped.router.pushes, isEmpty);
+    expect(navigator.intents, isEmpty);
 
     await tester.tap(hint);
     await tester.pump();
 
-    expect(pumped.router.pushes, hasLength(1));
-    final route = pumped.router.pushes.single;
-    expect(route, isA<ForwardBeaconRoute>());
-    expect((route as ForwardBeaconRoute).args!.beaconId, _beaconId);
+    expect(navigator.intents, [
+      const NavIntent('forwardBeacon', {'beaconId': _beaconId}),
+    ]);
+    expect(pumped.router.pushes, isEmpty);
   });
 
   // PR #608 review (ichorid): the background "sent to anyone?" read is

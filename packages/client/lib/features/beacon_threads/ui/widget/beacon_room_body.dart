@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura/data/repository/clipboard_image_repository.dart';
+import 'package:tentura/ui/navigation/app_navigator.dart';
 import 'package:tentura/ui/utils/code_unit_length_formatter.dart';
 import 'package:tentura/ui/utils/copy_text_to_clipboard.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
@@ -30,7 +31,6 @@ import 'package:tentura/domain/util/beacon_pinned_facts.dart';
 import 'package:tentura/ui/util/beacon_hud_now_display.dart';
 import 'package:tentura/ui/widget/hud_labeled_multiline.dart';
 import 'package:tentura/ui/widget/beacon_hud_row_lead.dart';
-import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
 
 import 'package:tentura/features/beacon_threads/domain/room_host.dart';
@@ -363,13 +363,11 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     final viewerIsAuthor =
         widget.beaconAuthorId.isNotEmpty && widget.beaconAuthorId == s.myUserId;
     unawaited(
-      context.router.push(
-        BeaconCreateRoute(
-          parentBeaconId: s.beaconId,
-          sourceMessageId: viewerIsAuthor
-              ? (widget.postRoot?.messageId ?? '')
-              : '',
-        ),
+      GetIt.I<AppNavigator>().createBeacon(
+        parentBeaconId: s.beaconId,
+        sourceMessageId: viewerIsAuthor
+            ? (widget.postRoot?.messageId ?? '')
+            : '',
       ),
     );
   }
@@ -1675,11 +1673,9 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     RoomMessage message,
   ) {
     unawaited(
-      context.router.push(
-        BeaconCreateRoute(
-          parentBeaconId: cubit.state.beaconId,
-          sourceMessageId: message.id,
-        ),
+      GetIt.I<AppNavigator>().createBeacon(
+        parentBeaconId: cubit.state.beaconId,
+        sourceMessageId: message.id,
       ),
     );
   }

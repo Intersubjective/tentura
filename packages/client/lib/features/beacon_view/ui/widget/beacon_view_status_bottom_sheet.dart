@@ -1,10 +1,10 @@
 import 'dart:async';
+import 'package:auto_route/auto_route.dart';
 import 'package:intl/intl.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:flutter/material.dart';
 
-import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
