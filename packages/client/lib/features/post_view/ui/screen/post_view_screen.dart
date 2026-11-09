@@ -21,6 +21,7 @@ import 'package:tentura/features/forward/ui/widget/beacon_invite_flow.dart';
 import 'package:tentura/features/invitation/ui/bloc/invitation_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/beacon/beacon_room_composer_leave.dart';
 import 'package:tentura/ui/navigation/app_navigator.dart';
 import 'package:tentura/ui/utils/post_expiry_clock.dart';
 
@@ -62,6 +63,7 @@ class PostViewScreen extends StatefulWidget {
     required this.id,
     this.inPane = false,
     this.postBuddingEnabled = kPostBuddingEnabled,
+    this.retargetOwnerHomeTabOnLeave = false,
     super.key,
   });
 
@@ -72,6 +74,9 @@ class PostViewScreen extends StatefulWidget {
 
   /// Shown beside Inbox's conversation list: nothing to go back to.
   final bool inPane;
+
+  /// Cold deep link: Back retargets Home to Posts (#1105).
+  final bool retargetOwnerHomeTabOnLeave;
 
   @override
   State<PostViewScreen> createState() => _PostViewScreenState();
@@ -126,7 +131,15 @@ class _PostViewScreenState extends State<PostViewScreen> {
           ),
           leading: widget.inPane
               ? null
-              : BackButton(onPressed: () => Navigator.maybePop(context)),
+              : BackButton(
+                  onPressed: () => unawaited(
+                    leavePostDetailScreen(
+                      context,
+                      beaconId: widget.id,
+                      retargetOwnerHomeTab: widget.retargetOwnerHomeTabOnLeave,
+                    ),
+                  ),
+                ),
           actions: [
             if (state.beacon.viewerCanForward && !_isClosed(state))
               IconButton(
