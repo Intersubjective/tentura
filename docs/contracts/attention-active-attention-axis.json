@@ -116,5 +116,47 @@
     "myDeskCount": "§6 `my desk.count` — the sum of `request.count` over owned Requests, i.e. live obligations. Composed as liveObligation ∧ primaryPlacement on surface='myWork'. Uncleared optional events are excluded: they are the dot, and D09 keeps dot and number independent. It was introduced as a NEW field rather than a re-scoping of the legacy `needsYouTotal`, which U18c has since retired. Since m0191 the surface leg drops nothing (a live obligation always names a Request, and any Request it names is in `scope`), so it is written because §6 states the rule that way, not to change the population.",
     "obligationsAlwaysNameARequest": "m0191 (`notification_outbox__obligation_beacon_chk`, `CHECK (NOT requires_action OR beacon_id IS NOT NULL)`) makes a Request-less live obligation unstorable. Until U15R-e it was storable — m0115's `notification_outbox__beacon_policy_chk` demands a `beacon_id` only for the `beacon_content` / `beacon_tombstone` access policies — and `visibleWithSurface` labelled every beacon-less row `activity`, where §6 offers it neither a count nor a dot term. The constraint states the rule the producer already enforced (`AttentionPolicy.logicalTaskKey` throws `Live obligation requires a Request`) where nothing can route around it, and it validates on ADD so a legacy violating row aborts the migration rather than being skipped or repaired (legacy remediation is U18's). Pinned by the PG test 'U15R-e — a Request-less live obligation is rejected by notification_outbox__obligation_beacon_chk', asserted by constraint name.",
     "retiredTotals": "U18c retired `activityUnreadTotal`, `myWorkUnreadTotal` and `needsYouTotal` from `AttentionSurfaceSummary` — server model, SQL, the GraphQL `AttentionSurfaceSummary` type, the client entity and its repository mapping. They kept their pre-U15R-d meaning (activeAttention per surface; every live obligation, unscoped) and their names said `unread`, which is the read axis §3 keeps separate; that contradiction produced two defects (U17a read one as History unread, U17b found a read-axis delta folded into another). The four §6 rules above are what the surfaces read and now all this summary returns. NOT retired, and not to be confused with these: `AttentionSummary.unreadTotal` and `AttentionSummary.needsYouTotal` on the *feed* summary, which are the counts behind the History `unread` and `needsYou` views — a read-axis surface §3 keeps alive."
+  },
+  "forwardOutcomeTick": {
+    "description": "#601-a (owner decision): a forward row relabelled to an outcome moves up with ONE unread tick only when the relabel was not the viewer's own action. The `inbox:<beaconId>` row is synthetic, so the read marker lives on public.inbox_item (m0301): outcome_changed_at / outcome_changed_by are written by a trigger on every status change (actor = tentura.mutating_user_id, else the Hasura session user; a change with no known actor records nothing, except a move to status 3/4 — closed/deleted before the viewer answered — which only the Request's lifecycle or a forward cancel writes and which is recorded with a NULL actor), outcome_seen_at by markSeen. is_active_attention stays false: the tick is the read axis (seen_at), not the dot.",
+    "position": "created_at = GREATEST(entry_at, outcome_changed_at)",
+    "unseen": "seen_at IS NULL iff outcome_changed_by <> viewer AND outcome_changed_at > COALESCE(outcome_seen_at, '-infinity'); a NULL outcome_changed_by (an unattributed status 3/4 relabel) counts as not the viewer, so the SQL writes IS DISTINCT FROM. Otherwise seen_at = latest_forward_at as before.",
+    "markSeen": "markSeen with an inbox:<beaconId> id sets the viewer's own outcome_seen_at (only while a tick is pending); other users' rows and the row's position are untouched.",
+    "sql": {
+      "position": "GREATEST(ef.entry_at, ef.outcome_changed_at) AS created_at",
+      "unseen": "ii.outcome_changed_at > COALESCE(ii.outcome_seen_at, '-infinity') AND ii.outcome_changed_by IS DISTINCT FROM",
+      "markSeen": "SET outcome_seen_at = now()"
+    },
+    "serverTest": "packages/server/test/data/repository/attention_forward_outcome_unread_tick_pg_test.dart",
+    "cases": [
+      {
+        "name": "relabelled by another user ticks and moves up",
+        "relabelledBy": "otherUser",
+        "markedSeenAfter": false,
+        "unseen": true,
+        "positionKey": "outcome_changed_at"
+      },
+      {
+        "name": "marking it seen clears the tick and keeps the position",
+        "relabelledBy": "otherUser",
+        "markedSeenAfter": true,
+        "unseen": false,
+        "positionKey": "outcome_changed_at"
+      },
+      {
+        "name": "the viewer's own relabel never ticks",
+        "relabelledBy": "viewer",
+        "markedSeenAfter": false,
+        "unseen": false,
+        "positionKey": "outcome_changed_at"
+      },
+      {
+        "name": "a row whose outcome never changed stays at its entry",
+        "relabelledBy": "nobody",
+        "markedSeenAfter": false,
+        "unseen": false,
+        "positionKey": "entry_at"
+      }
+    ]
   }
 }
