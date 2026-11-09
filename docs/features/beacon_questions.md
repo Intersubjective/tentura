@@ -31,7 +31,9 @@ re-implements it and only shows what the server returns.
 A person has access when **all** of these hold:
 
 1. The Request content is readable to them (`beacon_can_read_content`: no
-   block with the author either way, not deleted, not someone else's draft).
+   block with the author either way, not deleted, not someone else's draft),
+   or they have discoverable standing (below), which keeps a closed Request's
+   Questions readable after the discovery wall itself has closed.
 2. They have **current standing** on this Request:
 
    | Standing | Access |
@@ -45,7 +47,7 @@ A person has access when **all** of these hold:
    | Live forward edge they answered **"Can't help"** | read-only (Q4) |
    | Withdrawn or declined help offer, no other standing | read-only (Q4); offering again restores writing |
    | Cancelled forward, historical inbox item only | **none** |
-   | Discovery-only reader (could read a discoverable Request, nobody sent it) | **none** (Q3) |
+   | Discoverable viewer (reads the Request only through discoverability, nobody sent it; m0299) | **write** like a recipient; read-only after a withdrawn or declined offer or on a closed Request (the standing outlives closing, like a forward edge); **none** when blocked with the author, removed, or once the Request is made private |
    | Member of the parent Post of a budded Request (bud snapshot, m0284) | **write** (read-only after a withdrawn offer or on a closed Request) |
    | Other hierarchy / context readers (parent or child Requests) | **none** |
 
@@ -64,6 +66,12 @@ quotes (including the replied-to id), deep links, reactions, replies,
 mention candidates and realtime hints.
 
 ## Notifications and realtime
+
+Discoverable viewers are **not** enumerated into the audience
+(`questions_audience`) just because they could find the Request: a
+discoverable viewer joins it — mention candidates, reply notices, realtime
+hints — once they have written in Questions (m0299). Questions never admits
+anyone to the discussion.
 
 - The author gets an attention item for every question (undirected or not);
   @mentions are drawn from the Questions audience; reply notices reach only
@@ -104,7 +112,8 @@ mention candidates and realtime hints.
     the description and facts, at every width (#526 — asking before offering
     is the point);
   - insiders (author, admitted helpers) get the **Questions row** on Overview.
-  Discovery-only readers never see either (the probe says no). The probe is
+  A discoverable viewer gets the card too whenever the probe says they may
+  read. The probe is
   re-read on message / offer / forward / participant / Request / inbox
   hints, whenever the Request page's own view of the viewer's standing
   changes (created, offered, admitted, "Can't help", status), and up to three

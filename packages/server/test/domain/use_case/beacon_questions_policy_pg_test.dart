@@ -151,7 +151,11 @@ Future<void> main() async {
   const rejectedAddressee = 'Uqrejadd0001';
   // No standing.
   const cancelled = 'Uqcancel0001';
+  // Discoverable viewer: reads the discoverable Request only through
+  // discoverability (mutually visible with the author, nobody sent it).
   const discovery = 'Uqdiscov0001';
+  // Same discoverable Request, but NOT mutually visible with the author.
+  const unseen = 'Uqunseen0001';
   const banned = 'Uqbanned0001';
   const blocksAuthor = 'Uqblocks0001';
   const blockedByAuthor = 'Uqblockd0001';
@@ -175,7 +179,7 @@ Future<void> main() async {
       expected: QuestionsAccess.read,
     ),
     (name: 'cancelled forward', id: cancelled, expected: QuestionsAccess.none),
-    (name: 'discovery-only', id: discovery, expected: QuestionsAccess.none),
+    (name: 'discovery-only', id: discovery, expected: QuestionsAccess.write),
     (name: 'banned', id: banned, expected: QuestionsAccess.none),
     (
       name: 'blocked the author',
@@ -334,6 +338,7 @@ Future<void> main() async {
         rejectedAddressee,
         cancelled,
         discovery,
+        unseen,
         banned,
         blocksAuthor,
         blockedByAuthor,
@@ -375,7 +380,13 @@ Future<void> main() async {
       await forward(rejectedAddressee, rejectedEdge: true);
       await participant(rejectedAddressee, role: 6);
       await forward(cancelled, cancelledEdge: true);
-      // Discovery-only: the Request is discoverable, but nobody sent it.
+      // Discovery-only: the Request is discoverable and the viewer is
+      // mutually visible with the author (reciprocal trust), but nobody sent
+      // it to them.
+      await sql(
+        'INSERT INTO public.vote_user (subject, object, amount) VALUES '
+        "('$discovery', '$author', 1), ('$author', '$discovery', 1)",
+      );
       await forward(banned);
       await sql(
         'INSERT INTO public.beacon_lobby_ban (beacon_id, user_id, banned_by) '
@@ -657,9 +668,16 @@ Future<void> main() async {
         final later = await probe(author);
         expect(later['messageCount'], 4);
         expect(later['unreadCount'], 1);
-        final denied = await probe(discovery);
+        // Someone without standing (a cancelled forward) sees no count.
+        final denied = await probe(cancelled);
         expect(denied['messageCount'], 0);
         expect(denied['unreadCount'], 0);
+        // A discoverable viewer reads Questions, so the count is theirs too:
+        // nothing marked seen yet, and they are blocked with nobody, so the
+        // message hidden from the author counts for them.
+        final discoverable = await probe(discovery);
+        expect(discoverable['messageCount'], 5);
+        expect(discoverable['unreadCount'], 5);
       },
     );
 
@@ -759,9 +777,11 @@ Future<void> main() async {
         body: 'Hello $everyone',
         threadItemId: lobbyId,
       );
+      // A discoverable viewer who never wrote in Questions is not a mention
+      // candidate (no broadcast fan-out to everyone who can find the Request).
       expect(intents.mentioned, {
         for (final c in matrix)
-          if (c.expected.canRead && c.id != author) c.id,
+          if (c.expected.canRead && c.id != author && c.id != discovery) c.id,
       });
 
       intents.clear();
@@ -804,9 +824,10 @@ Future<void> main() async {
           if (n['entity'] == 'room_message' && n['message_id'] == messageId)
             ...(n['user_ids'] as List).cast<String>(),
       };
+      // A discoverable viewer who never wrote in Questions gets no hint.
       final audience = {
         for (final c in matrix)
-          if (c.expected.canRead) c.id,
+          if (c.expected.canRead && c.id != discovery) c.id,
       };
       while (DateTime.now().isBefore(deadline) &&
           !recipients().containsAll(audience)) {
@@ -815,6 +836,7 @@ Future<void> main() async {
       expect(recipients(), containsAll(audience));
       // Peer blocked the sender: not even a bare hint.
       expect(recipients(), isNot(contains(peer)));
+      expect(recipients(), isNot(contains(discovery)));
       for (final c in matrix) {
         if (!c.expected.canRead && c.id != helper) {
           expect(recipients(), isNot(contains(c.id)), reason: c.name);
@@ -1136,6 +1158,310 @@ Future<void> main() async {
       );
     });
 
+    group('a discoverable viewer: reads the Request only through '
+        'discoverability (no forward, offer, seat or bud snapshot)', () {
+      Future<bool> canReadContent(String viewer) async =>
+          (await writer.execute(
+                "SELECT public.beacon_can_read_content('$beaconId', '$viewer')",
+              )).first.first!
+              as bool;
+
+      Future<QuestionsAccess> levelOf(String userId) async =>
+          (await lobby.accessLevels(
+            beaconId: beaconId,
+            userIds: [userId],
+          ))[userId]!;
+
+      Future<Set<String>> audience() async => {
+        for (final r in await writer.execute(
+          "SELECT user_id FROM public.questions_audience('$beaconId')",
+        ))
+          r[0]! as String,
+      };
+
+      Future<Map<String, Object?>> probe(
+        String viewer, {
+        BeaconRoomCase? via,
+      }) =>
+          (via ?? rooms).beaconLobbyAccess(beaconId: beaconId, userId: viewer);
+
+      /// Reading and posting in the General discussion are both refused.
+      Future<void> expectGeneralClosed(String why) async {
+        await expectLater(
+          rooms.listMessages(beaconId: beaconId, userId: discovery),
+          throwsA(isA<UnauthorizedException>()),
+          reason: why,
+        );
+        await expectLater(
+          rooms.createMessage(
+            beaconId: beaconId,
+            userId: discovery,
+            body: 'Hello everyone',
+          ),
+          throwsA(isA<UnauthorizedException>()),
+          reason: why,
+        );
+      }
+
+      setUp(() async {
+        if (skipReason != null) return;
+        // Precondition of every case below: the viewer reads the Request
+        // through discoverability alone, so only Questions is under test.
+        expect(await canReadContent(discovery), isTrue);
+        final standing = await writer.execute(
+          'SELECT (SELECT count(*) FROM public.beacon_forward_edge WHERE '
+          "beacon_id = '$beaconId' AND recipient_id = '$discovery') + "
+          '(SELECT count(*) FROM public.beacon_help_offer WHERE '
+          "beacon_id = '$beaconId' AND user_id = '$discovery') + "
+          '(SELECT count(*) FROM public.beacon_participant WHERE '
+          "beacon_id = '$beaconId' AND user_id = '$discovery')",
+        );
+        expect(standing.single.single, 0);
+      });
+
+      test('may read and ask on an open Request, like a recipient', () async {
+        final lobbyId = await openAsAuthor();
+        expect(await levelOf(discovery), QuestionsAccess.write);
+        final access = await probe(discovery);
+        expect(access['canRead'], isTrue);
+        expect(access['canPost'], isTrue);
+        expect(access['readOnlyReason'], isNull);
+        final opened = await rooms.beaconLobby(
+          beaconId: beaconId,
+          userId: discovery,
+        );
+        expect(opened['canPost'], isTrue);
+        expect(opened['isAuthor'], isFalse);
+        await rooms.createMessage(
+          beaconId: beaconId,
+          userId: discovery,
+          body: 'Do you need a van?',
+          threadItemId: lobbyId,
+        );
+        expect(
+          await bodiesFor(author, lobbyId),
+          contains('Do you need a van?'),
+        );
+      });
+
+      test('a viewer of the same discoverable Request who is not mutually '
+          'visible with the author has no Questions', () async {
+        // Positive control: the mutually visible viewer next to them asks.
+        expect(await levelOf(discovery), QuestionsAccess.write);
+        expect(await canReadContent(unseen), isFalse);
+        expect(await levelOf(unseen), QuestionsAccess.none);
+        final access = await probe(unseen);
+        expect(access['canRead'], isFalse);
+        expect(access['canPost'], isFalse);
+        expect(await audience(), isNot(contains(unseen)));
+      });
+
+      test(
+        'making the Request private takes Questions away from them',
+        () async {
+          expect(await levelOf(discovery), QuestionsAccess.write);
+          await sql(
+            'UPDATE public.beacon SET is_discoverable = false '
+            "WHERE id = '$beaconId'",
+          );
+          expect(await levelOf(discovery), QuestionsAccess.none);
+          final access = await probe(discovery);
+          expect(access['canRead'], isFalse);
+          expect(access['canPost'], isFalse);
+          await expectLater(
+            rooms.beaconLobby(beaconId: beaconId, userId: discovery),
+            throwsA(isA<BeaconLobbyAccessException>()),
+          );
+        },
+      );
+
+      test('blocking the author leaves them no Questions', () async {
+        expect(await levelOf(discovery), QuestionsAccess.write);
+        await block(discovery, author);
+        expect(await levelOf(discovery), QuestionsAccess.none);
+        expect((await probe(discovery))['canRead'], isFalse);
+      });
+
+      test('being blocked by the author leaves them no Questions', () async {
+        expect(await levelOf(discovery), QuestionsAccess.write);
+        await block(author, discovery);
+        expect(await levelOf(discovery), QuestionsAccess.none);
+        expect((await probe(discovery))['canRead'], isFalse);
+      });
+
+      test(
+        'the author removes them from Questions and lets them back in',
+        () async {
+          await openAsAuthor();
+          expect(await levelOf(discovery), QuestionsAccess.write);
+          await rooms.banFromLobby(
+            beaconId: beaconId,
+            userId: author,
+            bannedUserId: discovery,
+          );
+          expect(await levelOf(discovery), QuestionsAccess.none);
+          expect((await probe(discovery))['canRead'], isFalse);
+          await rooms.unbanFromLobby(
+            beaconId: beaconId,
+            userId: author,
+            bannedUserId: discovery,
+          );
+          expect(await levelOf(discovery), QuestionsAccess.write);
+        },
+      );
+
+      test('a closed Request leaves them read-only', () async {
+        final lobbyId = await openAsAuthor();
+        expect(await levelOf(discovery), QuestionsAccess.write);
+        await sql("UPDATE public.beacon SET status = 6 WHERE id = '$beaconId'");
+        final closedRooms = buildRooms(
+          hierarchy: FakeBeaconHierarchyRepository()
+            ..statusOverride = BeaconStatus.closed,
+        );
+        expect(await levelOf(discovery), QuestionsAccess.read);
+        final access = await probe(discovery, via: closedRooms);
+        expect(access['canRead'], isTrue);
+        expect(access['canPost'], isFalse);
+        expect(access['readOnlyReason'], 'closed');
+        // Posting is refused exactly as for a recipient: the closed
+        // Request's read-only discussion lifecycle (1301).
+        for (final id in [forwardee, discovery]) {
+          await expectLater(
+            closedRooms.createMessage(
+              beaconId: beaconId,
+              userId: id,
+              body: 'Still on?',
+              threadItemId: lobbyId,
+            ),
+            throwsA(isA<BeaconCreateException>()),
+            reason: id,
+          );
+        }
+        expect(await bodiesFor(author, lobbyId), isNot(contains('Still on?')));
+      });
+
+      test('withdrawing an offer turns them read-only; offering again '
+          'restores asking', () async {
+        expect(await levelOf(discovery), QuestionsAccess.write);
+        await offer(discovery);
+        expect(await levelOf(discovery), QuestionsAccess.write);
+        await offer(discovery, status: 1);
+        await sql(
+          "UPDATE public.beacon_help_offer SET withdraw_reason = 'busy' "
+          "WHERE beacon_id = '$beaconId' AND user_id = '$discovery'",
+        );
+        expect(await levelOf(discovery), QuestionsAccess.read);
+        final access = await probe(discovery);
+        expect(access['canRead'], isTrue);
+        expect(access['canPost'], isFalse);
+        expect(access['readOnlyReason'], 'withdrew');
+        await offer(discovery);
+        expect(await levelOf(discovery), QuestionsAccess.write);
+      });
+
+      test('a declined offer turns them read-only', () async {
+        expect(await levelOf(discovery), QuestionsAccess.write);
+        // Declined by the author: no withdraw reason of their own.
+        await offer(discovery, status: 1);
+        expect(await levelOf(discovery), QuestionsAccess.read);
+        final access = await probe(discovery);
+        expect(access['canRead'], isTrue);
+        expect(access['canPost'], isFalse);
+        expect(access['readOnlyReason'], 'declined');
+      });
+
+      test("other people's plain questions neither notify nor hint them "
+          'while they have not written', () async {
+        // They could read and ask: only the fan-out is under test.
+        expect(await levelOf(discovery), QuestionsAccess.write);
+        final listener = await Connection.open(
+          target.databaseEnv.pgEndpoint,
+          settings: target.databaseEnv.pgEndpointSettings,
+        );
+        final notifications = <Map<String, dynamic>>[];
+        await listener.execute('LISTEN entity_changes');
+        final sub = listener.channels['entity_changes'].listen(
+          (payload) =>
+              notifications.add(jsonDecode(payload) as Map<String, dynamic>),
+        );
+        addTearDown(() async {
+          await sub.cancel();
+          await listener.close();
+        });
+        final lobbyId = await openAsAuthor();
+        intents.clear();
+        final posted = await rooms.createMessage(
+          beaconId: beaconId,
+          userId: forwardee,
+          body: 'Is there parking nearby?',
+          threadItemId: lobbyId,
+        );
+        final messageId = posted['id']! as String;
+        expect(intents.mentioned, isNot(contains(discovery)));
+        expect(intents.directed, isNot(contains(discovery)));
+        expect(await audience(), isNot(contains(discovery)));
+        Set<String> recipients() => {
+          for (final n in notifications)
+            if (n['entity'] == 'room_message' && n['message_id'] == messageId)
+              ...(n['user_ids'] as List).cast<String>(),
+        };
+        final deadline = DateTime.now().add(const Duration(seconds: 3));
+        while (DateTime.now().isBefore(deadline) &&
+            !recipients().contains(author)) {
+          await Future<void>.delayed(const Duration(milliseconds: 50));
+        }
+        // Positive control: the hint went out to the audience.
+        expect(recipients(), contains(author));
+        expect(recipients(), isNot(contains(discovery)));
+      });
+
+      test(
+        'once they have asked, an @mention from the author reaches them',
+        () async {
+          final lobbyId = await openAsAuthor();
+          await rooms.createMessage(
+            beaconId: beaconId,
+            userId: discovery,
+            body: 'How heavy are the boxes?',
+            threadItemId: lobbyId,
+          );
+          intents.clear();
+          await rooms.createMessage(
+            beaconId: beaconId,
+            userId: author,
+            body: '@${discovery.substring(2, 8)} not heavy at all',
+            threadItemId: lobbyId,
+          );
+          expect(intents.mentioned, contains(discovery));
+        },
+      );
+
+      test(
+        'asking in Questions does not admit them to the discussion',
+        () async {
+          await expectGeneralClosed('fixture: General is closed to them');
+
+          final lobbyId = await openAsAuthor();
+          await rooms.beaconLobby(beaconId: beaconId, userId: discovery);
+          await rooms.createMessage(
+            beaconId: beaconId,
+            userId: discovery,
+            body: 'Which floor?',
+            threadItemId: lobbyId,
+          );
+          expect(await bodiesFor(discovery, lobbyId), contains('Which floor?'));
+
+          final seats = await writer.execute(
+            'SELECT count(*) FROM public.beacon_participant '
+            "WHERE beacon_id = '$beaconId' AND user_id = '$discovery' "
+            'AND room_access = 3',
+          );
+          expect(seats.single.single, 0);
+          await expectGeneralClosed('Questions grant no discussion seat');
+        },
+      );
+    });
+
     group('a Request budded from a Post: members of the parent Post', () {
       // `postId` is the parent Post of `buddedId`. `postMember` belongs to the
       // Post and was snapshotted as a bud observer, but nobody ticked them
@@ -1296,8 +1622,10 @@ Future<void> main() async {
         expect(await levelOf(buddedId, postMember), QuestionsAccess.write);
       });
 
-      test('a discovery-only reader of the budded Request has none', () async {
-        expect(await levelOf(buddedId, discovery), QuestionsAccess.none);
+      test('a discoverable viewer of the budded Request may ask, but is not '
+          'in the audience before writing', () async {
+        expect(await canReadContent(buddedId, discovery), isTrue);
+        expect(await levelOf(buddedId, discovery), QuestionsAccess.write);
         expect((await audienceOf(buddedId)).keys, isNot(contains(discovery)));
         // Positive control: the Post member next to them has standing.
         expect(await levelOf(buddedId, postMember), QuestionsAccess.write);

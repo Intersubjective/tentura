@@ -44,9 +44,15 @@ class FakeLobbyPort implements BeaconLobbyPort {
   /// The next call of any kind fails like a dropped connection.
   bool failNext = false;
 
+  /// The server's answer to the access probe, used verbatim when set (for
+  /// example one mapped from a real GraphQL response); opening follows its
+  /// canRead.
+  BeaconLobbyAccess? accessAnswer;
+
   bool get _allowed =>
-      viewerId == authorId ||
-      (offerers.contains(viewerId) && !banned.contains(viewerId));
+      accessAnswer?.canRead ??
+      (viewerId == authorId ||
+          (offerers.contains(viewerId) && !banned.contains(viewerId)));
 
   void _maybeFail() {
     if (failNext) {
@@ -82,6 +88,8 @@ class FakeLobbyPort implements BeaconLobbyPort {
   Future<BeaconLobbyAccess> access(String beaconId) async {
     calls.add('access');
     _maybeFail();
+    final answer = accessAnswer;
+    if (answer != null) return answer;
     return BeaconLobbyAccess(
       canRead: _allowed,
       canPost: _allowed && canPost,
