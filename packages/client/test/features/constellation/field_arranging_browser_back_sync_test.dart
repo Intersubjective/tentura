@@ -14,20 +14,20 @@ void main() {
     });
 
     test('user dismiss pops the sentinel with history.back()', () {
-      var popped = false;
-      sync.sync(arranging: true, onPopWhileArranging: () => popped = true);
+      sync.sync(arranging: true, onPopWhileArranging: () {});
       expect(sync.sentinelPushed, isTrue);
 
-      sync.sync(arranging: false, onPopWhileArranging: () => popped = true);
+      sync.sync(arranging: false, onPopWhileArranging: () {});
       expect(sync.backInvocationCount, 1);
       expect(sync.replaceStateInvocationCount, 0);
       expect(sync.sentinelPushed, isFalse);
     });
 
     test('navigation exit replaces the sentinel without history.back()', () {
-      sync.sync(arranging: true, onPopWhileArranging: () {});
-      sync.onExitForNavigation();
-      sync.sync(arranging: false, onPopWhileArranging: () {});
+      sync
+        ..sync(arranging: true, onPopWhileArranging: () {})
+        ..onExitForNavigation()
+        ..sync(arranging: false, onPopWhileArranging: () {});
 
       expect(sync.backInvocationCount, 0);
       expect(sync.replaceStateInvocationCount, 1);
@@ -48,14 +48,15 @@ void main() {
 
     test('suppressed pop after programmatic back is ignored once', () {
       var arrangeExitCount = 0;
-      sync.sync(
-        arranging: true,
-        onPopWhileArranging: () => arrangeExitCount++,
-      );
-      sync.sync(
-        arranging: false,
-        onPopWhileArranging: () => arrangeExitCount++,
-      );
+      sync
+        ..sync(
+          arranging: true,
+          onPopWhileArranging: () => arrangeExitCount++,
+        )
+        ..sync(
+          arranging: false,
+          onPopWhileArranging: () => arrangeExitCount++,
+        );
       expect(sync.backInvocationCount, 1);
       sync.onPopState();
       expect(arrangeExitCount, 0, reason: 'synthetic pop from history.back()');

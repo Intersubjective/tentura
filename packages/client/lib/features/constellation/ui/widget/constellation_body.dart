@@ -1912,7 +1912,6 @@ class _ConstellationBodyState extends State<ConstellationBody>
     return ConstrainedBox(
       constraints: BoxConstraints(maxHeight: capHeight),
       child: Stack(
-        clipBehavior: Clip.hardEdge,
         children: [
           topChrome,
           if (selection != null)

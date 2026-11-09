@@ -4,12 +4,10 @@
 /// VM tests use a fake port.
 class FieldArrangingBrowserBackSync {
   FieldArrangingBrowserBackSync({
-    required void Function() pushState,
-    required void Function() back,
-    required void Function() replaceState,
-  }) : _pushState = pushState,
-       _back = back,
-       _replaceState = replaceState;
+    required void Function() this._pushState,
+    required void Function() this._back,
+    required void Function() this._replaceState,
+  });
 
   final void Function() _pushState;
   final void Function() _back;
@@ -20,8 +18,8 @@ class FieldArrangingBrowserBackSync {
   var _suppressNextPop = false;
   var _dropWithoutTraverseOnRelease = false;
 
-  var backInvocationCount = 0;
-  var replaceStateInvocationCount = 0;
+  int backInvocationCount = 0;
+  int replaceStateInvocationCount = 0;
 
   bool get sentinelPushed => _sentinelPushed;
 

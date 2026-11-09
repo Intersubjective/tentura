@@ -3,7 +3,8 @@
 
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:bloc/bloc.dart';
+import 'package:flutter_bloc/flutter_bloc.dart' show BlocProvider, MultiBlocProvider;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura/app/router/home_tab_branches.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -95,7 +96,6 @@ void main() {
     await pumpConstellationBody(
       tester,
       cubit,
-      locale: const Locale('ru'),
       arrangeV2Enabled: true,
     );
     final selection = tester.constellationSelectionUnderTest()
