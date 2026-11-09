@@ -167,6 +167,61 @@ void main() {
       );
     });
 
+    test('the Questions access denial in its English wording (people the '
+        'Request was sent to or who found it) is benign', () {
+      final denial = l10n.beaconLobbyUnavailable;
+      expect(
+        denial,
+        matches(
+          RegExp(
+            r'\bsent\b[^.]*\bor\b[^.]*\bfound\b'
+            r'|\bfound\b[^.]*\bor\b[^.]*\bsent\b',
+          ),
+        ),
+        reason: denial,
+      );
+      final withoutDot = denial.replaceFirst(RegExp(r'\.$'), '');
+      // Only the expected-text pattern can make these benign: no error code
+      // (so not the 1347 code rule) and no Questions exception type.
+      for (final text in {denial, withoutDot}) {
+        expect(isBenignSentryExceptionText(text), isTrue, reason: text);
+        expect(
+          isBenignSentryExceptionText('Exception: $text'),
+          isTrue,
+          reason: text,
+        );
+        const codeless = RemoteApiException('');
+        expect(codeless.code, isNull);
+        expect(
+          isBenignSentryThrowable(RemoteApiException(text)),
+          isTrue,
+          reason: text,
+        );
+        expect(isBenignSentryThrowable(Exception(text)), isTrue, reason: text);
+        expect(
+          isBenignSentryEvent(_messageEvent(text), Hint()),
+          isTrue,
+          reason: text,
+        );
+        expect(
+          isBenignSentryEvent(
+            _exceptionEvent('RemoteApiException', text),
+            Hint(),
+          ),
+          isTrue,
+          reason: text,
+        );
+      }
+      // Control: the pattern matches the whole text only, so an error that
+      // merely quotes the denial is still reported.
+      expect(
+        isBenignSentryExceptionText(
+          'StateError: unexpected "$denial" in cubit',
+        ),
+        isFalse,
+      );
+    });
+
     test('"Id not found" text is benign', () {
       expect(isBenignSentryExceptionText('Id not found: [B0123abcd]'), isTrue);
     });

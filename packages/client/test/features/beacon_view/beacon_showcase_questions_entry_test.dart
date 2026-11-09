@@ -14,7 +14,7 @@ import 'beacon_view_screen_harness.dart';
 /// #526 (D1): someone the Request was sent to asks the author **before**
 /// offering help, so the way into Questions must be on the page they see —
 /// the showcase — at phone and desktop widths, gated by the server's
-/// `BeaconLobbyAccess` probe (never shown to discovery-only readers, Q3).
+/// `BeaconLobbyAccess` probe (shown only when it answers canRead).
 void main() {
   const recipient = 'recipient';
 
@@ -88,7 +88,8 @@ void main() {
       expect(port.calls, isNot(contains('open')));
     });
 
-    testWidgets('$name: a discovery-only reader gets no Questions entry', (
+    testWidgets('$name: a viewer the probe says cannot read gets no '
+        'Questions entry', (
       tester,
     ) async {
       final port = await pumpShowcase(tester, size: size, inAudience: false);

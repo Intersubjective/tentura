@@ -340,4 +340,90 @@ VALUES ('$_request', '$_viewer', '$_author')
       },
     );
   });
+
+  group('A viewer who only found the Request (discoverable, nobody sent it)',
+      () {
+    const strangers = [
+      'Uqcardstrang1',
+      'Uqcardstrang2',
+      'Uqcardstrang3',
+      'Uqcardstrang4',
+      'Uqcardstrang5',
+    ];
+
+    /// A discoverable, published, open Request by the author, mutually
+    /// visible with the viewer (reciprocal trust), with no forward edge,
+    /// offer or seat for the viewer, its Questions scope, and the viewer's
+    /// first visit (General cursor, Field opened).
+    Future<void> seedFound() async {
+      for (final (index, id) in strangers.indexed) {
+        await session.writer.execute(
+          pg.Sql.named('''
+INSERT INTO public."user" (id, display_name, public_key)
+VALUES (@id, @id, @key)
+'''),
+          parameters: {
+            'id': id,
+            'key': pgTestPublicKey('card-questions', index + 4),
+          },
+        );
+      }
+      await session.writer.execute('''
+INSERT INTO public.vote_user (subject, object, amount) VALUES
+  ('$_viewer', '$_author', 1), ('$_author', '$_viewer', 1)
+''');
+      await session.writer.execute('''
+INSERT INTO public.beacon
+  (id, user_id, title, description, status, is_discoverable, published_at)
+VALUES ('$_request', '$_author', 'Moving day', '', 0, true, now())
+''');
+      await session.writer.execute('''
+INSERT INTO public.coordination_item
+  (id, beacon_id, kind, status, title, body, creator_id, published,
+   published_at, source, ordering)
+VALUES ('Q$_request', '$_request', 7, 0, 'Questions', '', '$_author', true,
+  now(), 0, 0)
+''');
+      await seen();
+      // Precondition: the viewer reads the Request through discoverability
+      // alone, and Questions is open to them.
+      final wall = await session.writer.execute(
+        "SELECT public.beacon_can_read_content('$_request', '$_viewer'), "
+        "(SELECT access FROM public.questions_access_levels('$_request', "
+        "ARRAY['$_viewer']))",
+      );
+      expect(wall.single[0], isTrue);
+      expect(wall.single[1], 2);
+    }
+
+    test('questions from strangers are not unread for them while they have '
+        'not written in Questions', () async {
+      await seedFound();
+      await expectFieldUnread(expected: false);
+      for (final (index, by) in strangers.indexed) {
+        await message(by: by, at: _fresh.add(Duration(minutes: index)));
+      }
+      final row = await card();
+      expect(row['isRoomMember'], isFalse);
+      expect(row['roomUnreadCount'], 0);
+      await expectFieldUnread(expected: false);
+    });
+
+    test('after they ask in Questions, a later reply is unread for them on '
+        'the card and in the Field', () async {
+      await seedFound();
+      for (final (index, by) in strangers.indexed) {
+        await message(by: by, at: _fresh.add(Duration(minutes: index)));
+      }
+      final asked = _fresh.add(const Duration(hours: 1));
+      await message(by: _viewer, at: asked);
+      await seen(questions: true, at: asked);
+      expect((await card())['roomUnreadCount'], 0);
+      await expectFieldUnread(expected: false);
+
+      await message(at: asked.add(const Duration(minutes: 5)));
+      expect((await card())['roomUnreadCount'], 1);
+      await expectFieldUnread(expected: true);
+    });
+  });
 }

@@ -74,6 +74,8 @@ const _cases = [
   ),
   (
     code: '1347',
+    // The server's wire text. The denial view shows
+    // L10n.beaconLobbyUnavailable (read at run time below), not en/ru.
     message: 'Questions are for the people this request was sent to',
     en: 'Questions are for the people this request was sent to.',
     ru: 'Вопросы доступны тем, кому отправлен этот запрос.',
@@ -229,8 +231,12 @@ void main() {
                     of: denial,
                     matching: find.text(
                       locale == 'en'
-                          ? 'Questions are for the people this request was sent to.'
-                          : 'Вопросы доступны тем, кому отправлен этот запрос.',
+                          ? lookupL10n(
+                              const Locale('en'),
+                            ).beaconLobbyUnavailable
+                          : lookupL10n(
+                              const Locale('ru'),
+                            ).beaconLobbyUnavailable,
                       findRichText: true,
                     ),
                   ),
@@ -286,9 +292,14 @@ void main() {
                   ),
                 );
               }
+              // The Questions denial view shows the current translated copy.
               final events = await show(
                 error,
-                locale == 'en' ? row.en : row.ru,
+                row.code == '1347'
+                    ? lookupL10n(Locale(locale)).beaconLobbyUnavailable
+                    : locale == 'en'
+                    ? row.en
+                    : row.ru,
                 wire: wire,
                 diagnostics: includeDiagnostics
                     ? [

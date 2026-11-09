@@ -5,6 +5,7 @@ import 'package:migrant/testing.dart';
 import 'package:postgres/postgres.dart';
 import 'package:migrant_db_postgresql/migrant_db_postgresql.dart';
 
+import '../sql/questions_audience_sql.dart';
 import '../sql/request_unread_sql.dart';
 
 part 'm0193.dart';
@@ -112,6 +113,8 @@ part 'm0295.dart';
 part 'm0296.dart';
 part 'm0297.dart';
 part 'm0298.dart';
+part 'm0299.dart';
+part 'm0300.dart';
 
 /// `m0193` is a squashed baseline, not an ordinary migration: it is a generated
 /// `pg_dump` of the schema that `m0001`…`m0192` (plus the out-of-band `0161a`
@@ -243,6 +246,8 @@ final _allMigrations = <Migration>[
   m0296,
   m0297,
   m0298,
+  m0299,
+  m0300,
 ];
 
 /// Test inventory in the exact order passed to migrant.

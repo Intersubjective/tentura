@@ -14,8 +14,12 @@
 // Covered paths: first entry with the field loaded; first entry through the
 // Field's loading shell (the field arrives after the screen is up); the
 // viewport size known only after the first frames; the user's own pan/zoom
-// kept for the rest of the visit; and a return to the Field tab starting
-// fitted again.
+// kept for the rest of the visit, also through server refreshes that carry a
+// new load time (one or several, with or without new people; an untouched
+// camera still re-frames for new people); a return to the Field tab starting
+// fitted again; and a visit that starts in text view fitting on its first
+// switch to map, then keeping the user's camera across later text/map
+// switches and refreshes that arrive while text is showing.
 @TestOn('vm')
 library;
 
@@ -107,13 +111,24 @@ Map<String, dynamic> _edge(String src, String dst) => {
   'tier': 1,
 };
 
+/// The `loadedAt` of the first response a visit gets.
+const _firstLoadedAt = '2026-11-08T12:00:00.000Z';
+
+/// The `loadedAt` the store stamps on the [n]-th later fetch: every full fetch
+/// carries a new one, so a refresh is never the same instant as the load.
+String _laterLoadedAt(int n) =>
+    DateTime.utc(2026, 11, 8, 12, n).toIso8601String();
+
 /// Bob's Field as the server sends it; [extraContact] adds one more direct
-/// contact (a later refresh).
-Map<String, dynamic> _fieldResponse({String? extraContact}) => {
+/// contact (a later refresh), [loadedAt] stamps the fetch.
+Map<String, dynamic> _fieldResponse({
+  String? extraContact,
+  String loadedAt = _firstLoadedAt,
+}) => {
   '__typename': 'query_root',
   'constellationField': {
     '__typename': 'v2_ConstellationField',
-    'loadedAt': '2026-11-08T12:00:00.000Z',
+    'loadedAt': loadedAt,
     'context': '',
     'peersCapped': false,
     'requestsCapped': false,
@@ -662,6 +677,81 @@ Future<void> _panAndPinch(WidgetTester tester) async {
   await _pumpFrames(tester, 20);
 }
 
+/// The server answers the next fetch with a Field stamped [loadedAt] (and
+/// [extraContact] if given); the store catches up to it, as after a push.
+Future<void> _refresh(
+  _GatedFieldRepository repository,
+  ({ConstellationCubit cubit, ConstellationStoreFixture store}) field, {
+  required String loadedAt,
+  String? extraContact,
+}) async {
+  repository.field = await _mapFromWire(
+    _fieldResponse(extraContact: extraContact, loadedAt: loadedAt),
+  );
+  await field.store.store.requestRefresh(ConstellationRefreshReason.catchUp);
+}
+
+/// The user's camera now, to compare against after something else happens.
+({double scale, Offset translation}) _cameraNow(
+  WidgetTester tester,
+  ConstellationCubit cubit,
+) {
+  final t = _camera(tester).getTranslation();
+  return (
+    scale: cubit.graphController.cameraScale,
+    translation: Offset(t.x, t.y),
+  );
+}
+
+void _expectCameraKept(
+  WidgetTester tester,
+  ConstellationCubit cubit,
+  ({double scale, Offset translation}) kept, {
+  required String when,
+}) {
+  expect(
+    cubit.graphController.cameraScale,
+    closeTo(kept.scale, 1e-6),
+    reason: '$when: the user’s zoom is kept',
+  );
+  final t = _camera(tester).getTranslation();
+  expect(
+    (Offset(t.x, t.y) - kept.translation).distance,
+    lessThan(0.5),
+    reason: '$when: the user’s pan is kept, no snap back to fit-all',
+  );
+}
+
+/// One body, [id], is drawn fully inside the Field viewport.
+void _expectBodyInView(
+  WidgetTester tester,
+  ConstellationCubit cubit,
+  String id, {
+  required String when,
+}) {
+  final body = _drawnBodies(tester, cubit)[id];
+  expect(body, isNotNull, reason: '$when: $id is drawn');
+  expect(
+    _inside(_viewportRect(tester), body!),
+    isTrue,
+    reason: '$when: $id body $body lies inside ${_viewportRect(tester)}',
+  );
+}
+
+/// The user taps the «Map» segment of the app bar's view-mode switch
+/// (found by its `TestIds.constellationAppBarViewModeMap` identifier).
+Future<void> _tapMapSegment(WidgetTester tester) async {
+  final semantics = tester.ensureSemantics();
+  try {
+    await tester.tap(
+      find.bySemanticsIdentifier(TestIds.constellationAppBarViewModeMap),
+    );
+    await _pumpFrames(tester, 60);
+  } finally {
+    semantics.dispose();
+  }
+}
+
 Future<_GatedFieldRepository> _repository({bool open = true}) async =>
     _GatedFieldRepository(
       await _mapFromWire(_fieldResponse()),
@@ -783,11 +873,11 @@ void main() {
         // contact and lays the field out again.
         tester.element(find.byType(ConstellationScreen)).markNeedsBuild();
         await _pumpFrames(tester, 10);
-        repository.field = await _mapFromWire(
-          _fieldResponse(extraContact: 'nikita'),
-        );
-        await field.store.store.requestRefresh(
-          ConstellationRefreshReason.catchUp,
+        await _refresh(
+          repository,
+          field,
+          loadedAt: _laterLoadedAt(1),
+          extraContact: 'nikita',
         );
         await _pumpFrames(tester, 90);
 
@@ -795,6 +885,11 @@ void main() {
           field.cubit.state.field!.peers.map((p) => p.id),
           contains('nikita'),
           reason: 'the refresh reached the Field',
+        );
+        expect(
+          field.cubit.state.field!.loadedAt,
+          DateTime.utc(2026, 11, 8, 12, 1),
+          reason: 'the refresh carried its own load time, not the first one',
         );
         expect(tester.takeException(), isNull);
         expect(
@@ -847,6 +942,389 @@ void main() {
 
         _expectWholeFieldInView(tester, field.cubit, when: 'tab return');
         await _expectEntersFitted(tester, field.cubit, when: 'tab return');
+      },
+    );
+  });
+
+  group('A server refresh within one Field visit keeps the user’s camera', () {
+    Future<
+      ({
+        RootStackRouter router,
+        _GatedFieldRepository repository,
+        ({ConstellationCubit cubit, ConstellationStoreFixture store}) field,
+      })
+    >
+    enterFitted(WidgetTester tester) async {
+      final repository = await _repository();
+      final field = _fieldCubit(repository);
+      await field.cubit.stream.firstWhere((s) => s.status is StateIsSuccess);
+      final router = await _mountHome(tester, field.cubit);
+      _chooseTab(router, HomeTab.constellation);
+      await _pumpFrames(tester, 60);
+      _expectWholeFieldInView(tester, field.cubit, when: 'entry');
+      return (router: router, repository: repository, field: field);
+    }
+
+    testWidgets(
+      'a refresh stamped with a new load time and the same people does not '
+      'snap a moved camera back to fit-all',
+      (tester) async {
+        final visit = await enterFitted(tester);
+        final cubit = visit.field.cubit;
+        final fitted = _camera(tester);
+
+        await _panAndPinch(tester);
+        expect(_camera(tester).storage, isNot(fitted.storage));
+        final user = _cameraNow(tester, cubit);
+        expect(cubit.graphController.userCameraInputRevision.value, isPositive);
+
+        await _refresh(
+          visit.repository,
+          visit.field,
+          loadedAt: _laterLoadedAt(1),
+        );
+        await _pumpFrames(tester, 90);
+
+        expect(
+          cubit.state.field!.loadedAt,
+          DateTime.utc(2026, 11, 8, 12, 1),
+          reason: 'the refresh reached the Field with its own load time',
+        );
+        expect(tester.takeException(), isNull);
+        _expectCameraKept(tester, cubit, user, when: 'one refresh');
+      },
+    );
+
+    testWidgets(
+      'two refreshes in a row, each with its own load time, keep the moved '
+      'camera',
+      (tester) async {
+        final visit = await enterFitted(tester);
+        final cubit = visit.field.cubit;
+
+        await _panAndPinch(tester);
+        final user = _cameraNow(tester, cubit);
+
+        await _refresh(
+          visit.repository,
+          visit.field,
+          loadedAt: _laterLoadedAt(1),
+        );
+        await _pumpFrames(tester, 60);
+        await _refresh(
+          visit.repository,
+          visit.field,
+          loadedAt: _laterLoadedAt(2),
+        );
+        await _pumpFrames(tester, 60);
+
+        expect(
+          cubit.state.field!.loadedAt,
+          DateTime.utc(2026, 11, 8, 12, 2),
+          reason: 'the second refresh reached the Field',
+        );
+        expect(tester.takeException(), isNull);
+        _expectCameraKept(tester, cubit, user, when: 'two refreshes');
+      },
+    );
+
+    testWidgets(
+      'an untouched camera re-frames to fit-all when a refresh with a new '
+      'load time brings a person',
+      (tester) async {
+        final visit = await enterFitted(tester);
+        final cubit = visit.field.cubit;
+        expect(cubit.graphController.userCameraInputRevision.value, 0);
+        expect(
+          cubit.fieldPeerCountAtLastProgrammaticFrameForTest,
+          _everyNode.length - 1,
+        );
+
+        await _refresh(
+          visit.repository,
+          visit.field,
+          loadedAt: _laterLoadedAt(1),
+          extraContact: 'nikita',
+        );
+        await _pumpFrames(tester, 90);
+
+        expect(
+          cubit.fieldPeerCountAtLastProgrammaticFrameForTest,
+          _everyNode.length,
+          reason: 'the Field was framed again with the new person',
+        );
+        expect(tester.takeException(), isNull);
+        _expectBodyInView(tester, cubit, 'fp:nikita', when: 'after refresh');
+        await _expectCameraIsFitAll(tester, cubit, when: 'after refresh');
+      },
+    );
+
+    testWidgets(
+      'after a refresh with a new load time, leaving the tab and coming back '
+      'starts a new visit at fit-all',
+      (tester) async {
+        final visit = await enterFitted(tester);
+        final cubit = visit.field.cubit;
+
+        await _panAndPinch(tester);
+        await _refresh(
+          visit.repository,
+          visit.field,
+          loadedAt: _laterLoadedAt(1),
+        );
+        await _pumpFrames(tester, 60);
+
+        _chooseTab(visit.router, HomeTab.inbox);
+        await _pumpFrames(tester, 20);
+        _chooseTab(visit.router, HomeTab.constellation);
+        await _pumpFrames(tester, 60);
+
+        _expectWholeFieldInView(tester, cubit, when: 'tab return');
+        await _expectEntersFitted(tester, cubit, when: 'tab return');
+      },
+    );
+  });
+
+  group('A Field visit that starts in text view fits on the first switch to '
+      'map', () {
+    /// Enters the Field with the text view already chosen on the cubit.
+    Future<
+      ({
+        RootStackRouter router,
+        _GatedFieldRepository repository,
+        ({ConstellationCubit cubit, ConstellationStoreFixture store}) field,
+      })
+    >
+    enterInTextView(WidgetTester tester) async {
+      final repository = await _repository();
+      final field = _fieldCubit(repository);
+      await field.cubit.stream.firstWhere((s) => s.status is StateIsSuccess);
+      final router = await _mountHome(tester, field.cubit);
+      field.cubit.setViewMode(ConstellationViewMode.text);
+      _chooseTab(router, HomeTab.constellation);
+      await _pumpFrames(tester, 60);
+      expect(field.cubit.state.viewMode, ConstellationViewMode.text);
+      return (router: router, repository: repository, field: field);
+    }
+
+    testWidgets(
+      'switching to map the first time shows every node inside the viewport '
+      'at the fit-all camera',
+      (tester) async {
+        final visit = await enterInTextView(tester);
+
+        await _tapMapSegment(tester);
+
+        expect(visit.field.cubit.state.viewMode, ConstellationViewMode.map);
+        await _expectEntersFitted(
+          tester,
+          visit.field.cubit,
+          when: 'first switch to map',
+        );
+      },
+    );
+
+    testWidgets(
+      'a visit that began in text view after leaving and returning to the tab '
+      'fits on the first switch to map',
+      (tester) async {
+        final repository = await _repository();
+        final field = _fieldCubit(repository);
+        await field.cubit.stream.firstWhere((s) => s.status is StateIsSuccess);
+        final router = await _mountHome(tester, field.cubit);
+        _chooseTab(router, HomeTab.constellation);
+        await _pumpFrames(tester, 60);
+        await _panAndPinch(tester);
+
+        field.cubit.setViewMode(ConstellationViewMode.text);
+        await _pumpFrames(tester, 10);
+        _chooseTab(router, HomeTab.inbox);
+        await _pumpFrames(tester, 20);
+        _chooseTab(router, HomeTab.constellation);
+        await _pumpFrames(tester, 60);
+        expect(field.cubit.state.viewMode, ConstellationViewMode.text);
+
+        await _tapMapSegment(tester);
+
+        await _expectEntersFitted(
+          tester,
+          field.cubit,
+          when: 'first switch to map after a new visit',
+        );
+      },
+    );
+
+    testWidgets(
+      'the first switch to map records a programmatic frame, and with the '
+      'camera untouched a later refresh with a new person re-frames',
+      (tester) async {
+        final visit = await enterInTextView(tester);
+        final cubit = visit.field.cubit;
+        expect(cubit.fieldInitialFrameCompletedForTest, isFalse);
+
+        await _tapMapSegment(tester);
+
+        expect(cubit.fieldInitialFrameCompletedForTest, isTrue);
+        expect(
+          cubit.fieldPeerCountAtLastProgrammaticFrameForTest,
+          _everyNode.length - 1,
+          reason: 'framed with every non-viewer person',
+        );
+        expect(cubit.graphController.userCameraInputRevision.value, 0);
+
+        await _refresh(
+          visit.repository,
+          visit.field,
+          loadedAt: _laterLoadedAt(1),
+          extraContact: 'nikita',
+        );
+        await _pumpFrames(tester, 90);
+
+        expect(
+          cubit.fieldPeerCountAtLastProgrammaticFrameForTest,
+          _everyNode.length,
+        );
+        _expectBodyInView(tester, cubit, 'fp:nikita', when: 'after refresh');
+        await _expectCameraIsFitAll(tester, cubit, when: 'after refresh');
+      },
+    );
+
+    testWidgets(
+      'a second visit that starts in text view records a programmatic frame '
+      'on its first switch to map, and the framing state of the earlier visit '
+      'is not reused',
+      (tester) async {
+        final repository = await _repository();
+        final field = _fieldCubit(repository);
+        await field.cubit.stream.firstWhere((s) => s.status is StateIsSuccess);
+        final router = await _mountHome(tester, field.cubit);
+        final cubit = field.cubit;
+        _chooseTab(router, HomeTab.constellation);
+        await _pumpFrames(tester, 60);
+        expect(cubit.fieldInitialFrameCompletedForTest, isTrue);
+        await _panAndPinch(tester);
+
+        cubit.setViewMode(ConstellationViewMode.text);
+        await _pumpFrames(tester, 10);
+        _chooseTab(router, HomeTab.inbox);
+        await _pumpFrames(tester, 20);
+        _chooseTab(router, HomeTab.constellation);
+        await _pumpFrames(tester, 60);
+        expect(cubit.state.viewMode, ConstellationViewMode.text);
+
+        await _tapMapSegment(tester);
+
+        expect(cubit.fieldInitialFrameCompletedForTest, isTrue);
+        expect(
+          cubit.fieldPeerCountAtLastProgrammaticFrameForTest,
+          _everyNode.length - 1,
+          reason: 'framed with every non-viewer person',
+        );
+        await _expectEntersFitted(tester, cubit, when: 'second visit, map');
+      },
+    );
+
+    testWidgets(
+      'a refresh with a new load time that arrives while text view is showing '
+      'is part of the fit on the first switch to map',
+      (tester) async {
+        final visit = await enterInTextView(tester);
+        final cubit = visit.field.cubit;
+
+        await _refresh(
+          visit.repository,
+          visit.field,
+          loadedAt: _laterLoadedAt(1),
+          extraContact: 'nikita',
+        );
+        await _pumpFrames(tester, 30);
+        expect(cubit.state.viewMode, ConstellationViewMode.text);
+        expect(cubit.state.field!.peers.map((p) => p.id), contains('nikita'));
+
+        await _tapMapSegment(tester);
+
+        _expectBodyInView(tester, cubit, 'fp:nikita', when: 'first switch');
+        await _expectCameraIsFitAll(tester, cubit, when: 'first switch');
+      },
+    );
+
+    testWidgets(
+      'only the first switch to map fits: after the user moves the camera, '
+      'text and back to map keep it',
+      (tester) async {
+        final visit = await enterInTextView(tester);
+        final cubit = visit.field.cubit;
+        await _tapMapSegment(tester);
+        _expectWholeFieldInView(tester, cubit, when: 'first switch');
+
+        await _panAndPinch(tester);
+        final user = _cameraNow(tester, cubit);
+
+        cubit.setViewMode(ConstellationViewMode.text);
+        await _pumpFrames(tester, 20);
+        await _tapMapSegment(tester);
+
+        expect(tester.takeException(), isNull);
+        _expectCameraKept(tester, cubit, user, when: 'second switch to map');
+      },
+    );
+  });
+
+  group('A refresh that arrives while text view is showing keeps the camera '
+      'the user set on the map', () {
+    testWidgets(
+      'moving the camera on the map, switching to text, a refresh with a new '
+      'load time, then back to map keeps the user’s camera',
+      (tester) async {
+        final repository = await _repository();
+        final field = _fieldCubit(repository);
+        await field.cubit.stream.firstWhere((s) => s.status is StateIsSuccess);
+        final router = await _mountHome(tester, field.cubit);
+        _chooseTab(router, HomeTab.constellation);
+        await _pumpFrames(tester, 60);
+
+        await _panAndPinch(tester);
+        final user = _cameraNow(tester, field.cubit);
+
+        field.cubit.setViewMode(ConstellationViewMode.text);
+        await _pumpFrames(tester, 20);
+        await _refresh(repository, field, loadedAt: _laterLoadedAt(1));
+        await _pumpFrames(tester, 60);
+        expect(
+          field.cubit.state.field!.loadedAt,
+          DateTime.utc(2026, 11, 8, 12, 1),
+          reason: 'the refresh reached the Field while text view was showing',
+        );
+        await _tapMapSegment(tester);
+
+        expect(tester.takeException(), isNull);
+        _expectCameraKept(tester, field.cubit, user, when: 'back to map');
+      },
+    );
+  });
+
+  group('A visit that starts in map view keeps the user’s camera across the '
+      'text view', () {
+    testWidgets(
+      'moving the camera, then text and back to map without leaving the tab, '
+      'does not refit',
+      (tester) async {
+        final repository = await _repository();
+        final field = _fieldCubit(repository);
+        await field.cubit.stream.firstWhere((s) => s.status is StateIsSuccess);
+        final router = await _mountHome(tester, field.cubit);
+        _chooseTab(router, HomeTab.constellation);
+        await _pumpFrames(tester, 60);
+
+        await _panAndPinch(tester);
+        final user = _cameraNow(tester, field.cubit);
+
+        field.cubit.setViewMode(ConstellationViewMode.text);
+        await _pumpFrames(tester, 20);
+        await _tapMapSegment(tester);
+
+        expect(tester.takeException(), isNull);
+        _expectCameraKept(tester, field.cubit, user, when: 'back to map');
       },
     );
   });

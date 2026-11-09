@@ -24,6 +24,8 @@ import 'package:tentura_server/domain/util/room_reply_excerpt.dart';
 import 'package:tentura_server/utils/id.dart';
 
 import '../database/tentura_db.dart';
+import '../database/sql/questions_audience_sql.dart'
+    show questionsAudienceCandidateSql;
 import '../database/sql/request_unread_sql.dart'
     show
         discussionUnreadMessageSql,
@@ -2070,6 +2072,7 @@ LEFT JOIN LATERAL (
       AND m.system_message_kind IS NULL
       AND (seen.last_seen_at IS NULL OR m.created_at > seen.last_seen_at)
       AND NOT public.block_hides(m.author_id, \$2)
+      AND ${questionsAudienceCandidateSql(lobbyId: 'ci.id', viewer: r'$2')}
       AND EXISTS (
         SELECT 1 FROM public.questions_access_levels(
           ci.beacon_id, ARRAY[\$2]::text[]

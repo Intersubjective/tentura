@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/data/repository/clipboard_image_repository.dart';
@@ -32,11 +33,11 @@ import '../beacon_threads/support/room_body_harness.dart'
     show RoomBodyHarnessPresenceCubit, RoomBodyHarnessProfileCubit;
 import 'fake_lobby_port.dart';
 
-Widget _app(Widget child) => MaterialApp(
+Widget _app(Widget child, {Locale locale = const Locale('en')}) => MaterialApp(
   theme: TenturaTheme.light(),
   localizationsDelegates: L10n.localizationsDelegates,
   supportedLocales: L10n.supportedLocales,
-  locale: const Locale('en'),
+  locale: locale,
   home: child,
 );
 
@@ -54,8 +55,10 @@ Future<void> _pumpLobby(
   FakeLobbyPort port,
   String myId, {
   List<RoomMessage> messages = const [],
+  Size size = const Size(700, 900),
+  Locale locale = const Locale('en'),
 }) async {
-  tester.view.physicalSize = const Size(700, 900);
+  tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   final getIt = GetIt.I;
@@ -106,6 +109,7 @@ Future<void> _pumpLobby(
             ),
           ),
         ),
+        locale: locale,
       ),
     ),
   );
@@ -367,7 +371,7 @@ void main() {
       final port = FakeLobbyPort(viewerId: 'Unina')..banned.add('Unina');
       await _pumpLobby(tester, port, 'Unina');
       expect(
-        find.text('Questions are for the people this request was sent to.'),
+        find.text(lookupL10n(const Locale('en')).beaconLobbyUnavailable),
         findsOneWidget,
       );
       expect(find.byKey(TestIds.key(TestIds.roomMessageInput)), findsNothing);
@@ -450,7 +454,9 @@ void main() {
       expect(find.byKey(BeaconLobbyEntryRow.entryKey), findsOneWidget);
       // The author is addressed as the one who answers.
       expect(
-        find.textContaining('People you sent this request to'),
+        find.textContaining(
+          lookupL10n(const Locale('en')).beaconLobbyEntrySubtitleAuthor,
+        ),
         findsOneWidget,
       );
     });
@@ -459,15 +465,13 @@ void main() {
   group('#657 the Questions line follows role and Request state', () {
     tearDown(() => GetIt.I.reset());
 
-    const author = 'People you sent this request to can ask you here';
-    const recipient = 'Ask the author before offering help';
-    const helper = 'Questions and answers about this request';
-    const closed =
-        'This request no longer takes offers. Everyone it was '
-        'sent to';
-    const authorClosed =
-        'This request no longer takes offers. Everyone you '
-        'sent it to';
+    // Each line in full, as the English copy has it.
+    final en = lookupL10n(const Locale('en'));
+    final author = en.beaconLobbyEntrySubtitleAuthor;
+    final recipient = en.beaconLobbyEntrySubtitle;
+    final helper = en.beaconLobbyEntrySubtitleHelper;
+    final closed = en.beaconLobbyEntrySubtitleClosed;
+    final authorClosed = en.beaconLobbyEntrySubtitleAuthorClosed;
 
     // (case, viewer, helper, takes offers, can post, reason, expected)
     final cases =
@@ -653,6 +657,214 @@ void main() {
       );
       await _pumpLobby(tester, port, 'Unina');
       expect(_composerHint(tester), contains("You said you can't help"));
+    });
+  });
+
+  group('Questions copy names its audience: people the Request was sent to '
+      'or who found it', () {
+    tearDown(() => GetIt.I.reset());
+
+    const phone = Size(375, 667);
+    const ru = Locale('ru');
+    final ruL10n = lookupL10n(ru);
+    final enL10n = lookupL10n(const Locale('en'));
+
+    /// The audience as the copy states it, in one clause: those the Request
+    /// was sent to OR those who found it. Never "everyone who can see it":
+    /// parent/child Request members see a Request but have no Questions.
+    void expectAudienceWording(String text, {required bool russian}) {
+      if (russian) {
+        expect(
+          text,
+          matches(
+            RegExp(
+              r'отправ[^.]*\sили\s[^.]*наш(ёл|ел|ли|едш)'
+              r'|наш(ёл|ел|ли|едш)[^.]*\sили\s[^.]*отправ',
+            ),
+          ),
+          reason: text,
+        );
+        for (final wrong in [
+          'кто видит',
+          'кто его видит',
+          'родител',
+          'подзапрос',
+          'связанн',
+        ]) {
+          expect(text, isNot(contains(wrong)), reason: text);
+        }
+      } else {
+        expect(
+          text,
+          matches(
+            RegExp(
+              r'\bsent\b[^.]*\bor\b[^.]*\bfound\b'
+              r'|\bfound\b[^.]*\bor\b[^.]*\bsent\b',
+            ),
+          ),
+          reason: text,
+        );
+        for (final wrong in [
+          'who can see',
+          'parent',
+          'sub-request',
+          'related request',
+        ]) {
+          expect(text.toLowerCase(), isNot(contains(wrong)), reason: text);
+        }
+      }
+    }
+
+    /// [shown] is laid out in full on the phone: no overflow reported by
+    /// any flex or box (Flutter reports it as an error, which the test
+    /// binding hands to takeException), the paragraph is not cut off, and it
+    /// lies inside the 375x667 screen.
+    void expectFitsOnPhone(WidgetTester tester, String shown) {
+      final error = tester.takeException();
+      expect(error, isNull, reason: 'layout error at 375x667: $error');
+      final text = find.textContaining(shown);
+      final paragraph = tester.renderObject<RenderParagraph>(
+        find.descendant(of: text, matching: find.byType(RichText)).first,
+      );
+      expect(paragraph.didExceedMaxLines, isFalse, reason: shown);
+      final rect = tester.getRect(text);
+      expect(
+        rect.left >= 0 &&
+            rect.top >= 0 &&
+            rect.right <= phone.width &&
+            rect.bottom <= phone.height,
+        isTrue,
+        reason: 'subtitle at $rect is outside the 375x667 screen',
+      );
+    }
+
+    // (case, viewer, helper, takes offers, can post, reason, line)
+    final cases =
+        <
+          (
+            String,
+            String,
+            bool,
+            bool,
+            bool,
+            BeaconLobbyLimitReason?,
+            String Function(L10n),
+          )
+        >[
+          (
+            'recipient before offering',
+            'Unina',
+            false,
+            true,
+            true,
+            null,
+            (l) => l.beaconLobbyEntrySubtitle,
+          ),
+          (
+            'author, open',
+            'Uauthor',
+            false,
+            true,
+            true,
+            null,
+            (l) => l.beaconLobbyEntrySubtitleAuthor,
+          ),
+          (
+            'pending offer',
+            'Unina',
+            true,
+            true,
+            true,
+            null,
+            (l) => l.beaconLobbyEntrySubtitleHelper,
+          ),
+          (
+            'recipient, closed',
+            'Unina',
+            false,
+            false,
+            false,
+            BeaconLobbyLimitReason.closed,
+            (l) => l.beaconLobbyEntrySubtitleClosed,
+          ),
+          (
+            'author, closed',
+            'Uauthor',
+            false,
+            false,
+            false,
+            BeaconLobbyLimitReason.closed,
+            (l) => l.beaconLobbyEntrySubtitleAuthorClosed,
+          ),
+        ];
+
+    for (final (name, viewer, isHelper, takesOffers, canPost, reason, line)
+        in cases) {
+      testWidgets('Request page row in Russian on a phone: $name', (
+        tester,
+      ) async {
+        tester.view.physicalSize = phone;
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        await GetIt.I.reset();
+        final port = FakeLobbyPort(viewerId: viewer)
+          ..isHelper = isHelper
+          ..takesOffers = takesOffers
+          ..canPost = canPost
+          ..limitReason = reason;
+        GetIt.I.registerSingleton<BeaconLobbyCase>(
+          lobbyCaseFor(port, FakeRealtimeSyncPort()),
+        );
+        await tester.pumpWidget(
+          _app(
+            Scaffold(
+              body: BeaconLobbyEntryRow(
+                beaconId: 'B1',
+                isAuthor: viewer == 'Uauthor',
+              ),
+            ),
+            locale: ru,
+          ),
+        );
+        await tester.pumpAndSettle();
+        final shown = line(ruL10n);
+        expect(find.textContaining(shown), findsOneWidget);
+        expectFitsOnPhone(tester, shown);
+        expectAudienceWording(shown, russian: true);
+        expectAudienceWording(line(enL10n), russian: false);
+      });
+
+      testWidgets('Questions screen header in Russian on a phone: $name', (
+        tester,
+      ) async {
+        final port = FakeLobbyPort(viewerId: viewer)
+          ..isHelper = isHelper
+          ..takesOffers = takesOffers
+          ..canPost = canPost
+          ..limitReason = reason;
+        await _pumpLobby(tester, port, viewer, size: phone, locale: ru);
+        final shown = line(ruL10n);
+        expect(find.textContaining(shown), findsOneWidget);
+        expectFitsOnPhone(tester, shown);
+        expectAudienceWording(shown, russian: true);
+      });
+    }
+
+    testWidgets('outside the audience in Russian on a phone: Questions say '
+        'they are for people it was sent to or who found it', (tester) async {
+      final port = FakeLobbyPort(viewerId: 'Ustranger', offerers: {});
+      await _pumpLobby(tester, port, 'Ustranger', size: phone, locale: ru);
+      final shown = ruL10n.beaconLobbyUnavailable;
+      expect(
+        find.descendant(
+          of: find.byKey(const Key('beaconLobbyUnavailable')),
+          matching: find.text(shown, findRichText: true),
+        ),
+        findsOneWidget,
+      );
+      expectFitsOnPhone(tester, shown);
+      expectAudienceWording(shown, russian: true);
+      expectAudienceWording(enL10n.beaconLobbyUnavailable, russian: false);
     });
   });
 }
