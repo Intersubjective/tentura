@@ -136,6 +136,41 @@ BrowseDeepLinkStack? buildBrowseDeepLinkStack(Uri input) {
   return null;
 }
 
+/// Marks a browse detail pushed under Home on a cold initial load (#1105).
+///
+/// Without this, Post cold reloads leave the wrong Home tab underneath and
+/// warm in-app opens must not retarget the tab the person was on.
+PageRouteInfo markBrowseStackDetailColdStart(PageRouteInfo detail) {
+  switch (detail.routeName) {
+    case PostViewRoute.name:
+      final args = (detail as PostViewRoute).args!;
+      return PostViewRoute(
+        id: args.id,
+        isDeepLink: 'true',
+        viewTab: args.viewTab,
+        peopleTabAttention: args.peopleTabAttention,
+        entry: args.entry,
+        threadId: args.threadId,
+        messageId: args.messageId,
+        children: detail.initialChildren,
+      );
+    case BeaconViewRoute.name:
+      final args = (detail as BeaconViewRoute).args!;
+      return BeaconViewRoute(
+        id: args.id,
+        isDeepLink: 'true',
+        viewTab: args.viewTab,
+        peopleTabAttention: args.peopleTabAttention,
+        entry: args.entry,
+        threadId: args.threadId,
+        messageId: args.messageId,
+        children: detail.initialChildren,
+      );
+    default:
+      return detail;
+  }
+}
+
 bool _isUnsubstitutedPathParam(String segment) =>
     segment == ':id' || segment.startsWith(':');
 

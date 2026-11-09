@@ -11,6 +11,7 @@ import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
 import 'package:tentura_server/consts/beacon_hierarchy_consts.dart';
 import 'package:tentura_server/consts/beacon_plan_consts.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
+import 'package:tentura_server/consts/coordination_item_consts.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
 import 'package:tentura_server/domain/entity/beacon_plan.dart';
@@ -585,7 +586,8 @@ WHERE beacon_id = '$_request' AND seq = $seq
       // positions.
       await writer.execute('''
 UPDATE public.coordination_item SET ordering = 3 - ordering
-WHERE beacon_id = '$_request' AND kind = ${BeaconPlanConsts.stepKind}
+WHERE beacon_id = '$_request'
+  AND kind = ${CoordinationItemKind.planStep.smallintValue}
 ''');
       expect(await liveIds(), [_b, _a]);
 

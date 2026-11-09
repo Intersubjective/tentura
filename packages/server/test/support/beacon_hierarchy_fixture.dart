@@ -414,8 +414,8 @@ ON CONFLICT (id) DO NOTHING
       parameters: {
         'id': BeaconHierarchyTopology.supportedPlanItemId,
         'beaconId': BeaconHierarchyTopology.beaconA,
-        'kind': coordinationItemKindPlan,
-        'status': coordinationItemStatusOpen,
+        'kind': CoordinationItemKind.plan.smallintValue,
+        'status': CoordinationItemStatus.open.smallintValue,
         'title': 'Supported plan',
         'creatorId': BeaconHierarchyTopology.aliceId,
         'targetId': BeaconHierarchyTopology.bobId,
@@ -436,8 +436,8 @@ ON CONFLICT (id) DO NOTHING
       parameters: {
         'id': BeaconHierarchyTopology.retiredAskItemId,
         'beaconId': BeaconHierarchyTopology.beaconA,
-        'kind': coordinationItemKindAsk,
-        'status': coordinationItemStatusOpen,
+        'kind': CoordinationItemKind.ask.smallintValue,
+        'status': CoordinationItemStatus.open.smallintValue,
         'title': 'Retired ask fixture',
         'creatorId': BeaconHierarchyTopology.aliceId,
         'targetId': BeaconHierarchyTopology.bobId,

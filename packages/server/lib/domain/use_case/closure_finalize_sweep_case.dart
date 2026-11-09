@@ -31,7 +31,7 @@ final class ClosureFinalizeSweepCase extends UseCaseBase {
   /// Test hook: runs between the candidate select and the per-row locks.
   Future<void> Function()? afterSelect;
 
-  Future<void> run() async {
+  Future<void> runDue() async {
     final due = await _repo.dueEpochs();
     await afterSelect?.call();
     for (final row in due) {

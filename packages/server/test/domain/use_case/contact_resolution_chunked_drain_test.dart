@@ -112,7 +112,7 @@ void main() {
         ),
       );
 
-      await sweep.run();
+      await sweep.runDue();
 
       final recipients = _recipients(450);
       expect(
@@ -167,7 +167,7 @@ void main() {
         ),
       );
 
-      await sweep.run();
+      await sweep.runDue();
 
       expect(backlog.claimSql, isNotEmpty);
       for (final sql in backlog.claimSql) {
@@ -208,7 +208,7 @@ void main() {
       final all = _recipients(1000);
 
       final first = backlog.recorder();
-      await _sweepOver(first, env).run();
+      await _sweepOver(first, env).runDue();
 
       expect(
         _evidenceRows(first, all),
@@ -221,7 +221,7 @@ void main() {
 
       var runs = 1;
       while (backlog.remaining > 0 && runs < 9) {
-        await _sweepOver(backlog.recorder(), env).run();
+        await _sweepOver(backlog.recorder(), env).runDue();
         runs++;
       }
       expect(
@@ -249,7 +249,7 @@ void main() {
         ),
       );
 
-      await sweep.run();
+      await sweep.runDue();
 
       expect(backlog.claimLimits, [
         50,
@@ -281,7 +281,7 @@ void main() {
           ),
         );
 
-        await sweep.run();
+        await sweep.runDue();
 
         expect(backlog.remaining, 0);
         expect(_evidenceRows(recorder, _recipients(150)), 150);
@@ -296,7 +296,7 @@ void main() {
         Env(environment: Environment.test, printEnv: false),
       );
 
-      await sweep.run();
+      await sweep.runDue();
 
       expect(backlog.claimLimits, hasLength(1));
       expect(

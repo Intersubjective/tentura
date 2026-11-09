@@ -13,6 +13,8 @@ import 'package:tentura/features/post_view/data/repository/beacon_kind_repositor
 import 'package:tentura/features/home/ui/widget/home_rail_frame.dart';
 import 'package:tentura/features/post_view/ui/screen/post_view_scope.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
+import 'package:tentura/ui/beacon/beacon_room_composer_leave.dart';
+import 'package:tentura/ui/navigation/is_deep_link_query.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
 import '../widget/beacon_view_loading_shell.dart';
@@ -70,6 +72,7 @@ class BeaconViewHostScreen extends StatelessWidget implements AutoRouteWrapper {
           return _requestScope(myProfile);
         },
       ),
+      isDeepLink: isDeepLink,
     ),
   );
 
@@ -77,7 +80,11 @@ class BeaconViewHostScreen extends StatelessWidget implements AutoRouteWrapper {
   // route; Inbox's list-detail pane builds the same scope without it.
   Widget _postScope(Profile myProfile) => HomeRailFrame(
     selectedTab: HomeTab.conversations,
-    child: PostViewScope(id: id, myProfile: myProfile),
+    child: PostViewScope(
+      id: id,
+      myProfile: myProfile,
+      retargetOwnerHomeTabOnLeave: isDeepLinkQueryTruthy(isDeepLink),
+    ),
   );
 
   Widget _requestScope(Profile myProfile) => BeaconViewScope(
@@ -118,7 +125,11 @@ class PostViewHostScreen extends BeaconViewHostScreen {
           previous.profile.id != current.profile.id,
       builder: (context, profileState) => HomeRailFrame(
         selectedTab: HomeTab.conversations,
-        child: PostViewScope(id: id, myProfile: profileState.profile),
+        child: PostViewScope(
+          id: id,
+          myProfile: profileState.profile,
+          retargetOwnerHomeTabOnLeave: isDeepLinkQueryTruthy(isDeepLink),
+        ),
       ),
     ),
   );
@@ -129,11 +140,13 @@ class _BeaconKindGate extends StatefulWidget {
   const _BeaconKindGate({
     required this.beaconId,
     required this.entry,
+    required this.isDeepLink,
     required this.builder,
   });
 
   final String beaconId;
   final String? entry;
+  final String? isDeepLink;
   final Widget Function(BeaconKind kind) builder;
 
   @override
@@ -159,12 +172,14 @@ class _BeaconKindGateState extends State<_BeaconKindGate> {
   }
 
   void _leaveKindGate(BuildContext context) {
-    final router = context.router;
-    if (router.canPop()) {
-      unawaited(router.maybePop());
-      return;
-    }
-    unawaited(router.navigatePath(kPathMyWork));
+    final retarget = isDeepLinkQueryTruthy(widget.isDeepLink);
+    unawaited(
+      leaveRequestDetailScreen(
+        context,
+        beaconId: widget.beaconId,
+        retargetOwnerHomeTab: retarget,
+      ),
+    );
   }
 
   @override

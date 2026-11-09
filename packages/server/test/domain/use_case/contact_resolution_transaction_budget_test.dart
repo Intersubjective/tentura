@@ -40,7 +40,7 @@ void main() {
         logger: Logger('ContactResolutionTransactionBudgetTest'),
       );
 
-      await sweep.run();
+      await sweep.runDue();
 
       expect(
         recorder.statements.any(
