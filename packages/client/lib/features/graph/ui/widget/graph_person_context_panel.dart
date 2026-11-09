@@ -40,6 +40,7 @@ class GraphPersonContextPanel extends StatelessWidget {
     this.personFieldItemsSection,
     this.footer,
     this.subtitle,
+    this.onBeforeOpenProfile,
     this.peopleTagsEnabled = kPeopleTagsEnabled,
     super.key,
   });
@@ -66,6 +67,9 @@ class GraphPersonContextPanel extends StatelessWidget {
 
   /// A line under the name, e.g. the field's chain of trust (#641).
   final Widget? subtitle;
+
+  /// Runs before navigating to the person's profile (Field Arranging #1062).
+  final VoidCallback? onBeforeOpenProfile;
 
   /// Shows the viewer's private tags on the person; off with the feature gate.
   final bool peopleTagsEnabled;
@@ -319,7 +323,10 @@ class GraphPersonContextPanel extends StatelessWidget {
         order: const NumericFocusOrder(3),
         child: OutlinedButton.icon(
           key: TestIds.key(TestIds.graphPersonContextViewProfile),
-          onPressed: () => screenCubit.showProfile(profile.id),
+          onPressed: () {
+            onBeforeOpenProfile?.call();
+            screenCubit.showProfile(profile.id);
+          },
           icon: const Icon(Icons.person_outline),
           label: Text(l10n.profile),
         ),
