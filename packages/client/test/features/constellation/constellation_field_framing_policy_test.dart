@@ -16,6 +16,7 @@ import 'package:tentura/ui/test_ids.dart';
 
 import '../../support/phone_surface.dart';
 import '../../support/remote_wire_harness.dart';
+import 'fixtures/constellation_field_test_harness.dart';
 import 'fixtures/constellation_reference_fixture.dart';
 
 Matrix4 _cameraMatrix(WidgetTester tester) {
@@ -228,14 +229,11 @@ void main() {
       await tester.tap(fit);
       await tester.pump();
       expect(_cameraMatrix(tester).storage, matrix);
-      expect(
-        cubit.graphController.cameraScale,
-        greaterThanOrEqualTo(kConstellationDistrictDetailScale),
-      );
+      expectEveryFieldNodeBodyInSafeRectForTests(cubit);
     });
 
     testWidgets(
-      'fit-all after overview zoom respects district scale floor (375 RU)',
+      'fit-all after overview zoom frames every node of the field (375 RU)',
       (
         tester,
       ) async {
@@ -265,10 +263,7 @@ void main() {
 
         await tester.tap(find.byKey(TestIds.key(TestIds.constellationFitAll)));
         await tester.pumpAndSettle();
-        expect(
-          cubit.graphController.cameraScale,
-          greaterThanOrEqualTo(kConstellationDistrictDetailScale),
-        );
+        expectEveryFieldNodeBodyInSafeRectForTests(cubit);
       },
     );
 

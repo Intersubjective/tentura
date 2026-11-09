@@ -3464,8 +3464,10 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     }
   }
 
-  /// Programmatic field framing entry point (FCP §F).
-  void frameField({required EdgeInsets insets, required double floor}) {
+  /// Programmatic field framing entry point (FCP §F). With [floor] the
+  /// camera stays at or above it and frames toward the viewer; without it
+  /// every node is framed (fit-all).
+  void frameField({required EdgeInsets insets, double? floor}) {
     if (isClosed || state.placementPhase != ConstellationPlacementPhase.idle) {
       return;
     }
@@ -3482,10 +3484,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   }
 
   void fitWholeField({required EdgeInsets insets}) {
-    frameField(
-      insets: insets,
-      floor: kConstellationDistrictDetailScale,
-    );
+    frameField(insets: insets);
   }
 
   bool _shouldDeferProgrammaticFieldCamera() =>
@@ -3493,12 +3492,12 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       graphController.isRelayoutInFlight ||
       (graphController.viewportSize?.isEmpty ?? true);
 
-  void _runFieldFrame({required EdgeInsets insets, required double floor}) {
-    _scene.fitNodes(
-      insets,
-      minScale: floor,
-      focus: 'fp:${_viewer.id}',
-    );
+  void _runFieldFrame({required EdgeInsets insets, double? floor}) {
+    if (floor == null) {
+      _scene.fitWholeField(insets);
+    } else {
+      _scene.fitNodes(insets, minScale: floor, focus: 'fp:${_viewer.id}');
+    }
     _recordProgrammaticFieldCamera();
   }
 
@@ -3621,7 +3620,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       _recordProgrammaticFieldCamera();
       return;
     }
-    _runFieldFrame(insets: pending.insets, floor: pending.frameFloor!);
+    _runFieldFrame(insets: pending.insets, floor: pending.frameFloor);
   }
 
   /// Latest queued fit-all, centre-on-me, or centre-on-beacon while layout

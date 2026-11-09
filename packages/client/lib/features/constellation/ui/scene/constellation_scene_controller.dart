@@ -26,7 +26,6 @@ import 'package:tentura/ui/utils/frame_slice_scheduler.dart';
 import 'package:tentura/ui/utils/rearrange_preview_scheduler.dart';
 
 import '../utils/constellation_graph_scene.dart';
-import '../utils/constellation_presentation_frame.dart';
 import '../util/constellation_perf.dart';
 import 'constellation_interaction_controller.dart';
 import 'scene_update_gate.dart';
@@ -1348,11 +1347,10 @@ class ConstellationSceneController {
 
   // Camera.
 
-  void fitWholeField(EdgeInsets insets, {GraphNodeId? focus}) => fitNodes(
-    insets,
-    minScale: kConstellationDistrictDetailScale,
-    focus: focus,
-  );
+  /// Fit-all: frames every node on the Field, zooming out below the
+  /// detail-level scales when that is what it takes; the view's own minimum
+  /// zoom still bounds it.
+  void fitWholeField(EdgeInsets insets) => fitNodes(insets);
 
   /// Scene pixels [GraphController.fitToRect] reserves around a fitted rect
   /// by default.
@@ -1451,6 +1449,11 @@ class ConstellationSceneController {
         nodeBounds.right,
         nodeBounds.bottom,
       );
+      // A footprint that is not finite cannot be framed; one such node
+      // would make the whole camera NaN.
+      if (!rect.isFinite) {
+        continue;
+      }
       bounds = bounds == null ? rect : bounds.expandToInclude(rect);
     }
     return bounds;

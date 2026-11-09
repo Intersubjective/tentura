@@ -497,6 +497,7 @@ void main() {
         addTearDown(cubit.close);
         await pumpConstellationBody(tester, cubit);
         await tester.pumpAndSettle();
+        await frameConstellationFieldAtDistrictDetailForTests(tester, cubit);
 
         final requestPin = inRequestNode(TestIds.constellationPinMarker);
         final personPin = inNode('am', TestIds.constellationPinMarker);

@@ -20,6 +20,7 @@ import '../../support/constellation_store_fixture.dart';
 import '../../support/phone_surface.dart';
 import '../../support/remote_wire_harness.dart';
 import 'fixtures/constellation_reference_fixture.dart';
+import 'fixtures/constellation_field_test_harness.dart';
 
 // Coverage: map placement, map-label and list provenance, counts, EN desktop,
 // and RU 375x667. Each surface/locale has an independent red test, so a
@@ -229,6 +230,10 @@ void main() {
               disableAnimations: true,
             );
             await tester.pumpAndSettle();
+            await frameConstellationFieldAtDistrictDetailForTests(
+              tester,
+              cubit,
+            );
             expect(
               tester.takeException(),
               isNull,
