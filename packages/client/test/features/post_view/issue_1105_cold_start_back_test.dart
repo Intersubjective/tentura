@@ -25,8 +25,6 @@ import 'package:tentura/features/post_view/ui/screen/post_view_screen.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/navigation/app_navigator.dart';
-import 'package:tentura/ui/navigation/home_tab.dart';
-import 'package:tentura/app/router/home_tab_branches.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_view_loading_shell.dart';
 
 import '../../support/fake_app_navigator.dart';
@@ -272,10 +270,10 @@ Future<_ColdStartRouter> _pumpAt(
 Future<_ColdStartRouter> _pumpBrowseStack(
   WidgetTester tester, {
   required BrowseDeepLinkStack stack,
+  required int initialTabIndex,
   BeaconKindRepository? kinds,
   Locale locale = const Locale('en'),
   Size? surfaceSize,
-  required int initialTabIndex,
 }) async {
   _savedHomePage = HomeRoute.page;
   _savedWorkPage = MyWorkRoute.page;

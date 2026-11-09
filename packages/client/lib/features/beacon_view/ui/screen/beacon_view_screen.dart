@@ -1522,8 +1522,9 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                                                     onAuthorManageStatus: () async {
                                                       await beaconViewCubit
                                                           .refreshClosureState();
-                                                      if (!context.mounted)
+                                                      if (!context.mounted) {
                                                         return;
+                                                      }
                                                       await showBeaconViewUpdateStatusSheet(
                                                         context,
                                                         beaconViewCubit.state,
@@ -1592,8 +1593,9 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                                                             await beaconViewCubit
                                                                 .refreshClosureState();
                                                             if (!context
-                                                                .mounted)
+                                                                .mounted) {
                                                               return;
+                                                            }
                                                             await showBeaconViewUpdateStatusSheet(
                                                               context,
                                                               beaconViewCubit

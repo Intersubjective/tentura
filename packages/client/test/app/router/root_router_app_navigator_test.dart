@@ -6,7 +6,6 @@ import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/post_join_navigation_cubit.dart';
 import 'package:tentura/features/settings/ui/bloc/settings_cubit.dart';
 import 'package:tentura/ui/navigation/app_navigator.dart';
-import 'package:tentura/ui/navigation/home_tab.dart';
 
 /// Pins the stack operation and the route (with all its args) behind each
 /// [AppNavigator] intent of [RootRouter]: feature UI used to build these
@@ -228,15 +227,17 @@ void main() {
   });
 
   test('leavePostDetail pops without retargeting when warm', () async {
-    router.canMaybePop = true;
-    router.stubHomeTabIndex = HomeTabSpec.forTab(HomeTab.constellation).index;
+    router
+      ..canMaybePop = true
+      ..stubHomeTabIndex = HomeTabSpec.forTab(HomeTab.constellation).index;
     await navigator.leavePostDetail();
     expect(router.calls, ['maybePop null']);
   });
 
   test('leavePostDetail retargets Posts after cold pop', () async {
-    router.canMaybePop = true;
-    router.stubHomeTabIndex = HomeTabSpec.forTab(HomeTab.work).index;
+    router
+      ..canMaybePop = true
+      ..stubHomeTabIndex = HomeTabSpec.forTab(HomeTab.work).index;
     await navigator.leavePostDetail(retargetOwnerHomeTab: true);
     expect(router.calls, [
       'maybePop null',
@@ -245,8 +246,9 @@ void main() {
   });
 
   test('leaveRequestDetail retargets Requests after cold pop', () async {
-    router.canMaybePop = true;
-    router.stubHomeTabIndex = HomeTabSpec.forTab(HomeTab.inbox).index;
+    router
+      ..canMaybePop = true
+      ..stubHomeTabIndex = HomeTabSpec.forTab(HomeTab.inbox).index;
     await navigator.leaveRequestDetail(retargetOwnerHomeTab: true);
     expect(router.calls, ['maybePop null', 'openHomeTab HomeTab.work']);
   });

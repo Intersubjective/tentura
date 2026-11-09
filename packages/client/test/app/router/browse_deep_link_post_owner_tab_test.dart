@@ -27,7 +27,7 @@ void main() {
     )!;
     final marked = markBrowseStackDetailColdStart(stack.detail);
     expect(marked, isA<PostViewRoute>());
-    final args = (marked as PostViewRoute).args as PostViewRouteArgs;
+    final args = (marked as PostViewRoute).args!;
     expect(args.isDeepLink, 'true');
   });
 
