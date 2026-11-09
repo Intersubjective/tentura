@@ -212,7 +212,6 @@ void main() {
           expect(find.text(l10n.profileEditLabels), findsOneWidget);
           expect(find.text(l10n.capabilityTagTransport), findsOneWidget);
           expect(find.text(l10n.capabilityTagStorage), findsOneWidget);
-          expect(find.text(l10n.profileLabelsInfoPrivate), findsNothing);
         },
       );
     }

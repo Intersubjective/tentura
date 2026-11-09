@@ -126,11 +126,6 @@ class _PeopleAutoTagScreenState extends State<PeopleAutoTagScreen> {
               SizedBox(height: tt.rowGap),
               for (final id in _people)
                 PeopleTagPersonRow(id: id, profile: _profiles.of(id)),
-              SizedBox(height: tt.rowGap),
-              Text(
-                l10n.peopleTagsOnlyYouSee,
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
             ],
           ),
         ),

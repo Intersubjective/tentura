@@ -177,7 +177,8 @@ void main() {
           findsOneWidget,
         );
         expect(find.text(l10n.peopleTagsYourTags), findsNothing);
-        expect(find.textContaining(l10n.peopleTagsOnlyYouSee), findsNothing);
+        expect(find.textContaining('Only you see'), findsNothing);
+        expect(find.textContaining('видите только вы'), findsNothing);
         expect(find.text('Neighbours'), findsOneWidget);
         expect(find.text(l10n.peopleTagsAutomatic), findsOneWidget);
         expect(find.text('Mutual contact'), findsOneWidget);
@@ -191,6 +192,54 @@ void main() {
         );
       },
     );
+
+    testWidgets('+ Tag sheet has no only-you-see footer (EN)', (tester) async {
+      await pumpBody(tester, peopleTagsEnabled: true);
+      final l10n = lookupL10n(const Locale('en'));
+
+      await tester.tap(find.text(l10n.constellationTagRowAdd));
+      await tester.pumpAndSettle();
+
+      expect(find.text(l10n.peopleTagsAddToTag), findsOneWidget);
+      expect(find.textContaining('Only you see'), findsNothing);
+      expect(find.textContaining('видите только вы'), findsNothing);
+    });
+
+    testWidgets('+ Тег sheet has no only-you-see footer (RU)', (tester) async {
+      await usePhoneSurface(tester);
+      await pumpBody(
+        tester,
+        locale: const Locale('ru'),
+        peopleTagsEnabled: true,
+      );
+      final l10n = lookupL10n(const Locale('ru'));
+
+      await tester.tap(find.text(l10n.constellationTagRowAdd));
+      await tester.pumpAndSettle();
+
+      expect(find.text(l10n.peopleTagsAddToTag), findsOneWidget);
+      expect(find.textContaining('Only you see'), findsNothing);
+      expect(find.textContaining('видите только вы'), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('non-friend profile: people tags only, no footer (#897)', (
+      tester,
+    ) async {
+      const stranger = Profile(id: 'U-stranger', displayName: 'Stranger');
+      await pumpBody(
+        tester,
+        subject: stranger,
+        peopleTagsEnabled: true,
+      );
+      final l10n = lookupL10n(const Locale('en'));
+
+      expect(find.text(l10n.profileEditLabels), findsNothing);
+      expect(find.text(l10n.peopleTagsYourTags), findsOneWidget);
+      expect(find.text(l10n.constellationTagRowAdd), findsOneWidget);
+      expect(find.textContaining('Only you see'), findsNothing);
+      expect(find.textContaining('видите только вы'), findsNothing);
+    });
 
     testWidgets('375×667 RU: one section, long labels, chip semantics (#897)', (
       tester,
@@ -288,6 +337,45 @@ void main() {
 
       expect(find.byType(PersonTagsBlock), findsNothing);
       expect(find.text('Your tags'), findsNothing);
+    });
+
+    group('long own tag on phone', () {
+      const longTag = PersonTag(
+        id: 'Tlong',
+        name: 'Очень длинное название тега для проверки переноса на узком экране',
+        glyph: 'Д',
+        color: 0,
+        ord: 0,
+      );
+
+      setUp(() async {
+        await GetIt.I.reset();
+        await rig.dispose();
+        rig = await PeopleTagsTestRig.create(
+          FakePeopleTagsRepository(
+            tagList: [longTag],
+            memberList: const [
+              PersonTagMembers(tagId: 'Tlong', personIds: ['U-peer']),
+            ],
+          ),
+        );
+        GetIt.I.registerSingleton<PeopleTagsCase>(rig.peopleTags);
+      });
+
+      testWidgets('375×667 RU: long own tag name fits without overflow (#897)', (
+        tester,
+      ) async {
+        await usePhoneSurface(tester);
+        await pumpBody(
+          tester,
+          locale: const Locale('ru'),
+          peopleTagsEnabled: true,
+        );
+
+        expect(find.text(longTag.name), findsOneWidget);
+        expect(find.textContaining('видите только вы'), findsNothing);
+        expect(tester.takeException(), isNull);
+      });
     });
   });
 }

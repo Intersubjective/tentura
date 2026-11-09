@@ -518,7 +518,6 @@ class _ProfileCapabilitySection extends StatelessWidget {
                 PersonTagsBlock(
                   personId: profile.id,
                   showHeading: !isFriend,
-                  showOnlyYouSeeFooter: false,
                 ),
               ],
             ],

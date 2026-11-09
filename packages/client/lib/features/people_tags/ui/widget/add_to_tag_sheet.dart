@@ -122,6 +122,7 @@ class _AddToTagSheetState extends State<_AddToTagSheet> {
           Flexible(
             child: ListView(
               shrinkWrap: true,
+              padding: EdgeInsets.only(bottom: tt.sectionGap),
               children: [
                 for (final tag in widget.peopleTags.tags)
                   CheckboxListTile(
@@ -148,18 +149,6 @@ class _AddToTagSheetState extends State<_AddToTagSheet> {
                   onTap: _newTag,
                 ),
               ],
-            ),
-          ),
-          Padding(
-            padding: EdgeInsets.fromLTRB(
-              tt.screenHPadding,
-              tt.rowGap,
-              tt.screenHPadding,
-              tt.sectionGap,
-            ),
-            child: Text(
-              l10n.peopleTagsOnlyYouSee,
-              style: Theme.of(context).textTheme.bodySmall,
             ),
           ),
         ],
