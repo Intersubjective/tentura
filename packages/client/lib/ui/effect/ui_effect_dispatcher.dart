@@ -59,15 +59,17 @@ void dispatchUiEffect(
         }
       }
 
-      // Let route/dialog dismiss and list rebuild before the nudge snackbar.
-      if (message is LocalizableActionMessage) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
+      // [ClearSnackBarsOnPushObserver] clears bars in a microtask on didPush
+      // (#470). A ShowMessage immediately before NavigateReplace (invalid invite
+      // → home, etc.) lost the bar once navigation went through [AppNavigator]
+      // (d528f8ca6, #1124). Yield one frame plus that microtask, same as
+      // [HomePostJoinListener] after a route push.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        scheduleMicrotask(() {
           if (!context.mounted) return;
           show();
         });
-      } else {
-        show();
-      }
+      });
     case ShowError(:final error):
       switch (error) {
         case AuthSessionLostException():
