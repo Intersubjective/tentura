@@ -1,11 +1,11 @@
 import 'package:injectable/injectable.dart';
 
+import 'package:tentura_server/domain/policy/mr_privilege_policy.dart';
 import 'package:tentura_server/domain/port/meritrank_repository_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
 import 'package:tentura_server/domain/port/witness_window_port.dart';
 
 import '../enum.dart';
-import '../exception.dart';
 import '_use_case_base.dart';
 
 @Singleton(order: 2)
@@ -28,24 +28,25 @@ final class MeritrankCase extends UseCaseBase {
     Iterable<UserRoles>? userRoles,
     bool? forceCalculate,
   }) async {
-    if ((userRoles != null && userRoles.contains(UserRoles.admin)) ||
-        (await _userRepository.getById(
-          userId,
-        )).hasPrivilege(UserPrivileges.mrInit)) {
-      await _meritrankRepository.reset();
+    await ensureMrPrivilege(
+      _userRepository,
+      userId: userId,
+      userRoles: userRoles,
+    );
 
-      final initResult = await _meritrankRepository.init();
+    logger.info('meritrank reset by $userId');
+    await _meritrankRepository.reset();
 
-      await _witnessWindow?.bumpMrEpoch();
+    final initResult = await _meritrankRepository.init();
 
-      if (forceCalculate ?? false) {
-        await _meritrankRepository.calculate(
-          timeout: env.meritrankCalculateTimeout,
-        );
-      }
+    await _witnessWindow?.bumpMrEpoch();
 
-      return initResult;
+    if (forceCalculate ?? false) {
+      await _meritrankRepository.calculate(
+        timeout: env.meritrankCalculateTimeout,
+      );
     }
-    throw const UnauthorizedException();
+
+    return initResult;
   }
 }
