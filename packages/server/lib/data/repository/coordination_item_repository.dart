@@ -52,7 +52,7 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
                     id: id,
                     beaconId: beaconId,
                     kind: kind,
-                    status: const Value(coordinationItemStatusOpen),
+                    status: Value(CoordinationItemStatus.open.smallintValue),
                     title: Value(title),
                     body: Value(body),
                     creatorId: creatorId,
@@ -127,10 +127,12 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
               .write(CoordinationItemsCompanion(
             status: Value(newStatus),
             updatedAt: Value(now),
-            resolvedAt: newStatus == coordinationItemStatusResolved
+            resolvedAt:
+                newStatus == CoordinationItemStatus.resolved.smallintValue
                 ? Value(now)
                 : const Value.absent(),
-            cancelledAt: newStatus == coordinationItemStatusCancelled
+            cancelledAt:
+                newStatus == CoordinationItemStatus.cancelled.smallintValue
                 ? Value(now)
                 : const Value.absent(),
           ));
@@ -173,7 +175,7 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
           await (_db.update(_db.coordinationItems)
                 ..where((t) => t.id.equals(id)))
               .write(CoordinationItemsCompanion(
-            status: const Value(coordinationItemStatusAccepted),
+            status: Value(CoordinationItemStatus.accepted.smallintValue),
             acceptedById: Value(acceptedById),
             updatedAt: Value(now),
             staleAt: Value(
@@ -237,7 +239,7 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
     final hasAnchor = anchorId != null && anchorId.isNotEmpty;
     final nowIso = DateTime.timestamp().toUtc().toIso8601String();
     final skipPlanSupersededRoomRow =
-        existing.kind == coordinationItemKindPlan &&
+        existing.kind == CoordinationItemKind.plan.smallintValue &&
         eventKind == coordinationEventKindSuperseded;
 
     String? roomMsgId;
@@ -306,8 +308,8 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
           (o) => o(
             id: id,
             beaconId: beaconId,
-            kind: coordinationItemKindAsk,
-            status: const Value(coordinationItemStatusOpen),
+            kind: CoordinationItemKind.ask.smallintValue,
+            status: Value(CoordinationItemStatus.open.smallintValue),
             title: Value(title),
             body: Value(body),
             creatorId: creatorId,
@@ -347,8 +349,8 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
           (o) => o(
             id: id,
             beaconId: beaconId,
-            kind: coordinationItemKindPromise,
-            status: const Value(coordinationItemStatusOpen),
+            kind: CoordinationItemKind.promise.smallintValue,
+            status: Value(CoordinationItemStatus.open.smallintValue),
             title: Value(title),
             body: Value(body),
             creatorId: creatorId,
@@ -391,8 +393,8 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
           if (row.creatorId != actorId) {
             throw StateError('Only the creator may publish this draft');
           }
-          if (row.kind != coordinationItemKindAsk &&
-              row.kind != coordinationItemKindPromise) {
+          if (row.kind != CoordinationItemKind.ask.smallintValue &&
+              row.kind != CoordinationItemKind.promise.smallintValue) {
             throw StateError('Only ask or promise drafts may be published');
           }
           final now = PgDateTime(DateTime.timestamp());
@@ -511,8 +513,9 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
           if (!existing.published) {
             throw StateError('Only published items may be edited in place');
           }
-          if (existing.status != coordinationItemStatusOpen &&
-              existing.status != coordinationItemStatusAccepted) {
+          if (existing.status != CoordinationItemStatus.open.smallintValue &&
+              existing.status !=
+                  CoordinationItemStatus.accepted.smallintValue) {
             throw StateError('Item is not editable');
           }
           final now = PgDateTime(DateTime.timestamp());
@@ -533,9 +536,9 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
             targetUserId: existing.targetPersonId,
           );
 
-          if (existing.kind == coordinationItemKindPlan &&
+          if (existing.kind == CoordinationItemKind.plan.smallintValue &&
               existing.linkedParentItemId == null &&
-              existing.status == coordinationItemStatusOpen) {
+              existing.status == CoordinationItemStatus.open.smallintValue) {
             final planText = title.trim();
             if (planText.isNotEmpty) {
               await _db.into(_db.beaconRoomStates).insertOnConflictUpdate(
@@ -589,8 +592,8 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
           (o) => o(
             id: id,
             beaconId: beaconId,
-            kind: coordinationItemKindBlocker,
-            status: const Value(coordinationItemStatusOpen),
+            kind: CoordinationItemKind.blocker.smallintValue,
+            status: Value(CoordinationItemStatus.open.smallintValue),
             title: Value(title),
             body: Value(body),
             creatorId: creatorId,
@@ -633,7 +636,7 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
           if (row.creatorId != actorId) {
             throw StateError('Only the creator may publish this draft');
           }
-          if (row.kind != coordinationItemKindBlocker) {
+          if (row.kind != CoordinationItemKind.blocker.smallintValue) {
             throw StateError('Only blocker drafts may be published');
           }
           final now = PgDateTime(DateTime.timestamp());
@@ -717,7 +720,7 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
         if (row.creatorId != actorId) {
           throw StateError('Only the creator may edit this draft');
         }
-        if (row.kind != coordinationItemKindBlocker) {
+        if (row.kind != CoordinationItemKind.blocker.smallintValue) {
           throw StateError('Only blocker drafts may be edited');
         }
         final now = PgDateTime(DateTime.timestamp());
@@ -749,7 +752,7 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
               ..where(
                 (t) =>
                     t.id.equals(id) &
-                    t.kind.equals(coordinationItemKindBlocker) &
+                    t.kind.equals(CoordinationItemKind.blocker.smallintValue) &
                     t.published.equals(false) &
                     t.creatorId.equals(actorId),
               ))
@@ -784,8 +787,8 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
                     t.staleAt.isNotNull() &
                     t.staleAt.isSmallerOrEqualValue(now) &
                     t.status.isIn([
-                      coordinationItemStatusOpen,
-                      coordinationItemStatusAccepted,
+                      CoordinationItemStatus.open.smallintValue,
+                      CoordinationItemStatus.accepted.smallintValue,
                     ]) &
                     (t.lastRemindedAt.isNull() |
                         t.lastRemindedAt.isSmallerOrEqualValue(cooldownBefore)),
@@ -810,7 +813,9 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
     ..where((t) => t.beaconId.isIn(beaconIds))
     // The Request Questions scope item is not a coordination item to list
     // (its message counts would reach people outside its audience).
-    ..where((t) => t.kind.equals(coordinationItemKindLobby).not())
+    ..where(
+      (t) => t.kind.equals(CoordinationItemKind.lobby.smallintValue).not(),
+    )
     ..where((t) => t.published.equals(true) | t.creatorId.equals(viewerUserId))
     ..orderBy([
       (t) => OrderingTerm(expression: t.ordering),
@@ -825,8 +830,10 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
     final ids = beaconIds.toSet().toList();
     if (ids.isEmpty) return {};
     final q = _listed(ids, viewerUserId: viewerUserId)
-      ..where((t) => t.kind.equals(coordinationItemKindBlocker))
-      ..where((t) => t.status.equals(coordinationItemStatusOpen));
+      ..where((t) => t.kind.equals(CoordinationItemKind.blocker.smallintValue))
+      ..where(
+        (t) => t.status.equals(CoordinationItemStatus.open.smallintValue),
+      );
     final out = <String, CoordinationItemRecord>{};
     for (final item in await q.get()) {
       out.putIfAbsent(item.beaconId, item.toRecord);
@@ -891,7 +898,7 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
       variables: [
         Variable(TypedValue(Type.textArray, items.map((e) => e.id).toList())),
         Variable<String>(viewerUserId),
-        const Variable<int>(coordinationItemKindPlan),
+        Variable<int>(CoordinationItemKind.plan.smallintValue),
       ],
     ).get();
 
@@ -1053,7 +1060,7 @@ ORDER BY (tb.thread_id = 'general') DESC,
         Variable<bool>(itemParticipantsOnly),
         Variable<bool>(includeGeneral),
         Variable<int>(excerptCharacters),
-        const Variable<int>(coordinationItemKindPlan),
+        Variable<int>(CoordinationItemKind.plan.smallintValue),
         Variable(
           TypedValue(
             Type.integerArray,
@@ -1077,7 +1084,7 @@ ORDER BY (tb.thread_id = 'general') DESC,
     if (parent == null) {
       throw StateError('CoordinationItem not found: $parentItemId');
     }
-    if (parent.kind != coordinationItemKindPlan) {
+    if (parent.kind != CoordinationItemKind.plan.smallintValue) {
       throw StateError('Parent is not a plan item');
     }
     // KNOWN RACE (low severity): the sibling max+1 is read outside the insert's
@@ -1096,7 +1103,7 @@ ORDER BY (tb.thread_id = 'general') DESC,
     }
     return create(
       beaconId: parent.beaconId,
-      kind: coordinationItemKindPlan,
+      kind: CoordinationItemKind.plan.smallintValue,
       creatorId: creatorId,
       title: title,
       body: body,
@@ -1128,7 +1135,7 @@ ORDER BY (tb.thread_id = 'general') DESC,
       return '';
     }
     final trimmedParentId = linkedParentItemId?.trim();
-    if (kind == coordinationItemKindPlan &&
+    if (kind == CoordinationItemKind.plan.smallintValue &&
         (trimmedParentId == null || trimmedParentId.isEmpty)) {
       return '';
     }
@@ -1284,11 +1291,12 @@ ORDER BY (tb.thread_id = 'general') DESC,
     return base;
   }
 
-  int _eventKindForStatus(int status) => switch (status) {
-        coordinationItemStatusAccepted => coordinationEventKindAccepted,
-        coordinationItemStatusResolved => coordinationEventKindResolved,
-        coordinationItemStatusCancelled => coordinationEventKindCancelled,
-        coordinationItemStatusSuperseded => coordinationEventKindSuperseded,
+  int _eventKindForStatus(int status) =>
+      switch (CoordinationItemStatus.fromSmallint(status)) {
+        CoordinationItemStatus.accepted => coordinationEventKindAccepted,
+        CoordinationItemStatus.resolved => coordinationEventKindResolved,
+        CoordinationItemStatus.cancelled => coordinationEventKindCancelled,
+        CoordinationItemStatus.superseded => coordinationEventKindSuperseded,
         _ => coordinationEventKindUpdated,
       };
 
@@ -1402,11 +1410,11 @@ ORDER BY ci.kind, ci.created_at DESC
       variables: [
         Variable<String>(viewerUserId),
         Variable<String>(beaconId),
-        const Variable<int>(coordinationItemKindAsk),
-        const Variable<int>(coordinationItemKindPromise),
-        const Variable<int>(coordinationItemKindBlocker),
-        const Variable<int>(coordinationItemStatusOpen),
-        const Variable<int>(coordinationItemStatusAccepted),
+        Variable<int>(CoordinationItemKind.ask.smallintValue),
+        Variable<int>(CoordinationItemKind.promise.smallintValue),
+        Variable<int>(CoordinationItemKind.blocker.smallintValue),
+        Variable<int>(CoordinationItemStatus.open.smallintValue),
+        Variable<int>(CoordinationItemStatus.accepted.smallintValue),
       ],
     ).get();
 
@@ -1444,7 +1452,7 @@ ORDER BY ci.kind, ci.created_at DESC
       variables: [
         Variable(TypedValue(Type.textArray, ids)),
         Variable<String>(viewerUserId),
-        const Variable<int>(coordinationItemKindPlan),
+        Variable<int>(CoordinationItemKind.plan.smallintValue),
       ],
     ).get();
 
@@ -1512,11 +1520,11 @@ WHERE ci.beacon_id = $2
         variables: [
           Variable<String>(userId),
           Variable<String>(beaconId),
-          const Variable<int>(coordinationItemKindAsk),
-          const Variable<int>(coordinationItemKindPromise),
-          const Variable<int>(coordinationItemKindBlocker),
-          const Variable<int>(coordinationItemStatusOpen),
-          const Variable<int>(coordinationItemStatusAccepted),
+          Variable<int>(CoordinationItemKind.ask.smallintValue),
+          Variable<int>(CoordinationItemKind.promise.smallintValue),
+          Variable<int>(CoordinationItemKind.blocker.smallintValue),
+          Variable<int>(CoordinationItemStatus.open.smallintValue),
+          Variable<int>(CoordinationItemStatus.accepted.smallintValue),
         ],
       ).getSingleOrNull();
 

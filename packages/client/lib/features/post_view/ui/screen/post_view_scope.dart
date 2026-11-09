@@ -24,6 +24,7 @@ class PostViewScope extends StatelessWidget {
     required this.myProfile,
     this.onClose,
     this.openParticipantsWhenReady = false,
+    this.retargetOwnerHomeTabOnLeave = false,
     super.key,
   });
 
@@ -36,6 +37,9 @@ class PostViewScope extends StatelessWidget {
 
   /// Scroll «О посте» to participants once the Post has loaded (#899).
   final bool openParticipantsWhenReady;
+
+  /// Cold deep link: Back retargets Home to Posts (#1105).
+  final bool retargetOwnerHomeTabOnLeave;
 
   @override
   Widget build(BuildContext context) => BlocProvider(
@@ -69,7 +73,11 @@ class PostViewScope extends StatelessWidget {
         child: PostParticipantsSheetOpener(
           postId: id,
           openWhenReady: openParticipantsWhenReady,
-          child: PostViewScreen(id: id, inPane: onClose != null),
+          child: PostViewScreen(
+            id: id,
+            inPane: onClose != null,
+            retargetOwnerHomeTabOnLeave: retargetOwnerHomeTabOnLeave,
+          ),
         ),
       ),
     ),

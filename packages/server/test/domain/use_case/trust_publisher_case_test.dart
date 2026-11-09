@@ -96,7 +96,7 @@ void main() {
       ..cutover = true
       ..batch = [a];
 
-    await _case(port).run();
+    await _case(port).runDue();
 
     expect(port.calls, ['cutoverPending']);
   });
@@ -106,7 +106,7 @@ void main() {
       ..token = null
       ..batch = [a];
 
-    await _case(port).run();
+    await _case(port).runDue();
 
     expect(port.calls, contains('acquireLease'));
     expect(port.calls, isNot(contains('readBatch')));
@@ -117,7 +117,7 @@ void main() {
   test('publishes each row under a valid lease, syncs, then acks', () async {
     final port = _FakePort()..batch = [a, b];
 
-    await _case(port).run();
+    await _case(port).runDue();
 
     expect(port.readLimit, 200);
     expect(port.published, ['Ua>Ub', 'Uc>Ud']);
@@ -135,7 +135,7 @@ void main() {
   test('checks the lease before every publish', () async {
     final port = _FakePort()..batch = [a, b];
 
-    await _case(port).run();
+    await _case(port).runDue();
 
     final firstPublish = port.calls.indexOf('publish');
     expect(port.calls[firstPublish - 1], 'leaseValid');
@@ -150,7 +150,7 @@ void main() {
       ..batch = [a]
       ..publishError = StateError('mr down');
 
-    await _case(port).run();
+    await _case(port).runDue();
 
     expect(port.failed, [
       ['Ua>Ub'],
@@ -164,7 +164,7 @@ void main() {
       ..batch = [a, b]
       ..validCalls = 1;
 
-    await _case(port).run();
+    await _case(port).runDue();
 
     expect(port.published, ['Ua>Ub']);
     expect(port.calls.where((c) => c == 'publish'), hasLength(1));
@@ -177,8 +177,8 @@ void main() {
     final port = _FakePort();
     final useCase = _case(port);
 
-    await useCase.run();
-    await useCase.run();
+    await useCase.runDue();
+    await useCase.runDue();
 
     expect(port.owners, hasLength(2));
     expect(port.owners.first, isNotEmpty);

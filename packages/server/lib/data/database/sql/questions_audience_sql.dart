@@ -31,7 +31,7 @@ WHERE qa_o.beacon_id = $beaconId
 UNION
 SELECT qa_m.author_id FROM public.coordination_item qa_ci
 JOIN public.beacon_room_message qa_m ON qa_m.thread_item_id = qa_ci.id
-WHERE qa_ci.beacon_id = $beaconId AND qa_ci.kind = $coordinationItemKindLobby
+WHERE qa_ci.beacon_id = $beaconId AND qa_ci.kind = ${CoordinationItemKind.lobby.smallintValue}
   AND qa_m.author_id IS NOT NULL
 ''';
 

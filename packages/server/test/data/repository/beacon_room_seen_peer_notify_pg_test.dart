@@ -280,8 +280,8 @@ ON CONFLICT (id) DO NOTHING
           parameters: {
             'id': threadItemId,
             'beaconId': beaconId,
-            'kind': coordinationItemKindAsk,
-            'status': coordinationItemStatusOpen,
+            'kind': CoordinationItemKind.ask.smallintValue,
+            'status': CoordinationItemStatus.open.smallintValue,
             'creatorId': BeaconHierarchyTopology.bobId,
             'source': coordinationItemSourceDefault,
           },

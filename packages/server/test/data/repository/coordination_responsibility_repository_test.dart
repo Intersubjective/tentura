@@ -141,15 +141,25 @@ ON CONFLICT (id) DO NOTHING
       expect(row.othersOpenCount, 1);
 
       expect(
-        items.where((e) => e.item.kind == coordinationItemKindAsk).length,
+        items
+            .where((e) => e.item.kind == CoordinationItemKind.ask.smallintValue)
+            .length,
         row.askOpen,
       );
       expect(
-        items.where((e) => e.item.kind == coordinationItemKindPromise).length,
+        items
+            .where(
+              (e) => e.item.kind == CoordinationItemKind.promise.smallintValue,
+            )
+            .length,
         row.promiseOpen,
       );
       expect(
-        items.where((e) => e.item.kind == coordinationItemKindBlocker).length,
+        items
+            .where(
+              (e) => e.item.kind == CoordinationItemKind.blocker.smallintValue,
+            )
+            .length,
         row.blockerOpen,
       );
       expect(items, hasLength(personalOpenTotal(row)));

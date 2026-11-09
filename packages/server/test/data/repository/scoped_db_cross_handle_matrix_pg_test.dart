@@ -278,7 +278,7 @@ final _paths = <_Path>[
       finalizer: _finalizer(handle),
       env: _testEnv,
       logger: Logger('CrossHandleMatrixSweep'),
-    ).run(),
+    ).runDue(),
   ),
 ];
 

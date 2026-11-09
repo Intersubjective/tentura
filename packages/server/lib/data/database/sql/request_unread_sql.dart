@@ -69,7 +69,7 @@ COALESCE((
     CROSS JOIN LATERAL (
       ${questionsMessageCountsSql(lobbyId: 'ci.id', viewer: viewer)}
     ) q
-    WHERE ci.beacon_id = $beaconId AND ci.kind = $coordinationItemKindLobby
+    WHERE ci.beacon_id = $beaconId AND ci.kind = ${CoordinationItemKind.lobby.smallintValue}
       AND EXISTS (
         SELECT 1 FROM public.questions_access_levels(
           ci.beacon_id, ARRAY[$viewer]::text[]

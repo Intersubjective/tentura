@@ -135,7 +135,7 @@ WHERE beacon_id = '$_beaconId'
             contactResolutionRunRowBudget: 1000,
             contactResolutionRunTimeBudget: const Duration(minutes: 5),
           ),
-        ).run();
+        ).runDue();
 
         expect(await unresolved(), 0);
         expect(await noisyEvidence(), _due);
@@ -168,7 +168,7 @@ WHERE oid = 'public.beacon_forward_edge'::regclass
             contactResolutionRunRowBudget: 100,
             contactResolutionRunTimeBudget: const Duration(minutes: 5),
           ),
-        ).run();
+        ).runDue();
 
         expect(await unresolved(), _due - 100);
         expect(await noisyEvidence(), 100);
@@ -187,7 +187,7 @@ WHERE oid = 'public.beacon_forward_edge'::regclass
           contactResolutionRunRowBudget: 100,
         );
 
-        await sweepWith(env).run();
+        await sweepWith(env).runDue();
 
         expect(await unresolved(), _due - 100);
         expect(await noisyEvidence(), 100);
@@ -204,7 +204,7 @@ WHERE contact_resolved_at IS NOT NULL AND substr(id, 8)::int < 100
 
         // ceil(450 / 100) = 5 runs in total.
         for (var run = 2; run <= 5; run++) {
-          await sweepWith(env).run();
+          await sweepWith(env).runDue();
         }
         expectBoundedTransactions(recorder);
         expect(await unresolved(), 0);

@@ -1,5 +1,6 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import 'package:tentura_server/consts/coordination_item_consts.dart';
 import 'package:tentura_server/domain/policy/coordination_stale_rules.dart';
 import 'package:tentura_server/utils/id.dart';
 
@@ -39,8 +40,8 @@ abstract class CoordinationItemRecord with _$CoordinationItemRecord {
   const CoordinationItemRecord._();
 
   CoordinationStaleItemView get staleView => CoordinationStaleItemView(
-        kind: kind,
-        status: status,
+        kind: CoordinationItemKind.fromSmallint(kind),
+        status: CoordinationItemStatus.fromSmallint(status),
         creatorId: creatorId,
         targetPersonId: targetPersonId,
         acceptedById: acceptedById,

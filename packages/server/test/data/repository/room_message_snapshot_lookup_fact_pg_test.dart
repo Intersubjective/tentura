@@ -792,8 +792,8 @@ INSERT INTO public.coordination_item (
     parameters: {
       'id': _itemId,
       'beacon': _beaconId,
-      'kind': coordinationItemKindAsk,
-      'status': coordinationItemStatusOpen,
+      'kind': CoordinationItemKind.ask.smallintValue,
+      'status': CoordinationItemStatus.open.smallintValue,
       'creator': _authorId,
       'source': coordinationItemSourceDefault,
       't0': _t0,

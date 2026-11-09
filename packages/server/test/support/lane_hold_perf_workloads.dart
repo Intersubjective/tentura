@@ -246,7 +246,7 @@ WHERE starts_with(id, @prefix)
           logger: logger,
         );
         _startMeasurement();
-        await sweep.run();
+        await sweep.runDue();
         check(
           (await writer.execute(
             Sql.named('SELECT count(*) FROM public.trust_evidence '
