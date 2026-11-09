@@ -9,6 +9,7 @@ import 'package:tentura/features/constellation/ui/utils/constellation_tap_resolv
 
 import 'fixtures/constellation_reference_fixture.dart';
 import 'fixtures/synthetic_field.dart';
+import 'fixtures/constellation_field_test_harness.dart';
 
 void main() {
   group('Constellation label placement cache', () {
@@ -115,6 +116,7 @@ void main() {
         presentationFrameHolder: holder,
       );
       await tester.pumpAndSettle();
+      await frameConstellationFieldAtDistrictDetailForTests(tester, cubit);
       final controller = cubit.graphController;
       cubit.panCameraTo(const Offset(1500.3, 1500.3));
       await tester.pumpAndSettle();

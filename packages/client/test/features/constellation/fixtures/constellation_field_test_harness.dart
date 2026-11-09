@@ -7,6 +7,7 @@ import 'package:tentura/features/constellation/ui/bloc/constellation_selection_c
 import 'package:tentura/features/constellation/ui/utils/constellation_presentation_frame.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_no_contacts.dart';
+import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura/ui/test_ids.dart';
 
 /// Field body widget tests after #938 touch node-drag lock.
@@ -176,4 +177,54 @@ Future<void> expectConstellationCameraIsFitAllForTests(
       .getTranslation();
   expect(scale, closeTo(cubit.graphController.cameraScale, 1e-3));
   expect((camera - fitted).length, lessThan(1));
+}
+
+/// Every person, Request and Post body on the Field lies inside the camera's
+/// safe rect (the viewport minus the Field's own map chrome): what fit-all
+/// guarantees.
+void expectEveryFieldNodeBodyInSafeRectForTests(ConstellationCubit cubit) {
+  final graph = cubit.graphController;
+  final insets = cubit.fieldCameraViewportSnapshotForTest;
+  final safe = insets.deflateRect(Offset.zero & graph.viewportSize!);
+  final snapshot = graph.renderSnapshot;
+  for (final MapEntry(:key, :value) in snapshot.topology.nodesById.entries) {
+    if (value.payload is! FieldPersonNode &&
+        value.payload is! FieldBeaconNode) {
+      continue;
+    }
+    final point = snapshot.resolveTargetPosition(key)!;
+    final scene = Rect.fromCenter(
+      center: Offset(point.x, point.y),
+      width: value.size.width,
+      height: value.size.height,
+    );
+    final body = Rect.fromPoints(
+      graph.sceneToViewportLocal(scene.topLeft),
+      graph.sceneToViewportLocal(scene.bottomRight),
+    );
+    expect(
+      body.left >= safe.left - 0.5 &&
+          body.top >= safe.top - 0.5 &&
+          body.right <= safe.right + 0.5 &&
+          body.bottom <= safe.bottom + 0.5,
+      isTrue,
+      reason:
+          '$key body $body lies inside the safe rect $safe '
+          '(scale ${graph.cameraScale})',
+    );
+  }
+}
+
+/// Frames the Field the way it opened before fit-all framed every node: at
+/// the district-detail scale or closer, toward the viewer. For scenarios that
+/// start from district-level labels.
+Future<void> frameConstellationFieldAtDistrictDetailForTests(
+  WidgetTester tester,
+  ConstellationCubit cubit,
+) async {
+  cubit.frameField(
+    insets: cubit.fieldCameraViewportSnapshotForTest,
+    floor: kConstellationDistrictDetailScale,
+  );
+  await tester.pumpAndSettle();
 }

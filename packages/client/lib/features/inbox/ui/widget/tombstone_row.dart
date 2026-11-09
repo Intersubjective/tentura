@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/attention/attention_dismissible_membership.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -14,11 +15,13 @@ import 'attention_mini_card.dart' show kMiniCardAgeWidthShare;
 /// A tombstone: one compact row saying *something was here* (card spec §8).
 ///
 /// It is deliberately **not** a card. It is a memory of an act the viewer or
-/// somebody else performed — so it speaks in the past tense, carries no dot,
-/// no relation chip and no sub-cards, never bumps and is excluded from
-/// grouping (E2 as amended by A1/A2). The one gesture it owns is the private
-/// ×: a tombstone is already answered, nobody waits on it, so removing it is
-/// a private act and never a social one.
+/// somebody else performed — so it speaks in the past tense, carries no
+/// relation chip and no sub-cards and is excluded from grouping (E2 as
+/// amended by A1/A2). Its one dot is the outcome tick (#601-a): somebody
+/// else relabelled the forward and the viewer has not seen it yet
+/// ([isInUnreadView]). The one gesture it owns is the private ×: a tombstone
+/// is already answered, nobody waits on it, so removing it is a private act
+/// and never a social one.
 class TombstoneRow extends StatelessWidget {
   const TombstoneRow({
     required this.receipt,
@@ -34,6 +37,9 @@ class TombstoneRow extends StatelessWidget {
 
   /// «Вернуть» — a dismissed forward only (#725: not a declined invitation).
   static const restoreKey = Key('tombstone-row-restore');
+
+  /// The outcome tick (#601-a).
+  static const unreadDotKey = Key('tombstone-row-unread-dot');
 
   final AttentionReceipt receipt;
 
@@ -87,6 +93,9 @@ class TombstoneRow extends StatelessWidget {
       authorName: authorName,
       authorId: authorId,
     );
+    // The outcome tick (#601-a): somebody else relabelled the forward and
+    // the viewer has not seen it yet.
+    final ticked = isInUnreadView(receipt);
     final localCreatedAt = receipt.createdAt.toLocal();
     // #189: the card's short age, so a tombstone and the card beside it
     // read the same way; both follow the shared clock (#532).
@@ -102,7 +111,12 @@ class TombstoneRow extends StatelessWidget {
     return Semantics(
       // The whole sentence, so the outcome is never carried by chrome alone
       // (§11).
-      label: [headline, from, sentence].nonNulls.join(', '),
+      label: [
+        headline,
+        from,
+        sentence,
+        if (ticked) l10n.activityNavBadgeNewActivity,
+      ].nonNulls.join(', '),
       excludeSemantics: false,
       child: Material(
         color: Colors.transparent,
@@ -145,6 +159,22 @@ class TombstoneRow extends StatelessWidget {
                                 ).copyWith(fontWeight: FontWeight.w500),
                               ),
                             ),
+                            if (ticked) ...[
+                              SizedBox(width: tt.iconTextGap),
+                              Padding(
+                                padding: EdgeInsets.only(top: tt.tightGap),
+                                child: DecoratedBox(
+                                  key: TombstoneRow.unreadDotKey,
+                                  decoration: BoxDecoration(
+                                    color: tt.info,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: SizedBox.square(
+                                    dimension: tt.unreadDotSize,
+                                  ),
+                                ),
+                              ),
+                            ],
                             SizedBox(width: tt.iconTextGap),
                             // The age keeps its own width ("80d ago" was cut to
                             // "80d …" while the title had room), capped so a

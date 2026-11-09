@@ -14,6 +14,11 @@ final class AttentionAxisContract {
 
   final Map<String, dynamic> _json;
 
+  /// A contract built from [json] instead of the shared file, for checking
+  /// how the reader reports a malformed contract.
+  factory AttentionAxisContract.fromJson(Map<String, dynamic> json) =>
+      AttentionAxisContract._(json);
+
   static AttentionAxisContract load() {
     for (final candidate in const [
       '../../docs/contracts/attention-active-attention-axis.json',
@@ -48,6 +53,21 @@ final class AttentionAxisContract {
   Map<String, dynamic> get sweepDismissibleMembership =>
       (_json['sweepDismissibleMembership'] as Map).cast<String, dynamic>();
 
+  /// `forwardOutcomeTick` — when a forward row relabelled to an outcome
+  /// carries one unread tick (the server's `seen_at IS NULL`) and where it
+  /// sits (`created_at`). The server pg test reads the same cases.
+  ForwardOutcomeTickContract get forwardOutcomeTick {
+    final entry = _json['forwardOutcomeTick'];
+    if (entry is! Map) {
+      throw StateError(
+        'docs/contracts/attention-active-attention-axis.json has no '
+        '"forwardOutcomeTick" object; the forward-row outcome tick rule '
+        'both layers read is missing.',
+      );
+    }
+    return ForwardOutcomeTickContract._(entry.cast<String, dynamic>());
+  }
+
   /// Reads the server source and proves the transcription above still says
   /// what the server says. A hand-copied predicate that silently went stale is
   /// precisely the blind spot this unit was sent to close.
@@ -79,4 +99,51 @@ final class AttentionAxisContract {
     }
     return null;
   }
+}
+
+/// The client's view of `forwardOutcomeTick`: its recorded cases.
+final class ForwardOutcomeTickContract {
+  ForwardOutcomeTickContract._(this._entry);
+
+  final Map<String, dynamic> _entry;
+
+  List<ForwardOutcomeTickCase> get cases {
+    final value = _entry['cases'];
+    if (value is! List || value.isEmpty) {
+      throw StateError(
+        'forwardOutcomeTick records no "cases" list; the client cannot '
+        'check its mirror of the outcome tick against the server rule.',
+      );
+    }
+    return [
+      for (final c in value)
+        ForwardOutcomeTickCase._((c as Map).cast<String, dynamic>()),
+    ];
+  }
+}
+
+/// One recorded forward-outcome-tick case.
+final class ForwardOutcomeTickCase {
+  ForwardOutcomeTickCase._(this._case);
+
+  final Map<String, dynamic> _case;
+
+  Object _field(String key) {
+    final Object? value = _case[key];
+    if (value == null) {
+      throw StateError('forwardOutcomeTick case "$name" records no "$key"');
+    }
+    return value;
+  }
+
+  String get name => _case['name'] as String? ?? '<unnamed>';
+
+  /// `otherUser`, `viewer` or `nobody`.
+  String get relabelledBy => _field('relabelledBy') as String;
+  bool get markedSeenAfter => _field('markedSeenAfter') as bool;
+  bool get unseen => _field('unseen') as bool;
+
+  /// `outcome_changed_at` or `entry_at`: the timestamp the row's
+  /// `created_at` must equal.
+  String get positionKey => _field('positionKey') as String;
 }

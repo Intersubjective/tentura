@@ -1554,6 +1554,13 @@ class _ConstellationBodyState extends State<ConstellationBody>
         listeners: [
           BlocListener<ConstellationCubit, ConstellationState>(
             listenWhen: (previous, current) =>
+                previous.viewMode != current.viewMode,
+            listener: (context, state) {
+              setState(() => _selectionUnavailableMessage = null);
+            },
+          ),
+          BlocListener<ConstellationCubit, ConstellationState>(
+            listenWhen: (previous, current) =>
                 previous.selectedRequestId != current.selectedRequestId &&
                 current.selectedRequestId != null,
             listener: (context, state) {
@@ -2429,6 +2436,14 @@ class _ConstellationBodyState extends State<ConstellationBody>
             _takeMapFocus();
           },
           onPointerMove: (event) {
+            _lastPointerGlobal = event.position;
+            if (_tagHullMenuDragNodeId != null) {
+              _tickTagHullMenuDrag(cubit, event.position);
+            }
+          },
+          // The area lifted from the menu follows the mouse with no button
+          // held, until the next click.
+          onPointerHover: (event) {
             _lastPointerGlobal = event.position;
             if (_tagHullMenuDragNodeId != null) {
               _tickTagHullMenuDrag(cubit, event.position);

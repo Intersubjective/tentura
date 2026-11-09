@@ -30,8 +30,11 @@ breaking each other. CI is unaffected (ephemeral runners, its own selection).
    `server-mr` only when the change touches Field / visibility / trust /
    MeritRank code or a migration. `*-affected` selects every test the change
    reaches (`scripts/affected_tests.py`: transitive imports, ARB keys, GraphQL
-   operations, source-reading tests, migrations → pg tests, shared test configs
-   → whole package), so a full suite before landing adds nothing for one change.
+   operations, source-reading tests, migrations → the pg tests that reach the
+   SQL objects they touch, shared test configs → whole package), so a full suite
+   before landing adds nothing for one change. A rerun on the same `HEAD` after
+   a green `*-affected` run selects only what changed since that run (the stamp
+   lives in the worktree's git dir; `AFFECTED_FULL=1` selects everything again).
 4. **Test temp files stay in RAM, never on disk.** Every test file compiles to
    a full kernel: client ~184 MB (deleted right after its test, so a full
    client run peaks at about -j × 184 MB but writes ~220 GB in total), server

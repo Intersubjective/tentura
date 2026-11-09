@@ -56,8 +56,13 @@ class App extends StatelessWidget {
     assertWebBuildConfig();
     // Portrait on phone-sized native windows; PWA uses manifest.json. See docs/tentura-design-system.md § Orientation policy.
     await applyInitialOrientationPolicy();
+    Object? bootError;
     if (!await bootDependencies(
       configure: configureDependencies,
+      report: (error, stackTrace) {
+        bootError = error;
+        reportBootFailure(error, stackTrace);
+      },
       // Start global FCM registration (permission, token, server upload).
       afterConfigure: () {
         GetIt.I<FcmCubit>();
@@ -67,10 +72,9 @@ class App extends StatelessWidget {
       // Startup failed: say so with a Reload action instead of leaving the
       // splash up forever (#674).
       FlutterNativeSplash.remove();
+      final failure = BootFailureApp(error: bootError);
       _runAppWithErrorHandling(
-        useSentryWidget
-            ? SentryWidget(child: const BootFailureApp())
-            : const BootFailureApp(),
+        useSentryWidget ? SentryWidget(child: failure) : failure,
       );
       return;
     }

@@ -17,21 +17,21 @@ import 'package:tentura/features/constellation/data/repository/constellation_rep
 import 'package:tentura/features/constellation/domain/constellation_consts.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
-import 'package:tentura/features/constellation/ui/utils/constellation_presentation_frame.dart';
 import 'package:tentura/features/constellation/ui/utils/constellation_tap_resolver.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
 import 'package:tentura/ui/test_ids.dart';
 
 import '../../support/phone_surface.dart';
 import '../../support/remote_wire_harness.dart';
+import 'fixtures/constellation_field_test_harness.dart';
 import 'fixtures/constellation_reference_fixture.dart';
 
 /// The widened bound shared with the server and the database CHECK.
 const _bound = kConstellationCoordinateMaxUnits;
 
-/// The documented fit-all floor: «Показать всё поле» never zooms out below it
-/// (also pinned at 375 RU by the Field camera policy tests).
-const _fitAllFloor = kConstellationDistrictDetailScale;
+/// The lowest scale «Показать всё поле» can reach: the Field's minimum zoom.
+/// Fit-all zooms out as far as framing every node takes, down to it.
+const _fitAllFloor = 0.1;
 
 const _viewer = Profile(id: 'bob', displayName: 'Боб');
 
@@ -216,6 +216,8 @@ void main() {
           size: kPhoneSurface,
         );
         await tester.pumpAndSettle();
+        // Contact labels show at district detail; fit-all may open lower.
+        await frameConstellationFieldAtDistrictDetailForTests(tester, cubit);
 
         expect(tester.takeException(), isNull);
         expect(
@@ -244,7 +246,7 @@ void main() {
     );
 
     testWidgets(
-      'fit-all never zooms below the fit-all floor and shows every node '
+      'fit-all never zooms below the Field minimum zoom and shows every node '
       'when they fit at it',
       (tester) async {
         await usePhoneSurface(tester);

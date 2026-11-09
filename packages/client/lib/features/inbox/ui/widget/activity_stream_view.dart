@@ -1128,7 +1128,14 @@ class _ActivityStreamCell extends StatelessWidget {
             key: ValueKey(receipt.id),
             receipt: receipt,
             forwarder: _forwarderOf(receipt),
-            onOpenBeacon: () => unawaited(onOpenParent()),
+            onOpenBeacon: () {
+              // The outcome tick lives on the synthetic `inbox:` row, which
+              // the Request's own mark-seen does not reach: opening reads it.
+              if (isInUnreadView(receipt)) {
+                unawaited(streamCubit.markRead(receipt.id));
+              }
+              unawaited(onOpenParent());
+            },
             onDismiss: () {
               // Durable on the server (`inbox_item.tombstone_dismissed_at`),
               // and gone from the list this frame: the feed's optimistic ack

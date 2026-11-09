@@ -10858,6 +10858,18 @@
   "@bootFailureReload": {
     "description": "Button on the startup-failure screen that reloads the web page (#674)"
   },
+  "bootLockHeldTitle": "Tentura is open in another tab",
+  "@bootLockHeldTitle": {
+    "description": "Title of the startup screen shown when another Tentura tab keeps the local database locked, so this tab cannot open it (#1123)"
+  },
+  "bootLockHeldBody": "Another Tentura tab is still opening its data and does not let go of it. Close other Tentura tabs, then try again.",
+  "@bootLockHeldBody": {
+    "description": "Body under bootLockHeldTitle: asks the user to close other Tentura tabs (#1123)"
+  },
+  "bootLockHeldReload": "Try again",
+  "@bootLockHeldReload": {
+    "description": "Web: button under bootLockHeldBody that reloads the page after the user closed the other tabs (#1123)"
+  },
   "roomNextStepSetByActor": "{actor} set the next step: “{text}”",
   "@roomNextStepSetByActor": {
     "description": "Chat line (#528): a member set the next step.",

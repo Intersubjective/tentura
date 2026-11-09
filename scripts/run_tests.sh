@@ -8,7 +8,9 @@
 # Profiles (run from the repo root):
 #   server-files <test files...>  server suites you name (pg allowed)
 #   server-affected               server tests the files changed vs HEAD reach
-#                                 (scripts/affected_tests.py)
+#                                 (scripts/affected_tests.py; a rerun on the
+#                                 same HEAD runs only what changed since the
+#                                 last green one, AFFECTED_FULL=1 for all)
 #   server-unit                   dart test --exclude-tags pg, without toolchain
 #   server-pg                     pg suites, without mr / perf / load
 #   server-mr                     mr suites (always -j 1), without perf / load
@@ -18,7 +20,7 @@
 #                                 visibility / trust code
 #   client-files <test paths...>  flutter test on the paths you name
 #   client-affected               client tests the files changed vs HEAD reach
-#                                 (scripts/affected_tests.py)
+#                                 (as server-affected)
 #   client-all                    the whole client suite
 #   client-gates                  analyzer baseline + custom lints
 #
@@ -54,11 +56,11 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --dry-run) dry_run=1; shift ;;
     -j) force_j="$2"; shift 2 ;;
-    -h|--help) sed -n '2,26p' "$0" | sed 's/^# \?//'; exit 0 ;;
+    -h|--help) sed -n '2,29p' "$0" | sed 's/^# \?//'; exit 0 ;;
     *) break ;;
   esac
 done
-[[ $# -ge 1 ]] || { sed -n '2,26p' "$0" | sed 's/^# \?//'; exit 2; }
+[[ $# -ge 1 ]] || { sed -n '2,29p' "$0" | sed 's/^# \?//'; exit 2; }
 profile="$1"; shift
 
 log() { printf '[run-tests] %s\n' "$*" >&2; }
@@ -147,11 +149,44 @@ changed_in() {
 # for inputs the graph cannot see (scripts/affected_tests.py; why a change
 # selected the whole package goes to stderr). A selector failure aborts the
 # profile instead of running nothing.
+#
+# A green run stores "<HEAD> <snapshot tree>" (per package, in the worktree's
+# git dir); the next run on the same HEAD selects only what changed since
+# that snapshot: the tests outside it were green there and nothing they reach
+# changed. AFFECTED_FULL=1 ignores the stamp. Call affected_green after the
+# selected tests passed.
 affected_tests() {
   local -n selected="$1"
-  local list
-  list="$(python3 "$ROOT/scripts/affected_tests.py" "$2")"
+  local pkg="$2" list head s_head s_tree
+  local -a since=()
+  affected_stamp="$(git -C "$ROOT" rev-parse --git-path "tentura-affected-green-${pkg//\//-}" 2>/dev/null || true)"
+  [[ "$affected_stamp" == /* ]] || affected_stamp="$ROOT/$affected_stamp"
+  head="$(git -C "$ROOT" rev-parse HEAD 2>/dev/null || true)"
+  affected_snapshot="$(python3 "$ROOT/scripts/affected_tests.py" --snapshot)"
+  # No HEAD or no snapshot (not a git checkout): no stamp, full selection.
+  if [[ -z "$head" || -z "$affected_snapshot" ]]; then
+    affected_snapshot=""
+  else
+    affected_snapshot="$head $affected_snapshot"
+  fi
+  if [[ -n "$affected_snapshot" && -z "${AFFECTED_FULL:-}" && -f "$affected_stamp" ]] &&
+    read -r s_head s_tree < "$affected_stamp" && [[ "$s_head" == "$head" ]]; then
+    if [[ "$affected_snapshot" == "$s_head $s_tree" ]]; then
+      log "$pkg: nothing changed since the last green affected run (AFFECTED_FULL=1 reruns)"
+      selected=()
+      return 0
+    fi
+    since=(--since "$s_tree")
+    log "$pkg: selecting only what changed since the last green affected run on this HEAD (AFFECTED_FULL=1 for all)"
+  fi
+  list="$(python3 "$ROOT/scripts/affected_tests.py" "$pkg" "${since[@]}")"
   mapfile -t selected < <(printf '%s' "$list" | sed '/^$/d')
+}
+
+affected_green() {
+  (( dry_run )) && return 0
+  [[ -n "$affected_snapshot" ]] || return 0
+  printf '%s\n' "$affected_snapshot" > "$affected_stamp"
 }
 
 touches_mr_area() {
@@ -280,7 +315,7 @@ client_run() {
 
 case "$profile" in
   server-files) server_files "$@" ;;
-  server-affected) affected_tests t packages/server; server_files "${t[@]}" ;;
+  server-affected) affected_tests t packages/server; server_files "${t[@]}"; affected_green ;;
   server-unit) server_unit ;;
   server-pg) server_pg ;;
   server-mr) server_mr ;;
@@ -296,6 +331,7 @@ case "$profile" in
   client-affected)
     affected_tests t packages/client
     if (( ${#t[@]} == 0 )); then log "no affected client tests"; else client_run "${t[@]}"; fi
+    affected_green
     ;;
   client-all) client_run ;;
   *) log "unknown profile: $profile"; exit 2 ;;

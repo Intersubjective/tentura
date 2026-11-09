@@ -9,6 +9,8 @@ import 'package:tentura/features/graph/domain/entity/node_details.dart';
 
 import '../../support/constellation_tag_lens_body_harness.dart';
 
+import 'fixtures/constellation_field_test_harness.dart';
+
 const _phone = Size(375, 667);
 const _desktop = Size(1200, 900);
 
@@ -61,6 +63,9 @@ Future<TagLensBodyHarness> _mountAt(WidgetTester tester, Size size) async {
   );
   body.field.updateLabelBudgetContext(viewport: size, textScaleFactor: 1);
   await settleTagLensBody(tester);
+  // The viewer label these tests avoid shows at district detail; fit-all may
+  // open the field lower.
+  await frameConstellationFieldAtDistrictDetailForTests(tester, body.field);
   return body;
 }
 

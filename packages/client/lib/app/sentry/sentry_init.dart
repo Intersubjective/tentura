@@ -2,6 +2,7 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 
 import 'package:tentura/consts.dart';
 
+import 'js_error_details.dart';
 import 'sentry_benign_filter.dart';
 
 const sentryDsn = String.fromEnvironment('SENTRY_DSN');
@@ -49,6 +50,7 @@ void configureSentryOptions(SentryFlutterOptions options) {
     if (isBenignSentryEvent(event, hint)) {
       return null;
     }
+    annotateJsErrorEvent(event, readJsErrorDetails);
     return event;
   };
 }
