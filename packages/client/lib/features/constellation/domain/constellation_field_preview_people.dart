@@ -12,8 +12,27 @@ class ConstellationFieldPreviewMemberStack {
   final List<Profile> profiles;
   final int hiddenCount;
 
-  bool get isEmpty => profiles.isEmpty && hiddenCount <= 0;
+  /// True when the preview sheet would draw no faces and no «+N» for this stack.
+  bool get isEmpty => !constellationFieldPreviewStackHasDrawableContent(this);
 }
+
+/// Faces shown in the row; extras fold into «+N» (hidden webs + avatar overflow).
+int constellationFieldPreviewStackPlusCount(
+  ConstellationFieldPreviewMemberStack stack, {
+  int maxFaces = 3,
+}) {
+  final overflow = stack.profiles.length > maxFaces
+      ? stack.profiles.length - maxFaces
+      : 0;
+  return stack.hiddenCount + overflow;
+}
+
+bool constellationFieldPreviewStackHasDrawableContent(
+  ConstellationFieldPreviewMemberStack stack, {
+  int maxFaces = 3,
+}) =>
+    stack.profiles.isNotEmpty ||
+    constellationFieldPreviewStackPlusCount(stack, maxFaces: maxFaces) > 0;
 
 typedef ConstellationFieldPreviewProfileLookup =
     Profile? Function(
@@ -23,7 +42,8 @@ typedef ConstellationFieldPreviewProfileLookup =
 typedef ConstellationFieldPreviewPeerOnField = bool Function(String personId);
 
 /// Stacks for the Field node preview: room participants and forward-chain people.
-/// Invisible members count toward hiddenCount only, same rule as member-web edges.
+/// Off-field / unreadable members are omitted; [hiddenCount] is only extra «+N»
+/// (e.g. Post hidden reach and faces past the avatar row cap).
 ConstellationFieldPreviewMemberStack constellationFieldPreviewMemberStack({
   required Iterable<ConstellationMemberWeb> webs,
   required ConstellationMemberWebState state,
@@ -32,20 +52,26 @@ ConstellationFieldPreviewMemberStack constellationFieldPreviewMemberStack({
   required ConstellationFieldPreviewProfileLookup profileFor,
   int additionalHiddenCount = 0,
 }) {
-  var hidden = additionalHiddenCount;
+  final hidden = additionalHiddenCount;
   final profiles = <Profile>[];
+  final seen = <String>{};
   for (final web in webs) {
     if (web.state != state) {
       continue;
     }
+    if (state == ConstellationMemberWebState.forwarded &&
+        web.personId == viewerId) {
+      continue;
+    }
+    if (!seen.add(web.personId)) {
+      continue;
+    }
     final visible = web.personId == viewerId || peerOnField(web.personId);
     if (!visible) {
-      hidden++;
       continue;
     }
     final profile = profileFor(web.personId);
     if (profile == null) {
-      hidden++;
       continue;
     }
     profiles.add(profile);

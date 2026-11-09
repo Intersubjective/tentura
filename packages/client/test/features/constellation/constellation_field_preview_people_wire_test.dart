@@ -11,6 +11,7 @@ import 'package:tentura/features/constellation/data/repository/constellation_rep
 import 'package:tentura/features/constellation/data/gql/_g/constellation_field_fetch.data.gql.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_post_preview_sheet.dart';
+import 'package:tentura/features/constellation/ui/widget/constellation_request_preview_sheet.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../../support/constellation_store_fixture.dart';
@@ -22,6 +23,8 @@ const _viewer = Profile(id: 'Uviewer000001', displayName: 'Viewer');
 const _amy = 'Uamy000000001';
 const _bob = 'Ubob000000001';
 const _post = 'Ppost00000001';
+const _requestId = 'Breq000000001';
+const _offField = 'Uofffield0001';
 
 Map<String, dynamic> _peer(String id, String displayName) => {
   '__typename': 'v2_ConstellationPeer',
@@ -42,6 +45,37 @@ Map<String, dynamic> _memberWeb(String personId, String state) => {
   'beaconId': _post,
   'personId': personId,
   'state': state,
+};
+
+Map<String, dynamic> _request(
+  String id,
+  String authorId,
+  String title,
+) => {
+  '__typename': 'v2_ConstellationRequest',
+  'id': id,
+  'pinState': null,
+  'authorId': authorId,
+  'title': title,
+  'status': 0,
+  'needs': <String>[],
+  'primaryNeedSlug': null,
+  'startAt': null,
+  'endAt': null,
+  'lastActivityAt': DateTime.utc(2026, 11, 8).toIso8601String(),
+  'addressLabel': null,
+  'hasCoordinates': false,
+  'isMine': false,
+  'viewerHasActiveHelpOffer': false,
+  'viewerIsRoomParticipant': false,
+  'viewerHasForwardEdge': false,
+  'forwardedById': null,
+  'forwardedByName': null,
+  'parentBeaconId': null,
+  'helpOfferCount': 0,
+  'coverSource': 0,
+  'coverThumb': null,
+  'has_unread': false,
 };
 
 Map<String, dynamic> _fieldWire() => {
@@ -104,7 +138,103 @@ Map<String, dynamic> _fieldWire() => {
   },
 };
 
+Map<String, dynamic> _requestWireWithOffFieldForward() => {
+  '__typename': 'query_root',
+  'constellationField': {
+    '__typename': 'v2_ConstellationField',
+    'loadedAt': DateTime.utc(2026, 11, 8).toIso8601String(),
+    'context': '',
+    'peersCapped': false,
+    'requestsCapped': false,
+    'directContactIds': <dynamic>[],
+    'peers': [_peer(_amy, 'Amy')],
+    'edges': [
+      {
+        '__typename': 'v2_ConstellationEdge',
+        'src': _viewer.id,
+        'dst': _amy,
+        'tier': 1,
+      },
+    ],
+    'requests': [_request(_requestId, _amy, 'QA 1104')],
+    'posts': <dynamic>[],
+    'memberWebs': [
+      {
+        '__typename': 'v2_ConstellationMemberWeb',
+        'beaconId': _requestId,
+        'personId': _amy,
+        'state': 'INSIDE',
+      },
+      {
+        '__typename': 'v2_ConstellationMemberWeb',
+        'beaconId': _requestId,
+        'personId': _offField,
+        'state': 'FORWARDED',
+      },
+    ],
+    'anchorProjection': {
+      '__typename': 'v2_ConstellationAnchorProjection',
+      'revision': '0',
+      'anchors': <dynamic>[],
+      'pinnedPeers': <dynamic>[],
+      'pinnedRequests': <dynamic>[],
+      'supportPeers': <dynamic>[],
+      'supportEdges': <dynamic>[],
+      'serverFilteredBeaconIds': <dynamic>[],
+      'serverFilteredBeaconCount': 0,
+    },
+  },
+};
+
 void main() {
+  testWidgets('wire request hides empty forwarded-through row', (tester) async {
+    await usePhoneSurface(tester);
+    late ConstellationCubit cubit;
+    final wire = _requestWireWithOffFieldForward();
+    await tester.runAsync(
+      () => withRemoteWire(
+        {'ConstellationFieldFetch': wire},
+        <WireSent>[],
+        (remote) async {
+          final store = ConstellationStoreFixture(
+            ConstellationRepository(remote),
+            accountId: _viewer.id,
+          );
+          cubit = store.createCubit(viewer: _viewer);
+          await store.ready();
+          await cubit.load().timeout(const Duration(seconds: 15));
+        },
+      ),
+    );
+    cubit.selectRequest(_requestId);
+    await tester.pumpPeopleTagsWidget(
+      MaterialApp(
+        locale: const Locale('ru'),
+        theme: TenturaTheme.light(),
+        localizationsDelegates: L10n.localizationsDelegates,
+        supportedLocales: L10n.supportedLocales,
+        home: TenturaResponsiveScope(
+          child: BlocProvider.value(
+            value: cubit,
+            child: ConstellationRequestPreviewSheet(
+              request: cubit.state.field!.requests.single,
+              authorDisplayName: 'Amy',
+              onOpen: () {},
+              onClose: () {},
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Через пересылку'), findsNothing);
+    expect(
+      find.byKey(const Key('constellation.field_preview.forwarded')),
+      findsNothing,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('wire Field payload renders post preview participant stacks', (
     tester,
   ) async {

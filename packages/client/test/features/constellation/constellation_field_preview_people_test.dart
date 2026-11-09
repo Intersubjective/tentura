@@ -117,7 +117,7 @@ Future<ConstellationCubit> _cubit(ConstellationField field) async {
 
 void main() {
   group('constellationFieldPreviewMemberStack', () {
-    test('invisible members count toward hidden only', () {
+    test('off-field forwarded members do not inflate the stack', () {
       const webs = [
         ConstellationMemberWeb(
           beaconId: 'b',
@@ -140,7 +140,38 @@ void main() {
         additionalHiddenCount: 3,
       );
       expect(stack.profiles, isEmpty);
-      expect(stack.hiddenCount, 4);
+      expect(stack.hiddenCount, 3);
+      expect(stack.isEmpty, isFalse);
+    });
+
+    test('plus count includes avatar overflow past max faces', () {
+      final stack = ConstellationFieldPreviewMemberStack(
+        profiles: [
+          for (var i = 0; i < 5; i++)
+            Profile(id: 'p$i', displayName: 'Person $i'),
+        ],
+        hiddenCount: 1,
+      );
+      expect(constellationFieldPreviewStackPlusCount(stack), 3);
+      expect(constellationFieldPreviewStackHasDrawableContent(stack), isTrue);
+    });
+
+    test('peer on field without profile does not draw', () {
+      const webs = [
+        ConstellationMemberWeb(
+          beaconId: 'b',
+          personId: 'blocked',
+          state: ConstellationMemberWebState.forwarded,
+        ),
+      ];
+      final stack = constellationFieldPreviewMemberStack(
+        webs: webs,
+        state: ConstellationMemberWebState.forwarded,
+        viewerId: 'ego',
+        peerOnField: (_) => true,
+        profileFor: (_) => null,
+      );
+      expect(stack.isEmpty, isTrue);
     });
   });
 
@@ -180,7 +211,6 @@ void main() {
         find.byKey(const Key('constellation.field_preview.forwarded')),
         findsOneWidget,
       );
-      expect(find.textContaining('+'), findsWidgets);
       expect(tester.takeException(), isNull);
     });
 
@@ -215,7 +245,183 @@ void main() {
         find.byKey(const Key('constellation.field_preview.forwarded')),
         findsOneWidget,
       );
-      expect(find.text('+6'), findsOneWidget);
+      expect(find.text('+5'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  });
+
+  group('Field preview empty forward section', () {
+    const beaconId = 'req-empty-fwd';
+    const viewerId = 'ego';
+    const offFieldForward = 'off-field-fwd';
+    const onFieldNoProfile = 'on-field-no-profile';
+    const authorId = 'author';
+
+    ConstellationField requestFieldForEmptyForward({
+      required List<ConstellationMemberWeb> memberWebs,
+      List<ConstellationPerson>? peers,
+    }) {
+      final defaultPeers =
+          peers ??
+          [
+            const ConstellationPerson(
+              id: authorId,
+              displayName: 'Автор',
+            ),
+            const ConstellationPerson(
+              id: onFieldNoProfile,
+              displayName: 'Скрытый',
+            ),
+          ];
+      return ConstellationField(
+        loadedAt: _loadedAt,
+        context: '',
+        peers: defaultPeers,
+        edges: [
+          const ConstellationTrustEdgeEntity(
+            src: viewerId,
+            dst: authorId,
+            tier: 1,
+          ),
+        ],
+        requests: const [
+          ConstellationRequest(
+            id: beaconId,
+            authorId: authorId,
+            title: 'Запрос без цепочки',
+            status: 0,
+          ),
+        ],
+        memberWebs: memberWebs,
+      );
+    }
+
+    Future<void> pumpRequestPreviewWithoutForward(
+      WidgetTester tester, {
+      required ConstellationField field,
+      required String forwardedTitle,
+      Locale locale = const Locale('ru'),
+    }) async {
+      await usePhoneSurface(tester);
+      final cubit = await _cubit(field);
+      cubit.selectRequest(beaconId);
+      await tester.pumpPeopleTagsWidget(
+        MaterialApp(
+          locale: locale,
+          theme: TenturaTheme.light(),
+          localizationsDelegates: L10n.localizationsDelegates,
+          supportedLocales: L10n.supportedLocales,
+          home: TenturaResponsiveScope(
+            child: BlocProvider.value(
+              value: cubit,
+              child: ConstellationRequestPreviewSheet(
+                request: field.requests.single,
+                authorDisplayName: 'Автор',
+                onOpen: () {},
+                onClose: () {},
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text(forwardedTitle), findsNothing);
+      expect(
+        find.byKey(const Key('constellation.field_preview.forwarded')),
+        findsNothing,
+      );
+      expect(tester.takeException(), isNull);
+    }
+
+    testWidgets('375×667 RU: off-field forward web only', (tester) async {
+      await pumpRequestPreviewWithoutForward(
+        tester,
+        forwardedTitle: 'Через пересылку',
+        field: requestFieldForEmptyForward(
+          memberWebs: const [
+            ConstellationMemberWeb(
+              beaconId: beaconId,
+              personId: authorId,
+              state: ConstellationMemberWebState.inside,
+            ),
+            ConstellationMemberWeb(
+              beaconId: beaconId,
+              personId: offFieldForward,
+              state: ConstellationMemberWebState.forwarded,
+            ),
+          ],
+        ),
+      );
+    });
+
+    testWidgets('375×667 EN: off-field forward web only', (tester) async {
+      await pumpRequestPreviewWithoutForward(
+        tester,
+        locale: const Locale('en'),
+        forwardedTitle: 'Forwarded through',
+        field: requestFieldForEmptyForward(
+          memberWebs: const [
+            ConstellationMemberWeb(
+              beaconId: beaconId,
+              personId: authorId,
+              state: ConstellationMemberWebState.inside,
+            ),
+            ConstellationMemberWeb(
+              beaconId: beaconId,
+              personId: offFieldForward,
+              state: ConstellationMemberWebState.forwarded,
+            ),
+          ],
+        ),
+      );
+    });
+
+    testWidgets('375×667 RU: viewer alone on forward chain', (tester) async {
+      final field = requestFieldForEmptyForward(
+        memberWebs: const [
+          ConstellationMemberWeb(
+            beaconId: beaconId,
+            personId: authorId,
+            state: ConstellationMemberWebState.inside,
+          ),
+          ConstellationMemberWeb(
+            beaconId: beaconId,
+            personId: viewerId,
+            state: ConstellationMemberWebState.forwarded,
+          ),
+        ],
+      );
+      final cubit = ConstellationCubit(
+        case_: ConstellationStoreFixture(
+          _StubRepository(field),
+          accountId: viewerId,
+        ).store,
+        viewer: const Profile(id: viewerId, displayName: 'Я'),
+      );
+      await cubit.stream.firstWhere((s) => s.status is StateIsSuccess);
+      await usePhoneSurface(tester);
+      cubit.selectRequest(beaconId);
+      await tester.pumpPeopleTagsWidget(
+        MaterialApp(
+          locale: const Locale('ru'),
+          theme: TenturaTheme.light(),
+          localizationsDelegates: L10n.localizationsDelegates,
+          supportedLocales: L10n.supportedLocales,
+          home: TenturaResponsiveScope(
+            child: BlocProvider.value(
+              value: cubit,
+              child: ConstellationRequestPreviewSheet(
+                request: field.requests.single,
+                authorDisplayName: 'Автор',
+                onOpen: () {},
+                onClose: () {},
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Через пересылку'), findsNothing);
       expect(tester.takeException(), isNull);
     });
   });

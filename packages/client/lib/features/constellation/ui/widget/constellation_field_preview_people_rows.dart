@@ -113,9 +113,12 @@ class ConstellationFieldPreviewAvatarRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (!constellationFieldPreviewStackHasDrawableContent(stack)) {
+      return const SizedBox.shrink();
+    }
     final tt = context.tt;
     final faces = stack.profiles;
-    final extra = stack.hiddenCount;
+    final extra = constellationFieldPreviewStackPlusCount(stack);
     final avatarRow = Row(
       children: [
         if (faces.isNotEmpty)
