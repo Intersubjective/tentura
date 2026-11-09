@@ -21,13 +21,17 @@ breaking each other. CI is unaffected (ephemeral runners, its own selection).
 
    | When | Server | Client |
    |---|---|---|
-   | every iteration | `server-files <the bead's tests>`, `server-affected` | `client-files <paths>`, `client-affected` |
-   | once before landing | `server-regression` | `client-gates` + `client-all` |
+   | every iteration | `server-files <the bead's tests>` | `client-files <paths>` |
+   | once before landing (the Alloy landing gate) | `server-gates` + `server-unit` + `server-affected` | `client-gates` + `client-affected` |
+   | ship beads and CI | `server-regression` | `client-gates` + `client-all` |
    | never in a routine run | `perf`, `load` suites (manual, idle machine) | `bench` with `TENTURA_ENFORCE_BENCH_BUDGET=1` |
 
    `server-regression` = `server-gates` + `server-unit` + `server-pg`, plus
    `server-mr` only when the change touches Field / visibility / trust /
-   MeritRank code or a migration.
+   MeritRank code or a migration. `*-affected` selects every test the change
+   reaches (`scripts/affected_tests.py`: transitive imports, ARB keys, GraphQL
+   operations, source-reading tests, migrations → pg tests, shared test configs
+   → whole package), so a full suite before landing adds nothing for one change.
 4. **Test temp files stay in RAM, never on disk.** Every test file compiles to
    a full kernel: client ~184 MB (deleted right after its test, so a full
    client run peaks at about -j × 184 MB but writes ~220 GB in total), server
