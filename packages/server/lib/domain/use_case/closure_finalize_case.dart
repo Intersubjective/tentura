@@ -9,7 +9,7 @@ import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
 import 'package:tentura_server/domain/closure/author_split.dart';
 import 'package:tentura_server/domain/closure/closure_entities.dart';
 import 'package:tentura_server/domain/closure/closure_outcome.dart';
-import 'package:tentura_server/domain/closure/closure_set_a.dart';
+import 'package:tentura_server/domain/closure/closure_split_eligible_members.dart';
 import 'package:tentura_server/domain/closure/episode_settlement.dart';
 import 'package:tentura_server/domain/closure/finalize_reason.dart';
 import 'package:tentura_server/domain/closure/membership_reducer.dart';
@@ -168,7 +168,7 @@ final class ClosureFinalizeCase extends UseCaseBase
       split =
           renormalize(
             current: split,
-            newA: closureSetA(members, outcomes),
+            newA: closureSplitEligibleMembers(members, outcomes),
             beaconId: beaconId,
           ) ??
           const {};

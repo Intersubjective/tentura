@@ -7,7 +7,7 @@ import 'package:tentura_server/consts/commitment_consts.dart';
 import 'package:tentura_server/domain/closure/author_split.dart';
 import 'package:tentura_server/domain/closure/closure_entities.dart';
 import 'package:tentura_server/domain/closure/closure_outcome.dart';
-import 'package:tentura_server/domain/closure/closure_set_a.dart';
+import 'package:tentura_server/domain/closure/closure_split_eligible_members.dart';
 import 'package:tentura_server/domain/closure/closure_view.dart';
 import 'package:tentura_server/domain/closure/finalize_reason.dart';
 import 'package:tentura_server/domain/closure/membership_reducer.dart';
@@ -514,7 +514,7 @@ final class ClosureCase extends UseCaseBase {
   Future<Set<String>> _setA(
     String beaconId,
     List<ClosureMemberRow> members,
-  ) async => closureSetA(members, {
+  ) async => closureSplitEligibleMembers(members, {
     for (final o in await _repo.outcomes(beaconId)) o.helperId: o.outcome,
   });
 

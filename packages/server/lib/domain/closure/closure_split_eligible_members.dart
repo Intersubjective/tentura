@@ -10,10 +10,11 @@ bool isUnjudgedLeaver(
   Map<String, ClosureOutcome?> outcomes,
 ) => member.departure == Departure.voluntary && outcomes[member.userId] == null;
 
-/// Set A (the author split covers exactly these): members the author did not
-/// mark «Не выполнено», minus [isUnjudgedLeaver]s. The one server rule used
-/// by the split writes and by finalize.
-Set<String> closureSetA(
+/// The members the author split covers: those the author did not mark
+/// «Не выполнено», minus [isUnjudgedLeaver]s. This is "set A" in the #489
+/// spec (Vadim, V1 = A). The one server rule used by the split writes and by
+/// finalize.
+Set<String> closureSplitEligibleMembers(
   Iterable<ClosureMemberRow> members,
   Map<String, ClosureOutcome?> outcomes,
 ) => {
