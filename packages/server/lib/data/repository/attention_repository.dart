@@ -364,7 +364,11 @@ request_entry AS (
   FROM public.attention_request_state state
   WHERE state.account_id = \$1
 ),
-eligible_forward AS (
+-- #747: every condition that needs no visibility check, materialized before
+-- the readability guard below. Inlined, the guard (it reads only inbox
+-- columns) ran on each of the viewer's inbox rows before the join dropped
+-- their own Requests and Posts — two visibility calls per discarded row.
+forward_candidate AS MATERIALIZED (
   SELECT
     ii.beacon_id,
     ii.status,
@@ -381,9 +385,7 @@ eligible_forward AS (
     ) AS outcome_unseen,
     ii.tombstone_dismissed_at,
     b.title AS beacon_title,
-    b.status AS beacon_status,
-    public.beacon_can_read_content(ii.beacon_id, \$1) AS can_read_content,
-    public.beacon_can_read_tombstone(ii.beacon_id, \$1) AS can_read_tombstone
+    b.status AS beacon_status
   FROM public.inbox_item ii
   JOIN public.beacon b ON b.id = ii.beacon_id
   LEFT JOIN request_entry re ON re.beacon_id = ii.beacon_id
@@ -412,7 +414,14 @@ eligible_forward AS (
       ii.status <> 0
       OR ii.beacon_id IN (SELECT scope.beacon_id FROM scope)
     )
-    AND ${AttentionDismissibleSql.outcomeReadabilityGuard}
+),
+eligible_forward AS (
+  SELECT
+    ii.*,
+    public.beacon_can_read_content(ii.beacon_id, \$1) AS can_read_content,
+    public.beacon_can_read_tombstone(ii.beacon_id, \$1) AS can_read_tombstone
+  FROM forward_candidate ii
+  WHERE ${AttentionDismissibleSql.outcomeReadabilityGuard}
 ),
 -- U15R-a / R1 — *representative* now means "an attention object that owns
 -- this Request's children", and only the pinned zone is one. An outcome row
