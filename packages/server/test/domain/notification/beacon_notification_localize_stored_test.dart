@@ -4,6 +4,7 @@ import 'package:tentura_server/domain/entity/beacon_notification_intent.dart';
 import 'package:tentura_server/domain/entity/notification_kind.dart';
 import 'package:tentura_server/domain/entity/notification_priority.dart';
 import 'package:tentura_server/domain/notification/beacon_notification_copy_builder.dart';
+import 'package:tentura_server/domain/notification/invite_accepted_copy.dart';
 
 // localizeStored translates only recognized fixed copy of a stored
 // notification; excerpts, names and unknown text pass through unchanged.
@@ -65,6 +66,22 @@ void main() {
         expect(copy.title, 'Invitation accepted');
       });
     }
+
+    test('every body the writer can store is translated from the table', () {
+      expect(
+        InviteAcceptedCopy.values.map((c) => c.en).toSet(),
+        cases.keys.toSet(),
+      );
+      for (final variant in InviteAcceptedCopy.values) {
+        expect(InviteAcceptedCopy.forStoredBody(variant.en), variant);
+        final copy = localize(
+          NotificationKind.inviteAccepted,
+          title: 'Anna',
+          body: variant.en,
+        );
+        expect(copy.body, variant.ru, reason: variant.name);
+      }
+    });
 
     test('unknown body stays as stored', () {
       final copy = localize(
