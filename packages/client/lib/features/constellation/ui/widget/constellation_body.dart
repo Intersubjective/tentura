@@ -34,6 +34,7 @@ import 'package:tentura/ui/widget/undo_snack_bar.dart';
 import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/widget/browser_context_menu_hold.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
+import 'package:tentura/ui/widget/screen_load_error_panel.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
@@ -1679,7 +1680,6 @@ class _ConstellationBodyState extends State<ConstellationBody>
                   Size(constraints.maxWidth, constraints.maxHeight),
                 );
                 final cubit = context.read<ConstellationCubit>();
-                final tt = context.tt;
 
                 if (state.status is StateIsLoading && state.field == null) {
                   return Stack(
@@ -1696,17 +1696,14 @@ class _ConstellationBodyState extends State<ConstellationBody>
                   );
                 }
 
-                if (state.loadError != null && state.field == null) {
-                  return Center(
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: tt.screenHPadding,
-                      ),
-                      child: Text(
-                        state.loadError.toString(),
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
+                final loadError = state.loadError;
+                if (loadError != null && state.field == null) {
+                  return ScreenLoadErrorPanel(
+                    details: describeScreenLoadError(
+                      error: loadError,
+                      l10n: L10n.of(context)!,
                     ),
+                    onRetry: () => unawaited(cubit.load()),
                   );
                 }
 

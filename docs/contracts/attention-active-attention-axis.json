@@ -118,14 +118,18 @@
     "retiredTotals": "U18c retired `activityUnreadTotal`, `myWorkUnreadTotal` and `needsYouTotal` from `AttentionSurfaceSummary` — server model, SQL, the GraphQL `AttentionSurfaceSummary` type, the client entity and its repository mapping. They kept their pre-U15R-d meaning (activeAttention per surface; every live obligation, unscoped) and their names said `unread`, which is the read axis §3 keeps separate; that contradiction produced two defects (U17a read one as History unread, U17b found a read-axis delta folded into another). The four §6 rules above are what the surfaces read and now all this summary returns. NOT retired, and not to be confused with these: `AttentionSummary.unreadTotal` and `AttentionSummary.needsYouTotal` on the *feed* summary, which are the counts behind the History `unread` and `needsYou` views — a read-axis surface §3 keeps alive."
   },
   "forwardOutcomeTick": {
-    "description": "#601-a (owner decision): a forward row relabelled to an outcome moves up with ONE unread tick only when the relabel was not the viewer's own action. The `inbox:<beaconId>` row is synthetic, so the read marker lives on public.inbox_item (m0301): outcome_changed_at / outcome_changed_by are written by a trigger on every status change (actor = tentura.mutating_user_id, else the Hasura session user; a change with no known actor records nothing, except a move to status 3/4 — closed/deleted before the viewer answered — which only the Request's lifecycle or a forward cancel writes and which is recorded with a NULL actor), outcome_seen_at by markSeen. is_active_attention stays false: the tick is the read axis (seen_at), not the dot.",
+    "description": "#601-a (owner decision): a forward row relabelled to an outcome moves up with ONE unread tick only when the relabel was not the viewer's own action. The `inbox:<beaconId>` row is synthetic, so the read marker lives on public.inbox_item (m0301): outcome_changed_at / outcome_changed_by are written by a trigger (m0302, replacing m0301's) that records only a move INTO an outcome status (1, 2, 3, 4); a move into status 0 (the m0246 reopen revert 3 -> 0, a re-forward or re-invite back to pending) records nothing and leaves the earlier values (actor = tentura.mutating_user_id, else the Hasura session user; an outcome with no known actor records nothing, except a move to status 3/4 — closed/deleted before the viewer answered — which only the Request's lifecycle or a forward cancel writes and which is recorded with a NULL actor). outcome_seen_at is set by markSeen, by markAllSeen and by markSeenForBeacon. is_active_attention stays false: the tick is the read axis (seen_at), not the dot.",
     "position": "created_at = GREATEST(entry_at, outcome_changed_at)",
     "unseen": "seen_at IS NULL iff outcome_changed_by <> viewer AND outcome_changed_at > COALESCE(outcome_seen_at, '-infinity'); a NULL outcome_changed_by (an unattributed status 3/4 relabel) counts as not the viewer, so the SQL writes IS DISTINCT FROM. Otherwise seen_at = latest_forward_at as before.",
     "markSeen": "markSeen with an inbox:<beaconId> id sets the viewer's own outcome_seen_at (only while a tick is pending); other users' rows and the row's position are untouched.",
+    "markAllSeen": "markAllSeen sets outcome_seen_at on the viewer's own rows whose tick is pending, when the surface is unset or activity (the forward row lives on Activity); a myWork sweep leaves it.",
+    "markSeenForBeacon": "markSeenForBeacon (opening the Request from the Field, a push or a link) sets the viewer's outcome_seen_at on that Request's row only.",
     "sql": {
       "position": "GREATEST(ef.entry_at, ef.outcome_changed_at) AS created_at",
       "unseen": "ii.outcome_changed_at > COALESCE(ii.outcome_seen_at, '-infinity') AND ii.outcome_changed_by IS DISTINCT FROM",
-      "markSeen": "SET outcome_seen_at = now()"
+      "markSeen": "SET outcome_seen_at = now()",
+      "markAllSeen": "forward_outcomes AS (",
+      "markSeenForBeacon": "forward_outcome AS ("
     },
     "serverTest": "packages/server/test/data/repository/attention_forward_outcome_unread_tick_pg_test.dart",
     "cases": [

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:get_it/get_it.dart';
 
 import 'package:tentura/features/beacon_threads/domain/room_read_watermark_store.dart';
+import 'package:tentura/ui/bloc/reload_when_online.dart';
 import 'package:tentura/ui/utils/post_expiry_clock.dart';
 
 import '../../domain/entity/post_summary.dart';
@@ -36,6 +37,10 @@ class PostsCubit extends Cubit<PostsState> {
               ? GetIt.I<RoomReadWatermarkStore>()
               : null),
     );
+    _reloadWhenOnline = ReloadWhenOnline(
+      lastLoadFailed: () => _lastFetchFailed,
+      reload: () => unawaited(fetch()),
+    );
     unawaited(fetch());
   }
 
@@ -46,10 +51,13 @@ class PostsCubit extends Cubit<PostsState> {
   var _posts = const <PostSummary>[];
   StreamSubscription<void>? _reads;
   var _generation = 0;
+  var _lastFetchFailed = false;
+  late final ReloadWhenOnline _reloadWhenOnline;
 
   @override
   Future<void> close() async {
     _expiry.dispose();
+    await _reloadWhenOnline.close();
     await _changes.cancel();
     await _reads?.cancel();
     return super.close();
@@ -80,6 +88,7 @@ class PostsCubit extends Cubit<PostsState> {
     try {
       final posts = await _postsCase.myPosts();
       if (isClosed || generation != _generation) return;
+      _lastFetchFailed = false;
       _posts = posts;
       _expiry.setDeadlines({
         for (final post in posts)
@@ -90,6 +99,7 @@ class PostsCubit extends Cubit<PostsState> {
       _postsCase.logger.warning('myPosts failed: $e');
       // Keep the list that was already shown.
       if (isClosed || generation != _generation) return;
+      _lastFetchFailed = true;
       emit(state.copyWith(loaded: true, status: const StateIsSuccess()));
     }
   }

@@ -30,6 +30,7 @@ import 'package:tentura/domain/util/burst_coalescer.dart';
 import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
 import 'package:tentura/features/forward/domain/entity/forward_edge.dart';
 import 'package:tentura/features/forward/domain/forward_trail.dart';
+import 'package:tentura/ui/bloc/reload_when_online.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/features/beacon/ui/util/beacon_delete_ui.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
@@ -130,6 +131,10 @@ class BeaconViewCubit extends Cubit<BeaconViewState> implements RoomHost {
       _onPeopleSeen,
       cancelOnError: false,
     );
+    _reloadWhenOnline = ReloadWhenOnline(
+      lastLoadFailed: () => state.hasError,
+      reload: () => unawaited(retryInitialLoad()),
+    );
     unawaited(_runFetchWithGate(background: false));
     if (state.loadError != null) {
       _effects.emit(ShowError(state.loadError!));
@@ -223,6 +228,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> implements RoomHost {
   late final StreamSubscription<RealtimeEntityChange> _peopleChangesSub;
 
   late final StreamSubscription<RealtimeEntityChange> _peopleSeenChangesSub;
+  late final ReloadWhenOnline _reloadWhenOnline;
 
   bool _peopleSeenInFlight = false;
 
@@ -286,6 +292,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> implements RoomHost {
     await _blockMarkersSub.cancel();
     await _peopleChangesSub.cancel();
     await _peopleSeenChangesSub.cancel();
+    await _reloadWhenOnline.close();
     return super.close();
   }
 

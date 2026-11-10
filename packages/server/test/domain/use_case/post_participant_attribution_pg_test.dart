@@ -60,6 +60,10 @@ const _bob = 'UoriginBob01';
 const _dave = 'UoriginDave1';
 const _legacy = 'UoriginOld01';
 const _outsider = 'UoriginOther';
+const _frank = 'UoriginFrank';
+const _grace = 'UoriginGrace';
+const _heidi = 'UoriginHeidi';
+const _ivan = 'UoriginIvan1';
 const _post = 'BoriginPost1';
 
 Future<void> main() async {
@@ -528,6 +532,238 @@ Future<void> main() async {
           expect(row['broughtBy'], isNull);
           expect(row['broughtHow'], isNull);
         }
+      },
+    );
+  });
+  group('Post invite accepted by an account that already existed', () {
+    setUp(() async {
+      for (final (index, id) in [_frank, _grace, _heidi, _ivan].indexed) {
+        await writer.execute(
+          Sql.named('''
+            INSERT INTO public."user" (id, display_name, public_key)
+            VALUES (@id, @name, @key)'''),
+          parameters: {
+            'id': id,
+            'name': 'Name $id',
+            'key': pgTestPublicKey('existing-invitee', index + 1),
+          },
+        );
+      }
+      // The author invites an account that signed up before the invite.
+      final aliceInvite = await invitations.create(
+        userId: _alice,
+        addresseeName: 'Frank',
+        beaconId: _post,
+      );
+      expect(
+        await invitations.acceptAsExisting(
+          code: aliceInvite.id,
+          userId: _frank,
+        ),
+        isTrue,
+      );
+      // A non-author member invites an account that signed up before it.
+      final bobInvite = await invitations.create(
+        userId: _bob,
+        addresseeName: 'Grace',
+        beaconId: _post,
+      );
+      expect(
+        await invitations.acceptAsExisting(code: bobInvite.id, userId: _grace),
+        isTrue,
+      );
+      // Heidi only receives Bob's forward; Bob also holds an invite on this
+      // Post that nobody ever accepted.
+      await invitations.create(
+        userId: _bob,
+        addresseeName: 'Heidi',
+        beaconId: _post,
+      );
+      await writer.execute(
+        Sql.named('''
+          INSERT INTO public.vote_user (subject, object, amount)
+          VALUES (@bob, @heidi, 1), (@heidi, @bob, 1)'''),
+        parameters: {'bob': _bob, 'heidi': _heidi},
+      );
+      final forwarded = await forwards.forward(
+        senderId: _bob,
+        beaconId: _post,
+        recipientIds: [_heidi],
+      );
+      expect(forwarded.deliveredRecipientIds, [_heidi]);
+
+      // Ivan gets Bob's forward first and accepts Bob's own Post invite later.
+      await writer.execute(
+        Sql.named('''
+          INSERT INTO public.vote_user (subject, object, amount)
+          VALUES (@bob, @ivan, 1), (@ivan, @bob, 1)'''),
+        parameters: {'bob': _bob, 'ivan': _ivan},
+      );
+      final ivanForward = await forwards.forward(
+        senderId: _bob,
+        beaconId: _post,
+        recipientIds: [_ivan],
+      );
+      expect(ivanForward.deliveredRecipientIds, [_ivan]);
+      final ivanInvite = await invitations.create(
+        userId: _bob,
+        addresseeName: 'Ivan',
+        beaconId: _post,
+      );
+      expect(
+        await invitations.acceptAsExisting(code: ivanInvite.id, userId: _ivan),
+        isTrue,
+      );
+
+      // The production accept path recorded these as existing-account
+      // acceptances; nothing below is test-authored attribution.
+      final accepted = await writer.execute(
+        Sql.named('''
+          SELECT user_id, invited_id, invite_origin
+          FROM public.invitation WHERE beacon_id = @post
+          AND invited_id = ANY(@ids) AND accepted_at IS NOT NULL'''),
+        parameters: {
+          'post': _post,
+          'ids': TypedValue(Type.textArray, [_frank, _grace, _heidi, _ivan]),
+        },
+      );
+      expect(
+        accepted.map((row) => row.toList()),
+        unorderedEquals([
+          [_alice, _frank, 'existing_account'],
+          [_bob, _grace, 'existing_account'],
+          [_bob, _ivan, 'existing_account'],
+        ]),
+      );
+    });
+
+    for (final sample in [
+      (
+        member: _frank,
+        source: _alice,
+        label: 'the author',
+      ),
+      (
+        member: _grace,
+        source: _bob,
+        label: 'a non-author member',
+      ),
+    ]) {
+      test(
+        'reads as invited by ${sample.label} for every viewer',
+        () async {
+          for (final viewer in [_alice, _bob, _legacy]) {
+            final rows = await room.listParticipants(
+              beaconId: _post,
+              userId: viewer,
+            );
+            expect(
+              rows.singleWhere((row) => row['userId'] == sample.member),
+              allOf(
+                containsPair('broughtById', sample.source),
+                containsPair('broughtBy', {
+                  'userId': sample.source,
+                  'displayName': 'Name ${sample.source}',
+                }),
+                containsPair('broughtHow', 'invite'),
+              ),
+              reason: 'viewer $viewer',
+            );
+          }
+        },
+      );
+    }
+
+    test(
+      'keeps forward attribution beside existing-account invitees',
+      () async {
+        final rows = await room.listParticipants(
+          beaconId: _post,
+          userId: _alice,
+        );
+        // Forward only, with an unaccepted invite from the same sender.
+        expect(
+          rows.singleWhere((row) => row['userId'] == _heidi),
+          allOf(
+            containsPair('broughtById', _bob),
+            containsPair('broughtHow', 'forward'),
+          ),
+        );
+        // Forward first, then the same sender's invite accepted: the forward
+        // was the first arrival and wins.
+        expect(
+          rows.singleWhere((row) => row['userId'] == _ivan),
+          allOf(
+            containsPair('broughtById', _bob),
+            containsPair('broughtHow', 'forward'),
+          ),
+        );
+        // Forward first, existing-account invite later: first arrival wins.
+        expect(
+          rows.singleWhere((row) => row['userId'] == _dave),
+          allOf(
+            containsPair('broughtById', _bob),
+            containsPair('broughtHow', 'forward'),
+          ),
+        );
+        // A brand-new account that signed up with the invite code.
+        expect(
+          rows.singleWhere((row) => row['userId'] == eve),
+          allOf(
+            containsPair('broughtById', _bob),
+            containsPair('broughtHow', 'invite'),
+          ),
+        );
+      },
+    );
+
+    test(
+      'the GraphQL participant query reports existing-account invitees as invited',
+      () async {
+        final graphQL = GraphQL(
+          GraphQLSchema(
+            queryType: GraphQLObjectType('Query', null)
+              ..fields.add(
+                QueryBeaconRoom(beaconRoomCase: room).beaconParticipantList,
+              ),
+          ),
+        );
+        final response = switch (await graphQL.parseAndExecute(
+          '''
+        { BeaconParticipantList(beaconId: "$_post") {
+          userId broughtById broughtBy { userId displayName } broughtHow
+        } }''',
+          globalVariables: {kGlobalInputQueryJwt: const JwtEntity(sub: _alice)},
+        )) {
+          final Map<String, Object?> data => data,
+          _ => fail('GraphQL must return a data map'),
+        };
+        final rows = switch (response['BeaconParticipantList']) {
+          final List<Object?> values => [
+            for (final value in values)
+              switch (value) {
+                final Map<String, Object?> row => row,
+                _ => fail('Each participant must be an object'),
+              },
+          ],
+          _ => fail('BeaconParticipantList must be a non-null list'),
+        };
+        Map<String, Object?> rowOf(String id) =>
+            rows.singleWhere((row) => row['userId'] == id);
+        expect(rowOf(_frank), {
+          'userId': _frank,
+          'broughtById': _alice,
+          'broughtBy': {'userId': _alice, 'displayName': 'Name $_alice'},
+          'broughtHow': 'invite',
+        });
+        expect(rowOf(_grace), {
+          'userId': _grace,
+          'broughtById': _bob,
+          'broughtBy': {'userId': _bob, 'displayName': 'Name $_bob'},
+          'broughtHow': 'invite',
+        });
+        expect(rowOf(_heidi), containsPair('broughtHow', 'forward'));
+        expect(rowOf(_alice)['broughtHow'], isNull);
       },
     );
   });

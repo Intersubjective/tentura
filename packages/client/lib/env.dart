@@ -7,7 +7,6 @@ class Env {
   const Env({
     // Common
     String? logLevel,
-    String? serverUrlBase,
     String? complaintEmail,
     String? inviteEmail,
 
@@ -32,8 +31,6 @@ class Env {
     String? googleMapsApiKey,
   }) : // Common
        logLevel = logLevel ?? const String.fromEnvironment('LOG_LEVEL'),
-       serverUrlBase =
-           serverUrlBase ?? const String.fromEnvironment('SERVER_NAME'),
        complaintEmail =
            complaintEmail ?? const String.fromEnvironment('COMPLAINT_EMAIL'),
        inviteEmail =
@@ -88,7 +85,6 @@ class Env {
   // Common
   /// OFF | SHOUT | SEVERE | WARNING | INFO | CONFIG | FINE | FINER | FINEST
   final String logLevel;
-  final String serverUrlBase;
   final String complaintEmail;
   final String inviteEmail;
 

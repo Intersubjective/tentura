@@ -28,9 +28,13 @@ Future<void> main() async {
   final adding = migrationsForTesting
       .where(
         (migration) => migration.statements.any(
+          // Only the migration that ADDs the column: a later migration may
+          // redefine the trigger that writes it without adding anything.
           (statement) =>
               statement.contains('inbox_item') &&
-              statement.contains('outcome_changed_at'),
+              RegExp(
+                r'ADD COLUMN\s+outcome_changed_at',
+              ).hasMatch(statement),
         ),
       )
       .toList();
