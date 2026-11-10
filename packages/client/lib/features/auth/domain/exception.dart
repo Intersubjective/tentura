@@ -102,6 +102,12 @@ final class SessionAccountMismatchException extends AuthException {
 
   @override
   String get toRu => 'Войдите снова как $displayName';
+
+  /// [toEn] / [toRu] name the account for the on-screen prompt. Logs,
+  /// breadcrumbs and Sentry read [toString], which must not carry the
+  /// display name (#1138).
+  @override
+  String toString() => 'Sign in again: the session belongs to another account';
 }
 
 /// Authenticated API call failed because the session or bearer token is gone.

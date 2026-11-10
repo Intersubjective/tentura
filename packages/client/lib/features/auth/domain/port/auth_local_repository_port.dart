@@ -16,8 +16,6 @@ abstract class AuthLocalRepositoryPort {
 
   Future<AccountEntity?> getAccountById(String id);
 
-  Future<AccountEntity?> getCurrentAccount();
-
   Future<void> removeAccount(String id);
 
   Future<void> updateAccount(AccountEntity account);

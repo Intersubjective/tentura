@@ -25,7 +25,8 @@ bool isBenignSentryThrowable(Object? error) {
       error is BeaconLobbyUnavailableException ||
       error is AuthSessionLostException ||
       error is AuthenticationNoKeyException ||
-      error is SessionAuthRejectedException) {
+      error is SessionAuthRejectedException ||
+      error is SessionAccountMismatchException) {
     return true;
   }
   if (error is GraphQLException) {
@@ -111,13 +112,17 @@ bool isBenignSentryEvent(SentryEvent event, Hint hint) {
     return false;
   }
 
+  // Type names are readable on VM / debug builds; release web builds may
+  // minify `runtimeType`, so there the throwable check above drops them.
   for (final ex in exceptions) {
     final type = ex.type ?? '';
     if (type.contains('ConnectionUplinkException') ||
         type.contains('RequestTimeoutException') ||
         type.contains('SocketException') ||
         type.contains('AuthSessionLostException') ||
-        type.contains('AuthenticationNoKeyException')) {
+        type.contains('AuthenticationNoKeyException') ||
+        type.contains('SessionAuthRejectedException') ||
+        type.contains('SessionAccountMismatchException')) {
       return true;
     }
     final value = ex.value ?? '';

@@ -181,8 +181,6 @@ class RecoverFakeAuthLocal implements AuthLocalRepositoryPort {
   Future<List<AccountEntity>> getAccountsAll() async =>
       _accounts.values.toList();
   @override
-  Future<AccountEntity?> getCurrentAccount() async => null;
-  @override
   Future<void> removeAccount(String id) async {}
   @override
   Future<void> updateAccount(AccountEntity account) async {

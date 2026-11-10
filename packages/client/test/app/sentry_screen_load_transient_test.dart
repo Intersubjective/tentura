@@ -10,6 +10,7 @@ import 'package:tentura/app/sentry/sentry_benign_filter.dart';
 import 'package:tentura/data/service/remote_api_client/exception.dart';
 import 'package:tentura/domain/exception/generic_exception.dart';
 import 'package:tentura/domain/exception/server_exception.dart';
+import 'package:tentura/features/auth/domain/exception.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/screen_load_error_panel.dart';
 
@@ -184,6 +185,25 @@ void main() {
       expect(message, contains('kind=unknown'));
       expect(message, isNot(contains('retrying=1')));
       expect(isBenignSentryExceptionText(message), isFalse);
+    });
+  });
+
+  group('the re-login prompt is logged without its account name (#1138)', () {
+    test('a screen-load diagnostic for a session mismatch omits the name', () {
+      final message = screenLoad(
+        const SessionAccountMismatchException('Alice Q912'),
+      );
+
+      expect(message, isNot(contains('Alice Q912')));
+      expect(message, contains('message=<redacted: account name>'));
+      expect(message, isNot(contains('detail=')));
+    });
+
+    test('other localized errors keep their message line', () {
+      final message = screenLoad(const FormatException('bad payload'));
+
+      expect(message, isNot(contains('<redacted')));
+      expect(message, contains('message='));
     });
   });
 }
