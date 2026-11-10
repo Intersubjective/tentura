@@ -181,6 +181,8 @@ class _AuthRegisterScreenState extends State<AuthRegisterScreen>
                     decoration: InputDecoration(
                       hintText: _l10n.pleaseFillDisplayName,
                       labelText: _l10n.labelDisplayName,
+                      // Wraps beside the counter (#1221).
+                      errorMaxLines: 3,
                     ),
                     maxLength: kTitleMaxLength,
                     // Code units, as the validator and the server count the

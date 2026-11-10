@@ -123,6 +123,9 @@ class _RenameContactDialogState extends State<RenameContactDialog>
             TextFormField(
               controller: _controller,
               autofocus: true,
+              // Wrap the error beside the counter instead of ellipsizing it
+              // (#1221).
+              decoration: const InputDecoration(errorMaxLines: 3),
               maxLength: kTitleMaxLength,
               // Code units, as the validator and the server count the name
               // (#356, #603): maxLength alone counts characters.

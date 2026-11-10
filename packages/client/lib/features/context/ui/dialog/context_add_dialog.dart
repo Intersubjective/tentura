@@ -37,6 +37,8 @@ class _ContextAddDialogState extends State<ContextAddDialog>
     content: TextFormField(
       autofocus: true,
       controller: _controller,
+      // Wrap the error beside the counter instead of ellipsizing it (#1221).
+      decoration: const InputDecoration(errorMaxLines: 3),
       maxLength: kTitleMaxLength,
       // Code units, as the validator and the server count the title
       // (#356, #603): maxLength alone counts characters.

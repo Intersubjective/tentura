@@ -365,6 +365,8 @@ class _InviteAcceptedSetupSheetState extends State<InviteAcceptedSetupSheet>
                                             .inviteAcceptedSetupPrivateNameLabel,
                                         helperText: l10n
                                             .inviteAcceptedSetupPrivateNameHelper,
+                                        // Wraps beside the counter (#1221).
+                                        errorMaxLines: 3,
                                       ),
                                       validator: (value) =>
                                           displayNameValidator(
