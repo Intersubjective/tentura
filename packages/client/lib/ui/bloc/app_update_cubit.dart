@@ -74,7 +74,7 @@ class AppUpdateCubit extends Cubit<AppUpdateState> {
         );
       }
     } on Object {
-      // ignore: version check is best-effort
+      // Version check is best-effort; failures are ignored.
     }
   }
 
