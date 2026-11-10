@@ -77,12 +77,19 @@ void logScreenLoadError({
   required ScreenLoadErrorDetails details,
   bool willRetry = false,
 }) {
+  // The re-login prompt's on-screen copy names the account; the diagnostic
+  // that goes to the logger and Sentry must not (#1138).
+  final redact = error is SessionAccountMismatchException;
   final buffer = StringBuffer()
     ..writeln('[$label] load failed (ref ${details.supportRef})')
     ..writeln('kind=${details.kind.name}')
     ..writeln('title=${details.title}')
-    ..writeln('message=${details.message}');
-  if (details.detail != null && details.detail!.isNotEmpty) {
+    ..writeln(
+      redact
+          ? 'message=<redacted: account name>'
+          : 'message=${details.message}',
+    );
+  if (!redact && details.detail != null && details.detail!.isNotEmpty) {
     buffer.writeln('detail=${details.detail}');
   }
   // Only a transient attempt that is about to be retried. A GraphQL or parse

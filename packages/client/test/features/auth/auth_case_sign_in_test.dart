@@ -65,9 +65,6 @@ class _FakeAuthLocal implements AuthLocalRepositoryPort {
   Future<AccountEntity?> getAccountById(String id) async => null;
 
   @override
-  Future<AccountEntity?> getCurrentAccount() async => null;
-
-  @override
   Future<void> addAccount(
     String id,
     String seed, [

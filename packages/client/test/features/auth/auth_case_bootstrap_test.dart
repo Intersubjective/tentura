@@ -236,10 +236,6 @@ class FakeAuthLocal implements AuthLocalRepositoryPort {
       _accounts.values.toList();
 
   @override
-  Future<AccountEntity?> getCurrentAccount() async =>
-      currentAccountId == null ? null : _accounts[currentAccountId];
-
-  @override
   Future<void> removeAccount(String id) async {
     _accounts.remove(id);
   }

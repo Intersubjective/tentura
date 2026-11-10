@@ -107,6 +107,9 @@ class _InvitationAddresseeDialogState extends State<InvitationAddresseeDialog>
             TextFormField(
               controller: _controller,
               autofocus: true,
+              // The error shares its line with the counter: let it wrap
+              // rather than ellipsize the RU text (#1221).
+              decoration: const InputDecoration(errorMaxLines: 3),
               maxLength: kTitleMaxLength,
               // Code units, as the validator and the server count the name
               // (#356): maxLength alone counts characters, so an emoji fit

@@ -105,18 +105,6 @@ class AuthLocalRepository implements AuthLocalRepositoryPort {
         (e) => e == null ? null : accountModelToEntity(e),
       );
 
-  //
-  //
-  @override
-  Future<AccountEntity?> getCurrentAccount() => _currentAccountId.isEmpty
-      ? Future.value()
-      : _database.managers.accounts
-            .filter((f) => f.id.equals(_currentAccountId))
-            .getSingleOrNull()
-            .then(
-              (e) => e == null ? null : accountModelToEntity(e),
-            );
-
   ///
   /// Remove account only from local storage
   ///
