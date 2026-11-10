@@ -75,7 +75,10 @@ class _TagSuggestionCardState extends State<TagSuggestionCard> {
     widget.onDismissed?.call();
     try {
       await _suggestions.notNow(widget.event);
-    } catch (_) {}
+    } catch (e, s) {
+      // Best-effort: the card stays hidden; a lost write may resurface it.
+      _suggestions.logger.warning('tag suggestion notNow failed', e, s);
+    }
   }
 
   Future<void> _disable() async {
@@ -83,7 +86,10 @@ class _TagSuggestionCardState extends State<TagSuggestionCard> {
     widget.onDismissed?.call();
     try {
       await _suggestions.disable();
-    } catch (_) {}
+    } catch (e, s) {
+      // Best-effort: the card stays hidden; a lost write may resurface it.
+      _suggestions.logger.warning('tag suggestion disable failed', e, s);
+    }
   }
 
   Future<void> _add() async {
