@@ -15,6 +15,7 @@ import 'package:tentura_server/domain/entity/invite_accepted_notification_intent
 import 'package:tentura_server/domain/entity/notification_kind.dart';
 import 'package:tentura_server/domain/entity/notification_priority.dart';
 import 'package:tentura_server/domain/entity/notification_recipient_reason.dart';
+import 'package:tentura_server/domain/notification/invite_accepted_copy.dart';
 import 'package:tentura_server/domain/notification/beacon_notification_copy_builder.dart';
 import 'package:tentura_server/domain/notification/beacon_notification_recipient_resolver.dart';
 import 'package:tentura_server/domain/notification/notification_excerpt.dart';
@@ -1312,7 +1313,7 @@ class AttentionIntentCase {
       kind: NotificationKind.inviteAccepted,
       title: 'New connection',
       body: actorName.isEmpty
-          ? 'You are now connected on Tentura.'
+          ? InviteAcceptedCopy.connected.en
           : 'You and $actorName are now connected.',
       actionUrl: '/#/profile/view/${Uri.encodeQueryComponent(actorUserId)}',
       collapseKey: AttentionCollapseKey.none(sourceEventKey),
@@ -1419,11 +1420,9 @@ class AttentionIntentCase {
         ? 'Invitation accepted'
         : titleParts.join(' · ');
     final body = switch (notification.inviteOrigin) {
-      'new_account' =>
-        'Created an account via your invitation. You are now connected.',
-      'existing_account' =>
-        'Already had a Tentura account. You are now connected.',
-      _ => 'You are now connected on Tentura.',
+      'new_account' => InviteAcceptedCopy.newAccount.en,
+      'existing_account' => InviteAcceptedCopy.existingAccount.en,
+      _ => InviteAcceptedCopy.connected.en,
     };
     final blocked = await _userBlocks.isBlockedPair(
       a: notification.accepterUserId,

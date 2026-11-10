@@ -7,6 +7,7 @@ import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/entity/beacon_notification_intent.dart';
 import 'package:tentura_server/domain/entity/notification_category.dart';
 import 'package:tentura_server/domain/entity/notification_kind.dart';
+import 'package:tentura_server/domain/notification/invite_accepted_copy.dart';
 import 'package:tentura_server/domain/notification/notification_excerpt.dart';
 
 class BeaconNotificationCopy {
@@ -175,19 +176,11 @@ class BeaconNotificationCopyBuilder {
       actorDisplayName: actorDisplayName,
       locale: locale,
     );
-    final localizedBody = intent.kind == NotificationKind.inviteAccepted
-        ? switch (body) {
-            'Created an account via your invitation. You are now connected.' =>
-              'Создал(а) аккаунт по вашему приглашению. Теперь вы связаны.',
-            'Already had a Tentura account. You are now connected.' =>
-              'Уже был аккаунт в Tentura. Теперь вы связаны.',
-            'You are now connected on Tentura.' =>
-              'Вы теперь связаны в Tentura.',
-            _ => english.body == body ? russian.body : body,
-          }
-        : english.body == body
-        ? russian.body
-        : body;
+    final inviteAccepted = intent.kind == NotificationKind.inviteAccepted
+        ? InviteAcceptedCopy.forStoredBody(body)
+        : null;
+    final localizedBody =
+        inviteAccepted?.ru ?? (english.body == body ? russian.body : body);
     return BeaconNotificationCopy(
       title: english.title == title ? russian.title : title,
       body: localizedBody,
