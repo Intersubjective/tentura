@@ -1,8 +1,25 @@
+import 'package:tentura/beacon_detail_path.dart';
 import 'package:tentura/consts.dart';
+import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
 
 import 'entity/attention_receipt.dart';
 import 'plan_receipt_event_type.dart';
+
+bool _receiptIsPost(AttentionReceipt receipt) =>
+    receipt.beaconKind == BeaconKind.post.value;
+
+Uri _beaconDetailUri(
+  String beaconId,
+  AttentionReceipt receipt, {
+  Map<String, String> queryParameters = const {},
+}) => Uri.parse(
+  beaconDetailPathFor(
+    beaconId,
+    isPost: _receiptIsPost(receipt),
+    queryParameters: queryParameters,
+  ),
+);
 
 /// Resolves typed server targets while retaining [AttentionReceipt.actionUrl]
 /// for old/unknown receipt classes.
@@ -25,13 +42,15 @@ Uri attentionDestination(AttentionReceipt receipt) {
     );
   }
   return switch (receipt.destinationKind) {
-    'beacon' => Uri(path: '$kPathBeaconView/$target'),
-    'beacon_people_offer' when beaconId != null => Uri(
-      path: '$kPathBeaconView/$beaconId',
+    'beacon' => _beaconDetailUri(target, receipt),
+    'beacon_people_offer' when beaconId != null => _beaconDetailUri(
+      beaconId,
+      receipt,
       queryParameters: {kQueryBeaconViewTab: 'people'},
     ),
-    'beacon_room' when beaconId != null => Uri(
-      path: '$kPathBeaconView/$beaconId',
+    'beacon_room' when beaconId != null => _beaconDetailUri(
+      beaconId,
+      receipt,
       queryParameters: {
         kQueryBeaconViewTab: kBeaconViewTabThreads,
         kQueryThreadId: RequestThread.generalId,
@@ -43,8 +62,9 @@ Uri attentionDestination(AttentionReceipt receipt) {
         when beaconId != null &&
             (receipt.coordinationItemId?.trim().isNotEmpty ?? false) =>
       Uri(path: '$kPathBeaconLobby/$beaconId'),
-    'beacon_room_message' when beaconId != null => Uri(
-      path: '$kPathBeaconView/$beaconId',
+    'beacon_room_message' when beaconId != null => _beaconDetailUri(
+      beaconId,
+      receipt,
       queryParameters: {
         kQueryBeaconViewTab: kBeaconViewTabThreads,
         kQueryMessageId: target,

@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
 
 import 'package:tentura/app/router/root_router.dart';
+import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/post_join_navigation_cubit.dart';
 import 'package:tentura/features/settings/ui/bloc/settings_cubit.dart';
@@ -54,6 +55,14 @@ void main() {
 
     expect(router.calls, [
       'navigate ${_describe(BeaconViewRoute(id: 'B1', entry: 'forward'))}',
+    ]);
+  });
+
+  test('openBeacon with post kind pushes PostViewRoute', () async {
+    await navigator.openBeacon('Bpost', kind: BeaconKind.post, entry: 'inbox');
+
+    expect(router.calls, [
+      push(PostViewRoute(id: 'Bpost', entry: 'inbox')),
     ]);
   });
 

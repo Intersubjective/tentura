@@ -267,7 +267,7 @@ void main() {
       expect(find.byType(PostAttentionRow), findsOneWidget);
     });
 
-    testWidgets('tapping the row opens the Post at /beacon/view/<id>', (
+    testWidgets('tapping the row opens the Post at /post/view/<id>', (
       tester,
     ) async {
       final harness = await _pumpFeed(tester, [
@@ -284,7 +284,7 @@ void main() {
 
       final opened = harness.navigator.openedReceipts.single;
       expect(opened.beaconId, _postId);
-      expect(attentionDestination(opened).path, '$kPathBeaconView/$_postId');
+      expect(attentionDestination(opened).path, '$kPathPostView/$_postId');
     });
   });
 
@@ -340,7 +340,7 @@ void main() {
     });
 
     testWidgets('tapping the warning row itself opens the Post at '
-        '/beacon/view/<id>', (tester) async {
+        '/post/view/<id>', (tester) async {
       final harness = await _pumpFeed(tester, [warning]);
 
       await tester.tap(find.textContaining('Пост скоро закроется'));
@@ -348,7 +348,7 @@ void main() {
 
       final opened = harness.navigator.openedReceipts.single;
       expect(opened.beaconId, _postId);
-      expect(attentionDestination(opened).path, '$kPathBeaconView/$_postId');
+      expect(attentionDestination(opened).path, '$kPathPostView/$_postId');
     });
 
     testWidgets('a reply on a Post gets no «Оформить запрос» action', (

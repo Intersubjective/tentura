@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
+import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/ui/navigation/app_navigator.dart';
 import 'package:tentura/ui/navigation/home_tab.dart';
 
@@ -81,6 +82,7 @@ class FakeAppNavigator implements AppNavigator {
     String? threadId,
     String? messageId,
     String? peopleTabAttention,
+    BeaconKind? kind,
   }) async => _record('openBeacon', {
     'id': id,
     'entry': entry,
@@ -88,11 +90,16 @@ class FakeAppNavigator implements AppNavigator {
     'threadId': threadId,
     'messageId': messageId,
     'peopleTabAttention': peopleTabAttention,
+    'kind': kind,
   });
 
   @override
-  Future<void> navigateToBeacon(String id, {String? entry}) async =>
-      _record('navigateToBeacon', {'id': id, 'entry': entry});
+  Future<void> navigateToBeacon(
+    String id, {
+    String? entry,
+    BeaconKind? kind,
+  }) async =>
+      _record('navigateToBeacon', {'id': id, 'entry': entry, 'kind': kind});
 
   @override
   Future<void> openBeaconLobby(String beaconId) async =>

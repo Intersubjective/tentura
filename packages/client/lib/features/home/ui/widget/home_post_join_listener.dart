@@ -7,6 +7,7 @@ import 'package:get_it/get_it.dart';
 
 import 'package:tentura/ui/navigation/home_tab.dart';
 import 'package:tentura/consts.dart';
+import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/features/home/domain/port/post_join_beacon_handoff_port.dart';
 import 'package:tentura/features/home/ui/bloc/post_join_navigation_cubit.dart';
 import 'package:tentura/features/invitation/ui/message/accept_invite_messages.dart';
@@ -58,6 +59,7 @@ class _HomePostJoinListenerState extends State<HomePostJoinListener> {
     GetIt.I<ScreenCubit>().showBeacon(
       dest.beaconId!,
       entry: kBeaconEntryInvite,
+      kind: dest.isPost ? BeaconKind.post : null,
     );
 
     // ClearSnackBarsOnPushObserver clears the snackbar in a microtask on didPush;

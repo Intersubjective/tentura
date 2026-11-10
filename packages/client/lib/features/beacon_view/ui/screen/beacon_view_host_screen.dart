@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'package:tentura/app/router/beacon_view_route_normalizer.dart';
+import 'package:tentura/app/router/browse_deep_link.dart';
+import 'package:tentura/beacon_detail_path.dart';
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/beacon_kind.dart';
@@ -63,14 +65,19 @@ class BeaconViewHostScreen extends StatelessWidget implements AutoRouteWrapper {
     child: _BeaconKindGate(
       beaconId: id,
       entry: entry,
-      builder: (kind) => BlocBuilder<ProfileCubit, ProfileState>(
-        buildWhen: (previous, current) =>
-            previous.profile.id != current.profile.id,
-        builder: (context, profileState) {
-          final myProfile = profileState.profile;
-          if (kind == BeaconKind.post) return _postScope(myProfile);
-          return _requestScope(myProfile);
-        },
+      builder: (kind) => _BeaconDetailPathCanonicalizer(
+        beaconId: id,
+        kind: kind,
+        isDeepLink: isDeepLink,
+        child: BlocBuilder<ProfileCubit, ProfileState>(
+          buildWhen: (previous, current) =>
+              previous.profile.id != current.profile.id,
+          builder: (context, profileState) {
+            final myProfile = profileState.profile;
+            if (kind == BeaconKind.post) return _postScope(myProfile);
+            return _requestScope(myProfile);
+          },
+        ),
       ),
       isDeepLink: isDeepLink,
     ),
@@ -120,19 +127,148 @@ class PostViewHostScreen extends BeaconViewHostScreen {
 
   @override
   Widget wrappedRoute(BuildContext context) => localScreenCubitScope(
-    child: BlocBuilder<ProfileCubit, ProfileState>(
-      buildWhen: (previous, current) =>
-          previous.profile.id != current.profile.id,
-      builder: (context, profileState) => HomeRailFrame(
-        selectedTab: HomeTab.conversations,
-        child: PostViewScope(
-          id: id,
-          myProfile: profileState.profile,
-          retargetOwnerHomeTabOnLeave: isDeepLinkQueryTruthy(isDeepLink),
-        ),
-      ),
+    child: _BeaconKindGate(
+      beaconId: id,
+      entry: entry,
+      isDeepLink: isDeepLink,
+      builder: (kind) {
+        if (kind == BeaconKind.request) {
+          return _BeaconDetailPathCanonicalizer(
+            beaconId: id,
+            kind: kind,
+            isDeepLink: isDeepLink,
+            child: BeaconViewLoadingShellFrame(
+              entry: entry,
+              onBack: () => unawaited(
+                leaveRequestDetailScreen(
+                  context,
+                  beaconId: id,
+                  retargetOwnerHomeTab: isDeepLinkQueryTruthy(isDeepLink),
+                ),
+              ),
+            ),
+          );
+        }
+        return _BeaconDetailPathCanonicalizer(
+          beaconId: id,
+          kind: kind,
+          isDeepLink: isDeepLink,
+          child: BlocBuilder<ProfileCubit, ProfileState>(
+            buildWhen: (previous, current) =>
+                previous.profile.id != current.profile.id,
+            builder: (context, profileState) => HomeRailFrame(
+              selectedTab: HomeTab.conversations,
+              child: PostViewScope(
+                id: id,
+                myProfile: profileState.profile,
+                retargetOwnerHomeTabOnLeave: isDeepLinkQueryTruthy(isDeepLink),
+              ),
+            ),
+          ),
+        );
+      },
     ),
   );
+}
+
+/// Rewrites `/beacon/view/<postId>` ↔ `/post/view/<id>` in place (#1082).
+class _BeaconDetailPathCanonicalizer extends StatefulWidget {
+  const _BeaconDetailPathCanonicalizer({
+    required this.beaconId,
+    required this.kind,
+    required this.isDeepLink,
+    required this.child,
+  });
+
+  final String beaconId;
+  final BeaconKind kind;
+  final String? isDeepLink;
+  final Widget child;
+
+  @override
+  State<_BeaconDetailPathCanonicalizer> createState() =>
+      _BeaconDetailPathCanonicalizerState();
+}
+
+class _BeaconDetailPathCanonicalizerState
+    extends State<_BeaconDetailPathCanonicalizer> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => unawaited(_canonicalize()),
+    );
+  }
+
+  @override
+  void didUpdateWidget(_BeaconDetailPathCanonicalizer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.kind != widget.kind ||
+        oldWidget.beaconId != widget.beaconId) {
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => unawaited(_canonicalize()),
+      );
+    }
+  }
+
+  Future<void> _canonicalize() async {
+    if (!mounted) return;
+    late final StackRouter root;
+    late final String path;
+    late final Map<String, String> queryParameters;
+    try {
+      root = context.router.root;
+      final urlState = root.navigationHistory.urlState;
+      path = urlState.path;
+      queryParameters = urlState.uri.queryParameters;
+    } on Object {
+      return;
+    }
+    final isPost = widget.kind == BeaconKind.post;
+    final wrongPrefix = isPost
+        ? beaconDetailPathIsRequest(path)
+        : beaconDetailPathIsPost(path);
+    if (!wrongPrefix) return;
+
+    final target = beaconDetailPathFor(
+      widget.beaconId,
+      isPost: isPost,
+      queryParameters: queryParameters,
+    );
+    final coldDeepLink = isDeepLinkQueryTruthy(widget.isDeepLink);
+    final coldStack = coldDeepLink
+        ? buildBrowseDeepLinkStack(Uri.parse(target))
+        : null;
+    if (Router.maybeOf(context) == null) {
+      if (coldStack != null) {
+        await root.replaceAll([
+          coldStack.home,
+          markBrowseStackDetailColdStart(coldStack.detail),
+        ]);
+      } else {
+        await root.replacePath(target);
+      }
+      return;
+    }
+    try {
+      root.markUrlStateForReplace();
+      late Future<void> done;
+      Router.neglect(context, () {
+        done = coldStack != null
+            ? root.replaceAll([
+                coldStack.home,
+                markBrowseStackDetailColdStart(coldStack.detail),
+              ])
+            : root.replacePath(target);
+      });
+      await done;
+    } on Object {
+      return;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }
 
 /// Resolves the beacon kind once, then builds the matching scope.

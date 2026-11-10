@@ -3,6 +3,7 @@ import 'package:get_it/get_it.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/navigation/app_navigator.dart';
 
@@ -59,7 +60,10 @@ class PostsTabView extends StatelessWidget {
           now: now,
           selected: post.id == selectedId,
           onOpen: () => onOpenPost == null
-              ? GetIt.I<AppNavigator>().openBeacon(post.id)
+              ? GetIt.I<AppNavigator>().openBeacon(
+                  post.id,
+                  kind: BeaconKind.post,
+                )
               : onOpenPost!(post.id),
           onOpenParticipants: onOpenPostParticipants == null
               ? null

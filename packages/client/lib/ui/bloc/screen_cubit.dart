@@ -71,9 +71,9 @@ class ScreenCubit extends Cubit<ScreenState> {
   }) {
     ConstellationForwardTreeRequest.instance.pendingPayload =
         ConstellationForwardTreeRequestPayload(
-      beaconId: beaconId,
-      helpOffererId: helpOffererId,
-    );
+          beaconId: beaconId,
+          helpOffererId: helpOffererId,
+        );
     showConstellation();
   }
 
@@ -99,9 +99,16 @@ class ScreenCubit extends Cubit<ScreenState> {
   void showBeacon(
     String id, {
     String entry = kBeaconEntryUnknown,
-  }) => _navigateTo(
-    '$kPathBeaconView/$id?$kQueryBeaconEntry=${Uri.encodeQueryComponent(entry)}',
-  );
+    BeaconKind? kind,
+  }) {
+    final prefix = kind == BeaconKind.post ? kPathPostView : kPathBeaconView;
+    _navigateTo(
+      '$prefix/$id?$kQueryBeaconEntry=${Uri.encodeQueryComponent(entry)}',
+    );
+  }
+
+  void showPost(String id, {String entry = kBeaconEntryUnknown}) =>
+      showBeacon(id, entry: entry, kind: BeaconKind.post);
 
   void showProfile(String id, {String? entry}) => _navigateTo(
     entry == null

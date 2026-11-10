@@ -394,7 +394,12 @@ void main() {
               final destination = attentionDestination(
                 navigator.openedReceipts.single,
               );
-              expect(destination.path, '$kPathBeaconView/B1');
+              expect(
+                destination.path,
+                beaconKind == 1
+                    ? '$kPathPostView/B1'
+                    : '$kPathBeaconView/B1',
+              );
               expect(
                 destination.queryParameters[kQueryBeaconViewTab],
                 kBeaconViewTabThreads,

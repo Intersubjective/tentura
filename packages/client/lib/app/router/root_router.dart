@@ -6,6 +6,7 @@ import 'package:injectable/injectable.dart';
 import 'package:logging/logging.dart';
 
 import 'package:tentura/consts.dart';
+import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/domain/attention/destination_map.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
@@ -858,9 +859,11 @@ class RootRouter extends RootStackRouter implements AppNavigator {
     String? threadId,
     String? messageId,
     String? peopleTabAttention,
+    BeaconKind? kind,
   }) => push(
-    BeaconViewRoute(
+    _beaconDetailRoute(
       id: id,
+      kind: kind,
       entry: entry,
       viewTab: viewTab,
       threadId: threadId,
@@ -870,8 +873,41 @@ class RootRouter extends RootStackRouter implements AppNavigator {
   );
 
   @override
-  Future<void> navigateToBeacon(String id, {String? entry}) async {
-    await navigate(BeaconViewRoute(id: id, entry: entry));
+  Future<void> navigateToBeacon(
+    String id, {
+    String? entry,
+    BeaconKind? kind,
+  }) async {
+    await navigate(_beaconDetailRoute(id: id, kind: kind, entry: entry));
+  }
+
+  PageRouteInfo _beaconDetailRoute({
+    required String id,
+    BeaconKind? kind,
+    String? entry,
+    String? viewTab,
+    String? threadId,
+    String? messageId,
+    String? peopleTabAttention,
+  }) {
+    if (kind == BeaconKind.post) {
+      return PostViewRoute(
+        id: id,
+        entry: entry,
+        viewTab: viewTab,
+        threadId: threadId,
+        messageId: messageId,
+        peopleTabAttention: peopleTabAttention,
+      );
+    }
+    return BeaconViewRoute(
+      id: id,
+      entry: entry,
+      viewTab: viewTab,
+      threadId: threadId,
+      messageId: messageId,
+      peopleTabAttention: peopleTabAttention,
+    );
   }
 
   @override

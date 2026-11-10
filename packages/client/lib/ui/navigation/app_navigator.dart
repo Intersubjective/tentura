@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
+import 'package:tentura/domain/entity/beacon_kind.dart';
 
 import 'home_tab.dart';
 
@@ -35,7 +36,7 @@ abstract interface class AppNavigator {
   /// (the URL changes only when Home is not the current root route).
   Future<void> openMyProfile();
 
-  /// Pushes the Request detail (`BeaconViewRoute`).
+  /// Pushes the Request or Post detail route for [kind] (defaults to Request).
   Future<void> openBeacon(
     String id, {
     String? entry,
@@ -43,11 +44,15 @@ abstract interface class AppNavigator {
     String? threadId,
     String? messageId,
     String? peopleTabAttention,
+    BeaconKind? kind,
   });
 
-  /// Navigates to the Request detail (`navigate`: pops back to it when it is
-  /// already on the stack, pushes it otherwise).
-  Future<void> navigateToBeacon(String id, {String? entry});
+  /// Navigates to the Request or Post detail for [kind] (defaults to Request).
+  Future<void> navigateToBeacon(
+    String id, {
+    String? entry,
+    BeaconKind? kind,
+  });
 
   /// Pushes a Request's Questions (internally the lobby).
   Future<void> openBeaconLobby(String beaconId);

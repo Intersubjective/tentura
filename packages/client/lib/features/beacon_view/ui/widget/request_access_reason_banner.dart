@@ -113,8 +113,10 @@ class RequestAccessReasonBanner extends StatelessWidget {
                       key: openParentKey,
                       label: l10n.requestAccessOpenParentPost,
                       flushStart: true,
-                      onPressed: () =>
-                          GetIt.I<AppNavigator>().openBeacon(post.id),
+                      onPressed: () => GetIt.I<AppNavigator>().openBeacon(
+                        post.id,
+                        kind: BeaconKind.post,
+                      ),
                     ),
                 ],
               ),
