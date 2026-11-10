@@ -496,6 +496,10 @@
   "@confirmInvitationRemovalBody": {
     "context": "InvitationRemoveDialog"
   },
+  "buttonRemoveInvite": "Remove",
+  "@buttonRemoveInvite": {
+    "context": "InvitationRemoveDialog: destructive action; same verb as confirmInvitationRemovalTitle"
+  },
   "buttonKeepInvite": "Keep invite",
   "@buttonKeepInvite": {
     "context": "InvitationRemoveDialog"
