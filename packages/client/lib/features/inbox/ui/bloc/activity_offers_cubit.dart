@@ -11,6 +11,7 @@ import 'package:tentura/domain/entity/author_invite.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/use_case/author_invite_case.dart';
 import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
+import 'package:tentura/ui/bloc/reload_when_online.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 
@@ -58,6 +59,10 @@ final class ActivityOffersCubit extends Cubit<ActivityOffersState> {
       },
       cancelOnError: false,
     );
+    _reloadWhenOnline = ReloadWhenOnline(
+      lastLoadFailed: () => state.pageLoadFailed,
+      reload: () => unawaited(loadFirst()),
+    );
   }
 
   static const _deskRelevantDebounce = Duration(milliseconds: 50);
@@ -93,6 +98,7 @@ final class ActivityOffersCubit extends Cubit<ActivityOffersState> {
   late final StreamSubscription<HelpOfferEvent> _helpOfferChanges;
   late final StreamSubscription<Map<String, ActivityOfferBeaconMeta>>
   _offerGroups;
+  late final ReloadWhenOnline _reloadWhenOnline;
 
   /// Emits when an open forward leaves the pinned zone (UNIT 17 motion).
   Stream<String> get demotedBeaconIds => _demotedController.stream;
@@ -107,20 +113,22 @@ final class ActivityOffersCubit extends Cubit<ActivityOffersState> {
       state.copyWith(
         status: StateStatus.isLoading,
         pageLoadFailed: false,
+        pageLoadError: null,
         countLoadFailed: false,
       ),
     );
 
     ActivityOfferPage? offerPage;
-    var pageFailed = false;
+    Object? pageError;
     List<InboxItem> page = const [];
 
     try {
       offerPage = await _attention.activityOffers(limit: _pageSize);
       page = await _hydrateInboxItems(offerPage.items);
-    } catch (_) {
-      pageFailed = true;
+    } on Object catch (error) {
+      pageError = error;
     }
+    final pageFailed = pageError != null;
 
     if (generation != _loadGeneration || isClosed) return;
 
@@ -142,6 +150,7 @@ final class ActivityOffersCubit extends Cubit<ActivityOffersState> {
         totalCount: pageFailed ? state.totalCount : resolvedPage?.totalCount,
         countLoadFailed: false,
         pageLoadFailed: pageFailed,
+        pageLoadError: pageError,
         hasMore: hasMore,
         offersNextCursor: pageFailed ? state.offersNextCursor : nextCursor,
         eventsByBeacon: eventsByBeacon,
@@ -200,9 +209,15 @@ final class ActivityOffersCubit extends Cubit<ActivityOffersState> {
       unawaited(_refreshUnseenDots());
       unawaited(_hydrateActors(eventsByBeacon));
       unawaited(_hydrateInvites());
-    } catch (_) {
+    } on Object catch (error) {
       if (isClosed) return;
-      emit(state.copyWith(loadingMore: false, pageLoadFailed: true));
+      emit(
+        state.copyWith(
+          loadingMore: false,
+          pageLoadFailed: true,
+          pageLoadError: error,
+        ),
+      );
     }
   }
 
@@ -649,6 +664,7 @@ final class ActivityOffersCubit extends Cubit<ActivityOffersState> {
       timer.cancel();
     }
     _deskRelevantTimers.clear();
+    await _reloadWhenOnline.close();
     await _deskRelevantChanges.cancel();
     await _helpOfferChanges.cancel();
     await _offerGroups.cancel();

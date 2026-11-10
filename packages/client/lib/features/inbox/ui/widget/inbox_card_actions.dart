@@ -41,13 +41,22 @@ Future<void> inboxOfferHelp(BuildContext context, Beacon beacon) async {
     automaticSlugs: beacon.needs,
   );
   if (outcome == null || !context.mounted) return;
-  final ok = await GetIt.I<ForwardRepository>().offerHelp(
-    beaconId: beacon.id,
-    message: outcome.message,
-    helpTypes: outcome.helpTypesWire,
-  );
+  final effects = GetIt.I<UiEffectPort>();
+  final bool ok;
+  try {
+    ok = await GetIt.I<ForwardRepository>().offerHelp(
+      beaconId: beacon.id,
+      message: outcome.message,
+      helpTypes: outcome.helpTypesWire,
+    );
+  } on Object catch (error) {
+    // Callers fire this unawaited: show the failure (e.g. no connection)
+    // instead of letting it escape silently (#1110).
+    effects.emit(ShowError(error));
+    return;
+  }
   if (!context.mounted || !ok) return;
-  GetIt.I<UiEffectPort>().emit(
+  effects.emit(
     ShowMessage(
       useOfferHelpAnyway
           ? const BackupOfferSentMessage()

@@ -82,6 +82,9 @@ final class _StreamServer extends ConfigurableActivityOffersAttentionRepo {
   /// When set, `markSeen` waits for it, then fails.
   Completer<void>? failMarkSeenAfter;
 
+  /// First-page `attentionFeed` fetches the client made, in order.
+  int firstPageFetches = 0;
+
   @override
   Future<AttentionFeed> fetch({
     required AttentionView view,
@@ -89,6 +92,14 @@ final class _StreamServer extends ConfigurableActivityOffersAttentionRepo {
     String? search,
     int limit = 50,
     AttentionSurface? surface,
+  }) async {
+    if (cursor == null || cursor.isEmpty) firstPageFetches++;
+    return _page(view: view, cursor: cursor);
+  }
+
+  Future<AttentionFeed> _page({
+    required AttentionView view,
+    String? cursor,
   }) async => AttentionFeed(
     summary: const AttentionSummary(),
     page: AttentionFeedPage(
@@ -121,8 +132,31 @@ final class _StreamServer extends ConfigurableActivityOffersAttentionRepo {
   @override
   Future<int> markUnseen(List<String> ids) async => 0;
 
+  /// «Read all» sweeps after marking seen; nothing is dismissible here.
   @override
-  Future<int> markAllSeen({AttentionSurface? surface}) async => 0;
+  Future<AttentionDismissAllResult> dismissAll({
+    required String operationId,
+    int? maxBatches,
+  }) async => AttentionDismissAllResult(
+    operationId: operationId,
+    status: AttentionOperationStatus.complete,
+  );
+
+  /// Every `markAllSeen` call, in order (the surface it named).
+  final markAllSeenCalls = <AttentionSurface?>[];
+
+  /// The server after «Read all» (#601-a follow-up): `markAllSeen` also sets
+  /// the viewer's `outcome_seen_at` on forward rows, so a forward row comes
+  /// back with `seen_at = latest_forward_at` at the same `created_at`.
+  @override
+  Future<int> markAllSeen({AttentionSurface? surface}) async {
+    markAllSeenCalls.add(surface);
+    rows = [
+      for (final row in rows)
+        if (row['itemKind'] == 'forward') {...row, 'seenAt': _entryAt} else row,
+    ];
+    return 0;
+  }
 
   @override
   Future<Set<String>> unreadForBeacons(Set<String> beaconIds) async => {};
@@ -546,6 +580,59 @@ void main() {
           tester.getTopLeft(_forwardRow(_ticked)).dy,
           lessThan(tester.getTopLeft(find.byType(RequestAttentionCard)).dy),
         );
+      },
+    );
+
+    testWidgets(
+      'Read all never brings the forward tick back: the refetch the server '
+      'answers keeps the row seen, in place',
+      (tester) async {
+        final harness = await _pumpActivity(tester, [
+          _tickedRow(),
+          _groupedCardRow(),
+        ]);
+        expect(_rowDots(_ticked), 1);
+        final orderBefore = [
+          for (final r in harness.stream.state.items) r.id,
+        ];
+        final fetchesBefore = harness.server.firstPageFetches;
+
+        // Whether the forward row carries the tick in every state the cubit
+        // emits while Read all runs (an optimistic clear that the refetch
+        // reverts would show as seen, then ticked again).
+        final tickHistory = <bool>[];
+        final sub = harness.stream.stream.listen((state) {
+          for (final r in state.items) {
+            if (r.id == 'inbox:$_ticked') tickHistory.add(r.seenAt == null);
+          }
+        });
+        addTearDown(sub.cancel);
+
+        final ok = await harness.stream.markAllSeen();
+        await _settle(tester);
+
+        expect(ok, isTrue);
+        expect(harness.server.markAllSeenCalls, isNotEmpty);
+        expect(
+          harness.server.firstPageFetches,
+          greaterThan(fetchesBefore),
+          reason: 'Read all is followed by a refetch of the stream',
+        );
+        expect(tickHistory, isNotEmpty);
+        final firstSeen = tickHistory.indexOf(false);
+        expect(firstSeen, isNonNegative, reason: 'the tick was cleared');
+        expect(
+          tickHistory.skip(firstSeen).every((ticked) => !ticked),
+          isTrue,
+          reason: 'once cleared the tick never returns: $tickHistory',
+        );
+        expect(_rowDots(_ticked), 0);
+        final ticked = harness.stream.state.items.firstWhere(
+          (r) => r.id == 'inbox:$_ticked',
+        );
+        expect(ticked.seenAt, DateTime.parse(_entryAt));
+        expect(ticked.createdAt, DateTime.parse(_outcomeChangedAt));
+        expect([for (final r in harness.stream.state.items) r.id], orderBefore);
       },
     );
 

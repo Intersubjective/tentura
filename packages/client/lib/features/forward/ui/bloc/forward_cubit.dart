@@ -6,6 +6,7 @@ import 'package:tentura/consts.dart';
 import 'package:tentura/domain/util/availability_presets.dart';
 import 'package:tentura/features/people_tags/domain/entity/people_tag_suggestion_event.dart';
 import 'package:tentura/features/people_tags/domain/use_case/people_tags_case.dart';
+import 'package:tentura/ui/bloc/reload_when_online.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 
@@ -60,6 +61,10 @@ class ForwardCubit extends Cubit<ForwardState> {
       unawaited(_loadCandidates());
     }
     _subscribeLiveUpdates();
+    _reloadWhenOnline = ReloadWhenOnline(
+      lastLoadFailed: () => state.candidatesLoad is ForwardCandidatesError,
+      reload: () => unawaited(retryLoadCandidates()),
+    );
   }
 
   /// When true, first candidate load pre-checks lineage auto-select rows.
@@ -78,6 +83,8 @@ class ForwardCubit extends Cubit<ForwardState> {
   final ForwardCase? _forwardCase;
 
   final UiEffectPort _effects;
+
+  late final ReloadWhenOnline _reloadWhenOnline;
 
   final DateTime Function() _clock;
 
@@ -519,6 +526,7 @@ class ForwardCubit extends Cubit<ForwardState> {
     // subscription a second time has been observed to hang rather than
     // resolve (unlike a plain StreamSubscription).
     if (isClosed) return;
+    await _reloadWhenOnline.close();
     await _forwardChangesSub?.cancel();
     await _contactChangesSub?.cancel();
     await _blockChangesSub?.cancel();
