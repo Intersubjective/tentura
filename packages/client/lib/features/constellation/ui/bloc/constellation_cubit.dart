@@ -12,6 +12,7 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/lazy_write_notice.dart';
 import 'package:tentura/features/forward/domain/use_case/forward_case.dart';
 import 'package:tentura/features/forward/domain/entity/forward_graph.dart';
+import 'package:tentura/ui/bloc/reload_when_online.dart';
 import 'package:tentura/ui/utils/post_expiry_clock.dart';
 import '../utils/constellation_presentation_frame.dart';
 
@@ -214,6 +215,10 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     graphController.scene.addListener(_onGraphSceneLayoutOutcomeChanged);
     graphController.addListener(_onGraphControllerChanged);
     _ensureContactNameSubscription();
+    _reloadWhenOnline = ReloadWhenOnline(
+      lastLoadFailed: () => state.loadError != null,
+      reload: () => unawaited(load()),
+    );
     if (loadOnCreate) {
       unawaited(load());
     }
@@ -291,6 +296,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   late final StoreLease _storeLease;
   StreamSubscription<ConstellationFieldStoreState>? _storeSub;
   StreamSubscription<void>? _contactNameSub;
+  late final ReloadWhenOnline _reloadWhenOnline;
   StreamSubscription<PlacementOutboxState>? _placementSub;
   StreamSubscription<void>? _magnetHintSub;
 
@@ -330,6 +336,16 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   var _fieldInitialFrameCompleted = false;
   int? _userInputRevisionAtLastProgrammaticFrame;
   Set<String>? _fieldPeerIdsAtLastProgrammaticFrame;
+
+  /// The camera and viewport size of the last fit-all, while it is the last
+  /// programmatic camera (null after a targeted one). An untouched fit-all
+  /// camera follows the Field: it fits again when the viewport changes size
+  /// or late Field data re-seats people ([_fieldFitAwaitsLayout]).
+  ({int cameraRevision, Size? viewport})? _lastFieldFit;
+
+  /// Saved tag magnets read after the last fit-all moved people; the fit is
+  /// due again once their layout lands. A user's own moves never set it.
+  bool _fieldFitAwaitsLayout = false;
 
   /// A store publication or an outbox change arrived while the scene was
   /// frozen; the release applies them together in one compose and layout.
@@ -985,6 +1001,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     for (final entry in loaded.entries) {
       _putTagMagnet(entry.key, Offset(entry.value.x, entry.value.y));
     }
+    _fieldFitAwaitsLayout = true;
     _reconcileLayout(immediateHandoff: true);
   }
 
@@ -1148,6 +1165,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     _magnetHintSub = null;
     unawaited(_contactNameSub?.cancel());
     _contactNameSub = null;
+    unawaited(_reloadWhenOnline.close());
     _placementCase?.tagMagnetUndo = null;
     _clearClusterPresentations();
     _finishDropReflowSpans();
@@ -1191,6 +1209,10 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     required bool minimapExpanded,
   }) {
     final hadViewportSnapshot = _fieldCameraViewportSnapshot != EdgeInsets.zero;
+    if (_fieldFitOutdated) {
+      // The viewport was resized under an untouched fit-all camera.
+      _scheduleAutomaticFieldFraming();
+    }
     if (_fieldCameraViewportSnapshot == snapshotInsets &&
         _fieldCameraBottomChromeHeight == bottomChromeHeight &&
         _fieldCameraMinimapExpanded == minimapExpanded) {
@@ -3498,14 +3520,31 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     } else {
       _scene.fitNodes(insets, minScale: floor, focus: 'fp:${_viewer.id}');
     }
-    _recordProgrammaticFieldCamera();
+    _recordProgrammaticFieldCamera(fitAll: floor == null);
   }
 
-  void _recordProgrammaticFieldCamera() {
+  void _recordProgrammaticFieldCamera({bool fitAll = false}) {
     _fieldInitialFrameCompleted = true;
     _userInputRevisionAtLastProgrammaticFrame =
         graphController.userCameraInputRevision.value;
     _fieldPeerIdsAtLastProgrammaticFrame = _fieldPeerIdsExceptViewer();
+    _lastFieldFit = fitAll
+        ? (
+            cameraRevision: graphController.cameraRevision.value,
+            viewport: graphController.viewportSize,
+          )
+        : null;
+    _fieldFitAwaitsLayout = false;
+  }
+
+  /// The last fit-all is still the camera, and the viewport has changed size
+  /// or late Field data re-seated people since.
+  bool get _fieldFitOutdated {
+    final fit = _lastFieldFit;
+    return fit != null &&
+        graphController.cameraRevision.value == fit.cameraRevision &&
+        !_userMovedCameraSinceProgrammaticFrame &&
+        (_fieldFitAwaitsLayout || graphController.viewportSize != fit.viewport);
   }
 
   Set<String> _fieldPeerIdsExceptViewer() {
@@ -3529,6 +3568,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     _fieldInitialFrameCompleted = false;
     _userInputRevisionAtLastProgrammaticFrame = null;
     _fieldPeerIdsAtLastProgrammaticFrame = null;
+    _lastFieldFit = null;
   }
 
   void _scheduleAutomaticFieldFraming() {
@@ -3572,6 +3612,10 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     }
     final insets = _fieldCameraViewportSnapshot;
     if (!_fieldInitialFrameCompleted) {
+      fitWholeField(insets: insets);
+      return;
+    }
+    if (_fieldFitOutdated) {
       fitWholeField(insets: insets);
       return;
     }
@@ -3914,10 +3958,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   void previewLayout(ConstellationLayoutSnapshot snapshot) {
     final field = state.field;
     if (isClosed || field == null) return;
-    _positionsBeforeLayoutPreview ??= {
-      for (final id in graphController.renderSnapshot.topology.nodesById.keys)
-        id: ?graphController.renderSnapshot.resolvePosition(id),
-    };
+    _rememberPositionsBeforeLayoutPreview();
     final old = field.resolvedAnchorProjection;
     final projection = ConstellationAnchorProjection(
       revision: old.revision,
@@ -3996,6 +4037,23 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     _reconcileLayout(immediateHandoff: true);
   }
 
+  void _rememberPositionsBeforeLayoutPreview() {
+    _positionsBeforeLayoutPreview ??= {
+      for (final id in graphController.renderSnapshot.topology.nodesById.keys)
+        id: ?graphController.renderSnapshot.resolvePosition(id),
+    };
+  }
+
+  /// Puts every node back where it stood before a layout preview began.
+  void _restorePositionsBeforeLayoutPreview(
+    Map<String, ScenePoint> positions,
+  ) {
+    _scene.requestLayout(
+      releaseOnTerminal: _scene.activePresentationReleaseTokens(),
+      algorithm: ConstellationFixedLayout(positions),
+    );
+  }
+
   void cancelLayoutPreview() {
     final positions = _positionsBeforeLayoutPreview;
     _layoutPreviewAlgorithm = null;
@@ -4028,10 +4086,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       droppedHolderIds = composition.droppedHolderIds;
       _reconcileSelection(composition);
     }
-    _scene.requestLayout(
-      releaseOnTerminal: _scene.activePresentationReleaseTokens(),
-      algorithm: ConstellationFixedLayout(positions),
-    );
+    _restorePositionsBeforeLayoutPreview(positions);
   }
 
   Future<bool> restoreLayout(ConstellationLayoutSnapshot snapshot) async {
@@ -4127,9 +4182,10 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   }
 
   /// «Rearrange everyone, including pinned»: works out a full re-layout that
-  /// ignores pins and shows how many people it would move. Nothing is moved
-  /// or written until [applyRearrangePreview]; [cancelRearrangePreview]
-  /// leaves the Field as it was.
+  /// ignores pins, shows it on the Field and says how many people it would
+  /// move. Nothing is written until [applyRearrangePreview], which lands
+  /// everyone where the preview showed them; [cancelRearrangePreview] puts
+  /// the Field back as it was.
   void previewRearrangeAll() {
     final composition = state.composition;
     if (isClosed ||
@@ -4212,6 +4268,17 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
           moving++;
         }
       }
+      // The Field shows the planned arrangement while the preview is open;
+      // a node the plan does not place stays where it is.
+      _rememberPositionsBeforeLayoutPreview();
+      _layoutPreviewAlgorithm = ConstellationFixedLayout({
+        for (final id in snapshot.topology.nodesById.keys)
+          id: ?switch (rearranged.layout.positions[tenturaLayoutDomainId(id)]) {
+            final point? => ScenePoint(x: point.x, y: point.y),
+            null => snapshot.resolvePosition(id),
+          },
+      });
+      _reconcileLayout(immediateHandoff: true);
       emit(
         state.copyWith(
           rearrangePreview: ConstellationRearrangePreview(
@@ -4241,6 +4308,17 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     sched.start(step: stepSlice, onComplete: publishPreview);
   }
 
+  /// Stops showing the previewed arrangement; with [restore] every node goes
+  /// back where it stood before the preview.
+  void _endRearrangeLayoutPreview({required bool restore}) {
+    final positions = _positionsBeforeLayoutPreview;
+    _layoutPreviewAlgorithm = null;
+    _positionsBeforeLayoutPreview = null;
+    if (restore && positions != null) {
+      _restorePositionsBeforeLayoutPreview(positions);
+    }
+  }
+
   void cancelRearrangePreview() {
     if (isClosed ||
         (state.rearrangePreview == null && !_rearrangePreviewInFlight)) {
@@ -4249,6 +4327,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     _rearrangePreviewToken++;
     _rearrangePreviewInFlight = false;
     _scene.rearrangePreviewScheduler?.cancel();
+    _endRearrangeLayoutPreview(restore: true);
     if (state.rearrangePreview != null) {
       emit(state.copyWith(rearrangePreview: null));
     }
@@ -4278,10 +4357,16 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     try {
       await placement.history.saveSnapshotBeforeBulkAction('rebuild');
     } on Object catch (error, stackTrace) {
-      if (!isClosed) addError(error, stackTrace);
+      if (!isClosed) {
+        _endRearrangeLayoutPreview(restore: true);
+        addError(error, stackTrace);
+      }
       return false;
     }
     if (isClosed) return false;
+    // The pins land everyone where the preview showed them; the Field lays
+    // itself out from those pins again.
+    _endRearrangeLayoutPreview(restore: false);
     _clearArrangementPriors();
     if (writes.isEmpty) {
       _reconcileLayout(immediateHandoff: true);

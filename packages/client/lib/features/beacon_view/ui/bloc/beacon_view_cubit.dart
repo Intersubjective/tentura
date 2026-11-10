@@ -27,17 +27,15 @@ import 'package:tentura/domain/entity/room_pending_upload.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/domain/util/burst_coalescer.dart';
-import 'package:tentura/features/forward/data/repository/forward_repository.dart'
-    show BeaconInvolvementData;
 import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
 import 'package:tentura/features/forward/domain/entity/forward_edge.dart';
 import 'package:tentura/features/forward/domain/forward_trail.dart';
+import 'package:tentura/ui/bloc/reload_when_online.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/features/beacon/ui/util/beacon_delete_ui.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 
-import 'package:tentura/features/inbox/domain/entity/inbox_provenance.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/features/post_view/data/repository/post_membership_repository.dart';
 
@@ -62,8 +60,9 @@ export 'package:flutter_bloc/flutter_bloc.dart';
 
 export 'beacon_view_state.dart';
 
-/// Marks a background refresh slice that failed and keeps its current value.
-const Object _keptSlice = Object();
+/// One slice of a Request read: its `value`, or `kept` when a background
+/// refresh of it failed and the screen keeps the value it already shows.
+typedef _Slice<T> = ({T? value, bool kept});
 
 /// Forwards read for a Request the screen already holds.
 typedef _ForwardsRead = ({
@@ -131,6 +130,10 @@ class BeaconViewCubit extends Cubit<BeaconViewState> implements RoomHost {
     _peopleSeenChangesSub = _case.peopleSeenChanges.listen(
       _onPeopleSeen,
       cancelOnError: false,
+    );
+    _reloadWhenOnline = ReloadWhenOnline(
+      lastLoadFailed: () => state.hasError,
+      reload: () => unawaited(retryInitialLoad()),
     );
     unawaited(_runFetchWithGate(background: false));
     if (state.loadError != null) {
@@ -225,6 +228,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> implements RoomHost {
   late final StreamSubscription<RealtimeEntityChange> _peopleChangesSub;
 
   late final StreamSubscription<RealtimeEntityChange> _peopleSeenChangesSub;
+  late final ReloadWhenOnline _reloadWhenOnline;
 
   bool _peopleSeenInFlight = false;
 
@@ -288,6 +292,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> implements RoomHost {
     await _blockMarkersSub.cancel();
     await _peopleChangesSub.cancel();
     await _peopleSeenChangesSub.cancel();
+    await _reloadWhenOnline.close();
     return super.close();
   }
 
@@ -1676,12 +1681,12 @@ class BeaconViewCubit extends Cubit<BeaconViewState> implements RoomHost {
       // fails (e.g. "Constellation database busy") keeps its current value
       // instead of dropping the whole refresh, so fresh slices such as the
       // room state (next step) still reach the screen.
-      Future<Object?> keepOnError(Future<Object?> slice) => retainLoadedContext
-          ? slice.then<Object?>(
-              (value) => value,
-              onError: (Object _) => _keptSlice,
+      Future<_Slice<T>> keepOnError<T>(Future<T> slice) => retainLoadedContext
+          ? slice.then<_Slice<T>>(
+              (value) => (value: value, kept: false),
+              onError: (Object _) => (value: null, kept: true),
             )
-          : slice;
+          : slice.then<_Slice<T>>((value) => (value: value, kept: false));
 
       final needsAuthorForwards =
           !skipRoom &&
@@ -1782,62 +1787,78 @@ class BeaconViewCubit extends Cubit<BeaconViewState> implements RoomHost {
       final updateReaders = skipRoom
           ? null
           : _case.fetchLatestUpdateReaders(beaconId);
-      final results = await Future.wait([
-        // Without involvement access the viewer still sees their own offer
-        // (a declined offerer loses access but must learn why).
-        keepOnError(loadOffers()),
-        keepOnError(_case.fetchInboxContextForBeacon(beaconId)),
-        _case.fetchFactCards(beaconId),
-        if (skipRoom)
-          Future.value(const <BeaconParticipant>[])
-        else
-          _case.fetchRoomParticipants(beaconId),
-        if (skipRoom)
-          Future<BeaconRoomState?>.value()
-        else if (retainLoadedContext)
-          // A failed room-state fetch must not blank the next step.
-          keepOnError(_case.fetchRoomStateOrThrow(beaconId))
-        else
-          _case.fetchRoomStateIfAllowed(beaconId),
-        if (skipRoom || skipInvolvement)
-          Future.value(const <BeaconActivityEvent>[])
-        else
-          _case.fetchRoomActivityEvents(beaconId),
-        keepOnError(loadDisplayStatus()),
-        if (canReadAdmittedHelpers)
-          _case.fetchAdmittedHelpers(beaconId)
-        else
-          Future.value(const <Profile>[]),
-        // Only the showcase (viewer not let in) orders its team strip by
-        // acquaintance; members get the HUD and never need it.
-        if (canReadAdmittedHelpers && skipRoom)
-          _case.fetchTeamAcquaintanceIds(beaconId)
-        else
-          Future.value(const <String>{}),
+      // Every slice leaves before any is awaited.
+      // Without involvement access the viewer still sees their own offer
+      // (a declined offerer loses access but must learn why).
+      final offersRead = keepOnError(loadOffers());
+      final inboxRead = keepOnError(_case.fetchInboxContextForBeacon(beaconId));
+      final factCardsRead = _case.fetchFactCards(beaconId);
+      final participantsRead = skipRoom
+          ? Future.value(const <BeaconParticipant>[])
+          : _case.fetchRoomParticipants(beaconId);
+      final roomCueRead = skipRoom
+          ? Future<_Slice<BeaconRoomState?>>.value((value: null, kept: false))
+          : keepOnError<BeaconRoomState?>(
+              retainLoadedContext
+                  // A failed room-state fetch must not blank the next step.
+                  ? _case.fetchRoomStateOrThrow(beaconId)
+                  : _case.fetchRoomStateIfAllowed(beaconId),
+            );
+      final activityRead = skipRoom || skipInvolvement
+          ? Future.value(const <BeaconActivityEvent>[])
+          : _case.fetchRoomActivityEvents(beaconId);
+      final displayStatusRead = keepOnError(loadDisplayStatus());
+      final admittedHelpersRead = canReadAdmittedHelpers
+          ? _case.fetchAdmittedHelpers(beaconId)
+          : Future.value(const <Profile>[]);
+      // Only the showcase (viewer not let in) orders its team strip by
+      // acquaintance; members get the HUD and never need it.
+      final teamAcquaintanceRead = canReadAdmittedHelpers && skipRoom
+          ? _case.fetchTeamAcquaintanceIds(beaconId)
+          : Future.value(const <String>{});
+
+      // Future.wait fails with the first slice error to arrive, as that
+      // error; the typed read below runs only once every slice succeeded.
+      await Future.wait<Object?>([
+        offersRead,
+        inboxRead,
+        factCardsRead,
+        participantsRead,
+        roomCueRead,
+        activityRead,
+        displayStatusRead,
+        admittedHelpersRead,
+        teamAcquaintanceRead,
         closureFuture,
         forwardsFuture,
       ]);
+      final (
+        inboxSlice,
+        factCards,
+        roomParticipants,
+        roomCueSlice,
+        roomActivityEvents,
+        admittedHelperRoster,
+        teamAcquaintanceIds,
+        closureState,
+        forwards,
+      ) = await (
+        inboxRead,
+        factCardsRead,
+        participantsRead,
+        roomCueRead,
+        activityRead,
+        admittedHelpersRead,
+        teamAcquaintanceRead,
+        closureFuture,
+        forwardsFuture,
+      ).wait;
 
-      final inboxKept = identical(results[1], _keptSlice);
-      final inboxCtx = inboxKept
-          ? null
-          : results[1]!
-                as ({
-                  InboxItemStatus? status,
-                  InboxProvenance provenance,
-                  String latestNotePreview,
-                });
-      final factCards = results[2]! as List<BeaconFactCard>;
-      final roomParticipants = results[3]! as List<BeaconParticipant>;
-      final roomCueKept = identical(results[4], _keptSlice);
+      final inboxCtx = inboxSlice.kept ? null : inboxSlice.value;
+      final roomCueKept = roomCueSlice.kept;
       final beaconRoomCue = roomCueKept
           ? state.beaconRoomCue
-          : results[4] as BeaconRoomState?;
-      final roomActivityEvents = results[5]! as List<BeaconActivityEvent>;
-      final admittedHelperRoster = results[7]! as List<Profile>;
-      final teamAcquaintanceIds = results[8]! as Set<String>;
-      final closureState = results[9] as ClosureState?;
-      final forwards = results[10] as _ForwardsRead?;
+          : roomCueSlice.value;
       final openCoordinationBlocker = roomCueKept
           ? state.openCoordinationBlocker
           : beaconRoomCue != null
@@ -2092,14 +2113,17 @@ class BeaconViewCubit extends Cubit<BeaconViewState> implements RoomHost {
     required String myUserId,
     required Beacon beacon,
   }) async {
-    final results = await Future.wait([
-      _case.fetchForwardEdgesForBeacon(beaconId),
-      _case.fetchInvolvementForBeacon(beacon),
-      _case.fetchForwardReasonsByBeacon(beaconId),
-    ]);
-    final allEdges = results[0] as List<ForwardEdge>;
-    final involvement = results[1] as BeaconInvolvementData;
-    final reasons = results[2] as Map<String, List<String>>;
+    final edgesRead = _case.fetchForwardEdgesForBeacon(beaconId);
+    final involvementRead = _case.fetchInvolvementForBeacon(beacon);
+    final reasonsRead = _case.fetchForwardReasonsByBeacon(beaconId);
+    // Future.wait fails with the first error to arrive, as that error; the
+    // typed read below runs only once all three succeeded.
+    await Future.wait<Object?>([edgesRead, involvementRead, reasonsRead]);
+    final (allEdges, involvement, reasons) = await (
+      edgesRead,
+      involvementRead,
+      reasonsRead,
+    ).wait;
     // Live forwards only: a cancelled forward never reached anyone.
     return (
       myForwards: allEdges

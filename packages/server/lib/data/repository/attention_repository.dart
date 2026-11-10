@@ -1878,6 +1878,15 @@ targets AS (
   FROM visible
   WHERE seen_at IS NULL
     AND (\$2::text IS NULL OR surface = \$2)
+),
+forward_outcomes AS (
+  -- #601-a: a forward row lives on the Activity surface; Read all clears
+  -- the viewer's unseen outcome ticks there like it marks receipts seen.
+  UPDATE public.inbox_item ii
+  SET outcome_seen_at = now()
+  WHERE ii.user_id = \$1
+    AND (\$2::text IS NULL OR \$2::text = 'activity')
+    AND ii.outcome_changed_at > COALESCE(ii.outcome_seen_at, '-infinity')
 )
 UPDATE public.notification_outbox outbox
 SET
@@ -1904,6 +1913,14 @@ WITH opened AS (
   -- read, so record only the independent Field-open fact. Seated readers
   -- keep the cursor the room itself moves.
   $recordUnseatedFieldOpenSql
+),
+forward_outcome AS (
+  -- #601-a: opening the Request anywhere clears its forward outcome tick.
+  UPDATE public.inbox_item ii
+  SET outcome_seen_at = now()
+  WHERE ii.user_id = \$1
+    AND ii.beacon_id = \$2
+    AND ii.outcome_changed_at > COALESCE(ii.outcome_seen_at, '-infinity')
 )
 UPDATE public.notification_outbox outbox
 SET

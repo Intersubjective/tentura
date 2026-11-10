@@ -370,6 +370,9 @@ class _ActivityStreamViewState extends State<ActivityStreamView>
             builder: (context, streamState) {
               return TenturaFirstLoadGate(
                 ready: offersState.firstLoadDone && streamState.firstLoadDone,
+                // Either first read failing ends the wait in the shared
+                // error panel instead of an endless spinner (#1110).
+                error: offersState.pageLoadError ?? streamState.refreshError,
                 onRetry: () => unawaited(_refreshBoth()),
                 child: Stack(
                   clipBehavior: Clip.none,

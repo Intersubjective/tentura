@@ -235,7 +235,7 @@ class _PendingRow extends StatelessWidget {
 
     final onAck = parent.onAck;
     final onDone = parent.onDone;
-    final tick = row.canTickStep;
+    final tick = row.tickableStep;
     final firstStep = pending.stepIds.isEmpty ? null : pending.stepIds.first;
     final onOpen = parent.onOpenStep;
     return KeyedSubtree(

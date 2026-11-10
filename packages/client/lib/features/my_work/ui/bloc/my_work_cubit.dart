@@ -17,6 +17,7 @@ import 'package:tentura/features/my_work/domain/derive_my_work_cards.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
 import 'package:tentura/features/my_work/domain/port/my_work_sort_preference_port.dart';
 import 'package:tentura/features/my_work/domain/use_case/my_work_case.dart';
+import 'package:tentura/ui/bloc/reload_when_online.dart';
 
 import 'my_work_state.dart';
 
@@ -102,6 +103,10 @@ class MyWorkCubit extends Cubit<MyWorkState> {
         cancelOnError: false,
       );
     }
+    _reloadWhenOnline = ReloadWhenOnline(
+      lastLoadFailed: () => state.loadError != null,
+      reload: () => unawaited(fetch()),
+    );
     unawaited(fetch());
   }
 
@@ -158,10 +163,12 @@ class MyWorkCubit extends Cubit<MyWorkState> {
   late final StreamSubscription<void> _catchUps;
   StreamSubscription<RealtimeEntityChange>? _obligationNotificationChanges;
   StreamSubscription<dynamic>? _blockChanges;
+  late final ReloadWhenOnline _reloadWhenOnline;
 
   @override
   Future<void> close() async {
     _pendingRetryTimer?.cancel();
+    await _reloadWhenOnline.close();
     _hintRefreshRequests.dispose();
     await _beaconChanges.cancel();
     await _helpOfferChanges.cancel();

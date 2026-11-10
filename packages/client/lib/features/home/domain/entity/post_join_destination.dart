@@ -1,4 +1,4 @@
-/// Ephemeral post-invite navigation intent (beacon → Inbox tab).
+/// Ephemeral post-invite navigation intent (Post → Posts tab, Request → Inbox).
 class PostJoinDestination {
   const PostJoinDestination({
     this.beaconId,

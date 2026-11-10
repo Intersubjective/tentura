@@ -170,6 +170,26 @@ extension type ForwardOutcomeTickContract(Map<String, dynamic> _entry) {
   String get unseen => _string('unseen');
   String get markSeen => _string('markSeen');
 
+  /// Every string the entry records, at any depth, except the recorded
+  /// `cases` (whichever field carries a statement, it is found here).
+  String get prose {
+    final out = <String>[];
+    void walk(Object? node) {
+      if (node is String) {
+        out.add(node);
+      } else if (node is Map) {
+        for (final e in node.entries) {
+          if (e.key != 'cases') walk(e.value);
+        }
+      } else if (node is List) {
+        node.forEach(walk);
+      }
+    }
+
+    walk(_entry);
+    return out.join('\n');
+  }
+
   /// The server SQL the rule is transcribed from, as literal fragments of
   /// `lib/data/repository/attention_repository.dart` (`position`, `unseen`,
   /// `markSeen`). [assertMatchesServerSql] fails when the source no longer
@@ -189,6 +209,14 @@ extension type ForwardOutcomeTickContract(Map<String, dynamic> _entry) {
         throw StateError('forwardOutcomeTick.sql records no "$key" fragment');
       }
       fragments[key] = fragment;
+    }
+    // «Read all» and opening a Request also write outcome_seen_at; their
+    // fragments are checked against the server source as well when recorded.
+    for (final key in const ['markAllSeen', 'markSeenForBeacon']) {
+      final fragment = value[key];
+      if (fragment is String && fragment.trim().isNotEmpty) {
+        fragments[key] = fragment;
+      }
     }
     return fragments;
   }

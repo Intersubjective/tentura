@@ -17,6 +17,7 @@ import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/features/updates/domain/entity/prompt_projection.dart';
 import 'package:tentura/features/updates/domain/use_case/invite_accepted_setup_case.dart';
+import 'package:tentura/ui/bloc/reload_when_online.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
 import 'updates_feed_state.dart';
@@ -65,6 +66,10 @@ final class UpdatesFeedCubit extends Cubit<UpdatesFeedState> {
     _promptInvalidationSub = _realtime
         .changesFor(const {RealtimeEntityKind.inviteSeedPrompt})
         .listen(_onPromptInvalidation);
+    _reloadWhenOnline = ReloadWhenOnline(
+      lastLoadFailed: () => state.hasRefreshError,
+      reload: () => unawaited(refresh()),
+    );
     _projectFromDomain();
     unawaited(_attention.refresh(destinationId: _destinationId));
   }
@@ -79,6 +84,7 @@ final class UpdatesFeedCubit extends Cubit<UpdatesFeedState> {
   late final StreamSubscription<AttentionFeedSession> _sessionSub;
   late final StreamSubscription<AttentionSurfaceSummary> _surfaceSummarySub;
   late final StreamSubscription<RealtimeEntityChange> _promptInvalidationSub;
+  late final ReloadWhenOnline _reloadWhenOnline;
   final _clearNotices = StreamController<UpdatesClearNotice>.broadcast();
   int _promptFetchEpoch = 0;
   int _actorsGeneration = 0;
@@ -372,6 +378,7 @@ final class UpdatesFeedCubit extends Cubit<UpdatesFeedState> {
   @override
   Future<void> close() async {
     _attention.detachFeedSession(_destinationId);
+    await _reloadWhenOnline.close();
     await _accountSub.cancel();
     await _sessionSub.cancel();
     await _surfaceSummarySub.cancel();

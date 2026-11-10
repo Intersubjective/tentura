@@ -5,9 +5,6 @@ import 'constellation_drag_cluster.dart';
 import 'constellation_layout.dart';
 import 'layout/layout_geometry.dart';
 
-/// Turn between successive members of one tag area (≈137.5°).
-const _kGoldenAngle = 2.399963229728653; // π(3 − √5)
-
 /// Result of staging tag areas before the settled layout pass.
 typedef ConstellationRearrangeTagStaging = ({
   Map<String, ConstellationPoint> areaPositions,
@@ -17,8 +14,9 @@ typedef ConstellationRearrangeTagStaging = ({
 /// Stages positions for own-tag «Rearrange everyone» areas on top of
 /// [freeLayout] from the first pass.
 ///
-/// Returns map entries only for people placed into a tag area (including
-/// multi-tag midpoints). Empty when [input] carries no tag membership.
+/// Returns map entries only for people placed into a tag area (a person with
+/// several tags sits in one of them). Empty when [input] carries no tag
+/// membership.
 Map<String, ConstellationPoint> constellationRearrangeTagAreaPositions({
   required ConstellationPlacedLayoutInput input,
   required ConstellationLayout freeLayout,
@@ -236,30 +234,25 @@ Iterable<void> constellationRearrangeTagStagingSteps({
 
   final out = <String, ConstellationPoint>{};
 
-  {
-    final multiIds =
-        personOwnTags.entries
-            .where((e) => e.value.length > 1)
-            .map((e) => e.key)
-            .toList()
-          ..sort();
-    for (final id in multiIds) {
-      final tags = personOwnTags[id]!.toList()..sort();
-      final memberCentres = [
-        for (final t in tags)
-          if (tagCentres[t] != null) tagCentres[t]!,
-      ];
-      if (memberCentres.length < 2) continue;
-      final cx =
-          memberCentres.map((c) => c.x).reduce((a, b) => a + b) /
-          memberCentres.length;
-      final cy =
-          memberCentres.map((c) => c.y).reduce((a, b) => a + b) /
-          memberCentres.length;
-      out[id] = constellationClampToDragBounds((x: cx, y: cy));
-      yield null;
+  // Everyone sits in one tag's area: a person with several tags sits with
+  // the tag that has the most people on the Field (ties: tag order), not
+  // between the areas.
+  String? homeTag(Set<String> tags) {
+    String? best;
+    for (final t in [...tags]..sort()) {
+      if (!tagCentres.containsKey(t)) continue;
+      if (best == null ||
+          (tagMemberCount[t] ?? 0) > (tagMemberCount[best] ?? 0)) {
+        best = t;
+      }
     }
+    return best;
   }
+
+  final homeTagOf = <String, String>{
+    for (final MapEntry(key: id, value: tags) in personOwnTags.entries)
+      id: ?homeTag(tags),
+  };
 
   final untaggedFieldPeople = <String>{
     for (final id in onFieldPeople)
@@ -331,7 +324,7 @@ Iterable<void> constellationRearrangeTagStagingSteps({
                   id != input.egoId &&
                   onFieldPeople.contains(id) &&
                   freeLayout.positions[id] != null &&
-                  personOwnTags[id]!.length == 1,
+                  homeTagOf[id] == tagId,
             )
             .toList()
           ..sort();
@@ -350,57 +343,51 @@ Iterable<void> constellationRearrangeTagStagingSteps({
       });
 
     final diskR = tagDiskRadius(tagId);
-    final tagPhase = tagIds.indexOf(tagId) * 0.2;
-    final nMem = sortedMembers.length;
+    // A compact group: members take the cells of a square grid one node
+    // cell wide nearest the tag centre, the cells on the viewer's side first
+    // and the shallowest members first. Neighbours stand one cell apart on
+    // an axis, so the layout's spacing test keeps every staged place and
+    // the Field's tag area joins them into one shape, not a disc per person.
+    var cell = 0.0;
+    for (final id in sortedMembers) {
+      cell = math.max(cell, cellFor(id));
+    }
+    final towardEgoX = canvasCentre.x - centreTag.x;
+    final towardEgoY = canvasCentre.y - centreTag.y;
+    final tow = math.sqrt(towardEgoX * towardEgoX + towardEgoY * towardEgoY);
+    final bias = tow < 1e-6
+        ? (x: 0.0, y: 0.0)
+        : (x: 0.25 * towardEgoX / tow, y: 0.25 * towardEgoY / tow);
+    final reach = math.sqrt(sortedMembers.length).ceil() + 1;
+    final slots = [
+      for (var gx = -reach; gx <= reach; gx++)
+        for (var gy = -reach; gy <= reach; gy++) (x: gx, y: gy),
+    ];
+    double slotRank(({int x, int y}) g) =>
+        math.pow(g.x - bias.x, 2) + math.pow(g.y - bias.y, 2).toDouble();
+    slots.sort((a, b) {
+      final byRank = slotRank(a).compareTo(slotRank(b));
+      if (byRank != 0) return byRank;
+      final byY = a.y.compareTo(b.y);
+      return byY != 0 ? byY : a.x.compareTo(b.x);
+    });
 
     for (var i = 0; i < sortedMembers.length; i++) {
       final id = sortedMembers[i];
-
-      final cell = cellFor(id);
-      // A compact group: a golden-angle spiral within half the disk, so any
-      // two members stand closer than the disk radius.
-      final t = (i + 0.5) / nMem;
-      final radial = diskR * 0.5 * math.sqrt(t) * 0.92;
-      final angle = i * _kGoldenAngle + tagPhase;
       var raw = (
-        x: centreTag.x + radial * math.cos(angle),
-        y: centreTag.y + radial * math.sin(angle),
+        x: centreTag.x + slots[i].x * cell,
+        y: centreTag.y + slots[i].y * cell,
       );
-      raw = pushOutOfDisks(raw, diskCentreIds.difference({tagId}), id);
-      final rdx = raw.x - centreTag.x;
-      final rdy = raw.y - centreTag.y;
-      final rd = math.sqrt(rdx * rdx + rdy * rdy);
-      if (rd > diskR) {
-        final scale = diskR / rd;
-        raw = (
-          x: centreTag.x + rdx * scale,
-          y: centreTag.y + rdy * scale,
-        );
-      }
-      final depth =
-          input.paths.depth[id] ??
-          (input.paths.ring.contains(id) ? input.maxHops + 1 : input.maxHops);
-      final shallow = sortedMembers
-          .map(
-            (m) =>
-                input.paths.depth[m] ??
-                (input.paths.ring.contains(m)
-                    ? input.maxHops + 1
-                    : input.maxHops),
-          )
-          .reduce(math.min);
-      final towardEgoDx = canvasCentre.x - centreTag.x;
-      final towardEgoDy = canvasCentre.y - centreTag.y;
-      final tow = math.sqrt(
-        towardEgoDx * towardEgoDx + towardEgoDy * towardEgoDy,
+      // Disks of tags that share people with this one may overlap it (see
+      // the separation pass), so only the other tags' disks push out.
+      raw = pushOutOfDisks(
+        raw,
+        {
+          for (final t in diskCentreIds)
+            if (!personOwnTags[id]!.contains(t) && !shareMembers(tagId, t)) t,
+        },
+        id,
       );
-      if (tow > 1e-6 && depth == shallow) {
-        final tuck = 0.06 * cell;
-        raw = (
-          x: raw.x + towardEgoDx / tow * tuck,
-          y: raw.y + towardEgoDy / tow * tuck,
-        );
-      }
       raw = clampInsideDisk(raw, centreTag, diskR);
       out[id] = constellationClampToDragBounds(
         raw,
