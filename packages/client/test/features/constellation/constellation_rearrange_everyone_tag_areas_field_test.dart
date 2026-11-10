@@ -37,6 +37,7 @@ import 'package:tentura/features/constellation/ui/scene/constellation_scene_cont
 import 'package:tentura/features/constellation/ui/widget/constellation_app_bar.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_rearrange_preview_bar.dart';
+import 'package:tentura/features/constellation/ui/widget/constellation_tag_hull_layer.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_tag_row.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_viewport_overlay.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
@@ -630,7 +631,8 @@ void _expectCompactSeparateAreas(
   );
 }
 
-/// Every tagged person's node centre is on screen inside the visible Field.
+/// Every fixture person's node centre (tagged and untagged) is on screen
+/// inside the visible Field.
 ///
 /// Frame of reference: the drawn frame's `bodies` are in the Field
 /// viewport's local coordinates (scene → `sceneToViewportLocal`), and the
@@ -647,7 +649,7 @@ void _expectCompactSeparateAreas(
 /// centre in global coordinates) must meet the same three conditions, so a
 /// Field whose drawn frame is right but whose node widgets are off screen
 /// fails too.
-void _expectTaggedPeopleOnScreen(
+void _expectEveryoneOnScreen(
   WidgetTester tester,
   ConstellationCubit cubit, {
   required String when,
@@ -718,7 +720,7 @@ void _expectTaggedPeopleOnScreen(
     }
   }
 
-  for (final id in _tagged) {
+  for (final id in _people.keys) {
     final scale = cubit.graphController.cameraScale;
     final body = frame.bodies[_nodeId(id)];
     expect(body, isNotNull, reason: '$when: $id is drawn on the Field');
@@ -736,12 +738,341 @@ void _expectTaggedPeopleOnScreen(
   }
 }
 
+/// Scene positions of every fixture person as the Field shows them now.
+Map<String, Offset> _shownPositions(ConstellationCubit cubit) => {
+  for (final id in _people.keys) id: _scenePosition(cubit, id),
+};
+
+/// Half the larger side of a person's rendered node.
+double _nodeRadius(ConstellationCubit cubit, String personId) {
+  final size = _nodeSizes(cubit)[personId]!;
+  return math.max(size.width, size.height) / 2;
+}
+
+/// The one translation that carries [from] onto [to] (the mean of the
+/// per-person differences over [ids], every fixture person by default);
+/// each of them must then land within 1 px of their place in [to], else the
+/// two are not the same arrangement. 1 px is the criterion's tolerance for
+/// "the same position" after one common layout-to-scene translation.
+Offset _commonShift(
+  Map<String, Offset> from,
+  Map<String, Offset> to, {
+  required String what,
+  Iterable<String>? ids,
+}) {
+  final people = [...(ids ?? _people.keys)];
+  var sum = Offset.zero;
+  for (final id in people) {
+    sum += to[id]! - from[id]!;
+  }
+  final shift = sum / people.length.toDouble();
+  for (final id in people) {
+    expect(
+      (to[id]! - (from[id]! + shift)).distance,
+      lessThan(1),
+      reason:
+          '$what: $id is at ${to[id]}, not at ${from[id]! + shift} '
+          '(one common translation $shift of ${from[id]})',
+    );
+  }
+  return shift;
+}
+
+/// Opens «Rearrange everyone» and leaves the preview on screen (nothing is
+/// applied).
+Future<void> _openRearrangeEveryonePreview(
+  WidgetTester tester,
+  _Harness h,
+  String rearrangeLabel,
+) async {
+  await tapConstellationArrangeOverflowAction(tester, rearrangeLabel);
+  await _pumpFrames(tester, 40);
+  expect(h.cubit.state.rearrangePreview, isNotNull, reason: 'preview shown');
+  expect(
+    find.byKey(const Key('constellation-rearrange-apply')),
+    findsOneWidget,
+    reason: 'the preview offers Apply',
+  );
+}
+
+Future<void> _tapApply(WidgetTester tester, _Harness h) async {
+  final apply = find.byKey(const Key('constellation-rearrange-apply'));
+  await Scrollable.ensureVisible(tester.element(apply), alignment: 1);
+  await _pumpFrames(tester, 5);
+  await tester.tap(apply);
+  await _pumpFrames(tester, 40);
+  expect(h.cubit.state.rearrangePreview, isNull, reason: 'Apply was taken');
+}
+
+/// Members of each own tag, keyed by tag id (Boris carries tags A and C).
+final _membersByTag = {
+  for (final m in _memberships) m.tagId: m.personIds,
+};
+const _untagged = ['ulya', 'uma'];
+
+/// The Field, as shown [when], against the planner's own tag areas: centres
+/// from [rebuilt].tagCentres carried into scene coordinates by [shift], each
+/// with the tag-area disk radius [_radius].
+/// - compact: Boris and Dima are within rA of tag A's centre, Nova and Carol
+///   within rB of tag B's, each pair at most twice its tag's radius apart;
+///   Boris (tags A and C) sits inside tag A's disk;
+/// - separate: the A and B centres are further apart than rA + rB + 16,
+///   tag A's members are outside tag B's disk and tag B's outside tag A's,
+///   and Boris and Nova are not stacked;
+/// - untagged: the node bodies of Ulya and Uma stay clear of every tag's
+///   disk (centre distance greater than that radius plus the node radius).
+void _expectPlannerTagAreas(
+  ConstellationCubit cubit,
+  ConstellationRearrangement rebuilt,
+  Offset shift, {
+  required String when,
+}) {
+  final at = _shownPositions(cubit);
+  final centre = <String, Offset>{};
+  final radius = <String, double>{};
+  for (final MapEntry(key: tagId, value: members) in _membersByTag.entries) {
+    final c = rebuilt.tagCentres[tagId];
+    expect(c, isNotNull, reason: '$when: tag $tagId gets an area');
+    centre[tagId] = Offset(c!.x, c.y) + shift;
+    radius[tagId] = _radius(cubit, members);
+  }
+
+  for (final (tagId, other) in [(_tagA.id, _tagB.id), (_tagB.id, _tagA.id)]) {
+    final members = _membersByTag[tagId]!;
+    for (final id in members) {
+      expect(
+        (at[id]! - centre[tagId]!).distance,
+        lessThanOrEqualTo(radius[tagId]!),
+        reason: '$when: $id is inside tag $tagId’s area (r ${radius[tagId]})',
+      );
+      expect(
+        (at[id]! - centre[other]!).distance,
+        greaterThan(radius[other]!),
+        reason: '$when: $id is outside tag $other’s area',
+      );
+    }
+    expect(
+      (at[members[0]]! - at[members[1]]!).distance,
+      lessThanOrEqualTo(2 * radius[tagId]!),
+      reason: '$when: the two members of tag $tagId stand together',
+    );
+  }
+  expect(
+    (centre[_tagA.id]! - centre[_tagB.id]!).distance,
+    greaterThan(radius[_tagA.id]! + radius[_tagB.id]! + _spacing),
+    reason: '$when: tag A and tag B areas are apart, with a gap between them',
+  );
+  expect(
+    (at['boris']! - at['nova']!).distance,
+    greaterThan(_nodeRadius(cubit, 'boris') + _nodeRadius(cubit, 'nova')),
+    reason: '$when: Boris (A) and Nova (B) are not stacked',
+  );
+  for (final id in const ['nova', 'carol']) {
+    expect(
+      _distanceToSegment(at[id]!, at['boris']!, at['dima']!),
+      greaterThan(_nodeRadius(cubit, id)),
+      reason: '$when: $id (tag B) does not sit between Boris and Dima',
+    );
+  }
+  for (final id in _untagged) {
+    for (final tagId in centre.keys) {
+      expect(
+        (at[id]! - centre[tagId]!).distance,
+        greaterThan(radius[tagId]! + _nodeRadius(cubit, id)),
+        reason: '$when: untagged $id does not touch tag $tagId’s area',
+      );
+    }
+  }
+}
+
+/// The tag areas the Field paints, as shown [when]: tag A's area (the hull
+/// [ConstellationTagHullLayer] draws around Boris and Dima, built by
+/// [buildConstellationTagHullPath] from their shown centres) and tag B's
+/// (Nova and Carol) are each painted once and are one connected shape, not a
+/// disc per person: the two members stand less than
+/// 2 × [kConstellationTagHullPadding] apart, so their discs overlap, and the
+/// segment between them lies inside the area. No other person stands inside
+/// either area, and the two areas do not overlap. Returns each area's bounds.
+Map<String, Rect> _expectOneDrawnAreaPerTag(
+  ConstellationCubit cubit, {
+  required String when,
+}) {
+  final at = _shownPositions(cubit);
+  final hulls = <String, Path>{};
+  for (final tagId in [_tagA.id, _tagB.id]) {
+    final members = _membersByTag[tagId]!;
+    expect(
+      find.byKey(ConstellationTagHullLayer.hullKey(tagId)),
+      findsOneWidget,
+      reason: '$when: the Field paints one area for tag $tagId',
+    );
+    final a = at[members[0]]!;
+    final b = at[members[1]]!;
+    expect(
+      (a - b).distance,
+      lessThan(2 * kConstellationTagHullPadding),
+      reason:
+          '$when: ${members[0]} and ${members[1]} stand close enough for '
+          'tag $tagId’s area to be one shape, not a disc per person',
+    );
+    final hull = buildConstellationTagHullPath([a, b]);
+    for (final t in const [0.0, 0.25, 0.5, 0.75, 1.0]) {
+      expect(
+        hull.contains(Offset.lerp(a, b, t)!),
+        isTrue,
+        reason:
+            '$when: tag $tagId’s area joins ${members[0]} and '
+            '${members[1]}',
+      );
+    }
+    for (final id in _people.keys) {
+      if (members.contains(id)) continue;
+      expect(
+        hull.contains(at[id]!),
+        isFalse,
+        reason: '$when: $id is not inside the area painted for tag $tagId',
+      );
+    }
+    hulls[tagId] = hull;
+  }
+  expect(
+    Path.combine(
+      PathOperation.intersect,
+      hulls[_tagA.id]!,
+      hulls[_tagB.id]!,
+    ).getBounds().isEmpty,
+    isTrue,
+    reason: '$when: the areas painted for tag A and tag B do not overlap',
+  );
+  return {
+    for (final MapEntry(:key, :value) in hulls.entries) key: value.getBounds(),
+  };
+}
+
+/// Distance from [p] to the segment [a]–[b].
+double _distanceToSegment(Offset p, Offset a, Offset b) {
+  final ab = b - a;
+  final len2 = ab.distanceSquared;
+  if (len2 == 0) return (p - a).distance;
+  final t = (((p - a).dx * ab.dx + (p - a).dy * ab.dy) / len2).clamp(0.0, 1.0);
+  return (p - (a + ab * t)).distance;
+}
+
+/// Dima stands with Boris (tag A), nearer him than Nova (tag B), and no
+/// tag-B member sits on the way between Boris and Dima.
+void _expectTagOrder(ConstellationCubit cubit) {
+  final at = _shownPositions(cubit);
+  final boris = at['boris']!;
+  final dima = at['dima']!;
+  expect(
+    (dima - boris).distance,
+    lessThan((dima - at['nova']!).distance),
+    reason: 'after Apply Dima stands nearer Boris (tag A) than Nova (tag B)',
+  );
+  for (final id in const ['nova', 'carol']) {
+    expect(
+      _distanceToSegment(at[id]!, boris, dima),
+      greaterThan(_nodeRadius(cubit, id)),
+      reason: 'after Apply $id (tag B) does not sit between Boris and Dima',
+    );
+  }
+}
+
+/// Opens the preview and checks the Field shows the arrangement Apply will
+/// write, with the planner's compact, separate tag areas; applies it and
+/// checks the Field keeps everyone where the preview showed them, with the
+/// same areas.
+///
+/// The planner's arrangement is rebuilt while the preview is shown; the
+/// preview's pinned writes (what the cubit itself will write on Apply) must
+/// equal the rebuilt positions and what the Field shows, so the rebuilt tag
+/// centres describe the cubit's own arrangement.
+Future<void> _previewThenApply(
+  WidgetTester tester,
+  _Harness h,
+  String rearrangeLabel,
+) async {
+  await _openRearrangeEveryonePreview(tester, h, rearrangeLabel);
+  final rebuilt = _rebuiltRearrangement(h.cubit, h.tags);
+  final previewed = _shownPositions(h.cubit);
+  final shift = _commonShift(
+    {
+      for (final id in _people.keys)
+        id: Offset(
+          rebuilt.layout.positions[id]!.x,
+          rebuilt.layout.positions[id]!.y,
+        ),
+    },
+    previewed,
+    what: 'the preview shows the planned arrangement',
+  );
+
+  final writes = {
+    for (final MapEntry(:key, :value)
+        in h.cubit.state.rearrangePreview!.pinnedWrites.entries)
+      if (_people.containsKey(key.id))
+        key.id: () {
+          final point = constellationV1AnchorToPoint(value);
+          return Offset(point.x, point.y);
+        }(),
+  };
+  expect(
+    writes.keys,
+    containsAll(_tagged),
+    reason: 'Apply pins every tagged person',
+  );
+  for (final MapEntry(:key, :value) in writes.entries) {
+    expect(
+      (value + shift - previewed[key]!).distance,
+      lessThan(1),
+      reason: 'Apply pins $key where the preview shows them',
+    );
+  }
+  _expectPlannerTagAreas(h.cubit, rebuilt, shift, when: 'in the preview');
+  final previewAreas = _expectOneDrawnAreaPerTag(
+    h.cubit,
+    when: 'in the preview',
+  );
+
+  await _tapApply(tester, h);
+  final applyShift = _commonShift(
+    previewed,
+    _shownPositions(h.cubit),
+    what: 'after Apply everyone is where the preview showed them',
+  );
+  _expectPlannerTagAreas(
+    h.cubit,
+    rebuilt,
+    shift + applyShift,
+    when: 'after Apply',
+  );
+  final appliedAreas = _expectOneDrawnAreaPerTag(h.cubit, when: 'after Apply');
+  for (final MapEntry(key: tagId, value: previewBounds)
+      in previewAreas.entries) {
+    final moved = previewBounds.shift(applyShift);
+    final applied = appliedAreas[tagId]!;
+    for (final (what, p, q) in [
+      ('top left', moved.topLeft, applied.topLeft),
+      ('bottom right', moved.bottomRight, applied.bottomRight),
+    ]) {
+      expect(
+        (p - q).distance,
+        lessThan(1),
+        reason:
+            'tag $tagId’s area after Apply is the one the preview '
+            'painted ($what corner)',
+      );
+    }
+  }
+  _expectTagOrder(h.cubit);
+}
+
 void main() {
   group(
     'Rearrange everyone on the Field gives each tag its own compact area',
     () {
       testWidgets(
-        'desktop: after Apply, tag B is compact and apart from tag A',
+        'desktop: after Apply, each tag is compact and apart from the other',
         (
           tester,
         ) async {
@@ -754,29 +1085,44 @@ void main() {
           );
 
           _expectCompactSeparateAreas(h.cubit, rebuilt);
+          _expectPlannerTagAreas(
+            h.cubit,
+            rebuilt,
+            _layoutToSceneShift(h.cubit, rebuilt),
+            when: 'after Apply',
+          );
         },
       );
 
-      testWidgets('phone: after Apply, tag B is compact and apart from tag A', (
-        tester,
-      ) async {
-        final h = await _openField(tester, surface: kPhoneSurface);
+      testWidgets('RU phone: after Apply, each tag is compact and apart from '
+          'the other', (tester) async {
+        final h = await _openField(
+          tester,
+          surface: kPhoneSurface,
+          locale: const Locale('ru'),
+        );
 
         final rebuilt = await _rearrangeEveryoneAndApply(
           tester,
           h,
-          L10nEn().constellationRearrangeEveryone,
+          L10nRu().constellationRearrangeEveryone,
         );
 
         _expectCompactSeparateAreas(h.cubit, rebuilt);
+        _expectPlannerTagAreas(
+          h.cubit,
+          rebuilt,
+          _layoutToSceneShift(h.cubit, rebuilt),
+          when: 'after Apply',
+        );
       });
     },
   );
 
   group('After Rearrange everyone, Done leaves Arranging with the people in '
       'view', () {
-    testWidgets('desktop: Done closes Arranging and every tagged person is '
-        'drawn inside the Field', (tester) async {
+    testWidgets('desktop: Done closes Arranging and everyone, untagged people '
+        'included, is drawn inside the Field', (tester) async {
       final h = await _openField(tester, surface: _desktop);
       final en = L10nEn();
 
@@ -791,11 +1137,11 @@ void main() {
 
       expect(h.selection.state.arranging, isFalse);
       expect(find.text(en.constellationArrangingTitle), findsNothing);
-      _expectTaggedPeopleOnScreen(tester, h.cubit, when: 'after Done');
+      _expectEveryoneOnScreen(tester, h.cubit, when: 'after Done');
     });
 
-    testWidgets('RU phone: «Готово» closes Arranging and every tagged person '
-        'is drawn inside the Field', (tester) async {
+    testWidgets('RU phone: «Готово» closes Arranging and everyone, untagged '
+        'people included, is drawn inside the Field', (tester) async {
       final h = await _openField(
         tester,
         surface: kPhoneSurface,
@@ -819,7 +1165,77 @@ void main() {
 
       expect(h.selection.state.arranging, isFalse);
       expect(find.text(ru.constellationArrangingTitle), findsNothing);
-      _expectTaggedPeopleOnScreen(tester, h.cubit, when: 'after «Готово»');
+      _expectEveryoneOnScreen(tester, h.cubit, when: 'after «Готово»');
+    });
+  });
+
+  group('Rearrange everyone: the preview shows the arrangement Apply makes, '
+      'one compact area per tag', () {
+    testWidgets('desktop: preview tag areas are compact and separate, and '
+        'Apply keeps every person where the preview showed them', (
+      tester,
+    ) async {
+      final h = await _openField(tester, surface: _desktop);
+      await _previewThenApply(
+        tester,
+        h,
+        L10nEn().constellationRearrangeEveryone,
+      );
+    });
+
+    testWidgets('RU phone: preview tag areas are compact and separate, and '
+        'Apply keeps every person where the preview showed them', (
+      tester,
+    ) async {
+      final h = await _openField(
+        tester,
+        surface: kPhoneSurface,
+        locale: const Locale('ru'),
+      );
+      await _previewThenApply(
+        tester,
+        h,
+        L10nRu().constellationRearrangeEveryone,
+      );
+    });
+  });
+
+  group('After Rearrange everyone, each tag’s members stand in that tag’s '
+      'area, in tag order, painted as one area per tag', () {
+    Future<void> applyAndCheck(
+      WidgetTester tester,
+      _Harness h,
+      String rearrangeLabel,
+    ) async {
+      final rebuilt = await _rearrangeEveryoneAndApply(
+        tester,
+        h,
+        rearrangeLabel,
+      );
+      _expectPlannerTagAreas(
+        h.cubit,
+        rebuilt,
+        _layoutToSceneShift(h.cubit, rebuilt),
+        when: 'after Apply',
+      );
+      _expectTagOrder(h.cubit);
+      _expectOneDrawnAreaPerTag(h.cubit, when: 'after Apply');
+    }
+
+    testWidgets('desktop: Boris and Dima share tag A’s area, apart from '
+        'tag B', (tester) async {
+      final h = await _openField(tester, surface: _desktop);
+      await applyAndCheck(tester, h, L10nEn().constellationRearrangeEveryone);
+    });
+
+    testWidgets('RU phone: Boris and Dima share tag A’s area, apart from '
+        'tag B', (tester) async {
+      final h = await _openField(
+        tester,
+        surface: kPhoneSurface,
+        locale: const Locale('ru'),
+      );
+      await applyAndCheck(tester, h, L10nRu().constellationRearrangeEveryone);
     });
   });
 }

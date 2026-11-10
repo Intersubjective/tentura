@@ -550,7 +550,8 @@ void main() {
       );
     });
 
-    testWidgets('previewing writes nothing and moves no node', (tester) async {
+    testWidgets('previewing writes nothing and shows the people who would '
+        'move in their new places', (tester) async {
       final h = await openField(tester);
       final positionsBefore = _nodePositions(h.cubit);
       final shownBefore = _shownAnchors(h.cubit);
@@ -562,7 +563,14 @@ void main() {
       expect(h.server.events, isEmpty);
       expect(h.server.anchors, originalAnchors);
       expect(_shownAnchors(h.cubit), shownBefore);
-      expect(_nodePositions(h.cubit), positionsBefore);
+      final previewed = _nodePositions(h.cubit);
+      final moved = {
+        for (final target in [..._pinnedAt.keys, 'p3', 'p4'])
+          if (_moved(positionsBefore, previewed, target)) target,
+      };
+      expect(moved, containsAll(['p1', 'p2']));
+      expect(moved.length, h.cubit.state.rearrangePreview!.movingCount);
+      expect(previewed['fp:ego'], positionsBefore['fp:ego']);
       expect(h.fieldRepo.fetchCount, fetchesBefore);
       expect(h.cubit.canUndoArrangement, isFalse);
     });

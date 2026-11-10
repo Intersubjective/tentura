@@ -3921,10 +3921,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   void previewLayout(ConstellationLayoutSnapshot snapshot) {
     final field = state.field;
     if (isClosed || field == null) return;
-    _positionsBeforeLayoutPreview ??= {
-      for (final id in graphController.renderSnapshot.topology.nodesById.keys)
-        id: ?graphController.renderSnapshot.resolvePosition(id),
-    };
+    _rememberPositionsBeforeLayoutPreview();
     final old = field.resolvedAnchorProjection;
     final projection = ConstellationAnchorProjection(
       revision: old.revision,
@@ -4003,6 +4000,23 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     _reconcileLayout(immediateHandoff: true);
   }
 
+  void _rememberPositionsBeforeLayoutPreview() {
+    _positionsBeforeLayoutPreview ??= {
+      for (final id in graphController.renderSnapshot.topology.nodesById.keys)
+        id: ?graphController.renderSnapshot.resolvePosition(id),
+    };
+  }
+
+  /// Puts every node back where it stood before a layout preview began.
+  void _restorePositionsBeforeLayoutPreview(
+    Map<String, ScenePoint> positions,
+  ) {
+    _scene.requestLayout(
+      releaseOnTerminal: _scene.activePresentationReleaseTokens(),
+      algorithm: ConstellationFixedLayout(positions),
+    );
+  }
+
   void cancelLayoutPreview() {
     final positions = _positionsBeforeLayoutPreview;
     _layoutPreviewAlgorithm = null;
@@ -4035,10 +4049,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       droppedHolderIds = composition.droppedHolderIds;
       _reconcileSelection(composition);
     }
-    _scene.requestLayout(
-      releaseOnTerminal: _scene.activePresentationReleaseTokens(),
-      algorithm: ConstellationFixedLayout(positions),
-    );
+    _restorePositionsBeforeLayoutPreview(positions);
   }
 
   Future<bool> restoreLayout(ConstellationLayoutSnapshot snapshot) async {
@@ -4134,9 +4145,10 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   }
 
   /// «Rearrange everyone, including pinned»: works out a full re-layout that
-  /// ignores pins and shows how many people it would move. Nothing is moved
-  /// or written until [applyRearrangePreview]; [cancelRearrangePreview]
-  /// leaves the Field as it was.
+  /// ignores pins, shows it on the Field and says how many people it would
+  /// move. Nothing is written until [applyRearrangePreview], which lands
+  /// everyone where the preview showed them; [cancelRearrangePreview] puts
+  /// the Field back as it was.
   void previewRearrangeAll() {
     final composition = state.composition;
     if (isClosed ||
@@ -4219,6 +4231,17 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
           moving++;
         }
       }
+      // The Field shows the planned arrangement while the preview is open;
+      // a node the plan does not place stays where it is.
+      _rememberPositionsBeforeLayoutPreview();
+      _layoutPreviewAlgorithm = ConstellationFixedLayout({
+        for (final id in snapshot.topology.nodesById.keys)
+          id: ?switch (rearranged.layout.positions[tenturaLayoutDomainId(id)]) {
+            final point? => ScenePoint(x: point.x, y: point.y),
+            null => snapshot.resolvePosition(id),
+          },
+      });
+      _reconcileLayout(immediateHandoff: true);
       emit(
         state.copyWith(
           rearrangePreview: ConstellationRearrangePreview(
@@ -4248,6 +4271,17 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     sched.start(step: stepSlice, onComplete: publishPreview);
   }
 
+  /// Stops showing the previewed arrangement; with [restore] every node goes
+  /// back where it stood before the preview.
+  void _endRearrangeLayoutPreview({required bool restore}) {
+    final positions = _positionsBeforeLayoutPreview;
+    _layoutPreviewAlgorithm = null;
+    _positionsBeforeLayoutPreview = null;
+    if (restore && positions != null) {
+      _restorePositionsBeforeLayoutPreview(positions);
+    }
+  }
+
   void cancelRearrangePreview() {
     if (isClosed ||
         (state.rearrangePreview == null && !_rearrangePreviewInFlight)) {
@@ -4256,6 +4290,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     _rearrangePreviewToken++;
     _rearrangePreviewInFlight = false;
     _scene.rearrangePreviewScheduler?.cancel();
+    _endRearrangeLayoutPreview(restore: true);
     if (state.rearrangePreview != null) {
       emit(state.copyWith(rearrangePreview: null));
     }
@@ -4285,10 +4320,16 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     try {
       await placement.history.saveSnapshotBeforeBulkAction('rebuild');
     } on Object catch (error, stackTrace) {
-      if (!isClosed) addError(error, stackTrace);
+      if (!isClosed) {
+        _endRearrangeLayoutPreview(restore: true);
+        addError(error, stackTrace);
+      }
       return false;
     }
     if (isClosed) return false;
+    // The pins land everyone where the preview showed them; the Field lays
+    // itself out from those pins again.
+    _endRearrangeLayoutPreview(restore: false);
     _clearArrangementPriors();
     if (writes.isEmpty) {
       _reconcileLayout(immediateHandoff: true);

@@ -10,7 +10,8 @@ import 'package:tentura_root/domain/constellation/constellation_path_resolution.
 
 /// «Rearrange everyone» with a small tagged roster: each tag gets one compact
 /// area of its own, the areas do not overlap, untagged people stay outside
-/// every area, and a person with two tags sits between those tag centres.
+/// every area, and a person with two tags sits with one of them (the tag
+/// with more people), beside its members.
 ///
 /// Roster: tag A = Boris, Dima; tag B = Nova, Carol; tag C = Boris only;
 /// two untagged people. No magnets.
@@ -173,16 +174,28 @@ void main() {
       }
     });
 
-    test('a person with two tags sits between those tag centres', () {
+    test('a person with two tags sits with the tag that has more people, '
+        'beside its members, not between the tags', () {
       final result = computeConstellationRearrangeAll(
         _input(thirdTagId: 'tag-c'),
       );
+      final pos = result.layout.positions;
       final cA = result.tagCentres[_tagA]!;
       final cC = result.tagCentres['tag-c']!;
-      final mid = (x: (cA.x + cC.x) / 2, y: (cA.y + cC.y) / 2);
       expect(
-        _dist(result.layout.positions[_boris]!, mid),
-        lessThanOrEqualTo(64),
+        _dist(pos[_boris]!, cA),
+        lessThanOrEqualTo(_rA),
+        reason: 'Boris sits inside tag A’s area',
+      );
+      expect(
+        _dist(pos[_boris]!, cA),
+        lessThan(_dist(pos[_boris]!, cC)),
+        reason: 'Boris sits with tag A (two people), not tag C (one)',
+      );
+      expect(
+        _dist(pos[_boris]!, pos[_dima]!),
+        lessThan(_dist(pos[_dima]!, pos[_nova]!)),
+        reason: 'Boris stands beside Dima, his tag-A neighbour',
       );
     });
 
