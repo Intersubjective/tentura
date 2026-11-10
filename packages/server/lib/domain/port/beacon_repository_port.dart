@@ -160,6 +160,22 @@ abstract class BeaconRepositoryPort {
     required BeaconForwardPolicyValue policy,
   });
 
+  /// Persists Post draft composer text, forwarding policy and lifetime hours on
+  /// an owned Post in draft status.
+  Future<void> updatePostDraft({
+    required String beaconId,
+    required String userId,
+    required String description,
+    required BeaconForwardPolicyValue forwardPolicy,
+    int? lifetimeHours,
+  });
+
+  /// `beacon.post_lifetime_hours` while the Post is still a draft.
+  Future<int?> postDraftLifetimeHours(String beaconId);
+
+  /// Clears draft-only composer columns before the root message is posted.
+  Future<void> clearPostDraftComposerFields(String beaconId);
+
   /// Restamps a just-published Post's `expires_at` to `published_at +
   /// [lifetime]` and sets `expiry_warning_eligible` once (true when [lifetime]
   /// exceeds the warning lead time); the caller holds the beacon row lock.

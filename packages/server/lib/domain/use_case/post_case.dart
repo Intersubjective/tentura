@@ -86,7 +86,7 @@ class PostCase {
     required List<int> mentionLengths,
     required List<String> recipientIds,
     required Map<String, String> notes,
-    required BeaconForwardPolicyValue forwardPolicy,
+    BeaconForwardPolicyValue? forwardPolicy,
     Stream<Uint8List>? attachmentBytes,
     String? attachmentFilename,
     String? attachmentMimeType,
@@ -126,17 +126,26 @@ class PostCase {
             beaconId: beaconId,
           );
           if (current.status != BeaconStatus.draft) return;
+          final resolvedForward = forwardPolicy ?? current.forwardPolicy;
+          final draftLifetimeHours = lifetimeHours ??
+              await _beaconRepository.postDraftLifetimeHours(beaconId);
+          if (draftLifetimeHours != null &&
+              (draftLifetimeHours < BeaconPostLifetime.minHours ||
+                  draftLifetimeHours > BeaconPostLifetime.maxHours)) {
+            throw const PostLifetimeInvalidException();
+          }
           await _beaconRepository.setForwardPolicy(
             beaconId: beaconId,
-            policy: forwardPolicy,
+            policy: resolvedForward,
           );
+          await _beaconRepository.clearPostDraftComposerFields(beaconId);
           await _beaconCase.publishDraft(userId: authorId, beaconId: beaconId);
           // `publishDraft` stamps the 72 h default; a shorter choice restamps.
-          if (lifetimeHours != null &&
-              lifetimeHours != BeaconPostLifetime.maxHours) {
+          if (draftLifetimeHours != null &&
+              draftLifetimeHours != BeaconPostLifetime.maxHours) {
             await _beaconRepository.setPostLifetime(
               beaconId: beaconId,
-              lifetime: Duration(hours: lifetimeHours),
+              lifetime: Duration(hours: draftLifetimeHours),
             );
           }
           // A refused recipient fails the call before the status commits.
@@ -201,6 +210,57 @@ class PostCase {
     );
     if (createdMessage) await _roomCase.scheduleAttachmentHash(attachment);
     return result;
+  }
+
+  /// Autosave for an owned Post draft: text, forwarding policy and lifetime.
+  Future<String> updatePostDraft({
+    required String authorId,
+    required String beaconId,
+    required String body,
+    required BeaconForwardPolicyValue forwardPolicy,
+    int? lifetimeHours,
+  }) async {
+    if (lifetimeHours != null &&
+        (lifetimeHours < BeaconPostLifetime.minHours ||
+            lifetimeHours > BeaconPostLifetime.maxHours)) {
+      throw const PostLifetimeInvalidException();
+    }
+    final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
+    if (beacon.author.id != authorId) {
+      throw const UnauthorizedException(
+        description: 'Only the author can update a Post draft',
+      );
+    }
+    if (beacon.kind != BeaconKind.post) {
+      throw const BeaconCreateException(description: 'Not a Post');
+    }
+    if (beacon.status != BeaconStatus.draft) {
+      throw const BeaconCreateException(
+        description: 'Post is not an editable draft',
+      );
+    }
+    await _attention.runAction<void>(
+      actorUserId: authorId,
+      action: (_) async {
+        await _postLock.lockForPostMutation(beaconId);
+        final current = await _beaconRepository.getBeaconById(beaconId: beaconId);
+        if (current.author.id != authorId ||
+            current.kind != BeaconKind.post ||
+            current.status != BeaconStatus.draft) {
+          throw const BeaconCreateException(
+            description: 'Post is not an editable draft',
+          );
+        }
+        await _beaconRepository.updatePostDraft(
+          beaconId: beaconId,
+          userId: authorId,
+          description: body,
+          forwardPolicy: forwardPolicy,
+          lifetimeHours: lifetimeHours,
+        );
+      },
+    );
+    return beaconId;
   }
 
   Future<BeaconEntity> _postForPublication({

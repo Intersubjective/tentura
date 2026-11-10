@@ -340,6 +340,21 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
   }
 
   @override
+  Future<void> updatePostDraft({
+    required String beaconId,
+    required String userId,
+    required String description,
+    required BeaconForwardPolicyValue forwardPolicy,
+    int? lifetimeHours,
+  }) async {}
+
+  @override
+  Future<int?> postDraftLifetimeHours(String beaconId) async => null;
+
+  @override
+  Future<void> clearPostDraftComposerFields(String beaconId) async {}
+
+  @override
   Future<T> runInBeaconStateTransaction<T>({
     required String beaconId,
     required String userId,

@@ -762,6 +762,79 @@ ${beaconId == null ? '' : r'WHERE posts.id = $2'}''',
   }
 
   @override
+  Future<void> updatePostDraft({
+    required String beaconId,
+    required String userId,
+    required String description,
+    required BeaconForwardPolicyValue forwardPolicy,
+    int? lifetimeHours,
+  }) => _database.withMutatingUser(userId, () async {
+    final variables = <Variable<Object>>[
+      Variable<String>(beaconId),
+      Variable<String>(userId),
+      Variable<String>(description),
+      Variable<int>(forwardPolicy.value),
+    ];
+    if (lifetimeHours != null) {
+      variables.add(Variable<int>(lifetimeHours));
+    }
+    final affected = await _database.customUpdate(
+      lifetimeHours == null
+          ? r'''
+UPDATE public.beacon
+SET description = $3,
+    forward_policy = $4,
+    post_lifetime_hours = NULL,
+    updated_at = now()
+WHERE id = $1
+  AND user_id = $2
+  AND status = 3
+  AND kind = 1'''
+          : r'''
+UPDATE public.beacon
+SET description = $3,
+    forward_policy = $4,
+    post_lifetime_hours = $5,
+    updated_at = now()
+WHERE id = $1
+  AND user_id = $2
+  AND status = 3
+  AND kind = 1''',
+      variables: variables,
+      updates: {_database.beacons},
+    );
+    if (affected == 0) {
+      throw const BeaconCreateException(
+        description: 'Post is not an editable draft',
+      );
+    }
+  });
+
+  @override
+  Future<int?> postDraftLifetimeHours(String beaconId) async {
+    final row = await _database
+        .customSelect(
+          r'SELECT post_lifetime_hours FROM public.beacon WHERE id = $1',
+          variables: [Variable<String>(beaconId)],
+          readsFrom: {_database.beacons},
+        )
+        .getSingleOrNull();
+    return row?.read<int?>('post_lifetime_hours');
+  }
+
+  @override
+  Future<void> clearPostDraftComposerFields(String beaconId) =>
+      _database.customUpdate(
+        r'''
+UPDATE public.beacon
+SET description = '',
+    post_lifetime_hours = NULL
+WHERE id = $1 AND kind = 1''',
+        variables: [Variable<String>(beaconId)],
+        updates: {_database.beacons},
+      );
+
+  @override
   Future<void> setPostLifetime({
     required String beaconId,
     required Duration lifetime,

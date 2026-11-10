@@ -54,6 +54,7 @@ final class MutationPost extends GqlNodeBase {
 
   List<GraphQLObjectField<dynamic, dynamic>> get all => [
     postPublish,
+    postUpdateDraft,
     postLeave,
     postReturn,
     postShorten,
@@ -124,7 +125,7 @@ final class MutationPost extends GqlNodeBase {
       _mentionLengths,
       InputFieldRecipientIds.field,
       _notes,
-      _forwardPolicy.fieldNonNullable,
+      _forwardPolicy.fieldNullable,
       InputFieldUpload.fieldNullable,
       _lifetimeHours.fieldNullable,
     ],
@@ -132,6 +133,7 @@ final class MutationPost extends GqlNodeBase {
       final uploadMeta = InputFieldUpload.uploadVariablesFromArgs(args);
       final rawName = uploadMeta?['filename'];
       final rawType = uploadMeta?['type'];
+      final forwardPolicyValue = _forwardPolicy.fromArgs(args);
       final result = await _postCase.publish(
         authorId: getCredentials(args).sub,
         beaconId: _beaconId.fromArgsNonNullable(args),
@@ -148,9 +150,9 @@ final class MutationPost extends GqlNodeBase {
           ),
           _ => const {},
         },
-        forwardPolicy: BeaconForwardPolicyValue.fromValue(
-          _forwardPolicy.fromArgsNonNullable(args),
-        ),
+        forwardPolicy: forwardPolicyValue == null
+            ? null
+            : BeaconForwardPolicyValue.fromValue(forwardPolicyValue),
         attachmentBytes: InputFieldUpload.fromArgs(args),
         attachmentFilename: rawName is String && rawName.trim().isNotEmpty
             ? rawName
@@ -167,6 +169,30 @@ final class MutationPost extends GqlNodeBase {
       };
     },
   );
+
+  GraphQLObjectField<dynamic, dynamic> get postUpdateDraft =>
+      GraphQLObjectField(
+        'postUpdateDraft',
+        gqlTypeBeacon.nonNullable(),
+        arguments: [
+          _beaconId.field,
+          _body.field,
+          _forwardPolicy.fieldNonNullable,
+          _lifetimeHours.fieldNullable,
+        ],
+        resolve: (_, args) async {
+          final id = await _postCase.updatePostDraft(
+            authorId: getCredentials(args).sub,
+            beaconId: _beaconId.fromArgsNonNullable(args),
+            body: _body.fromArgsNonNullable(args),
+            forwardPolicy: BeaconForwardPolicyValue.fromValue(
+              _forwardPolicy.fromArgsNonNullable(args),
+            ),
+            lifetimeHours: _lifetimeHours.fromArgs(args),
+          );
+          return {'id': id};
+        },
+      );
 }
 
 /// List input where an unset variable (`null`) deserializes to an empty list.

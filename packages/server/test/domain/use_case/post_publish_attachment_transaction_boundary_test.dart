@@ -315,6 +315,12 @@ final class _Beacons extends Fake implements BeaconRepositoryPort {
   }) async {}
 
   @override
+  Future<int?> postDraftLifetimeHours(String beaconId) async => null;
+
+  @override
+  Future<void> clearPostDraftComposerFields(String beaconId) async {}
+
+  @override
   Future<void> setPostRootMessage({
     required String beaconId,
     required String messageId,

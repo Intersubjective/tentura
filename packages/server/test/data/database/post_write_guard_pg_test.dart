@@ -71,11 +71,20 @@ Future<void> main() async {
       await migrateDbSchema(writer);
       // Assert before the per-test reset can hide deleted or modified rows.
       for (final entry in existingDataQueries.entries) {
-        expect(
-          await snapshot(entry.value),
-          existingData[entry.key],
-          reason: 'schema upgrade preserves existing ${entry.key} data',
-        );
+        final after = await snapshot(entry.value);
+        final before = existingData[entry.key]!;
+        expect(after.length, before.length);
+        for (var i = 0; i < before.length; i++) {
+          for (final key in before[i].keys) {
+            expect(
+              after[i][key],
+              before[i][key],
+              reason:
+                  'schema upgrade preserves existing ${entry.key} data '
+                  '($key)',
+            );
+          }
+        }
       }
       database = openDisposablePgDatabase(target);
       addTearDown(database.close);

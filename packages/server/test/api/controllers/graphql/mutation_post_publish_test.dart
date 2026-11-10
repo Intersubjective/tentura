@@ -27,7 +27,7 @@ class _FakePostCase extends Fake implements PostCase {
     required List<int> mentionLengths,
     required List<String> recipientIds,
     required Map<String, String> notes,
-    required BeaconForwardPolicyValue forwardPolicy,
+    BeaconForwardPolicyValue? forwardPolicy,
     Stream<Uint8List>? attachmentBytes,
     String? attachmentFilename,
     String? attachmentMimeType,
