@@ -137,6 +137,11 @@ abstract class Beacon with _$Beacon implements Likable, Scorable {
             now: now,
           ));
 
+  /// Forward / invite UI for a Post must respect [isPostArchivedAt]; Requests
+  /// use Hasura [viewerCanForward] only.
+  bool viewerCanForwardAt(DateTime now) =>
+      viewerCanForward && !isPostArchivedAt(now);
+
   /// Viewer may commit (offer help) when readable and beacon is open-family.
   bool get canCommitAsViewer =>
       isRequest && canReadContent && status.isOpenFamily;
