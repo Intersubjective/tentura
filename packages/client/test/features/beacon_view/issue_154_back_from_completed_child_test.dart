@@ -143,8 +143,8 @@ void main() {
 
         await _tapAppBarBack(tester);
 
-        expect(router.rootReplacedPaths, [path]);
-        expect(navigator.intents, isEmpty);
+        expect(router.rootReplacedPaths, isEmpty);
+        expect(navigator.named('leaveRequestDetail'), isNotEmpty);
       });
     }
   });

@@ -34,6 +34,7 @@ import '../beacon_view/beacon_view_screen_harness.dart';
 
 const _postId = 'B1105postcold1';
 const _requestId = 'B1105reqwarm01';
+const _requestColdId = 'B1105reqcold1';
 const _viewer = Profile(id: 'Uviewer', displayName: 'Viewer');
 const _author = Profile(id: 'Uauthor', displayName: 'Author');
 
@@ -253,6 +254,8 @@ Future<_ColdStartRouter> _pumpAt(
   required Uri coldUri,
   Locale locale = const Locale('en'),
   Size? surfaceSize,
+  BeaconKindRepository? kinds,
+  bool settleAfterPump = true,
 }) async {
   final stack = buildBrowseDeepLinkStack(coldUri)!;
   return _pumpBrowseStack(
@@ -264,6 +267,8 @@ Future<_ColdStartRouter> _pumpAt(
     locale: locale,
     surfaceSize: surfaceSize,
     initialTabIndex: HomeTabSpec.forTab(HomeTab.work).index,
+    kinds: kinds,
+    settleAfterPump: settleAfterPump,
   );
 }
 
@@ -274,6 +279,7 @@ Future<_ColdStartRouter> _pumpBrowseStack(
   BeaconKindRepository? kinds,
   Locale locale = const Locale('en'),
   Size? surfaceSize,
+  bool settleAfterPump = true,
 }) async {
   _savedHomePage = HomeRoute.page;
   _savedWorkPage = MyWorkRoute.page;
@@ -375,13 +381,34 @@ Future<_ColdStartRouter> _pumpBrowseStack(
       ),
     ),
   );
-  await tester.pumpAndSettle();
+  if (settleAfterPump) {
+    await tester.pumpAndSettle();
+  } else {
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+  }
   return router;
 }
 
 Future<void> _tapBack(WidgetTester tester) async {
-  await tester.tap(find.byType(BackButton));
+  final back = find.byType(BackButton);
+  if (back.evaluate().isNotEmpty) {
+    await tester.tap(back);
+  } else {
+    await tester.tap(find.byIcon(Icons.arrow_back));
+  }
   await tester.pumpAndSettle();
+}
+
+Future<void> _tapBackNoSettle(WidgetTester tester) async {
+  final back = find.byType(BackButton);
+  if (back.evaluate().isNotEmpty) {
+    await tester.tap(back);
+  } else {
+    await tester.tap(find.byIcon(Icons.arrow_back));
+  }
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 200));
 }
 
 void main() {
@@ -403,6 +430,64 @@ void main() {
       expect(find.text('conversations-root'), findsOneWidget);
       expect(find.text('work-root'), findsNothing);
       expect(router.navigationHistory.urlState.url, kPathConversations);
+    });
+
+    testWidgets('Request cold /beacon/view back opens Requests not Posts', (
+      tester,
+    ) async {
+      final pendingKind = Completer<BeaconKind>();
+      final router = await _pumpAt(
+        tester,
+        coldUri: Uri.parse('$kPathBeaconView/$_requestColdId'),
+        kinds: _FakeBeaconKindRepository(
+          {_requestColdId: BeaconKind.request},
+          pending: pendingKind,
+        ),
+        settleAfterPump: false,
+      );
+      expect(find.byType(BeaconViewLoadingShellFrame), findsOneWidget);
+      await _tapBackNoSettle(tester);
+      expect(find.text('work-root'), findsOneWidget);
+      expect(find.text('conversations-root'), findsNothing);
+      expect(router.navigationHistory.urlState.url, kPathMyWork);
+      if (!pendingKind.isCompleted) {
+        pendingKind.complete(BeaconKind.request);
+      }
+    });
+
+    testWidgets('empty Post composer Back leaves with no confirm dialog', (
+      tester,
+    ) async {
+      resetBeaconRoomComposerDraftStoreForTest();
+      await _pumpAt(
+        tester,
+        coldUri: Uri.parse('$kPathBeaconView/$_postId'),
+      );
+      await _tapBack(tester);
+      expect(find.text('Leave without saving?'), findsNothing);
+      expect(find.byType(PostViewScreen), findsNothing);
+    });
+
+    testWidgets('empty Request cold Back leaves with no confirm dialog', (
+      tester,
+    ) async {
+      resetBeaconRoomComposerDraftStoreForTest();
+      final pendingKind = Completer<BeaconKind>();
+      await _pumpAt(
+        tester,
+        coldUri: Uri.parse('$kPathBeaconView/$_requestColdId'),
+        kinds: _FakeBeaconKindRepository(
+          {_requestColdId: BeaconKind.request},
+          pending: pendingKind,
+        ),
+        settleAfterPump: false,
+      );
+      await _tapBackNoSettle(tester);
+      expect(find.text('Leave without saving?'), findsNothing);
+      expect(find.text('work-root'), findsOneWidget);
+      if (!pendingKind.isCompleted) {
+        pendingKind.complete(BeaconKind.request);
+      }
     });
 
     testWidgets('/post/view/<id> cold start back opens Conversations', (

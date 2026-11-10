@@ -178,7 +178,7 @@ void main() {
       expect(router.replacedPaths, isNotEmpty);
       final url = Uri.parse(router.replacedPaths.last);
       expect(url.queryParameters[kQueryBeaconViewTab], kBeaconViewTabNow);
-      expect(beaconViewPopScope(tester).canPop, isTrue);
+      expect(beaconViewPopScope(tester).canPop, isFalse);
     });
 
     testWidgets('a plan editor gets «Add plan» in the menu; it opens the '

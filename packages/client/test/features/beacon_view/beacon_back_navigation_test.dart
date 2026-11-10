@@ -1,19 +1,21 @@
-import 'package:auto_route/auto_route.dart';
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:get_it/get_it.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/entity/coordination_item.dart';
+import 'package:tentura/features/beacon_threads/data/service/beacon_room_composer_draft_store.dart';
+import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/threads_cubit.dart';
-import 'package:tentura/features/beacon_threads/ui/bloc/threads_state.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/thread_detail.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
-import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/navigation/app_navigator.dart';
 import 'package:tentura/ui/test_ids.dart';
-import 'beacon_view_screen_harness.dart';
-import 'dart:async';
-import 'package:tentura/domain/entity/coordination_item.dart';
-import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
+
+import '../../support/fake_app_navigator.dart';
 import '../beacon_threads/room_cubit_fakes.dart';
-import '../../support/people_tags_widget_harness.dart';
+import 'beacon_view_screen_harness.dart';
 
 Future<void> _tapPeopleTab(WidgetTester tester) async {
   await tester.tap(find.byKey(TestIds.key(TestIds.beaconTabPeople)));
@@ -24,61 +26,20 @@ Future<void> _tapPeopleTab(WidgetTester tester) async {
 TenturaUnderlineTabs _tabs(WidgetTester tester) =>
     tester.widget<TenturaUnderlineTabs>(find.byType(TenturaUnderlineTabs));
 
-class _HarnessThreadsCubitForShell extends Cubit<ThreadsState>
-    implements ThreadsCubit {
-  _HarnessThreadsCubitForShell(super.initial);
+class _LeaveHarnessNavigator extends FakeAppNavigator {
+  _LeaveHarnessNavigator({this.router});
 
-  void emitState(ThreadsState value) => emit(value);
-
-  @override
-  Future<void> fetch({bool silent = false}) async {}
-}
-
-class _TwoPageShell extends StatefulWidget {
-  const _TwoPageShell({required this.threadsCubit, super.key});
-
-  final ThreadsCubit threadsCubit;
+  final BeaconViewHarnessRouter? router;
 
   @override
-  State<_TwoPageShell> createState() => _TwoPageShellState();
-}
-
-class _TwoPageShellState extends State<_TwoPageShell> {
-  late List<Page<void>> _pages;
-
-  @override
-  void initState() {
-    super.initState();
-    _pages = [
-      const MaterialPage<void>(
-        child: Text('my-work', textDirection: TextDirection.ltr),
-      ),
-      MaterialPage<void>(
-        child: StackRouterScope(
-          controller: BeaconViewHarnessRouter(),
-          stateHash: 0,
-          child: buildBeaconViewHarnessWidget(
-            beaconState: beaconViewHarnessAuthorState(),
-            threadsState: beaconViewHarnessThreadsState(),
-            threadsCubit: widget.threadsCubit,
-          ),
-        ),
-      ),
-    ];
-  }
-
-  bool get poppedBeacon => _pages.length == 1;
-
-  @override
-  Widget build(BuildContext context) {
-    return Navigator(
-      pages: _pages,
-      onPopPage: (route, result) {
-        if (!route.didPop(result)) return false;
-        setState(() => _pages = [_pages.first]);
-        return true;
-      },
+  Future<void> leaveRequestDetail({bool retargetOwnerHomeTab = false}) async {
+    await super.leaveRequestDetail(
+      retargetOwnerHomeTab: retargetOwnerHomeTab,
     );
+    final stackRouter = router;
+    if (stackRouter != null && stackRouter.canPop()) {
+      await stackRouter.maybePop();
+    }
   }
 }
 
@@ -141,7 +102,7 @@ void main() {
         threadsState: beaconViewHarnessThreadsState(),
       );
       expect(_tabs(tester).selectedIndex, 0);
-      expect(beaconViewPopScope(tester).canPop, isTrue);
+      expect(beaconViewPopScope(tester).canPop, isFalse);
     });
 
     testWidgets('back on CHAT selects NOW without leaving request', (
@@ -168,7 +129,7 @@ void main() {
       expect(router.popCount, 0);
       expect(_tabs(tester).selectedIndex, 0);
       expect(find.byType(ThreadDetail), findsNothing);
-      expect(beaconViewPopScope(tester).canPop, isTrue);
+      expect(beaconViewPopScope(tester).canPop, isFalse);
     });
 
     testWidgets('back on PEOPLE selects NOW without leaving request', (
@@ -195,59 +156,63 @@ void main() {
       expect(router.maybePopCalls, 0);
       expect(router.popCount, 0);
       expect(_tabs(tester).selectedIndex, 0);
-      expect(beaconViewPopScope(tester).canPop, isTrue);
+      expect(beaconViewPopScope(tester).canPop, isFalse);
     });
 
-    testWidgets('back on NOW pops the request route', (tester) async {
-      final shellKey = GlobalKey<_TwoPageShellState>();
-      final threadsCubit = _HarnessThreadsCubitForShell(
-        beaconViewHarnessThreadsState().copyWith(
-          status: const StateIsLoading(),
-        ),
+    testWidgets('back on NOW with draft asks before leaving', (tester) async {
+      resetBeaconRoomComposerDraftStoreForTest();
+      await pumpBeaconViewHarness(
+        tester,
+        plan: kBeaconViewHarnessOneStepPlan,
+        size: kBeaconViewHarnessCompact,
+        beaconState: beaconViewHarnessAuthorState(),
+        threadsState: beaconViewHarnessThreadsState(),
+        locale: const Locale('en'),
       );
-
-      await tester.binding.setSurfaceSize(kBeaconViewHarnessCompact);
-      addTearDown(() => tester.binding.setSurfaceSize(null));
-
-      await tester.pumpPeopleTagsWidget(
-        MaterialApp(
-          theme: TenturaTheme.light(),
-          localizationsDelegates: L10n.localizationsDelegates,
-          supportedLocales: L10n.supportedLocales,
-          locale: const Locale('en'),
-          home: BeaconViewResizableMediaQuery(
-            size: kBeaconViewHarnessCompact,
-            child: _TwoPageShell(
-              key: shellKey,
-              threadsCubit: threadsCubit,
-            ),
-          ),
-        ),
+      writeBeaconRoomComposerDraft(
+        beaconId: kBeaconViewHarnessBeaconId,
+        body: 'Draft before system back on overview.',
       );
-      threadsCubit.emitState(beaconViewHarnessThreadsState());
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 50));
+      expect(beaconViewPopScope(tester).canPop, isFalse);
 
-      final innerNavigator = tester.state<NavigatorState>(
-        find.descendant(
-          of: find.byType(_TwoPageShell),
-          matching: find.byType(Navigator),
-        ),
-      );
+      final handled = await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
 
-      expect(beaconViewPopScope(tester).canPop, isTrue);
-      expect(innerNavigator.canPop(), isTrue);
-      expect(find.text('my-work'), findsNothing);
-
-      // Nested request Navigator receives the pop when PopScope allows it.
-      final popped = await innerNavigator.maybePop();
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 50));
-
-      expect(popped, isTrue);
-      expect(shellKey.currentState!.poppedBeacon, isTrue);
-      expect(find.text('my-work'), findsOneWidget);
+      expect(handled, isTrue);
+      expect(find.text('Leave without saving?'), findsOneWidget);
     });
+
+    testWidgets('app bar back on NOW leaves via leaveRequestDetail', (
+      tester,
+    ) async {
+      final router = BeaconViewHarnessRouter();
+      await GetIt.I.unregister<AppNavigator>();
+      GetIt.I.registerSingleton<AppNavigator>(
+        _LeaveHarnessNavigator(router: router),
+      );
+      addTearDown(() async {
+        if (GetIt.I.isRegistered<AppNavigator>()) {
+          await GetIt.I.unregister<AppNavigator>();
+        }
+        await registerBeaconViewHarnessGetIt();
+      });
+
+      await pumpBeaconViewHarness(
+        tester,
+        plan: kBeaconViewHarnessOneStepPlan,
+        size: kBeaconViewHarnessCompact,
+        beaconState: beaconViewHarnessAuthorState(),
+        threadsState: beaconViewHarnessThreadsState(),
+        router: router,
+      );
+
+      await tester.tap(find.byIcon(Icons.arrow_back));
+      await tester.pumpAndSettle();
+
+      final navigator = GetIt.I<AppNavigator>() as FakeAppNavigator;
+      expect(navigator.named('leaveRequestDetail'), isNotEmpty);
+    });
+
   });
 
   // --- merged from beacon_surface_selection_test.dart ---
