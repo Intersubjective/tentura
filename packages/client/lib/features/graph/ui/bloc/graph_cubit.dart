@@ -630,6 +630,9 @@ class GraphCubit extends Cubit<GraphState> {
   bool hasEverFocused(String id) => _everFocusedIds.contains(id);
 
   /// @deprecated Use [isCurrentFocus], [canPageMore], and [handleNodeTap].
+  ///
+  /// Kept only because constellation test fakes still override it (those
+  /// files are out of scope for graph cleanups); drop it with them.
   @Deprecated('Use isCurrentFocus, canPageMore, and handleNodeTap')
   bool canExpandNode(String id) => canPageMore(id);
 
@@ -1167,9 +1170,6 @@ class GraphCubit extends Cubit<GraphState> {
       );
     });
   }
-
-  @Deprecated('Use selectNode or expandNode')
-  void setFocus(NodeDetails node) => selectNode(node);
 
   void _syncFocusPathPins() {
     final pinIds = <String>{
