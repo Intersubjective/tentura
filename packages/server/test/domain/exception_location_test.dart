@@ -1,7 +1,5 @@
 import 'package:test/test.dart';
 
-import 'package:tentura_server/domain/closure/closure_exception.dart'
-    as legacy_path;
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
 
@@ -112,12 +110,5 @@ void main() {
         expect(e.toString(), wire(message, code));
       });
     }
-
-    test('old import path re-exports the same type', () {
-      const legacy = legacy_path.ClosureException.notVoter();
-      expect(legacy, isA<ClosureException>());
-      expect(legacy.closureCode, legacy_path.ClosureExceptionCode.notVoter);
-      expect(identical(legacy, const ClosureException.notVoter()), isTrue);
-    });
   });
 }

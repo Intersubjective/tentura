@@ -3,7 +3,6 @@ import 'dart:math' as math;
 
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
-import 'package:get_it/get_it.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -31,8 +30,8 @@ import 'package:tentura/ui/beacon/beacon_room_navigation_scope.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/beacon/beacon_room_composer_leave.dart';
-import 'package:tentura/ui/navigation/app_navigator.dart';
 import 'package:tentura/ui/navigation/home_tab.dart';
+import 'package:tentura/ui/navigation/is_deep_link_query.dart';
 import 'package:tentura/ui/widget/first_load_gate.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_view_first_load_progress.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
@@ -248,8 +247,17 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     });
   }
 
+  int _browseStackDepth(StackRouter router) {
+    try {
+      return router.stack.length;
+    } on Object {
+      return 1;
+    }
+  }
+
   Future<void> _leaveBeaconView(BuildContext context) async {
-    final beaconId = context.read<BeaconViewCubit>().state.beacon.id;
+    final cubit = context.read<BeaconViewCubit>();
+    final beaconId = cubit.state.beacon.id;
     if (!await confirmDiscardBeaconRoomComposerIfNeeded(context, beaconId)) {
       return;
     }
@@ -272,41 +280,17 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     // A child Request opened from its parent (#154): when the stack cannot
     // pop (e.g. after close/complete), return to the parent Request detail
     // instead of dropping to the home tab root list.
-    final lineageParentId = context
-        .read<BeaconViewCubit>()
-        .state
-        .beacon
-        .lineageParentBeaconId;
+    final lineageParentId = cubit.state.beacon.lineageParentBeaconId;
     if (lineageParentId != null && lineageParentId.isNotEmpty) {
       unawaited(router.root.replacePath('$kPathBeaconView/$lineageParentId'));
       return;
     }
 
-    // In deep-linked direct detail views we still want the back button to go back.
-    // However, if we pop, we would pop out of the app.
-    // Since we are inside Inbox, let's navigate to Inbox Route instead.
-    final tab = GetIt.I<AppNavigator>().activeHomeTabIndex;
-
-    // Only route to inbox if we are actually mounted inside the inbox tab.
-    // In deep link operations we could be in 'My Work' tab.
-    final isInboxTab =
-        tab != null && tab == HomeTabSpec.forTab(HomeTab.inbox).index;
-
-    // Similarly, we can navigate to other tabs by looking up the tab index.
-    final isUpdatesTab =
-        tab != null && tab == HomeTabSpec.forTab(HomeTab.updates).index;
-    final isNetworkTab =
-        tab != null && tab == HomeTabSpec.forTab(HomeTab.network).index;
-
-    final path = isInboxTab
-        ? kPathInbox
-        : isUpdatesTab
-        ? kPathUpdates
-        : isNetworkTab
-        ? kPathNetwork
-        : kPathMyWork;
-
-    unawaited(router.root.replacePath(path));
+    await leaveRequestDetailScreen(
+      context,
+      beaconId: beaconId,
+      retargetOwnerHomeTab: isDeepLinkQueryTruthy(widget.isDeepLink),
+    );
   }
 
   Widget _beaconViewErrorBody({
@@ -1414,11 +1398,8 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                           ],
                         );
 
-                        // Keep canPop true on NOW so the plain "leave the request"
-                        // path never goes through a blocking PopScope (Flutter Web
-                        // history sentinel on canPop:false made AppBar back a no-op
-                        // when a ThreadDetail child was open — that child route goes
-                        // away in U10, but the leave path must stay unblocked).
+                        final browseDepth = _browseStackDepth(context.router);
+
                         return BeaconRoomNavigationScope(
                           isRoomPresented:
                               !showcase &&
@@ -1429,10 +1410,15 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                           roomLease: roomLease,
                           openGeneralAnchor: _openGeneralThread,
                           child: PopScope(
+                            // Nested Request detail (e.g. child after Send) must
+                            // stay poppable while a single open detail keeps the
+                            // back sentinel so NOW/system leave runs the draft
+                            // guard (#1105, #154).
                             canPop:
                                 (showcase && !_previewAsOutsider) ||
                                 (!showcase &&
-                                    _selectedSurface == BeaconSurface.now),
+                                    _selectedSurface == BeaconSurface.now &&
+                                    browseDepth > 1),
                             onPopInvokedWithResult: (didPop, result) {
                               if (didPop) return;
                               // An open plan page handles the back itself.
@@ -1445,6 +1431,10 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                                   _selectedSurface == BeaconSurface.plan ||
                                   _selectedSurface == BeaconSurface.people) {
                                 _switchToSurface(BeaconSurface.now);
+                                return;
+                              }
+                              if (_selectedSurface == BeaconSurface.now) {
+                                unawaited(_leaveBeaconView(context));
                               }
                             },
                             child: HomeRailFrame(
@@ -1470,7 +1460,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                                             ? null
                                             : AutoLeadingWithFallback(
                                                 fallbackPath: kPathMyWork,
-                                                onFallback: () => unawaited(
+                                                onPressed: () => unawaited(
                                                   _leaveBeaconView(context),
                                                 ),
                                               ),
@@ -1634,7 +1624,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                                                               AutoLeadingWithFallback(
                                                                 fallbackPath:
                                                                     kPathMyWork,
-                                                                onFallback: () =>
+                                                                onPressed: () =>
                                                                     unawaited(
                                                                       _leaveBeaconView(
                                                                         context,

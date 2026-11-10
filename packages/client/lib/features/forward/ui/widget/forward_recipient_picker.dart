@@ -554,13 +554,21 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
     return createCubit != null && !createCubit.state.isLive;
   }
 
-  bool _inviteEnabled(BuildContext context, ForwardState state) =>
-      inviteNewPersonEnabled(
-        beaconId: widget.beaconId,
-        allowsForward: state.beacon?.viewerCanForward == true,
-        isLive: widget.isLive,
-        embeddedDraftInCreateFlow: _embeddedDraftInCreateFlow(context),
-      );
+  bool _allowsForwardAt(ForwardState state, ForwardCubit cubit) {
+    final beacon = state.beacon;
+    if (beacon == null) return false;
+    return beacon.viewerCanForwardAt(cubit.now);
+  }
+
+  bool _inviteEnabled(BuildContext context, ForwardState state) {
+    final cubit = context.read<ForwardCubit>();
+    return inviteNewPersonEnabled(
+      beaconId: widget.beaconId,
+      allowsForward: _allowsForwardAt(state, cubit),
+      isLive: widget.isLive,
+      embeddedDraftInCreateFlow: _embeddedDraftInCreateFlow(context),
+    );
+  }
 
   /// The empty-state invite may leave for People › Invitations only from the
   /// standalone forward route: inside a create flow that would abandon the
@@ -901,14 +909,7 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                             slivers: [
                               if (widget.header case final header?)
                                 SliverToBoxAdapter(child: header),
-                              if (inviteNewPersonEnabled(
-                                beaconId: widget.beaconId,
-                                allowsForward:
-                                    state.beacon?.viewerCanForward == true,
-                                isLive: widget.isLive,
-                                embeddedDraftInCreateFlow:
-                                    _embeddedDraftInCreateFlow(context),
-                              ))
+                              if (_inviteEnabled(context, state))
                                 SliverPersistentHeader(
                                   pinned: true,
                                   delegate: ForwardPinnedSliverHeaderDelegate(

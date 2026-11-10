@@ -6,7 +6,6 @@ import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
 import 'package:tentura_server/consts/commitment_consts.dart';
 import 'package:tentura_server/domain/closure/author_split.dart';
 import 'package:tentura_server/domain/closure/closure_entities.dart';
-import 'package:tentura_server/domain/closure/closure_exception.dart';
 import 'package:tentura_server/domain/closure/closure_outcome.dart';
 import 'package:tentura_server/domain/closure/closure_set_a.dart';
 import 'package:tentura_server/domain/closure/closure_view.dart';

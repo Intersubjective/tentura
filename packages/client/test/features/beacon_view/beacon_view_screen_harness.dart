@@ -156,6 +156,9 @@ class BeaconViewHarnessRouter extends Mock implements RootStackRouter {
     bool ignoreParentRoutes = false,
     bool ignorePagelessRoutes = false,
   }) => false;
+
+  @override
+  List<AutoRoutePage<Object?>> get stack => const [];
 }
 
 class BeaconViewHarness {

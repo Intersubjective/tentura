@@ -102,7 +102,7 @@ class PostInfoSheet extends StatelessWidget {
     final rootExcerpt = summary?.rootExcerpt.trim() ?? '';
     // A Post closed by budding is read-only (plan D2).
     final isClosed = beacon.status == BeaconStatus.closed;
-    final canForward = beacon.viewerCanForward && !isClosed;
+    final canForward = beacon.viewerCanForwardAt(lifetimeNow);
     void pick(PostAction action) => Navigator.of(context).pop(action);
 
     final muteLine = summary == null
