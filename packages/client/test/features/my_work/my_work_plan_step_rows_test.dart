@@ -167,7 +167,7 @@ void main() {
     test('a pending change comes first and touches the current step', () {
       final rows = deriveMyWorkPlanRows(_slice(pending: true), _now);
       expect(rows.first.kind, MyWorkPlanRowKind.pending);
-      expect(rows.first.canTickStep?.id, 'PSa');
+      expect(rows.first.tickableStep?.id, 'PSa');
       expect(rows.length, lessThanOrEqualTo(3));
     });
 

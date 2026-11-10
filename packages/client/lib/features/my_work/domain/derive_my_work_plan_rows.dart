@@ -13,7 +13,7 @@ enum MyWorkPlanRowKind { pending, current, next }
 /// shared HUD ladder.
 @immutable
 final class MyWorkPlanRow {
-  const MyWorkPlanRow.pending({this.canTickStep})
+  const MyWorkPlanRow.pending({this.tickableStep})
     : kind = MyWorkPlanRowKind.pending,
       step = null,
       overdueBy = null,
@@ -22,20 +22,21 @@ final class MyWorkPlanRow {
   const MyWorkPlanRow.current(PlanStepState this.step, {this.overdueBy})
     : kind = MyWorkPlanRowKind.current,
       alsoRunning = false,
-      canTickStep = null;
+      tickableStep = null;
 
   const MyWorkPlanRow.next(PlanStepState this.step, {this.alsoRunning = false})
     : kind = MyWorkPlanRowKind.next,
       overdueBy = null,
-      canTickStep = null;
+      tickableStep = null;
 
   final MyWorkPlanRowKind kind;
   final PlanStepState? step;
   final Duration? overdueBy;
   final bool alsoRunning;
 
-  /// A pending row that touches the current step also offers its «Готово».
-  final PlanStepState? canTickStep;
+  /// The step a pending row offers to tick («Готово») when it touches the
+  /// current step; null when there is nothing to tick.
+  final PlanStepState? tickableStep;
 }
 
 /// The plan rows of a card, at most three: a change waiting for «Понятно»
@@ -57,7 +58,7 @@ List<MyWorkPlanRow> deriveMyWorkPlanRows(PlanViewerSlice slice, DateTime now) {
     final step = slot.step;
     return switch (slot.kind) {
       PlanYouSlotKind.pendingAck => MyWorkPlanRow.pending(
-        canTickStep: slot.canTick ? step : null,
+        tickableStep: slot.canTick ? step : null,
       ),
       PlanYouSlotKind.step when step != null && slot.actionable =>
         MyWorkPlanRow.current(step, overdueBy: slot.overdueBy),
