@@ -1008,32 +1008,57 @@ class RootRouter extends RootStackRouter implements AppNavigator {
   @override
   Future<void> leavePostDetail({bool retargetOwnerHomeTab = false}) async {
     const ownerTab = HomeTab.conversations;
-    if (canPop()) {
-      await maybePop();
-    } else {
+    if (retargetOwnerHomeTab) {
       await resetToHome(tab: ownerTab);
+      await _retargetOwnerHomeTab(ownerTab);
       return;
     }
-    if (!retargetOwnerHomeTab) return;
-    final ownerIndex = HomeTabSpec.forTab(ownerTab).index;
-    if (activeHomeTabIndex != ownerIndex) {
-      await openHomeTab(ownerTab);
+    final before = current.name;
+    if (canPop()) {
+      final popped = await maybePop();
+      if (popped && current.name != before) return;
     }
+    await _dismissBrowseDetailKeepingHomeTab();
   }
 
   @override
   Future<void> leaveRequestDetail({bool retargetOwnerHomeTab = false}) async {
     const ownerTab = HomeTab.work;
-    if (canPop()) {
-      await maybePop();
-    } else {
+    if (retargetOwnerHomeTab) {
       await resetToHome(tab: ownerTab);
+      await _retargetOwnerHomeTab(ownerTab);
       return;
     }
-    if (!retargetOwnerHomeTab) return;
-    final ownerIndex = HomeTabSpec.forTab(ownerTab).index;
+    final before = current.name;
+    if (canPop()) {
+      final popped = await maybePop();
+      if (popped && current.name != before) return;
+    }
+    await _dismissBrowseDetailKeepingHomeTab();
+  }
+
+  /// When a detail route's [PopScope] blocks [maybePop], the stack can still
+  /// report `canPop` while the current route does not change (#1105).
+  Future<void> _dismissBrowseDetailKeepingHomeTab() async {
+    final index = activeHomeTabIndex;
+    final spec = index == null ? null : HomeTabSpec.fromIndex(index);
+    if (spec == null) {
+      await popOrGoHome();
+      return;
+    }
+    await replaceAll([
+      HomeRoute(
+        children: [
+          spec.shell(children: [spec.rootRoute()]),
+        ],
+      ),
+    ]);
+  }
+
+  Future<void> _retargetOwnerHomeTab(HomeTab tab) async {
+    final ownerIndex = HomeTabSpec.forTab(tab).index;
     if (activeHomeTabIndex != ownerIndex) {
-      await openHomeTab(ownerTab);
+      await openHomeTab(tab);
     }
   }
 

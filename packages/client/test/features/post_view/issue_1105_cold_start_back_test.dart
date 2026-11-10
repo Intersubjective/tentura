@@ -6,8 +6,14 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:get_it/get_it.dart';
 import 'package:mockito/mockito.dart';
+import 'package:tentura/domain/use_case/beacon_create_case.dart';
+import 'package:tentura/domain/use_case/beacon_hierarchy_case.dart';
+import 'package:tentura/features/beacon_view/domain/use_case/beacon_view_case.dart';
+import 'package:tentura_root/domain/entity/beacon_hierarchy_capabilities.dart';
 
+import 'package:tentura/data/repository/image_repository.dart';
 import 'package:tentura/app/router/browse_deep_link.dart';
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
@@ -30,11 +36,15 @@ import 'package:tentura/features/beacon_view/ui/widget/beacon_view_loading_shell
 import '../../support/fake_app_navigator.dart';
 import '../../support/phone_surface.dart' show kPhoneSurface, usePhoneSurface;
 import '../../support/remote_wire_harness.dart';
+import '../../domain/use_case/fake_beacon_hierarchy_ports.dart';
+import '../beacon_view/beacon_view_case_test_support.dart';
 import '../beacon_view/beacon_view_screen_harness.dart';
 
 const _postId = 'B1105postcold1';
 const _requestId = 'B1105reqwarm01';
 const _requestColdId = 'B1105reqcold1';
+const _requestColdDraftRu =
+    'Черновик сообщения в чате запроса перед выходом с экрана детали.';
 const _viewer = Profile(id: 'Uviewer', displayName: 'Viewer');
 const _author = Profile(id: 'Uauthor', displayName: 'Author');
 
@@ -76,6 +86,34 @@ class _FakeBeaconKindRepository implements BeaconKindRepository {
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+Future<void> _registerRequestRouteCases(BeaconRepository beacons) async {
+  final getIt = GetIt.I;
+  if (getIt.isRegistered<BeaconViewCase>()) {
+    await getIt.unregister<BeaconViewCase>();
+  }
+  if (getIt.isRegistered<BeaconHierarchyCase>()) {
+    await getIt.unregister<BeaconHierarchyCase>();
+  }
+  final images = getIt<ImageRepository>();
+  getIt
+    ..registerSingleton<BeaconViewCase>(
+      buildTestBeaconViewCase(beaconRepo: beacons),
+    )
+    ..registerSingleton<BeaconHierarchyCase>(
+      buildBeaconHierarchyCaseForTest(
+        FakeBeaconHierarchyRepositoryPort(
+          capabilities: const BeaconHierarchyCapabilities(
+            canListChildren: false,
+            canCreateChild: false,
+          ),
+        ),
+        createCase: BeaconCreateCase(beacons, images),
+        beacons: beacons,
+        commandStore: InMemoryBeaconChildCommandStore(),
+      ),
+    );
 }
 
 class _ProfileCubit extends Mock implements ProfileCubit {
@@ -188,33 +226,43 @@ class _RoutingAppNavigator extends FakeAppNavigator {
   }
 
   @override
-  Future<void> leavePostDetail({bool retargetOwnerHomeTab = false}) async {
-    await super.leavePostDetail(retargetOwnerHomeTab: retargetOwnerHomeTab);
-    if (router.canPop()) {
-      await router.maybePop();
-    } else {
-      await resetToHome(tab: HomeTab.conversations);
+  Future<void> leaveRequestDetail({bool retargetOwnerHomeTab = false}) async {
+    await super.leaveRequestDetail(retargetOwnerHomeTab: retargetOwnerHomeTab);
+    const requestTab = HomeTab.work;
+    if (retargetOwnerHomeTab) {
+      await resetToHome(tab: requestTab);
+      await openHomeTab(requestTab);
       return;
     }
-    if (retargetOwnerHomeTab &&
-        homeTabIndex != HomeTabSpec.forTab(HomeTab.conversations).index) {
-      await openHomeTab(HomeTab.conversations);
+    final before = router.current.name;
+    if (router.canPop()) {
+      final popped = await router.maybePop();
+      if (popped && router.current.name != before) return;
     }
+    final spec = homeTabIndex == null
+        ? HomeTabSpec.forTab(requestTab)
+        : HomeTabSpec.fromIndex(homeTabIndex!) ?? HomeTabSpec.forTab(requestTab);
+    await resetToHome(tab: spec.tab);
   }
 
   @override
-  Future<void> leaveRequestDetail({bool retargetOwnerHomeTab = false}) async {
-    await super.leaveRequestDetail(retargetOwnerHomeTab: retargetOwnerHomeTab);
-    if (router.canPop()) {
-      await router.maybePop();
-    } else {
-      await resetToHome(tab: HomeTab.work);
+  Future<void> leavePostDetail({bool retargetOwnerHomeTab = false}) async {
+    await super.leavePostDetail(retargetOwnerHomeTab: retargetOwnerHomeTab);
+    const ownerTab = HomeTab.conversations;
+    if (retargetOwnerHomeTab) {
+      await resetToHome(tab: ownerTab);
+      await openHomeTab(ownerTab);
       return;
     }
-    if (retargetOwnerHomeTab &&
-        homeTabIndex != HomeTabSpec.forTab(HomeTab.work).index) {
-      await openHomeTab(HomeTab.work);
+    final before = router.current.name;
+    if (router.canPop()) {
+      final popped = await router.maybePop();
+      if (popped && router.current.name != before) return;
     }
+    final spec = homeTabIndex == null
+        ? HomeTabSpec.forTab(ownerTab)
+        : HomeTabSpec.fromIndex(homeTabIndex!) ?? HomeTabSpec.forTab(ownerTab);
+    await resetToHome(tab: spec.tab);
   }
 }
 
@@ -350,9 +398,18 @@ Future<_ColdStartRouter> _pumpBrowseStack(
     ..registerSingleton<BeaconRepository>(beacons)
     ..registerSingleton<UnsavedChangesGuardPort>(UnsavedChangesGuard())
     ..registerSingleton<AppNavigator>(navigator);
+  if (resolvedKind == BeaconKind.request) {
+    await _registerRequestRouteCases(beacons);
+  }
   navigator.homeTabIndex = initialTabIndex;
 
   addTearDown(() async {
+    if (GetIt.I.isRegistered<BeaconHierarchyCase>()) {
+      await GetIt.I.unregister<BeaconHierarchyCase>();
+    }
+    if (GetIt.I.isRegistered<BeaconViewCase>()) {
+      await GetIt.I.unregister<BeaconViewCase>();
+    }
     await GetIt.I.unregister<BeaconKindRepository>();
     await GetIt.I.unregister<BeaconRepository>();
     await GetIt.I.unregister<UnsavedChangesGuardPort>();
@@ -501,6 +558,114 @@ void main() {
       await _tapBack(tester);
       expect(router.navigationHistory.urlState.url, kPathConversations);
     });
+
+    testWidgets(
+      '1280×800 RU: cold Request draft Back then Leave lands on Requests',
+      (tester) async {
+        await usePhoneSurface(tester);
+        resetBeaconRoomComposerDraftStoreForTest();
+        final router = await _pumpAt(
+          tester,
+          coldUri: Uri.parse('$kPathBeaconView/$_requestColdId'),
+          kinds: _FakeBeaconKindRepository(
+            {_requestColdId: BeaconKind.request},
+          ),
+          locale: const Locale('ru'),
+          surfaceSize: kPhoneSurface,
+        );
+        writeBeaconRoomComposerDraft(
+          beaconId: _requestColdId,
+          body: _requestColdDraftRu,
+        );
+        tester.view
+          ..physicalSize = const Size(1280, 800)
+          ..devicePixelRatio = 1;
+        await tester.pumpAndSettle();
+        tester.takeException();
+
+        await _tapBack(tester);
+        expect(find.text('Выйти без сохранения?'), findsOneWidget);
+
+        await tester.tap(find.text('Выйти и сбросить'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Выйти без сохранения?'), findsNothing);
+        expect(readBeaconRoomComposerDraft(_requestColdId), isNull);
+        expect(find.text('work-root'), findsOneWidget);
+        expect(find.text('conversations-root'), findsNothing);
+        expect(router.navigationHistory.urlState.url, kPathMyWork);
+      },
+    );
+
+    testWidgets(
+      'warm Request draft Back then Leave lands on Requests tab',
+      (tester) async {
+        await usePhoneSurface(tester);
+        resetBeaconRoomComposerDraftStoreForTest();
+        final router = await _pumpWarmStack(
+          tester,
+          homeTab: HomeTab.work,
+          detail: BeaconViewRoute(id: _requestId),
+          kinds: _FakeBeaconKindRepository(
+            {_requestId: BeaconKind.request},
+          ),
+          locale: const Locale('ru'),
+          surfaceSize: kPhoneSurface,
+        );
+        writeBeaconRoomComposerDraft(
+          beaconId: _requestId,
+          body: _requestColdDraftRu,
+        );
+        tester.view
+          ..physicalSize = const Size(1280, 800)
+          ..devicePixelRatio = 1;
+        await tester.pumpAndSettle();
+        tester.takeException();
+
+        await _tapBack(tester);
+        expect(find.text('Выйти без сохранения?'), findsOneWidget);
+
+        await tester.tap(find.text('Выйти и сбросить'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Выйти без сохранения?'), findsNothing);
+        expect(readBeaconRoomComposerDraft(_requestId), isNull);
+        expect(find.text('work-root'), findsOneWidget);
+        expect(router.navigationHistory.urlState.url, kPathMyWork);
+      },
+    );
+
+    testWidgets(
+      '375×667 RU: cold Request draft Back then Leave lands on Requests',
+      (tester) async {
+        await usePhoneSurface(tester);
+        resetBeaconRoomComposerDraftStoreForTest();
+        final router = await _pumpAt(
+          tester,
+          coldUri: Uri.parse('$kPathBeaconView/$_requestColdId'),
+          kinds: _FakeBeaconKindRepository(
+            {_requestColdId: BeaconKind.request},
+          ),
+          locale: const Locale('ru'),
+          surfaceSize: kPhoneSurface,
+        );
+        writeBeaconRoomComposerDraft(
+          beaconId: _requestColdId,
+          body: _requestColdDraftRu,
+        );
+
+        await _tapBack(tester);
+        expect(find.text('Выйти без сохранения?'), findsOneWidget);
+
+        await tester.tap(find.text('Выйти и сбросить'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Выйти без сохранения?'), findsNothing);
+        expect(readBeaconRoomComposerDraft(_requestColdId), isNull);
+        expect(find.text('work-root'), findsOneWidget);
+        expect(router.navigationHistory.urlState.url, kPathMyWork);
+      },
+    );
 
     testWidgets('375×667 RU: back with reply draft asks, cancel keeps text', (
       tester,

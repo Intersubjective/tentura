@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -30,6 +31,7 @@ import 'package:tentura/ui/beacon/beacon_room_navigation_scope.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/beacon/beacon_room_composer_leave.dart';
+import 'package:tentura/ui/navigation/app_navigator.dart';
 import 'package:tentura/ui/navigation/home_tab.dart';
 import 'package:tentura/ui/navigation/is_deep_link_query.dart';
 import 'package:tentura/ui/widget/first_load_gate.dart';
@@ -203,6 +205,10 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
   /// Guards legacy `?tab=log` from opening the Activity sheet twice.
   bool _didOpenActivitySheetForLogTab = false;
 
+  /// Prevents re-entrant leave while [PopScope] or navigation is in flight
+  /// (#1105 round 4).
+  bool _leaveBeaconViewInFlight = false;
+
   /// Author previewing the showcase ("How others see it").
   bool _previewAsOutsider = false;
 
@@ -256,41 +262,51 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
   }
 
   Future<void> _leaveBeaconView(BuildContext context) async {
-    final cubit = context.read<BeaconViewCubit>();
-    final beaconId = cubit.state.beacon.id;
-    if (!await confirmDiscardBeaconRoomComposerIfNeeded(context, beaconId)) {
-      return;
+    if (_leaveBeaconViewInFlight) return;
+    _leaveBeaconViewInFlight = true;
+    try {
+      final cubit = context.read<BeaconViewCubit>();
+      final beaconId = cubit.state.beacon.id;
+      if (!await confirmDiscardBeaconRoomComposerIfNeeded(context, beaconId)) {
+        return;
+      }
+      if (!context.mounted) return;
+      abandonBeaconRoomComposerDraft(context, beaconId);
+
+      final router = context.router;
+      final browseDepth = _browseStackDepth(router);
+
+      // Match [PopScope] on NOW: a lone cold/warm detail keeps canPop false, so
+      // [StackRouter.canPop] may be true while [maybePop] is a no-op. Only pop
+      // when the route is actually poppable (#1105 round 4).
+      if (browseDepth > 1) {
+        if (router.canPop()) {
+          await router.maybePop();
+          return;
+        }
+
+        final parent = router.parent<StackRouter>();
+        if (parent != null && parent.canPop()) {
+          await parent.maybePop();
+          return;
+        }
+      }
+
+      // A child Request opened from its parent (#154): when the stack cannot
+      // pop (e.g. after close/complete), return to the parent Request detail
+      // instead of dropping to the home tab root list.
+      final lineageParentId = cubit.state.beacon.lineageParentBeaconId;
+      if (lineageParentId != null && lineageParentId.isNotEmpty) {
+        await router.root.replacePath('$kPathBeaconView/$lineageParentId');
+        return;
+      }
+
+      await GetIt.I<AppNavigator>().leaveRequestDetail(
+        retargetOwnerHomeTab: isDeepLinkQueryTruthy(widget.isDeepLink),
+      );
+    } finally {
+      _leaveBeaconViewInFlight = false;
     }
-    if (!context.mounted) return;
-    abandonBeaconRoomComposerDraft(context, beaconId);
-
-    final router = context.router;
-
-    if (router.canPop()) {
-      unawaited(router.maybePop());
-      return;
-    }
-
-    final parent = router.parent<StackRouter>();
-    if (parent != null && parent.canPop()) {
-      unawaited(parent.maybePop());
-      return;
-    }
-
-    // A child Request opened from its parent (#154): when the stack cannot
-    // pop (e.g. after close/complete), return to the parent Request detail
-    // instead of dropping to the home tab root list.
-    final lineageParentId = cubit.state.beacon.lineageParentBeaconId;
-    if (lineageParentId != null && lineageParentId.isNotEmpty) {
-      unawaited(router.root.replacePath('$kPathBeaconView/$lineageParentId'));
-      return;
-    }
-
-    await leaveRequestDetailScreen(
-      context,
-      beaconId: beaconId,
-      retargetOwnerHomeTab: isDeepLinkQueryTruthy(widget.isDeepLink),
-    );
   }
 
   Widget _beaconViewErrorBody({

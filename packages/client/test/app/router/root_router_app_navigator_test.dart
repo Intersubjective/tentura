@@ -5,7 +5,9 @@ import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/post_join_navigation_cubit.dart';
 import 'package:tentura/features/settings/ui/bloc/settings_cubit.dart';
+import 'package:tentura/app/router/home_tab_branches.dart';
 import 'package:tentura/ui/navigation/app_navigator.dart';
+import 'package:tentura/ui/navigation/home_tab.dart';
 
 /// Pins the stack operation and the route (with all its args) behind each
 /// [AppNavigator] intent of [RootRouter]: feature UI used to build these
@@ -231,7 +233,10 @@ void main() {
       ..canMaybePop = true
       ..stubHomeTabIndex = HomeTabSpec.forTab(HomeTab.constellation).index;
     await navigator.leavePostDetail();
-    expect(router.calls, ['maybePop null']);
+    expect(router.calls, [
+      'maybePop null',
+      'replaceAll [${_homeOnTab(HomeTab.constellation)}]',
+    ]);
   });
 
   test('leavePostDetail retargets Posts after cold pop', () async {
@@ -240,7 +245,7 @@ void main() {
       ..stubHomeTabIndex = HomeTabSpec.forTab(HomeTab.work).index;
     await navigator.leavePostDetail(retargetOwnerHomeTab: true);
     expect(router.calls, [
-      'maybePop null',
+      'replaceAll [${_homeOnTab(HomeTab.conversations)}]',
       'openHomeTab HomeTab.conversations',
     ]);
   });
@@ -250,12 +255,26 @@ void main() {
       ..canMaybePop = true
       ..stubHomeTabIndex = HomeTabSpec.forTab(HomeTab.inbox).index;
     await navigator.leaveRequestDetail(retargetOwnerHomeTab: true);
-    expect(router.calls, ['maybePop null', 'openHomeTab HomeTab.work']);
+    expect(router.calls, [
+      'replaceAll [${_homeOnTab(HomeTab.work)}]',
+      'openHomeTab HomeTab.work',
+    ]);
   });
 }
 
 /// Route name, generated args (their toString lists every field) and
 /// initial children, recursively.
+String _homeOnTab(HomeTab tab) {
+  final spec = HomeTabSpec.forTab(tab);
+  return _describe(
+    HomeRoute(
+      children: [
+        spec.shell(children: [spec.rootRoute()]),
+      ],
+    ),
+  );
+}
+
 String _describe(PageRouteInfo route) {
   final args = route.args;
   final children = route.initialChildren;
