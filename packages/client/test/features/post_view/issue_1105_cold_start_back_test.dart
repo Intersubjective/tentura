@@ -223,7 +223,6 @@ late PageInfo _savedWorkPage;
 late PageInfo _savedConversationsPage;
 late PageInfo _savedInboxPage;
 late PageInfo _savedConstellationPage;
-
 Future<_ColdStartRouter> _pumpWarmStack(
   WidgetTester tester, {
   required HomeTab homeTab,

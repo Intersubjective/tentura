@@ -2,6 +2,7 @@
 // Back path (app bar, phone tab-back, PopScope) and leave to Requests via
 // AppNavigator.leaveRequestDetail.
 
+import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
@@ -20,37 +21,47 @@ const _draftRu =
 
 const _wideSurface = Size(1280, 800);
 
-class _CanPopHarnessRouter extends BeaconViewHarnessRouter {
+/// Simulates a browse stack whose parent reports poppable but PopScope vetoes
+/// the pop — the production hang (#1105 r4).
+class _PopVetoParentRouter extends BeaconViewHarnessRouter {
+  _PopVetoParentRouter(this.child);
+
+  final BeaconViewHarnessRouter child;
+
   @override
   bool canPop({
     bool ignoreChildRoutes = false,
     bool ignoreParentRoutes = false,
     bool ignorePagelessRoutes = false,
   }) => true;
-}
-
-class _NavigatorThatPops extends FakeAppNavigator {
-  _NavigatorThatPops(this.router);
-
-  final BeaconViewHarnessRouter router;
 
   @override
-  Future<void> leaveRequestDetail({bool retargetOwnerHomeTab = false}) async {
-    await super.leaveRequestDetail(
-      retargetOwnerHomeTab: retargetOwnerHomeTab,
-    );
-    if (router.canPop()) {
-      await router.maybePop();
-    }
+  Future<bool> maybePop<T extends Object?>([T? result]) async {
+    maybePopCalls++;
+    return false;
   }
+
+  @override
+  RootStackRouter get root => child;
 }
 
-Future<void> _registerLeaveNavigator(BeaconViewHarnessRouter router) async {
+class _RouterWithPoppableParent extends BeaconViewHarnessRouter {
+  _RouterWithPoppableParent() {
+    parentRouter = _PopVetoParentRouter(this);
+  }
+
+  late final StackRouter parentRouter;
+
+  @override
+  T? parent<T extends RoutingController>() => parentRouter as T?;
+}
+
+Future<void> _registerLeaveNavigator() async {
   final getIt = GetIt.I;
   if (getIt.isRegistered<AppNavigator>()) {
     await getIt.unregister<AppNavigator>();
   }
-  getIt.registerSingleton<AppNavigator>(_NavigatorThatPops(router));
+  getIt.registerSingleton<AppNavigator>(FakeAppNavigator());
 }
 
 Future<void> _tapAppBarBack(WidgetTester tester) async {
@@ -81,7 +92,7 @@ void main() {
         threadsState: beaconViewHarnessThreadsState(),
         router: router,
         plan: kBeaconViewHarnessOneStepPlan,
-        afterGetItRegistered: () => _registerLeaveNavigator(router),
+        afterGetItRegistered: _registerLeaveNavigator,
       );
 
       writeBeaconRoomComposerDraft(beaconId: _requestId, body: _draftEn);
@@ -111,7 +122,7 @@ void main() {
         threadsState: beaconViewHarnessThreadsState(),
         router: router,
         locale: const Locale('ru'),
-        afterGetItRegistered: () => _registerLeaveNavigator(router),
+        afterGetItRegistered: _registerLeaveNavigator,
       );
       writeBeaconRoomComposerDraft(beaconId: _requestId, body: _draftRu);
 
@@ -124,10 +135,11 @@ void main() {
     });
 
     testWidgets(
-      '1280×800 RU: Stay keeps draft; Leave clears store and leaves',
+      '1280×800 RU: Stay keeps draft; Leave uses AppNavigator not vetoed maybePop',
       (tester) async {
         await usePhoneSurface(tester);
-        final router = _CanPopHarnessRouter();
+        final router = _RouterWithPoppableParent();
+        final parent = router.parentRouter as _PopVetoParentRouter;
 
         final harness = await pumpBeaconViewHarness(
           tester,
@@ -136,7 +148,7 @@ void main() {
           threadsState: beaconViewHarnessThreadsState(),
           router: router,
           locale: const Locale('ru'),
-          afterGetItRegistered: () => _registerLeaveNavigator(router),
+          afterGetItRegistered: _registerLeaveNavigator,
         );
         writeBeaconRoomComposerDraft(beaconId: _requestId, body: _draftRu);
         await resizeBeaconViewHarness(tester, harness, _wideSurface);
@@ -148,14 +160,17 @@ void main() {
         await tester.tap(find.text('Вернуться к заполнению'));
         await tester.pumpAndSettle();
         expect(readBeaconRoomComposerDraft(_requestId), _draftRu);
-        expect(router.maybePopCalls, 0);
+        expect(parent.maybePopCalls, 0);
 
         await _tapAppBarBack(tester);
         await tester.tap(find.text('Выйти и сбросить'));
         await tester.pumpAndSettle();
 
         expect(readBeaconRoomComposerDraft(_requestId), isNull);
-        expect(router.maybePopCalls, greaterThan(0));
+        expect(parent.maybePopCalls, 0);
+        expect(find.text('Выйти без сохранения?'), findsNothing);
+        final navigator = GetIt.I<AppNavigator>() as FakeAppNavigator;
+        expect(navigator.named('leaveRequestDetail'), isNotEmpty);
       },
     );
 
@@ -171,7 +186,7 @@ void main() {
         threadsState: beaconViewHarnessThreadsState(),
         router: router,
         locale: const Locale('ru'),
-        afterGetItRegistered: () => _registerLeaveNavigator(router),
+        afterGetItRegistered: _registerLeaveNavigator,
       );
 
       await _tapAppBarBack(tester);

@@ -212,6 +212,9 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
   /// The deep-linked plan step ([BeaconViewScreen.stepId]) was opened once.
   bool _planStepHandled = false;
 
+  /// Prevents PopScope re-entry while a confirmed leave is navigating (#1105).
+  bool _leaveNavigationInFlight = false;
+
   /// A leave from an empty Plan surface is scheduled (#546).
   bool _leavePlanScheduled = false;
 
@@ -256,6 +259,8 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
   }
 
   Future<void> _leaveBeaconView(BuildContext context) async {
+    if (_leaveNavigationInFlight) return;
+
     final cubit = context.read<BeaconViewCubit>();
     final beaconId = cubit.state.beacon.id;
     if (!await confirmDiscardBeaconRoomComposerIfNeeded(context, beaconId)) {
@@ -265,31 +270,50 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     abandonBeaconRoomComposerDraft(context, beaconId);
 
     final router = context.router;
-
-    if (router.canPop()) {
-      unawaited(router.maybePop());
-      return;
-    }
-
-    final parent = router.parent<StackRouter>();
-    if (parent != null && parent.canPop()) {
-      unawaited(parent.maybePop());
-      return;
-    }
+    final browseDepth = _browseStackDepth(router);
+    final showcase = _isShowcase(cubit.state);
+    final popScopeAllowsSystemPop =
+        (showcase && !_previewAsOutsider) ||
+        (!showcase && _selectedSurface == BeaconSurface.now && browseDepth > 1);
 
     // A child Request opened from its parent (#154): when the stack cannot
     // pop (e.g. after close/complete), return to the parent Request detail
     // instead of dropping to the home tab root list.
     final lineageParentId = cubit.state.beacon.lineageParentBeaconId;
     if (lineageParentId != null && lineageParentId.isNotEmpty) {
-      unawaited(router.root.replacePath('$kPathBeaconView/$lineageParentId'));
-      return;
+      final stackCanPop =
+          router.canPop() || (router.parent<StackRouter>()?.canPop() ?? false);
+      if (!stackCanPop) {
+        _leaveNavigationInFlight = true;
+        try {
+          await router.root.replacePath('$kPathBeaconView/$lineageParentId');
+        } finally {
+          _leaveNavigationInFlight = false;
+        }
+        return;
+      }
+    }
+
+    if (popScopeAllowsSystemPop) {
+      _leaveNavigationInFlight = true;
+      try {
+        if (router.canPop() && await router.maybePop()) {
+          return;
+        }
+        final parent = router.parent<StackRouter>();
+        if (parent != null && parent.canPop() && await parent.maybePop()) {
+          return;
+        }
+      } finally {
+        _leaveNavigationInFlight = false;
+      }
     }
 
     await leaveRequestDetailScreen(
       context,
       beaconId: beaconId,
       retargetOwnerHomeTab: isDeepLinkQueryTruthy(widget.isDeepLink),
+      discardAlreadyConfirmed: true,
     );
   }
 
@@ -1421,6 +1445,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                                     browseDepth > 1),
                             onPopInvokedWithResult: (didPop, result) {
                               if (didPop) return;
+                              if (_leaveNavigationInFlight) return;
                               // An open plan page handles the back itself.
                               if (_activePlanPage != null) return;
                               if (showcase) {
