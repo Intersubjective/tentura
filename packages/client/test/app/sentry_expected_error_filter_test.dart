@@ -10,6 +10,7 @@ import 'package:tentura/app/sentry/sentry_benign_filter.dart';
 import 'package:tentura/app/sentry/sentry_init.dart';
 import 'package:tentura/data/service/remote_api_client/exception.dart';
 import 'package:tentura/domain/exception/generic_exception.dart';
+import 'package:tentura/features/auth/domain/exception.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/screen_load_error_panel.dart';
 
@@ -149,6 +150,80 @@ void main() {
       expect(
         isBenignSentryThrowable(const ConnectionUplinkException()),
         isTrue,
+      );
+    });
+  });
+
+  group('auth re-login prompts are not Sentry issues (#1138)', () {
+    const displayName = 'Alice Q912';
+    const mismatch = SessionAccountMismatchException(displayName);
+    const rejected = SessionAuthRejectedException();
+
+    test('thrown SessionAccountMismatchException is benign', () {
+      expect(isBenignSentryThrowable(mismatch), isTrue);
+    });
+
+    test('thrown SessionAuthRejectedException is benign', () {
+      expect(isBenignSentryThrowable(rejected), isTrue);
+    });
+
+    test(
+      'exception event typed SessionAccountMismatchException is dropped',
+      () {
+        expect(
+          isBenignSentryEvent(
+            _exceptionEvent('SessionAccountMismatchException', '$mismatch'),
+            Hint(),
+          ),
+          isTrue,
+        );
+      },
+    );
+
+    test('exception event typed SessionAuthRejectedException is dropped', () {
+      expect(
+        isBenignSentryEvent(
+          _exceptionEvent('SessionAuthRejectedException', '$rejected'),
+          Hint(),
+        ),
+        isTrue,
+      );
+    });
+
+    test(
+      'beforeSend drops the prompt when web minified its type name',
+      () async {
+        for (final error in const <Object>[mismatch, rejected]) {
+          final event = SentryEvent(
+            throwable: error,
+            exceptions: [SentryException(type: 'minified:Xy', value: '$error')],
+          );
+
+          expect(await _runBeforeSend(event), isNull, reason: '$error');
+        }
+      },
+    );
+
+    test('the display name stays on screen only', () {
+      expect(mismatch.toEn, contains(displayName));
+      expect(mismatch.toL10n('ru'), contains(displayName));
+
+      // What the logger bridge and Sentry exception values read.
+      expect(mismatch.toString(), isNot(contains(displayName)));
+      expect('$mismatch', isNot(contains(displayName)));
+    });
+
+    test('a logged mismatch carries no display name', () {
+      final records = <LogRecord>[];
+      Logger.detached('auth-test')
+        ..onRecord.listen(records.add)
+        ..warning('Session sign-in failed', mismatch);
+
+      final record = records.single;
+      // The Logger → Sentry breadcrumb message (`sentry_log_bridge.dart`).
+      expect(
+        '${record.message}: ${record.error}',
+        isNot(contains(displayName)),
       );
     });
   });
