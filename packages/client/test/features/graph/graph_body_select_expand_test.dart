@@ -79,9 +79,6 @@ class _TrackingForwardsCubit extends Cubit<GraphState> implements GraphCubit {
   Future<void> expandNode(NodeDetails node) async => expandCalls += 1;
 
   @override
-  bool canExpandNode(String id) => false;
-
-  @override
   bool canPageMore(String id) => false;
 
   @override
