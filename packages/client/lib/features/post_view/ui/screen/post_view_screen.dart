@@ -141,7 +141,7 @@ class _PostViewScreenState extends State<PostViewScreen> {
                   ),
                 ),
           actions: [
-            if (state.beacon.viewerCanForward && !_isClosed(state))
+            if (state.beacon.viewerCanForwardAt(cubit.now()))
               IconButton(
                 icon: const Icon(Icons.north_east),
                 tooltip: l10n.labelForward,

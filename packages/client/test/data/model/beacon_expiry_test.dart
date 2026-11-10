@@ -61,6 +61,32 @@ void main() {
     }
   });
 
+  group('Beacon.viewerCanForwardAt', () {
+    test(
+      'Post past expires_at returns false when viewerCanForward is true',
+      () {
+        final beacon = Beacon(
+          createdAt: _now.subtract(const Duration(days: 3)),
+          updatedAt: _now,
+          kind: BeaconKind.post,
+          viewerCanForward: true,
+          expiresAt: _now.subtract(const Duration(microseconds: 1)),
+        );
+        expect(beacon.viewerCanForwardAt(_now), isFalse);
+      },
+    );
+
+    test('Request ignores expiry for forward gating', () {
+      final beacon = Beacon(
+        createdAt: _now.subtract(const Duration(days: 3)),
+        updatedAt: _now,
+        viewerCanForward: true,
+        expiresAt: _now.subtract(const Duration(days: 1)),
+      );
+      expect(beacon.viewerCanForwardAt(_now), isTrue);
+    });
+  });
+
   group('Beacon Post archive policy', () {
     for (final kind in BeaconKind.values) {
       for (final status in BeaconStatus.values) {
