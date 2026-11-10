@@ -73,6 +73,28 @@ void main() {
     expect(uri.toString(), '$kPathBeaconView/B1');
   });
 
+  test('post beacon events open /post/view/<id>', () {
+    final uri = attentionDestination(
+      AttentionReceipt(
+        id: 'N1',
+        category: 'coordination',
+        kind: 'roomMessagePosted',
+        priority: 'standard',
+        title: 'Title',
+        body: 'Body',
+        actionUrl: '/beacon/view/B1',
+        createdAt: DateTime.utc(2026),
+        collapsedCount: 1,
+        presentationPayloadJson: '{}',
+        surface: AttentionSurface.activity,
+        destinationKind: 'beacon',
+        targetEntityId: 'Bpost01',
+        beaconKind: 1,
+      ),
+    );
+    expect(uri.path, '$kPathPostView/Bpost01');
+  });
+
   test('beacon_room opens General on threads tab', () {
     final uri = attentionDestination(
       receipt(

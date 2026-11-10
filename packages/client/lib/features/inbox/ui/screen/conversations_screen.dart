@@ -62,7 +62,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
     if (_canSplit) {
       setState(() => _selectedPostId = id);
     } else {
-      unawaited(context.router.push(BeaconViewRoute(id: id)));
+      context.router.push(PostViewRoute(id: id));
     }
   }
 

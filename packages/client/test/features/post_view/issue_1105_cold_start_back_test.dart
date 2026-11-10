@@ -235,7 +235,9 @@ Future<_ColdStartRouter> _pumpWarmStack(
   final spec = HomeTabSpec.forTab(homeTab);
   final stack = BrowseDeepLinkStack(
     home: HomeRoute(
-      children: [spec.shell(children: [spec.rootRoute()])],
+      children: [
+        spec.shell(children: [spec.rootRoute()]),
+      ],
     ),
     detail: detail,
   );
@@ -387,6 +389,9 @@ Future<_ColdStartRouter> _pumpBrowseStack(
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 200));
   }
+  navigator.homeTabIndex =
+      router.innerRouterOf<TabsRouter>(HomeRoute.name)?.activeIndex ??
+      navigator.homeTabIndex;
   return router;
 }
 
@@ -423,6 +428,10 @@ void main() {
         coldUri: Uri.parse('$kPathBeaconView/$_postId'),
       );
       expect(find.byType(PostViewScreen), findsOneWidget);
+      expect(
+        router.navigationHistory.urlState.path,
+        '$kPathPostView/$_postId',
+      );
 
       await _tapBack(tester);
 
