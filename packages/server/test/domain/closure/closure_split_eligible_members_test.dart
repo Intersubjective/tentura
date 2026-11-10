@@ -2,7 +2,7 @@ import 'package:test/test.dart';
 
 import 'package:tentura_server/domain/closure/closure_entities.dart';
 import 'package:tentura_server/domain/closure/closure_outcome.dart';
-import 'package:tentura_server/domain/closure/closure_set_a.dart';
+import 'package:tentura_server/domain/closure/closure_split_eligible_members.dart';
 import 'package:tentura_server/domain/closure/membership_reducer.dart';
 
 void main() {
@@ -10,7 +10,7 @@ void main() {
       ClosureMemberRow(userId: id, activeAtOpen: true, departure: departure);
 
   test('empty input gives an empty set', () {
-    expect(closureSetA(const [], const {}), isEmpty);
+    expect(closureSplitEligibleMembers(const [], const {}), isEmpty);
   });
 
   test('members not marked notDone are kept, with or without an outcome', () {
@@ -20,7 +20,12 @@ void main() {
       'U2': ClosureOutcome.cantJudge,
       'U3': null,
     };
-    expect(closureSetA(members, outcomes), {'U1', 'U2', 'U3', 'U4'});
+    expect(closureSplitEligibleMembers(members, outcomes), {
+      'U1',
+      'U2',
+      'U3',
+      'U4',
+    });
   });
 
   test('members the author marked notDone are dropped', () {
@@ -29,7 +34,7 @@ void main() {
       'U1': ClosureOutcome.notDone,
       'U2': ClosureOutcome.done,
     };
-    expect(closureSetA(members, outcomes), {'U2'});
+    expect(closureSplitEligibleMembers(members, outcomes), {'U2'});
   });
 
   test('unjudged voluntary leavers (no row or null outcome) are dropped', () {
@@ -39,7 +44,7 @@ void main() {
       member('U3'),
     ];
     final outcomes = <String, ClosureOutcome?>{'U2': null};
-    expect(closureSetA(members, outcomes), {'U3'});
+    expect(closureSplitEligibleMembers(members, outcomes), {'U3'});
   });
 
   test('judged voluntary leavers follow their judgement', () {
@@ -53,7 +58,7 @@ void main() {
       'U2': ClosureOutcome.cantJudge,
       'U3': ClosureOutcome.notDone,
     };
-    expect(closureSetA(members, outcomes), {'U1', 'U2'});
+    expect(closureSplitEligibleMembers(members, outcomes), {'U1', 'U2'});
   });
 
   test('removed members are not leavers: unjudged ones are kept', () {
@@ -62,6 +67,6 @@ void main() {
       member('U2', departure: Departure.removed),
     ];
     final outcomes = <String, ClosureOutcome?>{'U2': ClosureOutcome.notDone};
-    expect(closureSetA(members, outcomes), {'U1'});
+    expect(closureSplitEligibleMembers(members, outcomes), {'U1'});
   });
 }
