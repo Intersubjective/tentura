@@ -641,6 +641,7 @@ Future<BeaconViewHarness> pumpBeaconViewHarness(
 Widget buildBeaconViewHarnessWidget({
   required BeaconViewState beaconState,
   required ThreadsState threadsState,
+  String? isDeepLink,
   String? viewTab,
   String? threadId,
   String? messageId,
@@ -680,6 +681,7 @@ Widget buildBeaconViewHarnessWidget({
     child: Scaffold(
       body: BeaconViewScreen(
         id: beaconState.beacon.id,
+        isDeepLink: isDeepLink,
         viewTab: viewTab,
         threadId: threadId,
         messageId: messageId,

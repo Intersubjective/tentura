@@ -66,12 +66,16 @@ Future<void> leaveRequestDetailScreen(
   BuildContext context, {
   required String beaconId,
   bool retargetOwnerHomeTab = false,
+  bool discardAlreadyConfirmed = false,
 }) async {
-  if (!await confirmDiscardBeaconRoomComposerIfNeeded(context, beaconId)) {
-    return;
+  if (!discardAlreadyConfirmed) {
+    if (!await confirmDiscardBeaconRoomComposerIfNeeded(context, beaconId)) {
+      return;
+    }
+    if (!context.mounted) return;
+    abandonBeaconRoomComposerDraft(context, beaconId);
   }
   if (!context.mounted) return;
-  abandonBeaconRoomComposerDraft(context, beaconId);
 
   await GetIt.I<AppNavigator>().leaveRequestDetail(
     retargetOwnerHomeTab: retargetOwnerHomeTab,
