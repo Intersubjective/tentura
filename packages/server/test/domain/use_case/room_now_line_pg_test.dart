@@ -737,15 +737,16 @@ WHERE beacon_id = @beaconId AND client_message_id = @key
             userId: memberId,
             body: 'Photo of the van',
             clientMessageId: 'with-photo',
-            deferAttachmentHash: true,
-            uploadedAttachment: (
-              // No such image row: the attachment insert breaks its FK.
-              imageId: '00000000-0000-4000-8000-0000000c0de1',
-              storagePath: null,
-              mime: 'image/jpeg',
-              sizeBytes: 4,
-              displayName: 'van.jpg',
-            ),
+            savedAttachments: [
+              (
+                // No such image row: the attachment insert breaks its FK.
+                imageId: '00000000-0000-4000-8000-0000000c0de1',
+                storagePath: null,
+                mime: 'image/jpeg',
+                sizeBytes: 4,
+                displayName: 'van.jpg',
+              ),
+            ],
           ),
           throwsA(anything),
         );

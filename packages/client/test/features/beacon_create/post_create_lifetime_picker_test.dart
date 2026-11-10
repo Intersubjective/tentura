@@ -16,7 +16,6 @@ import 'package:tentura/data/repository/image_repository.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/domain/entity/room_pending_upload.dart';
 import 'package:tentura/domain/port/post_publish_port.dart';
 import 'package:tentura/domain/use_case/post_publish_case.dart';
 import 'package:tentura/features/beacon_create/ui/bloc/beacon_create_cubit.dart';
@@ -73,18 +72,10 @@ class _LifetimeRecordingPort implements PostPublishPort {
     required Map<String, String> notes,
     required BeaconForwardPolicyValue forwardPolicy,
     Duration? lifetime,
-    RoomPendingUpload? attachment,
   }) async {
     lifetimes.add(lifetime);
     return PostPublishResult(beaconId: beaconId, rootMessageId: 'root-1');
   }
-
-  @override
-  Future<void> addRootAttachment({
-    required String beaconId,
-    required String messageId,
-    required RoomPendingUpload upload,
-  }) async {}
 }
 
 class _NavRouter extends Fake implements StackRouter {
@@ -141,7 +132,6 @@ Future<_LifetimeRecordingPort> _pumpPostCreate(WidgetTester tester) async {
     effects: effects,
     debugSkipInitialLoad: true,
     debugInitialState: const ForwardState(
-      beaconId: '',
       selectedIds: {'Umaria'},
       candidatesLoad: ForwardCandidatesReady(),
     ),
@@ -267,28 +257,31 @@ void main() {
       );
     });
 
-    testWidgets('375×667 RU: reply lifetime hint uses segment label, chip stays separate', (
-      tester,
-    ) async {
-      await usePhoneSurface(tester);
-      await _pumpPostCreate(tester);
+    testWidgets(
+      '375×667 RU: reply lifetime hint uses segment label, chip stays separate',
+      (
+        tester,
+      ) async {
+        await usePhoneSurface(tester);
+        await _pumpPostCreate(tester);
 
-      const defaultHint =
-          'Все, кому вы отправите, смогут ответить под постом. '
-          'Срок жизни: 3 дня.';
-      expect(find.text(defaultHint), findsOneWidget);
-      expect(find.textContaining('⏳', findRichText: true), findsOneWidget);
-      expect(defaultHint, isNot(contains('⏳')));
+        const defaultHint =
+            'Все, кому вы отправите, смогут ответить под постом. '
+            'Срок жизни: 3 дня.';
+        expect(find.text(defaultHint), findsOneWidget);
+        expect(find.textContaining('⏳', findRichText: true), findsOneWidget);
+        expect(defaultHint, isNot(contains('⏳')));
 
-      await tester.tap(find.text('24 часа'));
-      await _settle(tester);
-      expect(
-        find.text(
-          'Все, кому вы отправите, смогут ответить под постом. '
-          'Срок жизни: 24 часа.',
-        ),
-        findsOneWidget,
-      );
-    });
+        await tester.tap(find.text('24 часа'));
+        await _settle(tester);
+        expect(
+          find.text(
+            'Все, кому вы отправите, смогут ответить под постом. '
+            'Срок жизни: 24 часа.',
+          ),
+          findsOneWidget,
+        );
+      },
+    );
   });
 }

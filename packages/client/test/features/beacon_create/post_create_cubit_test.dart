@@ -1,10 +1,8 @@
 // A Post is created by writing its first message. `BeaconCreateCubit` in Post
 // mode keeps a server draft for a stable id, then publishes everything in one
-// `postPublish` call (first attachment inline, mentions as parallel lists) and
-// uploads the remaining attachments into the root message afterwards. A lost
-// response is retried with the same arguments; a failed upload retries only
-// that upload and never re-sends `postPublish`.
-
+// `postPublish` call (mentions as parallel lists). Attachments are already
+// saved on the server draft, so publishing uploads none. A lost response is
+// retried with the same arguments; a published Post is not published again.
 
 import 'package:flutter_test/flutter_test.dart';
 
@@ -32,7 +30,6 @@ class _PublishCall {
     required this.recipientIds,
     required this.notes,
     required this.forwardPolicy,
-    required this.attachmentName,
   });
 
   final String beaconId;
@@ -43,7 +40,6 @@ class _PublishCall {
   final Set<String> recipientIds;
   final Map<String, String> notes;
   final BeaconForwardPolicyValue forwardPolicy;
-  final String? attachmentName;
 
   @override
   bool operator ==(Object other) =>
@@ -55,17 +51,16 @@ class _PublishCall {
       _listEq(mentionLengths, other.mentionLengths) &&
       _setEq(recipientIds, other.recipientIds) &&
       _mapEq(notes, other.notes) &&
-      forwardPolicy == other.forwardPolicy &&
-      attachmentName == other.attachmentName;
+      forwardPolicy == other.forwardPolicy;
 
   @override
-  int get hashCode => Object.hash(beaconId, body, attachmentName);
+  int get hashCode => Object.hash(beaconId, body);
 
   @override
   String toString() =>
       '_PublishCall($beaconId, "$body", ${mentionUserIds.join(',')}, '
       '$mentionOffsets, $mentionLengths, $recipientIds, $notes, '
-      '${forwardPolicy.name}, $attachmentName)';
+      '${forwardPolicy.name})';
 }
 
 bool _listEq<T>(List<T> a, List<T> b) =>
@@ -80,17 +75,12 @@ bool _mapEq(Map<String, String> a, Map<String, String> b) =>
     a.length == b.length && a.entries.every((e) => b[e.key] == e.value);
 
 class _FakePostPublishPort implements PostPublishPort {
-  /// Everything that reached the server, in order: `publish` and
-  /// `attach:<fileName>`.
+  /// Everything that reached the server, in order.
   final events = <String>[];
   final publishCalls = <_PublishCall>[];
-  final attachCalls = <({String beaconId, String messageId, String name})>[];
 
   /// Errors thrown by successive `postPublish` calls; null/absent = success.
   final publishErrors = <Exception?>[];
-
-  /// File names whose next upload fails once.
-  final failUploadOnce = <String>{};
 
   @override
   Future<PostPublishResult> postPublish({
@@ -103,7 +93,6 @@ class _FakePostPublishPort implements PostPublishPort {
     required Map<String, String> notes,
     required BeaconForwardPolicyValue forwardPolicy,
     Duration? lifetime,
-    RoomPendingUpload? attachment,
   }) async {
     events.add('publish');
     publishCalls.add(
@@ -116,7 +105,6 @@ class _FakePostPublishPort implements PostPublishPort {
         recipientIds: recipientIds.toSet(),
         notes: notes,
         forwardPolicy: forwardPolicy,
-        attachmentName: attachment?.fileName,
       ),
     );
     final index = publishCalls.length - 1;
@@ -124,23 +112,6 @@ class _FakePostPublishPort implements PostPublishPort {
       throw publishErrors[index]!;
     }
     return PostPublishResult(beaconId: beaconId, rootMessageId: 'root-msg-1');
-  }
-
-  @override
-  Future<void> addRootAttachment({
-    required String beaconId,
-    required String messageId,
-    required RoomPendingUpload upload,
-  }) async {
-    events.add('attach:${upload.fileName}');
-    attachCalls.add((
-      beaconId: beaconId,
-      messageId: messageId,
-      name: upload.fileName,
-    ));
-    if (failUploadOnce.remove(upload.fileName)) {
-      throw Exception('upload of ${upload.fileName} failed');
-    }
   }
 }
 
@@ -266,8 +237,6 @@ void main() {
         expect(call.recipientIds, {'Umaria', 'Uoleg'});
         expect(call.notes, {'Umaria': 'ты же хотел'});
         expect(call.forwardPolicy, BeaconForwardPolicyValue.closed);
-        expect(call.attachmentName, isNull);
-        expect(port.attachCalls, isEmpty);
       },
     );
 
@@ -298,55 +267,30 @@ void main() {
     );
 
     test(
-      'sends the first attachment inline and uploads the rest after publish',
+      'sends no attachment: the ones on the draft are already on the server',
       () async {
         final sent = await publish(
           attachments: [_file('a.png'), _file('b.png'), _file('c.png')],
         );
 
         expect(sent, isTrue);
-        expect(port.publishCalls, hasLength(1));
-        expect(port.publishCalls.single.attachmentName, 'a.png');
-        expect(port.events, ['publish', 'attach:b.png', 'attach:c.png']);
-        expect(
-          port.attachCalls.map((c) => (c.beaconId, c.messageId)).toSet(),
-          {('server-beacon', 'root-msg-1')},
-          reason: 'uploads go into the root message returned by postPublish',
-        );
+        expect(port.events, ['publish']);
       },
     );
 
-    test(
-      'a failed upload retries only that upload, never postPublish',
-      () async {
-        port.failUploadOnce.add('c.png');
-        final attachments = [_file('a.png'), _file('b.png'), _file('c.png')];
+    test('a published Post is not published again', () async {
+      final attachments = [_file('a.png'), _file('b.png')];
 
-        final first = await publish(attachments: attachments);
-        expect(first, isFalse);
-        expect(port.publishCalls, hasLength(1));
+      expect(await publish(attachments: attachments), isTrue);
+      expect(await publish(attachments: attachments), isTrue);
 
-        final retry = await publish(attachments: attachments);
-
-        expect(retry, isTrue);
-        expect(
-          port.publishCalls,
-          hasLength(1),
-          reason: 'postPublish is not re-sent',
-        );
-        expect(
-          port.attachCalls.map((c) => c.name),
-          ['b.png', 'c.png', 'c.png'],
-          reason:
-              'b.png was uploaded; only c.png is retried; a.png rode inline',
-        );
-        expect(write.createdFields, hasLength(1));
-      },
-    );
+      expect(port.publishCalls, hasLength(1));
+      expect(write.createdFields, hasLength(1));
+    });
 
     test(
       'a second call while one is running is dropped, so a double tap '
-      'publishes and uploads once',
+      'publishes once',
       () async {
         final attachments = [_file('a.png'), _file('b.png')];
 
@@ -355,17 +299,9 @@ void main() {
 
         expect(await second, isFalse);
         expect(await first, isTrue);
-        expect(port.events, ['publish', 'attach:b.png']);
+        expect(port.events, ['publish']);
       },
     );
-
-    test('a failed upload surfaces the error to the user', () async {
-      port.failUploadOnce.add('b.png');
-
-      await publish(attachments: [_file('a.png'), _file('b.png')]);
-
-      expect(effects.emitted.whereType<ShowError>(), isNotEmpty);
-    });
 
     test(
       'a network error on postPublish can be retried with identical arguments',
@@ -380,11 +316,6 @@ void main() {
           attachments: attachments,
         );
         expect(first, isFalse);
-        expect(
-          port.attachCalls,
-          isEmpty,
-          reason: 'nothing is uploaded before the root message exists',
-        );
         expect(effects.emitted.whereType<ShowError>(), isNotEmpty);
 
         final retry = await publish(
@@ -396,7 +327,6 @@ void main() {
         expect(retry, isTrue);
         expect(port.publishCalls, hasLength(2));
         expect(port.publishCalls[1], port.publishCalls[0]);
-        expect(port.attachCalls.map((c) => c.name), ['b.png']);
         expect(
           write.createdFields,
           hasLength(1),
@@ -414,20 +344,15 @@ void main() {
       expect(sent, isTrue);
       expect(port.publishCalls, hasLength(1));
       expect(port.publishCalls.single.body, isEmpty);
-      expect(port.publishCalls.single.attachmentName, 'a.png');
-      expect(port.events, ['publish', 'attach:b.png']);
+      expect(port.events, ['publish']);
     });
 
-    test(
-      'publishes a single-photo Post inline with no follow-up upload',
-      () async {
-        final sent = await publish(body: '   ', attachments: [_file('a.png')]);
+    test('publishes a single-photo Post with a blank body', () async {
+      final sent = await publish(body: '   ', attachments: [_file('a.png')]);
 
-        expect(sent, isTrue);
-        expect(port.publishCalls.single.attachmentName, 'a.png');
-        expect(port.attachCalls, isEmpty);
-      },
-    );
+      expect(sent, isTrue);
+      expect(port.events, ['publish']);
+    });
 
     test('refuses to publish with neither text nor attachment', () async {
       final sent = await publish(body: '  \n ');

@@ -7,10 +7,13 @@ import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/entity/beacon_media_state.dart';
 import 'package:tentura_server/domain/entity/image_entity.dart';
+import 'package:tentura_server/domain/entity/post_draft_attachment.dart';
 import 'package:tentura_server/domain/entity/post_summary.dart';
+import 'package:tentura_server/domain/entity/uploaded_room_attachment.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
+import 'package:tentura_server/utils/id.dart';
 
 import 'data/beacons.dart';
 
@@ -353,6 +356,26 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
 
   @override
   Future<void> clearPostDraftComposerFields(String beaconId) async {}
+
+  @override
+  Future<List<PostDraftAttachment>> postDraftAttachments(
+    String beaconId,
+  ) async => const [];
+
+  @override
+  Future<String> insertPostDraftAttachment({
+    required String beaconId,
+    required UploadedRoomAttachment upload,
+  }) async => generateId('A');
+
+  @override
+  Future<PostDraftAttachment?> deletePostDraftAttachment({
+    required String beaconId,
+    required String attachmentId,
+  }) async => null;
+
+  @override
+  Future<void> deletePostDraftAttachments(String beaconId) async {}
 
   @override
   Future<T> runInBeaconStateTransaction<T>({

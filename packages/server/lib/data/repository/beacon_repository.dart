@@ -18,12 +18,15 @@ import 'package:tentura_server/consts.dart'
         kTitleMinLength;
 import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
 import 'package:tentura_server/consts/beacon_hierarchy_consts.dart';
+import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/domain/entity/beacon_activity_event_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/post_summary.dart';
 import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/entity/beacon_media_state.dart';
+import 'package:tentura_server/domain/entity/post_draft_attachment.dart';
+import 'package:tentura_server/domain/entity/uploaded_room_attachment.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 
 import '../database/tentura_db.dart';
@@ -832,6 +835,94 @@ SET description = '',
 WHERE id = $1 AND kind = 1''',
         variables: [Variable<String>(beaconId)],
         updates: {_database.beacons},
+      );
+
+  static const _draftAttachmentColumns =
+      'id, image_id::text AS image_id, file_url, mime, size_bytes, file_name';
+
+  static PostDraftAttachment _draftAttachment(QueryRow row) => (
+    id: row.read<String>('id'),
+    upload: (
+      imageId: row.read<String?>('image_id'),
+      storagePath: row.read<String?>('file_url'),
+      mime: row.read<String>('mime'),
+      sizeBytes: row.read<int>('size_bytes'),
+      displayName: row.read<String>('file_name'),
+    ),
+  );
+
+  @override
+  Future<List<PostDraftAttachment>> postDraftAttachments(
+    String beaconId,
+  ) async {
+    final rows = await _database
+        .customSelect(
+          'SELECT $_draftAttachmentColumns '
+          'FROM public.post_draft_attachment '
+          r'WHERE beacon_id = $1 ORDER BY position, id',
+          variables: [Variable<String>(beaconId)],
+        )
+        .get();
+    return rows.map(_draftAttachment).toList();
+  }
+
+  @override
+  Future<String> insertPostDraftAttachment({
+    required String beaconId,
+    required UploadedRoomAttachment upload,
+  }) async {
+    final row = await _database
+        .customSelect(
+          r'''
+INSERT INTO public.post_draft_attachment
+  (beacon_id, kind, image_id, file_url, mime, size_bytes, file_name, position)
+SELECT $1, $2, $3::uuid, $4, $5, $6, $7,
+       COALESCE(MAX(position) + 1, 0)
+FROM public.post_draft_attachment
+WHERE beacon_id = $1
+RETURNING id''',
+          variables: [
+            Variable<String>(beaconId),
+            Variable<int>(
+              upload.imageId == null
+                  ? BeaconRoomMessageAttachmentKind.file
+                  : BeaconRoomMessageAttachmentKind.image,
+            ),
+            Variable<String>(upload.imageId),
+            Variable<String>(upload.storagePath),
+            Variable<String>(upload.mime),
+            Variable<int>(upload.sizeBytes),
+            Variable<String>(upload.displayName),
+          ],
+        )
+        .getSingle();
+    return row.read<String>('id');
+  }
+
+  @override
+  Future<PostDraftAttachment?> deletePostDraftAttachment({
+    required String beaconId,
+    required String attachmentId,
+  }) async {
+    final row = await _database
+        .customSelect(
+          'DELETE FROM public.post_draft_attachment '
+          r'WHERE beacon_id = $1 AND id = $2 '
+          'RETURNING $_draftAttachmentColumns',
+          variables: [
+            Variable<String>(beaconId),
+            Variable<String>(attachmentId),
+          ],
+        )
+        .getSingleOrNull();
+    return row == null ? null : _draftAttachment(row);
+  }
+
+  @override
+  Future<void> deletePostDraftAttachments(String beaconId) =>
+      _database.customStatement(
+        r'DELETE FROM public.post_draft_attachment WHERE beacon_id = $1',
+        [beaconId],
       );
 
   @override

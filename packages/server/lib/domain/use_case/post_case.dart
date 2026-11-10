@@ -5,6 +5,7 @@ import 'package:injectable/injectable.dart';
 import 'package:tentura_root/domain/entity/beacon_post_lifetime.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
+import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/post_publish_result.dart';
@@ -73,10 +74,11 @@ class PostCase {
   final TransactionalAttentionCase _attention;
 
   /// Commits the draft's status before delivering to [recipientIds] and posting
-  /// the root message in a transaction without the hierarchy lock. Upload I/O
-  /// precedes both transactions. [lifetimeHours] (1…72, default 72) sets when
-  /// the Post expires. An open Post without a root retries delivery alone;
-  /// after success the author gets the existing ids.
+  /// the root message in a transaction without the hierarchy lock. The root
+  /// message takes the attachments saved on the draft, which nothing uploads
+  /// again. [lifetimeHours] (1…72, default 72) sets when the Post expires. An
+  /// open Post without a root retries delivery alone; after success the
+  /// author gets the existing ids.
   Future<PostPublishResult> publish({
     required String authorId,
     required String beaconId,
@@ -87,9 +89,6 @@ class PostCase {
     required List<String> recipientIds,
     required Map<String, String> notes,
     BeaconForwardPolicyValue? forwardPolicy,
-    Stream<Uint8List>? attachmentBytes,
-    String? attachmentFilename,
-    String? attachmentMimeType,
     int? lifetimeHours,
   }) async {
     final post = await _postForPublication(
@@ -103,19 +102,12 @@ class PostCase {
             lifetimeHours > BeaconPostLifetime.maxHours)) {
       throw const PostLifetimeInvalidException();
     }
-    if (body.trim().isEmpty && attachmentBytes == null) {
+    if (body.trim().isEmpty &&
+        (await _beaconRepository.postDraftAttachments(beaconId)).isEmpty) {
       throw const BeaconCreateException(
         description: 'A Post needs text or an attachment',
       );
     }
-    final attachment = attachmentBytes == null
-        ? null
-        : await _roomCase.prepareMessageAttachment(
-            userId: authorId,
-            bytes: attachmentBytes,
-            uploadFilename: attachmentFilename,
-            uploadMimeType: attachmentMimeType,
-          );
     if (post.status == BeaconStatus.draft) {
       await _attention.runAction<void>(
         actorUserId: authorId,
@@ -159,8 +151,7 @@ class PostCase {
         },
       );
     }
-    var createdMessage = false;
-    final result = await _attention.runAction(
+    return _attention.runAction(
       actorUserId: authorId,
       action: (_) async {
         await _postLock.lockForPostDelivery(beaconId, senderId: authorId);
@@ -183,6 +174,9 @@ class PostCase {
             perRecipientNotes: notes,
           );
         }
+        // Read under the Post lock: an addition either committed before
+        // this point and moves now, or sees a published Post and is refused.
+        final saved = await _beaconRepository.postDraftAttachments(beaconId);
         final message = await _roomCase.createMessage(
           beaconId: beaconId,
           userId: authorId,
@@ -190,16 +184,15 @@ class PostCase {
           explicitMentionUserIds: mentionUserIds,
           explicitMentionOffsets: mentionOffsets,
           explicitMentionLengths: mentionLengths,
-          uploadedAttachment: attachment,
-          deferAttachmentHash: true,
+          savedAttachments: [for (final row in saved) row.upload],
           suppressMentionNotifyFor: recipientIds.toSet(),
         );
+        await _beaconRepository.deletePostDraftAttachments(beaconId);
         final rootMessageId = message['id']! as String;
         await _beaconRepository.setPostRootMessage(
           beaconId: beaconId,
           messageId: rootMessageId,
         );
-        createdMessage = true;
         final expiresAt = await _beaconRepository.postExpiresAt(beaconId);
         return PostPublishResult(
           beaconId: beaconId,
@@ -208,8 +201,95 @@ class PostCase {
         );
       },
     );
-    if (createdMessage) await _roomCase.scheduleAttachmentHash(attachment);
-    return result;
+  }
+
+  /// Saves an upload on the author's Post draft, after its other
+  /// attachments, up to the per-message attachment limit. The upload I/O
+  /// runs before the transaction; a refused or failed save releases it.
+  Future<String> addDraftAttachment({
+    required String authorId,
+    required String beaconId,
+    required Stream<Uint8List> bytes,
+    String? filename,
+    String? mimeType,
+  }) async {
+    await _postDraft(authorId: authorId, beaconId: beaconId);
+    final upload = await _roomCase.prepareMessageAttachment(
+      userId: authorId,
+      bytes: bytes,
+      uploadFilename: filename,
+      uploadMimeType: mimeType,
+    );
+    if (upload == null) {
+      throw const BeaconCreateException(description: 'Empty attachment');
+    }
+    final String id;
+    try {
+      id = await _attention.runAction(
+        actorUserId: authorId,
+        action: (_) async {
+          await _postLock.lockForPostMutation(beaconId);
+          await _postDraft(authorId: authorId, beaconId: beaconId);
+          final saved = await _beaconRepository.postDraftAttachments(beaconId);
+          if (saved.length >= kMaxRoomMessageAttachments) {
+            throw const BeaconCreateException(
+              description: 'Maximum attachments per message reached',
+            );
+          }
+          return _beaconRepository.insertPostDraftAttachment(
+            beaconId: beaconId,
+            upload: upload,
+          );
+        },
+      );
+    } catch (_) {
+      await _roomCase.discardUploadedAttachment(upload, userId: authorId);
+      rethrow;
+    }
+    await _roomCase.scheduleAttachmentHash(upload);
+    return id;
+  }
+
+  /// Removes one attachment from the author's Post draft; its image goes to
+  /// the image-object GC and its file leaves storage after the commit.
+  Future<void> removeDraftAttachment({
+    required String authorId,
+    required String beaconId,
+    required String attachmentId,
+  }) async {
+    final removed = await _attention.runAction(
+      actorUserId: authorId,
+      action: (_) async {
+        await _postLock.lockForPostMutation(beaconId);
+        await _postDraft(authorId: authorId, beaconId: beaconId);
+        final row = await _beaconRepository.deletePostDraftAttachment(
+          beaconId: beaconId,
+          attachmentId: attachmentId,
+        );
+        if (row == null) {
+          throw IdNotFoundException(
+            id: attachmentId,
+            description: 'Attachment not found',
+          );
+        }
+        return row;
+      },
+    );
+    await _roomCase.discardUploadedAttachment(removed.upload, userId: authorId);
+  }
+
+  /// The author's Post while it is still a draft; anything else is refused.
+  Future<void> _postDraft({
+    required String authorId,
+    required String beaconId,
+  }) async {
+    final post = await _postForPublication(
+      authorId: authorId,
+      beaconId: beaconId,
+    );
+    if (post.status != BeaconStatus.draft) {
+      throw const BeaconCreateException(description: 'Post is not a draft');
+    }
   }
 
   /// Autosave for an owned Post draft: text, forwarding policy and lifetime.

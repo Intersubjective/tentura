@@ -4091,7 +4091,7 @@ type mutation_root {
   pollingAct(pollingId: String!, score: Int, variantIds: [String!]): Boolean!
   postClose(id: String!): Boolean!
   postLeave(id: String!): Boolean!
-  postPublish(body: String!, file: v2_Upload, forwardPolicy: Int!, id: String!, lifetimeHours: Int, mentionLengths: [Int!], mentionOffsets: [Int!], mentionUserIds: [String!], notes: String, recipientIds: [String!]): v2_PostPublishResult!
+  postPublish(body: String!, forwardPolicy: Int!, id: String!, lifetimeHours: Int, mentionLengths: [Int!], mentionOffsets: [Int!], mentionUserIds: [String!], notes: String, recipientIds: [String!]): v2_PostPublishResult!
   postReturn(id: String!): Boolean!
   postShorten(id: String!, expiresAt: String!): Boolean!
   releaseCommitment(id: String!, offerUserId: String!, reason: String!): v2_BeaconStatusResult!

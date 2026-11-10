@@ -18,6 +18,7 @@ import 'package:tentura_server/domain/port/beacon_hierarchy_repository_port.dart
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/image_object_gc_port.dart';
 import 'package:tentura_server/domain/port/image_repository_port.dart';
+import 'package:tentura_server/domain/port/remote_storage_port.dart';
 import 'package:tentura_server/domain/port/request_change_log_port.dart';
 import 'package:tentura_server/domain/port/task_repository_port.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
@@ -38,6 +39,7 @@ import '../entity/gql_public/beacon_cancel_result.dart';
 import '../entity/gql_public/beacon_image_added_result.dart';
 import '../entity/gql_public/beacon_image_staged_result.dart';
 import '../entity/task_entity.dart';
+import '../entity/uploaded_room_attachment.dart';
 import '_use_case_base.dart';
 
 const kMaxImagesPerBeacon = 10;
@@ -118,7 +120,8 @@ final class BeaconCase extends UseCaseBase {
     BeaconChildCreatePort childCreateCase,
     BeaconLifecycleEffectsCase lifecycleEffects,
     AttentionIntentCase attentionIntents,
-    TransactionalAttentionCase attention, {
+    TransactionalAttentionCase attention,
+    RemoteStoragePort remoteStorage, {
     // Nullable for test construction. Injectable ignores nullable
     // dependencies when ordering, so these rely on their `order: 1` being
     // registered before this `order: 2` case.
@@ -137,6 +140,7 @@ final class BeaconCase extends UseCaseBase {
     lifecycleEffects,
     attentionIntents: attentionIntents,
     attention: attention,
+    remoteStorage: remoteStorage,
     beaconPlan: beaconPlan,
     planAttention: planAttention,
     changeLog: changeLog,
@@ -156,6 +160,7 @@ final class BeaconCase extends UseCaseBase {
     this._lifecycleEffects, {
     AttentionIntentCase? attentionIntents,
     TransactionalAttentionCase? attention,
+    this._remoteStorage,
     this._beaconPlan,
     this._planAttention,
     this._changeLog,
@@ -185,6 +190,10 @@ final class BeaconCase extends UseCaseBase {
   final AttentionIntentCase? _attentionIntents;
 
   final TransactionalAttentionCase? _attention;
+
+  /// Removes a discarded Post draft's attachment files after the commit;
+  /// nullable for test construction.
+  final RemoteStoragePort? _remoteStorage;
 
   final BeaconPlanCase? _beaconPlan;
 
@@ -1015,7 +1024,9 @@ final class BeaconCase extends UseCaseBase {
   Future<bool> deleteById({
     required String beaconId,
     required String userId,
-  }) {
+  }) async {
+    // Files of a discarded Post draft's attachments, removed after commit.
+    var draftFiles = const <String>[];
     Future<bool> mutate(
       AttentionTransaction? transaction,
     ) async {
@@ -1031,16 +1042,33 @@ final class BeaconCase extends UseCaseBase {
           }
 
           if (beacon.status == BeaconStatus.draft) {
-            for (final image in beacon.images) {
+            final draftAttachments = beacon.kind == BeaconKind.post
+                ? [
+                    for (final row
+                        in await _beaconRepository.postDraftAttachments(
+                          beacon.id,
+                        ))
+                      row.upload,
+                  ]
+                : const <UploadedRoomAttachment>[];
+            final imageIds = [
+              for (final image in beacon.images) image.id,
+              for (final attachment in draftAttachments) ?attachment.imageId,
+            ];
+            for (final imageId in imageIds) {
               await _imageObjectGc.enqueue(
-                imageId: image.id,
+                imageId: imageId,
                 authorId: beacon.author.id,
               );
               await _imageRepository.deleteOwnedRow(
-                imageId: image.id,
+                imageId: imageId,
                 authorId: beacon.author.id,
               );
             }
+            draftFiles = [
+              for (final attachment in draftAttachments)
+                ?attachment.storagePath,
+            ];
             final thumbId = beacon.coverThumbImageId;
             if (thumbId != null && thumbId.isNotEmpty) {
               await _imageObjectGc.enqueue(
@@ -1110,7 +1138,23 @@ final class BeaconCase extends UseCaseBase {
       );
     }
 
-    return _attention!.runAction(actorUserId: userId, action: mutate);
+    final deleted = await _attention!.runAction(
+      actorUserId: userId,
+      action: mutate,
+    );
+    for (final path in draftFiles) {
+      try {
+        await _remoteStorage?.removeObject(path);
+      } catch (error, stackTrace) {
+        // The draft is gone either way; a leftover object is only storage.
+        logger.warning(
+          'Draft attachment file $path not removed',
+          error,
+          stackTrace,
+        );
+      }
+    }
+    return deleted;
   }
 
   /// Stage-expiry sweep (§3.3): locks each candidate's beacon, rechecks age

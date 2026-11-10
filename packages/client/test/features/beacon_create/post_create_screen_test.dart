@@ -70,21 +70,12 @@ class _RecordingPostPublishPort implements PostPublishPort {
   final recipients = <Set<String>>[];
   final policies = <BeaconForwardPolicyValue>[];
 
-  /// File name of the inline attachment per call (null when none).
-  final inlineAttachments = <String?>[];
-
   /// Every call flattened to one comparable string, to prove retries are
   /// identical.
   final signatures = <String>[];
 
-  /// Names uploaded into the root message after publish, in order.
-  final uploads = <String>[];
-
   /// Errors thrown by successive `postPublish` calls (null = success).
   final publishErrors = <Exception?>[];
-
-  /// File names whose next upload fails once.
-  final failUploadOnce = <String>{};
 
   @override
   Future<PostPublishResult> postPublish({
@@ -97,33 +88,19 @@ class _RecordingPostPublishPort implements PostPublishPort {
     required Map<String, String> notes,
     required BeaconForwardPolicyValue forwardPolicy,
     Duration? lifetime,
-    RoomPendingUpload? attachment,
   }) async {
     bodies.add(body);
     recipients.add(recipientIds.toSet());
     policies.add(forwardPolicy);
-    inlineAttachments.add(attachment?.fileName);
     signatures.add(
       '$beaconId|$body|${(recipientIds.toList()..sort()).join(',')}|'
-      '${forwardPolicy.name}|${attachment?.fileName}',
+      '${forwardPolicy.name}',
     );
     final index = signatures.length - 1;
     if (index < publishErrors.length && publishErrors[index] != null) {
       throw publishErrors[index]!;
     }
     return PostPublishResult(beaconId: beaconId, rootMessageId: 'root-1');
-  }
-
-  @override
-  Future<void> addRootAttachment({
-    required String beaconId,
-    required String messageId,
-    required RoomPendingUpload upload,
-  }) async {
-    uploads.add(upload.fileName);
-    if (failUploadOnce.remove(upload.fileName)) {
-      throw Exception('upload of ${upload.fileName} failed');
-    }
   }
 }
 
@@ -538,7 +515,6 @@ void main() {
 
       expect(h.port.bodies, hasLength(1));
       expect(h.port.bodies.single.trim(), isEmpty);
-      expect(h.port.inlineAttachments, ['photo-1.png']);
       expect(h.port.recipients.single, {'Umaria'});
     });
 
@@ -753,14 +729,12 @@ void main() {
         expect(h.port.signatures, hasLength(1));
         expect(h.effects.emitted.whereType<ShowError>(), isNotEmpty);
         expect(find.byType(PostCreateScreen), findsOneWidget);
-        expect(h.port.uploads, isEmpty);
 
         await tester.tap(_sendButton(2));
         await _settle(tester);
 
         expect(h.port.signatures, hasLength(2));
         expect(h.port.signatures[1], h.port.signatures[0]);
-        expect(h.port.uploads, ['photo-2.png']);
         expect(
           h.write.createdFields,
           hasLength(1),
@@ -779,29 +753,6 @@ void main() {
 
       expect(postText(tester), 'Кто в субботу на велопрогулку?');
       expect(find.byType(PendingAttachmentPreview), findsOneWidget);
-    });
-
-    testWidgets('after a failed photo upload «Отправить» retries only that '
-        'photo', (tester) async {
-      final h = await _pumpPostCreate(tester, recipients: {'Umaria'});
-      h.port.failUploadOnce.add('photo-2.png');
-
-      await sendWithPhotos(tester, photos: 2, recipients: 1);
-
-      expect(h.port.signatures, hasLength(1));
-      expect(h.port.inlineAttachments, ['photo-1.png']);
-      expect(h.port.uploads, ['photo-2.png']);
-      expect(h.effects.emitted.whereType<ShowError>(), isNotEmpty);
-
-      await tester.tap(_sendButton(1));
-      await _settle(tester);
-
-      expect(
-        h.port.signatures,
-        hasLength(1),
-        reason: 'postPublish is not re-sent',
-      );
-      expect(h.port.uploads, ['photo-2.png', 'photo-2.png']);
     });
   });
 

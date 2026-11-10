@@ -1,5 +1,4 @@
 import 'package:tentura/domain/entity/beacon_kind.dart';
-import 'package:tentura/domain/entity/room_pending_upload.dart';
 
 /// The published Post and its root room message.
 final class PostPublishResult {
@@ -17,10 +16,11 @@ final class PostPublishResult {
   final DateTime? expiresAt;
 }
 
-/// Publishing a Post draft and attaching files to its root message.
+/// Publishing a Post draft.
 abstract interface class PostPublishPort {
   /// Publishes the draft [beaconId], sends it to [recipientIds] and stores
-  /// [body] as the root message; [attachment] rides inline with it.
+  /// [body] as the root message; the server moves the attachments saved on
+  /// the draft onto it, so nothing is uploaded here.
   Future<PostPublishResult> postPublish({
     required String beaconId,
     required String body,
@@ -31,13 +31,5 @@ abstract interface class PostPublishPort {
     required Map<String, String> notes,
     required BeaconForwardPolicyValue forwardPolicy,
     Duration? lifetime,
-    RoomPendingUpload? attachment,
-  });
-
-  /// Uploads [upload] into the existing root message.
-  Future<void> addRootAttachment({
-    required String beaconId,
-    required String messageId,
-    required RoomPendingUpload upload,
   });
 }

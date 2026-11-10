@@ -11,7 +11,6 @@ import 'package:tentura/data/service/unsaved_changes_guard_impl.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/domain/entity/room_pending_upload.dart';
 import 'package:tentura/domain/port/post_publish_port.dart';
 import 'package:tentura/domain/port/unsaved_changes_guard_port.dart';
 import 'package:tentura/domain/use_case/post_publish_case.dart';
@@ -76,13 +75,6 @@ class _EmptyClipboard extends Fake implements ClipboardImageRepository {
 
 class _NoopPostPublishPort implements PostPublishPort {
   @override
-  Future<void> addRootAttachment({
-    required String beaconId,
-    required String messageId,
-    required RoomPendingUpload upload,
-  }) async {}
-
-  @override
   Future<PostPublishResult> postPublish({
     required String beaconId,
     required String body,
@@ -93,7 +85,6 @@ class _NoopPostPublishPort implements PostPublishPort {
     required Map<String, String> notes,
     required BeaconForwardPolicyValue forwardPolicy,
     Duration? lifetime,
-    RoomPendingUpload? attachment,
   }) async => PostPublishResult(beaconId: beaconId, rootMessageId: 'root-1');
 }
 

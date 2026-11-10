@@ -32,6 +32,7 @@ import 'package:tentura_server/domain/port/upload_quota_repository_port.dart';
 import 'package:tentura_server/domain/entity/beacon_activity_event_record.dart';
 import 'package:tentura_server/domain/entity/room_read_watermark_record.dart';
 import 'package:tentura_server/domain/entity/task_entity.dart';
+import 'package:tentura_server/domain/entity/uploaded_room_attachment.dart';
 import 'package:tentura_server/domain/port/image_repository_port.dart';
 import 'package:tentura_server/domain/port/task_repository_port.dart';
 import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
@@ -58,6 +59,8 @@ import 'package:tentura_server/domain/use_case/transactional_attention_case.dart
 
 import 'coordination_room_access.dart';
 import '_use_case_base.dart';
+
+export 'package:tentura_server/domain/entity/uploaded_room_attachment.dart';
 
 /// `post_first_response.source_kind`: the claim was won by a message.
 const _firstResponseByMessage = 1;
@@ -684,8 +687,9 @@ class BeaconRoomCase extends UseCaseBase {
 
   // DORMANT(item-threads): optional threadItemId; the only live item-thread scope is the Request lobby (U088, coordination_item kind 7). Every other item thread stays disabled.
   // Rooms are otherwise General-only (guard: beacon_room_message_general_only_guard, DiscussionScopeDisabledException); thread_item_id is NULL for every new row outside a lobby. See #192.
-  /// Persists a message, optionally using an upload prepared by an outer flow.
-  /// That flow must schedule hashing after commit if [deferAttachmentHash] is set.
+  /// Persists a message. [savedAttachments] are uploads already stored and
+  /// owned elsewhere (a Post draft): they are attached at positions 0..n,
+  /// never uploaded, hashed or compensated here.
   Future<Map<String, Object?>> createMessage({
     required String beaconId,
     required String userId,
@@ -695,8 +699,7 @@ class BeaconRoomCase extends UseCaseBase {
     Stream<Uint8List>? attachmentBytes,
     String? attachmentFilename,
     String? attachmentMimeType,
-    UploadedRoomAttachment? uploadedAttachment,
-    bool deferAttachmentHash = false,
+    List<UploadedRoomAttachment> savedAttachments = const [],
     List<String> explicitMentionUserIds = const [],
     List<int> explicitMentionOffsets = const [],
     List<int> explicitMentionLengths = const [],
@@ -761,7 +764,7 @@ class BeaconRoomCase extends UseCaseBase {
         }
         // Room images are served from the shared image store, which is not
         // gated by the Questions policy: no attachments in Questions.
-        if (attachmentBytes != null || uploadedAttachment != null) {
+        if (attachmentBytes != null || savedAttachments.isNotEmpty) {
           throw const IdWrongException(
             description: 'Attachments are not available in this thread',
           );
@@ -834,7 +837,7 @@ class BeaconRoomCase extends UseCaseBase {
       }
       if (trimmed.isEmpty &&
           payload == null &&
-          uploadedAttachment == null &&
+          savedAttachments.isEmpty &&
           quotedFactCardId == null) {
         throw const BeaconCreateException(
           description: 'Message text, attachment or quoted fact required',
@@ -885,17 +888,15 @@ class BeaconRoomCase extends UseCaseBase {
       final postAuthorId = await _postAuthorId(beaconId);
 
       // Complete object-store I/O before opening the attention transaction.
-      final attachment =
-          uploadedAttachment ??
-          (payload == null
-              ? null
-              : await _uploadAttachment(
-                  userId: userId,
-                  bytes: payload,
-                  uploadFilename: attachmentFilename,
-                  uploadMimeType: attachmentMimeType,
-                  uniqueFile: postAuthorId != null,
-                ));
+      final attachment = payload == null
+          ? null
+          : await _uploadAttachment(
+              userId: userId,
+              bytes: payload,
+              uploadFilename: attachmentFilename,
+              uploadMimeType: attachmentMimeType,
+              uniqueFile: postAuthorId != null,
+            );
 
       Future<Map<String, Object?>> persist(
         AttentionTransaction? transaction,
@@ -923,11 +924,13 @@ class BeaconRoomCase extends UseCaseBase {
           quotedFactRevisionSeq: quotedFactRevisionSeq,
           clientMessageId: sendKey,
         );
-        if (attachment != null) {
+        final attachments = [?attachment, ...savedAttachments];
+        for (final (position, uploaded) in attachments.indexed) {
           await _insertUploadedAttachment(
             messageId: row.id,
             mutatingUserId: userId,
-            attachment: attachment,
+            attachment: uploaded,
+            position: position,
           );
         }
         if (transaction != null) {
@@ -1011,15 +1014,13 @@ class BeaconRoomCase extends UseCaseBase {
           await _compensateAttachment(
             attachment,
             userId,
-            uniqueFile: postAuthorId != null || uploadedAttachment != null,
+            uniqueFile: postAuthorId != null,
           );
         }
         rethrow;
       }
       // TaskWorker commits independently, so enqueue only after message commit.
-      if (!deferAttachmentHash) {
-        await scheduleAttachmentHash(attachment);
-      }
+      await scheduleAttachmentHash(attachment);
       return result;
     });
   }
@@ -2224,6 +2225,14 @@ class BeaconRoomCase extends UseCaseBase {
     );
   }
 
+  /// Releases the storage of [attachment] after the row that referenced it
+  /// is gone (committed): images go to the image-object GC, files are
+  /// removed from storage.
+  Future<void> discardUploadedAttachment(
+    UploadedRoomAttachment attachment, {
+    required String userId,
+  }) => _compensateAttachment(attachment, userId, uniqueFile: true);
+
   Future<UploadedRoomAttachment> _uploadAttachment({
     required String userId,
     required Uint8List bytes,
@@ -2482,12 +2491,3 @@ class BeaconRoomCase extends UseCaseBase {
     };
   }
 }
-
-/// Metadata of an upload completed before message persistence begins.
-typedef UploadedRoomAttachment = ({
-  String? imageId,
-  String? storagePath,
-  String mime,
-  int sizeBytes,
-  String displayName,
-});

@@ -177,10 +177,6 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
   /// Set once `postPublish` succeeded: a retry must not send it again.
   PostPublishResult? _publishedPost;
 
-  /// Index into the attachments of the next upload into the root message
-  /// (the first one rode inline with `postPublish`).
-  int _nextPostAttachment = 1;
-
   /// Loads the title of the Request a new child request will belong to into
   /// [BeaconCreateState.childParentTitle], for the «Child request of …» line
   /// (#735). It stays empty for a Post bud or when the parent cannot be read.
@@ -1635,15 +1631,16 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     }
   }
 
-  /// Publishes the Post in one `postPublish` call and uploads the remaining
-  /// attachments into its root message. Returns true once everything is sent.
+  /// Publishes the Post in one `postPublish` call. Returns true once it is
+  /// sent. The [attachments] are already saved on the server draft, which
+  /// moves them onto the root message; they only let a Post without text
+  /// through.
   ///
   /// Safe to call again after a failure with the same content: a lost
-  /// `postPublish` is re-sent with identical arguments, a failed upload retries
-  /// only that upload.
+  /// `postPublish` is re-sent with identical arguments.
   ///
   /// A call while one is running is dropped (returns false): two quick taps
-  /// would otherwise both upload the remaining attachments.
+  /// would otherwise both publish.
   Future<bool> publishPost({
     required String body,
     required List<CommittedMention> mentions,
@@ -1698,18 +1695,9 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
               : const {},
           forwardPolicy: forwardPolicy,
           lifetime: Duration(hours: lifetimeHours),
-          firstAttachment: attachments.firstOrNull,
         );
         _publishedPost = published;
         _postDraftTimer?.cancel();
-      }
-      while (_nextPostAttachment < attachments.length) {
-        await postCase.addRootAttachment(
-          beaconId: published.beaconId,
-          messageId: published.rootMessageId,
-          upload: attachments[_nextPostAttachment],
-        );
-        _nextPostAttachment++;
       }
       if (!isClosed) {
         emit(
