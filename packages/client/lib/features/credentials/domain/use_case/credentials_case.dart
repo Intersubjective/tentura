@@ -1,6 +1,5 @@
 import 'package:injectable/injectable.dart';
 
-import 'package:tentura/domain/exception/credential_exception.dart';
 import 'package:tentura/domain/exception/server_exception.dart';
 import 'package:tentura/domain/use_case/use_case_base.dart';
 import 'package:tentura/features/auth/domain/port/auth_local_repository_port.dart';
@@ -42,32 +41,18 @@ final class CredentialsCase extends UseCaseBase {
   Future<void> startEmailLink(String email) =>
       _repository.startEmailLink(email);
 
-  Exception mapRemoveError(Object error) {
-    if (error is LastCredentialException) {
-      return error;
-    }
-    if (error is CredentialNotFoundException) {
-      return error;
-    }
-    if (error is ServerStatusException) {
-      return CredentialsRepository.mapRemoveStatus(error.statusCode);
-    }
-    if (error is Exception) {
-      return error;
-    }
-    return const ServerUnknownException();
-  }
+  /// Credential/other exceptions pass through; only a raw HTTP status is
+  /// mapped. Non-Exception errors become [ServerUnknownException].
+  Exception mapRemoveError(Object error) => error is ServerStatusException
+      ? CredentialsRepository.mapRemoveStatus(error.statusCode)
+      : error is Exception
+      ? error
+      : const ServerUnknownException();
 
-  Exception mapLinkError(Object error) {
-    if (error is CredentialConflictException) {
-      return error;
-    }
-    if (error is ServerStatusException) {
-      return CredentialsRepository.mapLinkStatus(error.statusCode);
-    }
-    if (error is Exception) {
-      return error;
-    }
-    return const ServerUnknownException();
-  }
+  /// Same shape as [mapRemoveError], with the link status mapper.
+  Exception mapLinkError(Object error) => error is ServerStatusException
+      ? CredentialsRepository.mapLinkStatus(error.statusCode)
+      : error is Exception
+      ? error
+      : const ServerUnknownException();
 }
