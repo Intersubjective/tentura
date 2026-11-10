@@ -151,9 +151,16 @@ LEFT JOIN LATERAL (
 ) forwarder ON true
 LEFT JOIN LATERAL (
   SELECT i.id AS image_id, i.author_id
-  FROM public.beacon_room_message_attachment a
+  FROM (
+    SELECT a.id, a.image_id, a.position
+    FROM public.beacon_room_message_attachment a
+    WHERE b.status <> 3 AND a.message_id = b.post_root_message_id AND a.kind = 1
+    UNION ALL
+    SELECT a.id, a.image_id, a.position
+    FROM public.post_draft_attachment a
+    WHERE b.status = 3 AND a.beacon_id = b.id AND a.kind = 1
+  ) a
   JOIN public.image i ON i.id = a.image_id
-  WHERE a.message_id = b.post_root_message_id AND a.kind = 1
   ORDER BY a.position, a.id
   LIMIT 1
 ) cover ON true
