@@ -145,7 +145,8 @@ void main() {
         now: fixedNow,
       );
       expect(line.contains('0 дней'), isFalse);
-      expect(line.startsWith('В Tentura с'), isTrue);
+      expect(line, startsWith('С '));
+      expect(line, endsWith(' в Тентуре'));
     });
 
     test('день/дня/дней', () {
