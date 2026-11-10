@@ -53,18 +53,21 @@ void main() {
   });
 
   group('linkRecoverySeed', () {
-    test('returns seed and persists locally when account is signed in', () async {
-      authLocal.accountId = accountId;
-      repository.linkSeedResult = seed;
+    test(
+      'returns seed and persists locally when account is signed in',
+      () async {
+        authLocal.accountId = accountId;
+        repository.linkSeedResult = seed;
 
-      final result = await case_.linkRecoverySeed();
+        final result = await case_.linkRecoverySeed();
 
-      expect(result, seed);
-      expect(
-        authLocal.linkedSeeds,
-        [(id: accountId, seed: seed)],
-      );
-    });
+        expect(result, seed);
+        expect(
+          authLocal.linkedSeeds,
+          [(id: accountId, seed: seed)],
+        );
+      },
+    );
 
     test('returns seed without persisting when account id is empty', () async {
       authLocal.accountId = '';
@@ -146,6 +149,22 @@ void main() {
         isA<ServerUnknownException>(),
       );
     });
+    test('passes through CredentialConflictException', () {
+      const error = CredentialConflictException();
+      expect(case_.mapRemoveError(error), same(error));
+    });
+
+    test('passes through a non-status ServerException', () {
+      const error = ServerNoDataException();
+      expect(case_.mapRemoveError(error), same(error));
+    });
+
+    test('maps an Error to ServerUnknownException', () {
+      expect(
+        case_.mapRemoveError(StateError('boom')),
+        isA<ServerUnknownException>(),
+      );
+    });
   });
 
   group('mapLinkError', () {
@@ -176,6 +195,34 @@ void main() {
     test('maps non-Exception to ServerUnknownException', () {
       expect(
         case_.mapLinkError('oops'),
+        isA<ServerUnknownException>(),
+      );
+    });
+    test('passes through LastCredentialException', () {
+      const error = LastCredentialException();
+      expect(case_.mapLinkError(error), same(error));
+    });
+
+    test('passes through CredentialNotFoundException', () {
+      const error = CredentialNotFoundException();
+      expect(case_.mapLinkError(error), same(error));
+    });
+
+    test('maps ServerStatusException 404 to ServerUnknownException', () {
+      expect(
+        case_.mapLinkError(const ServerStatusException(404)),
+        isA<ServerUnknownException>(),
+      );
+    });
+
+    test('passes through a non-status ServerException', () {
+      const error = ServerNoDataException();
+      expect(case_.mapLinkError(error), same(error));
+    });
+
+    test('maps an Error to ServerUnknownException', () {
+      expect(
+        case_.mapLinkError(StateError('boom')),
         isA<ServerUnknownException>(),
       );
     });
