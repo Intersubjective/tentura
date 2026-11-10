@@ -75,18 +75,39 @@ void main() {
     expect(zones.changeLine, isNull);
   });
 
-  test('an obligation never reaches either zone (For You is skippable only)',
-      () {
-    final zones = RequestCardZones.fromPreview([
-      _event('ob', requiresAction: true, minute: 9),
-      _event(
-        'og',
-        eventType: 'helpOfferSubmitted',
-        personal: false,
-        requiresAction: true,
-      ),
-    ]);
-    expect(zones.personalRows, isEmpty);
+  test('forwardHelped is a «вам» row though personal is false', () {
+    final receipt =
+        _event(
+          'fh',
+          eventType: 'forwardHelped',
+          personal: false,
+          actor: null,
+        ).copyWith(
+          presentationKey: 'forward_helped',
+          presentationPayloadJson:
+              '{"eventType":"forwardHelped","personal":false}',
+          actorUserId: null,
+        );
+    final zones = RequestCardZones.fromPreview([receipt]);
+    expect(zones.personalRows, hasLength(1));
+    expect(zones.personalRows.single.newest.id, 'fh');
     expect(zones.changeLine, isNull);
   });
+
+  test(
+    'an obligation never reaches either zone (For You is skippable only)',
+    () {
+      final zones = RequestCardZones.fromPreview([
+        _event('ob', requiresAction: true, minute: 9),
+        _event(
+          'og',
+          eventType: 'helpOfferSubmitted',
+          personal: false,
+          requiresAction: true,
+        ),
+      ]);
+      expect(zones.personalRows, isEmpty);
+      expect(zones.changeLine, isNull);
+    },
+  );
 }

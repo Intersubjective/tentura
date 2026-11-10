@@ -1,8 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:get_it/get_it.dart';
-
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/attention/attention_case.dart';
@@ -25,6 +23,7 @@ import 'package:tentura/features/updates/ui/widget/prompt_batch_sheet.dart';
 import 'package:tentura/features/updates/ui/widget/updates_day_groups.dart';
 import 'package:tentura/features/updates/ui/widget/updates_feed_pane.dart';
 import 'package:tentura/features/updates/ui/widget/updates_feed_tile.dart';
+import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/features/updates/ui/widget/updates_refresh_error_banner.dart';
 import 'package:tentura/features/attention/ui/widget/request_attention_timeline_sheet.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -1128,7 +1127,14 @@ class _ActivityStreamCell extends StatelessWidget {
             key: ValueKey(receipt.id),
             receipt: receipt,
             forwarder: _forwarderOf(receipt),
-            onOpenBeacon: () => unawaited(onOpenParent()),
+            onOpenBeacon: () {
+              // The outcome tick lives on the synthetic `inbox:` row, which
+              // the Request's own mark-seen does not reach: opening reads it.
+              if (isInUnreadView(receipt)) {
+                unawaited(streamCubit.markRead(receipt.id));
+              }
+              unawaited(onOpenParent());
+            },
             onDismiss: () {
               // Durable on the server (`inbox_item.tombstone_dismissed_at`),
               // and gone from the list this frame: the feed's optimistic ack
@@ -1208,6 +1214,9 @@ class _ActivityStreamCell extends StatelessWidget {
           relation: entry?.relation ?? ForYouStreamRelation.none,
         );
         if (model == null) return _feedTile(context, receipt, onOpenParent);
+        final viewerUserId = GetIt.I.isRegistered<ProfileCubit>()
+            ? GetIt.I<ProfileCubit>().state.profile.id
+            : null;
         final card = Padding(
           padding: EdgeInsets.symmetric(
             horizontal: context.tt.listRowPadding.left,
@@ -1224,6 +1233,7 @@ class _ActivityStreamCell extends StatelessWidget {
             eventTotal: model.eventTotal,
             eventsPreview: model.eventsPreview,
             actors: streamCubit.state.actors,
+            viewerUserId: viewerUserId,
             onOpenBeacon: () => unawaited(
               openRequestCardByUnreadRoom(
                 beaconId: beaconId,

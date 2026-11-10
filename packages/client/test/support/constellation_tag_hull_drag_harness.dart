@@ -284,8 +284,11 @@ Future<void> withHullDragField(
   // [tagMembers] and have `PeopleTagsCase.load()` fetch the new membership.
   bool keepWireOpen = false,
   Locale locale = const Locale('ru'),
+  // The test surface; the phone by default, a desktop window on request.
+  Size surface = kPhoneSurface,
 }) async {
-  await usePhoneSurface(tester);
+  await tester.binding.setSurfaceSize(surface);
+  addTearDown(() => tester.binding.setSurfaceSize(null));
   final server = ArrangeAnchorRepository({
     for (final id in hullDragPeople)
       if (id != 'cid')
@@ -484,8 +487,8 @@ Future<void> withHullDragField(
     );
     viewer.transformationController!.value = Matrix4.identity()
       ..setTranslationRaw(
-        kPhoneSurface.width / 2 - kConstellationCanvasCentre,
-        kPhoneSurface.height / 2 - kConstellationCanvasCentre - 100,
+        surface.width / 2 - kConstellationCanvasCentre,
+        surface.height / 2 - kConstellationCanvasCentre - 100,
         0,
       );
     await pumpHullDragFrames(tester);

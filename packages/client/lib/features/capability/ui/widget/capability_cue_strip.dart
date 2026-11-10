@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/ui/l10n/l10n.dart';
 
-/// Compact single-line strip showing "My labels: transport · pets · ...".
+/// Compact single-line strip showing "My tags: transport · pets · ...".
 class CapabilityCueStrip extends StatelessWidget {
   const CapabilityCueStrip({
     required this.slugs,

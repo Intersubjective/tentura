@@ -222,7 +222,8 @@ class _ConstellationBodyState extends State<ConstellationBody>
   // the first build.
   final _minimapExpanded = ValueNotifier<bool>(false);
   bool _minimapExpandedInitialized = false;
-  final _minimapChromeVisible = ValueNotifier<bool>(true);
+  final _minimapChromeVisible = ValueNotifier<bool>(false);
+  bool _minimapChromeVisibleInitialized = false;
   int _pointersDown = 0;
 
   ConstellationTagHullHitTester? _tagHullHitTester;
@@ -526,6 +527,13 @@ class _ConstellationBodyState extends State<ConstellationBody>
           windowClassForWidth(MediaQuery.sizeOf(context).width) !=
           WindowClass.compact;
     }
+    if (!_minimapChromeVisibleInitialized) {
+      _minimapChromeVisibleInitialized = true;
+      _minimapChromeVisible.value =
+          windowClassForWidth(MediaQuery.sizeOf(context).width) !=
+          WindowClass.compact;
+      _recomputeMinimapChromeVisible();
+    }
   }
 
   // The screen provides the owner; a body mounted bare owns its own.
@@ -610,8 +618,8 @@ class _ConstellationBodyState extends State<ConstellationBody>
       contextPanelVisible: panelVisible,
       compactSheetHeight: sheetHeight,
       bottomChromeHeight: _bottomChromeColumnHeight,
-      // Default minimapExpanded: visibility uses fit-all insets without
-      // reserving the expanded minimap block (chicken-and-egg).
+      // Visibility matches the fit-all camera rect; never reserve the expanded
+      // minimap block (only the map/sheet chrome that fit-all already uses).
     );
     final viewport = constellationMinimapViewportWorld(
       _graphController,
@@ -1554,6 +1562,13 @@ class _ConstellationBodyState extends State<ConstellationBody>
         listeners: [
           BlocListener<ConstellationCubit, ConstellationState>(
             listenWhen: (previous, current) =>
+                previous.viewMode != current.viewMode,
+            listener: (context, state) {
+              setState(() => _selectionUnavailableMessage = null);
+            },
+          ),
+          BlocListener<ConstellationCubit, ConstellationState>(
+            listenWhen: (previous, current) =>
                 previous.selectedRequestId != current.selectedRequestId &&
                 current.selectedRequestId != null,
             listener: (context, state) {
@@ -2429,6 +2444,14 @@ class _ConstellationBodyState extends State<ConstellationBody>
             _takeMapFocus();
           },
           onPointerMove: (event) {
+            _lastPointerGlobal = event.position;
+            if (_tagHullMenuDragNodeId != null) {
+              _tickTagHullMenuDrag(cubit, event.position);
+            }
+          },
+          // The area lifted from the menu follows the mouse with no button
+          // held, until the next click.
+          onPointerHover: (event) {
             _lastPointerGlobal = event.position;
             if (_tagHullMenuDragNodeId != null) {
               _tickTagHullMenuDrag(cubit, event.position);

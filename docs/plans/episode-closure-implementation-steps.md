@@ -562,7 +562,7 @@ Each method is a single SQL statement; no business rules here (rules live in A12
 
 **Files**
 - create `packages/server/lib/domain/use_case/closure_case.dart`
-- create `packages/server/lib/domain/closure/closure_exception.dart` (codes: `notAuthor`, `notVoter`, `notMember`, `staleEpoch`, `wrongStatus`, `reopenLimit`, `extendLimit`, `notReady`, `invalidSplit`, `splitTooLarge`)
+- create `packages/server/lib/domain/exception/closure_exception.dart` (codes: `notAuthor`, `notVoter`, `notMember`, `staleEpoch`, `wrongStatus`, `reopenLimit`, `extendLimit`, `notReady`, `invalidSplit`, `splitTooLarge`)
 - modify `packages/server/lib/domain/use_case/coordination_case.dart` — `setBeaconStatus(reviewOpen → needsMoreHelp)` and `setBeaconStatus(reviewOpen → open)` (~line 693) must call `ClosureCase.reopen` (#366).
 - test `test/domain/use_case/closure_case_lifecycle_test.dart` (pg)
 

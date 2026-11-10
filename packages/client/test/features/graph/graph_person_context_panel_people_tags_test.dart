@@ -18,6 +18,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/trust_toggle_line.dart';
 
 import '../../support/fake_people_tags_repository.dart';
+import '../../support/phone_surface.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 
 const _profile = Profile(
@@ -97,8 +98,9 @@ void main() {
   Future<void> pumpPanel(
     WidgetTester tester, {
     bool? peopleTagsEnabled,
+    Locale locale = const Locale('en'),
+    Size size = const Size(900, 700),
   }) async {
-    const size = Size(900, 700);
     await tester.binding.setSurfaceSize(size);
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final ctx = _StubContextCubit();
@@ -106,12 +108,12 @@ void main() {
     const focusedNode = UserNode(user: _profile);
     await tester.pumpWidget(
       MaterialApp(
-        locale: const Locale('en'),
+        locale: locale,
         theme: TenturaTheme.light(),
         localizationsDelegates: L10n.localizationsDelegates,
         supportedLocales: L10n.supportedLocales,
         home: MediaQuery(
-          data: const MediaQueryData(size: size),
+          data: MediaQueryData(size: size),
           child: TenturaResponsiveScope(
             child: MultiBlocProvider(
               providers: [
@@ -141,8 +143,9 @@ void main() {
   }
 
   group('person tags in the graph person panel', () {
-    testWidgets('shows own tags with × and automatic tags without ×, and '
-        'says only the viewer sees tags', (tester) async {
+    testWidgets('shows own tags with × and automatic tags without ×', (
+      tester,
+    ) async {
       await pumpPanel(tester, peopleTagsEnabled: true);
 
       expect(find.text('Your tags'), findsOneWidget);
@@ -150,7 +153,8 @@ void main() {
       expect(find.text('Automatic'), findsOneWidget);
       expect(find.text('Mutual contact'), findsOneWidget);
       expect(find.text('+ Tag'), findsOneWidget);
-      expect(find.textContaining('Only you see'), findsOneWidget);
+      expect(find.textContaining('Only you see'), findsNothing);
+      expect(find.textContaining('видите только вы'), findsNothing);
       // One ×: the own tag's. The auto tag has none.
       expect(
         find.descendant(
@@ -216,6 +220,38 @@ void main() {
 
       expect(find.byType(PersonTagsBlock), findsNothing);
       expect(find.text('Your tags'), findsNothing);
+    });
+
+    testWidgets('1280×800 EN: field panel tags, no footer (#897)', (
+      tester,
+    ) async {
+      await pumpPanel(
+        tester,
+        peopleTagsEnabled: true,
+        size: const Size(1280, 800),
+      );
+
+      expect(find.text('Neighbours'), findsOneWidget);
+      expect(find.textContaining('Only you see'), findsNothing);
+      expect(find.textContaining('видите только вы'), findsNothing);
+    });
+
+    testWidgets('375×667 RU: field panel tags, no footer (#897)', (
+      tester,
+    ) async {
+      await usePhoneSurface(tester);
+      await pumpPanel(
+        tester,
+        peopleTagsEnabled: true,
+        locale: const Locale('ru'),
+        size: const Size(375, 667),
+      );
+      final l10n = lookupL10n(const Locale('ru'));
+
+      expect(find.text(l10n.peopleTagsYourTags), findsOneWidget);
+      expect(find.textContaining('Only you see'), findsNothing);
+      expect(find.textContaining('видите только вы'), findsNothing);
+      expect(tester.takeException(), isNull);
     });
   });
 }

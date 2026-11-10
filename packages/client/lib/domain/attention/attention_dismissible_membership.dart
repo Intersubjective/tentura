@@ -40,8 +40,13 @@ bool isOptimisticallySweepable(AttentionReceipt receipt) {
 /// | ----------------- | ------------------------------------------------ |
 /// | `receipt`         | `activeAttention(v) AND historyLifecycleEligible`      |
 /// | `requestActivity` | `stats.event_unseen_count > 0`                    |
-/// | `forward`         | `false` — an outcome row never carries the dot    |
+/// | `forward`         | `seen_at IS NULL` — the outcome tick (#601-a)     |
 /// | `watchingDigest`  | `true`                                            |
+///
+/// The forward row is the one kind read off the read axis: the server writes
+/// its `seen_at` as NULL exactly while somebody else's relabel of the forward
+/// is unseen (`forwardOutcomeTick` in the shared contract), so that NULL *is*
+/// the tick. The server's `unread` list still never serves it.
 ///
 /// `primaryPlacement` is deliberately absent: the client is never served a
 /// non-primary row, so mirroring it here would be a predicate with no input.
@@ -50,7 +55,7 @@ bool isInUnreadView(AttentionReceipt receipt) => switch (receipt.itemKind) {
     receipt.historyLifecycleEligible &&
         (isActiveOptional(receipt) || receipt.isLiveObligation),
   AttentionItemKind.requestActivity => (receipt.eventUnseenCount ?? 0) > 0,
-  AttentionItemKind.forward => false,
+  AttentionItemKind.forward => !receipt.isSeen,
   AttentionItemKind.watchingDigest => true,
 };
 

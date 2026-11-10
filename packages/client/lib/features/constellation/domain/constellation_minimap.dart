@@ -32,8 +32,8 @@ bool _footprintSpillsOutside(LRect viewport, LRect node) =>
 
 /// Whether the minimap toggle should stay mounted (some drawn node is off-screen).
 ///
-/// When [currentlyShown], hides only after every [nodeBounds] sits inside the
-/// viewport shrunk by [hysteresis]. When hidden, shows once any footprint
+/// When [currentlyShown], hides once every footprint lies fully inside the
+/// viewport (no hysteresis inset). When hidden, shows once any footprint
 /// crosses the viewport grown by [hysteresis].
 bool constellationMinimapNeededForViewport({
   required LRect viewport,

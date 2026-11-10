@@ -13,6 +13,7 @@ import 'package:tentura/features/people_tags/domain/use_case/people_tags_case.da
 import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../support/phone_surface.dart';
 import '../../support/test_realtime_sync.dart';
 
 /// `PersonAutoTagKind.helpedMe`, shown as "Helped me".
@@ -134,14 +135,18 @@ void main() {
     await realtimePort.dispose();
   });
 
-  Future<void> pumpAutoTagScreen(WidgetTester tester) async {
-    await tester.binding.setSurfaceSize(const Size(900, 1400));
+  Future<void> pumpAutoTagScreen(
+    WidgetTester tester, {
+    Locale locale = const Locale('en'),
+    Size surfaceSize = const Size(900, 1400),
+  }) async {
+    await tester.binding.setSurfaceSize(surfaceSize);
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final router = _TestRouter();
     addTearDown(router.dispose);
     await tester.pumpWidget(
       MaterialApp.router(
-        locale: const Locale('en'),
+        locale: locale,
         theme: TenturaTheme.light(),
         localizationsDelegates: L10n.localizationsDelegates,
         supportedLocales: L10n.supportedLocales,
@@ -201,6 +206,29 @@ void main() {
         tester.widget<Text>(find.byKey(const Key('people-tag-count'))).data,
         '2',
       );
+    });
+
+    testWidgets('1280×800 EN: automatic members, no footer (#897)', (
+      tester,
+    ) async {
+      await pumpAutoTagScreen(tester, surfaceSize: const Size(1280, 800));
+
+      expect(find.text('Helped me'), findsWidgets);
+      expect(find.byKey(_person('Uann')), findsOneWidget);
+      expect(find.textContaining('Only you see'), findsNothing);
+      expect(find.textContaining('видите только вы'), findsNothing);
+    });
+
+    testWidgets('375×667 RU: automatic members, no footer (#897)', (
+      tester,
+    ) async {
+      await usePhoneSurface(tester);
+      await pumpAutoTagScreen(tester, locale: const Locale('ru'));
+
+      expect(find.byKey(_person('Uann')), findsOneWidget);
+      expect(find.textContaining('Only you see'), findsNothing);
+      expect(find.textContaining('видите только вы'), findsNothing);
+      expect(tester.takeException(), isNull);
     });
   });
 }

@@ -11,6 +11,7 @@ import 'package:tentura/features/people_tags/domain/use_case/people_tags_case.da
 import 'package:tentura/features/people_tags/ui/screen/people_tags_screen.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../support/phone_surface.dart';
 import '../../support/test_realtime_sync.dart';
 import '../../support/mock_stack_router_scope.dart';
 
@@ -166,12 +167,16 @@ void main() {
     await realtimePort.dispose();
   });
 
-  Future<void> pumpScreen(WidgetTester tester) async {
-    await tester.binding.setSurfaceSize(const Size(900, 1400));
+  Future<void> pumpScreen(
+    WidgetTester tester, {
+    Locale locale = const Locale('en'),
+    Size surfaceSize = const Size(900, 1400),
+  }) async {
+    await tester.binding.setSurfaceSize(surfaceSize);
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(
       MaterialApp(
-        locale: const Locale('en'),
+        locale: locale,
         theme: TenturaTheme.light(),
         localizationsDelegates: L10n.localizationsDelegates,
         supportedLocales: L10n.supportedLocales,
@@ -321,6 +326,40 @@ void main() {
       ];
       expect(numbers, isNotEmpty);
       expect(numbers.toSet().difference(listed), isEmpty);
+    });
+
+    testWidgets('1280×800 EN: tag list and Suggest tags, no footer (#897)', (
+      tester,
+    ) async {
+      await pumpScreen(tester, surfaceSize: const Size(1280, 800));
+      final l10n = lookupL10n(const Locale('en'));
+
+      expect(find.text('Neighbours'), findsOneWidget);
+      expect(find.text(l10n.peopleTagsSuggestEnable), findsOneWidget);
+      expect(
+        find.byKey(const Key('people-tags-suggestions-switch')),
+        findsOneWidget,
+      );
+      expect(find.textContaining('Only you see'), findsNothing);
+      expect(find.textContaining('видите только вы'), findsNothing);
+    });
+
+    testWidgets('375×667 RU: Suggest tags is last row, no footer (#897)', (
+      tester,
+    ) async {
+      await usePhoneSurface(tester);
+      await pumpScreen(tester, locale: const Locale('ru'));
+      final l10n = lookupL10n(const Locale('ru'));
+
+      expect(find.text('Neighbours'), findsOneWidget);
+      expect(find.text(l10n.peopleTagsSuggestEnable), findsOneWidget);
+      expect(
+        find.byKey(const Key('people-tags-suggestions-switch')),
+        findsOneWidget,
+      );
+      expect(find.textContaining('Only you see'), findsNothing);
+      expect(find.textContaining('видите только вы'), findsNothing);
+      expect(tester.takeException(), isNull);
     });
   });
 }

@@ -4848,11 +4848,6 @@
     }
   },
   "profileEditLabels": "Изменить",
-  "profileLabelsInfoTitle": "Метки об этом человеке",
-  "profileLabelsInfoPrivate": "Заметки с замком видите только вы: по ним Тентура подсказывает вам этого человека при пересылке.",
-  "profileLabelsInfoShared": "Метки с людьми — из ваших пересылок и отметок о помощи. Их видит {name}, и они помогают людям, которые вам доверяют, найти этого человека для похожих запросов.",
-  "profileLabelPrivate": "Ваша заметка, видите только вы",
-  "profileLabelShared": "Из пересылок или отметок о помощи, видно другим",
   "profileSeedSuggestionInfo": "Люди, которые вам доверяют, увидят этого человека в подсказках для таких запросов.",
   "capabilitySearchLabel": "Поиск",
   "@capabilitySearchLabel": {
@@ -4867,8 +4862,7 @@
     "description": "Показывается в выборе навыков, когда поиск ничего не нашёл (#741)."
   },
   "capabilityDialogTitle": "Чем может помочь {name}?",
-  "capabilityDialogOnlyYou": "Новые метки — ваши заметки, их видите только вы",
-  "capabilityCueMyLabels": "Мои метки: {tags}",
+  "capabilityCueMyLabels": "Мои теги: {tags}",
   "@capabilityCueMyLabels": {
     "placeholders": {
       "tags": {
@@ -6858,6 +6852,9 @@
   "bootFailureBodyWeb": "При запуске приложения что-то пошло не так. Обычно помогает перезагрузка страницы.",
   "bootFailureBodyNative": "При запуске приложения что-то пошло не так. Закройте приложение и откройте его снова.",
   "bootFailureReload": "Перезагрузить",
+  "bootLockHeldTitle": "Тентура открыта в другой вкладке",
+  "bootLockHeldBody": "Другая вкладка Тентуры ещё открывает свои данные и не отпускает их. Закройте другие вкладки Тентуры и попробуйте снова.",
+  "bootLockHeldReload": "Попробовать снова",
   "roomNextStepSetByActor": "{actor} задал(а) следующий шаг: «{text}»",
   "roomNextStepSetBySelf": "Вы задали следующий шаг: «{text}»",
   "roomNextStepSetByFormerMember": "Бывший участник задал следующий шаг: «{text}»",
@@ -6905,7 +6902,6 @@
   "peopleTagsDontSuggest": "Больше не предлагать",
   "peopleTagsSuggestEnable": "Предлагать теги",
   "peopleTagsFromParticipants": "Тег из участников",
-  "peopleTagsOnlyYouSee": "Теги видите только вы",
   "peopleTagsEditorTitle": "Новый тег",
   "peopleTagsEditorName": "Название",
   "peopleTagsEditorGlyph": "Буква или эмодзи",

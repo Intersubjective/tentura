@@ -48,6 +48,10 @@ BeaconStatus? beaconStatusFromAttentionReceipts(
 /// invitation and the close itself are not.
 bool attentionAddressedAfterClose(AttentionReceipt receipt) {
   if (attentionReceiptHasOwnOutcome(receipt)) return true;
+  if (attentionEventTypeOf(receipt.presentationPayloadJson) ==
+      'forwardHelped') {
+    return true;
+  }
   if (!attentionReceiptIsPersonal(receipt)) return false;
   return switch (attentionEventTypeOf(receipt.presentationPayloadJson)) {
     'authorInviteReceived' ||

@@ -7,7 +7,6 @@ import 'package:flutter_test/flutter_test.dart';
 const _specCopy = <String, Map<String, String>>{
   'en': {
     'peopleTagsScreenTitle': 'People tags',
-    'peopleTagsOnlyYouSee': 'Only you see tags',
     'peopleTagsYourTags': 'Your tags',
     'peopleTagsAutomatic': 'Automatic',
     'peopleTagsAddToTag': 'Add to tag…',
@@ -37,7 +36,6 @@ const _specCopy = <String, Map<String, String>>{
   },
   'ru': {
     'peopleTagsScreenTitle': 'Теги людей',
-    'peopleTagsOnlyYouSee': 'Теги видите только вы',
     'peopleTagsYourTags': 'Ваши теги',
     'peopleTagsAutomatic': 'Автоматически',
     'peopleTagsAddToTag': 'В тег…',
@@ -83,6 +81,16 @@ void main() {
           expect(
             entry.value.toString().toLowerCase(),
             isNot(contains('метк')),
+            reason: entry.key,
+          );
+          expect(
+            entry.value.toString().toLowerCase(),
+            isNot(contains('only you see')),
+            reason: entry.key,
+          );
+          expect(
+            entry.value.toString(),
+            isNot(contains('видите только вы')),
             reason: entry.key,
           );
         }
