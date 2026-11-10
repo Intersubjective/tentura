@@ -159,9 +159,6 @@ class EmptyAuthLocal implements AuthLocalRepositoryPort {
   Future<AccountEntity?> getAccountById(String id) async => null;
 
   @override
-  Future<AccountEntity?> getCurrentAccount() async => null;
-
-  @override
   Future<void> removeAccount(String id) async {}
 
   @override

@@ -424,10 +424,6 @@ final class _SessionLocal implements AuthLocalRepositoryPort {
       AccountEntity(id: id);
 
   @override
-  Future<AccountEntity?> getCurrentAccount() async =>
-      AccountEntity(id: _current);
-
-  @override
   Future<void> removeAccount(String id) async {}
 
   @override

@@ -79,10 +79,6 @@ class CookieSignInLocal extends EmptyAuthLocal {
   Future<AccountEntity?> getAccountById(String id) async => _accounts[id];
 
   @override
-  Future<AccountEntity?> getCurrentAccount() async =>
-      _accounts[currentAccountId];
-
-  @override
   Future<String> getSeedByAccountId(String id) async =>
       _seeds[id] ?? (throw const AuthIdNotFoundException());
 
