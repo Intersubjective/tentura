@@ -184,11 +184,6 @@ INSERT INTO public.beacon_participant (
     final done = Completer<void>();
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     httpServer = server;
-    if (postFixture == 'slowReady') {
-      // Models receipt-server bring-up stretching past the transport's old
-      // forty-five-second ready cap when the suite competes for Postgres.
-      await Future<void>.delayed(const Duration(seconds: 50));
-    }
     server.listen((request) async {
       try {
         if (request.uri.path == '/close') {

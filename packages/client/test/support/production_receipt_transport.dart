@@ -74,7 +74,7 @@ final class ProductionReceiptTransport {
     try {
       bridge._port = await bridge._ready.future.timeout(
         // Client-all contention can keep the receipt subprocess from emitting
-        // ready until well past the old forty-five-second ceiling (see slowReady).
+        // ready until well past the old forty-five-second ceiling.
         const Duration(seconds: 120),
       );
       return bridge;
