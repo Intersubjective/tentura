@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
 
@@ -81,22 +82,26 @@ void main() {
       },
     );
 
-    test('unrelated profile invalidation is ignored', () async {
-      harness.start();
-      await harness.waitFor(() => harness.profiles.fetchCalls == 1);
+    test(
+      'unrelated profile invalidation is ignored',
+      () => _inFakeTime((async, harness) {
+        harness.start();
+        async.flushMicrotasks();
+        expect(harness.profiles.fetchCalls, 1);
 
-      harness.realtimePort.emitChange(
-        const RealtimeEntityChange(
-          kind: RealtimeEntityKind.profile,
-          aggregateId: 'U-other',
-          operation: RealtimeOperation.update,
-          source: RealtimeChangeSource.serverInvalidation,
-        ),
-      );
-      await Future<void>.delayed(const Duration(milliseconds: 150));
+        harness.realtimePort.emitChange(
+          const RealtimeEntityChange(
+            kind: RealtimeEntityKind.profile,
+            aggregateId: 'U-other',
+            operation: RealtimeOperation.update,
+            source: RealtimeChangeSource.serverInvalidation,
+          ),
+        );
+        async.elapse(_pastRefreshDebounce);
 
-      expect(harness.profiles.fetchCalls, 1);
-    });
+        expect(harness.profiles.fetchCalls, 1);
+      }),
+    );
 
     test('contact and catch-up changes converge the open profile', () async {
       harness.start();
@@ -123,29 +128,35 @@ void main() {
     // blocked state directly; a refetch could only undo that.
     test(
       'block change switches the open profile to the blocked state',
-      () async {
+      () => _inFakeTime((async, harness) {
         harness.start();
-        await harness.waitFor(() => harness.profiles.fetchCalls == 1);
+        async.flushMicrotasks();
+        expect(harness.profiles.fetchCalls, 1);
         final afterBootstrap = harness.profiles.fetchCalls;
 
         harness.blockCase.emitBlock(objectId: 'U-target');
-        await harness.waitFor(() => harness.cubit.state.isBlockedFallback);
-        await Future<void>.delayed(const Duration(milliseconds: 150));
+        async.flushMicrotasks();
+        expect(harness.cubit.state.isBlockedFallback, isTrue);
+        async.elapse(_pastRefreshDebounce);
 
         expect(harness.cubit.state.blockedProfile?.id, 'U-target');
         expect(harness.profiles.fetchCalls, afterBootstrap);
-      },
+      }),
     );
 
-    test('unrelated block change does not refetch the open profile', () async {
-      harness.start();
-      await harness.waitFor(() => harness.profiles.fetchCalls == 1);
+    test(
+      'unrelated block change does not refetch the open profile',
+      () => _inFakeTime((async, harness) {
+        harness.start();
+        async.flushMicrotasks();
+        expect(harness.profiles.fetchCalls, 1);
 
-      harness.blockCase.emitBlock(objectId: 'U-other');
-      await Future<void>.delayed(const Duration(milliseconds: 150));
+        harness.blockCase.emitBlock(objectId: 'U-other');
+        async.elapse(_pastRefreshDebounce);
 
-      expect(harness.profiles.fetchCalls, 1);
-    });
+        expect(harness.profiles.fetchCalls, 1);
+      }),
+    );
 
     test('stale completion cannot replace a newer snapshot', () async {
       harness.start();
@@ -165,23 +176,26 @@ void main() {
       expect(harness.cubit.state.profile.displayName, 'Fresh');
     });
 
-    test('background failure retains usable state without an effect', () async {
-      harness
-        ..profiles.result = _profile(displayName: 'Stable')
-        ..start();
-      await harness.waitFor(
-        () => harness.cubit.state.profile.displayName == 'Stable',
-      );
-      harness.profiles.error = StateError('offline');
+    test(
+      'background failure retains usable state without an effect',
+      () => _inFakeTime((async, harness) {
+        harness
+          ..profiles.result = _profile(displayName: 'Stable')
+          ..start();
+        async.flushMicrotasks();
+        expect(harness.cubit.state.profile.displayName, 'Stable');
+        harness.profiles.error = StateError('offline');
 
-      harness.realtimePort.emitCatchUp();
-      await harness.waitFor(() => harness.profiles.fetchCalls >= 2);
-      await Future<void>.delayed(const Duration(milliseconds: 150));
+        harness.realtimePort.emitCatchUp();
+        async.elapse(_pastRefreshDebounce);
+        expect(harness.profiles.fetchCalls, greaterThanOrEqualTo(2));
+        async.elapse(_pastRefreshDebounce);
 
-      expect(harness.cubit.state.profile.displayName, 'Stable');
-      expect(harness.cubit.state.loadError, isNull);
-      expect(harness.effects.emitted, isEmpty);
-    });
+        expect(harness.cubit.state.profile.displayName, 'Stable');
+        expect(harness.cubit.state.loadError, isNull);
+        expect(harness.effects.emitted, isEmpty);
+      }),
+    );
 
     test(
       'friend mutations refetch authoritative profile and keep overlay',
@@ -272,6 +286,23 @@ Profile _profile({
   rScore: rScore,
   subjectExplicitlyTrustsViewer: subjectExplicitlyTrustsViewer,
 );
+
+/// ProfileViewCubit's refresh debounce (100 ms) plus 1 ms: past it, a
+/// debounced refetch that was going to run has run.
+const _pastRefreshDebounce = Duration(milliseconds: 101);
+
+/// Runs [body] against a harness built inside [fakeAsync], so the cubit's
+/// debounce timer runs on controlled time instead of the wall clock.
+void _inFakeTime(
+  void Function(FakeAsync async, _ProfileViewHarness harness) body,
+) {
+  fakeAsync((async) {
+    final harness = _ProfileViewHarness();
+    body(async, harness);
+    unawaited(harness.dispose());
+    async.flushMicrotasks();
+  });
+}
 
 final class _ProfileViewHarness {
   _ProfileViewHarness() {

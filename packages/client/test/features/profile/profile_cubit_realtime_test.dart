@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
 
@@ -29,42 +30,42 @@ void main() {
 
     tearDown(() => harness.dispose());
 
-    test('matching invalidation and catch-up silently refresh', () async {
-      harness.signIn('U-me');
-      await harness.waitFor(
-        () => harness.cubit.state.profile.displayName == 'U-me-1',
-      );
-      final effects = harness.effects.emitted.length;
+    test(
+      'matching invalidation and catch-up silently refresh',
+      () => _inFakeTime((async, harness) {
+        harness.signIn('U-me');
+        async.flushMicrotasks();
+        expect(harness.cubit.state.profile.displayName, 'U-me-1');
+        final effects = harness.effects.emitted.length;
 
-      harness.realtimePort.emitChange(
-        const RealtimeEntityChange(
-          kind: RealtimeEntityKind.profile,
-          aggregateId: 'U-other',
-          operation: RealtimeOperation.update,
-          source: RealtimeChangeSource.serverInvalidation,
-        ),
-      );
-      await Future<void>.delayed(const Duration(milliseconds: 150));
-      expect(harness.profiles.fetchCalls, 1);
+        harness.realtimePort.emitChange(
+          const RealtimeEntityChange(
+            kind: RealtimeEntityKind.profile,
+            aggregateId: 'U-other',
+            operation: RealtimeOperation.update,
+            source: RealtimeChangeSource.serverInvalidation,
+          ),
+        );
+        async.elapse(_pastRefreshDebounce);
+        expect(harness.profiles.fetchCalls, 1);
 
-      harness.realtimePort.emitChange(
-        const RealtimeEntityChange(
-          kind: RealtimeEntityKind.profile,
-          aggregateId: 'U-me',
-          operation: RealtimeOperation.update,
-          source: RealtimeChangeSource.serverInvalidation,
-        ),
-      );
-      await harness.waitFor(
-        () => harness.cubit.state.profile.displayName == 'U-me-2',
-      );
+        harness.realtimePort.emitChange(
+          const RealtimeEntityChange(
+            kind: RealtimeEntityKind.profile,
+            aggregateId: 'U-me',
+            operation: RealtimeOperation.update,
+            source: RealtimeChangeSource.serverInvalidation,
+          ),
+        );
+        async.elapse(_pastRefreshDebounce);
+        expect(harness.cubit.state.profile.displayName, 'U-me-2');
 
-      harness.realtimePort.emitCatchUp();
-      await harness.waitFor(
-        () => harness.cubit.state.profile.displayName == 'U-me-3',
-      );
-      expect(harness.effects.emitted, hasLength(effects));
-    });
+        harness.realtimePort.emitCatchUp();
+        async.elapse(_pastRefreshDebounce);
+        expect(harness.cubit.state.profile.displayName, 'U-me-3');
+        expect(harness.effects.emitted, hasLength(effects));
+      }),
+    );
 
     test(
       'stale account response cannot overwrite the current account',
@@ -90,20 +91,23 @@ void main() {
       },
     );
 
-    test('background failure retains profile and emits no effect', () async {
-      harness.signIn('U-me');
-      await harness.waitFor(
-        () => harness.cubit.state.profile.displayName == 'U-me-1',
-      );
-      harness.profiles.error = StateError('offline');
+    test(
+      'background failure retains profile and emits no effect',
+      () => _inFakeTime((async, harness) {
+        harness.signIn('U-me');
+        async.flushMicrotasks();
+        expect(harness.cubit.state.profile.displayName, 'U-me-1');
+        harness.profiles.error = StateError('offline');
 
-      harness.realtimePort.emitCatchUp();
-      await harness.waitFor(() => harness.profiles.fetchCalls == 2);
-      await Future<void>.delayed(const Duration(milliseconds: 150));
+        harness.realtimePort.emitCatchUp();
+        async.elapse(_pastRefreshDebounce);
+        expect(harness.profiles.fetchCalls, 2);
+        async.elapse(_pastRefreshDebounce);
 
-      expect(harness.cubit.state.profile.displayName, 'U-me-1');
-      expect(harness.effects.emitted, isEmpty);
-    });
+        expect(harness.cubit.state.profile.displayName, 'U-me-1');
+        expect(harness.effects.emitted, isEmpty);
+      }),
+    );
 
     test('local repository updates only replace the active profile', () async {
       harness.signIn('U-me');
@@ -124,6 +128,21 @@ void main() {
         () => harness.cubit.state.profile.displayName == 'Local update',
       );
     });
+  });
+}
+
+/// ProfileCubit's refresh debounce (100 ms) plus 1 ms: past it, a debounced
+/// refetch that was going to run has run.
+const _pastRefreshDebounce = Duration(milliseconds: 101);
+
+/// Runs [body] against a harness built inside [fakeAsync], so the cubit's
+/// debounce timer runs on controlled time instead of the wall clock.
+void _inFakeTime(void Function(FakeAsync async, _ProfileHarness harness) body) {
+  fakeAsync((async) {
+    final harness = _ProfileHarness();
+    body(async, harness);
+    unawaited(harness.dispose());
+    async.flushMicrotasks();
   });
 }
 

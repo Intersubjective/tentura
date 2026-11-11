@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
@@ -72,56 +73,61 @@ void main() {
     // (trust toggle on, "Send a request") because the block event only
     // scheduled a silent refetch, and a refetch failure after the first load
     // is swallowed. The profile must switch to the blocked state at once.
-    test('blocking the open profile switches to the blocked state', () async {
-      harness
-        ..profiles.result = const Profile(
-          id: 'U-friend',
-          displayName: 'Helper Two',
-          myVote: 1,
-        )
-        ..start(id: 'U-friend');
-      await harness.waitFor(
-        () => harness.cubit.state.profile.displayName == 'Helper Two',
-      );
+    test(
+      'blocking the open profile switches to the blocked state',
+      () => _inFakeTime((async, harness) {
+        harness
+          ..profiles.result = const Profile(
+            id: 'U-friend',
+            displayName: 'Helper Two',
+            myVote: 1,
+          )
+          ..start(id: 'U-friend');
+        async.flushMicrotasks();
+        expect(harness.cubit.state.profile.displayName, 'Helper Two');
 
-      // After the block the server hides the person from the viewer.
-      harness.profiles.error = const ProfileFetchException('U-friend');
-      harness.blockCase.emitChange(
-        const RepositoryEventCreate(
-          BlockIntent(blocked: Profile(id: 'U-friend')),
-        ),
-      );
-      await harness.waitFor(() => harness.cubit.state.isBlockedFallback);
-      await Future<void>.delayed(const Duration(milliseconds: 150));
+        // After the block the server hides the person from the viewer.
+        harness.profiles.error = const ProfileFetchException('U-friend');
+        harness.blockCase.emitChange(
+          const RepositoryEventCreate(
+            BlockIntent(blocked: Profile(id: 'U-friend')),
+          ),
+        );
+        async.flushMicrotasks();
+        expect(harness.cubit.state.isBlockedFallback, isTrue);
+        async.elapse(_pastRefreshDebounce);
 
-      expect(harness.cubit.state.isBlockedFallback, isTrue);
-      expect(harness.cubit.state.blockedProfile?.id, 'U-friend');
-      expect(harness.cubit.state.blockedProfile?.displayName, 'Helper Two');
-      expect(harness.effects.emitted.whereType<ShowError>(), isEmpty);
-    });
+        expect(harness.cubit.state.isBlockedFallback, isTrue);
+        expect(harness.cubit.state.blockedProfile?.id, 'U-friend');
+        expect(harness.cubit.state.blockedProfile?.displayName, 'Helper Two');
+        expect(harness.effects.emitted.whereType<ShowError>(), isEmpty);
+      }),
+    );
 
-    test('a block of someone else leaves the open profile alone', () async {
-      harness
-        ..profiles.result = const Profile(
-          id: 'U-friend',
-          displayName: 'Helper Two',
-          myVote: 1,
-        )
-        ..start(id: 'U-friend');
-      await harness.waitFor(
-        () => harness.cubit.state.profile.displayName == 'Helper Two',
-      );
+    test(
+      'a block of someone else leaves the open profile alone',
+      () => _inFakeTime((async, harness) {
+        harness
+          ..profiles.result = const Profile(
+            id: 'U-friend',
+            displayName: 'Helper Two',
+            myVote: 1,
+          )
+          ..start(id: 'U-friend');
+        async.flushMicrotasks();
+        expect(harness.cubit.state.profile.displayName, 'Helper Two');
 
-      harness.blockCase.emitChange(
-        const RepositoryEventCreate(
-          BlockIntent(blocked: Profile(id: 'U-other')),
-        ),
-      );
-      await Future<void>.delayed(const Duration(milliseconds: 150));
+        harness.blockCase.emitChange(
+          const RepositoryEventCreate(
+            BlockIntent(blocked: Profile(id: 'U-other')),
+          ),
+        );
+        async.elapse(_pastRefreshDebounce);
 
-      expect(harness.cubit.state.isBlockedFallback, isFalse);
-      expect(harness.cubit.state.profile.displayName, 'Helper Two');
-    });
+        expect(harness.cubit.state.isBlockedFallback, isFalse);
+        expect(harness.cubit.state.profile.displayName, 'Helper Two');
+      }),
+    );
 
     test('unblocking from elsewhere restores the full profile', () async {
       harness
@@ -204,7 +210,7 @@ void main() {
 
     test(
       'a transient refetch failure still keeps the loaded profile',
-      () async {
+      () => _inFakeTime((async, harness) {
         harness
           ..profiles.result = const Profile(
             id: 'U-friend',
@@ -212,42 +218,44 @@ void main() {
             myVote: 1,
           )
           ..start(id: 'U-friend');
-        await harness.waitFor(
-          () => harness.cubit.state.profile.displayName == 'Helper Two',
-        );
+        async.flushMicrotasks();
+        expect(harness.cubit.state.profile.displayName, 'Helper Two');
         final calls = harness.profiles.fetchCalls;
 
         harness.profiles.error = StateError('offline');
         harness.realtimePort.emitChange(_blockMarker(blockerId: 'U-friend'));
-        await harness.waitFor(() => harness.profiles.fetchCalls > calls);
-        await Future<void>.delayed(const Duration(milliseconds: 50));
+        async.elapse(_pastRefreshDebounce);
+        expect(harness.profiles.fetchCalls, greaterThan(calls));
+        async.elapse(_pastRefreshDebounce);
 
         expect(harness.cubit.state.profile.displayName, 'Helper Two');
         expect(harness.cubit.state.loadError, isNull);
-      },
+      }),
     );
 
-    test('the global constellation marker does not refetch', () async {
-      harness
-        ..profiles.result = const Profile(
-          id: 'U-friend',
-          displayName: 'Helper Two',
-        )
-        ..start(id: 'U-friend');
-      await harness.waitFor(
-        () => harness.cubit.state.profile.displayName == 'Helper Two',
-      );
-      final calls = harness.profiles.fetchCalls;
+    test(
+      'the global constellation marker does not refetch',
+      () => _inFakeTime((async, harness) {
+        harness
+          ..profiles.result = const Profile(
+            id: 'U-friend',
+            displayName: 'Helper Two',
+          )
+          ..start(id: 'U-friend');
+        async.flushMicrotasks();
+        expect(harness.cubit.state.profile.displayName, 'Helper Two');
+        final calls = harness.profiles.fetchCalls;
 
-      harness.realtimePort.emitChange(
-        _blockMarker(
-          blockerId: RealtimeSyncCase.globalConstellationFieldId,
-        ),
-      );
-      await Future<void>.delayed(const Duration(milliseconds: 200));
+        harness.realtimePort.emitChange(
+          _blockMarker(
+            blockerId: RealtimeSyncCase.globalConstellationFieldId,
+          ),
+        );
+        async.elapse(_pastRefreshDebounce);
 
-      expect(harness.profiles.fetchCalls, calls);
-    });
+        expect(harness.profiles.fetchCalls, calls);
+      }),
+    );
 
     test(
       'ProfileFetchException without direct block keeps loadError path',
@@ -485,6 +493,23 @@ void main() {
       expect(find.text(l10n.blockUserMenuItem), findsNothing);
       expect(find.text(l10n.renameContactMenuItem), findsNothing);
     });
+  });
+}
+
+/// ProfileViewCubit's refresh debounce (100 ms) plus 1 ms: past it, a
+/// debounced refetch that was going to run has run.
+const _pastRefreshDebounce = Duration(milliseconds: 101);
+
+/// Runs [body] against a harness built inside [fakeAsync], so the cubit's
+/// debounce timer runs on controlled time instead of the wall clock.
+void _inFakeTime(
+  void Function(FakeAsync async, _BlockedProfileHarness harness) body,
+) {
+  fakeAsync((async) {
+    final harness = _BlockedProfileHarness();
+    body(async, harness);
+    unawaited(harness.dispose());
+    async.flushMicrotasks();
   });
 }
 
