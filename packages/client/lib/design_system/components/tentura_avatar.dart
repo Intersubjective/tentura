@@ -188,15 +188,16 @@ class TenturaAvatar extends StatelessWidget {
             boxFit: boxFit,
           );
 
-    Widget inner = Container(
-      width: s,
-      height: s,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(color: tt.border),
+    Widget inner = ClipOval(
+      child: Container(
+        width: s,
+        height: s,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(color: tt.border),
+        ),
+        child: avatarCore,
       ),
-      clipBehavior: Clip.antiAlias,
-      child: avatarCore,
     );
 
     if (paintRating || paintContact) {

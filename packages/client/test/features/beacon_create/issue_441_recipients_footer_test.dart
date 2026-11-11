@@ -25,6 +25,7 @@ import 'package:tentura/features/forward/domain/entity/forward_candidate.dart';
 import 'package:tentura/features/forward/domain/use_case/forward_case.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
 import 'package:tentura/features/forward/ui/widget/forward_recipient_picker.dart';
+import 'package:tentura/features/forward/ui/widget/forward_recipient_picker_entry.dart';
 import 'package:tentura/features/forward/ui/widget/forward_recipient_row.dart';
 import 'package:tentura/features/invitation/data/repository/invitation_repository.dart';
 import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
@@ -300,6 +301,69 @@ void main() {
     expect(shape, isA<OutlinedBorder>());
     return (shape! as OutlinedBorder).side;
   }
+
+  testWidgets(
+    'shared recipient entries on the new-request recipients step avoid per-row compositing',
+    (tester) async {
+      await pumpAuthorRecipients(tester, count: 1, locale: const Locale('ru'));
+      final picker = find.descendant(
+        of: find.byType(BeaconCreateScreen),
+        matching: find.byType(ForwardRecipientPicker),
+      );
+      expect(picker, findsOneWidget);
+      expect(tester.widget<ForwardRecipientPicker>(picker).embedded, isTrue);
+      final entries = find.descendant(
+        of: picker,
+        matching: find.byType(ForwardRecipientPickerEntry),
+      );
+      expect(entries, findsOneWidget);
+      expect(
+        find.descendant(of: entries, matching: find.text('Person 01')),
+        findsOneWidget,
+      );
+      final cubit = tester.element(entries).read<ForwardCubit>();
+      final violations = <String>[];
+      void recordCompositing(String state) {
+        for (final type in [
+          Opacity,
+          ClipPath,
+          ShaderMask,
+          BackdropFilter,
+          ColorFiltered,
+        ]) {
+          if (find
+              .descendant(of: entries, matching: find.byType(type))
+              .evaluate()
+              .isNotEmpty) {
+            violations.add('$state entry contains $type');
+          }
+        }
+      }
+
+      recordCompositing('unselected');
+      expect(cubit.state.selectedIds, isEmpty);
+      await tester.tap(
+        find.byKey(TestIds.key(TestIds.forwardRecipientCheckbox('u1'))),
+      );
+      await _settle(tester);
+      expect(cubit.state.selectedIds, contains('u1'));
+      recordCompositing('selected');
+      await tester.tap(
+        find.descendant(
+          of: entries,
+          matching: find.byIcon(Icons.add_comment_outlined),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.descendant(of: entries, matching: find.byType(TextField)),
+        findsOneWidget,
+      );
+      recordCompositing('note open');
+      expect(tester.takeException(), isNull);
+      expect(violations, isEmpty);
+    },
+  );
 
   testWidgets('nothing picked: the send button keeps its label Send to 0', (
     tester,

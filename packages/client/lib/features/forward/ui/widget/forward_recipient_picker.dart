@@ -164,6 +164,7 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
   @override
   void initState() {
     super.initState();
+    _syncRecipientNoteControllers(context.read<ForwardCubit>().state);
     _searchController.addListener(_onSearchChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) setState(() => _hitTestReady = true);
@@ -681,7 +682,10 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
               prev.viewerIsAuthor != next.viewerIsAuthor ||
               prev.targetProfile != next.targetProfile ||
               prev.tagMembers != next.tagMembers ||
-              prev.addedByTag != next.addedByTag ||
+              !const DeepCollectionEquality().equals(
+                prev.addedByTag,
+                next.addedByTag,
+              ) ||
               prev.editingRecipientId != next.editingRecipientId,
           builder: (_, state) {
             switch (state.candidatesLoad) {
@@ -757,8 +761,6 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
 
             final showGenuineEmptyMessage =
                 state.candidatesLoad is ForwardCandidatesEmpty && listIsEmpty;
-
-            _syncRecipientNoteControllers(state);
 
             final actionLoading =
                 widget.externalActionLoading ||
@@ -1220,7 +1222,8 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
       onCancelForward: onCancelForward,
       onOpenPersonalNote: () => _expandedPersonalNoteRecipientId.value = id,
       onPersonalNoteCollapsed: _collapseExpandedPersonalNote,
-      recipientNoteController: _recipientNoteControllers[id],
+      recipientNoteController: null,
+      getRecipientNoteController: () => _recipientNoteControllers[id],
       onRecipientNoteChanged: (text) => cubit.setRecipientNote(id, text),
       recipientNoteHint: widget.recipientNoteHint,
       onBuild:

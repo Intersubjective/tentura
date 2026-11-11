@@ -31,6 +31,7 @@ class ForwardRecipientPickerEntry extends StatelessWidget {
     required this.onPersonalNoteCollapsed,
     required this.recipientNoteController,
     required this.onRecipientNoteChanged,
+    this.getRecipientNoteController,
     this.recipientNoteHint,
     this.onBuild,
     super.key,
@@ -50,6 +51,9 @@ class ForwardRecipientPickerEntry extends StatelessWidget {
   final VoidCallback? onOpenPersonalNote;
   final VoidCallback onPersonalNoteCollapsed;
   final TextEditingController? recipientNoteController;
+
+  /// Resolves the controller created on selection without rebuilding peers.
+  final TextEditingController? Function()? getRecipientNoteController;
   final void Function(String text) onRecipientNoteChanged;
   final String? recipientNoteHint;
 
@@ -106,11 +110,13 @@ class ForwardRecipientPickerEntry extends StatelessWidget {
             if (expandedId != id) {
               return row(isPersonalNoteExpanded: false);
             }
+            final noteController =
+                getRecipientNoteController?.call() ?? recipientNoteController;
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 row(isPersonalNoteExpanded: true),
-                if (recipientNoteController != null)
+                if (noteController != null)
                   Padding(
                     padding: EdgeInsets.symmetric(
                       horizontal: context.tt.screenHPadding,
@@ -119,7 +125,7 @@ class ForwardRecipientPickerEntry extends StatelessWidget {
                       onCollapsed: onPersonalNoteCollapsed,
                       child: PerRecipientNoteInput(
                         profile: candidate.profile,
-                        controller: recipientNoteController!,
+                        controller: noteController,
                         onChanged: onRecipientNoteChanged,
                         hintText: recipientNoteHint,
                       ),
