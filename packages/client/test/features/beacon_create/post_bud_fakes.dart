@@ -7,6 +7,7 @@ import 'package:tentura_root/domain/entity/beacon_hierarchy_owner_summary.dart';
 import 'package:tentura_root/domain/entity/beacon_promotion_source.dart';
 import 'package:tentura_root/domain/entity/coordinates.dart';
 
+import 'package:tentura/data/service/op_id_service.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/domain/entity/post_bud_invite_candidate.dart';
@@ -191,6 +192,7 @@ final class BudHarness {
   PostBudCase get postBudCase => PostBudCase(
     port,
     profiles,
+    OpIdService(),
     env: const Env(),
     logger: Logger('post-bud-test'),
   );

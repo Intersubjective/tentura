@@ -84,6 +84,7 @@ import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
+import 'package:tentura/data/service/op_id_service.dart';
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/data/repository/clipboard_image_repository.dart';
 import 'package:tentura/data/repository/image_repository.dart';
@@ -300,6 +301,7 @@ Future<_Opened> _open(
             wired.beacons,
             InMemoryBeaconChildCommandStore(),
             realtime.case_,
+            OpIdService(),
           ),
         )
         ..registerSingleton<BeaconPlanCase>(
@@ -790,6 +792,7 @@ void main() {
                 beacons,
                 InMemoryBeaconChildCommandStore(),
                 realtime.case_,
+                OpIdService(),
               ),
             );
             unawaited(cubit.load());

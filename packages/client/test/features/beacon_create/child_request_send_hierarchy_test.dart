@@ -17,6 +17,7 @@ import 'package:tentura_root/domain/entity/beacon_hierarchy_page.dart';
 import 'package:tentura_root/domain/entity/beacon_hierarchy_summary.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
+import 'package:tentura/data/service/op_id_service.dart';
 import 'package:tentura/design_system/tentura_theme.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
@@ -135,7 +136,8 @@ class _RecordingHierarchyCase extends BeaconHierarchyCase {
     super._createCase,
     super._beacons,
     super._commandStore,
-    super._realtimeSyncCase, {
+    super._realtimeSyncCase,
+    super._opIds, {
     this.notificationGate,
   });
 
@@ -195,6 +197,7 @@ class _SendHarness {
     write,
     store,
     realtime.case_,
+    OpIdService(),
     notificationGate: notificationGate,
   );
 

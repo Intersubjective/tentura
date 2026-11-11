@@ -9,8 +9,10 @@ import 'package:tentura_root/domain/entity/beacon_parent_reference.dart';
 import 'package:tentura_root/domain/entity/beacon_promotion_source.dart';
 import 'package:tentura_root/domain/entity/coordinates.dart';
 
+import 'package:tentura/data/service/op_id_service.dart';
 import 'package:tentura/domain/port/beacon_child_command_store_port.dart';
 import 'package:tentura/domain/port/beacon_write_port.dart';
+import 'package:tentura/domain/port/op_id_port.dart';
 import 'package:tentura/domain/use_case/beacon_create_case.dart';
 import 'package:tentura/domain/use_case/beacon_hierarchy_case.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
@@ -18,7 +20,8 @@ import 'package:tentura/features/beacon/domain/port/beacon_hierarchy_repository_
 
 import '../../support/test_realtime_sync.dart';
 
-class FakeBeaconHierarchyRepositoryPort implements BeaconHierarchyRepositoryPort {
+class FakeBeaconHierarchyRepositoryPort
+    implements BeaconHierarchyRepositoryPort {
   FakeBeaconHierarchyRepositoryPort({
     this.capabilities = const BeaconHierarchyCapabilities(
       canListChildren: true,
@@ -50,7 +53,8 @@ class FakeBeaconHierarchyRepositoryPort implements BeaconHierarchyRepositoryPort
   Future<BeaconHierarchyPage> Function({
     required BeaconHierarchyChildGroup group,
     String? after,
-  })? fetchChildrenHandler;
+  })?
+  fetchChildrenHandler;
 
   final createCalls = <Map<String, Object?>>[];
   final BeaconPromotionSource promotionSource;
@@ -91,8 +95,7 @@ class FakeBeaconHierarchyRepositoryPort implements BeaconHierarchyRepositoryPort
   @override
   Future<BeaconParentReference> fetchParentReference({
     required String beaconId,
-  }) async =>
-      parentReference;
+  }) async => parentReference;
 
   @override
   Future<BeaconHierarchySummary?> fetchChildPreview({
@@ -110,8 +113,7 @@ class FakeBeaconHierarchyRepositoryPort implements BeaconHierarchyRepositoryPort
   Future<BeaconPromotionSource> fetchPromotionSource({
     required String parentBeaconId,
     required String sourceMessageId,
-  }) async =>
-      promotionSource;
+  }) async => promotionSource;
 
   @override
   Future<BeaconChildCreateOutcome> createChild({
@@ -159,7 +161,8 @@ class InMemoryBeaconChildCommandStore implements BeaconChildCommandStorePort {
   final _values = <String, String>{};
 
   static String _key(BeaconCreationContext context) => switch (context) {
-    BeaconCreationContextChild(:final parentBeaconId) => 'child:$parentBeaconId',
+    BeaconCreationContextChild(:final parentBeaconId) =>
+      'child:$parentBeaconId',
     BeaconCreationContextPromotedChild(
       :final parentBeaconId,
       :final sourceMessageId,
@@ -192,11 +195,12 @@ BeaconHierarchyCase buildBeaconHierarchyCaseForTest(
   required BeaconWritePort beacons,
   required BeaconChildCommandStorePort commandStore,
   RealtimeSyncCase? realtimeSyncCase,
-}) =>
-    BeaconHierarchyCase(
-      hierarchy,
-      createCase,
-      beacons,
-      commandStore,
-      realtimeSyncCase ?? buildTestRealtimeSync().case_,
-    );
+  OpIdPort? opIds,
+}) => BeaconHierarchyCase(
+  hierarchy,
+  createCase,
+  beacons,
+  commandStore,
+  realtimeSyncCase ?? buildTestRealtimeSync().case_,
+  opIds ?? OpIdService(),
+);
