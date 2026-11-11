@@ -301,7 +301,8 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
         generation: _state.generation,
       ),
     );
-    unawaited(requestRefresh(ConstellationRefreshReason.load));
+    // Not the screen's own load: a failed read keeps the reset projection.
+    unawaited(requestRefresh(ConstellationRefreshReason.catchUp));
   }
 
   /// Defer the catch-up read until the writer's replay has been dispatched.
@@ -949,6 +950,11 @@ final class ConstellationFieldStoreCase extends UseCaseBase {
         return null;
       }
       logger.warning('Constellation FULL refresh failed', error, stackTrace);
+      if (generation != _state.generation ||
+          paramsGeneration != _paramsGeneration) {
+        // Superseded: the read is no longer anyone's load.
+        return null;
+      }
       return (error: error, stackTrace: stackTrace);
     }
   }

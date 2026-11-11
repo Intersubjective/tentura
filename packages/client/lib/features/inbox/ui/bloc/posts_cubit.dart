@@ -57,6 +57,7 @@ class PostsCubit extends Cubit<PostsState> {
   StreamSubscription<void>? _reads;
   var _generation = 0;
   var _lastFetchFailed = false;
+  var _everLoaded = false;
   late final ReloadWhenOnline _reloadWhenOnline;
 
   @override
@@ -95,19 +96,27 @@ class PostsCubit extends Cubit<PostsState> {
       final posts = await _postsCase.myPosts();
       if (isClosed || generation != _generation) return;
       _lastFetchFailed = false;
+      _everLoaded = true;
       _posts = posts;
       _expiry.setDeadlines({
         for (final post in posts)
           if (!post.isDraft && !post.isClosed && post.expiresAt != null)
             post.expiresAt!,
       });
-      emit(_arrange(posts, _clock()));
+      emit(_arrange(posts, _clock()).copyWith(loadError: null));
     } on Object catch (e) {
       _postsCase.logger.warning('myPosts failed: $e');
       // Keep the list that was already shown.
       if (isClosed || generation != _generation) return;
       _lastFetchFailed = true;
-      emit(state.copyWith(loaded: true, status: const StateIsSuccess()));
+      // Until one fetch has succeeded, say why, so the tab can offer a retry.
+      emit(
+        state.copyWith(
+          loaded: true,
+          loadError: _everLoaded ? null : e,
+          status: const StateIsSuccess(),
+        ),
+      );
     }
   }
 

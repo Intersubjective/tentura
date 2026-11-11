@@ -986,13 +986,19 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
           ),
         ),
     };
+    // Compare in the server's units: the magnet the user just dropped comes
+    // back as the same saved units, though its decoded point may differ in the
+    // last bit, and that echo must not refit the Field under them.
     final unchanged =
-        loaded.length == _tagMagnets.length &&
-        loaded.entries.every((e) {
-          final shown = _tagMagnets[e.key];
-          return shown != null &&
-              shown.dx == e.value.x &&
-              shown.dy == e.value.y;
+        saved.length == _tagMagnets.length &&
+        saved.every((magnet) {
+          final shown = _tagMagnets[magnet.tagId];
+          if (shown == null) return false;
+          final units = constellationPointToV1Anchor((
+            x: shown.dx,
+            y: shown.dy,
+          ));
+          return units.xUnits == magnet.xUnits && units.yUnits == magnet.yUnits;
         });
     if (unchanged) return;
     for (final tagId in _tagMagnets.keys.toList()) {
@@ -4097,7 +4103,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     _positionsBeforeLayoutPreview = null;
     _layoutPreviewAlgorithm = null;
     _clearArrangementPriors();
-    await _case.requestRefresh(ConstellationRefreshReason.load);
+    await _case.requestRefresh(ConstellationRefreshReason.catchUp);
     if (isClosed) return false;
     _reconcileLayout(immediateHandoff: true);
     return true;

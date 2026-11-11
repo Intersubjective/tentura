@@ -44,6 +44,13 @@ class LayoutHistoryServer {
   void Function(String snapshotId)? onRestore;
   Completer<void>? applyGate;
 
+  /// Thrown by every FULL Field read while set, as a server that cannot answer
+  /// the read that follows a successful write.
+  Exception? fetchError;
+
+  /// How many FULL Field reads reached the server, failed ones included.
+  int fetchAttempts = 0;
+
   LayoutHistorySnapshot? get favourite =>
       snapshots.where((s) => s.kind == 0).firstOrNull;
 
@@ -275,6 +282,9 @@ class _FieldRepository implements ConstellationRepositoryPort {
         ConstellationFieldMembershipFilters.defaults,
     ConstellationProjection projection = ConstellationProjection.full,
   }) async {
+    server.fetchAttempts++;
+    final error = server.fetchError;
+    if (error != null) throw error;
     const peers = [
       ConstellationPerson(id: 'p1', displayName: 'Peer one'),
       ConstellationPerson(id: 'p2', displayName: 'Peer two'),

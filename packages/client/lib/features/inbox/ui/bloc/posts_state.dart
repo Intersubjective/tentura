@@ -34,6 +34,9 @@ abstract class PostsState extends StateBase with _$PostsState {
     /// The clock the sections were split against.
     DateTime? now,
     @Default(StateIsSuccess()) StateStatus status,
+
+    /// Why the fetch failed; only set until one fetch has succeeded.
+    Object? loadError,
   }) = _PostsState;
 
   const PostsState._();

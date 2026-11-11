@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
@@ -9,6 +11,7 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/navigation/app_navigator.dart';
+import 'package:tentura/ui/widget/screen_load_error_panel.dart';
 
 import '../../domain/entity/post_summary.dart';
 import '../bloc/posts_cubit.dart';
@@ -71,6 +74,13 @@ class PostsTabView extends StatelessWidget {
     final l10n = L10n.of(context)!;
     return BlocBuilder<PostsCubit, PostsState>(
       builder: (context, state) {
+        final loadError = state.loadError;
+        if (loadError != null) {
+          return ScreenLoadErrorPanel(
+            details: describeScreenLoadError(error: loadError, l10n: l10n),
+            onRetry: () => unawaited(context.read<PostsCubit>().fetch()),
+          );
+        }
         if (!state.loaded) {
           return const Center(child: TenturaCircularProgress());
         }
