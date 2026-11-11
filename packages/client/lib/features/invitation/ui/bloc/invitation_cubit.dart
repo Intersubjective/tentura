@@ -1,5 +1,3 @@
-// TBD: move not void public methods into state
-// ignore_for_file: prefer_void_public_cubit_methods
 import 'dart:async';
 
 import 'package:get_it/get_it.dart';
@@ -193,6 +191,9 @@ class InvitationCubit extends Cubit<InvitationState> {
   /// Days an invitation stays valid. A failed lookup only costs the hint its
   /// accuracy, so it falls back to the compiled default instead of blocking
   /// the invite.
+  // Returned, not stored: runBeaconInviteFlow feeds it to the open share
+  // dialog as a caption update.
+  // ignore: prefer_void_public_cubit_methods
   Future<int> inviteTtlDays() async {
     try {
       return await _invitationRepository.fetchTtlHours() ~/ 24;
@@ -201,6 +202,9 @@ class InvitationCubit extends Cubit<InvitationState> {
     }
   }
 
+  // Returned: runBeaconInviteFlow and FriendsScreen need the new invite
+  // (its link and id) right away; null means it failed.
+  // ignore: prefer_void_public_cubit_methods
   Future<InvitationEntity?> createInvitation({
     required String addresseeName,
     String? beaconId,

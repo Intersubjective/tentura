@@ -1,6 +1,3 @@
-// TBD: move not void public methods into state
-// ignore_for_file: prefer_void_public_cubit_methods
-
 import 'dart:async';
 import 'package:injectable/injectable.dart';
 
@@ -44,6 +41,8 @@ class FavoritesCubit extends Cubit<FavoritesState> {
 
   late final StreamSubscription<Beacon> _favoritesChanges;
 
+  // A stream, not state: it forwards the repository's per-beacon changes.
+  // ignore: prefer_void_public_cubit_methods
   Stream<Beacon> get favoritesChanges => _favoritesRemoteRepository.changes;
 
   //
