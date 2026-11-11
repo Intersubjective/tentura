@@ -1335,6 +1335,8 @@ AND (
     // limit: an unused parameter is an error, not a no-op.
     if (!cardPreview) variables.add(Variable<int>(limitPerBeacon));
     final limitParam = '\$${variables.length}';
+    const isForwardHelped =
+        "COALESCE((v.presentation_payload ->> 'eventType') = 'forwardHelped', false)";
     final rows = await _database.customSelect(
       '''
 WITH $_visibleWithSurfaceCte,
@@ -1349,12 +1351,15 @@ ranked AS (
     NULL::int AS event_total,
     NULL::int AS event_unseen_count,
     ${AttentionDismissibleSql.addressedToViewer('v')} AS is_personal,
+    $isForwardHelped AS is_forward_helped,
     ROW_NUMBER() OVER (
       PARTITION BY v.beacon_id
       ORDER BY v.created_at DESC, v.id DESC
     ) AS rn,
     ROW_NUMBER() OVER (
-      PARTITION BY v.beacon_id, ${AttentionDismissibleSql.addressedToViewer('v')}
+      -- Forwarding thanks have their own slot, outside the personal cap.
+      PARTITION BY v.beacon_id, ${AttentionDismissibleSql.addressedToViewer('v')},
+        $isForwardHelped
       ORDER BY v.created_at DESC, v.id DESC
     ) AS zone_rn,
     ROW_NUMBER() OVER (
@@ -1380,7 +1385,8 @@ ranked AS (
 SELECT *
 FROM ranked
 WHERE ${cardPreview ? '''
-  (ranked.is_personal AND ranked.zone_rn <= $kActivityPersonalPreviewCap)
+  ranked.is_forward_helped
+  OR (ranked.is_personal AND ranked.zone_rn <= $kActivityPersonalPreviewCap)
   OR (
     NOT ranked.is_personal
     AND ranked.presentation_key IS DISTINCT FROM 'deadline_changed'
