@@ -3,6 +3,7 @@ library;
 
 import 'package:test/test.dart';
 
+import '../../support/disposable_pg_target.dart';
 import '../../support/forwarded_request_field_response.dart';
 
 const _viewer = 'Uviewer000001';
@@ -11,13 +12,25 @@ const _alice = 'Uauthoralice1';
 const _request = 'Bforwarded001';
 
 void main() {
+  DisposablePgWriterSession? session;
+  setUpAll(() async {
+    session = await setUpForwardedRequestField();
+  });
+  tearDownAll(() async {
+    final activeSession = session;
+    if (activeSession != null) {
+      await tearDownDisposablePgWriter(session: activeSession);
+    }
+  });
+
   test('the Field response identifies the contact who forwarded a distant '
       "author's Request to the viewer", () async {
-    final scenario = await readForwardedRequestFieldResponse();
-    if (scenario == null) {
+    final activeSession = session;
+    if (activeSession == null) {
       markTestSkipped('Postgres unavailable');
       return;
     }
+    final scenario = await readForwardedRequestFieldResponse(activeSession);
     // Assert the graph through the reader's explicit-trust predicate. Alice
     // is exactly two hops away; Zed's sole ordinary visible contact is Bob.
     expect(
