@@ -29,6 +29,7 @@ import 'package:tentura_server/domain/entity/post_draft_attachment.dart';
 import 'package:tentura_server/domain/entity/uploaded_room_attachment.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 
+import '../database/query_row_timestamp.dart';
 import '../database/tentura_db.dart';
 import '../mapper/beacon_mapper.dart';
 import 'post_lock_repository.dart';
@@ -1586,7 +1587,7 @@ LIMIT $2
           beaconId: row.read<String>('beacon_id'),
           imageId: _readUuid(row, 'image_id'),
           authorId: row.read<String>('author_id'),
-          stagedAt: row.read<PgDateTime>('staged_at').dateTime,
+          stagedAt: readRowTimestamp(row, 'staged_at')!.toUtc(),
         ),
     ];
   }
