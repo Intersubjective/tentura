@@ -6,7 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura_root/domain/entity/beacon_cover_source.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
-import 'package:tentura/domain/entity/beacon_cover.dart';
+import 'package:tentura/domain/entity/beacon_identity.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/features/constellation/data/gql/_g/constellation_field_fetch.data.gql.dart';
 import 'package:tentura/features/constellation/data/model/constellation_field_mapper.dart';

@@ -8,7 +8,7 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/domain/capability/capability_tag.dart';
 
-import 'beacon_cover.dart';
+import 'beacon_identity.dart';
 import 'beacon_kind.dart';
 import 'coordinates.dart';
 import 'image_entity.dart';
