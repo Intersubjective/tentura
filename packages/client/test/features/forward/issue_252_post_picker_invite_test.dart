@@ -195,7 +195,6 @@ _pumpPostRecipients(
     beaconCreateCase: fakeBeaconCreateCase(),
     effects: effects,
   );
-  addTearDown(cubit.close);
   final forward = ForwardCubit(
     beaconId: '',
     embedded: true,
@@ -242,7 +241,7 @@ _pumpPostRecipients(
                           BlocProvider<ScreenCubit>(
                             create: (_) => ScreenCubit(effects),
                           ),
-                          BlocProvider<BeaconCreateCubit>.value(value: cubit),
+                          BlocProvider<BeaconCreateCubit>(create: (_) => cubit),
                           BlocProvider<ForwardCubit>.value(value: forward),
                         ],
                         child: const PostCreateScreen(),

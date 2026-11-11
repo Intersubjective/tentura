@@ -15,8 +15,8 @@ import 'package:tentura/domain/entity/coordinates.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/domain/entity/post_bud_result.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
+import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/port/beacon_image_port.dart';
-import 'package:tentura/domain/port/post_publish_port.dart';
 import 'package:tentura/domain/use_case/beacon_create_case.dart';
 import 'package:tentura/domain/use_case/beacon_hierarchy_case.dart';
 import 'package:tentura/domain/use_case/message_prefill_case.dart';
@@ -173,9 +173,11 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
   BeaconSaveCommand? _exactRetrySnapshot;
 
   Timer? _postDraftTimer;
-
-  /// Set once `postPublish` succeeded: a retry must not send it again.
-  PostPublishResult? _publishedPost;
+  Future<void>? _postWrites;
+  final _postDeliveredRecipients = <String>{};
+  int _postRevision = 0;
+  int _postSavedRevision = 0;
+  final _postAttachmentIds = <RoomPendingUpload, String>{};
 
   /// Loads the title of the Request a new child request will belong to into
   /// [BeaconCreateState.childParentTitle], for the «Child request of …» line
@@ -539,12 +541,12 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     if (isClosed || _discarded) return false;
     if (kind == BeaconKind.post) {
       if (state.isLive) return false;
-      if (!_postHasContent) return false;
+      if (!_postHasContent && state.draftId == null) return false;
       if (_postDraftTimer?.isActive ?? false) return true;
       if (_draftCreateInFlight != null) return true;
-      // Server Post draft only reserves an id (#1117); body ships in
-      // postPublish, so any non-empty composer stays dirty until live.
-      return true;
+      return state.isAutosaving ||
+          _postRevision != _postSavedRevision ||
+          state.postAttachments.any((item) => item.attachmentId == null);
     }
     if (state.isEditMode || state.isLive || state.isPostBud) return false;
     if (isUntouchedCopy) return false;
@@ -616,7 +618,18 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
         _emitSnackError(Exception('Request is not a draft'));
         return;
       }
-      emit(_loadedState(beacon).copyWith(draftId: beacon.id));
+      _postHasContent =
+          beacon.description.trim().isNotEmpty ||
+          beacon.postDraftAttachments.isNotEmpty;
+      _postSavedRevision = _postRevision;
+      emit(
+        _loadedState(beacon).copyWith(
+          draftId: beacon.id,
+          postForwardPolicy: beacon.forwardPolicy,
+          postLifetimeHours: beacon.postLifetimeHours ?? 72,
+          postAttachments: beacon.postDraftAttachments,
+        ),
+      );
       validate();
     } catch (e) {
       _emitSnackError(e);
@@ -1204,6 +1217,8 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
       tags: state.tags,
       needs: state.needs,
       kind: kind,
+      forwardPolicy: state.postForwardPolicy,
+      postLifetimeHours: state.postLifetimeHours,
       title: kind == BeaconKind.post
           ? ''
           : draftSafeTitle
@@ -1593,21 +1608,164 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     }
   }
 
-  /// A Post has no form to autosave: once the composer holds something and the
-  /// user pauses, a server draft gives the Post a stable id for `postPublish`.
-  /// An untouched screen never reaches the server.
+  /// One writer owns draft fields, attachment identities and publication.
+  Future<T> _writePost<T>(Future<T> Function() command) async {
+    final previous = _postWrites;
+    final completed = Completer<void>();
+    _postWrites = completed.future;
+    if (previous != null) await previous;
+    try {
+      return await command();
+    } finally {
+      completed.complete();
+      if (identical(_postWrites, completed.future)) _postWrites = null;
+    }
+  }
+
+  void setPostBody(String body) {
+    if (state.description == body || state.isLive) return;
+    emit(state.copyWith(description: body));
+    _postRevision++;
+    postContentChanged(
+      hasContent: body.trim().isNotEmpty || state.postAttachments.isNotEmpty,
+    );
+  }
+
+  void setPostForwardPolicy(BeaconForwardPolicyValue policy) {
+    if (state.postForwardPolicy == policy || state.isLive) return;
+    emit(state.copyWith(postForwardPolicy: policy));
+    _postRevision++;
+    _schedulePostSave();
+  }
+
+  void setPostLifetime(int hours) {
+    if (state.postLifetimeHours == hours || state.isLive) return;
+    emit(state.copyWith(postLifetimeHours: hours));
+    _postRevision++;
+    _schedulePostSave();
+  }
+
   void postContentChanged({required bool hasContent}) {
     _postHasContent = hasContent;
+    _schedulePostSave();
+  }
+
+  void _schedulePostSave() {
     _postDraftTimer?.cancel();
-    _postDraftTimer = null;
-    if (!hasContent || isClosed || state.isLive) return;
-    final id = state.draftId;
-    if (id != null && id.isNotEmpty) return;
+    if (isClosed ||
+        _discarded ||
+        state.isLive ||
+        (!_postHasContent && state.draftId == null)) {
+      return;
+    }
     _postDraftTimer = Timer(const Duration(milliseconds: 1500), () {
-      unawaited(
-        ensureDraft(context: '', showMessage: false, quiet: true),
-      );
+      unawaited(_flushPostDraft(_postRevision));
     });
+  }
+
+  Future<void> _savePostFields() async {
+    if (_discarded || isClosed || state.isLive) return;
+    if (!_postHasContent && state.draftId == null) return;
+    final id = await ensureDraft(context: '', showMessage: false, quiet: true);
+    if (id == null || _postSavedRevision == _postRevision) return;
+    final revision = _postRevision;
+    emit(state.copyWith(isAutosaving: true));
+    try {
+      await _case.saveDraft(
+        _command(context: '', id: id, draftSafeTitle: false),
+      );
+      _postSavedRevision = revision;
+    } finally {
+      if (!isClosed) emit(state.copyWith(isAutosaving: false));
+    }
+  }
+
+  Future<void> flushPostDraft() => _flushPostDraft(null);
+
+  Future<void> _flushPostDraft(int? scheduledRevision) async {
+    _postDraftTimer?.cancel();
+    try {
+      await _writePost(() async {
+        if (scheduledRevision != null && scheduledRevision != _postRevision) {
+          return;
+        }
+        await _savePostFields();
+      });
+    } catch (error) {
+      _emitSnackError(error);
+    }
+  }
+
+  Future<void> addPostAttachment(RoomPendingUpload upload) async {
+    if (state.isLive ||
+        state.isLoading ||
+        _discarded ||
+        state.postAttachments.contains(upload)) {
+      return;
+    }
+    if (state.postAttachments.length >= kMaxRoomMessageAttachments) return;
+    _postHasContent = true;
+    emit(state.copyWith(postAttachments: [...state.postAttachments, upload]));
+    _schedulePostSave();
+    try {
+      await _writePost(() async {
+        if (_discarded || isClosed) return;
+        final id = await ensureDraft(
+          context: '',
+          showMessage: false,
+          quiet: true,
+        );
+        if (id == null) return;
+        final savedId =
+            upload.attachmentId ??
+            await _case.addPostDraftAttachment(id, upload);
+        _postAttachmentIds[upload] = savedId;
+        if (!isClosed) {
+          emit(
+            state.copyWith(
+              postAttachments: [
+                for (final item in state.postAttachments)
+                  if (identical(item, upload))
+                    upload.identified(savedId)
+                  else
+                    item,
+              ],
+            ),
+          );
+        }
+      });
+    } catch (error) {
+      _emitSnackError(error);
+    }
+  }
+
+  Future<void> removePostAttachment(RoomPendingUpload upload) async {
+    try {
+      await _writePost(() async {
+        final attachmentId = upload.attachmentId ?? _postAttachmentIds[upload];
+        final id = state.draftId;
+        if (id != null && attachmentId != null) {
+          await _case.removePostDraftAttachment(id, attachmentId);
+        }
+        if (!isClosed) {
+          final remaining = state.postAttachments
+              .where(
+                (item) =>
+                    !identical(item, upload) &&
+                    (attachmentId == null || item.attachmentId != attachmentId),
+              )
+              .toList();
+          _postHasContent =
+              state.description.trim().isNotEmpty || remaining.isNotEmpty;
+          emit(state.copyWith(postAttachments: remaining));
+        }
+        _postAttachmentIds.removeWhere(
+          (item, savedId) => savedId == attachmentId,
+        );
+      });
+    } catch (error) {
+      _emitSnackError(error);
+    }
   }
 
   /// Whether a server draft exists or is being created for this Post.
@@ -1617,17 +1775,16 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
   /// Drops the Post draft (if one was created) when the user abandons the
   /// screen; navigation stays with the caller.
   Future<void> discardPost() async {
+    _discarded = true;
     _postDraftTimer?.cancel();
-    _postDraftTimer = null;
-    final inFlight = _draftCreateInFlight;
-    final id =
-        state.draftId ?? (inFlight == null ? null : await inFlight.future);
-    if (id == null || id.isEmpty) return;
     try {
-      await _case.delete(id);
-      if (!isClosed) emit(state.copyWith(draftId: null));
-    } catch (e) {
-      _emitSnackError(e);
+      await _writePost(() async {
+        final id = state.draftId;
+        if (id != null) await _case.delete(id);
+        if (!isClosed) emit(state.copyWith(draftId: null, postAttachments: []));
+      });
+    } catch (error) {
+      _emitSnackError(error);
     }
   }
 
@@ -1673,45 +1830,88 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     required List<RoomPendingUpload> attachments,
     int lifetimeHours = 72,
   }) async {
-    final postCase = _postPublishCase;
-    final recipientIds = forwardCubit.state.selectedIds;
-    if (postCase == null || (body.trim().isEmpty && attachments.isEmpty)) {
+    if (state.isLive) {
+      final id = state.draftId;
+      if (id == null) return false;
+      if (forwardCubit.state.selectedIds.every(
+        _postDeliveredRecipients.contains,
+      )) {
+        return true;
+      }
+      forwardCubit.bindBeacon(id);
+      final sent = await forwardCubit.forward();
+      if (sent) _postDeliveredRecipients.addAll(forwardCubit.state.selectedIds);
+      return sent;
+    }
+    if (body.trim().isEmpty &&
+        attachments.isEmpty &&
+        state.postAttachments.isEmpty) {
       return false;
     }
-    emit(state.copyWith(status: StateStatus.isLoading));
+    setPostBody(body);
+    setPostForwardPolicy(forwardPolicy);
+    setPostLifetime(lifetimeHours);
+    for (final upload in attachments) {
+      if (!state.postAttachments.any(
+        (item) =>
+            identical(item, upload) ||
+            (upload.attachmentId != null &&
+                item.attachmentId == upload.attachmentId),
+      )) {
+        await addPostAttachment(upload);
+      }
+    }
     try {
-      var published = _publishedPost;
-      if (published == null) {
-        final draftId =
-            state.draftId ?? await ensureDraft(context: '', showMessage: false);
-        if (draftId == null || draftId.isEmpty) return false;
-        published = await postCase.publish(
-          beaconId: draftId,
-          body: body,
+      await _writePost(
+        () => _publishSavedPost(
           mentions: mentions,
-          recipientIds: recipientIds,
+          recipientIds: forwardCubit.state.selectedIds,
           notes: forwardCubit.state.profile.showsPersonalNotes
               ? forwardCubit.state.perRecipientNotes
               : const {},
-          forwardPolicy: forwardPolicy,
-          lifetime: Duration(hours: lifetimeHours),
-        );
-        _publishedPost = published;
-        _postDraftTimer?.cancel();
-      }
-      if (!isClosed) {
-        emit(
-          state.copyWith(
-            draftId: published.beaconId,
-            isLive: true,
-            status: const StateIsSuccess(),
-          ),
-        );
-      }
-      return true;
-    } catch (e) {
-      _emitSnackError(e);
+        ),
+      );
+      return state.isLive;
+    } catch (error) {
+      _emitSnackError(error);
       return false;
+    }
+  }
+
+  Future<void> _publishSavedPost({
+    List<CommittedMention> mentions = const [],
+    Set<String> recipientIds = const {},
+    Map<String, String> notes = const {},
+  }) async {
+    if (state.isLive) return;
+    await _savePostFields();
+    final id = state.draftId;
+    if (id == null || _discarded) return;
+    if (state.postAttachments.any((upload) => upload.attachmentId == null)) {
+      throw StateError('Wait for the draft attachments to finish uploading');
+    }
+    final postCase = _postPublishCase;
+    if (postCase == null) return;
+    emit(state.copyWith(status: StateStatus.isLoading));
+    final published = await postCase.publish(
+      beaconId: id,
+      body: state.description,
+      mentions: mentions,
+      recipientIds: recipientIds,
+      notes: notes,
+      forwardPolicy: state.postForwardPolicy,
+      lifetime: Duration(hours: state.postLifetimeHours),
+    );
+    _postDeliveredRecipients.addAll(recipientIds);
+    _postDraftTimer?.cancel();
+    if (!isClosed) {
+      emit(
+        state.copyWith(
+          draftId: published.beaconId,
+          isLive: true,
+          status: const StateIsSuccess(),
+        ),
+      );
     }
   }
 
@@ -1844,6 +2044,14 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
   }
 
   Future<void> _makeLive({required String context}) async {
+    if (kind == BeaconKind.post) {
+      try {
+        await _writePost(_publishSavedPost);
+      } catch (error) {
+        _emitSnackError(error);
+      }
+      return;
+    }
     if (state.isLive) {
       return;
     }

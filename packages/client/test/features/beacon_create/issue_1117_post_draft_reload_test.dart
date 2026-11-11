@@ -14,7 +14,6 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/port/post_publish_port.dart';
 import 'package:tentura/domain/port/unsaved_changes_guard_port.dart';
 import 'package:tentura/domain/use_case/post_publish_case.dart';
-import 'package:tentura/features/beacon_create/data/service/post_create_composer_draft_store.dart';
 import 'package:tentura/features/beacon_create/ui/bloc/beacon_create_cubit.dart';
 import 'package:tentura/data/repository/clipboard_image_repository.dart';
 import 'package:tentura/data/repository/image_repository.dart';
@@ -144,7 +143,6 @@ Future<void> _pumpPostCreate(
 
 void main() {
   setUp(() {
-    clearPostCreateComposerDraft();
     GetIt.I
       ..registerSingleton<UnsavedChangesGuardPort>(UnsavedChangesGuard())
       ..registerSingleton<UiEffectPort>(FakeUiEffectPort())
@@ -156,12 +154,11 @@ void main() {
 
   tearDown(() async {
     await GetIt.I.reset();
-    clearPostCreateComposerDraft();
   });
 
-  group('issue #1117 post draft reload', () {
+  group('server Post draft reload', () {
     testWidgets(
-      'typing persists to session storage and stamps draft_id in the URL',
+      'typing saves the server body and stamps draft_id in the URL',
       (tester) async {
         final reports = <Map<Object?, Object?>>[];
         tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
@@ -198,8 +195,7 @@ void main() {
         await tester.pump(const Duration(seconds: 2));
         await tester.pumpAndSettle();
 
-        final snap = readPostCreateComposerDraft();
-        expect(snap?.body, _longRuBody);
+        expect(write.beacon.description, _longRuBody);
         expect(cubit.state.draftId, isNotNull);
 
         final draftReports = reports
@@ -216,16 +212,12 @@ void main() {
     );
 
     testWidgets(
-      'simulated reload restores long RU body from session storage',
+      'reopening restores the long RU body from the server',
       (tester) async {
-        writePostCreateComposerDraft(
-          draftId: 'server-beacon',
-          body: _longRuBody,
-        );
-
         final write = FakeBeaconWritePort(
           beacon: Beacon.empty.copyWith(
             id: 'server-beacon',
+            description: _longRuBody,
             status: BeaconStatus.draft,
             kind: BeaconKind.post,
           ),
@@ -251,7 +243,7 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.text(_longRuBody), findsWidgets);
-        expect(cubit.hasUnpersistedEdits, isTrue);
+        expect(cubit.hasUnpersistedEdits, isFalse);
       },
     );
   });

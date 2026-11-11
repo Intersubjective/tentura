@@ -205,7 +205,6 @@ Future<_Harness> _pumpPostCreate(
     postPublishCase: PostPublishCase(port),
     effects: effects,
   );
-  addTearDown(cubit.close);
   final forward = ForwardCubit(
     beaconId: '',
     embedded: true,
@@ -251,8 +250,8 @@ Future<_Harness> _pumpPostCreate(
                             BlocProvider<ScreenCubit>(
                               create: (_) => ScreenCubit(effects),
                             ),
-                            BlocProvider<BeaconCreateCubit>.value(
-                              value: cubit,
+                            BlocProvider<BeaconCreateCubit>(
+                              create: (_) => cubit,
                             ),
                             BlocProvider<ForwardCubit>.value(value: forward),
                           ],

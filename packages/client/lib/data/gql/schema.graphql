@@ -18,7 +18,18 @@ scalar _text
 """
 columns and relationships of "beacon"
 """
+type post_draft_attachment {
+  id: String!
+  kind: smallint!
+  file_name: String!
+  mime: String!
+  image: image
+}
+input post_draft_attachment_order_by { position: order_by }
+
 type beacon {
+  post_lifetime_hours: smallint
+  post_draft_attachments(order_by: [post_draft_attachment_order_by!]): [post_draft_attachment!]!
   """
   A computed field, executes function "beacon_get_access_level"
   """
@@ -3796,6 +3807,9 @@ enum invitation_update_column {
 
 """mutation root"""
 type mutation_root {
+  postUpdateDraft(id: String!, body: String!, forwardPolicy: Int!, lifetimeHours: Int): v2_Beacon!
+  postDraftAttachmentAdd(beaconId: String!, upload: v2_Upload): String!
+  postDraftAttachmentRemove(beaconId: String!, attachmentId: String!): Boolean!
   fieldHide(targetKind: Int!, targetId: String!): Boolean!
   fieldUnhide(targetKind: Int!, targetId: String!): Boolean!
   BeaconLobbyBan(beaconId: String!, userId: String!): Boolean!

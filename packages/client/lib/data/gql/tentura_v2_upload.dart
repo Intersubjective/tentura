@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'package:tentura/domain/entity/room_pending_upload.dart';
 
 /// Outbound-only model for the GraphQL `v2_Upload` input object.
 ///
@@ -12,6 +13,15 @@ class TenturaV2Upload {
     required this.mimeType,
     required this.bytes,
   });
+
+  factory TenturaV2Upload.fromPending(RoomPendingUpload upload) =>
+      switch (upload) {
+        PickedRoomUpload(:final bytes, :final fileName, :final mimeType) =>
+          TenturaV2Upload(filename: fileName, mimeType: mimeType, bytes: bytes),
+        SavedRoomUpload() => throw ArgumentError(
+          'A saved attachment cannot be uploaded again',
+        ),
+      };
 
   final String filename;
   final String mimeType;

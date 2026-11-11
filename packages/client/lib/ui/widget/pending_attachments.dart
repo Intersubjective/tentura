@@ -46,6 +46,11 @@ mixin PendingAttachmentsMixin<T extends StatefulWidget> on State<T> {
   int get remainingAttachmentSlots =>
       kMaxRoomMessageAttachments - pendingUploads.length;
 
+  void addPendingUpload(RoomPendingUpload upload) {
+    setState(() => pendingUploads.add(upload));
+    onPendingUploadsChanged();
+  }
+
   void removePendingUpload(int index) {
     setState(() => pendingUploads.removeAt(index));
     onPendingUploadsChanged();
@@ -81,11 +86,10 @@ mixin PendingAttachmentsMixin<T extends StatefulWidget> on State<T> {
       _snackTooMany();
       return;
     }
-    if (!_withinSize(upload.bytes)) {
-      return;
+    if (upload.bytes case final bytes?) {
+      if (!_withinSize(bytes)) return;
     }
-    setState(() => pendingUploads.add(upload));
-    onPendingUploadsChanged();
+    addPendingUpload(upload);
   }
 
   /// file_picker 12 dropped `PlatformFile.extension`; derive from `name`.
@@ -230,15 +234,31 @@ class PendingAttachmentPreview extends StatelessWidget {
           child: SizedBox(
             width: size,
             height: size,
-            child: Image.memory(
-              upload.bytes,
-              fit: BoxFit.cover,
-              gaplessPlayback: true,
-              errorBuilder: (_, _, _) => Icon(
-                Icons.broken_image_outlined,
-                color: theme.colorScheme.outline,
+            child: switch (upload) {
+              PickedRoomUpload(:final bytes) => Image.memory(
+                bytes,
+                fit: BoxFit.cover,
+                gaplessPlayback: true,
+                errorBuilder: (_, _, _) => Icon(
+                  Icons.broken_image_outlined,
+                  color: theme.colorScheme.outline,
+                ),
               ),
-            ),
+              SavedRoomUpload(:final imageUrl) =>
+                imageUrl == null
+                    ? Icon(
+                        Icons.broken_image_outlined,
+                        color: theme.colorScheme.outline,
+                      )
+                    : Image.network(
+                        imageUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => Icon(
+                          Icons.broken_image_outlined,
+                          color: theme.colorScheme.outline,
+                        ),
+                      ),
+            },
           ),
         ),
         if (remove != null)

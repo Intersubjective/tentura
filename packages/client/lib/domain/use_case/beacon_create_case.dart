@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
+import 'package:tentura/domain/entity/room_pending_upload.dart';
 import 'package:tentura/domain/exception/generic_exception.dart';
 import 'package:tentura/domain/port/beacon_image_port.dart';
 import 'package:tentura/domain/port/beacon_write_port.dart';
@@ -123,6 +124,12 @@ class BeaconCreateCase {
   Future<void> publishDraft(String id) => _beacons.publishDraft(id);
 
   Future<void> delete(String id) => _beacons.delete(id);
+
+  Future<String> addPostDraftAttachment(String id, RoomPendingUpload upload) =>
+      _beacons.addPostDraftAttachment(id, upload);
+
+  Future<void> removePostDraftAttachment(String id, String attachmentId) =>
+      _beacons.removePostDraftAttachment(id, attachmentId);
 
   /// Lineage fork of [sourceId] into a new server draft («Create from this
   /// request», #493): runs at the copy's first save, never on open.

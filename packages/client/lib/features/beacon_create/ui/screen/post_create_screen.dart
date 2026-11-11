@@ -10,6 +10,7 @@ import 'package:tentura/data/repository/clipboard_image_repository.dart';
 import 'package:tentura/data/repository/image_repository.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_kind.dart';
+import 'package:tentura/domain/entity/room_pending_upload.dart';
 import 'package:tentura/features/beacon_threads/domain/room_host.dart';
 import 'package:tentura/features/forward/domain/forward_target_profile.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
@@ -19,7 +20,6 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/pending_attachments.dart';
 
-import '../../data/service/post_create_composer_draft_store.dart';
 import '../bloc/beacon_create_cubit.dart';
 import 'beacon_create_screen.dart' show popCreateAndOpenLiveBeacon;
 import 'package:tentura/features/beacon_threads/ui/widget/post_root_pin_card.dart';
@@ -95,8 +95,10 @@ class _PostCreateScreenState extends State<PostCreateScreen>
   late final _textFocus = FocusNode(onKeyEvent: _onTextKey);
 
   var _onRecipientsStep = false;
-  var _forwardable = true;
-  var _lifetimeHours = 72;
+  bool get _forwardable =>
+      _createCubit.state.postForwardPolicy == BeaconForwardPolicyValue.open;
+  int get _lifetimeHours => _createCubit.state.postLifetimeHours;
+  bool _syncingComposer = false;
   var _hasContent = false;
 
   @override
@@ -107,30 +109,43 @@ class _PostCreateScreenState extends State<PostCreateScreen>
       GetIt.I<ClipboardImageRepository>();
 
   @override
-  void onPendingUploadsChanged() => _onTextOrAttachmentChanged();
+  void onPendingUploadsChanged() => _reportContent();
+
+  @override
+  void addPendingUpload(RoomPendingUpload upload) =>
+      unawaited(_createCubit.addPostAttachment(upload));
+
+  @override
+  void removePendingUpload(int index) =>
+      unawaited(_createCubit.removePostAttachment(pendingUploads[index]));
+
+  void _syncComposer(BeaconCreateState state) {
+    _syncingComposer = true;
+    if (_text.text != state.description) _text.text = state.description;
+    pendingUploads
+      ..clear()
+      ..addAll(state.postAttachments);
+    _syncingComposer = false;
+    _reportContent();
+  }
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _createCubit = context.read<BeaconCreateCubit>();
-    final snap = readPostCreateComposerDraft();
-    if (snap != null && snap.body.isNotEmpty) {
-      _text.text = snap.body;
-    }
+    _text.text = _createCubit.state.description;
+    pendingUploads.addAll(_createCubit.state.postAttachments);
     _text.addListener(_onTextOrAttachmentChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _onTextOrAttachmentChanged();
-      unawaited(_reconcileOrphanedEmptyDraft());
     });
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    // A draft not yet made must not outlive the screen.
-    _createCubit.postContentChanged(hasContent: false);
     if (GetIt.I.isRegistered<UnsavedChangesGuardPort>()) {
       GetIt.I<UnsavedChangesGuardPort>().setDirty(this, false);
     }
@@ -143,8 +158,7 @@ class _PostCreateScreenState extends State<PostCreateScreen>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.hidden && _hasContent) {
-      _persistComposerDraft();
-      unawaited(_createCubit.ensureDraft(context: '', showMessage: false));
+      unawaited(_createCubit.flushPostDraft());
     }
   }
 
@@ -171,23 +185,9 @@ class _PostCreateScreenState extends State<PostCreateScreen>
     );
   }
 
-  void _persistComposerDraft() {
-    writePostCreateComposerDraft(
-      draftId: _createCubit.state.draftId,
-      body: _text.text,
-    );
-  }
-
-  Future<void> _reconcileOrphanedEmptyDraft() async {
-    if (widget.draftId.isEmpty) return;
-    if (_text.text.trim().isNotEmpty || pendingUploads.isNotEmpty) return;
-    if (_createCubit.hasPostDraft) {
-      await _createCubit.discardPost();
-    }
-  }
-
   void _onTextOrAttachmentChanged() {
-    _persistComposerDraft();
+    if (_syncingComposer) return;
+    _createCubit.setPostBody(_text.text);
     _reportContent();
   }
 
@@ -203,7 +203,6 @@ class _PostCreateScreenState extends State<PostCreateScreen>
     final hasContent =
         _text.text.trim().isNotEmpty || pendingUploads.isNotEmpty;
     if (hasContent == _hasContent || !mounted) return;
-    _createCubit.postContentChanged(hasContent: hasContent);
     setState(() => _hasContent = hasContent);
     _updateUnsavedLeaveGuard();
   }
@@ -241,7 +240,6 @@ class _PostCreateScreenState extends State<PostCreateScreen>
       if (discard != true || !mounted) return;
     }
     if (_createCubit.hasPostDraft) await _createCubit.discardPost();
-    clearPostCreateComposerDraft();
     if (!mounted) return;
     final forward = context.read<ForwardCubit>().state;
     widget.onRecipientsChanged?.call(
@@ -272,7 +270,6 @@ class _PostCreateScreenState extends State<PostCreateScreen>
     );
     final id = cubit.state.draftId;
     if (sent && mounted && id != null) {
-      clearPostCreateComposerDraft();
       widget.onPublished?.call();
       await popCreateAndOpenLiveBeacon(context.router, beaconId: id);
     }
@@ -309,15 +306,15 @@ class _PostCreateScreenState extends State<PostCreateScreen>
               if (id != null && id.isNotEmpty) {
                 _syncDraftIdToBrowserUrl(id);
               }
-              _persistComposerDraft();
+              _syncComposer(state);
             },
           ),
           BlocListener<BeaconCreateCubit, BeaconCreateState>(
             bloc: _createCubit,
-            listenWhen: (previous, current) =>
-                previous.draftId != current.draftId ||
-                previous.isAutosaving != current.isAutosaving,
-            listener: (_, _) => _updateUnsavedLeaveGuard(),
+            listener: (_, state) {
+              setState(() => _syncComposer(state));
+              _updateUnsavedLeaveGuard();
+            },
           ),
         ],
         child: Scaffold(
@@ -492,7 +489,7 @@ class _PostCreateScreenState extends State<PostCreateScreen>
           selected: {_lifetimeHours},
           onSelectionChanged: busy
               ? null
-              : (selected) => setState(() => _lifetimeHours = selected.single),
+              : (selected) => _createCubit.setPostLifetime(selected.single),
         ),
         SizedBox(height: tt.tightGap),
         Text(
@@ -513,7 +510,11 @@ class _PostCreateScreenState extends State<PostCreateScreen>
           value: _forwardable,
           onChanged: busy
               ? null
-              : (value) => setState(() => _forwardable = value),
+              : (value) => _createCubit.setPostForwardPolicy(
+                  value
+                      ? BeaconForwardPolicyValue.open
+                      : BeaconForwardPolicyValue.closed,
+                ),
         ),
       ],
     );
