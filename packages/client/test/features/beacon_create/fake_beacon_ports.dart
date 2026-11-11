@@ -142,6 +142,8 @@ class FakeBeaconWritePort implements BeaconWritePort {
   Exception? updateDraftError;
   Exception? updateError;
   Exception? publishError;
+  Exception? addAttachmentError;
+  Exception? deleteError;
 
   /// When set, [create] waits until this completes (overlapping create tests).
   Completer<void>? createHold;
@@ -214,7 +216,10 @@ class FakeBeaconWritePort implements BeaconWritePort {
   Future<String> addPostDraftAttachment(
     String beaconId,
     RoomPendingUpload upload,
-  ) async => 'attachment-${_attachmentSequence++}';
+  ) async {
+    if (addAttachmentError != null) throw addAttachmentError!;
+    return 'attachment-${_attachmentSequence++}';
+  }
 
   @override
   Future<void> removePostDraftAttachment(
@@ -229,7 +234,10 @@ class FakeBeaconWritePort implements BeaconWritePort {
   }
 
   @override
-  Future<void> delete(String id) async => deletedIds.add(id);
+  Future<void> delete(String id) async {
+    if (deleteError != null) throw deleteError!;
+    deletedIds.add(id);
+  }
 
   /// Lineage fork; only the «Create from this request» tests use it, through
   /// `ForkingBeaconWritePort`.

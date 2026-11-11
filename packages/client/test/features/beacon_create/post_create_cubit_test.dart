@@ -223,6 +223,33 @@ void main() {
     );
   });
 
+  group('Post draft failures', () {
+    test('a failed attachment save drops the upload so Send and Keep stay usable', () async {
+      write.addAttachmentError = Exception('upload failed');
+      final upload = _file('a.png');
+
+      await cubit.addPostAttachment(upload);
+
+      expect(cubit.state.postAttachments, isEmpty);
+      write.addAttachmentError = null;
+      await cubit.addPostAttachment(upload);
+      expect(cubit.state.postAttachments.single.attachmentId, isNotNull);
+    });
+
+    test('a failed discard keeps the open composer saving its draft', () async {
+      await cubit.ensureDraft(context: '', showMessage: false);
+      write.deleteError = Exception('delete failed');
+
+      await cubit.discardPost();
+      write.deleteError = null;
+      await cubit.addPostAttachment(_file('b.png'));
+
+      expect(cubit.state.draftId, 'server-beacon');
+      expect(cubit.state.postAttachments.single.attachmentId, isNotNull,
+          reason: 'persistence is not disabled by the failed discard');
+    });
+  });
+
   group('publishPost', () {
     test(
       'calls postPublish once with recipients, notes, policy and body',

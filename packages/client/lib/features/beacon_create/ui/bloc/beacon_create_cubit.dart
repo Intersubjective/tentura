@@ -1735,6 +1735,16 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
         }
       });
     } catch (error) {
+      // A failed save leaves the upload without a server id, which would
+      // block Send and Keep for good: drop it so the user can pick it again.
+      if (!isClosed) {
+        final remaining = state.postAttachments
+            .where((item) => !identical(item, upload))
+            .toList();
+        _postHasContent =
+            state.description.trim().isNotEmpty || remaining.isNotEmpty;
+        emit(state.copyWith(postAttachments: remaining));
+      }
       _emitSnackError(error);
     }
   }
@@ -1775,6 +1785,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
   /// Drops the Post draft (if one was created) when the user abandons the
   /// screen; navigation stays with the caller.
   Future<void> discardPost() async {
+    final wasDiscarded = _discarded;
     _discarded = true;
     _postDraftTimer?.cancel();
     try {
@@ -1784,6 +1795,9 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
         if (!isClosed) emit(state.copyWith(draftId: null, postAttachments: []));
       });
     } catch (error) {
+      // The draft is still on the server: the open composer keeps saving it,
+      // and Keep still has the newer edits to persist.
+      _discarded = wasDiscarded;
       _emitSnackError(error);
     }
   }
