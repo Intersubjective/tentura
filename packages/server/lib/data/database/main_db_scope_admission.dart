@@ -53,7 +53,10 @@ final class MainDbScopeAdmission {
     this.fullDeadline = const Duration(seconds: 1),
     this.retryAfter = const Duration(seconds: 2),
     this.enforceReentryGuard = true,
-  });
+    Stopwatch? clock,
+    Timer Function(Duration, void Function())? createTimer,
+  }) : _clock = clock ?? (Stopwatch()..start()),
+       _createTimer = createTimer ?? Timer.new;
 
   final int maxConcurrent;
   final int maxQueued;
@@ -72,7 +75,10 @@ final class MainDbScopeAdmission {
   final bool enforceReentryGuard;
   final Object _slotZoneKey = Object();
   final _waiting = Queue<_AdmissionWaiter>();
-  final _clock = Stopwatch()..start();
+  // Both time sources are injectable so contention tests can hold deadlines
+  // without changing the admission budgets or depending on runner speed.
+  final Stopwatch _clock;
+  final Timer Function(Duration, void Function()) _createTimer;
   final _actors = <String, int>{};
   int _running = 0;
   int _heavy = 0;
@@ -128,7 +134,7 @@ final class MainDbScopeAdmission {
         tags: {'work.class': workClass ?? kind.name},
       )
       ..refuse = result.completeError
-      ..timer = Timer(budget, () => _expire(waiter))
+      ..timer = _createTimer(budget, () => _expire(waiter))
       ..start = () => zone.run(() async {
         final slot = _HeldSlot();
         try {

@@ -1,6 +1,7 @@
 @Tags(['pg'])
 library;
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:injectable/injectable.dart' show Environment;
@@ -48,6 +49,7 @@ import '../../support/fake_user_block_repository.dart';
 import '../../support/pg_test_public_keys.dart';
 
 import '../../support/disposable_pg_target.dart';
+import '../../support/pg_wait.dart';
 
 Future<void> main() async {
   final target = DisposablePgTarget.fromNamedEnvironment(
@@ -62,7 +64,7 @@ Future<void> main() async {
   group('room now line write path', () {
     late Connection writer;
     late TenturaDb database;
-    late BeaconRoomRepository roomRepo;
+    late _GatedRoomRepository roomRepo;
     late CoordinationItemRepository items;
     late BeaconRoomCase roomCase;
     late AttentionDispatchRepository dispatch;
@@ -80,7 +82,7 @@ Future<void> main() async {
       await writer.execute('SET check_function_bodies = false');
       await migrateDbSchema(writer);
       database = TenturaDb(target.databaseEnv);
-      roomRepo = BeaconRoomRepository(database);
+      roomRepo = _GatedRoomRepository(database);
       items = CoordinationItemRepository(database);
       dispatch = AttentionDispatchRepository(
         database,
@@ -483,7 +485,20 @@ SELECT count(*)::int AS c FROM public.attention_occurrence
       test(
         'two concurrent first saves: exactly one wins',
         () async {
-          final results = await Future.wait([
+          expect(await roomRepo.getBeaconRoomState(beaconId), isNull);
+          final bothEntered = Completer<void>();
+          final release = Completer<void>();
+          final transactions = <int>{};
+          roomRepo.beforeLock = () async {
+            expect(database.isInAmbientMutatingTransaction, isTrue);
+            final row = await database
+                .customSelect('SELECT txid_current() AS tx')
+                .getSingle();
+            transactions.add(row.read<int>('tx'));
+            if (transactions.length == 2) bothEntered.complete();
+            await release.future;
+          };
+          final saves = Future.wait([
             for (final (user, text) in [
               (authorId, 'AUTHOR first'),
               (memberId, 'NINA first'),
@@ -495,12 +510,18 @@ SELECT count(*)::int AS c FROM public.attention_occurrence
                     text: text,
                     baseRevision: 0,
                   )
-                  .then<Object>((row) => row)
-                  .catchError(
-                    (Object e) => e,
-                    test: (e) => e is BeaconRoomNowLineConflictException,
-                  ),
+                  .then<Object>((row) => row, onError: (Object e) => e),
           ]);
+          try {
+            await bothEntered.future.timeout(kStableStateWait);
+            expect(transactions, hasLength(2));
+            expect(await roomRepo.getBeaconRoomState(beaconId), isNull);
+          } finally {
+            release.complete();
+            await saves.timeout(kCompletionWait);
+            roomRepo.beforeLock = null;
+          }
+          final results = await saves;
           final wins = results.whereType<Map<String, Object?>>().toList();
           final refusals = results
               .whereType<BeaconRoomNowLineConflictException>()
@@ -508,6 +529,7 @@ SELECT count(*)::int AS c FROM public.attention_occurrence
           expect(wins, hasLength(1));
           expect(refusals, hasLength(1));
           expect(refusals.single.currentLine, wins.single['currentLine']);
+          expect(refusals.single.currentRevision, 1);
           final state = await roomRepo.getBeaconRoomState(beaconId);
           expect(state?.currentLine, wins.single['currentLine']);
           expect(state?.currentLineRevision, 1);
@@ -794,4 +816,19 @@ class _PgFakeUploadQuota extends Fake implements UploadQuotaRepositoryPort {
     required int bytes,
     required int dailyCapBytes,
   }) async => true;
+}
+
+// Gates the real repository at the transaction boundary, before its first
+// missing-row lock. No database operation or conflict handling is replaced.
+final class _GatedRoomRepository extends BeaconRoomRepository {
+  _GatedRoomRepository(this.database) : super(database);
+
+  final TenturaDb database;
+  Future<void> Function()? beforeLock;
+
+  @override
+  Future<String> lockCurrentLine(String beaconId) async {
+    await beforeLock?.call();
+    return super.lockCurrentLine(beaconId);
+  }
 }

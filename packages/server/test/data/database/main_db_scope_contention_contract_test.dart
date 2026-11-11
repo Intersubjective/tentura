@@ -7,6 +7,7 @@ import 'dart:io';
 import 'package:injectable/injectable.dart' show Environment;
 import 'package:postgres/postgres.dart';
 import 'package:tentura_server/data/database/main_db_pool.dart';
+import 'package:tentura_server/data/database/main_db_scope_admission.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
 import 'package:tentura_server/data/repository/constellation_anchor_repository.dart';
@@ -336,33 +337,60 @@ Future<void> main() async {
       );
 
       test('one actor cannot monopolize the shared waiting budget', () async {
+        // Freeze both the elapsed clock and deadline callbacks. Real database
+        // I/O still runs normally; only admission time is controlled here.
+        final timers = <_HeldTimer>[];
+        await harness.close();
+        harness = _Harness(
+          target.databaseEnv,
+          session.writer,
+          admission: MainDbScopeAdmission(
+            maxConcurrent: _slots,
+            clock: Stopwatch(),
+            createTimer: (duration, callback) {
+              expect(duration, const Duration(milliseconds: 250));
+              final timer = _HeldTimer();
+              timers.add(timer);
+              return timer;
+            },
+          ),
+        );
         final held = await harness.holdSlots();
         final flood = [
           for (var index = 0; index < 16; index++)
             _observe(harness.write(index, 'flooding-actor')),
         ];
         final otherActor = _observe(harness.write(1000, 'other-actor'));
-        var actorRefusals = 0;
-        var otherActorAdmitted = false;
         try {
-          await Future<void>.delayed(const Duration(milliseconds: 100));
-          actorRefusals = flood.where(_isRefused).length;
-          held.releaseOne();
-          otherActorAdmitted = await _completesWithin(
-            otherActor.done,
-            _interactiveObservation,
+          // A microtask barrier observes immediate refusals without waiting for
+          // a wall-clock deadline or releasing any connection holder.
+          await Future<void>.microtask(() {});
+          expect(
+            flood.where(_isRetryLater),
+            hasLength(12),
+            reason: 'Per-actor admission must refuse exactly twelve writes.',
           );
+          expect(harness.pool.admission.running, _slots);
+          expect(
+            harness.pool.admission.queued,
+            5,
+            reason: 'The other actor must have its own queued place.',
+          );
+          expect(otherActor.completed, isFalse);
         } finally {
           held.releaseAll();
           await _drain([...held.outcomes, ...flood, otherActor]);
         }
-        expect(
-          actorRefusals,
-          greaterThan(0),
-          reason: 'Seventeen requests do not fill the global 32-waiter limit.',
-        );
-        expect(otherActorAdmitted, isTrue);
         _expectSuccess(otherActor);
+        expect(
+          await session.writer.execute(
+            'SELECT actor FROM public.main_scope_contract_probe WHERE job = 1000',
+          ),
+          [
+            equals(['other-actor']),
+          ],
+        );
+        expect(timers.every((timer) => !timer.isActive), isTrue);
       });
 
       test(
@@ -486,10 +514,12 @@ Future<void> _waitForGenerationLock(
 }
 
 final class _Harness {
-  _Harness(Env postgres, this.writer)
+  _Harness(Env postgres, this.writer, {MainDbScopeAdmission? admission})
     : mainEnv = _PoolEnv(postgres, _slots),
       authEnv = _PoolEnv(postgres, 1) {
-    pool = MainDbPool(mainEnv);
+    pool = admission == null
+        ? MainDbPool(mainEnv)
+        : MainDbPool.withAdmission(mainEnv, admission);
     readerDb = TenturaDb.scoped(pool);
     writerDb = TenturaDb.scoped(pool);
     anchorDb = TenturaDb.scoped(pool);
@@ -652,7 +682,6 @@ final class _HeldSlots {
   const _HeldSlots(this.releases, this.outcomes);
   final List<Completer<void>> releases;
   final List<_Outcome> outcomes;
-  void releaseOne() => _release(releases.first);
   void releaseAll() => releases.forEach(_release);
 }
 
@@ -765,3 +794,30 @@ final class _EmptyProfiles implements UserProfileBatchLookup {
     Map<String, MutualScoreRecord> scoresByPeerId = const {},
   }) async => {};
 }
+
+// Admission deadlines remain pending until cancellation on start/close. This
+// test never advances admission time; pool and PostgreSQL timers stay real.
+final class _HeldTimer implements Timer {
+  bool _active = true;
+
+  @override
+  bool get isActive => _active;
+
+  @override
+  int get tick => 0;
+
+  @override
+  void cancel() => _active = false;
+}
+
+bool _isRetryLater(_Outcome outcome) =>
+    outcome.completed &&
+    switch (outcome.error) {
+      ConstellationException(
+        code: ConstellationExceptionCodes(
+          exceptionCode: ConstellationExceptionCode.retryLater,
+        ),
+      ) =>
+        true,
+      _ => false,
+    };

@@ -12,6 +12,10 @@ final class MainDbPool {
   @factoryMethod
   MainDbPool(Env env) : this._(env, env.pgPoolSettings);
 
+  /// Uses the real pool with an explicitly controlled admission policy.
+  MainDbPool.withAdmission(Env env, MainDbScopeAdmission admission)
+    : this._(env, env.pgPoolSettings, admission: admission);
+
   MainDbPool.auth(Env env)
     : this._(
         env,
@@ -25,21 +29,26 @@ final class MainDbPool {
         ),
       );
 
-  MainDbPool._(Env env, PoolSettings settings)
-    : _endpoint = env.pgEndpoint,
-      _controlSettings = env.pgEndpointSettings,
-      statementTimeout = Duration(milliseconds: env.pgStatementTimeoutMs),
-      logStatements = env.isDebugModeOn,
-      enforceGuards = env.isDebugModeOn || env.environment == Environment.test,
-      pool = Pool<dynamic>.withEndpoints(
-        [env.pgEndpoint],
-        settings: settings,
-      ),
-      admission = MainDbScopeAdmission(
-        maxConcurrent: settings.maxConnectionCount ?? 4,
-        enforceReentryGuard:
-            env.isDebugModeOn || env.environment == Environment.test,
-      );
+  MainDbPool._(
+    Env env,
+    PoolSettings settings, {
+    MainDbScopeAdmission? admission,
+  }) : _endpoint = env.pgEndpoint,
+       _controlSettings = env.pgEndpointSettings,
+       statementTimeout = Duration(milliseconds: env.pgStatementTimeoutMs),
+       logStatements = env.isDebugModeOn,
+       enforceGuards = env.isDebugModeOn || env.environment == Environment.test,
+       pool = Pool<dynamic>.withEndpoints(
+         [env.pgEndpoint],
+         settings: settings,
+       ),
+       admission =
+           admission ??
+           MainDbScopeAdmission(
+             maxConcurrent: settings.maxConnectionCount ?? 4,
+             enforceReentryGuard:
+                 env.isDebugModeOn || env.environment == Environment.test,
+           );
 
   final bool logStatements;
 
