@@ -75,7 +75,13 @@ final class ProfileViewCase extends UseCaseBase {
       () async {
         try {
           subjectiveTags = await _capabilities.fetchSubjectiveTags(profileId);
-        } catch (_) {
+        } on Object catch (error, stackTrace) {
+          logger.fine(
+            'ProfileViewCase.load: fetchSubjectiveTags failed, '
+            'falling back to empty',
+            error,
+            stackTrace,
+          );
           // Non-critical: witness projection is best-effort enhancement.
         }
       }(),
@@ -84,7 +90,13 @@ final class ProfileViewCase extends UseCaseBase {
           sharedContexts = await _sharedContexts.fetchSharedContexts(
             profileId,
           );
-        } catch (_) {
+        } on Object catch (error, stackTrace) {
+          logger.fine(
+            'ProfileViewCase.load: fetchSharedContexts failed, '
+            'falling back to empty',
+            error,
+            stackTrace,
+          );
           // Non-critical: co-participant bond line is best-effort enhancement.
         }
       }(),

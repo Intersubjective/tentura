@@ -54,6 +54,36 @@ void main() {
       expect(snapshot.profile.displayName, 'Peer');
       expect(snapshot.sharedContexts, isEmpty);
     });
+
+    test('failing fetches fall back to empty and log at FINE', () async {
+      final tagsError = StateError('tags boom');
+      final contextsError = StateError('contexts boom');
+      harness
+        ..capabilities.subjectiveTagsError = tagsError
+        ..sharedContexts.error = contextsError;
+      final previousLevel = Logger.root.level;
+      Logger.root.level = Level.ALL;
+      addTearDown(() => Logger.root.level = previousLevel);
+      final records = <LogRecord>[];
+      final sub = Logger.root.onRecord.listen(records.add);
+      addTearDown(sub.cancel);
+
+      final snapshot = await harness.case_.load('U-target');
+
+      expect(snapshot.subjectiveTags, isEmpty);
+      expect(snapshot.sharedContexts, isEmpty);
+      final loadRecords = records
+          .where((r) => r.loggerName == 'test')
+          .where((r) => r.message.startsWith('ProfileViewCase.load'))
+          .toList();
+      expect(loadRecords, hasLength(2));
+      expect(loadRecords.map((r) => r.level), everyElement(Level.FINE));
+      expect(
+        loadRecords.map((r) => r.error),
+        containsAll([tagsError, contextsError]),
+      );
+      expect(loadRecords.map((r) => r.stackTrace), everyElement(isNotNull));
+    });
   });
 
   group('ProfileViewCase authoritative relationship mutations', () {
@@ -312,9 +342,13 @@ final class _FakeCapabilityRepository implements CapabilityRepositoryPort {
   Future<PersonCapabilityCues> fetchCues(String subjectId) async =>
       PersonCapabilityCues.empty;
 
+  Error? subjectiveTagsError;
+
   @override
-  Future<List<TagProjection>> fetchSubjectiveTags(String targetId) async =>
-      const [];
+  Future<List<TagProjection>> fetchSubjectiveTags(String targetId) async {
+    if (subjectiveTagsError case final error?) throw error;
+    return const [];
+  }
 
   @override
   Future<void> dispose() => _changes.close();
