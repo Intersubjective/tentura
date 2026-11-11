@@ -95,6 +95,7 @@ class _PostCreateScreenState extends State<PostCreateScreen>
   late final _textFocus = FocusNode(onKeyEvent: _onTextKey);
 
   var _onRecipientsStep = false;
+  var _draftEnsuring = false;
   bool get _forwardable =>
       _createCubit.state.postForwardPolicy == BeaconForwardPolicyValue.open;
   int get _lifetimeHours => _createCubit.state.postLifetimeHours;
@@ -222,6 +223,19 @@ class _PostCreateScreenState extends State<PostCreateScreen>
     if (!_hasContent) return;
     _textFocus.unfocus();
     setState(() => _onRecipientsStep = true);
+    unawaited(_prepareRecipients());
+  }
+
+  /// The picker needs the server draft's id: save now, and let a late answer
+  /// still open the picker.
+  Future<void> _prepareRecipients() async {
+    if (_draftEnsuring) return;
+    setState(() => _draftEnsuring = true);
+    try {
+      await _createCubit.flushPostDraft();
+    } finally {
+      if (mounted) setState(() => _draftEnsuring = false);
+    }
   }
 
   void _showForm() => setState(() => _onRecipientsStep = false);
@@ -307,6 +321,17 @@ class _PostCreateScreenState extends State<PostCreateScreen>
                 _syncDraftIdToBrowserUrl(id);
               }
               _syncComposer(state);
+            },
+          ),
+          BlocListener<BeaconCreateCubit, BeaconCreateState>(
+            bloc: _createCubit,
+            listenWhen: (previous, current) =>
+                previous.draftId != current.draftId,
+            listener: (context, state) {
+              final id = state.draftId;
+              if (id != null && id.isNotEmpty) {
+                context.read<ForwardCubit>().bindBeacon(id);
+              }
             },
           ),
           BlocListener<BeaconCreateCubit, BeaconCreateState>(
@@ -524,27 +549,57 @@ class _PostCreateScreenState extends State<PostCreateScreen>
     BuildContext context,
     L10n l10n, {
     required bool busy,
-  }) => Padding(
-    padding: EdgeInsets.symmetric(horizontal: context.tt.screenHPadding),
-    child: BlocSelector<ForwardCubit, ForwardState, bool>(
-      selector: (state) => state.selectedIds.isNotEmpty,
-      builder: (context, hasRecipients) => ForwardRecipientPicker(
-        beaconId: '',
-        embedded: true,
-        sendEnabled: hasRecipients && !busy,
-        externalActionLoading: busy,
-        sendLabel: l10n.postCreateSendToCount,
-        promptUncoveredNotes: false,
-        copyProfile: ForwardTargetProfile.post,
-        recipientNoteHint: l10n.beaconCreateRecipientNoteHint,
-        onSendPressed: () => unawaited(_send()),
-        header: PostRootDraftPreviewCard(
-          excerpt: _text.text.trim(),
-          onTap: _showForm,
+  }) {
+    final draftId = _createCubit.state.draftId;
+    if (draftId == null || draftId.isEmpty) {
+      final muted = TenturaText.bodySmall(context.tt.textMuted);
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: _draftEnsuring
+              ? [
+                  const TenturaCircularProgress(adaptive: true),
+                  SizedBox(height: context.tt.rowGap),
+                  Text(l10n.beaconRecipientsPreparing, style: muted),
+                ]
+              : [
+                  Text(
+                    l10n.beaconRecipientsPrepareFailed,
+                    style: muted,
+                    textAlign: TextAlign.center,
+                  ),
+                  SizedBox(height: context.tt.rowGap),
+                  TenturaCommandButton(
+                    label: l10n.myWorkRetry,
+                    onPressed: () => unawaited(_prepareRecipients()),
+                  ),
+                ],
+        ),
+      );
+    }
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: context.tt.screenHPadding),
+      child: BlocSelector<ForwardCubit, ForwardState, bool>(
+        selector: (state) => state.selectedIds.isNotEmpty,
+        builder: (context, hasRecipients) => ForwardRecipientPicker(
+          beaconId: draftId,
+          isLive: _createCubit.state.isLive,
+          embedded: true,
+          sendEnabled: hasRecipients && !busy,
+          externalActionLoading: busy,
+          sendLabel: l10n.postCreateSendToCount,
+          promptUncoveredNotes: false,
+          copyProfile: ForwardTargetProfile.post,
+          recipientNoteHint: l10n.beaconCreateRecipientNoteHint,
+          onSendPressed: () => unawaited(_send()),
+          header: PostRootDraftPreviewCard(
+            excerpt: _text.text.trim(),
+            onTap: _showForm,
+          ),
         ),
       ),
-    ),
-  );
+    );
+  }
 
   /// «Далее: получатели», sitting in the form's column like the Request form.
   Widget _nextBar(BuildContext context, L10n l10n) {

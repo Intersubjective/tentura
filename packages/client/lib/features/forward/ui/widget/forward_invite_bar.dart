@@ -4,13 +4,11 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
-/// Pinned "invite new person" / "clear selection" affordance shown above
-/// the forward tab content.
+/// Pinned "invite new person" affordance shown above the forward tab
+/// content.
 ///
-/// While nothing is selected it offers the invite action; once at least
-/// one recipient is picked, it swaps in place to a "clear selection"
-/// action instead of coexisting with it, so the row always carries a
-/// single, high-visibility affordance rather than two competing ones.
+/// Inviting stays available once recipients are picked (the invite leaves the
+/// selection intact); a compact "clear selection" icon joins it then.
 class ForwardInviteBar extends StatelessWidget {
   const ForwardInviteBar({
     required this.hasSelection,
@@ -30,9 +28,6 @@ class ForwardInviteBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final tt = context.tt;
     final l10n = L10n.of(context)!;
-    final testId = hasSelection
-        ? TestIds.forwardClearSelection
-        : TestIds.forwardInviteNewPerson;
 
     return Padding(
       padding: EdgeInsets.fromLTRB(
@@ -41,22 +36,31 @@ class ForwardInviteBar extends StatelessWidget {
         tt.screenHPadding,
         tt.rowGap,
       ),
-      child: Align(
-        alignment: Alignment.centerLeft,
-        child: Semantics(
-          identifier: testId,
-          button: true,
-          child: TenturaCommandButton(
-            key: TestIds.key(testId),
-            label: hasSelection
-                ? l10n.forwardClearSelection
-                : l10n.forwardInviteNewPerson,
-            icon: Icon(
-              hasSelection ? Icons.deselect : Icons.person_add_alt_1_outlined,
+      child: Row(
+        children: [
+          Flexible(
+            child: Semantics(
+              identifier: TestIds.forwardInviteNewPerson,
+              button: true,
+              child: TenturaCommandButton(
+                key: TestIds.key(TestIds.forwardInviteNewPerson),
+                label: l10n.forwardInviteNewPerson,
+                icon: const Icon(Icons.person_add_alt_1_outlined),
+                onPressed: onInvite,
+              ),
             ),
-            onPressed: hasSelection ? onClearSelection : onInvite,
           ),
-        ),
+          if (hasSelection)
+            Semantics(
+              identifier: TestIds.forwardClearSelection,
+              child: IconButton(
+                key: TestIds.key(TestIds.forwardClearSelection),
+                tooltip: l10n.forwardClearSelection,
+                icon: const Icon(Icons.deselect),
+                onPressed: onClearSelection,
+              ),
+            ),
+        ],
       ),
     );
   }

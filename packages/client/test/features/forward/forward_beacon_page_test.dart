@@ -502,7 +502,7 @@ void main() {
   });
 
   testWidgets(
-    'invite bar swaps to clear-selection once a recipient is picked',
+    'invite bar keeps Invite new person and adds clear-selection once a recipient is picked',
     (
       tester,
     ) async {
@@ -514,19 +514,19 @@ void main() {
 
       await _pumpForwardPage(tester, cubit: cubit);
       expect(find.text('Invite new person'), findsOneWidget);
-      expect(find.text('Clear selection'), findsNothing);
+      expect(find.byTooltip('Clear selection'), findsNothing);
 
       cubit.toggleSelection('u1');
       await tester.pumpAndSettle();
 
-      expect(find.text('Invite new person'), findsNothing);
-      expect(find.text('Clear selection'), findsOneWidget);
+      expect(find.text('Invite new person'), findsOneWidget);
+      expect(find.byTooltip('Clear selection'), findsOneWidget);
 
-      await tester.tap(find.text('Clear selection'));
+      await tester.tap(find.byTooltip('Clear selection'));
       await tester.pumpAndSettle();
 
       expect(find.text('Invite new person'), findsOneWidget);
-      expect(find.text('Clear selection'), findsNothing);
+      expect(find.byTooltip('Clear selection'), findsNothing);
       expect(cubit.state.selectedIds, isEmpty);
     },
   );

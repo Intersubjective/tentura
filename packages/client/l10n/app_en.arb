@@ -572,6 +572,14 @@
   "@beaconCreateInviteMakeLiveConfirmBody": {
     "description": "Body for the make-live confirm when starting the invite flow from a draft on the recipients step."
   },
+  "beaconCreateInvitePostMakeLiveConfirmTitle": "Publish this post?",
+  "@beaconCreateInvitePostMakeLiveConfirmTitle": {
+    "description": "Title before make-live when inviting someone new from the new-Post recipients step on a draft."
+  },
+  "beaconCreateInvitePostMakeLiveConfirmBody": "Inviting someone who is not on Tentura yet requires a live post. It will be published without sending to anyone you select on this step.",
+  "@beaconCreateInvitePostMakeLiveConfirmBody": {
+    "description": "Body for the make-live confirm when starting the invite flow from a Post draft on the recipients step."
+  },
   "liveRequestTitle": "Live request",
   "@liveRequestTitle": {
     "context": "BeaconCreateScreen"

@@ -1,12 +1,5 @@
-// #252 (ichorid 2026-11-02): a member with no contacts writes a new Post and
-// reaches «Получатели»: the picker said «Пока некому отправить» with the
-// trust hint but offered no invite, so the member was stuck with a written
-// message, and the «Пока не видели 0 / Уже в цепочке 0» tab row was noise.
-// Now the embedded new-Post picker's empty state offers «Пригласить
-// знакомого», which opens the invite-link dialog over the composer (the draft
-// stays), and the tab row is hidden while there is no one at all. The
-// Request forward picker keeps its empty state and «Invite new person» chip;
-// with some contacts the tabs still show.
+// A Post with no contacts must publish before creating a Post-bound invite.
+// Cancelling that confirmation returns to the unchanged draft composer.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -22,6 +15,8 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/domain/entity/invitation_entity.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/domain/port/post_publish_port.dart';
+import 'package:tentura/domain/use_case/post_publish_case.dart';
 import 'package:tentura/features/beacon_create/ui/bloc/beacon_create_cubit.dart';
 import 'package:tentura/features/beacon_create/ui/screen/post_create_screen.dart';
 import 'package:tentura/features/forward/domain/entity/forward_candidate.dart';
@@ -68,6 +63,26 @@ class _PresenceCubit extends Mock implements PresenceCubit {
 
   @override
   Stream<Map<String, UserPresenceStatus>> get stream => const Stream.empty();
+}
+
+class _RecordingPostPublishPort implements PostPublishPort {
+  final published = <String>[];
+
+  @override
+  Future<PostPublishResult> postPublish({
+    required String beaconId,
+    required String body,
+    required List<String> mentionUserIds,
+    required List<int> mentionOffsets,
+    required List<int> mentionLengths,
+    required List<String> recipientIds,
+    required Map<String, String> notes,
+    required BeaconForwardPolicyValue forwardPolicy,
+    Duration? lifetime,
+  }) async {
+    published.add(beaconId);
+    return PostPublishResult(beaconId: beaconId, rootMessageId: 'root-1');
+  }
 }
 
 class _NoClipboard extends Fake implements ClipboardImageRepository {}
@@ -170,7 +185,13 @@ const _clara = ForwardCandidate(
 
 /// The new-Post composer, opened over a home route, on its recipients step
 /// with [_draft] written.
-Future<({_FakeInvitationRepository invitations, _NavRouter router})>
+Future<
+  ({
+    _FakeInvitationRepository invitations,
+    _NavRouter router,
+    _RecordingPostPublishPort publishes,
+  })
+>
 _pumpPostRecipients(
   WidgetTester tester, {
   required Locale locale,
@@ -190,9 +211,11 @@ _pumpPostRecipients(
     ..registerSingleton<ClipboardImageRepository>(_NoClipboard())
     ..registerSingleton<InvitationRepository>(invitations);
 
+  final publishes = _RecordingPostPublishPort();
   final cubit = BeaconCreateCubit(
     kind: BeaconKind.post,
     beaconCreateCase: fakeBeaconCreateCase(),
+    postPublishCase: PostPublishCase(publishes),
     effects: effects,
   );
   final forward = ForwardCubit(
@@ -262,10 +285,13 @@ _pumpPostRecipients(
 
   await tester.enterText(find.byKey(PostCreateScreen.textFieldKey), _draft);
   await _settle(tester);
+  // The recipients step waits for the saved Post, so save it first.
+  await cubit.flushPostDraft();
+  await _settle(tester);
   await tester.tap(find.byKey(PostCreateScreen.nextButtonKey));
   await _settle(tester);
   expect(find.byType(ForwardRecipientPicker), findsOneWidget);
-  return (invitations: invitations, router: router);
+  return (invitations: invitations, router: router, publishes: publishes);
 }
 
 Finder _invite(L10n l10n) => find.text(l10n.emptyInviteSomeoneAction);
@@ -290,51 +316,93 @@ void main() {
         expect(tester.takeException(), isNull);
       });
 
-      testWidgets('$tag: the invite opens the invite link over the composer; '
-          'back returns to it with the draft unchanged', (tester) async {
-        final h = await _pumpPostRecipients(
-          tester,
-          locale: locale,
-          size: size.value,
-        );
+      testWidgets(
+        '$tag: the empty Post picker asks to publish before inviting; '
+        'cancel returns to the unchanged draft',
+        (tester) async {
+          final h = await _pumpPostRecipients(
+            tester,
+            locale: locale,
+            size: size.value,
+          );
+          final create = tester
+              .element(find.byType(PostCreateScreen))
+              .read<BeaconCreateCubit>();
+          await create.flushPostDraft();
+          await _settle(tester);
+          expect(create.state.draftId, isNotEmpty);
 
-        await tester.ensureVisible(_invite(l10n));
-        await tester.tap(_invite(l10n));
-        await tester.pumpAndSettle();
+          await tester.ensureVisible(_invite(l10n));
+          await tester.tap(_invite(l10n));
+          await _settle(tester);
 
-        // The existing invite-link dialog, a plain invite (no request).
-        expect(find.byType(ShareCodeDialog), findsOneWidget);
-        expect(find.text(l10n.labelInvitationCode), findsOneWidget);
-        expect(h.invitations.created, [null]);
-        // Over the composer: nothing navigated, the composer is mounted.
-        expect(h.router.calls, isEmpty);
-        expect(find.byType(PostCreateScreen, skipOffstage: false), findsOne);
+          expect(
+            find.byType(TenturaConfirmDialog),
+            findsOneWidget,
+            reason: 'A new person joins this Post, so publishing needs consent',
+          );
+          expect(find.text(l10n.beaconMakeLiveWithoutSending), findsOneWidget);
+          final prompt = tester.widget<TenturaConfirmDialog>(
+            find.byType(TenturaConfirmDialog),
+          );
+          // A whole word «пост»/«post» (not «постоянный»), never «запрос».
+          final post = RegExp(
+            locale.languageCode == 'ru'
+                ? r'(^|[^а-яё])пост(а|у|ом|е|ы|ов)?([^а-яё]|$)'
+                : r'\bposts?\b',
+          );
+          final request = locale.languageCode == 'ru' ? 'запрос' : 'request';
+          for (final text in [prompt.title, prompt.content]) {
+            expect(text.toLowerCase(), matches(post));
+            expect(text.toLowerCase(), isNot(contains(request)));
+          }
+          expect(
+            prompt.title,
+            isNot(l10n.beaconCreateInviteMakeLiveConfirmTitle),
+            reason: 'The Post title must be its own copy, not the Request one',
+          );
+          expect(
+            prompt.content,
+            isNot(l10n.beaconCreateInviteMakeLiveConfirmBody),
+            reason: 'The Post body must be its own copy, not the Request one',
+          );
+          expect(find.byType(ShareCodeDialog), findsNothing);
+          expect(h.invitations.created, isEmpty);
+          expect(h.router.calls, isEmpty);
+          final dialogContext = tester.element(
+            find.byType(TenturaConfirmDialog),
+          );
+          await tester.tap(
+            find.text(
+              MaterialLocalizations.of(dialogContext).cancelButtonLabel,
+            ),
+          );
+          await _settle(tester);
+          expect(create.state.isLive, isFalse);
+          expect(h.publishes.published, isEmpty);
+          expect(h.invitations.created, isEmpty);
+          expect(find.byType(ForwardRecipientPicker), findsOneWidget);
+          expect(find.text(l10n.forwardEmptyNoContactsTitle), findsOneWidget);
+          expect(h.router.calls, isEmpty);
 
-        // Back closes the dialog only.
-        await tester.binding.handlePopRoute();
-        await tester.pumpAndSettle();
-        expect(find.byType(ShareCodeDialog), findsNothing);
-        expect(find.byType(ForwardRecipientPicker), findsOneWidget);
-        expect(find.text(l10n.forwardEmptyNoContactsTitle), findsOneWidget);
-        expect(h.router.calls, isEmpty);
-
-        // The Post step still holds the text as written.
-        await tester.tap(
-          find.descendant(
-            of: find.byType(TenturaTopBar),
-            matching: find.byIcon(Icons.arrow_back),
-          ),
-        );
-        await _settle(tester);
-        expect(
-          tester
-              .widget<TextField>(find.byKey(PostCreateScreen.textFieldKey))
-              .controller!
-              .text,
-          _draft,
-        );
-        expect(tester.takeException(), isNull);
-      });
+          // The Post step still holds the text as written.
+          await tester.tap(
+            find.descendant(
+              of: find.byType(TenturaTopBar),
+              matching: find.byIcon(Icons.arrow_back),
+            ),
+          );
+          await _settle(tester);
+          expect(
+            tester
+                .widget<TextField>(find.byKey(PostCreateScreen.textFieldKey))
+                .controller!
+                .text,
+            _draft,
+          );
+          expect(tester.takeException(), isNull);
+        },
+      );
 
       testWidgets('$tag: with some contacts the tab row still shows', (
         tester,
