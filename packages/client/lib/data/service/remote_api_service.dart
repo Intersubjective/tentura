@@ -67,7 +67,7 @@ final class RemoteApiService extends RemoteApiClient
   }
 }
 
-// TBD: remove
+/// Standard response unwrapper: throws on errors or missing data.
 extension ErrorHandler<TData, TVars> on OperationResponse<TData, TVars> {
   TData dataOrThrow({String? label}) {
     if (hasErrors) {

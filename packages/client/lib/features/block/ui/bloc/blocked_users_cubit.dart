@@ -1,6 +1,3 @@
-// TBD: move not void public methods into state
-// ignore_for_file: prefer_void_public_cubit_methods
-
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura/features/block/domain/entity/user_block.dart';
