@@ -9,13 +9,13 @@ import 'package:tentura_root/domain/entity/beacon_hierarchy_page.dart';
 import 'package:tentura_root/domain/entity/beacon_hierarchy_summary.dart';
 import 'package:tentura_root/domain/entity/beacon_parent_reference.dart';
 import 'package:tentura_root/domain/entity/beacon_promotion_source.dart';
-import 'package:uuid/uuid.dart';
 
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/port/beacon_child_command_store_port.dart';
 import 'package:tentura/domain/port/beacon_write_port.dart';
+import 'package:tentura/domain/port/op_id_port.dart';
 import 'package:tentura/domain/use_case/beacon_create_case.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/features/beacon/domain/beacon_hierarchy_exception.dart';
@@ -107,6 +107,7 @@ class BeaconHierarchyCase {
     this._beacons,
     this._commandStore,
     this._realtimeSyncCase,
+    this._opIds,
   );
 
   final BeaconHierarchyRepositoryPort _hierarchy;
@@ -114,6 +115,7 @@ class BeaconHierarchyCase {
   final BeaconWritePort _beacons;
   final BeaconChildCommandStorePort _commandStore;
   final RealtimeSyncCase _realtimeSyncCase;
+  final OpIdPort _opIds;
 
   // Lives with this singleton; mounted hierarchy consumers cancel their own
   // subscriptions when closed.
@@ -130,35 +132,29 @@ class BeaconHierarchyCase {
 
   Stream<void> get catchUps => _realtimeSyncCase.catchUps.map((_) {});
 
-  static const _uuid = Uuid();
-
   Future<BeaconHierarchyCapabilities> fetchCapabilities({
     required String beaconId,
-  }) =>
-      _hierarchy.fetchCapabilities(beaconId: beaconId);
+  }) => _hierarchy.fetchCapabilities(beaconId: beaconId);
 
   Future<BeaconHierarchyPage> fetchChildren({
     required String parentBeaconId,
     required BeaconHierarchyChildGroup group,
     int first = 20,
     String? after,
-  }) =>
-      _hierarchy.fetchChildren(
-        parentBeaconId: parentBeaconId,
-        group: group,
-        first: first,
-        after: after,
-      );
+  }) => _hierarchy.fetchChildren(
+    parentBeaconId: parentBeaconId,
+    group: group,
+    first: first,
+    after: after,
+  );
 
   Future<BeaconHierarchySummary?> fetchChildPreview({
     required String beaconId,
-  }) =>
-      _hierarchy.fetchChildPreview(beaconId: beaconId);
+  }) => _hierarchy.fetchChildPreview(beaconId: beaconId);
 
   Future<BeaconParentReference> fetchParentReference({
     required String beaconId,
-  }) =>
-      _hierarchy.fetchParentReference(beaconId: beaconId);
+  }) => _hierarchy.fetchParentReference(beaconId: beaconId);
 
   Future<BeaconChildComposerSession> openComposer({
     required BeaconCreationContext creationContext,
@@ -193,7 +189,7 @@ class BeaconHierarchyCase {
     if (stored != null && stored.isNotEmpty) {
       return stored;
     }
-    final created = _uuid.v4();
+    final created = _opIds.newOpId();
     await _commandStore.write(creationContext, created);
     return created;
   }

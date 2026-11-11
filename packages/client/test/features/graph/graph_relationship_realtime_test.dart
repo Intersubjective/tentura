@@ -1,10 +1,12 @@
 import 'dart:async';
 
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
+import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 import 'package:tentura/features/graph/data/repository/graph_source_repository.dart';
 import 'package:tentura/features/graph/domain/entity/edge_directed.dart';
@@ -125,15 +127,15 @@ EdgeDirected _e(
   branch: null,
   srcTotalNeighborCount: null,
   dstTotalNeighborCount: null,
-          forwardEdgeId: null,
-          forwardRecipientIsGhostEndpoint: null,
-          forwardOfferStatus: null,
-          forwardDeclinedInvite: null,
-          forwardReadAt: null,
-          forwardForwardedOn: null,
-          forwardSenderAnonymousCount: null,
-          forwardRecipientAnonymousCount: null,
-          forwardParentEdgeId: null,
+  forwardEdgeId: null,
+  forwardRecipientIsGhostEndpoint: null,
+  forwardOfferStatus: null,
+  forwardDeclinedInvite: null,
+  forwardReadAt: null,
+  forwardForwardedOn: null,
+  forwardSenderAnonymousCount: null,
+  forwardRecipientAnonymousCount: null,
+  forwardParentEdgeId: null,
 );
 
 /// Me <-> Alice, Me -> Bob, Alice -> Carol; the server agrees.
@@ -166,6 +168,37 @@ Future<void> _afterRefresh() async {
   await _settle();
 }
 
+/// [_settle] on controlled time: the same ten event-queue turns.
+void _settleIn(FakeAsync async) {
+  for (var i = 0; i < 10; i++) {
+    async.elapse(Duration.zero);
+  }
+}
+
+/// [_afterRefresh] on controlled time: 1 ms past the hint debounce (the
+/// person card's projection debounce is the same 250 ms), then let the
+/// re-read finish.
+void _afterRefreshIn(FakeAsync async) {
+  async.elapse(
+    GraphCubit.relationshipRefreshDebounce + const Duration(milliseconds: 1),
+  );
+  _settleIn(async);
+}
+
+GraphCubit _graphCubit(
+  _FakeGraphSource source,
+  _FakeProfileRepository profiles,
+  ({RealtimeSyncCase case_, TestRealtimeSyncPort port}) realtime,
+) => GraphCubit(
+  me: _me,
+  graphSourceRepository: source,
+  edgeColors: _edgeColors,
+  beaconRepository: _FakeBeaconRepository(),
+  profileRepository: profiles,
+  realtimeSyncCase: realtime.case_,
+  effects: FakeUiEffectPort(),
+);
+
 Set<String> _liveNodeIds(GraphCubit cubit) => {
   for (final n in cubit.graphController.nodes) n.id,
 };
@@ -181,15 +214,7 @@ void main() {
     profiles = _FakeProfileRepository();
     final realtime = buildTestRealtimeSync();
     port = realtime.port;
-    cubit = GraphCubit(
-      me: _me,
-      graphSourceRepository: source,
-      edgeColors: _edgeColors,
-      beaconRepository: _FakeBeaconRepository(),
-      profileRepository: profiles,
-      realtimeSyncCase: realtime.case_,
-      effects: FakeUiEffectPort(),
-    );
+    cubit = _graphCubit(source, profiles, realtime);
     await _settle();
   });
 
@@ -232,20 +257,32 @@ void main() {
     expect(profiles.fetchedIds, contains('Ubob'));
   });
 
-  test('a burst of hints is read once', () async {
-    final callsBefore = source.betweenCalls.length;
-    port
-      ..emitChange(_relationshipHint('Ualice'))
-      ..emitChange(_relationshipHint('Ubob'))
-      ..emitChange(_relationshipHint('Ume'));
-    await _afterRefresh();
+  test(
+    'a burst of hints is read once',
+    () => fakeAsync((async) {
+      final source = _source();
+      final realtime = buildTestRealtimeSync();
+      final cubit = _graphCubit(source, _FakeProfileRepository(), realtime);
+      _settleIn(async);
 
-    expect(source.betweenCalls.length, callsBefore + 1);
-    expect(
-      source.betweenCalls.last,
-      containsAll(<String>['Ume', 'Ualice', 'Ubob', 'Ucarol']),
-    );
-  });
+      final callsBefore = source.betweenCalls.length;
+      realtime.port
+        ..emitChange(_relationshipHint('Ualice'))
+        ..emitChange(_relationshipHint('Ubob'))
+        ..emitChange(_relationshipHint('Ume'));
+      _afterRefreshIn(async);
+
+      expect(source.betweenCalls.length, callsBefore + 1);
+      expect(
+        source.betweenCalls.last,
+        containsAll(<String>['Ume', 'Ualice', 'Ubob', 'Ucarol']),
+      );
+
+      unawaited(cubit.close());
+      unawaited(realtime.port.dispose());
+      async.flushMicrotasks();
+    }),
+  );
 
   test('a reconnect catch-up re-reads the edges too', () async {
     source.between.removeWhere((e) => e.src == 'Ualice' && e.dst == 'Ucarol');
@@ -293,13 +330,12 @@ void main() {
 
   test(
     'the open person card follows the other person stopping trust',
-    () async {
+    () => fakeAsync((async) {
       final fixture = GraphTrustWriteFixture();
-      addTearDown(fixture.dispose);
       fixture.profiles.byId['Ualice'] = _aliceMutual;
       final card = fixture.createCubit()
         ..selectProfile(_aliceMutual, intentional: true);
-      await _settle();
+      _settleIn(async);
       expect(card.state.selectedProfile!.subjectExplicitlyTrustsViewer, isTrue);
 
       fixture.profiles.byId['Ualice'] = _aliceMutual.copyWith(
@@ -307,7 +343,7 @@ void main() {
         isMutualFriend: false,
       );
       fixture.realtimePort.emitChange(_relationshipHint('Ualice'));
-      await _afterRefresh();
+      _afterRefreshIn(async);
 
       expect(card.state.selectedProfile!.id, 'Ualice');
       expect(
@@ -320,9 +356,12 @@ void main() {
       card.clearSelection();
       final reads = fixture.profiles.fetchCalls;
       fixture.realtimePort.emitChange(_relationshipHint('Ualice'));
-      await _afterRefresh();
+      _afterRefreshIn(async);
       expect(fixture.profiles.fetchCalls, reads);
-    },
+
+      unawaited(fixture.dispose());
+      async.flushMicrotasks();
+    }),
   );
 
   test('a re-trust stand-in ends once the server has the edge, so a later '
