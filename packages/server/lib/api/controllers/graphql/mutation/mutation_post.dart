@@ -1,6 +1,7 @@
 import 'dart:convert' show json;
 
 import 'package:tentura_server/domain/entity/beacon_kind.dart';
+import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/use_case/post_case.dart';
 
 import '../custom_types.dart';
@@ -52,8 +53,22 @@ final class MutationPost extends GqlNodeBase {
 
   final _expiresAt = InputFieldDatetime(fieldName: 'expiresAt');
 
+  final _draftBeaconId = InputFieldString(fieldName: 'beaconId');
+
+  final _attachmentId = InputFieldString(fieldName: 'attachmentId');
+
+  /// The multipart upload of a draft attachment (`filename`, `type`).
+  static final _upload = GraphQLFieldInput(
+    'upload',
+    InputFieldUpload.type,
+    defaultsToNull: true,
+  );
+
   List<GraphQLObjectField<dynamic, dynamic>> get all => [
     postPublish,
+    postUpdateDraft,
+    postDraftAttachmentAdd,
+    postDraftAttachmentRemove,
     postLeave,
     postReturn,
     postShorten,
@@ -124,14 +139,11 @@ final class MutationPost extends GqlNodeBase {
       _mentionLengths,
       InputFieldRecipientIds.field,
       _notes,
-      _forwardPolicy.fieldNonNullable,
-      InputFieldUpload.fieldNullable,
+      _forwardPolicy.fieldNullable,
       _lifetimeHours.fieldNullable,
     ],
     resolve: (_, args) async {
-      final uploadMeta = InputFieldUpload.uploadVariablesFromArgs(args);
-      final rawName = uploadMeta?['filename'];
-      final rawType = uploadMeta?['type'];
+      final forwardPolicyValue = _forwardPolicy.fromArgs(args);
       final result = await _postCase.publish(
         authorId: getCredentials(args).sub,
         beaconId: _beaconId.fromArgsNonNullable(args),
@@ -148,16 +160,9 @@ final class MutationPost extends GqlNodeBase {
           ),
           _ => const {},
         },
-        forwardPolicy: BeaconForwardPolicyValue.fromValue(
-          _forwardPolicy.fromArgsNonNullable(args),
-        ),
-        attachmentBytes: InputFieldUpload.fromArgs(args),
-        attachmentFilename: rawName is String && rawName.trim().isNotEmpty
-            ? rawName
-            : null,
-        attachmentMimeType: rawType is String && rawType.trim().isNotEmpty
-            ? rawType
-            : null,
+        forwardPolicy: forwardPolicyValue == null
+            ? null
+            : BeaconForwardPolicyValue.fromValue(forwardPolicyValue),
         lifetimeHours: _lifetimeHours.fromArgs(args),
       );
       return {
@@ -167,6 +172,74 @@ final class MutationPost extends GqlNodeBase {
       };
     },
   );
+
+  GraphQLObjectField<dynamic, dynamic> get postDraftAttachmentAdd =>
+      GraphQLObjectField(
+        'postDraftAttachmentAdd',
+        graphQLString.nonNullable(),
+        arguments: [_draftBeaconId.field, _upload],
+        resolve: (_, args) async {
+          final bytes = InputFieldUpload.fromArgs(args);
+          if (bytes == null) {
+            throw const BeaconCreateException(
+              description: 'Attachment file is required',
+            );
+          }
+          final meta = args[_upload.name];
+          final rawName = meta is Map ? meta['filename'] : null;
+          final rawType = meta is Map ? meta['type'] : null;
+          return _postCase.addDraftAttachment(
+            authorId: getCredentials(args).sub,
+            beaconId: _draftBeaconId.fromArgsNonNullable(args),
+            bytes: bytes,
+            filename: rawName is String && rawName.trim().isNotEmpty
+                ? rawName
+                : null,
+            mimeType: rawType is String && rawType.trim().isNotEmpty
+                ? rawType
+                : null,
+          );
+        },
+      );
+
+  GraphQLObjectField<dynamic, dynamic> get postDraftAttachmentRemove =>
+      GraphQLObjectField(
+        'postDraftAttachmentRemove',
+        graphQLBoolean.nonNullable(),
+        arguments: [_draftBeaconId.field, _attachmentId.field],
+        resolve: (_, args) async {
+          await _postCase.removeDraftAttachment(
+            authorId: getCredentials(args).sub,
+            beaconId: _draftBeaconId.fromArgsNonNullable(args),
+            attachmentId: _attachmentId.fromArgsNonNullable(args),
+          );
+          return true;
+        },
+      );
+
+  GraphQLObjectField<dynamic, dynamic> get postUpdateDraft =>
+      GraphQLObjectField(
+        'postUpdateDraft',
+        gqlTypeBeacon.nonNullable(),
+        arguments: [
+          _beaconId.field,
+          _body.field,
+          _forwardPolicy.fieldNonNullable,
+          _lifetimeHours.fieldNullable,
+        ],
+        resolve: (_, args) async {
+          final id = await _postCase.updatePostDraft(
+            authorId: getCredentials(args).sub,
+            beaconId: _beaconId.fromArgsNonNullable(args),
+            body: _body.fromArgsNonNullable(args),
+            forwardPolicy: BeaconForwardPolicyValue.fromValue(
+              _forwardPolicy.fromArgsNonNullable(args),
+            ),
+            lifetimeHours: _lifetimeHours.fromArgs(args),
+          );
+          return {'id': id};
+        },
+      );
 }
 
 /// List input where an unset variable (`null`) deserializes to an empty list.

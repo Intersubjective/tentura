@@ -108,11 +108,7 @@ class BeaconFactCardRepository {
     required String beaconId,
     required RoomPendingUpload upload,
   }) async {
-    final file = TenturaV2Upload(
-      filename: upload.fileName,
-      mimeType: upload.mimeType,
-      bytes: upload.bytes,
-    );
+    final file = TenturaV2Upload.fromPending(upload);
     return _remoteApiService
         .request(
           GBeaconFactCardAttachmentUploadReq(

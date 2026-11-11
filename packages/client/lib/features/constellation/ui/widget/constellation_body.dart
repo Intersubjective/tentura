@@ -864,7 +864,11 @@ class _ConstellationBodyState extends State<ConstellationBody>
     ConstellationCubit cubit,
     NodeDetails node,
   ) {
-    if (ConstellationFieldBeaconMapChrome.suppressesPrimaryTap()) {
+    // The click that drops an area lifted from the hull menu only drops it
+    // (#1021): the node under the pointer reports its tap first, before the
+    // map's own pointer-up ends the move.
+    if (ConstellationFieldBeaconMapChrome.suppressesPrimaryTap() ||
+        _tagHullMenuDragNodeId != null) {
       return;
     }
     if (constellationSelectionTap(context, cubit, node)) return;

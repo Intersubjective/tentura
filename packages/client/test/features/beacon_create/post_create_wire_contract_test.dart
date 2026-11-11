@@ -45,6 +45,18 @@ void main() {
 
     test('exposes the postPublish mutation and its result type', () {
       expect(schema, contains('postPublish('));
+      final postPublishField = RegExp(
+        r'^\s*postPublish\(([^)]*)\)',
+        multiLine: true,
+      ).firstMatch(schema);
+      expect(postPublishField, isNotNull);
+      expect(
+        postPublishField!.group(1),
+        isNot(contains('Upload')),
+        reason:
+            'postPublish takes no upload; draft attachments are on the '
+            'server already',
+      );
       expect(schema, contains('type v2_PostPublishResult {'));
       expect(schema, contains('rootMessageId: String!'));
     });
@@ -65,15 +77,20 @@ void main() {
       },
     );
 
-    test('post_publish.graphql sends the first attachment as an upload', () {
-      final file = _findDocument('post_publish.graphql');
-      expect(file, isNotNull, reason: 'post_publish.graphql must exist');
-      final doc = file!.readAsStringSync();
-      expect(doc, contains('mutation PostPublish'));
-      expect(doc, contains('postPublish('));
-      expect(doc, contains('v2_Upload'));
-      expect(doc, contains('rootMessageId'));
-    });
+    test(
+      'post_publish.graphql carries no upload: attachments are already saved '
+      'on the draft',
+      () {
+        final file = _findDocument('post_publish.graphql');
+        expect(file, isNotNull, reason: 'post_publish.graphql must exist');
+        final doc = file!.readAsStringSync();
+        expect(doc, contains('mutation PostPublish'));
+        expect(doc, contains('postPublish('));
+        expect(doc, isNot(contains('v2_Upload')));
+        expect(doc, isNot(contains(r'$file')));
+        expect(doc, contains('rootMessageId'));
+      },
+    );
   });
 
   group('BeaconRepository.create for a Post draft', () {

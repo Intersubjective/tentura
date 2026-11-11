@@ -142,7 +142,9 @@ class _RecoverScreenState extends State<RecoverScreen> {
                   children: [
                     if (isSessionProblem) ...[
                       Text(
-                        l10n.authSessionProblemBanner,
+                        authCubit.state.authSeedUnreadable
+                            ? l10n.authSeedUnreadableBody
+                            : l10n.authSessionProblemBanner,
                         style: theme.textTheme.bodyMedium,
                       ),
                       SizedBox(height: tt.sectionGap),

@@ -18,7 +18,18 @@ scalar _text
 """
 columns and relationships of "beacon"
 """
+type post_draft_attachment {
+  id: String!
+  kind: smallint!
+  file_name: String!
+  mime: String!
+  image: image
+}
+input post_draft_attachment_order_by { position: order_by }
+
 type beacon {
+  post_lifetime_hours: smallint
+  post_draft_attachments(order_by: [post_draft_attachment_order_by!]): [post_draft_attachment!]!
   """
   A computed field, executes function "beacon_get_access_level"
   """
@@ -3796,6 +3807,9 @@ enum invitation_update_column {
 
 """mutation root"""
 type mutation_root {
+  postUpdateDraft(id: String!, body: String!, forwardPolicy: Int!, lifetimeHours: Int): v2_Beacon!
+  postDraftAttachmentAdd(beaconId: String!, upload: v2_Upload): String!
+  postDraftAttachmentRemove(beaconId: String!, attachmentId: String!): Boolean!
   fieldHide(targetKind: Int!, targetId: String!): Boolean!
   fieldUnhide(targetKind: Int!, targetId: String!): Boolean!
   BeaconLobbyBan(beaconId: String!, userId: String!): Boolean!
@@ -4091,7 +4105,7 @@ type mutation_root {
   pollingAct(pollingId: String!, score: Int, variantIds: [String!]): Boolean!
   postClose(id: String!): Boolean!
   postLeave(id: String!): Boolean!
-  postPublish(body: String!, file: v2_Upload, forwardPolicy: Int!, id: String!, lifetimeHours: Int, mentionLengths: [Int!], mentionOffsets: [Int!], mentionUserIds: [String!], notes: String, recipientIds: [String!]): v2_PostPublishResult!
+  postPublish(body: String!, forwardPolicy: Int!, id: String!, lifetimeHours: Int, mentionLengths: [Int!], mentionOffsets: [Int!], mentionUserIds: [String!], notes: String, recipientIds: [String!]): v2_PostPublishResult!
   postReturn(id: String!): Boolean!
   postShorten(id: String!, expiresAt: String!): Boolean!
   releaseCommitment(id: String!, offerUserId: String!, reason: String!): v2_BeaconStatusResult!

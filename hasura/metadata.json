@@ -149,6 +149,18 @@
                     }
                   }
                 }
+              },
+              {
+                "name": "post_draft_attachments",
+                "using": {
+                  "foreign_key_constraint_on": {
+                    "column": "beacon_id",
+                    "table": {
+                      "name": "post_draft_attachment",
+                      "schema": "public"
+                    }
+                  }
+                }
               }
             ],
             "computed_fields": [
@@ -305,7 +317,8 @@
                     "forward_policy",
                     "last_activity_at",
                     "post_root_message_id",
-                    "expires_at"
+                    "expires_at",
+                    "post_lifetime_hours"
                   ],
                   "computed_fields": [
                     "is_pinned",
@@ -2151,6 +2164,58 @@
                     ]
                   },
                   "check": null
+                }
+              }
+            ]
+          },
+          {
+            "table": {
+              "name": "post_draft_attachment",
+              "schema": "public"
+            },
+            "object_relationships": [
+              {
+                "name": "beacon",
+                "using": {
+                  "foreign_key_constraint_on": "beacon_id"
+                }
+              },
+              {
+                "name": "image",
+                "using": {
+                  "foreign_key_constraint_on": "image_id"
+                }
+              }
+            ],
+            "select_permissions": [
+              {
+                "role": "user",
+                "permission": {
+                  "columns": [
+                    "id",
+                    "beacon_id",
+                    "kind",
+                    "image_id",
+                    "mime",
+                    "size_bytes",
+                    "width",
+                    "height",
+                    "position",
+                    "file_name"
+                  ],
+                  "filter": {
+                    "beacon": {
+                      "user_id": {
+                        "_eq": "X-Hasura-User-Id"
+                      },
+                      "status": {
+                        "_eq": 3
+                      },
+                      "kind": {
+                        "_eq": 1
+                      }
+                    }
+                  }
                 }
               }
             ]

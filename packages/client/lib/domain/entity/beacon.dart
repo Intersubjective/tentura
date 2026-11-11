@@ -15,6 +15,7 @@ import 'image_entity.dart';
 import 'likable.dart';
 import 'profile.dart';
 import 'scorable.dart';
+import 'room_pending_upload.dart';
 
 part 'beacon.freezed.dart';
 
@@ -106,6 +107,10 @@ abstract class Beacon with _$Beacon implements Likable, Scorable {
 
     /// Last room activity (Posts); null when none recorded.
     DateTime? lastActivityAt,
+
+    /// Draft settings and attachments; publication starts the chosen lifetime.
+    int? postLifetimeHours,
+    @Default([]) List<RoomPendingUpload> postDraftAttachments,
 
     /// Fixed Post publication deadline; null for Requests and drafts.
     DateTime? expiresAt,

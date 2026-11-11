@@ -226,6 +226,7 @@ class AuthCubit extends Cubit<AuthState> {
         isBootstrapping: false,
         currentAccountId: restored.accountId,
         authRecoveryNeeded: false,
+        authSeedUnreadable: false,
         authSessionLossCount: 0,
         accounts: accounts,
         updatedAt: DateTime.timestamp(),
@@ -276,7 +277,10 @@ class AuthCubit extends Cubit<AuthState> {
         rethrow;
       } on TimeoutException {
         throw const AuthServerUnavailableException();
-      } catch (_) {
+      } catch (e) {
+        if (e is AuthSeedUnreadableException) {
+          emit(state.copyWith(authSeedUnreadable: true));
+        }
         await _applyRestoredSession(
           (accountId: '', sessionLost: true),
         );
@@ -309,6 +313,7 @@ class AuthCubit extends Cubit<AuthState> {
     emit(
       state.copyWith(
         authRecoveryNeeded: false,
+        authSeedUnreadable: false,
         status: const StateIsSuccess(),
       ),
     );

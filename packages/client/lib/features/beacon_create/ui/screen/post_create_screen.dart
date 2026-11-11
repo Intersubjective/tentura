@@ -10,6 +10,7 @@ import 'package:tentura/data/repository/clipboard_image_repository.dart';
 import 'package:tentura/data/repository/image_repository.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_kind.dart';
+import 'package:tentura/domain/entity/room_pending_upload.dart';
 import 'package:tentura/features/beacon_threads/domain/room_host.dart';
 import 'package:tentura/features/forward/domain/forward_target_profile.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
@@ -19,7 +20,6 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/pending_attachments.dart';
 
-import '../../data/service/post_create_composer_draft_store.dart';
 import '../bloc/beacon_create_cubit.dart';
 import 'beacon_create_screen.dart' show popCreateAndOpenLiveBeacon;
 import 'package:tentura/features/beacon_threads/ui/widget/post_root_pin_card.dart';
@@ -95,8 +95,12 @@ class _PostCreateScreenState extends State<PostCreateScreen>
   late final _textFocus = FocusNode(onKeyEvent: _onTextKey);
 
   var _onRecipientsStep = false;
-  var _forwardable = true;
-  var _lifetimeHours = 72;
+  var _draftEnsuring = false;
+  bool _leaveInProgress = false;
+  bool get _forwardable =>
+      _createCubit.state.postForwardPolicy == BeaconForwardPolicyValue.open;
+  int get _lifetimeHours => _createCubit.state.postLifetimeHours;
+  bool _syncingComposer = false;
   var _hasContent = false;
 
   @override
@@ -107,30 +111,43 @@ class _PostCreateScreenState extends State<PostCreateScreen>
       GetIt.I<ClipboardImageRepository>();
 
   @override
-  void onPendingUploadsChanged() => _onTextOrAttachmentChanged();
+  void onPendingUploadsChanged() => _reportContent();
+
+  @override
+  void addPendingUpload(RoomPendingUpload upload) =>
+      unawaited(_createCubit.addPostAttachment(upload));
+
+  @override
+  void removePendingUpload(int index) =>
+      unawaited(_createCubit.removePostAttachment(pendingUploads[index]));
+
+  void _syncComposer(BeaconCreateState state) {
+    _syncingComposer = true;
+    if (_text.text != state.description) _text.text = state.description;
+    pendingUploads
+      ..clear()
+      ..addAll(state.postAttachments);
+    _syncingComposer = false;
+    _reportContent();
+  }
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _createCubit = context.read<BeaconCreateCubit>();
-    final snap = readPostCreateComposerDraft();
-    if (snap != null && snap.body.isNotEmpty) {
-      _text.text = snap.body;
-    }
+    _text.text = _createCubit.state.description;
+    pendingUploads.addAll(_createCubit.state.postAttachments);
     _text.addListener(_onTextOrAttachmentChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _onTextOrAttachmentChanged();
-      unawaited(_reconcileOrphanedEmptyDraft());
     });
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    // A draft not yet made must not outlive the screen.
-    _createCubit.postContentChanged(hasContent: false);
     if (GetIt.I.isRegistered<UnsavedChangesGuardPort>()) {
       GetIt.I<UnsavedChangesGuardPort>().setDirty(this, false);
     }
@@ -143,8 +160,7 @@ class _PostCreateScreenState extends State<PostCreateScreen>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.hidden && _hasContent) {
-      _persistComposerDraft();
-      unawaited(_createCubit.ensureDraft(context: '', showMessage: false));
+      unawaited(_createCubit.flushPostDraft());
     }
   }
 
@@ -171,23 +187,9 @@ class _PostCreateScreenState extends State<PostCreateScreen>
     );
   }
 
-  void _persistComposerDraft() {
-    writePostCreateComposerDraft(
-      draftId: _createCubit.state.draftId,
-      body: _text.text,
-    );
-  }
-
-  Future<void> _reconcileOrphanedEmptyDraft() async {
-    if (widget.draftId.isEmpty) return;
-    if (_text.text.trim().isNotEmpty || pendingUploads.isNotEmpty) return;
-    if (_createCubit.hasPostDraft) {
-      await _createCubit.discardPost();
-    }
-  }
-
   void _onTextOrAttachmentChanged() {
-    _persistComposerDraft();
+    if (_syncingComposer) return;
+    _createCubit.setPostBody(_text.text);
     _reportContent();
   }
 
@@ -203,7 +205,6 @@ class _PostCreateScreenState extends State<PostCreateScreen>
     final hasContent =
         _text.text.trim().isNotEmpty || pendingUploads.isNotEmpty;
     if (hasContent == _hasContent || !mounted) return;
-    _createCubit.postContentChanged(hasContent: hasContent);
     setState(() => _hasContent = hasContent);
     _updateUnsavedLeaveGuard();
   }
@@ -223,38 +224,66 @@ class _PostCreateScreenState extends State<PostCreateScreen>
     if (!_hasContent) return;
     _textFocus.unfocus();
     setState(() => _onRecipientsStep = true);
+    unawaited(_prepareRecipients());
+  }
+
+  /// The picker needs the server draft's id: save now, and let a late answer
+  /// still open the picker.
+  Future<void> _prepareRecipients() async {
+    if (_draftEnsuring) return;
+    setState(() => _draftEnsuring = true);
+    try {
+      await _createCubit.flushPostDraft();
+    } finally {
+      if (mounted) setState(() => _draftEnsuring = false);
+    }
   }
 
   void _showForm() => setState(() => _onRecipientsStep = false);
 
   Future<void> _close() async {
-    final l10n = L10n.of(context)!;
-    if (_hasContent) {
-      final discard = await TenturaConfirmDialog.show(
-        context: context,
-        title: l10n.postCreateDiscardTitle,
-        content: l10n.postCreateDiscardBody,
-        confirmLabel: l10n.postCreateDiscardConfirm,
-        cancelLabel: l10n.buttonCancel,
-        emphasizeCancel: true,
+    if (_leaveInProgress) return;
+    _leaveInProgress = true;
+    try {
+      if (!_createCubit.state.isLive) {
+        if (_hasContent) {
+          final l10n = L10n.of(context)!;
+          final discard = await TenturaConfirmDialog.show(
+            context: context,
+            title: l10n.beaconCreateLeaveTitle,
+            content: l10n.beaconCreateLeaveBody,
+            confirmLabel: l10n.beaconCreateLeaveDiscard,
+            cancelLabel: l10n.beaconCreateLeaveKeepDraft,
+            emphasizeCancel: true,
+          );
+          if (discard == null || !mounted) return;
+          if (discard) {
+            await _createCubit.discardPost();
+            if (_createCubit.hasPostDraft) return;
+          } else {
+            await _createCubit.flushPostDraft();
+            if (_createCubit.hasUnpersistedEdits) return;
+          }
+        } else if (_createCubit.hasPostDraft) {
+          await _createCubit.discardPost();
+          if (_createCubit.hasPostDraft) return;
+        }
+      }
+      if (!mounted) return;
+      final forward = context.read<ForwardCubit>().state;
+      widget.onRecipientsChanged?.call(
+        {...forward.selectedIds},
+        {...forward.perRecipientNotes},
       );
-      if (discard != true || !mounted) return;
-    }
-    if (_createCubit.hasPostDraft) await _createCubit.discardPost();
-    clearPostCreateComposerDraft();
-    if (!mounted) return;
-    final forward = context.read<ForwardCubit>().state;
-    widget.onRecipientsChanged?.call(
-      {...forward.selectedIds},
-      {...forward.perRecipientNotes},
-    );
-    // PopScope.canPop is false, so maybePop would re-enter this method; a
-    // direct pop bypasses it. A deep-linked screen has nothing to pop to.
-    final route = ModalRoute.of(context);
-    if (route != null && !route.isFirst) {
-      Navigator.of(context).pop();
-    } else {
-      await context.router.navigatePath(kPathMyWork);
+      // PopScope.canPop is false, so maybePop would re-enter this method.
+      final route = ModalRoute.of(context);
+      if (route != null && !route.isFirst) {
+        Navigator.of(context).pop();
+      } else {
+        await context.router.navigatePath(kPathConversations);
+      }
+    } finally {
+      _leaveInProgress = false;
     }
   }
 
@@ -272,7 +301,6 @@ class _PostCreateScreenState extends State<PostCreateScreen>
     );
     final id = cubit.state.draftId;
     if (sent && mounted && id != null) {
-      clearPostCreateComposerDraft();
       widget.onPublished?.call();
       await popCreateAndOpenLiveBeacon(context.router, beaconId: id);
     }
@@ -309,15 +337,26 @@ class _PostCreateScreenState extends State<PostCreateScreen>
               if (id != null && id.isNotEmpty) {
                 _syncDraftIdToBrowserUrl(id);
               }
-              _persistComposerDraft();
+              _syncComposer(state);
             },
           ),
           BlocListener<BeaconCreateCubit, BeaconCreateState>(
             bloc: _createCubit,
             listenWhen: (previous, current) =>
-                previous.draftId != current.draftId ||
-                previous.isAutosaving != current.isAutosaving,
-            listener: (_, _) => _updateUnsavedLeaveGuard(),
+                previous.draftId != current.draftId,
+            listener: (context, state) {
+              final id = state.draftId;
+              if (id != null && id.isNotEmpty) {
+                context.read<ForwardCubit>().bindBeacon(id);
+              }
+            },
+          ),
+          BlocListener<BeaconCreateCubit, BeaconCreateState>(
+            bloc: _createCubit,
+            listener: (_, state) {
+              setState(() => _syncComposer(state));
+              _updateUnsavedLeaveGuard();
+            },
           ),
         ],
         child: Scaffold(
@@ -492,7 +531,7 @@ class _PostCreateScreenState extends State<PostCreateScreen>
           selected: {_lifetimeHours},
           onSelectionChanged: busy
               ? null
-              : (selected) => setState(() => _lifetimeHours = selected.single),
+              : (selected) => _createCubit.setPostLifetime(selected.single),
         ),
         SizedBox(height: tt.tightGap),
         Text(
@@ -513,7 +552,11 @@ class _PostCreateScreenState extends State<PostCreateScreen>
           value: _forwardable,
           onChanged: busy
               ? null
-              : (value) => setState(() => _forwardable = value),
+              : (value) => _createCubit.setPostForwardPolicy(
+                  value
+                      ? BeaconForwardPolicyValue.open
+                      : BeaconForwardPolicyValue.closed,
+                ),
         ),
       ],
     );
@@ -523,27 +566,57 @@ class _PostCreateScreenState extends State<PostCreateScreen>
     BuildContext context,
     L10n l10n, {
     required bool busy,
-  }) => Padding(
-    padding: EdgeInsets.symmetric(horizontal: context.tt.screenHPadding),
-    child: BlocSelector<ForwardCubit, ForwardState, bool>(
-      selector: (state) => state.selectedIds.isNotEmpty,
-      builder: (context, hasRecipients) => ForwardRecipientPicker(
-        beaconId: '',
-        embedded: true,
-        sendEnabled: hasRecipients && !busy,
-        externalActionLoading: busy,
-        sendLabel: l10n.postCreateSendToCount,
-        promptUncoveredNotes: false,
-        copyProfile: ForwardTargetProfile.post,
-        recipientNoteHint: l10n.beaconCreateRecipientNoteHint,
-        onSendPressed: () => unawaited(_send()),
-        header: PostRootDraftPreviewCard(
-          excerpt: _text.text.trim(),
-          onTap: _showForm,
+  }) {
+    final draftId = _createCubit.state.draftId;
+    if (draftId == null || draftId.isEmpty) {
+      final muted = TenturaText.bodySmall(context.tt.textMuted);
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: _draftEnsuring
+              ? [
+                  const TenturaCircularProgress(adaptive: true),
+                  SizedBox(height: context.tt.rowGap),
+                  Text(l10n.beaconRecipientsPreparing, style: muted),
+                ]
+              : [
+                  Text(
+                    l10n.beaconRecipientsPrepareFailed,
+                    style: muted,
+                    textAlign: TextAlign.center,
+                  ),
+                  SizedBox(height: context.tt.rowGap),
+                  TenturaCommandButton(
+                    label: l10n.myWorkRetry,
+                    onPressed: () => unawaited(_prepareRecipients()),
+                  ),
+                ],
+        ),
+      );
+    }
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: context.tt.screenHPadding),
+      child: BlocSelector<ForwardCubit, ForwardState, bool>(
+        selector: (state) => state.selectedIds.isNotEmpty,
+        builder: (context, hasRecipients) => ForwardRecipientPicker(
+          beaconId: draftId,
+          isLive: _createCubit.state.isLive,
+          embedded: true,
+          sendEnabled: hasRecipients && !busy,
+          externalActionLoading: busy,
+          sendLabel: l10n.postCreateSendToCount,
+          promptUncoveredNotes: false,
+          copyProfile: ForwardTargetProfile.post,
+          recipientNoteHint: l10n.beaconCreateRecipientNoteHint,
+          onSendPressed: () => unawaited(_send()),
+          header: PostRootDraftPreviewCard(
+            excerpt: _text.text.trim(),
+            onTap: _showForm,
+          ),
         ),
       ),
-    ),
-  );
+    );
+  }
 
   /// «Далее: получатели», sitting in the form's column like the Request form.
   Widget _nextBar(BuildContext context, L10n l10n) {

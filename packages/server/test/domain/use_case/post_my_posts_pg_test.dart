@@ -27,6 +27,7 @@ import 'package:tentura_server/data/repository/person_visibility_repository.dart
 import 'package:tentura_server/data/repository/post_lock_repository.dart';
 import 'package:tentura_server/data/repository/user_block_repository.dart';
 import 'package:tentura_server/domain/entity/jwt_entity.dart';
+import 'package:tentura_server/domain/entity/post_summary.dart';
 import 'package:tentura_server/domain/use_case/beacon_room_case.dart';
 import 'package:tentura_server/domain/use_case/forward_case.dart';
 import 'package:tentura_server/domain/use_case/post_case.dart';
@@ -126,6 +127,227 @@ Future<void> main() async {
 
   test('upgrade from 0214 exposes executable myPosts projection', () async {
     expect(await posts.myPosts(_author), hasLength(1));
+  });
+
+  group('Authors can list unpublished Posts with previews', () {
+    const draftId = 'Bpostsdraft01';
+
+    Future<void> addDraft({String description = 'Draft text'}) async {
+      await writer.execute(
+        Sql.named('''
+          INSERT INTO public.beacon
+            (id, user_id, title, description, status, kind, is_discoverable)
+          VALUES (@id, @author, '', @description, 3, 1, false)
+        '''),
+        parameters: {
+          'id': draftId,
+          'author': _author,
+          'description': description,
+        },
+      );
+    }
+
+    Future<PostSummary> authorDraft() async {
+      final rows = await posts.myPosts(_author);
+      expect(
+        rows.map((row) => row.id),
+        contains(draftId),
+        reason: "myPosts must include the author's unpublished Post",
+      );
+      return rows.singleWhere((row) => row.id == draftId);
+    }
+
+    test(
+      'own unpublished Posts are listed with draft status',
+      () async {
+        await addDraft();
+        final draft = await authorDraft();
+        expect(draft.isAuthor, isTrue);
+        expect(draft.authorId, _author);
+        expect(draft.status, BeaconStatus.draft);
+      },
+    );
+
+    test('GraphQL returns the author draft with status 3', () async {
+      await addDraft();
+      final graphQL = GraphQL(
+        GraphQLSchema(
+          queryType: GraphQLObjectType('Query', null)
+            ..fields.addAll(QueryPost(postCase: posts).all),
+        ),
+      );
+      final response = await graphQL.parseAndExecute(
+        '{ myPosts { id isAuthor status rootExcerpt } }',
+        globalVariables: {
+          kGlobalInputQueryJwt: const JwtEntity(sub: _author),
+        },
+      );
+      expect(response, {
+        'myPosts': unorderedEquals([
+          {
+            'id': _post,
+            'isAuthor': true,
+            'status': 0,
+            'rootExcerpt': 'Root text',
+          },
+          {
+            'id': draftId,
+            'isAuthor': true,
+            'status': 3,
+            'rootExcerpt': 'Draft text',
+          },
+        ]),
+      });
+    });
+
+    test(
+      'description supplies the excerpt while published roots retain theirs',
+      () async {
+        await addDraft();
+        expect((await authorDraft()).rootExcerpt, 'Draft text');
+        final published = (await posts.myPosts(
+          _author,
+        )).singleWhere((row) => row.id == _post);
+        expect(published.rootExcerpt, 'Root text');
+      },
+    );
+
+    test('description excerpts stop at 280 characters', () async {
+      final prefix = List.filled(280, 'я').join();
+      await addDraft(description: '${prefix}hidden suffix');
+      expect((await authorDraft()).rootExcerpt, prefix);
+    });
+
+    test(
+      'cover uses the earliest image position and image owner, skipping files',
+      () async {
+        await addDraft();
+        await writer.execute('''
+        INSERT INTO public.image (id, author_id) VALUES
+          ('00000000-0000-0000-0000-000000000011', '$_member'),
+          ('00000000-0000-0000-0000-000000000012', '$_author');
+      ''');
+        await writer.execute('''
+        INSERT INTO public.post_draft_attachment
+          (id, beacon_id, kind, image_id, file_url, position) VALUES
+          ('AdraftSecond', '$draftId', 1,
+           '00000000-0000-0000-0000-000000000012', NULL, 2),
+          ('AdraftFirst', '$draftId', 1,
+           '00000000-0000-0000-0000-000000000011', NULL, 1),
+          ('AdraftFile', '$draftId', 2, NULL, 'https://files.test/draft.pdf', 0)
+      ''');
+        expect(
+          (await authorDraft()).rootImageUrl,
+          '$kImageServer/$kImagesPath/$_member/00000000-0000-0000-0000-000000000011.$kImageExt',
+        );
+      },
+    );
+
+    test('draft without attachments has no cover', () async {
+      await addDraft();
+      expect((await authorDraft()).rootImageUrl, isNull);
+    });
+
+    test('file-only draft has no cover', () async {
+      await addDraft();
+      await writer.execute('''
+        INSERT INTO public.post_draft_attachment
+          (id, beacon_id, kind, file_url, position)
+        VALUES ('AdraftFile', '$draftId', 2, 'https://files.test/draft.pdf', 0)
+      ''');
+      expect((await authorDraft()).rootImageUrl, isNull);
+    });
+
+    test('picked addressee and stranger cannot see the author draft', () async {
+      await addDraft();
+      await writer.execute('''
+        INSERT INTO public.beacon_forward_edge
+          (id, beacon_id, sender_id, recipient_id)
+        VALUES ('FdraftPicked', '$draftId', '$_author', '$_member')
+      ''');
+      await writer.execute('''
+        INSERT INTO public.beacon_participant
+          (id, beacon_id, user_id, role, status, room_access)
+        VALUES ('PdraftPicked', '$draftId', '$_member', 6, 0, 3)
+        ON CONFLICT (beacon_id, user_id)
+          DO UPDATE SET role = 6, room_access = 3
+      ''');
+      // Check both negative paths before the positive control: omitting all
+      // drafts must not make this privacy guarantee pass vacuously.
+      final query = QueryPost(postCase: posts);
+      final graphQL = GraphQL(
+        GraphQLSchema(
+          queryType: GraphQLObjectType('Query', null)..fields.addAll(query.all),
+        ),
+      );
+      for (final viewer in [_member, _stranger]) {
+        expect(
+          (await posts.myPosts(viewer)).map((row) => row.id),
+          isNot(contains(draftId)),
+        );
+        final resolved = await query.myPosts.resolve!(null, {
+          kGlobalInputQueryJwt: JwtEntity(sub: viewer),
+        });
+        expect(
+          resolved,
+          viewer == _member ? [containsPair('id', _post)] : isEmpty,
+          reason: 'the resolver must hide the draft from $viewer',
+        );
+        expect(
+          await graphQL.parseAndExecute(
+            '{ myPosts { id } }',
+            globalVariables: {kGlobalInputQueryJwt: JwtEntity(sub: viewer)},
+          ),
+          {
+            'myPosts': viewer == _member
+                ? [
+                    {'id': _post},
+                  ]
+                : <Map<String, Object?>>[],
+          },
+        );
+      }
+      expect((await authorDraft()).isAuthor, isTrue);
+    });
+
+    test(
+      'General messages on a draft never contribute unread counts',
+      () async {
+        await addDraft();
+        await writer.execute('''
+        INSERT INTO public.beacon_room_message
+          (id, beacon_id, author_id, body)
+        VALUES ('MdraftReply', '$draftId', '$_member', 'Unread draft message')
+      ''');
+        expect((await authorDraft()).unreadCount, 0);
+      },
+    );
+
+    test(
+      'adding a draft preserves open Post unread counts and their total',
+      () async {
+        final before = await posts.myPosts(_author);
+        final openUnread = before
+            .singleWhere((row) => row.id == _post)
+            .unreadCount;
+        final totalUnread = before.fold<int>(
+          0,
+          (sum, row) => sum + row.unreadCount,
+        );
+        expect(openUnread, greaterThan(0));
+        await addDraft();
+        expect((await authorDraft()).unreadCount, 0);
+        final after = await posts.myPosts(_author);
+        expect(
+          after.singleWhere((row) => row.id == _post).unreadCount,
+          openUnread,
+        );
+        expect(
+          after.fold<int>(0, (sum, row) => sum + row.unreadCount),
+          totalUnread,
+        );
+      },
+    );
   });
 
   group('Post summaries identify whether the last message is the root', () {
@@ -577,30 +799,59 @@ INSERT INTO public.beacon_room_message_attachment
     );
     expect(await posts.myPosts(_stranger), isEmpty);
   });
-  test('draft, deleted and converted Request rows are excluded', () async {
-    for (final status in [3, 2]) {
-      await writer.execute(
-        "UPDATE public.beacon SET status = $status WHERE id = '$_post'",
-      );
-      expect(await posts.myPosts(_author), isEmpty);
-    }
-    // `kind` is immutable (m0247): a historical converted Request is a
-    // kind-0 row that kept its root message and addressee rows.
-    await writer.execute('''
+  test(
+    'Deleted Posts and Requests stay hidden alongside open and own unpublished Posts',
+    () async {
+      const keptDraftId = 'Bpostskept001';
+      const deletedPostId = 'Bpostsdeleted';
+      await writer.execute('''
+        INSERT INTO public.beacon
+          (id, user_id, title, description, status, kind, is_discoverable,
+           published_at)
+        VALUES
+          ('$keptDraftId', '$_author', '', 'Kept draft', 3, 1, false, NULL),
+          ('$deletedPostId', '$_author', '', '', 2, 1, false, now())
+      ''');
+      // `kind` is immutable (m0247): a historical converted Request is a
+      // kind-0 row that kept its root message and addressee rows.
+      await writer.execute('''
       INSERT INTO public.beacon
         (id, user_id, title, description, status, published_at,
          post_root_message_id)
       VALUES ('Bpostsconv001', '$_author', 'Converted', 'd', 0, now(),
               'Mpostsroot001')
     ''');
-    await writer.execute('''
+      await writer.execute('''
       INSERT INTO public.beacon_participant
         (id, beacon_id, user_id, role, status, room_access)
       VALUES ('Ppostsconv001', 'Bpostsconv001', '$_member', 6, 0, 0)
     ''');
-    expect(await posts.myPosts(_author), isEmpty);
-    expect(await posts.myPosts(_member), isEmpty);
-  });
+      await writer.execute('''
+      INSERT INTO public.beacon
+        (id, user_id, title, description, status, kind, is_discoverable)
+      VALUES ('Brequestdraft', '$_author', '', 'Request draft', 3, 0, false)
+    ''');
+      final authorRows = await posts.myPosts(_author);
+      final authorIds = authorRows.map((row) => row.id);
+      for (final excludedId in [
+        deletedPostId,
+        'Bpostsconv001',
+        'Brequestdraft',
+      ]) {
+        expect(authorIds, isNot(contains(excludedId)));
+      }
+      expect((await posts.myPosts(_member)).map((row) => row.id), [_post]);
+      expect(await posts.myPosts(_stranger), isEmpty);
+      final openPost = authorRows.singleWhere((row) => row.id == _post);
+      expect(openPost.status, BeaconStatus.open);
+      expect(openPost.rootExcerpt, 'Root text');
+      // An own unpublished Post remains alongside the existing open Post.
+      expect(authorIds, unorderedEquals([_post, keptDraftId]));
+      final draft = authorRows.singleWhere((row) => row.id == keptDraftId);
+      expect(draft.isAuthor, isTrue);
+      expect(draft.status, BeaconStatus.draft);
+    },
+  );
   test('myPosts and postSummary return the Post expiry', () async {
     await writer.execute('''
       UPDATE public.beacon SET expires_at = '2030-05-01T12:00:00Z'

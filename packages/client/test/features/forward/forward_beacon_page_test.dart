@@ -12,10 +12,13 @@ import 'package:tentura/features/forward/domain/entity/forward_candidate.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
 import 'package:tentura/features/forward/ui/screen/forward_beacon_screen.dart';
 import 'package:tentura/features/forward/ui/widget/compact_beacon_context_strip.dart';
+import 'package:tentura/features/forward/ui/widget/forward_recipient_picker.dart';
+import 'package:tentura/features/forward/ui/widget/forward_recipient_picker_entry.dart';
 import 'package:tentura/features/invitation/data/repository/invitation_repository.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/test_ids.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';
 
@@ -167,6 +170,86 @@ ForwardCubit _forwardCubitWithBeacon({
 }
 
 void main() {
+  testWidgets(
+    'shared recipient entries on the forward screen avoid per-row compositing',
+    (tester) async {
+      _registerInvitationRepository();
+      _registerUiEffectPort();
+      final cubit = _forwardCubitWithBeacon();
+      addTearDown(cubit.close);
+      await tester.pumpWidget(
+        MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: L10n.localizationsDelegates,
+          supportedLocales: L10n.supportedLocales,
+          theme: TenturaTheme.light(),
+          home: MultiBlocProvider(
+            providers: [
+              BlocProvider<ForwardCubit>.value(value: cubit),
+              BlocProvider<ProfileCubit>.value(value: _MockProfileCubit()),
+            ],
+            child: const ForwardBeaconScreen(beaconId: 'b1'),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final picker = find.descendant(
+        of: find.byType(ForwardBeaconScreen),
+        matching: find.byType(ForwardRecipientPicker),
+      );
+      expect(picker, findsOneWidget);
+      expect(tester.widget<ForwardRecipientPicker>(picker).embedded, isFalse);
+      final entries = find.descendant(
+        of: picker,
+        matching: find.byType(ForwardRecipientPickerEntry),
+      );
+      expect(entries, findsOneWidget);
+      expect(
+        find.descendant(of: entries, matching: find.text('Clara')),
+        findsOneWidget,
+      );
+      final violations = <String>[];
+      void recordCompositing(String state) {
+        for (final type in [
+          Opacity,
+          ClipPath,
+          ShaderMask,
+          BackdropFilter,
+          ColorFiltered,
+        ]) {
+          if (find
+              .descendant(of: entries, matching: find.byType(type))
+              .evaluate()
+              .isNotEmpty) {
+            violations.add('$state entry contains $type');
+          }
+        }
+      }
+
+      recordCompositing('unselected');
+      expect(cubit.state.selectedIds, isEmpty);
+      await tester.tap(
+        find.byKey(TestIds.key(TestIds.forwardRecipientCheckbox('u1'))),
+      );
+      await tester.pumpAndSettle();
+      expect(cubit.state.selectedIds, contains('u1'));
+      recordCompositing('selected');
+      await tester.tap(
+        find.descendant(
+          of: entries,
+          matching: find.byIcon(Icons.add_comment_outlined),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.descendant(of: entries, matching: find.byType(TextField)),
+        findsOneWidget,
+      );
+      recordCompositing('note open');
+      expect(tester.takeException(), isNull);
+      expect(violations, isEmpty);
+    },
+  );
   testWidgets('compact forward page has no chip filters; shows scope row', (
     tester,
   ) async {
@@ -502,7 +585,7 @@ void main() {
   });
 
   testWidgets(
-    'invite bar swaps to clear-selection once a recipient is picked',
+    'invite bar keeps Invite new person and adds clear-selection once a recipient is picked',
     (
       tester,
     ) async {
@@ -514,19 +597,19 @@ void main() {
 
       await _pumpForwardPage(tester, cubit: cubit);
       expect(find.text('Invite new person'), findsOneWidget);
-      expect(find.text('Clear selection'), findsNothing);
+      expect(find.byTooltip('Clear selection'), findsNothing);
 
       cubit.toggleSelection('u1');
       await tester.pumpAndSettle();
 
-      expect(find.text('Invite new person'), findsNothing);
-      expect(find.text('Clear selection'), findsOneWidget);
+      expect(find.text('Invite new person'), findsOneWidget);
+      expect(find.byTooltip('Clear selection'), findsOneWidget);
 
-      await tester.tap(find.text('Clear selection'));
+      await tester.tap(find.byTooltip('Clear selection'));
       await tester.pumpAndSettle();
 
       expect(find.text('Invite new person'), findsOneWidget);
-      expect(find.text('Clear selection'), findsNothing);
+      expect(find.byTooltip('Clear selection'), findsNothing);
       expect(cubit.state.selectedIds, isEmpty);
     },
   );

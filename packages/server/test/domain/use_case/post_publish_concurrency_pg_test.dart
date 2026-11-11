@@ -55,8 +55,9 @@ Future<void> main() async {
   );
   final unavailable = await pgSkipReason(target);
   final dockerReachable = await IsolatedHasuraSession.isDockerAvailable();
-  final skipHasura =
-      dockerReachable ? false : 'Docker not available for isolated Hasura';
+  final skipHasura = dockerReachable
+      ? false
+      : 'Docker not available for isolated Hasura';
   if (unavailable != null) {
     test('Post publication concurrency requires reachable Postgres', () {
       fail(unavailable);
@@ -842,7 +843,25 @@ query {
     expect(
       projection,
       {
-        'myPosts': own ? [ownSummary] : <Object>[],
+        'myPosts': unorderedEquals([
+          if (own) ownSummary,
+          // The fixture also creates unpublished Posts owned by each author.
+          if (own)
+            {
+              ...ownSummary,
+              'id': _postId('warm', 0),
+              'rootExcerpt': '',
+              'status': 3,
+            },
+          if (viewer == postPublishAuthor(2))
+            for (final batch in ['warm', 'race'])
+              {
+                ...ownSummary,
+                'id': _postId(batch, 2),
+                'rootExcerpt': '',
+                'status': 3,
+              },
+        ]),
         'postSummary': own ? ownSummary : null,
       },
       reason: 'GraphQL must serialize a pending Post only for its author',

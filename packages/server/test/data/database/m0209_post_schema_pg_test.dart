@@ -188,9 +188,28 @@ FROM public.beacon WHERE id = 'Bm0209def0001'
         );
       });
 
-      test('a post with a description is rejected', () async {
+      test('a draft post with composer text in description is accepted', () async {
+        await _insertPost(
+          writer,
+          'Bm0209ck00003',
+          description: 'Saved before publish',
+        );
+
+        final row = (await writer.execute(
+          'SELECT description FROM public.beacon '
+          "WHERE id = 'Bm0209ck00003'",
+        )).single;
+        expect(row[0], 'Saved before publish');
+      });
+
+      test('an open post with a description is rejected', () async {
         await expectLater(
-          _insertPost(writer, 'Bm0209ck00003', description: 'Not allowed'),
+          _insertPost(
+            writer,
+            'Bm0209ck00015',
+            status: _statusOpen,
+            description: 'Not allowed',
+          ),
           _throwsCheckViolation,
         );
       });

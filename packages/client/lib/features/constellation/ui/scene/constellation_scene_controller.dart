@@ -1133,11 +1133,21 @@ class ConstellationSceneController {
     postFadeById = postFade;
     postOverflowCountByPostId = postOverflow;
 
+    // Dashed links only while one of their ends is selected (#1192): always
+    // on, they drew a dashed network over the field with nothing selected.
+    bool showsLinkOf(String a, String b) =>
+        selectedRequestId == a ||
+        selectedRequestId == b ||
+        selectedPersonId == a ||
+        selectedPersonId == b;
+
     // A budded Request hangs off the Post it grew from; addEdge drops it
     // unless both nodes are on the field.
     for (final request in drawnRequests) {
       final parentId = request.parentBeaconId;
-      if (parentId == null || parentId.isEmpty) {
+      if (parentId == null ||
+          parentId.isEmpty ||
+          !showsLinkOf(parentId, request.id)) {
         continue;
       }
       addEdge(
@@ -1156,7 +1166,8 @@ class ConstellationSceneController {
         final requestId = peer?.temporaryBeaconId;
         if (peer?.fieldMembership != ConstellationFieldMembership.temporary ||
             requestId == null ||
-            requestId.isEmpty) {
+            requestId.isEmpty ||
+            !showsLinkOf(peerId, requestId)) {
           continue;
         }
         addEdge(

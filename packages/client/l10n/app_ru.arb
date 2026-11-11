@@ -563,6 +563,8 @@
   "beaconMakeLiveWithoutSending": "Опубликовать без отправки",
   "beaconCreateInviteMakeLiveConfirmTitle": "Опубликовать запрос?",
   "beaconCreateInviteMakeLiveConfirmBody": "Чтобы пригласить человека, которого ещё нет в Тентуре, запрос нужно сначала опубликовать. Отправки выбранным здесь людям не будет — только публикация.",
+  "beaconCreateInvitePostMakeLiveConfirmTitle": "Опубликовать пост?",
+  "beaconCreateInvitePostMakeLiveConfirmBody": "Чтобы пригласить человека, которого ещё нет в Тентуре, пост нужно сначала опубликовать. Отправки выбранным здесь людям не будет — только публикация.",
   "liveRequestTitle": "Открытый запрос",
   "@liveRequestTitle": {
     "context": "BeaconCreateScreen"
@@ -5150,6 +5152,7 @@
   "itemShowMore": "ещё",
   "authSessionProblemBanner": "Не удалось проверить вашу сессию. Войдите снова.",
   "authSessionProblemFixAction": "Исправить вход",
+  "authSeedUnreadableBody": "Seed восстановления этого аккаунта не читается на этом устройстве. Он по-прежнему хранится здесь. Чтобы продолжить, восстановите аккаунт из seed восстановления ниже.",
   "authRecoveryHubTitle": "Восстановление сессии",
   "authRecoverySignInAgain": "Войти снова",
   "authRecoveryResetLocalTitle": "Сбросить локальные данные",
@@ -5882,7 +5885,6 @@
   "postExpiringPushTitle": "Пост скоро закроется",
   "postRowMoreMessages": "и ещё {count, plural, one{1 сообщение} few{{count} сообщения} many{{count} сообщений} other{{count} сообщения}}",
   "activityTabConversations": "Посты",
-  "postsTabNow": "Сейчас",
   "postsTabArchive": "Архив",
   "postsTabEmpty": "Здесь будут посты, которые вы начали или в которые вас позвали",
   "postsTabSelectConversation": "Выберите пост, чтобы открыть его здесь",
@@ -7045,5 +7047,11 @@
   "constellationPinUnpublishedExplanation": "Этот запрос не опубликован.",
   "constellationPinDeletedExplanation": "Этот запрос был удалён.",
   "constellationPinAccountDeletedExplanation": "Этот аккаунт был удалён.",
-  "constellationPinBlockedExplanation": "Вы заблокировали автора этого запроса."
+  "constellationPinBlockedExplanation": "Вы заблокировали автора этого запроса.",
+  "postsFilterActive": "Активные",
+  "postsFilterAuthored": "Мои",
+  "postsFilterDrafts": "Черновики",
+  "postsDraftsCount": "Черновики: {count}",
+  "@postsDraftsCount": {"placeholders": {"count": {"type": "int"}}},
+  "buttonEdit": "Изменить"
 }

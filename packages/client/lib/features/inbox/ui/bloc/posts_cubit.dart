@@ -92,7 +92,8 @@ class PostsCubit extends Cubit<PostsState> {
       _posts = posts;
       _expiry.setDeadlines({
         for (final post in posts)
-          if (!post.isClosed && post.expiresAt != null) post.expiresAt!,
+          if (!post.isDraft && !post.isClosed && post.expiresAt != null)
+            post.expiresAt!,
       });
       emit(_arrange(posts, _clock()));
     } on Object catch (e) {
@@ -111,12 +112,17 @@ class PostsCubit extends Cubit<PostsState> {
     emit(_arrange(_posts, _clock()));
   }
 
-  static PostsState _arrange(List<PostSummary> posts, DateTime now) {
+  void setFilter(PostsFilter filter) => emit(state.copyWith(filter: filter));
+
+  PostsState _arrange(List<PostSummary> posts, DateTime now) {
     final pinned = <PostSummary>[];
     final active = <PostSummary>[];
     final archive = <PostSummary>[];
+    final drafts = <PostSummary>[];
     for (final post in posts) {
-      if (post.isPinned) {
+      if (post.isDraft) {
+        if (post.isAuthor) drafts.add(post);
+      } else if (post.isPinned) {
         pinned.add(post);
       } else if (!post.isArchivedAt(now)) {
         active.add(post);
@@ -131,8 +137,11 @@ class PostsCubit extends Cubit<PostsState> {
         b.lastActivityAt.compareTo(a.lastActivityAt);
     active.sort(newestFirst);
     archive.sort(newestFirst);
-    return PostsState(
+    drafts.sort(newestFirst);
+    return state.copyWith(
+      status: const StateIsSuccess(),
       loaded: true,
+      drafts: drafts,
       pinned: pinned,
       active: active,
       archive: archive,

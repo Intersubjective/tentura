@@ -6,6 +6,7 @@ import 'package:tentura_root/domain/entity/beacon_cover_source.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/domain/entity/image_picked.dart';
+import 'package:tentura/domain/entity/room_pending_upload.dart';
 import 'package:tentura/domain/port/beacon_image_port.dart';
 import 'package:tentura/domain/port/beacon_write_port.dart';
 import 'package:tentura/domain/use_case/beacon_create_case.dart';
@@ -125,6 +126,7 @@ class FakeBeaconWritePort implements BeaconWritePort {
 
   /// Staged ids handed out to successful stage calls, in order.
   final stageIds = <String>[];
+  int _attachmentSequence = 0;
 
   /// Local keys presented to [stageImage], in order.
   final stagedKeys = <String>[];
@@ -140,6 +142,8 @@ class FakeBeaconWritePort implements BeaconWritePort {
   Exception? updateDraftError;
   Exception? updateError;
   Exception? publishError;
+  Exception? addAttachmentError;
+  Exception? deleteError;
 
   /// When set, [create] waits until this completes (overlapping create tests).
   Completer<void>? createHold;
@@ -199,11 +203,29 @@ class FakeBeaconWritePort implements BeaconWritePort {
   Beacon _applyFields(Beacon fields, {required String id}) => beacon.copyWith(
     id: id,
     title: fields.title,
+    description: fields.description,
+    forwardPolicy: fields.forwardPolicy,
+    postLifetimeHours: fields.postLifetimeHours,
     needs: fields.needs,
     primaryNeedSlug: fields.primaryNeedSlug,
     coverSource: fields.coverSource,
     isDiscoverable: fields.isDiscoverable,
   );
+
+  @override
+  Future<String> addPostDraftAttachment(
+    String beaconId,
+    RoomPendingUpload upload,
+  ) async {
+    if (addAttachmentError != null) throw addAttachmentError!;
+    return 'attachment-${_attachmentSequence++}';
+  }
+
+  @override
+  Future<void> removePostDraftAttachment(
+    String beaconId,
+    String attachmentId,
+  ) async {}
 
   @override
   Future<void> publishDraft(String id) async {
@@ -212,7 +234,10 @@ class FakeBeaconWritePort implements BeaconWritePort {
   }
 
   @override
-  Future<void> delete(String id) async => deletedIds.add(id);
+  Future<void> delete(String id) async {
+    if (deleteError != null) throw deleteError!;
+    deletedIds.add(id);
+  }
 
   /// Lineage fork; only the «Create from this request» tests use it, through
   /// `ForkingBeaconWritePort`.

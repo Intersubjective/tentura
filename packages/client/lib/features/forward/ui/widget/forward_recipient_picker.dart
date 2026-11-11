@@ -164,6 +164,7 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
   @override
   void initState() {
     super.initState();
+    _syncRecipientNoteControllers(context.read<ForwardCubit>().state);
     _searchController.addListener(_onSearchChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) setState(() => _hitTestReady = true);
@@ -495,10 +496,15 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
 
     if (_needsMakeLiveBeforeInvite(context)) {
       final l10n = L10n.of(context)!;
+      final isPost = _isPost(context.read<ForwardCubit>().state);
       final confirmed = await TenturaConfirmDialog.show(
         context: context,
-        title: l10n.beaconCreateInviteMakeLiveConfirmTitle,
-        content: l10n.beaconCreateInviteMakeLiveConfirmBody,
+        title: isPost
+            ? l10n.beaconCreateInvitePostMakeLiveConfirmTitle
+            : l10n.beaconCreateInviteMakeLiveConfirmTitle,
+        content: isPost
+            ? l10n.beaconCreateInvitePostMakeLiveConfirmBody
+            : l10n.beaconCreateInviteMakeLiveConfirmBody,
         confirmLabel: l10n.beaconMakeLiveWithoutSending,
       );
       if (confirmed != true || !context.mounted) return;
@@ -572,51 +578,20 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
 
   /// The empty-state invite may leave for People › Invitations only from the
   /// standalone forward route: inside a create flow that would abandon the
-  /// draft (a new Post's text is not saved yet). The new-Post picker instead
-  /// opens the invite-link dialog over the composer (#252).
+  /// draft.
   bool _canInviteFromEmptyState(BuildContext context, ForwardState state) =>
-      _inviteEnabled(context, state) ||
-      !widget.embedded ||
-      _invitesOverComposer(context, state);
+      _inviteEnabled(context, state) || !widget.embedded;
 
-  /// The embedded new-Post picker (#252): a plain invite link in a dialog
-  /// over the composer, so the unsaved Post stays as written. A draft
-  /// Request instead takes the request-tied invite above (#960).
-  bool _invitesOverComposer(BuildContext context, ForwardState state) =>
-      widget.embedded && !_inviteEnabled(context, state) && _isPost(state);
-
-  /// Empty-state invite: a request-tied invite where the picker may mint one,
-  /// a plain invite link over the new-Post composer, otherwise the People ›
-  /// Invitations tab.
+  /// Empty-state invite: a draft-tied invite where the picker may mint one,
+  /// otherwise the People › Invitations tab.
   Future<void> _inviteFromEmptyState(
     BuildContext context,
     ForwardState state,
   ) async {
     if (_inviteEnabled(context, state)) {
       await _inviteNewPerson(context);
-    } else if (_invitesOverComposer(context, state)) {
-      await _invitePlainOverComposer(context);
     } else {
       await GetIt.I<AppNavigator>().openInvitations();
-    }
-  }
-
-  /// The same invite-link dialog as «Invite new person», with no request
-  /// attached (a new Post has no beacon yet), and no «View invitations»
-  /// shortcut afterwards: that leaves the composer (#252).
-  Future<void> _invitePlainOverComposer(BuildContext context) async {
-    if (_inviteFlowActive) return;
-    _inviteFlowActive = true;
-    try {
-      await runBeaconInviteFlow(
-        context,
-        invitations: _invitationCubit,
-        beaconId: '',
-        isPost: true,
-        offerViewInvitations: false,
-      );
-    } finally {
-      _inviteFlowActive = false;
     }
   }
 
@@ -707,7 +682,10 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
               prev.viewerIsAuthor != next.viewerIsAuthor ||
               prev.targetProfile != next.targetProfile ||
               prev.tagMembers != next.tagMembers ||
-              prev.addedByTag != next.addedByTag ||
+              !const DeepCollectionEquality().equals(
+                prev.addedByTag,
+                next.addedByTag,
+              ) ||
               prev.editingRecipientId != next.editingRecipientId,
           builder: (_, state) {
             switch (state.candidatesLoad) {
@@ -783,8 +761,6 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
 
             final showGenuineEmptyMessage =
                 state.candidatesLoad is ForwardCandidatesEmpty && listIsEmpty;
-
-            _syncRecipientNoteControllers(state);
 
             final actionLoading =
                 widget.externalActionLoading ||
@@ -1246,7 +1222,8 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
       onCancelForward: onCancelForward,
       onOpenPersonalNote: () => _expandedPersonalNoteRecipientId.value = id,
       onPersonalNoteCollapsed: _collapseExpandedPersonalNote,
-      recipientNoteController: _recipientNoteControllers[id],
+      recipientNoteController: null,
+      getRecipientNoteController: () => _recipientNoteControllers[id],
       onRecipientNoteChanged: (text) => cubit.setRecipientNote(id, text),
       recipientNoteHint: widget.recipientNoteHint,
       onBuild:

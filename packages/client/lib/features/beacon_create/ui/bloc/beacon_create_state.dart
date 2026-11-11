@@ -5,6 +5,8 @@ import 'package:tentura_root/domain/entity/beacon_promotion_source.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/domain/capability/capability_tag.dart';
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/beacon_kind.dart';
+import 'package:tentura/domain/entity/room_pending_upload.dart';
 import 'package:tentura/domain/entity/coordinates.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
@@ -26,6 +28,10 @@ abstract class BeaconCreateState extends StateBase with _$BeaconCreateState {
   const factory BeaconCreateState({
     @Default('') String title,
     @Default('') String description,
+    @Default(BeaconForwardPolicyValue.open)
+    BeaconForwardPolicyValue postForwardPolicy,
+    @Default(72) int postLifetimeHours,
+    @Default([]) List<RoomPendingUpload> postAttachments,
     @Default('') String location,
     @Default({}) Set<String> tags,
     @Default({}) Set<String> needs,

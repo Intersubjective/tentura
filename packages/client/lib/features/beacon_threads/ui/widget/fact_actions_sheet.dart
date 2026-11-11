@@ -38,21 +38,22 @@ Future<void> showFactActionsSheet(
     onQuoteInChat: onQuoteInChat,
     // Base seq is the one the edit sheet opened with (plan §14.6); after a
     // revision conflict, "Save mine" retries against the conflict's seq.
-    onCorrect: ({
-      required factCardId,
-      required newText,
-      String? attachmentsJson,
-    }) {
-      final conflict = cubit.state.factEditConflict;
-      return cubit.correctFact(
-        factCardId: factCardId,
-        newText: newText,
-        baseRevisionSeq: conflict != null && conflict.id == factCardId
-            ? conflict.revisionSeq
-            : fact.revisionSeq,
-        attachmentsJson: attachmentsJson,
-      );
-    },
+    onCorrect:
+        ({
+          required factCardId,
+          required newText,
+          String? attachmentsJson,
+        }) {
+          final conflict = cubit.state.factEditConflict;
+          return cubit.correctFact(
+            factCardId: factCardId,
+            newText: newText,
+            baseRevisionSeq: conflict != null && conflict.id == factCardId
+                ? conflict.revisionSeq
+                : fact.revisionSeq,
+            attachmentsJson: attachmentsJson,
+          );
+        },
     readEditConflict: () => cubit.state.factEditConflict,
     onClearEditConflict: cubit.clearFactEditConflict,
     onRemove: ({required factCardId}) =>
@@ -702,11 +703,12 @@ class _EditFactSheetState extends State<_EditFactSheet>
                 existing: _kept,
                 pending: [
                   for (final u in pendingUploads)
-                    (
-                      bytes: u.bytes,
-                      fileName: u.fileName,
-                      mimeType: u.mimeType,
-                    ),
+                    if (u.bytes case final bytes?)
+                      (
+                        bytes: bytes,
+                        fileName: u.fileName,
+                        mimeType: u.mimeType,
+                      ),
                 ],
                 onRemoveExisting: (i) => setState(() => _kept.removeAt(i)),
                 onRemovePending: removePendingUpload,

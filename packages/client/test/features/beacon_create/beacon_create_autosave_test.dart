@@ -299,7 +299,7 @@ void main() {
     });
 
     test(
-      'Post stays dirty after server draft id lands (#1117)',
+      'Post stays dirty until its body is saved on the server',
       () async {
         final write = FakeBeaconWritePort();
         final cubit = BeaconCreateCubit(
@@ -309,7 +309,7 @@ void main() {
         );
         addTearDown(cubit.close);
 
-        cubit.postContentChanged(hasContent: true);
+        cubit.setPostBody('A Post body awaiting autosave.');
         expect(cubit.hasUnpersistedEdits, isTrue);
 
         await cubit.ensureDraft(context: '', showMessage: false);
@@ -319,7 +319,7 @@ void main() {
     );
 
     test(
-      'Post stays dirty two seconds after typing once draft id exists (#1117)',
+      'Post becomes clean after autosave and dirty again on the next edit',
       () {
         fakeAsync((async) {
           final write = FakeBeaconWritePort();
@@ -330,12 +330,22 @@ void main() {
           );
           addTearDown(cubit.close);
 
-          cubit.postContentChanged(hasContent: true);
+          cubit.setPostBody('A Post body awaiting autosave.');
           expect(cubit.hasUnpersistedEdits, isTrue);
           async.elapse(const Duration(seconds: 2));
           async.flushMicrotasks();
           expect(cubit.state.draftId, isNotNull);
+          expect(write.updatedDraftFields, hasLength(1));
+          final saved = write.updatedDraftFields.single;
+          expect(saved.id, cubit.state.draftId);
+          expect(saved.description, 'A Post body awaiting autosave.');
+          expect(saved.forwardPolicy, BeaconForwardPolicyValue.open);
+          expect(saved.postLifetimeHours, 72);
+          expect(cubit.hasUnpersistedEdits, isFalse);
+
+          cubit.setPostBody('A Post body with a new edit.');
           expect(cubit.hasUnpersistedEdits, isTrue);
+          expect(write.updatedDraftFields, hasLength(1));
         });
       },
     );
