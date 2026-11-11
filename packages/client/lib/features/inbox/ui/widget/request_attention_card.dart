@@ -188,18 +188,24 @@ class RequestAttentionCard extends StatelessWidget {
           )
         : rawZones;
     final notes = _noteForwards();
-    // CAP (#189): the cap counts «вам» rows only and is absolute. Notes come
-    // first (D-171-5a, K7), then one row per sender, newest first; what does
-    // not fit is *named* below — never silently dropped, and never a reason
-    // to drop the change line or the footer (the old `eventCap = 0` bug).
+    // CAP (#189): notes come first, then one row per sender. The forwarder's
+    // own thanks stays visible independently of that sender preview, including
+    // on a compact card. Everything else that does not fit is named below.
     final shownNotes = notes.take(visibleCap).toList(growable: false);
     final hiddenNotes = notes.length - shownNotes.length;
     final personalCap = visibleCap - shownNotes.length;
-    final shownPersonal = zones.personalRows
+    final helpedRows = zones.personalRows
+        .where((row) => attentionReceiptIsForwardHelped(row.newest))
+        .toList(growable: false);
+    final senderRows = zones.personalRows
+        .where((row) => !attentionReceiptIsForwardHelped(row.newest))
+        .toList(growable: false);
+    final shownSenders = senderRows
         .take(personalCap < 0 ? 0 : personalCap)
         .toList(growable: false);
-    final hiddenPersonal = zones.personalRows
-        .skip(shownPersonal.length)
+    final shownPersonal = [...helpedRows, ...shownSenders];
+    final hiddenPersonal = senderRows
+        .skip(shownSenders.length)
         .toList(growable: false);
     final shownEvents =
         shownPersonal.fold(0, (sum, row) => sum + row.receipts.length) +
@@ -497,10 +503,8 @@ class RequestAttentionCard extends StatelessWidget {
     final name = actor == null
         ? ''
         : profileWithContactOverlay(actor).shownName.trim();
-    final dismiss = _isPinned ? null : onClearEvent;
-    final isForwardHelped =
-        attentionEventTypeOf(receipt.presentationPayloadJson) ==
-        'forwardHelped';
+    final isForwardHelped = attentionReceiptIsForwardHelped(receipt);
+    final dismiss = _isPinned && !isForwardHelped ? null : onClearEvent;
     return AttentionMiniCard(
       key: ValueKey('personal:${row.senderId}:${receipt.id}'),
       receipt: receipt,
@@ -510,7 +514,10 @@ class RequestAttentionCard extends StatelessWidget {
       compactAge: true,
       viewerUserId: viewerUserId,
       trailing: isForwardHelped
-          ? ForwardHelpedSeePathAction(receipt: receipt)
+          ? ForwardHelpedSeePathAction(
+              receipt: receipt,
+              requestClosed: _surfaceClosed,
+            )
           : null,
       dismissLabel: name.isEmpty ? null : l10n.attentionCardDismissRow(name),
       onTap: onEventTap == null ? null : () => onEventTap!(receipt),

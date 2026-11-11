@@ -569,6 +569,7 @@ class ConstellationSceneController {
     final markers = <String, ConstellationForwardTreeRecipientMarker>{};
     final tempOutlineIds = <String>{};
     final anonByPerson = <String, int>{};
+    final treeOnlyPersonIds = <String>{};
 
     forwardTreeVisibleSemanticIds = const [];
     if (!tree.replaying) {
@@ -669,6 +670,8 @@ class ConstellationSceneController {
           isKept: false,
         ),
       );
+      // Not on the Field: the Field layout seats it only as a kept peer.
+      treeOnlyPersonIds.add(personId);
     }
 
     // Edge ids on paths to active help offerers (ancestor walk).
@@ -784,6 +787,9 @@ class ConstellationSceneController {
           kConstellationTrustChainEdgeFade;
     }
 
+    if (treeOnlyPersonIds.isNotEmpty) {
+      layoutKeptPeerIds = {...keptPeerIds, ...treeOnlyPersonIds};
+    }
     forwardTreeRecipientMarkerByPersonId = markers;
     forwardTreeTemporaryOutlinePersonIds = tempOutlineIds;
     forwardTreeAnonymousCountByPersonId = anonByPerson;

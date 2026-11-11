@@ -1137,7 +1137,13 @@ final class AttentionCase implements AttentionReconcilePort {
     if (members.isNotEmpty) {
       // A clear supersedes an earlier Mark unread on the same rows (#601).
       members.forEach(_unclears.remove);
-      _clears.begin(operationId, members);
+      _clears.begin(
+        operationId,
+        members,
+        receipts: [
+          for (final id in members) ?_knownReceipt(id),
+        ],
+      );
       _applyOptimisticAcks(unreadDeltas: unreadDeltas);
     }
     try {
@@ -1301,7 +1307,7 @@ final class AttentionCase implements AttentionReconcilePort {
     for (final receipt in feed.page.items) {
       _receiptsById[receipt.id] = receipt;
     }
-    _indexChildren(feed.page.items);
+    _indexChildren(feed.page.items.expand((receipt) => receipt.eventsPreview));
     final incoming = _uniqueByRequestIdentity(
       feed.page.items.map(_project),
     );
@@ -1398,11 +1404,9 @@ final class AttentionCase implements AttentionReconcilePort {
     return next;
   }
 
-  void _indexChildren(Iterable<AttentionReceipt> items) {
-    for (final receipt in items) {
-      for (final child in receipt.eventsPreview) {
-        _childReceiptsById[child.id] = child;
-      }
+  void _indexChildren(Iterable<AttentionReceipt> children) {
+    for (final child in children) {
+      _childReceiptsById[child.id] = child;
     }
   }
 

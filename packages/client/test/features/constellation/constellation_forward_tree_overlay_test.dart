@@ -19,6 +19,7 @@ import '../../support/constellation_store_fixture.dart';
 import '../../support/people_tags_widget_harness.dart';
 import '../../support/phone_surface.dart';
 import '../../support/test_forward_case.dart';
+import '../graph/scene_layout_test_support.dart';
 import 'fixtures/constellation_reference_fixture.dart';
 
 const _viewer = Profile(id: 'ego', displayName: 'Ego');
@@ -254,6 +255,25 @@ void main() {
         cubit.graphController.renderSnapshot.topology.nodesById.keys.where((k) => k == 'fp:$_l'),
         isEmpty,
       );
+
+      await cubit.close();
+    });
+
+    test('the Field layout seats an off-field tree person (#774)', () async {
+      final cubit = await _cubit(
+        forwardRepo: _GraphForwardRepo(_sixEdgeGraph()),
+        reduceMotionOverride: true,
+      );
+      await cubit.enterForwardTreeMode(beaconId: _beaconId);
+      expect(_hasTempOutline(cubit, _l), isTrue);
+
+      final topology = cubit.graphController.renderSnapshot.topology;
+      final positions = await layoutPositionsOnce(
+        cubit.constellationSceneLayoutAlgorithm,
+        nodes: {for (final node in topology.nodesById.values) node.payload},
+        edges: {for (final edge in topology.edgesById.values) edge.payload},
+      );
+      expect(positions, contains('fp:$_l'));
 
       await cubit.close();
     });
