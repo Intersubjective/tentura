@@ -26,6 +26,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../../support/mock_stack_router_scope.dart';
 import '../../support/test_realtime_sync.dart';
+import 'people_tags_json_fixture.dart';
 
 // Keep unrelated initial screen reads local; delete and restore use the
 // production repository and real responses from a disposable server database.
@@ -143,7 +144,7 @@ void main() {
                 reason: 'Server fixture did not initialize: $diagnostics',
               );
               final seed = jsonDecode(replies.current) as Map<String, dynamic>;
-              final tag = mapPersonTag(
+              final tag = personTagFromJsonFixture(
                 Map<String, dynamic>.from(seed['tag']! as Map),
               );
               expect(tag.count, 1);
