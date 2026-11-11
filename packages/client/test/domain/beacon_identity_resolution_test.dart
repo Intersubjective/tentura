@@ -3,7 +3,7 @@ import 'package:tentura_root/domain/entity/beacon_cover_source.dart';
 
 import 'package:tentura/domain/capability/capability_tag.dart';
 import 'package:tentura/domain/entity/beacon.dart';
-import 'package:tentura/domain/entity/beacon_cover.dart';
+import 'package:tentura/domain/entity/beacon_identity.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/domain/entity/profile.dart';
 
