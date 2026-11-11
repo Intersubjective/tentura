@@ -8,6 +8,7 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
+import 'package:tentura_server/domain/entity/post_draft_attachment.dart';
 import 'package:tentura_server/domain/entity/post_publish_result.dart';
 import 'package:tentura_server/domain/entity/post_summary.dart';
 import 'package:tentura_server/domain/exception.dart';
@@ -102,12 +103,6 @@ class PostCase {
             lifetimeHours > BeaconPostLifetime.maxHours)) {
       throw const PostLifetimeInvalidException();
     }
-    if (body.trim().isEmpty &&
-        (await _beaconRepository.postDraftAttachments(beaconId)).isEmpty) {
-      throw const BeaconCreateException(
-        description: 'A Post needs text or an attachment',
-      );
-    }
     if (post.status == BeaconStatus.draft) {
       await _attention.runAction<void>(
         actorUserId: authorId,
@@ -118,8 +113,10 @@ class PostCase {
             beaconId: beaconId,
           );
           if (current.status != BeaconStatus.draft) return;
+          await _publicationAttachments(beaconId, body);
           final resolvedForward = forwardPolicy ?? current.forwardPolicy;
-          final draftLifetimeHours = lifetimeHours ??
+          final draftLifetimeHours =
+              lifetimeHours ??
               await _beaconRepository.postDraftLifetimeHours(beaconId);
           if (draftLifetimeHours != null &&
               (draftLifetimeHours < BeaconPostLifetime.minHours ||
@@ -130,7 +127,6 @@ class PostCase {
             beaconId: beaconId,
             policy: resolvedForward,
           );
-          await _beaconRepository.clearPostDraftComposerFields(beaconId);
           await _beaconCase.publishDraft(userId: authorId, beaconId: beaconId);
           // `publishDraft` stamps the 72 h default; a shorter choice restamps.
           if (draftLifetimeHours != null &&
@@ -176,7 +172,7 @@ class PostCase {
         }
         // Read under the Post lock: an addition either committed before
         // this point and moves now, or sees a published Post and is refused.
-        final saved = await _beaconRepository.postDraftAttachments(beaconId);
+        final saved = await _publicationAttachments(beaconId, body);
         final message = await _roomCase.createMessage(
           beaconId: beaconId,
           userId: authorId,
@@ -189,6 +185,7 @@ class PostCase {
         );
         await _beaconRepository.deletePostDraftAttachments(beaconId);
         final rootMessageId = message['id']! as String;
+        await _beaconRepository.clearPostDraftComposerFields(beaconId);
         await _beaconRepository.setPostRootMessage(
           beaconId: beaconId,
           messageId: rootMessageId,
@@ -201,6 +198,20 @@ class PostCase {
         );
       },
     );
+  }
+
+  /// Called with the Post lock held, before opening it or creating its root.
+  Future<List<PostDraftAttachment>> _publicationAttachments(
+    String beaconId,
+    String body,
+  ) async {
+    final saved = await _beaconRepository.postDraftAttachments(beaconId);
+    if (body.trim().isEmpty && saved.isEmpty) {
+      throw const BeaconCreateException(
+        description: 'A Post needs text or an attachment',
+      );
+    }
+    return saved;
   }
 
   /// Saves an upload on the author's Post draft, after its other
@@ -292,7 +303,8 @@ class PostCase {
     }
   }
 
-  /// Autosave for an owned Post draft: text, forwarding policy and lifetime.
+  /// Autosave until the owned Post's root message commits, including recovery
+  /// after a failed delivery.
   Future<String> updatePostDraft({
     required String authorId,
     required String beaconId,
@@ -314,7 +326,7 @@ class PostCase {
     if (beacon.kind != BeaconKind.post) {
       throw const BeaconCreateException(description: 'Not a Post');
     }
-    if (beacon.status != BeaconStatus.draft) {
+    if (!_isEditablePostDraft(beacon)) {
       throw const BeaconCreateException(
         description: 'Post is not an editable draft',
       );
@@ -323,10 +335,12 @@ class PostCase {
       actorUserId: authorId,
       action: (_) async {
         await _postLock.lockForPostMutation(beaconId);
-        final current = await _beaconRepository.getBeaconById(beaconId: beaconId);
+        final current = await _beaconRepository.getBeaconById(
+          beaconId: beaconId,
+        );
         if (current.author.id != authorId ||
             current.kind != BeaconKind.post ||
-            current.status != BeaconStatus.draft) {
+            !_isEditablePostDraft(current)) {
           throw const BeaconCreateException(
             description: 'Post is not an editable draft',
           );
@@ -342,6 +356,10 @@ class PostCase {
     );
     return beaconId;
   }
+
+  bool _isEditablePostDraft(BeaconEntity beacon) =>
+      beacon.status == BeaconStatus.draft ||
+      (beacon.status == BeaconStatus.open && beacon.postRootMessageId == null);
 
   Future<BeaconEntity> _postForPublication({
     required String authorId,

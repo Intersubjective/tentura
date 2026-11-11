@@ -165,6 +165,7 @@ final class PostPublishHarness {
     TenturaDb db,
     Env env, {
     PostLockPort? publishLock,
+    RemoteStoragePort? storage,
   }) {
     final logger = Logger('PostPublishConcurrencyPgTest');
     final uow = MutatingUnitOfWork(db);
@@ -245,7 +246,7 @@ final class PostPublishHarness {
       _UnusedFactCards(),
       images,
       tasks,
-      _Storage(),
+      storage ?? _Storage(),
       _UnusedPolling(),
       _Quota(),
       blocks,

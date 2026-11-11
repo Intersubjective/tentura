@@ -798,7 +798,7 @@ SET description = $3,
     updated_at = now()
 WHERE id = $1
   AND user_id = $2
-  AND status = 3
+  AND (status = 3 OR (status = 0 AND post_root_message_id IS NULL))
   AND kind = 1'''
           : r'''
 UPDATE public.beacon
@@ -808,7 +808,7 @@ SET description = $3,
     updated_at = now()
 WHERE id = $1
   AND user_id = $2
-  AND status = 3
+  AND (status = 3 OR (status = 0 AND post_root_message_id IS NULL))
   AND kind = 1''',
       variables: variables,
       updates: {_database.beacons},

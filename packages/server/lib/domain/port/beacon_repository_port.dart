@@ -163,7 +163,7 @@ abstract class BeaconRepositoryPort {
   });
 
   /// Persists Post draft composer text, forwarding policy and lifetime hours on
-  /// an owned Post in draft status.
+  /// an owned draft or an open Post whose root message has not committed.
   Future<void> updatePostDraft({
     required String beaconId,
     required String userId,
@@ -175,7 +175,7 @@ abstract class BeaconRepositoryPort {
   /// `beacon.post_lifetime_hours` while the Post is still a draft.
   Future<int?> postDraftLifetimeHours(String beaconId);
 
-  /// Clears draft-only composer columns before the root message is posted.
+  /// Clears draft-only composer columns in the transaction that sets the root.
   Future<void> clearPostDraftComposerFields(String beaconId);
 
   /// Attachments saved on a Post draft, in the order they were added.
