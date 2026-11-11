@@ -1,86 +1,136 @@
 import '../../domain/entity/people_tags_entities.dart';
+import '../gql/_g/person_auto_tag_pref_set.data.gql.dart';
+import '../gql/_g/person_auto_tags.data.gql.dart';
+import '../gql/_g/person_tag_create.data.gql.dart';
+import '../gql/_g/person_tag_delete.data.gql.dart';
+import '../gql/_g/person_tag_memberships.data.gql.dart';
+import '../gql/_g/person_tag_restore.data.gql.dart';
+import '../gql/_g/person_tag_suggestion_record.data.gql.dart';
+import '../gql/_g/person_tag_suggestion_state.data.gql.dart';
+import '../gql/_g/person_tag_update.data.gql.dart';
+import '../gql/_g/person_tags.data.gql.dart';
+import '../gql/_g/person_tags_of.data.gql.dart';
 
-/// Wire payloads (GraphQL JSON) to entities and back.
+/// Typed GraphQL results to entities, and entities back to wire payloads.
+///
+/// Each operation selects its own generated class (no shared fragment), so
+/// the same entity has one small mapper per result type; a schema rename
+/// fails to compile here instead of failing a cast at runtime.
 
-PersonTag mapPersonTag(Map<String, dynamic> json) => PersonTag(
-  id: json['id']! as String,
-  name: json['name']! as String,
-  glyph: json['glyph']! as String,
-  color: json['color']! as int,
-  ord: json['ord']! as int,
-  count: json['count'] as int? ?? 0,
-  countOffField: json['countOffField'] as int? ?? 0,
-);
-
-List<PersonTag> mapPersonTags(Iterable<Map<String, dynamic>> json) => [
-  for (final t in json) mapPersonTag(t),
-];
-
-PersonTagInherited mapPersonTagInherited(Map<String, dynamic> json) =>
-    PersonTagInherited(
-      personId: json['personId']! as String,
-      inviterId: json['inviterId'] as String?,
-    );
-
-List<PersonTagMembers> mapPersonTagMembers(
-  Iterable<Map<String, dynamic>> json,
-) => [
-  for (final m in json)
-    PersonTagMembers(
-      tagId: m['tagId']! as String,
-      personIds: List<String>.from(m['personIds']! as List),
-      inherited: [
-        for (final i in m['inherited']! as List)
-          mapPersonTagInherited(Map<String, dynamic>.from(i as Map)),
-      ],
-    ),
-];
-
-PersonAutoTag mapPersonAutoTag(Map<String, dynamic> json) => PersonAutoTag(
-  kind: json['kind']! as int,
-  count: json['count']! as int,
-  showInFilters: json['showInFilters']! as bool,
-);
-
-PersonAutoTagOf mapPersonAutoTagOf(Map<String, dynamic> json) =>
-    PersonAutoTagOf(
-      kind: json['kind']! as int,
-      n: json['n']! as int,
-      direction: json['direction']! as int,
-    );
-
-PersonTagsOf mapPersonTagsOf(Map<String, dynamic> json) => PersonTagsOf(
-  own: List<String>.from(json['own']! as List),
-  auto: [
-    for (final a in json['auto']! as List)
-      mapPersonAutoTagOf(Map<String, dynamic>.from(a as Map)),
-  ],
-);
-
-List<String> mapPersonAutoTagMembers(Iterable<Object?> json) =>
-    List<String>.from(json);
-
-PersonTagSuggestionState mapPersonTagSuggestionState(
-  Map<String, dynamic> json,
-) {
-  final until = json['silencedUntil'];
-  return PersonTagSuggestionState(
-    canSuggest: json['canSuggest']! as bool,
-    disabled: json['disabled']! as bool,
-    silencedUntil: switch (until) {
-      final DateTime d => d.toUtc(),
-      final String s => DateTime.parse(s).toUtc(),
-      _ => null,
-    },
+extension PersonTagsDataMapper on GPersonTagsData_personTags {
+  PersonTag toEntity() => PersonTag(
+    id: id,
+    name: name,
+    glyph: glyph,
+    color: color,
+    ord: ord,
+    count: count,
+    countOffField: countOffField,
   );
 }
 
-PersonTagSnapshot mapPersonTagSnapshot(Map<String, dynamic> json) =>
-    PersonTagSnapshot(
-      tag: mapPersonTag(Map<String, dynamic>.from(json['tag']! as Map)),
-      memberIds: List<String>.from(json['memberIds']! as List),
-      sources: List<int>.from(json['sources']! as List),
-    );
+extension PersonTagCreateDataMapper on GPersonTagCreateData_personTagCreate {
+  PersonTag toEntity() => PersonTag(
+    id: id,
+    name: name,
+    glyph: glyph,
+    color: color,
+    ord: ord,
+    count: count,
+    countOffField: countOffField,
+  );
+}
+
+extension PersonTagUpdateDataMapper on GPersonTagUpdateData_personTagUpdate {
+  PersonTag toEntity() => PersonTag(
+    id: id,
+    name: name,
+    glyph: glyph,
+    color: color,
+    ord: ord,
+    count: count,
+    countOffField: countOffField,
+  );
+}
+
+extension PersonTagRestoreDataMapper on GPersonTagRestoreData_personTagRestore {
+  PersonTag toEntity() => PersonTag(
+    id: id,
+    name: name,
+    glyph: glyph,
+    color: color,
+    ord: ord,
+    count: count,
+    countOffField: countOffField,
+  );
+}
+
+extension PersonTagDeleteDataMapper on GPersonTagDeleteData_personTagDelete {
+  PersonTagSnapshot toEntity() => PersonTagSnapshot(
+    tag: PersonTag(
+      id: tag.id,
+      name: tag.name,
+      glyph: tag.glyph,
+      color: tag.color,
+      ord: tag.ord,
+      count: tag.count,
+      countOffField: tag.countOffField,
+    ),
+    memberIds: memberIds.toList(),
+    sources: sources.toList(),
+  );
+}
+
+extension PersonTagMembershipsDataMapper
+    on GPersonTagMembershipsData_personTagMemberships {
+  PersonTagMembers toEntity() => PersonTagMembers(
+    tagId: tagId,
+    personIds: personIds.toList(),
+    inherited: [
+      for (final i in inherited)
+        PersonTagInherited(personId: i.personId, inviterId: i.inviterId),
+    ],
+  );
+}
+
+extension PersonAutoTagsDataMapper on GPersonAutoTagsData_personAutoTags {
+  PersonAutoTag toEntity() =>
+      PersonAutoTag(kind: kind, count: count, showInFilters: showInFilters);
+}
+
+extension PersonAutoTagPrefSetDataMapper
+    on GPersonAutoTagPrefSetData_personAutoTagPrefSet {
+  PersonAutoTag toEntity() =>
+      PersonAutoTag(kind: kind, count: count, showInFilters: showInFilters);
+}
+
+extension PersonTagsOfDataMapper on GPersonTagsOfData_personTagsOf {
+  PersonTagsOf toEntity() => PersonTagsOf(
+    own: own.toList(),
+    auto: [
+      for (final a in auto)
+        PersonAutoTagOf(kind: a.kind, n: a.n, direction: a.direction),
+    ],
+  );
+}
+
+extension PersonTagSuggestionStateDataMapper
+    on GPersonTagSuggestionStateData_personTagSuggestionState {
+  PersonTagSuggestionState toEntity() => PersonTagSuggestionState(
+    canSuggest: canSuggest,
+    disabled: disabled,
+    silencedUntil: silencedUntil?.toUtc(),
+  );
+}
+
+extension PersonTagSuggestionRecordDataMapper
+    on GPersonTagSuggestionRecordData_personTagSuggestionRecord {
+  PersonTagSuggestionState toEntity() => PersonTagSuggestionState(
+    canSuggest: canSuggest,
+    disabled: disabled,
+    silencedUntil: silencedUntil?.toUtc(),
+  );
+}
 
 Map<String, Object> personTagToWire(PersonTag tag) => {
   'id': tag.id,

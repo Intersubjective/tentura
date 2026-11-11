@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/features/people_tags/data/gql/_g/person_auto_tags.data.gql.dart';
+import 'package:tentura/features/people_tags/data/gql/_g/person_tags.data.gql.dart';
 import 'package:tentura/features/people_tags/data/model/people_tags_mapper.dart';
 import 'package:tentura/features/people_tags/ui/widget/person_auto_tag_name.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -16,15 +18,16 @@ void main() {
       final handle = tester.ensureSemantics();
       final l10n = lookupL10n(const Locale('ru'));
 
-      final tag = mapPersonTag({
-        'id': 'T1',
-        'name': 'Соседи',
-        'glyph': 'С',
-        'color': 2,
-        'ord': 0,
-        'count': 1,
-        'countOffField': 0,
-      });
+      final tag = GPersonTagsData_personTags(
+        (b) => b
+          ..id = 'T1'
+          ..name = 'Соседи'
+          ..glyph = 'С'
+          ..color = 2
+          ..ord = 0
+          ..count = 1
+          ..countOffField = 0,
+      ).toEntity();
 
       await tester.pumpWidget(
         MaterialApp(
@@ -64,11 +67,12 @@ void main() {
     ) async {
       final handle = tester.ensureSemantics();
       final en = lookupL10n(const Locale('en'));
-      final autoTag = mapPersonAutoTag({
-        'kind': 0,
-        'count': 2,
-        'showInFilters': true,
-      });
+      final autoTag = GPersonAutoTagsData_personAutoTags(
+        (b) => b
+          ..kind = 0
+          ..count = 2
+          ..showInFilters = true,
+      ).toEntity();
       final name = personAutoTagName(en, autoTag.kind);
 
       await tester.pumpWidget(

@@ -36,10 +36,10 @@ final class PeopleTagsRepository implements PeopleTagsRepositoryPort {
       .request(GPersonTagsReq())
       .firstLinkResponse(label: 'PersonTags')
       .then(
-        (r) => mapPersonTags([
+        (r) => [
           for (final t in r.dataOrThrow(label: 'PersonTags').personTags)
-            t.toJson(),
-        ]),
+            t.toEntity(),
+        ],
       );
 
   @override
@@ -47,9 +47,7 @@ final class PeopleTagsRepository implements PeopleTagsRepositoryPort {
       .request(GPersonTagsOfReq((b) => b.vars.personId = personId))
       .firstLinkResponse(label: 'PersonTagsOf')
       .then(
-        (r) => mapPersonTagsOf(
-          r.dataOrThrow(label: 'PersonTagsOf').personTagsOf.toJson(),
-        ),
+        (r) => r.dataOrThrow(label: 'PersonTagsOf').personTagsOf.toEntity(),
       );
 
   @override
@@ -57,13 +55,13 @@ final class PeopleTagsRepository implements PeopleTagsRepositoryPort {
       .request(GPersonTagMembershipsReq())
       .firstLinkResponse(label: 'PersonTagMemberships')
       .then(
-        (r) => mapPersonTagMembers([
+        (r) => [
           for (final m
               in r
                   .dataOrThrow(label: 'PersonTagMemberships')
                   .personTagMemberships)
-            m.toJson(),
-        ]),
+            m.toEntity(),
+        ],
       );
 
   @override
@@ -73,7 +71,7 @@ final class PeopleTagsRepository implements PeopleTagsRepositoryPort {
       .then(
         (r) => [
           for (final t in r.dataOrThrow(label: 'PersonAutoTags').personAutoTags)
-            mapPersonAutoTag(t.toJson()),
+            t.toEntity(),
         ],
       );
 
@@ -82,9 +80,10 @@ final class PeopleTagsRepository implements PeopleTagsRepositoryPort {
       .request(GPersonAutoTagMembersReq((b) => b.vars.kind = kind))
       .firstLinkResponse(label: 'PersonAutoTagMembers')
       .then(
-        (r) => mapPersonAutoTagMembers(
-          r.dataOrThrow(label: 'PersonAutoTagMembers').personAutoTagMembers,
-        ),
+        (r) => r
+            .dataOrThrow(label: 'PersonAutoTagMembers')
+            .personAutoTagMembers
+            .toList(),
       );
 
   @override
@@ -93,12 +92,10 @@ final class PeopleTagsRepository implements PeopleTagsRepositoryPort {
           .request(GPersonTagSuggestionStateReq())
           .firstLinkResponse(label: 'PersonTagSuggestionState')
           .then(
-            (r) => mapPersonTagSuggestionState(
-              r
-                  .dataOrThrow(label: 'PersonTagSuggestionState')
-                  .personTagSuggestionState
-                  .toJson(),
-            ),
+            (r) => r
+                .dataOrThrow(label: 'PersonTagSuggestionState')
+                .personTagSuggestionState
+                .toEntity(),
           );
 
   @override
@@ -123,9 +120,8 @@ final class PeopleTagsRepository implements PeopleTagsRepositoryPort {
       )
       .firstLinkResponse(label: 'PersonTagCreate')
       .then(
-        (r) => mapPersonTag(
-          r.dataOrThrow(label: 'PersonTagCreate').personTagCreate.toJson(),
-        ),
+        (r) =>
+            r.dataOrThrow(label: 'PersonTagCreate').personTagCreate.toEntity(),
       );
 
   @override
@@ -150,9 +146,8 @@ final class PeopleTagsRepository implements PeopleTagsRepositoryPort {
       )
       .firstLinkResponse(label: 'PersonTagUpdate')
       .then(
-        (r) => mapPersonTag(
-          r.dataOrThrow(label: 'PersonTagUpdate').personTagUpdate.toJson(),
-        ),
+        (r) =>
+            r.dataOrThrow(label: 'PersonTagUpdate').personTagUpdate.toEntity(),
       );
 
   @override
@@ -169,9 +164,8 @@ final class PeopleTagsRepository implements PeopleTagsRepositoryPort {
       )
       .firstLinkResponse(label: 'PersonTagDelete')
       .then(
-        (r) => mapPersonTagSnapshot(
-          r.dataOrThrow(label: 'PersonTagDelete').personTagDelete.toJson(),
-        ),
+        (r) =>
+            r.dataOrThrow(label: 'PersonTagDelete').personTagDelete.toEntity(),
       );
 
   @override
@@ -204,9 +198,10 @@ final class PeopleTagsRepository implements PeopleTagsRepositoryPort {
       )
       .firstLinkResponse(label: 'PersonTagRestore')
       .then(
-        (r) => mapPersonTag(
-          r.dataOrThrow(label: 'PersonTagRestore').personTagRestore.toJson(),
-        ),
+        (r) => r
+            .dataOrThrow(label: 'PersonTagRestore')
+            .personTagRestore
+            .toEntity(),
       );
 
   @override
@@ -247,12 +242,10 @@ final class PeopleTagsRepository implements PeopleTagsRepositoryPort {
       )
       .firstLinkResponse(label: 'PersonAutoTagPrefSet')
       .then(
-        (r) => mapPersonAutoTag(
-          r
-              .dataOrThrow(label: 'PersonAutoTagPrefSet')
-              .personAutoTagPrefSet
-              .toJson(),
-        ),
+        (r) => r
+            .dataOrThrow(label: 'PersonAutoTagPrefSet')
+            .personAutoTagPrefSet
+            .toEntity(),
       );
 
   @override
@@ -269,11 +262,9 @@ final class PeopleTagsRepository implements PeopleTagsRepositoryPort {
       )
       .firstLinkResponse(label: 'PersonTagSuggestionRecord')
       .then(
-        (r) => mapPersonTagSuggestionState(
-          r
-              .dataOrThrow(label: 'PersonTagSuggestionRecord')
-              .personTagSuggestionRecord
-              .toJson(),
-        ),
+        (r) => r
+            .dataOrThrow(label: 'PersonTagSuggestionRecord')
+            .personTagSuggestionRecord
+            .toEntity(),
       );
 }
