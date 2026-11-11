@@ -114,6 +114,14 @@ Future<void> main() async {
     });
 
     test('a published Post still cannot close its forward policy', () async {
+      await writer.execute('''
+INSERT INTO public.beacon_room_message (id, beacon_id, author_id, body)
+VALUES ('Rm0247root001', '$_post', '$_author', 'root')
+''');
+      await writer.execute(
+        "UPDATE public.beacon SET post_root_message_id = 'Rm0247root001' "
+        "WHERE id = '$_post'",
+      );
       await expectLater(
         writer.execute(
           "UPDATE public.beacon SET forward_policy = 0 WHERE id = '$_post'",

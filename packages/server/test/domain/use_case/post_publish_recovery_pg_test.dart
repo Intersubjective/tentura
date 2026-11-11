@@ -209,6 +209,202 @@ Future<void> main() async {
       ]);
     }
 
+    group('Post recovery settings', () {
+      Future<void> expectFailedDelivery({
+        required bool recipientFailure,
+        required int forwardPolicy,
+      }) async {
+        await failPublication(recipientFailure: recipientFailure);
+        expect(await draftState(_post), [
+          BeaconStatus.open.smallintValue,
+          null,
+          'Draft text',
+          6,
+          0,
+        ]);
+        final rows = await writer.execute(
+          Sql.named('''
+            SELECT forward_policy,
+              (SELECT count(*) FROM public.beacon_participant p
+               WHERE p.beacon_id = b.id AND p.user_id = @recipient)
+            FROM public.beacon b WHERE b.id = @id
+          '''),
+          parameters: {'id': _post, 'recipient': postPublishRecipient},
+        );
+        expect(rows.single.toList(), [forwardPolicy, 0]);
+      }
+
+      Future<void> expectExpiry(
+        PostPublishResult result,
+        int hours,
+      ) async {
+        final rows = await writer.execute(
+          Sql.named('''
+            SELECT published_at, expires_at
+            FROM public.beacon WHERE id = @id
+          '''),
+          parameters: {'id': _post},
+        );
+        final publishedAt = rows.single[0]! as DateTime;
+        final expiresAt = rows.single[1]! as DateTime;
+        expect(
+          expiresAt,
+          publishedAt.add(Duration(hours: hours)),
+          reason: 'delivery must use the lifetime saved by the author',
+        );
+        expect(result.expiresAt, expiresAt);
+      }
+
+      Future<void> saveForwardingOpen() async {
+        expect(
+          await editor.updatePostDraft(
+            authorId: _author,
+            beaconId: _post,
+            body: 'Draft text',
+            forwardPolicy: BeaconForwardPolicyValue.open,
+            lifetimeHours: 6,
+          ),
+          _post,
+        );
+      }
+
+      for (final recipientFailure in [true, false]) {
+        final failedStep = recipientFailure
+            ? 'recipient delivery'
+            : 'root message creation';
+        for (final hours in [3, 24]) {
+          test(
+            'retry uses the saved $hours hour lifetime after $failedStep fails',
+            () async {
+              await expectFailedDelivery(
+                recipientFailure: recipientFailure,
+                forwardPolicy: 0,
+              );
+              expect(
+                await editor.updatePostDraft(
+                  authorId: _author,
+                  beaconId: _post,
+                  body: 'Edited text',
+                  forwardPolicy: BeaconForwardPolicyValue.closed,
+                  lifetimeHours: hours,
+                ),
+                _post,
+              );
+              expect(await draftState(_post), [
+                BeaconStatus.open.smallintValue,
+                null,
+                'Edited text',
+                hours,
+                0,
+              ]);
+              await allowPublication();
+              final result = await _publish(posts, _post, body: 'Edited text');
+              await expectRoot(_post, result, body: 'Edited text');
+              await expectExpiry(result, hours);
+            },
+          );
+        }
+
+        test(
+          'retry preserves the saved lifetime without autosave after '
+          '$failedStep fails',
+          () async {
+            await expectFailedDelivery(
+              recipientFailure: recipientFailure,
+              forwardPolicy: 0,
+            );
+            await allowPublication();
+            final result = await _publish(posts, _post, body: 'Draft text');
+            await expectRoot(_post, result, body: 'Draft text');
+            await expectExpiry(result, 6);
+          },
+        );
+
+        for (final changeLifetime in [false, true]) {
+          test(
+            'the author can disable forwarding'
+            '${changeLifetime ? ' and shorten the lifetime' : ''} '
+            'then send after $failedStep fails',
+            () async {
+              await saveForwardingOpen();
+              await expectFailedDelivery(
+                recipientFailure: recipientFailure,
+                forwardPolicy: 1,
+              );
+              expect(
+                await editor.updatePostDraft(
+                  authorId: _author,
+                  beaconId: _post,
+                  body: 'Edited text',
+                  forwardPolicy: BeaconForwardPolicyValue.closed,
+                  lifetimeHours: changeLifetime ? 3 : null,
+                ),
+                _post,
+                reason: 'a root-less Post can still change forwarding policy',
+              );
+              final saved = await writer.execute(
+                Sql.named('''
+                  SELECT forward_policy, post_lifetime_hours, description
+                  FROM public.beacon WHERE id = @id
+                '''),
+                parameters: {'id': _post},
+              );
+              expect(saved.single[0], 0);
+              expect(saved.single[2], 'Edited text');
+              if (changeLifetime) expect(saved.single[1], 3);
+              await allowPublication();
+              final result = await _publish(
+                posts,
+                _post,
+                body: 'Edited text',
+                recipients: [postPublishRecipient],
+              );
+              await expectRoot(_post, result, body: 'Edited text');
+              final delivered = await writer.execute(
+                Sql.named('''
+                  SELECT b.forward_policy, p.user_id
+                  FROM public.beacon b
+                  JOIN public.beacon_participant p ON p.beacon_id = b.id
+                  WHERE b.id = @id AND p.user_id = @recipient
+                '''),
+                parameters: {'id': _post, 'recipient': postPublishRecipient},
+              );
+              expect(delivered.single.toList(), [0, postPublishRecipient]);
+              if (changeLifetime) await expectExpiry(result, 3);
+            },
+          );
+        }
+      }
+
+      test('forwarding cannot be disabled after the root commits', () async {
+        await saveForwardingOpen();
+        final result = await _publish(posts, _post, body: 'Draft text');
+        await expectRoot(_post, result, body: 'Draft text');
+        await expectLater(
+          writer.execute(
+            Sql.named(
+              'UPDATE public.beacon SET forward_policy = 0 WHERE id = @id',
+            ),
+            parameters: {'id': _post},
+          ),
+          throwsA(
+            isA<ServerException>()
+                .having((e) => e.code, 'SQLSTATE', '23514')
+                .having(
+                  (e) => e.message,
+                  'policy refusal',
+                  contains('forward policy is one-way'),
+                ),
+          ),
+        );
+        final rows = await writer.execute(
+          Sql.named('SELECT forward_policy FROM public.beacon WHERE id = @id'),
+          parameters: {'id': _post},
+        );
+        expect(rows.single.single, 1);
+      });
+    });
+
     test('failed recipient delivery preserves the saved draft text', () async {
       await failPublication(recipientFailure: true);
       expect(

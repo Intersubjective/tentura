@@ -397,6 +397,11 @@ VALUES ('Bm0209ck00013', '$_author', 'Parent request', 'd', $_statusOpen, now())
 
       test('a published post cannot close its forward policy', () async {
         await _insertPost(writer, 'Bm0209gd00003', status: _statusOpen);
+        await _insertMessage(writer, 'Rm0209gd0003', 'Bm0209gd00003', _t2030);
+        await writer.execute(
+          "UPDATE public.beacon SET post_root_message_id = 'Rm0209gd0003' "
+          "WHERE id = 'Bm0209gd00003'",
+        );
 
         await expectLater(
           writer.execute(

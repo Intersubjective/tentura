@@ -160,6 +160,18 @@ class PostCase {
         if (current.status != BeaconStatus.open) {
           throw const PostNotOpenException();
         }
+        // Recovery autosaves can change the lifetime after the status commits.
+        // Read it under the delivery lock before clearing the composer fields.
+        final savedLifetimeHours = await _beaconRepository
+            .postDraftLifetimeHours(
+              beaconId,
+            );
+        if (savedLifetimeHours != null) {
+          await _beaconRepository.setPostLifetime(
+            beaconId: beaconId,
+            lifetime: Duration(hours: savedLifetimeHours),
+          );
+        }
         // Without recipients the Post stays visible only to its author —
         // `beacon_can_read_content` already admits the author unconditionally.
         if (recipientIds.isNotEmpty) {
