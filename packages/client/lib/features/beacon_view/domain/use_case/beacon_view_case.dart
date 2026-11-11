@@ -373,7 +373,12 @@ final class BeaconViewCase extends UseCaseBase {
   Future<List<Profile>> fetchAdmittedHelpers(String beaconId) async {
     try {
       return await _beaconRepository.fetchAdmittedHelpers(beaconId);
-    } on Object catch (_) {
+    } on Object catch (error, stackTrace) {
+      logger.fine(
+        'fetchAdmittedHelpers: falling back to empty',
+        error,
+        stackTrace,
+      );
       return const [];
     }
   }
@@ -383,7 +388,12 @@ final class BeaconViewCase extends UseCaseBase {
   Future<Set<String>> fetchTeamAcquaintanceIds(String beaconId) async {
     try {
       return await _beaconRepository.fetchTeamAcquaintanceIds(beaconId);
-    } on Object catch (_) {
+    } on Object catch (error, stackTrace) {
+      logger.fine(
+        'fetchTeamAcquaintanceIds: falling back to empty',
+        error,
+        stackTrace,
+      );
       return const {};
     }
   }
@@ -391,7 +401,8 @@ final class BeaconViewCase extends UseCaseBase {
   Future<List<BeaconFactCard>> fetchFactCards(String beaconId) async {
     try {
       return await _factCards.list(beaconId: beaconId);
-    } on Object catch (_) {
+    } on Object catch (error, stackTrace) {
+      logger.fine('fetchFactCards: falling back to empty', error, stackTrace);
       return [];
     }
   }
@@ -581,7 +592,12 @@ final class BeaconViewCase extends UseCaseBase {
   Future<List<BeaconParticipant>> fetchRoomParticipants(String beaconId) async {
     try {
       return await _beaconRoomCase.fetchParticipants(beaconId);
-    } on Object catch (_) {
+    } on Object catch (error, stackTrace) {
+      logger.fine(
+        'fetchRoomParticipants: falling back to empty',
+        error,
+        stackTrace,
+      );
       return [];
     }
   }
@@ -592,7 +608,12 @@ final class BeaconViewCase extends UseCaseBase {
   ) async {
     try {
       return await _beaconRoomCase.fetchOpenCoordinationBlocker(beaconId);
-    } on Object catch (_) {
+    } on Object catch (error, stackTrace) {
+      logger.fine(
+        'fetchOpenCoordinationBlocker: falling back to null',
+        error,
+        stackTrace,
+      );
       return null;
     }
   }
@@ -607,7 +628,12 @@ final class BeaconViewCase extends UseCaseBase {
   Future<BeaconRoomState?> fetchRoomStateIfAllowed(String beaconId) async {
     try {
       return await _beaconRoomCase.fetchBeaconRoomState(beaconId);
-    } on Object catch (_) {
+    } on Object catch (error, stackTrace) {
+      logger.fine(
+        'fetchRoomStateIfAllowed: falling back to null',
+        error,
+        stackTrace,
+      );
       return null;
     }
   }
@@ -660,7 +686,12 @@ final class BeaconViewCase extends UseCaseBase {
   ) async {
     try {
       return await _beaconRoomCase.fetchLatestUpdateReaders(beaconId);
-    } on Object catch (_) {
+    } on Object catch (error, stackTrace) {
+      logger.fine(
+        'fetchLatestUpdateReaders: falling back to empty',
+        error,
+        stackTrace,
+      );
       return const [];
     }
   }
@@ -671,7 +702,12 @@ final class BeaconViewCase extends UseCaseBase {
   ) async {
     try {
       return await _activityEvents.list(beaconId: beaconId);
-    } on Object catch (_) {
+    } on Object catch (error, stackTrace) {
+      logger.fine(
+        'fetchRoomActivityEvents: falling back to empty',
+        error,
+        stackTrace,
+      );
       return [];
     }
   }
