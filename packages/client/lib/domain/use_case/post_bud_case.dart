@@ -1,10 +1,10 @@
 import 'package:injectable/injectable.dart';
 import 'package:tentura_root/domain/entity/coordinates.dart';
-import 'package:uuid/uuid.dart';
 
 import 'package:tentura/domain/entity/post_bud_invite_candidate.dart';
 import 'package:tentura/domain/entity/post_bud_result.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/domain/port/op_id_port.dart';
 import 'package:tentura/domain/port/post_bud_port.dart';
 import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
 
@@ -22,7 +22,8 @@ typedef PostBudInviteStep = ({
 final class PostBudCase extends UseCaseBase {
   PostBudCase(
     this._port,
-    this._profiles, {
+    this._profiles,
+    this._opIds, {
     required super.env,
     required super.logger,
   });
@@ -31,10 +32,10 @@ final class PostBudCase extends UseCaseBase {
 
   final ProfileRepositoryPort _profiles;
 
-  static const _uuid = Uuid();
+  final OpIdPort _opIds;
 
   /// One id per bud screen session, so repeated submits replay (plan D1).
-  String newClientCommandId() => _uuid.v4();
+  String newClientCommandId() => _opIds.newOpId();
 
   Future<List<PostBudInviteCandidate>> inviteCandidates(String postId) =>
       _port.inviteCandidates(postId: postId);
