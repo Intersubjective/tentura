@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:tentura/features/auth/domain/entity/account_entity.dart';
+import 'package:tentura/features/auth/domain/exception.dart';
 
 /// Local auth / accounts (implemented in the data layer).
 abstract class AuthLocalRepositoryPort {
@@ -8,6 +9,8 @@ abstract class AuthLocalRepositoryPort {
 
   Stream<String> currentAccountChanges();
 
+  /// Throws [AuthIdNotFoundException] when no seed is stored and
+  /// [AuthSeedUnreadableException] when one is stored but can't be read.
   Future<String> getSeedByAccountId(String id);
 
   Future<String> getCurrentAccountId();

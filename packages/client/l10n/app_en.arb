@@ -5830,6 +5830,10 @@
   "@authSessionProblemFixAction": {
     "description": "Banner action opening the auth recovery screen"
   },
+  "authSeedUnreadableBody": "This account's recovery seed can't be read on this device. It is still stored here. To continue, restore the account from your recovery seed below.",
+  "@authSeedUnreadableBody": {
+    "description": "Recovery screen: a seed-only account whose stored seed can't be read (it is kept); the user restores from the seed"
+  },
   "authRecoveryHubTitle": "Session recovery",
   "@authRecoveryHubTitle": {
     "description": "Title for the auth recovery hub above seed recovery"

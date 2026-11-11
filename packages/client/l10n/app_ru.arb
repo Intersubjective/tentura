@@ -5152,6 +5152,7 @@
   "itemShowMore": "ещё",
   "authSessionProblemBanner": "Не удалось проверить вашу сессию. Войдите снова.",
   "authSessionProblemFixAction": "Исправить вход",
+  "authSeedUnreadableBody": "Seed восстановления этого аккаунта не читается на этом устройстве. Он по-прежнему хранится здесь. Чтобы продолжить, восстановите аккаунт из seed восстановления ниже.",
   "authRecoveryHubTitle": "Восстановление сессии",
   "authRecoverySignInAgain": "Войти снова",
   "authRecoveryResetLocalTitle": "Сбросить локальные данные",

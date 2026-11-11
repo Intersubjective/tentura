@@ -60,6 +60,7 @@ dependencies:
   firebase_messaging: ^16.4.0
   flutter_native_splash: ^2.4.7
   flutter_secure_storage: ^11.0.0
+  shared_preferences: ^2.5.5
 
   # Logs & Stats
   sentry_drift: ^9.22.0
@@ -114,7 +115,6 @@ dev_dependencies:
   sentry_dart_plugin: ^3.4.0
   auto_route_generator: ^10.6.0
   flutter_launcher_icons: ^0.14.4
-  shared_preferences: ^2.5.5
 
   test: any
   glob: any

@@ -80,6 +80,8 @@ final class AuthCase extends UseCaseBase {
         }
       } on AuthIdNotFoundException {
         continue;
+      } on AuthSeedUnreadableException {
+        return true;
       }
     }
     return false;
@@ -182,6 +184,8 @@ final class AuthCase extends UseCaseBase {
       await _authLocalRepository.getSeedByAccountId(currentId);
     } on AuthIdNotFoundException {
       await _authLocalRepository.setCurrentAccountId(null);
+    } on AuthSeedUnreadableException {
+      // A seed is stored, so not a ghost: the account signs in again.
     }
   }
 
@@ -202,7 +206,8 @@ final class AuthCase extends UseCaseBase {
   ///
   /// Signs in with the account corresponding to the given [userId].
   /// Throws [AuthIdNotFoundException] (from the local repository) when no
-  /// seed is stored for the account, and [AuthSeedIsWrongException] when the
+  /// seed is stored for the account, [AuthSeedUnreadableException] when the
+  /// stored seed can't be read, and [AuthSeedIsWrongException] when the
   /// stored seed is empty.
   ///
   Future<void> signIn({required String userId}) => _runAuthTransition(() async {
