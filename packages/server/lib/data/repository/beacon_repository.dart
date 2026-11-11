@@ -29,6 +29,7 @@ import 'package:tentura_server/domain/entity/post_draft_attachment.dart';
 import 'package:tentura_server/domain/entity/uploaded_room_attachment.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 
+import '../database/query_row_timestamp.dart';
 import '../database/tentura_db.dart';
 import '../mapper/beacon_mapper.dart';
 import 'post_lock_repository.dart';
@@ -798,7 +799,7 @@ SET description = $3,
     updated_at = now()
 WHERE id = $1
   AND user_id = $2
-  AND status = 3
+  AND (status = 3 OR (status = 0 AND post_root_message_id IS NULL))
   AND kind = 1'''
           : r'''
 UPDATE public.beacon
@@ -808,7 +809,7 @@ SET description = $3,
     updated_at = now()
 WHERE id = $1
   AND user_id = $2
-  AND status = 3
+  AND (status = 3 OR (status = 0 AND post_root_message_id IS NULL))
   AND kind = 1''',
       variables: variables,
       updates: {_database.beacons},
@@ -1586,7 +1587,7 @@ LIMIT $2
           beaconId: row.read<String>('beacon_id'),
           imageId: _readUuid(row, 'image_id'),
           authorId: row.read<String>('author_id'),
-          stagedAt: row.read<PgDateTime>('staged_at').dateTime,
+          stagedAt: readRowTimestamp(row, 'staged_at')!.toUtc(),
         ),
     ];
   }

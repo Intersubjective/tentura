@@ -833,6 +833,12 @@ class _PinnedRequestCard extends StatelessWidget {
           eventTotal: model.eventTotal,
           eventsPreview: model.eventsPreview,
           actors: actors,
+          viewerUserId: GetIt.I.isRegistered<ProfileCubit>()
+              ? GetIt.I<ProfileCubit>().state.profile.id
+              : null,
+          onClearEvent: (id) => unawaited(
+            GetIt.I<AttentionCase>().clearReceipt(receiptId: id),
+          ),
           onOpenBeacon: () => unawaited(openBeacon()),
           onOpenTimeline: () => unawaited(
             showRequestAttentionTimelineSheet(context, beaconId: beaconId),

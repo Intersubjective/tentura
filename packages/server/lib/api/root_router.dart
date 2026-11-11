@@ -183,19 +183,6 @@ class RootRouter {
         _authEmailController.verifyPost,
       )
       ..get(
-        '/_qa/latest-email',
-        _qaEmailSinkController.latestEmail,
-      )
-      ..post('/_qa/integration/bootstrap', _qaIntegrationController.bootstrap)
-      ..post(
-        '/_qa/integration/witness-fixture',
-        _qaIntegrationController.witnessFixture,
-      )
-      ..post(
-        '/_qa/send-fcm',
-        _qaSendFcmController.sendFcm,
-      )
-      ..get(
         '/email/unsubscribe',
         _unsubscribeController.getPage,
       )
@@ -245,10 +232,21 @@ class RootRouter {
         use: _authMiddleware.extractJwtOrSessionClaims,
       );
 
-    // Unlike the legacy QA helpers, the realtime suspension route is not
-    // registered at all in non-QA environments.
     if (_env.isQaAuthEnabled) {
       router
+        ..get(
+          '/_qa/latest-email',
+          _qaEmailSinkController.latestEmail,
+        )
+        ..post('/_qa/integration/bootstrap', _qaIntegrationController.bootstrap)
+        ..post(
+          '/_qa/integration/witness-fixture',
+          _qaIntegrationController.witnessFixture,
+        )
+        ..post(
+          '/_qa/send-fcm',
+          _qaSendFcmController.sendFcm,
+        )
         ..post(
           '/_qa/integration/realtime-socket',
           _qaIntegrationController.realtimeSocket,

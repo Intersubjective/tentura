@@ -39,11 +39,13 @@ final class InboxCase extends UseCaseBase {
   final BlockCase _blockCase;
 
   /// Inbox list refresh after local writes.
-  late final Stream<void> localMutations = MergeStream<void>([
-    _repository.localMutations,
-    _bookkeepingRefreshSignal.stream,
-    _blockCase.changes.map((_) {}),
-  ]).doOnData((_) => _invalidateRefreshRead()).asBroadcastStream();
+  late final Stream<void> localMutations = _shareRefreshStream(
+    () => MergeStream<void>([
+      _repository.localMutations,
+      _bookkeepingRefreshSignal.stream,
+      _blockCase.changes.map((_) {}),
+    ]).doOnData((_) => _invalidateRefreshRead()),
+  );
 
   /// A Request's Discussion read watermark moved (this or another session of
   /// the reader): its card's unread is recomputed locally, never refetched.
@@ -53,36 +55,59 @@ final class InboxCase extends UseCaseBase {
   Stream<HelpOfferEvent> get helpOfferChanges =>
       _forwardRepository.helpOfferChanges;
 
-  late final Stream<String> forwardCommandCompleted = _forwardRepository
-      .forwardCommandCompleted
-      .doOnData((_) => _invalidateRefreshRead())
-      .asBroadcastStream();
+  late final Stream<String> forwardCommandCompleted = _shareRefreshStream(
+    () => _forwardRepository.forwardCommandCompleted.doOnData(
+      (_) => _invalidateRefreshRead(),
+    ),
+  );
 
-  late final Stream<String> deskRelevantChanges = MergeStream<String>([
-    _beaconRoomCase.deskRelevantChanges,
-    _forwardRepository.forwardChanges,
-    _forwardRepository.helpOfferChanges.map((event) => event.beaconId),
-    // roomSeenPeer is presence-only and room_seen is the viewer's read
-    // cursor (see BeaconThreadsCase); neither is a desk refetch.
-    _realtimeSyncCase
-        .changesFor(const {
-          RealtimeEntityKind.inboxItem,
-          RealtimeEntityKind.beacon,
-          RealtimeEntityKind.roomMessage,
-          RealtimeEntityKind.roomReaction,
-          RealtimeEntityKind.roomPoll,
-          RealtimeEntityKind.participant,
-          RealtimeEntityKind.factCard,
-          RealtimeEntityKind.activityEvent,
-          RealtimeEntityKind.coordinationItem,
-        })
-        .map((change) => change.aggregateId),
-  ]).doOnData((_) => _invalidateRefreshRead()).asBroadcastStream();
+  late final Stream<String> deskRelevantChanges = _shareRefreshStream(
+    () => MergeStream<String>([
+      _beaconRoomCase.deskRelevantChanges,
+      _forwardRepository.forwardChanges,
+      _forwardRepository.helpOfferChanges.map((event) => event.beaconId),
+      // roomSeenPeer is presence-only and room_seen is the viewer's read
+      // cursor (see BeaconThreadsCase); neither is a desk refetch.
+      _realtimeSyncCase
+          .changesFor(const {
+            RealtimeEntityKind.inboxItem,
+            RealtimeEntityKind.beacon,
+            RealtimeEntityKind.roomMessage,
+            RealtimeEntityKind.roomReaction,
+            RealtimeEntityKind.roomPoll,
+            RealtimeEntityKind.participant,
+            RealtimeEntityKind.factCard,
+            RealtimeEntityKind.activityEvent,
+            RealtimeEntityKind.coordinationItem,
+          })
+          .map((change) => change.aggregateId),
+    ]).doOnData((_) => _invalidateRefreshRead()),
+  );
 
-  late final Stream<void> catchUps = _realtimeSyncCase.catchUps
-      .map((_) {})
-      .doOnData((_) => _invalidateRefreshRead())
-      .asBroadcastStream();
+  late final Stream<void> catchUps = _shareRefreshStream(
+    () => _realtimeSyncCase.catchUps
+        .map((_) {})
+        .doOnData((_) => _invalidateRefreshRead()),
+  );
+
+  /// Share one upstream subscription while observed, recreating it after a
+  /// gap with no listeners so Activity can be opened again.
+  Stream<T> _shareRefreshStream<T>(Stream<T> Function() createStream) {
+    late StreamSubscription<T> subscription;
+    late final StreamController<T> controller;
+    controller = StreamController<T>.broadcast(
+      sync: true,
+      onListen: () {
+        subscription = createStream().listen(
+          controller.add,
+          onError: controller.addError,
+          onDone: controller.close,
+        );
+      },
+      onCancel: () => unawaited(subscription.cancel()),
+    );
+    return controller.stream;
+  }
 
   final _refreshReads = <String, Future<List<InboxItem>>>{};
 

@@ -29,9 +29,11 @@ bool attentionReceiptIsPersonal(AttentionReceipt receipt) {
 /// path forwarder («*Your* forward helped»).
 bool attentionReceiptAddressedToViewer(AttentionReceipt receipt) {
   if (attentionReceiptIsPersonal(receipt)) return true;
-  return attentionEventTypeOf(receipt.presentationPayloadJson) ==
-      'forwardHelped';
+  return attentionReceiptIsForwardHelped(receipt);
 }
+
+bool attentionReceiptIsForwardHelped(AttentionReceipt receipt) =>
+    attentionEventTypeOf(receipt.presentationPayloadJson) == 'forwardHelped';
 
 /// One row of a card's «вам» zone: everything one sender sent the viewer,
 /// newest first. The row shows the newest item; its × clears all of them.

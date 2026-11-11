@@ -54,6 +54,12 @@ abstract final class AttentionDismissibleSql {
   static String isPersonal(String alias) =>
       "COALESCE(($alias.presentation_payload ->> 'personal')::boolean, false)";
 
+  /// The card's «вам» zone also includes the actorless thanks addressed to
+  /// the winning path's forwarder. It must not compete for the change line.
+  static String addressedToViewer(String alias) =>
+      '(${isPersonal(alias)} OR '
+      "COALESCE(($alias.presentation_payload ->> 'eventType') = 'forwardHelped', false))";
+
   /// Visibility, responsibility scope and surface — the one definition.
   ///
   /// U09a kept a deliberate copy of this in `AttentionRepository`, on the

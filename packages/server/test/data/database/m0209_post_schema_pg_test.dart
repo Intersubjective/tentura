@@ -202,16 +202,39 @@ FROM public.beacon WHERE id = 'Bm0209def0001'
         expect(row[0], 'Saved before publish');
       });
 
-      test('an open post with a description is rejected', () async {
+      test('an open post without a root retains composer text', () async {
+        await _insertPost(
+          writer,
+          'Bm0209ck00015',
+          status: _statusOpen,
+          description: 'Saved before delivery',
+        );
+        final row = (await writer.execute(
+          'SELECT description, post_root_message_id FROM public.beacon '
+          "WHERE id = 'Bm0209ck00015'",
+        )).single;
+        expect(row.toList(), ['Saved before delivery', null]);
+      });
+
+      test('a post with a committed root rejects composer text', () async {
+        await _insertPost(writer, 'Bm0209ck00016', status: _statusOpen);
+        await _insertMessage(writer, 'Rm0209ck0016', 'Bm0209ck00016', _t2030);
+        await writer.execute(
+          "UPDATE public.beacon SET post_root_message_id = 'Rm0209ck0016' "
+          "WHERE id = 'Bm0209ck00016'",
+        );
         await expectLater(
-          _insertPost(
-            writer,
-            'Bm0209ck00015',
-            status: _statusOpen,
-            description: 'Not allowed',
+          writer.execute(
+            "UPDATE public.beacon SET description = 'Not allowed' "
+            "WHERE id = 'Bm0209ck00016'",
           ),
           _throwsCheckViolation,
         );
+        final row = (await writer.execute(
+          'SELECT description, post_root_message_id FROM public.beacon '
+          "WHERE id = 'Bm0209ck00016'",
+        )).single;
+        expect(row.toList(), ['', 'Rm0209ck0016']);
       });
 
       test('a discoverable post is rejected', () async {

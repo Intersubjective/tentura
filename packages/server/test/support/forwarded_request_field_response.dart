@@ -28,12 +28,17 @@ const _alice = 'Uauthoralice1';
 const _request = 'Bforwarded001';
 
 Future<void> main() async {
-  final fixture = await readForwardedRequestFieldResponse();
-  if (fixture == null) {
+  final session = await setUpForwardedRequestField();
+  if (session == null) {
     exitCode = 77;
     return;
   }
-  stdout.writeln('FIELD_RESPONSE:${jsonEncode(fixture.response)}');
+  try {
+    final fixture = await readForwardedRequestFieldResponse(session);
+    stdout.writeln('FIELD_RESPONSE:${jsonEncode(fixture.response)}');
+  } finally {
+    await tearDownDisposablePgWriter(session: session);
+  }
 }
 
 typedef ForwardedRequestFieldScenario = ({
@@ -44,8 +49,9 @@ typedef ForwardedRequestFieldScenario = ({
   ({String id, String displayName}) forwarder,
 });
 
-Future<ForwardedRequestFieldScenario?>
-readForwardedRequestFieldResponse() async {
+/// Provision outside the test body: the cluster-wide lifecycle lock can queue
+/// behind other suites, independently of the Field resolver's behaviour.
+Future<DisposablePgWriterSession?> setUpForwardedRequestField() async {
   final target = DisposablePgTarget.fromNamedEnvironment(
     envVarName: 'TENTURA_FORWARDED_REQUEST_FIELD_TEST_DB',
     defaultNamePrefix: 'tentura_test_forwarded_field',
@@ -55,11 +61,16 @@ readForwardedRequestFieldResponse() async {
     stderr.writeln(unavailable);
     return null;
   }
-  final session = await setUpDisposablePgWriter(
+  return setUpDisposablePgWriter(
     target: target,
     createPgmer2Extension: true,
   );
-  final db = openDisposablePgDatabase(target);
+}
+
+Future<ForwardedRequestFieldScenario> readForwardedRequestFieldResponse(
+  DisposablePgWriterSession session,
+) async {
+  final db = openDisposablePgDatabase(session.target);
   try {
     for (final person in {
       _viewer: 'Zed',
@@ -162,7 +173,7 @@ WHERE e.beacon_id = @beacon AND e.recipient_id = @viewer
       forwarder: (id: sender[0]! as String, displayName: sender[1]! as String),
     );
   } finally {
-    await tearDownDisposablePgWriter(session: session, drift: db);
+    await db.close();
   }
 }
 

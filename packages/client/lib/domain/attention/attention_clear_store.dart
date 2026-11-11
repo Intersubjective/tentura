@@ -33,10 +33,21 @@ final class AttentionClearStore {
   void discardAllPending() => _byOperation.clear();
 
   /// Registers the membership [receiptIds] optimism covers for [operationId].
-  void begin(String operationId, Iterable<String> receiptIds) {
+  void begin(
+    String operationId,
+    Iterable<String> receiptIds, {
+    Iterable<AttentionReceipt> receipts = const [],
+  }) {
     _byOperation[operationId] = _PendingClear(
       memberIds: receiptIds.toSet(),
       committedIds: <String>{},
+      versions: {
+        for (final receipt in receipts)
+          receipt.id: (
+            createdAt: receipt.createdAt,
+            payload: receipt.presentationPayloadJson,
+          ),
+      },
     );
   }
 
@@ -76,13 +87,21 @@ final class AttentionClearStore {
       _byOperation.values.any((pending) => pending.memberIds.contains(id));
 
   /// Stamps the overlay onto [receipt], and drops a committed overlay once the
-  /// server's own `clearedAt` has caught up with it.
+  /// server's own `clearedAt` has caught up with it, or that receipt has been
+  /// replaced by a new event (including a Done upgrade with the same id/time).
   AttentionReceipt apply(AttentionReceipt receipt) {
     var covered = false;
     for (final entry in _byOperation.entries.toList()) {
       final pending = entry.value;
       if (!pending.memberIds.contains(receipt.id)) continue;
-      if (pending.committedIds.contains(receipt.id) && receipt.isCleared) {
+      final previous = pending.versions[receipt.id];
+      final replaced =
+          previous != null &&
+          (receipt.createdAt.isAfter(previous.createdAt) ||
+              (receipt.createdAt.isAtSameMomentAs(previous.createdAt) &&
+                  receipt.presentationPayloadJson != previous.payload));
+      if (pending.committedIds.contains(receipt.id) &&
+          (receipt.isCleared || replaced)) {
         pending.memberIds.remove(receipt.id);
         pending.committedIds.remove(receipt.id);
         if (pending.memberIds.isEmpty) _byOperation.remove(entry.key);
@@ -99,8 +118,13 @@ final class AttentionClearStore {
 }
 
 final class _PendingClear {
-  _PendingClear({required this.memberIds, required this.committedIds});
+  _PendingClear({
+    required this.memberIds,
+    required this.committedIds,
+    required this.versions,
+  });
 
   final Set<String> memberIds;
   final Set<String> committedIds;
+  final Map<String, ({DateTime createdAt, String payload})> versions;
 }

@@ -109,6 +109,10 @@ class PostsTabWire {
   final sent = <WireSent>[];
   void Function(String id)? onWrite;
 
+  /// When false the server refuses `BeaconDeleteById` (answers `false`) and
+  /// keeps the row.
+  bool deletesSucceed = true;
+
   List<WireSent> calls(String name) =>
       sent.where((r) => r.operationName == name).toList();
 
@@ -203,7 +207,7 @@ class PostsTabWire {
       case 'BeaconDeleteById':
         final id = call.variables['id'];
         final before = rows.length;
-        rows.removeWhere((row) => row['id'] == id);
+        if (deletesSucceed) rows.removeWhere((row) => row['id'] == id);
         body = {
           'data': {
             '__typename': 'mutation_root',
@@ -339,9 +343,13 @@ class PostsTabHarness {
     required this.effects,
     required this.router,
     required this.openComposer,
+    required this.beacons,
+    required this.cubit,
   });
 
   final Future<void> Function(String draftId) openComposer;
+  final BeaconRepository beacons;
+  final PostsCubit cubit;
   final PostsTabWire wire;
   final FakeAppNavigator navigator;
   final FakeUiEffectPort effects;
@@ -383,6 +391,7 @@ Future<void> withPostsTab(
   required Size size,
   required PostsTabWire wire,
   required Future<void> Function(PostsTabHarness h) body,
+  Locale locale = const Locale('ru'),
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
@@ -414,13 +423,14 @@ Future<void> withPostsTab(
       ),
     );
     final logger = Logger('posts-tab-wire-test');
+    final beacons = BeaconRepository(remote, sync.port);
     final postsCase = PostsCase(
       PostsRepository(remote),
       sync.case_,
+      beaconRepository: beacons,
       env: const Env(),
       logger: logger,
     );
-    final beacons = BeaconRepository(remote, sync.port);
     final effects = FakeUiEffectPort();
     final navigator = _ComposerNavigator();
     getIt.registerSingleton<AppNavigator>(navigator);
@@ -490,6 +500,8 @@ Future<void> withPostsTab(
       effects: effects,
       router: router,
       openComposer: openComposer,
+      beacons: beacons,
+      cubit: cubit,
     );
     try {
       await tester.pumpWidget(
@@ -505,7 +517,7 @@ Future<void> withPostsTab(
             ],
             child: MaterialApp(
               navigatorKey: navigatorKey,
-              locale: const Locale('ru'),
+              locale: locale,
               theme: TenturaTheme.light(),
               localizationsDelegates: L10n.localizationsDelegates,
               supportedLocales: L10n.supportedLocales,

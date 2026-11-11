@@ -1348,17 +1348,17 @@ ranked AS (
     NULL::int AS digest_count,
     NULL::int AS event_total,
     NULL::int AS event_unseen_count,
-    ${AttentionDismissibleSql.isPersonal('v')} AS is_personal,
+    ${AttentionDismissibleSql.addressedToViewer('v')} AS is_personal,
     ROW_NUMBER() OVER (
       PARTITION BY v.beacon_id
       ORDER BY v.created_at DESC, v.id DESC
     ) AS rn,
     ROW_NUMBER() OVER (
-      PARTITION BY v.beacon_id, ${AttentionDismissibleSql.isPersonal('v')}
+      PARTITION BY v.beacon_id, ${AttentionDismissibleSql.addressedToViewer('v')}
       ORDER BY v.created_at DESC, v.id DESC
     ) AS zone_rn,
     ROW_NUMBER() OVER (
-      PARTITION BY v.beacon_id, ${AttentionDismissibleSql.isPersonal('v')},
+      PARTITION BY v.beacon_id, ${AttentionDismissibleSql.addressedToViewer('v')},
         (v.presentation_key = 'deadline_changed')
       ORDER BY v.created_at DESC, v.id DESC
     ) AS change_rn
