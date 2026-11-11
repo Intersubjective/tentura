@@ -164,9 +164,21 @@ Future<void> main() async {
       await tearDownDisposablePgWriter(session: session, drift: dbA);
     });
 
-    /// Runs [sides] concurrently for [_rounds] rounds after [setUpRound],
-    /// checks no deadlock or statement timeout, then [verify] and I1/I2/I6.
+    /// Give each schedule its own test lifecycle and fixture setup budget.
+    /// Six rounds in one 30-second test can time out under parallel PG load,
+    /// leaving its async seed running while the next test resets the fixtures.
+    void raceTest(String name, Future<void> Function(int) body) {
+      group(name, () {
+        for (var i = 0; i < _rounds; i++) {
+          test('round $i', () => body(i));
+        }
+      });
+    }
+
+    /// Runs [sides] concurrently after [setUpRound], checks no deadlock or
+    /// statement timeout, then [verify] and I1/I2/I6.
     Future<void> race<S>({
+      required int roundIndex,
       required Future<S> Function() setUpRound,
       required List<Future<Object?> Function(S state)> sides,
       required Future<void> Function(
@@ -176,47 +188,45 @@ Future<void> main() async {
       )
       verify,
     }) async {
-      for (var i = 0; i < _rounds; i++) {
-        final round = 'round $i';
-        await _seed(writer);
-        final state = await setUpRound();
-        // Round modes: both sides at once, then each side with a head start,
-        // so both lock-acquisition orders are exercised.
-        final headStart = switch (i % 3) {
-          1 => 0,
-          2 => 1,
-          _ => null,
-        };
-        final outcomes =
-            await Future.wait([
-              for (var k = 0; k < sides.length; k++)
-                _settle(() async {
-                  if (headStart != null && headStart != k) {
-                    await Future<void>.delayed(_headStart);
-                  }
-                  return sides[k](state);
-                }()),
-            ]).timeout(
-              _roundBudget,
-              onTimeout: () => fail('$round did not finish in $_roundBudget'),
-            );
-        for (final outcome in outcomes) {
-          expect(
-            _isDeadlockOrTimeout(outcome.error),
-            isFalse,
-            reason: '$round: deadlock or timeout: ${outcome.error}',
+      final round = 'round $roundIndex';
+      await _seed(writer);
+      final state = await setUpRound();
+      // Round modes: both sides at once, then each side with a head start,
+      // so both lock-acquisition orders are exercised.
+      final headStart = switch (roundIndex % 3) {
+        1 => 0,
+        2 => 1,
+        _ => null,
+      };
+      final outcomes =
+          await Future.wait([
+            for (var k = 0; k < sides.length; k++)
+              _settle(() async {
+                if (headStart != null && headStart != k) {
+                  await Future<void>.delayed(_headStart);
+                }
+                return sides[k](state);
+              }()),
+          ]).timeout(
+            _roundBudget,
+            onTimeout: () => fail('$round did not finish in $_roundBudget'),
           );
-          if (outcome.error != null) {
-            expect(
-              outcome.error,
-              isA<ExceptionBase>(),
-              reason: '$round: a losing side fails with a domain exception',
-            );
-          }
+      for (final outcome in outcomes) {
+        expect(
+          _isDeadlockOrTimeout(outcome.error),
+          isFalse,
+          reason: '$round: deadlock or timeout: ${outcome.error}',
+        );
+        if (outcome.error != null) {
+          expect(
+            outcome.error,
+            isA<ExceptionBase>(),
+            reason: '$round: a losing side fails with a domain exception',
+          );
         }
-        await verify(state, outcomes, round);
-        await _expectInvariants(writer, round);
       }
+      await verify(state, outcomes, round);
+      await _expectInvariants(writer, round);
     }
 
     Future<PostBudResult> bud(
@@ -246,8 +256,11 @@ Future<void> main() async {
       return (child: child, invite: invite!);
     }
 
-    test('bud ∥ bud on the same source message: two children', () async {
+    raceTest('bud ∥ bud on the same source message: two children', (
+      round,
+    ) async {
       await race<void>(
+        roundIndex: round,
         setUpRound: () async {},
         sides: [
           (_) => bud(a, commandId: 'cmd-c9-a'),
@@ -273,10 +286,11 @@ Future<void> main() async {
       );
     });
 
-    test(
+    raceTest(
       'bud ∥ bud with the same clientCommandId: the second replays',
-      () async {
+      (round) async {
         await race<void>(
+          roundIndex: round,
           setUpRound: () async {},
           sides: [
             (_) => bud(a, invitees: const [_invitee]),
@@ -307,8 +321,9 @@ Future<void> main() async {
       },
     );
 
-    test('accept ∥ child cancel', () async {
+    raceTest('accept ∥ child cancel', (round) async {
       await race<_Budded>(
+        roundIndex: round,
         setUpRound: buddedWithInvite,
         sides: [
           (s) => a.invites.accept(actorUserId: _invitee, inviteId: s.invite),
@@ -328,8 +343,9 @@ Future<void> main() async {
       );
     });
 
-    test('accept ∥ child delete', () async {
+    raceTest('accept ∥ child delete', (round) async {
       await race<_Budded>(
+        roundIndex: round,
         setUpRound: buddedWithInvite,
         sides: [
           (s) => a.invites.accept(actorUserId: _invitee, inviteId: s.invite),
@@ -349,8 +365,9 @@ Future<void> main() async {
       );
     });
 
-    test('accept ∥ block', () async {
+    raceTest('accept ∥ block', (round) async {
       await race<_Budded>(
+        roundIndex: round,
         setUpRound: buddedWithInvite,
         sides: [
           (s) => a.invites.accept(actorUserId: _invitee, inviteId: s.invite),
@@ -382,8 +399,9 @@ Future<void> main() async {
       );
     });
 
-    test('bud ∥ block(budder, invitee)', () async {
+    raceTest('bud ∥ block(budder, invitee)', (round) async {
       await race<void>(
+        roundIndex: round,
         setUpRound: () async {},
         sides: [
           (_) => bud(a, invitees: const [_invitee]),
@@ -428,8 +446,9 @@ Future<void> main() async {
       );
     });
 
-    test('bud ∥ the invitee leaves the Post', () async {
+    raceTest('bud ∥ the invitee leaves the Post', (round) async {
       await race<void>(
+        roundIndex: round,
         setUpRound: () async {},
         sides: [
           (_) => bud(a, invitees: const [_invitee]),
@@ -474,8 +493,9 @@ Future<void> main() async {
       );
     });
 
-    test('bud ∥ Post close', () async {
+    raceTest('bud ∥ Post close', (round) async {
       await race<void>(
+        roundIndex: round,
         setUpRound: () async {},
         sides: [
           // Only the Post's author may close it (#666).
@@ -517,8 +537,9 @@ Future<void> main() async {
       );
     });
 
-    test('withdraw ∥ accept', () async {
+    raceTest('withdraw ∥ accept', (round) async {
       await race<_Budded>(
+        roundIndex: round,
         setUpRound: buddedWithInvite,
         sides: [
           (s) => a.invites.accept(actorUserId: _invitee, inviteId: s.invite),
@@ -1388,8 +1409,9 @@ Future<void> main() async {
       }
     }
 
-    test('later invite ∥ bud from the same Post (N5)', () async {
+    raceTest('later invite ∥ bud from the same Post (N5)', (round) async {
       await race<String>(
+        roundIndex: round,
         setUpRound: () async {
           final first = await bud(a, commandId: 'cmd-c9-first');
           return first.childBeaconId!;
