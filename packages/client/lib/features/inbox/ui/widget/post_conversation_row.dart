@@ -7,9 +7,12 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/plain_text_preview.dart';
 import 'package:tentura/ui/utils/relative_time.dart';
 import 'package:tentura/ui/widget/relative_timestamp_ticker.dart';
+import 'package:tentura/ui/widget/show_anchored_popup_menu.dart';
 
 import '../../domain/entity/post_summary.dart';
 import 'post_conversation_participants_copy.dart';
+
+enum _DraftAction { edit, delete }
 
 /// One Post in «Разговоры» (M2): who, the root excerpt, the last message.
 class PostConversationRow extends StatelessWidget {
@@ -18,6 +21,7 @@ class PostConversationRow extends StatelessWidget {
     required this.now,
     required this.onOpen,
     this.onOpenParticipants,
+    this.onDeleteDraft,
     this.selected = false,
     super.key,
   });
@@ -31,6 +35,9 @@ class PostConversationRow extends StatelessWidget {
 
   final VoidCallback onOpen;
 
+  /// Draft deletion is confirmed by the host before it reaches the server.
+  final VoidCallback? onDeleteDraft;
+
   /// Opens «О посте» at participants (#899); defaults to [onOpen] when null.
   final VoidCallback? onOpenParticipants;
 
@@ -40,6 +47,7 @@ class PostConversationRow extends StatelessWidget {
   /// Time left for an open Post (with ⏳, #248), «в архиве» once past deadline,
   /// «закрыт» when closed; null when there is no deadline and not archived.
   String? _lifetimeMarker(L10n l10n) {
+    if (post.isDraft) return null;
     if (post.isClosed) return l10n.postClosedMarker;
     if (post.isArchivedAt(now)) return l10n.postArchivedMarker;
     final expiresAt = post.expiresAt;
@@ -52,7 +60,9 @@ class PostConversationRow extends StatelessWidget {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
     final forwardedByName = post.forwardedByName;
-    final addressing = post.isAuthor
+    final addressing = post.isDraft
+        ? l10n.beaconLifecycleDraft
+        : post.isAuthor
         ? l10n.postConversationYours
         : forwardedByName != null
         ? l10n.postConversationForwarded(post.authorName, forwardedByName)
@@ -63,7 +73,8 @@ class PostConversationRow extends StatelessWidget {
     final lastMessageText = post.lastMessageIsRoot ? '' : lastMessage;
     final muted = post.isMutedAt(now);
     final lifetime = _lifetimeMarker(l10n);
-    final participantsLine = postConversationShowsParticipantsLine(post)
+    final participantsLine =
+        !post.isDraft && postConversationShowsParticipantsLine(post)
         ? postConversationParticipantsLine(l10n, post)
         : null;
     final previewProfiles = [
@@ -109,7 +120,7 @@ class PostConversationRow extends StatelessWidget {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TenturaText.titleSmall(
-                                tt.text,
+                                post.isDraft ? tt.textMuted : tt.text,
                               ).copyWith(fontWeight: FontWeight.w500),
                             ),
                           ),
@@ -137,7 +148,9 @@ class PostConversationRow extends StatelessWidget {
                           rootExcerptPreview,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: TenturaText.bodyMedium(tt.text),
+                          style: TenturaText.bodyMedium(
+                            post.isDraft ? tt.textMuted : tt.text,
+                          ),
                         ),
                       ],
                       if (participantsLine != null) ...[
@@ -182,7 +195,41 @@ class PostConversationRow extends StatelessWidget {
                     ],
                   ),
                 ),
-                if (post.unreadCount > 0) ...[
+                if (post.isDraft)
+                  Builder(
+                    builder: (anchorContext) => IconButton(
+                      tooltip: MaterialLocalizations.of(
+                        context,
+                      ).showMenuTooltip,
+                      icon: const Icon(Icons.more_vert),
+                      onPressed: () async {
+                        final action =
+                            await showAnchoredPopupMenu<_DraftAction>(
+                              anchorContext: anchorContext,
+                              items: [
+                                PopupMenuItem(
+                                  value: _DraftAction.edit,
+                                  child: Text(l10n.buttonEdit),
+                                ),
+                                PopupMenuItem(
+                                  value: _DraftAction.delete,
+                                  child: Text(l10n.buttonDelete),
+                                ),
+                              ],
+                            );
+                        if (!anchorContext.mounted) return;
+                        switch (action) {
+                          case _DraftAction.edit:
+                            onOpen();
+                          case _DraftAction.delete:
+                            onDeleteDraft?.call();
+                          case null:
+                            break;
+                        }
+                      },
+                    ),
+                  ),
+                if (!post.isDraft && post.unreadCount > 0) ...[
                   SizedBox(width: tt.iconTextGap),
                   // Neutral, not accent: a conversation list is not a feed.
                   TenturaCountBadge(

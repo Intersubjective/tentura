@@ -5,7 +5,7 @@
 // «Получатели»: the recipient picker on the shared ForwardCubit, whose
 // «Отправить (N)» publishes the Post once someone is chosen. Closing an
 // untouched screen makes no server call, closing one with content asks
-// «Сбросить черновик?» first.
+// «Сохранить черновик?» first.
 // UI copy is asserted verbatim in Russian.
 
 import 'package:flutter/material.dart';
@@ -574,14 +574,14 @@ void main() {
       // A fully opened default-theme route needs 450 ms to finish popping.
       await tester.pump(const Duration(milliseconds: 500));
 
-      expect(find.text('Сбросить черновик?'), findsNothing);
+      expect(find.text('Сохранить черновик?'), findsNothing);
       expect(find.byType(PostCreateScreen), findsNothing);
       expect(h.write.createdFields, isEmpty);
       expect(h.write.deletedIds, isEmpty);
     });
 
     testWidgets(
-      'with text typed it asks «Сбросить черновик?» and keeps the screen on cancel',
+      'dismissing the Keep or Discard question keeps the composer open with its text',
       (tester) async {
         final h = await _pumpPostCreate(tester, recipients: {'Umaria'});
         await tester.enterText(_textField, 'Черновик поста');
@@ -590,17 +590,13 @@ void main() {
         await tester.tap(_closeControl);
         await _settle(tester);
 
-        expect(find.text('Сбросить черновик?'), findsOneWidget);
+        expect(find.text('Сохранить черновик?'), findsOneWidget);
 
-        await tester.tap(
-          find.descendant(
-            of: find.byType(Dialog),
-            matching: find.text('Отмена'),
-          ),
-        );
+        await tester.tapAt(const Offset(4, 4));
         await _settle(tester);
 
         expect(find.byType(PostCreateScreen), findsOneWidget);
+        expect(find.text('Черновик поста'), findsOneWidget);
         expect(h.write.deletedIds, isEmpty);
       },
     );
@@ -617,7 +613,7 @@ void main() {
         await tester.tap(
           find.descendant(
             of: find.byType(Dialog),
-            matching: find.text('Сбросить'),
+            matching: find.text('Удалить черновик'),
           ),
         );
         await _settle(tester);
@@ -638,13 +634,13 @@ void main() {
 
         await tester.tap(_closeControl);
         await _settle(tester);
-        expect(find.text('Сбросить черновик?'), findsOneWidget);
+        expect(find.text('Сохранить черновик?'), findsOneWidget);
         expect(h.write.deletedIds, isEmpty);
 
         await tester.tap(
           find.descendant(
             of: find.byType(Dialog),
-            matching: find.text('Сбросить'),
+            matching: find.text('Удалить черновик'),
           ),
         );
         await _settle(tester);
@@ -663,7 +659,7 @@ void main() {
       await tester.tap(_closeControl);
       await _settle(tester);
 
-      expect(find.text('Сбросить черновик?'), findsOneWidget);
+      expect(find.text('Сохранить черновик?'), findsOneWidget);
     });
   });
 

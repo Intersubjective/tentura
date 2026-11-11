@@ -96,6 +96,7 @@ class _PostCreateScreenState extends State<PostCreateScreen>
 
   var _onRecipientsStep = false;
   var _draftEnsuring = false;
+  bool _leaveInProgress = false;
   bool get _forwardable =>
       _createCubit.state.postForwardPolicy == BeaconForwardPolicyValue.open;
   int get _lifetimeHours => _createCubit.state.postLifetimeHours;
@@ -241,32 +242,48 @@ class _PostCreateScreenState extends State<PostCreateScreen>
   void _showForm() => setState(() => _onRecipientsStep = false);
 
   Future<void> _close() async {
-    final l10n = L10n.of(context)!;
-    if (_hasContent) {
-      final discard = await TenturaConfirmDialog.show(
-        context: context,
-        title: l10n.postCreateDiscardTitle,
-        content: l10n.postCreateDiscardBody,
-        confirmLabel: l10n.postCreateDiscardConfirm,
-        cancelLabel: l10n.buttonCancel,
-        emphasizeCancel: true,
+    if (_leaveInProgress) return;
+    _leaveInProgress = true;
+    try {
+      if (!_createCubit.state.isLive) {
+        if (_hasContent) {
+          final l10n = L10n.of(context)!;
+          final discard = await TenturaConfirmDialog.show(
+            context: context,
+            title: l10n.beaconCreateLeaveTitle,
+            content: l10n.beaconCreateLeaveBody,
+            confirmLabel: l10n.beaconCreateLeaveDiscard,
+            cancelLabel: l10n.beaconCreateLeaveKeepDraft,
+            emphasizeCancel: true,
+          );
+          if (discard == null || !mounted) return;
+          if (discard) {
+            await _createCubit.discardPost();
+            if (_createCubit.hasPostDraft) return;
+          } else {
+            await _createCubit.flushPostDraft();
+            if (_createCubit.hasUnpersistedEdits) return;
+          }
+        } else if (_createCubit.hasPostDraft) {
+          await _createCubit.discardPost();
+          if (_createCubit.hasPostDraft) return;
+        }
+      }
+      if (!mounted) return;
+      final forward = context.read<ForwardCubit>().state;
+      widget.onRecipientsChanged?.call(
+        {...forward.selectedIds},
+        {...forward.perRecipientNotes},
       );
-      if (discard != true || !mounted) return;
-    }
-    if (_createCubit.hasPostDraft) await _createCubit.discardPost();
-    if (!mounted) return;
-    final forward = context.read<ForwardCubit>().state;
-    widget.onRecipientsChanged?.call(
-      {...forward.selectedIds},
-      {...forward.perRecipientNotes},
-    );
-    // PopScope.canPop is false, so maybePop would re-enter this method; a
-    // direct pop bypasses it. A deep-linked screen has nothing to pop to.
-    final route = ModalRoute.of(context);
-    if (route != null && !route.isFirst) {
-      Navigator.of(context).pop();
-    } else {
-      await context.router.navigatePath(kPathMyWork);
+      // PopScope.canPop is false, so maybePop would re-enter this method.
+      final route = ModalRoute.of(context);
+      if (route != null && !route.isFirst) {
+        Navigator.of(context).pop();
+      } else {
+        await context.router.navigatePath(kPathConversations);
+      }
+    } finally {
+      _leaveInProgress = false;
     }
   }
 

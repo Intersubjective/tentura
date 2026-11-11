@@ -5884,7 +5884,6 @@
   "postExpiringPushTitle": "Пост скоро закроется",
   "postRowMoreMessages": "и ещё {count, plural, one{1 сообщение} few{{count} сообщения} many{{count} сообщений} other{{count} сообщения}}",
   "activityTabConversations": "Посты",
-  "postsTabNow": "Сейчас",
   "postsTabArchive": "Архив",
   "postsTabEmpty": "Здесь будут посты, которые вы начали или в которые вас позвали",
   "postsTabSelectConversation": "Выберите пост, чтобы открыть его здесь",
@@ -7047,5 +7046,11 @@
   "constellationPinUnpublishedExplanation": "Этот запрос не опубликован.",
   "constellationPinDeletedExplanation": "Этот запрос был удалён.",
   "constellationPinAccountDeletedExplanation": "Этот аккаунт был удалён.",
-  "constellationPinBlockedExplanation": "Вы заблокировали автора этого запроса."
+  "constellationPinBlockedExplanation": "Вы заблокировали автора этого запроса.",
+  "postsFilterActive": "Активные",
+  "postsFilterAuthored": "Мои",
+  "postsFilterDrafts": "Черновики",
+  "postsDraftsCount": "Черновики: {count}",
+  "@postsDraftsCount": {"placeholders": {"count": {"type": "int"}}},
+  "buttonEdit": "Изменить"
 }

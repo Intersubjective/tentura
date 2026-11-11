@@ -7211,10 +7211,6 @@
   "@activityTabConversations": {
     "description": "Activity tab listing the Posts the viewer is in."
   },
-  "postsTabNow": "Now",
-  "@postsTabNow": {
-    "description": "Section of the conversations tab: Posts active in the last 72 hours."
-  },
   "postsTabArchive": "Archive",
   "@postsTabArchive": {
     "description": "Section of the conversations tab: Posts that are closed or past their lifetime."
@@ -11771,5 +11767,11 @@
   "constellationPinUnpublishedExplanation": "This Request is not published.",
   "constellationPinDeletedExplanation": "This Request was deleted.",
   "constellationPinAccountDeletedExplanation": "This account was deleted.",
-  "constellationPinBlockedExplanation": "You blocked the author of this Request."
+  "constellationPinBlockedExplanation": "You blocked the author of this Request.",
+  "postsFilterActive": "Active",
+  "postsFilterAuthored": "Mine",
+  "postsFilterDrafts": "Drafts",
+  "postsDraftsCount": "Drafts: {count}",
+  "@postsDraftsCount": {"placeholders": {"count": {"type": "int"}}},
+  "buttonEdit": "Edit"
 }

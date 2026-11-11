@@ -12,6 +12,7 @@ import 'package:tentura/features/post_view/ui/util/post_participants_sheet_reque
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/widget/show_anchored_popup_menu.dart';
 
 import '../bloc/posts_cubit.dart';
 import '../widget/posts_tab_view.dart';
@@ -145,6 +146,22 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
             ),
       );
 
+  Future<void> _showFilterMenu(BuildContext context, L10n l10n) async {
+    final selected = await showAnchoredPopupMenu<PostsFilter>(
+      anchorContext: context,
+      items: [
+        for (final filter in PostsFilter.values)
+          PopupMenuItem(
+            value: filter,
+            child: Text(postsFilterLabel(l10n, filter)),
+          ),
+      ],
+    );
+    if (selected != null && context.mounted) {
+      context.read<PostsCubit>().setFilter(selected);
+    }
+  }
+
   Widget _buildList(BuildContext context, {required bool split}) {
     final scheme = Theme.of(context).colorScheme;
     final l10n = L10n.of(context)!;
@@ -157,11 +174,14 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
         alignment: !split && context.windowClass == WindowClass.expanded
             ? TenturaTopBarAlignment.fullWidth
             : TenturaTopBarAlignment.content,
-        title: Text(
-          l10n.activityTabConversations,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TenturaText.titleLarge(scheme.onSurface),
+        title: BlocSelector<PostsCubit, PostsState, PostsFilter>(
+          selector: (state) => state.filter,
+          builder: (context, filter) => TenturaTitleFilterControls(
+            title: l10n.activityTabConversations,
+            filterLabel: postsFilterLabel(l10n, filter),
+            filterTooltip: l10n.myWorkFilterMenuTooltip,
+            onFilterPressed: () => unawaited(_showFilterMenu(context, l10n)),
+          ),
         ),
         actions: [
           if (canCreatePost)
@@ -210,6 +230,7 @@ class _SelectedPostPrunerState extends State<_SelectedPostPruner> {
     ...state.pinned,
     ...state.active,
     ...state.archive,
+    ...state.drafts,
   ].any((post) => post.id == id);
 
   void _prune(PostsState state) {
