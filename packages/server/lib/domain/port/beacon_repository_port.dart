@@ -5,6 +5,8 @@ import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/post_summary.dart';
 import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/entity/beacon_media_state.dart';
+import 'package:tentura_server/domain/entity/post_draft_attachment.dart';
+import 'package:tentura_server/domain/entity/uploaded_room_attachment.dart';
 
 abstract class BeaconRepositoryPort {
   /// Open Post conversations visible to this viewer.
@@ -159,6 +161,40 @@ abstract class BeaconRepositoryPort {
     required String beaconId,
     required BeaconForwardPolicyValue policy,
   });
+
+  /// Persists Post draft composer text, forwarding policy and lifetime hours on
+  /// an owned Post in draft status.
+  Future<void> updatePostDraft({
+    required String beaconId,
+    required String userId,
+    required String description,
+    required BeaconForwardPolicyValue forwardPolicy,
+    int? lifetimeHours,
+  });
+
+  /// `beacon.post_lifetime_hours` while the Post is still a draft.
+  Future<int?> postDraftLifetimeHours(String beaconId);
+
+  /// Clears draft-only composer columns before the root message is posted.
+  Future<void> clearPostDraftComposerFields(String beaconId);
+
+  /// Attachments saved on a Post draft, in the order they were added.
+  Future<List<PostDraftAttachment>> postDraftAttachments(String beaconId);
+
+  /// Saves [upload] after the draft's last attachment; returns its id.
+  Future<String> insertPostDraftAttachment({
+    required String beaconId,
+    required UploadedRoomAttachment upload,
+  });
+
+  /// Deletes one draft attachment; null when the draft has no such row.
+  Future<PostDraftAttachment?> deletePostDraftAttachment({
+    required String beaconId,
+    required String attachmentId,
+  });
+
+  /// Deletes every draft attachment of [beaconId] (they moved on publish).
+  Future<void> deletePostDraftAttachments(String beaconId);
 
   /// Restamps a just-published Post's `expires_at` to `published_at +
   /// [lifetime]` and sets `expiry_warning_eligible` once (true when [lifetime]

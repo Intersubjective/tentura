@@ -523,7 +523,7 @@ void main() {
       (w) => w is PostConversationRow && w.post.id == id,
     );
 
-    testWidgets('the archive section header reads «Архив», after «Сейчас»', (
+    testWidgets('Active and Archive show only their own Post lifetimes', (
       tester,
     ) async {
       tester.view.physicalSize = const Size(800, 1600);
@@ -563,23 +563,22 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      double top(Finder f) => tester.getTopLeft(f.first).dy;
-
-      expect(header('Архив'), findsOneWidget);
       expect(header('Затихли'), findsNothing);
-      // Every Post is listed once, in the section of its own lifetime.
-      expect(find.byType(PostConversationRow), findsNWidgets(2));
+      expect(find.byType(PostConversationRow), findsOneWidget);
       expect(rowOf('Pnow'), findsOneWidget);
-      expect(rowOf('Pgone'), findsOneWidget);
+      expect(rowOf('Pgone'), findsNothing);
       expect(_ids(cubit.state.active), ['Pnow']);
       expect(_ids(cubit.state.archive), ['Pgone']);
-      expect(top(header('Сейчас')), lessThan(top(rowOf('Pnow'))));
-      expect(top(rowOf('Pnow')), lessThan(top(header('Архив'))));
-      expect(top(header('Архив')), lessThan(top(rowOf('Pgone'))));
+      cubit.setFilter(PostsFilter.archived);
+      await tester.pumpAndSettle();
+      expect(find.byType(PostConversationRow), findsOneWidget);
+      expect(rowOf('Pnow'), findsNothing);
+      expect(rowOf('Pgone'), findsOneWidget);
+      expect(find.text('в архиве'), findsOneWidget);
     });
 
-    testWidgets('with the list kept open, passing the deadline moves the '
-        'unpinned row under «Архив» and flips the pinned row to «в архиве» '
+    testWidgets('with the list kept open, passing the deadline hides the '
+        'unpinned row from Active and flips the pinned row to «в архиве» '
         'without a refetch', (tester) async {
       tester.view.physicalSize = const Size(800, 1600);
       tester.view.devicePixelRatio = 1;
@@ -637,19 +636,22 @@ void main() {
       await tester.pump();
 
       expect(repository.myPostsCalls, callsBefore);
-      expect(find.byType(PostConversationRow), findsNWidgets(3));
+      expect(find.byType(PostConversationRow), findsNWidgets(2));
       expect(marker('Ppin', 'в архиве'), findsOneWidget);
       expect(marker('Ppin', 'осталось 2 ч'), findsNothing);
-      expect(marker('Pfade', 'в архиве'), findsOneWidget);
+      expect(rowOf('Pfade'), findsNothing);
       expect(marker('Pstay', 'в архиве'), findsNothing);
       expect(_ids(cubit.state.pinned), ['Ppin']);
       expect(_ids(cubit.state.active), ['Pstay']);
       expect(_ids(cubit.state.archive), ['Pfade']);
-      expect(header('Архив'), findsOneWidget);
-      expect(top(rowOf('Ppin')), lessThan(top(header('Сейчас'))));
-      expect(top(header('Сейчас')), lessThan(top(rowOf('Pstay'))));
-      expect(top(rowOf('Pstay')), lessThan(top(header('Архив'))));
-      expect(top(header('Архив')), lessThan(top(rowOf('Pfade'))));
+      expect(top(rowOf('Ppin')), lessThan(top(rowOf('Pstay'))));
+      cubit.setFilter(PostsFilter.archived);
+      await tester.pumpAndSettle();
+      expect(find.byType(PostConversationRow), findsOneWidget);
+      expect(marker('Pfade', 'в архиве'), findsOneWidget);
+      expect(rowOf('Ppin'), findsNothing);
+      expect(rowOf('Pstay'), findsNothing);
+      expect(repository.myPostsCalls, callsBefore);
 
       // Disposing the cubit cancels its expiry timer; the test must not end
       // with a pending timer.

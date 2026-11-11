@@ -27,10 +27,7 @@ class _FakePostCase extends Fake implements PostCase {
     required List<int> mentionLengths,
     required List<String> recipientIds,
     required Map<String, String> notes,
-    required BeaconForwardPolicyValue forwardPolicy,
-    Stream<Uint8List>? attachmentBytes,
-    String? attachmentFilename,
-    String? attachmentMimeType,
+    BeaconForwardPolicyValue? forwardPolicy,
     int? lifetimeHours,
   }) async {
     calls.add({
@@ -43,15 +40,30 @@ class _FakePostCase extends Fake implements PostCase {
       'recipientIds': recipientIds,
       'notes': notes,
       'forwardPolicy': forwardPolicy,
-      'attachmentBytes': attachmentBytes,
-      'attachmentFilename': attachmentFilename,
-      'attachmentMimeType': attachmentMimeType,
       'lifetimeHours': lifetimeHours,
     });
     return PostPublishResult(
       beaconId: beaconId,
       rootMessageId: 'Mroot00000001',
     );
+  }
+
+  @override
+  Future<String> addDraftAttachment({
+    required String authorId,
+    required String beaconId,
+    required Stream<Uint8List> bytes,
+    String? filename,
+    String? mimeType,
+  }) async {
+    calls.add({
+      'authorId': authorId,
+      'beaconId': beaconId,
+      'bytes': bytes,
+      'filename': filename,
+      'mimeType': mimeType,
+    });
+    return 'Adraft000001';
   }
 }
 
@@ -67,7 +79,6 @@ mutation Publish(
   $recipientIds: [String!]!
   $notes: String
   $forwardPolicy: Int!
-  $file: Upload
 ) {
   postPublish(
     id: $id
@@ -78,12 +89,17 @@ mutation Publish(
     recipientIds: $recipientIds
     notes: $notes
     forwardPolicy: $forwardPolicy
-    file: $file
   ) {
     beaconId
     rootMessageId
     expiresAt
   }
+}
+''';
+
+const _addDraftAttachment = r'''
+mutation Add($beaconId: String!, $upload: Upload) {
+  postDraftAttachmentAdd(beaconId: $beaconId, upload: $upload)
 }
 ''';
 
@@ -134,7 +150,7 @@ void main() {
   });
 
   group('postPublish mutation', () {
-    test('declares the publish arguments and the upload argument', () {
+    test('declares the publish arguments and no upload', () {
       final field = mutation.all.singleWhere((f) => f.name == 'postPublish');
       final names = field.inputs.map((a) => a.name).toSet();
       expect(
@@ -148,23 +164,29 @@ void main() {
           'recipientIds',
           'notes',
           'forwardPolicy',
-          InputFieldUpload.fieldNullable.name,
         ]),
       );
+      expect(names, isNot(contains(InputFieldUpload.fieldNullable.name)));
     });
 
-    test('declares the upload argument like roomMessageCreate does', () {
-      final room = MutationBeaconRoom(beaconRoomCase: _UnusedRoomCase());
-      final expected = room.roomMessageCreate.inputs.singleWhere(
-        (a) => a.name == InputFieldUpload.fieldNullable.name,
-      );
-      final actual = mutation.all
-          .singleWhere((f) => f.name == 'postPublish')
-          .inputs
-          .singleWhere((a) => a.name == InputFieldUpload.fieldNullable.name);
-      expect(actual.type, same(expected.type));
-      expect(actual.type, isNot(isA<GraphQLNonNullableType<dynamic, dynamic>>()));
-    });
+    test(
+      'a draft attachment upload is declared like roomMessageCreate does',
+      () {
+        final room = MutationBeaconRoom(beaconRoomCase: _UnusedRoomCase());
+        final expected = room.roomMessageCreate.inputs.singleWhere(
+          (a) => a.name == InputFieldUpload.fieldNullable.name,
+        );
+        final actual = mutation.all
+            .singleWhere((f) => f.name == 'postDraftAttachmentAdd')
+            .inputs
+            .singleWhere((a) => a.name == 'upload');
+        expect(actual.type, same(expected.type));
+        expect(
+          actual.type,
+          isNot(isA<GraphQLNonNullableType<dynamic, dynamic>>()),
+        );
+      },
+    );
 
     test(
       'parses arguments, passes them to PostCase and returns the ids',
@@ -209,34 +231,37 @@ void main() {
           'Ucarol000001': '',
         });
         expect(call['forwardPolicy'], BeaconForwardPolicyValue.closed);
-        expect(call['attachmentBytes'], isNull);
       },
     );
 
     test(
-      'passes an uploaded attachment with its filename and mime type',
+      'a draft attachment upload reaches PostCase with its filename and '
+      'mime type and returns the attachment id',
       () async {
         final bytes = Stream.value(Uint8List.fromList([1, 2, 3]));
-        await graphQL.parseAndExecute(
-          _document,
-          variableValues: {
-            'id': 'Bpost0000001',
-            'body': '',
-            'recipientIds': ['Ubob000000001'],
-            'forwardPolicy': 1,
-            'file': {'filename': 'photo.jpg', 'type': 'image/jpeg'},
-          },
-          globalVariables: {
-            kGlobalInputQueryJwt: const JwtEntity(sub: 'Uauthor000001'),
-            kGlobalInputQueryFile: bytes,
-          },
-        );
+        final result =
+            await graphQL.parseAndExecute(
+                  _addDraftAttachment,
+                  variableValues: {
+                    'beaconId': 'Bpost0000001',
+                    'upload': {'filename': 'photo.jpg', 'type': 'image/jpeg'},
+                  },
+                  globalVariables: {
+                    kGlobalInputQueryJwt: const JwtEntity(
+                      sub: 'Uauthor000001',
+                    ),
+                    kGlobalInputQueryFile: bytes,
+                  },
+                )
+                as Map<String, dynamic>;
 
+        expect(result['postDraftAttachmentAdd'], 'Adraft000001');
         final call = postCase.calls.single;
-        expect(call['attachmentBytes'], same(bytes));
-        expect(call['attachmentFilename'], 'photo.jpg');
-        expect(call['attachmentMimeType'], 'image/jpeg');
-        expect(call['forwardPolicy'], BeaconForwardPolicyValue.open);
+        expect(call['authorId'], 'Uauthor000001');
+        expect(call['beaconId'], 'Bpost0000001');
+        expect(call['bytes'], same(bytes));
+        expect(call['filename'], 'photo.jpg');
+        expect(call['mimeType'], 'image/jpeg');
       },
     );
 

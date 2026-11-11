@@ -10,9 +10,8 @@ library;
 // zoom, and the default zoom keeps painting what it painted before.
 //
 // The fixture also holds a Request budded from the Post: the Field draws that
-// Post → Request edge with nothing selected, and keeps it (dimmed) while
-// something that does not touch it is selected. It is the edge that stays
-// "unselected" in these tests.
+// Post → Request edge only while the Post or the budded Request is selected
+// (#1192), never with nothing selected or while something else is.
 
 import 'dart:io';
 import 'dart:math' as math;
@@ -534,12 +533,9 @@ Future<({_Field field, Set<String> ambient, Set<String> edges})> _select(
 
 /// What each edge paints at the default zoom, as (on-screen width in logical
 /// px, alpha) per stroke. The default zoom keeps exactly these widths, alphas
-/// and stroke counts, for the selection's edges and for the edge that does
-/// not touch the selection (Post–budded Request) alike.
+/// and stroke counts; nothing selected paints no edge.
 const _defaultZoomStrokes = <String, Map<String, List<(double, double)>>>{
-  'nothing selected': {
-    '$_post–$_budded': [(1.5, 1)],
-  },
+  'nothing selected': {},
   'a selected Post': {
     '$_post–$_budded': [(1.5, 0.25)],
     '$_post–$_bob': [(1.5, 1)],
@@ -549,14 +545,12 @@ const _defaultZoomStrokes = <String, Map<String, List<(double, double)>>>{
     '$_amy–$_bob': [(2, 1)],
   },
   'a selected Request': {
-    '$_post–$_budded': [(1.5, 0.25)],
     '$_amy–$_viewerId': [(2, 1)],
     '$_amy–$_bob': [(2, 1)],
     '$_request–$_eve': [(1.5, 1)],
     '$_bob–$_eve': [(2, 1)],
   },
   'a selected person': {
-    '$_post–$_budded': [(1.5, 0.25)],
     '$_amy–$_viewerId': [(2, 1)],
     '$_amy–$_bob': [(2, 1)],
     '$_bob–$_eve': [(2, 1)],
@@ -686,84 +680,50 @@ void main() {
     });
 
     for (final selection in [_requestSelection, _personSelection]) {
-      testWidgets('with ${selection.label}, an edge that does not touch the '
-          'selection stays painted at the lowest zoom, at least one device '
-          'pixel thick', (tester) async {
+      testWidgets('with ${selection.label}, the Post–budded Request edge, '
+          'which touches neither, is painted at no zoom', (tester) async {
         final (:field, :ambient, :edges) = await _select(tester, selection);
-        final normal = _visibleEdges(
-          _paintedEdges(tester, field.cubit),
-        ).keys.toSet();
-        final unselected = normal.difference(edges);
+        final budded = _pair(_post, _budded);
         expect(
-          unselected,
-          contains(_pair(_post, _budded)),
-          reason: 'the Post–budded Request edge stays drawn, unselected',
+          _scenePairs(field.cubit),
+          containsAll([_pair(_amy, _bob)]),
+          reason: 'positive control: the selection draws its trust path',
+        );
+        expect(_scenePairs(field.cubit), isNot(contains(budded)));
+        expect(
+          _visibleEdges(_paintedEdges(tester, field.cubit)).keys,
+          isNot(contains(budded)),
         );
 
         await _zoomToLowest(tester, field);
-        final cameraScale = field.cubit.graphController.cameraScale;
-        final lowest = _visibleEdges(_paintedEdges(tester, field.cubit));
-        for (final pair in unselected.toList()..sort()) {
-          final thickness = lowest[pair];
-          expect(
-            thickness,
-            isNotNull,
-            reason:
-                'unselected $pair stays painted visibly at the lowest zoom, '
-                'painted: ${lowest.keys.toList()..sort()}',
-          );
-          _expectAtLeastOneDevicePixel(
-            thickness!,
-            cameraScale: cameraScale,
-            what: 'unselected $pair at the lowest zoom',
-          );
-        }
+        expect(_scenePairs(field.cubit), isNot(contains(budded)));
         expect(
-          normal.containsAll(lowest.keys),
-          isTrue,
-          reason:
-              'the lowest zoom paints no edge the default zoom does not, '
-              'painted: ${lowest.keys.toList()..sort()}',
+          _visibleEdges(_paintedEdges(tester, field.cubit)).keys,
+          isNot(contains(budded)),
         );
       });
     }
 
-    testWidgets('with nothing selected the lowest zoom paints the edges the '
-        'default zoom paints, each at least one device pixel thick', (
-      tester,
-    ) async {
+    testWidgets('with nothing selected neither the default nor the lowest '
+        'zoom paints an edge', (tester) async {
       final field = await _mountField(tester);
-      final normal = _visibleEdges(
-        _paintedEdges(tester, field.cubit),
-      ).keys.toSet();
       expect(
-        normal,
-        {_pair(_post, _budded)},
-        reason: 'nothing selected: only the Post–budded Request edge',
+        field.cubit.graphController.nodes.map(
+          (node) => node.id,
+        ),
+        containsAll([_post, _budded]),
+        reason: 'precondition: the Post and its budded Request are placed',
       );
+      expect(_scenePairs(field.cubit), isEmpty);
+      expect(_visibleEdges(_paintedEdges(tester, field.cubit)), isEmpty);
 
       await _zoomToLowest(tester, field);
       expect(
         _scenePairs(field.cubit),
-        {_pair(_post, _budded)},
-        reason: 'zooming out leaves the edge scene as it was',
+        isEmpty,
+        reason: 'zooming out leaves the edge scene empty',
       );
-      final cameraScale = field.cubit.graphController.cameraScale;
-      final lowest = _visibleEdges(_paintedEdges(tester, field.cubit));
-      expect(
-        lowest.keys.toSet(),
-        normal,
-        reason:
-            'zooming out with nothing selected paints the same edges, '
-            'visibly: painted ${lowest.keys.toList()..sort()}',
-      );
-      for (final MapEntry(:key, :value) in lowest.entries) {
-        _expectAtLeastOneDevicePixel(
-          value,
-          cameraScale: cameraScale,
-          what: '$key with nothing selected at the lowest zoom',
-        );
-      }
+      expect(_visibleEdges(_paintedEdges(tester, field.cubit)), isEmpty);
     });
   });
 

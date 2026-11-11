@@ -3,6 +3,14 @@
 
 fragment BeaconModelWithAdmittedHelpers on beacon {
   ...BeaconModel
+  post_lifetime_hours
+  post_draft_attachments(order_by: {position: asc}) {
+    id
+    kind
+    file_name
+    mime
+    image { id author_id }
+  }
   kind
   forward_policy
   last_activity_at

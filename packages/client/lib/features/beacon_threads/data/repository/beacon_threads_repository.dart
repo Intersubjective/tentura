@@ -736,11 +736,7 @@ class BeaconThreadsRepository {
     );
     final multipart = firstAttachment == null
         ? null
-        : TenturaV2Upload(
-            filename: firstAttachment.fileName,
-            mimeType: firstAttachment.mimeType,
-            bytes: firstAttachment.bytes,
-          );
+        : TenturaV2Upload.fromPending(firstAttachment);
     final r = await _remoteApiService
         .request(
           GRoomMessageCreateReq(
@@ -768,11 +764,7 @@ class BeaconThreadsRepository {
     required String messageId,
     required RoomPendingUpload upload,
   }) async {
-    final file = TenturaV2Upload(
-      filename: upload.fileName,
-      mimeType: upload.mimeType,
-      bytes: upload.bytes,
-    );
+    final file = TenturaV2Upload.fromPending(upload);
     await _remoteApiService
         .request(
           GRoomMessageAttachmentAddReq(

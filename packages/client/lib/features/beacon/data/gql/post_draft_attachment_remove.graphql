@@ -1,0 +1,3 @@
+mutation PostDraftAttachmentRemove($draftBeaconId: String!, $attachmentId: String!) {
+  postDraftAttachmentRemove(beaconId: $draftBeaconId, attachmentId: $attachmentId)
+}

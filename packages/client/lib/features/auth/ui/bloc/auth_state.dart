@@ -14,6 +14,9 @@ abstract class AuthState extends StateBase with _$AuthState {
     @Default(StateIsSuccess()) StateStatus status,
     @Default(false) bool isBootstrapping,
     @Default(false) bool authRecoveryNeeded,
+
+    /// The account's stored seed can't be read on this device (it is kept).
+    @Default(false) bool authSeedUnreadable,
     @Default(0) int authSessionLossCount,
     AuthRecoveryNavigation? pendingRecoveryNavigation,
   }) = _AuthState;

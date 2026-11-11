@@ -5,7 +5,7 @@
 // «Получатели»: the recipient picker on the shared ForwardCubit, whose
 // «Отправить (N)» publishes the Post once someone is chosen. Closing an
 // untouched screen makes no server call, closing one with content asks
-// «Сбросить черновик?» first.
+// «Сохранить черновик?» first.
 // UI copy is asserted verbatim in Russian.
 
 import 'package:flutter/material.dart';
@@ -70,21 +70,12 @@ class _RecordingPostPublishPort implements PostPublishPort {
   final recipients = <Set<String>>[];
   final policies = <BeaconForwardPolicyValue>[];
 
-  /// File name of the inline attachment per call (null when none).
-  final inlineAttachments = <String?>[];
-
   /// Every call flattened to one comparable string, to prove retries are
   /// identical.
   final signatures = <String>[];
 
-  /// Names uploaded into the root message after publish, in order.
-  final uploads = <String>[];
-
   /// Errors thrown by successive `postPublish` calls (null = success).
   final publishErrors = <Exception?>[];
-
-  /// File names whose next upload fails once.
-  final failUploadOnce = <String>{};
 
   @override
   Future<PostPublishResult> postPublish({
@@ -97,33 +88,19 @@ class _RecordingPostPublishPort implements PostPublishPort {
     required Map<String, String> notes,
     required BeaconForwardPolicyValue forwardPolicy,
     Duration? lifetime,
-    RoomPendingUpload? attachment,
   }) async {
     bodies.add(body);
     recipients.add(recipientIds.toSet());
     policies.add(forwardPolicy);
-    inlineAttachments.add(attachment?.fileName);
     signatures.add(
       '$beaconId|$body|${(recipientIds.toList()..sort()).join(',')}|'
-      '${forwardPolicy.name}|${attachment?.fileName}',
+      '${forwardPolicy.name}',
     );
     final index = signatures.length - 1;
     if (index < publishErrors.length && publishErrors[index] != null) {
       throw publishErrors[index]!;
     }
     return PostPublishResult(beaconId: beaconId, rootMessageId: 'root-1');
-  }
-
-  @override
-  Future<void> addRootAttachment({
-    required String beaconId,
-    required String messageId,
-    required RoomPendingUpload upload,
-  }) async {
-    uploads.add(upload.fileName);
-    if (failUploadOnce.remove(upload.fileName)) {
-      throw Exception('upload of ${upload.fileName} failed');
-    }
   }
 }
 
@@ -228,7 +205,6 @@ Future<_Harness> _pumpPostCreate(
     postPublishCase: PostPublishCase(port),
     effects: effects,
   );
-  addTearDown(cubit.close);
   final forward = ForwardCubit(
     beaconId: '',
     embedded: true,
@@ -274,8 +250,8 @@ Future<_Harness> _pumpPostCreate(
                             BlocProvider<ScreenCubit>(
                               create: (_) => ScreenCubit(effects),
                             ),
-                            BlocProvider<BeaconCreateCubit>.value(
-                              value: cubit,
+                            BlocProvider<BeaconCreateCubit>(
+                              create: (_) => cubit,
                             ),
                             BlocProvider<ForwardCubit>.value(value: forward),
                           ],
@@ -538,7 +514,6 @@ void main() {
 
       expect(h.port.bodies, hasLength(1));
       expect(h.port.bodies.single.trim(), isEmpty);
-      expect(h.port.inlineAttachments, ['photo-1.png']);
       expect(h.port.recipients.single, {'Umaria'});
     });
 
@@ -599,14 +574,14 @@ void main() {
       // A fully opened default-theme route needs 450 ms to finish popping.
       await tester.pump(const Duration(milliseconds: 500));
 
-      expect(find.text('Сбросить черновик?'), findsNothing);
+      expect(find.text('Сохранить черновик?'), findsNothing);
       expect(find.byType(PostCreateScreen), findsNothing);
       expect(h.write.createdFields, isEmpty);
       expect(h.write.deletedIds, isEmpty);
     });
 
     testWidgets(
-      'with text typed it asks «Сбросить черновик?» and keeps the screen on cancel',
+      'dismissing the Keep or Discard question keeps the composer open with its text',
       (tester) async {
         final h = await _pumpPostCreate(tester, recipients: {'Umaria'});
         await tester.enterText(_textField, 'Черновик поста');
@@ -615,17 +590,13 @@ void main() {
         await tester.tap(_closeControl);
         await _settle(tester);
 
-        expect(find.text('Сбросить черновик?'), findsOneWidget);
+        expect(find.text('Сохранить черновик?'), findsOneWidget);
 
-        await tester.tap(
-          find.descendant(
-            of: find.byType(Dialog),
-            matching: find.text('Отмена'),
-          ),
-        );
+        await tester.tapAt(const Offset(4, 4));
         await _settle(tester);
 
         expect(find.byType(PostCreateScreen), findsOneWidget);
+        expect(find.text('Черновик поста'), findsOneWidget);
         expect(h.write.deletedIds, isEmpty);
       },
     );
@@ -642,7 +613,7 @@ void main() {
         await tester.tap(
           find.descendant(
             of: find.byType(Dialog),
-            matching: find.text('Сбросить'),
+            matching: find.text('Удалить черновик'),
           ),
         );
         await _settle(tester);
@@ -663,13 +634,13 @@ void main() {
 
         await tester.tap(_closeControl);
         await _settle(tester);
-        expect(find.text('Сбросить черновик?'), findsOneWidget);
+        expect(find.text('Сохранить черновик?'), findsOneWidget);
         expect(h.write.deletedIds, isEmpty);
 
         await tester.tap(
           find.descendant(
             of: find.byType(Dialog),
-            matching: find.text('Сбросить'),
+            matching: find.text('Удалить черновик'),
           ),
         );
         await _settle(tester);
@@ -688,7 +659,7 @@ void main() {
       await tester.tap(_closeControl);
       await _settle(tester);
 
-      expect(find.text('Сбросить черновик?'), findsOneWidget);
+      expect(find.text('Сохранить черновик?'), findsOneWidget);
     });
   });
 
@@ -753,14 +724,12 @@ void main() {
         expect(h.port.signatures, hasLength(1));
         expect(h.effects.emitted.whereType<ShowError>(), isNotEmpty);
         expect(find.byType(PostCreateScreen), findsOneWidget);
-        expect(h.port.uploads, isEmpty);
 
         await tester.tap(_sendButton(2));
         await _settle(tester);
 
         expect(h.port.signatures, hasLength(2));
         expect(h.port.signatures[1], h.port.signatures[0]);
-        expect(h.port.uploads, ['photo-2.png']);
         expect(
           h.write.createdFields,
           hasLength(1),
@@ -779,29 +748,6 @@ void main() {
 
       expect(postText(tester), 'Кто в субботу на велопрогулку?');
       expect(find.byType(PendingAttachmentPreview), findsOneWidget);
-    });
-
-    testWidgets('after a failed photo upload «Отправить» retries only that '
-        'photo', (tester) async {
-      final h = await _pumpPostCreate(tester, recipients: {'Umaria'});
-      h.port.failUploadOnce.add('photo-2.png');
-
-      await sendWithPhotos(tester, photos: 2, recipients: 1);
-
-      expect(h.port.signatures, hasLength(1));
-      expect(h.port.inlineAttachments, ['photo-1.png']);
-      expect(h.port.uploads, ['photo-2.png']);
-      expect(h.effects.emitted.whereType<ShowError>(), isNotEmpty);
-
-      await tester.tap(_sendButton(1));
-      await _settle(tester);
-
-      expect(
-        h.port.signatures,
-        hasLength(1),
-        reason: 'postPublish is not re-sent',
-      );
-      expect(h.port.uploads, ['photo-2.png', 'photo-2.png']);
     });
   });
 

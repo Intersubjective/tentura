@@ -18,12 +18,15 @@ import 'package:tentura_server/consts.dart'
         kTitleMinLength;
 import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
 import 'package:tentura_server/consts/beacon_hierarchy_consts.dart';
+import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/domain/entity/beacon_activity_event_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/post_summary.dart';
 import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/entity/beacon_media_state.dart';
+import 'package:tentura_server/domain/entity/post_draft_attachment.dart';
+import 'package:tentura_server/domain/entity/uploaded_room_attachment.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 
 import '../database/tentura_db.dart';
@@ -148,9 +151,16 @@ LEFT JOIN LATERAL (
 ) forwarder ON true
 LEFT JOIN LATERAL (
   SELECT i.id AS image_id, i.author_id
-  FROM public.beacon_room_message_attachment a
+  FROM (
+    SELECT a.id, a.image_id, a.position
+    FROM public.beacon_room_message_attachment a
+    WHERE b.status <> 3 AND a.message_id = b.post_root_message_id AND a.kind = 1
+    UNION ALL
+    SELECT a.id, a.image_id, a.position
+    FROM public.post_draft_attachment a
+    WHERE b.status = 3 AND a.beacon_id = b.id AND a.kind = 1
+  ) a
   JOIN public.image i ON i.id = a.image_id
-  WHERE a.message_id = b.post_root_message_id AND a.kind = 1
   ORDER BY a.position, a.id
   LIMIT 1
 ) cover ON true
@@ -760,6 +770,167 @@ ${beaconId == null ? '' : r'WHERE posts.id = $2'}''',
         .filter((e) => e.id.equals(beaconId))
         .update((o) => o(forwardPolicy: Value(policy.value)));
   }
+
+  @override
+  Future<void> updatePostDraft({
+    required String beaconId,
+    required String userId,
+    required String description,
+    required BeaconForwardPolicyValue forwardPolicy,
+    int? lifetimeHours,
+  }) => _database.withMutatingUser(userId, () async {
+    final variables = <Variable<Object>>[
+      Variable<String>(beaconId),
+      Variable<String>(userId),
+      Variable<String>(description),
+      Variable<int>(forwardPolicy.value),
+    ];
+    if (lifetimeHours != null) {
+      variables.add(Variable<int>(lifetimeHours));
+    }
+    final affected = await _database.customUpdate(
+      lifetimeHours == null
+          ? r'''
+UPDATE public.beacon
+SET description = $3,
+    forward_policy = $4,
+    post_lifetime_hours = NULL,
+    updated_at = now()
+WHERE id = $1
+  AND user_id = $2
+  AND status = 3
+  AND kind = 1'''
+          : r'''
+UPDATE public.beacon
+SET description = $3,
+    forward_policy = $4,
+    post_lifetime_hours = $5,
+    updated_at = now()
+WHERE id = $1
+  AND user_id = $2
+  AND status = 3
+  AND kind = 1''',
+      variables: variables,
+      updates: {_database.beacons},
+    );
+    if (affected == 0) {
+      throw const BeaconCreateException(
+        description: 'Post is not an editable draft',
+      );
+    }
+  });
+
+  @override
+  Future<int?> postDraftLifetimeHours(String beaconId) async {
+    final row = await _database
+        .customSelect(
+          r'SELECT post_lifetime_hours FROM public.beacon WHERE id = $1',
+          variables: [Variable<String>(beaconId)],
+          readsFrom: {_database.beacons},
+        )
+        .getSingleOrNull();
+    return row?.read<int?>('post_lifetime_hours');
+  }
+
+  @override
+  Future<void> clearPostDraftComposerFields(String beaconId) =>
+      _database.customUpdate(
+        r'''
+UPDATE public.beacon
+SET description = '',
+    post_lifetime_hours = NULL
+WHERE id = $1 AND kind = 1''',
+        variables: [Variable<String>(beaconId)],
+        updates: {_database.beacons},
+      );
+
+  static const _draftAttachmentColumns =
+      'id, image_id::text AS image_id, file_url, mime, size_bytes, file_name';
+
+  static PostDraftAttachment _draftAttachment(QueryRow row) => (
+    id: row.read<String>('id'),
+    upload: (
+      imageId: row.read<String?>('image_id'),
+      storagePath: row.read<String?>('file_url'),
+      mime: row.read<String>('mime'),
+      sizeBytes: row.read<int>('size_bytes'),
+      displayName: row.read<String>('file_name'),
+    ),
+  );
+
+  @override
+  Future<List<PostDraftAttachment>> postDraftAttachments(
+    String beaconId,
+  ) async {
+    final rows = await _database
+        .customSelect(
+          'SELECT $_draftAttachmentColumns '
+          'FROM public.post_draft_attachment '
+          r'WHERE beacon_id = $1 ORDER BY position, id',
+          variables: [Variable<String>(beaconId)],
+        )
+        .get();
+    return rows.map(_draftAttachment).toList();
+  }
+
+  @override
+  Future<String> insertPostDraftAttachment({
+    required String beaconId,
+    required UploadedRoomAttachment upload,
+  }) async {
+    final row = await _database
+        .customSelect(
+          r'''
+INSERT INTO public.post_draft_attachment
+  (beacon_id, kind, image_id, file_url, mime, size_bytes, file_name, position)
+SELECT $1, $2, $3::uuid, $4, $5, $6, $7,
+       COALESCE(MAX(position) + 1, 0)
+FROM public.post_draft_attachment
+WHERE beacon_id = $1
+RETURNING id''',
+          variables: [
+            Variable<String>(beaconId),
+            Variable<int>(
+              upload.imageId == null
+                  ? BeaconRoomMessageAttachmentKind.file
+                  : BeaconRoomMessageAttachmentKind.image,
+            ),
+            Variable<String>(upload.imageId),
+            Variable<String>(upload.storagePath),
+            Variable<String>(upload.mime),
+            Variable<int>(upload.sizeBytes),
+            Variable<String>(upload.displayName),
+          ],
+        )
+        .getSingle();
+    return row.read<String>('id');
+  }
+
+  @override
+  Future<PostDraftAttachment?> deletePostDraftAttachment({
+    required String beaconId,
+    required String attachmentId,
+  }) async {
+    final row = await _database
+        .customSelect(
+          'DELETE FROM public.post_draft_attachment '
+          r'WHERE beacon_id = $1 AND id = $2 '
+          'RETURNING $_draftAttachmentColumns',
+          variables: [
+            Variable<String>(beaconId),
+            Variable<String>(attachmentId),
+          ],
+        )
+        .getSingleOrNull();
+    return row == null ? null : _draftAttachment(row);
+  }
+
+  @override
+  Future<void> deletePostDraftAttachments(String beaconId) =>
+      _database.customStatement(
+        r'DELETE FROM public.post_draft_attachment WHERE beacon_id = $1',
+        [beaconId],
+      );
 
   @override
   Future<void> setPostLifetime({

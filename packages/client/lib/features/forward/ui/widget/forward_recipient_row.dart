@@ -960,29 +960,26 @@ class _ForwardRowCheckbox extends StatelessWidget {
       checked: isSelected,
       enabled: enabled,
       onTapHint: actionWord,
-      child: Material(
-        type: MaterialType.transparency,
-        child: InkWell(
-          onTap: enabled ? onTap : null,
-          customBorder: const CircleBorder(),
-          child: SizedBox.square(
-            dimension: kMinInteractiveDimension,
-            child: Center(
-              child: Container(
-                width: 20,
-                height: 20,
-                decoration: BoxDecoration(
-                  color: isSelected && enabled ? tt.info : Colors.transparent,
-                  borderRadius: BorderRadius.circular(TenturaRadii.accentBar),
-                  border: Border.all(
-                    color: borderColor,
-                    width: isSelected && enabled ? 1 : 2,
-                  ),
+      child: InkWell(
+        onTap: enabled ? onTap : null,
+        customBorder: const CircleBorder(),
+        child: SizedBox.square(
+          dimension: kMinInteractiveDimension,
+          child: Center(
+            child: Container(
+              width: 20,
+              height: 20,
+              decoration: BoxDecoration(
+                color: isSelected && enabled ? tt.info : Colors.transparent,
+                borderRadius: BorderRadius.circular(TenturaRadii.accentBar),
+                border: Border.all(
+                  color: borderColor,
+                  width: isSelected && enabled ? 1 : 2,
                 ),
-                child: isSelected && enabled
-                    ? Icon(Icons.check, size: 14, color: tt.surface)
-                    : null,
               ),
+              child: isSelected && enabled
+                  ? Icon(Icons.check, size: 14, color: tt.surface)
+                  : null,
             ),
           ),
         ),

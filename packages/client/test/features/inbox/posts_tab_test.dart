@@ -435,6 +435,7 @@ void main() {
     Future<void> pumpTab(
       WidgetTester tester, {
       PostsTabView view = const PostsTabView(),
+      PostsFilter filter = PostsFilter.active,
     }) async {
       tester.view.physicalSize = const Size(800, 1600);
       tester.view.devicePixelRatio = 1;
@@ -442,6 +443,7 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
 
       await tester.runAsync(buildCubit);
+      cubit.setFilter(filter);
       await tester.pumpWidget(
         MaterialApp(
           locale: const Locale('ru'),
@@ -485,7 +487,10 @@ void main() {
                 : _now.add(const Duration(days: 1)),
           );
           repository.posts = [post('Deleted reply')];
-          await pumpTab(tester);
+          await pumpTab(
+            tester,
+            filter: archived ? PostsFilter.archived : PostsFilter.active,
+          );
           expect(find.textContaining('Deleted reply'), findsOneWidget);
           final callsBefore = repository.myPostsCalls;
 
@@ -529,39 +534,53 @@ void main() {
       );
     }
 
-    testWidgets('shows pinned rows, then «Сейчас», then «Архив» in order', (
+    testWidgets(
+      'Active keeps pinned Posts above live Posts and Archive shows archived Posts',
+      (
+        tester,
+      ) async {
+        repository.posts = [
+          _post('Pquiet', expiresAt: _ago(const Duration(days: 6))),
+          _post('Pnow_old', lastActivityAt: _ago(const Duration(hours: 4))),
+          _post('Pnow_new', lastActivityAt: _ago(const Duration(minutes: 9))),
+          _post(
+            'Ppinned',
+            lastActivityAt: _ago(const Duration(days: 9)),
+            pinnedAt: _ago(const Duration(hours: 1)),
+          ),
+        ];
+        await pumpTab(tester);
+
+        double top(Finder f) => tester.getTopLeft(f.first).dy;
+        expect(find.byType(PostConversationRow), findsNWidgets(3));
+        expect(top(rowOf('Ppinned')), lessThan(top(rowOf('Pnow_new'))));
+        expect(top(rowOf('Pnow_new')), lessThan(top(rowOf('Pnow_old'))));
+        expect(rowOf('Pquiet'), findsNothing);
+        cubit.setFilter(PostsFilter.archived);
+        await tester.pumpAndSettle();
+        expect(find.byType(PostConversationRow), findsOneWidget);
+        expect(rowOf('Pquiet'), findsOneWidget);
+        expect(rowOf('Ppinned'), findsNothing);
+        expect(rowOf('Pnow_new'), findsNothing);
+        expect(rowOf('Pnow_old'), findsNothing);
+      },
+    );
+
+    testWidgets('Active is empty when only archived Posts exist', (
       tester,
     ) async {
-      repository.posts = [
-        _post('Pquiet', expiresAt: _ago(const Duration(days: 6))),
-        _post('Pnow_old', lastActivityAt: _ago(const Duration(hours: 4))),
-        _post('Pnow_new', lastActivityAt: _ago(const Duration(minutes: 9))),
-        _post(
-          'Ppinned',
-          lastActivityAt: _ago(const Duration(days: 9)),
-          pinnedAt: _ago(const Duration(hours: 1)),
-        ),
-      ];
-      await pumpTab(tester);
-
-      double top(Finder f) => tester.getTopLeft(f.first).dy;
-      expect(find.byType(PostConversationRow), findsNWidgets(4));
-      expect(top(rowOf('Ppinned')), lessThan(top(header('Сейчас'))));
-      expect(top(header('Сейчас')), lessThan(top(rowOf('Pnow_new'))));
-      expect(top(rowOf('Pnow_new')), lessThan(top(rowOf('Pnow_old'))));
-      expect(top(rowOf('Pnow_old')), lessThan(top(header('Архив'))));
-      expect(top(header('Архив')), lessThan(top(rowOf('Pquiet'))));
-    });
-
-    testWidgets('omits «Сейчас» when nothing is recent', (tester) async {
       repository.posts = [
         _post('Pquiet', expiresAt: _ago(const Duration(days: 6))),
       ];
       await pumpTab(tester);
 
       expect(header('Сейчас'), findsNothing);
-      expect(header('Архив'), findsOneWidget);
+      expect(rowOf('Pquiet'), findsNothing);
+      expect(find.byType(TenturaEmptyState), findsOneWidget);
+      cubit.setFilter(PostsFilter.archived);
+      await tester.pumpAndSettle();
       expect(rowOf('Pquiet'), findsOneWidget);
+      expect(find.byType(TenturaEmptyState), findsNothing);
     });
 
     testWidgets('a row names the author, the root and the last message', (
@@ -634,10 +653,9 @@ void main() {
         _post('Pclosed', status: BeaconStatus.closed),
         _post('Popen'),
       ];
-      await pumpTab(tester);
+      await pumpTab(tester, filter: PostsFilter.archived);
 
-      double top(Finder f) => tester.getTopLeft(f.first).dy;
-      expect(top(header('Архив')), lessThan(top(rowOf('Pclosed'))));
+      expect(rowOf('Popen'), findsNothing);
       expect(
         find.descendant(of: rowOf('Pclosed'), matching: find.text('закрыт')),
         findsOneWidget,

@@ -2,6 +2,7 @@ import 'package:tentura_root/domain/entity/beacon_cover_source.dart';
 
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
+import 'package:tentura/domain/entity/room_pending_upload.dart';
 import 'package:tentura/features/beacon_plan/domain/entity/plan_fork_copy.dart';
 
 /// Field and media writes a request editor needs, in domain terms only.
@@ -13,6 +14,13 @@ abstract interface class BeaconWritePort {
   Future<Beacon> updateDraft(Beacon beacon);
 
   Future<Beacon> update(Beacon beacon);
+
+  Future<String> addPostDraftAttachment(
+    String beaconId,
+    RoomPendingUpload upload,
+  );
+
+  Future<void> removePostDraftAttachment(String beaconId, String attachmentId);
 
   Future<void> publishDraft(String id);
 

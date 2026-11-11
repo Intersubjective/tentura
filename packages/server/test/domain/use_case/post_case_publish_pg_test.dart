@@ -110,7 +110,6 @@ Future<void> main() async {
       List<String> mentionUserIds = const [_bob],
       List<int> mentionOffsets = const [6],
       List<int> mentionLengths = const [4],
-      Stream<Uint8List>? attachmentBytes,
     }) => harness.posts.publish(
       authorId: authorId,
       beaconId: _beacon,
@@ -121,9 +120,6 @@ Future<void> main() async {
       recipientIds: recipientIds,
       notes: notes,
       forwardPolicy: policy,
-      attachmentBytes: attachmentBytes,
-      attachmentFilename: attachmentBytes == null ? null : 'note.txt',
-      attachmentMimeType: attachmentBytes == null ? null : 'text/plain',
     );
 
     test(
@@ -282,14 +278,20 @@ Future<void> main() async {
     });
 
     test('accepts a photo-only Post: empty body and one attachment', () async {
+      await harness.posts.addDraftAttachment(
+        authorId: _author,
+        beaconId: _beacon,
+        bytes: Stream.value(
+          Uint8List.fromList(utf8.encode('plain attachment')),
+        ),
+        filename: 'note.txt',
+        mimeType: 'text/plain',
+      );
       final result = await publish(
         body: '   ',
         mentionUserIds: const [],
         mentionOffsets: const [],
         mentionLengths: const [],
-        attachmentBytes: Stream.value(
-          Uint8List.fromList(utf8.encode('plain attachment')),
-        ),
       );
 
       final attachments = await writer.execute(

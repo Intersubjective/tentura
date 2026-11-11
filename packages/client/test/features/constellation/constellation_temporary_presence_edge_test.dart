@@ -90,6 +90,11 @@ Future<ConstellationCubit> _load(
   );
   addTearDown(cubit.close);
   await cubit.stream.firstWhere((state) => state.status is StateIsSuccess);
+  // The link is drawn only while the person or their Request is selected
+  // (#1192), so the temporary person is selected whenever on the field.
+  if (field.peers.any((peer) => peer.id == 't')) {
+    cubit.selectPerson('t');
+  }
   return cubit;
 }
 
@@ -167,6 +172,7 @@ void main() {
         expect(solid.names, [
           'drawLine',
         ], reason: 'positive control: a solid edge');
+        cubit.selectPerson('t');
 
         final link = _paintEdge(
           cubit,

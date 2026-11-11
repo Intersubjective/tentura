@@ -1,7 +1,6 @@
 @Tags(['pg'])
 library;
 
-
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:postgres/postgres.dart';
@@ -110,7 +109,6 @@ Future<void> main() async {
       List<String> mentionUserIds = const [_bob],
       List<int> mentionOffsets = const [6],
       List<int> mentionLengths = const [4],
-      Stream<Uint8List>? attachmentBytes,
     }) => harness.posts.publish(
       authorId: authorId,
       beaconId: _beacon,
@@ -121,9 +119,6 @@ Future<void> main() async {
       recipientIds: recipientIds,
       notes: notes,
       forwardPolicy: policy,
-      attachmentBytes: attachmentBytes,
-      attachmentFilename: attachmentBytes == null ? null : 'note.txt',
-      attachmentMimeType: attachmentBytes == null ? null : 'text/plain',
     );
 
     test(

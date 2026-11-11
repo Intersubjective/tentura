@@ -1,0 +1,3 @@
+mutation PostUpdateDraft($id: String!, $body: String!, $forwardPolicy: Int!, $lifetimeHours: Int) {
+  postUpdateDraft(id: $id, body: $body, forwardPolicy: $forwardPolicy, lifetimeHours: $lifetimeHours) { id }
+}

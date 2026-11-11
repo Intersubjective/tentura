@@ -184,11 +184,12 @@ class _BeaconFactComposerBodyState extends State<_BeaconFactComposerBody>
                 existing: const [],
                 pending: [
                   for (final u in pendingUploads)
-                    (
-                      bytes: u.bytes,
-                      fileName: u.fileName,
-                      mimeType: u.mimeType,
-                    ),
+                    if (u.bytes case final bytes?)
+                      (
+                        bytes: bytes,
+                        fileName: u.fileName,
+                        mimeType: u.mimeType,
+                      ),
                 ],
                 onRemoveExisting: (_) {},
                 onRemovePending: (i) {

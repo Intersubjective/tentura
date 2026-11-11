@@ -66,12 +66,13 @@ final class PostSummary {
 
   final bool isAuthor;
 
-  /// [BeaconStatus.open], or [BeaconStatus.closed] once the Post was closed
-  /// by budding a Request from it.
+  /// Unpublished draft, open Post, or closed after budding a Request.
   final BeaconStatus status;
 
   /// Fixed publication deadline; activity does not extend it.
   final DateTime? expiresAt;
+
+  bool get isDraft => status == BeaconStatus.draft;
 
   bool get isClosed => status == BeaconStatus.closed;
 

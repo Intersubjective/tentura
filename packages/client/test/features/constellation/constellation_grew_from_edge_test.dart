@@ -1,5 +1,6 @@
 // Plan D5: a Request budded from a Post is tied to it on the field by a
-// `grewFrom` edge, drawn only when both the Post and the Request are nodes.
+// `grewFrom` edge, drawn only when both the Post and the Request are nodes
+// and one of them is selected (#1192: never with nothing selected).
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -90,7 +91,15 @@ void main() {
     test('draws Post → child when both nodes are present', () async {
       final cubit = await _load(_field());
       addTearDown(cubit.close);
+      expect(
+        _grewFromIds(cubit),
+        isEmpty,
+        reason: 'nothing selected: no grewFrom edge',
+      );
 
+      cubit.selectRequest('post-1');
+      expect(_grewFromIds(cubit), ['fr:post-1->fr:child-1#grewFrom']);
+      cubit.selectRequest('child-1');
       expect(_grewFromIds(cubit), ['fr:post-1->fr:child-1#grewFrom']);
       expect(
         cubit.edgeKindByPair['fr:post-1->fr:child-1#grewFrom'],
@@ -101,6 +110,7 @@ void main() {
     test('no edge when the Post is not on the field', () async {
       final cubit = await _load(_field(withPost: false));
       addTearDown(cubit.close);
+      cubit.selectRequest('child-1');
 
       expect(cubit.requestById('child-1'), isNotNull);
       expect(_grewFromIds(cubit), isEmpty);
@@ -109,6 +119,7 @@ void main() {
     test('no edge when the child is not on the field', () async {
       final cubit = await _load(_field(requests: const []));
       addTearDown(cubit.close);
+      cubit.selectRequest('post-1');
 
       expect(cubit.postById('post-1'), isNotNull);
       expect(_grewFromIds(cubit), isEmpty);
@@ -119,6 +130,7 @@ void main() {
         _field(requests: [_child(parentBeaconId: null)]),
       );
       addTearDown(cubit.close);
+      cubit.selectRequest('child-1');
 
       expect(_grewFromIds(cubit), isEmpty);
     });

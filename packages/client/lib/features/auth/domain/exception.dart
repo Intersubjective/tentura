@@ -69,6 +69,22 @@ class AuthIdNotFoundException extends AuthException {
   String get toRu => '${super.toRu} аккаунт не найден!';
 }
 
+/// A seed is stored for the account but cannot be read (on web: it no longer
+/// decrypts). The stored value is kept; the account signs in again.
+final class AuthSeedUnreadableException extends AuthException {
+  const AuthSeedUnreadableException();
+
+  @override
+  String get toEn =>
+      "This account's recovery seed can't be read on this device. "
+      'Sign in again or restore the account from your recovery seed.';
+
+  @override
+  String get toRu =>
+      'Seed восстановления этого аккаунта не читается на этом устройстве. '
+      'Войдите снова или восстановите аккаунт из seed восстановления.';
+}
+
 ///
 class InvitationCodeIsWrongException extends AuthException {
   const InvitationCodeIsWrongException();

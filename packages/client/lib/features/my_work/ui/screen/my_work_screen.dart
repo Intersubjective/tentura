@@ -259,71 +259,23 @@ class _MyWorkTitleControls extends StatelessWidget {
       ({MyWorkFilter filter, MyWorkSort sort})
     >(
       selector: (s) => (filter: s.filter, sort: s.sort),
-      builder: (context, view) => LayoutBuilder(
-        builder: (context, constraints) {
-          final tt = context.tt;
-          final scheme = Theme.of(context).colorScheme;
-          final titleStyle = TenturaText.titleLarge(scheme.onSurface);
-          final filterLabel = myWorkFilterDisplayLabel(
-            l10n,
-            view.filter,
-            forTopBarChip: true,
-          );
-          final sortLabel = _labelForSort(l10n, view.sort);
-          final title =
-              TenturaTopBarControl.textWidth(context, l10n.myWork, titleStyle) +
-              tt.iconTextGap;
-          final filterWide = TenturaTopBarControl.expandedWidth(
-            context,
-            filterLabel,
-          );
-          final sortWide = TenturaTopBarControl.expandedWidth(
-            context,
-            sortLabel,
-          );
-          final icon = TenturaTopBarControl.collapsedWidth(context);
-          final max = constraints.maxWidth;
-          final collapseSort = title + filterWide + sortWide > max;
-          final collapseFilter =
-              collapseSort && title + filterWide + icon > max;
-          return Row(
-            children: [
-              Expanded(
-                child: Row(
-                  children: [
-                    Flexible(
-                      child: Text(
-                        l10n.myWork,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: titleStyle,
-                      ),
-                    ),
-                    SizedBox(width: tt.iconTextGap),
-                    // The screen names itself like Activity does; the filter
-                    // follows the title instead of standing in for it.
-                    Flexible(
-                      child: TenturaTopBarControl(
-                        label: filterLabel,
-                        icon: Icons.filter_list,
-                        trailingIcon: Icons.arrow_drop_down,
-                        tooltip: l10n.myWorkFilterMenuTooltip,
-                        collapsed: collapseFilter,
-                        onPressed: () =>
-                            unawaited(_showMyWorkFilterMenu(context, l10n)),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              _MyWorkSortButton(
-                label: sortLabel,
-                sort: view.sort,
-                collapsed: collapseSort,
-              ),
-            ],
-          );
-        },
+      builder: (context, view) => TenturaTitleFilterControls(
+        title: l10n.myWork,
+        filterLabel: myWorkFilterDisplayLabel(
+          l10n,
+          view.filter,
+          forTopBarChip: true,
+        ),
+        filterTooltip: l10n.myWorkFilterMenuTooltip,
+        onFilterPressed: () => unawaited(_showMyWorkFilterMenu(context, l10n)),
+        trailingControl: (
+          label: _labelForSort(l10n, view.sort),
+          builder: (collapsed) => _MyWorkSortButton(
+            label: _labelForSort(l10n, view.sort),
+            sort: view.sort,
+            collapsed: collapsed,
+          ),
+        ),
       ),
     );
   }

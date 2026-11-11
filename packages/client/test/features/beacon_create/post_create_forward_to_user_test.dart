@@ -21,7 +21,6 @@ import 'package:tentura/domain/contacts/contact_name_store.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/domain/entity/room_pending_upload.dart';
 import 'package:tentura/domain/port/post_publish_port.dart';
 import 'package:tentura/domain/use_case/beacon_create_case.dart';
 import 'package:tentura/domain/use_case/post_publish_case.dart';
@@ -173,18 +172,10 @@ class _RecordingPostPublishPort implements PostPublishPort {
     required Map<String, String> notes,
     required BeaconForwardPolicyValue forwardPolicy,
     Duration? lifetime,
-    RoomPendingUpload? attachment,
   }) async {
     recipients.add(recipientIds.toSet());
     return PostPublishResult(beaconId: beaconId, rootMessageId: 'root-1');
   }
-
-  @override
-  Future<void> addRootAttachment({
-    required String beaconId,
-    required String messageId,
-    required RoomPendingUpload upload,
-  }) async {}
 }
 
 /// Registers the collaborators the Post create route builds its cubits from.

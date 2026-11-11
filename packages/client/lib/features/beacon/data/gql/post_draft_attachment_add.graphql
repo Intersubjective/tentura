@@ -1,0 +1,3 @@
+mutation PostDraftAttachmentAdd($draftBeaconId: String!, $upload: v2_Upload) {
+  postDraftAttachmentAdd(beaconId: $draftBeaconId, upload: $upload)
+}

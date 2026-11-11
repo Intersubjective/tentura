@@ -8,7 +8,6 @@ mutation PostPublish(
   $notes: String
   $forwardPolicy: Int!
   $lifetimeHours: Int
-  $file: v2_Upload
   ) {
     postPublish(
       id: $id
@@ -20,7 +19,6 @@ mutation PostPublish(
       notes: $notes
       forwardPolicy: $forwardPolicy
       lifetimeHours: $lifetimeHours
-      file: $file
     ) {
       beaconId
       rootMessageId

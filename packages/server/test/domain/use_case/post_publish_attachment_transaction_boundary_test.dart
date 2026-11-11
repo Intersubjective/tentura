@@ -7,6 +7,7 @@ import 'package:mockito/mockito.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_kind.dart';
+import 'package:tentura_server/domain/entity/post_draft_attachment.dart';
 import 'package:tentura_server/domain/entity/post_publish_result.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/port/attention_dispatch_port.dart';
@@ -36,72 +37,91 @@ import 'forward_case_mocks.mocks.dart';
 
 void main() {
   group('Post attachment transaction boundaries', () {
-    test('upload completes before the publishing transaction starts', () async {
-      final fixture = _Fixture();
-      final publishing = fixture.publish();
-      await fixture.room.uploadStarted.future;
-      expect(fixture.unitOfWork.inTransaction, isFalse);
-      expect(fixture.events, ['upload started']);
+    test(
+      'a draft attachment upload completes before its transaction starts',
+      () async {
+        final fixture = _Fixture(['attachment']);
+        final adding = fixture.addDraftAttachment();
+        await fixture.room.uploadStarted.future;
+        expect(fixture.unitOfWork.inTransaction, isFalse);
+        expect(fixture.events, ['upload started']);
 
-      fixture.room.uploadRelease.complete();
-      await fixture.unitOfWork.statusCommitStarted.future;
-      expect(fixture.events, [
-        'upload started',
-        'upload completed',
-        'status transaction started',
-        'post locked',
-      ]);
-      fixture.unitOfWork.statusCommitRelease.complete();
-      await fixture.unitOfWork.deliveryCommitStarted.future;
-      expect(fixture.events, [
-        'upload started',
-        'upload completed',
-        'status transaction started',
-        'post locked',
-        'status transaction committed',
-        'delivery transaction started',
-        'delivery locked',
-        'message persisted',
-        'root persisted',
-      ]);
-      fixture.unitOfWork.deliveryCommitRelease.complete();
-      await publishing;
-    });
+        fixture.room.uploadRelease.complete();
+        await fixture.unitOfWork.commitStarted['attachment']!.future;
+        expect(fixture.events, [
+          'upload started',
+          'upload completed',
+          'attachment transaction started',
+          'post locked',
+          'draft attachment saved',
+        ]);
+        expect(fixture.room.scheduledHashes, isEmpty);
+        fixture.unitOfWork.commitRelease['attachment']!.complete();
+        await adding;
+      },
+    );
 
-    test('image hash scheduling waits for the delivery commit', () async {
-      final fixture = _Fixture();
+    test('image hash scheduling waits for the attachment commit', () async {
+      final fixture = _Fixture(['attachment']);
       fixture.room.uploadRelease.complete();
-      final publishing = fixture.publish();
-      await fixture.unitOfWork.statusCommitStarted.future;
+      final adding = fixture.addDraftAttachment();
+      await fixture.unitOfWork.commitStarted['attachment']!.future;
       expect(fixture.unitOfWork.inTransaction, isTrue);
       expect(fixture.room.scheduledHashes, isEmpty);
-      expect(fixture.room.receivedAttachment, isNull);
-      fixture.unitOfWork.statusCommitRelease.complete();
-      await fixture.unitOfWork.deliveryCommitStarted.future;
-      expect(fixture.unitOfWork.inTransaction, isTrue);
-      expect(fixture.room.scheduledHashes, isEmpty);
-      expect(fixture.room.receivedAttachment, fixture.room.attachment);
-      expect(fixture.room.receivedBytes, isNull);
-      expect(fixture.room.deferHash, isTrue);
 
-      fixture.unitOfWork.deliveryCommitRelease.complete();
-      final result = await publishing;
-      expect(result.rootMessageId, 'root-message');
+      fixture.unitOfWork.commitRelease['attachment']!.complete();
+      await adding;
       expect(fixture.room.scheduledHashes, [fixture.room.attachment]);
       expect(fixture.room.hashScheduledInTransaction, isFalse);
       expect(fixture.events.sublist(fixture.events.length - 2), [
-        'delivery transaction committed',
+        'attachment transaction committed',
         'hash scheduled',
       ]);
     });
+
+    test(
+      'publishing hands the saved attachments to the root message inside '
+      'the delivery transaction, without uploading or hashing again',
+      () async {
+        final fixture = _Fixture(['status', 'delivery']);
+        fixture.beacons.saved.add((
+          id: 'Asaved',
+          upload: fixture.room.attachment,
+        ));
+        final publishing = fixture.publish();
+        await fixture.unitOfWork.commitStarted['status']!.future;
+        expect(fixture.room.receivedAttachments, isNull);
+        fixture.unitOfWork.commitRelease['status']!.complete();
+        await fixture.unitOfWork.commitStarted['delivery']!.future;
+        expect(fixture.unitOfWork.inTransaction, isTrue);
+        expect(fixture.room.receivedAttachments, [fixture.room.attachment]);
+        expect(fixture.room.receivedBytes, isNull);
+        expect(fixture.events, [
+          'status transaction started',
+          'post locked',
+          'status transaction committed',
+          'delivery transaction started',
+          'delivery locked',
+          'message persisted',
+          'draft attachments moved',
+          'root persisted',
+        ]);
+
+        fixture.unitOfWork.commitRelease['delivery']!.complete();
+        final result = await publishing;
+        expect(result.rootMessageId, 'root-message');
+        expect(fixture.room.uploadStarted.isCompleted, isFalse);
+        expect(fixture.room.scheduledHashes, isEmpty);
+      },
+    );
   });
 }
 
 final class _Fixture {
-  _Fixture() {
-    unitOfWork = _UnitOfWork(events);
+  _Fixture(List<String> phases) {
+    unitOfWork = _UnitOfWork(events, phases);
     room = _Room(unitOfWork, events);
-    final beacons = _Beacons(events);
+    beacons = _Beacons(events);
     final env = Env(environment: Environment.test);
     final logger = Logger('PostAttachmentTransactionBoundaries');
     final helpOffers = MockHelpOfferRepositoryPort();
@@ -152,6 +172,7 @@ final class _Fixture {
   final events = <String>[];
   late final _UnitOfWork unitOfWork;
   late final _Room room;
+  late final _Beacons beacons;
   late final PostCase post;
 
   Future<PostPublishResult> publish() => post.publish(
@@ -164,19 +185,27 @@ final class _Fixture {
     recipientIds: const [],
     notes: const {},
     forwardPolicy: BeaconForwardPolicyValue.open,
-    attachmentBytes: Stream.value(Uint8List.fromList([1, 2, 3])),
-    attachmentFilename: 'photo.jpg',
-    attachmentMimeType: 'image/jpeg',
+  );
+
+  Future<String> addDraftAttachment() => post.addDraftAttachment(
+    authorId: 'author',
+    beaconId: 'post',
+    bytes: Stream.value(Uint8List.fromList([1, 2, 3])),
+    filename: 'photo.jpg',
+    mimeType: 'image/jpeg',
   );
 }
 
 final class _UnitOfWork extends Fake implements MutatingUnitOfWorkPort {
-  _UnitOfWork(this.events);
+  _UnitOfWork(this.events, this.phases)
+    : commitStarted = {for (final phase in phases) phase: Completer<void>()},
+      commitRelease = {for (final phase in phases) phase: Completer<void>()};
   final List<String> events;
-  final statusCommitStarted = Completer<void>();
-  final statusCommitRelease = Completer<void>();
-  final deliveryCommitStarted = Completer<void>();
-  final deliveryCommitRelease = Completer<void>();
+
+  /// Names of the transactions expected, in order.
+  final List<String> phases;
+  final Map<String, Completer<void>> commitStarted;
+  final Map<String, Completer<void>> commitRelease;
   var _transactions = 0;
   bool inTransaction = false;
 
@@ -186,22 +215,16 @@ final class _UnitOfWork extends Fake implements MutatingUnitOfWorkPort {
     String? actorUserId,
   }) async {
     expect(inTransaction, isFalse);
-    final phase = switch (++_transactions) {
-      1 => 'status',
-      2 => 'delivery',
-      _ => throw StateError('Unexpected publish transaction'),
-    };
+    if (_transactions == phases.length) {
+      throw StateError('Unexpected transaction');
+    }
+    final phase = phases[_transactions++];
     inTransaction = true;
     events.add('$phase transaction started');
     try {
       final value = await action();
-      if (phase == 'status') {
-        statusCommitStarted.complete();
-        await statusCommitRelease.future;
-      } else {
-        deliveryCommitStarted.complete();
-        await deliveryCommitRelease.future;
-      }
+      commitStarted[phase]!.complete();
+      await commitRelease[phase]!.future;
       events.add('$phase transaction committed');
       return value;
     } finally {
@@ -224,9 +247,8 @@ final class _Room extends Fake implements BeaconRoomCase {
     displayName: 'photo.jpg',
   );
   final scheduledHashes = <UploadedRoomAttachment?>[];
-  UploadedRoomAttachment? receivedAttachment;
+  List<UploadedRoomAttachment>? receivedAttachments;
   Stream<Uint8List>? receivedBytes;
-  bool? deferHash;
   bool? hashScheduledInTransaction;
 
   @override
@@ -254,8 +276,7 @@ final class _Room extends Fake implements BeaconRoomCase {
     Stream<Uint8List>? attachmentBytes,
     String? attachmentFilename,
     String? attachmentMimeType,
-    UploadedRoomAttachment? uploadedAttachment,
-    bool deferAttachmentHash = false,
+    List<UploadedRoomAttachment> savedAttachments = const [],
     List<String> explicitMentionUserIds = const [],
     List<int> explicitMentionOffsets = const [],
     List<int> explicitMentionLengths = const [],
@@ -264,9 +285,8 @@ final class _Room extends Fake implements BeaconRoomCase {
     Set<String> suppressMentionNotifyFor = const {},
     String? clientMessageId,
   }) async {
-    receivedAttachment = uploadedAttachment;
+    receivedAttachments = savedAttachments;
     receivedBytes = attachmentBytes;
-    deferHash = deferAttachmentHash;
     events.add('message persisted');
     return {'id': 'root-message', 'beaconId': beaconId};
   }
@@ -295,6 +315,28 @@ final class _Beacons extends Fake implements BeaconRepositoryPort {
   _Beacons(this.events);
   final List<String> events;
   BeaconEntity _post = _draft();
+  final saved = <PostDraftAttachment>[];
+
+  @override
+  Future<List<PostDraftAttachment>> postDraftAttachments(
+    String beaconId,
+  ) async => List.of(saved);
+
+  @override
+  Future<String> insertPostDraftAttachment({
+    required String beaconId,
+    required UploadedRoomAttachment upload,
+  }) async {
+    saved.add((id: 'A${saved.length}', upload: upload));
+    events.add('draft attachment saved');
+    return saved.last.id;
+  }
+
+  @override
+  Future<void> deletePostDraftAttachments(String beaconId) async {
+    saved.clear();
+    events.add('draft attachments moved');
+  }
 
   @override
   Future<BeaconEntity> getBeaconById({
@@ -313,6 +355,12 @@ final class _Beacons extends Fake implements BeaconRepositoryPort {
     required String beaconId,
     required BeaconForwardPolicyValue policy,
   }) async {}
+
+  @override
+  Future<int?> postDraftLifetimeHours(String beaconId) async => null;
+
+  @override
+  Future<void> clearPostDraftComposerFields(String beaconId) async {}
 
   @override
   Future<void> setPostRootMessage({

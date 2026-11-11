@@ -12,6 +12,7 @@ import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/domain/entity/room_pending_upload.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/domain/port/beacon_write_port.dart';
@@ -37,6 +38,9 @@ import '../gql/_g/beacon_stage_image.req.gql.dart';
 import '../gql/_g/beacon_update.req.gql.dart';
 import '../gql/_g/beacon_update_draft.req.gql.dart';
 import '../gql/_g/beacon_publish.req.gql.dart';
+import '../gql/_g/post_update_draft.req.gql.dart';
+import '../gql/_g/post_draft_attachment_add.req.gql.dart';
+import '../gql/_g/post_draft_attachment_remove.req.gql.dart';
 import '../gql/_g/beacons_fetch_by_user_id.req.gql.dart';
 import '../gql/_g/beacons_involved_with_author.req.gql.dart';
 
@@ -235,7 +239,10 @@ class BeaconRepository implements BeaconWritePort {
             : beacon.title
         ..kind = beacon.kind.value
         ..forwardPolicy = beacon.forwardPolicy.value
-        ..description = beacon.description
+        // Post content is written with PostUpdateDraft after reserving its id.
+        ..description = beacon.kind == BeaconKind.post
+            ? null
+            : beacon.description
         ..context = beacon.context.isEmpty ? null : beacon.context
         ..tags = beacon.tags.isEmpty ? null : beacon.tags.join(',')
         ..startAt = scheduleDateTimeToIso(beacon.startAt)
@@ -268,6 +275,24 @@ class BeaconRepository implements BeaconWritePort {
   ///
   @override
   Future<Beacon> updateDraft(Beacon beacon) async {
+    if (beacon.kind == BeaconKind.post) {
+      await _remoteApiService
+          .request(
+            GPostUpdateDraftReq(
+              (b) => b.vars
+                ..id = beacon.id
+                ..body = beacon.description
+                ..forwardPolicy = beacon.forwardPolicy.value
+                ..lifetimeHours = beacon.postLifetimeHours,
+            ),
+          )
+          .firstLinkResponse(label: 'PostUpdateDraft')
+          .then(
+            (r) => r.dataOrThrow(label: 'PostUpdateDraft').postUpdateDraft.id,
+          );
+      _controller.add(RepositoryEventUpdate(beacon));
+      return beacon;
+    }
     final request = GBeaconUpdateDraftReq((b) {
       b.vars
         ..id = beacon.id
@@ -327,6 +352,46 @@ class BeaconRepository implements BeaconWritePort {
     final updated = await fetchBeaconById(beacon.id);
     _controller.add(RepositoryEventUpdate(updated));
     return updated;
+  }
+
+  @override
+  Future<String> addPostDraftAttachment(
+    String beaconId,
+    RoomPendingUpload upload,
+  ) => _remoteApiService
+      .request(
+        GPostDraftAttachmentAddReq(
+          (b) => b.vars
+            ..draftBeaconId = beaconId
+            ..upload = TenturaV2Upload.fromPending(upload),
+        ),
+      )
+      .firstLinkResponse(label: 'PostDraftAttachmentAdd')
+      .then(
+        (r) => r
+            .dataOrThrow(label: 'PostDraftAttachmentAdd')
+            .postDraftAttachmentAdd,
+      );
+
+  @override
+  Future<void> removePostDraftAttachment(
+    String beaconId,
+    String attachmentId,
+  ) async {
+    await _remoteApiService
+        .request(
+          GPostDraftAttachmentRemoveReq(
+            (b) => b.vars
+              ..draftBeaconId = beaconId
+              ..attachmentId = attachmentId,
+          ),
+        )
+        .firstLinkResponse(label: 'PostDraftAttachmentRemove')
+        .then(
+          (r) => r
+              .dataOrThrow(label: 'PostDraftAttachmentRemove')
+              .postDraftAttachmentRemove,
+        );
   }
 
   ///

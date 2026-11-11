@@ -51,27 +51,24 @@ class ForwardRecipientPersonalNoteSlot extends StatelessWidget {
     if (isSelected && !isExpanded && onOpenNote != null) {
       final trimmedPreview = notePreview?.trim();
       if (trimmedPreview != null && trimmedPreview.isNotEmpty) {
-        slot = Material(
-          type: MaterialType.transparency,
-          child: InkWell(
-            onTap: onOpenNote,
-            borderRadius: BorderRadius.circular(TenturaRadii.button),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(
-                minWidth: slotWidth,
-                maxWidth: previewMaxWidth,
-                minHeight: slotWidth,
-              ),
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: tt.tightGap),
-                child: Align(
-                  widthFactor: 1,
-                  child: Text(
-                    trimmedPreview,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TenturaText.bodySmall(tt.textMuted),
-                  ),
+        slot = InkWell(
+          onTap: onOpenNote,
+          borderRadius: BorderRadius.circular(TenturaRadii.button),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+              minWidth: slotWidth,
+              maxWidth: previewMaxWidth,
+              minHeight: slotWidth,
+            ),
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: tt.tightGap),
+              child: Align(
+                widthFactor: 1,
+                child: Text(
+                  trimmedPreview,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TenturaText.bodySmall(tt.textMuted),
                 ),
               ),
             ),

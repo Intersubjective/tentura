@@ -771,6 +771,11 @@ class ForwardCubit extends Cubit<ForwardState> {
     return forwardCase.fetchInboundForwardSources(beaconId: state.beaconId);
   }
 
+  /// The embedded composer obtains its canonical id after picking recipients.
+  void bindBeacon(String beaconId) {
+    if (state.beaconId != beaconId) emit(state.copyWith(beaconId: beaconId));
+  }
+
   Future<bool> forward({List<String>? attributionParentEdgeIds}) async {
     final forwardCase = _forwardCase;
     if (forwardCase == null) {

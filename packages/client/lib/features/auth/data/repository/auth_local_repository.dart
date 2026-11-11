@@ -53,9 +53,13 @@ class AuthLocalRepository implements AuthLocalRepositoryPort {
   //
   //
   @override
-  Future<String> getSeedByAccountId(String id) async =>
-      await _localSecureStorage.read(_getAccountKey(id)) ??
-      (throw const AuthIdNotFoundException());
+  Future<String> getSeedByAccountId(String id) async {
+    final key = _getAccountKey(id);
+    return await _localSecureStorage.read(key) ??
+        (await _localSecureStorage.containsKey(key)
+            ? throw const AuthSeedUnreadableException()
+            : throw const AuthIdNotFoundException());
+  }
 
   //
   //
@@ -186,6 +190,9 @@ class AuthLocalRepository implements AuthLocalRepositoryPort {
       if (existing.isNotEmpty) return;
     } on AuthIdNotFoundException {
       // No seed yet — persist the newly linked recovery key.
+    } on AuthSeedUnreadableException {
+      // A seed is stored: never write over it, even when it can't be read.
+      return;
     }
     await _localSecureStorage.write(_getAccountKey(id), seed);
   }
