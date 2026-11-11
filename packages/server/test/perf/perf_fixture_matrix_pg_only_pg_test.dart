@@ -31,24 +31,28 @@ Future<void> main() async {
     for (final c in PerfFixtureMatrix.cases.where(
       (c) => !c.requiresMeritRank,
     )) {
-      test(
-        '${c.name} writes build/perf/${c.name}.json',
-        () async {
-          final session = await setUpDisposablePgWriter(target: target);
+      group('disposable database', () {
+        late final DisposablePgWriterSession session;
+        setUpAll(() async {
+          session = await setUpDisposablePgWriter(target: target);
           addTearDown(() => tearDownDisposablePgWriter(session: session));
+        });
+        test(
+          '${c.name} writes build/perf/${c.name}.json',
+          () async {
+            final seed = await c.seed(session.writer);
+            final file = await c.record(
+              session: session,
+              seed: seed,
+              attempts: attempts,
+            );
 
-          final seed = await c.seed(session.writer);
-          final file = await c.record(
-            session: session,
-            seed: seed,
-            attempts: attempts,
-          );
-
-          expectReportWritten(c, written: file, minAttempts: attempts);
-        },
-        timeout: const Timeout(Duration(minutes: 30)),
-        skip: perfMatrixCaseSelected(c) ? skipReason : 'not selected',
-      );
+            expectReportWritten(c, written: file, minAttempts: attempts);
+          },
+          timeout: const Timeout(Duration(minutes: 30)),
+          skip: perfMatrixCaseSelected(c) ? skipReason : 'not selected',
+        );
+      }, skip: perfMatrixCaseSelected(c) ? skipReason : 'not selected');
     }
   });
 }

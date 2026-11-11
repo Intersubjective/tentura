@@ -44,6 +44,11 @@ Future<void> main() async {
   );
   final unavailable = await pgSkipReason(target);
 
+  late final DisposablePgWriterSession session;
+  setUpAll(() async {
+    session = await setUpDisposablePgWriter(target: target);
+    addTearDown(() => tearDownDisposablePgWriter(session: session));
+  });
   test(
     'seeded live obligations stay within the statement budget and a '
     'disconnected PostgreSQL query produces no Sentry error',
@@ -57,13 +62,15 @@ Future<void> main() async {
         driftRuntimeOptions.dontWarnAboutMultipleDatabases =
             warnAboutMultipleDatabases;
       });
-      final session = await setUpDisposablePgWriter(target: target);
-      addTearDown(() => tearDownDisposablePgWriter(session: session));
+
       final env = _databaseEnv(target.databaseEnv);
       final pool = MainDbPool(env);
       addTearDown(pool.close);
       final capture = _QueryMeasurements();
-      final database = TenturaDb.scoped(pool, scopeInterceptor: () => capture);
+      final database = TenturaDb.scoped(
+        pool,
+        scopeInterceptor: () => capture,
+      );
       addTearDown(database.close);
       await _seed(session.writer);
 
@@ -105,10 +112,16 @@ Future<void> main() async {
 
       // Record a first read and three concurrent reads of the same seeded
       // viewer. All rows must reach the caller; an empty stub cannot pass.
-      final first = await _post(handler, _document, 'AttentionLiveObligations');
+      final first = await _post(
+        handler,
+        _document,
+        'AttentionLiveObligations',
+      );
       final firstSample = capture.samples.single;
       // Include the executed SQL and seeded parameters with the measurement.
-      print('Measured SQL: ${firstSample.sql}; args: ${firstSample.arguments}');
+      print(
+        'Measured SQL: ${firstSample.sql}; args: ${firstSample.arguments}',
+      );
       final plan = await session.writer.execute(
         'EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) ${firstSample.sql}',
         parameters: firstSample.arguments,

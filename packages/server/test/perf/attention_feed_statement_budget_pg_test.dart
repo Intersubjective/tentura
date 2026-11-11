@@ -273,13 +273,25 @@ LIMIT 51
     envVarName: 'TENTURA_ATTENTION_FEED_WIDE_HISTORY_TEST_DB',
     defaultNamePrefix: 'tentura_test_feed_wide',
   );
-  test(
-    'for a viewer whose history spans $_wideHistoryRequests Requests '
-    'forwarded by $_wideHistoryAuthors people, the history feed returns the '
-    "pre-fix rows in at most a third of the pre-fix statement's p95 time",
-    skip: await pgSkipReason(wideTarget),
-    () => _expectWideForwardedHistoryFasterThanPreFix(wideTarget),
-  );
+  final wideSkipReason = await pgSkipReason(wideTarget);
+  group('wide forwarded history', () {
+    late final DisposablePgWriterSession session;
+    setUpAll(() async {
+      session = await setUpDisposablePgWriter(
+        target: wideTarget,
+        createPgmer2Extension: true,
+        lastInclusiveVersion: preFixSchemaVersion,
+      );
+      addTearDown(() => tearDownDisposablePgWriter(session: session));
+    });
+    test(
+      'for a viewer whose history spans $_wideHistoryRequests Requests '
+      'forwarded by $_wideHistoryAuthors people, the history feed returns the '
+      "pre-fix rows in at most a third of the pre-fix statement's p95 time",
+      skip: wideSkipReason,
+      () => _expectWideForwardedHistoryFasterThanPreFix(session),
+    );
+  }, skip: wideSkipReason);
 
   final preFixDataset = Platform.environment[_preFixDatasetEnv] ?? '';
   const preFixSkipReason =
@@ -315,19 +327,14 @@ LIMIT 51
 /// then against head in the same test — a speed-up, not an absolute budget,
 /// so the guard does not depend on how fast the machine is.
 Future<void> _expectWideForwardedHistoryFasterThanPreFix(
-  DisposablePgTarget target,
+  DisposablePgWriterSession session,
 ) async {
-  final session = await setUpDisposablePgWriter(
-    target: target,
-    createPgmer2Extension: true,
-    lastInclusiveVersion: preFixSchemaVersion,
-  );
+  final target = session.target;
   final databases = <TenturaDb>[];
   addTearDown(() async {
     for (final database in databases) {
       await database.close();
     }
-    await tearDownDisposablePgWriter(session: session);
   });
   final writer = session.writer;
   await _seedWideForwardedHistory(writer);

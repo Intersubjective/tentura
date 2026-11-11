@@ -408,8 +408,9 @@ Future<bool> canReachPostgresAdmin(DisposablePgTarget target) async {
 
 Future<T> withDisposablePgLifecycleLock<T>(
   Env adminEnv,
-  Future<T> Function() action,
-) async {
+  Future<T> Function() action, {
+  void Function(int)? onBackendReady,
+}) async {
   // tentura-8xf acceptance: the lock session must not inherit the postgres
   // default queryTimeout (5 minutes) from Env.pgEndpointSettings — under
   // parallel pg-shard contention a queued pg_advisory_lock wait was cancelled
@@ -422,6 +423,14 @@ Future<T> withDisposablePgLifecycleLock<T>(
     ),
   );
   try {
+    if (onBackendReady != null) {
+      final identity = await connection.execute('SELECT pg_backend_pid()');
+      final backend = identity.single.single;
+      if (backend is! int) {
+        throw StateError('Postgres returned a non-integer backend PID');
+      }
+      onBackendReady(backend);
+    }
     await connection.execute(
       Sql.named('SELECT pg_advisory_lock(hashtext(@key))'),
       parameters: {'key': _lifecycleAdvisoryLockKey},
@@ -441,6 +450,7 @@ Future<DisposablePgWriterSession> setUpDisposablePgWriter({
   required DisposablePgTarget target,
   bool createPgmer2Extension = false,
   String? lastInclusiveVersion,
+  void Function(int)? onProvisioningBackend,
 }) async {
   Connection? writer;
   try {
@@ -483,7 +493,7 @@ Future<DisposablePgWriterSession> setUpDisposablePgWriter({
           'Expected database ${target.databaseName}, connected to $name',
         );
       }
-    });
+    }, onBackendReady: onProvisioningBackend);
     _stuckBackendMonitors[target.databaseName] = DbStuckBackendMonitor(target)
       ..start();
     return DisposablePgWriterSession(target: target, writer: writer!);

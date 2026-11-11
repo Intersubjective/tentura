@@ -18,6 +18,7 @@ import 'package:tentura_server/env.dart';
 import '../support/constellation_apply_batch_perf_fixture.dart';
 import '../support/disposable_pg_target.dart';
 import 'perf_fixtures.dart';
+import 'perf_fixture_matrix.dart' show PerfFixtureCase;
 
 const _attempts = 30;
 const _warmUpCalls = 5;
@@ -28,82 +29,88 @@ double _percentile(List<int> sortedMicros, double q) =>
 void main() {
   group('applyBatch latency on the scoped main pool with capacity 4', () {
     for (final batch in [1, 64]) {
-      test('$batch-op batch meets the warm p50 and p95 budgets', () async {
-        final fixture = requireApplyBatchPerfFixture(batch);
+      group('disposable database', () {
+        late final PerfFixtureCase fixture;
         final target = DisposablePgTarget.fromNamedEnvironment(
           envVarName: 'TENTURA_APPLY_BATCH_SCOPED_POOL_TEST_DB',
           defaultNamePrefix: 'tentura_test_apply_batch_scoped',
         );
-        final session = await setUpDisposablePgWriter(
-          target: target,
-          createPgmer2Extension: true,
-        );
-        addTearDown(() => tearDownDisposablePgWriter(session: session));
-        final seed = await fixture.seed(session.writer);
-        await requireNonEmptyMeritRankGraph(session.writer);
-
-        final db = target.databaseEnv;
-        final pool = MainDbPool(
-          Env(
-            environment: Environment.test,
-            printEnv: false,
-            isDebugModeOn: false,
-            pgHost: db.pgEndpoint.host,
-            pgPort: db.pgEndpoint.port,
-            pgDatabase: db.pgEndpoint.database,
-            pgUsername: db.pgEndpoint.username,
-            pgPassword: db.pgEndpoint.password,
-            maxConnectionCount: 4,
-          ),
-        );
-        final tentura = TenturaDb.scoped(pool);
-        addTearDown(() async {
-          await tentura.close();
-          await pool.close();
+        late final DisposablePgWriterSession session;
+        setUpAll(() async {
+          fixture = requireApplyBatchPerfFixture(batch);
+          session = await setUpDisposablePgWriter(
+            target: target,
+            createPgmer2Extension: true,
+          );
+          addTearDown(() => tearDownDisposablePgWriter(session: session));
         });
-        expect(pool.admission.maxConcurrent, 4);
-        final repository = ConstellationAnchorRepository(tentura);
+        test('$batch-op batch meets the warm p50 and p95 budgets', () async {
+          final seed = await fixture.seed(session.writer);
+          await requireNonEmptyMeritRankGraph(session.writer);
 
-        Future<int> attempt(String prefix, int n) async {
-          final watch = Stopwatch()..start();
-          final result = await repository.applyBatch(
-            viewerId: seed.viewerId,
-            ops: [
-              for (var i = 0; i < batch; i++)
-                AnchorApplyOp(
-                  clientOpId: '$prefix-$i',
-                  kind: AnchorOpKind.upsert,
-                  target: ConstellationAnchorTarget.person(seed.peerIds[i]),
-                  position: ConstellationAnchorPosition(
-                    xUnits: ((n + i) % 9) - 4.0,
-                    yUnits: ((n * 3 + i) % 9) - 4.0,
-                    coordinateSpaceVersion: 1,
+          final db = target.databaseEnv;
+          final pool = MainDbPool(
+            Env(
+              environment: Environment.test,
+              printEnv: false,
+              isDebugModeOn: false,
+              pgHost: db.pgEndpoint.host,
+              pgPort: db.pgEndpoint.port,
+              pgDatabase: db.pgEndpoint.database,
+              pgUsername: db.pgEndpoint.username,
+              pgPassword: db.pgEndpoint.password,
+              maxConnectionCount: 4,
+            ),
+          );
+          final tentura = TenturaDb.scoped(pool);
+          addTearDown(() async {
+            await tentura.close();
+            await pool.close();
+          });
+          expect(pool.admission.maxConcurrent, 4);
+          final repository = ConstellationAnchorRepository(tentura);
+
+          Future<int> attempt(String prefix, int n) async {
+            final watch = Stopwatch()..start();
+            final result = await repository.applyBatch(
+              viewerId: seed.viewerId,
+              ops: [
+                for (var i = 0; i < batch; i++)
+                  AnchorApplyOp(
+                    clientOpId: '$prefix-$i',
+                    kind: AnchorOpKind.upsert,
+                    target: ConstellationAnchorTarget.person(seed.peerIds[i]),
+                    position: ConstellationAnchorPosition(
+                      xUnits: ((n + i) % 9) - 4.0,
+                      yUnits: ((n * 3 + i) % 9) - 4.0,
+                      coordinateSpaceVersion: 1,
+                    ),
                   ),
-                ),
-            ],
-          );
-          watch.stop();
-          expect(
-            result.results.every((r) => r.status == AnchorOpStatus.ok),
-            isTrue,
-          );
-          return watch.elapsedMicroseconds;
-        }
+              ],
+            );
+            watch.stop();
+            expect(
+              result.results.every((r) => r.status == AnchorOpStatus.ok),
+              isTrue,
+            );
+            return watch.elapsedMicroseconds;
+          }
 
-        for (var w = 0; w < _warmUpCalls; w++) {
-          await attempt('scoped-w$batch-a$w', w);
-        }
-        final micros = [
-          for (var n = 0; n < _attempts; n++)
-            await attempt('scoped-b$batch-a$n', n),
-        ]..sort();
+          for (var w = 0; w < _warmUpCalls; w++) {
+            await attempt('scoped-w$batch-a$w', w);
+          }
+          final micros = [
+            for (var n = 0; n < _attempts; n++)
+              await attempt('scoped-b$batch-a$n', n),
+          ]..sort();
 
-        final (p50Budget, p95Budget) = applyBatchWarmBudgetsMs[batch]!;
-        final p50 = _percentile(micros, 0.5);
-        final p95 = _percentile(micros, 0.95);
-        expect(p50, lessThanOrEqualTo(p50Budget), reason: 'p50 $p50 ms');
-        expect(p95, lessThanOrEqualTo(p95Budget), reason: 'p95 $p95 ms');
-      }, timeout: const Timeout(Duration(minutes: 30)));
+          final (p50Budget, p95Budget) = applyBatchWarmBudgetsMs[batch]!;
+          final p50 = _percentile(micros, 0.5);
+          final p95 = _percentile(micros, 0.95);
+          expect(p50, lessThanOrEqualTo(p50Budget), reason: 'p50 $p50 ms');
+          expect(p95, lessThanOrEqualTo(p95Budget), reason: 'p95 $p95 ms');
+        }, timeout: const Timeout(Duration(minutes: 30)));
+      });
     }
   });
 }

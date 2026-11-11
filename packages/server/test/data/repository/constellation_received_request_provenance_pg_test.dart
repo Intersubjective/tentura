@@ -11,10 +11,12 @@ const _bob = 'Uforwardbob01';
 const _alice = 'Uauthoralice1';
 const _request = 'Bforwarded001';
 
-void main() {
+void main({void Function(int)? onProvisioningBackend}) {
   DisposablePgWriterSession? session;
   setUpAll(() async {
-    session = await setUpForwardedRequestField();
+    session = await setUpForwardedRequestField(
+      onProvisioningBackend: onProvisioningBackend,
+    );
   });
   tearDownAll(() async {
     final activeSession = session;

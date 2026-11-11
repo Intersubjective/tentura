@@ -2,6 +2,7 @@
 library;
 
 import 'package:test/test.dart';
+import 'package:postgres/postgres.dart' show Connection;
 
 import 'disposable_pg_target.dart';
 import 'meritrank_lock_probe.dart';
@@ -19,39 +20,54 @@ Future<void> main() async {
   final skipReason = await pgSkipReason(target);
 
   group('MeritRank suite serialization in a plain pg suite', () {
-    test(
-      'recreating and dropping the disposable database does not wait for the '
-      'MeritRank lock',
-      () async {
-        final holder = await holdMeritRankSuiteLock(target);
-        try {
-          await target.recreate().timeout(const Duration(seconds: 60));
-          await target.drop().timeout(const Duration(seconds: 60));
-        } finally {
-          await holder.close();
-        }
-      },
-      timeout: const Timeout(Duration(minutes: 20)),
-      skip: skipReason,
-    );
+    group('disposable database', () {
+      late final Connection holder;
+      setUpAll(() async {
+        holder = await holdMeritRankSuiteLock(target);
+        addTearDown(holder.close);
+        await target.recreate().timeout(const Duration(seconds: 60));
+        addTearDown(target.drop);
+      });
+      test(
+        'recreating and dropping the disposable database does not wait for the '
+        'MeritRank lock',
+        () async {
+          try {
+            await target.drop().timeout(const Duration(seconds: 60));
+          } finally {
+            await holder.close();
+          }
+        },
+        timeout: const Timeout(Duration(minutes: 20)),
+        skip: skipReason,
+      );
+    }, skip: skipReason);
 
-    test(
-      'the writer session lifecycle does not wait for the MeritRank lock',
-      () async {
-        final holder = await holdMeritRankSuiteLock(target);
-        try {
-          final session = await setUpDisposablePgWriter(
-            target: target,
-          ).timeout(const Duration(seconds: 60));
-          await tearDownDisposablePgWriter(
-            session: session,
-          ).timeout(const Duration(seconds: 60));
-        } finally {
-          await holder.close();
-        }
-      },
-      timeout: const Timeout(Duration(minutes: 20)),
-      skip: skipReason,
-    );
+    group('disposable database', () {
+      late final Connection holder;
+      late final DisposablePgWriterSession session;
+      setUpAll(() async {
+        holder = await holdMeritRankSuiteLock(target);
+        addTearDown(holder.close);
+        session = await setUpDisposablePgWriter(
+          target: target,
+        ).timeout(const Duration(seconds: 60));
+        addTearDown(() => tearDownDisposablePgWriter(session: session));
+      });
+      test(
+        'the writer session lifecycle does not wait for the MeritRank lock',
+        () async {
+          try {
+            await tearDownDisposablePgWriter(
+              session: session,
+            ).timeout(const Duration(seconds: 60));
+          } finally {
+            await holder.close();
+          }
+        },
+        timeout: const Timeout(Duration(minutes: 20)),
+        skip: skipReason,
+      );
+    }, skip: skipReason);
   });
 }

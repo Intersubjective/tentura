@@ -31,46 +31,53 @@ Future<void> main() async {
     });
 
     for (final c in PerfFixtureMatrix.cases.where((c) => c.requiresMeritRank)) {
-      test(
-        '${c.name} writes build/perf/${c.name}.json',
-        () async {
-          final session = await setUpDisposablePgWriter(
+      group('disposable database', () {
+        late final DisposablePgWriterSession session;
+        setUpAll(() async {
+          session = await setUpDisposablePgWriter(
             target: target,
             createPgmer2Extension: true,
           );
           addTearDown(() => tearDownDisposablePgWriter(session: session));
+        });
+        test(
+          '${c.name} writes build/perf/${c.name}.json',
+          () async {
+            final seed = await c.seed(session.writer);
+            await requireNonEmptyMeritRankGraph(session.writer);
+            final file = await c.record(
+              session: session,
+              seed: seed,
+              attempts: attempts,
+            );
 
-          final seed = await c.seed(session.writer);
-          await requireNonEmptyMeritRankGraph(session.writer);
-          final file = await c.record(
-            session: session,
-            seed: seed,
-            attempts: attempts,
-          );
-
-          expectReportWritten(c, written: file, minAttempts: attempts);
-        },
-        timeout: const Timeout(Duration(minutes: 60)),
-        skip: perfMatrixCaseSelected(c) ? skipReason : 'not selected',
-      );
+            expectReportWritten(c, written: file, minAttempts: attempts);
+          },
+          timeout: const Timeout(Duration(minutes: 60)),
+          skip: perfMatrixCaseSelected(c) ? skipReason : 'not selected',
+        );
+      }, skip: perfMatrixCaseSelected(c) ? skipReason : 'not selected');
     }
     for (final c in PerfFixtureMatrix.cases.where((c) => c.requiresMeritRank)) {
-      test(
-        '${c.name} seeds one trust row per mirrored MeritRank edge',
-        () async {
-          final session = await setUpDisposablePgWriter(
+      group('disposable database', () {
+        late final DisposablePgWriterSession session;
+        setUpAll(() async {
+          session = await setUpDisposablePgWriter(
             target: target,
             createPgmer2Extension: true,
           );
           addTearDown(() => tearDownDisposablePgWriter(session: session));
+        });
+        test(
+          '${c.name} seeds one trust row per mirrored MeritRank edge',
+          () async {
+            await c.seed(session.writer);
+            await requireNonEmptyMeritRankGraph(session.writer);
 
-          await c.seed(session.writer);
-          await requireNonEmptyMeritRankGraph(session.writer);
-
-          // Observe the seed before record(), warm-up, workers or EXPLAIN can
-          // change the database. Upf users form the shared trust fixture;
-          // fallback-score cases also add separate Upg users and votes.
-          final counts = (await session.writer.execute('''
+            // Observe the seed before record(), warm-up, workers or EXPLAIN can
+            // change the database. Upf users form the shared trust fixture;
+            // fallback-score cases also add separate Upg users and votes.
+            final counts = (await session.writer.execute('''
 SELECT
   (SELECT count(*)::int FROM mr_edgelist() e
    WHERE e.src LIKE 'Upf%' AND e.dst LIKE 'Upf%'
@@ -78,25 +85,26 @@ SELECT
   (SELECT count(*)::int FROM public.user_trust_edge
    WHERE subject LIKE 'Upf%' AND object LIKE 'Upf%')
 ''')).single;
-          final mirroredMeritRankEdges = counts[0]! as int;
-          final trustRows = counts[1]! as int;
+            final mirroredMeritRankEdges = counts[0]! as int;
+            final trustRows = counts[1]! as int;
 
-          expect(
-            mirroredMeritRankEdges,
-            greaterThan(0),
-            reason: '${c.name} must seed a nonempty trust graph',
-          );
-          expect(
-            trustRows,
-            mirroredMeritRankEdges,
-            reason:
-                '${c.name} must mirror the trust graph during seeding, '
-                'before the first timed attempt',
-          );
-        },
-        timeout: const Timeout(Duration(minutes: 10)),
-        skip: skipReason,
-      );
+            expect(
+              mirroredMeritRankEdges,
+              greaterThan(0),
+              reason: '${c.name} must seed a nonempty trust graph',
+            );
+            expect(
+              trustRows,
+              mirroredMeritRankEdges,
+              reason:
+                  '${c.name} must mirror the trust graph during seeding, '
+                  'before the first timed attempt',
+            );
+          },
+          timeout: const Timeout(Duration(minutes: 10)),
+          skip: skipReason,
+        );
+      }, skip: skipReason);
     }
   });
 }

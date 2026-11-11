@@ -20,31 +20,42 @@ Future<void> main() async {
   final skipReason = await pgSkipReason(target);
 
   group('MeritRank suite serialization in an mr-tagged suite', () {
-    test(
-      'recreating the disposable database holds the MeritRank lock until '
-      'the database is dropped',
-      () async {
+    group('disposable database', () {
+      setUpAll(() async {
         await target.recreate();
-        final heldWhileProvisioned = !await meritRankSuiteLockIsFree(target);
-        await target.drop();
+        addTearDown(target.drop);
+      });
+      test(
+        'recreating the disposable database holds the MeritRank lock until '
+        'the database is dropped',
+        () async {
+          final heldWhileProvisioned = !await meritRankSuiteLockIsFree(target);
+          await target.drop();
 
-        expect(heldWhileProvisioned, isTrue);
-        expect(await meritRankSuiteLockBecomesFree(target), isTrue);
-      },
-      skip: skipReason,
-    );
+          expect(heldWhileProvisioned, isTrue);
+          expect(await meritRankSuiteLockBecomesFree(target), isTrue);
+        },
+        skip: skipReason,
+      );
+    }, skip: skipReason);
 
-    test(
-      'the writer session holds the MeritRank lock until it is torn down',
-      () async {
-        final session = await setUpDisposablePgWriter(target: target);
-        final heldWhileSessionOpen = !await meritRankSuiteLockIsFree(target);
-        await tearDownDisposablePgWriter(session: session);
+    group('disposable database', () {
+      late final DisposablePgWriterSession session;
+      setUpAll(() async {
+        session = await setUpDisposablePgWriter(target: target);
+        addTearDown(() => tearDownDisposablePgWriter(session: session));
+      });
+      test(
+        'the writer session holds the MeritRank lock until it is torn down',
+        () async {
+          final heldWhileSessionOpen = !await meritRankSuiteLockIsFree(target);
+          await tearDownDisposablePgWriter(session: session);
 
-        expect(heldWhileSessionOpen, isTrue);
-        expect(await meritRankSuiteLockBecomesFree(target), isTrue);
-      },
-      skip: skipReason,
-    );
+          expect(heldWhileSessionOpen, isTrue);
+          expect(await meritRankSuiteLockBecomesFree(target), isTrue);
+        },
+        skip: skipReason,
+      );
+    }, skip: skipReason);
   });
 }

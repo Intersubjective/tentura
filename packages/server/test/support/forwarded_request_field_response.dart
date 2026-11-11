@@ -51,7 +51,9 @@ typedef ForwardedRequestFieldScenario = ({
 
 /// Provision outside the test body: the cluster-wide lifecycle lock can queue
 /// behind other suites, independently of the Field resolver's behaviour.
-Future<DisposablePgWriterSession?> setUpForwardedRequestField() async {
+Future<DisposablePgWriterSession?> setUpForwardedRequestField({
+  void Function(int)? onProvisioningBackend,
+}) async {
   final target = DisposablePgTarget.fromNamedEnvironment(
     envVarName: 'TENTURA_FORWARDED_REQUEST_FIELD_TEST_DB',
     defaultNamePrefix: 'tentura_test_forwarded_field',
@@ -63,6 +65,7 @@ Future<DisposablePgWriterSession?> setUpForwardedRequestField() async {
   }
   return setUpDisposablePgWriter(
     target: target,
+    onProvisioningBackend: onProvisioningBackend,
     createPgmer2Extension: true,
   );
 }

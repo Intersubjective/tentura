@@ -21,17 +21,17 @@ Future<void> main() async {
   final skipReason = reachable
       ? false as Object
       : 'Postgres admin database not reachable for disposable test target';
-  late DisposablePgWriterSession session;
+  late final DisposablePgWriterSession session;
 
   if (reachable) {
-    setUp(() async {
+    setUpAll(() async {
       session = await setUpDisposablePgWriter(
         target: target,
         createPgmer2Extension: true,
       );
     });
 
-    tearDown(() async {
+    tearDownAll(() async {
       await tearDownDisposablePgWriter(session: session);
     });
   }

@@ -2,6 +2,7 @@
 library;
 
 import 'package:test/test.dart';
+import 'package:postgres/postgres.dart' show Connection;
 
 import 'disposable_pg_target.dart';
 import 'meritrank_lock_probe.dart';
@@ -47,17 +48,22 @@ Future<void> main() async {
   }, tags: ['mr']);
 
   group('test/bundled_second_mr_file_pg_test.dart', () {
-    test(
-      'recreating a database in a test holds the lock until it is dropped',
-      () async {
-        final target = newTarget();
+    group('disposable database', () {
+      final target = newTarget();
+      setUpAll(() async {
         await target.recreate();
-        final held = !await meritRankSuiteLockIsFree(target);
-        await target.drop();
-        expect(held, isTrue);
-      },
-      skip: skipReason,
-    );
+        addTearDown(target.drop);
+      });
+      test(
+        'a database provisioned in suite setup holds the lock until it is dropped',
+        () async {
+          final held = !await meritRankSuiteLockIsFree(target);
+          await target.drop();
+          expect(held, isTrue);
+        },
+        skip: skipReason,
+      );
+    }, skip: skipReason);
   }, tags: ['mr']);
 
   group('test/bundled_plain_file_pg_test.dart', () {
@@ -70,23 +76,31 @@ Future<void> main() async {
       skip: skipReason,
     );
 
-    test(
-      'a plain file in the same bundle does not wait for the lock',
-      () async {
-        final holder = await holdMeritRankSuiteLock(probeTarget);
-        try {
-          final session = await setUpDisposablePgWriter(
-            target: newTarget(),
-          ).timeout(const Duration(seconds: 60));
-          await tearDownDisposablePgWriter(
-            session: session,
-          ).timeout(const Duration(seconds: 60));
-        } finally {
-          await holder.close();
-        }
-      },
-      timeout: const Timeout(Duration(minutes: 5)),
-      skip: skipReason,
-    );
+    group('disposable database', () {
+      late final Connection holder;
+      late final DisposablePgWriterSession session;
+      setUpAll(() async {
+        holder = await holdMeritRankSuiteLock(probeTarget);
+        addTearDown(holder.close);
+        session = await setUpDisposablePgWriter(
+          target: newTarget(),
+        ).timeout(const Duration(seconds: 60));
+        addTearDown(() => tearDownDisposablePgWriter(session: session));
+      });
+      test(
+        'a plain file in the same bundle does not wait for the lock',
+        () async {
+          try {
+            await tearDownDisposablePgWriter(
+              session: session,
+            ).timeout(const Duration(seconds: 60));
+          } finally {
+            await holder.close();
+          }
+        },
+        timeout: const Timeout(Duration(minutes: 5)),
+        skip: skipReason,
+      );
+    }, skip: skipReason);
   });
 }
