@@ -31,6 +31,10 @@ class PostsCubit extends Cubit<PostsState> {
       (_) => unawaited(fetch()),
       cancelOnError: false,
     );
+    _deletes = _postsCase.deletedBeaconIds.listen(
+      (_) => unawaited(fetch()),
+      cancelOnError: false,
+    );
     _watchReads(
       watermarks ??
           (GetIt.I.isRegistered<RoomReadWatermarkStore>()
@@ -47,6 +51,7 @@ class PostsCubit extends Cubit<PostsState> {
   final PostsCase _postsCase;
   final DateTime Function() _clock;
   late final StreamSubscription<void> _changes;
+  late final StreamSubscription<void> _deletes;
   late final PostExpiryClock _expiry;
   var _posts = const <PostSummary>[];
   StreamSubscription<void>? _reads;
@@ -59,6 +64,7 @@ class PostsCubit extends Cubit<PostsState> {
     _expiry.dispose();
     await _reloadWhenOnline.close();
     await _changes.cancel();
+    await _deletes.cancel();
     await _reads?.cancel();
     return super.close();
   }

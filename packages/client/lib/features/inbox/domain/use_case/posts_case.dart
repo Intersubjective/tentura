@@ -1,10 +1,14 @@
 import 'dart:async';
 
 import 'package:injectable/injectable.dart';
+import 'package:rxdart/rxdart.dart';
 
+import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
+import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/domain/use_case/use_case_base.dart';
+import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 
 import '../entity/post_summary.dart';
 import '../port/posts_repository_port.dart';
@@ -16,6 +20,7 @@ final class PostsCase extends UseCaseBase {
     this._realtimeSyncCase, {
     required super.env,
     required super.logger,
+    this.beaconRepository,
   }) {
     // The list is not mounted on most routes, so a read or a removed Post
     // must refresh the dot on its own.
@@ -30,6 +35,16 @@ final class PostsCase extends UseCaseBase {
 
   final PostsRepositoryPort _repository;
   final RealtimeSyncCase _realtimeSyncCase;
+  final BeaconRepository? beaconRepository;
+
+  /// Ids of Beacons deleted through [BeaconRepository], the event Request
+  /// drafts use to leave My Work. A discarded Post draft never reaches the
+  /// list as a realtime change, so this is how the list learns of it.
+  Stream<String> get deletedBeaconIds =>
+      beaconRepository?.changes
+          .whereType<RepositoryEventDelete<Beacon>>()
+          .map((e) => e.value.id) ??
+      const Stream.empty();
 
   /// Fires on any beacon change: a reply, pin, mute, leave or a newly
   /// addressed Post all show up as one, and the list is cheap to refetch.

@@ -277,6 +277,41 @@ void main() {
       );
 
       testWidgets(
+        'a draft deleted through BeaconRepository leaves the Drafts list and '
+        '«Черновики: N» at once, with no realtime change',
+        (tester) async {
+          await withPostsTab(
+            tester,
+            size: viewport.size,
+            wire: PostsTabWire(_rows()),
+            body: (h) async {
+              // The delete goes through the repository only; the fake server
+              // must not push a realtime change after it.
+              h.wire.onWrite = null;
+              await _openDrafts(tester);
+              expect(postRowWith(_draftText), findsOneWidget);
+
+              await h.beacons.delete(_draftId);
+              await settlePostsTab(tester);
+
+              expect(h.wire.deletedIds, [_draftId]);
+              expect(find.text(_draftText), findsNothing);
+              expect(postRowWith(_otherDraftText), findsOneWidget);
+              await pickPostsFilter(
+                tester,
+                current: 'Черновики',
+                next: 'Активные',
+              );
+              expect(
+                find.text('Черновики: 1', findRichText: true),
+                findsOneWidget,
+              );
+            },
+          );
+        },
+      );
+
+      testWidgets(
         'confirming «Удалить» deletes the draft on the server, drops its row '
         'and lowers «Черновики: N»',
         (tester) async {
