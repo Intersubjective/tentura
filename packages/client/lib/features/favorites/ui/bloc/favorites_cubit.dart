@@ -41,10 +41,6 @@ class FavoritesCubit extends Cubit<FavoritesState> {
 
   late final StreamSubscription<Beacon> _favoritesChanges;
 
-  // A stream, not state: it forwards the repository's per-beacon changes.
-  // ignore: prefer_void_public_cubit_methods
-  Stream<Beacon> get favoritesChanges => _favoritesRemoteRepository.changes;
-
   //
   //
   @override
