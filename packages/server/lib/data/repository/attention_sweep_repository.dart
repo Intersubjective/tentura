@@ -8,8 +8,8 @@ import 'package:tentura_server/domain/attention/attention_undo_models.dart';
 import 'package:tentura_server/domain/port/attention_sweep_port.dart';
 
 import '../database/tentura_db.dart';
+import 'attention_clear_operation_reads.dart';
 import 'attention_dismissible_sql.dart';
-import 'constellation_field_repository.dart' show readCustomSelectTimestamptz;
 
 /// U09b — storage for *Dismiss all*.
 ///
@@ -184,7 +184,10 @@ UPDATE public.attention_clear_operation
         updateKind: UpdateKind.update,
       );
 
-      final deadline = await _undoDeadline(operationId);
+      final deadline = await readAttentionClearUndoDeadline(
+        _database,
+        operationId,
+      );
       return AttentionSweepResult(
         operationId: summary.operationId,
         appliedReceiptIds: summary.appliedReceiptIds,
@@ -205,21 +208,6 @@ UPDATE public.attention_clear_operation
     actorUserId: accountId,
     kind: MainDbWorkKind.full,
   );
-
-  Future<DateTime?> _undoDeadline(String operationId) async {
-    final row = await _database
-        .customSelect(
-          r'''
-SELECT undo_deadline FROM public.attention_clear_operation WHERE id = $1
-''',
-          variables: [Variable<String>(operationId)],
-        )
-        .getSingleOrNull();
-    // Drift reads a customSelect `timestamptz` as unix seconds and
-    // `int.parse`s the driver's `DateTime.toString()`; this helper is the
-    // repo's existing way round that.
-    return readCustomSelectTimestamptz(row?.data['undo_deadline']);
-  }
 
   /// One batch: re-ask the dismissible question per member, then write.
   ///
