@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:collection/collection.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -227,9 +229,12 @@ FakeAppNavigator registerFakeAppNavigator() {
   final navigator = FakeAppNavigator();
   final getIt = GetIt.I;
   if (getIt.isRegistered<AppNavigator>()) {
-    // No dispose callback is registered, so this completes synchronously.
+    // GetIt removes the registration synchronously, even when it returns a
+    // Future for disposal. The fake has no resources to dispose.
     final unregistered = getIt.unregister<AppNavigator>();
-    assert(unregistered is! Future, 'AppNavigator unregistered async');
+    if (unregistered is Future) {
+      unawaited(unregistered);
+    }
   }
   getIt.registerSingleton<AppNavigator>(navigator);
   addTearDown(() async {
