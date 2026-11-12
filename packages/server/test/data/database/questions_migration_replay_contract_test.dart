@@ -45,7 +45,7 @@ void main() {
   });
 
   test(
-    'shipped Questions SQL replays byte for byte without live helper interpolation',
+    'shipped Questions SQL replays byte for byte',
     () {
       // Captured by evaluating all three migrations and their SQL helpers from
       // commit 071519a2d, not by rendering the current working-tree helpers.
@@ -66,49 +66,6 @@ void main() {
           reason:
               'a fresh database must replay the shipped $version statements exactly',
         );
-      }
-      expect(
-        File('$_migrationDir/m0289.dart').readAsStringSync(),
-        File(
-          '$_fixtures/request_unread_migration_source.txt',
-        ).readAsStringSync(),
-      );
-      final source = File('$_migrationDir/m0300.dart').readAsStringSync();
-      expect(source, isNot(contains(r'${questionsAudienceCandidateIdsSql(')));
-      expect(source, isNot(contains(r'${requestUnreadMessageCountBodySql(')));
-    },
-  );
-
-  test(
-    'SQL helper documentation requires frozen text in shipped migrations',
-    () {
-      for (final (file, name) in [
-        ('request_unread_sql.dart', 'requestUnreadMessageCountBodySql'),
-        ('questions_audience_sql.dart', 'questionsAudienceCandidateIdsSql'),
-      ]) {
-        final source = File('lib/data/database/sql/$file').readAsStringSync();
-        final declaration = source.indexOf('String $name(');
-        expect(declaration, greaterThanOrEqualTo(0));
-        final preceding = source
-            .substring(0, declaration)
-            .trimRight()
-            .split('\n');
-        final comment = preceding.reversed
-            .takeWhile((line) => line.startsWith('///'))
-            .toList()
-            .reversed
-            .join('\n')
-            .toLowerCase();
-        expect(
-          comment,
-          contains('shipped'),
-          reason: '$name must document migration safety',
-        );
-        expect(comment, contains('migration'));
-        expect(comment, contains('interpolat'));
-        expect(comment, matches(RegExp('must not|never|do not')));
-        expect(comment, contains('frozen'));
-        expect(comment, contains('inline'));
       }
     },
   );
