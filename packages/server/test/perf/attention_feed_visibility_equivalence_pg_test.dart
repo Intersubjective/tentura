@@ -78,7 +78,7 @@ Future<void> main() async {
         () => tearDownDisposablePgWriter(session: session, drift: database),
       );
 
-      test('the pre-fix reference itself tells the four viewers apart', () {
+      test('the pre-fix reference itself tells every kind of viewer apart', () {
         _expectReferenceTellsViewersApart(reference);
       });
 
@@ -86,8 +86,8 @@ Future<void> main() async {
         final name = surface?.name ?? 'history';
         test(
           'the $name feed statement returns the pre-fix rows in the pre-fix '
-          'order for the author, the forwarded helper, the unrelated and the '
-          'blocked viewer',
+          'order for every kind of viewer: author, forwarded helper, '
+          'participant, steward, offer helper, unrelated and blocked',
           () async {
             for (final MapEntry(key: viewer, value: role) in _viewers.entries) {
               after.clear();
@@ -114,8 +114,9 @@ Future<void> main() async {
       // DISTINCT with no ORDER BY: the statement defines no order, and the
       // repository returns a set, so the comparison is on the set.
       test(
-        'live obligations name the pre-fix Requests for the author, the '
-        'forwarded helper, the unrelated and the blocked viewer',
+        'live obligations name the pre-fix Requests for every kind of viewer: '
+        'author, forwarded helper, participant, steward, offer helper, '
+        'unrelated and blocked',
         () async {
           for (final MapEntry(key: viewer, value: role) in _viewers.entries) {
             expect(
@@ -128,8 +129,9 @@ Future<void> main() async {
       );
 
       test(
-        'unread Requests name the pre-fix Requests for the author, the '
-        'forwarded helper, the unrelated and the blocked viewer',
+        'unread Requests name the pre-fix Requests for every kind of viewer: '
+        'author, forwarded helper, participant, steward, offer helper, '
+        'unrelated and blocked',
         () async {
           for (final MapEntry(key: viewer, value: role) in _viewers.entries) {
             expect(
@@ -158,6 +160,9 @@ const _authorId = 'Ufeedeqv01';
 const _helperId = 'Ufeedeqv02';
 const _unrelatedId = 'Ufeedeqv03';
 const _blockedId = 'Ufeedeqv04';
+const _participantId = 'Ufeedeqv05';
+const _stewardId = 'Ufeedeqv06';
+const _offerHelperId = 'Ufeedeqv07';
 const _openRequestId = 'Bfeedeqv01';
 const _cancelledForwardRequestId = 'Bfeedeqv02';
 const _deletedRequestId = 'Bfeedeqv03';
@@ -167,7 +172,13 @@ const _viewers = {
   _helperId: 'forwarded helper',
   _unrelatedId: 'unrelated user',
   _blockedId: 'blocked user',
+  _participantId: 'participant without a forward',
+  _stewardId: 'steward without a forward',
+  _offerHelperId: 'helper with a live offer and no forward',
 };
+
+/// Read the open Request through a grant other than authorship or a forward.
+const _grantedViewers = [_participantId, _stewardId, _offerHelperId];
 
 const _requestIds = [
   _openRequestId,
@@ -220,7 +231,7 @@ void _expectReferenceTellsViewersApart(Map<String, _ViewerResult> reference) {
     for (final row in reference[viewer]!.history) row['id'],
   ];
 
-  for (final viewer in [_authorId, _helperId]) {
+  for (final viewer in [_authorId, _helperId, ..._grantedViewers]) {
     final role = _viewers[viewer];
     expect(
       rowsOn(viewer, _openRequestId),
@@ -321,6 +332,28 @@ INSERT INTO public.beacon_forward_edge (
       },
     );
   }
+  // Grants on the open Request that need no forward edge.
+  await writer.execute(
+    Sql.named('''
+INSERT INTO public.beacon_participant (id, beacon_id, user_id, role, room_access)
+VALUES ('Pfeedeqv05', @open, @participant, 1, 0)
+'''),
+    parameters: {'open': _openRequestId, 'participant': _participantId},
+  );
+  await writer.execute(
+    Sql.named(
+      'INSERT INTO public.beacon_steward (beacon_id, user_id) '
+      'VALUES (@open, @steward)',
+    ),
+    parameters: {'open': _openRequestId, 'steward': _stewardId},
+  );
+  await writer.execute(
+    Sql.named(
+      'INSERT INTO public.beacon_help_offer (beacon_id, user_id, status) '
+      'VALUES (@open, @helper, 0)',
+    ),
+    parameters: {'open': _openRequestId, 'helper': _offerHelperId},
+  );
   await writer.execute(
     Sql.named('UPDATE public.beacon SET status = 2 WHERE id = @id'),
     parameters: {'id': _deletedRequestId},
