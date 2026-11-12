@@ -41,13 +41,15 @@ class ProfileSharedBeaconsRepository {
     required String meId,
     required String targetId,
   }) async {
-    final results = await Future.wait([
-      _fetchForwarded(meId: meId, targetId: targetId),
-      _fetchCoHelpOffered(meId: meId, targetId: targetId),
-    ]);
+    final forwardedFuture = _fetchForwarded(meId: meId, targetId: targetId);
+    final coHelpOfferedFuture = _fetchCoHelpOffered(
+      meId: meId,
+      targetId: targetId,
+    );
+    await Future.wait([forwardedFuture, coHelpOfferedFuture]);
     return (
-      forwarded: results[0] as List<ProfileForwardedBeaconEntry>,
-      coHelpOffered: results[1] as List<ProfileCoHelpOfferedEntry>,
+      forwarded: await forwardedFuture,
+      coHelpOffered: await coHelpOfferedFuture,
     );
   }
 
