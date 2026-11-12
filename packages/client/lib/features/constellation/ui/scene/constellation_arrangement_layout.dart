@@ -72,11 +72,28 @@ class ConstellationOffsetLayout implements SceneLayoutAlgorithm {
 
 /// Returns a preview to the exact positions displayed before it opened.
 class ConstellationFixedLayout implements SceneLayoutAlgorithm {
-  const ConstellationFixedLayout(this.positions);
+  const ConstellationFixedLayout(this.positions, {this.fillMissingWith});
   final Map<String, ScenePoint> positions;
+  final SceneLayoutAlgorithm Function()? fillMissingWith;
 
   @override
   Stream<GraphLayoutFrame> layout(GraphLayoutRequest request) async* {
+    final resolveBase = fillMissingWith;
+    if (resolveBase != null &&
+        request.nodeIds.any((id) => !positions.containsKey(id))) {
+      await for (final frame in resolveBase().layout(request)) {
+        yield GraphLayoutFrame(
+          ticket: frame.ticket,
+          sequence: frame.sequence,
+          isTerminal: frame.isTerminal,
+          positions: {
+            ...frame.positions,
+            for (final id in request.nodeIds) id: ?positions[id],
+          },
+        );
+      }
+      return;
+    }
     yield GraphLayoutFrame(
       ticket: request.ticket,
       sequence: 0,

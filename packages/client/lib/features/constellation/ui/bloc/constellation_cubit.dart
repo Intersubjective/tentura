@@ -526,7 +526,11 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       final positions = _scenePointsFromForwardTreeSnapshot(snapOverlay!);
       if (positions.isNotEmpty) {
         _scene.forwardTreeAlgorithm = null;
-        _scene.forwardTreeLayoutRestore = ConstellationFixedLayout(positions);
+        _scene.forwardTreeLayoutRestore = ConstellationFixedLayout(
+          positions,
+          // Resolve after reconciliation adds the tree-only people.
+          fillMissingWith: () => constellationSceneLayoutAlgorithm,
+        );
         return;
       }
     }
