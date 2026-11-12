@@ -4001,13 +4001,18 @@ class ConstellationEdgePainter
         : effectiveWidth(style.dash, scale);
     final dashGap = style.gap == 0 ? 0.0 : effectiveWidth(style.gap, scale);
 
-    final sourceRadius = edge.source.size / 2;
-    final destinationRadius = edge.destination.size / 2;
+    final overview =
+        settledConstellationDetailLevel(scale) ==
+        ConstellationDetailLevel.overview;
+    double endpointInset(NodeDetails node) =>
+        overview && node is FieldPersonNode && node.ring >= 1
+        ? kConstellationOverviewDotDiameter / 2 / scale
+        : node.size / 2 + 2;
     final trimmed = _trim(
       src: src,
       dst: dst,
-      srcInset: sourceRadius + 2,
-      dstInset: destinationRadius + 2,
+      srcInset: endpointInset(edge.source),
+      dstInset: endpointInset(edge.destination),
     );
 
     Path? dashPath;

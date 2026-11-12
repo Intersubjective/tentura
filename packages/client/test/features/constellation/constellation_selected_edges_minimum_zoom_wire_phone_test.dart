@@ -24,15 +24,18 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/constellation/data/repository/constellation_repository.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/utils/constellation_presentation_frame.dart';
+import 'package:tentura/features/constellation/ui/utils/constellation_edge_style.dart';
 import 'package:tentura/features/constellation/ui/utils/constellation_tap_resolver.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
 import 'package:tentura/ui/test_ids.dart';
+import 'package:tentura/features/graph/domain/entity/node_details.dart';
 
 import '../../support/constellation_store_fixture.dart';
 import '../../support/phone_surface.dart';
 import '../../support/remote_wire_harness.dart';
 import 'fixtures/constellation_field_test_harness.dart';
 import 'fixtures/constellation_reference_fixture.dart';
+import 'fixtures/edge_endpoint_recording.dart';
 
 const _viewerId = 'Uviewer000001';
 const _viewer = Profile(id: _viewerId, displayName: 'Я');
@@ -575,6 +578,133 @@ Map<String, List<(double, double)>> _onScreenStrokes(
 };
 
 void main() {
+  testWidgets('selected person edge endpoints meet rendered overview dot rims '
+      'at scale 0.4 on a Russian phone', (tester) async {
+    final (:field, :ambient, :edges) = await _select(tester, _personSelection);
+    await _zoomTo(tester, field.cubit, 0.4);
+    final scale = field.cubit.graphController.cameraScale;
+    expect(scale, closeTo(0.4, 1e-6));
+    expect(field.holder.frame?.detail, ConstellationDetailLevel.overview);
+    expect(field.cubit.state.selectedPersonId, _bob);
+    final snapshot = field.cubit.graphController.renderSnapshot;
+    final painter = _graphView(tester).edgePainter as ConstellationEdgePainter;
+    final checkedDotEndpoints = <String, Set<String>>{};
+    // This selection fixture has person endpoints except for Ego and the Post.
+    final expectedDotEndpoints = {
+      for (final (x, y, _) in _personSelection.ruleEdges)
+        _pair(x, y): {x, y}.difference({_viewerId, _post}),
+    };
+    final errors = <String>[];
+    for (final edge in snapshot.topology.edgesById.values) {
+      final payload = edge.payload;
+      final pair = _pair(payload.source.id, payload.destination.id);
+      if (!edges.contains(pair)) continue;
+      final src = snapshot.resolvePosition(edge.sourceId)!;
+      final dst = snapshot.resolvePosition(edge.destinationId)!;
+      final a = Offset(src.x, src.y);
+      final b = Offset(dst.x, dst.y);
+      final direction = (b - a) / (b - a).distance;
+      // This wire fixture deliberately selects solid, non-twin edges.
+      // Dashed endpoint contours are covered by the painter geometry tests.
+      final kind = painter.edgeKindByPair[payload.semanticId];
+      expect(kind, isNotNull, reason: '$pair has a selected edge style');
+      final style = constellationEdgeStyle(kind!, painter.tt, painter.scheme);
+      expect(
+        style.dash,
+        0,
+        reason: '$pair in this fixture must use a continuous solid stroke',
+      );
+      expect(
+        style.twin,
+        isFalse,
+        reason: '$pair in this fixture must use one stroke rather than twins',
+      );
+      final canvas = EndpointRecordingCanvas();
+      painter.paint(canvas, payload, a, b);
+      expect(
+        canvas.strokes,
+        hasLength(1),
+        reason: '$pair must paint its continuous solid edge, not only dots',
+      );
+      final checkedForPair = checkedDotEndpoints.putIfAbsent(
+        pair,
+        () => <String>{},
+      );
+      for (final (node, centre, inward, atSource) in [
+        (payload.source, a, direction, true),
+        (payload.destination, b, -direction, false),
+      ]) {
+        if (node is! FieldPersonNode || node.ring == 0) continue;
+        final marker = find.byKey(TestIds.key(TestIds.graphNode(node.id)));
+        expect(marker, findsOneWidget);
+        // Measure the actual circle rendered by the mounted overview marker.
+        final dot = find.descendant(
+          of: marker,
+          matching: find.byWidgetPredicate(
+            (widget) =>
+                widget is DecoratedBox &&
+                widget.decoration is BoxDecoration &&
+                (widget.decoration as BoxDecoration).shape == BoxShape.circle,
+          ),
+        );
+        expect(
+          dot,
+          findsOneWidget,
+          reason: '${node.id} renders an overview dot',
+        );
+        final box = tester.renderObject<RenderBox>(dot);
+        // RenderBox.size (and tester.getSize) is local layout geometry.
+        // Apply the mounted render transform explicitly to compare screen px.
+        final screenDiameter =
+            (box.localToGlobal(Offset(box.size.width, 0)) -
+                    box.localToGlobal(Offset.zero))
+                .distance;
+        expect(screenDiameter, closeTo(5, 1e-6));
+        final localCentre = box.size.center(Offset.zero);
+        final screenCentre = box.localToGlobal(localCentre);
+        final projectedDirection =
+            box.localToGlobal(localCentre + inward) - screenCentre;
+        final screenRim =
+            screenCentre +
+            projectedDirection /
+                projectedDirection.distance *
+                (screenDiameter / 2);
+        final endpoint = atSource
+            ? canvas.strokes.single.$1
+            : canvas.strokes.single.$2;
+        final screenEndpoint = box.localToGlobal(
+          localCentre + endpoint - centre,
+        );
+        final error = (screenEndpoint - screenRim).distance;
+        if (error > 0.5) {
+          errors.add(
+            '$pair at ${node.id}: endpoint misses rendered dot rim by '
+            '$error screen px',
+          );
+        }
+        checkedForPair.add(node.id);
+      }
+    }
+    expect(checkedDotEndpoints.keys, unorderedEquals(edges));
+    expect(
+      checkedDotEndpoints.keys,
+      unorderedEquals(expectedDotEndpoints.keys),
+    );
+    for (final pair in edges) {
+      expect(
+        checkedDotEndpoints[pair],
+        isNotEmpty,
+        reason: '$pair must have at least one checked person-dot endpoint',
+      );
+      expect(
+        checkedDotEndpoints[pair],
+        unorderedEquals(expectedDotEndpoints[pair]!),
+        reason: '$pair must check every expected person-dot endpoint',
+      );
+    }
+    expect(errors, isEmpty);
+    expect(tester.takeException(), isNull);
+  });
   group('Field edges of a selected node across zoom levels, 375x667 in '
       'Russian', () {
     for (final selection in _selections) {
