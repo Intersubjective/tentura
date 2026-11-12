@@ -658,8 +658,104 @@ WHERE observer_user_id = 'Ucapb2aobs01'
       },
       skip: skipReason,
     );
+
+    test(
+      'reconcileForwardReasons rebuilds an unchanged desired slug only while '
+      'a tombstone is active',
+      () async {
+        await repo.reconcileForwardReasons(
+          forwardEdgeId: _edgeId,
+          observerId: _obs1,
+          subjectId: _sub,
+          slugs: const ['transport'],
+        );
+        final initial = await _generation(writer, _obs1, _sub, 'transport');
+
+        await repo.reconcileForwardReasons(
+          forwardEdgeId: _edgeId,
+          observerId: _obs1,
+          subjectId: _sub,
+          slugs: const ['transport'],
+        );
+        expect(
+          await _generation(writer, _obs1, _sub, 'transport'),
+          initial,
+          reason: 'an unchanged slug with no tombstone is not a changing cell',
+        );
+
+        await _insertTombstone(writer, _obs1, _sub, 'transport');
+        await repo.reconcileForwardReasons(
+          forwardEdgeId: _edgeId,
+          observerId: _obs1,
+          subjectId: _sub,
+          slugs: const ['transport'],
+        );
+        expect(
+          await _generation(writer, _obs1, _sub, 'transport'),
+          initial + 1,
+        );
+        expect(await _activeForwardSlugs(writer), ['transport']);
+      },
+      skip: skipReason,
+    );
+
+    test(
+      'upsertSeedAttestation rebuilds an unchanged desired slug only while '
+      'a tombstone is active',
+      () async {
+        await repo.upsertSeedAttestation(
+          observerId: _obs1,
+          subjectId: _sub,
+          slugs: const ['manual_labour'],
+        );
+        final initial = await _generation(
+          writer,
+          _obs1,
+          _sub,
+          'manual_labour',
+        );
+
+        await repo.upsertSeedAttestation(
+          observerId: _obs1,
+          subjectId: _sub,
+          slugs: const ['manual_labour'],
+        );
+        expect(
+          await _generation(writer, _obs1, _sub, 'manual_labour'),
+          initial,
+          reason: 'an unchanged slug with no tombstone is not a changing cell',
+        );
+
+        await _insertTombstone(writer, _obs1, _sub, 'manual_labour');
+        await repo.upsertSeedAttestation(
+          observerId: _obs1,
+          subjectId: _sub,
+          slugs: const ['manual_labour'],
+        );
+        expect(
+          await _generation(writer, _obs1, _sub, 'manual_labour'),
+          initial + 1,
+        );
+        expect(await _activeSeedSlugs(writer), ['manual_labour']);
+      },
+      skip: skipReason,
+    );
   });
 }
+
+Future<void> _insertTombstone(
+  Connection writer,
+  String observer,
+  String subject,
+  String tag,
+) => writer.execute(
+  Sql.indexed('''
+INSERT INTO public.person_capability_event
+  (id, subject_user_id, observer_user_id, tag_slug, source_type, visibility, is_negative)
+VALUES ('CEcapb2atomb', @1, @2, @3, 0, 0, true)
+'''),
+  parameters: [subject, observer, tag],
+);
 
 Future<void> _waitUntil(
   Future<bool> Function() predicate, {

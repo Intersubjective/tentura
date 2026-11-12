@@ -53,8 +53,7 @@ class CapabilityEvidenceRepository implements CapabilityEvidencePort {
 
       await _withCellWriteDiscipline(
         triples,
-        () => _forwardChangingTriples(
-          forwardEdgeId: forwardEdgeId,
+        () => _slugChangingTriples(
           observerId: observerId,
           subjectId: subjectId,
           currentSlugs: currentSlugs,
@@ -235,7 +234,7 @@ class CapabilityEvidenceRepository implements CapabilityEvidencePort {
 
     await _withCellWriteDiscipline(
       triples,
-      () => _seedChangingTriples(
+      () => _slugChangingTriples(
         observerId: observerId,
         subjectId: subjectId,
         currentSlugs: currentSlugs,
@@ -460,37 +459,10 @@ class CapabilityEvidenceRepository implements CapabilityEvidencePort {
     return row != null;
   }
 
+  /// Slugs entering or leaving the desired set, plus desired slugs held back
+  /// by an active tombstone.
   Future<Set<({String observer, String subject, String tag})>>
-  _forwardChangingTriples({
-    required String forwardEdgeId,
-    required String observerId,
-    required String subjectId,
-    required Set<String> currentSlugs,
-    required Set<String> desiredSlugs,
-  }) async {
-    final changing = <({String observer, String subject, String tag})>{};
-    for (final slug in {...currentSlugs, ...desiredSlugs}) {
-      final triple = (observer: observerId, subject: subjectId, tag: slug);
-      final inCurrent = currentSlugs.contains(slug);
-      final inDesired = desiredSlugs.contains(slug);
-      if (inCurrent != inDesired) {
-        changing.add(triple);
-        continue;
-      }
-      if (inDesired &&
-          await _hasActiveTombstone(
-            observerId: observerId,
-            subjectId: subjectId,
-            slug: slug,
-          )) {
-        changing.add(triple);
-      }
-    }
-    return changing;
-  }
-
-  Future<Set<({String observer, String subject, String tag})>>
-  _seedChangingTriples({
+  _slugChangingTriples({
     required String observerId,
     required String subjectId,
     required Set<String> currentSlugs,
