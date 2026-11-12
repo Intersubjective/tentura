@@ -87,31 +87,26 @@ class InviteSeedPromptRepository implements InviteSeedPromptPort {
   Future<void> markAnswered({
     required String inviterId,
     required String inviteeId,
-  }) async {
-    final updated = await (_database.update(_database.inviteSeedPromptStates)
-          ..where(
-            (t) =>
-                t.inviteeUserId.equals(inviteeId) &
-                t.inviterUserId.equals(inviterId),
-          ))
-        .write(
-          InviteSeedPromptStatesCompanion(
-            state: const Value(_answered),
-            updatedAt: Value(PgDateTime(DateTime.timestamp())),
-          ),
-        );
-    if (updated == 0) {
-      throw StateError(
-        'invite_seed_prompt_state row missing for inviter=$inviterId '
-        'invitee=$inviteeId',
-      );
-    }
-  }
+  }) => _writeState(
+    inviterId: inviterId,
+    inviteeId: inviteeId,
+    state: _answered,
+  );
 
   @override
   Future<void> markSkipped({
     required String inviterId,
     required String inviteeId,
+  }) => _writeState(
+    inviterId: inviterId,
+    inviteeId: inviteeId,
+    state: _skipped,
+  );
+
+  Future<void> _writeState({
+    required String inviterId,
+    required String inviteeId,
+    required int state,
   }) async {
     final updated = await (_database.update(_database.inviteSeedPromptStates)
           ..where(
@@ -121,7 +116,7 @@ class InviteSeedPromptRepository implements InviteSeedPromptPort {
           ))
         .write(
           InviteSeedPromptStatesCompanion(
-            state: const Value(_skipped),
+            state: Value(state),
             updatedAt: Value(PgDateTime(DateTime.timestamp())),
           ),
         );
