@@ -63,20 +63,34 @@ class App {
   ///
   Future<void> runWithTestEnv() async {
     final receivePort = ReceivePort();
-    unawaited(
-      serveWeb((
+    final ready = Completer<SendPort>();
+    receivePort.listen((dynamic message) {
+      if (message is SendPort) ready.complete(message);
+    });
+    try {
+      final worker = serveWeb((
         env: Env.test(),
         sendPort: receivePort.sendPort,
-      )),
-    );
-    await _stopSignal();
-    receivePort.sendPort.send(null);
+      ));
+      final commands = await ready.future;
+      await _stopSignal();
+      commands.send(null);
+      await worker;
+    } finally {
+      receivePort.close();
+    }
   }
 
-  Future<void> _stopSignal() => Future.any([
-    ProcessSignal.sigint.watch().first,
-    ProcessSignal.sigterm.watch().first,
-  ]);
+  Future<void> _stopSignal() async {
+    final sigint = StreamIterator(ProcessSignal.sigint.watch());
+    final sigterm = StreamIterator(ProcessSignal.sigterm.watch());
+    try {
+      await Future.any([sigint.moveNext(), sigterm.moveNext()]);
+    } finally {
+      await sigint.cancel();
+      await sigterm.cancel();
+    }
+  }
 
   Future<void> _uploadGraph(Connection connection) async {
     try {
