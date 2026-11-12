@@ -51,7 +51,7 @@ class BeaconIdentityTile extends StatelessWidget {
           tag: tag,
           size: size,
         ),
-        BeaconIdentityNeutral() => _neutral(context),
+        BeaconIdentityNeutral() => BeaconIdentityNeutralGlyph(size: size),
       };
 
   /// Photo failure: thumb → full cover → symbol/neutral.
@@ -93,8 +93,16 @@ class BeaconIdentityTile extends StatelessWidget {
     }
     return _content(context, beacon.resolveIdentity(allowPhoto: false));
   }
+}
 
-  Widget _neutral(BuildContext context) {
+/// The neutral beacon identity: a campaign icon on a neutral tile.
+class BeaconIdentityNeutralGlyph extends StatelessWidget {
+  const BeaconIdentityNeutralGlyph({required this.size, super.key});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return ColoredBox(
       color: scheme.surfaceContainerHighest,

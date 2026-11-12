@@ -17,6 +17,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/presenter/beacon_phase_presenter.dart';
 import 'package:tentura/ui/utils/capability_tag_presenter.dart';
 import 'package:tentura/ui/widget/beacon_card_primitives.dart';
+import 'package:tentura/ui/widget/beacon_identity_tile.dart';
 import 'package:tentura/ui/widget/beacon_image.dart';
 import 'package:tentura/ui/widget/overlapping_people_avatars.dart';
 
@@ -393,7 +394,7 @@ class _PreviewIdentityTile extends StatelessWidget {
           tag: tag,
           size: size,
         ),
-        BeaconIdentityNeutral() => _neutral(context),
+        BeaconIdentityNeutral() => BeaconIdentityNeutralGlyph(size: size),
       };
 
   Widget _photo(BuildContext context, ImageEntity image) {
@@ -429,20 +430,6 @@ class _PreviewIdentityTile extends StatelessWidget {
     return _content(
       context,
       resolveRequestPreviewIdentity(data, allowPhoto: false),
-    );
-  }
-
-  Widget _neutral(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return ColoredBox(
-      color: scheme.surfaceContainerHighest,
-      child: Center(
-        child: Icon(
-          Icons.campaign_outlined,
-          size: size * 0.52,
-          color: scheme.onSurfaceVariant,
-        ),
-      ),
     );
   }
 }
