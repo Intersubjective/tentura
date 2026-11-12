@@ -65,10 +65,11 @@ final class ProfileViewCase extends UseCaseBase {
   ]);
 
   Future<ProfileViewSnapshot> load(String profileId) async {
-    final results = await Future.wait<Object>([
-      _profiles.fetchById(profileId),
-      _capabilities.fetchCues(profileId),
-    ]);
+    final profileFuture = _profiles.fetchById(profileId);
+    final cuesFuture = _capabilities.fetchCues(profileId);
+    await Future.wait([profileFuture, cuesFuture]);
+    final profile = await profileFuture;
+    final cues = await cuesFuture;
     var subjectiveTags = <TagProjection>[];
     var sharedContexts = <PersonSharedContext>[];
     await Future.wait([
@@ -102,8 +103,8 @@ final class ProfileViewCase extends UseCaseBase {
       }(),
     ]);
     return (
-      profile: applyContactOverlay(results[0] as Profile),
-      cues: results[1] as PersonCapabilityCues,
+      profile: applyContactOverlay(profile),
+      cues: cues,
       subjectiveTags: subjectiveTags,
       sharedContexts: sharedContexts,
     );
