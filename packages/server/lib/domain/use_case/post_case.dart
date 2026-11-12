@@ -103,7 +103,8 @@ class PostCase {
             lifetimeHours > BeaconPostLifetime.maxHours)) {
       throw const PostLifetimeInvalidException();
     }
-    if (post.status == BeaconStatus.draft) {
+    final stampedInThisCall = post.status == BeaconStatus.draft;
+    if (stampedInThisCall) {
       await _attention.runAction<void>(
         actorUserId: authorId,
         action: (_) async {
@@ -161,16 +162,17 @@ class PostCase {
           throw const PostNotOpenException();
         }
         // Recovery autosaves can change the lifetime after the status commits.
-        // Read it under the delivery lock before clearing the composer fields.
-        // An explicit choice on this call wins over the saved draft value.
-        final effectiveLifetimeHours =
-            lifetimeHours ??
-            await _beaconRepository.postDraftLifetimeHours(beaconId);
-        if (effectiveLifetimeHours != null) {
-          await _beaconRepository.setPostLifetime(
-            beaconId: beaconId,
-            lifetime: Duration(hours: effectiveLifetimeHours),
-          );
+        // A retry re-reads it under the delivery lock; a call that just
+        // stamped the lifetime itself (phase 1) keeps what it stamped.
+        if (!stampedInThisCall) {
+          final savedLifetimeHours = await _beaconRepository
+              .postDraftLifetimeHours(beaconId);
+          if (savedLifetimeHours != null) {
+            await _beaconRepository.setPostLifetime(
+              beaconId: beaconId,
+              lifetime: Duration(hours: savedLifetimeHours),
+            );
+          }
         }
         // Without recipients the Post stays visible only to its author —
         // `beacon_can_read_content` already admits the author unconditionally.

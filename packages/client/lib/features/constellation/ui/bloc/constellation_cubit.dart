@@ -5191,7 +5191,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       if (_isOfferKindChanged(error)) {
         return ConstellationOfferSubmitOutcome.offerKindChanged;
       }
-      return ConstellationOfferSubmitOutcome.validationFailed;
+      // Transport and server failures belong to the shared error path.
+      rethrow;
     }
   }
 

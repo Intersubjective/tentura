@@ -61,21 +61,30 @@ class App {
   ///
   /// Run App in Test environment with mocked repositories
   ///
-  Future<void> runWithTestEnv() async {
+  Future<void> runWithTestEnv({
+    Future<void> Function(({SendPort sendPort, Env env}) params) worker =
+        serveWeb,
+  }) async {
     final receivePort = ReceivePort();
     final ready = Completer<SendPort>();
     receivePort.listen((dynamic message) {
       if (message is SendPort) ready.complete(message);
     });
     try {
-      final worker = serveWeb((
+      final running = worker((
         env: Env.test(),
         sendPort: receivePort.sendPort,
       ));
-      final commands = await ready.future;
+      // A worker that dies before it sends its SendPort must surface here.
+      final commands = await Future.any([
+        ready.future,
+        running.then<SendPort>(
+          (_) => throw StateError('Worker exited before it was ready'),
+        ),
+      ]);
       await _stopSignal();
       commands.send(null);
-      await worker;
+      await running;
     } finally {
       receivePort.close();
     }

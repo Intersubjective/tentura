@@ -10,6 +10,7 @@ import 'package:tentura/features/people_tags/domain/use_case/people_tags_case.da
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/features/post_view/ui/post_remaining_label.dart';
 import 'package:tentura/ui/widget/relative_timestamp_ticker.dart';
+import 'package:tentura/ui/widget/screen_load_error_panel.dart';
 import 'package:tentura/ui/test_ids.dart';
 
 import 'package:tentura/domain/entity/profile.dart';
@@ -140,18 +141,12 @@ class _ConstellationTextViewState extends State<ConstellationTextView> {
         final theme = Theme.of(context);
 
         if (state.loadError != null && state.field == null) {
-          return Semantics(
-            liveRegion: true,
-            child: Center(
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: tt.screenHPadding),
-                child: Text(
-                  state.loadError.toString(),
-                  key: const Key('constellation.text.error'),
-                  style: theme.textTheme.bodyMedium,
-                ),
-              ),
+          return ScreenLoadErrorPanel(
+            details: describeScreenLoadError(
+              error: state.loadError!,
+              l10n: l10n,
             ),
+            onRetry: () => unawaited(cubit.load()),
           );
         }
 

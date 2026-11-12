@@ -25,6 +25,7 @@ import 'package:tentura/features/graph/ui/widget/graph_legend_panel.dart';
 import 'package:tentura/features/graph/ui/widget/graph_node_widget.dart';
 import 'package:tentura/features/graph/ui/widget/graph_person_context_panel.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
+import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/features/people_tags/domain/entity/people_tags_entities.dart';
 import 'package:tentura/features/people_tags/domain/use_case/people_tags_case.dart';
 import 'package:tentura/features/people_tags/ui/widget/tag_editor_dialog.dart';
@@ -1111,14 +1112,29 @@ class _ConstellationBodyState extends State<ConstellationBody>
         if (outcome == null || !context.mounted) {
           return null;
         }
-        final submit = await cubit.submitValidatedOfferHelp(
-          beaconId: request.id,
-          expectedOfferKind: expectedOfferKind,
-          message: outcome.message,
-          helpTypes: viewerHasActiveHelpOffer
-              ? normalizeOfferHelpTypesWire(outcome.helpTypesWire)
-              : outcome.helpTypesWire,
-        );
+        final ConstellationOfferSubmitOutcome submit;
+        try {
+          submit = await cubit.submitValidatedOfferHelp(
+            beaconId: request.id,
+            expectedOfferKind: expectedOfferKind,
+            message: outcome.message,
+            helpTypes: viewerHasActiveHelpOffer
+                ? normalizeOfferHelpTypesWire(outcome.helpTypesWire)
+                : outcome.helpTypesWire,
+          );
+        } on Object catch (error) {
+          if (!context.mounted) {
+            return null;
+          }
+          context.read<ScreenCubit>().effects.emit(ShowError(error));
+          return _runOfferFlow(
+            context,
+            cubit,
+            request,
+            preservedMessage: outcome.message,
+            preservedHelpTypes: outcome.helpTypesWire,
+          );
+        }
         if (!context.mounted) {
           return null;
         }
