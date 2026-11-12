@@ -749,10 +749,10 @@ Future<void> _insertTombstone(
   String subject,
   String tag,
 ) => writer.execute(
-  Sql.indexed(r'''
+  Sql.indexed('''
 INSERT INTO public.person_capability_event
   (id, subject_user_id, observer_user_id, tag_slug, source_type, visibility, is_negative)
-VALUES ('CEcapb2atomb', $1, $2, $3, 0, 0, true)
+VALUES ('CEcapb2atomb', @1, @2, @3, 0, 0, true)
 '''),
   parameters: [subject, observer, tag],
 );
