@@ -1,7 +1,6 @@
 import 'package:injectable/injectable.dart';
 import 'package:logging/logging.dart';
 
-import 'package:tentura/data/service/remote_api_client/exception.dart';
 import 'package:tentura/data/service/remote_api_client/remote_request_client.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/attention/entity/activity_beacon_attention.dart';
@@ -380,10 +379,7 @@ final class AttentionRepository implements AttentionRepositoryPort {
   Future<Set<String>> liveObligationBeacons() async {
     final data = await _remoteClient
         .request(GAttentionLiveObligationsReq())
-        .firstWhere(
-          (response) => response.dataSource == DataSource.Link,
-          orElse: () => throw const GraphQLNoDataException(label: _label),
-        )
+        .firstLinkResponse(label: _label)
         .then((response) => response.dataOrThrow(label: _label));
     return data.liveObligationBeacons.toSet();
   }
