@@ -134,12 +134,13 @@ final class ForwardCase extends UseCaseBase {
   }) async {
     await _contactsCase.refresh();
 
-    final results = await Future.wait([
-      _forwardRepository.fetchForwardCandidates(context: context),
-      _involvementOf(beaconId),
-    ]);
-    final profiles = results[0] as Iterable<Profile>;
-    final involvement = results[1] as BeaconInvolvementData;
+    final profilesFuture = _forwardRepository.fetchForwardCandidates(
+      context: context,
+    );
+    final involvementFuture = _involvementOf(beaconId);
+    await Future.wait([profilesFuture, involvementFuture]);
+    final profiles = await profilesFuture;
+    final involvement = await involvementFuture;
 
     final effectiveIsPost =
         isPost || involvement.beacon.kind == BeaconKind.post;
