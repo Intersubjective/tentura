@@ -25,7 +25,6 @@ import '../../domain/entity/forward_graph.dart';
 import '../../domain/entity/forward_recipient_offer_status.dart';
 import '../../domain/entity/help_path_node.dart';
 import '../../domain/entity/forward_inbound_source.dart';
-import '../gql/_g/beacon_involvement_data.data.gql.dart';
 import '../gql/_g/beacon_involvement_data.req.gql.dart';
 import '../gql/_g/beacon_involvement_fields.data.gql.dart';
 import '../gql/_g/beacon_involvements_data.req.gql.dart';
@@ -262,20 +261,19 @@ class ForwardRepository {
   Future<BeaconInvolvementData> fetchBeaconInvolvement({
     required String beaconId,
   }) async {
-    final results = await Future.wait([
-      _beaconRepository.fetchBeaconById(beaconId),
-      _remoteApiService
-          .request(
-            GBeaconInvolvementDataReq((r) => r..vars.id = beaconId),
-          )
-          .firstLinkResponse(label: _label)
-          .then(
-            (r) => r.dataOrThrow(label: _label).beaconInvolvement,
-          ),
-    ]);
+    final beaconFuture = _beaconRepository.fetchBeaconById(beaconId);
+    final invFuture = _remoteApiService
+        .request(
+          GBeaconInvolvementDataReq((r) => r..vars.id = beaconId),
+        )
+        .firstLinkResponse(label: _label)
+        .then(
+          (r) => r.dataOrThrow(label: _label).beaconInvolvement,
+        );
+    await Future.wait([beaconFuture, invFuture]);
 
-    final beacon = results[0] as Beacon;
-    final inv = results[1] as GBeaconInvolvementDataData_beaconInvolvement;
+    final beacon = await beaconFuture;
+    final inv = await invFuture;
 
     return mapBeaconInvolvement(beacon: beacon, inv: inv);
   }
