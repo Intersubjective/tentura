@@ -191,6 +191,21 @@ Future<void> main() async {
       expect(await expiryAfter(72), (true, true));
     });
 
+    test('an explicit lifetime on publish wins over the saved draft value',
+        () async {
+      await harness.posts.updatePostDraft(
+        authorId: _author,
+        beaconId: _beacon,
+        body: _body,
+        forwardPolicy: BeaconForwardPolicyValue.closed,
+        lifetimeHours: 6,
+      );
+
+      await publish(lifetimeHours: 24);
+
+      expect(await expiryAfter(24), (true, true));
+    });
+
     for (final invalid in [0, 73, -1]) {
       test('a lifetime of $invalid hours is rejected and the draft stays a '
           'draft', () async {

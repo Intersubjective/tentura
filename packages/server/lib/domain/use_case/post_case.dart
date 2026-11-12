@@ -162,14 +162,14 @@ class PostCase {
         }
         // Recovery autosaves can change the lifetime after the status commits.
         // Read it under the delivery lock before clearing the composer fields.
-        final savedLifetimeHours = await _beaconRepository
-            .postDraftLifetimeHours(
-              beaconId,
-            );
-        if (savedLifetimeHours != null) {
+        // An explicit choice on this call wins over the saved draft value.
+        final effectiveLifetimeHours =
+            lifetimeHours ??
+            await _beaconRepository.postDraftLifetimeHours(beaconId);
+        if (effectiveLifetimeHours != null) {
           await _beaconRepository.setPostLifetime(
             beaconId: beaconId,
-            lifetime: Duration(hours: savedLifetimeHours),
+            lifetime: Duration(hours: effectiveLifetimeHours),
           );
         }
         // Without recipients the Post stays visible only to its author —
