@@ -1,3 +1,6 @@
+import 'dart:math' as math;
+import 'dart:ui' show Offset, Rect;
+
 import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
@@ -81,15 +84,32 @@ class ConstellationFixedLayout implements SceneLayoutAlgorithm {
     final resolveBase = fillMissingWith;
     if (resolveBase != null &&
         request.nodeIds.any((id) => !positions.containsKey(id))) {
-      await for (final frame in resolveBase().layout(request)) {
+      // Seed the base layout with the saved positions so it seats the
+      // missing nodes around them instead of ignoring where they are pinned.
+      final previous = request.previous;
+      final seeded = GraphLayoutRequest(
+        ticket: request.ticket,
+        canvasSize: request.canvasSize,
+        nodesById: request.nodesById,
+        edgesById: request.edgesById,
+        previous: SceneLayout(
+          ticket: previous?.ticket ?? request.ticket,
+          revision: previous?.revision ?? 0,
+          positions: {
+            ...?previous?.positions,
+            for (final id in request.nodeIds) id: ?positions[id],
+          },
+        ),
+      );
+      await for (final frame in resolveBase().layout(seeded)) {
         yield GraphLayoutFrame(
           ticket: frame.ticket,
           sequence: frame.sequence,
           isTerminal: frame.isTerminal,
-          positions: {
+          positions: _seatBesideNeighbours(request, {
             ...frame.positions,
             for (final id in request.nodeIds) id: ?positions[id],
-          },
+          }),
         );
       }
       return;
@@ -103,4 +123,69 @@ class ConstellationFixedLayout implements SceneLayoutAlgorithm {
       },
     );
   }
+
+  /// Moves each unsaved node next to a neighbour that is already placed (the
+  /// saved nodes first, then nodes seated here), on the nearest free spot, so
+  /// a person known only from an edge sits beside whoever it came from.
+  Map<String, ScenePoint> _seatBesideNeighbours(
+    GraphLayoutRequest request,
+    Map<String, ScenePoint> framed,
+  ) {
+    final result = {...framed};
+    final placed = {
+      for (final id in request.nodeIds)
+        if (positions.containsKey(id)) id,
+    };
+    final neighbours = <String, Set<String>>{};
+    for (final edge in request.edgesById.values) {
+      neighbours.putIfAbsent(edge.sourceId, () => {}).add(edge.destinationId);
+      neighbours.putIfAbsent(edge.destinationId, () => {}).add(edge.sourceId);
+    }
+    Rect body(String id, ScenePoint at) {
+      final size = request.nodesById[id]!.size;
+      return Rect.fromCenter(
+        center: Offset(at.x, at.y),
+        width: size.width,
+        height: size.height,
+      );
+    }
+
+    var progressed = true;
+    while (progressed) {
+      progressed = false;
+      for (final id in request.nodeIds) {
+        if (placed.contains(id)) continue;
+        final anchorId = neighbours[id]?.firstWhereOrNull(placed.contains);
+        if (anchorId == null) continue;
+        final anchor = result[anchorId]!;
+        final mine = request.nodesById[id]!.size;
+        final theirs = request.nodesById[anchorId]!.size;
+        final gap = (mine.width + theirs.width) / 2 + _seatGap;
+        final others = [
+          for (final other in placed)
+            if (other != id) body(other, result[other]!),
+        ];
+        ScenePoint? seat;
+        for (var ring = 1; seat == null && ring <= _seatRings; ring++) {
+          for (var step = 0; seat == null && step < _seatSteps; step++) {
+            final angle = 2 * math.pi * step / _seatSteps;
+            final candidate = ScenePoint(
+              x: anchor.x + ring * gap * math.cos(angle),
+              y: anchor.y + ring * gap * math.sin(angle),
+            );
+            final rect = body(id, candidate);
+            if (!others.any((o) => o.overlaps(rect))) seat = candidate;
+          }
+        }
+        if (seat != null) result[id] = seat;
+        placed.add(id);
+        progressed = true;
+      }
+    }
+    return result;
+  }
+
+  static const _seatGap = 16.0;
+  static const _seatRings = 8;
+  static const _seatSteps = 12;
 }
