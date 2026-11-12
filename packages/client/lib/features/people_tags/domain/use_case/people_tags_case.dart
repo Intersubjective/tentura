@@ -117,20 +117,19 @@ final class PeopleTagsCase extends UseCaseBase {
 
   Future<void> load() async {
     final generation = _accountGeneration;
-    final results = await Future.wait([
-      _repository.personTags(),
-      _repository.personTagMemberships(),
-    ]);
+    final tagsFuture = _repository.personTags();
+    final membershipsFuture = _repository.personTagMemberships();
+    await Future.wait([tagsFuture, membershipsFuture]);
+    final tags = await tagsFuture;
+    final memberships = await membershipsFuture;
     if (generation != _accountGeneration) return;
-    _tags = [...results[0] as List<PersonTag>]
-      ..sort((a, b) => a.ord.compareTo(b.ord));
+    _tags = [...tags]..sort((a, b) => a.ord.compareTo(b.ord));
     _members
       ..clear()
       ..addEntries([
-        for (final m in results[1] as List<PersonTagMembers>)
-          MapEntry(m.tagId, {...m.personIds}),
+        for (final m in memberships) MapEntry(m.tagId, {...m.personIds}),
       ]);
-    _reloadInherited(results[1] as List<PersonTagMembers>);
+    _reloadInherited(memberships);
     _loaded = true;
     _emit();
   }
