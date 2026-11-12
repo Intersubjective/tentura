@@ -56,6 +56,9 @@ class _MockFacts extends Fake implements BeaconFactCardRepositoryPort {
     canUseRoom: true,
     canReadContent: true,
     exists: true,
+    kind: 0,
+    isDraft: false,
+    isExpiredPost: false,
   );
 
   FactEditOutcome outcome = const FactEditApplied(newSeq: 2);

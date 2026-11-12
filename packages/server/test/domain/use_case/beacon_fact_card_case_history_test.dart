@@ -117,6 +117,9 @@ class _FakeFacts extends Fake implements BeaconFactCardRepositoryPort {
     canUseRoom: true,
     canReadContent: true,
     exists: true,
+    kind: 0,
+    isDraft: false,
+    isExpiredPost: false,
   );
 
   List<BeaconFactHistoryEntry> rows = const [];

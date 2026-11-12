@@ -10,5 +10,8 @@ abstract class BeaconFactRoomAccess with _$BeaconFactRoomAccess {
     required bool canUseRoom,
     required bool canReadContent,
     required bool exists,
+    required int kind,
+    required bool isDraft,
+    required bool isExpiredPost,
   }) = _BeaconFactRoomAccess;
 }

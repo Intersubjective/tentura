@@ -10,6 +10,9 @@ void main() {
       canUseRoom: true,
       canReadContent: false,
       exists: true,
+      kind: 0,
+      isDraft: false,
+      isExpiredPost: false,
     );
     expect(access.beaconStatus, 2);
     expect(access.canUseRoom, isTrue);
@@ -23,6 +26,9 @@ void main() {
       canUseRoom: true,
       canReadContent: true,
       exists: true,
+      kind: 0,
+      isDraft: false,
+      isExpiredPost: false,
     );
     expect(
       a,
@@ -31,8 +37,42 @@ void main() {
         canUseRoom: true,
         canReadContent: true,
         exists: true,
+        kind: 0,
+        isDraft: false,
+        isExpiredPost: false,
       ),
     );
     expect(a.copyWith(exists: false).exists, isFalse);
+  });
+
+  group('beacon kind, draft and expired-Post flags', () {
+    const base = BeaconFactRoomAccess(
+      beaconStatus: 0,
+      canUseRoom: true,
+      canReadContent: true,
+      exists: true,
+      kind: 1,
+      isDraft: true,
+      isExpiredPost: true,
+    );
+
+    test('are carried as given', () {
+      expect(base.kind, 1);
+      expect(base.isDraft, isTrue);
+      expect(base.isExpiredPost, isTrue);
+    });
+
+    test('instances differing in one flag are not equal', () {
+      expect(base.copyWith(kind: 0), isNot(base));
+      expect(base.copyWith(isDraft: false), isNot(base));
+      expect(base.copyWith(isExpiredPost: false), isNot(base));
+      expect(base.copyWith(), base);
+    });
+
+    test('copyWith(isDraft: true) sets the draft flag', () {
+      final open = base.copyWith(isDraft: false);
+      expect(open.isDraft, isFalse);
+      expect(open.copyWith(isDraft: true).isDraft, isTrue);
+    });
   });
 }

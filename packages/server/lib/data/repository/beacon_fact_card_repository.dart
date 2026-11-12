@@ -37,41 +37,32 @@ class BeaconFactCardRepository implements BeaconFactCardRepositoryPort {
     required String userId,
   }) async {
     final row = await _db.customSelect(
-      '''
-SELECT
-  b.status::integer AS beacon_status,
-  (
-    b.user_id = \$2::text
-    OR EXISTS (
-      SELECT 1 FROM public.beacon_steward s
-      WHERE s.beacon_id = b.id AND s.user_id = \$2::text
-    )
-    OR EXISTS (
-      SELECT 1 FROM public.beacon_participant p
-      WHERE p.beacon_id = b.id
-        AND p.user_id = \$2::text
-        AND p.room_access = ${RoomAccessBits.admitted}
-    )
-  ) AS can_use_room,
-  public.beacon_can_read_content(b.id, \$2::text) AS can_read_content
-FROM public.beacon b
-WHERE b.id = \$1::text
+      r'''
+SELECT kind, status, is_draft, is_expired_post, beacon_exists,
+       can_read, can_use_room
+FROM public.beacon_fact_access($1::text, $2::text)
 ''',
       variables: [Variable<String>(beaconId), Variable<String>(userId)],
-    ).getSingleOrNull();
-    if (row == null) {
+    ).getSingle();
+    if (!row.read<bool>('beacon_exists')) {
       return const BeaconFactRoomAccess(
         beaconStatus: 0,
         canUseRoom: false,
         canReadContent: false,
         exists: false,
+        kind: 0,
+        isDraft: false,
+        isExpiredPost: false,
       );
     }
     return BeaconFactRoomAccess(
-      beaconStatus: row.read<int>('beacon_status'),
+      beaconStatus: row.read<int>('status'),
       canUseRoom: row.read<bool>('can_use_room'),
-      canReadContent: row.read<bool>('can_read_content'),
+      canReadContent: row.read<bool>('can_read'),
       exists: true,
+      kind: row.read<int>('kind'),
+      isDraft: row.read<bool>('is_draft'),
+      isExpiredPost: row.read<bool>('is_expired_post'),
     );
   }
 

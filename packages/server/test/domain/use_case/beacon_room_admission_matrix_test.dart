@@ -115,6 +115,9 @@ class _RoomBackedFactCards extends Fake
       canUseRoom: canUseRoom,
       canReadContent: canUseRoom,
       exists: true,
+      kind: 0,
+      isDraft: false,
+      isExpiredPost: false,
     );
   }
 }

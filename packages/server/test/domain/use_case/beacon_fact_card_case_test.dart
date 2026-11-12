@@ -84,6 +84,9 @@ class _StubFacts extends Fake implements BeaconFactCardRepositoryPort {
         room.participant?.roomAccess == RoomAccessBits.admitted,
     canReadContent: guard.contentAllowed,
     exists: true,
+    kind: 0,
+    isDraft: false,
+    isExpiredPost: false,
   );
 
   @override
