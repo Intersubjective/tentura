@@ -8,6 +8,9 @@ import 'package:tentura_server/consts/coordination_item_consts.dart';
 ///
 /// One list for `questions_audience` (mentions, reply notices, realtime
 /// hints) and Questions unread.
+///
+/// Shipped migrations must not interpolate this live helper. Inline frozen
+/// SQL instead so later helper changes cannot alter migration replay.
 String questionsAudienceCandidateIdsSql(String beaconId) =>
     '''
 SELECT qa_b.user_id FROM public.beacon qa_b

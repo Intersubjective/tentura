@@ -109,27 +109,118 @@ SELECT
 FROM standing s
 $$
 ''',
-  '''
+  r'''
 CREATE OR REPLACE FUNCTION public.questions_audience(p_beacon_id text)
 RETURNS TABLE(user_id text, access smallint)
     LANGUAGE sql STABLE
     SET search_path TO 'public', 'pg_temp'
-    AS \$\$
+    AS $$
 SELECT l.user_id, l.access
 FROM public.questions_access_levels(
   p_beacon_id,
-  ARRAY(${questionsAudienceCandidateIdsSql('p_beacon_id')})
+  ARRAY(SELECT qa_b.user_id FROM public.beacon qa_b
+WHERE qa_b.id = p_beacon_id AND qa_b.user_id IS NOT NULL
+UNION
+SELECT qa_bs.user_id FROM public.beacon_steward qa_bs
+WHERE qa_bs.beacon_id = p_beacon_id
+UNION
+SELECT qa_bp.user_id FROM public.beacon_participant qa_bp
+WHERE qa_bp.beacon_id = p_beacon_id
+  AND (qa_bp.role IN (1, 6) OR qa_bp.room_access = 3)
+UNION
+SELECT qa_fe.recipient_id FROM public.beacon_forward_edge qa_fe
+WHERE qa_fe.beacon_id = p_beacon_id AND qa_fe.cancelled_at IS NULL
+UNION
+SELECT qa_ho.user_id FROM public.beacon_help_offer qa_ho
+WHERE qa_ho.beacon_id = p_beacon_id
+UNION
+SELECT qa_o.user_id FROM public.beacon_bud_observer qa_o
+WHERE qa_o.beacon_id = p_beacon_id
+UNION
+SELECT qa_m.author_id FROM public.coordination_item qa_ci
+JOIN public.beacon_room_message qa_m ON qa_m.thread_item_id = qa_ci.id
+WHERE qa_ci.beacon_id = p_beacon_id AND qa_ci.kind = 7
+  AND qa_m.author_id IS NOT NULL
+)
 ) l
 WHERE l.access > 0
-\$\$
+$$
 ''',
-  '''
+  r'''
 CREATE OR REPLACE FUNCTION public.request_unread_message_count(p_viewer text, p_beacon text)
 RETURNS integer
 LANGUAGE sql STABLE
 SET search_path TO public, pg_temp
-AS \$\$
-SELECT ${requestUnreadMessageCountBodySql(viewer: 'p_viewer', beaconId: 'p_beacon')}
-\$\$
+AS $$
+SELECT (
+  CASE WHEN public.beacon_effective_admission(p_beacon, p_viewer) THEN (
+    SELECT count(*)::integer FROM public.beacon_room_message m
+    LEFT JOIN public.beacon_room_seen seen
+      ON seen.beacon_id = m.beacon_id AND seen.user_id = p_viewer
+      AND seen.thread_item_id IS NULL
+    WHERE m.beacon_id = p_beacon AND m.thread_item_id IS NULL
+      AND m.author_id <> p_viewer
+AND m.system_message_kind IS NULL
+AND (m.semantic_marker IS NULL OR m.semantic_marker NOT IN
+  (9, 18, 19))
+AND (seen.last_seen_at IS NULL OR m.created_at > seen.last_seen_at)
+
+  ) ELSE 0 END
+  + COALESCE((
+    SELECT q.unread_count
+    FROM public.coordination_item ci
+    CROSS JOIN LATERAL (
+      SELECT count(*)::integer AS message_count,
+  (CASE WHEN EXISTS (
+  SELECT 1 FROM public.coordination_item qa_lobby
+  WHERE qa_lobby.id = ci.id
+    AND p_viewer IN (SELECT qa_b.user_id FROM public.beacon qa_b
+WHERE qa_b.id = qa_lobby.beacon_id AND qa_b.user_id IS NOT NULL
+UNION
+SELECT qa_bs.user_id FROM public.beacon_steward qa_bs
+WHERE qa_bs.beacon_id = qa_lobby.beacon_id
+UNION
+SELECT qa_bp.user_id FROM public.beacon_participant qa_bp
+WHERE qa_bp.beacon_id = qa_lobby.beacon_id
+  AND (qa_bp.role IN (1, 6) OR qa_bp.room_access = 3)
+UNION
+SELECT qa_fe.recipient_id FROM public.beacon_forward_edge qa_fe
+WHERE qa_fe.beacon_id = qa_lobby.beacon_id AND qa_fe.cancelled_at IS NULL
+UNION
+SELECT qa_ho.user_id FROM public.beacon_help_offer qa_ho
+WHERE qa_ho.beacon_id = qa_lobby.beacon_id
+UNION
+SELECT qa_o.user_id FROM public.beacon_bud_observer qa_o
+WHERE qa_o.beacon_id = qa_lobby.beacon_id
+UNION
+SELECT qa_m.author_id FROM public.coordination_item qa_ci
+JOIN public.beacon_room_message qa_m ON qa_m.thread_item_id = qa_ci.id
+WHERE qa_ci.beacon_id = qa_lobby.beacon_id AND qa_ci.kind = 7
+  AND qa_m.author_id IS NOT NULL
+)
+)
+    THEN count(*) FILTER (WHERE m.author_id <> p_viewer
+      AND m.system_message_kind IS NULL
+      AND (s.last_seen_at IS NULL OR m.created_at > s.last_seen_at))
+    ELSE 0
+  END)::integer AS unread_count
+FROM public.beacon_room_message m
+LEFT JOIN public.beacon_room_seen s
+  ON s.thread_item_id = m.thread_item_id AND s.user_id = p_viewer
+  AND s.beacon_id = m.beacon_id
+WHERE m.thread_item_id = ci.id
+  AND (m.author_id IS NULL OR NOT public.block_hides(m.author_id, p_viewer))
+
+    ) q
+    WHERE ci.beacon_id = p_beacon AND ci.kind = 7
+      AND EXISTS (
+        SELECT 1 FROM public.questions_access_levels(
+          ci.beacon_id, ARRAY[p_viewer]::text[]
+        ) access WHERE access.access > 0
+      )
+  ), 0)
+)
+
+$$
 ''',
 ]);

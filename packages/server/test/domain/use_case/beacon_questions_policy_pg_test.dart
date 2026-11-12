@@ -1490,7 +1490,7 @@ Future<void> main() async {
           target.databaseEnv.pgEndpoint,
           settings: target.databaseEnv.pgEndpointSettings,
         );
-        final notifications = <Map<String, dynamic>>[];
+        final notifications = StreamController<Map<String, dynamic>>();
         await listener.execute('LISTEN entity_changes');
         final sub = listener.channels['entity_changes'].listen(
           (payload) =>
@@ -1499,7 +1499,12 @@ Future<void> main() async {
         addTearDown(() async {
           await sub.cancel();
           await listener.close();
+          await notifications.close();
         });
+        // Buffer events until createMessage returns its generated id. Start
+        // listening before posting so an early notification is not lost.
+        final events = StreamIterator(notifications.stream);
+        addTearDown(events.cancel);
         final lobbyId = await openAsAuthor();
         intents.clear();
         final posted = await rooms.createMessage(
@@ -1512,19 +1517,26 @@ Future<void> main() async {
         expect(intents.mentioned, isNot(contains(discovery)));
         expect(intents.directed, isNot(contains(discovery)));
         expect(await audience(), isNot(contains(discovery)));
-        Set<String> recipients() => {
-          for (final n in notifications)
-            if (n['entity'] == 'room_message' && n['message_id'] == messageId)
-              ...(n['user_ids'] as List).cast<String>(),
-        };
-        final deadline = DateTime.now().add(const Duration(seconds: 3));
-        while (DateTime.now().isBefore(deadline) &&
-            !recipients().contains(author)) {
-          await Future<void>.delayed(const Duration(milliseconds: 50));
+        Future<Map<String, dynamic>> matchingNotification() async {
+          while (await events.moveNext()) {
+            final event = events.current;
+            if (event['entity'] == 'room_message' &&
+                event['message_id'] == messageId) {
+              return event;
+            }
+          }
+          throw StateError('entity_changes closed before message $messageId');
         }
+
+        final notification = await matchingNotification().timeout(
+          const Duration(seconds: 30),
+        );
+        final recipients = (notification['user_ids'] as List)
+            .cast<String>()
+            .toSet();
         // Positive control: the hint went out to the audience.
-        expect(recipients(), contains(author));
-        expect(recipients(), isNot(contains(discovery)));
+        expect(recipients, contains(author));
+        expect(recipients, isNot(contains(discovery)));
       });
 
       test('Questions unread reaches them only once they have written '

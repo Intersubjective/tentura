@@ -2061,17 +2061,22 @@ LEFT JOIN LATERAL (
       AND public.beacon_effective_admission(ids.beacon_id, \$2)
       AND ${discussionUnreadMessageSql(r'$2')}
     UNION ALL
-    SELECT m.created_at, 'questions' AS room
+    SELECT q.created_at, 'questions' AS room
     FROM public.coordination_item ci
-    JOIN public.beacon_room_message m ON m.thread_item_id = ci.id
-    LEFT JOIN public.beacon_room_seen seen
-      ON seen.thread_item_id = m.thread_item_id AND seen.user_id = \$2
-      AND seen.beacon_id = m.beacon_id
+    CROSS JOIN LATERAL (
+      SELECT min(m.created_at) AS created_at
+      FROM public.beacon_room_message m
+      LEFT JOIN public.beacon_room_seen seen
+        ON seen.thread_item_id = m.thread_item_id AND seen.user_id = \$2
+        AND seen.beacon_id = m.beacon_id
+      WHERE m.thread_item_id = ci.id
+        AND m.author_id <> \$2
+        AND m.system_message_kind IS NULL
+        AND (seen.last_seen_at IS NULL OR m.created_at > seen.last_seen_at)
+        AND NOT public.block_hides(m.author_id, \$2)
+    ) q
     WHERE ci.beacon_id = ids.beacon_id AND ci.kind = ${CoordinationItemKind.lobby.smallintValue}
-      AND m.author_id <> \$2
-      AND m.system_message_kind IS NULL
-      AND (seen.last_seen_at IS NULL OR m.created_at > seen.last_seen_at)
-      AND NOT public.block_hides(m.author_id, \$2)
+      AND q.created_at IS NOT NULL
       AND ${questionsAudienceCandidateSql(lobbyId: 'ci.id', viewer: r'$2')}
       AND EXISTS (
         SELECT 1 FROM public.questions_access_levels(
