@@ -13,12 +13,7 @@ import '../../fcm_debug_log.dart';
 import 'browser_notification_permission.dart';
 
 @singleton
-class FcmService extends ServiceBase {
-  const FcmService._({
-    required super.env,
-    required super.logger,
-  });
-
+abstract interface class FcmService {
   @factoryMethod
   factory FcmService.create({
     required Env env,
@@ -39,17 +34,34 @@ class FcmService extends ServiceBase {
       return const _FcmServiceFake();
     }
     fcmLog('FcmService: real Firebase Messaging');
-    return FcmService._(
+    return _FirebaseFcmService._(
       env: env,
       logger: logger,
     );
   }
 
+  Stream<String> get onTokenRefresh;
+
+  Future<NotificationPermissions> requestPermission();
+
+  Future<NotificationPermissionStatus> permissionStatus();
+
+  Future<String?> getToken();
+}
+
+final class _FirebaseFcmService extends ServiceBase implements FcmService {
+  const _FirebaseFcmService._({
+    required super.env,
+    required super.logger,
+  });
+
+  @override
   Stream<String> get onTokenRefresh =>
       FirebaseMessaging.instance.onTokenRefresh;
 
   //
   //
+  @override
   Future<NotificationPermissions> requestPermission() async {
     fcmLog('FcmService: requestPermission (Firebase)');
     try {
@@ -91,6 +103,7 @@ class FcmService extends ServiceBase {
   /// Current permission, without showing a prompt. On web this reads the
   /// browser's own `Notification.permission` (see [requestPermission] for why
   /// the plugin's answer isn't trusted there).
+  @override
   Future<NotificationPermissionStatus> permissionStatus() async {
     try {
       final browserStatus = browserNotificationPermissionStatus();
@@ -119,6 +132,7 @@ class FcmService extends ServiceBase {
 
   //
   //
+  @override
   Future<String?> getToken() async {
     fcmLog(
       'FcmService: getToken vapidKeyLen=${env.firebaseVapidKey.length}',
@@ -146,12 +160,6 @@ bool _isUnsupportedBrowserMessaging(Object error) {
 
 final class _FcmServiceFake implements FcmService {
   const _FcmServiceFake();
-
-  @override
-  Env get env => throw UnimplementedError();
-
-  @override
-  Logger get logger => throw UnimplementedError();
 
   @override
   Stream<String> get onTokenRefresh => const Stream.empty();
