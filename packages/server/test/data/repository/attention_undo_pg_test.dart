@@ -340,6 +340,63 @@ Future<void> main() async {
     });
   }, skip: skipReason);
 
+  // Both repositories answer the window by reading `undo_deadline` back from
+  // the operation row, not by computing it: the clear on its first apply and
+  // on a replay, the sweep on every call. Each case moves the column to a
+  // fixed instant before the second call, so the answer can only be the read.
+  group('the window a result carries is the one the database holds', () {
+    test(
+      'a sweep answers the stored deadline, first call and replay',
+      () async {
+        await _insertReceipt(writer, id: 'Nu09cpinsweep', beaconId: _beaconA);
+
+        final first = await sweep.dismissAll(
+          accountId: _viewerId,
+          operationId: 'OPu09cpinsweep',
+        );
+        final stored = await _undoDeadline(writer, 'OPu09cpinsweep');
+        expect(stored, isA<DateTime>());
+        expect(first.undoDeadline, (stored! as DateTime).toUtc());
+
+        await _moveDeadline(writer, 'OPu09cpinsweep', _pinnedDeadlineSql);
+        final replay = await sweep.dismissAll(
+          accountId: _viewerId,
+          operationId: 'OPu09cpinsweep',
+        );
+        expect(replay.undoDeadline, _pinnedDeadline);
+      },
+    );
+
+    test(
+      'a clear answers the stored deadline, first apply and replay',
+      () async {
+        await _insertReceipt(writer, id: 'Nu09cpinclear', beaconId: _beaconB);
+        final snapshot = await clear.captureSnapshot(
+          accountId: _viewerId,
+          beaconId: _beaconB,
+          kind: AttentionClearCaptureKind.explicit,
+        );
+
+        final first = await clear.clear(
+          accountId: _viewerId,
+          operationId: 'OPu09cpinclear',
+          snapshotToken: snapshot.token,
+        );
+        final stored = await _undoDeadline(writer, 'OPu09cpinclear');
+        expect(stored, isA<DateTime>());
+        expect(first.undoDeadline, (stored! as DateTime).toUtc());
+
+        await _moveDeadline(writer, 'OPu09cpinclear', _pinnedDeadlineSql);
+        final replay = await clear.clear(
+          accountId: _viewerId,
+          operationId: 'OPu09cpinclear',
+          snapshotToken: snapshot.token,
+        );
+        expect(replay.undoDeadline, _pinnedDeadline);
+      },
+    );
+  }, skip: skipReason);
+
   // Each pair is the same scenario twice: once where nothing moved and undo
   // must restore, once where something moved and undo must refuse *that*
   // member rather than putting the old state on top of the new one.
@@ -932,6 +989,21 @@ Future<Object?> _headerStatus(Connection writer, String operationId) async {
   final rows = await writer.execute(
     Sql.named(
       'SELECT status FROM public.attention_clear_operation WHERE id = @id',
+    ),
+    parameters: {'id': operationId},
+  );
+  return rows.isEmpty ? null : rows.first.first;
+}
+
+/// A fixed instant, microseconds included, that no call computes.
+const _pinnedDeadlineSql = "timestamptz '2100-01-02 03:04:05.678901+00'";
+final _pinnedDeadline = DateTime.utc(2100, 1, 2, 3, 4, 5, 678, 901);
+
+Future<Object?> _undoDeadline(Connection writer, String operationId) async {
+  final rows = await writer.execute(
+    Sql.named(
+      'SELECT undo_deadline FROM public.attention_clear_operation '
+      'WHERE id = @id',
     ),
     parameters: {'id': operationId},
   );

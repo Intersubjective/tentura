@@ -5,8 +5,8 @@ import 'package:tentura_server/domain/attention/attention_undo_models.dart';
 import 'package:tentura_server/domain/port/attention_clear_port.dart';
 
 import '../database/tentura_db.dart';
+import 'attention_clear_operation_reads.dart';
 import 'attention_dismissible_sql.dart';
-import 'constellation_field_repository.dart' show readCustomSelectTimestamptz;
 import 'field_open_sql.dart';
 
 /// U08 — storage for the clear command.
@@ -302,7 +302,10 @@ UPDATE public.attention_clear_operation
       updateKind: UpdateKind.update,
     );
 
-    final deadline = await _undoDeadline(operationId);
+    final deadline = await readAttentionClearUndoDeadline(
+      _database,
+      operationId,
+    );
     return AttentionClearResult(
       operationId: operationId,
       appliedReceiptIds: applied,
@@ -318,20 +321,6 @@ UPDATE public.attention_clear_operation
             ).encode(),
     );
   });
-
-  /// The window as the database holds it — read back rather than computed
-  /// here, so the answer is the same clock undo will enforce against.
-  Future<DateTime?> _undoDeadline(String operationId) async {
-    final row = await _database
-        .customSelect(
-          r'''
-SELECT undo_deadline FROM public.attention_clear_operation WHERE id = $1
-''',
-          variables: [Variable<String>(operationId)],
-        )
-        .getSingleOrNull();
-    return readCustomSelectTimestamptz(row?.data['undo_deadline']);
-  }
 
   /// The clear itself, and then the database's answer about it.
   ///
@@ -438,7 +427,10 @@ SELECT receipt_id, state FROM public.attention_clear_operation_member
 
     // The window belongs to the operation, not to the call: a replay is told
     // about the window the first apply opened, and never buys a new one.
-    final deadline = await _undoDeadline(operationId);
+    final deadline = await readAttentionClearUndoDeadline(
+      _database,
+      operationId,
+    );
     return AttentionClearResult(
       operationId: operationId,
       appliedReceiptIds: applied,
