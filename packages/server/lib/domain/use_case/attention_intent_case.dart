@@ -1080,54 +1080,10 @@ class AttentionIntentCase {
     String? actorUserId,
   }) async {
     final context = await _context.loadContextForBeacon(beaconId);
-    final reasonsByRecipient = <String, Set<AttentionRecipientReason>>{};
-
-    void addReasons(
-      Iterable<String> userIds,
-      AttentionRecipientReason reason,
-    ) {
-      for (final userId in userIds) {
-        if (userId.isEmpty || userId == actorUserId) continue;
-        reasonsByRecipient.putIfAbsent(userId, () => {}).add(reason);
-      }
-    }
-
-    addReasons(
-      [context.beaconAuthorId],
-      AttentionRecipientReason.authorOfBeacon,
+    final reasonsByRecipient = await _statusChangeAudience(
+      context,
+      actorUserId: actorUserId,
     );
-    addReasons(
-      context.stewardUserIds,
-      AttentionRecipientReason.roomModeratorOrSteward,
-    );
-    addReasons(
-      context.admittedUserIds,
-      AttentionRecipientReason.admittedRoomMember,
-    );
-    addReasons(
-      context.activeHelpOfferUserIds,
-      AttentionRecipientReason.activeParticipant,
-    );
-    addReasons(
-      context.activeRequestParticipantUserIds,
-      AttentionRecipientReason.activeParticipant,
-    );
-    addReasons(
-      context.activePlanParticipantUserIds,
-      AttentionRecipientReason.activeParticipant,
-    );
-    addReasons(
-      context.inboxStanceUserIds,
-      AttentionRecipientReason.inboxStanceHolder,
-    );
-
-    if (actorUserId != null) {
-      final hiddenPeerIds = await _userBlocks.hiddenPeerIds(
-        viewerId: actorUserId,
-        peerIds: reasonsByRecipient.keys,
-      );
-      hiddenPeerIds.forEach(reasonsByRecipient.remove);
-    }
 
     final recipients = <AttentionRecipientSnapshot>[];
     for (final entry in reasonsByRecipient.entries) {
@@ -1190,54 +1146,10 @@ class AttentionIntentCase {
     String? actorUserId,
   }) async {
     final context = await _context.loadContextForBeacon(destinationBeaconId);
-    final reasonsByRecipient = <String, Set<AttentionRecipientReason>>{};
-
-    void addReasons(
-      Iterable<String> userIds,
-      AttentionRecipientReason reason,
-    ) {
-      for (final userId in userIds) {
-        if (userId.isEmpty || userId == actorUserId) continue;
-        reasonsByRecipient.putIfAbsent(userId, () => {}).add(reason);
-      }
-    }
-
-    addReasons(
-      [context.beaconAuthorId],
-      AttentionRecipientReason.authorOfBeacon,
+    final reasonsByRecipient = await _statusChangeAudience(
+      context,
+      actorUserId: actorUserId,
     );
-    addReasons(
-      context.stewardUserIds,
-      AttentionRecipientReason.roomModeratorOrSteward,
-    );
-    addReasons(
-      context.admittedUserIds,
-      AttentionRecipientReason.admittedRoomMember,
-    );
-    addReasons(
-      context.activeHelpOfferUserIds,
-      AttentionRecipientReason.activeParticipant,
-    );
-    addReasons(
-      context.activeRequestParticipantUserIds,
-      AttentionRecipientReason.activeParticipant,
-    );
-    addReasons(
-      context.activePlanParticipantUserIds,
-      AttentionRecipientReason.activeParticipant,
-    );
-    addReasons(
-      context.inboxStanceUserIds,
-      AttentionRecipientReason.inboxStanceHolder,
-    );
-
-    if (actorUserId != null) {
-      final hiddenPeerIds = await _userBlocks.hiddenPeerIds(
-        viewerId: actorUserId,
-        peerIds: reasonsByRecipient.keys,
-      );
-      hiddenPeerIds.forEach(reasonsByRecipient.remove);
-    }
 
     final recipients = <AttentionRecipientSnapshot>[];
     for (final entry in reasonsByRecipient.entries) {
@@ -1292,6 +1204,66 @@ class AttentionIntentCase {
       beaconId: destinationBeaconId,
       messageId: messageId,
     );
+  }
+
+  /// Status-change audience shared by [requestStatusChanged] and
+  /// [beaconHierarchyStatusChanged]: author, stewards, admitted members,
+  /// active participants and inbox stance holders, in that insertion order,
+  /// skipping empty ids and the actor, minus peers hidden from the actor.
+  Future<Map<String, Set<AttentionRecipientReason>>> _statusChangeAudience(
+    BeaconNotificationContext context, {
+    required String? actorUserId,
+  }) async {
+    final reasonsByRecipient = <String, Set<AttentionRecipientReason>>{};
+
+    void addReasons(
+      Iterable<String> userIds,
+      AttentionRecipientReason reason,
+    ) {
+      for (final userId in userIds) {
+        if (userId.isEmpty || userId == actorUserId) continue;
+        reasonsByRecipient.putIfAbsent(userId, () => {}).add(reason);
+      }
+    }
+
+    addReasons(
+      [context.beaconAuthorId],
+      AttentionRecipientReason.authorOfBeacon,
+    );
+    addReasons(
+      context.stewardUserIds,
+      AttentionRecipientReason.roomModeratorOrSteward,
+    );
+    addReasons(
+      context.admittedUserIds,
+      AttentionRecipientReason.admittedRoomMember,
+    );
+    addReasons(
+      context.activeHelpOfferUserIds,
+      AttentionRecipientReason.activeParticipant,
+    );
+    addReasons(
+      context.activeRequestParticipantUserIds,
+      AttentionRecipientReason.activeParticipant,
+    );
+    addReasons(
+      context.activePlanParticipantUserIds,
+      AttentionRecipientReason.activeParticipant,
+    );
+    addReasons(
+      context.inboxStanceUserIds,
+      AttentionRecipientReason.inboxStanceHolder,
+    );
+
+    if (actorUserId != null) {
+      final hiddenPeerIds = await _userBlocks.hiddenPeerIds(
+        viewerId: actorUserId,
+        peerIds: reasonsByRecipient.keys,
+      );
+      hiddenPeerIds.forEach(reasonsByRecipient.remove);
+    }
+
+    return reasonsByRecipient;
   }
 
   Future<AttentionDispatchIntent> mutualConnectionFormed({
