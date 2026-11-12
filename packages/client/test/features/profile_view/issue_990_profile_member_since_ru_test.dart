@@ -43,7 +43,6 @@ void main() {
   const longName =
       'Александра Константиновна Волкова-Смирнова из дальнего края';
 
-  final fixedNow = DateTime.utc(2026, 11, 4, 12);
   final joinedAt = DateTime.utc(2026, 3, 12, 9, 30);
 
   setUpAll(() async {
@@ -78,7 +77,7 @@ void main() {
       final expectedTenure = profileTenureDurationLabel(
         l10n: l10n,
         joinedAt: joinedAt,
-        now: fixedNow,
+        now: DateTime.now(),
       );
 
       await tester.pumpPeopleTagsWidget(
