@@ -49,7 +49,11 @@ class MyWorkLatestMessageLine extends StatelessWidget {
             'image' => l10n.myWorkLatestPhoto,
             'file' => l10n.myWorkLatestFile,
             'poll' => l10n.myWorkLatestPoll,
-            'fact' => l10n.myWorkLatestFact,
+            'fact' => switch (vm.roomLatestFactCount) {
+              0 => l10n.myWorkLatestFact,
+              1 => l10n.myWorkLatestFactBrought,
+              final n => l10n.myWorkLatestFactsBrought(n),
+            },
             _ => '',
           };
     if (text.isEmpty) return const SizedBox.shrink();

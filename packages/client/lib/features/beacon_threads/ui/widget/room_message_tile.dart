@@ -404,6 +404,41 @@ class RoomMessageTile extends StatelessWidget {
     }
   }
 
+  /// «Brought facts» system payload (server contract): `factCardIds`,
+  /// `count`, `originBeaconKind` (0 Request, 1 Post, absent when mixed) and
+  /// `factText` only when `count` is 1.
+  @visibleForTesting
+  static ({
+    List<String> factCardIds,
+    int count,
+    int? originBeaconKind,
+    String factText,
+  })?
+  factsBroughtPayload(RoomMessage m) {
+    final raw = m.systemPayloadJson;
+    if (raw == null || raw.trim().isEmpty) return null;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map<String, dynamic>) return null;
+      final ids = decoded['factCardIds'];
+      final count = decoded['count'];
+      final kind = decoded['originBeaconKind'];
+      final text = decoded['factText'];
+      if (ids is! List || count is! num) return null;
+      return (
+        factCardIds: [
+          for (final id in ids)
+            if (id is String) id,
+        ],
+        count: count.toInt(),
+        originBeaconKind: kind is num ? kind.toInt() : null,
+        factText: text is String ? text.trim() : '',
+      );
+    } on Object {
+      return null;
+    }
+  }
+
   static const _factExcerptMaxChars = 140;
 
   static String _factExcerpt(String text) => text.length <= _factExcerptMaxChars
@@ -1043,6 +1078,56 @@ class RoomMessageTile extends StatelessWidget {
           ],
         ),
       );
+    }
+
+    if (message.semanticMarker == BeaconRoomSemanticMarker.factsBrought) {
+      final brought = factsBroughtPayload(message);
+      if (brought != null) {
+        final actorName = SelfUserHighlight.displayName(
+          l10n,
+          message.author,
+          myProfile.id,
+        );
+        final n = brought.count;
+        final line = switch ((n == 1, brought.originBeaconKind)) {
+          (true, 0) => l10n.beaconRoomFactsBroughtOneFromRequest(actorName),
+          (true, 1) => l10n.beaconRoomFactsBroughtOneFromPost(actorName),
+          (true, _) => l10n.beaconRoomFactsBroughtOneNoOrigin(actorName),
+          (false, 0) => l10n.beaconRoomFactsBroughtManyFromRequest(
+            actorName,
+            n,
+          ),
+          (false, 1) => l10n.beaconRoomFactsBroughtManyFromPost(actorName, n),
+          (false, _) => l10n.beaconRoomFactsBroughtManyNoOrigin(
+            actorName,
+            n,
+          ),
+        };
+        final openId = n == 1 ? brought.factCardIds.firstOrNull : null;
+        final roomCubit = context.read<RoomCubit?>();
+        final fact = openId == null
+            ? null
+            : roomCubit?.state.factCards
+                  .where((f) => f.id == openId)
+                  .firstOrNull;
+        return _FactSystemLine(
+          padding: EdgeInsets.fromLTRB(
+            tt.screenHPadding,
+            topPad / 2,
+            tt.screenHPadding,
+            bottomPad / 2,
+          ),
+          icon: Icons.fact_check_outlined,
+          line: line,
+          excerpt: n == 1 ? _factExcerpt(brought.factText) : '',
+          onWhatChanged: null,
+          onOpen: fact == null
+              ? null
+              : (ctx) => unawaited(
+                  showFactActionsSheet(ctx, cubit: roomCubit!, fact: fact),
+                ),
+        );
+      }
     }
 
     if (isFactEditOrUnpinLine(message)) {
@@ -2196,6 +2281,7 @@ class _FactSystemLine extends StatelessWidget {
     required this.line,
     required this.excerpt,
     required this.onWhatChanged,
+    this.onOpen,
   });
 
   final EdgeInsets padding;
@@ -2203,6 +2289,9 @@ class _FactSystemLine extends StatelessWidget {
   final String line;
   final String excerpt;
   final void Function(BuildContext context)? onWhatChanged;
+
+  /// Tap on the line / excerpt (e.g. open the fact it names).
+  final void Function(BuildContext context)? onOpen;
 
   @override
   Widget build(BuildContext context) {
@@ -2215,7 +2304,7 @@ class _FactSystemLine extends StatelessWidget {
       fontWeight: FontWeight.w500,
       height: 1.15,
     );
-    return Padding(
+    final body = Padding(
       padding: padding,
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -2257,6 +2346,10 @@ class _FactSystemLine extends StatelessWidget {
         ],
       ),
     );
+    final open = onOpen;
+    return open == null
+        ? body
+        : InkWell(onTap: () => open(context), child: body);
   }
 }
 

@@ -114,8 +114,7 @@ MyWorkDeskSectionGroup nestMyWorkChildCards({
 bool myWorkCardHasLiveObligation(
   MyWorkCardViewModel card,
   Map<String, MyWorkBeaconAttention> attentionByBeacon,
-) =>
-    attentionByBeacon[card.beaconId]?.liveObligations.isNotEmpty == true;
+) => attentionByBeacon[card.beaconId]?.liveObligations.isNotEmpty == true;
 
 /// Live obligation receipt count for cards in the Needs you section (D4).
 int myWorkNeedsYouObligationReceiptCount(
@@ -129,14 +128,13 @@ int myWorkNeedsYouObligationReceiptCount(
   return count;
 }
 
-bool _filterUsesResponsibilitySections(MyWorkFilter filter) =>
-    switch (filter) {
-      MyWorkFilter.active ||
-      MyWorkFilter.all ||
-      MyWorkFilter.authored ||
-      MyWorkFilter.helpOffered => true,
-      MyWorkFilter.drafts || MyWorkFilter.archived => false,
-    };
+bool _filterUsesResponsibilitySections(MyWorkFilter filter) => switch (filter) {
+  MyWorkFilter.active ||
+  MyWorkFilter.all ||
+  MyWorkFilter.authored ||
+  MyWorkFilter.helpOffered => true,
+  MyWorkFilter.drafts || MyWorkFilter.archived => false,
+};
 
 /// Priority: live obligation → Needs you; else finished → Finished; else In progress.
 ///

@@ -246,7 +246,8 @@ class _FactHistorySheetBody extends StatelessWidget {
                   entry: entries[i],
                   olderRevision: baselines[i],
                   canMutate: canMutate,
-                  isHead: entries[i] is BeaconFactHistoryEntry &&
+                  isHead:
+                      entries[i] is BeaconFactHistoryEntry &&
                       (entries[i] as BeaconFactHistoryEntry).seq == headSeq,
                   isFirst: i == 0,
                   isLast: i == entries.length - 1,
@@ -381,6 +382,15 @@ class _FactHistoryTimelineRow extends StatelessWidget {
                             scheme.onSurfaceVariant,
                           ),
                         )
+                      else if (row is BeaconFactHistoryCopied)
+                        Text(
+                          l10n.beaconRoomFactHistoryBroughtHere(
+                            row.actorTitle,
+                          ),
+                          style: TenturaText.status(
+                            scheme.onSurfaceVariant,
+                          ),
+                        )
                       else if (row is BeaconFactHistoryRestored)
                         Text(
                           l10n.beaconRoomFactHistoryRestoredFrom(
@@ -406,8 +416,7 @@ class _FactHistoryTimelineRow extends StatelessWidget {
                             style: TextButton.styleFrom(
                               padding: EdgeInsets.zero,
                               minimumSize: Size.zero,
-                              tapTargetSize:
-                                  MaterialTapTargetSize.shrinkWrap,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                             ),
                             onPressed: () =>
                                 unawaited(_onRestore(context, row.seq)),

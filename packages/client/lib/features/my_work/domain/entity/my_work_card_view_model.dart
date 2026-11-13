@@ -8,6 +8,7 @@ import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/open_blocker_cue.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon_plan/domain/entity/plan_viewer_slice.dart';
+import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
 import 'package:tentura/features/inbox/domain/entity/inbox_room_card_hints.dart';
 
 import 'my_work_last_event.dart';
@@ -108,6 +109,10 @@ abstract class MyWorkCardViewModel with _$MyWorkCardViewModel {
     /// `file`, `poll`, `fact`); empty for a text message.
     @Default('') String roomLatestMessageKind,
 
+    /// How many facts the latest message brought in from another Request or
+    /// Post (kind `fact` with no text); 0 otherwise.
+    @Default(0) int roomLatestFactCount,
+
     /// U087 — unread messages in every room the viewer can read (discussion
     /// and Questions; #904), shown on the "latest" line or as "+N".
     @Default(0) int roomUnreadCount,
@@ -128,6 +133,18 @@ abstract class MyWorkCardViewModel with _$MyWorkCardViewModel {
   const MyWorkCardViewModel._();
 
   bool get isArchived => viewerArchived;
+
+  /// The latest line from a Requests-list thread preview: a message that
+  /// brought facts reads as the fact text, or as «brought N facts» when a
+  /// group has none. Any other preview kind leaves the line as it is.
+  MyWorkCardViewModel withLatestThreadPreview(ThreadMessagePreview? preview) =>
+      preview?.kind == ThreadMessagePreviewKind.factsBrought
+      ? copyWith(
+          roomLatestMessageText: preview?.factTitle?.trim() ?? '',
+          roomLatestMessageKind: 'fact',
+          roomLatestFactCount: preview?.factCount ?? 0,
+        )
+      : this;
 
   /// Admitted room coordination summary line (Phase 6). U087 — with a
   /// "latest" line the unread count rides on it ("2 new"); without one it

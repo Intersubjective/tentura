@@ -7,7 +7,8 @@ import '../gql/_g/beacon_model_with_help_offer_users.data.gql.dart';
 
 extension type const BeaconModelWithHelpOfferUsers(
   GBeaconModelWithHelpOfferUsers i
-) implements GBeaconModelWithHelpOfferUsers {
+)
+    implements GBeaconModelWithHelpOfferUsers {
   Beacon toEntity() {
     final withHelpers = BeaconModelWithAdmittedHelpers(i).toEntity();
     final offerUsers = <Profile>[
