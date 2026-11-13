@@ -55,11 +55,18 @@ abstract class BeaconFactCardRepositoryPort {
   /// `UnauthorizedException`; a published destination gets one
   /// facts-brought line and a `factPinned` event per inserted fact. An
   /// origin that already has a live copy there is skipped. Returns, per
-  /// prepared copy and in order, the new id or the existing copy's id.
+  /// prepared copy and in order, its `factCardId` when inserted, or the
+  /// existing copy's id.
   Future<List<String>> insertPreparedCopies({
     required String destinationBeaconId,
     required String actorUserId,
     required List<PreparedFactCopy> prepared,
+  });
+
+  /// Copy revisions (kind copied) [actorUserId] wrote within [window].
+  Future<int> countRecentCopyRevisions({
+    required String actorUserId,
+    required Duration window,
   });
 
   /// One SELECT: each existing fact of [factCardIds] with its beacon kind,

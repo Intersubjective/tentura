@@ -3814,6 +3814,7 @@ type mutation_root {
   fieldUnhide(targetKind: Int!, targetId: String!): Boolean!
   BeaconLobbyBan(beaconId: String!, userId: String!): Boolean!
   BeaconLobbyUnban(beaconId: String!, userId: String!): Boolean!
+  BeaconFactCardCopy(destinationBeaconId: String!, sourceFactCardId: String!): v2_BeaconFactCardCopyResult!
   BeaconFactCardCorrect(attachmentsJson: String, baseRevisionSeq: Int!, beaconId: String!, factCardId: String!, newText: String!): Int!
   BeaconFactCardAttachmentUpload(beaconId: String!, file: v2_Upload!): String!
   BeaconFactCardPin(beaconId: String!, factText: String!, sourceMessageId: String, visibility: Int!): Boolean!
@@ -7875,6 +7876,16 @@ type v2_BeaconDisplayStatus {
   status: Int!
   suggestedAction: String!
   tier: String!
+}
+
+enum v2_BeaconFactCardCopyOutcome {
+  created
+  alreadyThere
+}
+
+type v2_BeaconFactCardCopyResult {
+  factCardId: String!
+  outcome: v2_BeaconFactCardCopyOutcome!
 }
 
 type v2_BeaconFactCardRevisionsPage {

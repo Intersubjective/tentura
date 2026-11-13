@@ -1,5 +1,6 @@
 import 'package:graphql_schema2/graphql_schema2.dart';
 
+import 'package:tentura_server/domain/entity/fact_copy_outcome.dart';
 import 'package:tentura_server/domain/entity/forward_tree_edge.dart';
 
 import 'input/_input_types.dart';
@@ -91,6 +92,8 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeBeaconFactCardRow,
   gqlTypeBeaconFactHistoryEntryRow,
   gqlTypeBeaconFactCardRevisionsPage,
+  gqlEnumBeaconFactCardCopyOutcome,
+  gqlTypeBeaconFactCardCopyResult,
   gqlTypeBeaconActivityEventRow,
   gqlTypeInboxRoomContextRow,
   gqlTypeBeaconRoomSeenResult,
@@ -772,6 +775,19 @@ final gqlTypeBeaconFactCardRevisionsPage =
           ).nonNullable(),
         ),
         field('nextCursor', graphQLString),
+      ]);
+
+/// [FactCopyOutcome] names, the outcome of BeaconFactCardCopy.
+final gqlEnumBeaconFactCardCopyOutcome = enumTypeFromStrings(
+  'BeaconFactCardCopyOutcome',
+  [for (final o in FactCopyOutcome.values) o.name],
+);
+
+final gqlTypeBeaconFactCardCopyResult =
+    GraphQLObjectType('BeaconFactCardCopyResult', null)
+      ..fields.addAll([
+        field('factCardId', graphQLString.nonNullable()),
+        field('outcome', gqlEnumBeaconFactCardCopyOutcome.nonNullable()),
       ]);
 
 /// `beacon_activity_event` projection for BeaconActivityEventList (V2).

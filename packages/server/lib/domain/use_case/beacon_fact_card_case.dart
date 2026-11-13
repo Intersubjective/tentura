@@ -12,6 +12,8 @@ import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/domain/entity/beacon_fact_card_outcome.dart';
 import 'package:tentura_server/domain/entity/beacon_fact_history_entry_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_fact_room_access.dart';
+import 'package:tentura_server/domain/entity/beacon_kind.dart';
+import 'package:tentura_server/domain/entity/fact_copy_outcome.dart';
 import 'package:tentura_server/domain/entity/fact_copy_source.dart';
 import 'package:tentura_server/domain/entity/prepared_fact_copy.dart';
 import 'package:tentura_server/domain/entity/task_entity.dart';
@@ -26,6 +28,7 @@ import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/domain/port/image_repository_port.dart';
 import 'package:tentura_server/domain/port/task_repository_port.dart';
 import 'package:tentura_server/domain/request_context.dart';
+import 'package:tentura_server/domain/use_case/room_write_guard.dart';
 import 'package:tentura_server/utils/id.dart';
 import 'package:tentura_server/utils/postgres_sql_state.dart';
 import 'package:tentura_server/utils/read_uint8_stream_with_limit.dart';
@@ -39,10 +42,7 @@ final class BeaconFactCardCase extends UseCaseBase {
     this._room,
     this._imageRepository,
     this._tasksRepository,
-    // Kept for DI; writes and list go through the fused loadRoomAccess
-    // preflight.
-    // ignore: avoid_unused_constructor_parameters
-    BeaconHierarchyRepositoryPort hierarchyRepository,
+    this._hierarchyRepository,
     // Kept for DI, same as the hierarchy port above.
     // ignore: avoid_unused_constructor_parameters
     BeaconAccessGuard guard, {
@@ -62,6 +62,9 @@ final class BeaconFactCardCase extends UseCaseBase {
   final ImageRepositoryPort _imageRepository;
 
   final TaskRepositoryPort _tasksRepository;
+
+  /// Classifies a write that lost a race with closing or archiving.
+  final BeaconHierarchyRepositoryPort _hierarchyRepository;
 
   /// Fused `loadRoomAccess` preflight: room use plus lifecycle write check.
   Future<void> _ensureWritableRoomAccess({
@@ -85,6 +88,113 @@ final class BeaconFactCardCase extends UseCaseBase {
       throw const BeaconCreateException(
         description: 'Discussion is read-only for this request',
       );
+    }
+  }
+
+  /// Plan §5.3: the destination of a copy. Block A accepts only a
+  /// published Request the actor can use. A missing, deleted, draft or Post
+  /// destination and a non-member all get the same [UnauthorizedException],
+  /// so beacon ids cannot be probed; a read-only room is reported only after
+  /// membership passed.
+  Future<void> _ensureCopyDestination({
+    required String beaconId,
+    required String userId,
+  }) async {
+    final access = await _facts.loadRoomAccess(
+      beaconId: beaconId,
+      userId: userId,
+    );
+    final status = BeaconStatus.fromSmallint(access.beaconStatus);
+    if (!access.exists ||
+        !access.canUseRoom ||
+        access.isDraft ||
+        access.kind != BeaconKind.request.value ||
+        status == BeaconStatus.deleted) {
+      throw const UnauthorizedException(description: 'Room access required');
+    }
+    if (BeaconRoomLifecycleWritePolicy.blocksOrdinaryUserWrites(status) ||
+        access.isExpiredPost) {
+      throw kRoomReadOnlyException;
+    }
+  }
+
+  /// Plan §5.4 `BeaconFactCardCopy`: copies one fact into a published
+  /// Request. Order: destination check, copy rate limit, [prepareCopies],
+  /// insert; the source is loaded only after the first two passed. Blobs of
+  /// a copy that was not inserted are compensated; hash tasks are scheduled
+  /// for the inserted copy's images after the insert committed.
+  Future<({String factCardId, FactCopyOutcome outcome})> copy({
+    required String sourceFactCardId,
+    required String destinationBeaconId,
+    required String actorUserId,
+  }) async {
+    await _ensureCopyDestination(
+      beaconId: destinationBeaconId,
+      userId: actorUserId,
+    );
+    final recentCopies = await _facts.countRecentCopyRevisions(
+      actorUserId: actorUserId,
+      window: env.factEditRateWindow,
+    );
+    if (recentCopies >= env.factCopyRateMax) {
+      throw const BeaconFactCardRateLimitedException(
+        description: 'Too many fact copies',
+      );
+    }
+    final (:prepared, :alreadyThere) = await prepareCopies(
+      sourceFactCardIds: [sourceFactCardId],
+      actorUserId: actorUserId,
+      destinationBeaconId: destinationBeaconId,
+      skipUnavailable: false,
+    );
+    if (alreadyThere[sourceFactCardId] case final existingId?) {
+      return (factCardId: existingId, outcome: FactCopyOutcome.alreadyThere);
+    }
+    final copy = prepared.single;
+    final String id;
+    try {
+      id = (await _hierarchyRepository.translateRoomWriteError(
+        () => _facts.insertPreparedCopies(
+          destinationBeaconId: destinationBeaconId,
+          actorUserId: actorUserId,
+          prepared: prepared,
+        ),
+      )).single;
+    } catch (_) {
+      await _compensateBlobs(copy, actorUserId: actorUserId);
+      rethrow;
+    }
+    if (id != copy.factCardId) {
+      await _compensateBlobs(copy, actorUserId: actorUserId);
+      return (factCardId: id, outcome: FactCopyOutcome.alreadyThere);
+    }
+    for (final imageId in copy.newImageIds) {
+      await _scheduleHashTaskNonFatal(imageId);
+    }
+    return (factCardId: id, outcome: FactCopyOutcome.created);
+  }
+
+  Future<void> _compensateBlobs(
+    PreparedFactCopy copy, {
+    required String actorUserId,
+  }) async {
+    for (final imageId in copy.newImageIds) {
+      await _imageRepository.compensateOrphanedUpload(
+        imageId: imageId,
+        authorId: actorUserId,
+      );
+    }
+  }
+
+  /// The image is already stored and referenced; a failed hash task only
+  /// delays its blur hash.
+  Future<void> _scheduleHashTaskNonFatal(String imageId) async {
+    try {
+      await _tasksRepository.schedule(
+        TaskEntity(details: TaskCalculateImageHashDetails(imageId: imageId)),
+      );
+    } catch (e, st) {
+      logger.warning('failed to schedule hash task for image $imageId', e, st);
     }
   }
 

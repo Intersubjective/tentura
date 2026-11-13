@@ -153,6 +153,7 @@ class Env {
     int? roomMessageMaxPerUser,
     Duration? factEditRateWindow,
     int? factEditRateMax,
+    int? factCopyRateMax,
     bool? planEnabled,
     int? uploadDailyCapBytes,
 
@@ -331,6 +332,8 @@ class Env {
              seconds: _envInt('FACT_EDIT_RATE_WINDOW') ?? 60,
            ),
        factEditRateMax = factEditRateMax ?? _envInt('FACT_EDIT_RATE_MAX') ?? 20,
+       factCopyRateMax =
+           factCopyRateMax ?? _envInt('FACT_COPY_RATE_MAX') ?? 60,
        planEnabled = planEnabled ?? _env['PLAN_ENABLED'] != 'false',
        uploadDailyCapBytes =
            uploadDailyCapBytes ??
@@ -696,6 +699,11 @@ class Env {
   /// Max fact-card edits/restores one actor may make within
   /// [factEditRateWindow] (`FACT_EDIT_RATE_MAX`).
   final int factEditRateMax;
+
+  /// Max fact copies one actor may make within [factEditRateWindow]
+  /// (`FACT_COPY_RATE_MAX`). Copy revisions do not count toward
+  /// [factEditRateMax].
+  final int factCopyRateMax;
 
   /// Request plan («либретто», #220) kill switch: `PLAN_ENABLED=false` turns
   /// off plan writes, the step sweep and plan copy on fork. On by default.

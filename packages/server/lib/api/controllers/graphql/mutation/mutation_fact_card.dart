@@ -1,6 +1,7 @@
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/use_case/beacon_fact_card_case.dart';
 
+import '../custom_types.dart';
 import '../gql_nodel_base.dart';
 import '../input/_input_types.dart';
 
@@ -31,6 +32,12 @@ final class MutationFactCard extends GqlNodeBase {
 
   final _sourceMessageId = InputFieldString(fieldName: 'sourceMessageId');
 
+  final _sourceFactCardId = InputFieldString(fieldName: 'sourceFactCardId');
+
+  final _destinationBeaconId = InputFieldString(
+    fieldName: 'destinationBeaconId',
+  );
+
   List<GraphQLObjectField<dynamic, dynamic>> get all =>
       [
         beaconFactCardPin,
@@ -39,7 +46,29 @@ final class MutationFactCard extends GqlNodeBase {
         beaconFactCardRestore,
         beaconFactCardRemove,
         beaconFactCardSetVisibility,
+        beaconFactCardCopy,
       ];
+
+  GraphQLObjectField<dynamic, dynamic> get beaconFactCardCopy =>
+      GraphQLObjectField(
+        'BeaconFactCardCopy',
+        gqlTypeBeaconFactCardCopyResult.nonNullable(),
+        arguments: [
+          _sourceFactCardId.field,
+          _destinationBeaconId.field,
+        ],
+        resolve: (_, args) async {
+          final result = await _case.copy(
+            sourceFactCardId: _sourceFactCardId.fromArgsNonNullable(args),
+            destinationBeaconId: _destinationBeaconId.fromArgsNonNullable(args),
+            actorUserId: getCredentials(args).sub,
+          );
+          return {
+            'factCardId': result.factCardId,
+            'outcome': result.outcome.name,
+          };
+        },
+      );
 
   GraphQLObjectField<dynamic, dynamic> get beaconFactCardSetVisibility =>
       GraphQLObjectField(

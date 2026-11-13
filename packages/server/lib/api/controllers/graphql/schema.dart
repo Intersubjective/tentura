@@ -1,6 +1,6 @@
 import 'package:collection/collection.dart' show IterableExtension;
 import 'package:graphql_parser2/graphql_parser2.dart'
-    show SelectionContext, TypeContext;
+    show DocumentContext, SelectionContext, SelectionSetContext, TypeContext;
 import 'package:graphql_schema2/graphql_schema2.dart';
 import 'package:graphql_server2/graphql_server2.dart';
 
@@ -77,6 +77,51 @@ class TenturaGraphQL extends GraphQL {
       }
       throw GraphQLException.fromMessage('Unknown GraphQL type: "$name".');
     }
+  }
+
+  /// The stock executor silently skips a selected field the object type
+  /// does not define, answering `{"data": {}}` for a misspelled or missing
+  /// mutation. Reject it as a GraphQL error instead, at every level. Fields
+  /// are looked up by response key, as the executor does.
+  @override
+  Future<Map<String, dynamic>> executeSelectionSet(
+    DocumentContext document,
+    SelectionSetContext selectionSet,
+    GraphQLObjectType? objectType,
+    dynamic objectValue,
+    Map<String, dynamic> variableValues,
+    Map<String, dynamic> globalVariables, {
+    List<List<dynamic>> lazy = const [],
+    GraphQLObjectType? parentType,
+  }) {
+    if (objectType != null) {
+      final grouped = collectFields(
+        document,
+        objectType,
+        selectionSet,
+        variableValues,
+        parentType: parentType,
+      );
+      for (final key in grouped.keys) {
+        if (key != null &&
+            key != '__typename' &&
+            !objectType.fields.any((f) => f.name == key)) {
+          throw GraphQLException.fromMessage(
+            'Cannot query field "$key" on type "${objectType.name}".',
+          );
+        }
+      }
+    }
+    return super.executeSelectionSet(
+      document,
+      selectionSet,
+      objectType,
+      objectValue,
+      variableValues,
+      globalVariables,
+      lazy: lazy,
+      parentType: parentType,
+    );
   }
 
   @override

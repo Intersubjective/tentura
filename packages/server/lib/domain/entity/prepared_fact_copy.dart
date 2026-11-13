@@ -1,15 +1,22 @@
+import 'package:tentura_server/utils/id.dart';
+
 /// A fact copy whose blobs are already duplicated, ready to be inserted into
 /// the destination beacon (plan §5.2). [attachmentsJson] already points at
 /// the new blobs; [newImageIds] lists them for compensation and hash tasks.
+/// [factCardId] is the id the copy is inserted under; an insert that answers
+/// another id lost the race to an existing live copy.
 class PreparedFactCopy {
-  const PreparedFactCopy({
+  PreparedFactCopy({
     required this.originFactCardId,
     required this.originRevisionSeq,
     required this.originBeaconKind,
     required this.factText,
     required this.attachmentsJson,
     required this.newImageIds,
-  });
+    String? factCardId,
+  }) : factCardId = factCardId ?? generateId('F');
+
+  final String factCardId;
 
   final String originFactCardId;
   final int originRevisionSeq;

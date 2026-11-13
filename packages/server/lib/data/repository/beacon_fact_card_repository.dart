@@ -342,7 +342,7 @@ FOR NO KEY UPDATE
           throw const UnauthorizedException();
         }
         final announce = !destination.read<bool>('is_draft');
-        final newIds = [for (final _ in prepared) generateId('F')];
+        final newIds = [for (final c in prepared) c.factCardId];
         final inserted = await _db
             .customSelect(
               '''
@@ -495,6 +495,29 @@ WHERE beacon_id = $1::text
       },
     ),
   );
+
+  @override
+  Future<int> countRecentCopyRevisions({
+    required String actorUserId,
+    required Duration window,
+  }) async {
+    final row = await _db
+        .customSelect(
+          '''
+SELECT count(*)::integer AS n
+FROM public.beacon_fact_card_revision
+WHERE actor_id = \$1::text
+  AND kind = ${BeaconFactCardRevisionKindBits.copied}
+  AND created_at > now() - make_interval(secs => \$2::int)
+''',
+          variables: [
+            Variable<String>(actorUserId),
+            Variable<int>(window.inSeconds),
+          ],
+        )
+        .getSingle();
+    return row.read<int>('n');
+  }
 
   /// Copies the fact's source-message attachments into [seq]'s snapshot.
   Future<void> _copySourceAttachmentsOntoRevision({
@@ -917,6 +940,7 @@ input AS (
          ($13::int IS NULL OR EXISTS (SELECT 1 FROM src)) AS src_ok,
          (SELECT count(*) FROM public.beacon_fact_card_revision r
           WHERE r.actor_id = $3::text
+            AND r.kind <> 4 -- copies have their own limit (FACT_COPY_RATE_MAX)
             AND r.created_at > now() - make_interval(secs => $6::int)
          ) < $7::int AS rate_ok
 ),
