@@ -16,4 +16,5 @@ abstract final class BeaconFactCardRevisionKindBits {
   static const edited = 1;
   static const restored = 2;
   static const imported = 3;
+  static const copied = 4;
 }

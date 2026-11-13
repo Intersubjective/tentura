@@ -46,6 +46,16 @@ class BeaconFactCards extends Table with TimestampsFields {
     const Constant(false),
   )();
 
+  /// Fact this one was copied from; no FK so it outlives the source. The
+  /// three origin columns are all set or all null and write-once (`m0312`).
+  late final originFactCardId = text().nullable()();
+
+  /// Source revision that was copied (>= 1).
+  late final originRevisionSeq = integer().nullable()();
+
+  /// Kind of the source beacon: 0 Request, 1 Post.
+  late final originBeaconKind = integer().nullable()();
+
   @override
   Set<Column<Object>> get primaryKey => {id};
 

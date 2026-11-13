@@ -24,6 +24,7 @@ void main() {
       expect(BeaconFactCardRevisionKindBits.edited, 1);
       expect(BeaconFactCardRevisionKindBits.restored, 2);
       expect(BeaconFactCardRevisionKindBits.imported, 3);
+      expect(BeaconFactCardRevisionKindBits.copied, 4);
     });
   });
 
