@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/features/beacon_threads/data/repository/beacon_fact_card_repository.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/fact_actions_sheet.dart';
+import 'package:tentura/features/beacon_threads/ui/widget/fact_copy_destination_sheet.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/fact_history_sheet.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/ui/beacon/beacon_room_navigation_scope.dart';
@@ -17,14 +18,16 @@ Future<void> showBeaconFactActions(
   BuildContext pageContext, {
   required BeaconViewCubit cubit,
   required BeaconFactCard fact,
-  void Function(BeaconFactCard fact) onUseElsewhere = ignoreUseElsewhere,
+  void Function(BeaconFactCard fact)? onUseElsewhere,
   BeaconFactOrigin? copyArrival,
 }) {
   final navigation = BeaconRoomNavigationScope.maybeOf(pageContext);
   return showFactActionsHostSheet(
     pageContext,
     fact: fact,
-    onUseElsewhere: onUseElsewhere,
+    onUseElsewhere:
+        onUseElsewhere ??
+        (f) => unawaited(showFactCopyDestinationSheet(pageContext, fact: f)),
     copyArrival: copyArrival,
     canMutate: cubit.state.beacon.status.allowsDiscussionWrites,
     onCorrect: ({required factCardId, required newText, String? attachmentsJson}) =>

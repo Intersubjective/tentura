@@ -15,6 +15,7 @@ import 'package:tentura/features/beacon_threads/data/repository/beacon_fact_card
 import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/message/beacon_room_fact_messages.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/fact_attachment_preview_strip.dart';
+import 'package:tentura/features/beacon_threads/ui/widget/fact_copy_destination_sheet.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/fact_history_sheet.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/fact_origin_line.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/fact_provenance_line.dart';
@@ -30,7 +31,7 @@ Future<void> showFactActionsSheet(
   required RoomCubit cubit,
   required BeaconFactCard fact,
   void Function(BeaconFactCard fact)? onQuoteInChat,
-  void Function(BeaconFactCard fact) onUseElsewhere = ignoreUseElsewhere,
+  void Function(BeaconFactCard fact)? onUseElsewhere,
   BeaconFactOrigin? copyArrival,
 }) {
   return showFactActionsHostSheet(
@@ -39,7 +40,9 @@ Future<void> showFactActionsSheet(
     canMutate: cubit.state.canWriteDiscussion,
     myUserId: cubit.state.myUserId,
     onQuoteInChat: onQuoteInChat,
-    onUseElsewhere: onUseElsewhere,
+    onUseElsewhere:
+        onUseElsewhere ??
+        (f) => unawaited(showFactCopyDestinationSheet(context, fact: f)),
     copyArrival: copyArrival,
     // Base seq is the one the edit sheet opened with (plan §14.6); after a
     // revision conflict, "Save mine" retries against the conflict's seq.
@@ -81,10 +84,6 @@ Future<void> showFactActionsSheet(
     ),
   );
 }
-
-/// Default «Use in another Request» handler until the destination picker
-/// takes it over (the tile is offered to every reader).
-void ignoreUseElsewhere(BeaconFactCard fact) {}
 
 Future<void> showFactActionsHostSheet(
   BuildContext context, {

@@ -11811,5 +11811,19 @@
   "beaconRoomFactHistoryEarlierElsewhere": "Earlier history lives where this fact came from",
   "@beaconRoomFactHistoryEarlierElsewhere": {"description": "Footer of a copied fact's history"},
   "beaconRoomFactHistoryOpenOrigin": "Open",
-  "@beaconRoomFactHistoryOpenOrigin": {"description": "Button in the copied-fact history footer: opens the source fact"}
+  "@beaconRoomFactHistoryOpenOrigin": {"description": "Button in the copied-fact history footer: opens the source fact"},
+  "beaconFactCopyNote": "It will be visible in that discussion only.",
+  "@beaconFactCopyNote": {"description": "Destination picker: who sees the copied fact"},
+  "beaconFactCopySearchHint": "Search Requests",
+  "@beaconFactCopySearchHint": {"description": "Destination picker: search field hint"},
+  "beaconFactCopyCopiedTo": "Copied to {title}",
+  "@beaconFactCopyCopiedTo": {"description": "Snackbar after a fact was copied into a Request", "placeholders": {"title": {"type": "String"}}},
+  "beaconFactCopyAlreadyThere": "Already there",
+  "@beaconFactCopyAlreadyThere": {"description": "Snackbar: the fact was already copied into that Request"},
+  "beaconFactCopyEmpty": "You have no open Request to copy into",
+  "@beaconFactCopyEmpty": {"description": "Destination picker: nothing to copy into"},
+  "beaconFactCopyUnavailable": "This fact is no longer available",
+  "@beaconFactCopyUnavailable": {"description": "Snackbar: the source fact is gone or unreadable"},
+  "beaconFactCopyNotAllowed": "You can't add facts there",
+  "@beaconFactCopyNotAllowed": {"description": "Snackbar: the destination refuses the copy"}
 }

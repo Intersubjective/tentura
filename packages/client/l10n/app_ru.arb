@@ -7077,5 +7077,12 @@
   "beaconRoomFactSeeCopiedVersion": "Посмотреть скопированную версию",
   "beaconRoomFactCardActionUseElsewhere": "Использовать в другом запросе",
   "beaconRoomFactHistoryEarlierElsewhere": "Более ранняя история — там, откуда пришёл факт",
-  "beaconRoomFactHistoryOpenOrigin": "Открыть"
+  "beaconRoomFactHistoryOpenOrigin": "Открыть",
+  "beaconFactCopyNote": "Это будет видно только в том обсуждении.",
+  "beaconFactCopySearchHint": "Поиск запросов",
+  "beaconFactCopyCopiedTo": "Скопировано в «{title}»",
+  "beaconFactCopyAlreadyThere": "Уже там",
+  "beaconFactCopyEmpty": "У вас нет открытого запроса, куда можно скопировать",
+  "beaconFactCopyUnavailable": "Этот факт больше недоступен",
+  "beaconFactCopyNotAllowed": "Вы не можете добавлять туда факты"
 }
