@@ -28,3 +28,9 @@ const kFactSystemLineTextMax = 160;
 
 /// Page size for fact revision history.
 const kFactHistoryPageSize = 50;
+
+/// Max distinct source facts one copy call accepts (plan §5.2 step 8).
+const kMaxFactCopySourcesPerCall = 20;
+
+/// Max images one copy call re-stores (plan §5.2 step 8).
+const kMaxFactCopyImagesPerCall = 40;

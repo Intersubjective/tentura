@@ -11,6 +11,9 @@ import 'package:tentura_server/consts/beacon_fact_card_consts.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/domain/entity/beacon_fact_card_outcome.dart';
 import 'package:tentura_server/domain/entity/beacon_fact_history_entry_entity.dart';
+import 'package:tentura_server/domain/entity/beacon_fact_room_access.dart';
+import 'package:tentura_server/domain/entity/fact_copy_source.dart';
+import 'package:tentura_server/domain/entity/prepared_fact_copy.dart';
 import 'package:tentura_server/domain/entity/task_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/policy/beacon_kind_policy.dart';
@@ -84,6 +87,181 @@ final class BeaconFactCardCase extends UseCaseBase {
       );
     }
   }
+
+  /// Plan §5.2 `prepareCopies`: authorises and snapshots each source fact
+  /// and re-stores its images under [actorUserId]. The caller has already
+  /// checked the destination (and, for a single copy, the copy rate limit).
+  ///
+  /// An unavailable source (missing, removed, outside
+  /// [requiredSourceBeaconId], already in [destinationBeaconId], or failing
+  /// the fact access rule) throws [FactCopySourceUnavailableException], or
+  /// is dropped when [skipUnavailable]. A fact with a live copy in
+  /// [destinationBeaconId] is reported in `alreadyThere` without blob work.
+  /// Hash tasks are left to the caller, after the copies are inserted.
+  Future<({List<PreparedFactCopy> prepared, Map<String, String> alreadyThere})>
+  prepareCopies({
+    required List<String> sourceFactCardIds,
+    required String actorUserId,
+    required bool skipUnavailable,
+    String? destinationBeaconId,
+    String? requiredSourceBeaconId,
+  }) async {
+    final ids = sourceFactCardIds.toSet().toList();
+    if (ids.length > kMaxFactCopySourcesPerCall) {
+      throw const BeaconCreateException(description: 'Too many facts to copy');
+    }
+    final loaded = {
+      for (final source in await _facts.loadCopySources(factCardIds: ids))
+        source.factCardId: source,
+    };
+    final accessByBeacon = <String, BeaconFactRoomAccess>{};
+    final available = <FactCopySource>[];
+    for (final id in ids) {
+      final source = loaded[id];
+      if (source != null &&
+          await _canCopyFrom(
+            source,
+            actorUserId: actorUserId,
+            destinationBeaconId: destinationBeaconId,
+            requiredSourceBeaconId: requiredSourceBeaconId,
+            accessByBeacon: accessByBeacon,
+          )) {
+        available.add(source);
+      } else if (!skipUnavailable) {
+        throw const FactCopySourceUnavailableException();
+      }
+    }
+
+    final alreadyThere = destinationBeaconId == null || available.isEmpty
+        ? const <String, String>{}
+        : await _facts.liveCopiesByOrigin(
+            beaconId: destinationBeaconId,
+            originFactCardIds: [for (final s in available) s.factCardId],
+          );
+
+    final prepared = <PreparedFactCopy>[];
+    // Every blob this call created and still owns, for compensation.
+    final created = <String>[];
+    var imageCount = 0;
+    var imagesStopped = false;
+    try {
+      for (final source in available) {
+        if (alreadyThere.containsKey(source.factCardId)) continue;
+        final images = [
+          for (final a in source.attachments)
+            if (_copyableImageId(a) case final imageId?)
+              (imageId: imageId, fields: a.fields),
+        ];
+        if (images.isNotEmpty && imagesStopped) continue;
+
+        final factBlobs = <String>[];
+        final attachments = <Map<String, Object?>>[];
+        var dropFact = false;
+        for (final a in images) {
+          if (imageCount == kMaxFactCopyImagesPerCall) {
+            if (!skipUnavailable) {
+              throw const BeaconCreateException(
+                description: 'Too many images to copy',
+              );
+            }
+            dropFact = true;
+            break;
+          }
+          final bytes = await _imageRepository.get(id: a.imageId);
+          final String newImageId;
+          try {
+            newImageId = await _imageRepository.put(
+              authorId: actorUserId,
+              bytes: Stream.value(bytes),
+            );
+          } on RateLimitedException {
+            if (!skipUnavailable) rethrow;
+            dropFact = true;
+            break;
+          }
+          imageCount++;
+          factBlobs.add(newImageId);
+          created.add(newImageId);
+          attachments.add({
+            ...a.fields,
+            'id': generateId('A'),
+            'imageId': newImageId,
+            'imageAuthorId': actorUserId,
+          });
+        }
+        if (dropFact) {
+          // R1 / X9: drop this fact and stop copying images in this call.
+          imagesStopped = true;
+          for (final imageId in factBlobs) {
+            created.remove(imageId);
+            await _imageRepository.compensateOrphanedUpload(
+              imageId: imageId,
+              authorId: actorUserId,
+            );
+          }
+          continue;
+        }
+        prepared.add(
+          PreparedFactCopy(
+            originFactCardId: source.factCardId,
+            originRevisionSeq: source.headRevisionSeq,
+            originBeaconKind: source.beaconKind,
+            factText: source.headText,
+            attachmentsJson: jsonEncode(attachments),
+            newImageIds: factBlobs,
+          ),
+        );
+      }
+    } catch (_) {
+      for (final imageId in created) {
+        await _imageRepository.compensateOrphanedUpload(
+          imageId: imageId,
+          authorId: actorUserId,
+        );
+      }
+      rethrow;
+    }
+    return (prepared: prepared, alreadyThere: alreadyThere);
+  }
+
+  /// Plan §5.2 step 3 and the §4.4 fact access rule.
+  Future<bool> _canCopyFrom(
+    FactCopySource source, {
+    required String actorUserId,
+    required String? destinationBeaconId,
+    required String? requiredSourceBeaconId,
+    required Map<String, BeaconFactRoomAccess> accessByBeacon,
+  }) async {
+    if (source.status == BeaconFactCardStatusBits.removed) return false;
+    if (requiredSourceBeaconId != null &&
+        source.beaconId != requiredSourceBeaconId) {
+      return false;
+    }
+    if (source.beaconId == destinationBeaconId) return false;
+    final access = accessByBeacon[source.beaconId] ??= await _facts
+        .loadRoomAccess(beaconId: source.beaconId, userId: actorUserId);
+    if (!access.exists) return false;
+    return source.visibility == BeaconFactCardVisibilityBits.public
+        ? access.canReadContent
+        : access.canUseRoom;
+  }
+
+  /// R2: the image id of an image entry with a valid id whose row still
+  /// exists; null for any other entry.
+  static String? _copyableImageId(FactCopySourceAttachment a) =>
+      switch (a.fields) {
+        {
+          'kind': BeaconRoomMessageAttachmentKind.image,
+          'imageId': final String imageId,
+        }
+            when a.imageExists &&
+                Uuid.isValidUUID(
+                  fromString: imageId,
+                  validationMode: ValidationMode.nonStrict,
+                ) =>
+          imageId,
+        _ => null,
+      };
 
   Future<Map<String, Object?>> pin({
     required String beaconId,

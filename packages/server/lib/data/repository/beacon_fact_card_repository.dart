@@ -15,6 +15,7 @@ import 'package:tentura_server/domain/entity/beacon_fact_card_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_fact_card_outcome.dart';
 import 'package:tentura_server/domain/entity/beacon_fact_history_entry_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_fact_room_access.dart';
+import 'package:tentura_server/domain/entity/fact_copy_source.dart';
 import 'package:tentura_server/domain/entity/prepared_fact_copy.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/utils/id.dart';
@@ -40,14 +41,16 @@ class BeaconFactCardRepository implements BeaconFactCardRepositoryPort {
     required String beaconId,
     required String userId,
   }) async {
-    final row = await _db.customSelect(
-      r'''
+    final row = await _db
+        .customSelect(
+          r'''
 SELECT kind, status, is_draft, is_expired_post, beacon_exists,
        can_read, can_use_room
 FROM public.beacon_fact_access($1::text, $2::text)
 ''',
-      variables: [Variable<String>(beaconId), Variable<String>(userId)],
-    ).getSingle();
+          variables: [Variable<String>(beaconId), Variable<String>(userId)],
+        )
+        .getSingle();
     if (!row.read<bool>('beacon_exists')) {
       return const BeaconFactRoomAccess(
         beaconStatus: 0,
@@ -78,8 +81,9 @@ FROM public.beacon_fact_access($1::text, $2::text)
     required bool includeRoomOnly,
   }) async {
     final rows = await sentryDbSpan('db.fact.list', (span) async {
-      final rows = await _db.customSelect(
-        '''
+      final rows = await _db
+          .customSelect(
+            '''
 SELECT
   f.id, f.beacon_id, f.fact_text, f.visibility::integer AS visibility,
   f.pinned_by, f.source_message_id, f.status::integer AS status,
@@ -95,11 +99,12 @@ WHERE f.beacon_id = \$1::text
   AND (\$2::boolean OR f.visibility <> ${BeaconFactCardVisibilityBits.room})
 ORDER BY f.created_at, f.id
 ''',
-        variables: [
-          Variable<String>(beaconId),
-          Variable<bool>(includeRoomOnly),
-        ],
-      ).get();
+            variables: [
+              Variable<String>(beaconId),
+              Variable<bool>(includeRoomOnly),
+            ],
+          )
+          .get();
       span?.setData('db.rows', rows.length);
       return rows;
     });
@@ -134,8 +139,9 @@ ORDER BY f.created_at, f.id
     List<String> beaconIds,
   ) async {
     if (beaconIds.isEmpty) return const {};
-    final rows = await _db.customSelect(
-      '''
+    final rows = await _db
+        .customSelect(
+          '''
 SELECT DISTINCT ON (f.beacon_id) f.beacon_id, f.fact_text
 FROM public.beacon_fact_card f
 WHERE f.beacon_id = ANY(\$1::text[])
@@ -143,8 +149,9 @@ WHERE f.beacon_id = ANY(\$1::text[])
   AND f.status IN (${BeaconFactCardStatusBits.active}, ${BeaconFactCardStatusBits.corrected})
 ORDER BY f.beacon_id, f.created_at DESC
 ''',
-      variables: [Variable(TypedValue(Type.textArray, beaconIds))],
-    ).get();
+          variables: [Variable(TypedValue(Type.textArray, beaconIds))],
+        )
+        .get();
     return {
       for (final row in rows)
         row.read<String>('beacon_id'): _snippet(row.read<String>('fact_text')),
@@ -167,13 +174,15 @@ ORDER BY f.beacon_id, f.created_at DESC
     required int visibility,
     required String pinnedBy,
     String? sourceMessageId,
-  }) =>
-      _db.withMutatingUser(pinnedBy, () => sentryDbSpan('db.fact.pin', (
-        _,
-      ) async {
-        final isPublic = visibility == BeaconFactCardVisibilityBits.public;
-        final row = await _db.customSelect(
-          '''
+  }) => _db.withMutatingUser(
+    pinnedBy,
+    () => sentryDbSpan('db.fact.pin', (
+      _,
+    ) async {
+      final isPublic = visibility == BeaconFactCardVisibilityBits.public;
+      final row = await _db
+          .customSelect(
+            '''
 WITH src AS (
   SELECT (
     \$5::text IS NULL OR EXISTS (
@@ -238,59 +247,63 @@ event AS (
 SELECT src.ok AS source_ok, f.*
 FROM src LEFT JOIN fact f ON true
 ''',
-          variables: [
-            Variable<String>(beaconId),
-            Variable<String>(factText.trim()),
-            Variable<int>(visibility),
-            Variable<String>(pinnedBy),
-            Variable<String>(sourceMessageId),
-            Variable<String>(generateId('F')),
-            Variable<String>(generateId('FR')),
-            Variable<String>(generateId('R')),
-            Variable<String>(BeaconActivityEventEntity.newId),
-            Variable<int>(
-              isPublic
-                  ? BeaconRoomSemanticMarker.pinFactPublic
-                  : BeaconRoomSemanticMarker.pinFactPrivate,
-            ),
-            Variable<int>(
-              isPublic
-                  ? BeaconActivityEventVisibilityBits.public
-                  : BeaconActivityEventVisibilityBits.room,
-            ),
-          ],
-        ).getSingle();
-        if (!row.read<bool>('source_ok')) {
-          throw IdNotFoundException(
-            description: 'Source message [$sourceMessageId]',
-          );
-        }
-        final id = row.readNullable<String>('id');
-        if (id == null) {
-          final existing = await _db.customSelect(
-            r'''
+            variables: [
+              Variable<String>(beaconId),
+              Variable<String>(factText.trim()),
+              Variable<int>(visibility),
+              Variable<String>(pinnedBy),
+              Variable<String>(sourceMessageId),
+              Variable<String>(generateId('F')),
+              Variable<String>(generateId('FR')),
+              Variable<String>(generateId('R')),
+              Variable<String>(BeaconActivityEventEntity.newId),
+              Variable<int>(
+                isPublic
+                    ? BeaconRoomSemanticMarker.pinFactPublic
+                    : BeaconRoomSemanticMarker.pinFactPrivate,
+              ),
+              Variable<int>(
+                isPublic
+                    ? BeaconActivityEventVisibilityBits.public
+                    : BeaconActivityEventVisibilityBits.room,
+              ),
+            ],
+          )
+          .getSingle();
+      if (!row.read<bool>('source_ok')) {
+        throw IdNotFoundException(
+          description: 'Source message [$sourceMessageId]',
+        );
+      }
+      final id = row.readNullable<String>('id');
+      if (id == null) {
+        final existing = await _db
+            .customSelect(
+              r'''
 SELECT id FROM public.beacon_fact_card
 WHERE source_message_id = $1::text AND status IN (0, 1)
 ''',
-            variables: [Variable<String>(sourceMessageId)],
-          ).getSingle();
-          throw BeaconFactCardAlreadyPinnedException(
-            existingFactCardId: existing.read<String>('id'),
-          );
-        }
-        await _copySourceAttachmentsOntoRevision(factCardId: id, seq: 1);
-        return BeaconFactCardEntity(
-          id: id,
-          beaconId: row.read<String>('beacon_id'),
-          factText: row.read<String>('fact_text'),
-          visibility: row.read<int>('visibility'),
-          pinnedBy: row.read<String>('pinned_by'),
-          createdAt: _readTimestamp(row, 'created_at'),
-          sourceMessageId: row.readNullable<String>('source_message_id'),
-          status: row.read<int>('status'),
-          updatedAt: _readNullableTimestamp(row, 'updated_at'),
+              variables: [Variable<String>(sourceMessageId)],
+            )
+            .getSingle();
+        throw BeaconFactCardAlreadyPinnedException(
+          existingFactCardId: existing.read<String>('id'),
         );
-      }));
+      }
+      await _copySourceAttachmentsOntoRevision(factCardId: id, seq: 1);
+      return BeaconFactCardEntity(
+        id: id,
+        beaconId: row.read<String>('beacon_id'),
+        factText: row.read<String>('fact_text'),
+        visibility: row.read<int>('visibility'),
+        pinnedBy: row.read<String>('pinned_by'),
+        createdAt: _readTimestamp(row, 'created_at'),
+        sourceMessageId: row.readNullable<String>('source_message_id'),
+        status: row.read<int>('status'),
+        updatedAt: _readNullableTimestamp(row, 'updated_at'),
+      );
+    }),
+  );
 
   /// Plan §5.2 `insertPreparedCopies`: locks the destination row, derives
   /// `announce` from it, then one CTE writes the facts (`DO NOTHING` on the
@@ -524,22 +537,123 @@ WHERE r.fact_card_id = $1::text AND r.seq = $2::int
     );
   }
 
+  /// Plan §5.2 step 2: one SELECT for the copy sources. The image flag is
+  /// computed only for a syntactically valid UUID, so a malformed id neither
+  /// fails the cast nor matches a row.
+  @override
+  Future<List<FactCopySource>> loadCopySources({
+    required List<String> factCardIds,
+  }) async {
+    if (factCardIds.isEmpty) return const [];
+    final rows = await _db
+        .customSelect(
+          r'''
+SELECT f.id, f.beacon_id, b.kind::integer AS kind,
+       f.status::integer AS status, f.visibility::integer AS visibility,
+       f.revision_seq, COALESCE(r.fact_text, f.fact_text) AS head_text,
+       COALESCE((
+         SELECT jsonb_agg(
+                  jsonb_build_object(
+                    'fields', e.value,
+                    'imageExists',
+                    CASE
+                      WHEN e.value->>'imageId' ~*
+                        '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+                      THEN EXISTS (
+                        SELECT 1 FROM public.image i
+                        WHERE i.id = (e.value->>'imageId')::uuid
+                      )
+                      ELSE false
+                    END
+                  ) ORDER BY e.ordinality)
+         FROM jsonb_array_elements(
+                CASE jsonb_typeof(r.attachments_json)
+                  WHEN 'array' THEN r.attachments_json
+                  ELSE '[]'::jsonb
+                END
+              ) WITH ORDINALITY AS e(value, ordinality)
+       ), '[]'::jsonb)::text AS attachments
+FROM public.beacon_fact_card f
+JOIN public.beacon b ON b.id = f.beacon_id
+LEFT JOIN public.beacon_fact_card_revision r
+  ON r.fact_card_id = f.id AND r.seq = f.revision_seq
+WHERE f.id = ANY($1::text[])
+''',
+          variables: [Variable(TypedValue(Type.textArray, factCardIds))],
+        )
+        .get();
+    return [
+      for (final row in rows)
+        FactCopySource(
+          factCardId: row.read<String>('id'),
+          beaconId: row.read<String>('beacon_id'),
+          beaconKind: row.read<int>('kind'),
+          status: row.read<int>('status'),
+          visibility: row.read<int>('visibility'),
+          headRevisionSeq: row.read<int>('revision_seq'),
+          headText: row.read<String>('head_text'),
+          attachments: [
+            for (final e
+                in jsonDecode(row.read<String>('attachments')) as List<Object?>)
+              if (e case {
+                'fields': final Map<String, Object?> fields,
+                'imageExists': final bool imageExists,
+              })
+                FactCopySourceAttachment(
+                  fields: fields,
+                  imageExists: imageExists,
+                ),
+          ],
+        ),
+    ];
+  }
+
+  @override
+  Future<Map<String, String>> liveCopiesByOrigin({
+    required String beaconId,
+    required List<String> originFactCardIds,
+  }) async {
+    if (originFactCardIds.isEmpty) return const {};
+    final rows = await _db
+        .customSelect(
+          '''
+SELECT origin_fact_card_id, id
+FROM public.beacon_fact_card
+WHERE beacon_id = \$1::text
+  AND origin_fact_card_id = ANY(\$2::text[])
+  AND status IN (${BeaconFactCardStatusBits.active},
+                 ${BeaconFactCardStatusBits.corrected})
+''',
+          variables: [
+            Variable<String>(beaconId),
+            Variable(TypedValue(Type.textArray, originFactCardIds)),
+          ],
+        )
+        .get();
+    return {
+      for (final row in rows)
+        row.read<String>('origin_fact_card_id'): row.read<String>('id'),
+    };
+  }
+
   @override
   Future<Map<String, String>> headAttachmentsJsonByFactIds(
     Iterable<String> factCardIds,
   ) async {
     final ids = factCardIds.where((id) => id.isNotEmpty).toSet().toList();
     if (ids.isEmpty) return const {};
-    final rows = await _db.customSelect(
-      r'''
+    final rows = await _db
+        .customSelect(
+          r'''
 SELECT f.id, COALESCE(r.attachments_json::text, '[]') AS attachments_json
 FROM public.beacon_fact_card f
 LEFT JOIN public.beacon_fact_card_revision r
   ON r.fact_card_id = f.id AND r.seq = f.revision_seq
 WHERE f.id = ANY($1::text[])
 ''',
-      variables: [Variable(TypedValue(Type.textArray, ids))],
-    ).get();
+          variables: [Variable(TypedValue(Type.textArray, ids))],
+        )
+        .get();
     return {
       for (final row in rows)
         row.read<String>('id'): row.read<String>('attachments_json'),
@@ -612,17 +726,19 @@ WHERE i.id = ANY($5::uuid[]) AND i.author_id = $3::text
     required String factCardId,
     required int seq,
   }) async {
-    final row = await _db.customSelect(
-      r'''
+    final row = await _db
+        .customSelect(
+          r'''
 SELECT COALESCE(attachments_json::text, '[]') AS attachments_json
 FROM public.beacon_fact_card_revision
 WHERE fact_card_id = $1::text AND seq = $2::int
 ''',
-      variables: [
-        Variable<String>(factCardId),
-        Variable<int>(seq),
-      ],
-    ).getSingleOrNull();
+          variables: [
+            Variable<String>(factCardId),
+            Variable<int>(seq),
+          ],
+        )
+        .getSingleOrNull();
     return row?.read<String>('attachments_json') ?? '[]';
   }
 
@@ -635,13 +751,13 @@ WHERE fact_card_id = $1::text AND seq = $2::int
     required String beaconId,
     required String actorUserId,
     required int visibility,
-  }) =>
-      _db.withMutatingUser(actorUserId, () async {
-        if (visibility != BeaconFactCardVisibilityBits.public &&
-            visibility != BeaconFactCardVisibilityBits.room) {
-          throw ArgumentError('visibility');
-        }
-        final row = await _db.customSelect(
+  }) => _db.withMutatingUser(actorUserId, () async {
+    if (visibility != BeaconFactCardVisibilityBits.public &&
+        visibility != BeaconFactCardVisibilityBits.room) {
+      throw ArgumentError('visibility');
+    }
+    final row = await _db
+        .customSelect(
           '''
 WITH prev AS (
   SELECT id, visibility AS previous_visibility
@@ -685,11 +801,12 @@ SELECT count(*)::integer AS updated FROM fact
                   : BeaconActivityEventVisibilityBits.room,
             ),
           ],
-        ).getSingle();
-        if (row.read<int>('updated') == 0) {
-          throw IdNotFoundException(description: 'Fact card [$factCardId]');
-        }
-      });
+        )
+        .getSingle();
+    if (row.read<int>('updated') == 0) {
+      throw IdNotFoundException(description: 'Fact card [$factCardId]');
+    }
+  });
 
   /// Plan §8.3 "Edit / restore" / §14.3: see [_runEdit].
   @override
@@ -762,12 +879,14 @@ SELECT count(*)::integer AS updated FROM fact
     required Duration quietWindow,
     required int kind,
     required int? fromSeq,
-  }) =>
-      _db.withMutatingUser(actorUserId, () => sentryDbSpan('db.fact.edit', (
-        _,
-      ) async {
-        final rows = await _db.customSelect(
-          r'''
+  }) => _db.withMutatingUser(
+    actorUserId,
+    () => sentryDbSpan('db.fact.edit', (
+      _,
+    ) async {
+      final rows = await _db
+          .customSelect(
+            r'''
 WITH locked AS (
   SELECT f.id, f.revision_seq, f.status, f.fact_text, f.pinned_by,
          f.created_at, f.visibility, f.source_message_id
@@ -880,41 +999,43 @@ SELECT (SELECT u.revision_seq FROM upd u)                    AS new_seq,
        (SELECT i.src_ok FROM input i)                        AS src_ok,
        (SELECT i.rate_ok FROM input i)                       AS rate_ok;
 ''',
-          variables: [
-            Variable<String>(factCardId),
-            Variable<String>(beaconId),
-            Variable<String>(actorUserId),
-            Variable<String>(newText),
-            Variable<int>(baseRevisionSeq),
-            Variable<int>(rateWindow.inSeconds),
-            Variable<int>(rateMax),
-            Variable<int>(quietWindow.inSeconds),
-            Variable<String>(generateId('FR')),
-            Variable<String>(generateId('R')),
-            Variable<String>(BeaconActivityEventEntity.newId),
-            Variable<int>(kind),
-            Variable<int>(fromSeq),
-            Variable<String>(attachmentsJson),
-          ],
-        ).get();
-        final row = rows.single;
-        final newSeq = row.readNullable<int>('new_seq');
-        final found = row.read<bool>('found');
-        final currentStatus = row.readNullable<int>('current_status');
-        final currentSeq = row.readNullable<int>('current_seq');
-        final sameText = row.readNullable<bool>('same_text');
-        final srcOk = row.read<bool>('src_ok');
-        final rateOk = row.read<bool>('rate_ok');
-        if (newSeq != null) return FactEditApplied(newSeq: newSeq);
-        if (!found) return const FactEditNotFound();
-        if (!srcOk) return const FactRestoreSourceMissing();
-        if (currentStatus == BeaconFactCardStatusBits.removed) {
-          return const FactEditRemoved();
-        }
-        if (sameText ?? false) return FactEditNoOp(currentSeq: currentSeq!);
-        if (!rateOk) return const FactEditRateLimited();
-        return FactEditConflict(currentSeq: currentSeq!);
-      }));
+            variables: [
+              Variable<String>(factCardId),
+              Variable<String>(beaconId),
+              Variable<String>(actorUserId),
+              Variable<String>(newText),
+              Variable<int>(baseRevisionSeq),
+              Variable<int>(rateWindow.inSeconds),
+              Variable<int>(rateMax),
+              Variable<int>(quietWindow.inSeconds),
+              Variable<String>(generateId('FR')),
+              Variable<String>(generateId('R')),
+              Variable<String>(BeaconActivityEventEntity.newId),
+              Variable<int>(kind),
+              Variable<int>(fromSeq),
+              Variable<String>(attachmentsJson),
+            ],
+          )
+          .get();
+      final row = rows.single;
+      final newSeq = row.readNullable<int>('new_seq');
+      final found = row.read<bool>('found');
+      final currentStatus = row.readNullable<int>('current_status');
+      final currentSeq = row.readNullable<int>('current_seq');
+      final sameText = row.readNullable<bool>('same_text');
+      final srcOk = row.read<bool>('src_ok');
+      final rateOk = row.read<bool>('rate_ok');
+      if (newSeq != null) return FactEditApplied(newSeq: newSeq);
+      if (!found) return const FactEditNotFound();
+      if (!srcOk) return const FactRestoreSourceMissing();
+      if (currentStatus == BeaconFactCardStatusBits.removed) {
+        return const FactEditRemoved();
+      }
+      if (sameText ?? false) return FactEditNoOp(currentSeq: currentSeq!);
+      if (!rateOk) return const FactEditRateLimited();
+      return FactEditConflict(currentSeq: currentSeq!);
+    }),
+  );
 
   /// Plan §8.3 "Unpin" / §14.4 rule 12: one CTE locks the fact, marks it
   /// removed, unlinks the source message by primary key, writes the marker-11
@@ -925,12 +1046,14 @@ SELECT (SELECT u.revision_seq FROM upd u)                    AS new_seq,
     required String factCardId,
     required String beaconId,
     required String actorUserId,
-  }) =>
-      _db.withMutatingUser(actorUserId, () => sentryDbSpan('db.fact.remove', (
-        _,
-      ) async {
-        final row = await _db.customSelect(
-          '''
+  }) => _db.withMutatingUser(
+    actorUserId,
+    () => sentryDbSpan('db.fact.remove', (
+      _,
+    ) async {
+      final row = await _db
+          .customSelect(
+            '''
 WITH locked AS (
   SELECT f.id, f.status
   FROM public.beacon_fact_card f
@@ -976,19 +1099,21 @@ evt AS (
 SELECT EXISTS (SELECT 1 FROM locked) AS found,
        EXISTS (SELECT 1 FROM upd) AS removed
 ''',
-          variables: [
-            Variable<String>(factCardId),
-            Variable<String>(beaconId),
-            Variable<String>(actorUserId),
-            Variable<String>(generateId('R')),
-            Variable<String>(BeaconActivityEventEntity.newId),
-          ],
-        ).getSingle();
-        if (!row.read<bool>('found')) {
-          throw IdNotFoundException(description: 'Fact card [$factCardId]');
-        }
-        return row.read<bool>('removed');
-      }));
+            variables: [
+              Variable<String>(factCardId),
+              Variable<String>(beaconId),
+              Variable<String>(actorUserId),
+              Variable<String>(generateId('R')),
+              Variable<String>(BeaconActivityEventEntity.newId),
+            ],
+          )
+          .getSingle();
+      if (!row.read<bool>('found')) {
+        throw IdNotFoundException(description: 'Fact card [$factCardId]');
+      }
+      return row.read<bool>('removed');
+    }),
+  );
 
   /// Plan §8.4 / §14.3: one keyset read over the fact's revisions and its
   /// fact events (types 2, 14, 20). `entry_key` breaks `created_at` ties:
@@ -1020,8 +1145,9 @@ WHERE (h.created_at, h.entry_key) < ($4::timestamptz, $5::text)
     }
     final rows = await sentryDbSpan(
       'db.fact.history',
-      (_) => _db.customSelect(
-        r'''
+      (_) => _db
+          .customSelect(
+            r'''
 WITH scope AS (
   SELECT EXISTS (
     SELECT 1
@@ -1080,8 +1206,8 @@ FROM (
 CROSS JOIN scope s
 LEFT JOIN public."user" u ON u.id = h.actor_id
 ''' +
-          cursorSql +
-          r'''
+                cursorSql +
+                r'''
 ORDER BY h.created_at DESC, h.entry_key DESC
 LIMIT $2::integer
 )
@@ -1103,8 +1229,9 @@ SELECT NULL::text,
 FROM scope s
 WHERE NOT s.fact_in_beacon
 ''',
-        variables: variables,
-      ).get(),
+            variables: variables,
+          )
+          .get(),
     );
     if (rows.any((row) => !row.read<bool>('fact_in_beacon'))) {
       throw IdNotFoundException(description: 'Fact card [$factCardId]');

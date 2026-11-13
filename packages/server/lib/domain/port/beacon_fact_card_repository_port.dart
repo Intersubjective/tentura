@@ -3,6 +3,7 @@ import 'package:tentura_server/domain/entity/beacon_fact_card_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_fact_card_outcome.dart';
 import 'package:tentura_server/domain/entity/beacon_fact_history_entry_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_fact_room_access.dart';
+import 'package:tentura_server/domain/entity/fact_copy_source.dart';
 import 'package:tentura_server/domain/entity/prepared_fact_copy.dart';
 
 /// Server-side data for checking the attachment list a fact edit sends.
@@ -59,6 +60,20 @@ abstract class BeaconFactCardRepositoryPort {
     required String destinationBeaconId,
     required String actorUserId,
     required List<PreparedFactCopy> prepared,
+  });
+
+  /// One SELECT: each existing fact of [factCardIds] with its beacon kind,
+  /// status, visibility and head revision; per head attachment, whether its
+  /// image row exists. Missing ids are absent.
+  Future<List<FactCopySource>> loadCopySources({
+    required List<String> factCardIds,
+  });
+
+  /// Live (active or corrected) copies in [beaconId] of
+  /// [originFactCardIds], as origin id → copy id.
+  Future<Map<String, String>> liveCopiesByOrigin({
+    required String beaconId,
+    required List<String> originFactCardIds,
   });
 
   Future<void> setVisibility({
