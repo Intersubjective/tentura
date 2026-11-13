@@ -4784,6 +4784,7 @@ type query_root {
   BeaconFactCardList(beaconId: String!): [v2_BeaconFactCardRow!]
   BeaconFactCardOrigin(beaconId: String!, factCardId: String!): v2_BeaconFactCardOriginResult!
   BeaconFactCardRevisions(before: String, beaconId: String!, factCardId: String!): v2_BeaconFactCardRevisionsPage!
+  BeaconFactCopyDestinations(sourceFactCardId: String!): [v2_BeaconFactCopyDestinationRow!]
   BeaconParticipantList(beaconId: String!): [v2_BeaconParticipantRow!]
   BeaconRoomReadWatermarks(beaconId: String!): [v2_v2_RoomReadWatermark!]
   BeaconRoomStateGet(beaconId: String!): v2_BeaconRoomStateRow!
@@ -7887,6 +7888,14 @@ enum v2_BeaconFactCardCopyOutcome {
 type v2_BeaconFactCardCopyResult {
   factCardId: String!
   outcome: v2_BeaconFactCardCopyOutcome!
+}
+
+type v2_BeaconFactCopyDestinationRow {
+  expiresAt: String
+  id: String!
+  isDraft: Boolean!
+  kind: Int!
+  title: String!
 }
 
 type v2_BeaconFactCardOriginResult {

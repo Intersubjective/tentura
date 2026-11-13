@@ -385,6 +385,50 @@ final class BeaconFactCardCase extends UseCaseBase {
     };
   }
 
+  /// Plan §5.4 CopyDestinations: the published, writable Requests [userId]
+  /// can copy the fact into, most recently active first. Throws
+  /// [FactCopySourceUnavailableException] unless the source is available.
+  Future<List<Map<String, Object?>>> copyDestinations({
+    required String sourceFactCardId,
+    required String userId,
+  }) async {
+    final source = (await _facts.loadCopySources(
+      factCardIds: [sourceFactCardId],
+    )).firstOrNull;
+    if (source == null ||
+        !await _canCopyFrom(
+          source,
+          actorUserId: userId,
+          destinationBeaconId: null,
+          requiredSourceBeaconId: null,
+          accessByBeacon: {},
+        )) {
+      throw const FactCopySourceUnavailableException();
+    }
+    final rows = await _facts.listCopyDestinations(
+      userId: userId,
+      excludeBeaconId: source.beaconId,
+      writableStatuses: [
+        for (final status in BeaconStatus.values)
+          if (status != BeaconStatus.deleted &&
+              status != BeaconStatus.draft &&
+              !BeaconRoomLifecycleWritePolicy.blocksOrdinaryUserWrites(status))
+            status.smallintValue,
+      ],
+      limit: kMaxFactCopyDestinations,
+    );
+    return [
+      for (final r in rows)
+        {
+          'id': r.id,
+          'kind': r.kind,
+          'title': r.title,
+          'isDraft': r.isDraft,
+          'expiresAt': r.expiresAt?.toIso8601String(),
+        },
+    ];
+  }
+
   /// Plan §5.2 step 3 and the §4.4 fact access rule.
   Future<bool> _canCopyFrom(
     FactCopySource source, {

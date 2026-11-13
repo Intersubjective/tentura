@@ -13,12 +13,14 @@ final class QueryFactCard extends GqlNodeBase {
 
   final _beaconIdStr = InputFieldString(fieldName: 'beaconId');
   final _factCardId = InputFieldString(fieldName: 'factCardId');
+  final _sourceFactCardId = InputFieldString(fieldName: 'sourceFactCardId');
   final _before = InputFieldString(fieldName: 'before');
 
   List<GraphQLObjectField<dynamic, dynamic>> get all => [
     beaconFactCardList,
     beaconFactCardRevisions,
     beaconFactCardOrigin,
+    beaconFactCopyDestinations,
   ];
 
   GraphQLObjectField<dynamic, dynamic> get beaconFactCardList =>
@@ -49,6 +51,17 @@ final class QueryFactCard extends GqlNodeBase {
               userId: getCredentials(args).sub,
             ) ??
             {'available': false},
+      );
+
+  GraphQLObjectField<dynamic, dynamic> get beaconFactCopyDestinations =>
+      GraphQLObjectField(
+        'BeaconFactCopyDestinations',
+        GraphQLListType(gqlTypeBeaconFactCopyDestinationRow.nonNullable()),
+        arguments: [_sourceFactCardId.field],
+        resolve: (_, args) => _case.copyDestinations(
+          sourceFactCardId: _sourceFactCardId.fromArgsNonNullable(args),
+          userId: getCredentials(args).sub,
+        ),
       );
 
   GraphQLObjectField<dynamic, dynamic> get beaconFactCardRevisions =>

@@ -591,6 +591,56 @@ WHERE f.id = $1::text AND f.beacon_id = $2::text
   }
 
   @override
+  Future<List<FactCopyDestinationRow>> listCopyDestinations({
+    required String userId,
+    required String excludeBeaconId,
+    required List<int> writableStatuses,
+    required int limit,
+  }) async {
+    final rows = await _db
+        .customSelect(
+          r'''
+SELECT b.id, b.kind::integer AS kind, b.title, b.expires_at
+FROM public.beacon b
+WHERE b.kind = 0
+  AND b.id <> $2::text
+  AND b.status = ANY($3::integer[])
+  AND (
+    b.user_id = $1::text
+    OR EXISTS (
+      SELECT 1 FROM public.beacon_steward s
+      WHERE s.beacon_id = b.id AND s.user_id = $1::text
+    )
+    OR EXISTS (
+      SELECT 1 FROM public.beacon_participant p
+      WHERE p.beacon_id = b.id AND p.user_id = $1::text
+        AND p.room_access = 3
+    )
+  )
+ORDER BY b.last_activity_at DESC NULLS LAST, b.id
+LIMIT $4::integer
+''',
+          variables: [
+            Variable<String>(userId),
+            Variable<String>(excludeBeaconId),
+            Variable(TypedValue(Type.integerArray, writableStatuses)),
+            Variable<int>(limit),
+          ],
+        )
+        .get();
+    return [
+      for (final row in rows)
+        (
+          id: row.read<String>('id'),
+          kind: row.read<int>('kind'),
+          title: row.read<String>('title'),
+          isDraft: false,
+          expiresAt: _readNullableTimestamp(row, 'expires_at'),
+        ),
+    ];
+  }
+
+  @override
   Future<List<FactCopySource>> loadCopySources({
     required List<String> factCardIds,
   }) async {

@@ -16,6 +16,15 @@ typedef FactEditAttachmentLookup = ({
   Map<String, ({String blurHash, int width, int height})> ownedImages,
 });
 
+/// One Request a fact can be copied into.
+typedef FactCopyDestinationRow = ({
+  String id,
+  int kind,
+  String title,
+  bool isDraft,
+  DateTime? expiresAt,
+});
+
 abstract class BeaconFactCardRepositoryPort {
   /// One SELECT: beacon status, room use (author, steward or admitted) and
   /// `beacon_can_read_content`. `exists` is false for an unknown beacon.
@@ -81,6 +90,16 @@ abstract class BeaconFactCardRepositoryPort {
   /// image row exists. Missing ids are absent.
   Future<List<FactCopySource>> loadCopySources({
     required List<String> factCardIds,
+  });
+
+  /// Requests [userId] authors, stewards or is admitted to (room_access 3)
+  /// whose status is one of [writableStatuses], except
+  /// [excludeBeaconId], most recently active first, at most [limit].
+  Future<List<FactCopyDestinationRow>> listCopyDestinations({
+    required String userId,
+    required String excludeBeaconId,
+    required List<int> writableStatuses,
+    required int limit,
   });
 
   /// Live (active or corrected) copies in [beaconId] of

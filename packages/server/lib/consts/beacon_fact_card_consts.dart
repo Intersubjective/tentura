@@ -34,3 +34,6 @@ const kMaxFactCopySourcesPerCall = 20;
 
 /// Max images one copy call re-stores (plan §5.2 step 8).
 const kMaxFactCopyImagesPerCall = 40;
+
+/// Most Requests `BeaconFactCopyDestinations` returns.
+const kMaxFactCopyDestinations = 100;
