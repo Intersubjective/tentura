@@ -4782,6 +4782,7 @@ type query_root {
   BeaconLobbyAccess(beaconId: String!): v2_BeaconLobbyAccess!
   BeaconActivityEventList(beaconId: String!): [v2_BeaconActivityEventRow!]
   BeaconFactCardList(beaconId: String!): [v2_BeaconFactCardRow!]
+  BeaconFactCardOrigin(beaconId: String!, factCardId: String!): v2_BeaconFactCardOriginResult!
   BeaconFactCardRevisions(before: String, beaconId: String!, factCardId: String!): v2_BeaconFactCardRevisionsPage!
   BeaconParticipantList(beaconId: String!): [v2_BeaconParticipantRow!]
   BeaconRoomReadWatermarks(beaconId: String!): [v2_v2_RoomReadWatermark!]
@@ -7888,6 +7889,16 @@ type v2_BeaconFactCardCopyResult {
   outcome: v2_BeaconFactCardCopyOutcome!
 }
 
+type v2_BeaconFactCardOriginResult {
+  available: Boolean!
+  beaconId: String
+  beaconKind: Int
+  canSeeCopiedRevision: Boolean
+  changedSinceCopy: Boolean
+  copiedRevisionSeq: Int
+  factCardId: String
+}
+
 type v2_BeaconFactCardRevisionsPage {
   entries: [v2_BeaconFactHistoryEntryRow!]!
   nextCursor: String
@@ -7903,6 +7914,7 @@ type v2_BeaconFactCardRow {
   lastEditedAt: String
   lastEditedBy: String
   lastEditedByTitle: String
+  originBeaconKind: Int
   otherEditorCount: Int!
   pinnedBy: String!
   pinnedByTitle: String!

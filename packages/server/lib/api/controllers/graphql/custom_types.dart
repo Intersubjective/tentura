@@ -90,6 +90,7 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeRoomReadWatermark,
   gqlTypeBeaconUpdateReader,
   gqlTypeBeaconFactCardRow,
+  gqlTypeBeaconFactCardOriginResult,
   gqlTypeBeaconFactHistoryEntryRow,
   gqlTypeBeaconFactCardRevisionsPage,
   gqlEnumBeaconFactCardCopyOutcome,
@@ -747,7 +748,20 @@ final gqlTypeBeaconFactCardRow = GraphQLObjectType('BeaconFactCardRow', null)
     field('lastEditedAt', graphQLString),
     field('otherEditorCount', graphQLInt.nonNullable()),
     field('historyTruncated', graphQLBoolean.nonNullable()),
+    field('originBeaconKind', graphQLInt),
   ]);
+
+final gqlTypeBeaconFactCardOriginResult =
+    GraphQLObjectType('BeaconFactCardOriginResult', null)
+      ..fields.addAll([
+        field('available', graphQLBoolean.nonNullable()),
+        field('beaconId', graphQLString),
+        field('factCardId', graphQLString),
+        field('beaconKind', graphQLInt),
+        field('changedSinceCopy', graphQLBoolean),
+        field('canSeeCopiedRevision', graphQLBoolean),
+        field('copiedRevisionSeq', graphQLInt),
+      ]);
 
 final gqlTypeBeaconFactHistoryEntryRow =
     GraphQLObjectType('v2_BeaconFactHistoryEntryRow', null)

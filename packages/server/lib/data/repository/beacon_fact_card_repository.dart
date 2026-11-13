@@ -89,6 +89,7 @@ SELECT
   f.pinned_by, f.source_message_id, f.status::integer AS status,
   f.created_at, f.updated_at, f.revision_seq, f.last_edited_by,
   f.last_edited_at, f.other_editor_count, f.history_truncated,
+  f.origin_beacon_kind::integer AS origin_beacon_kind,
   pu.display_name AS pinned_by_title,
   eu.display_name AS last_edited_by_title
 FROM public.beacon_fact_card f
@@ -126,6 +127,7 @@ ORDER BY f.created_at, f.id
           lastEditedAt: _readNullableTimestamp(row, 'last_edited_at'),
           otherEditorCount: row.read<int>('other_editor_count'),
           historyTruncated: row.read<bool>('history_truncated'),
+          originBeaconKind: row.readNullable<int>('origin_beacon_kind'),
           pinnedByTitle: row.readNullable<String>('pinned_by_title') ?? '',
         ),
     ];
@@ -563,6 +565,31 @@ WHERE r.fact_card_id = $1::text AND r.seq = $2::int
   /// Plan §5.2 step 2: one SELECT for the copy sources. The image flag is
   /// computed only for a syntactically valid UUID, so a malformed id neither
   /// fails the cast nor matches a row.
+  @override
+  Future<FactOriginRef?> loadOriginRef({
+    required String factCardId,
+    required String beaconId,
+  }) async {
+    final row = await _db
+        .customSelect(
+          r'''
+SELECT f.status::integer AS status, f.visibility::integer AS visibility,
+       f.origin_fact_card_id, f.origin_revision_seq
+FROM public.beacon_fact_card f
+WHERE f.id = $1::text AND f.beacon_id = $2::text
+''',
+          variables: [Variable<String>(factCardId), Variable<String>(beaconId)],
+        )
+        .getSingleOrNull();
+    if (row == null) return null;
+    return FactOriginRef(
+      status: row.read<int>('status'),
+      visibility: row.read<int>('visibility'),
+      originFactCardId: row.readNullable<String>('origin_fact_card_id'),
+      originRevisionSeq: row.readNullable<int>('origin_revision_seq'),
+    );
+  }
+
   @override
   Future<List<FactCopySource>> loadCopySources({
     required List<String> factCardIds,
@@ -1226,6 +1253,7 @@ FROM (
     AND e.beacon_id = $3::text
     AND e.fact_card_id IS NOT NULL
     AND e.type IN (2, 14, 20)
+    AND NOT (e.type = 2 AND f.origin_fact_card_id IS NOT NULL)
 ) h
 CROSS JOIN scope s
 LEFT JOIN public."user" u ON u.id = h.actor_id

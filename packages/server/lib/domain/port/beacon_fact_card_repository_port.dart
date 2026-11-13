@@ -69,6 +69,13 @@ abstract class BeaconFactCardRepositoryPort {
     required Duration window,
   });
 
+  /// The status, visibility and origin columns of [factCardId] when it
+  /// belongs to [beaconId]; null otherwise.
+  Future<FactOriginRef?> loadOriginRef({
+    required String factCardId,
+    required String beaconId,
+  });
+
   /// One SELECT: each existing fact of [factCardIds] with its beacon kind,
   /// status, visibility and head revision; per head attachment, whether its
   /// image row exists. Missing ids are absent.

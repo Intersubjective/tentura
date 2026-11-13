@@ -25,6 +25,9 @@ abstract class BeaconFactCardEntity with _$BeaconFactCardEntity {
     @Default(0) int otherEditorCount,
     @Default(false) bool historyTruncated,
 
+    /// Request kind of the fact this one was copied from; null when not a copy.
+    int? originBeaconKind,
+
     /// Denormalized display metadata (not a DB column).
     @Default('') String pinnedByTitle,
   }) = _BeaconFactCardEntity;

@@ -542,6 +542,200 @@ class MockBeaconRepositoryPort extends _i1.Mock
           as _i3.Future<void>);
 
   @override
+  _i3.Future<void> updatePostDraft({
+    required String? beaconId,
+    required String? userId,
+    required String? description,
+    required _i10.BeaconForwardPolicyValue? forwardPolicy,
+    int? lifetimeHours,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#updatePostDraft, [], {
+              #beaconId: beaconId,
+              #userId: userId,
+              #description: description,
+              #forwardPolicy: forwardPolicy,
+              #lifetimeHours: lifetimeHours,
+            }),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
+          )
+          as _i3.Future<void>);
+
+  @override
+  _i3.Future<int?> postDraftLifetimeHours(String? beaconId) =>
+      (super.noSuchMethod(
+            Invocation.method(#postDraftLifetimeHours, [beaconId]),
+            returnValue: _i3.Future<int?>.value(),
+          )
+          as _i3.Future<int?>);
+
+  @override
+  _i3.Future<void> clearPostDraftComposerFields(String? beaconId) =>
+      (super.noSuchMethod(
+            Invocation.method(#clearPostDraftComposerFields, [beaconId]),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
+          )
+          as _i3.Future<void>);
+
+  @override
+  _i3.Future<
+    List<
+      ({
+        String id,
+        ({
+          String displayName,
+          String? imageId,
+          String mime,
+          int sizeBytes,
+          String? storagePath,
+        })
+        upload,
+      })
+    >
+  >
+  postDraftAttachments(String? beaconId) =>
+      (super.noSuchMethod(
+            Invocation.method(#postDraftAttachments, [beaconId]),
+            returnValue:
+                _i3.Future<
+                  List<
+                    ({
+                      String id,
+                      ({
+                        String displayName,
+                        String? imageId,
+                        String mime,
+                        int sizeBytes,
+                        String? storagePath,
+                      })
+                      upload,
+                    })
+                  >
+                >.value(
+                  <
+                    ({
+                      String id,
+                      ({
+                        String displayName,
+                        String? imageId,
+                        String mime,
+                        int sizeBytes,
+                        String? storagePath,
+                      })
+                      upload,
+                    })
+                  >[],
+                ),
+          )
+          as _i3.Future<
+            List<
+              ({
+                String id,
+                ({
+                  String displayName,
+                  String? imageId,
+                  String mime,
+                  int sizeBytes,
+                  String? storagePath,
+                })
+                upload,
+              })
+            >
+          >);
+
+  @override
+  _i3.Future<String> insertPostDraftAttachment({
+    required String? beaconId,
+    required ({
+      String displayName,
+      String? imageId,
+      String mime,
+      int sizeBytes,
+      String? storagePath,
+    })?
+    upload,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#insertPostDraftAttachment, [], {
+              #beaconId: beaconId,
+              #upload: upload,
+            }),
+            returnValue: _i3.Future<String>.value(
+              _i11.dummyValue<String>(
+                this,
+                Invocation.method(#insertPostDraftAttachment, [], {
+                  #beaconId: beaconId,
+                  #upload: upload,
+                }),
+              ),
+            ),
+          )
+          as _i3.Future<String>);
+
+  @override
+  _i3.Future<
+    ({
+      String id,
+      ({
+        String displayName,
+        String? imageId,
+        String mime,
+        int sizeBytes,
+        String? storagePath,
+      })
+      upload,
+    })?
+  >
+  deletePostDraftAttachment({
+    required String? beaconId,
+    required String? attachmentId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#deletePostDraftAttachment, [], {
+              #beaconId: beaconId,
+              #attachmentId: attachmentId,
+            }),
+            returnValue:
+                _i3.Future<
+                  ({
+                    String id,
+                    ({
+                      String displayName,
+                      String? imageId,
+                      String mime,
+                      int sizeBytes,
+                      String? storagePath,
+                    })
+                    upload,
+                  })?
+                >.value(),
+          )
+          as _i3.Future<
+            ({
+              String id,
+              ({
+                String displayName,
+                String? imageId,
+                String mime,
+                int sizeBytes,
+                String? storagePath,
+              })
+              upload,
+            })?
+          >);
+
+  @override
+  _i3.Future<void> deletePostDraftAttachments(String? beaconId) =>
+      (super.noSuchMethod(
+            Invocation.method(#deletePostDraftAttachments, [beaconId]),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
+          )
+          as _i3.Future<void>);
+
+  @override
   _i3.Future<void> setPostLifetime({
     required String? beaconId,
     required Duration? lifetime,

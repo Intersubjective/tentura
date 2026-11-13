@@ -1,3 +1,18 @@
+/// What a stored fact says about where it was copied from.
+class FactOriginRef {
+  const FactOriginRef({
+    required this.status,
+    required this.visibility,
+    this.originFactCardId,
+    this.originRevisionSeq,
+  });
+
+  final int status;
+  final int visibility;
+  final String? originFactCardId;
+  final int? originRevisionSeq;
+}
+
 /// One head-revision attachment of a [FactCopySource]: the stored JSON entry
 /// and whether its `public.image` row exists (plan §5.2 step 5, R2).
 class FactCopySourceAttachment {

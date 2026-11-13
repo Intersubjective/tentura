@@ -18,6 +18,7 @@ final class QueryFactCard extends GqlNodeBase {
   List<GraphQLObjectField<dynamic, dynamic>> get all => [
     beaconFactCardList,
     beaconFactCardRevisions,
+    beaconFactCardOrigin,
   ];
 
   GraphQLObjectField<dynamic, dynamic> get beaconFactCardList =>
@@ -31,6 +32,23 @@ final class QueryFactCard extends GqlNodeBase {
               beaconId: _beaconIdStr.fromArgsNonNullable(args),
               userId: getCredentials(args).sub,
             ),
+      );
+
+  GraphQLObjectField<dynamic, dynamic> get beaconFactCardOrigin =>
+      GraphQLObjectField(
+        'BeaconFactCardOrigin',
+        gqlTypeBeaconFactCardOriginResult.nonNullable(),
+        arguments: [
+          _beaconIdStr.field,
+          _factCardId.field,
+        ],
+        resolve: (_, args) async =>
+            await _case.origin(
+              beaconId: _beaconIdStr.fromArgsNonNullable(args),
+              factCardId: _factCardId.fromArgsNonNullable(args),
+              userId: getCredentials(args).sub,
+            ) ??
+            {'available': false},
       );
 
   GraphQLObjectField<dynamic, dynamic> get beaconFactCardRevisions =>

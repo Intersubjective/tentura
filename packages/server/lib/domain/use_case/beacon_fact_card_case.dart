@@ -334,6 +334,57 @@ final class BeaconFactCardCase extends UseCaseBase {
     return (prepared: prepared, alreadyThere: alreadyThere);
   }
 
+  /// Plan §5.4 Origin row. Throws [FactCopySourceUnavailableException] when
+  /// the fact is not a readable fact of [beaconId]; answers `null` when it
+  /// has no origin, or the origin is not available to [userId].
+  Future<Map<String, Object?>?> origin({
+    required String beaconId,
+    required String factCardId,
+    required String userId,
+  }) async {
+    final access = await _facts.loadRoomAccess(
+      beaconId: beaconId,
+      userId: userId,
+    );
+    final ref = access.exists && access.canReadContent
+        ? await _facts.loadOriginRef(factCardId: factCardId, beaconId: beaconId)
+        : null;
+    if (ref == null ||
+        ref.status == BeaconFactCardStatusBits.removed ||
+        (ref.visibility != BeaconFactCardVisibilityBits.public &&
+            !access.canUseRoom)) {
+      throw const FactCopySourceUnavailableException();
+    }
+    final originId = ref.originFactCardId;
+    final originSeq = ref.originRevisionSeq;
+    if (originId == null || originSeq == null) return null;
+
+    final source = (await _facts.loadCopySources(
+      factCardIds: [originId],
+    )).firstOrNull;
+    final accessByBeacon = <String, BeaconFactRoomAccess>{};
+    if (source == null ||
+        !await _canCopyFrom(
+          source,
+          actorUserId: userId,
+          destinationBeaconId: null,
+          requiredSourceBeaconId: null,
+          accessByBeacon: accessByBeacon,
+        )) {
+      return null;
+    }
+    final canSeeCopiedRevision = accessByBeacon[source.beaconId]!.canUseRoom;
+    return {
+      'available': true,
+      'beaconId': source.beaconId,
+      'factCardId': source.factCardId,
+      'beaconKind': source.beaconKind,
+      'changedSinceCopy': source.headRevisionSeq != originSeq,
+      'canSeeCopiedRevision': canSeeCopiedRevision,
+      'copiedRevisionSeq': canSeeCopiedRevision ? originSeq : null,
+    };
+  }
+
   /// Plan §5.2 step 3 and the §4.4 fact access rule.
   Future<bool> _canCopyFrom(
     FactCopySource source, {
@@ -769,6 +820,7 @@ final class BeaconFactCardCase extends UseCaseBase {
           'lastEditedAt': e.lastEditedAt?.toIso8601String(),
           'otherEditorCount': e.otherEditorCount,
           'historyTruncated': e.historyTruncated,
+          'originBeaconKind': e.originBeaconKind,
         },
     ];
   }
