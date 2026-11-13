@@ -5,6 +5,7 @@ import 'package:crypto/crypto.dart';
 import 'package:injectable/injectable.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_root/utils/infer_image_mime_from_bytes.dart';
+import 'package:uuid/uuid.dart';
 
 import 'package:tentura_server/consts/beacon_fact_card_consts.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
@@ -172,6 +173,10 @@ final class BeaconFactCardCase extends UseCaseBase {
   /// Edits fact text and/or attachments against [baseRevisionSeq]; returns
   /// the resulting head seq. When [attachmentsJson] is null the previous head
   /// attachment snapshot is kept; when non-null it replaces the snapshot.
+  ///
+  /// Plan X11: an entry whose `id` is on any revision of this fact is stored
+  /// as the server saved it, taking only its position from the client's
+  /// order; any other entry must be an image the actor uploaded.
   Future<int> correct({
     required String factCardId,
     required String beaconId,
@@ -180,29 +185,37 @@ final class BeaconFactCardCase extends UseCaseBase {
     required int baseRevisionSeq,
     String? attachmentsJson,
   }) async {
+    final clientAttachments = attachmentsJson == null
+        ? null
+        : _parseClientAttachments(attachmentsJson);
     var effectiveText = newText.trim();
-    if (effectiveText.isEmpty && attachmentsJson != null) {
-      final decoded = jsonDecode(attachmentsJson);
-      final names = <String>[];
-      if (decoded is List) {
-        for (final item in decoded) {
-          if (item is Map && item['fileName'] is String) {
-            final n = (item['fileName'] as String).trim();
-            if (n.isNotEmpty) names.add(n);
-          }
-        }
-      }
+    if (effectiveText.isEmpty && clientAttachments == null) {
+      throw const BeaconCreateException(description: 'Fact text is empty');
+    }
+
+    await _ensureWritableRoomAccess(beaconId: beaconId, userId: actorUserId);
+
+    final attachments = clientAttachments == null
+        ? null
+        : await _serverAttachments(
+            clientAttachments,
+            factCardId: factCardId,
+            beaconId: beaconId,
+            actorUserId: actorUserId,
+          );
+    if (effectiveText.isEmpty && attachments != null) {
+      final names = [
+        for (final item in attachments)
+          if (item['fileName'] case final String name
+              when name.trim().isNotEmpty)
+            name.trim(),
+      ];
       effectiveText = names.isEmpty
           ? 'Attachment'
           : names.length <= 3
           ? names.join(', ')
           : '${names.take(3).join(', ')}…';
     }
-    if (effectiveText.isEmpty) {
-      throw const BeaconCreateException(description: 'Fact text is empty');
-    }
-
-    await _ensureWritableRoomAccess(beaconId: beaconId, userId: actorUserId);
 
     return _seqOrThrow(
       await _facts.editText(
@@ -214,10 +227,95 @@ final class BeaconFactCardCase extends UseCaseBase {
         rateWindow: env.factEditRateWindow,
         rateMax: env.factEditRateMax,
         quietWindow: kFactEditQuietWindow,
-        attachmentsJson: attachmentsJson,
+        attachmentsJson: attachments == null ? null : jsonEncode(attachments),
       ),
       factCardId: factCardId,
     );
+  }
+
+  /// Parses an edit's attachment list: a JSON list of at most
+  /// [kMaxRoomMessageAttachments] objects, each with its own string `id`.
+  static List<({String id, Map<String, Object?> fields})>
+  _parseClientAttachments(String attachmentsJson) {
+    const invalid = BeaconCreateException(description: 'Invalid attachments');
+    final Object? decoded;
+    try {
+      decoded = jsonDecode(attachmentsJson);
+    } on FormatException {
+      throw invalid;
+    }
+    if (decoded is! List || decoded.length > kMaxRoomMessageAttachments) {
+      throw invalid;
+    }
+    final ids = <String>{};
+    return [
+      for (final item in decoded)
+        if (item case {'id': final String id} when id.isNotEmpty && ids.add(id))
+          (id: id, fields: Map<String, Object?>.from(item))
+        else
+          throw invalid,
+    ];
+  }
+
+  /// Rebuilds the client's attachment list from server data, in the
+  /// client's order (see [correct]).
+  Future<List<Map<String, Object?>>> _serverAttachments(
+    List<({String id, Map<String, Object?> fields})> clientAttachments, {
+    required String factCardId,
+    required String beaconId,
+    required String actorUserId,
+  }) async {
+    if (clientAttachments.isEmpty) return const [];
+    final lookup = await _facts.findEditAttachments(
+      factCardId: factCardId,
+      beaconId: beaconId,
+      actorUserId: actorUserId,
+      attachmentIds: [for (final a in clientAttachments) a.id],
+      imageIds: [
+        for (final a in clientAttachments)
+          if (a.fields['imageId'] case final String imageId
+              when Uuid.isValidUUID(
+                fromString: imageId,
+                validationMode: ValidationMode.nonStrict,
+              ))
+            imageId,
+      ],
+    );
+    return [
+      for (final (position, a) in clientAttachments.indexed)
+        if (lookup.known[a.id] case final known?)
+          {...known, 'position': position}
+        else if (a.fields case {
+          'kind': BeaconRoomMessageAttachmentKind.image,
+          'imageId': final String imageId,
+        } when lookup.ownedImages.containsKey(imageId))
+          {
+            'id': a.id,
+            'kind': BeaconRoomMessageAttachmentKind.image,
+            'position': position,
+            'mime': switch (a.fields['mime']) {
+              final String mime => mime,
+              _ => 'application/octet-stream',
+            },
+            'sizeBytes': switch (a.fields['sizeBytes']) {
+              final int size => size,
+              _ => 0,
+            },
+            'fileName': switch (a.fields['fileName']) {
+              final String name => name,
+              _ => '',
+            },
+            'imageId': imageId,
+            'imageAuthorId': actorUserId,
+            'blurHash': lookup.ownedImages[imageId]?.blurHash ?? '',
+            'width': lookup.ownedImages[imageId]?.width ?? 0,
+            'height': lookup.ownedImages[imageId]?.height ?? 0,
+          }
+        else
+          throw const BeaconCreateException(
+            description: 'Unknown attachment',
+          ),
+    ];
   }
 
   /// Stages one image attachment for a later [correct] `attachmentsJson`.

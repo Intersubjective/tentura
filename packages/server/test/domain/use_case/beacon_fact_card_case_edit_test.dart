@@ -63,6 +63,9 @@ class _MockFacts extends Fake implements BeaconFactCardRepositoryPort {
 
   FactEditOutcome outcome = const FactEditApplied(newSeq: 2);
 
+  /// Attachments on this fact's revisions, by id.
+  Map<String, Map<String, Object?>> knownAttachments = const {};
+
   int loadRoomAccessCalls = 0;
   int listForBeaconCalls = 0;
   final editCalls = <_EditCall>[];
@@ -113,6 +116,20 @@ class _MockFacts extends Fake implements BeaconFactCardRepositoryPort {
     ));
     return outcome;
   }
+
+  @override
+  Future<FactEditAttachmentLookup> findEditAttachments({
+    required String factCardId,
+    required String beaconId,
+    required String actorUserId,
+    required List<String> attachmentIds,
+    required List<String> imageIds,
+  }) async => (
+    known: {
+      for (final id in attachmentIds) id: ?knownAttachments[id],
+    },
+    ownedImages: const <String, ({String blurHash, int width, int height})>{},
+  );
 
   @override
   Future<FactEditOutcome> restoreRevision({
@@ -336,7 +353,12 @@ void main() {
     test(
       'empty text with attachmentsJson recomputes fact_text from filenames',
       () async {
-        facts.outcome = const FactEditApplied(newSeq: 2);
+        facts
+          ..outcome = const FactEditApplied(newSeq: 2)
+          ..knownAttachments = {
+            'A1': {'id': 'A1', 'fileName': 'gate.jpg'},
+            'A2': {'id': 'A2', 'fileName': 'door.png'},
+          };
         expect(
           await correct(
             newText: '',
@@ -356,8 +378,12 @@ void main() {
     );
 
     test('attachmentsJson is forwarded on text+attach edits', () async {
-      facts.outcome = const FactEditApplied(newSeq: 3);
-      const json = '[{"id":"Ax"}]';
+      facts
+        ..outcome = const FactEditApplied(newSeq: 3)
+        ..knownAttachments = {
+          'Ax': {'id': 'Ax', 'position': 0},
+        };
+      const json = '[{"id":"Ax","position":0}]';
       expect(await correct(newText: 'Caption', attachmentsJson: json), 3);
       expect(facts.editCalls.single.attachmentsJson, json);
     });

@@ -1,6 +1,8 @@
 @Tags(['pg'])
 library;
 
+import 'dart:convert';
+
 import 'package:drift_postgres/drift_postgres.dart';
 import 'package:injectable/injectable.dart' show Environment;
 import 'package:logging/logging.dart';
@@ -9,6 +11,7 @@ import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
 import 'package:tentura_server/consts/beacon_fact_card_consts.dart';
+import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
 import 'package:tentura_server/data/repository/beacon_fact_card_repository.dart';
@@ -32,10 +35,15 @@ class _UnusedTasks extends Fake implements TaskRepositoryPort {}
 class _UnusedHierarchy extends Fake implements BeaconHierarchyRepositoryPort {}
 
 /// tentura-617.11 (issue #181 plan §14.5, §14.7 "RT counting"): one edit
-/// through [BeaconFactCardCase] costs exactly 5 statements — the fused
-/// `loadRoomAccess` SELECT, then the repository's BEGIN, `set_config` actor
-/// line, the edit CTE and COMMIT. No `listForBeacon` to infer the base seq,
-/// no separate author / steward / participant / status lookups.
+/// that sends a non-empty attachment list through [BeaconFactCardCase] costs
+/// exactly 6 statements — the fused
+/// `loadRoomAccess` SELECT, one SELECT of this fact's revision attachments,
+/// then the repository's BEGIN, `set_config` actor line, the edit CTE and
+/// COMMIT. An edit without a list (null) and `restore` take no client
+/// attachment list, so they stay at 5. An empty list (`[]`) is not pinned
+/// here: with nothing to match, the lookup may or may not run.
+/// No `listForBeacon` to infer the base seq, no separate author / steward /
+/// participant / status lookups.
 Future<void> main() async {
   final target = DisposablePgTarget.fromNamedEnvironment(
     envVarName: 'TENTURA_FACT_EDIT_CASE_RT_PG_TEST_DB',
@@ -88,9 +96,14 @@ Future<void> main() async {
     }
 
     test(
-      'one edit through the use case costs exactly 5 statements',
+      'one edit that resends a non-empty attachment list costs exactly 6 '
+      'statements',
       () async {
-        await _seedFact(writer, id: _factEditId);
+        await _seedFact(
+          writer,
+          id: _factEditId,
+          attachments: [_editAttachment],
+        );
         counter.reset();
         final seq = await case_.correct(
           factCardId: _factEditId,
@@ -98,12 +111,43 @@ Future<void> main() async {
           actorUserId: _editorId,
           newText: 'Edited through the case',
           baseRevisionSeq: 1,
+          attachmentsJson: jsonEncode([_editAttachment]),
+        );
+        expect(seq, 2);
+        expect(
+          counter.count,
+          6,
+          reason:
+              'loadRoomAccess + revision attachments SELECT + BEGIN + '
+              'set_config + edit CTE + COMMIT',
+        );
+      },
+      skip: skipReason,
+    );
+
+    test(
+      'one edit that sends no attachment list costs exactly 5 statements',
+      () async {
+        await _seedFact(
+          writer,
+          id: _factTextOnlyId,
+          attachments: [_editAttachment],
+        );
+        counter.reset();
+        final seq = await case_.correct(
+          factCardId: _factTextOnlyId,
+          beaconId: _beaconId,
+          actorUserId: _editorId,
+          newText: 'Text edited, attachments untouched',
+          baseRevisionSeq: 1,
         );
         expect(seq, 2);
         expect(
           counter.count,
           5,
-          reason: 'loadRoomAccess + BEGIN + set_config + edit CTE + COMMIT',
+          reason:
+              'no client list to check: loadRoomAccess + BEGIN + set_config '
+              '+ edit CTE + COMMIT',
         );
       },
       skip: skipReason,
@@ -138,8 +182,24 @@ const _editorId = 'Ufcrteditor';
 const _beaconId = 'Bfcrtbeacon';
 const _factEditId = 'Ffcrtedit01';
 const _factRestoreId = 'Ffcrtrestr1';
+const _factTextOnlyId = 'Ffcrttext01';
 
 final _t0 = DateTime.utc(2026, 3, 1, 12);
+
+/// A file attachment already on the fact; the edit resends it unchanged.
+const _editAttachment = <String, Object?>{
+  'id': 'Afcrtfile01',
+  'kind': BeaconRoomMessageAttachmentKind.file,
+  'position': 0,
+  'mime': 'application/pdf',
+  'sizeBytes': 20,
+  'fileName': 'notes.pdf',
+  'imageId': '',
+  'imageAuthorId': '',
+  'blurHash': '',
+  'width': 0,
+  'height': 0,
+};
 
 Future<void> _seed(Connection writer) async {
   var n = 0;
@@ -178,6 +238,7 @@ Future<void> _seedFact(
   Connection writer, {
   required String id,
   int headSeq = 1,
+  List<Map<String, Object?>> attachments = const [],
 }) async {
   final headText = headSeq == 1 ? 'Original' : 'Original v$headSeq';
   await writer.execute(
@@ -201,8 +262,8 @@ VALUES (@id, @beacon, @text, ${BeaconFactCardVisibilityBits.public},
     await writer.execute(
       Sql.named('''
 INSERT INTO public.beacon_fact_card_revision
-  (fact_card_id, seq, fact_text, actor_id, kind, created_at)
-VALUES (@id, @seq, @text, @author, @kind, @at)
+  (fact_card_id, seq, fact_text, actor_id, kind, created_at, attachments_json)
+VALUES (@id, @seq, @text, @author, @kind, @at, @att::jsonb)
 '''),
       parameters: {
         'id': id,
@@ -213,6 +274,7 @@ VALUES (@id, @seq, @text, @author, @kind, @at)
             ? BeaconFactCardRevisionKindBits.created
             : BeaconFactCardRevisionKindBits.edited,
         'at': _t0,
+        'att': jsonEncode(attachments),
       },
     );
   }

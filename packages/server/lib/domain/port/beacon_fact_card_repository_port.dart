@@ -4,6 +4,16 @@ import 'package:tentura_server/domain/entity/beacon_fact_card_outcome.dart';
 import 'package:tentura_server/domain/entity/beacon_fact_history_entry_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_fact_room_access.dart';
 
+/// Server-side data for checking the attachment list a fact edit sends.
+typedef FactEditAttachmentLookup = ({
+  /// Attachments on any revision of the fact, by attachment id; when an id
+  /// is on several revisions, the latest one wins.
+  Map<String, Map<String, Object?>> known,
+
+  /// Image rows the actor authored, by image id.
+  Map<String, ({String blurHash, int width, int height})> ownedImages,
+});
+
 abstract class BeaconFactCardRepositoryPort {
   /// One SELECT: beacon status, room use (author, steward or admitted) and
   /// `beacon_can_read_content`. `exists` is false for an unknown beacon.
@@ -79,6 +89,17 @@ abstract class BeaconFactCardRepositoryPort {
   Future<Map<String, String>> headAttachmentsJsonByFactIds(
     Iterable<String> factCardIds,
   );
+
+  /// One SELECT: the attachments with [attachmentIds] found on any revision
+  /// of [factCardId] in [beaconId], and the [imageIds] whose image row
+  /// [actorUserId] authored.
+  Future<FactEditAttachmentLookup> findEditAttachments({
+    required String factCardId,
+    required String beaconId,
+    required String actorUserId,
+    required List<String> attachmentIds,
+    required List<String> imageIds,
+  });
 
   /// Attachment snapshot for a specific revision seq (`'[]'` when missing).
   Future<String> attachmentsJsonForRevision({

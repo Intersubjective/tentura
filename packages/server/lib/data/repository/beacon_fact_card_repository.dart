@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:injectable/injectable.dart';
 import 'package:drift_postgres/drift_postgres.dart';
 import 'package:postgres/postgres.dart' show Type, TypedValue;
@@ -349,6 +351,67 @@ WHERE f.id = ANY($1::text[])
       for (final row in rows)
         row.read<String>('id'): row.read<String>('attachments_json'),
     };
+  }
+
+  @override
+  Future<FactEditAttachmentLookup> findEditAttachments({
+    required String factCardId,
+    required String beaconId,
+    required String actorUserId,
+    required List<String> attachmentIds,
+    required List<String> imageIds,
+  }) async {
+    final rows = await _db
+        .customSelect(
+          r'''
+WITH known AS (
+  SELECT DISTINCT ON (a.item->>'id') a.item->>'id' AS id, a.item
+  FROM public.beacon_fact_card f
+  JOIN public.beacon_fact_card_revision r ON r.fact_card_id = f.id
+  CROSS JOIN LATERAL jsonb_array_elements(
+    CASE WHEN jsonb_typeof(r.attachments_json) = 'array'
+         THEN r.attachments_json ELSE '[]'::jsonb END
+  ) AS a(item)
+  WHERE f.id = $1::text AND f.beacon_id = $2::text
+    AND jsonb_typeof(a.item) = 'object'
+    AND a.item->>'id' = ANY($4::text[])
+  ORDER BY a.item->>'id', r.seq DESC
+)
+SELECT true AS is_known, k.id, k.item::text AS item,
+       NULL::text AS hash, NULL::integer AS width, NULL::integer AS height
+FROM known k
+UNION ALL
+SELECT false, i.id::text, NULL, i.hash, i.width, i.height
+FROM public.image i
+WHERE i.id = ANY($5::uuid[]) AND i.author_id = $3::text
+''',
+          variables: [
+            Variable<String>(factCardId),
+            Variable<String>(beaconId),
+            Variable<String>(actorUserId),
+            Variable(TypedValue(Type.textArray, attachmentIds)),
+            Variable(TypedValue(Type.uuidArray, imageIds)),
+          ],
+        )
+        .get();
+    return (
+      known: {
+        for (final row in rows)
+          if (row.read<bool>('is_known'))
+            if (jsonDecode(row.read<String>('item'))
+                case final Map<String, Object?> item)
+              row.read<String>('id'): item,
+      },
+      ownedImages: {
+        for (final row in rows)
+          if (!row.read<bool>('is_known'))
+            row.read<String>('id'): (
+              blurHash: row.read<String>('hash'),
+              width: row.read<int>('width'),
+              height: row.read<int>('height'),
+            ),
+      },
+    );
   }
 
   @override
