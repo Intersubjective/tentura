@@ -17,5 +17,6 @@ query BeaconFactCardList($beaconId: String!) {
     lastEditedAt
     otherEditorCount
     historyTruncated
+    originBeaconKind
   }
 }

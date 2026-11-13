@@ -17,6 +17,7 @@ QuotedFact _quote({
 );
 
 void main() {
+  _copyErrorTests();
   group('QuotedFact', () {
     test('isChangedSinceQuoted is true when currentSeq > seq', () {
       expect(_quote(seq: 2, currentSeq: 3).isChangedSinceQuoted, isTrue);
@@ -67,6 +68,34 @@ void main() {
 
     test('1317 does not throw', () {
       expect(() => throwIfBeaconFactCardError(1317, null), returnsNormally);
+    });
+  });
+}
+
+void _copyErrorTests() {
+  group('throwIfBeaconFactCardError source unavailable', () {
+    test('1352 throws its own subclass, distinct from every other fact '
+        'exception', () {
+      Object? thrown(int code) {
+        try {
+          throwIfBeaconFactCardError(code, null);
+        } on BeaconFactCardException catch (e) {
+          return e;
+        }
+        return null;
+      }
+
+      final source = thrown(1352);
+      expect(source, isA<BeaconFactCardException>());
+      final types = {
+        for (final code in [1318, 1319, 1320, 1352]) thrown(code)?.runtimeType,
+      };
+      expect(types, hasLength(4), reason: 'each code has its own class');
+      expect(types, isNot(contains(null)));
+    });
+
+    test('1351 returns without throwing', () {
+      expect(() => throwIfBeaconFactCardError(1351, null), returnsNormally);
     });
   });
 }

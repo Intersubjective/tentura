@@ -88,6 +88,61 @@ void main() {
     });
   });
 
+  group('facts-brought preview', () {
+    Map<String, Object?> factsPreview({
+      required int kind,
+      int? factCount,
+      String? factTitle,
+    }) => {
+      '__typename': 'v2_ThreadMessagePreview',
+      'kind': kind,
+      'excerpt': null,
+      'hasAttachment': false,
+      'joinedUserId': null,
+      'admissionReason': null,
+      'linkedItemId': null,
+      'linkedEventKind': null,
+      'itemKind': null,
+      'itemTitle': null,
+      'pollTitle': null,
+      'factTitle': factTitle,
+      'factVisibility': null,
+      'factCount': factCount,
+    };
+
+    ThreadMessagePreview parse(Map<String, Object?> p) => parseRow(
+      threadRow(
+        threadId: RequestThread.generalId,
+        threadKind: 'general',
+        preview: p,
+      ),
+    ).lastMessagePreview!;
+
+    test('kind 13 is a known preview kind', () {
+      expect(ThreadMessagePreviewKind.values, contains(13));
+    });
+
+    test('a single brought fact keeps factCount and factTitle', () {
+      final p = parse(
+        factsPreview(kind: 13, factCount: 1, factTitle: 'Key is under the mat'),
+      );
+      expect(p.kind, 13);
+      expect((p as dynamic).factCount, 1);
+      expect(p.factTitle, 'Key is under the mat');
+    });
+
+    test('a grouped line keeps factCount and has no factTitle', () {
+      final p = parse(factsPreview(kind: 13, factCount: 3));
+      expect((p as dynamic).factCount, 3);
+      expect(p.factTitle, isNull);
+    });
+
+    test('other kinds carry no factCount', () {
+      final p = parse(factsPreview(kind: 3, factTitle: 'Pinned'));
+      expect((p as dynamic).factCount, isNull);
+    });
+  });
+
   group('ThreadMessagePreview mapping', () {
     Map<String, Object?> preview({
       required int kind,
@@ -170,7 +225,7 @@ void main() {
       expect(
         () => mapThreadMessagePreview(
           GBeaconThreadsListData_beaconThreads_lastMessagePreview.fromJson(
-            preview(kind: ThreadMessagePreviewKind.factQuoted + 1),
+            preview(kind: ThreadMessagePreviewKind.factsBrought + 1),
           )!,
         ),
         throwsArgumentError,

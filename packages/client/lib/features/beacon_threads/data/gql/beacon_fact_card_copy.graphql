@@ -1,0 +1,12 @@
+mutation BeaconFactCardCopy(
+  $sourceFactCardId: String!
+  $destinationBeaconId: String!
+) {
+  BeaconFactCardCopy(
+    sourceFactCardId: $sourceFactCardId
+    destinationBeaconId: $destinationBeaconId
+  ) {
+    factCardId
+    outcome
+  }
+}

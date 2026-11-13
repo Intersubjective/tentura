@@ -425,6 +425,23 @@ base class BeaconThreadsCase extends UseCaseBase {
     attachmentsJson: attachmentsJson,
   );
 
+  Future<BeaconFactCopyResult> copyFact({
+    required String sourceFactCardId,
+    required String destinationBeaconId,
+  }) => _factCards.copy(
+    sourceFactCardId: sourceFactCardId,
+    destinationBeaconId: destinationBeaconId,
+  );
+
+  Future<BeaconFactOrigin> factOrigin({
+    required String beaconId,
+    required String factCardId,
+  }) => _factCards.origin(beaconId: beaconId, factCardId: factCardId);
+
+  Future<List<BeaconFactCopyDestination>> factCopyDestinations({
+    required String sourceFactCardId,
+  }) => _factCards.destinations(sourceFactCardId: sourceFactCardId);
+
   Future<void> removeFact({
     required String beaconId,
     required String factCardId,

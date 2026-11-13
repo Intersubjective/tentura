@@ -39,6 +39,15 @@ final class BeaconFactRateLimitedException extends BeaconFactCardException {
   static const codeNumber = 1320;
 }
 
+/// The fact to copy (or whose origin is asked for) is gone or not readable
+/// by the caller.
+final class BeaconFactCopySourceUnavailableException
+    extends BeaconFactCardException {
+  const BeaconFactCopySourceUnavailableException([super.message]);
+
+  static const codeNumber = 1352;
+}
+
 /// Throws the matching [BeaconFactCardException] for a recognized fact-card
 /// GraphQL error [code]. Returns normally (no throw) for any other code —
 /// notably 1317 (`BeaconHierarchyCursorInvalidException`), which is handled
@@ -54,5 +63,7 @@ void throwIfBeaconFactCardError(int? code, Map<String, dynamic>? extensions) {
       throw const BeaconFactRemovedException();
     case BeaconFactRateLimitedException.codeNumber:
       throw const BeaconFactRateLimitedException();
+    case BeaconFactCopySourceUnavailableException.codeNumber:
+      throw const BeaconFactCopySourceUnavailableException();
   }
 }

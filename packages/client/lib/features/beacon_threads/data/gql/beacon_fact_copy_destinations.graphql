@@ -1,0 +1,9 @@
+query BeaconFactCopyDestinations($sourceFactCardId: String!) {
+  BeaconFactCopyDestinations(sourceFactCardId: $sourceFactCardId) {
+    id
+    kind
+    title
+    isDraft
+    expiresAt
+  }
+}

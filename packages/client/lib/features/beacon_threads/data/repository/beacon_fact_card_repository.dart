@@ -10,7 +10,10 @@ import 'package:tentura/domain/entity/room_message_attachment.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
 
 import '../gql/_g/beacon_fact_card_attachment_upload.req.gql.dart';
+import '../gql/_g/beacon_fact_card_copy.req.gql.dart';
 import '../gql/_g/beacon_fact_card_correct.req.gql.dart';
+import '../gql/_g/beacon_fact_card_origin.req.gql.dart';
+import '../gql/_g/beacon_fact_copy_destinations.req.gql.dart';
 import '../gql/_g/beacon_fact_card_list.data.gql.dart';
 import '../gql/_g/beacon_fact_card_list.req.gql.dart';
 import '../gql/_g/beacon_fact_card_pin.req.gql.dart';
@@ -19,6 +22,31 @@ import '../gql/_g/beacon_fact_card_restore.req.gql.dart';
 import '../gql/_g/beacon_fact_card_revisions.data.gql.dart';
 import '../gql/_g/beacon_fact_card_revisions.req.gql.dart';
 import '../gql/_g/beacon_fact_card_set_visibility.req.gql.dart';
+
+enum BeaconFactCopyOutcome { created, alreadyThere }
+
+typedef BeaconFactCopyResult = ({
+  String factCardId,
+  BeaconFactCopyOutcome outcome,
+});
+
+typedef BeaconFactOrigin = ({
+  bool available,
+  String? beaconId,
+  String? factCardId,
+  int? beaconKind,
+  bool? changedSinceCopy,
+  bool? canSeeCopiedRevision,
+  int? copiedRevisionSeq,
+});
+
+typedef BeaconFactCopyDestination = ({
+  String id,
+  int kind,
+  String title,
+  bool isDraft,
+  DateTime? expiresAt,
+});
 
 @lazySingleton
 class BeaconFactCardRepository {
@@ -50,6 +78,7 @@ class BeaconFactCardRepository {
             : null,
         otherEditorCount: row.otherEditorCount,
         historyTruncated: row.historyTruncated,
+        originBeaconKind: row.originBeaconKind,
         attachments: parseRoomMessageAttachmentsJson(row.attachmentsJson),
       );
 
@@ -208,6 +237,15 @@ class BeaconFactCardRepository {
         actorTitle: row.actorTitle,
         createdAt: createdAt,
       ),
+      BeaconFactCardRevisionKindBits.copied => BeaconFactHistoryCopied(
+        id: row.entryKey,
+        factCardId: factCardId,
+        seq: seq,
+        factText: factText,
+        actorId: row.actorId,
+        actorTitle: row.actorTitle,
+        createdAt: createdAt,
+      ),
       BeaconFactCardRevisionKindBits.imported => BeaconFactHistoryImported(
         id: row.entryKey,
         factCardId: factCardId,
@@ -227,6 +265,78 @@ class BeaconFactCardRepository {
         createdAt: createdAt,
       ),
     };
+  }
+
+  Future<BeaconFactCopyResult> copy({
+    required String sourceFactCardId,
+    required String destinationBeaconId,
+  }) async {
+    final r = await _remoteApiService
+        .request(
+          GBeaconFactCardCopyReq(
+            (b) => b.vars
+              ..sourceFactCardId = sourceFactCardId
+              ..destinationBeaconId = destinationBeaconId,
+          ),
+        )
+        .firstLinkResponse(label: _label);
+    final d = r.dataOrThrow(label: _label).BeaconFactCardCopy;
+    return (
+      factCardId: d.factCardId,
+      outcome: BeaconFactCopyOutcome.values.byName(d.outcome.name),
+    );
+  }
+
+  Future<BeaconFactOrigin> origin({
+    required String beaconId,
+    required String factCardId,
+  }) async {
+    final r = await _remoteApiService
+        .request(
+          GBeaconFactCardOriginReq(
+            (b) => b.vars
+              ..beaconId = beaconId
+              ..factCardId = factCardId,
+          ),
+        )
+        .firstLinkResponse(label: _label);
+    final d = r.dataOrThrow(label: _label).BeaconFactCardOrigin;
+    return (
+      available: d.available,
+      beaconId: d.beaconId,
+      factCardId: d.factCardId,
+      beaconKind: d.beaconKind,
+      changedSinceCopy: d.changedSinceCopy,
+      canSeeCopiedRevision: d.canSeeCopiedRevision,
+      copiedRevisionSeq: d.copiedRevisionSeq,
+    );
+  }
+
+  Future<List<BeaconFactCopyDestination>> destinations({
+    required String sourceFactCardId,
+  }) async {
+    final r = await _remoteApiService
+        .request(
+          GBeaconFactCopyDestinationsReq(
+            (b) => b.vars.sourceFactCardId = sourceFactCardId,
+          ),
+        )
+        .firstLinkResponse(label: _label);
+    final rows =
+        r.dataOrThrow(label: _label).BeaconFactCopyDestinations?.toList() ??
+        const [];
+    return [
+      for (final row in rows)
+        (
+          id: row.id,
+          kind: row.kind,
+          title: row.title,
+          isDraft: row.isDraft,
+          expiresAt: row.expiresAt == null
+              ? null
+              : DateTime.parse(row.expiresAt!),
+        ),
+    ];
   }
 
   Future<void> remove({

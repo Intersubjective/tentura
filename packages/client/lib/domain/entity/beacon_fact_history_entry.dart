@@ -125,6 +125,22 @@ final class BeaconFactHistoryImported extends BeaconFactHistoryEntry {
   int get kind => BeaconFactCardRevisionKindBits.imported;
 }
 
+/// The fact was copied in from another Request.
+final class BeaconFactHistoryCopied extends BeaconFactHistoryEntry {
+  const BeaconFactHistoryCopied({
+    required super.id,
+    required super.factCardId,
+    required super.seq,
+    required super.factText,
+    required super.actorId,
+    required super.createdAt,
+    super.actorTitle = '',
+  });
+
+  @override
+  int get kind => BeaconFactCardRevisionKindBits.copied;
+}
+
 /// One page of a fact's history timeline, newest first; pass `nextCursor`
 /// back as `before` to load the next (older) page.
 typedef BeaconFactHistoryPage = ({

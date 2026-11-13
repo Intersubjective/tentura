@@ -29,6 +29,7 @@ ThreadMessagePreview mapThreadMessagePreview(
     pollTitle: preview.pollTitle,
     factTitle: preview.factTitle,
     factVisibility: preview.factVisibility,
+    factCount: preview.factCount,
   );
 }
 

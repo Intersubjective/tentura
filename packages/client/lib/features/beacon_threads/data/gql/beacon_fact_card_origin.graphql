@@ -1,0 +1,11 @@
+query BeaconFactCardOrigin($beaconId: String!, $factCardId: String!) {
+  BeaconFactCardOrigin(beaconId: $beaconId, factCardId: $factCardId) {
+    available
+    beaconId
+    factCardId
+    beaconKind
+    changedSinceCopy
+    canSeeCopiedRevision
+    copiedRevisionSeq
+  }
+}

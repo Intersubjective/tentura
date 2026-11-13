@@ -19,6 +19,7 @@ query BeaconThreadsList($beaconId: String!) {
       itemTitle
       pollTitle
       factTitle
+      factCount
       factVisibility
     }
   }
