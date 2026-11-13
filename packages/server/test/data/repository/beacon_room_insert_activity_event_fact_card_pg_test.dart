@@ -102,6 +102,7 @@ WHERE beacon_id = @beacon AND type = @type
 
         final history = await BeaconFactCardRepository(db, room).history(
           factCardId: _factId,
+          beaconId: _beaconId,
           limit: 50,
         );
         final events = history.whereType<BeaconFactHistoryEvent>();

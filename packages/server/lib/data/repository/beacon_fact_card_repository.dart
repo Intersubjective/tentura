@@ -740,17 +740,19 @@ SELECT EXISTS (SELECT 1 FROM locked) AS found,
   @override
   Future<List<BeaconFactHistoryEntry>> history({
     required String factCardId,
+    required String beaconId,
     ({DateTime createdAt, String entryKey})? before,
     int limit = kFactHistoryPageSize,
   }) async {
     final variables = <Variable>[
       Variable<String>(factCardId),
       Variable<int>(limit + 1),
+      Variable<String>(beaconId),
     ];
     var cursorSql = '';
     if (before != null) {
       cursorSql = r'''
-WHERE (h.created_at, h.entry_key) < ($3::timestamptz, $4::text)
+WHERE (h.created_at, h.entry_key) < ($4::timestamptz, $5::text)
 ''';
       variables.addAll([
         Variable(
@@ -764,7 +766,26 @@ WHERE (h.created_at, h.entry_key) < ($3::timestamptz, $4::text)
       'db.fact.history',
       (_) => _db.customSelect(
         r'''
-SELECT h.*, u.display_name AS actor_title
+WITH scope AS (
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.beacon_fact_card f
+    WHERE f.id = $1::text AND f.beacon_id = $3::text
+  ) AS fact_in_beacon
+)
+(
+SELECT h.entry_key,
+       h.created_at,
+       h.actor_id,
+       h.seq,
+       h.kind,
+       h.fact_text,
+       h.restored_from_seq,
+       h.type,
+       h.visibility_from,
+       h.visibility_to,
+       u.display_name AS actor_title,
+       s.fact_in_beacon
 FROM (
   SELECT
     'r' || lpad(r.seq::text, 10, '0') AS entry_key,
@@ -778,7 +799,8 @@ FROM (
     NULL::integer AS visibility_from,
     NULL::integer AS visibility_to
   FROM public.beacon_fact_card_revision r
-  WHERE r.fact_card_id = $1::text
+  INNER JOIN public.beacon_fact_card f
+    ON f.id = r.fact_card_id AND f.id = $1::text AND f.beacon_id = $3::text
   UNION ALL
   SELECT
     'e' || e.id AS entry_key,
@@ -792,20 +814,45 @@ FROM (
     (e.diff ->> 'previousVisibility')::integer,
     (e.diff ->> 'visibility')::integer
   FROM public.beacon_activity_event e
+  INNER JOIN public.beacon_fact_card f
+    ON f.id = e.fact_card_id AND f.id = $1::text AND f.beacon_id = $3::text
   WHERE e.fact_card_id = $1::text
+    AND e.beacon_id = $3::text
     AND e.fact_card_id IS NOT NULL
     AND e.type IN (2, 14, 20)
 ) h
+CROSS JOIN scope s
 LEFT JOIN public."user" u ON u.id = h.actor_id
 ''' +
           cursorSql +
           r'''
 ORDER BY h.created_at DESC, h.entry_key DESC
 LIMIT $2::integer
+)
+
+UNION ALL
+
+SELECT NULL::text,
+       NULL::timestamptz,
+       NULL::text,
+       NULL::integer,
+       NULL::integer,
+       NULL::text,
+       NULL::integer,
+       NULL::integer,
+       NULL::integer,
+       NULL::integer,
+       NULL::text,
+       s.fact_in_beacon
+FROM scope s
+WHERE NOT s.fact_in_beacon
 ''',
         variables: variables,
       ).get(),
     );
+    if (rows.any((row) => !row.read<bool>('fact_in_beacon'))) {
+      throw IdNotFoundException(description: 'Fact card [$factCardId]');
+    }
     return [for (final row in rows) _toHistoryEntry(row)];
   }
 

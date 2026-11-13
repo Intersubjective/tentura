@@ -411,6 +411,7 @@ final class BeaconFactCardCase extends UseCaseBase {
 
     final rows = await _facts.history(
       factCardId: factCardId,
+      beaconId: beaconId,
       before: parsedBefore,
     );
     final entries = rows.take(kFactHistoryPageSize).toList();

@@ -83,6 +83,7 @@ Future<void> main() async {
       () async {
         final List<BeaconFactHistoryEntry> entries = await repository.history(
           factCardId: _factId,
+          beaconId: _beaconId,
           limit: 200,
         );
         final page = entries.take(200).toList();
@@ -112,6 +113,7 @@ Future<void> main() async {
       () async {
         final List<BeaconFactHistoryEntry> entries = await repository.history(
           factCardId: _factId,
+          beaconId: _beaconId,
           limit: 200,
         );
 
@@ -150,6 +152,7 @@ Future<void> main() async {
         for (var attempt = 0; attempt < 3; attempt++) {
           final List<BeaconFactHistoryEntry> entries = await repository.history(
             factCardId: _factId,
+          beaconId: _beaconId,
             limit: 200,
           );
           final tail = entries.take(200).toList().reversed.take(2).toList();
@@ -192,6 +195,7 @@ Future<void> main() async {
           expect(pages, lessThanOrEqualTo(3), reason: 'paging must terminate');
           final List<BeaconFactHistoryEntry> page = await repository.history(
             factCardId: _factId,
+          beaconId: _beaconId,
             before: before,
             limit: limit,
           );
@@ -218,6 +222,7 @@ Future<void> main() async {
       () async {
         final List<BeaconFactHistoryEntry> page = await repository.history(
           factCardId: _factId,
+          beaconId: _beaconId,
         );
         expect(
           page.length,
@@ -233,6 +238,7 @@ Future<void> main() async {
       () async {
         final List<BeaconFactHistoryEntry> entries = await repository.history(
           factCardId: _factId,
+          beaconId: _beaconId,
           limit: 200,
         );
 
@@ -264,6 +270,7 @@ Future<void> main() async {
 
         final List<BeaconFactHistoryEntry> other = await repository.history(
           factCardId: _otherFactId,
+          beaconId: _beaconId,
           limit: 200,
         );
         expect(other, hasLength(2), reason: 'other fact: 1 revision, 1 event');
@@ -282,6 +289,7 @@ Future<void> main() async {
           recorder.reset();
           await repository.history(
             factCardId: _factId,
+          beaconId: _beaconId,
             before: before,
             limit: kFactHistoryPageSize,
           );

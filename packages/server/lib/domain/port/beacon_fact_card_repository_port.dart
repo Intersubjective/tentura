@@ -97,6 +97,7 @@ abstract class BeaconFactCardRepositoryPort {
   /// exclusive keyset cursor. Returns up to `limit + 1` rows (look-ahead).
   Future<List<BeaconFactHistoryEntry>> history({
     required String factCardId,
+    required String beaconId,
     ({DateTime createdAt, String entryKey})? before,
     int limit = kFactHistoryPageSize,
   });

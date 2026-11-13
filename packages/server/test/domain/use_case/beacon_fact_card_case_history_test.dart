@@ -139,6 +139,7 @@ class _FakeFacts extends Fake implements BeaconFactCardRepositoryPort {
   @override
   Future<List<BeaconFactHistoryEntry>> history({
     required String factCardId,
+    required String beaconId,
     ({DateTime createdAt, String entryKey})? before,
     int limit = kFactHistoryPageSize,
   }) async {
@@ -155,6 +156,7 @@ class _KeysetPagingFakeFacts extends _FakeFacts {
   @override
   Future<List<BeaconFactHistoryEntry>> history({
     required String factCardId,
+    required String beaconId,
     ({DateTime createdAt, String entryKey})? before,
     int limit = kFactHistoryPageSize,
   }) async {
