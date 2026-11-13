@@ -15,6 +15,7 @@ abstract final class ThreadMessagePreviewKind {
   static const factEdited = 10;
   static const factUnpinned = 11;
   static const factQuoted = 12;
+  static const factsBrought = 13;
 }
 
 final class ThreadMessagePreviewRecord {
@@ -31,6 +32,7 @@ final class ThreadMessagePreviewRecord {
     this.pollTitle,
     this.factTitle,
     this.factVisibility,
+    this.factCount,
   });
 
   final int kind;
@@ -45,6 +47,7 @@ final class ThreadMessagePreviewRecord {
   final String? pollTitle;
   final String? factTitle;
   final int? factVisibility;
+  final int? factCount;
 }
 
 final class BeaconThreadRecord {

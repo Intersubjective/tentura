@@ -85,6 +85,9 @@ abstract final class BeaconRoomSemanticMarker {
   /// The author ended an admitted helper's participation. `systemPayloadJson`
   /// carries only `removedUserId`: no actor, no reason (U41, #489).
   static const participantRemoved = 19;
+
+  /// Several fact cards copied into this Room (system line; count in payload).
+  static const factsBrought = 20;
 }
 
 /// Mirrors server [BeaconRoomSystemMessageKind].

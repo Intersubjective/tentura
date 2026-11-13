@@ -9006,6 +9006,7 @@ type v2_RoomMessageRow {
 type v2_ThreadMessagePreview {
   admissionReason: String
   excerpt: String
+  factCount: Int
   factTitle: String
   factVisibility: Int
   hasAttachment: Boolean!

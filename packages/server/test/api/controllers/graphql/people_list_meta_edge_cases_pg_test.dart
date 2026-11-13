@@ -366,6 +366,56 @@ VALUES (@room, @from, @to, @at, @cancelled)
         expect(instant(row['lastInteractionAt']), forwarded);
       });
 
+      test('a "facts brought" line (marker 20) is not a conversation', () async {
+        final forwarded = await forwardedBaseline('Bplmfactsbr0001');
+        await message(
+          'Bplmfactsbr0001',
+          _peer,
+          ago(const Duration(minutes: 10)),
+          marker: 20,
+        );
+
+        final row = await peerRow();
+
+        expect(instant(row['lastInteractionAt']), forwarded);
+      });
+
+      test('a person whose only room message is a "facts brought" line has '
+          'only the trust edge as last interaction', () async {
+        // A listed person always has the viewer's trust edge, so "no other
+        // interaction" means the trust edge time, not the line's time.
+        final trustedAt = ago(const Duration(days: 30));
+        await trust(_viewer, _peer, created: trustedAt);
+        await room('Bplmfactsbr0003', owner: _viewer, participants: [_viewer, _peer]);
+        await message(
+          'Bplmfactsbr0003',
+          _peer,
+          ago(const Duration(minutes: 10)),
+          marker: 20,
+        );
+
+        final row = await peerRow();
+
+        expect(instant(row['lastInteractionAt']), trustedAt);
+      });
+
+      test('a "facts brought" line after a plain message does not move the '
+          'last spoke time', () async {
+        await forwardedBaseline('Bplmfactsbr0002');
+        final spoke = ago(const Duration(minutes: 20));
+        await message('Bplmfactsbr0002', _peer, spoke);
+        await message(
+          'Bplmfactsbr0002',
+          _peer,
+          ago(const Duration(minutes: 5)),
+          marker: 20,
+        );
+
+        final row = await peerRow();
+
+        expect(instant(row['lastInteractionAt']), spoke);
+      });
+
       /// A Request room owned by someone else, where the viewer and the
       /// person both sit, with a Questions scope (coordination item kind 7).
       /// The viewer is not the author, so a lobby ban takes their Questions

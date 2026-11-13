@@ -1689,6 +1689,9 @@ ThreadMessagePreviewRecord _mapThreadMessagePreview({
       factTitle: _isFactKind(kind) ? factTitle : null,
       factVisibility:
           kind == ThreadMessagePreviewKind.factPinned ? factVisibility : null,
+      factCount: kind == ThreadMessagePreviewKind.factsBrought
+          ? (payload?['count'] as int?)
+          : null,
     );
   }
 
@@ -1752,13 +1755,16 @@ int _previewKindForSemanticMarker(int marker) => switch (marker) {
       BeaconRoomSemanticMarker.planCopied =>
         ThreadMessagePreviewKind.planUpdated,
       BeaconRoomSemanticMarker.planStepsDone => ThreadMessagePreviewKind.done,
+      BeaconRoomSemanticMarker.factsBrought =>
+        ThreadMessagePreviewKind.factsBrought,
       _ => throw StateError('Unknown semantic marker: $marker'),
     };
 
 bool _isFactKind(int kind) =>
     kind == ThreadMessagePreviewKind.factPinned ||
     kind == ThreadMessagePreviewKind.factEdited ||
-    kind == ThreadMessagePreviewKind.factUnpinned;
+    kind == ThreadMessagePreviewKind.factUnpinned ||
+    kind == ThreadMessagePreviewKind.factsBrought;
 
 int? _itemKindForPreview(int kind, int? linkedItemKind) =>
     kind == ThreadMessagePreviewKind.coordination ? linkedItemKind : null;

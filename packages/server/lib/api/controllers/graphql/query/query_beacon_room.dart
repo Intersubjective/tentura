@@ -221,6 +221,7 @@ Map<String, Object?> beaconThreadRecordToMap(BeaconThreadRecord row) {
             'pollTitle': preview.pollTitle,
             'factTitle': preview.factTitle,
             'factVisibility': preview.factVisibility,
+            'factCount': preview.factCount,
           },
   };
 }

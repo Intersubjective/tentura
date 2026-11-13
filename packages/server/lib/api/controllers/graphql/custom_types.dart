@@ -1890,6 +1890,7 @@ final gqlTypeThreadMessagePreview =
         field('pollTitle', graphQLString),
         field('factTitle', graphQLString),
         field('factVisibility', graphQLInt),
+        field('factCount', graphQLInt),
       ]);
 
 /// One row in the beacon thread list (General or item thread).

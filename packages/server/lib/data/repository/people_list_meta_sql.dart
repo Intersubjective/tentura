@@ -52,7 +52,7 @@ WITH keyed AS (
     WHERE m.author_id = outgoing.object
       AND m.thread_item_id IS NULL
       AND m.system_message_kind IS NULL
-      AND (m.semantic_marker IS NULL OR m.semantic_marker NOT IN (1, 2, 3))
+      AND (m.semantic_marker IS NULL OR m.semantic_marker NOT IN (1, 2, 3, 20))
       AND EXISTS (
         SELECT 1 FROM public.beacon_member mine
         WHERE mine.beacon_id = m.beacon_id AND mine.user_id = $1
