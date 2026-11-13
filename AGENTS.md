@@ -196,14 +196,11 @@ Standard dev setup is in `DEVELOPMENT.md` and the `local-debug` skill; only the 
 <!-- headroom:learn:end -->
 
 <!-- alloy:memory:begin -->
-reviewed: 2026-11-09
-review due: 2026-11-16
+reviewed: 2026-11-13
+review due: 2026-11-20
 
 ### 0-evidence-real-path
 Evidence rule (owner 2026-10-30, QA-bounce prevention). Every behaviour the commit message or verdict claims needs its own test that fails without the change. At least one test per bead runs the real path: the real transport response through the GQL mapper/repository to the cubit and widget (client), or a real Postgres pg test (server). Hand-built entities don't count. Touch, focus, keyboard, semantics, scroll and web lifecycle (bfcache, reload) are proven only by the web integration_test (scripts/run_client_integration_web_local.sh) or Playwright; a widget test alone is not evidence. Judge: an unbacked claim is not done, so answer retry and name the missing test, or human when the sandbox can't run the browser suite.
-
-### alloy:lesson:status_trigger_for_all_relabel_paths_with_actor_setting
-tentura-i1dh (#601-a, m0301): to record who/when for a status change that many paths write (repositories, beacon lifecycle trigger, Hasura InboxSetStatus), use a BEFORE UPDATE OF status trigger on public.inbox_item instead of editing each write path. The actor is COALESCE(NULLIF(current_setting('tentura.mutating_user_id', true),''), Hasura x-hasura-user-id from current_setting('hasura.user', true)). A change with no known actor records nothing, except moves to status 3/4 (closed/deleted before the recipient answered), which only lifecycle code writes, so they are recorded with a NULL actor, meaning "not the recipient". Unseen predicate must use IS DISTINCT FROM against the viewer so a NULL actor still ticks. Reuse the existing markSeen path by mapping the synthetic id inbox:<beaconId> to the viewer's outcome_seen_at only. Contract JSON (docs/contracts/attention-active-attention-axis.json) gets a forwardOutcomeTick entry holding literal SQL fragments plus cases, and the test support loader (test/support/attention_axis_contract.dart) asserts those fragments appear in attention_repository.dart so SQL and JSON cannot drift. Cost seen: the new pg test file first lacked the repo-files tag, which failed scripts/check_repo_files_tags.py, so tag new pg tests at creation. In-place bead: no pubspec/index.html bump.
 <!-- alloy:memory:end -->
 
 <!-- alloy:memory-review:ptl:begin -->
