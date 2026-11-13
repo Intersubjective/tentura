@@ -20,26 +20,26 @@ final _l10n = lookupL10n(const Locale('en'));
 
 BeaconViewState _state({BeaconStatus status = BeaconStatus.reviewOpen}) =>
     BeaconViewState(
-  beacon: Beacon(
-    id: 'b1',
-    title: 'T',
-    author: const Profile(id: 'uAuthor', displayName: 'Author'),
-    createdAt: DateTime.utc(2026, 6, 20),
-    updatedAt: DateTime.utc(2026, 6, 20),
-    status: status,
-  ),
-  myProfile: const Profile(id: 'uAuthor', displayName: 'Author'),
-  closureState: ClosureState(
-    epoch: 1,
-    status: BeaconStatus.reviewOpen.smallintValue,
-    role: ClosureRole.author,
-    members: const [],
-    closesAt: DateTime.utc(2026, 6, 27),
-    canCloseNow: true,
-    canReopen: true,
-  ),
-  load: BeaconViewLoad.ready,
-);
+      beacon: Beacon(
+        id: 'b1',
+        title: 'T',
+        author: const Profile(id: 'uAuthor', displayName: 'Author'),
+        createdAt: DateTime.utc(2026, 6, 20),
+        updatedAt: DateTime.utc(2026, 6, 20),
+        status: status,
+      ),
+      myProfile: const Profile(id: 'uAuthor', displayName: 'Author'),
+      closureState: ClosureState(
+        epoch: 1,
+        status: BeaconStatus.reviewOpen.smallintValue,
+        role: ClosureRole.author,
+        members: const [],
+        closesAt: DateTime.utc(2026, 6, 27),
+        canCloseNow: true,
+        canReopen: true,
+      ),
+      load: BeaconViewLoad.ready,
+    );
 
 class _MockBeaconViewCubit extends Mock implements BeaconViewCubit {
   _MockBeaconViewCubit(this._state);

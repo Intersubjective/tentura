@@ -926,7 +926,11 @@ void main() {
         );
         await tester.pump(const Duration(milliseconds: 200));
 
-        expect(firstLoadGateOverlayCount(), 1, reason: 'the gate spinner is up');
+        expect(
+          firstLoadGateOverlayCount(),
+          1,
+          reason: 'the gate spinner is up',
+        );
         expect(find.byType(BeaconNowSurface), findsNothing);
         expect(
           barStatusLines(),

@@ -154,37 +154,39 @@ void main() {
     expect(sent.single.query, contains(RegExp(r'\bauthorSeenAt\b')));
   });
 
-  test('fetchHelpOffersWithCoordination requests and maps editedAt (#361)',
-      () async {
-    final sent = <_SentOperation>[];
-    await _withRemote(
-      {
-        'HelpOffersWithCoordination': {
-          '__typename': 'query_root',
-          'helpOffersWithCoordination': [
-            _offerJson(
-              userId: 'Uofferer00001',
-              editedAt: '2026-06-15T12:07:00.000Z',
-            ),
-            _offerJson(userId: 'Uofferer00002'),
-          ],
+  test(
+    'fetchHelpOffersWithCoordination requests and maps editedAt (#361)',
+    () async {
+      final sent = <_SentOperation>[];
+      await _withRemote(
+        {
+          'HelpOffersWithCoordination': {
+            '__typename': 'query_root',
+            'helpOffersWithCoordination': [
+              _offerJson(
+                userId: 'Uofferer00001',
+                editedAt: '2026-06-15T12:07:00.000Z',
+              ),
+              _offerJson(userId: 'Uofferer00002'),
+            ],
+          },
         },
-      },
-      sent,
-      (remote) async {
-        final rows = await CoordinationRepository(
-          remote,
-        ).fetchHelpOffersWithCoordination(beaconId: _beaconId);
+        sent,
+        (remote) async {
+          final rows = await CoordinationRepository(
+            remote,
+          ).fetchHelpOffersWithCoordination(beaconId: _beaconId);
 
-        final edited = rows.firstWhere((r) => r.userId == 'Uofferer00001');
-        final untouched = rows.firstWhere((r) => r.userId == 'Uofferer00002');
-        expect(edited.editedAt, DateTime.utc(2026, 6, 15, 12, 7));
-        expect(untouched.editedAt, isNull);
-      },
-    );
+          final edited = rows.firstWhere((r) => r.userId == 'Uofferer00001');
+          final untouched = rows.firstWhere((r) => r.userId == 'Uofferer00002');
+          expect(edited.editedAt, DateTime.utc(2026, 6, 15, 12, 7));
+          expect(untouched.editedAt, isNull);
+        },
+      );
 
-    expect(sent.single.query, contains(RegExp(r'\beditedAt\b')));
-  });
+      expect(sent.single.query, contains(RegExp(r'\beditedAt\b')));
+    },
+  );
 
   test('fetchHelpOffersWithCoordination passes an unparsable authorSeenAt '
       'through as the raw string instead of throwing', () async {
@@ -227,7 +229,9 @@ void main() {
         },
         sent,
         (remote) async {
-          seenAt = await CoordinationRepository(remote).markBeaconPeopleSeen(_beaconId);
+          seenAt = await CoordinationRepository(
+            remote,
+          ).markBeaconPeopleSeen(_beaconId);
         },
       );
 

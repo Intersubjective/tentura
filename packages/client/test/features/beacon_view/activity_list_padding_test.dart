@@ -9,7 +9,9 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 void main() {
-  testWidgets('BeaconActivityList applies horizontal padding from tokens', (tester) async {
+  testWidgets('BeaconActivityList applies horizontal padding from tokens', (
+    tester,
+  ) async {
     final now = DateTime.utc(2026);
     final beacon = Beacon(
       id: 'B1',
@@ -55,9 +57,12 @@ void main() {
     );
 
     final tt = tester.element(find.byType(BeaconActivityList)).tt;
-    expect(paddingWidget.padding, EdgeInsets.symmetric(
-      horizontal: tt.screenHPadding,
-      vertical: tt.rowGap,
-    ));
+    expect(
+      paddingWidget.padding,
+      EdgeInsets.symmetric(
+        horizontal: tt.screenHPadding,
+        vertical: tt.rowGap,
+      ),
+    );
   });
 }

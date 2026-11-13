@@ -106,7 +106,10 @@ void main() {
     test('helpOfferRowSettled is true for an assigned role', () {
       final state = _authorState(const []);
 
-      expect(helpOfferRowSettled(_offer('u1', roleLabel: 'Driver'), state), isTrue);
+      expect(
+        helpOfferRowSettled(_offer('u1', roleLabel: 'Driver'), state),
+        isTrue,
+      );
       expect(helpOfferRowSettled(_offer('u1'), state), isFalse);
     });
   });

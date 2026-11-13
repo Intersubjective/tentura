@@ -167,6 +167,9 @@ const kQueryMessageId = 'message';
 /// Entry provenance for beacon view resolution (`my_work`, `inbox`, …).
 const kQueryBeaconEntry = 'entry';
 
+/// Fact to focus on arrival (the source of a copied fact).
+const kQueryFocusFact = 'focus_fact';
+
 /// Profile route `entry=` — which list a profile was opened from, so a wide
 /// window can show that list beside it (Material 3 list-detail).
 const kQueryProfileEntry = 'entry';

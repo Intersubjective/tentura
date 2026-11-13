@@ -21,15 +21,14 @@ import '../../support/beacon_activity_event_visibility_bits.dart';
 
 Beacon _openBeacon({
   BeaconStatus status = BeaconStatus.open,
-}) =>
-    Beacon(
-      createdAt: DateTime.utc(2025),
-      updatedAt: DateTime.utc(2025),
-      id: 'b1',
-      title: 'T',
-      author: const Profile(id: 'uAuthor', displayName: 'Author'),
-      status: status,
-    );
+}) => Beacon(
+  createdAt: DateTime.utc(2025),
+  updatedAt: DateTime.utc(2025),
+  id: 'b1',
+  title: 'T',
+  author: const Profile(id: 'uAuthor', displayName: 'Author'),
+  status: status,
+);
 
 BeaconViewState _baseAuthorState({
   Beacon? beacon,
@@ -40,46 +39,43 @@ BeaconViewState _baseAuthorState({
   StateStatus status = const StateIsSuccess(),
   Profile myProfile = const Profile(id: 'uAuthor', displayName: 'Me'),
   BeaconDisplayStatusDto? displayStatus,
-}) =>
-    BeaconViewState(
-      beacon: beacon ?? _openBeacon(),
-      helpOffers: helpOffers,
-      roomParticipants: roomParticipants,
-      beaconRoomCue: beaconRoomCue,
-      roomActivityEvents: roomActivityEvents,
-      myProfile: myProfile,
-      status: status,
-      displayStatus: displayStatus,
-    );
+}) => BeaconViewState(
+  beacon: beacon ?? _openBeacon(),
+  helpOffers: helpOffers,
+  roomParticipants: roomParticipants,
+  beaconRoomCue: beaconRoomCue,
+  roomActivityEvents: roomActivityEvents,
+  myProfile: myProfile,
+  status: status,
+  displayStatus: displayStatus,
+);
 
 TimelineHelpOffer _helpOffer({
   required String userId,
   CoordinationResponseType? coordinationResponse,
   bool withdrawn = false,
   CommitmentStakeState stakeState = CommitmentStakeState.none,
-}) =>
-    TimelineHelpOffer(
-      user: Profile(id: userId, displayName: userId),
-      message: '',
-      createdAt: DateTime.utc(2025),
-      updatedAt: DateTime.utc(2025),
-      isWithdrawn: withdrawn,
-      coordinationResponse: coordinationResponse,
-      stakeState: stakeState,
-    );
+}) => TimelineHelpOffer(
+  user: Profile(id: userId, displayName: userId),
+  message: '',
+  createdAt: DateTime.utc(2025),
+  updatedAt: DateTime.utc(2025),
+  isWithdrawn: withdrawn,
+  coordinationResponse: coordinationResponse,
+  stakeState: stakeState,
+);
 
 BeaconDisplayStatusDto _displayStatus({
   int everAcknowledgedCommitterCount = 0,
-}) =>
-    BeaconDisplayStatusDto(
-      beaconId: 'b1',
-      status: BeaconStatus.open,
-      phase: BeaconCoordinationPhase.coordinating,
-      suggestedAction: BeaconPhasePrimaryAction.none,
-      slot2Kind: BeaconPhaseSlot2Kind.none,
-      tier: BeaconDisplayTier.coordination,
-      everAcknowledgedCommitterCount: everAcknowledgedCommitterCount,
-    );
+}) => BeaconDisplayStatusDto(
+  beaconId: 'b1',
+  status: BeaconStatus.open,
+  phase: BeaconCoordinationPhase.coordinating,
+  suggestedAction: BeaconPhasePrimaryAction.none,
+  slot2Kind: BeaconPhaseSlot2Kind.none,
+  tier: BeaconDisplayTier.coordination,
+  everAcknowledgedCommitterCount: everAcknowledgedCommitterCount,
+);
 
 void main() {
   group('closeHardGate', () {
@@ -121,7 +117,9 @@ void main() {
   group('computeClosureReadiness', () {
     test('notCloseable when hard gate fails', () {
       expect(
-        computeClosureReadiness(_baseAuthorState(status: StateStatus.isLoading)),
+        computeClosureReadiness(
+          _baseAuthorState(status: StateStatus.isLoading),
+        ),
         BeaconClosureReadiness.notCloseable,
       );
     });
@@ -176,7 +174,10 @@ void main() {
           _helpOffer(userId: 'h1'),
         ],
       );
-      expect(computeClosureReadiness(s), isNot(BeaconClosureReadiness.readyToClose));
+      expect(
+        computeClosureReadiness(s),
+        isNot(BeaconClosureReadiness.readyToClose),
+      );
     });
 
     test('readyToClose when enoughHelp + useful + all relevant settled', () {
@@ -208,9 +209,7 @@ void main() {
 
     test('premature when neutral with offers and no strong path', () {
       final s = _baseAuthorState(
-        beacon: _openBeacon(
-          
-        ),
+        beacon: _openBeacon(),
         helpOffers: [
           _helpOffer(userId: 'h1'),
         ],
@@ -350,21 +349,24 @@ void main() {
   });
 
   group('expectedRequiresReviewWindowForState', () {
-    test('accept then withdraw uses server everAck count, not stale response', () {
-      final state = _baseAuthorState(
-        helpOffers: [
-          _helpOffer(
-            userId: 'h1',
-            coordinationResponse: CoordinationResponseType.useful,
-            stakeState: CommitmentStakeState.exited,
-            withdrawn: true,
-          ),
-        ],
-        displayStatus: _displayStatus(everAcknowledgedCommitterCount: 1),
-      );
-      expect(expectedRequiresReviewWindowForState(state), isTrue);
-      expect(beaconStateHasCommitters(state), isTrue);
-    });
+    test(
+      'accept then withdraw uses server everAck count, not stale response',
+      () {
+        final state = _baseAuthorState(
+          helpOffers: [
+            _helpOffer(
+              userId: 'h1',
+              coordinationResponse: CoordinationResponseType.useful,
+              stakeState: CommitmentStakeState.exited,
+              withdrawn: true,
+            ),
+          ],
+          displayStatus: _displayStatus(everAcknowledgedCommitterCount: 1),
+        );
+        expect(expectedRequiresReviewWindowForState(state), isTrue);
+        expect(beaconStateHasCommitters(state), isTrue);
+      },
+    );
 
     test('returns null when display status not loaded yet', () {
       final state = _baseAuthorState(

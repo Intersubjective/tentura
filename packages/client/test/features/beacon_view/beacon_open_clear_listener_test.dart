@@ -237,7 +237,8 @@ void main() {
         expect(
           cubit.state.beaconUnavailable,
           isFalse,
-          reason: 'the cubit refuses to report both at once — the invariant '
+          reason:
+              'the cubit refuses to report both at once — the invariant '
               "the listener's second guard term rests on",
         );
       },

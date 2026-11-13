@@ -92,7 +92,7 @@ void main() {
 
   testWidgets('overflow menu exposes Forward with test id', (tester) async {
     final t = DateTime.utc(2026, 6, 20);
-  await tester.pumpWidget(
+    await tester.pumpWidget(
       MaterialApp(
         theme: TenturaTheme.light(),
         localizationsDelegates: L10n.localizationsDelegates,
@@ -130,31 +130,34 @@ void main() {
   });
 
   group('beaconHudYouLine author idle', () {
-    testWidgets('prefers Forward copy over status-overflow when allowsForward', (
-      tester,
-    ) async {
-      late L10n l10n;
-      await tester.pumpWidget(
-        MaterialApp(
-          localizationsDelegates: L10n.localizationsDelegates,
-          supportedLocales: L10n.supportedLocales,
-          locale: const Locale('en'),
-          home: Builder(
-            builder: (context) {
-              l10n = L10n.of(context)!;
-              return const SizedBox.shrink();
-            },
+    testWidgets(
+      'prefers Forward copy over status-overflow when allowsForward',
+      (
+        tester,
+      ) async {
+        late L10n l10n;
+        await tester.pumpWidget(
+          MaterialApp(
+            localizationsDelegates: L10n.localizationsDelegates,
+            supportedLocales: L10n.supportedLocales,
+            locale: const Locale('en'),
+            home: Builder(
+              builder: (context) {
+                l10n = L10n.of(context)!;
+                return const SizedBox.shrink();
+              },
+            ),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
+        );
+        await tester.pumpAndSettle();
 
-      final line = beaconHudYouLine(
-        l10n,
-        _state(viewerId: 'uAuthor', authorId: 'uAuthor'),
-      );
-      expect(line, l10n.beaconHudYouForward);
-      expect(line, isNot(l10n.beaconHudYouChangeStatusInOverflow));
-    });
+        final line = beaconHudYouLine(
+          l10n,
+          _state(viewerId: 'uAuthor', authorId: 'uAuthor'),
+        );
+        expect(line, l10n.beaconHudYouForward);
+        expect(line, isNot(l10n.beaconHudYouChangeStatusInOverflow));
+      },
+    );
   });
 }

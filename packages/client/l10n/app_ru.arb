@@ -7069,5 +7069,13 @@
   "@beaconRoomFactHistoryBroughtHere": {"placeholders": {"actor": {"type": "String"}}},
   "myWorkLatestFactBrought": "принёс(ла) факт",
   "myWorkLatestFactsBrought": "{count, plural, one{принёс(ла) {count} факт} few{принёс(ла) {count} факта} many{принёс(ла) {count} фактов} other{принёс(ла) {count} факта}}",
-  "buttonEdit": "Изменить"
+  "buttonEdit": "Изменить",
+  "beaconRoomFactOriginFromRequest": "Принесён из другого запроса",
+  "beaconRoomFactOriginFromPost": "Принесён из другого поста",
+  "beaconRoomFactOriginUnavailable": "Оригинал вам недоступен",
+  "beaconRoomFactChangedSinceCopied": "Изменён после копирования",
+  "beaconRoomFactSeeCopiedVersion": "Посмотреть скопированную версию",
+  "beaconRoomFactCardActionUseElsewhere": "Использовать в другом запросе",
+  "beaconRoomFactHistoryEarlierElsewhere": "Более ранняя история — там, откуда пришёл факт",
+  "beaconRoomFactHistoryOpenOrigin": "Открыть"
 }

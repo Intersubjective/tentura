@@ -212,7 +212,6 @@ void main() {
       final navigator = GetIt.I<AppNavigator>() as FakeAppNavigator;
       expect(navigator.named('leaveRequestDetail'), isNotEmpty);
     });
-
   });
 
   // --- merged from beacon_surface_selection_test.dart ---

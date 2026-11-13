@@ -26,7 +26,10 @@ void main() {
     }
   });
 
-  Future<void> pumpShowcase(WidgetTester tester, {required bool offered}) async {
+  Future<void> pumpShowcase(
+    WidgetTester tester, {
+    required bool offered,
+  }) async {
     if (GetIt.I.isRegistered<BeaconLobbyCase>()) {
       await GetIt.I.unregister<BeaconLobbyCase>();
     }

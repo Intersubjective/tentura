@@ -439,6 +439,7 @@ class BeaconViewOperationalScreen extends StatelessWidget {
     @QueryParam(kQueryPlanStepId) this.stepId,
     @QueryParam(kQueryPlanPage) this.planPage,
     @QueryParam(kQueryPlanRevision) this.planRevision,
+    @QueryParam(kQueryFocusFact) this.focusFact,
     super.key,
   });
 
@@ -459,9 +460,13 @@ class BeaconViewOperationalScreen extends StatelessWidget {
   /// With `page=history`: the revision to open.
   final String? planRevision;
 
+  /// Fact whose actions open on arrival (`focus_fact=`).
+  final String? focusFact;
+
   @override
   Widget build(BuildContext context) {
     return BeaconViewScreen(
+      focusFactId: focusFact,
       id: id,
       isDeepLink: isDeepLink,
       viewTab: viewTab,

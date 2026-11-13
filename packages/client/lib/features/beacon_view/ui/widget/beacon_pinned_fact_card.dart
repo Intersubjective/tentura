@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/room_message_attachment.dart';
+import 'package:tentura/features/beacon_threads/ui/widget/fact_origin_line.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/fact_provenance_line.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_attachment_widgets.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_file_attachment_open.dart';
@@ -129,6 +130,7 @@ class _BeaconPinnedFactCardState extends State<BeaconPinnedFactCard> {
                     ],
                     if (files.isNotEmpty) SizedBox(height: tt.rowGap),
                     FactProvenanceLine(fact: fact),
+                    FactOriginLine(fact: fact),
                   ],
                 ),
               ),

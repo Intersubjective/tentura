@@ -406,6 +406,30 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
         );
       });
     }
+    // Same for a fact focus set before this body mounted (focus_fact).
+    if (s.pendingFactsFocusFactId != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) unawaited(_openPendingFactsFocus(context));
+      });
+    }
+  }
+
+  /// Opens the actions of the fact the room was asked to focus, once.
+  Future<void> _openPendingFactsFocus(BuildContext ctx) async {
+    final cub = ctx.read<RoomCubit>();
+    final state = cub.state;
+    final fid = state.pendingFactsFocusFactId;
+    if (fid == null) return;
+    cub.clearPendingFactsFocus();
+    final focused = state.factCards.where((f) => f.id == fid).firstOrNull;
+    if (focused != null && ctx.mounted) {
+      await showFactActionsSheet(
+        ctx,
+        cubit: cub,
+        fact: focused,
+        onQuoteInChat: (f) => _quoteFactInChat(cub, f),
+      );
+    }
   }
 
   @override
@@ -436,28 +460,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
           listenWhen: (p, c) =>
               c.pendingFactsFocusFactId != null &&
               c.pendingFactsFocusFactId != p.pendingFactsFocusFactId,
-          listener: (ctx, state) async {
-            final fid = state.pendingFactsFocusFactId;
-            if (fid == null) return;
-            ctx.read<RoomCubit>().clearPendingFactsFocus();
-            if (!ctx.mounted) return;
-            final cub = ctx.read<RoomCubit>();
-            BeaconFactCard? focused;
-            for (final f in state.factCards) {
-              if (f.id == fid) {
-                focused = f;
-                break;
-              }
-            }
-            if (focused != null && ctx.mounted) {
-              await showFactActionsSheet(
-                ctx,
-                cubit: cub,
-                fact: focused,
-                onQuoteInChat: (f) => _quoteFactInChat(cub, f),
-              );
-            }
-          },
+          listener: (ctx, _) => _openPendingFactsFocus(ctx),
         ),
         BlocListener<RoomCubit, RoomState>(
           listenWhen: (p, c) =>

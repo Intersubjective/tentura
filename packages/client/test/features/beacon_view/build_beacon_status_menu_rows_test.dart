@@ -10,15 +10,14 @@ final _t = DateTime.utc(2026, 6, 20, 12);
 Beacon _beacon({
   BeaconStatus status = BeaconStatus.open,
   int helpOfferCount = 0,
-}) =>
-    Beacon.empty.copyWith(
-      id: 'b1',
-      title: 'Test',
-      status: status,
-      helpOfferCount: helpOfferCount,
-      createdAt: _t,
-      updatedAt: _t,
-    );
+}) => Beacon.empty.copyWith(
+  id: 'b1',
+  title: 'Test',
+  status: status,
+  helpOfferCount: helpOfferCount,
+  createdAt: _t,
+  updatedAt: _t,
+);
 
 BeaconStatusMenuInput _input({
   Beacon? beacon,
@@ -29,23 +28,21 @@ BeaconStatusMenuInput _input({
   ClosureMenuSnapshot? closure,
   bool? serverCanCancel,
   bool closureBlockedOnlyByNeedsMoreHelp = false,
-}) =>
-    BeaconStatusMenuInput(
-      beacon: beacon ?? _beacon(),
-      closureReadiness: readiness,
-      hasCommitters: hasCommitters,
-      canManageLifecycle: canManageLifecycle,
-      canSetCoordination: canSetCoordination,
-      closure: closure,
-      serverCanCancel: serverCanCancel,
-      closureBlockedOnlyByNeedsMoreHelp: closureBlockedOnlyByNeedsMoreHelp,
-    );
+}) => BeaconStatusMenuInput(
+  beacon: beacon ?? _beacon(),
+  closureReadiness: readiness,
+  hasCommitters: hasCommitters,
+  canManageLifecycle: canManageLifecycle,
+  canSetCoordination: canSetCoordination,
+  closure: closure,
+  serverCanCancel: serverCanCancel,
+  closureBlockedOnlyByNeedsMoreHelp: closureBlockedOnlyByNeedsMoreHelp,
+);
 
 BeaconStatusMenuRow _row(
   List<BeaconStatusMenuRow> rows,
   BeaconStatusMenuRowId id,
-) =>
-    rows.firstWhere((r) => r.id == id);
+) => rows.firstWhere((r) => r.id == id);
 
 void main() {
   test('draft publish row enabled for author', () {
@@ -64,7 +61,10 @@ void main() {
     expect(closed.action, BeaconStatusMenuAction.closeDirect);
     final wrapping = _row(rows, BeaconStatusMenuRowId.wrappingUp);
     expect(wrapping.isEnabled, isFalse);
-    expect(wrapping.disabledReason, BeaconStatusMenuDisabledReason.noCommitters);
+    expect(
+      wrapping.disabledReason,
+      BeaconStatusMenuDisabledReason.noCommitters,
+    );
   });
 
   test('open with committers enables wrapping up not direct close', () {
@@ -123,7 +123,10 @@ void main() {
       ),
     );
     expect(_row(rows, BeaconStatusMenuRowId.closed).isEnabled, isTrue);
-    expect(_row(rows, BeaconStatusMenuRowId.closed).action, BeaconStatusMenuAction.closeNow);
+    expect(
+      _row(rows, BeaconStatusMenuRowId.closed).action,
+      BeaconStatusMenuAction.closeNow,
+    );
   });
 
   test('review open more help row enabled for author or steward', () {
@@ -183,7 +186,10 @@ void main() {
     );
     final enough = _row(rows, BeaconStatusMenuRowId.enoughHelp);
     expect(enough.isEnabled, isFalse);
-    expect(enough.disabledReason, BeaconStatusMenuDisabledReason.finishReviewFirst);
+    expect(
+      enough.disabledReason,
+      BeaconStatusMenuDisabledReason.finishReviewFirst,
+    );
   });
 
   test('review open disables reopen when cap exhausted', () {
@@ -200,7 +206,10 @@ void main() {
     final open = _row(rows, BeaconStatusMenuRowId.open);
     expect(open.action, BeaconStatusMenuAction.reopen);
     expect(open.isEnabled, isFalse);
-    expect(open.disabledReason, BeaconStatusMenuDisabledReason.reopenLimitReached);
+    expect(
+      open.disabledReason,
+      BeaconStatusMenuDisabledReason.reopenLimitReached,
+    );
   });
 
   test('closed terminal disables all rows', () {

@@ -10,16 +10,15 @@ BeaconHudAuthorActSpec _spec({
   required BeaconHudAuthorActEffectPresentation effectPresentation,
   String label = 'Action',
   String effectLine = 'Effect outcome line',
-}) =>
-    BeaconHudAuthorActSpec(
-      action: action,
-      label: label,
-      effectLine: effectLine,
-      semanticsLabel: '$label. $effectLine',
-      icon: Icons.check_circle_outline,
-      filled: true,
-      effectPresentation: effectPresentation,
-    );
+}) => BeaconHudAuthorActSpec(
+  action: action,
+  label: label,
+  effectLine: effectLine,
+  semanticsLabel: '$label. $effectLine',
+  icon: Icons.check_circle_outline,
+  filled: true,
+  effectPresentation: effectPresentation,
+);
 
 Future<void> _pumpBlock(
   WidgetTester tester,
@@ -58,12 +57,13 @@ void main() {
       expect(find.text(spec.effectLine), findsNothing);
       expect(
         find.byWidgetPredicate(
-          (widget) =>
-              widget is Tooltip && widget.message == spec.effectLine,
+          (widget) => widget is Tooltip && widget.message == spec.effectLine,
         ),
         findsNothing,
       );
-      final semantics = tester.getSemantics(find.byType(BeaconHudAuthorActBlock));
+      final semantics = tester.getSemantics(
+        find.byType(BeaconHudAuthorActBlock),
+      );
       expect(semantics.label, spec.semanticsLabel);
       expect(semantics.flagsCollection.isButton, isTrue);
     });
@@ -82,7 +82,9 @@ void main() {
       await _pumpBlock(tester, spec);
 
       expect(find.text(spec.effectLine), findsNothing);
-      final semantics = tester.getSemantics(find.byType(BeaconHudAuthorActBlock));
+      final semantics = tester.getSemantics(
+        find.byType(BeaconHudAuthorActBlock),
+      );
       expect(semantics.label, spec.semanticsLabel);
       expect(semantics.flagsCollection.isButton, isTrue);
     });
@@ -99,8 +101,7 @@ void main() {
       expect(find.text(spec.effectLine), findsNothing);
       expect(
         find.byWidgetPredicate(
-          (widget) =>
-              widget is Tooltip && widget.message == spec.effectLine,
+          (widget) => widget is Tooltip && widget.message == spec.effectLine,
         ),
         findsOneWidget,
       );
@@ -118,8 +119,7 @@ void main() {
       expect(find.text(spec.effectLine), findsOneWidget);
       expect(
         find.byWidgetPredicate(
-          (widget) =>
-              widget is Tooltip && widget.message == spec.effectLine,
+          (widget) => widget is Tooltip && widget.message == spec.effectLine,
         ),
         findsNothing,
       );

@@ -10,21 +10,23 @@ TimelineHelpOffer _commitmentMe({
   required Profile me,
   CoordinationResponseType? coordinationResponse,
   int? roomAccess,
-}) =>
-    TimelineHelpOffer(
-      user: me,
-      message: '',
-      createdAt: DateTime(2025),
-      updatedAt: DateTime(2025),
-      coordinationResponse: coordinationResponse,
-      roomAccess: roomAccess,
-    );
+}) => TimelineHelpOffer(
+  user: me,
+  message: '',
+  createdAt: DateTime(2025),
+  updatedAt: DateTime(2025),
+  coordinationResponse: coordinationResponse,
+  roomAccess: roomAccess,
+);
 
 void main() {
   const author = Profile(id: 'auth', displayName: 'Author');
   const me = Profile(id: 'me', displayName: 'Me');
-  final beacon =
-      Beacon.empty.copyWith(id: 'Bxxxx', updatedAt: DateTime(2025), author: author);
+  final beacon = Beacon.empty.copyWith(
+    id: 'Bxxxx',
+    updatedAt: DateTime(2025),
+    author: author,
+  );
 
   test('committed non-author gains room admission unless notSuitable', () {
     final noSignal = BeaconViewState(
@@ -53,7 +55,10 @@ void main() {
     final useful = BeaconViewState(
       beacon: beacon,
       helpOffers: [
-        _commitmentMe(me: me, coordinationResponse: CoordinationResponseType.useful),
+        _commitmentMe(
+          me: me,
+          coordinationResponse: CoordinationResponseType.useful,
+        ),
       ],
       isHelpOffered: true,
       myProfile: me,
@@ -115,8 +120,11 @@ void main() {
 
   test('beacon owner always has canNavigateBeaconRoom', () {
     final ownerCommits = BeaconViewState(
-      beacon:
-          Beacon.empty.copyWith(id: 'Bbbbb', updatedAt: DateTime(2025), author: me),
+      beacon: Beacon.empty.copyWith(
+        id: 'Bbbbb',
+        updatedAt: DateTime(2025),
+        author: me,
+      ),
       helpOffers: [
         TimelineHelpOffer(
           user: me,

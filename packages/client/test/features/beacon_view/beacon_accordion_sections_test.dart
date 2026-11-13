@@ -5,9 +5,9 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_accordion_sections.dart';
 
 BeaconPeopleRow _row(String id) => BeaconPeopleRow(
-      userId: id,
-      profile: Profile(id: id, displayName: id),
-    );
+  userId: id,
+  profile: Profile(id: id, displayName: id),
+);
 
 void main() {
   group('itemsTabAccordionSectionId', () {

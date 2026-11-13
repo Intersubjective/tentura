@@ -52,15 +52,15 @@ final class _FakeClosureRepository implements ClosureRepository {
 
   @override
   Future<ClosureState> fetchState(String beaconId) async => ClosureState(
-        epoch: 1,
-        status: 1,
-        role: ClosureRole.voter,
-        members: const [
-          ClosureMember(id: 'uHelper', displayName: 'Helper'),
-        ],
-        closesAt: DateTime.utc(2030, 1, 1),
-        myMarks: const [],
-      );
+    epoch: 1,
+    status: 1,
+    role: ClosureRole.voter,
+    members: const [
+      ClosureMember(id: 'uHelper', displayName: 'Helper'),
+    ],
+    closesAt: DateTime.utc(2030, 1, 1),
+    myMarks: const [],
+  );
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -71,7 +71,11 @@ Future<void> _pumpRequestHeader(
   required BeaconViewState state,
 }) async {
   GetIt.I.registerSingleton<ClosureCase>(
-    ClosureCase(_FakeClosureRepository(), env: const Env(), logger: Logger('test')),
+    ClosureCase(
+      _FakeClosureRepository(),
+      env: const Env(),
+      logger: Logger('test'),
+    ),
   );
   addTearDown(() => GetIt.I.unregister<ClosureCase>());
 
@@ -104,13 +108,13 @@ void main() {
   final t = DateTime.utc(2026, 6, 20);
 
   Beacon closedBeacon() => Beacon(
-        id: 'b-closed',
-        title: 'Closed request',
-        author: author,
-        createdAt: t,
-        updatedAt: t,
-        status: BeaconStatus.closed,
-      );
+    id: 'b-closed',
+    title: 'Closed request',
+    author: author,
+    createdAt: t,
+    updatedAt: t,
+    status: BeaconStatus.closed,
+  );
 
   BeaconViewState closedAs(Profile viewer) {
     final participant = viewer.id == helper.id;

@@ -83,6 +83,7 @@ class RoomCubit extends Cubit<RoomState> {
     BeaconPlanCase? planCase,
     String Function()? newPlanStepId,
     this.capabilities = const RoomCapabilities.request(),
+    this._focusFactId,
   }) : _case = beaconRoomCase ?? GetIt.I<BeaconThreadsCase>(),
        _planCaseOverride = planCase,
        _newPlanStepId = newPlanStepId ?? plan_model.newPlanStepId,
@@ -347,6 +348,9 @@ class RoomCubit extends Cubit<RoomState> {
 
   /// The unread band is taken once per visit (#528); later refreshes and
   /// read-to-bottom leave it alone.
+  /// Fact to focus after the first fact load (the room route's focus_fact).
+  String? _focusFactId;
+
   bool _unreadBandTaken = false;
   bool _refreshInProgress = false;
   _RoomRefreshScope? _queuedRefreshScope;
@@ -1161,6 +1165,12 @@ class RoomCubit extends Cubit<RoomState> {
           status: const StateIsSuccess(),
           firstLoadDone: true,
         );
+        // focus_fact: the room body opens that fact once the facts are in.
+        final focusFactId = _focusFactId;
+        if (focusFactId != null && factCards.any((f) => f.id == focusFactId)) {
+          _focusFactId = null;
+          next = next.copyWith(pendingFactsFocusFactId: focusFactId);
+        }
         if (!_unreadBandTaken) {
           _unreadBandTaken = true;
           next = next.copyWith(

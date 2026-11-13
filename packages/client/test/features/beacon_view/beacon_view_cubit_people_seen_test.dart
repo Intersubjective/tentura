@@ -44,9 +44,8 @@ class _PeopleSeenCoordinationRepository
     calls.add(beaconId);
     final gate = hold;
     if (gate != null) await gate.future;
-    final response = responses[index < responses.length
-        ? index
-        : responses.length - 1];
+    final response =
+        responses[index < responses.length ? index : responses.length - 1];
     if (response is DateTime) return response;
     throw response;
   }

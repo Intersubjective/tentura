@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -18,7 +19,10 @@ import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_state.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/threads_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/threads_state.dart';
 import 'package:tentura/features/beacon_threads/ui/coordination_room_navigation.dart';
+import 'package:tentura/features/beacon_threads/domain/use_case/beacon_threads_case.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
+import 'package:tentura/features/beacon_view/ui/util/beacon_fact_actions.dart';
+import 'package:tentura/features/beacon_view/ui/widget/beacon_pinned_facts_sheet.dart';
 import 'package:tentura/ui/beacon/beacon_room_lease.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_request_modes.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_plan_people.dart';
@@ -128,6 +132,7 @@ class BeaconViewScreen extends StatefulWidget {
     this.stepId,
     this.planPage,
     this.planRevision,
+    this.focusFactId,
     super.key,
   });
 
@@ -162,6 +167,10 @@ class BeaconViewScreen extends StatefulWidget {
 
   /// With `page=history`: the revision to open (`rev=`).
   final String? planRevision;
+
+  /// Fact to focus on arrival (`focus_fact=`, the source of a copied fact):
+  /// the pinned facts sheet opens with that fact's actions over it.
+  final String? focusFactId;
 
   @override
   State<BeaconViewScreen> createState() => _BeaconViewScreenState();
@@ -624,6 +633,30 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     if (widget.viewTab == 'log') {
       _maybeOpenActivitySheetForLogTab();
     }
+    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeFocusFact());
+  }
+
+  /// [BeaconViewScreen.focusFactId] already opened.
+  String? _focusedFactId;
+
+  /// Opens the pinned facts sheet with the focused fact's actions over it,
+  /// once that fact has loaded.
+  void _maybeFocusFact() {
+    final factId = widget.focusFactId;
+    if (!mounted || factId == null || factId == _focusedFactId) return;
+    final cubit = context.read<BeaconViewCubit>();
+    final fact = cubit.state.factCards.where((f) => f.id == factId).firstOrNull;
+    if (fact == null) return;
+    _focusedFactId = factId;
+    unawaited(showBeaconPinnedFactsSheet(context, cubit: cubit));
+    unawaited(
+      showBeaconFactActions(
+        context,
+        cubit: cubit,
+        fact: fact,
+        copyArrival: GetIt.I<BeaconThreadsCase>().factArrival(factId),
+      ),
+    );
   }
 
   @override
@@ -1183,6 +1216,10 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
 
     return MultiBlocListener(
       listeners: [
+        BlocListener<BeaconViewCubit, BeaconViewState>(
+          listenWhen: (p, c) => p.factCards != c.factCards,
+          listener: (_, _) => _maybeFocusFact(),
+        ),
         BlocListener<ThreadsCubit, ThreadsState>(
           listenWhen: (p, c) =>
               c.isSuccess && c.threads.isNotEmpty && !_hadThreadRowsAtLeastOnce,

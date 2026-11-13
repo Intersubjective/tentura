@@ -11795,5 +11795,21 @@
   "@myWorkLatestFactBrought": {"context": "MyWorkScreen", "description": "Latest-message line on a Requests card when the message brought one fact and has no text of its own"},
   "myWorkLatestFactsBrought": "{count, plural, one{brought {count} fact} other{brought {count} facts}}",
   "@myWorkLatestFactsBrought": {"context": "MyWorkScreen", "description": "Latest-message line on a Requests card when the message brought facts in from another Request or Post and has no text of its own", "placeholders": {"count": {"type": "int"}}},
-  "buttonEdit": "Edit"
+  "buttonEdit": "Edit",
+  "beaconRoomFactOriginFromRequest": "Brought from another Request",
+  "@beaconRoomFactOriginFromRequest": {"description": "Origin line under a copied fact's provenance; no source title or names (fact continuity D6)"},
+  "beaconRoomFactOriginFromPost": "Brought from another Post",
+  "@beaconRoomFactOriginFromPost": {"description": "Origin line under a fact copied from a Post"},
+  "beaconRoomFactOriginUnavailable": "The original isn't available to you",
+  "@beaconRoomFactOriginUnavailable": {"description": "Snackbar when the viewer may not open a copied fact's source (hidden, unpinned or deleted alike)"},
+  "beaconRoomFactChangedSinceCopied": "Changed since it was copied",
+  "@beaconRoomFactChangedSinceCopied": {"description": "Note on the source fact reached from a copy whose text changed after the copy"},
+  "beaconRoomFactSeeCopiedVersion": "See the copied version",
+  "@beaconRoomFactSeeCopiedVersion": {"description": "Opens the source fact's history at the revision that was copied"},
+  "beaconRoomFactCardActionUseElsewhere": "Use in another Request",
+  "@beaconRoomFactCardActionUseElsewhere": {"description": "Fact actions sheet tile: copy this fact into another Request"},
+  "beaconRoomFactHistoryEarlierElsewhere": "Earlier history lives where this fact came from",
+  "@beaconRoomFactHistoryEarlierElsewhere": {"description": "Footer of a copied fact's history"},
+  "beaconRoomFactHistoryOpenOrigin": "Open",
+  "@beaconRoomFactHistoryOpenOrigin": {"description": "Button in the copied-fact history footer: opens the source fact"}
 }

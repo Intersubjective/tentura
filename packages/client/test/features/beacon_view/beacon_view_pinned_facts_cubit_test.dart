@@ -38,26 +38,24 @@ void main() {
     required String id,
     required DateTime createdAt,
     String pinnedBy = 'other',
-  }) =>
-      BeaconFactCard(
-        id: id,
-        beaconId: beaconId,
-        factText: id,
-        visibility: BeaconFactCardVisibilityBits.public,
-        pinnedBy: pinnedBy,
-        createdAt: createdAt,
-        status: BeaconFactCardStatusBits.active,
-      );
+  }) => BeaconFactCard(
+    id: id,
+    beaconId: beaconId,
+    factText: id,
+    visibility: BeaconFactCardVisibilityBits.public,
+    pinnedBy: pinnedBy,
+    createdAt: createdAt,
+    status: BeaconFactCardStatusBits.active,
+  );
 
   BeaconViewCubit cubitFor({
     required BeaconViewCase case_,
-  }) =>
-      BeaconViewCubit(
-        id: beaconId,
-        myProfile: myProfile,
-        beaconViewCase: case_,
-        effects: FakeUiEffectPort(),
-      );
+  }) => BeaconViewCubit(
+    id: beaconId,
+    myProfile: myProfile,
+    beaconViewCase: case_,
+    effects: FakeUiEffectPort(),
+  );
 
   test('constructor hydrates seenAt from the case', () {
     final case_ = buildTestBeaconViewCase(
@@ -76,50 +74,53 @@ void main() {
     expect(cubit.state.pinnedFactsSeenAt, t1);
   });
 
-  test('first fetch baselines current max; later others increment +N', () async {
-    final factsRepo = FakeBeaconViewFactCardRepository(
-      cards: [fact(id: 'old', createdAt: t0)],
-    );
-    final beaconRepo = TrackingBeaconRepository()
-      ..fetchByIdHandler = (_) async => readableBeacon();
-    final case_ = buildTestBeaconViewCase(
-      beaconRepo: beaconRepo,
-      factCardsRepo: factsRepo,
-    );
-    final cubit = cubitFor(case_: case_);
-    addTearDown(cubit.close);
+  test(
+    'first fetch baselines current max; later others increment +N',
+    () async {
+      final factsRepo = FakeBeaconViewFactCardRepository(
+        cards: [fact(id: 'old', createdAt: t0)],
+      );
+      final beaconRepo = TrackingBeaconRepository()
+        ..fetchByIdHandler = (_) async => readableBeacon();
+      final case_ = buildTestBeaconViewCase(
+        beaconRepo: beaconRepo,
+        factCardsRepo: factsRepo,
+      );
+      final cubit = cubitFor(case_: case_);
+      addTearDown(cubit.close);
 
-    await pumpUntil(cubit.stream, () => cubit.state.beaconContextLoaded);
+      await pumpUntil(cubit.stream, () => cubit.state.beaconContextLoaded);
 
-    expect(cubit.state.pinnedFactsSeenAt, t0);
-    expect(
-      pinnedFactsNewCount(
-        facts: cubit.state.factCards,
-        seenAt: cubit.state.pinnedFactsSeenAt,
-        viewerUserId: myProfile.id,
-      ),
-      0,
-    );
+      expect(cubit.state.pinnedFactsSeenAt, t0);
+      expect(
+        pinnedFactsNewCount(
+          facts: cubit.state.factCards,
+          seenAt: cubit.state.pinnedFactsSeenAt,
+          viewerUserId: myProfile.id,
+        ),
+        0,
+      );
 
-    factsRepo.cards = [
-      fact(id: 'old', createdAt: t0),
-      fact(id: 'new', createdAt: t1),
-    ];
-    beaconRepo.emitInvalidation(beaconId);
-    await pumpUntil(
-      cubit.stream,
-      () => cubit.state.factCards.length == 2,
-    );
+      factsRepo.cards = [
+        fact(id: 'old', createdAt: t0),
+        fact(id: 'new', createdAt: t1),
+      ];
+      beaconRepo.emitInvalidation(beaconId);
+      await pumpUntil(
+        cubit.stream,
+        () => cubit.state.factCards.length == 2,
+      );
 
-    expect(
-      pinnedFactsNewCount(
-        facts: cubit.state.factCards,
-        seenAt: cubit.state.pinnedFactsSeenAt,
-        viewerUserId: myProfile.id,
-      ),
-      1,
-    );
-  });
+      expect(
+        pinnedFactsNewCount(
+          facts: cubit.state.factCards,
+          seenAt: cubit.state.pinnedFactsSeenAt,
+          viewerUserId: myProfile.id,
+        ),
+        1,
+      );
+    },
+  );
 
   test('in-flight fetch does not clobber markSeen', () async {
     final hold = Completer<void>();

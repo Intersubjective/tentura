@@ -433,10 +433,28 @@ base class BeaconThreadsCase extends UseCaseBase {
     destinationBeaconId: destinationBeaconId,
   );
 
+  /// Available origin answers by source fact id: the arrival at the source
+  /// shows what the answer said (changed since copied, copied revision).
+  final _factArrivals = <String, BeaconFactOrigin>{};
+
   Future<BeaconFactOrigin> factOrigin({
     required String beaconId,
     required String factCardId,
-  }) => _factCards.origin(beaconId: beaconId, factCardId: factCardId);
+  }) async {
+    final origin = await _factCards.origin(
+      beaconId: beaconId,
+      factCardId: factCardId,
+    );
+    final sourceFactId = origin.factCardId;
+    if (origin.available && sourceFactId != null) {
+      _factArrivals[sourceFactId] = origin;
+    }
+    return origin;
+  }
+
+  /// The origin answer that last led to source fact [factCardId], if any.
+  BeaconFactOrigin? factArrival(String factCardId) =>
+      _factArrivals[factCardId];
 
   Future<List<BeaconFactCopyDestination>> factCopyDestinations({
     required String sourceFactCardId,

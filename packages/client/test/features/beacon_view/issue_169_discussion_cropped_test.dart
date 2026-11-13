@@ -44,25 +44,26 @@ _Issue169HostBundle _issue169Host(FakeBeaconThreadsRepository repo) {
   final roomCubits = <RoomCubit>[];
   final host = ThreadHostCubit(
     beaconId: kBeaconViewHarnessBeaconId,
-    roomCubitFactory: ({
-      required String beaconId,
-      String? threadItemId,
-      DateTime? initialUnreadAnchorAt,
-      RoomCapabilities? capabilities,
-    }) {
-      final cubit = RoomCubit(
-        beaconId: beaconId,
-        threadItemId: threadItemId,
-        initialUnreadAnchorAt: initialUnreadAnchorAt,
-        beaconRoomCase: roomCubitMakeCase(repo),
-        coordinationItemRoomSync: CoordinationItemRoomSync(),
-        presenceRepository: roomCubitFakePresenceRepository(),
-        effects: FakeUiEffectPort(),
-      );
-      roomCubits.add(cubit);
-      unawaited(cubit.load());
-      return cubit;
-    },
+    roomCubitFactory:
+        ({
+          required String beaconId,
+          String? threadItemId,
+          DateTime? initialUnreadAnchorAt,
+          RoomCapabilities? capabilities,
+        }) {
+          final cubit = RoomCubit(
+            beaconId: beaconId,
+            threadItemId: threadItemId,
+            initialUnreadAnchorAt: initialUnreadAnchorAt,
+            beaconRoomCase: roomCubitMakeCase(repo),
+            coordinationItemRoomSync: CoordinationItemRoomSync(),
+            presenceRepository: roomCubitFakePresenceRepository(),
+            effects: FakeUiEffectPort(),
+          );
+          roomCubits.add(cubit);
+          unawaited(cubit.load());
+          return cubit;
+        },
   );
   return _Issue169HostBundle(host: host, roomCubits: roomCubits);
 }
@@ -77,8 +78,8 @@ Future<void> _waitForExpandedDiscussion(
         find.byType(TenturaVerticalResizeHandle).evaluate().isNotEmpty &&
         find.byType(ThreadDetail).evaluate().isNotEmpty &&
         find.byType(BasicChatBody).evaluate().isNotEmpty;
-    final messagesReady = roomCubits.isNotEmpty &&
-        roomCubits.first.state.messages.length >= 2;
+    final messagesReady =
+        roomCubits.isNotEmpty && roomCubits.first.state.messages.length >= 2;
     if (splitReady && messagesReady) {
       return;
     }

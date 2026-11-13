@@ -10,6 +10,7 @@ import 'package:tentura/features/beacon_threads/data/repository/beacon_fact_card
 import 'package:tentura/features/beacon_threads/domain/util/word_diff.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/fact_history_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/fact_history_state.dart';
+import 'package:tentura/features/beacon_threads/ui/widget/fact_origin_line.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/relative_time.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
@@ -17,12 +18,17 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 /// Opens the fact history sheet (issue #181 plan §3/D2/D5): a modal listing
 /// [BeaconFactTimelineEntry] rows newest first, word-diffed against the
 /// next older revision, with restore + Undo when [canMutate].
+///
+/// [highlightSeq] marks that revision (the copied version, plan §6.1). A
+/// copy ([originBeaconKind] set) ends with a footer that opens its source.
 Future<void> showFactHistorySheet(
   BuildContext context, {
   required String beaconId,
   required String factCardId,
   required int baseRevisionSeq,
   required bool canMutate,
+  int? originBeaconKind,
+  int? highlightSeq,
   BeaconFactCardRepository? repository,
 }) {
   return showTenturaAdaptiveSheet<void>(
@@ -33,6 +39,8 @@ Future<void> showFactHistorySheet(
       factCardId: factCardId,
       baseRevisionSeq: baseRevisionSeq,
       canMutate: canMutate,
+      originBeaconKind: originBeaconKind,
+      highlightSeq: highlightSeq,
       repository: repository,
     ),
   );
@@ -44,6 +52,8 @@ class FactHistorySheet extends StatefulWidget {
     required this.factCardId,
     required this.baseRevisionSeq,
     required this.canMutate,
+    this.originBeaconKind,
+    this.highlightSeq,
     this.repository,
     super.key,
   });
@@ -52,6 +62,8 @@ class FactHistorySheet extends StatefulWidget {
   final String factCardId;
   final int baseRevisionSeq;
   final bool canMutate;
+  final int? originBeaconKind;
+  final int? highlightSeq;
   final BeaconFactCardRepository? repository;
 
   @override
@@ -72,6 +84,7 @@ class _FactHistorySheetState extends State<FactHistorySheet> {
       beaconId: widget.beaconId,
       factCardId: widget.factCardId,
       baseRevisionSeq: widget.baseRevisionSeq,
+      highlightSeq: widget.highlightSeq,
       repository: widget.repository,
     );
     unawaited(_cubit.load());
@@ -116,8 +129,14 @@ class _FactHistorySheetState extends State<FactHistorySheet> {
               children: [
                 _FactHistorySheetBody(
                   canMutate: widget.canMutate,
+                  highlightSeq: widget.highlightSeq,
                   onShowUndo: _showUndoBanner,
                 ),
+                if (widget.originBeaconKind != null)
+                  _EarlierHistoryFooter(
+                    beaconId: widget.beaconId,
+                    factCardId: widget.factCardId,
+                  ),
                 if (_undoBanner case final banner?) banner,
               ],
             ),
@@ -186,10 +205,12 @@ class _HistoryUndoBanner extends StatelessWidget {
 class _FactHistorySheetBody extends StatelessWidget {
   const _FactHistorySheetBody({
     required this.canMutate,
+    required this.highlightSeq,
     required this.onShowUndo,
   });
 
   final bool canMutate;
+  final int? highlightSeq;
   final void Function({
     required String message,
     required String undoLabel,
@@ -242,7 +263,8 @@ class _FactHistorySheetBody extends StatelessWidget {
               padding: EdgeInsets.only(bottom: tt.rowGap),
               itemCount: entries.length,
               itemBuilder: (context, i) {
-                return _FactHistoryTimelineRow(
+                final entry = entries[i];
+                final row = _FactHistoryTimelineRow(
                   entry: entries[i],
                   olderRevision: baselines[i],
                   canMutate: canMutate,
@@ -253,6 +275,20 @@ class _FactHistorySheetBody extends StatelessWidget {
                   isLast: i == entries.length - 1,
                   showDividerAbove: i > 0,
                   onShowUndo: onShowUndo,
+                );
+                if (entry is! BeaconFactHistoryEntry ||
+                    entry.seq != highlightSeq) {
+                  return row;
+                }
+                // The copied revision: marked for sight and for assistive
+                // technology alike.
+                return Semantics(
+                  container: true,
+                  selected: true,
+                  child: ColoredBox(
+                    color: Theme.of(context).colorScheme.secondaryContainer,
+                    child: row,
+                  ),
                 );
               },
             ),
@@ -662,4 +698,50 @@ String? _collapsedPlainText({
       .clamp(0, fullText.length);
   if (cutOffset <= 0 || cutOffset >= fullText.length) return null;
   return fullText.substring(0, cutOffset);
+}
+
+/// Last row of a copy's history: its earlier history stays with the source.
+class _EarlierHistoryFooter extends StatelessWidget {
+  const _EarlierHistoryFooter({
+    required this.beaconId,
+    required this.factCardId,
+  });
+
+  final String beaconId;
+  final String factCardId;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
+    final tt = context.tt;
+    return Padding(
+      padding: EdgeInsets.only(
+        left: tt.screenHPadding,
+        right: tt.screenHPadding / 2,
+        bottom: tt.rowGap,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              l10n.beaconRoomFactHistoryEarlierElsewhere,
+              style: TenturaText.status(
+                Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: () => unawaited(
+              openFactOrigin(
+                context,
+                beaconId: beaconId,
+                factCardId: factCardId,
+              ),
+            ),
+            child: Text(l10n.beaconRoomFactHistoryOpenOrigin),
+          ),
+        ],
+      ),
+    );
+  }
 }

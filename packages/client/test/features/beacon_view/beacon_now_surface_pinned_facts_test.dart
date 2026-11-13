@@ -82,16 +82,15 @@ void main() {
   BeaconFactCard fact({
     required String id,
     required DateTime createdAt,
-  }) =>
-      BeaconFactCard(
-        id: id,
-        beaconId: beaconId,
-        factText: 'Fact $id',
-        visibility: BeaconFactCardVisibilityBits.public,
-        pinnedBy: 'other',
-        createdAt: createdAt,
-        status: BeaconFactCardStatusBits.active,
-      );
+  }) => BeaconFactCard(
+    id: id,
+    beaconId: beaconId,
+    factText: 'Fact $id',
+    visibility: BeaconFactCardVisibilityBits.public,
+    pinnedBy: 'other',
+    createdAt: createdAt,
+    status: BeaconFactCardStatusBits.active,
+  );
 
   testWidgets('NOW surface buildWhen rebuilds when pinnedFactsSeenAt changes', (
     tester,
@@ -148,7 +147,10 @@ void main() {
                       canCreateChild: false,
                     ),
                   ),
-                  createCase: BeaconCreateCase(_NoopBeaconWritePort(), _NoopImageRepo()),
+                  createCase: BeaconCreateCase(
+                    _NoopBeaconWritePort(),
+                    _NoopImageRepo(),
+                  ),
                   beacons: _NoopBeaconWritePort(),
                   commandStore: InMemoryBeaconChildCommandStore(),
                 ),

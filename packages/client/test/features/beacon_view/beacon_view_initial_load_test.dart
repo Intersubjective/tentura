@@ -96,53 +96,56 @@ void main() {
       expect(cubit.state.beacon.title, 'Mutual friend beacon');
     });
 
-    test('roomParticipantsLoaded stays false until enrichment completes', () async {
-      final roomRepo = FakeBeaconViewRoomRepository(
-        enrichmentDelay: const Duration(milliseconds: 500),
-        participants: [
-          BeaconParticipant(
-            id: 'P1',
-            beaconId: beaconId,
-            userId: 'Uhelper',
-            role: BeaconParticipantRoleBits.helper,
-            status: 0,
-            roomAccess: RoomAccessBits.admitted,
-            createdAt: DateTime.utc(2026),
-            updatedAt: DateTime.utc(2026),
-            handle: '@helper',
-          ),
-        ],
-      );
-      final beaconRepo = TrackingBeaconRepository()
-        ..fetchByIdHandler = (_) async => readableBeacon();
-      final case_ = buildTestBeaconViewCase(
-        beaconRepo: beaconRepo,
-        roomRepo: roomRepo,
-      );
-      final cubit = BeaconViewCubit(
-        id: beaconId,
-        myProfile: myProfile,
-        beaconViewCase: case_,
-        effects: FakeUiEffectPort(),
-      );
-      addTearDown(cubit.close);
+    test(
+      'roomParticipantsLoaded stays false until enrichment completes',
+      () async {
+        final roomRepo = FakeBeaconViewRoomRepository(
+          enrichmentDelay: const Duration(milliseconds: 500),
+          participants: [
+            BeaconParticipant(
+              id: 'P1',
+              beaconId: beaconId,
+              userId: 'Uhelper',
+              role: BeaconParticipantRoleBits.helper,
+              status: 0,
+              roomAccess: RoomAccessBits.admitted,
+              createdAt: DateTime.utc(2026),
+              updatedAt: DateTime.utc(2026),
+              handle: '@helper',
+            ),
+          ],
+        );
+        final beaconRepo = TrackingBeaconRepository()
+          ..fetchByIdHandler = (_) async => readableBeacon();
+        final case_ = buildTestBeaconViewCase(
+          beaconRepo: beaconRepo,
+          roomRepo: roomRepo,
+        );
+        final cubit = BeaconViewCubit(
+          id: beaconId,
+          myProfile: myProfile,
+          beaconViewCase: case_,
+          effects: FakeUiEffectPort(),
+        );
+        addTearDown(cubit.close);
 
-      await pumpUntil(
-        cubit.stream,
-        () => cubit.state.beaconContentLoaded,
-      );
+        await pumpUntil(
+          cubit.stream,
+          () => cubit.state.beaconContentLoaded,
+        );
 
-      expect(cubit.state.roomParticipantsLoaded, isFalse);
-      expect(cubit.state.roomParticipants, isEmpty);
+        expect(cubit.state.roomParticipantsLoaded, isFalse);
+        expect(cubit.state.roomParticipants, isEmpty);
 
-      await pumpUntil(
-        cubit.stream,
-        () => cubit.state.beaconContextLoaded,
-      );
+        await pumpUntil(
+          cubit.stream,
+          () => cubit.state.beaconContextLoaded,
+        );
 
-      expect(cubit.state.roomParticipantsLoaded, isTrue);
-      expect(cubit.state.roomParticipants, hasLength(1));
-    });
+        expect(cubit.state.roomParticipantsLoaded, isTrue);
+        expect(cubit.state.roomParticipants, hasLength(1));
+      },
+    );
 
     test('room admission waits for beacon context enrichment', () async {
       final beaconRepo = TrackingBeaconRepository()
@@ -527,7 +530,9 @@ Future<void> pumpUntil(
   Duration? timeout,
 }) async {
   if (condition()) return;
-  await stream.timeout(timeout ?? burstCoalescerSettleTimeout).firstWhere((_) => condition());
+  await stream
+      .timeout(timeout ?? burstCoalescerSettleTimeout)
+      .firstWhere((_) => condition());
 }
 
 Future<void> pumpUntilEffects(

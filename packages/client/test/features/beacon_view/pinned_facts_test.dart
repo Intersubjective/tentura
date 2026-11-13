@@ -10,17 +10,16 @@ BeaconFactCard _fact({
   DateTime? updatedAt,
   String pinnedBy = 'other',
   int status = BeaconFactCardStatusBits.active,
-}) =>
-    BeaconFactCard(
-      id: id,
-      beaconId: 'b1',
-      factText: id,
-      visibility: BeaconFactCardVisibilityBits.public,
-      pinnedBy: pinnedBy,
-      createdAt: createdAt,
-      updatedAt: updatedAt,
-      status: status,
-    );
+}) => BeaconFactCard(
+  id: id,
+  beaconId: 'b1',
+  factText: id,
+  visibility: BeaconFactCardVisibilityBits.public,
+  pinnedBy: pinnedBy,
+  createdAt: createdAt,
+  updatedAt: updatedAt,
+  status: status,
+);
 
 void main() {
   final t0 = DateTime.utc(2026, 1, 1);
@@ -30,7 +29,11 @@ void main() {
   test('activePinnedFacts drops removed and sorts newest first', () {
     final facts = [
       _fact(id: 'old', createdAt: t0),
-      _fact(id: 'gone', createdAt: t2, status: BeaconFactCardStatusBits.removed),
+      _fact(
+        id: 'gone',
+        createdAt: t2,
+        status: BeaconFactCardStatusBits.removed,
+      ),
       _fact(id: 'new', createdAt: t1),
     ];
     expect(activePinnedFacts(facts).map((f) => f.id), ['new', 'old']);

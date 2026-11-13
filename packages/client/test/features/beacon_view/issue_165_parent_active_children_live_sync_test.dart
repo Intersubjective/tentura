@@ -1,4 +1,3 @@
-
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura_root/domain/entity/beacon_creation_context.dart';
 import 'package:tentura_root/domain/entity/beacon_hierarchy_capabilities.dart';
@@ -64,18 +63,17 @@ void main() {
   BeaconHierarchySummary publishedChild({
     required String beaconId,
     String title = 'New child request',
-  }) =>
-      BeaconHierarchySummary(
-        beaconId: beaconId,
-        title: title,
-        status: BeaconStatus.open,
-        publishedAt: DateTime.utc(2026, 9, 15),
-        isTombstone: false,
-        owner: const BeaconHierarchyOwnerSummary(
-          id: 'Uauthor',
-          displayName: 'Author',
-        ),
-      );
+  }) => BeaconHierarchySummary(
+    beaconId: beaconId,
+    title: title,
+    status: BeaconStatus.open,
+    publishedAt: DateTime.utc(2026, 9, 15),
+    isTombstone: false,
+    owner: const BeaconHierarchyOwnerSummary(
+      id: 'Uauthor',
+      displayName: 'Author',
+    ),
+  );
 
   BeaconHierarchyCase buildHierarchyCase(_MutableChildrenPort port) =>
       buildBeaconHierarchyCaseForTest(
@@ -98,18 +96,17 @@ void main() {
   BeaconChildSaveCommand childCommand({
     required String clientCommandId,
     required String beaconId,
-  }) =>
-      BeaconChildSaveCommand(
-        creationContext: creationContext,
-        clientCommandId: clientCommandId,
-        saveCommand: BeaconSaveCommand(
-          fields: Beacon.empty.copyWith(id: beaconId, title: 'New child request'),
-          images: const [],
-          coverKey: null,
-          coverThumb: null,
-          draft: true,
-        ),
-      );
+  }) => BeaconChildSaveCommand(
+    creationContext: creationContext,
+    clientCommandId: clientCommandId,
+    saveCommand: BeaconSaveCommand(
+      fields: Beacon.empty.copyWith(id: beaconId, title: 'New child request'),
+      images: const [],
+      coverKey: null,
+      coverThumb: null,
+      draft: true,
+    ),
+  );
 
   Future<void> waitFor(bool Function() condition) async {
     final deadline = DateTime.now().add(const Duration(seconds: 2));

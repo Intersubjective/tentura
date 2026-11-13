@@ -89,13 +89,13 @@ ThreadHostCubit _host({RoomCubitFactoryRecorder? recorder}) {
   final factoryRecorder = recorder ?? RoomCubitFactoryRecorder();
   return ThreadHostCubit(
     beaconId: _kBeaconId,
-    roomCubitFactory: ({
-      required String beaconId,
-      String? threadItemId,
-      DateTime? initialUnreadAnchorAt,
-      RoomCapabilities? capabilities,
-    }) =>
-        factoryRecorder.call(
+    roomCubitFactory:
+        ({
+          required String beaconId,
+          String? threadItemId,
+          DateTime? initialUnreadAnchorAt,
+          RoomCapabilities? capabilities,
+        }) => factoryRecorder.call(
           beaconId: beaconId,
           threadItemId: threadItemId,
           initialUnreadAnchorAt: initialUnreadAnchorAt,
@@ -158,29 +158,32 @@ void main() {
       },
     );
 
-    test('reparenting: acquire B before release A never closes the room', () async {
-      final recorder = RoomCubitFactoryRecorder();
-      final host = _host(recorder: recorder);
-      final lease = BeaconRoomLease(host: host);
-      final general = _generalThread();
-      final holderA = Object();
-      final holderB = Object();
+    test(
+      'reparenting: acquire B before release A never closes the room',
+      () async {
+        final recorder = RoomCubitFactoryRecorder();
+        final host = _host(recorder: recorder);
+        final lease = BeaconRoomLease(host: host);
+        final general = _generalThread();
+        final holderA = Object();
+        final holderB = Object();
 
-      await lease.acquire(holderA, general);
-      await lease.acquire(holderB, general);
+        await lease.acquire(holderA, general);
+        await lease.acquire(holderB, general);
 
-      lease.release(holderA);
-      await _pumpMicrotasks(5);
+        lease.release(holderA);
+        await _pumpMicrotasks(5);
 
-      expect(recorder.created.single.closeCallCount, 0);
-      expect(host.state.openThreadId, RequestThread.generalId);
+        expect(recorder.created.single.closeCallCount, 0);
+        expect(host.state.openThreadId, RequestThread.generalId);
 
-      lease.release(holderB);
-      await _settleDeferredClear(host: host, room: recorder.created.single);
-      expect(recorder.created.single.closeCallCount, 1);
+        lease.release(holderB);
+        await _settleDeferredClear(host: host, room: recorder.created.single);
+        expect(recorder.created.single.closeCallCount, 1);
 
-      await host.close();
-    });
+        await host.close();
+      },
+    );
 
     test(
       'fast flip: release then re-acquire same holder does not close the room',

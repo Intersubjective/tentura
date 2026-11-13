@@ -15,6 +15,7 @@ class FactHistoryCubit extends Cubit<FactHistoryState> {
     required this._beaconId,
     required this._factCardId,
     required this._baseRevisionSeq,
+    this._highlightSeq,
     BeaconFactCardRepository? repository,
   }) : _repository = repository ?? GetIt.I<BeaconFactCardRepository>(),
        super(const FactHistoryState());
@@ -26,9 +27,30 @@ class FactHistoryCubit extends Cubit<FactHistoryState> {
   /// never refetched.
   final int _baseRevisionSeq;
 
+  /// Revision to bring into the loaded history (plan §6.1): pages are
+  /// loaded until it appears, at most [maxHighlightPages].
+  final int? _highlightSeq;
+
   final BeaconFactCardRepository _repository;
 
-  Future<void> load() => _loadPage(before: null, append: false);
+  static const maxHighlightPages = 10;
+
+  Future<void> load() async {
+    await _loadPage(before: null, append: false);
+    final seq = _highlightSeq;
+    if (seq == null) return;
+    for (var pages = 1; pages < maxHighlightPages; pages++) {
+      if (isClosed || state.loadError != null || state.nextCursor == null) {
+        return;
+      }
+      if (state.entries.any(
+        (e) => e is BeaconFactHistoryEntry && e.seq == seq,
+      )) {
+        return;
+      }
+      await loadMore();
+    }
+  }
 
   Future<void> loadMore() {
     final cursor = state.nextCursor;

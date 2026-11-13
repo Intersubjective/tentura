@@ -22,7 +22,7 @@ Map<String, String> _incomingQueryFromParameters(Parameters qp) {
 /// 1. path [pathThreadId] wins over query `thread=`;
 /// 2. a resolved thread id implies `tab=threads`, overriding incoming `tab=`;
 /// 3. non-`general` thread id keeps `thread=` for legacy-unavailable ROOM (no `message=`);
-/// 4. `entry=` / `is_deep_link=` are always preserved;
+/// 4. `entry=` / `is_deep_link=` / `focus_fact=` are always preserved;
 /// 5. legacy `tab=room` is read as `tab=threads`;
 /// 6. unrecognized `tab` falls through to NOW (tab omitted);
 /// 7. `step=`, `page=` and `rev=` survive only with `tab=plan`.
@@ -31,7 +31,7 @@ NormalizedBeaconViewQuery normalizeBeaconViewRouteQuery({
   Map<String, String> incomingQuery = const {},
 }) {
   final preserved = <String, String>{};
-  for (final key in [kQueryIsDeepLink, kQueryBeaconEntry]) {
+  for (final key in [kQueryIsDeepLink, kQueryBeaconEntry, kQueryFocusFact]) {
     final value = incomingQuery[key]?.trim();
     if (value != null && value.isNotEmpty) {
       preserved[key] = value;
@@ -132,5 +132,6 @@ BeaconViewOperationalRoute beaconViewOperationalFromNormalized(
     stepId: q[kQueryPlanStepId],
     planPage: q[kQueryPlanPage],
     planRevision: q[kQueryPlanRevision],
+    focusFact: q[kQueryFocusFact],
   );
 }

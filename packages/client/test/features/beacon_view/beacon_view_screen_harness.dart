@@ -716,3 +716,33 @@ Future<void> tapBeaconChatTabAndWaitForRoom(WidgetTester tester) async {
 PopScope beaconViewPopScope(WidgetTester tester) => tester.widget<PopScope>(
   find.byWidgetPredicate((widget) => widget is PopScope),
 );
+
+/// The blocs the Request route host gives [BeaconViewScreen], for tests that
+/// mount the screen through the real router: [child] is the router outlet
+/// that builds the real operational route (and so the screen) from the URL.
+Widget beaconViewHarnessRouteScope({
+  required BeaconViewState beaconState,
+  required ThreadsState threadsState,
+  required Widget child,
+}) => MultiBlocProvider(
+  providers: [
+    BlocProvider<ScreenCubit>(create: (_) => ScreenCubit.local()),
+    BlocProvider<BeaconViewCubit>(
+      create: (_) => _HarnessBeaconViewCubit(beaconState),
+    ),
+    BlocProvider<ThreadsCubit>(
+      create: (_) => _HarnessThreadsCubit(threadsState),
+    ),
+    BlocProvider<ThreadHostCubit>(
+      create: (_) => beaconViewHarnessHost(beaconId: beaconState.beacon.id),
+    ),
+    BlocProvider<BeaconHierarchyCubit>(
+      create: (_) =>
+          createBeaconViewHarnessHierarchyCubit(beaconState.beacon.id),
+    ),
+    BlocProvider<ProfileCubit>.value(
+      value: _HarnessProfileCubit(beaconState.myProfile),
+    ),
+  ],
+  child: child,
+);

@@ -14,8 +14,7 @@ const _me = Profile(id: 'me', displayName: 'Me');
 
 TimelineHelpOffer _offer({
   bool isWithdrawn = true,
-  HelpOfferAdmissionAction? admissionAction =
-      HelpOfferAdmissionAction.decline,
+  HelpOfferAdmissionAction? admissionAction = HelpOfferAdmissionAction.decline,
 }) => TimelineHelpOffer(
   user: _me,
   message: 'I can help',

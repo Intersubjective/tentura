@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
+import 'package:tentura/features/beacon_threads/data/repository/beacon_fact_card_repository.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/fact_actions_sheet.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/fact_history_sheet.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
@@ -16,11 +17,15 @@ Future<void> showBeaconFactActions(
   BuildContext pageContext, {
   required BeaconViewCubit cubit,
   required BeaconFactCard fact,
+  void Function(BeaconFactCard fact) onUseElsewhere = ignoreUseElsewhere,
+  BeaconFactOrigin? copyArrival,
 }) {
   final navigation = BeaconRoomNavigationScope.maybeOf(pageContext);
   return showFactActionsHostSheet(
     pageContext,
     fact: fact,
+    onUseElsewhere: onUseElsewhere,
+    copyArrival: copyArrival,
     canMutate: cubit.state.beacon.status.allowsDiscussionWrites,
     onCorrect: ({required factCardId, required newText, String? attachmentsJson}) =>
         cubit.correctFact(
@@ -49,6 +54,7 @@ Future<void> showBeaconFactActions(
         factCardId: f.id,
         baseRevisionSeq: f.revisionSeq,
         canMutate: cubit.state.beacon.status.allowsDiscussionWrites,
+        originBeaconKind: f.originBeaconKind,
       ),
     ),
   );

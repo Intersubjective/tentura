@@ -16,7 +16,7 @@ void main() {
     await unregisterBeaconViewHarnessGetIt();
   });
 
-    testWidgets(
+  testWidgets(
     'expanded-window home rail shows Field tab, not the retired Updates tab',
     (tester) async {
       await pumpBeaconViewHarness(

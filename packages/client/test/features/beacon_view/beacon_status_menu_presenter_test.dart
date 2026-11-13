@@ -12,17 +12,16 @@ Beacon _beacon({
   BeaconStatus status = BeaconStatus.open,
   int helpOfferCount = 0,
   int admittedHelperCount = 0,
-}) =>
-    Beacon(
-      createdAt: DateTime.utc(2026),
-      updatedAt: DateTime.utc(2026),
-      id: 'b1',
-      title: 'Test',
-      author: const Profile(id: 'u1'),
-      status: status,
-      helpOfferCount: helpOfferCount,
-      admittedHelperCount: admittedHelperCount,
-    );
+}) => Beacon(
+  createdAt: DateTime.utc(2026),
+  updatedAt: DateTime.utc(2026),
+  id: 'b1',
+  title: 'Test',
+  author: const Profile(id: 'u1'),
+  status: status,
+  helpOfferCount: helpOfferCount,
+  admittedHelperCount: admittedHelperCount,
+);
 
 void main() {
   final l10n = lookupL10n(const Locale('en'));

@@ -16,6 +16,7 @@ import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/message/beacon_room_fact_messages.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/fact_attachment_preview_strip.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/fact_history_sheet.dart';
+import 'package:tentura/features/beacon_threads/ui/widget/fact_origin_line.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/fact_provenance_line.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_attachment_widgets.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -29,6 +30,8 @@ Future<void> showFactActionsSheet(
   required RoomCubit cubit,
   required BeaconFactCard fact,
   void Function(BeaconFactCard fact)? onQuoteInChat,
+  void Function(BeaconFactCard fact) onUseElsewhere = ignoreUseElsewhere,
+  BeaconFactOrigin? copyArrival,
 }) {
   return showFactActionsHostSheet(
     context,
@@ -36,6 +39,8 @@ Future<void> showFactActionsSheet(
     canMutate: cubit.state.canWriteDiscussion,
     myUserId: cubit.state.myUserId,
     onQuoteInChat: onQuoteInChat,
+    onUseElsewhere: onUseElsewhere,
+    copyArrival: copyArrival,
     // Base seq is the one the edit sheet opened with (plan §14.6); after a
     // revision conflict, "Save mine" retries against the conflict's seq.
     onCorrect:
@@ -71,10 +76,15 @@ Future<void> showFactActionsSheet(
         factCardId: f.id,
         baseRevisionSeq: f.revisionSeq,
         canMutate: cubit.state.canWriteDiscussion,
+        originBeaconKind: f.originBeaconKind,
       ),
     ),
   );
 }
+
+/// Default «Use in another Request» handler until the destination picker
+/// takes it over (the tile is offered to every reader).
+void ignoreUseElsewhere(BeaconFactCard fact) {}
 
 Future<void> showFactActionsHostSheet(
   BuildContext context, {
@@ -94,6 +104,12 @@ Future<void> showFactActionsHostSheet(
   void Function(String messageId)? onJumpToSource,
   void Function(BeaconFactCard fact)? onEditHistory,
   void Function(BeaconFactCard fact)? onQuoteInChat,
+  void Function(BeaconFactCard fact)? onUseElsewhere,
+
+  /// The origin answer that led here from a copy of this fact: the header
+  /// says when the fact changed since the copy, and members get the copied
+  /// revision (plan D8).
+  BeaconFactOrigin? copyArrival,
   bool canMutate = true,
   String? myUserId,
   BeaconFactCard? Function()? readEditConflict,
@@ -129,8 +145,44 @@ Future<void> showFactActionsHostSheet(
                 top: ctx.tt.rowGap / 2,
                 bottom: ctx.tt.rowGap,
               ),
-              child: FactProvenanceLine(fact: fact),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  FactProvenanceLine(fact: fact),
+                  FactOriginLine(fact: fact),
+                  if (copyArrival?.changedSinceCopy ?? false)
+                    Text(
+                      l10n.beaconRoomFactChangedSinceCopied,
+                      style: TenturaText.status(
+                        Theme.of(ctx).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                ],
+              ),
             ),
+            if (copyArrival
+                case BeaconFactOrigin(
+                  canSeeCopiedRevision: true,
+                  copiedRevisionSeq: final int copiedSeq,
+                ))
+              ListTile(
+                leading: const Icon(Icons.history_toggle_off),
+                title: Text(l10n.beaconRoomFactSeeCopiedVersion),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  unawaited(
+                    showFactHistorySheet(
+                      pageCtx,
+                      beaconId: fact.beaconId,
+                      factCardId: fact.id,
+                      baseRevisionSeq: fact.revisionSeq,
+                      canMutate: canMutate,
+                      originBeaconKind: fact.originBeaconKind,
+                      highlightSeq: copiedSeq,
+                    ),
+                  );
+                },
+              ),
             if (canMutate) ...[
               ListTile(
                 leading: const Icon(Icons.edit_outlined),
@@ -198,6 +250,16 @@ Future<void> showFactActionsHostSheet(
                 onTap: () {
                   Navigator.pop(ctx);
                   onQuoteInChat(fact);
+                },
+              ),
+            // Every reader may take a fact elsewhere (not gated by canMutate).
+            if (onUseElsewhere != null)
+              ListTile(
+                leading: const Icon(Icons.north_east),
+                title: Text(l10n.beaconRoomFactCardActionUseElsewhere),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  onUseElsewhere(fact);
                 },
               ),
             ListTile(

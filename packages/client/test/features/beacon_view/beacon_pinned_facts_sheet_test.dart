@@ -37,16 +37,15 @@ void main() {
     required String id,
     required DateTime createdAt,
     String pinnedBy = 'other',
-  }) =>
-      BeaconFactCard(
-        id: id,
-        beaconId: beaconId,
-        factText: 'Fact $id',
-        visibility: BeaconFactCardVisibilityBits.public,
-        pinnedBy: pinnedBy,
-        createdAt: createdAt,
-        status: BeaconFactCardStatusBits.active,
-      );
+  }) => BeaconFactCard(
+    id: id,
+    beaconId: beaconId,
+    factText: 'Fact $id',
+    visibility: BeaconFactCardVisibilityBits.public,
+    pinnedBy: pinnedBy,
+    createdAt: createdAt,
+    status: BeaconFactCardStatusBits.active,
+  );
 
   Future<BeaconViewCubit> loadedCubit({
     required List<BeaconFactCard> cards,
@@ -204,7 +203,9 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(375, 812));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final cubit = (await tester.runAsync(
-      () => loadedCubit(cards: [fact(id: 'f1', createdAt: t0)]),
+      () => loadedCubit(
+        cards: [fact(id: 'f1', createdAt: t0)],
+      ),
     ))!;
     addTearDown(cubit.close);
     await tester.pumpWidget(sheetHost(cubit));
@@ -226,7 +227,9 @@ void main() {
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
     final cubit = (await tester.runAsync(
-      () => loadedCubit(cards: [fact(id: 'f1', createdAt: t0)]),
+      () => loadedCubit(
+        cards: [fact(id: 'f1', createdAt: t0)],
+      ),
     ))!;
     addTearDown(cubit.close);
 

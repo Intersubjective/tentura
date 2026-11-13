@@ -49,16 +49,14 @@ class _CanonicalizerRouter extends Mock implements StackRouter {
     String path, {
     bool includePrefixMatches = true,
     OnNavigationFailure? onFailure,
-  }) async =>
-      null;
+  }) async => null;
 
   @override
   bool canPop({
     bool ignoreChildRoutes = false,
     bool ignoreParentRoutes = false,
     bool ignorePagelessRoutes = false,
-  }) =>
-      false;
+  }) => false;
 }
 
 /// Host screen whose [build] is a placeholder so tests avoid [AutoRouter].
@@ -278,63 +276,66 @@ void main() {
   );
 
   group('?message= host canonicalizer (T9 / F3)', () {
-    testWidgets('slow resolve for older message does not override newer target', (
-      tester,
-    ) async {
-      final repo = _MessageTargetRepository(userId: _kAuthorId);
-      final slowA = Completer<RoomMessage?>();
-      final fastB = Completer<RoomMessage?>();
-      repo.targetsByMessageId['M-A'] = slowA.future;
-      repo.targetsByMessageId['M-B'] = fastB.future;
-
-      final router = _CanonicalizerRouter();
-      await _pumpCanonicalizerHost(
+    testWidgets(
+      'slow resolve for older message does not override newer target',
+      (
         tester,
-        router: router,
-        repo: repo,
-        messageId: 'M-A',
-      );
-      await tester.pump();
+      ) async {
+        final repo = _MessageTargetRepository(userId: _kAuthorId);
+        final slowA = Completer<RoomMessage?>();
+        final fastB = Completer<RoomMessage?>();
+        repo.targetsByMessageId['M-A'] = slowA.future;
+        repo.targetsByMessageId['M-B'] = fastB.future;
 
-      await _repumpCanonicalizerHost(
-        tester,
-        router: router,
-        messageId: 'M-B',
-      );
+        final router = _CanonicalizerRouter();
+        await _pumpCanonicalizerHost(
+          tester,
+          router: router,
+          repo: repo,
+          messageId: 'M-A',
+        );
+        await tester.pump();
 
-      fastB.complete(
-        RoomMessage(
-          id: 'M-B',
-          beaconId: _kBeaconId,
-          authorId: _kAuthorId,
-          body: 'B',
-          createdAt: _kNow,
-          threadItemId: RequestThread.generalId,
-        ),
-      );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 50));
+        await _repumpCanonicalizerHost(
+          tester,
+          router: router,
+          messageId: 'M-B',
+        );
 
-      slowA.complete(
-        RoomMessage(
-          id: 'M-A',
-          beaconId: _kBeaconId,
-          authorId: _kAuthorId,
-          body: 'A',
-          createdAt: _kNow,
-          threadItemId: RequestThread.generalId,
-        ),
-      );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 50));
+        fastB.complete(
+          RoomMessage(
+            id: 'M-B',
+            beaconId: _kBeaconId,
+            authorId: _kAuthorId,
+            body: 'B',
+            createdAt: _kNow,
+            threadItemId: RequestThread.generalId,
+          ),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 50));
 
-      expect(router.replaced, isNotEmpty);
-      expect(_messageIdFromReplace(router.replaced.last), 'M-B');
-      expect(
-        router.replaced.map(_messageIdFromReplace),
-        isNot(contains('M-A')),
-      );
-    });
+        slowA.complete(
+          RoomMessage(
+            id: 'M-A',
+            beaconId: _kBeaconId,
+            authorId: _kAuthorId,
+            body: 'A',
+            createdAt: _kNow,
+            threadItemId: RequestThread.generalId,
+          ),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 50));
+
+        expect(router.replaced, isNotEmpty);
+        expect(_messageIdFromReplace(router.replaced.last), 'M-B');
+        expect(
+          router.replaced.map(_messageIdFromReplace),
+          isNot(contains('M-A')),
+        );
+      },
+    );
 
     testWidgets('failed resolve leaves message retryable on next attempt', (
       tester,
