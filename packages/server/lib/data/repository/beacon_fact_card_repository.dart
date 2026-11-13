@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:injectable/injectable.dart';
 import 'package:drift_postgres/drift_postgres.dart';
 import 'package:postgres/postgres.dart' show Type, TypedValue;
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura_server/app/sentry/sentry_db_span.dart';
 
@@ -14,6 +15,7 @@ import 'package:tentura_server/domain/entity/beacon_fact_card_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_fact_card_outcome.dart';
 import 'package:tentura_server/domain/entity/beacon_fact_history_entry_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_fact_room_access.dart';
+import 'package:tentura_server/domain/entity/prepared_fact_copy.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/utils/id.dart';
 
@@ -289,6 +291,197 @@ WHERE source_message_id = $1::text AND status IN (0, 1)
           updatedAt: _readNullableTimestamp(row, 'updated_at'),
         );
       }));
+
+  /// Plan §5.2 `insertPreparedCopies`: locks the destination row, derives
+  /// `announce` from it, then one CTE writes the facts (`DO NOTHING` on the
+  /// one-live-copy index), their copied revision 1 and, when announced, one
+  /// facts-brought line plus a `factPinned` event per inserted fact. Winners
+  /// of skipped copies are read in a separate statement after the insert.
+  @override
+  Future<List<String>> insertPreparedCopies({
+    required String destinationBeaconId,
+    required String actorUserId,
+    required List<PreparedFactCopy> prepared,
+  }) => _db.withMutatingUser(
+    actorUserId,
+    () => sentryDbSpan(
+      'db.fact.insert_prepared_copies',
+      (_) async {
+        // Draft rule of `beacon_fact_access` (plan §4.4), read from the locked
+        // row so a publish between check and insert is announced.
+        final destination = await _db
+            .customSelect(
+              '''
+SELECT status,
+       (status = ${BeaconStatus.draft.smallintValue}
+        OR (kind = 1 AND status = ${BeaconStatus.open.smallintValue}
+            AND post_root_message_id IS NULL)) AS is_draft
+FROM public.beacon
+WHERE id = \$1::text
+FOR NO KEY UPDATE
+''',
+              variables: [Variable<String>(destinationBeaconId)],
+            )
+            .getSingleOrNull();
+        if (destination == null ||
+            destination.read<int>('status') ==
+                BeaconStatus.deleted.smallintValue) {
+          throw const UnauthorizedException();
+        }
+        final announce = !destination.read<bool>('is_draft');
+        final newIds = [for (final _ in prepared) generateId('F')];
+        final inserted = await _db
+            .customSelect(
+              '''
+WITH input AS (
+  SELECT *
+  FROM unnest(\$3::text[], \$4::text[], \$5::integer[], \$6::integer[],
+              \$7::text[], \$8::text[], \$9::text[])
+       WITH ORDINALITY
+       AS i(fact_id, origin_id, origin_seq, origin_kind, fact_text,
+            attachments, event_id, ord)
+),
+fact AS (
+  INSERT INTO public.beacon_fact_card
+    (id, beacon_id, fact_text, visibility, pinned_by, source_message_id,
+     status, updated_at, origin_fact_card_id, origin_revision_seq,
+     origin_beacon_kind)
+  SELECT i.fact_id, \$1::text, i.fact_text,
+         ${BeaconFactCardVisibilityBits.room}, \$2::text, NULL,
+         ${BeaconFactCardStatusBits.active}, now(), i.origin_id,
+         i.origin_seq, i.origin_kind::smallint
+  FROM input i
+  ORDER BY i.ord
+  ON CONFLICT (beacon_id, origin_fact_card_id)
+    WHERE origin_fact_card_id IS NOT NULL AND status IN (0, 1)
+  DO NOTHING
+  RETURNING id
+),
+ins AS (
+  SELECT i.* FROM fact f JOIN input i ON i.fact_id = f.id
+),
+revision AS (
+  INSERT INTO public.beacon_fact_card_revision
+    (fact_card_id, seq, fact_text, actor_id, kind, attachments_json)
+  SELECT ins.fact_id, 1, ins.fact_text, \$2::text,
+         ${BeaconFactCardRevisionKindBits.copied}, ins.attachments::jsonb
+  FROM ins
+),
+line AS (
+  INSERT INTO public.beacon_room_message
+    (id, beacon_id, author_id, body, semantic_marker, system_payload,
+     mention_spans)
+  SELECT \$10::text, \$1::text, \$2::text, '',
+         ${BeaconRoomSemanticMarker.factsBrought},
+         jsonb_build_object(
+           'factCardIds', jsonb_agg(ins.fact_id ORDER BY ins.ord),
+           'count', count(*),
+           'originBeaconKind',
+             CASE WHEN min(ins.origin_kind) = max(ins.origin_kind)
+                  THEN min(ins.origin_kind) END
+         ) || CASE WHEN count(*) = 1
+                   THEN jsonb_build_object(
+                     'factText', left(min(ins.fact_text), 160))
+                   ELSE '{}'::jsonb END,
+         '[]'::jsonb
+  FROM ins
+  WHERE \$11::boolean
+  HAVING count(*) > 0
+  RETURNING id
+),
+event AS (
+  INSERT INTO public.beacon_activity_event
+    (id, beacon_id, visibility, type, actor_id, source_message_id, diff,
+     fact_card_id)
+  SELECT ins.event_id, \$1::text, ${BeaconActivityEventVisibilityBits.room},
+         ${BeaconActivityEventTypeBits.factPinned}, \$2::text, l.id,
+         jsonb_build_object('factCardId', ins.fact_id,
+                            'factText', ins.fact_text),
+         ins.fact_id
+  FROM ins CROSS JOIN line l
+)
+SELECT fact_id FROM ins
+''',
+              variables: [
+                Variable<String>(destinationBeaconId),
+                Variable<String>(actorUserId),
+                Variable(TypedValue(Type.textArray, newIds)),
+                Variable(
+                  TypedValue(Type.textArray, [
+                    for (final c in prepared) c.originFactCardId,
+                  ]),
+                ),
+                Variable(
+                  TypedValue(Type.integerArray, [
+                    for (final c in prepared) c.originRevisionSeq,
+                  ]),
+                ),
+                Variable(
+                  TypedValue(Type.integerArray, [
+                    for (final c in prepared) c.originBeaconKind,
+                  ]),
+                ),
+                Variable(
+                  TypedValue(Type.textArray, [
+                    for (final c in prepared) c.factText,
+                  ]),
+                ),
+                Variable(
+                  TypedValue(Type.textArray, [
+                    for (final c in prepared) c.attachmentsJson,
+                  ]),
+                ),
+                Variable(
+                  TypedValue(Type.textArray, [
+                    for (final _ in prepared) BeaconActivityEventEntity.newId,
+                  ]),
+                ),
+                Variable<String>(generateId('R')),
+                Variable<bool>(announce),
+              ],
+            )
+            .get();
+        final insertedIds = {
+          for (final r in inserted) r.read<String>('fact_id'),
+        };
+        final skippedOrigins = [
+          for (final (i, c) in prepared.indexed)
+            if (!insertedIds.contains(newIds[i])) c.originFactCardId,
+        ];
+        final winners = <String, String>{};
+        if (skippedOrigins.isNotEmpty) {
+          final rows = await _db
+              .customSelect(
+                r'''
+SELECT origin_fact_card_id, id
+FROM public.beacon_fact_card
+WHERE beacon_id = $1::text
+  AND origin_fact_card_id = ANY($2::text[])
+  AND status IN (0, 1)
+''',
+                variables: [
+                  Variable<String>(destinationBeaconId),
+                  Variable(TypedValue(Type.textArray, skippedOrigins)),
+                ],
+              )
+              .get();
+          for (final r in rows) {
+            winners[r.read<String>('origin_fact_card_id')] = r.read<String>(
+              'id',
+            );
+          }
+        }
+        return [
+          for (final (i, c) in prepared.indexed)
+            if (insertedIds.contains(newIds[i]))
+              newIds[i]
+            else
+              winners[c.originFactCardId] ??
+                  (throw const FactCopySourceUnavailableException()),
+        ];
+      },
+    ),
+  );
 
   /// Copies the fact's source-message attachments into [seq]'s snapshot.
   Future<void> _copySourceAttachmentsOntoRevision({

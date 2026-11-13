@@ -3,6 +3,7 @@ import 'package:tentura_server/domain/entity/beacon_fact_card_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_fact_card_outcome.dart';
 import 'package:tentura_server/domain/entity/beacon_fact_history_entry_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_fact_room_access.dart';
+import 'package:tentura_server/domain/entity/prepared_fact_copy.dart';
 
 /// Server-side data for checking the attachment list a fact edit sends.
 typedef FactEditAttachmentLookup = ({
@@ -45,6 +46,19 @@ abstract class BeaconFactCardRepositoryPort {
     required int visibility,
     required String pinnedBy,
     String? sourceMessageId,
+  });
+
+  /// Inserts [prepared] as live room-only facts of [destinationBeaconId]
+  /// with origin and a copied revision 1, joining an ambient transaction of
+  /// the same actor. Locks the destination row: missing or deleted throws
+  /// `UnauthorizedException`; a published destination gets one
+  /// facts-brought line and a `factPinned` event per inserted fact. An
+  /// origin that already has a live copy there is skipped. Returns, per
+  /// prepared copy and in order, the new id or the existing copy's id.
+  Future<List<String>> insertPreparedCopies({
+    required String destinationBeaconId,
+    required String actorUserId,
+    required List<PreparedFactCopy> prepared,
   });
 
   Future<void> setVisibility({

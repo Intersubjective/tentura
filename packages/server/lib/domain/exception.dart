@@ -275,6 +275,18 @@ final class BeaconNeedSummaryTooShortException extends ExceptionBase {
       );
 }
 
+/// A fact cannot be copied: missing, removed, unreadable, or its winning
+/// copy vanished during a race. One exception for every cause (plan §5.2).
+final class FactCopySourceUnavailableException extends ExceptionBase {
+  const FactCopySourceUnavailableException({String? description})
+    : super(
+        code: const BeaconExceptionCodes(
+          BeaconExceptionCode.factCopySourceUnavailable,
+        ),
+        description: description ?? 'Fact is not available for copying',
+      );
+}
+
 /// Source message already has a non-removed fact card (race-safe guard).
 final class BeaconFactCardAlreadyPinnedException extends ExceptionBase {
   const BeaconFactCardAlreadyPinnedException({
