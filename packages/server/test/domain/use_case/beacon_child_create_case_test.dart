@@ -5,6 +5,97 @@ import 'package:tentura_server/domain/policy/beacon_promotion_eligibility_policy
 
 void main() {
   group('BeaconPromotionEligibilityPolicy', () {
+    group('linked fact card', () {
+      const pinned = BeaconPromotionSourceFacts(
+        messageId: 'R1',
+        beaconId: 'B1',
+        authorId: 'U1',
+        body: 'hello',
+        linkedFactCardId: 'F1',
+      );
+
+      test('is eligible when allowLinkedFact is true', () {
+        expect(
+          BeaconPromotionEligibilityPolicy.isEligible(
+            pinned,
+            allowLinkedFact: true,
+          ),
+          isTrue,
+        );
+      });
+
+      test('is refused when allowLinkedFact is false or omitted', () {
+        bool eligible({required bool allow}) =>
+            BeaconPromotionEligibilityPolicy.isEligible(
+              pinned,
+              allowLinkedFact: allow,
+            );
+        expect(eligible(allow: false), isFalse);
+        expect(BeaconPromotionEligibilityPolicy.isEligible(pinned), isFalse);
+      });
+
+      test('allowLinkedFact relaxes only the linked-fact rule', () {
+        final others = <BeaconPromotionSourceFacts>[
+          const BeaconPromotionSourceFacts(
+            messageId: 'R1',
+            beaconId: 'B1',
+            authorId: null,
+            body: 'hello',
+            linkedFactCardId: 'F1',
+          ),
+          const BeaconPromotionSourceFacts(
+            messageId: 'R1',
+            beaconId: 'B1',
+            authorId: 'U1',
+            body: 'hello',
+            threadItemId: 'Iask',
+            linkedFactCardId: 'F1',
+          ),
+          const BeaconPromotionSourceFacts(
+            messageId: 'R1',
+            beaconId: 'B1',
+            authorId: 'U1',
+            body: 'hello',
+            semanticMarker: 1,
+            linkedFactCardId: 'F1',
+          ),
+          const BeaconPromotionSourceFacts(
+            messageId: 'R1',
+            beaconId: 'B1',
+            authorId: 'U1',
+            body: 'hello',
+            linkedItemId: 'Iplan',
+            linkedFactCardId: 'F1',
+          ),
+          const BeaconPromotionSourceFacts(
+            messageId: 'R1',
+            beaconId: 'B1',
+            authorId: 'U1',
+            body: 'hello',
+            linkedPollingId: 'P1',
+            linkedFactCardId: 'F1',
+          ),
+          const BeaconPromotionSourceFacts(
+            messageId: 'R1',
+            beaconId: 'B1',
+            authorId: 'U1',
+            body: 'hello',
+            systemMessageKind: BeaconRoomSystemMessageKind.childCreated,
+            linkedFactCardId: 'F1',
+          ),
+        ];
+        for (final facts in others) {
+          expect(
+            BeaconPromotionEligibilityPolicy.isEligible(
+              facts,
+              allowLinkedFact: true,
+            ),
+            isFalse,
+          );
+        }
+      });
+    });
+
     test('accepts ordinary General human message with empty body', () {
       expect(
         BeaconPromotionEligibilityPolicy.isEligible(

@@ -476,6 +476,78 @@ Future<void> main() async {
       });
     });
 
+    group('messages pinned as a fact', () {
+      test('a member buds from their own message that is pinned', () async {
+        await _pinFact(writer, beaconId: _post, messageId: _budderMsg);
+        PostParentStageContext? seen;
+        final result = await bud(
+          stage: (context) async {
+            seen = context;
+            return const PostParentStageResult();
+          },
+        );
+        expect(result.outcome, BeaconChildCommandOutcome.created);
+        expect(await _childCount(writer), 1);
+        expect(seen!.sourceMessageId, _budderMsg);
+      });
+
+      test('the Post author buds from the pinned root message', () async {
+        await _pinFact(writer, beaconId: _post, messageId: _rootMsg);
+        PostParentStageContext? seen;
+        final result = await bud(
+          actor: _author,
+          source: _rootMsg,
+          stage: (context) async {
+            seen = context;
+            return const PostParentStageResult();
+          },
+        );
+        expect(result.outcome, BeaconChildCommandOutcome.created);
+        expect(seen!.sourceMessageId, _rootMsg);
+      });
+
+      test("someone else's pinned message is still rejected", () async {
+        await _pinFact(writer, beaconId: _post, messageId: _memberMsg);
+        await expectLater(
+          bud(source: _memberMsg),
+          throwsA(isA<BudSourceNotOwnMessageException>()),
+        );
+        expect(await _childCount(writer), 0);
+        final commands = await writer.execute(
+          'SELECT count(*)::int FROM public.beacon_child_commands',
+        );
+        expect(commands.single.single, 0);
+      });
+
+      test('promoting a pinned Request message stays refused', () async {
+        await _pinFact(
+          writer,
+          beaconId: _request,
+          messageId: 'Rbudc1reqm001',
+        );
+        await expectLater(
+          children.createChild(
+            actorUserId: _author,
+            parentBeaconId: _request,
+            sourceMessageId: 'Rbudc1reqm001',
+            clientCommandId: 'cmd-promote-pinned',
+            title: 'Promoted',
+            draft: false,
+          ),
+          throwsA(isA<BeaconPromotionSourceInvalidException>()),
+        );
+        final children0 = await writer.execute(
+          'SELECT count(*)::int FROM public.beacon '
+          "WHERE parent_beacon_id = '$_request'",
+        );
+        expect(children0.single.single, 0);
+        final commands = await writer.execute(
+          'SELECT count(*)::int FROM public.beacon_child_commands',
+        );
+        expect(commands.single.single, 0);
+      });
+    });
+
     test('createChild with a Post parent requires budding', () async {
       await expectLater(
         children.createChild(
@@ -687,3 +759,42 @@ final class _UnusedGenealogy extends Fake
 
 final class _UnusedVisibility extends Fake
     implements PersonVisibilityRepositoryPort {}
+
+/// Pins [messageId] as a fact card in [beaconId] (message.linked_fact_card_id).
+///
+/// Mirrors what `BeaconFactCardRepository.pinFact` writes: an active
+/// (status 0) card whose `source_message_id` is the pinned message, with that
+/// same message's `linked_fact_card_id` pointing back at the card. The fixed
+/// card id is safe because `_seed` (run in `setUp`) truncates `public.beacon`
+/// with CASCADE, which removes `beacon_fact_card` rows between tests.
+Future<void> _pinFact(
+  Connection writer, {
+  required String beaconId,
+  required String messageId,
+}) async {
+  await writer.execute(
+    Sql.named(
+      'INSERT INTO public.beacon_fact_card '
+      '(id, beacon_id, fact_text, visibility, pinned_by, source_message_id) '
+      "VALUES ('Fbudc1fact01', @b, 'A fact', 0, @u, @m)",
+    ),
+    parameters: {'b': beaconId, 'u': _author, 'm': messageId},
+  );
+  final updated = await writer.execute(
+    Sql.named(
+      'UPDATE public.beacon_room_message '
+      "SET linked_fact_card_id = 'Fbudc1fact01' "
+      'WHERE id = @m AND beacon_id = @b',
+    ),
+    parameters: {'m': messageId, 'b': beaconId},
+  );
+  expect(updated.affectedRows, 1, reason: 'pin must hit exactly one message');
+  final readBack = await writer.execute(
+    Sql.named(
+      'SELECT linked_fact_card_id FROM public.beacon_room_message '
+      'WHERE id = @m',
+    ),
+    parameters: {'m': messageId},
+  );
+  expect(readBack.single.single, 'Fbudc1fact01');
+}

@@ -634,7 +634,10 @@ final class BeaconChildCreateCase extends UseCaseBase
     if (facts.authorId != actorUserId) {
       throw const BudSourceNotOwnMessageException();
     }
-    if (!BeaconPromotionEligibilityPolicy.isEligible(facts)) {
+    if (!BeaconPromotionEligibilityPolicy.isEligible(
+      facts,
+      allowLinkedFact: true,
+    )) {
       throw const BeaconPromotionSourceInvalidException();
     }
     return facts;

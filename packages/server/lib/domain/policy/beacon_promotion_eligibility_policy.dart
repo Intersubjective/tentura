@@ -39,7 +39,12 @@ final class BeaconPromotionSourceFacts {
 abstract final class BeaconPromotionEligibilityPolicy {
   BeaconPromotionEligibilityPolicy._();
 
-  static bool isEligible(BeaconPromotionSourceFacts facts) {
+  /// [allowLinkedFact] relaxes only the linked-fact rule: a Post message
+  /// pinned as a fact stays usable as a bud source.
+  static bool isEligible(
+    BeaconPromotionSourceFacts facts, {
+    bool allowLinkedFact = false,
+  }) {
     if (facts.authorId == null || facts.authorId!.isEmpty) {
       return false;
     }
@@ -67,7 +72,9 @@ abstract final class BeaconPromotionEligibilityPolicy {
     if (facts.linkedNextMoveId != null && facts.linkedNextMoveId!.isNotEmpty) {
       return false;
     }
-    if (facts.linkedFactCardId != null && facts.linkedFactCardId!.isNotEmpty) {
+    if (!allowLinkedFact &&
+        facts.linkedFactCardId != null &&
+        facts.linkedFactCardId!.isNotEmpty) {
       return false;
     }
     return true;
