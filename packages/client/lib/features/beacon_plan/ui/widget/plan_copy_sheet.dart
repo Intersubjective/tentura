@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/widget/facts_to_bring_checklist.dart';
 
 import '../../domain/entity/beacon_plan.dart';
 import '../../domain/entity/plan_fork_copy.dart';
@@ -9,35 +11,52 @@ import '../util/plan_presenter.dart';
 import 'plan_datetime_field.dart';
 
 /// What the person chose on [PlanCopySheet]. [stepTimes] is null when the
-/// copy goes without the plan.
+/// copy goes without the plan; [factIds] are the source facts to bring.
 @immutable
 final class PlanCopyChoice {
-  const PlanCopyChoice({this.stepTimes});
+  const PlanCopyChoice({this.stepTimes, this.factIds = const []});
 
   final List<PlanStepTime>? stepTimes;
+
+  final List<String> factIds;
 
   bool get copyPlan => stepTimes != null;
 }
 
-/// «Скопировать план» before a Request is copied (plan §5.11). Null when the
-/// sheet was dismissed: the copy is then not made at all.
+/// «Скопировать план» and «Facts to bring» before a Request is copied
+/// (plan §5.11, fact continuity §6.4). Null when the sheet was dismissed:
+/// the copy is then not made at all.
 Future<PlanCopyChoice?> showPlanCopySheet(
   BuildContext context, {
-  required BeaconPlan plan,
+  BeaconPlan? plan,
+  List<BeaconFactCard> facts = const [],
   DateTime Function()? clock,
 }) => showTenturaAdaptiveSheet<PlanCopyChoice>(
   context: context,
   useRootNavigator: true,
-  builder: (_) => PlanCopySheet(steps: plan.steps, clock: clock),
+  builder: (_) => PlanCopySheet(
+    steps: plan?.steps ?? const [],
+    facts: facts,
+    clock: clock,
+  ),
 );
 
 /// The sheet body: a «copy the plan» toggle, the new start of the first
 /// timed step, the shift every timed step gets, and a preview of the new
-/// times. Assignees are never copied.
+/// times (assignees are never copied); then the source's facts to bring.
+/// Without [steps] the plan row is absent.
 class PlanCopySheet extends StatefulWidget {
-  const PlanCopySheet({required this.steps, this.clock, super.key});
+  const PlanCopySheet({
+    required this.steps,
+    this.facts = const [],
+    this.clock,
+    super.key,
+  });
 
   final List<PlanStep> steps;
+
+  /// The source's readable facts; empty hides the checklist.
+  final List<BeaconFactCard> facts;
 
   /// Test seam for «now».
   final DateTime Function()? clock;
@@ -61,7 +80,8 @@ class _PlanCopySheetState extends State<PlanCopySheet> {
           sourceAnchor: _sourceAnchor,
           now: (widget.clock ?? DateTime.now)(),
         );
-  bool _copy = true;
+  late bool _copy = widget.steps.isNotEmpty;
+  List<String> _factIds = const [];
 
   PlanCopyShift get _shift {
     final source = _sourceAnchor;
@@ -73,6 +93,7 @@ class _PlanCopySheetState extends State<PlanCopySheet> {
   void _confirm() => Navigator.of(context).pop(
     PlanCopyChoice(
       stepTimes: _copy ? planCopyStepTimes(widget.steps, _shift) : null,
+      factIds: _factIds,
     ),
   );
 
@@ -95,8 +116,14 @@ class _PlanCopySheetState extends State<PlanCopySheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(l10n.planCopyTitle, style: TenturaText.titleSmall(tt.text)),
-            SwitchListTile.adaptive(
+            Text(
+              widget.steps.isEmpty
+                  ? l10n.beaconCreateFromAction
+                  : l10n.planCopyTitle,
+              style: TenturaText.titleSmall(tt.text),
+            ),
+            if (widget.steps.isNotEmpty)
+              SwitchListTile.adaptive(
               key: PlanCopySheet.toggleKey,
               contentPadding: EdgeInsets.zero,
               title: Text(l10n.planCopyHeader(widget.steps.length)),
@@ -137,6 +164,13 @@ class _PlanCopySheetState extends State<PlanCopySheet> {
               Text(
                 l10n.planCopyNoAssignees,
                 style: TenturaText.bodySmall(tt.textMuted),
+              ),
+            ],
+            if (widget.facts.isNotEmpty) ...[
+              SizedBox(height: tt.rowGap),
+              FactsToBringChecklist(
+                facts: widget.facts,
+                onChanged: (ids) => _factIds = ids,
               ),
             ],
             SizedBox(height: tt.rowGap),

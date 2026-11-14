@@ -28,10 +28,12 @@ abstract interface class BeaconWritePort {
 
   /// Server-side lineage fork of [sourceId] into a new DRAFT owned by the
   /// viewer; with [copyPlan] the source plan's steps land at [planStepTimes].
+  /// [factIds] are source facts the server brings into the draft.
   Future<Beacon> fork(
     String sourceId, {
     bool copyPlan = false,
     List<PlanStepTime> planStepTimes = const [],
+    List<String> factIds = const [],
   });
 
   /// Uploads [image] as an invisible stage and returns its exact server id.

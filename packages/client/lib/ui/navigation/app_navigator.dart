@@ -70,6 +70,7 @@ abstract interface class AppNavigator {
     String sourceMessageId = '',
     String forkSourceId = '',
     String forkPlanTimes = '',
+    List<String> forkFactIds = const [],
     Set<String> initialRecipientIds = const {},
     Map<String, String> initialNotes = const {},
     void Function(Set<String>, Map<String, String>)? onRecipientsChanged,

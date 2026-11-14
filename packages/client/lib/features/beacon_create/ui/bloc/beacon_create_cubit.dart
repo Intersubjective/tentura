@@ -51,6 +51,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     String? editBeaconIdToLoad,
     String? forkSourceIdToLoad,
     this._forkPlanStepTimes,
+    List<String> forkFactIds = const [],
     this._forkTitle,
     UiEffectPort? effects,
     DateTime Function()? clock,
@@ -68,6 +69,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
        super(
          BeaconCreateState(
            creationContext: childCreationContext,
+           forkFactIds: forkFactIds,
            status:
                (draftBeaconIdToLoad != null &&
                        draftBeaconIdToLoad.isNotEmpty) ||
@@ -1348,6 +1350,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
           sourceId,
           copyPlan: times != null,
           planStepTimes: times ?? const [],
+          factIds: state.forkFactIds,
         );
         _forkSourceId = null;
         if (!isClosed) emit(_adoptFork(forked));

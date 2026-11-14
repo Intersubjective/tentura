@@ -9745,6 +9745,27 @@
   "@planCopyConfirm": {
     "description": "Copy sheet: continue to the new draft."
   },
+  "factsToBringTitle": "Facts to bring",
+  "@factsToBringTitle": {
+    "description": "Fork sheet: heading of the checklist of source facts the copy brings along."
+  },
+  "factsToBringSelectAll": "Select all",
+  "@factsToBringSelectAll": {
+    "description": "Fork sheet: ticks every fact up to the limit."
+  },
+  "factsToBringCapNotice": "Only the first {limit} were selected, the most you can bring",
+  "@factsToBringCapNotice": {
+    "description": "Fork sheet: shown after Select all when the source has more facts than the limit.",
+    "placeholders": {
+      "limit": {
+        "type": "int"
+      }
+    }
+  },
+  "factsToBringLockLegend": "Discussion-only in the original",
+  "@factsToBringLockLegend": {
+    "description": "Fork sheet: legend for the lock mark on facts only the original's discussion could see."
+  },
   "myWorkPlanSomeone": "Someone",
   "@myWorkPlanSomeone": {
     "description": "My Work plan row (#220): stands for the person who changed the plan when their name is unknown."

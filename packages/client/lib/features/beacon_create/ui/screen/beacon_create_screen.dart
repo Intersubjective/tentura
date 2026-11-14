@@ -68,6 +68,7 @@ class BeaconCreateScreen extends StatefulWidget implements AutoRouteWrapper {
     @QueryParam(kQueryBeaconSourceMessageId) this.sourceMessageId = '',
     @QueryParam(kQueryBeaconForkFrom) this.forkSourceId = '',
     @QueryParam(kQueryBeaconForkPlan) this.forkPlanTimes = '',
+    @QueryParam(kQueryBeaconForkFacts) this.forkFactIds = const [],
     this.initialRecipientIds = const {},
     this.initialNotes = const {},
     this.onRecipientsChanged,
@@ -114,6 +115,9 @@ class BeaconCreateScreen extends StatefulWidget implements AutoRouteWrapper {
   /// writes them into the URL (#607); empty copies no plan.
   final String forkPlanTimes;
 
+  /// Source facts ticked on the fork sheet; the fork brings them along.
+  final List<String> forkFactIds;
+
   @override
   State<BeaconCreateScreen> createState() => _BeaconCreateScreenState();
 
@@ -129,6 +133,7 @@ class BeaconCreateScreen extends StatefulWidget implements AutoRouteWrapper {
           editBeaconIdToLoad: editId.isEmpty ? null : editId,
           forkSourceIdToLoad: forkSourceId.isEmpty ? null : forkSourceId,
           forkPlanStepTimes: decodePlanStepTimesQuery(forkPlanTimes),
+          forkFactIds: forkFactIds,
           forkTitle: L10n.of(context)!.beaconCopyOfTitle,
           childCreationContext: _childCreationContext(
             parentBeaconId: parentBeaconId,

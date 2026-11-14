@@ -112,6 +112,10 @@ const kQueryBeaconForkFrom = 'fork_from';
 /// web reload of the copy keeps them. Empty: the copy goes without the plan.
 const kQueryBeaconForkPlan = 'fork_plan';
 
+/// Source fact ids ticked for a «Create from this request» copy (fact
+/// continuity §6.4), so a web reload still brings them.
+const kQueryBeaconForkFacts = 'fork_facts';
+
 /// Query param for opening the beacon edit screen for an open (published) beacon.
 const kQueryBeaconEditId = 'edit_id';
 

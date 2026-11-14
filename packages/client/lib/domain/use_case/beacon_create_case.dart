@@ -137,10 +137,12 @@ class BeaconCreateCase {
     String sourceId, {
     bool copyPlan = false,
     List<PlanStepTime> planStepTimes = const [],
+    List<String> factIds = const [],
   }) => _beacons.fork(
     sourceId,
     copyPlan: copyPlan,
     planStepTimes: planStepTimes,
+    factIds: factIds,
   );
 
   /// Picks images and gives each one a stable client identity.

@@ -2,8 +2,14 @@ mutation BeaconFork(
   $id: String!
   $copyPlan: Boolean
   $planStepTimes: [v2_PlanStepTimeInput!]
+  $factIds: [String!]
 ) {
-  beaconFork(id: $id, copyPlan: $copyPlan, planStepTimes: $planStepTimes) {
+  beaconFork(
+    id: $id
+    copyPlan: $copyPlan
+    planStepTimes: $planStepTimes
+    factIds: $factIds
+  ) {
     id
   }
 }

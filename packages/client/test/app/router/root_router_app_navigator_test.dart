@@ -139,6 +139,35 @@ void main() {
     ]);
   });
 
+  // Fact continuity §6.4: the facts ticked on «Create from this Request» ride
+  // on the editor route beside fork_from / fork_plan, in its fork_facts
+  // query, so a web reload still brings them. How the ids are encoded is the
+  // route's business (the reload round trip is in
+  // fork_facts_route_reaches_create_cubit_test.dart). `forkFactIds` is new,
+  // hence the dynamic call: this test fails on its own instead of the file
+  // failing to compile.
+  test('createBeacon carries the ticked fork facts on the route and in its '
+      'fork_facts query', () async {
+    await (Function.apply(
+          (navigator as dynamic).createBeacon as Function,
+          const [],
+          const {
+            #forkSourceId: 'F1',
+            #forkFactIds: ['Fa', 'Fb'],
+          },
+        )
+        as Future<void>);
+
+    final route = router.pushed.single;
+    expect(route.rawQueryParams['fork_from'], 'F1');
+    expect(route.rawQueryParams['fork_facts'], isNotNull);
+    expect(route.rawQueryParams['fork_facts'], isNot(''));
+    expect(
+      ((route.args! as dynamic).forkFactIds as List).cast<String>(),
+      ['Fa', 'Fb'],
+    );
+  });
+
   test('createPost pushes PostCreateRoute with every arg', () async {
     void onRecipientsChanged(Set<String> ids, Map<String, String> notes) {}
     void onPublished() {}

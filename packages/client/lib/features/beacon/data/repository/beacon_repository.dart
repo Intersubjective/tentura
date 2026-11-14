@@ -177,14 +177,17 @@ class BeaconRepository implements BeaconWritePort {
         };
       });
 
-  /// `beaconFork` request; plan arguments only when [copyPlan].
+  /// `beaconFork` request; plan arguments only when [copyPlan], fact ids
+  /// only when there are any.
   @visibleForTesting
   static GBeaconForkReq forkRequest(
     String sourceId, {
     bool copyPlan = false,
     List<PlanStepTime> planStepTimes = const [],
+    List<String> factIds = const [],
   }) => GBeaconForkReq((b) {
     b.vars.id = sourceId;
+    if (factIds.isNotEmpty) b.vars.factIds.replace(factIds);
     if (!copyPlan) return;
     b.vars
       ..copyPlan = true
@@ -204,12 +207,14 @@ class BeaconRepository implements BeaconWritePort {
   /// With [copyPlan] the server copies the source plan's live steps into the
   /// draft (no assignees) at [planStepTimes], which the client computed in
   /// the viewer's zone (plan §4.10, §5.11). The server copies nothing when
-  /// the caller may not read the source plan.
+  /// the caller may not read the source plan. [factIds] are source facts
+  /// the server copies into the draft (fact continuity §5.6).
   @override
   Future<Beacon> fork(
     String sourceId, {
     bool copyPlan = false,
     List<PlanStepTime> planStepTimes = const [],
+    List<String> factIds = const [],
   }) async {
     final newId = await _remoteApiService
         .request(
@@ -217,6 +222,7 @@ class BeaconRepository implements BeaconWritePort {
             sourceId,
             copyPlan: copyPlan,
             planStepTimes: planStepTimes,
+            factIds: factIds,
           ),
         )
         .firstLinkResponse(label: _label)

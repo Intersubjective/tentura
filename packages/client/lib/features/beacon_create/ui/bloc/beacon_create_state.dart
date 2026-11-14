@@ -68,6 +68,10 @@ abstract class BeaconCreateState extends StateBase with _$BeaconCreateState {
     /// Title of the request a «Create from this request» copy was made from
     /// (#493); empty for any other editor.
     @Default('') String forkSourceTitle,
+
+    /// Source facts ticked on the fork sheet (`fork_facts`); the lazy fork
+    /// brings them into the copy. Empty for any other editor.
+    @Default(<String>[]) List<String> forkFactIds,
     @Default({}) Set<String> initialServerImageIds,
     @Default(false) bool canTryToPublish,
 

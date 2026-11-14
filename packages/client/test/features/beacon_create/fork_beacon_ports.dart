@@ -42,6 +42,7 @@ class ForkingBeaconWritePort extends FakeBeaconWritePort {
     String sourceId, {
     bool copyPlan = false,
     List<PlanStepTime> planStepTimes = const [],
+    List<String> factIds = const [],
   }) async {
     forkCalls.add(
       ForkCall(

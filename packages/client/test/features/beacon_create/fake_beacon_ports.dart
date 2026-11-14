@@ -246,6 +246,7 @@ class FakeBeaconWritePort implements BeaconWritePort {
     String sourceId, {
     bool copyPlan = false,
     List<PlanStepTime> planStepTimes = const [],
+    List<String> factIds = const [],
   }) async => throw StateError('unexpected fork($sourceId)');
 
   @override
