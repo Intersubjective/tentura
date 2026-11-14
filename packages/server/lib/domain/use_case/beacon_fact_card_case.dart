@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 import 'package:injectable/injectable.dart';
+import 'package:logging/logging.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_root/utils/infer_image_mime_from_bytes.dart';
 import 'package:uuid/uuid.dart';
@@ -27,14 +28,38 @@ import 'package:tentura_server/domain/port/image_repository_port.dart';
 import 'package:tentura_server/domain/port/task_repository_port.dart';
 import 'package:tentura_server/domain/request_context.dart';
 import 'package:tentura_server/domain/use_case/room_write_guard.dart';
+import 'package:tentura_server/env.dart';
 import 'package:tentura_server/utils/id.dart';
 import 'package:tentura_server/utils/postgres_sql_state.dart';
 import 'package:tentura_server/utils/read_uint8_stream_with_limit.dart';
 
 import '_use_case_base.dart';
 
-@Singleton(order: 2)
+// Order 1 and pre-resolved: [BeaconCase] (order 2) takes it as a nullable
+// dependency, which Injectable does not order by.
+@Singleton(order: 1)
 final class BeaconFactCardCase extends UseCaseBase {
+  @FactoryMethod(preResolve: true)
+  static Future<BeaconFactCardCase> createInstance(
+    BeaconFactCardRepositoryPort facts,
+    BeaconRoomRepositoryPort room,
+    ImageRepositoryPort imageRepository,
+    TaskRepositoryPort tasksRepository,
+    BeaconHierarchyRepositoryPort hierarchyRepository,
+    BeaconAccessGuard guard,
+    Env env,
+    Logger logger,
+  ) async => BeaconFactCardCase(
+    facts,
+    room,
+    imageRepository,
+    tasksRepository,
+    hierarchyRepository,
+    guard,
+    env: env,
+    logger: logger,
+  );
+
   BeaconFactCardCase(
     this._facts,
     this._room,
@@ -163,38 +188,79 @@ final class BeaconFactCardCase extends UseCaseBase {
       return (factCardId: existingId, outcome: FactCopyOutcome.alreadyThere);
     }
     final copy = prepared.single;
-    final String id;
+    final List<String> ids;
     try {
-      id = (await _hierarchyRepository.translateRoomWriteError(
-        () => _facts.insertPreparedCopies(
-          destinationBeaconId: destinationBeaconId,
-          actorUserId: actorUserId,
-          prepared: prepared,
-        ),
-      )).single;
+      ids = await insertPreparedCopies(
+        destinationBeaconId: destinationBeaconId,
+        actorUserId: actorUserId,
+        prepared: prepared,
+      );
     } catch (_) {
-      await _compensateBlobs(copy, actorUserId: actorUserId);
+      await compensatePreparedCopies(prepared, actorUserId: actorUserId);
       rethrow;
     }
-    if (id != copy.factCardId) {
-      await _compensateBlobs(copy, actorUserId: actorUserId);
-      return (factCardId: id, outcome: FactCopyOutcome.alreadyThere);
-    }
-    for (final imageId in copy.newImageIds) {
-      await _scheduleHashTaskNonFatal(imageId);
-    }
-    return (factCardId: id, outcome: FactCopyOutcome.created);
+    await settleInsertedCopies(
+      prepared: prepared,
+      insertedIds: ids,
+      actorUserId: actorUserId,
+    );
+    final id = ids.single;
+    return (
+      factCardId: id,
+      outcome: id == copy.factCardId
+          ? FactCopyOutcome.created
+          : FactCopyOutcome.alreadyThere,
+    );
   }
 
-  Future<void> _compensateBlobs(
-    PreparedFactCopy copy, {
+  /// Plan §5.2 insert: writes [prepared] into [destinationBeaconId] (joining
+  /// the caller's transaction, if any) and returns, per copy, the new id or
+  /// the id of the live copy that won the race. A write that lost a race
+  /// with closing or archiving is translated as for other room writes.
+  Future<List<String>> insertPreparedCopies({
+    required String destinationBeaconId,
+    required String actorUserId,
+    required List<PreparedFactCopy> prepared,
+  }) => _hierarchyRepository.translateRoomWriteError(
+    () => _facts.insertPreparedCopies(
+      destinationBeaconId: destinationBeaconId,
+      actorUserId: actorUserId,
+      prepared: prepared,
+    ),
+  );
+
+  /// Removes the re-stored images of copies that were not (or will not be)
+  /// inserted.
+  Future<void> compensatePreparedCopies(
+    Iterable<PreparedFactCopy> prepared, {
     required String actorUserId,
   }) async {
-    for (final imageId in copy.newImageIds) {
-      await _imageRepository.compensateOrphanedUpload(
-        imageId: imageId,
-        authorId: actorUserId,
-      );
+    for (final copy in prepared) {
+      for (final imageId in copy.newImageIds) {
+        await _imageRepository.compensateOrphanedUpload(
+          imageId: imageId,
+          authorId: actorUserId,
+        );
+      }
+    }
+  }
+
+  /// After the insert committed: compensates the blobs of copies that lost
+  /// to an existing copy and schedules hash tasks for the inserted ones.
+  /// [insertedIds] is the result of [insertPreparedCopies].
+  Future<void> settleInsertedCopies({
+    required List<PreparedFactCopy> prepared,
+    required List<String> insertedIds,
+    required String actorUserId,
+  }) async {
+    for (final (i, copy) in prepared.indexed) {
+      if (insertedIds[i] != copy.factCardId) {
+        await compensatePreparedCopies([copy], actorUserId: actorUserId);
+        continue;
+      }
+      for (final imageId in copy.newImageIds) {
+        await _scheduleHashTaskNonFatal(imageId);
+      }
     }
   }
 

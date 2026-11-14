@@ -22,6 +22,7 @@ import 'package:tentura_server/domain/port/remote_storage_port.dart';
 import 'package:tentura_server/domain/port/request_change_log_port.dart';
 import 'package:tentura_server/domain/port/task_repository_port.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
+import 'package:tentura_server/domain/use_case/beacon_fact_card_case.dart';
 import 'package:tentura_server/domain/use_case/beacon_plan_case.dart';
 import 'package:tentura_server/domain/use_case/plan_attention_case.dart';
 import 'package:tentura_server/domain/port/beacon_child_create_port.dart';
@@ -38,6 +39,7 @@ import '../entity/beacon_entity.dart';
 import '../entity/gql_public/beacon_cancel_result.dart';
 import '../entity/gql_public/beacon_image_added_result.dart';
 import '../entity/gql_public/beacon_image_staged_result.dart';
+import '../entity/prepared_fact_copy.dart';
 import '../entity/task_entity.dart';
 import '../entity/uploaded_room_attachment.dart';
 import '_use_case_base.dart';
@@ -128,6 +130,7 @@ final class BeaconCase extends UseCaseBase {
     BeaconPlanCase? beaconPlan,
     PlanAttentionCase? planAttention,
     RequestChangeLogPort? changeLog,
+    BeaconFactCardCase? factCards,
   }) async => BeaconCase(
     beaconRepository,
     imageRepository,
@@ -144,6 +147,7 @@ final class BeaconCase extends UseCaseBase {
     beaconPlan: beaconPlan,
     planAttention: planAttention,
     changeLog: changeLog,
+    factCards: factCards,
     env: env,
     logger: logger,
   );
@@ -164,6 +168,7 @@ final class BeaconCase extends UseCaseBase {
     this._beaconPlan,
     this._planAttention,
     this._changeLog,
+    this._factCards,
     required super.env,
     required super.logger,
   }) : _attentionIntents = attentionIntents,
@@ -202,6 +207,10 @@ final class BeaconCase extends UseCaseBase {
   /// #528 — the title-change line in General; nullable for test
   /// construction.
   final RequestChangeLogPort? _changeLog;
+
+  /// Copies the facts ticked in a fork (plan §5.6); nullable for test
+  /// construction.
+  final BeaconFactCardCase? _factCards;
 
   /// Spam control: reject when an author has created too many beacons within
   /// the configured trailing window.
@@ -818,12 +827,17 @@ final class BeaconCase extends UseCaseBase {
   /// [planStepTimes] maps source step ids to the new start / end the client
   /// computed; a step without an entry is copied without time. Assignments
   /// and ticks are never copied.
+  ///
+  /// [factIds] are the source facts ticked to come along (plan §5.6): each
+  /// one the caller may copy lands in the draft as a copy; any other is
+  /// skipped (R1). The client compares the draft's facts with its ticks.
   Future<BeaconEntity> fork({
     required String sourceId,
     required String userId,
     bool copyPlan = false,
     Map<String, ({DateTime? startAt, DateTime? endAt})> planStepTimes =
         const {},
+    List<String> factIds = const [],
   }) async {
     await _enforceCreateRateLimit(userId);
     final source = await _beaconRepository.getBeaconById(beaconId: sourceId);
@@ -833,6 +847,17 @@ final class BeaconCase extends UseCaseBase {
       beaconId: sourceId,
       userId: userId,
     );
+
+    final factCards = _factCards;
+    var prepared = const <PreparedFactCopy>[];
+    if (factIds.isNotEmpty && factCards != null) {
+      prepared = (await factCards.prepareCopies(
+        sourceFactCardIds: factIds,
+        actorUserId: userId,
+        skipUnavailable: true,
+        requiredSourceBeaconId: source.id,
+      )).prepared;
+    }
 
     final imageIds = <String>[];
     String? mappedCoverImageId;
@@ -874,31 +899,63 @@ final class BeaconCase extends UseCaseBase {
         lineageRootBeaconId: source.lineageRootBeaconId ?? source.id,
         isDiscoverable: source.isDiscoverable,
       );
-      final plan = _beaconPlan;
+      final plan = copyPlan ? _beaconPlan : null;
       final attention = _attention;
-      if (!copyPlan || plan == null || attention == null) {
+      if (attention == null && factCards != null && prepared.isNotEmpty) {
+        // Test wiring without a transaction: the draft comes without facts.
+        await factCards.compensatePreparedCopies(
+          prepared,
+          actorUserId: userId,
+        );
+        prepared = const [];
+      }
+      if (attention == null || (plan == null && prepared.isEmpty)) {
         return await create();
       }
-      // One transaction: `createBeacon` opens its own with the same actor and
-      // joins this one, so a failed plan copy leaves no draft behind.
-      return await attention.runAction(
+      // One transaction: `createBeacon` and the fact insert open their own
+      // with the same actor and join this one, so a failed copy leaves no
+      // draft behind.
+      final copies = prepared;
+      final (draft, insertedIds) = await attention.runAction(
         actorUserId: userId,
         action: (_) async {
           final draft = await create();
-          await plan.copyPlan(
+          final insertedIds = factCards == null || copies.isEmpty
+              ? const <String>[]
+              : await factCards.insertPreparedCopies(
+                  destinationBeaconId: draft.id,
+                  actorUserId: userId,
+                  prepared: copies,
+                );
+          await plan?.copyPlan(
             actorId: userId,
             sourceBeaconId: source.id,
             targetBeaconId: draft.id,
             stepTimes: planStepTimes,
           );
-          return draft;
+          return (draft, insertedIds);
         },
       );
+      prepared = const [];
+      if (factCards != null && copies.isNotEmpty) {
+        await factCards.settleInsertedCopies(
+          prepared: copies,
+          insertedIds: insertedIds,
+          actorUserId: userId,
+        );
+      }
+      return draft;
     } catch (_) {
       for (final imageId in imageIds) {
         await _imageRepository.compensateOrphanedUpload(
           imageId: imageId,
           authorId: userId,
+        );
+      }
+      if (factCards != null && prepared.isNotEmpty) {
+        await factCards.compensatePreparedCopies(
+          prepared,
+          actorUserId: userId,
         );
       }
       rethrow;

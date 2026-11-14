@@ -40,6 +40,19 @@ final class MutationBeacon extends GqlNodeBase {
 
   final _copyPlan = InputFieldBool(fieldName: 'copyPlan');
 
+  /// Facts ticked in the fork sheet (plan §5.6); omitted means none.
+  static final _factIds = GraphQLFieldInput(
+    'factIds',
+    GraphQLListType(graphQLString.nonNullable()),
+    defaultsToNull: true,
+  );
+
+  static List<String> _factIdsFromArgs(Map<String, dynamic> args) =>
+      switch (args['factIds']) {
+        final List<dynamic> ids => List<String>.from(ids),
+        _ => const [],
+      };
+
   List<GraphQLObjectField<dynamic, dynamic>> get all => [
     create,
     fork,
@@ -158,6 +171,7 @@ final class MutationBeacon extends GqlNodeBase {
       InputFieldId.field,
       _copyPlan.fieldNullable,
       InputFieldPlanStepTimes.field,
+      _factIds,
     ],
     resolve: (_, args) => _beaconCase
         .fork(
@@ -165,6 +179,7 @@ final class MutationBeacon extends GqlNodeBase {
           userId: getCredentials(args).sub,
           copyPlan: _copyPlan.fromArgs(args) ?? false,
           planStepTimes: InputFieldPlanStepTimes.fromArgs(args),
+          factIds: _factIdsFromArgs(args),
         )
         .then((v) => v.asJson),
   );
