@@ -690,6 +690,13 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
         _maybeOpenActivitySheetForLogTab();
       }
     }
+    // A screen already in the stack is reused when an origin walk arrives
+    // with a new `focus_fact=`: focus that fact too.
+    if (oldWidget.focusFactId != widget.focusFactId ||
+        oldWidget.id != widget.id) {
+      _focusedFactId = null;
+      WidgetsBinding.instance.addPostFrameCallback((_) => _maybeFocusFact());
+    }
   }
 
   /// The page open over the plan, if the Plan tab is showing.

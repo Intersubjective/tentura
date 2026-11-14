@@ -270,9 +270,10 @@ void main() {
         );
         final sheet = find.byType(FactHistorySheet);
         await pumpUntilVisible(tester, sheet);
+        // Any element under the sheet's BlocProvider (it has no Scaffold).
         FactHistoryCubit historyCubit() => tester
             .element(
-              find.descendant(of: sheet, matching: find.byType(Scaffold)).first,
+              find.descendant(of: sheet, matching: find.byType(SafeArea)).first,
             )
             .read<FactHistoryCubit>();
         await pumpUntil(

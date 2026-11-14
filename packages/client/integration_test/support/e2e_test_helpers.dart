@@ -103,12 +103,21 @@ Future<void> launchApp(Future<void> Function() start) async {
   ErrorWidget.builder = originalErrorWidgetBuilder;
 }
 
+/// Two mutually befriended QA users. [authorEmail] / [helperEmail] reuse
+/// existing QA accounts (the server's defaults are run-stamped new ones), so
+/// a test can chain contacts: A↔B from one call, B↔C from another.
 Future<IntegrationFixture> bootstrapFixture({
   required String runId,
+  String? authorEmail,
+  String? helperEmail,
 }) async {
   final result = await _postJson(
     '/_qa/integration/bootstrap',
-    {'runId': runId},
+    {
+      'runId': runId,
+      'authorEmail': ?authorEmail,
+      'helperEmail': ?helperEmail,
+    },
     includeCredentials: false,
     extraHeaders: _qaHeaders,
   );
