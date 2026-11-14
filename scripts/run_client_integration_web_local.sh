@@ -75,6 +75,19 @@ CADDY_PORT=9443
 log() { printf '\n[integration] %s\n' "$*"; }
 die() { echo "[integration] ERROR: $*" >&2; exit 1; }
 
+# Run inside scripts/run_with_test_cleanup.sh the wrapper points POSTGRES_* at
+# the RAM-backed `postgres-test` (127.0.0.1:5433). tentura-server would then
+# write there while the compose `hasura` keeps reading the dev `postgres`
+# (:5432), so every app read through Hasura misses rows the server just wrote
+# (tentura-zzla.25, 2026-11-14). Drop only the wrapper's own default; an
+# explicit other target (perf copies etc.) is kept, TENTURA_TEST_PG=shared
+# already means "no wrapper default".
+if [[ -n "${TENTURA_TEST_CLEANUP_RUN:-}" && "${POSTGRES_HOST:-}" == 127.0.0.1 &&
+      "${POSTGRES_PORT:-}" == 5433 && -z "${POSTGRES_DBNAME:-}" ]]; then
+  echo "[integration] ignoring the test wrapper's POSTGRES_HOST/PORT (postgres-test): Hasura reads the dev DB" >&2
+  unset POSTGRES_HOST POSTGRES_PORT
+fi
+
 # --- 0. env & QA token -------------------------------------------------------
 ENV_FILE="$ROOT/.env"
 REGEN_JWT=0

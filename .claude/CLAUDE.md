@@ -22,7 +22,9 @@ Wrap every `flutter test` / `dart test` / `check-custom-lints.sh` with
 [`scripts/run_with_test_cleanup.sh`](../scripts/run_with_test_cleanup.sh).
 Bare test processes survive Claude Code SIGKILL and leave RAM-backed
 `/tmp/flutter_tools.*` tails. Copy-paste commands: `AGENTS.md` § Verify.
-Do not wrap `flutter run`. CI stays unwrapped.
+Do not wrap `flutter run` or `scripts/run_client_integration_web_local.sh`
+(the wrapper points the server at `postgres-test` while Hasura reads the dev DB,
+so the app never sees fresh rows). CI stays unwrapped.
 
 ## Claude-specific tooling
 
