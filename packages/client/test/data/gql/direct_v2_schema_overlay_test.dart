@@ -196,6 +196,7 @@ void main() {
         '  lastEditedAt: String\n'
         '  lastEditedBy: String\n'
         '  lastEditedByTitle: String\n'
+        '  originBeaconKind: Int\n'
         '  otherEditorCount: Int!\n'
         '  pinnedBy: String!\n'
         '  pinnedByTitle: String!\n'
