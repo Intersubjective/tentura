@@ -18,6 +18,7 @@ import 'package:tentura_server/consts.dart'
         kTitleMaxLength,
         kTitleMinLength;
 import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
+import 'package:tentura_server/consts/beacon_fact_card_consts.dart';
 import 'package:tentura_server/consts/beacon_hierarchy_consts.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/domain/entity/beacon_activity_event_entity.dart';
@@ -29,6 +30,7 @@ import 'package:tentura_server/domain/entity/beacon_media_state.dart';
 import 'package:tentura_server/domain/entity/post_draft_attachment.dart';
 import 'package:tentura_server/domain/entity/uploaded_room_attachment.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
+import 'package:tentura_server/utils/id.dart';
 
 import '../database/query_row_timestamp.dart';
 import '../database/tentura_db.dart';
@@ -1027,11 +1029,24 @@ WHERE id = $1 AND kind = 1 AND status = 0''',
   Future<void> setPostRootMessage({
     required String beaconId,
     required String messageId,
-  }) => _database.customStatement(
-    'UPDATE public.beacon SET post_root_message_id = \$2 '
-    'WHERE id = \$1 AND post_root_message_id IS NULL',
-    [beaconId, messageId],
-  );
+  }) async {
+    final linked = await _database
+        .customSelect(
+          'UPDATE public.beacon SET post_root_message_id = \$2 '
+          'WHERE id = \$1 AND post_root_message_id IS NULL '
+          'RETURNING user_id',
+          variables: [Variable<String>(beaconId), Variable<String>(messageId)],
+        )
+        .getSingleOrNull();
+    // The Post becomes visible with its root message: the facts copied into
+    // its draft are announced right after it, once.
+    if (linked != null) {
+      await _announceCopiedFacts(
+        beaconId: beaconId,
+        actorId: linked.read<String>('user_id'),
+      );
+    }
+  }
 
   @override
   Future<bool> isPostAddressee({
@@ -1273,6 +1288,10 @@ WHERE user_id = $1 AND created_at >= $2
         actorId: actorId,
         title: existing.title,
       );
+      // A Post announces its copied facts after its root message.
+      if (existing.kind != BeaconKind.post.value) {
+        await _announceCopiedFacts(beaconId: id, actorId: actorId);
+      }
 
       return getBeaconById(beaconId: id, filterByUserId: actorId);
     })();
@@ -1317,6 +1336,7 @@ WHERE user_id = $1 AND created_at >= $2
         actorId: actorId,
         title: existing.title,
       );
+      await _announceCopiedFacts(beaconId: childBeaconId, actorId: actorId);
 
       return getBeaconById(beaconId: childBeaconId, filterByUserId: actorId);
     })();
@@ -1336,6 +1356,92 @@ WHERE user_id = $1 AND created_at >= $2
           variables: [Variable<String>(beaconId)],
         )
         .get();
+  }
+
+  /// One «facts brought» line (marker 20) by [actorId] for the beacon's live
+  /// copied facts, and one `factPinned` event per fact pointing at it — the
+  /// announcement a copy into a published beacon writes at once. Facts
+  /// copied into a draft wait for it until the draft becomes visible. The
+  /// line is stamped after every message already in the room.
+  Future<void> _announceCopiedFacts({
+    required String beaconId,
+    required String actorId,
+  }) async {
+    final facts = await _database
+        .customSelect(
+          '''
+SELECT f.id
+FROM public.beacon_fact_card f
+JOIN public.beacon_fact_card_revision r
+  ON r.fact_card_id = f.id AND r.seq = 1
+WHERE f.beacon_id = \$1::text
+  AND f.origin_fact_card_id IS NOT NULL
+  AND f.status <> ${BeaconFactCardStatusBits.removed}
+ORDER BY r.created_at, f.id
+''',
+          variables: [Variable<String>(beaconId)],
+        )
+        .get();
+    if (facts.isEmpty) return;
+    final factIds = [for (final r in facts) r.read<String>('id')];
+    await _database.customUpdate(
+      '''
+WITH input AS (
+  SELECT i.fact_id, i.event_id, i.ord, f.fact_text, f.origin_beacon_kind
+  FROM unnest(\$3::text[], \$4::text[]) WITH ORDINALITY
+       AS i(fact_id, event_id, ord)
+  JOIN public.beacon_fact_card f ON f.id = i.fact_id
+),
+line AS (
+  INSERT INTO public.beacon_room_message
+    (id, beacon_id, author_id, body, semantic_marker, system_payload,
+     mention_spans, created_at)
+  SELECT \$5::text, \$1::text, \$2::text, '',
+         ${BeaconRoomSemanticMarker.factsBrought},
+         jsonb_build_object(
+           'factCardIds', jsonb_agg(i.fact_id ORDER BY i.ord),
+           'count', count(*),
+           'originBeaconKind',
+             CASE WHEN min(i.origin_beacon_kind) = max(i.origin_beacon_kind)
+                  THEN min(i.origin_beacon_kind) END
+         ) || CASE WHEN count(*) = 1
+                   THEN jsonb_build_object(
+                     'factText', left(min(i.fact_text), 160))
+                   ELSE '{}'::jsonb END,
+         '[]'::jsonb,
+         GREATEST(
+           clock_timestamp(),
+           (SELECT max(m.created_at) + interval '1 microsecond'
+            FROM public.beacon_room_message m
+            WHERE m.beacon_id = \$1::text))
+  FROM input i
+  RETURNING id
+)
+INSERT INTO public.beacon_activity_event
+  (id, beacon_id, visibility, type, actor_id, source_message_id, diff,
+   fact_card_id)
+SELECT i.event_id, \$1::text, ${BeaconActivityEventVisibilityBits.room},
+       ${BeaconActivityEventTypeBits.factPinned}, \$2::text, l.id,
+       jsonb_build_object('factCardId', i.fact_id, 'factText', i.fact_text),
+       i.fact_id
+FROM input i CROSS JOIN line l
+''',
+      variables: [
+        Variable<String>(beaconId),
+        Variable<String>(actorId),
+        Variable(TypedValue(Type.textArray, factIds)),
+        Variable(
+          TypedValue(Type.textArray, [
+            for (final _ in factIds) BeaconActivityEventEntity.newId,
+          ]),
+        ),
+        Variable<String>(generateId('R')),
+      ],
+      updates: {
+        _database.beaconRoomMessages,
+        _database.beaconActivityEvents,
+      },
+    );
   }
 
   Future<void> _insertBeaconPublishedEvent({
