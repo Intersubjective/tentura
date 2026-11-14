@@ -134,6 +134,7 @@ Map<String, dynamic> _factRow({
   'lastEditedAt': lastEditedAt,
   'otherEditorCount': otherEditorCount,
   'historyTruncated': historyTruncated,
+  'savedByMe': false,
 };
 
 Map<String, dynamic> _revisionRow({

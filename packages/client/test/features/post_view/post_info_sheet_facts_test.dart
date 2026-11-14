@@ -81,6 +81,7 @@ Map<String, Object?> _wireRow(_Row r) => {
   'lastEditedAt': null,
   'otherEditorCount': 0,
   'historyTruncated': false,
+  'savedByMe': false,
   'originBeaconKind': r.origin,
 };
 

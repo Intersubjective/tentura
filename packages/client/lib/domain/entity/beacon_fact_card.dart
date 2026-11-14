@@ -33,6 +33,9 @@ abstract class BeaconFactCard with _$BeaconFactCard {
 
     /// Kind of the Request this fact was copied from; null when not a copy.
     int? originBeaconKind,
+
+    /// The viewer saved this fact to their own facts.
+    @Default(false) bool savedByMe,
     @Default(<RoomMessageAttachment>[]) List<RoomMessageAttachment> attachments,
   }) = _BeaconFactCard;
 }

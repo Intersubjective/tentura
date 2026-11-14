@@ -48,6 +48,13 @@ final class BeaconFactCopySourceUnavailableException
   static const codeNumber = 1352;
 }
 
+/// The viewer already has the maximum number of saved facts.
+final class BeaconFactSavedLimitException extends BeaconFactCardException {
+  const BeaconFactSavedLimitException([super.message]);
+
+  static const codeNumber = 1353;
+}
+
 /// Throws the matching [BeaconFactCardException] for a recognized fact-card
 /// GraphQL error [code]. Returns normally (no throw) for any other code —
 /// notably 1317 (`BeaconHierarchyCursorInvalidException`), which is handled
@@ -65,5 +72,7 @@ void throwIfBeaconFactCardError(int? code, Map<String, dynamic>? extensions) {
       throw const BeaconFactRateLimitedException();
     case BeaconFactCopySourceUnavailableException.codeNumber:
       throw const BeaconFactCopySourceUnavailableException();
+    case BeaconFactSavedLimitException.codeNumber:
+      throw const BeaconFactSavedLimitException();
   }
 }

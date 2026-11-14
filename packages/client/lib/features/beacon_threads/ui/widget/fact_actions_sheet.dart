@@ -12,6 +12,7 @@ import 'package:tentura/domain/entity/beacon_fact_card_consts.dart';
 import 'package:tentura/domain/entity/room_message_attachment.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
 import 'package:tentura/features/beacon_threads/data/repository/beacon_fact_card_repository.dart';
+import 'package:tentura/features/beacon_threads/domain/exception/beacon_fact_card_exceptions.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/message/beacon_room_fact_messages.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/fact_attachment_preview_strip.dart';
@@ -42,6 +43,7 @@ Future<void> showFactActionsSheet(
     canMutate: cubit.state.canWriteDiscussion,
     myUserId: cubit.state.myUserId,
     onQuoteInChat: onQuoteInChat,
+    onSave: factSaveAction(fact),
     onUseElsewhere:
         onUseElsewhere ??
         (f) => unawaited(showFactCopyDestinationSheet(context, fact: f)),
@@ -87,6 +89,17 @@ Future<void> showFactActionsSheet(
   );
 }
 
+/// Saves or removes [fact] on the viewer's own facts list.
+Future<void> Function({required bool save}) factSaveAction(
+  BeaconFactCard fact,
+) =>
+    ({required save}) => save
+    ? GetIt.I<BeaconFactCardRepository>().save(
+        beaconId: fact.beaconId,
+        factCardId: fact.id,
+      )
+    : GetIt.I<BeaconFactCardRepository>().unsave(factCardId: fact.id);
+
 Future<void> showFactActionsHostSheet(
   BuildContext context, {
   required BeaconFactCard fact,
@@ -106,6 +119,9 @@ Future<void> showFactActionsHostSheet(
   void Function(BeaconFactCard fact)? onEditHistory,
   void Function(BeaconFactCard fact)? onQuoteInChat,
   void Function(BeaconFactCard fact)? onUseElsewhere,
+
+  /// Saves (`save` true) or removes the fact on the viewer's own facts.
+  Future<void> Function({required bool save})? onSave,
 
   /// The origin answer that led here from a copy of this fact: the header
   /// says when the fact changed since the copy, and members get the copied
@@ -267,6 +283,8 @@ Future<void> showFactActionsHostSheet(
                   onUseElsewhere(fact);
                 },
               ),
+            // Every reader may save a fact (not gated by canMutate).
+            if (onSave != null) _SaveFactTile(fact: fact, onSave: onSave),
             ListTile(
               leading: const Icon(Icons.message_outlined),
               title: Text(l10n.beaconRoomFactCardActionJumpToSource),
@@ -319,6 +337,59 @@ Future<void> showFactActionsHostSheet(
       ),
     ),
   );
+}
+
+/// «Save to my facts» / «Remove from my facts»: flips with each successful
+/// call; a failure shows its reason and leaves the tile as it was.
+class _SaveFactTile extends StatefulWidget {
+  const _SaveFactTile({required this.fact, required this.onSave});
+
+  final BeaconFactCard fact;
+  final Future<void> Function({required bool save}) onSave;
+
+  @override
+  State<_SaveFactTile> createState() => _SaveFactTileState();
+}
+
+class _SaveFactTileState extends State<_SaveFactTile> {
+  late bool _saved = widget.fact.savedByMe;
+
+  Future<void> _toggle() async {
+    final want = !_saved;
+    try {
+      await widget.onSave(save: want);
+      if (mounted) setState(() => _saved = want);
+    } on Object catch (e, st) {
+      if (!mounted) return;
+      final l10n = L10n.of(context)!;
+      // The limit is an expected answer, not a failure to report.
+      if (e is BeaconFactSavedLimitException) {
+        showSnackBar(context, text: l10n.beaconFactSavedLimit);
+        return;
+      }
+      showSnackBar(
+        context,
+        isError: true,
+        text: l10n.errorGenericAction,
+        error: e,
+        stackTrace: st,
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
+    return ListTile(
+      leading: Icon(_saved ? Icons.bookmark : Icons.bookmark_border),
+      title: Text(
+        _saved
+            ? l10n.beaconRoomFactCardActionUnsave
+            : l10n.beaconRoomFactCardActionSave,
+      ),
+      onTap: _toggle,
+    );
+  }
 }
 
 Future<void> _confirmRemoveFact(

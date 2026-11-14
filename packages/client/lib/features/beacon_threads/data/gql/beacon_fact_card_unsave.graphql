@@ -1,0 +1,3 @@
+mutation BeaconFactCardUnsave($factCardId: String!) {
+  BeaconFactCardUnsave(factCardId: $factCardId)
+}

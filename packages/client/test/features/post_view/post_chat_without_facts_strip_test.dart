@@ -393,6 +393,7 @@ Future<BeaconFactCardRepository> _factsOverWire(
                     'lastEditedAt': null,
                     'otherEditorCount': 0,
                     'historyTruncated': false,
+                    'savedByMe': false,
                     'originBeaconKind': null,
                   },
               ],

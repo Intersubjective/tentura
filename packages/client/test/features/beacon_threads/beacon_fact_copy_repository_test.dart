@@ -114,6 +114,7 @@ Map<String, dynamic> _factRow({Object? originBeaconKind = 'absent'}) => {
   'lastEditedAt': null,
   'otherEditorCount': 0,
   'historyTruncated': false,
+  'savedByMe': false,
   if (originBeaconKind != 'absent') 'originBeaconKind': originBeaconKind,
 };
 

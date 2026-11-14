@@ -1,0 +1,10 @@
+query BeaconFactCardSavedList {
+  BeaconFactCardSavedList {
+    factCardId
+    available
+    beaconId
+    beaconKind
+    factText
+    attachmentsJson
+  }
+}

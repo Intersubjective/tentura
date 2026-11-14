@@ -512,6 +512,7 @@ void main() {
                         'lastEditedAt': null,
                         'otherEditorCount': 0,
                         'historyTruncated': false,
+                        'savedByMe': false,
                         'originBeaconKind': null,
                       },
                   ],

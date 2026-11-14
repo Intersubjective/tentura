@@ -29,6 +29,7 @@ Future<void> showBeaconFactActions(
         onUseElsewhere ??
         (f) => unawaited(showFactCopyDestinationSheet(pageContext, fact: f)),
     copyArrival: copyArrival,
+    onSave: factSaveAction(fact),
     canMutate: cubit.state.beacon.status.allowsDiscussionWrites,
     onCorrect: ({required factCardId, required newText, String? attachmentsJson}) =>
         cubit.correctFact(
