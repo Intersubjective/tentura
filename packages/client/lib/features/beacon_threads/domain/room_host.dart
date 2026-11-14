@@ -48,9 +48,9 @@ class RoomCapabilities {
       threadOwnMessageEdit = false,
       authorMark = false;
 
-  /// Every Request-only feature off.
+  /// Every Request-only feature off, except facts (plan D17).
   const RoomCapabilities.post()
-    : facts = false,
+    : facts = true,
       blocker = false,
       plan = false,
       coordinationItems = false,
@@ -88,6 +88,9 @@ class RoomCapabilities {
   final bool commitmentSheet;
   final bool closure;
   final RoomPinnedStrip pinnedStrip;
+
+  /// A Post room: its strip pins the root message.
+  bool get isPost => pinnedStrip == RoomPinnedStrip.postRoot;
 
   /// A Request may be budded from the viewer's own messages only (Post rooms,
   /// «Оформить запрос»). The message actions evaluate ownership; the client

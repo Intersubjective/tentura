@@ -21,18 +21,28 @@ Future<void> showFactPickerSheet(
   BuildContext context, {
   required RoomCubit cubit,
   VoidCallback? onAddFact,
+  bool isPost = false,
 }) {
   return showTenturaAdaptiveSheet<void>(
     context: context,
     useRootNavigator: true,
-    builder: (ctx) => FactPickerSheet(cubit: cubit, onAddFact: onAddFact),
+    builder: (ctx) =>
+        FactPickerSheet(cubit: cubit, onAddFact: onAddFact, isPost: isPost),
   );
 }
 
 class FactPickerSheet extends StatefulWidget {
-  const FactPickerSheet({required this.cubit, this.onAddFact, super.key});
+  const FactPickerSheet({
+    required this.cubit,
+    this.onAddFact,
+    this.isPost = false,
+    super.key,
+  });
 
   final RoomCubit cubit;
+
+  /// Lists a Post's own facts, headed «In this Post» (plan D5).
+  final bool isPost;
 
   /// Closes the picker first, then is called once (#481).
   final VoidCallback? onAddFact;
@@ -98,7 +108,9 @@ class _FactPickerSheetState extends State<FactPickerSheet> {
                 children: [
                   Expanded(
                     child: Text(
-                      l10n.beaconRoomFactPickerTitle,
+                      widget.isPost
+                          ? l10n.beaconRoomFactPickerTitlePost
+                          : l10n.beaconRoomFactPickerTitle,
                       style: Theme.of(context).textTheme.titleSmall,
                     ),
                   ),

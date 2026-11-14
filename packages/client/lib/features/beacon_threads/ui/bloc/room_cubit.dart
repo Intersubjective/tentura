@@ -1421,6 +1421,37 @@ class RoomCubit extends Cubit<RoomState> {
     }
   }
 
+  /// The Add-fact form of a Post (plan §6.6): posts [messageBody] to the
+  /// room, then pins that message as [factText]. True when pinned.
+  Future<bool> pinFactFromComposer({
+    required String messageBody,
+    required String factText,
+    required int visibility,
+    List<RoomPendingUpload> uploads = const [],
+  }) async {
+    if (_rejectIfDiscussionReadOnly()) return false;
+    try {
+      final messageId = await _case.createMessage(
+        beaconId: state.beaconId,
+        body: messageBody,
+        uploads: uploads,
+      );
+      if (messageId == null) return false;
+      await _case.pinFact(
+        beaconId: state.beaconId,
+        factText: factText,
+        visibility: visibility,
+        sourceMessageId: messageId,
+      );
+    } on Object catch (e) {
+      _showSnackError(e);
+      return false;
+    }
+    await load();
+    _showMessage(const BeaconFactPinSuccessMessage());
+    return true;
+  }
+
   /// [baseRevisionSeq] is the revision of the card the edit sheet opened
   /// with, never a re-fetched one (plan §14.6).
   Future<void> correctFact({

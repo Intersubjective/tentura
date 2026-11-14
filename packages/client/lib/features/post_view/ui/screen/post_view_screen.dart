@@ -14,6 +14,8 @@ import 'package:tentura/features/beacon_threads/domain/room_host.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_state.dart';
+import 'package:tentura/features/beacon_threads/ui/room_fact_authoring.dart';
+import 'package:tentura/features/beacon_view/ui/widget/beacon_fact_composer_sheet.dart';
 import 'package:tentura/ui/beacon/beacon_room_lease.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_room_surface.dart';
 import 'package:tentura/features/constellation/ui/util/constellation_focus_request.dart';
@@ -155,15 +157,19 @@ class _PostViewScreenState extends State<PostViewScreen> {
             ),
           ],
         ),
-        body: BeaconRoomSurface(
-          host: cubit,
-          roomLease: _roomLease,
-          postRoot: _postRoot(state),
-          postArchived: state.beacon.isPostArchivedAt(cubit.now()),
-          postExpiresAt: state.beacon.expiresAt,
-          postForwardPolicyOpen:
-              state.beacon.forwardPolicy == BeaconForwardPolicyValue.open,
-          postNow: cubit.now,
+        // The Chat's Add-fact hand-off (plan §6.6), over the room's cubit.
+        body: RepositoryProvider<RoomFactAuthoring>.value(
+          value: const PostRoomFactAuthoring(),
+          child: BeaconRoomSurface(
+            host: cubit,
+            roomLease: _roomLease,
+            postRoot: _postRoot(state),
+            postArchived: state.beacon.isPostArchivedAt(cubit.now()),
+            postExpiresAt: state.beacon.expiresAt,
+            postForwardPolicyOpen:
+                state.beacon.forwardPolicy == BeaconForwardPolicyValue.open,
+            postNow: cubit.now,
+          ),
         ),
       ),
     );

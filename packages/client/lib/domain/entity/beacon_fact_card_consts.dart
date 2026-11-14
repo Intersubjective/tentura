@@ -2,6 +2,9 @@
 abstract final class BeaconFactCardVisibilityBits {
   static const public = 0;
   static const room = 1;
+
+  /// A Post's facts have one visibility, discussion-only (plan D5).
+  static const post = room;
 }
 
 abstract final class BeaconFactCardStatusBits {

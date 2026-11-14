@@ -1124,7 +1124,12 @@ class RoomMessageTile extends StatelessWidget {
           onOpen: fact == null
               ? null
               : (ctx) => unawaited(
-                  showFactActionsSheet(ctx, cubit: roomCubit!, fact: fact),
+                  showFactActionsSheet(
+                    ctx,
+                    cubit: roomCubit!,
+                    fact: fact,
+                    isPost: capabilities.isPost,
+                  ),
                 ),
         );
       }
@@ -1510,7 +1515,8 @@ class RoomMessageTile extends StatelessWidget {
               );
             },
           ),
-        if (pinnedFact != null) ...[
+        // A Post's facts have one visibility (plan D5): no ribbon.
+        if (pinnedFact != null && !capabilities.isPost) ...[
           Padding(
             padding: EdgeInsets.only(
               top: showNameHeader ? tt.rowGap / 2 : 0,
@@ -1568,6 +1574,7 @@ class RoomMessageTile extends StatelessWidget {
                             context,
                             cubit: cubit!,
                             fact: liveFact,
+                            isPost: capabilities.isPost,
                           ),
                         ),
                   onOpenHistory: capabilities.facts

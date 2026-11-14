@@ -68,7 +68,10 @@ abstract class RoomMessage with _$RoomMessage {
   /// A plain message a Request may be promoted or budded from; mirrors the
   /// server's `BeaconPromotionEligibilityPolicy` so the client only offers
   /// sources the server accepts.
-  bool get isPromotionEligible =>
+  ///
+  /// [allowLinkedFact] (Posts, plan R3): a message pinned as a fact stays a
+  /// source, since on a Post the source only prefills and binds nothing.
+  bool isPromotionEligible({bool allowLinkedFact = false}) =>
       authorId.isNotEmpty &&
       (threadItemId ?? '').isEmpty &&
       systemMessageKind == null &&
@@ -77,7 +80,7 @@ abstract class RoomMessage with _$RoomMessage {
       (linkedItemId ?? '').isEmpty &&
       (linkedPollingId ?? '').isEmpty &&
       linkedEventKind == null &&
-      (linkedFactCardId ?? '').isEmpty;
+      (allowLinkedFact || (linkedFactCardId ?? '').isEmpty);
 
   bool get isReply => (replyToMessageId ?? '').trim().isNotEmpty;
 

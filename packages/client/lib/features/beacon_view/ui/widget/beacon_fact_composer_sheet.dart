@@ -9,6 +9,7 @@ import 'package:tentura/data/repository/image_repository.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_fact_card_consts.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
+import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/room_fact_authoring.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/fact_attachment_preview_strip.dart';
 import 'package:tentura/domain/util/beacon_pinned_facts.dart';
@@ -33,6 +34,38 @@ class BeaconViewRoomFactAuthoring implements RoomFactAuthoring {
       showBeaconFactComposerSheet(context, cubit: cubit);
 }
 
+/// The room body's Add-fact hand-off for a Post (plan §6.6): the same form
+/// over the room's own [RoomCubit] (read from the body's context), with no
+/// visibility choice, since a Post's facts have one (plan D5).
+class PostRoomFactAuthoring implements RoomFactAuthoring {
+  const PostRoomFactAuthoring();
+
+  /// Any member who may write in the Post's Chat may pin; the room body
+  /// offers the form only when the room is writable.
+  @override
+  bool get canAddFact => true;
+
+  @override
+  Future<bool> openAddFact(BuildContext context) {
+    final room = context.read<RoomCubit>();
+    return _showFactComposerSheet(
+      context,
+      visibility: BeaconFactCardVisibilityBits.post,
+      onPin: room.pinFactFromComposer,
+    );
+  }
+}
+
+/// Posts [messageBody] with [uploads] and pins it as [factText]; true when
+/// the fact was pinned.
+typedef _FactComposerPin =
+    Future<bool> Function({
+      required String messageBody,
+      required String factText,
+      required int visibility,
+      required List<RoomPendingUpload> uploads,
+    });
+
 /// Opens the Add-fact form; completes with true when a fact was pinned, false
 /// when the form was cancelled or dismissed (#481).
 Future<bool> showBeaconFactComposerSheet(
@@ -41,27 +74,50 @@ Future<bool> showBeaconFactComposerSheet(
   ImageRepository? imageRepository,
   ClipboardImageRepository? clipboardImageRepository,
 }) async {
+  final saved = await _showFactComposerSheet(
+    pageContext,
+    onPin: cubit.pinFactFromComposer,
+    imageRepository: imageRepository,
+    clipboardImageRepository: clipboardImageRepository,
+  );
+  // A posted-but-unpinned message belongs to this form only (#759).
+  cubit.forgetUnpinnedFactPost();
+  return saved;
+}
+
+/// [visibility]: the host's only fact visibility; null lets the person
+/// choose.
+Future<bool> _showFactComposerSheet(
+  BuildContext pageContext, {
+  required _FactComposerPin onPin,
+  int? visibility,
+  ImageRepository? imageRepository,
+  ClipboardImageRepository? clipboardImageRepository,
+}) async {
   final saved = await showTenturaAdaptiveSheet<bool>(
     context: pageContext,
     builder: (ctx) => _BeaconFactComposerBody(
-      cubit: cubit,
+      onPin: onPin,
+      fixedVisibility: visibility,
       imageRepository: imageRepository,
       clipboardImageRepository: clipboardImageRepository,
     ),
   );
-  // A posted-but-unpinned message belongs to this form only (#759).
-  cubit.forgetUnpinnedFactPost();
   return saved ?? false;
 }
 
 class _BeaconFactComposerBody extends StatefulWidget {
   const _BeaconFactComposerBody({
-    required this.cubit,
+    required this.onPin,
+    this.fixedVisibility,
     this.imageRepository,
     this.clipboardImageRepository,
   });
 
-  final BeaconViewCubit cubit;
+  final _FactComposerPin onPin;
+
+  /// Set when the host has one fact visibility: no choice is shown.
+  final int? fixedVisibility;
   final ImageRepository? imageRepository;
   final ClipboardImageRepository? clipboardImageRepository;
 
@@ -74,7 +130,8 @@ class _BeaconFactComposerBodyState extends State<_BeaconFactComposerBody>
     with PendingAttachmentsMixin {
   final _text = TextEditingController();
   final _focusNode = FocusNode();
-  var _visibility = BeaconFactCardVisibilityBits.public;
+  late var _visibility =
+      widget.fixedVisibility ?? BeaconFactCardVisibilityBits.public;
   var _submitting = false;
 
   /// Set when Pin is tapped with nothing to pin; cleared on typing (#481).
@@ -119,7 +176,7 @@ class _BeaconFactComposerBodyState extends State<_BeaconFactComposerBody>
     );
     if (factText.isEmpty) return;
     setState(() => _submitting = true);
-    final ok = await widget.cubit.pinFactFromComposer(
+    final ok = await widget.onPin(
       messageBody: rawText,
       factText: factText,
       visibility: _visibility,
@@ -242,25 +299,26 @@ class _BeaconFactComposerBodyState extends State<_BeaconFactComposerBody>
                 ],
               ),
             ),
-            RadioGroup<int>(
-              groupValue: _visibility,
-              onChanged: (v) {
-                if (_submitting || v == null) return;
-                setState(() => _visibility = v);
-              },
-              child: Column(
-                children: [
-                  RadioListTile<int>(
-                    title: Text(l10n.beaconRoomPinFactPublic),
-                    value: BeaconFactCardVisibilityBits.public,
-                  ),
-                  RadioListTile<int>(
-                    title: Text(l10n.beaconRoomPinFactRoomOnly),
-                    value: BeaconFactCardVisibilityBits.room,
-                  ),
-                ],
+            if (widget.fixedVisibility == null)
+              RadioGroup<int>(
+                groupValue: _visibility,
+                onChanged: (v) {
+                  if (_submitting || v == null) return;
+                  setState(() => _visibility = v);
+                },
+                child: Column(
+                  children: [
+                    RadioListTile<int>(
+                      title: Text(l10n.beaconRoomPinFactPublic),
+                      value: BeaconFactCardVisibilityBits.public,
+                    ),
+                    RadioListTile<int>(
+                      title: Text(l10n.beaconRoomPinFactRoomOnly),
+                      value: BeaconFactCardVisibilityBits.room,
+                    ),
+                  ],
+                ),
               ),
-            ),
             SizedBox(height: tt.rowGap),
             Row(
               children: [

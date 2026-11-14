@@ -341,8 +341,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     }
   }
 
-  bool get _isPostRoom =>
-      widget.capabilities.pinnedStrip == RoomPinnedStrip.postRoot;
+  bool get _isPostRoom => widget.capabilities.isPost;
 
   /// Ordinary writes: the room's lifecycle allows them and the host's Post
   /// is not archived.
@@ -428,6 +427,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
         cubit: cub,
         fact: focused,
         onQuoteInChat: (f) => _quoteFactInChat(cub, f),
+        isPost: _isPostRoom,
       );
     }
   }
@@ -704,8 +704,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
             onPickFact: canWrite && widget.capabilities.composerTools
                 ? () async {
                     // #481: an empty picker hands off to the Add-fact form
-                    // when this room has one (Request rooms provide a
-                    // RoomFactAuthoring; Post rooms do not).
+                    // the host provides (RoomFactAuthoring).
                     final authoring = context.read<RoomFactAuthoring?>();
                     final canAddFact =
                         authoring != null &&
@@ -714,6 +713,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                     await showFactPickerSheet(
                       context,
                       cubit: cubit,
+                      isPost: _isPostRoom,
                       onAddFact: canAddFact
                           ? () => unawaited(
                               _addFactThenRefresh(context, authoring, cubit),
@@ -821,6 +821,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
         cubit: cubit,
         fact: pf,
         onQuoteInChat: (f) => _quoteFactInChat(cubit, f),
+        isPost: _isPostRoom,
       );
       return;
     }
@@ -828,6 +829,15 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     if (text.isEmpty) {
       if (!context.mounted) return;
       showSnackBar(context, text: l10n.beaconRoomPinFactDisabledEmpty);
+      return;
+    }
+    if (_isPostRoom) {
+      // A Post's facts have one visibility (plan D5): nothing to choose.
+      await cubit.pinFactFromMessage(
+        sourceMessageId: message.id,
+        factText: text,
+        visibility: BeaconFactCardVisibilityBits.post,
+      );
       return;
     }
     await _showPinFactChoices(context, cubit, l10n, message, text);
@@ -1027,7 +1037,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
         keepsPersonalActions &&
         isOwnMessage &&
         !isThreadMode &&
-        message.isPromotionEligible;
+        message.isPromotionEligible(allowLinkedFact: _isPostRoom);
     final showBatonStart =
         widget.batonEnabled &&
         caps.composerTools &&
@@ -1258,6 +1268,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                         cubit: cubit,
                         fact: pf,
                         onQuoteInChat: (f) => _quoteFactInChat(cubit, f),
+                        isPost: _isPostRoom,
                       ),
                     );
                   },

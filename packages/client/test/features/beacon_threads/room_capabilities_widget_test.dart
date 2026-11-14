@@ -464,7 +464,8 @@ void main() {
   final l10n = lookupL10n(const Locale('en'));
 
   group('message actions sheet follows room capabilities', () {
-    testWidgets('Post room offers no Request-only actions on a plain message', (
+    testWidgets('Post room offers no Request-only actions on a plain message; '
+        'Pin as fact stays (Post facts, plan D17)', (
       tester,
     ) async {
       await _pumpRoomBody(
@@ -481,7 +482,7 @@ void main() {
         find.text(l10n.beaconRoomActionUpdatePlanFromMessage),
         findsNothing,
       );
-      expect(find.text(l10n.beaconRoomActionPinFact), findsNothing);
+      expect(find.text(l10n.beaconRoomActionPinFact), findsOneWidget);
     });
 
     testWidgets('Request room offers the Request-only actions on a plain '
@@ -529,8 +530,8 @@ void main() {
       expect(find.text(l10n.beaconRoomActionJumpToPlan), findsOneWidget);
     });
 
-    testWidgets('Post room offers no View pinned fact on a fact-backed '
-        'message', (tester) async {
+    testWidgets('Post room offers View pinned fact on a fact-backed message '
+        '(Post facts, plan D17)', (tester) async {
       final message = _plainMessage();
       await _pumpRoomBody(
         tester,
@@ -543,7 +544,7 @@ void main() {
       await _openActionsSheet(tester);
 
       expect(find.text(l10n.beaconRoomActionReply), findsOneWidget);
-      expect(find.text(l10n.beaconRoomActionViewPinnedFact), findsNothing);
+      expect(find.text(l10n.beaconRoomActionViewPinnedFact), findsOneWidget);
       expect(find.text(l10n.beaconRoomActionPinFact), findsNothing);
     });
 
@@ -712,16 +713,15 @@ void main() {
       expect(find.text('Pickup lead'), findsWidgets);
     });
 
-    testWidgets('Post room offers no fact history link on a fact-edit line', (
-      tester,
-    ) async {
+    testWidgets('Post room offers the fact history link on a fact-edit line '
+        '(Post facts, plan D17)', (tester) async {
       await _pumpTile(
         tester,
         message: _factEditedMessage(),
         capabilities: const RoomCapabilities.post(),
       );
 
-      expect(find.text(l10n.beaconRoomFactWhatChanged), findsNothing);
+      expect(find.text(l10n.beaconRoomFactWhatChanged), findsOneWidget);
     });
 
     testWidgets('Request room offers the fact history link on a fact-edit '
@@ -747,7 +747,7 @@ void main() {
     );
 
     testWidgets('a Post host yields a room with no pinned NOW row and no '
-        'Request actions', (tester) async {
+        'Request actions; Pin as fact stays', (tester) async {
       final host = _FakeRoomHost()
         ..capabilities = const RoomCapabilities.post();
       addTearDown(() async {
@@ -764,7 +764,7 @@ void main() {
       await _openActionsSheet(tester);
       expect(find.text(l10n.beaconRoomActionReply), findsOneWidget);
       expect(find.text(l10n.beaconRoomActionTurnInto), findsNothing);
-      expect(find.text(l10n.beaconRoomActionPinFact), findsNothing);
+      expect(find.text(l10n.beaconRoomActionPinFact), findsOneWidget);
     });
 
     testWidgets('a Request host yields a room with Request actions', (

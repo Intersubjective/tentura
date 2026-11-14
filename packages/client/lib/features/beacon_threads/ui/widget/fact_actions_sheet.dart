@@ -33,10 +33,12 @@ Future<void> showFactActionsSheet(
   void Function(BeaconFactCard fact)? onQuoteInChat,
   void Function(BeaconFactCard fact)? onUseElsewhere,
   BeaconFactOrigin? copyArrival,
+  bool isPost = false,
 }) {
   return showFactActionsHostSheet(
     context,
     fact: fact,
+    isPost: isPost,
     canMutate: cubit.state.canWriteDiscussion,
     myUserId: cubit.state.myUserId,
     onQuoteInChat: onQuoteInChat,
@@ -109,6 +111,9 @@ Future<void> showFactActionsHostSheet(
   /// says when the fact changed since the copy, and members get the copied
   /// revision (plan D8).
   BeaconFactOrigin? copyArrival,
+
+  /// A Post's facts have one visibility (plan D5): no visibility tile.
+  bool isPost = false,
   bool canMutate = true,
   String? myUserId,
   BeaconFactCard? Function()? readEditConflict,
@@ -159,11 +164,10 @@ Future<void> showFactActionsHostSheet(
                 ],
               ),
             ),
-            if (copyArrival
-                case BeaconFactOrigin(
-                  canSeeCopiedRevision: true,
-                  copiedRevisionSeq: final int copiedSeq,
-                ))
+            if (copyArrival case BeaconFactOrigin(
+              canSeeCopiedRevision: true,
+              copiedRevisionSeq: final int copiedSeq,
+            ))
               ListTile(
                 leading: const Icon(Icons.history_toggle_off),
                 title: Text(l10n.beaconRoomFactSeeCopiedVersion),
@@ -203,7 +207,9 @@ Future<void> showFactActionsHostSheet(
                   );
                 },
               ),
-              if (fact.visibility == BeaconFactCardVisibilityBits.room)
+              if (isPost)
+                const SizedBox.shrink()
+              else if (fact.visibility == BeaconFactCardVisibilityBits.room)
                 ListTile(
                   leading: const Icon(Icons.public_outlined),
                   title: Text(l10n.beaconRoomFactCardActionMakePublic),

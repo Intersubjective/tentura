@@ -39,7 +39,7 @@ import 'room_cubit_fakes.dart';
 const _factId = 'Fkey00000001';
 const _factText = 'Key is under the mat';
 const _note = 'It will be visible in that discussion only.';
-const _emptyState = 'You have no open Request to copy into';
+const _emptyState = 'You have no open Request or Post to copy into';
 const _unavailable = 'This fact is no longer available';
 const _unauthorized = "You can't add facts there";
 

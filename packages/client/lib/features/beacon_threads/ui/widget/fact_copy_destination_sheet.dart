@@ -8,11 +8,13 @@ import 'package:tentura_root/domain/entity/localizable.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
+import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/domain/exception/generic_exception.dart';
 import 'package:tentura/features/beacon_threads/data/repository/beacon_fact_card_repository.dart';
 import 'package:tentura/features/beacon_threads/domain/exception/beacon_fact_card_exceptions.dart';
 import 'package:tentura/features/beacon_threads/domain/use_case/beacon_threads_case.dart';
 import 'package:tentura/features/beacon_threads/ui/message/discussion_read_only_message.dart';
+import 'package:tentura/features/post_view/ui/post_remaining_label.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
@@ -23,8 +25,8 @@ const _kSearchThreshold = 5;
 const _kUnauthorizedCode = '1102';
 const _kReadOnlyCode = '1301';
 
-/// «Use in another Request»: the fact, who will see the copy, and the
-/// Requests it can go into. A tap copies at once; the result is a snackbar
+/// «Use in another Request or Post»: the fact, who will see the copy, and
+/// the Requests and Posts it can go into. A tap copies at once; the result is a snackbar
 /// on [pageContext]'s page, and a failure leaves the sheet open.
 Future<void> showFactCopyDestinationSheet(
   BuildContext pageContext, {
@@ -174,6 +176,17 @@ class _FactCopyDestinationSheetState extends State<_FactCopyDestinationSheet> {
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
+                        // Only a Post has a lifetime (plan §6.2).
+                        subtitle: switch (d.expiresAt) {
+                          final at? when d.kind == BeaconKind.post.value =>
+                            Text(
+                              postRemainingLabel(
+                                l10n,
+                                at.difference(DateTime.now()),
+                              ),
+                            ),
+                          _ => null,
+                        },
                         onTap: () => unawaited(_copyTo(d)),
                       ),
                   ],

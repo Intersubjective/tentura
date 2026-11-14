@@ -121,6 +121,8 @@ base class _RequestOnlyCase extends BeaconThreadsCase {
 }
 
 class _Harness {
+  /// [throwing]: Request-only fetches throw. A Post room loads its facts
+  /// (plan D17), so the fact list never throws.
   _Harness({required bool throwing}) {
     final realtime = buildTestRealtimeSync();
     port = realtime.port;
@@ -129,7 +131,7 @@ class _Harness {
       calls: calls,
       throwing: throwing,
     );
-    facts = _RequestOnlyFactCardRepository(calls: calls, throwing: throwing);
+    facts = _RequestOnlyFactCardRepository(calls: calls, throwing: false);
     useCase = _RequestOnlyCase(
       room,
       facts,
@@ -160,6 +162,9 @@ class _Harness {
 Matcher _calledOnce(List<String> names) => unorderedEquals(names);
 
 Future<void> _settle() => pumpAfterHintBurst();
+
+/// A Post room may fetch its facts (plan D17) but nothing Request-only.
+final Matcher _noRequestOnly = everyElement('facts');
 
 const _requestOnly = [
   'roomState',
@@ -206,16 +211,36 @@ void main() {
       expect(caps.pinnedStrip, RoomPinnedStrip.requestBlocker);
     });
 
-    test('post preset turns every flag off and pins the root strip', () {
+    test('post preset turns facts on, every other Request flag off, and '
+        'pins the root strip', () {
       const caps = RoomCapabilities.post();
       expect(caps.plan, isFalse);
-      expect(caps.facts, isFalse);
+      expect(caps.facts, isTrue);
       expect(caps.blocker, isFalse);
       expect(caps.coordinationItems, isFalse);
       expect(caps.childPromotion, isFalse);
       expect(caps.commitmentSheet, isFalse);
       expect(caps.closure, isFalse);
       expect(caps.pinnedStrip, RoomPinnedStrip.postRoot);
+      expect(caps.childPromotionOwnOnly, isTrue);
+      expect(caps.composerTools, isTrue);
+      expect(caps.threadOwnMessageEdit, isFalse);
+      expect(caps.authorMark, isFalse);
+    });
+
+    test('post preset differs from the same preset with facts off', () {
+      const factless = RoomCapabilities(
+        facts: false,
+        blocker: false,
+        plan: false,
+        coordinationItems: false,
+        childPromotion: false,
+        commitmentSheet: false,
+        closure: false,
+        pinnedStrip: RoomPinnedStrip.postRoot,
+        childPromotionOwnOnly: true,
+      );
+      expect(const RoomCapabilities.post(), isNot(factless));
     });
   });
 
@@ -237,19 +262,19 @@ void main() {
     });
 
     test('initial load makes no Request-only fetch', () {
-      expect(h.calls, isEmpty);
+      expect(h.calls, _noRequestOnly);
     });
 
     test('reloadMessages makes no Request-only fetch', () async {
       await cubit.reloadMessages();
-      expect(h.calls, isEmpty);
+      expect(h.calls, _noRequestOnly);
       expect(cubit.state.status, isA<StateIsSuccess>());
     });
 
     test('realtime catch-up refresh makes no Request-only fetch', () async {
       h.port.emitCatchUp();
       await _settle();
-      expect(h.calls, isEmpty);
+      expect(h.calls, _noRequestOnly);
       expect(cubit.state.status, isA<StateIsSuccess>());
     });
 
@@ -260,7 +285,7 @@ void main() {
         baseRevisionSeq: 1,
       );
       await _settle();
-      expect(h.calls, isEmpty);
+      expect(h.calls, _noRequestOnly);
       expect(cubit.state.status, isA<StateIsSuccess>());
     });
 
@@ -273,7 +298,7 @@ void main() {
           messageId: 'gone',
         );
         await _settle();
-        expect(h.calls, isEmpty);
+        expect(h.calls, _noRequestOnly);
         expect(cubit.state.status, isA<StateIsSuccess>());
       },
     );
@@ -291,7 +316,7 @@ void main() {
       await cubit.reloadMessages();
       cubit.prepareThreadScroll(messageId: 'not-loaded');
       await _settle();
-      expect(h.calls, isEmpty);
+      expect(h.calls, _noRequestOnly);
       expect(cubit.state.status, isA<StateIsSuccess>());
     });
 
@@ -303,14 +328,14 @@ void main() {
       );
       await _settle();
       expect(sent, isTrue);
-      expect(h.calls, isEmpty);
+      expect(h.calls, _noRequestOnly);
     });
 
     for (final type in BeaconRoomEntityType.values) {
       test('$type invalidation refresh makes no Request-only fetch', () async {
         h.room.emitInvalidation(type);
         await _settle();
-        expect(h.calls, isEmpty);
+        expect(h.calls, _noRequestOnly);
         expect(cubit.state.status, isA<StateIsSuccess>());
       });
     }
@@ -437,7 +462,7 @@ void main() {
         await awaitRoomCubitLoad(room);
 
         expect(room.capabilities, const RoomCapabilities.post());
-        expect(h.calls, isEmpty);
+        expect(h.calls, _noRequestOnly);
         expect(room.state.status, isA<StateIsSuccess>());
       },
     );

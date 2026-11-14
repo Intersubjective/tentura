@@ -50,7 +50,7 @@ const kOriginFromPost = 'Brought from another Post';
 const kOriginUnavailable = "The original isn't available to you";
 const kChangedSinceCopied = 'Changed since it was copied';
 const kSeeCopiedVersion = 'See the copied version';
-const kUseInAnotherRequest = 'Use in another Request';
+const kUseInAnotherRequest = 'Use in another Request or Post';
 const kEarlierHistoryFooter = 'Earlier history lives where this fact came from';
 const kOpen = 'Open';
 
