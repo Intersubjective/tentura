@@ -602,7 +602,13 @@ WHERE f.id = $1::text AND f.beacon_id = $2::text
           r'''
 SELECT b.id, b.kind::integer AS kind, b.title, b.expires_at
 FROM public.beacon b
-WHERE b.kind = 0
+WHERE (
+    b.kind = 0
+    OR (
+      b.kind = 1 AND b.post_root_message_id IS NOT NULL
+      AND (b.expires_at IS NULL OR b.expires_at > now())
+    )
+  )
   AND b.id <> $2::text
   AND b.status = ANY($3::integer[])
   AND (
@@ -1213,6 +1219,46 @@ SELECT EXISTS (SELECT 1 FROM locked) AS found,
         throw IdNotFoundException(description: 'Fact card [$factCardId]');
       }
       return row.read<bool>('removed');
+    }),
+  );
+
+  @override
+  Future<bool> deleteFromDraft({
+    required String factCardId,
+    required String beaconId,
+    required String actorUserId,
+  }) => _db.withMutatingUser(
+    actorUserId,
+    () => sentryDbSpan('db.fact.delete_from_draft', (_) async {
+      final row = await _db
+          .customSelect(
+            r'''
+WITH target AS (
+  SELECT b.user_id = $3::text AND a.is_draft AS allowed
+  FROM public.beacon b
+  CROSS JOIN public.beacon_fact_access($2::text, $3::text) a
+  WHERE b.id = $2::text
+),
+del AS (
+  DELETE FROM public.beacon_fact_card f
+  USING target t
+  WHERE t.allowed AND f.id = $1::text AND f.beacon_id = $2::text
+  RETURNING f.id
+)
+SELECT COALESCE((SELECT allowed FROM target), false) AS allowed,
+       EXISTS (SELECT 1 FROM del) AS deleted
+''',
+            variables: [
+              Variable<String>(factCardId),
+              Variable<String>(beaconId),
+              Variable<String>(actorUserId),
+            ],
+          )
+          .getSingle();
+      if (!row.read<bool>('allowed')) {
+        throw const UnauthorizedException(description: 'Room access required');
+      }
+      return row.read<bool>('deleted');
     }),
   );
 

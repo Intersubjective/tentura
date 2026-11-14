@@ -6,10 +6,13 @@ import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
+import 'package:tentura_server/consts/beacon_fact_card_consts.dart';
 import 'package:tentura_server/data/repository/mock/pair_block_query_repository_mock.dart';
 import 'package:tentura_server/domain/closure/closure_entities.dart';
 import 'package:tentura_server/domain/closure/closure_outcome.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
+import 'package:tentura_server/domain/entity/beacon_fact_card_entity.dart';
+import 'package:tentura_server/domain/entity/beacon_fact_card_outcome.dart';
 import 'package:tentura_server/domain/entity/beacon_fact_room_access.dart';
 import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/entity/beacon_room_record.dart';
@@ -174,9 +177,12 @@ class _RecordingTaskRepo extends Fake implements TaskRepositoryPort {
   }
 }
 
-/// Room access that would let the author write: only the beacon's kind can
-/// stop a fact-card write.
-class _WritableFactsRepo extends Fake implements BeaconFactCardRepositoryPort {
+/// A writable Post room: published, open, unexpired, with a root message,
+/// and the author may use it. Records the fact writes that reach it.
+class _WritablePostFactsRepo extends Fake
+    implements BeaconFactCardRepositoryPort {
+  final writes = <String>[];
+  final pinnedVisibilities = <int>[];
   final unexpectedCalls = <String>[];
 
   @override
@@ -188,10 +194,71 @@ class _WritableFactsRepo extends Fake implements BeaconFactCardRepositoryPort {
     canUseRoom: true,
     canReadContent: true,
     exists: true,
-    kind: 0,
+    kind: BeaconKind.post.value,
     isDraft: false,
     isExpiredPost: false,
   );
+
+  @override
+  Future<BeaconFactCardEntity> pinFact({
+    required String beaconId,
+    required String factText,
+    required int visibility,
+    required String pinnedBy,
+    String? sourceMessageId,
+  }) async {
+    writes.add('pinFact');
+    pinnedVisibilities.add(visibility);
+    return BeaconFactCardEntity(
+      id: 'Ffact0000001',
+      beaconId: beaconId,
+      factText: factText,
+      visibility: visibility,
+      pinnedBy: pinnedBy,
+      createdAt: _now,
+    );
+  }
+
+  @override
+  Future<FactEditOutcome> editText({
+    required String factCardId,
+    required String beaconId,
+    required String actorUserId,
+    required String newText,
+    required int baseRevisionSeq,
+    required Duration rateWindow,
+    required int rateMax,
+    required Duration quietWindow,
+    String? attachmentsJson,
+  }) async {
+    writes.add('editText');
+    return FactEditApplied(newSeq: baseRevisionSeq + 1);
+  }
+
+  @override
+  Future<FactEditOutcome> restoreRevision({
+    required String factCardId,
+    required String beaconId,
+    required String actorUserId,
+    required int fromSeq,
+    required int baseRevisionSeq,
+    required Duration rateWindow,
+    required int rateMax,
+    required Duration quietWindow,
+  }) async {
+    writes.add('restoreRevision');
+    return FactEditApplied(newSeq: baseRevisionSeq + 1);
+  }
+
+  @override
+  Future<bool> remove({
+    required String factCardId,
+    required String beaconId,
+    required String actorUserId,
+  }) async {
+    writes.add('remove');
+    return true;
+  }
 
   @override
   dynamic noSuchMethod(Invocation invocation) {
@@ -711,14 +778,15 @@ void main() {
     });
   });
 
-  group('BeaconFactCardCase rejects a Post room', () {
-    late _WritableFactsRepo facts;
+  group('BeaconFactCardCase lets a writable Post room past the '
+      'Request-only guard', () {
+    late _WritablePostFactsRepo facts;
     late _RecordingImageRepo images;
     late _RecordingTaskRepo tasks;
     late BeaconFactCardCase factCardCase;
 
     setUp(() {
-      facts = _WritableFactsRepo();
+      facts = _WritablePostFactsRepo();
       images = _RecordingImageRepo();
       tasks = _RecordingTaskRepo();
       factCardCase = buildWithBeaconRepository<BeaconFactCardCase>(
@@ -739,96 +807,88 @@ void main() {
       );
     });
 
-    void expectNothingWritten() {
-      expect(facts.unexpectedCalls, isEmpty);
-      expect(images.putCalls, isEmpty);
-      expect(tasks.scheduled, isEmpty);
-    }
-
-    test('pin', () async {
-      await expectLater(
-        factCardCase.pin(
-          beaconId: _beaconId,
-          factText: 'Fact',
-          visibility: 0,
-          userId: _authorId,
-        ),
-        throwsBeaconNotRequest,
+    test('pin reaches the fact store, as a discussion-only fact', () async {
+      final pinned = await factCardCase.pin(
+        beaconId: _beaconId,
+        factText: 'Fact',
+        visibility: BeaconFactCardVisibilityBits.public,
+        userId: _authorId,
       );
 
-      expectNothingWritten();
+      expect(pinned['id'], 'Ffact0000001');
+      expect(facts.writes, ['pinFact']);
+      expect(facts.pinnedVisibilities, [BeaconFactCardVisibilityBits.room]);
     });
 
-    test('correct', () async {
-      await expectLater(
-        factCardCase.correct(
-          factCardId: 'Ffact0000001',
-          beaconId: _beaconId,
-          actorUserId: _authorId,
-          newText: 'Fact',
-          baseRevisionSeq: 1,
-        ),
-        throwsBeaconNotRequest,
+    test('correct reaches the fact store', () async {
+      final seq = await factCardCase.correct(
+        factCardId: 'Ffact0000001',
+        beaconId: _beaconId,
+        actorUserId: _authorId,
+        newText: 'Fact',
+        baseRevisionSeq: 1,
       );
 
-      expectNothingWritten();
+      expect(seq, 2);
+      expect(facts.writes, ['editText']);
     });
 
-    test('uploadAttachment (before the file is stored or hashed)', () async {
-      await expectLater(
-        factCardCase.uploadAttachment(
-          beaconId: _beaconId,
-          actorUserId: _authorId,
-          attachmentBytes: Stream.value(Uint8List.fromList([1, 2, 3])),
-          attachmentMimeType: 'image/png',
+    test('uploadAttachment stores and hashes the image', () async {
+      final json = await factCardCase.uploadAttachment(
+        beaconId: _beaconId,
+        actorUserId: _authorId,
+        attachmentBytes: Stream.value(
+          Uint8List.fromList([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]),
         ),
-        throwsBeaconNotRequest,
+        attachmentMimeType: 'image/png',
       );
 
-      expectNothingWritten();
+      expect(json, contains('Iimage000001'));
+      expect(images.putCalls, [_authorId]);
+      expect(tasks.scheduled, hasLength(1));
     });
 
-    test('restore', () async {
-      await expectLater(
-        factCardCase.restore(
-          factCardId: 'Ffact0000001',
-          beaconId: _beaconId,
-          actorUserId: _authorId,
-          fromSeq: 1,
-          baseRevisionSeq: 2,
-        ),
-        throwsBeaconNotRequest,
+    test('restore reaches the fact store', () async {
+      final seq = await factCardCase.restore(
+        factCardId: 'Ffact0000001',
+        beaconId: _beaconId,
+        actorUserId: _authorId,
+        fromSeq: 1,
+        baseRevisionSeq: 2,
       );
 
-      expectNothingWritten();
+      expect(seq, 3);
+      expect(facts.writes, ['restoreRevision']);
     });
 
-    test('remove', () async {
-      await expectLater(
-        factCardCase.remove(
-          factCardId: 'Ffact0000001',
-          beaconId: _beaconId,
-          actorUserId: _authorId,
-        ),
-        throwsBeaconNotRequest,
+    test('remove reaches the fact store', () async {
+      final removed = await factCardCase.remove(
+        factCardId: 'Ffact0000001',
+        beaconId: _beaconId,
+        actorUserId: _authorId,
       );
 
-      expectNothingWritten();
+      expect(removed, isTrue);
+      expect(facts.writes, ['remove']);
     });
 
-    test('setVisibility', () async {
-      await expectLater(
-        factCardCase.setVisibility(
-          factCardId: 'Ffact0000001',
-          beaconId: _beaconId,
-          actorUserId: _authorId,
-          visibility: 0,
-        ),
-        throwsBeaconNotRequest,
-      );
+    test(
+      'setVisibility is still refused: a Post has no visibility switch',
+      () async {
+        await expectLater(
+          factCardCase.setVisibility(
+            factCardId: 'Ffact0000001',
+            beaconId: _beaconId,
+            actorUserId: _authorId,
+            visibility: 0,
+          ),
+          throwsBeaconNotRequest,
+        );
 
-      expectNothingWritten();
-    });
+        expect(facts.writes, isEmpty);
+        expect(facts.unexpectedCalls, isEmpty);
+      },
+    );
   });
 
   group('BeaconDisplayCase.displayStatuses', () {

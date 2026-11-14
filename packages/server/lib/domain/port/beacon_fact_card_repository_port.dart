@@ -92,8 +92,9 @@ abstract class BeaconFactCardRepositoryPort {
     required List<String> factCardIds,
   });
 
-  /// Requests [userId] authors, stewards or is admitted to (room_access 3)
-  /// whose status is one of [writableStatuses], except
+  /// Requests and published, unexpired Posts [userId] authors, stewards or
+  /// is admitted to (room_access 3) whose status is one of
+  /// [writableStatuses], except
   /// [excludeBeaconId], most recently active first, at most [limit].
   Future<List<FactCopyDestinationRow>> listCopyDestinations({
     required String userId,
@@ -171,6 +172,16 @@ abstract class BeaconFactCardRepositoryPort {
 
   /// True only when this call unpinned the fact.
   Future<bool> remove({
+    required String factCardId,
+    required String beaconId,
+    required String actorUserId,
+  });
+
+  /// Plan R5 / §5.4: deletes a fact of a draft that [actorUserId] authors,
+  /// with no chat line and no event. Throws `UnauthorizedException` unless
+  /// the beacon is still a draft authored by [actorUserId]. True only when
+  /// this call deleted the row.
+  Future<bool> deleteFromDraft({
     required String factCardId,
     required String beaconId,
     required String actorUserId,

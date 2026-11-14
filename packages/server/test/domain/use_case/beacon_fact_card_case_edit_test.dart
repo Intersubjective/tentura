@@ -408,19 +408,10 @@ void main() {
     );
 
     test(
-      'correct: unknown beacon → UnauthorizedException(Room access required)',
+      'correct: unknown beacon → IdNotFoundException (wire code 1002)',
       () async {
         facts.access = facts.access.copyWith(exists: false, canUseRoom: false);
-        await expectLater(
-          correct(),
-          throwsA(
-            isA<UnauthorizedException>().having(
-              (e) => e.description,
-              'description',
-              'Room access required',
-            ),
-          ),
-        );
+        await expectLater(correct(), throwsA(isA<IdNotFoundException>()));
         expect(facts.portWriteCalls, 0);
       },
     );
@@ -509,19 +500,10 @@ void main() {
     }
 
     test(
-      'restore: unknown beacon → UnauthorizedException(Room access required)',
+      'restore: unknown beacon → IdNotFoundException (wire code 1002)',
       () async {
         facts.access = facts.access.copyWith(exists: false, canUseRoom: false);
-        await expectLater(
-          restore(),
-          throwsA(
-            isA<UnauthorizedException>().having(
-              (e) => e.description,
-              'description',
-              'Room access required',
-            ),
-          ),
-        );
+        await expectLater(restore(), throwsA(isA<IdNotFoundException>()));
         expect(facts.portWriteCalls, 0);
       },
     );

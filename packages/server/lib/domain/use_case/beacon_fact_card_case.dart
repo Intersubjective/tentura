@@ -18,12 +18,10 @@ import 'package:tentura_server/domain/entity/fact_copy_source.dart';
 import 'package:tentura_server/domain/entity/prepared_fact_copy.dart';
 import 'package:tentura_server/domain/entity/task_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
-import 'package:tentura_server/domain/policy/beacon_kind_policy.dart';
 import 'package:tentura_server/domain/policy/beacon_room_lifecycle_write_policy.dart';
 import 'package:tentura_server/domain/port/beacon_access_guard.dart';
 import 'package:tentura_server/domain/port/beacon_fact_card_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_hierarchy_repository_port.dart';
-import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/domain/port/image_repository_port.dart';
 import 'package:tentura_server/domain/port/task_repository_port.dart';
@@ -46,12 +44,9 @@ final class BeaconFactCardCase extends UseCaseBase {
     // Kept for DI, same as the hierarchy port above.
     // ignore: avoid_unused_constructor_parameters
     BeaconAccessGuard guard, {
-    BeaconRepositoryPort? beaconRepository,
     required super.env,
     required super.logger,
-  }) : _beaconRepository = beaconRepository;
-
-  final BeaconRepositoryPort? _beaconRepository;
+  });
 
   final BeaconFactCardRepositoryPort _facts;
 
@@ -66,33 +61,55 @@ final class BeaconFactCardCase extends UseCaseBase {
   /// Classifies a write that lost a race with closing or archiving.
   final BeaconHierarchyRepositoryPort _hierarchyRepository;
 
-  /// Fused `loadRoomAccess` preflight: room use plus lifecycle write check.
-  Future<void> _ensureWritableRoomAccess({
+  /// Fused `loadRoomAccess` preflight (plan §5.1): room use, then a
+  /// read-only room (lifecycle or expired Post), then R5: a draft accepts
+  /// no fact writes but copy-in and remove. Returns the access row.
+  Future<BeaconFactRoomAccess> _ensureWritableRoomAccess({
     required String beaconId,
     required String userId,
   }) async {
-    final beacon = await _beaconRepository?.getBeaconById(beaconId: beaconId);
-    if (beacon != null) BeaconKindPolicy.requireRequest(beacon);
+    final access = await _ensureRoomMember(beaconId: beaconId, userId: userId);
+    _rejectReadOnly(access);
+    if (access.isDraft) {
+      throw const BeaconCreateException(
+        description: 'Facts can be changed only after publishing',
+      );
+    }
+    return access;
+  }
+
+  Future<BeaconFactRoomAccess> _ensureRoomMember({
+    required String beaconId,
+    required String userId,
+  }) async {
     final access = await _facts.loadRoomAccess(
       beaconId: beaconId,
       userId: userId,
     );
-    if (!access.exists || !access.canUseRoom) {
+    // An unknown id is a client mistake: the typed not-found answer.
+    if (!access.exists) throw IdNotFoundException(id: beaconId);
+    if (!access.canUseRoom) {
       throw const UnauthorizedException(
         description: 'Room access required',
       );
     }
+    return access;
+  }
+
+  static void _rejectReadOnly(BeaconFactRoomAccess access) {
     if (BeaconRoomLifecycleWritePolicy.blocksOrdinaryUserWrites(
-      BeaconStatus.fromSmallint(access.beaconStatus),
-    )) {
-      throw const BeaconCreateException(
-        description: 'Discussion is read-only for this request',
-      );
+          BeaconStatus.fromSmallint(access.beaconStatus),
+        ) ||
+        access.isExpiredPost) {
+      throw kRoomReadOnlyException;
     }
   }
 
-  /// Plan §5.3: the destination of a copy. Block A accepts only a
-  /// published Request the actor can use. A missing, deleted, draft or Post
+  static bool _isPost(BeaconFactRoomAccess access) =>
+      access.kind == BeaconKind.post.value;
+
+  /// Plan §5.3: the destination of a copy. Block B accepts a published
+  /// Request or Post the actor can use. A missing, deleted or draft
   /// destination and a non-member all get the same [UnauthorizedException],
   /// so beacon ids cannot be probed; a read-only room is reported only after
   /// membership passed.
@@ -104,18 +121,14 @@ final class BeaconFactCardCase extends UseCaseBase {
       beaconId: beaconId,
       userId: userId,
     );
-    final status = BeaconStatus.fromSmallint(access.beaconStatus);
     if (!access.exists ||
         !access.canUseRoom ||
         access.isDraft ||
-        access.kind != BeaconKind.request.value ||
-        status == BeaconStatus.deleted) {
+        BeaconStatus.fromSmallint(access.beaconStatus) ==
+            BeaconStatus.deleted) {
       throw const UnauthorizedException(description: 'Room access required');
     }
-    if (BeaconRoomLifecycleWritePolicy.blocksOrdinaryUserWrites(status) ||
-        access.isExpiredPost) {
-      throw kRoomReadOnlyException;
-    }
+    _rejectReadOnly(access);
   }
 
   /// Plan §5.4 `BeaconFactCardCopy`: copies one fact into a published
@@ -385,8 +398,8 @@ final class BeaconFactCardCase extends UseCaseBase {
     };
   }
 
-  /// Plan §5.4 CopyDestinations: the published, writable Requests [userId]
-  /// can copy the fact into, most recently active first. Throws
+  /// Plan §5.4 CopyDestinations: the published, writable Requests and
+  /// Posts [userId] can copy the fact into, most recently active first. Throws
   /// [FactCopySourceUnavailableException] unless the source is available.
   Future<List<Map<String, Object?>>> copyDestinations({
     required String sourceFactCardId,
@@ -480,13 +493,21 @@ final class BeaconFactCardCase extends UseCaseBase {
       if (trimmed.isEmpty) {
         throw const BeaconCreateException(description: 'Fact text is empty');
       }
-      await _ensureWritableRoomAccess(beaconId: beaconId, userId: userId);
-      final entity = await _facts.pinFact(
+      final access = await _ensureWritableRoomAccess(
         beaconId: beaconId,
-        factText: trimmed,
-        visibility: visibility,
-        pinnedBy: userId,
-        sourceMessageId: sourceMessageId,
+        userId: userId,
+      );
+      final entity = await _hierarchyRepository.translateRoomWriteError(
+        () => _facts.pinFact(
+          beaconId: beaconId,
+          factText: trimmed,
+          // D5: a Post has one visibility, discussion-only.
+          visibility: _isPost(access)
+              ? BeaconFactCardVisibilityBits.room
+              : visibility,
+          pinnedBy: userId,
+          sourceMessageId: sourceMessageId,
+        ),
       );
       return {'id': entity.id, 'beaconId': entity.beaconId};
     } on Object catch (e, st) {
@@ -601,16 +622,18 @@ final class BeaconFactCardCase extends UseCaseBase {
     }
 
     return _seqOrThrow(
-      await _facts.editText(
-        factCardId: factCardId,
-        beaconId: beaconId,
-        actorUserId: actorUserId,
-        newText: effectiveText,
-        baseRevisionSeq: baseRevisionSeq,
-        rateWindow: env.factEditRateWindow,
-        rateMax: env.factEditRateMax,
-        quietWindow: kFactEditQuietWindow,
-        attachmentsJson: attachments == null ? null : jsonEncode(attachments),
+      await _hierarchyRepository.translateRoomWriteError(
+        () => _facts.editText(
+          factCardId: factCardId,
+          beaconId: beaconId,
+          actorUserId: actorUserId,
+          newText: effectiveText,
+          baseRevisionSeq: baseRevisionSeq,
+          rateWindow: env.factEditRateWindow,
+          rateMax: env.factEditRateMax,
+          quietWindow: kFactEditQuietWindow,
+          attachmentsJson: attachments == null ? null : jsonEncode(attachments),
+        ),
       ),
       factCardId: factCardId,
     );
@@ -718,9 +741,8 @@ final class BeaconFactCardCase extends UseCaseBase {
     if (bytes.isEmpty) {
       throw const BeaconCreateException(description: 'Empty attachment');
     }
-    final displayName = (attachmentFilename ?? 'file').trim().isEmpty
-        ? 'file'
-        : attachmentFilename!.trim();
+    final trimmedName = attachmentFilename?.trim() ?? '';
+    final displayName = trimmedName.isEmpty ? 'file' : trimmedName;
     var mime = attachmentMimeType ?? 'application/octet-stream';
     final sniffed = inferImageMimeFromLeadingBytes(bytes);
     if (sniffed != null) mime = sniffed;
@@ -764,15 +786,17 @@ final class BeaconFactCardCase extends UseCaseBase {
   }) async {
     await _ensureWritableRoomAccess(beaconId: beaconId, userId: actorUserId);
     return _seqOrThrow(
-      await _facts.restoreRevision(
-        factCardId: factCardId,
-        beaconId: beaconId,
-        actorUserId: actorUserId,
-        fromSeq: fromSeq,
-        baseRevisionSeq: baseRevisionSeq,
-        rateWindow: env.factEditRateWindow,
-        rateMax: env.factEditRateMax,
-        quietWindow: kFactEditQuietWindow,
+      await _hierarchyRepository.translateRoomWriteError(
+        () => _facts.restoreRevision(
+          factCardId: factCardId,
+          beaconId: beaconId,
+          actorUserId: actorUserId,
+          fromSeq: fromSeq,
+          baseRevisionSeq: baseRevisionSeq,
+          rateWindow: env.factEditRateWindow,
+          rateMax: env.factEditRateMax,
+          quietWindow: kFactEditQuietWindow,
+        ),
       ),
       factCardId: factCardId,
     );
@@ -795,16 +819,31 @@ final class BeaconFactCardCase extends UseCaseBase {
         ),
       };
 
+  /// Unpins a fact. On a draft (plan R5, §5.4) only the author may remove
+  /// it, and it is deleted outright, with no chat line and no event.
   Future<bool> remove({
     required String factCardId,
     required String beaconId,
     required String actorUserId,
   }) async {
-    await _ensureWritableRoomAccess(beaconId: beaconId, userId: actorUserId);
-    return _facts.remove(
-      factCardId: factCardId,
+    final access = await _ensureRoomMember(
       beaconId: beaconId,
-      actorUserId: actorUserId,
+      userId: actorUserId,
+    );
+    _rejectReadOnly(access);
+    if (access.isDraft) {
+      return _facts.deleteFromDraft(
+        factCardId: factCardId,
+        beaconId: beaconId,
+        actorUserId: actorUserId,
+      );
+    }
+    return _hierarchyRepository.translateRoomWriteError(
+      () => _facts.remove(
+        factCardId: factCardId,
+        beaconId: beaconId,
+        actorUserId: actorUserId,
+      ),
     );
   }
 
@@ -814,12 +853,19 @@ final class BeaconFactCardCase extends UseCaseBase {
     required String actorUserId,
     required int visibility,
   }) async {
-    await _ensureWritableRoomAccess(beaconId: beaconId, userId: actorUserId);
-    await _facts.setVisibility(
-      factCardId: factCardId,
+    final access = await _ensureWritableRoomAccess(
       beaconId: beaconId,
-      actorUserId: actorUserId,
-      visibility: visibility,
+      userId: actorUserId,
+    );
+    // D5: no «Make public / private» on a Post.
+    if (_isPost(access)) throw const BeaconNotRequestException();
+    await _hierarchyRepository.translateRoomWriteError(
+      () => _facts.setVisibility(
+        factCardId: factCardId,
+        beaconId: beaconId,
+        actorUserId: actorUserId,
+        visibility: visibility,
+      ),
     );
     return true;
   }

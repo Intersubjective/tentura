@@ -96,7 +96,6 @@ Future<void> main() async {
         _UnusedTasks(),
         BeaconHierarchyRepository(database),
         BeaconAccessRepository(database),
-        beaconRepository: BeaconRepository(database),
         env: Env(environment: Environment.test),
         logger: Logger('beacon_fact_composer_pin_pg_test.facts'),
       );
