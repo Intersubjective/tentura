@@ -104,6 +104,25 @@ class _FactCopyDestinationSheetState extends State<_FactCopyDestinationSheet> {
     }
   }
 
+  Widget _tile(L10n l10n, BeaconFactCopyDestination d) => ListTile(
+    title: Text(
+      d.title,
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+    ),
+    // Only a Post has a lifetime (plan §6.2).
+    subtitle: switch (d.expiresAt) {
+      final at? when d.kind == BeaconKind.post.value => Text(
+        postRemainingLabel(
+          l10n,
+          at.difference(DateTime.now()),
+        ),
+      ),
+      _ => null,
+    },
+    onTap: () => unawaited(_copyTo(d)),
+  );
+
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
@@ -169,26 +188,22 @@ class _FactCopyDestinationSheetState extends State<_FactCopyDestinationSheet> {
                 child: ListView(
                   shrinkWrap: true,
                   children: [
-                    for (final d in shown)
-                      ListTile(
-                        title: Text(
-                          d.title,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
+                    for (final d in shown.where((d) => !d.isDraft))
+                      _tile(l10n, d),
+                    if (shown.any((d) => d.isDraft)) ...[
+                      Padding(
+                        padding: padding.copyWith(
+                          top: context.tt.rowGap,
+                          bottom: context.tt.rowGap / 2,
                         ),
-                        // Only a Post has a lifetime (plan §6.2).
-                        subtitle: switch (d.expiresAt) {
-                          final at? when d.kind == BeaconKind.post.value =>
-                            Text(
-                              postRemainingLabel(
-                                l10n,
-                                at.difference(DateTime.now()),
-                              ),
-                            ),
-                          _ => null,
-                        },
-                        onTap: () => unawaited(_copyTo(d)),
+                        child: Text(
+                          l10n.beaconFactCopyYourDrafts,
+                          style: theme.textTheme.titleSmall,
+                        ),
                       ),
+                      for (final d in shown.where((d) => d.isDraft))
+                        _tile(l10n, d),
+                    ],
                   ],
                 ),
               )

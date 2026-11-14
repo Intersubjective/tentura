@@ -25,6 +25,7 @@ import 'package:tentura/domain/capability/capability_tag.dart';
 import 'package:tentura/ui/utils/capability_tag_presenter.dart';
 
 import '../bloc/beacon_create_cubit.dart';
+import 'brought_facts_section.dart';
 import 'cover_block.dart';
 import 'cover_symbol_sheet.dart';
 import 'create_details_row.dart';
@@ -633,6 +634,7 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
         child: ListView(
           children: [
             _copiedFromBanner(tt),
+            const BroughtFactsSection(),
             _childOfBanner(tt),
             // Room above the field for its floating label, which sits half
             // over the top border and was clipped by the list (#339).

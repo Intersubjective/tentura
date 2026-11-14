@@ -11849,5 +11849,19 @@
   "beaconFactCopyUnavailable": "This fact is no longer available",
   "@beaconFactCopyUnavailable": {"description": "Snackbar: the source fact is gone or unreadable"},
   "beaconFactCopyNotAllowed": "You can't add facts there",
-  "@beaconFactCopyNotAllowed": {"description": "Snackbar: the destination refuses the copy"}
+  "@beaconFactCopyNotAllowed": {"description": "Snackbar: the destination refuses the copy"},
+  "beaconCreateBroughtFactsTitle": "Facts you're bringing ({count})",
+  "@beaconCreateBroughtFactsTitle": {
+    "description": "Create screen: header of the facts carried into the draft",
+    "placeholders": {"count": {"type": "int"}}
+  },
+  "beaconCreateBroughtFactsRemove": "Remove fact",
+  "@beaconCreateBroughtFactsRemove": {"description": "Create screen: tooltip of the ✕ on a brought fact"},
+  "beaconCreateFactsNotBrought": "{count, plural, =1{1 fact could not be brought} other{{count} facts could not be brought}}",
+  "@beaconCreateFactsNotBrought": {
+    "description": "Create screen: fewer facts arrived in the fork than were ticked",
+    "placeholders": {"count": {"type": "int"}}
+  },
+  "beaconFactCopyYourDrafts": "Your drafts",
+  "@beaconFactCopyYourDrafts": {"description": "Destination picker: header of the group of own drafts"}
 }

@@ -5,6 +5,7 @@ import 'package:tentura_root/domain/entity/beacon_promotion_source.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/domain/capability/capability_tag.dart';
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
 import 'package:tentura/domain/entity/coordinates.dart';
@@ -72,6 +73,13 @@ abstract class BeaconCreateState extends StateBase with _$BeaconCreateState {
     /// Source facts ticked on the fork sheet (`fork_facts`); the lazy fork
     /// brings them into the copy. Empty for any other editor.
     @Default(<String>[]) List<String> forkFactIds,
+
+    /// Facts shown in «Facts you're bringing»: the ticked source facts before
+    /// the lazy fork, the draft's own facts after it and for any draft.
+    @Default(<BeaconFactCard>[]) List<BeaconFactCard> broughtFacts,
+
+    /// How many ticked facts did not arrive in the fork; 0 when all did.
+    @Default(0) int factsNotBrought,
     @Default({}) Set<String> initialServerImageIds,
     @Default(false) bool canTryToPublish,
 

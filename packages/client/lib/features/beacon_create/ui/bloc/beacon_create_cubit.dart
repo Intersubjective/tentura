@@ -9,6 +9,7 @@ import 'package:tentura_root/domain/entity/localizable.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/domain/entity/beacon_schedule.dart';
 import 'package:tentura/domain/entity/coordinates.dart';
@@ -19,6 +20,7 @@ import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/port/beacon_image_port.dart';
 import 'package:tentura/domain/use_case/beacon_create_case.dart';
 import 'package:tentura/domain/use_case/beacon_hierarchy_case.dart';
+import 'package:tentura/features/beacon_threads/domain/use_case/beacon_threads_case.dart';
 import 'package:tentura/domain/use_case/message_prefill_case.dart';
 import 'package:tentura/domain/use_case/post_bud_case.dart';
 import 'package:tentura/domain/use_case/post_publish_case.dart';
@@ -633,9 +635,78 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
         ),
       );
       validate();
+      unawaited(_showDraftFacts(beacon.id));
     } catch (e) {
       _emitSnackError(e);
     }
+  }
+
+  /// The facts reach the section through the fact list query; it is a hint,
+  /// so a missing collaborator or a failed read leaves the section empty.
+  Future<List<BeaconFactCard>?> _readFacts(String beaconId) async {
+    if (!GetIt.I.isRegistered<BeaconThreadsCase>()) return null;
+    try {
+      return await GetIt.I<BeaconThreadsCase>().fetchFactCards(beaconId);
+    } on Object {
+      return null;
+    }
+  }
+
+  Future<void> _showDraftFacts(String beaconId, {int ticked = 0}) async {
+    final facts = await _readFacts(beaconId);
+    if (facts == null || isClosed) return;
+    emit(
+      state.copyWith(
+        broughtFacts: facts,
+        factsNotBrought: facts.length < ticked ? ticked - facts.length : 0,
+      ),
+    );
+  }
+
+  Future<void> _showTickedFacts(String sourceId) async {
+    final ids = state.forkFactIds;
+    if (ids.isEmpty) return;
+    final facts = await _readFacts(sourceId);
+    if (facts == null || isClosed || _forkSourceId == null) return;
+    emit(
+      state.copyWith(
+        broughtFacts: [
+          for (final f in facts)
+            if (state.forkFactIds.contains(f.id)) f,
+        ],
+      ),
+    );
+  }
+
+  /// ✕ on a brought fact: before the fork it only edits the selection; for a
+  /// draft it removes the fact from the draft.
+  Future<void> removeBroughtFact(String factCardId) async {
+    final draftId = state.draftId;
+    if (_forkSourceId != null || draftId == null) {
+      emit(
+        state.copyWith(
+          forkFactIds: [
+            for (final id in state.forkFactIds)
+              if (id != factCardId) id,
+          ],
+          broughtFacts: [
+            for (final f in state.broughtFacts)
+              if (f.id != factCardId) f,
+          ],
+        ),
+      );
+      return;
+    }
+    try {
+      await GetIt.I<BeaconThreadsCase>().removeFact(
+        beaconId: draftId,
+        factCardId: factCardId,
+      );
+    } catch (e) {
+      _emitSnackError(e);
+      return;
+    }
+    await _showDraftFacts(draftId);
   }
 
   /// Opens «Create from this request» (#493) as a local copy of [id]: the
@@ -677,6 +748,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
       );
       validate();
       _forkBaseline = _comparable(state);
+      unawaited(_showTickedFacts(source.id));
     } catch (e) {
       _leaveRefusedEdit(ShowError(e));
     }
@@ -698,6 +770,8 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     lastAutosavedAt: null,
     showValidationHints: false,
     canTryToPublish: false,
+    broughtFacts: const [],
+    factsNotBrought: 0,
     status: const StateIsSuccess(),
   );
 
@@ -1353,7 +1427,9 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
           factIds: state.forkFactIds,
         );
         _forkSourceId = null;
-        if (!isClosed) emit(_adoptFork(forked));
+        final ticked = state.forkFactIds.length;
+        if (!isClosed) emit(_adoptFork(forked).copyWith(forkFactIds: const []));
+        unawaited(_showDraftFacts(forked.id, ticked: ticked));
         // The fork copies the source verbatim; push the copy's own fields
         // (the «Copy of …» title, any edits) onto it.
         sent = _command(context: context, id: forked.id, draftSafeTitle: true);
