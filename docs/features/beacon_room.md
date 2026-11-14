@@ -244,6 +244,12 @@ Post co-membership does not create `person_bond` or shared-context visibility (A
 
 Facts pinned on messages use **discussion-scoped** visibility boundaries — request-wide public vs **discussion only** — not per-thread isolation. Fact cards and visibility copy use **discussion** vocabulary.
 
+**Facts on Posts.** A Post has facts too (pin, edit, list), with a single visibility: stored discussion-only, with no «Make public / private» action. Post facts are reached from the Post info sheet list, the pinned-message mark and the fact picker (there is no facts strip in the Chat). After a Post expires its facts are read-only but stay readable and copyable.
+
+**Copies.** A member can copy a fact into another Request or Post (push: «Use in another Request or Post»; pull: the «Saved» tab; fork and budding checklists). A copy is a new fact at revision 1 and **always lands discussion-only**; widening is the existing «Make public» in the destination. At most one live copy per source per destination («Already there»). The source room learns nothing. Copies into a draft exist at once and are announced by one grouped chat line at publish; otherwise the line is «X brought a fact from another Request».
+
+**Origin line.** Every reader of a copy sees a generic «Brought from another Request» / «…Post» line, never a title or names. Tapping it opens the source fact if the viewer may read it, else «The original isn't available to you». The source shows its current text; members of the source discussion also get «See the copied version» when it changed since the copy. See [ADR 0014](../adr/0014-fact-continuity.md).
+
 ## Forwarding
 
 Forwarding passes the request along the trust graph. Each hop is visible to people on the path. Forwarding a Request does not grant discussion access by itself; the approved Post-only exception is described above. Parent-only hierarchy visibility does **not** allow forwarding a child.

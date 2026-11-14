@@ -18,6 +18,12 @@ Coordination product for **Requests** (internally: **Beacons**), request **discu
 
 **Post membership is not a bond** (A7): co-membership in `kind = 1` does not create `person_bond`, forwarding eligibility, or shared-context visibility. Members can see each other inside the Post, open profiles, and add contacts; that does not widen the general mutual-visibility wall.
 
+**Fact copy** is a new, independent fact created from another fact in another episode (Request or Post). It starts at revision 1 with only the copied text and images, always lands discussion-only, and is never synchronised with its source (ADR 0014).
+
+**Fact origin** is the pointer from a copy to its direct source fact and revision (one hop, no chain). Readers see a generic line «Brought from another Request» / «…Post» with no source title or names; tapping it opens the source only if the viewer may read it, otherwise «The original isn't available to you».
+
+**Saved fact** is a personal pointer (user id + fact id, cap 200) listed in the «Saved» tab of the fact picker. It shows the fact's current text under the viewer's current rights, or «No longer available». Picking one copies it into the current episode and quotes it in the message.
+
 | Layer | Primary object | Coordination workspace | Home nav branch (offers to you) |
 |-------|----------------|------------------------|---------------------------------------|
 | **User-facing** (UI, push, landing, l10n values) | **Request** / **Requests**; **Post** / **Posts** | **discussion** | **Activity** / «Активность» |

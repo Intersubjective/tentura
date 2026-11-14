@@ -1,7 +1,7 @@
 # Fact continuity across Requests and Posts — architecture plan
 
-**Status:** draft rev 4 (2026-11-12). Owner decisions D1–D20 confirmed. Rev 2 applied a first independent code review
-(5 blockers, 10 majors, 5 minors); rev 3 applies a second one (2 blockers, 10 majors, 8 minors); rev 4 applies a third (2 blockers, 6 majors, 7 minors, all text corrections). Review-driven decisions R1–R6 approved by the owner (2026-11-12). Not yet split into beads.
+**Status:** shipped (2026-11-14; epic tentura-zzla; last revision: rev 4, 2026-11-12). Owner decisions D1–D20 confirmed. Rev 2 applied a first independent code review
+(5 blockers, 10 majors, 5 minors); rev 3 applies a second one (2 blockers, 10 majors, 8 minors); rev 4 applies a third (2 blockers, 6 majors, 7 minors, all text corrections). Review-driven decisions R1–R6 approved by the owner (2026-11-12). Shipped as epic tentura-zzla.
 **Related:** [ADR 0004](../adr/0004-beacon-lineage-fork.md) (fork), [post-ttl-design.md](post-ttl-design.md),
 [post-request-budding-architecture.md](post-request-budding-architecture.md), [features/beacon_room.md](../features/beacon_room.md).
 
