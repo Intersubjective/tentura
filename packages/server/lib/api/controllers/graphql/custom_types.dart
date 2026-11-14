@@ -91,6 +91,7 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeBeaconUpdateReader,
   gqlTypeBeaconFactCardRow,
   gqlTypeBeaconFactCardOriginResult,
+  gqlTypeBeaconFactCardSavedRow,
   gqlTypeBeaconFactCopyDestinationRow,
   gqlTypeBeaconFactHistoryEntryRow,
   gqlTypeBeaconFactCardRevisionsPage,
@@ -763,6 +764,17 @@ final gqlTypeBeaconFactCardOriginResult =
         field('changedSinceCopy', graphQLBoolean),
         field('canSeeCopiedRevision', graphQLBoolean),
         field('copiedRevisionSeq', graphQLInt),
+      ]);
+
+final gqlTypeBeaconFactCardSavedRow =
+    GraphQLObjectType('BeaconFactCardSavedRow', null)
+      ..fields.addAll([
+        field('factCardId', graphQLString.nonNullable()),
+        field('available', graphQLBoolean.nonNullable()),
+        field('beaconId', graphQLString),
+        field('beaconKind', graphQLInt),
+        field('factText', graphQLString),
+        field('attachmentsJson', graphQLString),
       ]);
 
 final gqlTypeBeaconFactCopyDestinationRow =

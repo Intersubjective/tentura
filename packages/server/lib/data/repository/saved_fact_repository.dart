@@ -1,5 +1,6 @@
 import 'package:injectable/injectable.dart';
 
+import 'package:tentura_server/consts/beacon_fact_card_consts.dart';
 import 'package:tentura_server/domain/port/saved_fact_repository_port.dart';
 
 import '../database/tentura_db.dart';
@@ -58,5 +59,75 @@ SELECT EXISTS (SELECT 1 FROM ins) OR EXISTS (
           (t) => t.userId.equals(userId) & t.factCardId.equals(factCardId),
         ))
         .go();
+  }
+
+  /// One query; `beacon_fact_access` runs once per distinct beacon, then is
+  /// joined to the rows. Same rule as `SavedFactCase.save`: request-visible
+  /// needs `can_read`, discussion-only `can_use_room`, removed never; a draft
+  /// is author-only.
+  @override
+  Future<List<Map<String, Object?>>> list({required String userId}) async {
+    final rows = await _db
+        .customSelect(
+          r'''
+WITH s AS (
+  SELECT fact_card_id, created_at FROM public.user_saved_fact
+  WHERE user_id = $1::text
+),
+f AS (
+  SELECT s.fact_card_id, c.beacon_id, c.status, c.visibility,
+         COALESCE(r.fact_text, c.fact_text) AS head_text,
+         COALESCE(r.attachments_json::text, '[]') AS attachments_json
+  FROM s
+  JOIN public.beacon_fact_card c ON c.id = s.fact_card_id
+  LEFT JOIN public.beacon_fact_card_revision r
+    ON r.fact_card_id = c.id AND r.seq = c.revision_seq
+),
+acc AS MATERIALIZED (
+  SELECT d.beacon_id, a.kind, a.is_draft, a.can_read, a.can_use_room,
+         b.user_id = $1::text AS is_author
+  FROM (SELECT DISTINCT beacon_id FROM f) d
+  CROSS JOIN LATERAL public.beacon_fact_access(d.beacon_id, $1::text) a
+  LEFT JOIN public.beacon b ON b.id = d.beacon_id
+),
+res AS (
+  SELECT s.fact_card_id, s.created_at, f.beacon_id, acc.kind, f.head_text,
+         f.attachments_json,
+         COALESCE(
+           f.status <> $2::integer
+           AND (NOT acc.is_draft OR acc.is_author)
+           AND CASE WHEN f.visibility = $3::integer
+                    THEN acc.can_read ELSE acc.can_use_room END,
+           false) AS available
+  FROM s
+  LEFT JOIN f ON f.fact_card_id = s.fact_card_id
+  LEFT JOIN acc ON acc.beacon_id = f.beacon_id
+)
+SELECT fact_card_id, available,
+       CASE WHEN available THEN beacon_id END AS beacon_id,
+       CASE WHEN available THEN kind END AS kind,
+       CASE WHEN available THEN head_text END AS head_text,
+       CASE WHEN available THEN attachments_json END AS attachments_json
+FROM res
+ORDER BY created_at DESC, fact_card_id
+''',
+          variables: [
+            Variable<String>(userId),
+            const Variable<int>(BeaconFactCardStatusBits.removed),
+            const Variable<int>(BeaconFactCardVisibilityBits.public),
+          ],
+        )
+        .get();
+    return [
+      for (final row in rows)
+        {
+          'factCardId': row.read<String>('fact_card_id'),
+          'available': row.read<bool>('available'),
+          'beaconId': row.readNullable<String>('beacon_id'),
+          'beaconKind': row.readNullable<int>('kind'),
+          'factText': row.readNullable<String>('head_text'),
+          'attachmentsJson': row.readNullable<String>('attachments_json'),
+        },
+    ];
   }
 }

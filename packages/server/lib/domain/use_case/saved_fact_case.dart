@@ -52,6 +52,10 @@ final class SavedFactCase extends UseCaseBase {
     return true;
   }
 
+  /// The saved facts of [userId], newest saved first (plan §5.4).
+  Future<List<Map<String, Object?>>> list({required String userId}) =>
+      _saved.list(userId: userId);
+
   /// Removes [factCardId] from the saved facts of [userId]. No access check:
   /// a user can always drop their own row, even for an unavailable fact.
   Future<bool> unsave({

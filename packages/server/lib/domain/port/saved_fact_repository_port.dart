@@ -11,4 +11,10 @@ abstract class SavedFactRepositoryPort {
 
   /// Deletes the row of [userId] for [factCardId], if there is one.
   Future<void> unsave({required String userId, required String factCardId});
+
+  /// The saved facts of [userId], newest saved first. A row the user may read
+  /// now carries `available: true`, `beaconId`, `beaconKind`, `factText` and
+  /// `attachmentsJson`; every other row (unreadable, removed, dangling id)
+  /// carries `factCardId` and `available: false` only.
+  Future<List<Map<String, Object?>>> list({required String userId});
 }
