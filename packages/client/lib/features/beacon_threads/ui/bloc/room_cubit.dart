@@ -707,6 +707,23 @@ class RoomCubit extends Cubit<RoomState> {
     );
   }
 
+  /// Brings fact [sourceFactCardId] from another episode into this room,
+  /// reloads the room's facts and quotes the copy (plan D19). An
+  /// `alreadyThere` answer quotes the existing copy. Copy failures are
+  /// thrown for the caller to word.
+  Future<void> quoteFactFromElsewhere(String sourceFactCardId) async {
+    final copy = await _case.copyFact(
+      sourceFactCardId: sourceFactCardId,
+      destinationBeaconId: state.beaconId,
+    );
+    final factCards = await _case.fetchFactCards(state.beaconId);
+    if (isClosed) return;
+    emit(state.copyWith(factCards: factCards));
+    for (final card in factCards) {
+      if (card.id == copy.factCardId) return setPendingQuotedFact(card);
+    }
+  }
+
   /// Puts [intent]'s text into the composer and waits for the message that
   /// carries it (see [RoomComposerIntent.planCantMake]). A later intent
   /// replaces an earlier one.

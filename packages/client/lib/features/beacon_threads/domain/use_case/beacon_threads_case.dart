@@ -433,6 +433,12 @@ base class BeaconThreadsCase extends UseCaseBase {
     destinationBeaconId: destinationBeaconId,
   );
 
+  /// The viewer's saved facts, newest first (plan D20).
+  Future<List<BeaconSavedFact>> savedFacts() => _factCards.savedList();
+
+  Future<void> unsaveFact({required String factCardId}) =>
+      _factCards.unsave(factCardId: factCardId);
+
   /// Available origin answers by source fact id: the arrival at the source
   /// shows what the answer said (changed since copied, copied revision).
   final _factArrivals = <String, BeaconFactOrigin>{};

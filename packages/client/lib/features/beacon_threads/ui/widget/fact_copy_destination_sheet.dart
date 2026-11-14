@@ -97,7 +97,7 @@ class _FactCopyDestinationSheetState extends State<_FactCopyDestinationSheet> {
       showSnackBar(
         page,
         isError: true,
-        text: _failureText(l10n, e),
+        text: factCopyFailureText(l10n, e),
         error: e,
         stackTrace: st,
       );
@@ -224,8 +224,9 @@ class _FactCopyDestinationSheetState extends State<_FactCopyDestinationSheet> {
   }
 }
 
-/// The person-facing words for a failed copy (plan §6.2).
-String _failureText(L10n l10n, Object error) => switch (error) {
+/// The person-facing words for a failed copy (plan §6.2), also used by
+/// the fact picker's Saved tab (§6.3).
+String factCopyFailureText(L10n l10n, Object error) => switch (error) {
   BeaconFactCopySourceUnavailableException() => l10n.beaconFactCopyUnavailable,
   RemoteApiException(code: _kUnauthorizedCode) => l10n.beaconFactCopyNotAllowed,
   RemoteApiException(code: _kReadOnlyCode) =>
