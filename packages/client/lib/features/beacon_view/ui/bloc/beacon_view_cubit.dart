@@ -1287,6 +1287,10 @@ class BeaconViewCubit extends Cubit<BeaconViewState> implements RoomHost {
     await _refreshBeaconRoomCue(state.beacon.id);
   }
 
+  /// Re-reads the fact list after a write made outside this cubit (Save to
+  /// my facts), so `savedByMe` follows.
+  Future<void> refreshFactCards() => _refreshFactCards(state.beacon.id);
+
   Future<void> _refreshFactCards(String beaconId) async {
     final cards = await _case.fetchFactCards(beaconId);
     if (isClosed) return;

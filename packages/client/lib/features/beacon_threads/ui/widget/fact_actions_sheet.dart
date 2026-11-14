@@ -43,7 +43,7 @@ Future<void> showFactActionsSheet(
     canMutate: cubit.state.canWriteDiscussion,
     myUserId: cubit.state.myUserId,
     onQuoteInChat: onQuoteInChat,
-    onSave: factSaveAction(fact),
+    onSave: factSaveAction(fact, refreshFacts: cubit.refreshFactCards),
     onUseElsewhere:
         onUseElsewhere ??
         (f) => unawaited(showFactCopyDestinationSheet(context, fact: f)),
@@ -89,16 +89,20 @@ Future<void> showFactActionsSheet(
   );
 }
 
-/// Saves or removes [fact] on the viewer's own facts list.
+/// Saves or removes [fact] on the viewer's own facts list, then re-reads
+/// the host's fact list ([refreshFacts]) so its `savedByMe` follows.
 Future<void> Function({required bool save}) factSaveAction(
-  BeaconFactCard fact,
-) =>
-    ({required save}) => save
-    ? GetIt.I<BeaconFactCardRepository>().save(
-        beaconId: fact.beaconId,
-        factCardId: fact.id,
-      )
-    : GetIt.I<BeaconFactCardRepository>().unsave(factCardId: fact.id);
+  BeaconFactCard fact, {
+  required Future<void> Function() refreshFacts,
+}) => ({required save}) async {
+  final repository = GetIt.I<BeaconFactCardRepository>();
+  if (save) {
+    await repository.save(beaconId: fact.beaconId, factCardId: fact.id);
+  } else {
+    await repository.unsave(factCardId: fact.id);
+  }
+  unawaited(refreshFacts());
+};
 
 Future<void> showFactActionsHostSheet(
   BuildContext context, {

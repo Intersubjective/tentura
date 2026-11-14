@@ -57,6 +57,9 @@ class RoomBodyHarnessCubit extends Mock implements RoomCubit {
 
   @override
   Future<void> markReadToBottom() async {}
+
+  @override
+  Future<void> refreshFactCards() async {}
 }
 
 class RoomBodyHarnessProfileCubit extends Mock implements ProfileCubit {
