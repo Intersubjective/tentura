@@ -192,7 +192,10 @@ Future<void> main() async {
     test('lists the Requests the caller authors, stewards or is admitted '
         'to, most recently active first, with id, kind, title, isDraft and '
         'expiresAt', () async {
-      final rows = await destinations(_factS);
+      final rows = [
+        for (final r in await destinations(_factS))
+          if (r['isDraft'] == false) r,
+      ];
       expect([for (final r in rows) r['id']], [_b, _c, _a]);
       expect(rows, [
         for (final id in [_b, _c, _a])
@@ -238,8 +241,8 @@ Future<void> main() async {
     });
 
     test(
-      'leaves out drafts, Posts, '
-      'and Requests the caller only reads',
+      'lists the caller\'s own drafts as drafts, and leaves out Requests '
+      'the caller only reads',
       () async {
         // The caller really can read the Request they have no role in.
         final readable = await writer.execute(
@@ -247,11 +250,13 @@ Future<void> main() async {
           parameters: {'b': _readOnly, 'u': _caller},
         );
         expect(readable.single.single, true);
-        final ids = [for (final r in await destinations(_factS)) r['id']];
-        for (final id in [_draft, _post, _readOnly]) {
-          expect(ids, isNot(contains(id)), reason: id);
+        final rows = await destinations(_factS);
+        final ids = [for (final r in rows) r['id']];
+        expect(ids, isNot(contains(_readOnly)));
+        for (final id in [_draft, _post]) {
+          expect(ids, contains(id), reason: id);
+          expect(rows.firstWhere((r) => r['id'] == id)['isDraft'], isTrue);
         }
-        expect(ids, isNotEmpty);
       },
     );
 

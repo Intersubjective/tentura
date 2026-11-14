@@ -392,7 +392,7 @@ SELECT
   });
 
   group('Copy destinations that are refused', () {
-    test('every draft, Request or Post, own or not, is refused like a Post '
+    test('another user\'s draft, Request or Post, is refused like a Post '
         'the caller is not a member of, and nothing is inserted', () async {
       final w = await world();
       final reference = await errorOf(
@@ -407,8 +407,6 @@ SELECT
       expect(reference.description, 'Room access required');
 
       for (final draft in [
-        w.ownDraftRequest,
-        w.ownDraftPost,
         w.otherDraftRequest,
         w.otherDraftPost,
       ]) {
@@ -450,7 +448,7 @@ SELECT
 
   group('Copy destinations list', () {
     test('lists the open, unexpired Posts the caller belongs to, and no '
-        'archived Post, draft or foreign Post', () async {
+        'archived Post, other user\'s draft or foreign Post', () async {
       final w = await world();
       final listed = await case_.copyDestinations(
         sourceFactCardId: w.factInRequest,
@@ -462,8 +460,6 @@ SELECT
         w.expiredPost,
         w.closedPost,
         w.foreignPost,
-        w.ownDraftRequest,
-        w.ownDraftPost,
         w.otherDraftRequest,
         w.otherDraftPost,
       ]) {

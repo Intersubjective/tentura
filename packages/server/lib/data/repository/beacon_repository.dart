@@ -8,6 +8,7 @@ import 'package:tentura_root/domain/entity/beacon_cover_source.dart';
 import 'package:tentura_root/domain/entity/beacon_post_lifetime.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
+import 'copied_fact_image_cleanup.dart';
 import 'package:tentura_server/consts.dart'
     show
         kAvatarPlaceholderUrl,
@@ -731,12 +732,18 @@ ${beaconId == null ? '' : r'WHERE posts.id = $2'}''',
   });
 
   @override
-  Future<void> deleteBeaconById(String id, {required String userId}) =>
-      _database.withMutatingUser(userId, () async {
-        await _database.managers.beacons
-            .filter((e) => e.id.equals(id))
-            .delete();
-      });
+  Future<void> deleteBeaconById(
+    String id, {
+    required String userId,
+  }) => _database.withMutatingUser(userId, () async {
+    // A draft's copied facts own duplicated images; drop them with it.
+    await _database.customStatement(
+      'WITH ${copiedFactImageCleanupCtes(factFilter: r'f.beacon_id = $1::text', actorParam: r'$2')} '
+      'SELECT 1',
+      [id, userId],
+    );
+    await _database.managers.beacons.filter((e) => e.id.equals(id)).delete();
+  });
 
   @override
   Future<T> runInBeaconStateTransaction<T>({

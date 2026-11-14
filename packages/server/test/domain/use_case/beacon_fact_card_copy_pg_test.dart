@@ -652,7 +652,7 @@ ORDER BY seq
   });
 
   group('Copy destinations that are refused', () {
-    test('not found, not a member, own draft, Post and deleted destinations '
+    test('not found, not a member and deleted destinations '
         'throw the same UnauthorizedException without loading the source', () async {
       final w = await world(withImage: true);
       // world() stored the source image.
@@ -662,10 +662,6 @@ ORDER BY seq
         'not a member': await errorOf(
           () => copy(w.fact, w.foreign, actor: w.actor),
         ),
-        'own draft': await errorOf(
-          () => copy(w.fact, w.ownDraft, actor: w.actor),
-        ),
-        'Post': await errorOf(() => copy(w.fact, w.ownPost, actor: w.actor)),
         'deleted': await errorOf(() => copy(w.fact, w.deleted, actor: w.actor)),
       };
 

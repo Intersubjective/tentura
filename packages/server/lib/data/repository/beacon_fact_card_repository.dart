@@ -5,6 +5,7 @@ import 'package:drift_postgres/drift_postgres.dart';
 import 'package:postgres/postgres.dart' show Type, TypedValue;
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
+import 'copied_fact_image_cleanup.dart';
 import 'package:tentura_server/app/sentry/sentry_db_span.dart';
 
 import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
@@ -44,9 +45,16 @@ class BeaconFactCardRepository implements BeaconFactCardRepositoryPort {
     final row = await _db
         .customSelect(
           r'''
-SELECT kind, status, is_draft, is_expired_post, beacon_exists,
-       can_read, can_use_room
-FROM public.beacon_fact_access($1::text, $2::text)
+SELECT a.kind, a.status, a.is_draft, a.is_expired_post, a.beacon_exists,
+       a.can_read AND (NOT a.is_draft OR own.is_author) AS can_read,
+       a.can_use_room AND (NOT a.is_draft OR own.is_author) AS can_use_room
+FROM public.beacon_fact_access($1::text, $2::text) a
+CROSS JOIN LATERAL (
+  SELECT EXISTS (
+    SELECT 1 FROM public.beacon b
+    WHERE b.id = $1::text AND b.user_id = $2::text
+  ) AS is_author
+) own
 ''',
           variables: [Variable<String>(beaconId), Variable<String>(userId)],
         )
@@ -600,27 +608,40 @@ WHERE f.id = $1::text AND f.beacon_id = $2::text
     final rows = await _db
         .customSelect(
           r'''
-SELECT b.id, b.kind::integer AS kind, b.title, b.expires_at
+SELECT b.id, b.kind::integer AS kind,
+       CASE WHEN d.is_draft AND b.kind = 1
+            THEN left(b.description, 120) ELSE b.title END AS title,
+       d.is_draft, b.expires_at
 FROM public.beacon b
-WHERE (
-    b.kind = 0
-    OR (
-      b.kind = 1 AND b.post_root_message_id IS NOT NULL
-      AND (b.expires_at IS NULL OR b.expires_at > now())
-    )
-  )
-  AND b.id <> $2::text
-  AND b.status = ANY($3::integer[])
+CROSS JOIN LATERAL (
+  SELECT b.status = 3
+    OR (b.kind = 1 AND b.status = 0 AND b.post_root_message_id IS NULL)
+    AS is_draft
+) d
+WHERE b.id <> $2::text
   AND (
-    b.user_id = $1::text
-    OR EXISTS (
-      SELECT 1 FROM public.beacon_steward s
-      WHERE s.beacon_id = b.id AND s.user_id = $1::text
+    (
+      d.is_draft AND b.user_id = $1::text
     )
-    OR EXISTS (
-      SELECT 1 FROM public.beacon_participant p
-      WHERE p.beacon_id = b.id AND p.user_id = $1::text
-        AND p.room_access = 3
+    OR (
+      NOT d.is_draft
+      AND (
+        b.kind = 0
+        OR (b.kind = 1 AND (b.expires_at IS NULL OR b.expires_at > now()))
+      )
+      AND b.status = ANY($3::integer[])
+      AND (
+        b.user_id = $1::text
+        OR EXISTS (
+          SELECT 1 FROM public.beacon_steward s
+          WHERE s.beacon_id = b.id AND s.user_id = $1::text
+        )
+        OR EXISTS (
+          SELECT 1 FROM public.beacon_participant p
+          WHERE p.beacon_id = b.id AND p.user_id = $1::text
+            AND p.room_access = 3
+        )
+      )
     )
   )
 ORDER BY b.last_activity_at DESC NULLS LAST, b.id
@@ -640,7 +661,7 @@ LIMIT $4::integer
           id: row.read<String>('id'),
           kind: row.read<int>('kind'),
           title: row.read<String>('title'),
-          isDraft: false,
+          isDraft: row.read<bool>('is_draft'),
           expiresAt: _readNullableTimestamp(row, 'expires_at'),
         ),
     ];
@@ -1232,17 +1253,18 @@ SELECT EXISTS (SELECT 1 FROM locked) AS found,
     () => sentryDbSpan('db.fact.delete_from_draft', (_) async {
       final row = await _db
           .customSelect(
-            r'''
+            '''
 WITH target AS (
-  SELECT b.user_id = $3::text AND a.is_draft AS allowed
+  SELECT b.user_id = \$3::text AND a.is_draft AS allowed
   FROM public.beacon b
-  CROSS JOIN public.beacon_fact_access($2::text, $3::text) a
-  WHERE b.id = $2::text
+  CROSS JOIN public.beacon_fact_access(\$2::text, \$3::text) a
+  WHERE b.id = \$2::text
 ),
+${copiedFactImageCleanupCtes(factFilter: r'f.id = $1::text AND f.beacon_id = $2::text AND (SELECT allowed FROM target)', actorParam: r'$3')},
 del AS (
   DELETE FROM public.beacon_fact_card f
   USING target t
-  WHERE t.allowed AND f.id = $1::text AND f.beacon_id = $2::text
+  WHERE t.allowed AND f.id = \$1::text AND f.beacon_id = \$2::text
   RETURNING f.id
 )
 SELECT COALESCE((SELECT allowed FROM target), false) AS allowed,

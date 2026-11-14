@@ -108,9 +108,9 @@ final class BeaconFactCardCase extends UseCaseBase {
   static bool _isPost(BeaconFactRoomAccess access) =>
       access.kind == BeaconKind.post.value;
 
-  /// Plan §5.3: the destination of a copy. Block B accepts a published
-  /// Request or Post the actor can use. A missing, deleted or draft
-  /// destination and a non-member all get the same [UnauthorizedException],
+  /// Plan §5.3: the destination of a copy: a Request or Post the actor can
+  /// use, which for a draft means its author. A missing or deleted
+  /// destination, someone else's draft and a non-member all get the same [UnauthorizedException],
   /// so beacon ids cannot be probed; a read-only room is reported only after
   /// membership passed.
   Future<void> _ensureCopyDestination({
@@ -123,7 +123,6 @@ final class BeaconFactCardCase extends UseCaseBase {
     );
     if (!access.exists ||
         !access.canUseRoom ||
-        access.isDraft ||
         BeaconStatus.fromSmallint(access.beaconStatus) ==
             BeaconStatus.deleted) {
       throw const UnauthorizedException(description: 'Room access required');
@@ -424,7 +423,6 @@ final class BeaconFactCardCase extends UseCaseBase {
       writableStatuses: [
         for (final status in BeaconStatus.values)
           if (status != BeaconStatus.deleted &&
-              status != BeaconStatus.draft &&
               !BeaconRoomLifecycleWritePolicy.blocksOrdinaryUserWrites(status))
             status.smallintValue,
       ],
