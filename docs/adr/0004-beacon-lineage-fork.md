@@ -60,3 +60,13 @@ Two questions drove this ADR:
 ## Amendment C (2026-10-05): the Request plan is copied, its people are not (#220)
 
 `beaconFork` takes an optional `copyPlan` flag and `planStepTimes`. When the caller is admitted to the source Request (author, steward or admitted member), the source's live plan steps are copied into the draft: titles, descriptions and order, with times taken from `planStepTimes` (the client shifts them to the new occurrence). Assignments, ticks, confirmations and revision history are **not** copied: every step of the copy has no assignee, consistent with Decision 2 (never copy participants). Callers who are not admitted to the source get the fork without a plan, silently. Publishing a draft that carries a copied plan writes one «plan copied» chat line that references the source by id only (Decision 8). Design: `docs/plans/request-plan-libretto-plan.md` §4.10.
+
+## Amendment D (2026-11-14): fork copies the facts the forker ticked
+
+Plan: [`docs/plans/fact-continuity-architecture.md`](../plans/fact-continuity-architecture.md) (X5, D11, D14). This amends Decision 2, which said fork never copies room content.
+
+- **Ticked facts are copied.** The fork sheet shows a «Facts to bring» checklist with nothing ticked (D14). `beaconFork` copies exactly the facts the forker ticked into the draft, and nothing else from the room.
+- **Visibility.** A forker who is not admitted to the source Request is offered request-visible facts only. Facts that are not visible to them are neither listed nor copied.
+- **Discussion-only.** Copies land discussion-only in the draft's Request.
+- **Images are always duplicated.** Each fact image is re-stored as a new blob owned by the copier (D11), all or nothing per fact. This overrides Decision 2's rule that images are duplicated only when the forker is the source author.
+- **Unavailable facts are skipped.** A ticked fact that is no longer available (removed, or no longer visible to the forker) is left out silently; the fork still succeeds.
