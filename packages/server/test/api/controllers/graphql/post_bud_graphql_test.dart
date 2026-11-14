@@ -184,6 +184,7 @@ final class _FakePostBudCase extends Fake implements PostBudCase {
     bool isDiscoverable = false,
     List<PostBudInvitee> invitees = const [],
     bool closePost = false,
+    List<String> factIds = const [],
   }) async {
     budCall = (
       actorUserId: actorUserId,

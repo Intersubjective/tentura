@@ -9,6 +9,7 @@ import 'package:tentura_root/domain/entity/coordinates.dart';
 
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_kind.dart';
+import 'package:tentura_server/domain/entity/prepared_fact_copy.dart';
 import 'package:tentura_server/domain/entity/post_parent_stage.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/policy/beacon_creation_policy.dart';
@@ -22,6 +23,7 @@ import 'package:tentura_server/domain/port/beacon_room_notification_context_port
 import 'package:tentura_server/domain/port/post_bud_port.dart';
 import 'package:tentura_server/domain/port/post_lock_port.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
+import 'package:tentura_server/domain/use_case/beacon_fact_card_case.dart';
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
 
 import '_use_case_base.dart';
@@ -46,6 +48,7 @@ final class BeaconChildCreateCase extends UseCaseBase
     TransactionalAttentionCase? attention,
     PostLockPort? postLock,
     PostBudPort? postBud,
+    this._factCards,
     required super.env,
     required super.logger,
   }) : _attentionIntents = attentionIntents,
@@ -62,6 +65,10 @@ final class BeaconChildCreateCase extends UseCaseBase
   final TransactionalAttentionCase? _attention;
   final PostLockPort? _postLock;
   final PostBudPort? _postBud;
+
+  /// Copies the Post facts ticked in a bud (plan §5.7); nullable for test
+  /// construction.
+  final BeaconFactCardCase? _factCards;
 
   /// Prefix of a bud command's `normalized_input_hash` (Arch §2.6), so a
   /// `clientCommandId` reused across the two endpoints conflicts.
@@ -101,8 +108,9 @@ final class BeaconChildCreateCase extends UseCaseBase
 
     final isPromotion =
         sourceMessageId != null && sourceMessageId.trim().isNotEmpty;
-    final normalizedSourceMessageId =
-        isPromotion ? sourceMessageId.trim() : null;
+    final normalizedSourceMessageId = isPromotion
+        ? sourceMessageId.trim()
+        : null;
 
     var normalizedTitle = title.trim();
     var normalizedDescription = isPromotion
@@ -199,8 +207,8 @@ final class BeaconChildCreateCase extends UseCaseBase
           }
 
           if (!draft && isPromotion) {
-            final existingChildId =
-                await _commands.findPublishedChildForSourceMessage(
+            final existingChildId = await _commands
+                .findPublishedChildForSourceMessage(
                   sourceMessageId: normalizedSourceMessageId!,
                 );
             if (existingChildId != null) {
@@ -378,6 +386,7 @@ final class BeaconChildCreateCase extends UseCaseBase
     bool isDiscoverable = false,
     Map<String, Object?> budInput = const {},
     PostParentStage? stage,
+    List<String> factIds = const [],
   }) async {
     final trimmedCommandId = clientCommandId.trim();
     if (trimmedCommandId.isEmpty) {
@@ -404,6 +413,12 @@ final class BeaconChildCreateCase extends UseCaseBase
       addressLabel,
     );
 
+    // De-duplicated and sorted, and hashed only when non-empty, so a bud
+    // recorded before facts could be ticked keeps its hash (plan §5.7).
+    final ticked = factIds.toSet().toList()..sort();
+    final hashedBudInput = ticked.isEmpty
+        ? budInput
+        : {...budInput, 'factIds': ticked};
     final normalizedInputHash =
         budInputHashPrefix +
         _normalizedInputHash(
@@ -421,7 +436,7 @@ final class BeaconChildCreateCase extends UseCaseBase
           startAt: startAt?.toUtc().toIso8601String(),
           endAt: endAt?.toUtc().toIso8601String(),
           addressLabel: normalizedAddressLabel,
-          extra: {'bud': budInput, 'isDiscoverable': isDiscoverable},
+          extra: {'bud': hashedBudInput, 'isDiscoverable': isDiscoverable},
         );
 
     // Source is optional prefill/notice only; the command row still records
@@ -434,8 +449,29 @@ final class BeaconChildCreateCase extends UseCaseBase
             sourceMessageId: normalizedSourceMessageId,
           );
 
+    // Fact copies are prepared (blobs re-stored) outside the transaction;
+    // a replay prepares nothing (plan §5.7 steps 2–3).
+    final factCards = _factCards;
+    var prepared = const <PreparedFactCopy>[];
+    if (factCards != null &&
+        ticked.isNotEmpty &&
+        await _commands.findCommand(
+              actorUserId: actorUserId,
+              clientCommandId: trimmedCommandId,
+            ) ==
+            null) {
+      prepared = (await factCards.prepareCopies(
+        sourceFactCardIds: ticked,
+        actorUserId: actorUserId,
+        skipUnavailable: true,
+        requiredSourceBeaconId: postId,
+      )).prepared;
+    }
+    var insertedIds = const <String>[];
+
+    final BeaconChildCreateResult result;
     try {
-      return await _attention!.runAction(
+      result = await _attention!.runAction(
         actorUserId: actorUserId,
         action: (transaction) async {
           await _hierarchyRepository.lockMutationScope();
@@ -506,6 +542,14 @@ final class BeaconChildCreateCase extends UseCaseBase
             bindPromotion: true,
             withNotice: false,
           );
+          if (factCards != null && prepared.isNotEmpty) {
+            // The child is live, so the copies are announced in it.
+            insertedIds = await factCards.insertPreparedCopies(
+              destinationBeaconId: child.id,
+              actorUserId: actorUserId,
+              prepared: prepared,
+            );
+          }
 
           final staged =
               await stage?.call(
@@ -555,6 +599,10 @@ final class BeaconChildCreateCase extends UseCaseBase
       );
     } on _PromotionRaceLost catch (race) {
       // Unreachable while the Post lock serializes buds; kept for parity.
+      await factCards?.compensatePreparedCopies(
+        prepared,
+        actorUserId: actorUserId,
+      );
       final result = await _alreadyPromotedResult(
         actorUserId: actorUserId,
         existingChildBeaconId: race.existingChildBeaconId,
@@ -567,7 +615,29 @@ final class BeaconChildCreateCase extends UseCaseBase
           childBeaconId: result.beaconId,
         ),
       );
+    } catch (_) {
+      await factCards?.compensatePreparedCopies(
+        prepared,
+        actorUserId: actorUserId,
+      );
+      rethrow;
     }
+    if (factCards != null && prepared.isNotEmpty) {
+      if (result.outcome == BeaconChildCommandOutcome.created) {
+        await factCards.settleInsertedCopies(
+          prepared: prepared,
+          insertedIds: insertedIds,
+          actorUserId: actorUserId,
+        );
+      } else {
+        // A replay (a concurrent same command won) inserted nothing.
+        await factCards.compensatePreparedCopies(
+          prepared,
+          actorUserId: actorUserId,
+        );
+      }
+    }
+    return result;
   }
 
   Future<BeaconChildCreateResult> _replayPriorBud({
@@ -708,6 +778,7 @@ final class BeaconChildCreateCase extends UseCaseBase
     required String parentBeaconId,
     String? sourceMessageId,
     bool withNotice = true,
+
     /// Publish a promotion row even when [sourceMessageId] is null (Post buds).
     bool bindPromotion = false,
   }) async {

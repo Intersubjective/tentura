@@ -27,8 +27,7 @@ class FakeBeaconChildCreatePort implements BeaconChildCreatePort {
     Coordinates? coordinates,
     String? addressLabel,
     required bool draft,
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 
   @override
   Future<BeaconChildCreateResult> createChildUnderPost({
@@ -50,6 +49,7 @@ class FakeBeaconChildCreatePort implements BeaconChildCreatePort {
     bool isDiscoverable = false,
     Map<String, Object?> budInput = const {},
     PostParentStage? stage,
+    List<String> factIds = const [],
   }) => throw UnimplementedError();
 
   @override

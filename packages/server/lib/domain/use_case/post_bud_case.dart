@@ -48,6 +48,9 @@ class PostBudCase {
   /// Invitees are de-duplicated in request order. A per-invitee failure does
   /// not fail the bud; it is part of the stored result. A repeated
   /// [clientCommandId] with the same input returns the stored result.
+  ///
+  /// [factIds] are Post facts ticked to come along into the child (plan
+  /// §5.7); unavailable ones are skipped and not reported.
   Future<PostBudResult> budFromPost({
     required String actorUserId,
     required String postId,
@@ -67,6 +70,7 @@ class PostBudCase {
     bool isDiscoverable = false,
     List<PostBudInvitee> invitees = const [],
     bool closePost = false,
+    List<String> factIds = const [],
   }) async {
     final normalized = _normalizeInvitees(invitees);
     final result = await _children.createChildUnderPost(
@@ -93,6 +97,7 @@ class PostBudCase {
         ],
         'closePost': closePost,
       },
+      factIds: factIds,
       stage: (stageContext) => _stage(
         stageContext,
         invitees: normalized,

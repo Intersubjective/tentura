@@ -41,6 +41,14 @@ final class MutationPostBud extends GqlNodeBase {
     defaultsToNull: true,
   );
 
+  /// Post facts ticked to come along into the child (plan §5.7); omitted
+  /// means none.
+  final _factIds = GraphQLFieldInput(
+    'factIds',
+    GraphQLListType(graphQLString.nonNullable()),
+    defaultsToNull: true,
+  );
+
   List<GraphQLObjectField<dynamic, dynamic>> get all => [beaconBudFromPost];
 
   GraphQLObjectField<dynamic, dynamic> get beaconBudFromPost =>
@@ -64,6 +72,7 @@ final class MutationPostBud extends GqlNodeBase {
           _isDiscoverable.fieldNullable,
           _invitees,
           _closePost.fieldNullable,
+          _factIds,
         ],
         resolve: (_, args) async {
           final result = await _case.budFromPost(
@@ -93,6 +102,10 @@ final class MutationPostBud extends GqlNodeBase {
                   ),
             ],
             closePost: _closePost.fromArgs(args) ?? false,
+            factIds: switch (args[_factIds.name]) {
+              final List<dynamic> ids => List<String>.from(ids),
+              _ => const [],
+            },
           );
           return postBudResultToGqlMap(result);
         },

@@ -30,6 +30,9 @@ abstract class BeaconChildCreatePort {
   ///
   /// [sourceMessageId] is optional (own-message prefill / notice only); Post
   /// buds are unlimited and do not bind `beacon_promotions.source_message_id`.
+  ///
+  /// [factIds] are Post facts ticked to come along (plan §5.7): each one the
+  /// budder may copy lands in the child as a copy; any other is skipped.
   Future<BeaconChildCreateResult> createChildUnderPost({
     required String actorUserId,
     required String postId,
@@ -49,6 +52,7 @@ abstract class BeaconChildCreatePort {
     bool isDiscoverable = false,
     Map<String, Object?> budInput = const {},
     PostParentStage? stage,
+    List<String> factIds = const [],
   });
 
   Future<BeaconEntity> publishDraft({
