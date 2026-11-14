@@ -116,8 +116,9 @@ class RoomPollData {
               RoomPollVariant(
                 id: v.id,
                 description: v.description,
-                votesCount:
-                    removing ? (v.votesCount - 1).clamp(0, v.votesCount) : v.votesCount + 1,
+                votesCount: removing
+                    ? (v.votesCount - 1).clamp(0, v.votesCount)
+                    : v.votesCount + 1,
                 avgScore: v.avgScore,
                 voterIds: v.voterIds,
               )
@@ -144,7 +145,9 @@ class RoomPollData {
               RoomPollVariant(
                 id: v.id,
                 description: v.description,
-                votesCount: previousIds.contains(v.id) ? v.votesCount : v.votesCount + 1,
+                votesCount: previousIds.contains(v.id)
+                    ? v.votesCount
+                    : v.votesCount + 1,
                 avgScore: score.toDouble(),
                 voterIds: v.voterIds,
               )

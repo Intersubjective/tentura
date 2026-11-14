@@ -30,9 +30,9 @@ abstract class BeaconFactCard with _$BeaconFactCard {
     /// Older revisions were pruned; the fact was edited even if
     /// [lastEditedAt] is unknown.
     @Default(false) bool historyTruncated,
+
     /// Kind of the Request this fact was copied from; null when not a copy.
     int? originBeaconKind,
-    @Default(<RoomMessageAttachment>[])
-    List<RoomMessageAttachment> attachments,
+    @Default(<RoomMessageAttachment>[]) List<RoomMessageAttachment> attachments,
   }) = _BeaconFactCard;
 }

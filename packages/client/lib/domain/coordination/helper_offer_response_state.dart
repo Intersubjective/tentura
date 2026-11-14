@@ -19,8 +19,7 @@ bool helperOfferResponseStateIsTerminal(HelperOfferResponseState state) =>
       HelperOfferResponseState.softened ||
       HelperOfferResponseState.participationEnded ||
       HelperOfferResponseState.exited ||
-      HelperOfferResponseState.closedWithoutResponse =>
-        true,
+      HelperOfferResponseState.closedWithoutResponse => true,
       _ => false,
     };
 
@@ -51,8 +50,7 @@ HelperOfferResponseState deriveHelperOfferResponseState({
   if (authorResponseType == null && !beaconStatus.isOpenFamily) {
     return HelperOfferResponseState.closedWithoutResponse;
   }
-  if (authorResponseType != null &&
-      !authorResponseType.allowsInviteToRoom) {
+  if (authorResponseType != null && !authorResponseType.allowsInviteToRoom) {
     return HelperOfferResponseState.declined;
   }
   return HelperOfferResponseState.awaitingAuthor;

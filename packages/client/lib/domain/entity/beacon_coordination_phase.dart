@@ -6,6 +6,7 @@ enum BeaconCoordinationPhase {
   wrappingUp,
   needsMoreHelp,
   enoughHelpInMotion,
+
   /// Retained for GraphQL `byName` compat. Not derived: unreviewed offers
   /// stay on YOU/ACT (`reviewOffers`), not the shared STATUS line.
   offersAwaitingAuthor,
@@ -86,6 +87,7 @@ class BeaconCoordinationPhaseResult {
   /// When lifecycle became closed or cancelled (`beacon.updatedAt`).
   final DateTime? lifecycleEndedAt;
 
-  bool get isNeverEmpty => phase != BeaconCoordinationPhase.openFloor ||
+  bool get isNeverEmpty =>
+      phase != BeaconCoordinationPhase.openFloor ||
       suggestedAction != BeaconPhasePrimaryAction.none;
 }

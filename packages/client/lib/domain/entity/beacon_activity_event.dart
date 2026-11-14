@@ -33,16 +33,16 @@ abstract class BeaconActivityEvent with _$BeaconActivityEvent {
   /// [CoordinationItemKind.fromInt] throws on unknown values.
   CoordinationItemKind? get coordinationKind =>
       (type >= BeaconActivityEventTypeBits.coordinationTypeMin &&
-              type < BeaconActivityEventTypeBits.coordinationTypeMax)
-          ? CoordinationItemKind.fromInt(type ~/ 100)
-          : null;
+          type < BeaconActivityEventTypeBits.coordinationTypeMax)
+      ? CoordinationItemKind.fromInt(type ~/ 100)
+      : null;
 
   /// Coordination lifecycle state for a coordination event; `null` when this
   /// is not a coordination event or the remainder is not a known state.
   CoordinationItemEventKind? get coordinationEventKind =>
       coordinationKind == null
-          ? null
-          : CoordinationItemEventKind.fromInt(type % 100);
+      ? null
+      : CoordinationItemEventKind.fromInt(type % 100);
 }
 
 /// Mirrors server `isCoordinationLogEventType`.

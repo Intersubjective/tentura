@@ -303,7 +303,23 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
       ),
     );
     validate();
+    unawaited(_loadBudFacts(postId));
     await loadBudInviteCandidates();
+  }
+
+  /// The Post's facts for the «Facts to bring» checklist; a failed read
+  /// leaves the checklist out (see [_readFacts]).
+  Future<void> _loadBudFacts(String postId) async {
+    final facts = await _readFacts(postId);
+    final bud = state.postBud;
+    if (facts == null || bud == null || isClosed) return;
+    emit(state.copyWith(postBud: bud.copyWith(facts: facts)));
+  }
+
+  void setBudFactIds(List<String> factIds) {
+    final bud = state.postBud;
+    if (bud == null) return;
+    emit(state.copyWith(postBud: bud.copyWith(factIds: factIds)));
   }
 
   /// Loads the invite step; ticks the members the server pre-ticks. Also the
@@ -413,6 +429,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
         isDiscoverable: state.isDiscoverable,
         invitees: bud.invitees,
         closePost: bud.closePost,
+        factIds: bud.factIds,
       );
       if (!isClosed) {
         emit(

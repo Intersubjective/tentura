@@ -58,6 +58,7 @@ final class BudCall {
     required this.invitees,
     required this.closePost,
     required this.needs,
+    this.factIds,
   });
 
   final String clientCommandId;
@@ -67,6 +68,9 @@ final class BudCall {
   final List<PostBudInvitee> invitees;
   final bool closePost;
   final String? needs;
+
+  /// Null when the caller sent no fact ids at all.
+  final List<String>? factIds;
 }
 
 class FakePostBudPort implements PostBudPort {
@@ -118,6 +122,7 @@ class FakePostBudPort implements PostBudPort {
     bool isDiscoverable = false,
     List<PostBudInvitee> invitees = const [],
     bool closePost = false,
+    List<String>? factIds,
   }) async {
     calls.add(
       BudCall(
@@ -128,6 +133,7 @@ class FakePostBudPort implements PostBudPort {
         invitees: invitees,
         closePost: closePost,
         needs: needs,
+        factIds: factIds,
       ),
     );
     await gate?.future;

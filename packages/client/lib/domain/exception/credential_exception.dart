@@ -31,12 +31,10 @@ final class CredentialConflictException extends CredentialException {
   const CredentialConflictException();
 
   @override
-  String get toEn =>
-      'This sign-in method is already linked to another account';
+  String get toEn => 'This sign-in method is already linked to another account';
 
   @override
-  String get toRu =>
-      'Этот способ входа уже привязан к другому аккаунту';
+  String get toRu => 'Этот способ входа уже привязан к другому аккаунту';
 }
 
 final class CredentialLinkedMessage extends LocalizableMessage {

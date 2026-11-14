@@ -68,7 +68,9 @@ final class AttentionAckStore {
       return receipt;
     }
     return switch (ack.intent) {
-      AttentionAckIntent.seen => receipt.copyWith(seenAt: DateTime.now().toUtc()),
+      AttentionAckIntent.seen => receipt.copyWith(
+        seenAt: DateTime.now().toUtc(),
+      ),
       AttentionAckIntent.unseen => receipt.copyWith(seenAt: null),
     };
   }

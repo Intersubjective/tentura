@@ -1,8 +1,7 @@
 /// `beacon.kind` smallint.
 enum BeaconKind {
   request(0),
-  post(1)
-  ;
+  post(1);
 
   const BeaconKind(this.value);
 
@@ -17,8 +16,7 @@ enum BeaconKind {
 /// `beacon.forward_policy` smallint.
 enum BeaconForwardPolicyValue {
   closed(0),
-  open(1)
-  ;
+  open(1);
 
   const BeaconForwardPolicyValue(this.value);
 

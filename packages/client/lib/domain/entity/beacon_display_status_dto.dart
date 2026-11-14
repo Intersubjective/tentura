@@ -32,7 +32,8 @@ class BeaconDisplayStatusDto {
   final bool canDelete;
   final int everAcknowledgedCommitterCount;
 
-  BeaconCoordinationPhaseResult toPhaseResult() => BeaconCoordinationPhaseResult(
+  BeaconCoordinationPhaseResult toPhaseResult() =>
+      BeaconCoordinationPhaseResult(
         phase: phase,
         slot2Kind: slot2Kind,
         suggestedAction: suggestedAction,

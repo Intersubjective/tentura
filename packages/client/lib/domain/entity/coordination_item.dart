@@ -13,20 +13,19 @@ enum CoordinationItemKind {
 
   /// Ask, promise, and blocker items have directed source→target parties.
   bool get hasDirectedParties => switch (this) {
-        CoordinationItemKind.ask ||
-        CoordinationItemKind.promise ||
-        CoordinationItemKind.blocker =>
-          true,
-        _ => false,
-      };
+    CoordinationItemKind.ask ||
+    CoordinationItemKind.promise ||
+    CoordinationItemKind.blocker => true,
+    _ => false,
+  };
 
   static CoordinationItemKind fromInt(int v) => switch (v) {
-        1 => plan,
-        2 => ask,
-        3 => blocker,
-        5 => promise,
-        _ => throw ArgumentError.value(v, 'kind'),
-      };
+    1 => plan,
+    2 => ask,
+    3 => blocker,
+    5 => promise,
+    _ => throw ArgumentError.value(v, 'kind'),
+  };
 }
 
 enum CoordinationItemStatus {
@@ -40,13 +39,13 @@ enum CoordinationItemStatus {
   final int value;
 
   static CoordinationItemStatus fromInt(int v) => switch (v) {
-        0 => open,
-        1 => accepted,
-        2 => resolved,
-        3 => cancelled,
-        4 => superseded,
-        _ => throw ArgumentError.value(v, 'status'),
-      };
+    0 => open,
+    1 => accepted,
+    2 => resolved,
+    3 => cancelled,
+    4 => superseded,
+    _ => throw ArgumentError.value(v, 'status'),
+  };
 }
 
 enum CoordinationItemEventKind {
@@ -61,14 +60,14 @@ enum CoordinationItemEventKind {
   final int value;
 
   static CoordinationItemEventKind? fromInt(int v) => switch (v) {
-        1 => created,
-        2 => accepted,
-        3 => resolved,
-        4 => cancelled,
-        5 => updated,
-        6 => superseded,
-        _ => null,
-      };
+    1 => created,
+    2 => accepted,
+    3 => resolved,
+    4 => cancelled,
+    5 => updated,
+    6 => superseded,
+    _ => null,
+  };
 }
 
 @freezed
@@ -118,8 +117,7 @@ abstract class CoordinationItem with _$CoordinationItem {
       kind == CoordinationItemKind.plan && linkedParentItemId != null;
 
   /// Open or accepted — still active on the Items tab.
-  bool get isActive =>
-      isOpen || isAccepted;
+  bool get isActive => isOpen || isAccepted;
 
   static const defaultStaleDays = 3;
   static const remindCooldownHours = 24;
@@ -174,9 +172,9 @@ abstract class CoordinationItem with _$CoordinationItem {
     final last = lastRemindedAt;
     if (last == null) return false;
     final n = (now ?? DateTime.now()).toUtc();
-    return last
-        .toUtc()
-        .isAfter(n.subtract(const Duration(hours: remindCooldownHours)));
+    return last.toUtc().isAfter(
+      n.subtract(const Duration(hours: remindCooldownHours)),
+    );
   }
 
   /// Status-aware remind push recipient — mirrors server rules.
@@ -190,18 +188,19 @@ abstract class CoordinationItem with _$CoordinationItem {
     final hasTarget = target != null && target.isNotEmpty;
 
     return switch (kind) {
-      CoordinationItemKind.ask => isAccepted
-          ? ((acceptedById?.trim().isNotEmpty ?? false)
-              ? acceptedById!.trim()
-              : (hasTarget ? target : null))
-          : (hasTarget ? target : null),
-      CoordinationItemKind.promise => isOpen
-          ? (hasTarget ? target : null)
-          : isAccepted
-              ? creatorId
-              : null,
-      CoordinationItemKind.blocker =>
-        hasTarget ? target : creatorId,
+      CoordinationItemKind.ask =>
+        isAccepted
+            ? ((acceptedById?.trim().isNotEmpty ?? false)
+                  ? acceptedById!.trim()
+                  : (hasTarget ? target : null))
+            : (hasTarget ? target : null),
+      CoordinationItemKind.promise =>
+        isOpen
+            ? (hasTarget ? target : null)
+            : isAccepted
+            ? creatorId
+            : null,
+      CoordinationItemKind.blocker => hasTarget ? target : creatorId,
       _ => null,
     };
   }

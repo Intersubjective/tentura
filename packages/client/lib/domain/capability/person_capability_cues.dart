@@ -47,14 +47,11 @@ abstract class PersonCapabilityCues with _$PersonCapabilityCues {
   List<String> get closeAckSlugs => slugsFromBeaconRefs(closeAckByMe);
 
   /// Unique close-ack slugs about the viewer (self profile only).
-  List<String> get closeAckAboutMeSlugs =>
-      slugsFromBeaconRefs(closeAckAboutMe);
+  List<String> get closeAckAboutMeSlugs => slugsFromBeaconRefs(closeAckAboutMe);
 
   /// Non-manual slugs from the viewer-visible subjective list.
-  Set<String> get automaticViewerVisibleSlugs => viewerVisible
-      .where((c) => !c.hasManualLabel)
-      .map((c) => c.slug)
-      .toSet();
+  Set<String> get automaticViewerVisibleSlugs =>
+      viewerVisible.where((c) => !c.hasManualLabel).map((c) => c.slug).toSet();
 
   /// Unique slugs from beacon-scoped refs, preserving first-seen order.
   static List<String> slugsFromBeaconRefs(Iterable<TagBeaconRef> refs) {
@@ -91,6 +88,7 @@ abstract class PersonCapabilityCues with _$PersonCapabilityCues {
 abstract class CapabilityWithSource with _$CapabilityWithSource {
   const factory CapabilityWithSource({
     required String slug,
+
     /// True when the viewer explicitly added this slug as a private label.
     required bool hasManualLabel,
   }) = _CapabilityWithSource;

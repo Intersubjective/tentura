@@ -42,32 +42,38 @@ abstract class CoordinationResponsibility with _$CoordinationResponsibility {
   List<CoordinationResponsibilityKindCounts> get orderedEntries {
     final out = <CoordinationResponsibilityKindCounts>[];
     if (askOpen > 0) {
-      out.add(CoordinationResponsibilityKindCounts(
-        kind: CoordinationItemKind.ask,
-        open: askOpen,
-        newCount: askNew,
-      ));
+      out.add(
+        CoordinationResponsibilityKindCounts(
+          kind: CoordinationItemKind.ask,
+          open: askOpen,
+          newCount: askNew,
+        ),
+      );
     }
     if (promiseOpen > 0) {
-      out.add(CoordinationResponsibilityKindCounts(
-        kind: CoordinationItemKind.promise,
-        open: promiseOpen,
-        newCount: promiseNew,
-      ));
+      out.add(
+        CoordinationResponsibilityKindCounts(
+          kind: CoordinationItemKind.promise,
+          open: promiseOpen,
+          newCount: promiseNew,
+        ),
+      );
     }
     if (blockerOpen > 0) {
-      out.add(CoordinationResponsibilityKindCounts(
-        kind: CoordinationItemKind.blocker,
-        open: blockerOpen,
-        newCount: blockerNew,
-      ));
+      out.add(
+        CoordinationResponsibilityKindCounts(
+          kind: CoordinationItemKind.blocker,
+          open: blockerOpen,
+          newCount: blockerNew,
+        ),
+      );
     }
     return out;
   }
 
   CoordinationResponsibility withNewCountsCleared() => copyWith(
-        askNew: 0,
-        promiseNew: 0,
-        blockerNew: 0,
-      );
+    askNew: 0,
+    promiseNew: 0,
+    blockerNew: 0,
+  );
 }

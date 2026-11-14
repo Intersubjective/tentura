@@ -60,41 +60,47 @@ class PostBudRepository implements PostBudPort {
     bool isDiscoverable = false,
     List<PostBudInvitee> invitees = const [],
     bool closePost = false,
+    List<String>? factIds,
   }) async {
     final source = sourceMessageId?.trim();
     final data = await _remoteApiService
         .request(
           GPostBudFromPostReq(
-            (b) => b.vars
-              ..postId = postId
-              ..sourceMessageId = (source == null || source.isEmpty)
-                  ? null
-                  : source
-              ..clientCommandId = clientCommandId
-              ..title = title
-              ..description = description
-              ..context = context
-              ..coordinates = coordinates == null
-                  ? null
-                  : (Gv2_CoordinatesBuilder()
-                      ..lat = coordinates.lat
-                      ..long = coordinates.long)
-              ..startAt = startAt?.toUtc().toIso8601String()
-              ..endAt = endAt?.toUtc().toIso8601String()
-              ..tags = tags
-              ..needs = needs
-              ..primaryNeedSlug = primaryNeedSlug
-              ..addressLabel = addressLabel
-              ..isDiscoverable = isDiscoverable
-              ..invitees = ListBuilder([
-                for (final invitee in invitees)
-                  Gv2_PostBudInviteeInput(
-                    (i) => i
-                      ..userId = invitee.userId
-                      ..note = invitee.note,
-                  ),
-              ])
-              ..closePost = closePost,
+            (b) {
+              if (factIds != null && factIds.isNotEmpty) {
+                b.vars.factIds.replace(factIds);
+              }
+              b.vars
+                ..postId = postId
+                ..sourceMessageId = (source == null || source.isEmpty)
+                    ? null
+                    : source
+                ..clientCommandId = clientCommandId
+                ..title = title
+                ..description = description
+                ..context = context
+                ..coordinates = coordinates == null
+                    ? null
+                    : (Gv2_CoordinatesBuilder()
+                        ..lat = coordinates.lat
+                        ..long = coordinates.long)
+                ..startAt = startAt?.toUtc().toIso8601String()
+                ..endAt = endAt?.toUtc().toIso8601String()
+                ..tags = tags
+                ..needs = needs
+                ..primaryNeedSlug = primaryNeedSlug
+                ..addressLabel = addressLabel
+                ..isDiscoverable = isDiscoverable
+                ..invitees = ListBuilder([
+                  for (final invitee in invitees)
+                    Gv2_PostBudInviteeInput(
+                      (i) => i
+                        ..userId = invitee.userId
+                        ..note = invitee.note,
+                    ),
+                ])
+                ..closePost = closePost;
+            },
           ),
         )
         .firstLinkResponse(label: _label)

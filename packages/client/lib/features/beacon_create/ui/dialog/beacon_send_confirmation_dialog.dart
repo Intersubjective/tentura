@@ -38,9 +38,7 @@ class BeaconSendConfirmationDialog extends StatelessWidget {
     return AlertDialog(
       title: Text(l10n.beaconSendConfirmationTitle),
       content: Text(
-        failed
-            ? l10n.beaconSendConfirmationFailed
-            : deliveredOf.toL10n(locale),
+        failed ? l10n.beaconSendConfirmationFailed : deliveredOf.toL10n(locale),
         style: TenturaText.body(tt.text),
       ),
       actions: [

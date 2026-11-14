@@ -7,10 +7,10 @@ enum WithdrawReason {
   other;
 
   String get wireKey => switch (this) {
-        WithdrawReason.cannotDoIt => 'cannot_do_it',
-        WithdrawReason.timing => 'timing',
-        WithdrawReason.wrongFit => 'wrong_fit',
-        WithdrawReason.someoneElse => 'someone_else',
-        WithdrawReason.other => 'other',
-      };
+    WithdrawReason.cannotDoIt => 'cannot_do_it',
+    WithdrawReason.timing => 'timing',
+    WithdrawReason.wrongFit => 'wrong_fit',
+    WithdrawReason.someoneElse => 'someone_else',
+    WithdrawReason.other => 'other',
+  };
 }

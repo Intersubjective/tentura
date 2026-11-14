@@ -66,19 +66,16 @@ bool viewerAwaitingAuthorHelpOfferReview({
 
 BeaconYouEmptyFallback? _helperOfferTerminalFallback(
   HelperOfferResponseState state,
-) =>
-    switch (state) {
-      HelperOfferResponseState.declined =>
-        BeaconYouEmptyFallback.offerDeclined,
-      HelperOfferResponseState.softened =>
-        BeaconYouEmptyFallback.offerSoftened,
-      HelperOfferResponseState.participationEnded =>
-        BeaconYouEmptyFallback.offerParticipationEnded,
-      HelperOfferResponseState.exited => BeaconYouEmptyFallback.offerExited,
-      HelperOfferResponseState.closedWithoutResponse =>
-        BeaconYouEmptyFallback.offerClosedWithoutResponse,
-      _ => null,
-    };
+) => switch (state) {
+  HelperOfferResponseState.declined => BeaconYouEmptyFallback.offerDeclined,
+  HelperOfferResponseState.softened => BeaconYouEmptyFallback.offerSoftened,
+  HelperOfferResponseState.participationEnded =>
+    BeaconYouEmptyFallback.offerParticipationEnded,
+  HelperOfferResponseState.exited => BeaconYouEmptyFallback.offerExited,
+  HelperOfferResponseState.closedWithoutResponse =>
+    BeaconYouEmptyFallback.offerClosedWithoutResponse,
+  _ => null,
+};
 
 bool _helperOfferFallbackForcesPersonalCopy(BeaconYouEmptyFallback fallback) =>
     fallback == BeaconYouEmptyFallback.awaitingAuthorReview ||
@@ -87,14 +84,14 @@ bool _helperOfferFallbackForcesPersonalCopy(BeaconYouEmptyFallback fallback) =>
       BeaconYouEmptyFallback.offerSoftened ||
       BeaconYouEmptyFallback.offerParticipationEnded ||
       BeaconYouEmptyFallback.offerExited ||
-      BeaconYouEmptyFallback.offerClosedWithoutResponse =>
-        true,
+      BeaconYouEmptyFallback.offerClosedWithoutResponse => true,
       _ => false,
     };
 
 /// Whether the fallback should render as personal copy instead of inventory.
-bool beaconYouEmptyFallbackForcesPersonalCopy(BeaconYouEmptyFallback fallback) =>
-    _helperOfferFallbackForcesPersonalCopy(fallback);
+bool beaconYouEmptyFallbackForcesPersonalCopy(
+  BeaconYouEmptyFallback fallback,
+) => _helperOfferFallbackForcesPersonalCopy(fallback);
 
 /// Priority ladder:
 /// 1. Helper terminal stake -> offer_* fallback.

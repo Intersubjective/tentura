@@ -5,13 +5,11 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 bool beaconDeleteBlockedByCommitters(
   Beacon beacon, {
   bool? serverCanDelete,
-}) =>
-    serverCanDelete != null
-        ? !serverCanDelete
-        : beacon.status == BeaconStatus.reviewOpen ||
-              beacon.status == BeaconStatus.closed ||
-              (beacon.helpOfferCount > 0 &&
-                  beacon.status != BeaconStatus.open);
+}) => serverCanDelete != null
+    ? !serverCanDelete
+    : beacon.status == BeaconStatus.reviewOpen ||
+          beacon.status == BeaconStatus.closed ||
+          (beacon.helpOfferCount > 0 && beacon.status != BeaconStatus.open);
 
 bool beaconAllowsCancel(
   Beacon beacon, {

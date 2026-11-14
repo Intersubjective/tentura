@@ -1,6 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 import 'package:tentura/consts.dart';
+import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/post_bud_invite_candidate.dart';
 import 'package:tentura/domain/entity/post_bud_result.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -43,6 +44,12 @@ abstract class PostBudForm with _$PostBudForm {
 
     /// The budder's own choice; null follows [closePostByDefault].
     bool? closePostChoice,
+
+    /// The Post's readable facts the budder may bring along.
+    @Default(<BeaconFactCard>[]) List<BeaconFactCard> facts,
+
+    /// Ticked fact ids, in list order; nothing is ticked at first.
+    @Default(<String>[]) List<String> factIds,
   }) = _PostBudForm;
 
   const PostBudForm._();

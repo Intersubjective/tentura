@@ -9,15 +9,14 @@ class BeaconDeleteDialog extends StatelessWidget {
     required BeaconStatus status,
     required bool hasEverHadCommitter,
     Future<void> Function()? onArchive,
-  }) =>
-      showAdaptiveDialog(
-        context: context,
-        builder: (_) => BeaconDeleteDialog(
-          status: status,
-          hasEverHadCommitter: hasEverHadCommitter,
-          onArchive: onArchive,
-        ),
-      );
+  }) => showAdaptiveDialog(
+    context: context,
+    builder: (_) => BeaconDeleteDialog(
+      status: status,
+      hasEverHadCommitter: hasEverHadCommitter,
+      onArchive: onArchive,
+    ),
+  );
 
   const BeaconDeleteDialog({
     required this.status,
@@ -55,19 +54,19 @@ class BeaconDeleteDialog extends StatelessWidget {
     }
     final (title, body) = switch (status) {
       BeaconStatus.draft => (
-          l10n.beaconDeleteDraftTitle,
-          l10n.beaconDeleteDraftBody,
-        ),
+        l10n.beaconDeleteDraftTitle,
+        l10n.beaconDeleteDraftBody,
+      ),
       BeaconStatus.open ||
       BeaconStatus.needsMoreHelp ||
       BeaconStatus.enoughHelp => (
-          l10n.beaconDeleteOpenTitle,
-          l10n.beaconDeleteOpenBody,
-        ),
+        l10n.beaconDeleteOpenTitle,
+        l10n.beaconDeleteOpenBody,
+      ),
       _ => (
-          l10n.confirmBeaconRemoval,
-          l10n.beaconDeleteGenericBody,
-        ),
+        l10n.confirmBeaconRemoval,
+        l10n.beaconDeleteGenericBody,
+      ),
     };
     return AlertDialog.adaptive(
       title: Text(title),

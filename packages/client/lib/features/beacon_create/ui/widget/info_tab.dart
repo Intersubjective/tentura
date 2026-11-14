@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
 
+import 'package:tentura/domain/entity/beacon_fact_card.dart';
+import 'package:tentura/ui/widget/facts_to_bring_checklist.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_schedule.dart';
@@ -1087,6 +1089,23 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
               ),
             ],
           ),
+        ),
+        BlocSelector<
+          BeaconCreateCubit,
+          BeaconCreateState,
+          List<BeaconFactCard>
+        >(
+          bloc: _cubit,
+          selector: (s) => s.postBud?.facts ?? const [],
+          builder: (context, facts) => facts.isEmpty
+              ? const SizedBox.shrink()
+              : Padding(
+                  padding: EdgeInsets.only(top: tt.sectionGap),
+                  child: FactsToBringChecklist(
+                    facts: facts,
+                    onChanged: _cubit.setBudFactIds,
+                  ),
+                ),
         ),
       ],
     );

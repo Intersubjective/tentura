@@ -12,6 +12,7 @@ abstract interface class PostBudPort {
 
   /// Creates a child Request under Post [postId]. [sourceMessageId] is
   /// optional own-message prefill only; budding is unlimited.
+  /// [factIds] are the Post's facts to bring into the child.
   /// Idempotent per [clientCommandId].
   Future<PostBudResult> budFromPost({
     required String postId,
@@ -30,5 +31,6 @@ abstract interface class PostBudPort {
     bool isDiscoverable = false,
     List<PostBudInvitee> invitees = const [],
     bool closePost = false,
+    List<String> factIds = const [],
   });
 }

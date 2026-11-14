@@ -8,8 +8,7 @@ import 'package:tentura/domain/entity/profile.dart';
 /// wire data so every surface (lists, graph, chat authors, search) shows
 /// the viewer's name. Registration-guarded so plain mapper unit tests work
 /// without DI.
-String contactNameOf(String userId) =>
-    GetIt.I.isRegistered<ContactNameStore>()
+String contactNameOf(String userId) => GetIt.I.isRegistered<ContactNameStore>()
     ? GetIt.I<ContactNameStore>().nameOf(userId) ?? ''
     : '';
 

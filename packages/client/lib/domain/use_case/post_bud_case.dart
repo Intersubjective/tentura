@@ -79,6 +79,7 @@ final class PostBudCase extends UseCaseBase {
     bool isDiscoverable = false,
     List<PostBudInvitee> invitees = const [],
     bool closePost = false,
+    List<String> factIds = const [],
   }) => _port.budFromPost(
     postId: postId,
     sourceMessageId: sourceMessageId,
@@ -96,5 +97,6 @@ final class PostBudCase extends UseCaseBase {
     isDiscoverable: isDiscoverable,
     invitees: invitees,
     closePost: closePost,
+    factIds: factIds,
   );
 }
