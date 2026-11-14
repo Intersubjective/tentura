@@ -28,6 +28,9 @@ abstract class BeaconFactCardEntity with _$BeaconFactCardEntity {
     /// Request kind of the fact this one was copied from; null when not a copy.
     int? originBeaconKind,
 
+    /// Whether the viewer of the list keeps this fact in their saved facts.
+    @Default(false) bool savedByMe,
+
     /// Denormalized display metadata (not a DB column).
     @Default('') String pinnedByTitle,
   }) = _BeaconFactCardEntity;

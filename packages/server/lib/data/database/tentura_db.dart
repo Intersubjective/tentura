@@ -77,6 +77,7 @@ import 'table/user_blocks.dart';
 import 'table/user_contacts.dart';
 import 'table/user_availability.dart';
 import 'table/user_presence.dart';
+import 'table/user_saved_facts.dart';
 import 'table/users.dart';
 import 'table/forward_decision_attributions.dart';
 import 'table/mr_publish_epochs.dart';
@@ -150,6 +151,7 @@ part 'tentura_db.g.dart';
     UserContacts,
     UserAvailability,
     UserPresence,
+    UserSavedFacts,
     UserTrustEdges,
     VoteUsers,
   ],

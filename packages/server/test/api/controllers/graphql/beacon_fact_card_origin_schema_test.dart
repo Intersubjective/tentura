@@ -62,6 +62,7 @@ const _rowFields = [
   'otherEditorCount',
   'historyTruncated',
   'originBeaconKind',
+  'savedByMe',
 ];
 
 const _originFields = {

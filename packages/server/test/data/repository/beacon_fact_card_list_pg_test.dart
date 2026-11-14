@@ -184,6 +184,7 @@ Future<void> main() async {
         () async {
           final rows = await repository.listForBeacon(
             beaconId: _beaconId,
+            viewerId: _authorId,
             includeRoomOnly: false,
           );
 
@@ -204,6 +205,7 @@ Future<void> main() async {
         () async {
           final rows = await repository.listForBeacon(
             beaconId: _beaconId,
+            viewerId: _authorId,
             includeRoomOnly: true,
           );
 
@@ -221,6 +223,7 @@ Future<void> main() async {
           for (final includeRoomOnly in [false, true]) {
             final rows = await repository.listForBeacon(
               beaconId: _beaconId,
+              viewerId: _authorId,
               includeRoomOnly: includeRoomOnly,
             );
             final ids = rows.map((e) => e.id).toSet();
@@ -242,6 +245,7 @@ Future<void> main() async {
           counter.reset();
           final rows = await repository.listForBeacon(
             beaconId: _beaconId,
+            viewerId: _authorId,
             includeRoomOnly: true,
           );
           expect(counter.count, 1, reason: 'titles joined, not a 2nd query');
@@ -460,6 +464,7 @@ Future<void> main() async {
 
           final rows = await repository.listForBeacon(
             beaconId: _beaconId,
+            viewerId: _authorId,
             includeRoomOnly: true,
           );
 

@@ -85,6 +85,7 @@ class _MockFacts extends Fake implements BeaconFactCardRepositoryPort {
   @override
   Future<List<BeaconFactCardEntity>> listForBeacon({
     required String beaconId,
+    required String viewerId,
     required bool includeRoomOnly,
   }) async {
     listForBeaconCalls++;

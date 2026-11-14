@@ -86,6 +86,7 @@ CROSS JOIN LATERAL (
   @override
   Future<List<BeaconFactCardEntity>> listForBeacon({
     required String beaconId,
+    required String viewerId,
     required bool includeRoomOnly,
   }) async {
     final rows = await sentryDbSpan('db.fact.list', (span) async {
@@ -99,10 +100,13 @@ SELECT
   f.last_edited_at, f.other_editor_count, f.history_truncated,
   f.origin_beacon_kind::integer AS origin_beacon_kind,
   pu.display_name AS pinned_by_title,
-  eu.display_name AS last_edited_by_title
+  eu.display_name AS last_edited_by_title,
+  sf.user_id IS NOT NULL AS saved_by_me
 FROM public.beacon_fact_card f
 LEFT JOIN public."user" pu ON pu.id = f.pinned_by
 LEFT JOIN public."user" eu ON eu.id = f.last_edited_by
+LEFT JOIN public.user_saved_fact sf
+  ON sf.user_id = \$3::text AND sf.fact_card_id = f.id
 WHERE f.beacon_id = \$1::text
   AND f.status <> ${BeaconFactCardStatusBits.removed}
   AND (\$2::boolean OR f.visibility <> ${BeaconFactCardVisibilityBits.room})
@@ -111,6 +115,7 @@ ORDER BY f.created_at, f.id
             variables: [
               Variable<String>(beaconId),
               Variable<bool>(includeRoomOnly),
+              Variable<String>(viewerId),
             ],
           )
           .get();
@@ -136,6 +141,7 @@ ORDER BY f.created_at, f.id
           otherEditorCount: row.read<int>('other_editor_count'),
           historyTruncated: row.read<bool>('history_truncated'),
           originBeaconKind: row.readNullable<int>('origin_beacon_kind'),
+          savedByMe: row.read<bool>('saved_by_me'),
           pinnedByTitle: row.readNullable<String>('pinned_by_title') ?? '',
         ),
     ];

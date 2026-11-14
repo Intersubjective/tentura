@@ -201,6 +201,7 @@ void main() {
         '  pinnedBy: String!\n'
         '  pinnedByTitle: String!\n'
         '  revisionSeq: Int!\n'
+        '  savedByMe: Boolean!\n'
         '  sourceMessageId: String\n'
         '  status: Int!\n'
         '  updatedAt: String\n'

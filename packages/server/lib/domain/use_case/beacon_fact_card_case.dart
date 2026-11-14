@@ -428,9 +428,7 @@ final class BeaconFactCardCase extends UseCaseBase {
         ? await _facts.loadOriginRef(factCardId: factCardId, beaconId: beaconId)
         : null;
     if (ref == null ||
-        ref.status == BeaconFactCardStatusBits.removed ||
-        (ref.visibility != BeaconFactCardVisibilityBits.public &&
-            !access.canUseRoom)) {
+        !access.canReadFact(status: ref.status, visibility: ref.visibility)) {
       throw const FactCopySourceUnavailableException();
     }
     final originId = ref.originFactCardId;
@@ -514,6 +512,7 @@ final class BeaconFactCardCase extends UseCaseBase {
     required String? requiredSourceBeaconId,
     required Map<String, BeaconFactRoomAccess> accessByBeacon,
   }) async {
+    // Checked before the access load: a removed source costs no query.
     if (source.status == BeaconFactCardStatusBits.removed) return false;
     if (requiredSourceBeaconId != null &&
         source.beaconId != requiredSourceBeaconId) {
@@ -522,10 +521,10 @@ final class BeaconFactCardCase extends UseCaseBase {
     if (source.beaconId == destinationBeaconId) return false;
     final access = accessByBeacon[source.beaconId] ??= await _facts
         .loadRoomAccess(beaconId: source.beaconId, userId: actorUserId);
-    if (!access.exists) return false;
-    return source.visibility == BeaconFactCardVisibilityBits.public
-        ? access.canReadContent
-        : access.canUseRoom;
+    return access.canReadFact(
+      status: source.status,
+      visibility: source.visibility,
+    );
   }
 
   /// R2: the image id of an image entry with a valid id whose row still
@@ -949,6 +948,7 @@ final class BeaconFactCardCase extends UseCaseBase {
     }
     final rows = await _facts.listForBeacon(
       beaconId: beaconId,
+      viewerId: userId,
       includeRoomOnly: access.canUseRoom,
     );
     final attachmentsByFactId = await _facts.headAttachmentsJsonByFactIds([
@@ -975,6 +975,7 @@ final class BeaconFactCardCase extends UseCaseBase {
           'otherEditorCount': e.otherEditorCount,
           'historyTruncated': e.historyTruncated,
           'originBeaconKind': e.originBeaconKind,
+          'savedByMe': e.savedByMe,
         },
     ];
   }

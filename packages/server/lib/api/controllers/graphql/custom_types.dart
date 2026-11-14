@@ -750,6 +750,7 @@ final gqlTypeBeaconFactCardRow = GraphQLObjectType('BeaconFactCardRow', null)
     field('otherEditorCount', graphQLInt.nonNullable()),
     field('historyTruncated', graphQLBoolean.nonNullable()),
     field('originBeaconKind', graphQLInt),
+    field('savedByMe', graphQLBoolean.nonNullable()),
   ]);
 
 final gqlTypeBeaconFactCardOriginResult =

@@ -34,9 +34,10 @@ abstract class BeaconFactCardRepositoryPort {
   });
 
   /// Non-removed facts with pinner / last editor titles joined; room-only
-  /// facts only when [includeRoomOnly].
+  /// facts only when [includeRoomOnly]. `savedByMe` is for [viewerId].
   Future<List<BeaconFactCardEntity>> listForBeacon({
     required String beaconId,
+    required String viewerId,
     required bool includeRoomOnly,
   });
 

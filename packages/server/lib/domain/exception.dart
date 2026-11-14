@@ -287,6 +287,15 @@ final class FactCopySourceUnavailableException extends ExceptionBase {
       );
 }
 
+/// The user already keeps the maximum number of saved facts (plan §5.4).
+final class SavedFactLimitException extends ExceptionBase {
+  const SavedFactLimitException({String? description})
+    : super(
+        code: const BeaconExceptionCodes(BeaconExceptionCode.savedFactLimit),
+        description: description ?? 'Too many saved facts',
+      );
+}
+
 /// Source message already has a non-removed fact card (race-safe guard).
 final class BeaconFactCardAlreadyPinnedException extends ExceptionBase {
   const BeaconFactCardAlreadyPinnedException({

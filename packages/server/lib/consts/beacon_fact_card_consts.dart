@@ -37,3 +37,6 @@ const kMaxFactCopyImagesPerCall = 40;
 
 /// Most Requests `BeaconFactCopyDestinations` returns.
 const kMaxFactCopyDestinations = 100;
+
+/// Most saved facts one user keeps (plan D20).
+const kSavedFactCap = 200;

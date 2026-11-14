@@ -125,6 +125,7 @@ enum BeaconExceptionCode {
   postLifetimeExtend, // 1350
   postCloseForbidden, // 1351
   factCopySourceUnavailable, // 1352
+  savedFactLimit, // 1353
 }
 
 class BeaconExceptionCodes extends ExceptionCodes {
