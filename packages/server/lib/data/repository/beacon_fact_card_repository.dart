@@ -616,9 +616,12 @@ WHERE f.id = $1::text AND f.beacon_id = $2::text
           r'''
 SELECT b.id, b.kind::integer AS kind,
        CASE WHEN d.is_draft AND b.kind = 1
-            THEN left(b.description, 120) ELSE b.title END AS title,
+            THEN left(b.description, 120)
+            WHEN b.kind = 1 THEN left(COALESCE(m.body, ''), 120)
+            ELSE b.title END AS title,
        d.is_draft, b.expires_at
 FROM public.beacon b
+LEFT JOIN public.beacon_room_message m ON m.id = b.post_root_message_id
 CROSS JOIN LATERAL (
   SELECT b.status = 3
     OR (b.kind = 1 AND b.status = 0 AND b.post_root_message_id IS NULL)
@@ -631,6 +634,7 @@ WHERE b.id <> $2::text
     )
     OR (
       NOT d.is_draft
+      AND NOT public.block_hides(b.user_id, $1::text)
       AND (
         b.kind = 0
         OR (b.kind = 1 AND (b.expires_at IS NULL OR b.expires_at > now()))

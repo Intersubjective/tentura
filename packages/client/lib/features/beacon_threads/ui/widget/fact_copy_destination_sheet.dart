@@ -86,7 +86,10 @@ class _FactCopyDestinationSheetState extends State<_FactCopyDestinationSheet> {
             if (!page.mounted) return;
             unawaited(
               page.router.root.navigatePath(
-                '$kPathBeaconView/${destination.id}',
+                destination.isDraft
+                    ? '${destination.kind == BeaconKind.post.value ? kPathPostNew : kPathBeaconNew}'
+                          '?$kQueryBeaconDraftId=${destination.id}'
+                    : '$kPathBeaconView/${destination.id}',
               ),
             );
           },

@@ -20,6 +20,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:logging/logging.dart';
 
+import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/exception/generic_exception.dart';
@@ -337,6 +338,99 @@ void main() {
     });
   });
 
+  group('«Open» on the copied snackbar goes to the right screen for the '
+      'destination kind and state', () {
+    BeaconFactCopyDestination dest(
+      String id, {
+      required int kind,
+      required bool draft,
+    }) => (
+      id: id,
+      kind: kind,
+      title: 'Dest $id',
+      isDraft: draft,
+      expiresAt: null,
+    );
+
+    Future<Uri> openCopiedDestination(
+      WidgetTester tester,
+      BeaconFactCopyDestination destination,
+    ) async {
+      final beaconCreate = BeaconCreateRoute.page;
+      final postCreate = PostCreateRoute.page;
+      addTearDown(() {
+        BeaconCreateRoute.page = beaconCreate;
+        PostCreateRoute.page = postCreate;
+      });
+      // The editors are not under test: only where «Open» leads.
+      BeaconCreateRoute.page = PageInfo(
+        BeaconCreateRoute.name,
+        builder: (_) => const Scaffold(body: Text('beacon-editor')),
+      );
+      PostCreateRoute.page = PageInfo(
+        PostCreateRoute.name,
+        builder: (_) => const Scaffold(body: Text('post-editor')),
+      );
+      final repo = _CopyRepo(rows: [destination]);
+      _registerLogger();
+      registerFactRepository(repo);
+      final cubit = await _roomCubit();
+      final router = await pumpOriginRouter(
+        tester,
+        openCopy: (ctx) => unawaited(
+          showFactActionsSheet(ctx, cubit: cubit, fact: _fact()),
+        ),
+      );
+      await tester.tap(find.text('open-copy'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(kUseInAnotherRequest));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(destination.title));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(SnackBarAction, kOpen));
+      await tester.pumpAndSettle();
+      return routerLocation(router);
+    }
+
+    testWidgets('a draft Request opens its editor with the draft id', (
+      tester,
+    ) async {
+      final uri = await openCopiedDestination(
+        tester,
+        dest('Bdraftreq001', kind: 0, draft: true),
+      );
+      expect(uri.path, '/beacon/new');
+      expect(uri.queryParameters['draft_id'], 'Bdraftreq001');
+    });
+
+    testWidgets('a draft Post opens its editor with the draft id', (
+      tester,
+    ) async {
+      final uri = await openCopiedDestination(
+        tester,
+        dest('Bdraftpost01', kind: 1, draft: true),
+      );
+      expect(uri.path, '/post/new');
+      expect(uri.queryParameters['draft_id'], 'Bdraftpost01');
+    });
+
+    testWidgets('a published Request opens the Request screen', (tester) async {
+      final uri = await openCopiedDestination(
+        tester,
+        dest('Bpubreq00001', kind: 0, draft: false),
+      );
+      expect(uri.path, '/beacon/view/Bpubreq00001');
+    });
+
+    testWidgets('a published Post opens the Request screen', (tester) async {
+      final uri = await openCopiedDestination(
+        tester,
+        dest('Bpubpost0001', kind: 1, draft: false),
+      );
+      expect(uri.path, '/beacon/view/Bpubpost0001');
+    });
+  });
+
   group('copy failures (server error -> repository mapping -> snackbar)', () {
     // Each case is a GraphQL error on BeaconFactCardCopy, as the server
     // sends it, mapped by the real repository. «allowed» are the app's
@@ -612,6 +706,51 @@ void main() {
         findsOneWidget,
       );
     });
+
+    for (final (title, id, path) in [
+      ('Wire draft request', 'Bwire000003', '/beacon/new'),
+      ('Wire draft post', 'Bwire000004', '/post/new'),
+    ]) {
+      testWidgets('«Open» after copying into «$title» (isDraft and kind from '
+          'the GraphQL response) opens its draft editor', (tester) async {
+        final beaconCreate = BeaconCreateRoute.page;
+        final postCreate = PostCreateRoute.page;
+        addTearDown(() {
+          BeaconCreateRoute.page = beaconCreate;
+          PostCreateRoute.page = postCreate;
+        });
+        BeaconCreateRoute.page = PageInfo(
+          BeaconCreateRoute.name,
+          builder: (_) => const Scaffold(body: Text('beacon-editor')),
+        );
+        PostCreateRoute.page = PageInfo(
+          PostCreateRoute.name,
+          builder: (_) => const Scaffold(body: Text('post-editor')),
+        );
+        final wire = await _CopyWire.start(tester);
+        _registerLogger();
+        registerFactRepository(wire.repository);
+        final cubit = await _roomCubit();
+        final router = await pumpOriginRouter(
+          tester,
+          openCopy: (ctx) => unawaited(
+            showFactActionsSheet(ctx, cubit: cubit, fact: _fact()),
+          ),
+        );
+        await tester.tap(find.text('open-copy'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text(kUseInAnotherRequest));
+        await pumpRealAsync(tester);
+        await tester.tap(find.text(title));
+        await pumpRealAsync(tester);
+        await tester.tap(find.widgetWithText(SnackBarAction, kOpen));
+        await tester.pumpAndSettle();
+
+        final uri = routerLocation(router);
+        expect(uri.path, path);
+        expect(uri.queryParameters['draft_id'], id);
+      });
+    }
   });
 }
 
@@ -685,16 +824,18 @@ final class _CopyWire {
               'BeaconFactCopyDestinations' => {
                 '__typename': 'query_root',
                 'BeaconFactCopyDestinations': [
-                  for (final (id, title) in [
-                    ('Bwire000001', 'Wire garden day'),
-                    ('Bwire000002', 'Wire tool shed'),
+                  for (final (id, title, kind, draft) in [
+                    ('Bwire000001', 'Wire garden day', 0, false),
+                    ('Bwire000002', 'Wire tool shed', 0, false),
+                    ('Bwire000003', 'Wire draft request', 0, true),
+                    ('Bwire000004', 'Wire draft post', 1, true),
                   ])
                     {
                       '__typename': 'v2_BeaconFactCopyDestinationRow',
                       'id': id,
-                      'kind': 0,
+                      'kind': kind,
                       'title': title,
-                      'isDraft': false,
+                      'isDraft': draft,
                       'expiresAt': null,
                     },
                 ],
