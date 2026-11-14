@@ -4,12 +4,15 @@ import 'package:flutter/material.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/post_people.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_cubit.dart';
+import 'package:tentura/features/beacon_threads/ui/widget/fact_actions_sheet.dart';
+import 'package:tentura/features/beacon_view/ui/widget/beacon_pinned_fact_card.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_state.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
@@ -70,8 +73,12 @@ class PostInfoSheet extends StatelessWidget {
                 return BlocBuilder<RoomCubit, RoomState>(
                   bloc: room,
                   buildWhen: (p, c) => p.participants != c.participants,
-                  builder: (context, roomState) =>
-                      _body(context, state, roomState.participants),
+                  builder: (context, roomState) => _body(
+                    context,
+                    state,
+                    roomState.participants,
+                    room: room,
+                  ),
                 );
               },
             ),
@@ -80,8 +87,9 @@ class PostInfoSheet extends StatelessWidget {
   Widget _body(
     BuildContext context,
     PostViewState state,
-    List<BeaconParticipant> participants,
-  ) {
+    List<BeaconParticipant> participants, {
+    RoomCubit? room,
+  }) {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
     final scheme = Theme.of(context).colorScheme;
@@ -190,6 +198,15 @@ class PostInfoSheet extends StatelessWidget {
               _Fact(icon: Icons.schedule, text: lifetimeLine),
             if (muteLine != null)
               _Fact(icon: Icons.notifications_off_outlined, text: muteLine),
+            if (room != null)
+              BlocBuilder<RoomCubit, RoomState>(
+                bloc: room,
+                buildWhen: (p, c) => p.factCards != c.factCards,
+                builder: (context, roomState) => _Facts(
+                  facts: roomState.factCards,
+                  room: room,
+                ),
+              ),
             SizedBox(height: tt.rowGap),
             Padding(
               padding: EdgeInsets.symmetric(horizontal: tt.screenHPadding),
@@ -269,6 +286,60 @@ class PostInfoSheet extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// The Post's facts (plan D17): the Post's only fact list. Hidden when there
+/// are none; a tap opens the Post-mode fact actions.
+class _Facts extends StatelessWidget {
+  const _Facts({required this.facts, required this.room});
+
+  final List<BeaconFactCard> facts;
+  final RoomCubit room;
+
+  @override
+  Widget build(BuildContext context) {
+    if (facts.isEmpty) return const SizedBox.shrink();
+    final l10n = L10n.of(context)!;
+    final tt = context.tt;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Divider(height: 1),
+        Padding(
+          padding: EdgeInsets.fromLTRB(
+            tt.screenHPadding,
+            tt.rowGap,
+            tt.screenHPadding,
+            tt.tightGap,
+          ),
+          child: Text(
+            l10n.postInfoFactsHeading,
+            style: TenturaText.titleSmall(tt.text),
+          ),
+        ),
+        for (final fact in facts)
+          Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: tt.screenHPadding,
+              vertical: tt.tightGap,
+            ),
+            child: BeaconPinnedFactCard(
+              fact: fact,
+              l10n: l10n,
+              onManage: () => unawaited(
+                showFactActionsSheet(
+                  context,
+                  cubit: room,
+                  fact: fact,
+                  isPost: true,
+                ),
+              ),
+            ),
+          ),
+        SizedBox(height: tt.rowGap),
+      ],
     );
   }
 }

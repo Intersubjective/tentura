@@ -7726,6 +7726,7 @@
   "postInfoActionPin": "Pin",
   "postInfoActionUnpin": "Unpin",
   "postInfoActionField": "On field",
+  "postInfoFactsHeading": "Facts",
   "postCreateForwardingOnHint": "Any participant can forward it further. Once sent, this can't be turned off.",
   "postCreateForwardingOffHint": "Only the people you invite take part. You can allow forwarding later.",
   "beaconHudStepLabel": "NEXT STEP",

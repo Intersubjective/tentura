@@ -6114,6 +6114,7 @@
   "postInfoActionPin": "Закрепить",
   "postInfoActionUnpin": "Открепить",
   "postInfoActionField": "На поле",
+  "postInfoFactsHeading": "Факты",
   "postCreateForwardingOnHint": "Любой участник сможет переслать дальше. После отправки выключить будет нельзя.",
   "postCreateForwardingOffHint": "Участвуют только те, кого вы позвали. Разрешить пересылку можно будет позже.",
   "beaconHudStepLabel": "СЛЕДУЮЩИЙ ШАГ",
