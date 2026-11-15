@@ -565,9 +565,13 @@ final class BeaconFactCardCase extends UseCaseBase {
     final access = accessByBeacon[source.beaconId] ??= await _facts
         .loadRoomAccess(beaconId: source.beaconId, userId: actorUserId);
     return access.canReadFact(
-      status: source.status,
-      visibility: source.visibility,
-    );
+          status: source.status,
+          visibility: source.visibility,
+        ) ||
+        await _facts.isUnblockedPinnerOfPublicFact(
+          factCardId: source.factCardId,
+          userId: actorUserId,
+        );
   }
 
   /// R2: the image id of an image entry with a valid id whose row still
