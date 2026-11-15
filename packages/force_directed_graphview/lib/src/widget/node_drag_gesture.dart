@@ -73,8 +73,8 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
         ..unregisterGestureCameraSync(_syncCamera);
       _registeredAbortController = nextController;
       nextController
-        ..registerGestureLifecycleAbort(_abortGestures)
-        ..registerGestureCameraSync(_syncCamera);
+        ..gestureLifecycleAbort = _abortGestures
+        ..gestureCameraSync = _syncCamera;
     }
     _controller = nextController;
   }

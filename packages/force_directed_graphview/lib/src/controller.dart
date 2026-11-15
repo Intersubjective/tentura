@@ -76,7 +76,8 @@ class GraphController<N, E> with ChangeNotifier {
   EdgeInsets _boundaryMargin = EdgeInsets.zero;
   double _maxScale = 2;
 
-  /// Resolves where a node that is new to the layout should start its transition.
+  /// Resolves where a node that is new to the layout should start its
+  /// transition.
   /// Set by the owner (e.g. "the node the user just expanded"). When the field
   /// is null, or the callback returns null, the new node appears directly at
   /// its final position.
@@ -111,7 +112,7 @@ class GraphController<N, E> with ChangeNotifier {
     for (final size in [
       _currentSize,
       _viewportPixelSize,
-      _lastLayoutConstraints
+      _lastLayoutConstraints,
     ]) {
       if (size != null && size.isFinite && !size.isEmpty) {
         return size;
@@ -219,7 +220,8 @@ class GraphController<N, E> with ChangeNotifier {
     );
   }
 
-  /// Like [getPositionForId] but returns null when the node has no layout position.
+  /// Like [getPositionForId] but returns null when the node has no layout
+  /// position.
   Offset? getPositionOrNullForId(GraphNodeId id) {
     final point = _scene.resolvePosition(id);
     if (point == null) {
@@ -580,9 +582,9 @@ class GraphController<N, E> with ChangeNotifier {
     final centre = usable.center;
 
     controller.value = Matrix4.identity()
-      ..translate(centre.dx, centre.dy)
-      ..scale(matrixScale)
-      ..translate(-position.dx, -position.dy);
+      ..translateByDouble(centre.dx, centre.dy, 0, 1)
+      ..scaleByDouble(matrixScale, matrixScale, matrixScale, 1)
+      ..translateByDouble(-position.dx, -position.dy, 0, 1);
     _syncActualViewportFromPixelSize();
   }
 
@@ -616,9 +618,9 @@ class GraphController<N, E> with ChangeNotifier {
     final center = viewport.center;
 
     controller.value = oldMatrix
-      ..translate(center.dx, center.dy)
-      ..scale(effectiveFactor)
-      ..translate(-center.dx, -center.dy);
+      ..translateByDouble(center.dx, center.dy, 0, 1)
+      ..scaleByDouble(effectiveFactor, effectiveFactor, effectiveFactor, 1)
+      ..translateByDouble(-center.dx, -center.dy, 0, 1);
     _syncActualViewportFromPixelSize();
   }
 
@@ -659,9 +661,9 @@ class GraphController<N, E> with ChangeNotifier {
     final center = padded.center;
     final usableCentre = usable.center;
     transformation.value = Matrix4.identity()
-      ..translate(usableCentre.dx, usableCentre.dy)
-      ..scale(scale)
-      ..translate(-center.dx, -center.dy);
+      ..translateByDouble(usableCentre.dx, usableCentre.dy, 0, 1)
+      ..scaleByDouble(scale, scale, scale, 1)
+      ..translateByDouble(-center.dx, -center.dy, 0, 1);
     _syncActualViewportFromPixelSize();
   }
 
@@ -1085,7 +1087,7 @@ class GraphController<N, E> with ChangeNotifier {
       if (delayUs + durationUs > end) end = delayUs + durationUs;
       final t = durationUs <= 0
           ? 1.0
-          : ((elapsedUs - delayUs) / durationUs).clamp(0.0, 1.0).toDouble();
+          : ((elapsedUs - delayUs) / durationUs).clamp(0.0, 1.0);
       final eased = _transitionCurve.transform(t);
       final start =
           from[entry.key] ?? _spawnScenePoint(entry.key) ?? entry.value;
@@ -1157,6 +1159,7 @@ class GraphController<N, E> with ChangeNotifier {
     _actualViewport = Rect.fromPoints(topLeft, bottomRight);
   }
 
+  /// Current camera scale; throws if not attached to a view.
   @visibleForTesting
   double get currentScale {
     final transformation = _transformationController;
@@ -1167,7 +1170,7 @@ class GraphController<N, E> with ChangeNotifier {
   }
 
   /// Wired by [NodeDragGesture]; not for app callers.
-  void registerGestureLifecycleAbort(VoidCallback abort) {
+  set gestureLifecycleAbort(VoidCallback abort) {
     _gestureAbortCallback = abort;
   }
 
@@ -1182,7 +1185,7 @@ class GraphController<N, E> with ChangeNotifier {
   ///
   /// [sync] runs whenever the camera moves while a node drag owns the
   /// pointer, so the drag can re-project the grab point.
-  void registerGestureCameraSync(VoidCallback sync) {
+  set gestureCameraSync(VoidCallback sync) {
     _gestureCameraSyncCallback = sync;
   }
 
@@ -1386,7 +1389,7 @@ class GraphController<N, E> with ChangeNotifier {
   /// Pausing transitions holds back scene publications, not the camera gate.
   void _notify({required bool heldWhilePaused}) {
     if (_disposed || (heldWhilePaused && _transitionsPaused)) return;
-    final SchedulerBinding? binding = _schedulerBindingOrNull();
+    final binding = _schedulerBindingOrNull();
     if (binding != null) {
       final phase = binding.schedulerPhase;
       if (phase == SchedulerPhase.persistentCallbacks ||
