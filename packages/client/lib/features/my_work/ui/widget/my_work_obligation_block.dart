@@ -25,11 +25,11 @@ const kMyWorkVisibleObligationGroups = 3;
 Future<bool> closeOfferObligationCard(
   BuildContext context, {
   required String beaconId,
-  required String receiptId,
+  required Iterable<String> receiptIds,
 }) async {
   final cubit = context.read<MyWorkCubit>();
   try {
-    await cubit.dismissObligation(beaconId, receiptId);
+    await cubit.dismissObligation(beaconId, receiptIds);
     return true;
   } catch (e, st) {
     if (context.mounted) {
@@ -317,7 +317,7 @@ class MyWorkObligationBlock extends StatelessWidget {
       closeOfferObligationCard(
         context,
         beaconId: vm.beaconId,
-        receiptId: group.primary.id,
+        receiptIds: group.receiptIds,
       ),
     );
   }

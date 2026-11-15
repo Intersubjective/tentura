@@ -563,12 +563,19 @@ class MyWorkCubit extends Cubit<MyWorkState> {
   }
 
   /// Closes the card of a help-offer obligation that cannot be answered any
-  /// more. The server settles the receipt; the card then adopts its answer.
+  /// more. The server settles each of [receiptIds] (every live receipt of the
+  /// helper), and the row leaves in one update; the card then adopts its answer.
   /// A refusal leaves the obligation where it is and rethrows for the caller
   /// to say why.
-  Future<void> dismissObligation(String beaconId, String receiptId) async {
-    if (beaconId.isEmpty || receiptId.isEmpty) return;
-    await _myWorkCase.dismissObligation(receiptId);
+  Future<void> dismissObligation(
+    String beaconId,
+    Iterable<String> receiptIds,
+  ) async {
+    final ids = receiptIds.where((id) => id.isNotEmpty).toSet();
+    if (beaconId.isEmpty || ids.isEmpty) return;
+    for (final id in ids) {
+      await _myWorkCase.dismissObligation(id);
+    }
     if (isClosed) return;
     // Settled: the row goes now, whatever the re-read below manages to say.
     final current = state.attentionByBeacon[beaconId];
@@ -580,7 +587,7 @@ class MyWorkCubit extends Cubit<MyWorkState> {
             beaconId: current.copyWith(
               liveObligations: [
                 for (final r in current.liveObligations)
-                  if (r.id != receiptId) r,
+                  if (!ids.contains(r.id)) r,
               ],
             ),
           },

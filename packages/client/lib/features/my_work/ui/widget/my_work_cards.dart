@@ -406,22 +406,22 @@ Widget? _composeMyWorkFooter(
           suppressReviewHelpOffersFallback: suppressReviewHelpOffersFallback,
           onReviewHelpOffers: () => _openBeaconReviewHelpOffers(context, vm),
           onRespondHelpOffer: (offererId) {
-            final receiptId = [
+            final receiptIds = [
               for (final g in groupMyWorkObligations(obligations))
-                if (g.offererId == offererId) g.primary.id,
-            ].firstOrNull;
+                if (g.offererId == offererId) ...g.receiptIds,
+            ];
             unawaited(
               showHelpOfferTileSheetFromDesk(
                 context: context,
                 beaconId: vm.beaconId,
                 offerUserId: offererId,
                 beacon: vm.beacon,
-                onCloseCard: receiptId == null
+                onCloseCard: receiptIds.isEmpty
                     ? null
                     : () => closeOfferObligationCard(
                         context,
                         beaconId: vm.beaconId,
-                        receiptId: receiptId,
+                        receiptIds: receiptIds,
                       ),
               ),
             );
