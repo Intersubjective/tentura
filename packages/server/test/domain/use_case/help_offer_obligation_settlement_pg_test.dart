@@ -227,7 +227,9 @@ WHERE outbox.occurrence_id = occ.id
   AND outbox.beacon_id = '$_beaconId'
   AND outbox.account_id = '$_authorId'
 ''');
-      expect(await needsYou(_authorId), 1);
+      // Read the row, not the summary: reading attention settles a stale
+      // obligation of an admitted offer itself, before this path could.
+      expect(await _helpOfferSettlementKind(writer, _helperId), isNull);
 
       await harness.coordinationCase.removeFromRoom(
         beaconId: _beaconId,
@@ -366,7 +368,9 @@ WHERE outbox.occurrence_id = occ.id
   AND outbox.beacon_id = '$_beaconId'
   AND outbox.account_id = '$_authorId'
 ''');
-      expect(await needsYou(_authorId), 1);
+      // Read the row, not the summary: reading attention settles a stale
+      // obligation of an admitted offer itself, before this path could.
+      expect(await _helpOfferSettlementKind(writer, _helperId), isNull);
 
       await harness.coordinationCase.releaseCommitment(
         beaconId: _beaconId,

@@ -15,6 +15,7 @@ import 'package:tentura_server/domain/port/attention_query_port.dart';
 import 'package:tentura_server/domain/port/attention_settlement_port.dart';
 
 import '../database/query_row_timestamp.dart';
+import '../database/sql/help_offer_settlement_sql.dart';
 import '../database/tentura_db.dart';
 import 'attention_dismissible_sql.dart';
 import 'field_open_sql.dart';
@@ -28,6 +29,18 @@ class AttentionRepository implements AttentionQueryPort {
   static const _authorizedReceiptJoin = '''
 FROM public.visible_attention_receipts(\$1) visible
 JOIN public.notification_outbox receipt ON receipt.id = visible.receipt_id''';
+
+  /// Settles the author's help-offer obligations the offer no longer backs
+  /// (already admitted, withdrawn or gone) before they are counted, so a
+  /// stale row never reaches My Work or the summary. Idempotent.
+  Future<void> _settleStaleHelpOfferObligations(String accountId) =>
+      _database.customUpdate(
+        HelpOfferSettlementSql.settleStale(
+          accountScope: r'outbox.account_id = $1',
+        ),
+        variables: [Variable<String>(accountId)],
+        updateKind: UpdateKind.update,
+      );
 
   @override
   Future<Set<String>> unreadForBeacons({
@@ -80,6 +93,7 @@ FROM public.visible_attention_receipts($1, true) visible''',
     if (beaconIds.isEmpty) {
       return const [];
     }
+    await _settleStaleHelpOfferObligations(accountId);
     final ids = beaconIds.toList(growable: false);
     final placeholders = List.generate(
       ids.length,
@@ -238,6 +252,7 @@ ORDER BY beacon_id, created_at DESC, id DESC
   Future<AttentionSurfaceSummary> surfaceSummary({
     required String accountId,
   }) async {
+    await _settleStaleHelpOfferObligations(accountId);
     final row = await _database
         .customSelect(
           '''

@@ -3,6 +3,7 @@ import 'package:injectable/injectable.dart';
 import 'package:tentura_server/domain/attention/attention_reconciliation_models.dart';
 import 'package:tentura_server/domain/port/attention_reconciliation_port.dart';
 
+import '../database/sql/help_offer_settlement_sql.dart';
 import '../database/tentura_db.dart';
 
 /// U12 / D15 — the SQL side of "Reset counters".
@@ -22,77 +23,20 @@ class AttentionReconciliationRepository implements AttentionReconciliationPort {
 
   final TenturaDb _database;
 
-  static const _helpOfferSubmitted = 'helpOfferSubmitted';
-
-  /// `beacon.status` values that end every question a Request could ask:
-  /// cancelled, deleted, closed.
-  static const _terminalBeaconStatuses = '(1, 2, 6)';
-
-  /// `beacon_commitment_event.kind` values that end a help offer without the
-  /// author answering it: withdrawnByHelper, removedFromChat, blockedCleanup.
-  static const _terminalCommitmentKinds = '(3, 5, 7)';
-
-  /// `beacon_commitment_event.kind` values that mean the author already
-  /// answered: acknowledged, acknowledgementSoftened, releasedByAuthor.
-  static const _answeredCommitmentKinds = '(1, 2, 4)';
+  static const _helpOfferSubmitted = HelpOfferSettlementSql.helpOfferSubmitted;
+  static const _terminalBeaconStatuses =
+      HelpOfferSettlementSql.terminalBeaconStatuses;
+  static const _terminalCommitmentKinds =
+      HelpOfferSettlementSql.terminalCommitmentKinds;
+  static const _answeredCommitmentKinds =
+      HelpOfferSettlementSql.answeredCommitmentKinds;
 
   @override
   Future<int> settleObsoleteHelpOfferObligations({
     required String accountId,
   }) => _database.customUpdate(
-    '''
-WITH live AS (
-  SELECT outbox.id, outbox.beacon_id, outbox.target_entity_id
-  FROM public.notification_outbox AS outbox
-  JOIN public.attention_occurrence AS occ ON occ.id = outbox.occurrence_id
-  WHERE outbox.account_id = \$1
-    AND occ.event_type = \$2
-    AND outbox.requires_action
-    AND outbox.settlement_kind IS NULL
-    AND outbox.logical_task_key IS NOT NULL
-),
-judged AS (
-  SELECT
-    live.id,
-    CASE
-      WHEN EXISTS (
-        SELECT 1 FROM public.beacon_commitment_event AS ce
-        WHERE ce.beacon_id = live.beacon_id
-          AND ce.user_id = live.target_entity_id
-          AND ce.kind IN $_terminalCommitmentKinds
-      ) THEN 'superseded'
-      WHEN offer.user_id IS NULL THEN 'superseded'
-      WHEN offer.withdraw_reason IS NOT NULL THEN 'superseded'
-      WHEN b.status IN $_terminalBeaconStatuses THEN 'superseded'
-      WHEN EXISTS (
-        SELECT 1 FROM public.beacon_commitment_event AS ce
-        WHERE ce.beacon_id = live.beacon_id
-          AND ce.user_id = live.target_entity_id
-          AND ce.kind IN $_answeredCommitmentKinds
-      ) THEN 'resolved'
-      WHEN offer.status <> 0 THEN 'resolved'
-      ELSE NULL
-    END AS settlement
-  FROM live
-  JOIN public.beacon AS b ON b.id = live.beacon_id
-  LEFT JOIN public.beacon_help_offer AS offer
-    ON offer.beacon_id = live.beacon_id
-   AND offer.user_id = live.target_entity_id
-)
-UPDATE public.notification_outbox AS outbox
-SET
-  settlement_kind = judged.settlement,
-  settled_at = now(),
-  settled_by_user_id = NULL,
-  settled_by_occurrence_id = NULL
-FROM judged
-WHERE outbox.id = judged.id
-  AND judged.settlement IS NOT NULL
-''',
-    variables: [
-      Variable<String>(accountId),
-      const Variable<String>(_helpOfferSubmitted),
-    ],
+    HelpOfferSettlementSql.settleStale(accountScope: r'outbox.account_id = $1'),
+    variables: [Variable<String>(accountId)],
     updateKind: UpdateKind.update,
   );
 
