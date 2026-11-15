@@ -318,6 +318,9 @@ for target in "${TARGETS[@]}"; do
       # Asserts a 375x667 app viewport; headless Chrome's toolbar takes 139 px.
       integration_test/constellation_trust_chain_edges_phone_test.dart)
         browser_dimension="375x806" ;;
+      # Asserts a 375x667 app viewport (phone fact picker flows).
+      integration_test/fact_pick_from_available_test.dart)
+        browser_dimension="375x806" ;;
     esac
   fi
   log "=== flutter drive: $target (browser $browser_dimension)"
