@@ -70,8 +70,12 @@ void main() {
         padding: 0,
       );
       await tester.pump();
-      // Field minScale is 0.1; the canvas is larger than the viewport at that zoom.
-      expect(graph.cameraScale, closeTo(0.1, 0.02));
+      // Fitting the whole canvas into the viewport (above the Field's 0.02
+      // minScale): the canvas is far larger than the viewport at that zoom.
+      expect(
+        graph.cameraScale,
+        closeTo(viewport.height / kConstellationCanvasExtent, 0.005),
+      );
       await cubit.close();
     });
 

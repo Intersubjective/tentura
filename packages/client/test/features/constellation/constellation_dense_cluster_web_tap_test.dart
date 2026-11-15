@@ -30,7 +30,8 @@ const _phone = Size(375, 667);
 const _devicePixelRatio = 2.0;
 
 /// Screen pixels per anchor unit on the phone's zoom floor.
-const _pxPerUnit = 17.0;
+// Screen px per Field unit at the Field minimum zoom (170 px per unit at 0.02).
+const _pxPerUnit = 3.4;
 
 /// Dense clusters shaped like the one QA found failing: seven dots around a
 /// point, offsets in screen px at the zoom floor.
@@ -68,8 +69,8 @@ ConstellationField _clusterField(List<Offset> offsetsPx) {
   ConstellationAnchor pin(String id, Offset px) => ConstellationAnchor(
     target: ConstellationAnchorTarget.person(id),
     position: ConstellationAnchorPosition(
-      xUnits: -2 + px.dx / _pxPerUnit,
-      yUnits: 2 + px.dy / _pxPerUnit,
+      xUnits: -10 + px.dx / _pxPerUnit,
+      yUnits: 10 + px.dy / _pxPerUnit,
       coordinateSpaceVersion: 1,
     ),
     revision: projection.revision,

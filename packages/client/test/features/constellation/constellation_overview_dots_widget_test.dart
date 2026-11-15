@@ -227,6 +227,21 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
     await tester.pumpAndSettle();
 
+    // Frame the overlapping pair at scale 0.4 (the initial fit no longer sits
+    // on the old minimum-zoom clamp, so zooming about the viewport centre
+    // would leave the pair off screen).
+    final graph = cubit.graphController;
+    final pair = graph.renderSnapshot.resolvePosition('fp:p0')!;
+    final view = graph.viewportSize!;
+    graph.fitToRect(
+      Rect.fromCenter(
+        center: Offset(pair.x, pair.y),
+        width: view.width / 0.4,
+        height: view.height / 0.4,
+      ),
+      padding: 0,
+    );
+    await tester.pump();
     for (var i = 0; i < 60; i++) {
       final scale = cubit.graphController.cameraScale;
       if (scale >= 0.36 && scale <= 0.44) {

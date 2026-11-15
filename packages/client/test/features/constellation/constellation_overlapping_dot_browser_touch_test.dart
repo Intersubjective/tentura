@@ -17,6 +17,7 @@ import 'package:tentura/features/constellation/ui/utils/constellation_tap_resolv
 import 'package:tentura/features/constellation/ui/widget/constellation_node_ring_layer.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_viewport_overlay.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
+import 'package:tentura_root/domain/constellation/constellation_geometry.dart';
 
 import 'fixtures/constellation_reference_fixture.dart';
 import 'fixtures/synthetic_field.dart';
@@ -38,6 +39,9 @@ const _offsets = <String, Offset>{
   'p8': Offset(100, 0), // lone person
 };
 
+// Screen px per Field unit at the Field's minimum zoom (0.02).
+const _minZoomPxPerUnit = kConstellationRingUnitPixels * 0.02;
+
 ConstellationField _field() {
   final base = syntheticConstellationField(size: _offsets.length);
   final revision = base.anchorProjection!.revision;
@@ -50,8 +54,8 @@ ConstellationField _field() {
           ConstellationAnchor(
             target: ConstellationAnchorTarget.person(entry.key),
             position: ConstellationAnchorPosition(
-              xUnits: -2 + entry.value.dx / 17.0,
-              yUnits: 2 + entry.value.dy / 17.0,
+              xUnits: -10 + entry.value.dx / _minZoomPxPerUnit,
+              yUnits: 10 + entry.value.dy / _minZoomPxPerUnit,
               coordinateSpaceVersion: 1,
             ),
             revision: revision,

@@ -31,7 +31,7 @@ const _bound = kConstellationCoordinateMaxUnits;
 
 /// The lowest scale «Показать всё поле» can reach: the Field's minimum zoom.
 /// Fit-all zooms out as far as framing every node takes, down to it.
-const _fitAllFloor = 0.1;
+const _fitAllFloor = 0.02;
 
 const _viewer = Profile(id: 'bob', displayName: 'Боб');
 

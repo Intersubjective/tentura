@@ -73,6 +73,7 @@ class GraphController<N, E> with ChangeNotifier {
   Curve _transitionCurve = Curves.easeOutCubic;
   Map<GraphNodeId, LayoutTransitionStage> _transitionStages = const {};
   double _minScale = 0.5;
+  EdgeInsets _boundaryMargin = EdgeInsets.zero;
   double _maxScale = 2;
 
   /// Resolves where a node that is new to the layout should start its transition.
@@ -1123,15 +1124,17 @@ class GraphController<N, E> with ChangeNotifier {
     return ScenePoint(x: offset.dx, y: offset.dy);
   }
 
-  /// Minimum scale [InteractiveViewer] allows with [EdgeInsets.zero] margins.
+  /// Minimum scale [InteractiveViewer] allows with the view's boundary margin.
   double _boundaryMinScale() {
     final pixel = _viewportPixelSize;
     final size = _currentSize;
     if (pixel == null || size == null || size.width <= 0 || size.height <= 0) {
       return _minScale;
     }
-    final floor =
-        math.max(pixel.width / size.width, pixel.height / size.height);
+    final floor = math.max(
+      pixel.width / (size.width + _boundaryMargin.horizontal),
+      pixel.height / (size.height + _boundaryMargin.vertical),
+    );
     return math.max(_minScale, floor);
   }
 
@@ -1274,6 +1277,7 @@ class GraphController<N, E> with ChangeNotifier {
     required Map<GraphNodeId, LayoutTransitionStage> transitionStages,
     required double minScale,
     required double maxScale,
+    required EdgeInsets boundaryMargin,
     required bool centerOnFirstLayout,
   }) async {
     if (_viewOwner != null && !identical(_viewOwner, viewOwner)) {
@@ -1288,6 +1292,7 @@ class GraphController<N, E> with ChangeNotifier {
     _transitionStages = transitionStages;
     _minScale = minScale;
     _maxScale = maxScale;
+    _boundaryMargin = boundaryMargin;
     _centerOnFirstLayout = centerOnFirstLayout;
     final previousSize = _currentSize;
     final topologyRevision = _scene.topologyRevision;

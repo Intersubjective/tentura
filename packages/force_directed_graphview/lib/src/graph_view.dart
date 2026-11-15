@@ -34,6 +34,7 @@ class GraphView<N, E> extends StatefulWidget {
     this.builder,
     this.minScale = 0.5,
     this.maxScale = 2,
+    this.boundaryMargin = EdgeInsets.zero,
     this.centerOnFirstLayout = true,
     this.layoutTransitionDuration = Duration.zero,
     this.layoutTransitionCurve = Curves.easeOutCubic,
@@ -88,6 +89,10 @@ class GraphView<N, E> extends StatefulWidget {
 
   /// The minimum scale of the [InteractiveViewer] that wraps the graph.
   final double minScale;
+
+  /// Empty space the camera may show around the canvas. Lets the view zoom out
+  /// past the point where the viewport is larger than the canvas.
+  final EdgeInsets boundaryMargin;
 
   /// The maximum scale of the [InteractiveViewer] that wraps the graph.
   final double maxScale;
@@ -217,6 +222,7 @@ class _GraphViewState<N, E> extends State<GraphView<N, E>>
       transitionStages: widget.layoutTransitionStages,
       minScale: widget.minScale,
       maxScale: widget.maxScale,
+      boundaryMargin: widget.boundaryMargin,
       centerOnFirstLayout: widget.centerOnFirstLayout,
     );
   }
@@ -285,6 +291,7 @@ class _GraphViewState<N, E> extends State<GraphView<N, E>>
         transformationController: _transformationController,
         minScale: widget.minScale,
         maxScale: widget.maxScale,
+        boundaryMargin: widget.boundaryMargin,
       ),
     );
   }
@@ -296,12 +303,14 @@ class _CameraGatedInteractiveViewer extends StatefulWidget {
     required this.transformationController,
     required this.minScale,
     required this.maxScale,
+    required this.boundaryMargin,
   });
 
   final GraphController<dynamic, dynamic> controller;
   final TransformationController transformationController;
   final double minScale;
   final double maxScale;
+  final EdgeInsets boundaryMargin;
 
   @override
   State<_CameraGatedInteractiveViewer> createState() =>
@@ -373,6 +382,7 @@ class _CameraGatedInteractiveViewerState
           transformationController: widget.transformationController,
           maxScale: widget.maxScale,
           minScale: widget.minScale,
+          boundaryMargin: widget.boundaryMargin,
           panEnabled: !_cameraGated,
           // Wheel and trackpad zoom stay live during a node drag; the drag
           // re-projects its grab point on every camera change.

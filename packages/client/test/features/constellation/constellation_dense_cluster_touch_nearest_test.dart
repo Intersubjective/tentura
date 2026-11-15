@@ -42,7 +42,13 @@ const _phone = Size(375, 667);
 const _devicePixelRatio = 2.0;
 
 /// Screen pixels per anchor unit on the phone's zoom floor.
-const _pxPerUnit = 17.0;
+// Screen px per Field unit at the Field minimum zoom (170 px per unit at 0.02).
+const _pxPerUnit = 3.4;
+
+/// The Chrome touch-adjustment model reads dot rects after integer rounding,
+/// so the cluster must sit at the same sub-pixel screen position it was
+/// designed for (the first dot at about (166.6, 324.1) on the phone).
+const _subPixelShift = Offset(-1.2, 0.1);
 
 /// Dot centres in screen px at the zoom floor, relative to the first dot.
 const _cluster = <String, Offset>{
@@ -94,8 +100,8 @@ ConstellationField _clusterField() {
   ConstellationAnchor pin(String id, Offset px) => ConstellationAnchor(
     target: ConstellationAnchorTarget.person(id),
     position: ConstellationAnchorPosition(
-      xUnits: -2 + px.dx / _pxPerUnit,
-      yUnits: 2 + px.dy / _pxPerUnit,
+      xUnits: -10 + (px.dx + _subPixelShift.dx) / _pxPerUnit,
+      yUnits: 10 + (px.dy + _subPixelShift.dy) / _pxPerUnit,
       coordinateSpaceVersion: 1,
     ),
     revision: projection.revision,

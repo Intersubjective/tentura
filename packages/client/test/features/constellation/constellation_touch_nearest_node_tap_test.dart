@@ -24,7 +24,8 @@ const _devicePixelRatio = 2.0;
 const _mouseDevicePixelRatios = [1.0, 2.0];
 
 /// Screen pixels per anchor unit on the phone's zoom floor.
-const _pxPerUnit = 17.0;
+// Screen px per Field unit at the Field minimum zoom (170 px per unit at 0.02).
+const _pxPerUnit = 3.4;
 
 const _cluster = ['p0', 'p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7'];
 
@@ -54,7 +55,7 @@ ConstellationField _clusterField(double gapPx) {
       revision: projection.revision,
       anchors: [
         for (var i = 0; i < _cluster.length; i++)
-          pin(_cluster[i], -2 + i * gapUnits, 2),
+          pin(_cluster[i], -10 + i * gapUnits, 10),
       ],
       pinnedPeers: const [],
       pinnedRequests: const [],

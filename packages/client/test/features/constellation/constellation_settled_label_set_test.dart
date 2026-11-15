@@ -60,8 +60,11 @@ void main() {
       await tester.sendEventToBinding(
         wheel.hover(Offset(size.width / 2, size.height / 2)),
       );
+      // Aim a hair above the target so float noise cannot leave the camera
+      // just under a detail threshold that the target sits exactly on.
+      final aim = target * (1 + 1e-9);
       for (var i = 0; i < 80 && (scaleNow() - target).abs() > 1e-6; i++) {
-        final factor = (target / scaleNow()).clamp(0.8, 1.25);
+        final factor = (aim / scaleNow()).clamp(0.8, 1.25);
         await tester.sendEventToBinding(
           wheel.scroll(Offset(0, -200 * math.log(factor))),
         );
@@ -127,7 +130,7 @@ void main() {
     // movement to prompt it.
     for (final size in [const Size(1200, 900), const Size(375, 547)]) {
       for (final (:from, :target) in [
-        (from: 0.1, target: 0.46),
+        (from: 0.02, target: 0.46),
         (from: 1.5, target: 0.44),
       ]) {
         testWidgets(

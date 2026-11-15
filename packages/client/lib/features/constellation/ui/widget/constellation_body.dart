@@ -160,6 +160,14 @@ class ConstellationBody extends StatefulWidget {
   /// When set (tests only), the viewport overlay writes its frame here.
   final ConstellationPresentationFrameHolder? presentationFrameHolder;
 
+  /// Zoom-out floor: low enough that fit-all can frame nodes placed at the
+  /// opposite corners of the widened placement range (±40 units) on a phone.
+  static const _minCanvasScale = 0.02;
+
+  /// Room around the canvas so common viewports can zoom out to that floor
+  /// up to about 1300 px wide (the canvas alone would stop a phone near 0.04).
+  static const _canvasMargin = EdgeInsets.all(kConstellationCanvasExtent * 1.5);
+
   static const _canvasSize = GraphCanvasSize.fixed(
     Size(kConstellationCanvasExtent, kConstellationCanvasExtent),
   );
@@ -2519,7 +2527,8 @@ class _ConstellationBodyState extends State<ConstellationBody>
                 _lowerTagHull();
                 cubit.onPointerCancelDuringDrag();
               },
-              minScale: 0.1,
+              minScale: ConstellationBody._minCanvasScale,
+              boundaryMargin: ConstellationBody._canvasMargin,
               centerOnFirstLayout: false,
               layoutAlgorithm: layoutAlgorithm,
               // New Requests spring out from under their author along this
