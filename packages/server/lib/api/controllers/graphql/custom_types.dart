@@ -92,6 +92,7 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeBeaconFactCardRow,
   gqlTypeBeaconFactCardOriginResult,
   gqlTypeBeaconFactCardSavedRow,
+  gqlTypeBeaconFactCardSearchRow,
   gqlTypeBeaconFactCopyDestinationRow,
   gqlTypeBeaconFactHistoryEntryRow,
   gqlTypeBeaconFactCardRevisionsPage,
@@ -775,6 +776,17 @@ final gqlTypeBeaconFactCardSavedRow =
         field('beaconKind', graphQLInt),
         field('factText', graphQLString),
         field('attachmentsJson', graphQLString),
+      ]);
+
+final gqlTypeBeaconFactCardSearchRow =
+    GraphQLObjectType('BeaconFactCardSearchRow', null)
+      ..fields.addAll([
+        field('factCardId', graphQLString.nonNullable()),
+        field('beaconId', graphQLString.nonNullable()),
+        field('beaconKind', graphQLInt.nonNullable()),
+        field('factText', graphQLString.nonNullable()),
+        field('attachmentsJson', graphQLString.nonNullable()),
+        field('saved', graphQLBoolean.nonNullable()),
       ]);
 
 final gqlTypeBeaconFactCopyDestinationRow =

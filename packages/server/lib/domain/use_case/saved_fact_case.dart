@@ -4,7 +4,9 @@ import 'package:tentura_server/consts/beacon_fact_card_consts.dart';
 import 'package:tentura_server/domain/entity/beacon_fact_room_access.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/beacon_fact_card_repository_port.dart';
+import 'package:tentura_server/domain/policy/fact_search_rate_limiter.dart';
 import 'package:tentura_server/domain/port/saved_fact_repository_port.dart';
+import 'package:tentura_server/domain/util/search_words.dart';
 
 import '_use_case_base.dart';
 
@@ -16,7 +18,12 @@ final class SavedFactCase extends UseCaseBase {
     this._saved, {
     required super.env,
     required super.logger,
-  });
+  }) : _searchLimiter = FactSearchRateLimiter(
+         max: env.factSearchRateMax,
+         window: env.factEditRateWindow,
+       );
+
+  final FactSearchRateLimiter _searchLimiter;
 
   final BeaconFactCardRepositoryPort _facts;
 
@@ -55,6 +62,30 @@ final class SavedFactCase extends UseCaseBase {
   /// The saved facts of [userId], newest saved first (plan §5.4).
   Future<List<Map<String, Object?>>> list({required String userId}) =>
       _saved.list(userId: userId);
+
+  /// Facts [userId] may pick whose text holds every word of [query]. Fewer
+  /// than two folded characters answer `[]` without a repository call or a
+  /// rate-limit charge; past the per-user limit throws
+  /// [BeaconFactCardRateLimitedException].
+  Future<List<Map<String, Object?>>> search({
+    required String userId,
+    required String query,
+    String? excludeBeaconId,
+  }) async {
+    final folded = foldSearchQuery(query);
+    if (folded.runes.length < 2) return const [];
+    if (!_searchLimiter.tryAcquire(userId)) {
+      throw const BeaconFactCardRateLimitedException(
+        description: 'Too many fact searches',
+      );
+    }
+    return _saved.search(
+      userId: userId,
+      words: searchWords(folded),
+      limit: kMaxFactSearchResults,
+      excludeBeaconId: excludeBeaconId,
+    );
+  }
 
   /// Removes [factCardId] from the saved facts of [userId]. No access check:
   /// a user can always drop their own row, even for an unavailable fact.

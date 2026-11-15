@@ -11,6 +11,7 @@ final class QuerySavedFact extends GqlNodeBase {
 
   List<GraphQLObjectField<dynamic, dynamic>> get all => [
     beaconFactCardSavedList,
+    beaconFactCardSearch,
   ];
 
   GraphQLObjectField<dynamic, dynamic> get beaconFactCardSavedList =>
@@ -20,5 +21,22 @@ final class QuerySavedFact extends GqlNodeBase {
           gqlTypeBeaconFactCardSavedRow.nonNullable(),
         ).nonNullable(),
         resolve: (_, args) => _case.list(userId: getCredentials(args).sub),
+      );
+
+  GraphQLObjectField<dynamic, dynamic> get beaconFactCardSearch =>
+      GraphQLObjectField(
+        'BeaconFactCardSearch',
+        GraphQLListType(
+          gqlTypeBeaconFactCardSearchRow.nonNullable(),
+        ).nonNullable(),
+        arguments: [
+          GraphQLFieldInput('query', graphQLString.nonNullable()),
+          GraphQLFieldInput('excludeBeaconId', graphQLString),
+        ],
+        resolve: (_, args) => _case.search(
+          userId: getCredentials(args).sub,
+          query: args['query']! as String,
+          excludeBeaconId: args['excludeBeaconId'] as String?,
+        ),
       );
 }

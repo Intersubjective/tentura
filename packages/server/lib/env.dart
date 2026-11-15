@@ -154,6 +154,7 @@ class Env {
     Duration? factEditRateWindow,
     int? factEditRateMax,
     int? factCopyRateMax,
+    int? factSearchRateMax,
     bool? planEnabled,
     int? uploadDailyCapBytes,
 
@@ -334,6 +335,8 @@ class Env {
        factEditRateMax = factEditRateMax ?? _envInt('FACT_EDIT_RATE_MAX') ?? 20,
        factCopyRateMax =
            factCopyRateMax ?? _envInt('FACT_COPY_RATE_MAX') ?? 60,
+       factSearchRateMax =
+           factSearchRateMax ?? _envInt('FACT_SEARCH_RATE_MAX') ?? 30,
        planEnabled = planEnabled ?? _env['PLAN_ENABLED'] != 'false',
        uploadDailyCapBytes =
            uploadDailyCapBytes ??
@@ -704,6 +707,10 @@ class Env {
   /// (`FACT_COPY_RATE_MAX`). Copy revisions do not count toward
   /// [factEditRateMax].
   final int factCopyRateMax;
+
+  /// Max fact searches one user may make within [factEditRateWindow]
+  /// (`FACT_SEARCH_RATE_MAX`).
+  final int factSearchRateMax;
 
   /// Request plan («либретто», #220) kill switch: `PLAN_ENABLED=false` turns
   /// off plan writes, the step sweep and plan copy on fork. On by default.

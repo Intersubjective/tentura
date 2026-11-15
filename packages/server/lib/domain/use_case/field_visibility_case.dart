@@ -5,6 +5,7 @@ import 'package:tentura_server/domain/entity/field_search_result.dart';
 import 'package:tentura_server/domain/entity/person_field_items_page.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/field_visibility_repository_port.dart';
+import 'package:tentura_server/domain/util/search_words.dart';
 
 @injectable
 final class FieldVisibilityCase {
@@ -17,14 +18,14 @@ final class FieldVisibilityCase {
     required String query,
     required String context,
   }) {
-    final folded = _fold(query);
+    final folded = foldSearchQuery(query);
     if (viewerId.trim().isEmpty || folded.runes.length < 2) {
       return Future.value(emptyFieldSearchResult);
     }
     return _repository.search(
       viewerId: viewerId,
       context: context,
-      words: _words(folded),
+      words: searchWords(folded),
     );
   }
 
@@ -40,7 +41,7 @@ final class FieldVisibilityCase {
       viewerId: viewerId,
       personId: personId,
       bucket: bucket,
-      words: _words(_fold(query)),
+      words: searchWords(foldSearchQuery(query)),
       cursor: cursor,
     );
   }
@@ -65,15 +66,3 @@ final class FieldVisibilityCase {
     DateTime? before,
   }) => _repository.hiddenItems(viewerId: viewerId, before: before);
 }
-
-String _fold(String query) =>
-    query.toLowerCase().replaceAll('ё', 'е').replaceAll('@', '').trim();
-
-// Match every word, including words separated by Unicode whitespace.
-List<String> _words(String folded) => folded
-    .split('')
-    .map((character) => character.trim().isEmpty ? ' ' : character)
-    .join()
-    .split(' ')
-    .where((word) => word.isNotEmpty)
-    .toList();
