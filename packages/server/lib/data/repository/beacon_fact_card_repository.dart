@@ -701,7 +701,16 @@ SELECT f.id, f.beacon_id, b.kind::integer AS kind,
                         WHERE i.id = (e.value->>'imageId')::uuid
                       )
                       ELSE false
-                    END
+                    END,
+                    'fileKey',
+                    CASE WHEN e.value->>'kind' = '2' THEN COALESCE(
+                      NULLIF(e.value->>'fileKey', ''),
+                      (SELECT a.file_url
+                       FROM public.beacon_room_message_attachment a
+                       WHERE a.id = e.value->>'id'
+                         AND a.message_id = f.source_message_id
+                         AND a.kind = 2)
+                    ) END
                   ) ORDER BY e.ordinality)
          FROM jsonb_array_elements(
                 CASE jsonb_typeof(r.attachments_json)
@@ -735,14 +744,55 @@ WHERE f.id = ANY($1::text[])
               if (e case {
                 'fields': final Map<String, Object?> fields,
                 'imageExists': final bool imageExists,
+                'fileKey': final String? fileKey,
               })
                 FactCopySourceAttachment(
                   fields: fields,
                   imageExists: imageExists,
+                  fileKey: fileKey,
                 ),
           ],
         ),
     ];
+  }
+
+  @override
+  Future<CopiedFactFile?> findCopiedFactFile({
+    required String attachmentId,
+  }) async {
+    final row = await _db
+        .customSelect(
+          r'''
+SELECT f.beacon_id, f.status::integer AS status,
+       f.visibility::integer AS visibility,
+       e.value->>'fileKey' AS file_key,
+       COALESCE(e.value->>'mime', 'application/octet-stream') AS mime,
+       COALESCE(e.value->>'fileName', '') AS file_name
+FROM public.beacon_fact_card f
+JOIN public.beacon_fact_card_revision r
+  ON r.fact_card_id = f.id AND r.seq = f.revision_seq
+CROSS JOIN LATERAL jsonb_array_elements(
+  CASE WHEN jsonb_typeof(r.attachments_json) = 'array'
+       THEN r.attachments_json ELSE '[]'::jsonb END
+) AS e(value)
+WHERE f.origin_fact_card_id IS NOT NULL
+  AND e.value->>'id' = $1::text
+  AND e.value->>'kind' = '2'
+  AND COALESCE(e.value->>'fileKey', '') <> ''
+LIMIT 1
+''',
+          variables: [Variable<String>(attachmentId)],
+        )
+        .getSingleOrNull();
+    if (row == null) return null;
+    return (
+      beaconId: row.read<String>('beacon_id'),
+      status: row.read<int>('status'),
+      visibility: row.read<int>('visibility'),
+      fileKey: row.read<String>('file_key'),
+      mime: row.read<String>('mime'),
+      fileName: row.read<String>('file_name'),
+    );
   }
 
   @override
@@ -1254,7 +1304,7 @@ SELECT EXISTS (SELECT 1 FROM locked) AS found,
   );
 
   @override
-  Future<bool> deleteFromDraft({
+  Future<({bool deleted, List<String> fileKeys})> deleteFromDraft({
     required String factCardId,
     required String beaconId,
     required String actorUserId,
@@ -1271,6 +1321,7 @@ WITH target AS (
   WHERE b.id = \$2::text
 ),
 ${copiedFactImageCleanupCtes(factFilter: r'f.id = $1::text AND f.beacon_id = $2::text AND (SELECT allowed FROM target)', actorParam: r'$3')},
+${copiedFactFilesCte(factFilter: r'f.id = $1::text AND f.beacon_id = $2::text AND (SELECT allowed FROM target)')},
 del AS (
   DELETE FROM public.beacon_fact_card f
   USING target t
@@ -1278,7 +1329,8 @@ del AS (
   RETURNING f.id
 )
 SELECT COALESCE((SELECT allowed FROM target), false) AS allowed,
-       EXISTS (SELECT 1 FROM del) AS deleted
+       EXISTS (SELECT 1 FROM del) AS deleted,
+       ARRAY(SELECT file_key FROM copied_files) AS file_keys
 ''',
             variables: [
               Variable<String>(factCardId),
@@ -1290,7 +1342,13 @@ SELECT COALESCE((SELECT allowed FROM target), false) AS allowed,
       if (!row.read<bool>('allowed')) {
         throw const UnauthorizedException(description: 'Room access required');
       }
-      return row.read<bool>('deleted');
+      final deleted = row.read<bool>('deleted');
+      return (
+        deleted: deleted,
+        fileKeys: deleted
+            ? row.read<List<dynamic>>('file_keys').cast<String>()
+            : const <String>[],
+      );
     }),
   );
 

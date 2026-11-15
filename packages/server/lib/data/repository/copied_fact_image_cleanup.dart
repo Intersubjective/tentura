@@ -33,3 +33,22 @@ copied_images_purge AS (
   RETURNING i.id
 )
 ''';
+
+/// CTE `copied_files(file_key)`: the storage keys of the file objects owned
+/// by copied facts (facts with an origin) matching [factFilter] (SQL over
+/// alias `f`), from their head revisions. A copy owns every `fileKey` entry
+/// it holds; the caller removes those objects after its delete committed.
+String copiedFactFilesCte({required String factFilter}) =>
+    '''
+copied_files AS (
+  SELECT DISTINCT e.value->>'fileKey' AS file_key
+  FROM public.beacon_fact_card f
+  JOIN public.beacon_fact_card_revision r
+    ON r.fact_card_id = f.id AND r.seq = f.revision_seq
+  CROSS JOIN LATERAL jsonb_array_elements(r.attachments_json) e
+  WHERE f.origin_fact_card_id IS NOT NULL
+    AND ($factFilter)
+    AND (e.value->>'kind')::int = 2
+    AND COALESCE(e.value->>'fileKey', '') <> ''
+)
+''';

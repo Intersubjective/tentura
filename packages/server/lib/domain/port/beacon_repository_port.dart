@@ -115,6 +115,10 @@ abstract class BeaconRepositoryPort {
 
   Future<void> deleteBeaconById(String id, {required String userId});
 
+  /// Storage keys of the files owned by [beaconId]'s copied facts, for the
+  /// caller to remove after discarding the draft.
+  Future<List<String>> copiedFactFileKeys(String beaconId);
+
   Future<List<String>> deadlineReminderCandidateIds({
     required DateTime nextUtcDayStart,
     required DateTime followingUtcDayStart,

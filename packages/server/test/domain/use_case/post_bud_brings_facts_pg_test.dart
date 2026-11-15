@@ -54,6 +54,7 @@ import 'package:tentura_server/domain/port/invite_genealogy_repository_port.dart
 import 'package:tentura_server/domain/port/person_visibility_repository_port.dart';
 import 'package:tentura_server/domain/port/remote_storage_port.dart';
 import 'package:tentura_server/domain/port/task_repository_port.dart';
+import 'package:tentura_server/domain/room/room_attachment_storage_key.dart';
 import 'package:tentura_server/domain/use_case/anchor_inherit_operation.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 import 'package:tentura_server/domain/use_case/beacon_child_create_case.dart';
@@ -1079,6 +1080,194 @@ mutation Bud($postId: String!, $factIds: [String!]) {
         copies.single['first_kind'],
         BeaconFactCardRevisionKindBits.copied,
       );
+    });
+  });
+
+  /// Pins a message of [beaconId] holding [count] files (posted by [author])
+  /// as fact [factId], the way pinning snapshots the message attachments,
+  /// and returns each file's stored key, bytes and name.
+  Future<List<({String key, Uint8List bytes, String name})>> seedFileFact({
+    required String beaconId,
+    required String author,
+    required String factId,
+    required int count,
+  }) async {
+    final messageId = 'R${factId.substring(1)}';
+    await writer.execute(
+      Sql.named('''
+INSERT INTO public.beacon_room_message (id, beacon_id, author_id, body)
+VALUES (@m, @b, @a, 'Documents')
+'''),
+      parameters: {'m': messageId, 'b': beaconId, 'a': author},
+    );
+    final files = <({String key, Uint8List bytes, String name})>[];
+    final entries = <Map<String, Object?>>[];
+    for (var i = 0; i < count; i++) {
+      final attachmentId = 'A${factId.substring(1)}$i';
+      final bytes = Uint8List.fromList(utf8.encode('file $factId #$i'));
+      final key = '${roomAttachmentStorageKey(bytes)}/$attachmentId';
+      final name = 'doc$i.pdf';
+      await storage.putObject(key, Stream.value(bytes));
+      await writer.execute(
+        Sql.named('''
+INSERT INTO public.beacon_room_message_attachment
+  (id, message_id, kind, file_url, mime, size_bytes, position, file_name)
+VALUES (@id, @m, ${BeaconRoomMessageAttachmentKind.file}, @url,
+        'application/pdf', @size, @pos, @name)
+'''),
+        parameters: {
+          'id': attachmentId,
+          'm': messageId,
+          'url': key,
+          'size': bytes.length,
+          'pos': i,
+          'name': name,
+        },
+      );
+      files.add((key: key, bytes: bytes, name: name));
+      entries.add({
+        'id': attachmentId,
+        'kind': BeaconRoomMessageAttachmentKind.file,
+        'position': i,
+        'mime': 'application/pdf',
+        'sizeBytes': bytes.length,
+        'fileName': name,
+        'imageId': '',
+        'imageAuthorId': '',
+        'blurHash': '',
+        'width': 0,
+        'height': 0,
+      });
+    }
+    await seedFact(
+      id: factId,
+      beaconId: beaconId,
+      pinnedBy: author,
+      attachments: entries,
+    );
+    await writer.execute(
+      Sql.named(
+        'UPDATE public.beacon_fact_card SET source_message_id = @m '
+        'WHERE id = @f',
+      ),
+      parameters: {'m': messageId, 'f': factId},
+    );
+    return files;
+  }
+
+  /// Keys of stored objects other than [sourceKeys] that hold [bytes].
+  List<String> copiesOfBytes(Set<String> sourceKeys, Uint8List bytes) => [
+    for (final MapEntry(:key, :value) in storage.objects.entries)
+      if (!sourceKeys.contains(key) &&
+          value.length == bytes.length &&
+          String.fromCharCodes(value) == String.fromCharCodes(bytes))
+        key,
+  ];
+
+  /// Deletes the source fact, its message (and so its attachment rows) and
+  /// its stored files.
+  Future<void> deleteSourceFileFact(
+    String factId,
+    List<({String key, Uint8List bytes, String name})> files,
+  ) async {
+    await writer.execute(
+      Sql.named('DELETE FROM public.beacon_fact_card WHERE id = @f'),
+      parameters: {'f': factId},
+    );
+    await writer.execute(
+      Sql.named('DELETE FROM public.beacon_room_message WHERE id = @m'),
+      parameters: {'m': 'R${factId.substring(1)}'},
+    );
+    for (final f in files) {
+      await storage.removeObject(f.key);
+    }
+  }
+
+  List<Map<String, Object?>> entriesOf(Map<String, Object?> fact) => [
+    for (final e in jsonDecode(fact['attachments']! as String) as List)
+      Map<String, Object?>.from(e! as Map),
+  ];
+
+  group('Budding brings the files of ticked Post facts', () {
+    test('more files in total than the per-call image limit are all copied, '
+        'with no fact dropped', () async {
+      final w = await world();
+      const perFact = 14;
+      final factIds = [
+        for (var k = 0; k < 3; k++) 'Fl${'bf${w.n}m$k'.padLeft(10, '0')}',
+      ];
+      expect(factIds.length * perFact, greaterThan(kMaxFactCopyImagesPerCall));
+      final filesByFact = {
+        for (final id in factIds)
+          id: await seedFileFact(
+            beaconId: w.post,
+            author: w.author,
+            factId: id,
+            count: perFact,
+          ),
+      };
+      final sourceKeys = {
+        for (final files in filesByFact.values)
+          for (final f in files) f.key,
+      };
+
+      final result = await bud(w, factIds: factIds);
+
+      expect(result.outcome, PostBudResultJson.outcomeCreated);
+      final copies = await factsIn(result.childBeaconId!);
+      expect(
+        [for (final c in copies) c['origin_fact_card_id']],
+        unorderedEquals(factIds),
+      );
+      for (final copy in copies) {
+        final entries = entriesOf(copy);
+        expect(entries, hasLength(perFact));
+        expect(
+          {for (final e in entries) e['kind']},
+          {BeaconRoomMessageAttachmentKind.file},
+        );
+      }
+      for (final files in filesByFact.values) {
+        for (final f in files) {
+          final copied = copiesOfBytes(sourceKeys, f.bytes);
+          expect(copied, hasLength(1));
+          expect(sourceKeys, isNot(contains(copied.single)));
+        }
+      }
+    });
+
+    test('a ticked Post fact with a file arrives in the child with a file '
+        'entry backed by its own stored copy, readable after the source '
+        'fact, its message and its stored file are deleted', () async {
+      final w = await world();
+      final factId = 'Fl${'bf${w.n}'.padLeft(10, '0')}';
+      final files = await seedFileFact(
+        beaconId: w.post,
+        author: w.author,
+        factId: factId,
+        count: 1,
+      );
+      final file = files.single;
+
+      final result = await bud(w, factIds: [factId]);
+
+      expect(result.outcome, PostBudResultJson.outcomeCreated);
+      final copy = (await factsIn(result.childBeaconId!)).single;
+      expect(copy['origin_fact_card_id'], factId);
+      final entries = entriesOf(copy);
+      expect(entries, hasLength(1), reason: 'the file entry is copied');
+      final entry = entries.single;
+      expect(entry['kind'], BeaconRoomMessageAttachmentKind.file);
+      expect(entry['fileName'], file.name);
+      expect(entry['mime'], 'application/pdf');
+      expect(entry['sizeBytes'], file.bytes.length);
+      expect(entry['position'], 0);
+      final copied = copiesOfBytes({file.key}, file.bytes);
+      expect(copied, hasLength(1), reason: 'the copy has its own stored file');
+      expect(copied.single, isNot(file.key));
+
+      await deleteSourceFileFact(factId, files);
+      expect(storage.objects[copied.single], file.bytes);
     });
   });
 }

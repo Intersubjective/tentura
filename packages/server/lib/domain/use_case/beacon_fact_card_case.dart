@@ -229,8 +229,8 @@ final class BeaconFactCardCase extends UseCaseBase {
     ),
   );
 
-  /// Removes the re-stored images of copies that were not (or will not be)
-  /// inserted.
+  /// Removes the re-stored images and files of copies that were not (or
+  /// will not be) inserted.
   Future<void> compensatePreparedCopies(
     Iterable<PreparedFactCopy> prepared, {
     required String actorUserId,
@@ -241,6 +241,19 @@ final class BeaconFactCardCase extends UseCaseBase {
           imageId: imageId,
           authorId: actorUserId,
         );
+      }
+      await _removeFilesNonFatal(copy.newFileKeys);
+    }
+  }
+
+  /// Removes copied file objects no fact references (any more). A leftover
+  /// object only costs storage, so a failure is logged, not thrown.
+  Future<void> _removeFilesNonFatal(Iterable<String> fileKeys) async {
+    for (final path in fileKeys) {
+      try {
+        await _imageRepository.removeFile(path: path);
+      } catch (e, st) {
+        logger.warning('copied fact file $path not removed', e, st);
       }
     }
   }
@@ -277,7 +290,8 @@ final class BeaconFactCardCase extends UseCaseBase {
   }
 
   /// Plan §5.2 `prepareCopies`: authorises and snapshots each source fact
-  /// and re-stores its images under [actorUserId]. The caller has already
+  /// and re-stores its images under [actorUserId] and its files as new
+  /// objects (files have no size, quota or count limit). The caller has already
   /// checked the destination (and, for a single copy, the copy rate limit).
   ///
   /// An unavailable source (missing, removed, outside
@@ -330,22 +344,41 @@ final class BeaconFactCardCase extends UseCaseBase {
     final prepared = <PreparedFactCopy>[];
     // Every blob this call created and still owns, for compensation.
     final created = <String>[];
+    final createdFiles = <String>[];
     var imageCount = 0;
     var imagesStopped = false;
     try {
       for (final source in available) {
         if (alreadyThere.containsKey(source.factCardId)) continue;
-        final images = [
-          for (final a in source.attachments)
-            if (_copyableImageId(a) case final imageId?)
-              (imageId: imageId, fields: a.fields),
-        ];
-        if (images.isNotEmpty && imagesStopped) continue;
+        if (imagesStopped &&
+            source.attachments.any((a) => _copyableImageId(a) != null)) {
+          continue;
+        }
 
         final factBlobs = <String>[];
+        final factFiles = <String>[];
         final attachments = <Map<String, Object?>>[];
         var dropFact = false;
-        for (final a in images) {
+        for (final a in source.attachments) {
+          if (a.fileKey case final fileKey?) {
+            final newKey = await _imageRepository.copyFile(
+              path: fileKey,
+              mime: switch (a.fields['mime']) {
+                final String mime => mime,
+                _ => 'application/octet-stream',
+              },
+            );
+            factFiles.add(newKey);
+            createdFiles.add(newKey);
+            attachments.add({
+              ...a.fields,
+              'id': generateId('A'),
+              'fileKey': newKey,
+            });
+            continue;
+          }
+          final imageId = _copyableImageId(a);
+          if (imageId == null) continue;
           if (imageCount == kMaxFactCopyImagesPerCall) {
             if (!skipUnavailable) {
               throw const BeaconCreateException(
@@ -355,7 +388,7 @@ final class BeaconFactCardCase extends UseCaseBase {
             dropFact = true;
             break;
           }
-          final bytes = await _imageRepository.get(id: a.imageId);
+          final bytes = await _imageRepository.get(id: imageId);
           final String newImageId;
           try {
             newImageId = await _imageRepository.put(
@@ -387,6 +420,8 @@ final class BeaconFactCardCase extends UseCaseBase {
               authorId: actorUserId,
             );
           }
+          factFiles.forEach(createdFiles.remove);
+          await _removeFilesNonFatal(factFiles);
           continue;
         }
         prepared.add(
@@ -397,6 +432,7 @@ final class BeaconFactCardCase extends UseCaseBase {
             factText: source.headText,
             attachmentsJson: jsonEncode(attachments),
             newImageIds: factBlobs,
+            newFileKeys: factFiles,
           ),
         );
       }
@@ -407,6 +443,7 @@ final class BeaconFactCardCase extends UseCaseBase {
           authorId: actorUserId,
         );
       }
+      await _removeFilesNonFatal(createdFiles);
       rethrow;
     }
     return (prepared: prepared, alreadyThere: alreadyThere);
@@ -895,11 +932,13 @@ final class BeaconFactCardCase extends UseCaseBase {
     );
     _rejectReadOnly(access);
     if (access.isDraft) {
-      return _facts.deleteFromDraft(
+      final (:deleted, :fileKeys) = await _facts.deleteFromDraft(
         factCardId: factCardId,
         beaconId: beaconId,
         actorUserId: actorUserId,
       );
+      await _removeFilesNonFatal(fileKeys);
+      return deleted;
     }
     return _hierarchyRepository.translateRoomWriteError(
       () => _facts.remove(

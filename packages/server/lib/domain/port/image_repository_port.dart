@@ -41,4 +41,12 @@ abstract class ImageRepositoryPort {
     required String imageId,
     required String authorId,
   });
+
+  /// Stores a new file (non-image) object holding the bytes at [path] and
+  /// returns its key. No size limit or upload quota applies: the bytes are
+  /// already stored. Used to give a copied fact its own file.
+  Future<String> copyFile({required String path, required String mime});
+
+  /// Removes the file object at [path]; a missing object is a no-op.
+  Future<void> removeFile({required String path});
 }

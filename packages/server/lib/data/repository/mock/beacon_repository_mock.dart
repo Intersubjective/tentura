@@ -274,6 +274,9 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
       storageById.removeWhere((key, value) => value.id == id);
 
   @override
+  Future<List<String>> copiedFactFileKeys(String beaconId) async => const [];
+
+  @override
   Future<void> lockPostForMutation(String beaconId) async {}
 
   @override

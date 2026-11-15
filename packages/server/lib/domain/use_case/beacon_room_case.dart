@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
+import 'package:tentura_server/domain/entity/beacon_fact_room_access.dart';
 import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/entity/beacon_room_record.dart';
 import 'package:tentura_server/domain/entity/beacon_thread_record.dart';
@@ -2127,9 +2128,9 @@ class BeaconRoomCase extends UseCaseBase {
   }) async {
     final row = await _room.getRoomMessageAttachmentById(attachmentId);
     if (row == null) {
-      throw IdNotFoundException(
-        id: attachmentId,
-        description: 'Attachment not found',
+      return _downloadCopiedFactFile(
+        userId: userId,
+        attachmentId: attachmentId,
       );
     }
     if (row.kind != BeaconRoomMessageAttachmentKind.file ||
@@ -2162,6 +2163,36 @@ class BeaconRoomCase extends UseCaseBase {
     final bytes = await _remoteStorage.getObject(row.fileUrl!);
     final name = row.fileName.trim().isEmpty ? 'download' : row.fileName.trim();
     return (bytes: bytes, mime: row.mime, fileName: name);
+  }
+
+  /// A copied fact's file has no message: it is readable exactly when its
+  /// fact is.
+  Future<({Uint8List bytes, String mime, String fileName})>
+  _downloadCopiedFactFile({
+    required String userId,
+    required String attachmentId,
+  }) async {
+    final file = await _factCards.findCopiedFactFile(
+      attachmentId: attachmentId,
+    );
+    if (file == null) {
+      throw IdNotFoundException(
+        id: attachmentId,
+        description: 'Attachment not found',
+      );
+    }
+    final access = await _factCards.loadRoomAccess(
+      beaconId: file.beaconId,
+      userId: userId,
+    );
+    if (!access.canReadFact(status: file.status, visibility: file.visibility)) {
+      throw const UnauthorizedException(description: 'Room access required');
+    }
+    final bytes = await _remoteStorage.getObject(file.fileKey);
+    final name = file.fileName.trim().isEmpty
+        ? 'download'
+        : file.fileName.trim();
+    return (bytes: bytes, mime: file.mime, fileName: name);
   }
 
   Future<void> _addAttachmentBytesToMessage({

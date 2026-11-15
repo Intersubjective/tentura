@@ -1082,7 +1082,8 @@ final class BeaconCase extends UseCaseBase {
     required String beaconId,
     required String userId,
   }) async {
-    // Files of a discarded Post draft's attachments, removed after commit.
+    // Files of a discarded draft (Post draft attachments and its copied
+    // facts' files), removed after commit.
     var draftFiles = const <String>[];
     Future<bool> mutate(
       AttentionTransaction? transaction,
@@ -1125,6 +1126,7 @@ final class BeaconCase extends UseCaseBase {
             draftFiles = [
               for (final attachment in draftAttachments)
                 ?attachment.storagePath,
+              ...await _beaconRepository.copiedFactFileKeys(beacon.id),
             ];
             final thumbId = beacon.coverThumbImageId;
             if (thumbId != null && thumbId.isNotEmpty) {

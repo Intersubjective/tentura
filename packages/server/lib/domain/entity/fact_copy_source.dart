@@ -13,19 +13,37 @@ class FactOriginRef {
   final int? originRevisionSeq;
 }
 
-/// One head-revision attachment of a [FactCopySource]: the stored JSON entry
-/// and whether its `public.image` row exists (plan §5.2 step 5, R2).
+/// One head-revision attachment of a [FactCopySource]: the stored JSON entry,
+/// whether its `public.image` row exists (plan §5.2 step 5, R2) and, for a
+/// file entry, the storage key of its object.
 class FactCopySourceAttachment {
   const FactCopySourceAttachment({
     required this.fields,
     required this.imageExists,
+    this.fileKey,
   });
 
   final Map<String, Object?> fields;
 
   /// False for a non-image entry, a malformed `imageId`, or a deleted row.
   final bool imageExists;
+
+  /// Storage key of a file entry's object: the copy's own `fileKey`, or the
+  /// pinned message attachment's `file_url`. Null for an image entry or a
+  /// file whose object is unknown.
+  final String? fileKey;
 }
+
+/// A file attachment of a copied fact's head revision, as found by its
+/// attachment id: the fact it belongs to and the object holding its bytes.
+typedef CopiedFactFile = ({
+  String beaconId,
+  int status,
+  int visibility,
+  String fileKey,
+  String mime,
+  String fileName,
+});
 
 /// A fact as loaded for copying (plan §5.2 step 2): its episode, status,
 /// visibility and head revision.

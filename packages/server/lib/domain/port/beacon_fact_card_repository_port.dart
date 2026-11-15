@@ -88,10 +88,15 @@ abstract class BeaconFactCardRepositoryPort {
 
   /// One SELECT: each existing fact of [factCardIds] with its beacon kind,
   /// status, visibility and head revision; per head attachment, whether its
-  /// image row exists. Missing ids are absent.
+  /// image row exists, and per file attachment, its object's storage key.
+  /// Missing ids are absent.
   Future<List<FactCopySource>> loadCopySources({
     required List<String> factCardIds,
   });
+
+  /// The file attachment [attachmentId] of a copied fact's head revision,
+  /// with its own stored object; null when there is none.
+  Future<CopiedFactFile?> findCopiedFactFile({required String attachmentId});
 
   /// Requests and published, unexpired Posts [userId] authors, stewards or
   /// is admitted to (room_access 3) whose status is one of
@@ -180,9 +185,11 @@ abstract class BeaconFactCardRepositoryPort {
 
   /// Plan R5 / §5.4: deletes a fact of a draft that [actorUserId] authors,
   /// with no chat line and no event. Throws `UnauthorizedException` unless
-  /// the beacon is still a draft authored by [actorUserId]. True only when
-  /// this call deleted the row.
-  Future<bool> deleteFromDraft({
+  /// the beacon is still a draft authored by [actorUserId]. `deleted` is
+  /// true only when this call deleted the row; `fileKeys` are the storage
+  /// keys of the copied files it owned, for the caller to remove after the
+  /// commit.
+  Future<({bool deleted, List<String> fileKeys})> deleteFromDraft({
     required String factCardId,
     required String beaconId,
     required String actorUserId,

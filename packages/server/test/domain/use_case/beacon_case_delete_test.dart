@@ -61,6 +61,10 @@ class _TransactionBeaconRepo implements BeaconRepositoryPort {
     lastDeleteUserId = userId;
   }
 
+  /// The drafts here hold no copied facts.
+  @override
+  Future<List<String>> copiedFactFileKeys(String beaconId) async => const [];
+
   @override
   Future<void> recordBeaconStatusTransition({
     required String beaconId,

@@ -66,4 +66,14 @@ class ImageRepositoryMock implements ImageRepositoryPort {
   }) {
     throw UnimplementedError();
   }
+
+  @override
+  Future<String> copyFile({required String path, required String mime}) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> removeFile({required String path}) {
+    throw UnimplementedError();
+  }
 }

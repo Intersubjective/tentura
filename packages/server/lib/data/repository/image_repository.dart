@@ -7,6 +7,8 @@ import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/image_object_gc_port.dart';
 import 'package:tentura_server/domain/port/image_repository_port.dart';
 import 'package:tentura_server/domain/port/upload_quota_repository_port.dart';
+import 'package:tentura_server/domain/room/room_attachment_storage_key.dart';
+import 'package:tentura_server/utils/id.dart';
 import 'package:tentura_server/utils/read_uint8_stream_with_limit.dart';
 
 import '../database/tentura_db.dart';
@@ -168,6 +170,23 @@ class ImageRepository implements ImageRepositoryPort {
         .get();
     return [for (final row in rows) _readUuid(row, 'id')];
   }
+
+  @override
+  Future<String> copyFile({required String path, required String mime}) async {
+    final bytes = await _remoteStorageService.getObject(path);
+    final copyPath = '${roomAttachmentStorageKey(bytes)}/${generateId('A')}';
+    final acl = _env.kS3PutObjectAclValue;
+    await _remoteStorageService.putObject(
+      copyPath,
+      Stream.value(bytes),
+      metadata: {kHeaderContentType: mime, 'x-amz-acl': ?acl},
+    );
+    return copyPath;
+  }
+
+  @override
+  Future<void> removeFile({required String path}) =>
+      _remoteStorageService.removeObject(path);
 
   static String _readUuid(QueryRow row, String column) {
     final value = row.data[column];

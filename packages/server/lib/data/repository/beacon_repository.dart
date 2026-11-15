@@ -748,6 +748,19 @@ ${beaconId == null ? '' : r'WHERE posts.id = $2'}''',
   });
 
   @override
+  Future<List<String>> copiedFactFileKeys(String beaconId) async => [
+    for (final row
+        in await _database
+            .customSelect(
+              'WITH ${copiedFactFilesCte(factFilter: r'f.beacon_id = $1::text')} '
+              'SELECT file_key FROM copied_files',
+              variables: [Variable<String>(beaconId)],
+            )
+            .get())
+      row.read<String>('file_key'),
+  ];
+
+  @override
   Future<T> runInBeaconStateTransaction<T>({
     required String beaconId,
     required String userId,
