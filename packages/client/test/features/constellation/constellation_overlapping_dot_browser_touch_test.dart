@@ -108,7 +108,12 @@ void main() {
       expect(
         _broker,
         isNotEmpty,
-        reason: 'run test/support/browser/run_overlapping_dot_touch.mjs',
+        reason: 'needs the native-touch broker: run '
+            '`node test/support/browser/run_overlapping_dot_touch.mjs` from '
+            'packages/client or `scripts/run_tests.sh client-files '
+            'test/features/constellation/'
+            'constellation_overlapping_dot_browser_touch_test.dart`, '
+            'not a plain `flutter test --platform chrome`',
       );
       // The web test launcher also fakes the engine's screen (800x600 at
       // DPR 3). Native browser input needs the real screen and DPR instead.
