@@ -141,6 +141,8 @@ abstract final class TestIds {
   static const beaconDetailsOpen = 'beacon.details.open';
   static const beaconFactsOpen = 'beacon.facts.open';
   static const beaconFactsAdd = 'beacon.facts.add';
+  static const beaconFactsAddNew = 'beacon.facts.add.new';
+  static const beaconFactsAddPick = 'beacon.facts.add.pick';
   static const beaconFactsComposerSubmit = 'beacon.facts.composer.submit';
 
   static const coordinationPromiseCreate = 'coordination.promise.create';

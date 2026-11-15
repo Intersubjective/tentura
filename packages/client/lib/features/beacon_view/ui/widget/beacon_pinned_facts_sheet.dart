@@ -5,12 +5,13 @@ import 'package:flutter/material.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/util/beacon_pinned_facts.dart';
+import 'package:tentura/features/beacon_threads/ui/widget/fact_add_menu_button.dart';
+import 'package:tentura/features/beacon_threads/ui/widget/fact_picker_sheet.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_fact_actions.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_fact_composer_sheet.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_pinned_fact_card.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/test_ids.dart';
 
 Future<void> showBeaconPinnedFactsSheet(
   BuildContext pageContext, {
@@ -127,13 +128,19 @@ class _BeaconPinnedFactsSheetBody extends StatelessWidget {
                   ),
                   if (canAdd) ...[
                     SizedBox(height: tt.rowGap),
-                    TenturaCommandButton(
-                      key: TestIds.key(TestIds.beaconFactsAdd),
-                      label: l10n.beaconFactsAddFact,
-                      onPressed: () => unawaited(
+                    FactAddMenuButton(
+                      onNewFact: () => unawaited(
                         showBeaconFactComposerSheet(
                           pageContext,
                           cubit: cubit,
+                        ),
+                      ),
+                      onPickFromAvailable: () => unawaited(
+                        showFactPickFromAvailableSheet(
+                          pageContext,
+                          beaconId: cubit.state.beacon.id,
+                          isPost: false,
+                          onBrought: cubit.refreshFactCards,
                         ),
                       ),
                     ),
