@@ -201,6 +201,9 @@ class RoomBatonAuthorData extends RoomBatonData {
   final int eligibleCount;
   final RoomBatonTaker? taker;
   final RoomBatonSelectionMode? selectionMode;
+
+  /// Whether the candidate rows carry a priority label (more than one tier).
+  bool get showsTiers => candidates.map((c) => c.tier).toSet().length > 1;
 }
 
 /// An asked person's view: only their own answer, then the outcome.

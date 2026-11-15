@@ -23,6 +23,7 @@ import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/domain/entity/room_baton_data.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_message_attachment.dart';
 import 'package:tentura/domain/entity/room_poll_data.dart';
@@ -1405,10 +1406,16 @@ class RoomMessageTile extends StatelessWidget {
             ),
             style: theme.textTheme.labelSmall,
           );
+    // Name, priority label and answer per row need more than the 75% bubble.
+    final needsFullWidthCard = switch (message.baton) {
+      final RoomBatonAuthorData a => a.showsTiers,
+      _ => false,
+    };
     final hasMediaOrPoll =
         imageAttachments.isNotEmpty ||
         fileAttachments.isNotEmpty ||
-        message.linkedPollingId != null;
+        message.linkedPollingId != null ||
+        needsFullWidthCard;
     final useInlineMeta = shouldUseInlineTrailingMeta(
       hasDisplayText: display.isNotEmpty,
       hasMediaOrPoll: hasMediaOrPoll,
@@ -1893,7 +1900,9 @@ class RoomMessageTile extends StatelessWidget {
             ? readableCap
             : tt.mediaMaxWidth;
         final contentCap = shouldHug
-            ? hasMediaOrPoll
+            ? needsFullWidthCard
+                  ? constraints.maxWidth
+                  : hasMediaOrPoll
                   ? mediaCap
                   : readableCap
             : constraints.maxWidth;

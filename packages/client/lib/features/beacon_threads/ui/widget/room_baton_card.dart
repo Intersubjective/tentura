@@ -222,7 +222,7 @@ class _AuthorBody extends StatelessWidget {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
     final mutedBody = TenturaText.bodySmall(tt.textMuted);
-    final showTiers = baton.candidates.map((c) => c.tier).toSet().length > 1;
+    final showTiers = baton.showsTiers;
     final canChoose = baton.candidates.any(
       (c) => c.response == RoomBatonResponse.canHelp,
     );
@@ -248,6 +248,8 @@ class _AuthorBody extends StatelessWidget {
                 Expanded(
                   child: Text(
                     candidate.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TenturaText.bodySmall(tt.text),
                   ),
                 ),
