@@ -19,11 +19,15 @@ class FactPickerCubit extends Cubit<FactPickerState> {
     required this.destinationBeaconId,
     required this.mode,
     this._hereFacts = const [],
+    bool canCopy = true,
   }) : _case = threadsCase,
        super(
          mode == FactPickerMode.quote
-             ? const FactPickerState(
-                 scopes: FactPickerScope.values,
+             ? FactPickerState(
+                 // Copying here is impossible: only this episode's facts.
+                 scopes: canCopy
+                     ? FactPickerScope.values
+                     : const [FactPickerScope.here],
                  scope: FactPickerScope.here,
                )
              : const FactPickerState(
@@ -56,16 +60,30 @@ class FactPickerCubit extends Cubit<FactPickerState> {
     return words.every(folded.contains);
   }
 
-  /// Opens the initial scope (loads saved facts when it needs them).
+  /// Opens the initial scope and loads the saved facts when the Saved
+  /// scope is offered (they also mark ★ on the other scopes).
   Future<void> start() async {
     _refresh();
     await _ensureSaved();
   }
 
+  /// [factCardId] can no longer be copied: its row reads unavailable.
+  void markUnavailable(String factCardId) {
+    if (isClosed) return;
+    emit(state.copyWith(unavailableIds: {...state.unavailableIds, factCardId}));
+  }
+
   Future<void> setScope(FactPickerScope scope) async {
     if (!state.scopes.contains(scope)) return;
     _cancelSearch();
-    emit(state.copyWith(scope: scope, results: const [], loading: false));
+    emit(
+      state.copyWith(
+        scope: scope,
+        results: const [],
+        loading: false,
+        searched: false,
+      ),
+    );
     _refresh();
     await _ensureSaved();
     if (scope == FactPickerScope.all) _scheduleSearch();
@@ -85,10 +103,8 @@ class FactPickerCubit extends Cubit<FactPickerState> {
       );
       return FactPickerBringResult.copied(r.outcome);
     } on Object catch (e) {
-      if (e is BeaconFactCopySourceUnavailableException && !isClosed) {
-        emit(
-          state.copyWith(unavailableIds: {...state.unavailableIds, factCardId}),
-        );
+      if (e is BeaconFactCopySourceUnavailableException) {
+        markUnavailable(factCardId);
       }
       return FactPickerBringResult.failed(e);
     }
@@ -97,7 +113,15 @@ class FactPickerCubit extends Cubit<FactPickerState> {
   Future<void> unsave(String factCardId) async {
     await _case.unsaveFact(factCardId: factCardId);
     _saved = _saved?.where((r) => r.factCardId != factCardId).toList();
-    if (!isClosed) _refresh();
+    if (isClosed) return;
+    emit(
+      state.copyWith(
+        results: state.results
+            .where((r) => r.factCardId != factCardId)
+            .toList(),
+      ),
+    );
+    _refresh();
   }
 
   @override
@@ -107,7 +131,9 @@ class FactPickerCubit extends Cubit<FactPickerState> {
   }
 
   Future<void> _ensureSaved() async {
-    if (state.scope != FactPickerScope.saved || _savedRequested) return;
+    if (!state.scopes.contains(FactPickerScope.saved) || _savedRequested) {
+      return;
+    }
     _savedRequested = true;
     try {
       _saved = await _case.savedFacts();
@@ -131,6 +157,9 @@ class FactPickerCubit extends Cubit<FactPickerState> {
       state.copyWith(
         hereRows: _hereFacts.where((f) => _matches(words, f.factText)).toList(),
         savedRows: saved.toList(),
+        savedIds: {
+          for (final r in _saved ?? const <BeaconSavedFact>[]) r.factCardId,
+        },
         showHint:
             state.scope == FactPickerScope.all && !_isSearchable(state.query),
       ),
@@ -149,9 +178,17 @@ class FactPickerCubit extends Cubit<FactPickerState> {
   void _scheduleSearch() {
     _cancelSearch();
     if (!_isSearchable(state.query)) {
-      emit(state.copyWith(results: const [], loading: false, failed: false));
+      emit(
+        state.copyWith(
+          results: const [],
+          loading: false,
+          failed: false,
+          searched: false,
+        ),
+      );
       return;
     }
+    emit(state.copyWith(searched: false));
     final epoch = _searchEpoch;
     _debounce = Timer(searchDebounce, () => unawaited(_search(epoch)));
   }
@@ -165,10 +202,17 @@ class FactPickerCubit extends Cubit<FactPickerState> {
         excludeBeaconId: destinationBeaconId,
       );
       if (isClosed || epoch != _searchEpoch) return;
-      emit(state.copyWith(results: hits, loading: false));
+      emit(state.copyWith(results: hits, loading: false, searched: true));
     } on Object {
       if (isClosed || epoch != _searchEpoch) return;
-      emit(state.copyWith(results: const [], loading: false, failed: true));
+      emit(
+        state.copyWith(
+          results: const [],
+          loading: false,
+          failed: true,
+          searched: true,
+        ),
+      );
     }
   }
 }

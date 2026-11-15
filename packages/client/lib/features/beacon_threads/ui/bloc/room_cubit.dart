@@ -1,7 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:tentura/features/beacon_threads/data/repository/beacon_fact_card_repository.dart' show BeaconFactOrigin;
+import 'package:tentura/features/beacon_threads/data/repository/beacon_fact_card_repository.dart'
+    show BeaconFactOrigin;
 import 'package:tentura/features/beacon_threads/domain/exception/now_line_changed_exception.dart';
 import 'package:uuid/uuid.dart';
 
@@ -23,6 +24,7 @@ import 'package:tentura/domain/entity/room_poll_data.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
 import 'package:tentura/domain/entity/room_read_watermark.dart';
 import 'package:tentura/domain/exception/generic_exception.dart';
+import 'package:tentura/domain/util/beacon_pinned_facts.dart';
 import 'package:tentura/domain/util/burst_coalescer.dart';
 import 'package:tentura/features/beacon_plan/domain/use_case/beacon_plan_case.dart';
 import 'package:tentura/features/beacon_plan/domain/exception/beacon_plan_exceptions.dart';
@@ -53,6 +55,7 @@ import '../message/baton_plan_step_messages.dart';
 import '../message/beacon_room_fact_messages.dart';
 import '../message/discussion_read_only_message.dart';
 import '../util/room_reply_excerpt.dart';
+import 'fact_picker_cubit.dart';
 import 'room_message_reaction_local.dart';
 import 'room_state.dart';
 
@@ -720,6 +723,16 @@ class RoomCubit extends Cubit<RoomState> {
       ),
     );
   }
+
+  /// The composer fact picker's controller (quote mode): this room's live
+  /// facts; a read-only room cannot copy, so it offers no other scope.
+  FactPickerCubit factPicker() => FactPickerCubit(
+    threadsCase: _case,
+    destinationBeaconId: state.beaconId,
+    mode: FactPickerMode.quote,
+    hereFacts: activePinnedFacts(state.factCards).toList(),
+    canCopy: state.canWriteDiscussion,
+  );
 
   /// Brings fact [sourceFactCardId] from another episode into this room,
   /// reloads the room's facts and quotes the copy (plan D19). An

@@ -35,7 +35,9 @@ class FactPickerState extends StateBase {
     this.failed = false,
     this.savedFailed = false,
     this.showHint = false,
+    this.searched = false,
     this.unavailableIds = const {},
+    this.savedIds = const {},
   });
 
   final List<FactPickerScope> scopes;
@@ -56,8 +58,14 @@ class FactPickerState extends StateBase {
   /// The All scope waits for a longer query; no search was made.
   final bool showHint;
 
+  /// [results] answer the current query: an empty list means nothing found.
+  final bool searched;
+
   /// Rows whose source can no longer be copied.
   final Set<String> unavailableIds;
+
+  /// Every saved fact id, whatever the query: rows on any scope show ★.
+  final Set<String> savedIds;
 
   FactPickerState copyWith({
     FactPickerScope? scope,
@@ -69,7 +77,9 @@ class FactPickerState extends StateBase {
     bool? failed,
     bool? savedFailed,
     bool? showHint,
+    bool? searched,
     Set<String>? unavailableIds,
+    Set<String>? savedIds,
   }) => FactPickerState(
     scopes: scopes,
     scope: scope ?? this.scope,
@@ -81,6 +91,8 @@ class FactPickerState extends StateBase {
     failed: failed ?? this.failed,
     savedFailed: savedFailed ?? this.savedFailed,
     showHint: showHint ?? this.showHint,
+    searched: searched ?? this.searched,
     unavailableIds: unavailableIds ?? this.unavailableIds,
+    savedIds: savedIds ?? this.savedIds,
   );
 }

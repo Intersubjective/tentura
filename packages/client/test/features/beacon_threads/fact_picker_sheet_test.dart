@@ -271,7 +271,9 @@ void main() {
       expect(find.byType(FactPickerSheet), findsNothing);
     });
 
-    testWidgets('search field is absent for exactly 5 facts', (tester) async {
+    // Plan #1288 P10 replaced the plan §7.3 «search only when more than 5
+    // facts» rule: the search field is always shown.
+    testWidgets('search field is present for exactly 5 facts', (tester) async {
       final facts = List.generate(
         5,
         (i) => _fact(id: 'f$i', factText: 'Fact number $i'),
@@ -287,8 +289,8 @@ void main() {
           of: find.byType(FactPickerSheet),
           matching: find.byType(TextField),
         ),
-        findsNothing,
-        reason: 'plan §7.3: search is shown only once facts exceed 5',
+        findsOneWidget,
+        reason: 'plan #1288 P10: search is always shown',
       );
     });
 
@@ -314,16 +316,16 @@ void main() {
     });
 
     testWidgets(
-      'search field stays absent when factCards.length is 6 but only 5 '
-      'are live',
+      'search field is shown and the removed fact unlisted when only 5 of '
+      '6 factCards are live',
       (tester) async {
-        // The ">5" threshold in plan §7.3 must be keyed off the live/listed
-        // facts, not the raw RoomState.factCards length — a removed card
-        // still occupies a slot in factCards (server never deletes rows)
-        // but must not count toward the search-visibility threshold, same
-        // as it must not appear in the list itself.
+        // A removed card still occupies a slot in factCards (server never
+        // deletes rows) but is not listed; search shows regardless.
         final facts = [
-          ...List.generate(5, (i) => _fact(id: 'f$i', factText: 'Fact number $i')),
+          ...List.generate(
+            5,
+            (i) => _fact(id: 'f$i', factText: 'Fact number $i'),
+          ),
           _fact(
             id: 'f-removed',
             factText: 'Unpinned fact Omega',
@@ -341,12 +343,15 @@ void main() {
             of: find.byType(FactPickerSheet),
             matching: find.byType(TextField),
           ),
+          findsOneWidget,
+          reason: 'plan #1288 P10: search is always shown',
+        );
+        expect(
+          find.descendant(
+            of: find.byType(FactPickerSheet),
+            matching: find.text('Unpinned fact Omega'),
+          ),
           findsNothing,
-          reason:
-              'plan §7.3: RoomState.factCards.length is 6 here, but only 5 '
-              'are live (one is removed) — search must stay hidden, proving '
-              'the threshold is keyed off the listable facts, not the raw '
-              'factCards count',
         );
       },
     );
@@ -493,32 +498,37 @@ void main() {
         expect(
           pending?.factText,
           factA.factText,
-          reason: "the pending quote must carry the tapped card's text, "
+          reason:
+              "the pending quote must carry the tapped card's text, "
               "not the other listed card's",
         );
         expect(
           pending?.seq,
           factA.revisionSeq,
-          reason: "the pending quote must carry the tapped card's "
+          reason:
+              "the pending quote must carry the tapped card's "
               'revisionSeq as seq (room_cubit.dart RoomCubit.'
               "setPendingQuotedFact's existing contract)",
         );
         expect(
           pending?.visibility,
           factA.visibility,
-          reason: "the pending quote must carry the tapped card's "
+          reason:
+              "the pending quote must carry the tapped card's "
               "visibility, not factB's (they differ: room vs public)",
         );
         expect(
           pending?.status,
           factA.status,
-          reason: "the pending quote must carry the tapped card's status, "
+          reason:
+              "the pending quote must carry the tapped card's status, "
               "not factB's (they differ: corrected vs active)",
         );
         expect(
           pending?.pinnedById,
           factA.pinnedBy,
-          reason: "the pending quote must carry the tapped card's pinner, "
+          reason:
+              "the pending quote must carry the tapped card's pinner, "
               "not factB's (they differ: author-a vs author-b)",
         );
 
@@ -583,8 +593,7 @@ void main() {
         bool composerHasFocus() {
           final finder = composerFieldFinder();
           expect(finder, findsOneWidget);
-          return tester.widget<TextField>(finder).focusNode?.hasFocus ??
-              false;
+          return tester.widget<TextField>(finder).focusNode?.hasFocus ?? false;
         }
 
         expect(
@@ -671,14 +680,12 @@ void main() {
         expect(
           cubit.state.pendingQuotedFact?.factCardId,
           'fact-quote',
-          reason:
-              "'Quote in chat' must call RoomCubit.setPendingQuotedFact",
+          reason: "'Quote in chat' must call RoomCubit.setPendingQuotedFact",
         );
         expect(
           find.byKey(const ValueKey('quoted-fact-banner')),
           findsOneWidget,
-          reason:
-              "'Quote in chat' must show the composer attached-fact banner",
+          reason: "'Quote in chat' must show the composer attached-fact banner",
         );
 
         expect(
@@ -719,8 +726,7 @@ void main() {
         bool composerHasFocus() {
           final finder = composerFieldFinder();
           expect(finder, findsOneWidget);
-          return tester.widget<TextField>(finder).focusNode?.hasFocus ??
-              false;
+          return tester.widget<TextField>(finder).focusNode?.hasFocus ?? false;
         }
 
         expect(

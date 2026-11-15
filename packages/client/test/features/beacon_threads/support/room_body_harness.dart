@@ -14,6 +14,8 @@ import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_read_watermark.dart';
+import 'package:tentura/domain/util/beacon_pinned_facts.dart';
+import 'package:tentura/features/beacon_threads/ui/bloc/fact_picker_cubit.dart';
 import 'package:tentura/features/beacon_threads/domain/room_host.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/beacon_room_body.dart';
@@ -22,6 +24,7 @@ import 'package:tentura/ui/bloc/presence_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/basic_chat_body.dart';
 import '../../../support/people_tags_widget_harness.dart';
+import '../room_cubit_fakes.dart';
 
 /// Test [RoomCubit] that can emit state and record scroll-target clears.
 class RoomBodyHarnessCubit extends Mock implements RoomCubit {
@@ -46,6 +49,19 @@ class RoomBodyHarnessCubit extends Mock implements RoomCubit {
     _state = next;
     _streamController.add(next);
   }
+
+  /// The fact picker's controller over a case of fake repositories (the
+  /// harness itself has no BeaconThreadsCase).
+  @override
+  FactPickerCubit factPicker() => FactPickerCubit(
+    threadsCase: roomCubitMakeCase(
+      FakeBeaconThreadsRepository(userId: kRoomCubitFakeMyUserId),
+    ),
+    destinationBeaconId: _state.beaconId,
+    mode: FactPickerMode.quote,
+    hereFacts: activePinnedFacts(_state.factCards).toList(),
+    canCopy: _state.canWriteDiscussion,
+  );
 
   @override
   void clearScrollToMessageTarget() {
