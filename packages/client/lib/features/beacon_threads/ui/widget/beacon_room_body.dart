@@ -428,6 +428,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
         fact: focused,
         onQuoteInChat: (f) => _quoteFactInChat(cub, f),
         isPost: _isPostRoom,
+        copyArrival: cub.factArrival(fid),
       );
     }
   }

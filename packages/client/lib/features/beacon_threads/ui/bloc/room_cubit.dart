@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:tentura/features/beacon_threads/data/repository/beacon_fact_card_repository.dart' show BeaconFactOrigin;
 import 'package:tentura/features/beacon_threads/domain/exception/now_line_changed_exception.dart';
 import 'package:uuid/uuid.dart';
 
@@ -664,6 +665,19 @@ class RoomCubit extends Cubit<RoomState> {
       emit(state.copyWith(scrollToMessageId: null));
     }
   }
+
+  /// Puts fact [factId] in focus (the room route's focus_fact): now when its
+  /// facts are already loaded, otherwise after the first fact load.
+  void focusFact(String? factId) {
+    _focusFactId = factId;
+    if (factId != null && state.factCards.any((f) => f.id == factId)) {
+      _focusFactId = null;
+      emit(state.copyWith(pendingFactsFocusFactId: factId));
+    }
+  }
+
+  /// The origin answer that led to source fact [factId], if any.
+  BeaconFactOrigin? factArrival(String factId) => _case.factArrival(factId);
 
   void clearPendingFactsFocus() {
     if (state.pendingFactsFocusFactId != null) {

@@ -122,8 +122,12 @@ class PostViewHostScreen extends BeaconViewHostScreen {
     @QueryParam(kQueryBeaconEntry) super.entry,
     @QueryParam(kQueryThreadId) super.threadId,
     @QueryParam(kQueryMessageId) super.messageId,
+    @QueryParam(kQueryFocusFact) this.focusFact,
     super.key,
   });
+
+  /// Fact whose actions open on arrival (`focus_fact=`).
+  final String? focusFact;
 
   @override
   Widget wrappedRoute(BuildContext context) => localScreenCubitScope(
@@ -162,6 +166,7 @@ class PostViewHostScreen extends BeaconViewHostScreen {
                 id: id,
                 myProfile: profileState.profile,
                 retargetOwnerHomeTabOnLeave: isDeepLinkQueryTruthy(isDeepLink),
+                focusFactId: focusFact,
               ),
             ),
           ),

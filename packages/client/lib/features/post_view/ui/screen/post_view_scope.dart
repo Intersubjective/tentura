@@ -25,6 +25,7 @@ class PostViewScope extends StatelessWidget {
     this.onClose,
     this.openParticipantsWhenReady = false,
     this.retargetOwnerHomeTabOnLeave = false,
+    this.focusFactId,
     super.key,
   });
 
@@ -40,6 +41,9 @@ class PostViewScope extends StatelessWidget {
 
   /// Cold deep link: Back retargets Home to Posts (#1105).
   final bool retargetOwnerHomeTabOnLeave;
+
+  /// Fact whose actions open on arrival (`focus_fact=`).
+  final String? focusFactId;
 
   @override
   Widget build(BuildContext context) => BlocProvider(
@@ -69,19 +73,53 @@ class PostViewScope extends StatelessWidget {
           ),
         ),
       ],
-      child: _RoomLifecycleSync(
-        child: PostParticipantsSheetOpener(
-          postId: id,
-          openWhenReady: openParticipantsWhenReady,
-          child: PostViewScreen(
-            id: id,
-            inPane: onClose != null,
-            retargetOwnerHomeTabOnLeave: retargetOwnerHomeTabOnLeave,
+      child: _FocusFactSync(
+        focusFactId: focusFactId,
+        child: _RoomLifecycleSync(
+          child: PostParticipantsSheetOpener(
+            postId: id,
+            openWhenReady: openParticipantsWhenReady,
+            child: PostViewScreen(
+              id: id,
+              inPane: onClose != null,
+              retargetOwnerHomeTabOnLeave: retargetOwnerHomeTabOnLeave,
+            ),
           ),
         ),
       ),
     ),
   );
+}
+
+/// Hands the route's `focus_fact` to the room host on arrival and whenever
+/// the same open Post is re-opened with another fact.
+class _FocusFactSync extends StatefulWidget {
+  const _FocusFactSync({required this.focusFactId, required this.child});
+
+  final String? focusFactId;
+  final Widget child;
+
+  @override
+  State<_FocusFactSync> createState() => _FocusFactSyncState();
+}
+
+class _FocusFactSyncState extends State<_FocusFactSync> {
+  @override
+  void initState() {
+    super.initState();
+    context.read<ThreadHostCubit>().focusFact(widget.focusFactId);
+  }
+
+  @override
+  void didUpdateWidget(_FocusFactSync oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.focusFactId != widget.focusFactId) {
+      context.read<ThreadHostCubit>().focusFact(widget.focusFactId);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }
 
 /// Keeps the room's lifecycle in step with the Post: its status and whether

@@ -43,6 +43,18 @@ class ThreadHostCubit extends Cubit<ThreadHostState> {
 
   RoomCubit? get roomCubit => _roomCubit;
 
+  String? _focusFactId;
+
+  /// Focuses fact [factId] in the General room, now or once it exists.
+  void focusFact(String? factId) {
+    _focusFactId = factId;
+    final room = _roomCubit;
+    if (factId != null && room != null && !room.isClosed && !state.switching) {
+      _focusFactId = null;
+      room.focusFact(factId);
+    }
+  }
+
   /// Held until a General room cubit exists to take it.
   RoomComposerIntent? _pendingComposerIntent;
 
@@ -123,6 +135,11 @@ class ThreadHostCubit extends Cubit<ThreadHostState> {
       if (intent != null) {
         _pendingComposerIntent = null;
         _roomCubit!.armComposerIntent(intent);
+      }
+      final focusFactId = _focusFactId;
+      if (focusFactId != null) {
+        _focusFactId = null;
+        _roomCubit!.focusFact(focusFactId);
       }
       emit(
         state.copyWith(
