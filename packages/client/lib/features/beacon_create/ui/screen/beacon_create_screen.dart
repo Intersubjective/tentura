@@ -221,6 +221,29 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen>
     );
   }
 
+  /// Keeps `fork_facts` in the browser URL in step with the facts still
+  /// brought, so a reload before the first autosave does not restore a
+  /// removed one.
+  void _syncForkFactsToBrowserUrl(List<String> factIds) {
+    if (!mounted) return;
+    final router = context.router;
+    final String currentUrl;
+    try {
+      currentUrl = router.currentUrl;
+    } on Object {
+      return;
+    }
+    if (currentUrl.isEmpty) return;
+    final uri = Uri.parse(currentUrl);
+    final query = Map<String, List<String>>.from(uri.queryParametersAll)
+      ..remove(kQueryBeaconForkFacts);
+    if (factIds.isNotEmpty) query[kQueryBeaconForkFacts] = factIds;
+    router.markUrlStateForReplace();
+    unawaited(
+      router.replacePath(uri.replace(queryParameters: query).toString()),
+    );
+  }
+
   void _updateUnsavedLeaveGuard() {
     if (!GetIt.I.isRegistered<UnsavedChangesGuardPort>()) return;
     GetIt.I<UnsavedChangesGuardPort>().setDirty(
@@ -537,6 +560,13 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen>
       },
       child: MultiBlocListener(
         listeners: [
+          BlocListener<BeaconCreateCubit, BeaconCreateState>(
+            bloc: _beaconCreateCubit,
+            listenWhen: (previous, current) =>
+                current.forkFactIds.length < previous.forkFactIds.length,
+            listener: (context, state) =>
+                _syncForkFactsToBrowserUrl(state.forkFactIds),
+          ),
           BlocListener<BeaconCreateCubit, BeaconCreateState>(
             bloc: _beaconCreateCubit,
             listenWhen: (previous, current) {

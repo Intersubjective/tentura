@@ -347,11 +347,11 @@ class RoomCubit extends Cubit<RoomState> {
   /// Wall-clock time when the newest peer-authored message was first observed.
   DateTime? _lastInboundAt;
 
-  /// The unread band is taken once per visit (#528); later refreshes and
-  /// read-to-bottom leave it alone.
   /// Fact to focus after the first fact load (the room route's focus_fact).
   String? _focusFactId;
 
+  /// The unread band is taken once per visit (#528); later refreshes and
+  /// read-to-bottom leave it alone.
   bool _unreadBandTaken = false;
   bool _refreshInProgress = false;
   _RoomRefreshScope? _queuedRefreshScope;
