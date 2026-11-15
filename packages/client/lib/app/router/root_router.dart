@@ -1063,7 +1063,9 @@ class RootRouter extends RootStackRouter implements AppNavigator {
   Future<void> leaveRequestDetail({bool retargetOwnerHomeTab = false}) async {
     const ownerTab = HomeTab.work;
     if (canPop()) {
-      await maybePop();
+      // The Request screen's PopScope vetoes maybePop (and re-enters its own
+      // leave); the draft was confirmed by the caller, so remove the page directly.
+      removeLast();
     } else {
       await resetToHome(tab: ownerTab);
       return;

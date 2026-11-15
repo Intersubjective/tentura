@@ -288,7 +288,7 @@ void main() {
       ..canMaybePop = true
       ..stubHomeTabIndex = HomeTabSpec.forTab(HomeTab.inbox).index;
     await navigator.leaveRequestDetail(retargetOwnerHomeTab: true);
-    expect(router.calls, ['maybePop null', 'openHomeTab HomeTab.work']);
+    expect(router.calls, ['removeLast', 'openHomeTab HomeTab.work']);
   });
 }
 
@@ -380,6 +380,12 @@ class _RecordingRootRouter extends RootRouter {
   @override
   Future<bool> maybePop<T extends Object?>([T? result]) async {
     calls.add('maybePop $result');
+    return canMaybePop;
+  }
+
+  @override
+  bool removeLast() {
+    calls.add('removeLast');
     return canMaybePop;
   }
 
