@@ -491,6 +491,7 @@ class _V2RoutingLink extends Link {
     'BeaconFactCardSave',
     'BeaconFactCardUnsave',
     'BeaconFactCardSavedList',
+    'BeaconFactCardSearch',
     'CapabilityPrivateLabelSet',
     'CapabilitySetViewerVisible',
     'MyPrivateLabelsForUser',

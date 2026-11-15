@@ -4787,6 +4787,7 @@ type query_root {
   BeaconFactCardOrigin(beaconId: String!, factCardId: String!): v2_BeaconFactCardOriginResult!
   BeaconFactCardRevisions(before: String, beaconId: String!, factCardId: String!): v2_BeaconFactCardRevisionsPage!
   BeaconFactCardSavedList: [v2_BeaconFactCardSavedRow!]!
+  BeaconFactCardSearch(excludeBeaconId: String, query: String!): [v2_BeaconFactCardSearchRow!]!
   BeaconFactCopyDestinations(sourceFactCardId: String!): [v2_BeaconFactCopyDestinationRow!]
   BeaconParticipantList(beaconId: String!): [v2_BeaconParticipantRow!]
   BeaconRoomReadWatermarks(beaconId: String!): [v2_v2_RoomReadWatermark!]
@@ -7900,6 +7901,15 @@ type v2_BeaconFactCardSavedRow {
   beaconKind: Int
   factCardId: String!
   factText: String
+}
+
+type v2_BeaconFactCardSearchRow {
+  attachmentsJson: String!
+  beaconId: String!
+  beaconKind: Int!
+  factCardId: String!
+  factText: String!
+  saved: Boolean!
 }
 
 type v2_BeaconFactCopyDestinationRow {

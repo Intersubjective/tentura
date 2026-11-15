@@ -1,0 +1,10 @@
+query BeaconFactCardSearch($query: String!, $excludeBeaconId: String) {
+  BeaconFactCardSearch(query: $query, excludeBeaconId: $excludeBeaconId) {
+    factCardId
+    beaconId
+    beaconKind
+    factText
+    attachmentsJson
+    saved
+  }
+}

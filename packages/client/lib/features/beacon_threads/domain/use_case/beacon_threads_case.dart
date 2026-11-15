@@ -436,6 +436,11 @@ base class BeaconThreadsCase extends UseCaseBase {
   /// The viewer's saved facts, newest first (plan D20).
   Future<List<BeaconSavedFact>> savedFacts() => _factCards.savedList();
 
+  Future<List<BeaconFactSearchHit>> searchAvailableFacts({
+    required String query,
+    String? excludeBeaconId,
+  }) => _factCards.search(query: query, excludeBeaconId: excludeBeaconId);
+
   Future<void> unsaveFact({required String factCardId}) =>
       _factCards.unsave(factCardId: factCardId);
 

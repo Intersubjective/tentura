@@ -21,6 +21,7 @@ import '../gql/_g/beacon_fact_card_remove.req.gql.dart';
 import '../gql/_g/beacon_fact_card_restore.req.gql.dart';
 import '../gql/_g/beacon_fact_card_save.req.gql.dart';
 import '../gql/_g/beacon_fact_card_saved_list.req.gql.dart';
+import '../gql/_g/beacon_fact_card_search.req.gql.dart';
 import '../gql/_g/beacon_fact_card_unsave.req.gql.dart';
 import '../gql/_g/beacon_fact_card_revisions.data.gql.dart';
 import '../gql/_g/beacon_fact_card_revisions.req.gql.dart';
@@ -33,6 +34,15 @@ typedef BeaconSavedFact = ({
   int? beaconKind,
   String? factText,
   String? attachmentsJson,
+});
+
+typedef BeaconFactSearchHit = ({
+  String factCardId,
+  String beaconId,
+  int beaconKind,
+  String factText,
+  String attachmentsJson,
+  bool saved,
 });
 
 enum BeaconFactCopyOutcome { created, alreadyThere }
@@ -409,6 +419,33 @@ class BeaconFactCardRepository {
           beaconKind: row.beaconKind,
           factText: row.factText,
           attachmentsJson: row.attachmentsJson,
+        ),
+    ];
+  }
+
+  Future<List<BeaconFactSearchHit>> search({
+    required String query,
+    String? excludeBeaconId,
+  }) async {
+    final r = await _remoteApiService
+        .request(
+          GBeaconFactCardSearchReq(
+            (b) => b
+              ..vars.query = query
+              ..vars.excludeBeaconId = excludeBeaconId,
+          ),
+        )
+        .firstLinkResponse(label: _label);
+    final rows = r.dataOrThrow(label: _label).BeaconFactCardSearch.toList();
+    return [
+      for (final row in rows)
+        (
+          factCardId: row.factCardId,
+          beaconId: row.beaconId,
+          beaconKind: row.beaconKind,
+          factText: row.factText,
+          attachmentsJson: row.attachmentsJson,
+          saved: row.saved,
         ),
     ];
   }
