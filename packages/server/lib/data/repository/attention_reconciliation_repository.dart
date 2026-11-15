@@ -66,18 +66,8 @@ WHERE b.user_id = \$1
   AND offer.status = 0
   AND offer.withdraw_reason IS NULL
   AND b.status NOT IN $_terminalBeaconStatuses
-  AND NOT EXISTS (
-    SELECT 1 FROM public.beacon_commitment_event AS ce
-    WHERE ce.beacon_id = offer.beacon_id
-      AND ce.user_id = offer.user_id
-      AND ce.kind IN $_terminalCommitmentKinds
-  )
-  AND NOT EXISTS (
-    SELECT 1 FROM public.beacon_commitment_event AS ce
-    WHERE ce.beacon_id = offer.beacon_id
-      AND ce.user_id = offer.user_id
-      AND ce.kind IN $_answeredCommitmentKinds
-  )
+  AND NOT ${HelpOfferSettlementSql.eventSinceLatestOffer(beaconColumn: 'offer.beacon_id', userColumn: 'offer.user_id', kinds: _terminalCommitmentKinds)}
+  AND NOT ${HelpOfferSettlementSql.eventSinceLatestOffer(beaconColumn: 'offer.beacon_id', userColumn: 'offer.user_id', kinds: _answeredCommitmentKinds)}
   AND NOT EXISTS (
     SELECT 1
     FROM public.notification_outbox AS nb

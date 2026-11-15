@@ -5,7 +5,6 @@ import 'package:migrant/testing.dart';
 import 'package:postgres/postgres.dart';
 import 'package:migrant_db_postgresql/migrant_db_postgresql.dart';
 
-import '../sql/help_offer_settlement_sql.dart';
 import '../sql/request_unread_sql.dart';
 
 part 'm0193.dart';

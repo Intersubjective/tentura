@@ -48,6 +48,19 @@ enum _Case {
   softened('sf', 'resolved'),
   released('rl', 'resolved'),
   admittedStatus('ad', 'resolved'),
+
+  /// Offered, withdrew, offered again: the new offer waits for the author.
+  reofferedAfterWithdrawal('rw', null),
+
+  /// Offered, admitted, withdrew, offered again: the earlier admission does
+  /// not answer the new offer.
+  reofferedAfterAdmission('ra', null),
+
+  /// Offered, withdrew, offered again, then admitted.
+  admittedAfterReoffer('rr', 'resolved'),
+
+  /// Offered, admitted, offered again, then withdrew.
+  withdrawnAfterReoffer('rs', 'superseded'),
   withdrawnReason('wr', 'superseded'),
   withdrawnEvent('we', 'superseded'),
   missingOffer('mo', 'superseded'),
@@ -76,6 +89,8 @@ const _settledByMigration = [
   _Case.softened,
   _Case.released,
   _Case.admittedStatus,
+  _Case.admittedAfterReoffer,
+  _Case.withdrawnAfterReoffer,
   _Case.withdrawnReason,
   _Case.withdrawnEvent,
   _Case.missingOffer,
@@ -110,6 +125,32 @@ Future<void> main() async {
           reason: 'no migration is registered after $_lastShippedVersion',
         );
         expect(versions[shipped + 1], _settleVersion);
+      },
+    );
+
+    test(
+      'm0315 carries its SQL as a frozen literal, so a later change to the '
+      'shared settle rule never rewrites it',
+      () {
+        final source = File('$_migrationDir/m0315.dart').readAsStringSync();
+        expect(
+          source,
+          isNot(contains('HelpOfferSettlementSql')),
+          reason: 'm0315 must not compose the live rule',
+        );
+        final statements = migrationsForTesting
+            .singleWhere((m) => m.version == _settleVersion)
+            .statements;
+        expect(statements, isNotEmpty);
+        for (final statement in statements) {
+          expect(
+            source,
+            contains(statement.trim()),
+            reason:
+                'every m0315 statement must appear verbatim in m0315.dart, '
+                'not be built from other declarations',
+          );
+        }
       },
     );
 
@@ -487,15 +528,30 @@ VALUES (@id, @author, 'Request', 'desc', @status)
     switch (c) {
       case _Case.acknowledged:
         await _offer(writer, beacon, helper);
-        await _event(writer, a, c, kind: 1);
+        await _events(writer, a, c, [1]);
       case _Case.softened:
         await _offer(writer, beacon, helper);
-        await _event(writer, a, c, kind: 2);
+        await _events(writer, a, c, [2]);
       case _Case.released:
         await _offer(writer, beacon, helper);
-        await _event(writer, a, c, kind: 4);
+        await _events(writer, a, c, [4]);
       case _Case.admittedStatus:
-        await _offer(writer, beacon, helper, status: 1);
+        // As admission leaves it: the offer row stays active, an `offered`
+        // event is followed by an `acknowledged` one.
+        await _offer(writer, beacon, helper);
+        await _events(writer, a, c, [0, 1]);
+      case _Case.reofferedAfterWithdrawal:
+        await _offer(writer, beacon, helper);
+        await _events(writer, a, c, [0, 3, 0]);
+      case _Case.reofferedAfterAdmission:
+        await _offer(writer, beacon, helper);
+        await _events(writer, a, c, [0, 1, 3, 0]);
+      case _Case.admittedAfterReoffer:
+        await _offer(writer, beacon, helper);
+        await _events(writer, a, c, [0, 3, 0, 1]);
+      case _Case.withdrawnAfterReoffer:
+        await _offer(writer, beacon, helper);
+        await _events(writer, a, c, [0, 1, 0, 3]);
       case _Case.withdrawnReason:
         await _offer(
           writer,
@@ -506,7 +562,7 @@ VALUES (@id, @author, 'Request', 'desc', @status)
         );
       case _Case.withdrawnEvent:
         await _offer(writer, beacon, helper);
-        await _event(writer, a, c, kind: 3);
+        await _events(writer, a, c, [3]);
       case _Case.missingOffer:
         break;
       case _Case.pending:
@@ -560,25 +616,31 @@ VALUES (@beaconId, @userId, 'offer', @status, 0, 1, @withdrawReason)
   },
 );
 
-Future<void> _event(
+/// Records the commitment events in order; each later one gets a higher seq.
+Future<void> _events(
   Connection writer,
   String a,
-  _Case c, {
-  required int kind,
-}) => writer.execute(
-  Sql.named('''
+  _Case c,
+  List<int> kinds,
+) async {
+  for (var i = 0; i < kinds.length; i++) {
+    final kind = kinds[i];
+    await writer.execute(
+      Sql.named('''
 INSERT INTO public.beacon_commitment_event
   (id, beacon_id, user_id, actor_user_id, kind)
 VALUES (@id, @beaconId, @userId, @actor, @kind)
 '''),
-  parameters: {
-    'id': 'Cstlo$a${c.code}01',
-    'beaconId': _beacon(a, c),
-    'userId': _helper(a, c),
-    'actor': kind == 3 ? _helper(a, c) : _author(a),
-    'kind': kind,
-  },
-);
+      parameters: {
+        'id': 'Cstlo$a${c.code}0$i',
+        'beaconId': _beacon(a, c),
+        'userId': _helper(a, c),
+        'actor': (kind == 0 || kind == 3) ? _helper(a, c) : _author(a),
+        'kind': kind,
+      },
+    );
+  }
+}
 
 int _occurrenceSeq = 0;
 

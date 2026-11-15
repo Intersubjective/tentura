@@ -12,13 +12,14 @@ import 'package:test/test.dart';
 ///
 /// The rule that decides how a stale help-offer obligation settles (answered
 /// → `resolved`, withdrawn or missing → `superseded`) must be written once.
-/// The forward migration and the reconcile repository both compose that one
-/// definition; a second copy could drift while the agreement test, which
-/// only samples one dataset, still passes.
+/// The reconcile repository composes that one definition; a second copy
+/// under lib/ could drift while the agreement test, which only samples one
+/// dataset, still passes.
 ///
 /// A declaration *defines* the rule when its SQL string literals together
-/// name `withdraw_reason` and both settlement kinds. Shipped migrations
-/// (m0314 and earlier) are frozen history and are not searched.
+/// name `withdraw_reason` and both settlement kinds. Migrations (m0315 and
+/// earlier) are frozen history: each carries its own SQL literal, so a later
+/// change to the rule never rewrites one, and they are not searched.
 const _migrationFile = 'lib/data/database/migration/m0315.dart';
 const _repositoryFile =
     'lib/data/repository/attention_reconciliation_repository.dart';
@@ -37,17 +38,12 @@ void main() {
       );
     });
 
-    test('the forward migration composes the shared rule instead of holding '
-        'its own copy', () {
+    test('the forward migration holds its own frozen SQL and references no '
+        'lib/ declaration of the rule', () {
       expect(
         File(_migrationFile).existsSync(),
         isTrue,
         reason: 'the settle migration lives in $_migrationFile',
-      );
-      expect(
-        definitions.where((d) => d.path == _migrationFile),
-        isEmpty,
-        reason: 'the migration must not define its own settle rule',
       );
       expect(definitions, hasLength(1));
       final owner = definitions.single;
@@ -55,8 +51,14 @@ void main() {
         _referencedNames(_migrationFile).intersection(
           _declaredNames(owner.path),
         ),
-        isNotEmpty,
-        reason: 'the migration must reference the shared rule in ${owner.path}',
+        isEmpty,
+        reason:
+            'the migration must not compose the live rule in ${owner.path}; '
+            'a later rule change would rewrite a shipped migration',
+      );
+      expect(
+        _referencedNames(_migrationFile),
+        isNot(contains('HelpOfferSettlementSql')),
       );
     });
 
@@ -88,7 +90,7 @@ final class _Definition {
 
 bool _isShippedMigration(String path) {
   final match = RegExp(r'migration/m(\d{4})\.dart$').firstMatch(path);
-  return match != null && int.parse(match.group(1)!) <= 314;
+  return match != null && int.parse(match.group(1)!) <= 315;
 }
 
 List<File> _libFiles() =>
