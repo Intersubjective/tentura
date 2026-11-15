@@ -79,6 +79,8 @@ Future<FakeBeaconViewFactCardRepository> _openComposer(
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 400));
   await tester.tap(find.byKey(TestIds.key(TestIds.beaconFactsAdd)));
+  await tester.pumpAndSettle();
+  await tester.tap(find.byKey(TestIds.key(TestIds.beaconFactsAddNew)));
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 400));
   return factsRepo;
