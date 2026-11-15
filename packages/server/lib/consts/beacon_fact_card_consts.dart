@@ -40,3 +40,6 @@ const kMaxFactCopyDestinations = 100;
 
 /// Most saved facts one user keeps (plan D20).
 const kSavedFactCap = 200;
+
+/// Most rows one fact search returns (plan #1288 P5).
+const kMaxFactSearchResults = 30;

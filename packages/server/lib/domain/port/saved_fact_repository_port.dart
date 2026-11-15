@@ -17,4 +17,18 @@ abstract class SavedFactRepositoryPort {
   /// `attachmentsJson`; every other row (unreadable, removed, dangling id)
   /// carries `factCardId` and `available: false` only.
   Future<List<Map<String, Object?>>> list({required String userId});
+
+  /// Facts [userId] may pick whose head text holds every one of [words]
+  /// (already folded: lower case, ё→е): facts of beacons the user authors,
+  /// stewards or is a participant of (not left), plus their saved facts, all
+  /// passing the same read rule as [list]. Facts of [excludeBeaconId] are
+  /// left out. Saved matches first (newest saved first), then by
+  /// `updated_at` DESC and id; at most [limit] rows of `factCardId`,
+  /// `beaconId`, `beaconKind`, `factText`, `attachmentsJson` and `saved`.
+  Future<List<Map<String, Object?>>> search({
+    required String userId,
+    required List<String> words,
+    required int limit,
+    String? excludeBeaconId,
+  });
 }
