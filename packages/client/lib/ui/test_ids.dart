@@ -51,6 +51,8 @@ abstract final class TestIds {
 
   static String myWorkObligation(String receiptId) =>
       'my_work.obligation.$receiptId';
+  static String myWorkObligationClose(String receiptId) =>
+      'my-work-obligation-close:$receiptId';
 
   static String myWorkWhatsNew(String beaconId) =>
       'my_work.whats_new.$beaconId';
@@ -154,6 +156,8 @@ abstract final class TestIds {
 
   static String helpOfferAccept(String userId) => 'help_offer.$userId.accept';
   static String helpOfferDecline(String userId) => 'help_offer.$userId.decline';
+  static String helpOfferCloseCard(String userId) =>
+      'help-offer-close-card:$userId';
   static String helpOfferKeepStandby(String userId) =>
       'help_offer.$userId.keep_standby';
   static String helpOfferRemove(String userId) => 'help_offer.$userId.remove';
@@ -233,11 +237,13 @@ abstract final class TestIds {
   static const constellationHiddenPinsCount = 'constellation.hidden_pins_count';
   static const constellationFieldSearch = 'constellation.field_search';
   static const constellationShowAgain = 'constellation.show_again';
-  static const constellationPersonItemsSearch = 'constellation.person_items.search';
+  static const constellationPersonItemsSearch =
+      'constellation.person_items.search';
   static const constellationPersonItemsLoadMore =
       'constellation.person_items.load_more';
   static const constellationHiddenByYouRow = 'constellation.hidden_by_you_row';
-  static const constellationHiddenByYouShow = 'constellation.hidden_by_you_show';
+  static const constellationHiddenByYouShow =
+      'constellation.hidden_by_you_show';
   static const constellationRequestStatusMarker =
       'constellation.request_status_marker';
   static const constellationPinMarker = 'constellation.pin_marker';

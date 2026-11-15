@@ -2022,6 +2022,7 @@ WHERE outbox.id = $2
   /// Second layer behind [AttentionSettlementCase] for owner decision C
   /// (U07b2): the statement itself matches no obligation kind, so a caller
   /// that reaches the repository directly still cannot acknowledge one away.
+  /// A help-offer receipt can only be *dismissed* (closing the owner's card).
   @override
   Future<int> settle({
     required String accountId,
@@ -2045,8 +2046,12 @@ WHERE outbox.occurrence_id = occ.id
     SELECT receipt_id
     FROM public.visible_attention_receipts($1)
   )
-  AND ($3 <> 'dismissed' OR outbox.suppression_class <> 'mandatory')
-  AND occ.event_type IS DISTINCT FROM $4
+  AND (
+    $3 <> 'dismissed'
+    OR outbox.suppression_class <> 'mandatory'
+    OR occ.event_type = $4
+  )
+  AND (occ.event_type IS DISTINCT FROM $4 OR $3 = 'dismissed')
 ''',
     variables: [
       Variable<String>(accountId),

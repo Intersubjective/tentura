@@ -3594,6 +3594,10 @@
   "@myWorkObligationRespond": {
     "context": "MyWorkScreen"
   },
+  "myWorkObligationCloseCard": "Close this Request card",
+  "@myWorkObligationCloseCard": {
+    "context": "MyWorkScreen"
+  },
   "myWorkObligationOfferMissing": "This help offer is no longer available.",
   "@myWorkObligationOfferMissing": {
     "context": "MyWorkScreen"

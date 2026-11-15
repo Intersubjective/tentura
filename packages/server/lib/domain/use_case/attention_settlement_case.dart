@@ -38,7 +38,14 @@ final class AttentionSettlementCase extends UseCaseBase {
     // `liveObligationEventType` only ever names a receipt that still
     // `requires_action`, so a non-null answer here is by definition a live
     // obligation, whatever kind it is.
-    if (eventType != null) {
+    //
+    // The one exception is the recipient's own *dismissal* of a help-offer
+    // obligation: it only closes their card and answers nobody, so it is
+    // honest whatever state the offer is in.
+    final isOfferDismissal =
+        eventType == 'helpOfferSubmitted' &&
+        kind == AttentionSettlementKind.dismissed;
+    if (eventType != null && !isOfferDismissal) {
       throw ArgumentError.value(
         receiptId,
         'receiptId',

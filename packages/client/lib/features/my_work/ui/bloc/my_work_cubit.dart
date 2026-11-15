@@ -562,6 +562,34 @@ class MyWorkCubit extends Cubit<MyWorkState> {
     await _adoptServerAttention(beaconId, fallback: previous);
   }
 
+  /// Closes the card of a help-offer obligation that cannot be answered any
+  /// more. The server settles the receipt; the card then adopts its answer.
+  /// A refusal leaves the obligation where it is and rethrows for the caller
+  /// to say why.
+  Future<void> dismissObligation(String beaconId, String receiptId) async {
+    if (beaconId.isEmpty || receiptId.isEmpty) return;
+    await _myWorkCase.dismissObligation(receiptId);
+    if (isClosed) return;
+    // Settled: the row goes now, whatever the re-read below manages to say.
+    final current = state.attentionByBeacon[beaconId];
+    if (current != null) {
+      emit(
+        state.copyWith(
+          attentionByBeacon: {
+            ...state.attentionByBeacon,
+            beaconId: current.copyWith(
+              liveObligations: [
+                for (final r in current.liveObligations)
+                  if (r.id != receiptId) r,
+              ],
+            ),
+          },
+        ),
+      );
+    }
+    await _adoptServerAttention(beaconId, fallback: current);
+  }
+
   /// «Готово» on a plan step row of a card (#220 §5.8). The step leaves the
   /// card at once; a refusal restores it and rethrows for the row to say
   /// why.

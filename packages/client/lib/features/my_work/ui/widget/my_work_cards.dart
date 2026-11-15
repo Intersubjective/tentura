@@ -28,6 +28,7 @@ import 'package:tentura/features/beacon/ui/util/beacon_lifecycle_ui.dart';
 import 'package:tentura/features/beacon_view/ui/sheet/help_offer_tile_sheet.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_hud_author_confirm_sheets.dart';
 import 'package:tentura/features/my_work/ui/bloc/my_work_cubit.dart';
+import 'package:tentura/features/my_work/domain/group_my_work_obligations.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_obligation_block.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_plan_step_rows.dart';
 import 'package:tentura/features/beacon_plan/ui/util/plan_presenter.dart'
@@ -404,14 +405,27 @@ Widget? _composeMyWorkFooter(
           ),
           suppressReviewHelpOffersFallback: suppressReviewHelpOffersFallback,
           onReviewHelpOffers: () => _openBeaconReviewHelpOffers(context, vm),
-          onRespondHelpOffer: (offererId) => unawaited(
-            showHelpOfferTileSheetFromDesk(
-              context: context,
-              beaconId: vm.beaconId,
-              offerUserId: offererId,
-              beacon: vm.beacon,
-            ),
-          ),
+          onRespondHelpOffer: (offererId) {
+            final receiptId = [
+              for (final g in groupMyWorkObligations(obligations))
+                if (g.offererId == offererId) g.primary.id,
+            ].firstOrNull;
+            unawaited(
+              showHelpOfferTileSheetFromDesk(
+                context: context,
+                beaconId: vm.beaconId,
+                offerUserId: offererId,
+                beacon: vm.beacon,
+                onCloseCard: receiptId == null
+                    ? null
+                    : () => closeOfferObligationCard(
+                        context,
+                        beaconId: vm.beaconId,
+                        receiptId: receiptId,
+                      ),
+              ),
+            );
+          },
         ),
       if (showObligations && existingFooter != null)
         SizedBox(height: tt.rowGap),

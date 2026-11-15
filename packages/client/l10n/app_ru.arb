@@ -3356,6 +3356,10 @@
   "@myWorkObligationRespond": {
     "context": "MyWorkScreen"
   },
+  "myWorkObligationCloseCard": "Закрыть карточку запроса",
+  "@myWorkObligationCloseCard": {
+    "context": "MyWorkScreen"
+  },
   "myWorkObligationOfferMissing": "Это предложение помощи больше недоступно.",
   "@myWorkObligationOfferMissing": {
     "context": "MyWorkScreen"

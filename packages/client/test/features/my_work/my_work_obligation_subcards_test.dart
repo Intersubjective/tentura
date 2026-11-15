@@ -5,6 +5,7 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
 import 'package:tentura/features/my_work/ui/bloc/my_work_cubit.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_obligation_block.dart';
@@ -39,7 +40,12 @@ MyWorkCardViewModel _vm({bool showReviewHelpOffersCta = false}) =>
   beaconId: 'beacon-1',
   role: MyWorkCardRole.authored,
   kind: MyWorkCardKind.authoredActive,
-  beacon: Beacon.empty.copyWith(id: 'beacon-1', title: 'Garden'),
+  beacon: Beacon.empty.copyWith(
+    id: 'beacon-1',
+    title: 'Garden',
+    // The offer being answered is still pending, so Respond is offered.
+    helpOfferUsers: const [Profile(id: 'u1', displayName: 'Anna')],
+  ),
   showReviewHelpOffersCta: showReviewHelpOffersCta,
 );
 

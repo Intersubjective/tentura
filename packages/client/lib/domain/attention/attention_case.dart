@@ -854,7 +854,20 @@ final class AttentionCase implements AttentionReconcilePort {
     if (receiptId.isEmpty) return;
     final receipt = _receiptsById[receiptId];
     if (receipt != null && !receipt.isUserSettleable) return;
-    await _repository.settle(receiptId: receiptId, kind: 'resolved');
+    await _settle(receiptId, 'resolved');
+  }
+
+  /// Closes the recipient's own card for an obligation that has nothing left
+  /// to answer (a help offer already admitted, withdrawn or out of reach).
+  /// It tells nobody anything; the server only moves the receipt out of the
+  /// recipient's live set.
+  Future<void> dismissReceipt(String receiptId) async {
+    if (receiptId.isEmpty) return;
+    await _settle(receiptId, 'dismissed');
+  }
+
+  Future<void> _settle(String receiptId, String kind) async {
+    await _repository.settle(receiptId: receiptId, kind: kind);
     _requestHeadRefreshForAllAttached();
     unawaited(_requestSurfaceSummaryRefresh());
   }

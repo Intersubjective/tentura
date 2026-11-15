@@ -215,6 +215,10 @@ final class MyWorkCase extends UseCaseBase {
   Future<AttentionClearResult> clearReceipt(String receiptId) =>
       _attentionCase.clearReceipt(receiptId: receiptId);
 
+  /// Closes the viewer's card for an obligation with nothing left to answer.
+  Future<void> dismissObligation(String receiptId) =>
+      _attentionCase.dismissReceipt(receiptId);
+
   /// A Request whose surface or state changed and has to be re-read (U13c).
   Stream<String> get requestInvalidations =>
       _attentionCase.requestInvalidations;

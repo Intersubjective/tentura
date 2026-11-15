@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -5,15 +6,38 @@ import 'package:flutter/material.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/attention/request_card_room_attention.dart';
+import 'package:tentura/domain/entity/commitment_stake_state.dart';
 import 'package:tentura/features/inbox/ui/widget/activity_event_subcard_block.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
 import 'package:tentura/features/my_work/domain/group_my_work_obligations.dart';
+import 'package:tentura/features/my_work/ui/bloc/my_work_cubit.dart';
 import 'package:tentura/features/updates/updates_receipt_display_copy.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_plan_step_rows.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
+import 'package:tentura/ui/utils/ui_utils.dart';
 
 const kMyWorkVisibleObligationGroups = 3;
+
+/// Closes the card of a help-offer obligation: the server settles the receipt
+/// and the card drops the row. Returns false (after saying why) when the
+/// server refused, so the obligation stays where it was.
+Future<bool> closeOfferObligationCard(
+  BuildContext context, {
+  required String beaconId,
+  required String receiptId,
+}) async {
+  final cubit = context.read<MyWorkCubit>();
+  try {
+    await cubit.dismissObligation(beaconId, receiptId);
+    return true;
+  } catch (e, st) {
+    if (context.mounted) {
+      showSnackBar(context, isError: true, error: e, stackTrace: st);
+    }
+    return false;
+  }
+}
 
 /// Whether the active-event block should render (rows and/or fallback CTA).
 bool myWorkObligationBlockVisible({
@@ -231,11 +255,15 @@ class MyWorkObligationBlock extends StatelessWidget {
     if (group == null) return null;
     final tt = context.tt;
     final label = _ctaLabel(l10n, group);
-    final onPressed = _ctaCallback(group);
+    final onPressed = _ctaCallback(context, group);
     if (label == null || onPressed == null) return null;
+    final closes = !_canRespond(group);
     return Semantics(
       identifier: TestIds.myWorkObligation(group.primary.id),
       child: FilledButton.tonal(
+        key: closes
+            ? TestIds.key(TestIds.myWorkObligationClose(group.primary.id))
+            : null,
         onPressed: onPressed,
         style: FilledButton.styleFrom(
           minimumSize: Size(0, tt.buttonHeight),
@@ -254,17 +282,43 @@ class MyWorkObligationBlock extends StatelessWidget {
     return () => respond(offererId);
   }
 
+  /// «Ответить» exists only while some answering action does: the offer
+  /// still counts, is not admitted yet, is pending, and the Request still
+  /// takes offers. Otherwise the row offers to close the card instead.
+  bool _canRespond(MyWorkObligationGroup group) {
+    final offererId = group.offererId;
+    if (offererId == null) return false;
+    final beacon = vm.beacon;
+    return beacon.status.isOpenFamily &&
+        (vm.stakeState == CommitmentStakeState.none ||
+            vm.stakeState == CommitmentStakeState.offered) &&
+        beacon.helpOfferUsers.any((u) => u.id == offererId) &&
+        !beacon.admittedHelperUsers.any((u) => u.id == offererId);
+  }
+
   String? _ctaLabel(L10n l10n, MyWorkObligationGroup group) {
     if (group.isHelpOffer) {
-      return onRespondHelpOffer == null || group.offererId == null
-          ? null
-          : l10n.myWorkObligationRespond;
+      if (onRespondHelpOffer == null || group.offererId == null) return null;
+      return _canRespond(group)
+          ? l10n.myWorkObligationRespond
+          : l10n.myWorkObligationCloseCard;
     }
     return null;
   }
 
-  VoidCallback? _ctaCallback(MyWorkObligationGroup group) {
-    if (group.isHelpOffer) return _respondCallback(group);
-    return null;
+  VoidCallback? _ctaCallback(
+    BuildContext context,
+    MyWorkObligationGroup group,
+  ) {
+    if (!group.isHelpOffer) return null;
+    if (_canRespond(group)) return _respondCallback(group);
+    if (onRespondHelpOffer == null || group.offererId == null) return null;
+    return () => unawaited(
+      closeOfferObligationCard(
+        context,
+        beaconId: vm.beaconId,
+        receiptId: group.primary.id,
+      ),
+    );
   }
 }

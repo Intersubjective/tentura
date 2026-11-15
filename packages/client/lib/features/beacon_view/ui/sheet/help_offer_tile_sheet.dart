@@ -28,6 +28,10 @@ Future<void> showHelpOfferTileSheet({
   Beacon? initialBeacon,
   BeaconViewCase? beaconViewCase,
   UiEffectPort? effects,
+
+  /// Closes the card this sheet was opened from; resolves true once it is
+  /// closed. Without it the close-card action just dismisses the sheet.
+  Future<bool> Function()? onCloseCard,
 }) {
   return showTenturaAdaptiveSheet<void>(
     context: context,
@@ -45,14 +49,36 @@ Future<void> showHelpOfferTileSheet({
           unawaited(cubit.load());
           return cubit;
         },
-        child: const _HelpOfferTileSheetBody(),
+        child: _HelpOfferTileSheetBody(
+          offerUserId: offerUserId,
+          onCloseCard: onCloseCard,
+        ),
       );
     },
   );
 }
 
 class _HelpOfferTileSheetBody extends StatelessWidget {
-  const _HelpOfferTileSheetBody();
+  const _HelpOfferTileSheetBody({
+    required this.offerUserId,
+    required this.onCloseCard,
+  });
+
+  final String offerUserId;
+  final Future<bool> Function()? onCloseCard;
+
+  /// Always there, whatever the offer's state: the one way out of the card.
+  Widget _closeCard(BuildContext context, L10n l10n) => Align(
+    alignment: Alignment.centerRight,
+    child: TextButton(
+      key: TestIds.key(TestIds.helpOfferCloseCard(offerUserId)),
+      onPressed: () async {
+        final closed = await onCloseCard?.call() ?? true;
+        if (closed && context.mounted) Navigator.of(context).pop();
+      },
+      child: Text(l10n.myWorkObligationCloseCard),
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -77,9 +103,18 @@ class _HelpOfferTileSheetBody extends StatelessWidget {
             }
             final offer = state.offer;
             if (offer == null) {
-              return Padding(
-                padding: EdgeInsets.symmetric(vertical: tt.sectionGap),
-                child: TenturaStatusText(l10n.myWorkObligationOfferMissing),
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Padding(
+                    padding: EdgeInsets.symmetric(vertical: tt.sectionGap),
+                    child: TenturaStatusText(
+                      l10n.myWorkObligationOfferMissing,
+                    ),
+                  ),
+                  _closeCard(context, l10n),
+                ],
               );
             }
             final cubit = context.read<HelpOfferTileSheetCubit>();
@@ -116,6 +151,7 @@ class _HelpOfferTileSheetBody extends StatelessWidget {
                       style: TenturaText.bodySmall(tt.textMuted),
                     ),
                   ],
+                  _closeCard(context, l10n),
                 ],
               ),
             );
@@ -243,6 +279,7 @@ Future<void> showHelpOfferTileSheetFromDesk({
   required String beaconId,
   required String offerUserId,
   required Beacon beacon,
+  Future<bool> Function()? onCloseCard,
 }) async {
   Profile myProfile;
   try {
@@ -256,5 +293,6 @@ Future<void> showHelpOfferTileSheetFromDesk({
     offerUserId: offerUserId,
     myProfile: myProfile,
     initialBeacon: beacon,
+    onCloseCard: onCloseCard,
   );
 }
