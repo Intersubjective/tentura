@@ -292,12 +292,12 @@ void main() {
       expect(tops[0], lessThan(tops[1]));
     });
 
-    testWidgets('is absent when the Post has no facts; the author header, '
+    testWidgets('is absent when an archived Post has no facts; the author header, '
         'forwarding line, quick actions and participants still render', (
       tester,
     ) async {
       final l10n = await L10n.delegate.load(const Locale('en'));
-      await _openInfoSheet(tester, rows: const []);
+      await _openInfoSheet(tester, rows: const [], archived: true);
 
       expect(_inSheet(find.text('Facts')), findsNothing);
       expect(_inSheet(find.byType(BeaconPinnedFactCard)), findsNothing);

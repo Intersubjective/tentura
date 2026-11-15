@@ -12,6 +12,9 @@ import 'package:tentura/domain/entity/post_people.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/fact_actions_sheet.dart';
+import 'package:tentura/features/beacon_threads/ui/widget/fact_add_menu_button.dart';
+import 'package:tentura/features/beacon_threads/ui/widget/fact_picker_sheet.dart';
+import 'package:tentura/features/beacon_view/ui/widget/beacon_fact_composer_sheet.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_pinned_fact_card.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_state.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -201,10 +204,13 @@ class PostInfoSheet extends StatelessWidget {
             if (room != null)
               BlocBuilder<RoomCubit, RoomState>(
                 bloc: room,
-                buildWhen: (p, c) => p.factCards != c.factCards,
+                buildWhen: (p, c) =>
+                    p.factCards != c.factCards ||
+                    p.canWriteDiscussion != c.canWriteDiscussion,
                 builder: (context, roomState) => _Facts(
                   facts: roomState.factCards,
                   room: room,
+                  canAdd: roomState.canWriteDiscussion,
                 ),
               ),
             SizedBox(height: tt.rowGap),
@@ -291,16 +297,22 @@ class PostInfoSheet extends StatelessWidget {
 }
 
 /// The Post's facts (plan D17): the Post's only fact list. Hidden when there
-/// are none; a tap opens the Post-mode fact actions.
+/// are none and the Post is not writable; a tap opens the Post-mode fact
+/// actions; a writable Post also offers «Add fact».
 class _Facts extends StatelessWidget {
-  const _Facts({required this.facts, required this.room});
+  const _Facts({
+    required this.facts,
+    required this.room,
+    required this.canAdd,
+  });
 
   final List<BeaconFactCard> facts;
   final RoomCubit room;
+  final bool canAdd;
 
   @override
   Widget build(BuildContext context) {
-    if (facts.isEmpty) return const SizedBox.shrink();
+    if (facts.isEmpty && !canAdd) return const SizedBox.shrink();
     final l10n = L10n.of(context)!;
     final tt = context.tt;
     return Column(
@@ -334,6 +346,35 @@ class _Facts extends StatelessWidget {
                   cubit: room,
                   fact: fact,
                   isPost: true,
+                ),
+              ),
+            ),
+          ),
+        if (canAdd)
+          // The composer reads the room from its context; the sheet sits
+          // above the Post screen's provider.
+          BlocProvider<RoomCubit>.value(
+            value: room,
+            child: Builder(
+              builder: (context) => Padding(
+                padding: EdgeInsets.symmetric(horizontal: tt.screenHPadding),
+                child: Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: FactAddMenuButton(
+                    onNewFact: () => unawaited(
+                      const PostRoomFactAuthoring()
+                          .openAddFact(context)
+                          .then((_) => room.refreshFactCards()),
+                    ),
+                    onPickFromAvailable: () => unawaited(
+                      showFactPickFromAvailableSheet(
+                        context,
+                        beaconId: room.state.beaconId,
+                        isPost: true,
+                        onBrought: room.refreshFactCards,
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
