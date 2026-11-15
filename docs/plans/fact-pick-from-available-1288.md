@@ -1,6 +1,6 @@
 # Facts: global search in every fact picker, «Pick from available» in Add fact — plan (#1288)
 
-**Status:** draft for Alloy (2026-11-15, rev 2: owner scope change — global search on every surface that offers a
+**Status:** shipped (2026-11-16). Was: draft for Alloy (2026-11-15, rev 2: owner scope change — global search on every surface that offers a
 choice of a fact). Builds on [fact-continuity-architecture.md](fact-continuity-architecture.md) (rev 4, shipped as
 epic tentura-zzla; ADR [0014](../adr/0014-fact-continuity.md)). D1–D20 and R1–R6 there stay binding.
 Path shorthand: `S/` = `packages/server/lib`, `C/` = `packages/client/lib`.

@@ -71,3 +71,13 @@ facts (pointers) feeds the chat fact picker.
 - The source room learns nothing about copies.
 - A blocked but admitted Request participant loses fact history and fact writes (single SQL access function, stricter than `RoomAccessPolicy.canUseRoom`).
 - Fact images are re-stored per copy and count against the copier's daily upload cap.
+
+## Amendment 2026-11-16: fact search and «Pick from available» (#1288)
+
+Plan: [`fact-pick-from-available-1288.md`](../plans/fact-pick-from-available-1288.md) (P1–P12). D1–D20 and R1–R6 stay binding.
+
+- **Read-scoped search, not a global index.** `BeaconFactCardSearch` scans only facts in an episode the viewer belongs to (author, steward, or a participant who has not left) plus the viewer's saved facts. Each candidate passes the same access rule as the saved list; unreadable facts are dropped, never shown as «unavailable».
+- **Matching and cap.** Same fold and word rule as Field search; fewer than 2 characters → empty. Saved matches rank first; at most 30 rows (`kMaxFactSearchResults`). Optional `excludeBeaconId` narrows only.
+- **Rate limit.** In-memory per-user sliding window, `FACT_SEARCH_RATE_MAX` (default 30) per fact-edit rate window (60 s), per isolate; over it → the existing rate-limited exception.
+- **One picker with scopes.** `FactPickerSheet` offers «In this Request/Post», «★ Saved» and «All my facts» with an always-visible search field. A pick from another episode always goes through the existing copy path (provenance, discussion-only, «Already there»).
+- **Add-fact menu.** «Add fact» offers «New fact» and «Pick from available».

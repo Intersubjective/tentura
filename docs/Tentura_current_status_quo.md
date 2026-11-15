@@ -132,7 +132,7 @@ Request detail: **Discussion**, **People**, **Log** + coordination header (STATU
 
 **Remove from chat ≠ End participation** — revoke Chat access without erasing stake history; ending participation is a separate author action (`releaseCommitment`). Vocabulary and gates: [`../CONTEXT.md`](../CONTEXT.md) § Beacon lifecycle / Commitment facts.
 
-**Facts continue across episodes.** Facts exist on Posts as well as Requests (one visibility, discussion-only). A member can **copy** a fact into another Request or Post; the copy is independent, starts at revision 1, lands discussion-only and carries a generic **origin** line. Members can also keep **saved facts** (personal pointers) and pick them from the chat's «Saved» tab. Fork and budding offer a «Facts to bring» checklist. Rationale: [`adr/0014-fact-continuity.md`](adr/0014-fact-continuity.md); room rules: [`features/beacon_room.md`](features/beacon_room.md) § Fact visibility.
+**Facts continue across episodes.** Facts exist on Posts as well as Requests (one visibility, discussion-only). A member can **copy** a fact into another Request or Post; the copy is independent, starts at revision 1, lands discussion-only and carries a generic **origin** line. Members can also keep **saved facts** (personal pointers) and pick them from the chat's «Saved» tab; the fact picker also searches «All my facts», and «Add fact» offers «Pick from available» (#1288). Fork and budding offer a «Facts to bring» checklist. Rationale: [`adr/0014-fact-continuity.md`](adr/0014-fact-continuity.md); room rules: [`features/beacon_room.md`](features/beacon_room.md) § Fact visibility.
 
 **No comment thread** on the beacon — deliberate anti-forum stance.
 

@@ -24,6 +24,8 @@ Coordination product for **Requests** (internally: **Beacons**), request **discu
 
 **Saved fact** is a personal pointer (user id + fact id, cap 200) listed in the «Saved» tab of the fact picker. It shows the fact's current text under the viewer's current rights, or «No longer available». Picking one copies it into the current episode and quotes it in the message.
 
+**All my facts** is the picker scope that searches every fact the viewer may read (their episodes plus saved facts; not a global index). **Pick from available** is the Add-fact menu item that opens the picker to copy such a fact into the current Request or Post.
+
 | Layer | Primary object | Coordination workspace | Home nav branch (offers to you) |
 |-------|----------------|------------------------|---------------------------------------|
 | **User-facing** (UI, push, landing, l10n values) | **Request** / **Requests**; **Post** / **Posts** | **discussion** | **Activity** / «Активность» |
