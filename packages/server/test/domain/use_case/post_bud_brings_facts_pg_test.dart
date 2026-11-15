@@ -1270,4 +1270,38 @@ VALUES (@id, @m, ${BeaconRoomMessageAttachmentKind.file}, @url,
       expect(storage.objects[copied.single], file.bytes);
     });
   });
+
+  group('Budding skips a file whose stored object is gone', () {
+    test('the bud completes and the child copy holds only the present '
+        'file', () async {
+      final w = await world();
+      final factId = 'Fl${'bf${w.n}'.padLeft(10, '0')}';
+      final files = await seedFileFact(
+        beaconId: w.post,
+        author: w.author,
+        factId: factId,
+        count: 2,
+      );
+      await storage.removeObject(files[0].key);
+      final before = storage.objects.keys.toSet();
+
+      final result = await bud(w, factIds: [factId]);
+
+      expect(result.outcome, PostBudResultJson.outcomeCreated);
+      final copy = (await factsIn(result.childBeaconId!)).single;
+      expect(copy['origin_fact_card_id'], factId);
+      final text = await rows(
+        'SELECT fact_text FROM public.beacon_fact_card WHERE id = @i',
+        {'i': copy['id']},
+      );
+      expect(text.single['fact_text'], 'Fact $factId');
+      final entries = entriesOf(copy);
+      expect(entries, hasLength(1));
+      expect(entries.single['fileName'], files[1].name);
+      expect(entries.single['sizeBytes'], files[1].bytes.length);
+      final created = storage.objects.keys.toSet().difference(before);
+      expect(created, hasLength(1), reason: 'only the present file is stored');
+      expect(storage.objects[created.single], files[1].bytes);
+    });
+  });
 }

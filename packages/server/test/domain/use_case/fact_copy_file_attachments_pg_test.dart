@@ -824,6 +824,47 @@ VALUES (@u, (now() AT TIME ZONE 'UTC')::date, @cap)
       expect(storage.objects[file.storageKey], file.bytes);
     });
   });
+
+  group('Copying a fact whose file object is gone from storage', () {
+    test('a direct copy fails, inserts no fact and leaves no stored object '
+        'behind', () async {
+      final w = await world();
+      final present = await attachFile(
+        w,
+        position: 0,
+        bytes: Uint8List.fromList(utf8.encode('present ${w.n}')),
+      );
+      final gone = await attachFile(
+        w,
+        position: 1,
+        bytes: Uint8List.fromList(utf8.encode('gone ${w.n}')),
+        fileName: 'gone.pdf',
+      );
+      await pinSourceMessage(w);
+      await storage.removeObject(gone.storageKey);
+      final before = storage.objects.keys.toSet();
+
+      Object? error;
+      try {
+        await case_.copy(
+          sourceFactCardId: w.fact,
+          destinationBeaconId: w.published,
+          actorUserId: w.actor,
+        );
+      } on Object catch (e) {
+        error = e;
+      }
+
+      expect(error, isNotNull, reason: 'a missing file fails a direct copy');
+      final inserted = await rows(
+        'SELECT id FROM public.beacon_fact_card WHERE beacon_id = @b',
+        {'b': w.published},
+      );
+      expect(inserted, isEmpty);
+      expect(storage.objects.keys.toSet(), before);
+      expect(storage.objects[present.storageKey], present.bytes);
+    });
+  });
 }
 
 bool _sameBytes(Uint8List a, Uint8List b) {

@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/consts/beacon_fact_card_consts.dart';
@@ -81,7 +83,9 @@ final class SavedFactCase extends UseCaseBase {
     }
     return _saved.search(
       userId: userId,
-      words: searchWords(folded),
+      words: searchWords(
+        folded.substring(0, min(folded.length, kMaxFactSearchQueryChars)),
+      ).take(kMaxFactSearchWords).toList(),
       limit: kMaxFactSearchResults,
       excludeBeaconId: excludeBeaconId,
     );

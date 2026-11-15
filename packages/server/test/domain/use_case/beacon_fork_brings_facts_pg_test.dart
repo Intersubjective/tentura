@@ -1232,6 +1232,136 @@ VALUES (@id, @m, ${BeaconRoomMessageAttachmentKind.file}, @url,
       }
     });
   });
+
+  group('Forking skips a file whose stored object is gone', () {
+    test('the fork completes and the copy carries the remaining file and '
+        'image but no entry for the missing file', () async {
+      final w = await world();
+      final factId = 'Fl${'fk${w.n}'.padLeft(10, '0')}';
+      final files = await seedFileFact(
+        beaconId: w.source,
+        author: w.author,
+        factId: factId,
+        count: 2,
+      );
+      final image = await putImage(w.author, 150 + w.n % 50);
+      await writer.execute(
+        Sql.named('''
+UPDATE public.beacon_fact_card_revision
+SET attachments_json = attachments_json || @img::jsonb
+WHERE fact_card_id = @f
+'''),
+        parameters: {
+          'img': jsonEncode([
+            {...imageAttachment(image, w.author).single, 'position': 2},
+          ]),
+          'f': factId,
+        },
+      );
+      await storage.removeObject(files[0].key);
+
+      final draft = await fork(
+        beaconCase(),
+        sourceId: w.source,
+        userId: w.forker,
+        factIds: [factId],
+      );
+
+      final copy = (await factsIn(draft.id)).single;
+      expect(copy['origin_fact_card_id'], factId);
+      final entries = entriesOf(copy);
+      expect(
+        [for (final e in entries) e['kind']],
+        unorderedEquals([
+          BeaconRoomMessageAttachmentKind.file,
+          BeaconRoomMessageAttachmentKind.image,
+        ]),
+      );
+      final fileEntry = entries.singleWhere(
+        (e) => e['kind'] == BeaconRoomMessageAttachmentKind.file,
+      );
+      expect(fileEntry['fileName'], files[1].name);
+      expect(fileEntry['sizeBytes'], files[1].bytes.length);
+      final text = await rows(
+        'SELECT fact_text FROM public.beacon_fact_card WHERE id = @i',
+        {'i': copy['id']},
+      );
+      expect(text.single['fact_text'], 'Fact $factId');
+      final stored = copiesOfBytes({files[1].key}, files[1].bytes);
+      expect(stored, hasLength(1));
+    });
+
+    test('a fact whose only file is missing is still copied, with no '
+        'attachments, next to a fact whose file is present', () async {
+      final w = await world();
+      final x = 'Fl${'fk${w.n}x'.padLeft(10, '0')}';
+      final y = 'Fl${'fk${w.n}y'.padLeft(10, '0')}';
+      final xFiles = await seedFileFact(
+        beaconId: w.source,
+        author: w.author,
+        factId: x,
+        count: 1,
+      );
+      final yFiles = await seedFileFact(
+        beaconId: w.source,
+        author: w.author,
+        factId: y,
+        count: 1,
+      );
+      await storage.removeObject(xFiles.single.key);
+
+      final draft = await fork(
+        beaconCase(),
+        sourceId: w.source,
+        userId: w.forker,
+        factIds: [x, y],
+      );
+
+      final copies = {
+        for (final c in await factsIn(draft.id))
+          c['origin_fact_card_id']! as String: c,
+      };
+      expect(copies.keys, unorderedEquals([x, y]));
+      for (final id in [x, y]) {
+        final text = await rows(
+          'SELECT fact_text FROM public.beacon_fact_card WHERE id = @i',
+          {'i': copies[id]!['id']},
+        );
+        expect(text.single['fact_text'], 'Fact $id');
+      }
+      expect(entriesOf(copies[x]!), isEmpty);
+      expect(entriesOf(copies[y]!), hasLength(1));
+      expect(
+        copiesOfBytes({yFiles.single.key}, yFiles.single.bytes),
+        hasLength(1),
+      );
+    });
+
+    test('a skipped missing file leaves no extra stored object: only the '
+        'copy of the present file is new', () async {
+      final w = await world();
+      final factId = 'Fl${'fk${w.n}'.padLeft(10, '0')}';
+      final files = await seedFileFact(
+        beaconId: w.source,
+        author: w.author,
+        factId: factId,
+        count: 2,
+      );
+      await storage.removeObject(files[0].key);
+      final before = storage.objects.keys.toSet();
+
+      await fork(
+        beaconCase(),
+        sourceId: w.source,
+        userId: w.forker,
+        factIds: [factId],
+      );
+
+      final created = storage.objects.keys.toSet().difference(before);
+      expect(created, hasLength(1));
+      expect(storage.objects[created.single], files[1].bytes);
+    });
+  });
 }
 
 /// Builds [BeaconCase] through its constructor tear-off. The task names the

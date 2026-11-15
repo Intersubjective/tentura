@@ -173,7 +173,13 @@ class ImageRepository implements ImageRepositoryPort {
 
   @override
   Future<String> copyFile({required String path, required String mime}) async {
-    final bytes = await _remoteStorageService.getObject(path);
+    final Uint8List bytes;
+    try {
+      bytes = await _remoteStorageService.getObject(path);
+    } on Object {
+      // The stored object is gone: report the source as unavailable.
+      throw const FactCopySourceUnavailableException();
+    }
     final copyPath = '${roomAttachmentStorageKey(bytes)}/${generateId('A')}';
     final acl = _env.kS3PutObjectAclValue;
     await _remoteStorageService.putObject(

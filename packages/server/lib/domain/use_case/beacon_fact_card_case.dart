@@ -361,13 +361,19 @@ final class BeaconFactCardCase extends UseCaseBase {
         var dropFact = false;
         for (final a in source.attachments) {
           if (a.fileKey case final fileKey?) {
-            final newKey = await _imageRepository.copyFile(
-              path: fileKey,
-              mime: switch (a.fields['mime']) {
-                final String mime => mime,
-                _ => 'application/octet-stream',
-              },
-            );
+            final String newKey;
+            try {
+              newKey = await _imageRepository.copyFile(
+                path: fileKey,
+                mime: switch (a.fields['mime']) {
+                  final String mime => mime,
+                  _ => 'application/octet-stream',
+                },
+              );
+            } on FactCopySourceUnavailableException {
+              if (!skipUnavailable) rethrow;
+              continue;
+            }
             factFiles.add(newKey);
             createdFiles.add(newKey);
             attachments.add({

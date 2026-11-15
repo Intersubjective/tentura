@@ -10,3 +10,7 @@ List<String> searchWords(String folded) => folded
     .split(' ')
     .where((word) => word.isNotEmpty)
     .toList();
+
+/// Longest folded query and most words a fact search uses.
+const kMaxFactSearchQueryChars = 100;
+const kMaxFactSearchWords = 6;
