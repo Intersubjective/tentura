@@ -45,7 +45,8 @@ abstract final class NotificationText {
         continue;
       }
       if (r == 0x200D) {
-        final keep = i > 0 &&
+        final keep =
+            i > 0 &&
             i + 1 < runes.length &&
             _isPictographic(runes[i - 1]) &&
             _isPictographic(runes[i + 1]);
@@ -110,6 +111,17 @@ abstract final class NotificationText {
     final hh = local.hour.toString().padLeft(2, '0');
     final mm = local.minute.toString().padLeft(2, '0');
     return '${local.day} $month$yearPart, $hh:$mm';
+  }
+
+  /// A relative duration, never a clock time (plan K16): `15 min`, `1 h 5 min`.
+  static String minutes(int? minutes, String locale) {
+    final ru = _isRu(locale);
+    final m = (minutes ?? 0) < 1 ? 1 : minutes!;
+    if (m < 60) return ru ? '$m мин' : '$m min';
+    final h = m ~/ 60;
+    final rest = m % 60;
+    if (rest == 0) return ru ? '$h ч' : '$h h';
+    return ru ? '$h ч $rest мин' : '$h h $rest min';
   }
 
   /// Request lifecycle status word; unknown names come back unchanged.

@@ -8,7 +8,9 @@ import 'package:tentura_server/domain/entity/beacon_notification_intent.dart';
 import 'package:tentura_server/domain/entity/notification_category.dart';
 import 'package:tentura_server/domain/entity/notification_kind.dart';
 import 'package:tentura_server/domain/notification/invite_accepted_copy.dart';
+import 'package:tentura_server/domain/notification/notification_copy_renderer.dart';
 import 'package:tentura_server/domain/notification/notification_excerpt.dart';
+import 'package:tentura_server/domain/notification/notification_text.dart';
 
 class BeaconNotificationCopy {
   const BeaconNotificationCopy({
@@ -124,29 +126,11 @@ class BeaconNotificationCopyBuilder {
         actionUrl: actionUrl,
       );
     }
-    final path = content.path
-        .map(
-          (node) =>
-              node.displayName ??
-              (ru
-                  ? '${node.anonymousCount} чел.'
-                  : '${node.anonymousCount} people'),
-        )
-        .join(' → ');
-    var helper = ru ? 'участника' : 'a helper';
-    for (final node in content.path) {
-      if (node.displayName case final name?
-          when node.userId == content.helperId) {
-        helper = name;
-      }
-    }
-    final body = content.done
-        ? (ru
-              ? '«${content.beaconTitle}» завершён с помощью $helper'
-              : "«${content.beaconTitle}» was completed with $helper's help")
-        : (ru
-              ? '$path предложил(а) помощь с «${content.beaconTitle}»'
-              : '$path offered help with «${content.beaconTitle}»');
+    final body = NotificationCopyRenderer.forwardHelpedSentence(
+      content,
+      label: content.beaconTitle,
+      locale: locale,
+    );
     return BeaconNotificationCopy(
       title: title,
       body: body,
@@ -467,8 +451,8 @@ class BeaconNotificationCopyBuilder {
       ),
       NotificationKind.planStepReminder => (
         ru
-            ? 'Ваш шаг через ${_minutes(intent.relativeMinutes, ru: true)}'
-            : 'Your step starts in ${_minutes(intent.relativeMinutes)}',
+            ? 'Ваш шаг через ${NotificationText.minutes(intent.relativeMinutes, 'ru')}'
+            : 'Your step starts in ${NotificationText.minutes(intent.relativeMinutes, 'en')}',
         _bodyWithRequest(
           beaconTitle: beaconTitle,
           excerpt: excerpt,
@@ -485,8 +469,8 @@ class BeaconNotificationCopyBuilder {
       ),
       NotificationKind.planStepLate => (
         ru
-            ? 'Шаг опаздывает на ${_minutes(intent.relativeMinutes, ru: true)}'
-            : 'A step is ${_minutes(intent.relativeMinutes)} late',
+            ? 'Шаг опаздывает на ${NotificationText.minutes(intent.relativeMinutes, 'ru')}'
+            : 'A step is ${NotificationText.minutes(intent.relativeMinutes, 'en')} late',
         _bodyWithRequest(
           beaconTitle: beaconTitle,
           excerpt: excerpt,
@@ -599,47 +583,15 @@ class BeaconNotificationCopyBuilder {
   /// generic, category-level summary with no excerpts, actor names, or beacon
   /// titles. The deep link is preserved (not shown on the lock screen).
   BeaconNotificationCopy lockScreenSafe(BeaconNotificationIntent intent) {
-    final (title, body) = switch (categoryOf(
-      intent.kind,
-      beaconKind: intent.beaconKind,
-    )) {
-      NotificationCategory.asksOfMe => (
-        'Tentura',
-        'Something needs your response',
-      ),
-      NotificationCategory.unblocksMe => (
-        'Tentura',
-        'An update is ready for you',
-      ),
-      NotificationCategory.coordination => (
-        'Tentura',
-        'New activity in a request thread',
-      ),
-      NotificationCategory.connections => (
-        'Tentura',
-        'New connection activity',
-      ),
-      NotificationCategory.ambient => ('Tentura', 'New activity'),
-      NotificationCategory.postsSharedWithMe => (
-        'Tentura',
-        'A post was shared with you',
-      ),
-    };
+    final (:title, :body) = const NotificationCopyRenderer().lockScreenSafe(
+      categoryOf(intent.kind, beaconKind: intent.beaconKind),
+      'en',
+    );
     return BeaconNotificationCopy(
       title: title,
       body: body,
       actionUrl: _actionUrl(intent),
     );
-  }
-
-  /// A relative duration, never a clock time (plan K16).
-  String _minutes(int? minutes, {bool ru = false}) {
-    final m = (minutes ?? 0) < 1 ? 1 : minutes!;
-    if (m < 60) return ru ? '$m мин' : '$m min';
-    final h = m ~/ 60;
-    final rest = m % 60;
-    if (rest == 0) return ru ? '$h ч' : '$h h';
-    return ru ? '$h ч $rest мин' : '$h h $rest min';
   }
 
   String _coordinationItemNoun(int? kind) =>
