@@ -4,6 +4,7 @@
 // → `AttentionRepository.fetch` → the For You stream → the row on screen.
 
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:ferry/ferry.dart';
 import 'package:flutter/material.dart';
@@ -197,6 +198,57 @@ void main() {
       expect(find.textContaining('вам ответили'), findsOneWidget);
       expect(find.textContaining('поделил'), findsNothing);
     });
+
+    // The event keeps its real wire shape (a mention is a roomMessagePosted
+    // event of kind roomMention); only the actor's name is added.
+    for (final (name, eventOf, headline)
+        in <(String, Map<String, dynamic> Function(String), String)>[
+          ('reply', _replyEvent, 'Anna отвечает на ваш пост'),
+          ('mention', _mentionEvent, 'Anna упоминает вас'),
+        ]) {
+      testWidgets('a $name row headline names the actor and the row shows '
+          'the Post label', (tester) async {
+        Map<String, dynamic> named(String id) {
+          final event = eventOf(id);
+          final payload =
+              jsonDecode(event['presentationPayloadJson'] as String)
+                  as Map<String, dynamic>;
+          return {
+            ...event,
+            'presentationPayloadJson': jsonEncode({
+              ...payload,
+              'actorName': 'Anna',
+              'actorUserId': 'Uactor0000001',
+            }),
+          };
+        }
+
+        await _pumpFeed(tester, [
+          _groupWire(
+            beaconId: _postId,
+            beaconKind: 1,
+            postRootExcerpt: 'Кто в субботу на велопрогулку?',
+            events: [named('Eevent0000$name')],
+          ),
+        ]);
+
+        final row = find.byType(PostAttentionRow);
+        expect(row, findsOneWidget);
+        expect(
+          find.descendant(of: row, matching: find.text(headline)),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(
+            of: row,
+            matching: find.textContaining(
+              'Пост: Кто в субботу на велопрогулку?',
+            ),
+          ),
+          findsOneWidget,
+        );
+      });
+    }
 
     testWidgets('an @mention says «вас упомянули»', (tester) async {
       final harness = await _pumpFeed(tester, [

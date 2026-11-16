@@ -7744,6 +7744,7 @@ type v2_AttentionReceipt {
   presentationPayloadJson: String!
   priority: String!
   provenanceJson: String
+  relatedBeaconTitle: String
   requiresAction: Boolean!
   seenAt: String
   settledAt: String

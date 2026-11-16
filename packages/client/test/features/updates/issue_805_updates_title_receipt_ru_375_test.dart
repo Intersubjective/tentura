@@ -206,7 +206,7 @@ void main() {
     final titleRect = tester.getRect(title);
     expect(titleRect.right, lessThanOrEqualTo(kPhoneSurface.width));
     expect(titleRect.left, greaterThanOrEqualTo(0));
-    expect(find.textContaining('Пост скоро истечёт'), findsOneWidget);
+    expect(find.textContaining('Ваш пост скоро исчезнет'), findsOneWidget);
     expect(find.textContaining('about to expire'), findsNothing);
     expect(find.byType(UpdatesFeedTile), findsOneWidget);
     expect(tester.takeException(), isNull);

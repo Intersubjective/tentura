@@ -7,6 +7,7 @@ import 'package:tentura/domain/attention/attention_event_classification.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/features/updates/updates_receipt_display_copy.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/navigation/app_navigator.dart';
 import 'package:tentura/ui/utils/plain_text_preview.dart';
@@ -93,13 +94,22 @@ class PostAttentionRow extends StatelessWidget {
     final fromOther =
         senderId != null && senderId != authorId && senderName.isNotEmpty;
 
+    final actorName = latest == null
+        ? null
+        : actorNameFromPresentationPayload(latest.presentationPayloadJson);
     final headline = switch (variant) {
       PostAttentionVariant.arrival =>
         fromOther
             ? l10n.postRowSharedByFrom(authorName, senderName)
             : l10n.postRowSharedBy(authorName),
-      PostAttentionVariant.reply => l10n.postRowReplied,
-      PostAttentionVariant.mention => l10n.postRowMentioned,
+      PostAttentionVariant.reply =>
+        actorName == null
+            ? l10n.postRowReplied
+            : l10n.updatesPostReplyHeadline(actorName),
+      PostAttentionVariant.mention =>
+        actorName == null
+            ? l10n.postRowMentioned
+            : l10n.postRowMentionedBy(actorName),
       PostAttentionVariant.firstResponses => l10n.postRowFirstResponses,
       PostAttentionVariant.expiringSoon => l10n.postExpiringPushTitle,
     };
@@ -117,13 +127,17 @@ class PostAttentionRow extends StatelessWidget {
         !isMessageVariant && rootImageId.isNotEmpty && authorId.isNotEmpty;
 
     final more = (receipt.eventTotal ?? receipt.eventsPreview.length) - 1;
+    final messageFooter = [
+      postRowLabel(l10n, receipt.postRootExcerpt, author: authorName),
+      if (more > 0) l10n.postRowMoreMessages(more),
+    ].where((part) => part.isNotEmpty).join(' · ');
     final footer = switch (variant) {
       PostAttentionVariant.arrival =>
         noteText.isEmpty
             ? null
             : (senderName.isEmpty ? noteText : '$senderName: «$noteText»'),
       PostAttentionVariant.reply || PostAttentionVariant.mention =>
-        more > 0 ? l10n.postRowMoreMessages(more) : null,
+        messageFooter.isEmpty ? null : messageFooter,
       PostAttentionVariant.firstResponses ||
       PostAttentionVariant.expiringSoon => null,
     };

@@ -133,7 +133,7 @@ void main() {
         body: 'The results are in.',
       );
       expect(copy.headline, 'Запрос закрыт');
-      expect(copy.body, 'Итоги подведены.');
+      expect(copy.body, 'Итоги подведены');
     });
 
     test('Russian: «Time to sum up», also on the bookmark-only row', () {
@@ -146,7 +146,11 @@ void main() {
           body: 'The closing window is open.',
         );
         expect(copy.headline, 'Пора подвести итоги', reason: key);
-        expect(copy.body, 'Подведение итогов началось.', reason: key);
+        expect(
+          copy.body,
+          'Подведение итогов открыто: отметьте, кто помог',
+          reason: key,
+        );
       }
     });
 
@@ -158,8 +162,8 @@ void main() {
         title: 'Evaluation cancelled',
         body: 'The closing was cancelled.',
       );
-      expect(copy.headline, 'Оценка отменена');
-      expect(copy.body, 'Подведение итогов отменено.');
+      expect(copy.headline, 'Подведение итогов отменено');
+      expect(copy.body, isEmpty);
     });
 
     test('guard: English keeps the same words', () {
@@ -171,7 +175,7 @@ void main() {
         body: 'The results are in.',
       );
       expect(finalized.headline, 'Request closed');
-      expect(finalized.body, 'The results are in.');
+      expect(finalized.body, 'The results are in');
       final opened = _closureRow(
         en,
         eventType: 'closureOpened',
@@ -180,7 +184,7 @@ void main() {
         body: 'The closing window is open.',
       );
       expect(opened.headline, 'Time to sum up');
-      expect(opened.body, 'The closing window is open.');
+      expect(opened.body, 'Closing is open: mark who helped');
     });
 
     test('inside a Request card the closure event is Russian too', () {

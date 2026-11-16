@@ -89,6 +89,16 @@ UpdatesFeedGlyph updatesFeedGlyphFor(
 /// Request title, then the reason (server cap 80 characters), on a phone.
 const _reasonBodyMaxLines = 4;
 
+/// Rows whose second line is one fixed sentence of advice («No activity for
+/// 5 days. Close it, extend it or post an update»): read whole, not cut after
+/// two lines on a 375 px phone in Russian.
+const _wholeSentenceBodyKeys = {
+  'request_stale',
+  'closure_opened',
+  'closure_draft_reminder',
+  'post_expiring_soon',
+};
+
 /// Dense Updates feed row.
 class UpdatesFeedTile extends StatefulWidget {
   const UpdatesFeedTile({
@@ -228,6 +238,7 @@ class _UpdatesFeedTileState extends State<UpdatesFeedTile> {
       postRootExcerpt: widget.receipt.postRootExcerpt,
       collapsedCount: widget.receipt.collapsedCount,
       viewerUserId: widget.viewerUserId,
+      relatedBeaconTitle: widget.receipt.relatedBeaconTitle,
     );
     final glyph = updatesFeedGlyphFor(widget.receipt, tt);
     final localCreatedAt = widget.receipt.createdAt.toLocal();
@@ -293,10 +304,11 @@ class _UpdatesFeedTileState extends State<UpdatesFeedTile> {
 
     final carriesReason =
         widget.bodyOverride == null &&
-        updatesReceiptCarriesAuthorReason(
-          presentationKey: widget.receipt.presentationKey,
-          presentationPayloadJson: widget.receipt.presentationPayloadJson,
-        );
+        (_wholeSentenceBodyKeys.contains(widget.receipt.presentationKey) ||
+            updatesReceiptCarriesAuthorReason(
+              presentationKey: widget.receipt.presentationKey,
+              presentationPayloadJson: widget.receipt.presentationPayloadJson,
+            ));
 
     final leading = profile != null
         ? _LeadingAvatar(profile: profile, showDot: _showDot)
@@ -358,8 +370,8 @@ class _UpdatesFeedTileState extends State<UpdatesFeedTile> {
         if (copy.body.isNotEmpty)
           Text(
             copy.body,
-            // The author's reason is read whole, not cut after two lines
-            // behind the Request title (#601, #381); the server caps it.
+            // The author's reason (#601, #381) or a fixed sentence of advice is
+            // read whole, not cut after two lines behind the Request title.
             maxLines: carriesReason ? _reasonBodyMaxLines : 2,
             overflow: TextOverflow.ellipsis,
             style: TenturaText.bodySmall(tt.textMuted),

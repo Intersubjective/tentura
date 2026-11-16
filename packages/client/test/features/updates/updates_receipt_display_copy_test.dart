@@ -103,6 +103,23 @@ void main() {
     expect(copy.body, 'Garden cleanup');
   });
 
+  test('feed row copy for a room message shows its words, not the Request '
+      'title', () {
+    final copy = resolveUpdatesFeedRowCopy(
+      title: 'Anna',
+      body: 'Garden cleanup — Bring a ladder',
+      presentationKey: 'room_message_posted',
+      presentationPayloadJson:
+          '{"beaconTitle":"Garden cleanup","eventType":"roomMessagePosted", '
+          '"excerpt":"Bring a ladder"}',
+      l10n: l10n,
+      actorName: 'Anna',
+    );
+
+    expect(copy.body, 'Bring a ladder');
+    expect(copy.body, isNot(contains('Garden cleanup')));
+  });
+
   test('feed row copy keeps trust excerpt after stripping request title', () {
     final copy = resolveUpdatesFeedRowCopy(
       title: 'Trust in Alex increased',
@@ -112,9 +129,11 @@ void main() {
       presentationPayloadJson:
           '{"beaconTitle":"Move help this weekend","eventType":"trustGivenChanged"}',
       l10n: l10n,
+      actorName: 'Alex',
     );
 
-    expect(copy.headline, l10n.attentionEventTrustGivenUp);
+    // The row names the person instead of «them».
+    expect(copy.headline, 'You trust Alex more');
     expect(copy.body, 'Move help this weekend');
   });
 

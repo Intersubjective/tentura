@@ -46,7 +46,7 @@ void main() {
   final en = lookupL10n(const Locale('en'));
 
   group('postExpiringSoon headline', () {
-    test('RU: reads «Пост скоро истечёт», as push and email do', () {
+    test('RU: reads «Ваш пост скоро исчезнет»', () {
       final copy = resolveUpdatesFeedRowCopy(
         title: _serverTitle,
         body: _serverBody,
@@ -54,12 +54,12 @@ void main() {
         presentationPayloadJson: _payload,
         l10n: ru,
       );
-      expect(copy.headline, 'Пост скоро истечёт');
+      expect(copy.headline, 'Ваш пост скоро исчезнет');
       // The English server sentence does not survive as the second line.
       expect(copy.body, isNot(contains('expire')));
     });
 
-    test('EN: keeps the server wording', () {
+    test('EN: reads «Your post expires soon»', () {
       final copy = resolveUpdatesFeedRowCopy(
         title: _serverTitle,
         body: _serverBody,
@@ -67,7 +67,7 @@ void main() {
         presentationPayloadJson: _payload,
         l10n: en,
       );
-      expect(copy.headline, _serverTitle);
+      expect(copy.headline, 'Your post expires soon');
     });
 
     test('RU: a row with a blank title falls back to the same words', () {
@@ -78,10 +78,12 @@ void main() {
         presentationPayloadJson: _payload,
         l10n: ru,
       );
-      expect(copy.headline, 'Пост скоро истечёт');
+      expect(copy.headline, 'Ваш пост скоро исчезнет');
     });
 
-    testWidgets('RU Updates row shows «Пост скоро истечёт»', (tester) async {
+    testWidgets('RU Updates row shows «Ваш пост скоро исчезнет»', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(
           locale: const Locale('ru'),
@@ -101,7 +103,7 @@ void main() {
         ),
       );
       await tester.pump();
-      expect(find.textContaining('Пост скоро истечёт'), findsOneWidget);
+      expect(find.textContaining('Ваш пост скоро исчезнет'), findsOneWidget);
       expect(find.textContaining('about to expire'), findsNothing);
       expect(find.textContaining('expires in under'), findsNothing);
       expect(tester.takeException(), isNull);

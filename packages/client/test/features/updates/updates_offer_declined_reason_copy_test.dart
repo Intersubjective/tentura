@@ -60,17 +60,20 @@ void main() {
     expect(whole, isNot(contains('declined')));
   });
 
-  test('guard: a decline without words keeps today’s row', () {
-    for (final (l10n, headline) in [
-      (en, 'Offer declined'),
-      (ru, 'Предложение отклонено'),
-    ]) {
-      final copy = _row(l10n, excerpt: '', body: _requestTitle);
-      expect(copy.headline, headline);
-      expect(copy.body, _requestTitle);
-      expect(_whole(copy), isNot(matches(RegExp(r':\s*$', multiLine: true))));
-    }
-  });
+  test(
+    'guard: a decline without words names the author and keeps the request',
+    () {
+      for (final (l10n, headline) in [
+        (en, 'Tab QA declined your offer'),
+        (ru, 'Tab QA отклонил(а) ваше предложение'),
+      ]) {
+        final copy = _row(l10n, excerpt: '', body: _requestTitle);
+        expect(copy.headline, headline);
+        expect(copy.body, _requestTitle);
+        expect(_whole(copy), isNot(matches(RegExp(r':\s*$', multiLine: true))));
+      }
+    },
+  );
 
   test('guard: no structured excerpt means no words, even when the push '
       'body carries them', () {

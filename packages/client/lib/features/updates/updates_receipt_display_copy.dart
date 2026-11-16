@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:flutter/widgets.dart' show StringCharacters;
+
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/domain/entity/profile.dart';
@@ -112,30 +114,41 @@ BeaconStatus? toStatusFromPresentationPayload(String presentationPayloadJson) {
   return name == null ? null : BeaconStatus.values.asNameMap()[name];
 }
 
-bool? _payloadBool(String presentationPayloadJson, String key) {
+/// The payload as a map; null when it is blank, `{}` or not a JSON object.
+Map<Object?, Object?>? _payloadMap(String presentationPayloadJson) {
   final trimmed = presentationPayloadJson.trim();
   if (trimmed.isEmpty || trimmed == '{}') return null;
   try {
     final decoded = jsonDecode(trimmed);
-    if (decoded is! Map) return null;
-    final value = decoded[key];
-    return value is bool ? value : null;
+    return decoded is Map ? decoded : null;
   } on Object {
     return null;
   }
 }
 
+bool? _payloadBool(String presentationPayloadJson, String key) {
+  final value = _payloadMap(presentationPayloadJson)?[key];
+  return value is bool ? value : null;
+}
+
 String? _payloadString(String presentationPayloadJson, String key) {
-  final trimmed = presentationPayloadJson.trim();
-  if (trimmed.isEmpty || trimmed == '{}') return null;
-  try {
-    final decoded = jsonDecode(trimmed);
-    if (decoded is! Map) return null;
-    final value = decoded[key];
-    return value is String ? value.trim() : null;
-  } on Object {
-    return null;
-  }
+  final value = _payloadMap(presentationPayloadJson)?[key];
+  return value is String ? value.trim() : null;
+}
+
+DateTime? _payloadDate(String presentationPayloadJson, String key) {
+  final value = _payloadString(presentationPayloadJson, key);
+  return value == null ? null : DateTime.tryParse(value);
+}
+
+/// «21 Nov, 18:00» / «21 ноября, 18:00» in the device's time zone; the year
+/// only when it is not the current one (notification identity spec §4.4).
+String _formatDate(L10n l10n, DateTime at, {bool withTime = true}) {
+  final d = at.toLocal();
+  String two(int n) => n.toString().padLeft(2, '0');
+  final year = d.year == DateTime.now().year ? '' : ' ${d.year}';
+  final time = withTime ? ', ${two(d.hour)}:${two(d.minute)}' : '';
+  return '${d.day} ${l10n.updatesDateMonth('m${d.month}')}$year$time';
 }
 
 /// A message (or mention) in a Request's **Questions** — the only live
@@ -545,12 +558,27 @@ UpdatesFeedRowCopy? planReceiptDisplayCopy({
   required String? presentationKey,
   required String presentationPayloadJson,
   required L10n l10n,
+  String? actorName,
 }) {
   final type = planReceiptEventType(
     presentationKey: presentationKey,
     presentationPayloadJson: presentationPayloadJson,
   );
   if (type == null) return null;
+  final step = excerptFromPresentationPayload(presentationPayloadJson) ?? '';
+  // A feed row has no name prefix of its own: the event sentence names the
+  // person and quotes the step, so the body stays empty.
+  if (actorName != null && step.isNotEmpty) {
+    final named = switch (type) {
+      'planChangePending' => l10n.updatesPlanChangePendingHeadline(
+        actorName,
+        step,
+      ),
+      'planCantMake' => l10n.updatesPlanCantMakeHeadline(actorName, step),
+      _ => null,
+    };
+    if (named != null) return UpdatesFeedRowCopy(headline: named, body: '');
+  }
   final headline = switch (type) {
     'planStepDue' => l10n.planReceiptStepDue,
     'planStepTurn' => l10n.planReceiptStepTurn,
@@ -563,10 +591,7 @@ UpdatesFeedRowCopy? planReceiptDisplayCopy({
     'planEdited' => l10n.planReceiptEdited,
     _ => l10n.planReceiptStepDone,
   };
-  return UpdatesFeedRowCopy(
-    headline: headline,
-    body: excerptFromPresentationPayload(presentationPayloadJson) ?? '',
-  );
+  return UpdatesFeedRowCopy(headline: headline, body: step);
 }
 
 /// Author-invite answers and the invitee's own invitation (#736): the
@@ -710,6 +735,7 @@ UpdatesFeedRowCopy? closureReceiptDisplayCopy({
   required String? presentationKey,
   required String presentationPayloadJson,
   required L10n l10n,
+  String? actorName,
 }) {
   final type = attentionEventTypeOf(presentationPayloadJson) ?? presentationKey;
   return switch (type) {
@@ -728,14 +754,31 @@ UpdatesFeedRowCopy? closureReceiptDisplayCopy({
       body: l10n.updatesClosureFinalizedBody,
     ),
     'closureCancelled' || 'closure_cancelled' => UpdatesFeedRowCopy(
-      headline: l10n.updatesClosureCancelledTitle,
-      body: l10n.updatesClosureCancelledBody,
+      headline: actorName == null
+          ? l10n.updatesClosureCancelledTitle
+          : l10n.updatesClosureCancelledByHeadline(actorName),
+      body: '',
     ),
     'requestStale' || 'request_stale' => UpdatesFeedRowCopy(
       headline: l10n.updatesRequestStaleTitle,
-      body: l10n.updatesRequestStaleBody,
+      body: _requestStaleBody(presentationPayloadJson, l10n),
     ),
     _ => null,
+  };
+}
+
+/// Why the Request went stale, in days or as a passed deadline; the generic
+/// nudge for a row written before the payload said.
+String _requestStaleBody(String presentationPayloadJson, L10n l10n) {
+  final map = _payloadMap(presentationPayloadJson);
+  final days = map?['quietDays'];
+  final endAt = _payloadDate(presentationPayloadJson, 'endAt');
+  return switch (map?['staleReason']) {
+    'quiet' when days is int => l10n.updatesRequestStaleQuietBody(days),
+    'deadlinePassed' when endAt != null => l10n.updatesRequestStaleDeadlineBody(
+      _formatDate(l10n, endAt, withTime: false),
+    ),
+    _ => l10n.updatesRequestStaleBody,
   };
 }
 
@@ -752,9 +795,10 @@ UpdatesFeedRowCopy resolveUpdatesFeedRowCopy({
   String? postRootExcerpt,
   int collapsedCount = 1,
   String? viewerUserId,
+  String? relatedBeaconTitle,
 }) {
   final shared = isPost
-      ? _postSharedRowCopy(
+      ? _postRowCopy(
           title: title,
           presentationKey: presentationKey,
           presentationPayloadJson: presentationPayloadJson,
@@ -806,6 +850,11 @@ UpdatesFeedRowCopy resolveUpdatesFeedRowCopy({
         presentationKey: presentationKey,
         presentationPayloadJson: presentationPayloadJson,
         l10n: l10n,
+        actorName: _eventActorName(
+          title: title,
+          presentationPayloadJson: presentationPayloadJson,
+          actorName: actorName,
+        ),
       ) ??
       _relayReceivedRowCopy(
         title: title,
@@ -847,6 +896,11 @@ UpdatesFeedRowCopy resolveUpdatesFeedRowCopy({
     presentationKey: presentationKey,
     presentationPayloadJson: presentationPayloadJson,
     l10n: l10n,
+    actorName: _eventActorName(
+      title: title,
+      presentationPayloadJson: presentationPayloadJson,
+      actorName: actorName,
+    ),
   );
   if (plan != null) return plan;
   if (isQuestionsMessageReceipt(
@@ -893,6 +947,7 @@ UpdatesFeedRowCopy resolveUpdatesFeedRowCopy({
           presentationPayloadJson: presentationPayloadJson,
           l10n: l10n,
           actorName: actorName,
+          relatedBeaconTitle: relatedBeaconTitle,
         );
 
   final bodyOverrideTrim = bodyOverride?.trim();
@@ -918,6 +973,16 @@ UpdatesFeedRowCopy resolveUpdatesFeedRowCopy({
       bodyOverrideTrim != null && bodyOverrideTrim.isNotEmpty
       ? bodyOverrideTrim
       : null;
+  final messageLine = _roomMessageLine(
+    presentationKey: presentationKey,
+    structuredExcerpt: structuredExcerpt,
+    name: _eventActorName(
+      title: title,
+      presentationPayloadJson: presentationPayloadJson,
+      actorName: actorName,
+    ),
+    l10n: l10n,
+  );
   final String line2;
   // The author's reason for declining (#381), removing you from the
   // discussion or ending your participation (#601).
@@ -926,6 +991,8 @@ UpdatesFeedRowCopy resolveUpdatesFeedRowCopy({
       : null;
   if (subjectOverride != null && subjectOverride != headline) {
     line2 = subjectOverride;
+  } else if (messageLine != null) {
+    line2 = messageLine;
   } else if (authorReason != null &&
       authorReason.isNotEmpty &&
       authorReason != beaconTitle) {
@@ -964,20 +1031,35 @@ String _eventHeadline({
   required String presentationPayloadJson,
   required L10n l10n,
   String? actorName,
+  String? relatedBeaconTitle,
 }) {
+  // Only a name the app knows (live profile or the payload) goes into a
+  // status, trust or deadline line; the title may be a label there.
+  final known =
+      _nonBlank(actorName) ??
+      actorNameFromPresentationPayload(presentationPayloadJson);
   final canned = cannedAttentionEventLine(
     title: title,
     body: body,
     presentationKey: presentationKey,
     presentationPayloadJson: presentationPayloadJson,
     l10n: l10n,
+    actorName: known,
   );
   if (canned != null) return canned;
+  final deadline = _deadlineHeadline(
+    presentationKey: presentationKey,
+    presentationPayloadJson: presentationPayloadJson,
+    known: known,
+    l10n: l10n,
+  );
+  if (deadline != null) return deadline;
   final name = _eventActorName(
     title: title,
     presentationPayloadJson: presentationPayloadJson,
     actorName: actorName,
   );
+  final linkedStatus = toStatusFromPresentationPayload(presentationPayloadJson);
   return switch (presentationKey) {
     'room_message_posted' when name != null => l10n.updatesRoomMessageHeadline(
       name,
@@ -989,8 +1071,87 @@ String _eventHeadline({
     ),
     'mutual_connection_formed' when name != null =>
       l10n.updatesMutualConnectionHeadline(name),
+    'offer_declined' when name != null => l10n.updatesOfferDeclinedHeadline(
+      name,
+    ),
+    'offer_removed' when name != null => l10n.updatesOfferRemovedHeadline(name),
+    'commitment_released' when name != null =>
+      l10n.updatesCommitmentReleasedHeadline(name),
+    'coordination_changed' when name != null => _coordinationHeadline(
+      name,
+      excerptFromPresentationPayload(presentationPayloadJson) ?? '',
+      l10n,
+    ),
+    'beacon_hierarchy_status_changed'
+        when linkedStatus != null && _linkedStatuses.contains(linkedStatus) =>
+      relatedBeaconTitle == null || relatedBeaconTitle.trim().isEmpty
+          ? l10n.updatesLinkedRequestStatusUnnamed(linkedStatus.name)
+          : l10n.updatesLinkedRequestStatusNamed(
+              relatedBeaconTitle.trim(),
+              linkedStatus.name,
+            ),
     _ => _fallbackTitle(presentationKey, l10n),
   };
+}
+
+/// The statuses a linked-Request line has words for.
+const _linkedStatuses = {
+  BeaconStatus.closed,
+  BeaconStatus.cancelled,
+  BeaconStatus.reviewOpen,
+  BeaconStatus.deleted,
+};
+
+String _coordinationHeadline(String name, String note, L10n l10n) =>
+    note.isEmpty
+    ? l10n.updatesCoordinationChangedHeadline(name)
+    : l10n.updatesCoordinationChangedNoteHeadline(name, note);
+
+/// «`<name>` moved the deadline to 21 Nov, 18:00», «Deadline: …», or the
+/// removal; null when the payload carries no `newEndAt` (a row written
+/// before it did), so the caller keeps the generic line.
+String? _deadlineHeadline({
+  required String? presentationKey,
+  required String presentationPayloadJson,
+  required String? known,
+  required L10n l10n,
+}) {
+  if (presentationKey != 'deadline_changed' &&
+      presentationKey != 'deadline_reminder') {
+    return null;
+  }
+  final map = _payloadMap(presentationPayloadJson);
+  if (map == null || !map.containsKey('newEndAt')) return null;
+  final at = _payloadDate(presentationPayloadJson, 'newEndAt');
+  if (at == null) {
+    return presentationKey == 'deadline_changed' && known != null
+        ? l10n.updatesDeadlineRemovedByHeadline(known)
+        : null;
+  }
+  final date = _formatDate(l10n, at);
+  if (presentationKey == 'deadline_reminder') {
+    return l10n.updatesDeadlineReminderHeadline(date);
+  }
+  return known == null
+      ? l10n.updatesDeadlineMovedHeadline(date)
+      : l10n.updatesDeadlineChangedByHeadline(known, date);
+}
+
+/// A room message's row text: the words themselves (the Request is the
+/// tile's own line), or «`<name>` sent a message» when it carries none. Null
+/// for any other receipt, a row written before the payload said, or a
+/// textless message from nobody known.
+String? _roomMessageLine({
+  required String? presentationKey,
+  required String? structuredExcerpt,
+  required String? name,
+  required L10n l10n,
+}) {
+  if (presentationKey != 'room_message_posted' || structuredExcerpt == null) {
+    return null;
+  }
+  if (structuredExcerpt.isNotEmpty) return structuredExcerpt;
+  return name == null ? null : l10n.updatesRoomMessageNoTextBody(name);
 }
 
 /// The person an event is about: [actorName] when the caller knows them,
@@ -1008,6 +1169,10 @@ String? _eventActorName({
   var t = title.trim();
   final cut = t.indexOf(' · ');
   if (cut >= 0) t = t.substring(0, cut).trim();
+  const cantMakeTail = " can't make it";
+  if (t.endsWith(cantMakeTail)) {
+    t = t.substring(0, t.length - cantMakeTail.length).trim();
+  }
   if (t.isEmpty ||
       t == beaconTitleFromPresentationPayload(presentationPayloadJson) ||
       _isServerCannedTitle(t) ||
@@ -1074,11 +1239,13 @@ UpdatesFeedRowCopy? _relayReceivedRowCopy({
   );
 }
 
-/// A Post shared with the viewer (`relay_received` on a Post, #736): the
-/// server titles it with the sender's name and a Post has no title, so the
-/// row says «`<name>` shared a post» over the Post's root message, like the
-/// Activity row. Null for any other receipt or when no name is known.
-UpdatesFeedRowCopy? _postSharedRowCopy({
+/// A Post's rows (#736): shared with the viewer (`relay_received`), replied
+/// to (`post_first_response`) or about to expire (`post_expiring_soon`). The
+/// server titles the first two with the person's name and a Post has no
+/// title, so the row says what happened to «Post: `<its opening words>`»,
+/// like the Activity row. Null for any other receipt, or when the sentence
+/// needs a name or a time the receipt does not carry.
+UpdatesFeedRowCopy? _postRowCopy({
   required String title,
   required String? presentationKey,
   required String presentationPayloadJson,
@@ -1086,19 +1253,64 @@ UpdatesFeedRowCopy? _postSharedRowCopy({
   String? actorName,
   String? postRootExcerpt,
 }) {
-  if (presentationKey != 'relay_received') return null;
+  if (presentationKey == 'post_expiring_soon') {
+    final expiresAt = _payloadDate(presentationPayloadJson, 'expiresAt');
+    if (expiresAt == null) return null;
+    final left = expiresAt.difference(DateTime.now()).inHours;
+    final label = postRowLabel(l10n, postRootExcerpt, author: null);
+    return UpdatesFeedRowCopy(
+      headline: l10n.updatesFallbackTitlePostExpiringSoon,
+      body: [
+        l10n.updatesPostExpiresInBody(left < 1 ? 1 : left),
+        if (label.isNotEmpty) label,
+      ].join(' · '),
+    );
+  }
+  if (presentationKey != 'relay_received' &&
+      presentationKey != 'post_first_response') {
+    return null;
+  }
   final known = actorName?.trim() ?? '';
   final name = known.isNotEmpty
       ? known
       : actorNameFromPresentationPayload(presentationPayloadJson) ??
             localizedDisplayName(title.trim());
   if (name.trim().isEmpty) return null;
-  final post = postRootExcerptForPlainPreview(postRootExcerpt);
   final noteRaw = excerptFromPresentationPayload(presentationPayloadJson) ?? '';
   final note = stripAngleBracketRegionsForPlainPreview(noteRaw);
+  if (presentationKey == 'post_first_response') {
+    final label = postRowLabel(l10n, postRootExcerpt, author: name);
+    return UpdatesFeedRowCopy(
+      headline: l10n.updatesPostReplyHeadline(name),
+      body: [
+        if (label.isNotEmpty) label,
+        if (note.isNotEmpty) note,
+      ].join(' · '),
+    );
+  }
+  final post = postRootExcerptForPlainPreview(postRootExcerpt);
   return UpdatesFeedRowCopy(
     headline: l10n.postRowSharedBy(name),
     body: [if (post.isNotEmpty) post, if (note.isNotEmpty) note].join(' · '),
+  );
+}
+
+/// How many graphemes of a Post's opening words a label shows.
+const _postLabelMaxGraphemes = 40;
+
+/// A Post's row label: «Post: Free apples…» (the opening words cut to [_postLabelMaxGraphemes]
+/// graphemes), «Post · `<author>`» when it has no words, empty when there is
+/// neither.
+String postRowLabel(L10n l10n, String? root, {required String? author}) {
+  final text = postRootExcerptForPlainPreview(root);
+  if (text.isEmpty) {
+    return author == null ? '' : l10n.updatesPostLabelByAuthor(author);
+  }
+  final graphemes = text.characters;
+  return l10n.updatesPostLabel(
+    graphemes.length <= _postLabelMaxGraphemes
+        ? text
+        : '${graphemes.take(_postLabelMaxGraphemes - 1)}…',
   );
 }
 
@@ -1135,6 +1347,7 @@ String? cannedAttentionEventLine({
   required String? presentationKey,
   required L10n l10n,
   String presentationPayloadJson = '',
+  String? actorName,
 }) {
   final structured =
       excerptFromPresentationPayload(presentationPayloadJson) != null;
@@ -1142,17 +1355,30 @@ String? cannedAttentionEventLine({
   final b = body.trim();
   if (isTrustChangePresentationKey(presentationKey)) {
     final given = presentationKey!.startsWith('trust_given');
+    final name = actorName;
     return switch (trustChangeDirectionFromPresentationKey(presentationKey)) {
       TrustChangeDirection.up =>
-        given
+        name != null
+            ? (given
+                  ? l10n.updatesTrustGivenUpNamed(name)
+                  : l10n.updatesTrustReceivedUpNamed(name))
+            : given
             ? l10n.attentionEventTrustGivenUp
             : l10n.attentionEventTrustReceivedUp,
       TrustChangeDirection.down =>
-        given
+        name != null
+            ? (given
+                  ? l10n.updatesTrustGivenDownNamed(name)
+                  : l10n.updatesTrustReceivedDownNamed(name))
+            : given
             ? l10n.attentionEventTrustGivenDown
             : l10n.attentionEventTrustReceivedDown,
       TrustChangeDirection.neutral =>
-        given
+        name != null
+            ? (given
+                  ? l10n.updatesTrustGivenNeutralNamed(name)
+                  : l10n.updatesTrustReceivedNeutralNamed(name))
+            : given
             ? l10n.attentionEventTrustGivenNeutral
             : l10n.attentionEventTrustReceivedNeutral,
     };
@@ -1167,11 +1393,11 @@ String? cannedAttentionEventLine({
       final status =
           toStatusFromPresentationPayload(presentationPayloadJson) ??
           (legacyTo == null ? null : BeaconStatus.values.asNameMap()[legacyTo]);
-      return status == null
-          ? l10n.updatesFallbackTitleRequestStatusChanged
-          : l10n.attentionEventStatusChanged(
-              requestStatusActivityLabel(l10n, status),
-            );
+      if (status == null) return l10n.updatesFallbackTitleRequestStatusChanged;
+      final label = requestStatusActivityLabel(l10n, status);
+      return actorName == null
+          ? l10n.attentionEventStatusChanged(label)
+          : l10n.updatesStatusChangedByHeadline(actorName, label);
   }
   return null;
 }
@@ -1436,6 +1662,9 @@ const _serverCannedTitles = {
   // postExpiringSoon (#700): push and email say «Пост скоро истечёт».
   'Your post is about to expire',
   'Child request status changed',
+  // The server titles these without a name (closure_cancelled, plan_change_pending).
+  'Evaluation cancelled',
+  'Your step changed',
 };
 
 bool _isServerCannedTitle(String text) => _serverCannedTitles.contains(text);

@@ -6313,7 +6313,7 @@
   "@updatesFallbackBodyPostFirstResponse": {
     "description": "Updates row body fallback for postFirstResponse when the server sends no excerpt."
   },
-  "updatesFallbackTitlePostExpiringSoon": "Your post is about to expire",
+  "updatesFallbackTitlePostExpiringSoon": "Your post expires soon",
   "@updatesFallbackTitlePostExpiringSoon": {
     "description": "Updates row headline (#700) for the server-titled postExpiringSoon receipt: the author's Post expires soon. Push and email use the same words."
   },
@@ -11656,7 +11656,7 @@
   "@updatesClosureOpenedTitle": {
     "description": "Updates row headline: the Request's final check has opened (#700)"
   },
-  "updatesClosureOpenedBody": "The closing window is open.",
+  "updatesClosureOpenedBody": "Closing is open: mark who helped",
   "@updatesClosureOpenedBody": {
     "description": "Updates row text under «Time to sum up» (#700)"
   },
@@ -11664,7 +11664,7 @@
   "@updatesClosureDraftReminderTitle": {
     "description": "Updates row headline: reminder that the viewer's final-check draft is not sent yet (#700)"
   },
-  "updatesClosureDraftReminderBody": "Your draft has not been committed. The window closes within a day.",
+  "updatesClosureDraftReminderBody": "Your review isn't sent yet; closing ends within a day",
   "@updatesClosureDraftReminderBody": {
     "description": "Updates row text under «Finish your review» (#700)"
   },
@@ -11672,17 +11672,13 @@
   "@updatesClosureFinalizedTitle": {
     "description": "Updates row headline: the Request was closed after the final check (#700)"
   },
-  "updatesClosureFinalizedBody": "The results are in.",
+  "updatesClosureFinalizedBody": "The results are in",
   "@updatesClosureFinalizedBody": {
     "description": "Updates row text under «Request closed» (#700)"
   },
-  "updatesClosureCancelledTitle": "Evaluation cancelled",
+  "updatesClosureCancelledTitle": "Closing was cancelled",
   "@updatesClosureCancelledTitle": {
     "description": "Updates row headline: the final check was cancelled (#700)"
-  },
-  "updatesClosureCancelledBody": "The closing was cancelled.",
-  "@updatesClosureCancelledBody": {
-    "description": "Updates row text under «Evaluation cancelled» (#700)"
   },
   "updatesRequestStaleTitle": "Your request has gone quiet",
   "@updatesRequestStaleTitle": {
@@ -11903,5 +11899,293 @@
     "placeholders": {"count": {"type": "int"}}
   },
   "beaconFactCopyYourDrafts": "Your drafts",
-  "@beaconFactCopyYourDrafts": {"description": "Destination picker: header of the group of own drafts"}
+  "@beaconFactCopyYourDrafts": {"description": "Destination picker: header of the group of own drafts"},
+  "updatesOfferDeclinedHeadline": "{name} declined your offer",
+  "@updatesOfferDeclinedHeadline": {
+    "description": "Updates row headline: the author declined the reader's offer",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "updatesOfferRemovedHeadline": "{name} removed you from the discussion",
+  "@updatesOfferRemovedHeadline": {
+    "description": "Updates row headline: the author removed the reader from the discussion",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "updatesCommitmentReleasedHeadline": "{name} ended your participation",
+  "@updatesCommitmentReleasedHeadline": {
+    "description": "Updates row headline: the author ended the reader's participation",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "updatesCoordinationChangedHeadline": "{name} updated the coordination",
+  "@updatesCoordinationChangedHeadline": {
+    "description": "Updates row headline: someone changed the coordination, no words attached",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "updatesCoordinationChangedNoteHeadline": "{name} updated the coordination: {note}",
+  "@updatesCoordinationChangedNoteHeadline": {
+    "description": "Updates row headline: someone changed the coordination, with the changed text",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "note": {
+        "type": "String"
+      }
+    }
+  },
+  "updatesPlanChangePendingHeadline": "{name} changed your step «{step}»",
+  "@updatesPlanChangePendingHeadline": {
+    "description": "Updates row headline: someone changed the reader's plan step",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "step": {
+        "type": "String"
+      }
+    }
+  },
+  "updatesPlanCantMakeHeadline": "{name} can't make «{step}»",
+  "@updatesPlanCantMakeHeadline": {
+    "description": "Updates row headline: an assignee can't make a plan step",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "step": {
+        "type": "String"
+      }
+    }
+  },
+  "updatesStatusChangedByHeadline": "{name} changed the status to «{status}»",
+  "@updatesStatusChangedByHeadline": {
+    "description": "Updates row headline: someone changed the Request's status",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "status": {
+        "type": "String"
+      }
+    }
+  },
+  "updatesTrustGivenUpNamed": "You trust {name} more",
+  "@updatesTrustGivenUpNamed": {
+    "description": "Updates row headline: the reader's trust in a person went up",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "updatesTrustGivenDownNamed": "You trust {name} less",
+  "@updatesTrustGivenDownNamed": {
+    "description": "Updates row headline: the reader's trust in a person went down",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "updatesTrustGivenNeutralNamed": "Your trust in {name} did not change",
+  "@updatesTrustGivenNeutralNamed": {
+    "description": "Updates row headline: the reader's trust in a person did not change",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "updatesTrustReceivedUpNamed": "{name} trusts you more",
+  "@updatesTrustReceivedUpNamed": {
+    "description": "Updates row headline: a person's trust in the reader went up",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "updatesTrustReceivedDownNamed": "{name} trusts you less",
+  "@updatesTrustReceivedDownNamed": {
+    "description": "Updates row headline: a person's trust in the reader went down",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "updatesTrustReceivedNeutralNamed": "{name} reviewed you, trust unchanged",
+  "@updatesTrustReceivedNeutralNamed": {
+    "description": "Updates row headline: a person reviewed the reader, trust unchanged",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "updatesDateMonth": "{month, select, m1{Jan} m2{Feb} m3{Mar} m4{Apr} m5{May} m6{Jun} m7{Jul} m8{Aug} m9{Sep} m10{Oct} m11{Nov} m12{Dec} other{}}",
+  "@updatesDateMonth": {
+    "description": "Month name inside a formatted date; month is m1..m12 (RU is the genitive: 21 ноября)",
+    "placeholders": {
+      "month": {
+        "type": "String"
+      }
+    }
+  },
+  "updatesDeadlineChangedByHeadline": "{name} moved the deadline to {date}",
+  "@updatesDeadlineChangedByHeadline": {
+    "description": "Updates row headline: someone moved the Request's deadline",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "updatesDeadlineMovedHeadline": "Deadline moved to {date}",
+  "@updatesDeadlineMovedHeadline": {
+    "description": "Updates row headline: the deadline moved, actor unknown",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "updatesDeadlineRemovedByHeadline": "{name} removed the deadline",
+  "@updatesDeadlineRemovedByHeadline": {
+    "description": "Updates row headline: someone removed the Request's deadline",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "updatesDeadlineReminderHeadline": "Deadline: {date}",
+  "@updatesDeadlineReminderHeadline": {
+    "description": "Updates row headline: reminder of the Request's deadline",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "updatesRoomMessageNoTextBody": "{name} sent a message",
+  "@updatesRoomMessageNoTextBody": {
+    "description": "Updates row text under a message notice that carries no text",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "updatesPostLabel": "Post: {text}",
+  "@updatesPostLabel": {
+    "description": "Updates row label naming a Post by its opening text",
+    "placeholders": {
+      "text": {
+        "type": "String"
+      }
+    }
+  },
+  "updatesPostLabelByAuthor": "Post · {author}",
+  "@updatesPostLabelByAuthor": {
+    "description": "Updates row label naming a Post that has no text, by its author",
+    "placeholders": {
+      "author": {
+        "type": "String"
+      }
+    }
+  },
+  "updatesPostReplyHeadline": "{name} replied to your post",
+  "@updatesPostReplyHeadline": {
+    "description": "Updates row headline on a Post: someone replied to the reader's post",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "updatesPostExpiresInBody": "Expires in {hours} h. Turn it into a request to keep it going",
+  "@updatesPostExpiresInBody": {
+    "description": "Updates row text under «Your post expires soon»",
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "updatesLinkedRequestStatusNamed": "Linked request «{title}» {status, select, closed{was closed} cancelled{was cancelled} reviewOpen{entered Final check} deleted{was deleted} other{changed}}",
+  "@updatesLinkedRequestStatusNamed": {
+    "description": "Updates row headline: a linked Request changed status (status is the BeaconStatus name)",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "status": {
+        "type": "String"
+      }
+    }
+  },
+  "updatesLinkedRequestStatusUnnamed": "A linked request {status, select, closed{was closed} cancelled{was cancelled} reviewOpen{entered Final check} deleted{was deleted} other{changed}}",
+  "@updatesLinkedRequestStatusUnnamed": {
+    "description": "Updates row headline: a linked Request the reader may not read changed status",
+    "placeholders": {
+      "status": {
+        "type": "String"
+      }
+    }
+  },
+  "updatesClosureCancelledByHeadline": "{name} cancelled the closing",
+  "@updatesClosureCancelledByHeadline": {
+    "description": "Updates row headline: someone cancelled the final check",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "updatesRequestStaleQuietBody": "{days, plural, one{No activity for {days} day} other{No activity for {days} days}}. Close it, extend it or post an update",
+  "@updatesRequestStaleQuietBody": {
+    "description": "Updates row text under «Your request has gone quiet» when it has been quiet for some days",
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "updatesRequestStaleDeadlineBody": "The deadline passed on {date}. Close it or extend it",
+  "@updatesRequestStaleDeadlineBody": {
+    "description": "Updates row text under «Your request has gone quiet» when its deadline passed",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "postRowMentionedBy": "{name} mentioned you",
+  "@postRowMentionedBy": {
+    "description": "Post row headline in For You: someone mentioned the reader in a Post's replies",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  }
 }
