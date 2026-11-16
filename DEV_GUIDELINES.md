@@ -242,6 +242,13 @@ remain available.
 Operational queries, alert thresholds, and the local runtime procedure live in
 [`docs/realtime-sync-operations.md`](docs/realtime-sync-operations.md).
 
+## Channel copy (push, email, digest)
+
+`NotificationCopyRenderer` (`packages/server/lib/domain/notification/notification_copy_renderer.dart`) is the only place
+for push, email and digest wording, in EN and RU. Producers store structured facts in `presentation_payload`; do not build
+channel text in producers, SQL writers or templates. A new event type needs a renderer row first. Rules and the key list:
+[`docs/features/request-attention.md`](docs/features/request-attention.md) § Notification copy.
+
 ## Client version gate (`MIN_CLIENT_VERSION`)
 
 The server announces the minimum acceptable client semver in every WS pong frame:

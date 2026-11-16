@@ -288,6 +288,73 @@ plus the architecture tests in `packages/server/test/architecture/` and `package
 Enum coverage is exhaustive — a runtime event type with no declaration fails the build, and there is no implicit
 "optional by default" fallback.
 
+## 10a. Notification copy
+
+Push, immediate email and digest text is written by one place only: the server `NotificationCopyRenderer`
+(`packages/server/lib/domain/notification/notification_copy_renderer.dart`). Producers store structured facts in
+`presentation_payload`, never channel text; the channel layer renders at delivery, per recipient, in their locale.
+The full per-key sentences (EN and RU) are in [`notification-identity-spec.md`](../plans/notification-identity-spec.md) §5.2.
+
+Rules:
+
+- **Who, what, which.** Every line names the entity (Request title or Post label), the actor (live display name) and one
+  verb phrase. A part is dropped only when it does not exist or the recipient may not see it.
+- **Entity first.** The entity label takes the most prominent slot: push title, start of the email subject, digest group heading.
+- **Render at delivery.** Text is never translated from stored English; stored `title`/`body` are an in-app legacy fallback only.
+- **Never show what the recipient cannot read now.** The label needs read access at render time and the actor name needs
+  no block between the pair; otherwise the generic fallback applies. A blocked pair is not sent at all.
+- **Russian without guessing.** Names stay in the nominative, never declined; prefer present tense or noun forms, use the
+  «(а)» convention when a past-tense verb is unavoidable, and real one/few/many plurals.
+- **Safe text.** Interpolated strings are normalized and truncated by graphemes; push text is plain text, email HTML is escaped.
+- **Vocabulary.** Only the words in `terminology.mdc`; `scripts/check-user-facing-terminology.sh` stays green.
+
+Limits (graphemes): push title 50, push body 140, email subject 78, digest group heading 80, digest event line 160,
+excerpt 80, Post root text in a label 40.
+
+Every `presentation_key` has a row in the renderer. The keys are:
+
+- `relay_received`
+- `help_offer_submitted`
+- `help_withdrawn`
+- `forward_declined`
+- `offer_accepted`
+- `offer_declined`
+- `offer_removed`
+- `commitment_released`
+- `room_message_posted`
+- `post_first_response`
+- `post_expiring_soon`
+- `request_status_changed`
+- `beacon_hierarchy_status_changed`
+- `deadline_changed`
+- `deadline_reminder`
+- `coordination_changed`
+- `baton_asked`
+- `baton_taken`
+- `baton_all_answered`
+- `author_invite_received`
+- `author_invite_accepted`
+- `author_invite_declined`
+- `plan_step_due`
+- `plan_step_turn`
+- `plan_change_pending`
+- `plan_step_reminder`
+- `plan_step_overdue`
+- `plan_step_late`
+- `plan_cant_make`
+- `plan_step_unassigned`
+- `plan_edited`
+- `plan_step_done`
+- `forward_helped`
+- `closure_opened`
+- `closure_opened_bookmark_only`
+- `closure_draft_reminder`
+- `closure_finalized`
+- `closure_cancelled`
+- `request_stale`
+- `mutual_connection_formed`
+- `invite_accepted`
+
 ## 11. Change control
 
 - Product intent lives here. Schedules, unit breakdowns and migration mechanics live in
