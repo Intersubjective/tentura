@@ -55,8 +55,16 @@ class _PostParticipantsSheetOpenerState
   Future<void> _maybeOpen() async {
     if (!mounted || !_enabled || _opened) return;
     final cubit = context.read<PostViewCubit>();
-    if (cubit.state.status is! StateIsSuccess) {
-      await cubit.stream.firstWhere((s) => s.status is StateIsSuccess);
+    // The stream ends without a match when the cubit closes first; a failed
+    // load still reports success but leaves the placeholder Post (no author).
+    final loaded = cubit.state.status is StateIsSuccess
+        ? cubit.state
+        : await cubit.stream.firstWhere(
+            (s) => s.status is StateIsSuccess,
+            orElse: () => cubit.state,
+          );
+    if (loaded.status is! StateIsSuccess || loaded.beacon.author.id.isEmpty) {
+      return;
     }
     if (!mounted || !_enabled || _opened) return;
     _opened = true;

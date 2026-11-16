@@ -163,7 +163,11 @@ class _BeaconRoomSurfaceState extends State<BeaconRoomSurface> {
     final threadsCubit = context.read<ThreadsCubit>();
     var threadsState = threadsCubit.state;
     if (!threadsState.isSuccess) {
-      threadsState = await threadsCubit.stream.firstWhere((s) => s.isSuccess);
+      threadsState = await threadsCubit.stream.firstWhere(
+        (s) => s.isSuccess,
+        orElse: () => threadsCubit.state,
+      );
+      if (!threadsState.isSuccess) return;
     }
     if (!mounted) return;
 
