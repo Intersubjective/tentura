@@ -22,7 +22,9 @@ List<(DateTime day, List<AttentionReceipt> items)> groupUpdatesByLocalDay(
       existing.add(item);
     }
   }
-  return [for (final day in order) (day, List<AttentionReceipt>.from(groups[day]!))];
+  return [
+    for (final day in order) (day, List<AttentionReceipt>.from(groups[day]!)),
+  ];
 }
 
 enum UpdatesFeedCellKind { header, row, loadMore }

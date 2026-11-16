@@ -2,7 +2,6 @@ import 'package:test/test.dart';
 
 import 'package:tentura_server/consts/coordination_item_consts.dart';
 import 'package:tentura_server/consts.dart';
-import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/entity/beacon_notification_intent.dart';
 import 'package:tentura_server/domain/entity/notification_kind.dart';
 import 'package:tentura_server/domain/entity/notification_priority.dart';
@@ -270,45 +269,6 @@ void main() {
 
     expect(copy.body.length, 80);
     expect(copy.body.endsWith('…'), isTrue);
-  });
-
-  group('lockScreenSafe', () {
-    test('redacts excerpt and actor while keeping the deep link', () {
-      final i = intent(
-        kind: NotificationKind.needsMe,
-        bodyExcerpt: 'Secret: review the wiring plan',
-        coordinationItemId: 'item-9',
-      );
-      final safe = builder.lockScreenSafe(i);
-      final full = builder.build(intent: i, actorDisplayName: 'Alex');
-
-      expect(safe.body, 'Something needs your response');
-      expect(safe.body.contains('Secret'), isFalse);
-      expect(safe.title, 'Tentura');
-      // Deep link is preserved (not shown on the lock screen).
-      expect(safe.actionUrl, full.actionUrl);
-    });
-
-    test('a Post share reads as a shared post, not a request thread', () {
-      final safe = builder.lockScreenSafe(
-        BeaconNotificationIntent(
-          kind: NotificationKind.newRelay,
-          priority: NotificationPriority.normal,
-          beaconId: 'post-1',
-          actorUserId: 'actor-1',
-          beaconKind: BeaconKind.post,
-        ),
-      );
-      expect(safe.body, 'A post was shared with you');
-    });
-
-    test('uses category-level summary for an unblocking kind', () {
-      final safe = builder.lockScreenSafe(
-        intent(kind: NotificationKind.reviewReady, beaconTitle: 'Roof repair'),
-      );
-      expect(safe.body, 'An update is ready for you');
-      expect(safe.body.contains('Roof'), isFalse);
-    });
   });
 
   test('excerpt is the words alone, without the Request title', () {

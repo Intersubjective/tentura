@@ -13,12 +13,11 @@ void main() {
     });
     expect(dominant, NotificationKind.roomMention);
 
-    final copy = aggregator.aggregate(
+    final copy = aggregator.collapsed(
       count: 2,
-      dominantKind: NotificationKind.roomMention,
-      latestTitle: 'Actor',
-      latestBody: 'hello',
-      beaconTitle: 'Need help',
+      locale: 'en',
+      entityLabel: 'Need help',
+      latestSentence: 'hello',
       kindCounts: {NotificationKind.roomMention: 2},
     );
     expect(copy.body, contains('mentions of you'));

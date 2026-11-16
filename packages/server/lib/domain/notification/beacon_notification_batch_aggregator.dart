@@ -5,50 +5,6 @@ import 'package:tentura_server/domain/notification/notification_text.dart';
 class BeaconNotificationBatchAggregator {
   const BeaconNotificationBatchAggregator();
 
-  /// Builds coalesced title/body when [count] > 1 for same receiver+beacon+band.
-  ({String title, String body}) aggregate({
-    required int count,
-    required NotificationKind dominantKind,
-    required String latestTitle,
-    required String latestBody,
-    required String? beaconTitle,
-    required Map<NotificationKind, int> kindCounts,
-    BeaconKind beaconKind = BeaconKind.request,
-  }) {
-    if (count <= 1) {
-      return (title: latestTitle, body: latestBody);
-    }
-
-    final title = beaconTitle != null && beaconTitle.trim().isNotEmpty
-        ? beaconTitle.trim()
-        : latestTitle;
-
-    if (kindCounts.length == 1) {
-      final kind = kindCounts.keys.first;
-      final n = kindCounts[kind]!;
-      return (
-        title: title,
-        body: _pluralBody(kind, n, latestBody, beaconKind),
-      );
-    }
-
-    final actionable = kindCounts.keys.where(_isActionable).toList();
-    if (actionable.length == 1 && kindCounts[actionable.first]! < count) {
-      // A single actionable kind dominates a mixed batch: lead with that
-      // kind's specific phrasing (e.g. "blockers opened") over the whole
-      // count, rather than a generic "coordination updates" line.
-      return (
-        title: title,
-        body: _pluralBody(actionable.first, count, latestBody, beaconKind),
-      );
-    }
-
-    return (
-      title: title,
-      body: '$count coordination updates',
-    );
-  }
-
   /// Localized coalesced push (spec §5.1): the Request label stays the title
   /// (`Tentura` when the recipient cannot read it); the body counts updates
   /// and quotes the latest sentence. One dominant actionable kind leads with

@@ -26,6 +26,7 @@ import 'package:tentura_server/data/service/beacon_notification_service.dart';
 import 'package:tentura_server/data/service/fcm_batch_queue.dart';
 import 'package:tentura_server/data/service/push_action_token_service.dart';
 import 'package:tentura_server/domain/attention/attention_models.dart';
+import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/entity/fcm_message_entity.dart';
 import 'package:tentura_server/domain/entity/fcm_token_entity.dart';
 import 'package:tentura_server/domain/entity/notification_category.dart';
@@ -386,6 +387,76 @@ Future<void> main() async {
       expect(sent.single.title, 'Fix the roof');
       expect(sent.single.body, contains('2'));
     });
+  });
+
+  group('push title of a Post without text or image', () {
+    const alice = 'Upushtext0009';
+    const emptyPost = 'Bpushtext0009';
+
+    Future<void> seedEmptyPost() async {
+      await writer.execute('''
+INSERT INTO public."user" (id, display_name, public_key)
+VALUES ('$alice', 'Alice', 'key-$alice')
+''');
+      await writer.execute('''
+INSERT INTO public.beacon
+  (id, user_id, title, description, status, kind, forward_policy,
+   published_at, is_discoverable)
+VALUES ('$emptyPost', '$alice', '', '', 0, 1, 1, now(), false)
+''');
+      await writer.execute('''
+INSERT INTO public.beacon_room_message (id, beacon_id, author_id, body)
+VALUES ('Rpushtext0009', '$emptyPost', '$alice', ''),
+       ('Rpushtext0010', '$emptyPost', '$_bob', 'Count me in')
+''');
+      await writer.execute(
+        "UPDATE public.beacon SET post_root_message_id = 'Rpushtext0009' "
+        "WHERE id = '$emptyPost'",
+      );
+      await writer.execute('''
+INSERT INTO public.beacon_forward_edge (beacon_id, sender_id, recipient_id)
+VALUES ('$emptyPost', '$alice', '$_bob')
+''');
+    }
+
+    for (final (locale, label) in [
+      ('en', 'Post · Alice'),
+      ('ru', 'Пост · Alice'),
+    ]) {
+      test('$locale: a share push is titled «$label»', () async {
+        await seedEmptyPost();
+        await setLocale(_bob, locale);
+        await record(
+          await intents.relayReceived(
+            beaconId: emptyPost,
+            senderId: alice,
+            beaconAuthorId: alice,
+            recipientIds: const [_bob],
+            sourceEventKey: 'relay:$emptyPost:$_bob',
+            beaconKind: BeaconKind.post,
+          ),
+        );
+        final sent = await deliver(await claim(_bob));
+        expect(sent.single.title, label);
+      });
+
+      test('$locale: a reply push is titled «$label»', () async {
+        await seedEmptyPost();
+        await setLocale(alice, locale);
+        await record(
+          await intents.postFirstResponse(
+            beaconId: emptyPost,
+            messageId: 'Rpushtext0010',
+            actorUserId: _bob,
+            authorUserId: alice,
+            excerpt: 'Count me in',
+            sourceEventKey: 'reply:$emptyPost:$_bob',
+          ),
+        );
+        final sent = await deliver(await claim(alice));
+        expect(sent.single.title, label);
+      });
+    }
   });
 
   group('a blocked pair gets no push and no immediate email', () {

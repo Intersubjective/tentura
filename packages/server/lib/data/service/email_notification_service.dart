@@ -295,11 +295,11 @@ class EmailNotificationService implements EmailNotificationPort {
     required String locale,
     String beaconId = '',
   }) {
-    final copy = kind == null
+    final copy = kind != NotificationKind.inviteAccepted
         ? BeaconNotificationCopy(title: title, body: body, actionUrl: actionUrl)
         : _copyBuilder.localizeStored(
             intent: BeaconNotificationIntent(
-              kind: kind,
+              kind: NotificationKind.inviteAccepted,
               priority: NotificationPriority.high,
               beaconId: beaconId,
               actorUserId: '',

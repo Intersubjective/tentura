@@ -128,13 +128,10 @@ class BeaconNotificationService implements BeaconNotificationPort {
       // other immediate email renders from [rendered].
       final emailCopy = decision.forwardHelped != null
           ? fullCopy
-          : _copyBuilder.localizeStored(
-              intent: intent,
+          : BeaconNotificationCopy(
               title: decision.title,
               body: decision.body,
               actionUrl: decision.actionUrl,
-              actorDisplayName: decision.actorDisplayName ?? '',
-              locale: preferences.locale,
             );
       final pushCopy = preferences.lockScreenSafe
           ? _lockScreenSafeCopy(decision, preferences.locale)

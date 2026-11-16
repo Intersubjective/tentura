@@ -30,6 +30,7 @@ class NotificationIdentity {
     required this.expired,
     this.hasImage = false,
     this.deleted = false,
+    this.authorName,
   });
 
   final NotificationEntityKind entityKind;
@@ -46,6 +47,9 @@ class NotificationIdentity {
   /// readable.
   final bool deleted;
 
+  /// The Post author's live name, set only for a readable Post.
+  final String? authorName;
+
   @override
   bool operator ==(Object other) =>
       other is NotificationIdentity &&
@@ -58,7 +62,8 @@ class NotificationIdentity {
       other.relatedLabel == relatedLabel &&
       other.expired == expired &&
       other.hasImage == hasImage &&
-      other.deleted == deleted;
+      other.deleted == deleted &&
+      other.authorName == authorName;
 
   @override
   int get hashCode => Object.hash(
@@ -72,6 +77,7 @@ class NotificationIdentity {
     expired,
     hasImage,
     deleted,
+    authorName,
   );
 }
 

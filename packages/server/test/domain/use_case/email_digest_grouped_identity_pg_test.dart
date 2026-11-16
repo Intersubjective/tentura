@@ -371,6 +371,78 @@ INSERT INTO public.notification_outbox (
     }
   });
 
+  group('digest heading of a Post without text or image', () {
+    const emptyPost = 'Bdgemptypost';
+    const alice = 'Udgalice';
+
+    Future<void> seedEmptyPost() async {
+      await writer.execute(
+        Sql.named(
+          'INSERT INTO public."user" (id, display_name, public_key) '
+          "VALUES (@id, 'Alice', @key)",
+        ),
+        parameters: {'id': alice, 'key': 'key-$alice'},
+      );
+      await writer.execute(
+        Sql.named(
+          'INSERT INTO public.beacon (id, user_id, title, description, '
+          'status, kind, forward_policy, published_at, is_discoverable) '
+          "VALUES (@id, @a, '', '', 0, 1, 1, now(), false)",
+        ),
+        parameters: {'id': emptyPost, 'a': alice},
+      );
+      await writer.execute(
+        Sql.named(
+          'INSERT INTO public.beacon_room_message (id, beacon_id, author_id, '
+          "body) VALUES ('Mdgemptyroot', @b, @a, '')",
+        ),
+        parameters: {'b': emptyPost, 'a': alice},
+      );
+      await writer.execute(
+        "UPDATE public.beacon SET post_root_message_id = 'Mdgemptyroot' "
+        "WHERE id = '$emptyPost'",
+      );
+      await writer.execute(
+        Sql.named(
+          'INSERT INTO public.beacon_forward_edge '
+          '(id, beacon_id, sender_id, recipient_id, note) '
+          "VALUES ('Fdgempty', @b, @s, @r, '')",
+        ),
+        parameters: {'b': emptyPost, 's': _anna, 'r': _reader},
+      );
+    }
+
+    for (final (locale, label) in [
+      ('en', 'Post · Alice'),
+      ('ru', 'Пост · Alice'),
+    ]) {
+      test('$locale: a shared Post is grouped under «$label»', () async {
+        await setPreferences(locale: locale);
+        await seedEmptyPost();
+        await postShare(beacon: emptyPost);
+        final digest = await deliver();
+        expect(digest.html, contains('>$label</a>'));
+      });
+
+      test('$locale: a reply to a Post is grouped under «$label»', () async {
+        await setPreferences(locale: locale);
+        await seedEmptyPost();
+        await receipt(
+          id: 'reply-$emptyPost',
+          presentationKey: 'post_first_response',
+          category: 'ambient',
+          kind: 'postFirstResponse',
+          beacon: emptyPost,
+          actor: _bob,
+          at: DateTime.utc(2026, 11, 19, 10),
+          facts: {'excerpt': 'Count me in', 'beaconKind': 'post'},
+        );
+        final digest = await deliver();
+        expect(digest.html, contains('>$label</a>'));
+      });
+    }
+  });
+
   group('digest groups events by Request or Post within a section', () {
     test('two events about one Request share one linked heading, newest '
         'first, and each non-empty section has one heading', () async {

@@ -200,10 +200,11 @@ void main() {
           custom.html,
           contains('Hikes &lt;&amp;&gt; — bring the Asked of you checklist'),
         );
-        final expectedTitle = locale == 'ru' ? 'Вас просят' : 'Asked of you';
-        final expectedBody = locale == 'ru'
-            ? 'В обсуждении запроса нужен ваш ответ'
-            : 'Action needed in the request discussion';
+        // Only the invite-accepted email localizes stored text; other
+        // decisions render from the notification copy, so this stored
+        // fallback keeps its text in every locale.
+        const expectedTitle = 'Asked of you';
+        const expectedBody = 'Action needed in the request discussion';
         for (final email in [fixed, custom]) {
           expect(email.subject, expectedTitle);
           for (final part in [email.html, email.text]) {

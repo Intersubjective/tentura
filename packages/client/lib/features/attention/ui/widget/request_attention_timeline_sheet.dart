@@ -226,6 +226,8 @@ class _RequestTimelineRow extends StatelessWidget {
           : _nonEmpty(profileWithContactOverlay(actor!).shownName),
       isPost: receipt.beaconKind == 1,
       postRootExcerpt: receipt.postRootExcerpt,
+      relatedBeaconTitle: receipt.relatedBeaconTitle,
+      postAuthorName: receipt.beaconAuthorName,
     );
     final glyph = updatesFeedGlyphFor(receipt, tt);
     final age = compactRelativeTimeAgo(

@@ -626,7 +626,9 @@ class NotificationCopyRenderer {
       return ru ? 'Пост: $text' : 'Post: $text';
     }
     if (identity.hasImage) return ru ? 'Пост с фото' : 'Post with a photo';
-    return ru ? 'Пост' : 'Post';
+    final author = _text(identity.authorName);
+    if (author.isEmpty) return ru ? 'Пост' : 'Post';
+    return ru ? 'Пост · $author' : 'Post · $author';
   }
 
   static String _actor(NotificationIdentity identity, bool ru) {

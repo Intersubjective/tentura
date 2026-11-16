@@ -306,6 +306,21 @@ Future<void> main() async {
       expect(email.subject, 'Anna accepted your offer — «Fix the roof»');
     });
 
+    test('a Russian recipient gets the renderer sentence, not the stored '
+        'English text', () async {
+      await setPreferences(_bob, locale: 'ru');
+      final jobs = [
+        for (final job in await acceptedOffer())
+          job.copyWith(title: 'STORED-TITLE', body: 'STORED-BODY'),
+      ];
+      final email = await deliverEmail(jobs);
+      expect(email.text, contains('Anna принял(а) ваше предложение'));
+      for (final part in [email.subject, email.html, email.text]) {
+        expect(part, isNot(contains('STORED')));
+        expect(part, isNot(contains('accepted your offer')));
+      }
+    });
+
     test('a Russian recipient gets the same subject in Russian', () async {
       await setPreferences(_bob, locale: 'ru');
       final email = await deliverEmail(await acceptedOffer());
@@ -479,6 +494,24 @@ Future<void> main() async {
       expect(graphemes(email.subject), lessThanOrEqualTo(78));
       expect(email.subject, startsWith('Deadline: 21 Nov, 18:00 — «'));
       expect(email.subject, endsWith('…»'));
+    });
+  });
+
+  group('an invite-accepted email keeps its stored-text localization', () {
+    test('a Russian recipient gets the Russian connection text', () async {
+      await setPreferences(_bob, locale: 'ru');
+      final sentEmail = await emailService().considerImmediateByCategory(
+        recipientUserId: _bob,
+        channelCollapseKey: 'invite-accepted:$_bob',
+        title: 'Anna · @anna',
+        body: 'You are now connected on Tentura.',
+        actionUrl: '/#/profile/view/$_anna',
+        categoryScope: 'connections',
+      );
+      expect(sentEmail, isTrue);
+      final email = sender.sent.single;
+      expect(email.text, contains('Вы теперь связаны в Tentura.'));
+      expect(email.text, isNot(contains('You are now connected')));
     });
   });
 

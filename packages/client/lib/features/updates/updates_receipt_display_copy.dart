@@ -796,6 +796,7 @@ UpdatesFeedRowCopy resolveUpdatesFeedRowCopy({
   int collapsedCount = 1,
   String? viewerUserId,
   String? relatedBeaconTitle,
+  String? postAuthorName,
 }) {
   final shared = isPost
       ? _postRowCopy(
@@ -805,6 +806,7 @@ UpdatesFeedRowCopy resolveUpdatesFeedRowCopy({
           l10n: l10n,
           actorName: actorName,
           postRootExcerpt: postRootExcerpt,
+          postAuthorName: postAuthorName,
         )
       : null;
   if (shared != null) return shared;
@@ -1252,16 +1254,20 @@ UpdatesFeedRowCopy? _postRowCopy({
   required L10n l10n,
   String? actorName,
   String? postRootExcerpt,
+  String? postAuthorName,
 }) {
   if (presentationKey == 'post_expiring_soon') {
     final expiresAt = _payloadDate(presentationPayloadJson, 'expiresAt');
     if (expiresAt == null) return null;
-    final left = expiresAt.difference(DateTime.now()).inHours;
+    // Whole hours rounded up, as the server's push says it; nothing is left
+    // to count once the Post has expired.
+    final minutesLeft = expiresAt.difference(DateTime.now()).inMinutes;
     final label = postRowLabel(l10n, postRootExcerpt, author: null);
     return UpdatesFeedRowCopy(
       headline: l10n.updatesFallbackTitlePostExpiringSoon,
       body: [
-        l10n.updatesPostExpiresInBody(left < 1 ? 1 : left),
+        if (minutesLeft > 0)
+          l10n.updatesPostExpiresInBody((minutesLeft / 60).ceil()),
         if (label.isNotEmpty) label,
       ].join(' · '),
     );
@@ -1279,7 +1285,11 @@ UpdatesFeedRowCopy? _postRowCopy({
   final noteRaw = excerptFromPresentationPayload(presentationPayloadJson) ?? '';
   final note = stripAngleBracketRegionsForPlainPreview(noteRaw);
   if (presentationKey == 'post_first_response') {
-    final label = postRowLabel(l10n, postRootExcerpt, author: name);
+    final label = postRowLabel(
+      l10n,
+      postRootExcerpt,
+      author: _nonBlank(postAuthorName),
+    );
     return UpdatesFeedRowCopy(
       headline: l10n.updatesPostReplyHeadline(name),
       body: [

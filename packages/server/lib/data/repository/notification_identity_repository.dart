@@ -33,10 +33,12 @@ SELECT
   ) AS root_has_image,
   public.block_hides(r.actor_id, $1) AS actor_hidden,
   u.display_name AS actor_name,
-  rb.title AS related_title
+  rb.title AS related_title,
+  au.display_name AS author_name
 FROM unnest($2::text[], $3::text[], $4::text[])
   WITH ORDINALITY AS r(beacon_id, actor_id, related_id, ord)
 LEFT JOIN public.beacon b ON b.id = r.beacon_id
+LEFT JOIN public."user" au ON au.id = b.user_id
 LEFT JOIN public.beacon_room_message root
   ON root.id = b.post_root_message_id AND root.beacon_id = b.id
 LEFT JOIN public."user" u ON u.id = r.actor_id
@@ -105,6 +107,9 @@ ORDER BY r.ord
       hasImage:
           readable && isPost && row.read<bool>('root_has_image'),
       deleted: row.read<int?>('status') == 2,
+      authorName: readable && isPost
+          ? _clean(row.read<String?>('author_name'), _actorNameLimit)
+          : null,
     );
   }
 }

@@ -24,6 +24,7 @@ UpdatesFeedRowCopy _row(
   String body = '',
   bool isPost = false,
   String? postRootExcerpt,
+  String? postAuthorName,
 }) => resolveUpdatesFeedRowCopy(
   title: title,
   body: body,
@@ -38,6 +39,7 @@ UpdatesFeedRowCopy _row(
   actorName: actor,
   isPost: isPost,
   postRootExcerpt: postRootExcerpt,
+  postAuthorName: postAuthorName,
 );
 
 /// A row built without an actor name must not leak `null`, an empty name,
@@ -296,21 +298,33 @@ void main() {
       expect(label, endsWith('…'));
       expect(Characters(label).length, greaterThan(30));
     });
-    test('an empty root text falls back to Post · author', () {
+    test('an empty root text falls back to Post · the Post author', () {
       expect(
         _all(
-          _row(en, 'post_first_response', isPost: true, postRootExcerpt: ''),
+          _row(
+            en,
+            'post_first_response',
+            isPost: true,
+            postRootExcerpt: '',
+            postAuthorName: 'Anna',
+          ),
         ),
         contains('Post · Anna'),
       );
       expect(
         _all(
-          _row(ru, 'post_first_response', isPost: true, postRootExcerpt: ''),
+          _row(
+            ru,
+            'post_first_response',
+            isPost: true,
+            postRootExcerpt: '',
+            postAuthorName: 'Anna',
+          ),
         ),
         contains('Пост · Anna'),
       );
     });
-    test('expiring post says hours left and how to keep it', () {
+    test('expiring post says hours left, rounded up, and how to keep it', () {
       final at = DateTime.now()
           .add(const Duration(hours: 3, minutes: 5))
           .toUtc()
@@ -332,14 +346,14 @@ void main() {
       expect(e.headline, 'Your post expires soon');
       expect(
         e.body,
-        contains('Expires in 3 h. Turn it into a request to keep it going'),
+        contains('Expires in 4 h. Turn it into a request to keep it going'),
       );
       expect(_all(e), contains('Post: Free apples'));
       expect(_all(r), contains('Пост: Free apples'));
       expect(r.headline, 'Ваш пост скоро исчезнет');
       expect(
         r.body,
-        contains('Исчезнет через 3 ч. Оформите запрос, чтобы продолжить'),
+        contains('Исчезнет через 4 ч. Оформите запрос, чтобы продолжить'),
       );
     });
   });

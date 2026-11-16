@@ -3,8 +3,6 @@ import 'package:test/test.dart';
 import 'package:uuid/uuid.dart';
 
 import 'package:tentura_server/data/service/beacon_notification_service.dart';
-import 'package:tentura_server/data/service/email/templates/email_template_renderer.dart';
-import 'package:tentura_server/domain/entity/email_notification_content.dart';
 import 'package:tentura_server/domain/entity/invite_accepted_notification_intent.dart';
 import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/data/service/push_action_token_service.dart';
@@ -479,8 +477,8 @@ void main() {
         preferences: _RuPrefs(),
       );
 
-      expect(message.title, 'Anna принял(а) ваше предложение');
-      expect(message.body, 'Ваше предложение принято');
+      expect(message.title, 'Anna accepted your offer');
+      expect(message.body, 'Your offer was accepted');
     });
 
     test('words a person wrote stay as written', () async {
@@ -494,7 +492,7 @@ void main() {
         preferences: _RuPrefs(),
       );
 
-      expect(message.title, 'Anna принял(а) ваше предложение');
+      expect(message.title, 'Anna accepted your offer');
       expect(message.body, 'Hikes — see you at 9');
     });
 
@@ -527,7 +525,7 @@ void main() {
         );
 
         expect(message.title, 'Anna accepted your offer');
-        expect(message.body, 'Ваше предложение принято');
+        expect(message.body, 'Your offer was accepted');
       },
     );
 
@@ -561,7 +559,7 @@ void main() {
         );
 
         expect(message.title, 'Actor');
-        expect(message.body, 'Actor упомянул(а) вас');
+        expect(message.body, 'Actor mentioned you');
       });
 
       test('a first reply to a post with no text reads in Russian', () async {
@@ -580,7 +578,7 @@ void main() {
         );
 
         expect(message.title, 'Actor');
-        expect(message.body, 'Actor откликнулся на ваш пост');
+        expect(message.body, 'Actor replied to your post');
       });
 
       test('a mention with text keeps the text', () async {
@@ -636,7 +634,7 @@ void main() {
       return email.considers.single;
     }
 
-    test('an accepted offer emails in Russian, title and body', () async {
+    test('an accepted offer hands the email service the stored copy', () async {
       final sent = await emailFor(
         decision(
           kind: NotificationKind.roomAccess,
@@ -647,8 +645,8 @@ void main() {
         preferences: _RuPrefs(),
       );
 
-      expect(sent.title, 'Anna принял(а) ваше предложение');
-      expect(sent.body, 'Ваше предложение принято');
+      expect(sent.title, 'Anna accepted your offer');
+      expect(sent.body, 'Your offer was accepted');
     });
 
     test('a lock-screen-safe reader still gets the full email copy', () async {
@@ -662,11 +660,11 @@ void main() {
         preferences: _RuLockScreenSafePrefs(),
       );
 
-      expect(sent.title, 'Anna принял(а) ваше предложение');
+      expect(sent.title, 'Anna accepted your offer');
       expect(sent.body, 'Hikes — see you at 9');
     });
 
-    test('an accepted invitation emails in Russian', () async {
+    test('an accepted invitation is handed over as stored text', () async {
       final sent = await emailFor(
         decision(
           kind: NotificationKind.inviteAccepted,
@@ -678,13 +676,13 @@ void main() {
       );
 
       expect(sent.kind, isNull, reason: 'the connections email path');
-      expect(sent.title, 'Приглашение принято');
-      expect(sent.body, 'Anna принял(а) ваше приглашение');
+      expect(sent.title, 'Invitation accepted');
+      expect(sent.body, 'Anna accepted your invitation');
     });
 
     for (final origin in ['new_account', 'existing_account']) {
       test(
-        'invitation acceptance from $origin emails its origin explanation in the recipient language',
+        'invitation acceptance from $origin is handed to the email service as stored text',
         () async {
           final produced = await TestAttentionHarness().intents.inviteAccepted(
             notification: InviteAcceptedNotificationIntent(
@@ -697,7 +695,7 @@ void main() {
             ),
             sourceEventKey: 'accepted-$origin',
           );
-          for (final locale in ['en', 'ru']) {
+          for (final prefs in [_FakePrefs(), _RuPrefs()]) {
             final sent = await emailFor(
               decision(
                 kind: produced.kind,
@@ -705,46 +703,12 @@ void main() {
                 body: produced.body,
                 actorDisplayName: produced.actorDisplayName,
               ),
-              preferences: locale == 'ru' ? _RuPrefs() : _FakePrefs(),
+              preferences: prefs,
             );
-            final email = const EmailTemplateRenderer().renderNotification(
-              content: EmailNotificationContent(
-                item: EmailNotificationItem(
-                  title: sent.title,
-                  body: sent.body,
-                  url: 'https://t.example/profile/actor',
-                ),
-                unsubscribeUrl: 'https://t.example/unsubscribe',
-                managePrefsUrl: 'https://t.example/preferences',
-              ),
-              locale: locale,
-            );
-            expect(
-              email.subject,
-              'Anna · @anna',
-              reason: 'names and handles are user content',
-            );
-            for (final part in [email.html, email.text]) {
-              if (locale == 'en') {
-                final expectedExplanation = origin == 'new_account'
-                    ? 'Created an account via your invitation. You are now connected.'
-                    : 'Already had a Tentura account. You are now connected.';
-                expect(sent.body, expectedExplanation);
-                expect(part, contains(expectedExplanation));
-                expect(part, contains('Open in Tentura'));
-                expect(part, contains('Unsubscribe'));
-              } else {
-                expect(part, contains('Открыть в Tentura'));
-                expect(part, contains('Отписаться'));
-                // Use the established RU explanation from the product's
-                // updates copy, including the account-origin distinction.
-                final expectedExplanation = origin == 'new_account'
-                    ? 'Создал(а) аккаунт по вашему приглашению. Теперь вы связаны.'
-                    : 'Уже был аккаунт в Tentura. Теперь вы связаны.';
-                expect(part, contains(expectedExplanation));
-                expect(sent.body, expectedExplanation);
-              }
-            }
+            // The email service localizes this stored text for the invite
+            // email; the push service hands it over untouched.
+            expect(sent.title, produced.title);
+            expect(sent.body, produced.body);
           }
         },
       );

@@ -239,6 +239,7 @@ class _UpdatesFeedTileState extends State<UpdatesFeedTile> {
       collapsedCount: widget.receipt.collapsedCount,
       viewerUserId: widget.viewerUserId,
       relatedBeaconTitle: widget.receipt.relatedBeaconTitle,
+      postAuthorName: widget.receipt.beaconAuthorName,
     );
     final glyph = updatesFeedGlyphFor(widget.receipt, tt);
     final localCreatedAt = widget.receipt.createdAt.toLocal();
