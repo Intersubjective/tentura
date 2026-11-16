@@ -83,9 +83,14 @@ class RecordingShare extends SharePlatform {
   }
 }
 
+/// Installs a [RecordingShare] and restores the previous platform instance
+/// when the enclosing test (or `setUpAll` group) finishes, so the fake never
+/// leaks into other tests compiled into the same bundle.
 RecordingShare installRecordingShare() {
+  final previous = SharePlatform.instance;
   final share = RecordingShare();
   SharePlatform.instance = share;
+  addTearDown(() => SharePlatform.instance = previous);
   return share;
 }
 
@@ -99,15 +104,19 @@ String effectiveShareName(ShareParams p) {
 
 /// Collects every log record (children propagate to the root logger).
 class LogCapture {
-  LogCapture() {
+  LogCapture() : _previousLevel = Logger.root.level {
     Logger.root.level = Level.ALL;
     _sub = Logger.root.onRecord.listen(records.add);
   }
 
   final records = <LogRecord>[];
+  final Level _previousLevel;
   late final StreamSubscription<LogRecord> _sub;
 
-  Future<void> dispose() => _sub.cancel();
+  Future<void> dispose() async {
+    Logger.root.level = _previousLevel;
+    await _sub.cancel();
+  }
 
   bool loggedError(Object cause) => records.any((r) => r.error == cause);
 
