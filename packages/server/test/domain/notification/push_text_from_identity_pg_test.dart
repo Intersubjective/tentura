@@ -511,6 +511,7 @@ final class _Email extends Fake implements EmailNotificationPort {
     required String body,
     required String actionUrl,
     required bool pushDelivered,
+    NotificationCopy? copy,
   }) async {
     calls++;
     return false;

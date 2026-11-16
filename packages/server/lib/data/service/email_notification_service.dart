@@ -10,6 +10,7 @@ import 'package:tentura_server/domain/notification/beacon_notification_copy_buil
 import 'package:tentura_server/domain/entity/notification_category.dart';
 import 'package:tentura_server/domain/entity/notification_channel.dart';
 import 'package:tentura_server/domain/entity/notification_kind.dart';
+import 'package:tentura_server/domain/notification/notification_copy_renderer.dart';
 import 'package:tentura_server/domain/notification/notification_preference_gate.dart';
 import 'package:tentura_server/domain/port/email_notification_port.dart';
 import 'package:tentura_server/domain/port/email_sender_port.dart';
@@ -46,6 +47,7 @@ class EmailNotificationService implements EmailNotificationPort {
 
   static const _gate = NotificationPreferenceGate();
   static const _copyBuilder = BeaconNotificationCopyBuilder();
+  static const _renderer = NotificationCopyRenderer();
 
   @override
   Future<void> considerImmediate({
@@ -57,6 +59,7 @@ class EmailNotificationService implements EmailNotificationPort {
     required String body,
     required String actionUrl,
     required bool pushDelivered,
+    NotificationCopy? copy,
   }) async {
     final shares = kind == NotificationKind.newRelay
         ? (await _outbox.pendingForChannelCollapseKey(
@@ -120,7 +123,16 @@ class EmailNotificationService implements EmailNotificationPort {
       scope: category.name,
     );
     final content = EmailNotificationContent(
-      item: shares.isNotEmpty
+      item: copy != null
+          ? _renderedItem(
+              copy: copy,
+              category: category,
+              quoteLabel: shares.isEmpty,
+              lockScreenSafe: prefs.lockScreenSafe,
+              locale: prefs.locale,
+              url: _links.absolute(actionUrl),
+            )
+          : shares.isNotEmpty
           ? _copyBuilder.digestPostItem(
               receipts: shares,
               locale: prefs.locale,
@@ -247,6 +259,32 @@ class EmailNotificationService implements EmailNotificationPort {
       );
       return false;
     }
+  }
+
+  EmailNotificationItem _renderedItem({
+    required NotificationCopy copy,
+    required NotificationCategory category,
+    required bool quoteLabel,
+    required bool lockScreenSafe,
+    required String locale,
+    required String url,
+  }) {
+    if (lockScreenSafe) {
+      final safe = _renderer.lockScreenSafe(category, locale).body;
+      return EmailNotificationItem(
+        title: safe,
+        body: safe,
+        url: url,
+        subject: safe,
+      );
+    }
+    return EmailNotificationItem(
+      title: copy.entityLabel ?? copy.headline,
+      body: copy.sentence,
+      url: url,
+      subject: _renderer.emailSubject(copy, quoteLabel: quoteLabel),
+      excerpt: copy.entityLabel == null ? null : copy.excerpt,
+    );
   }
 
   EmailNotificationItem _localizedItem({

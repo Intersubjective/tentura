@@ -1,4 +1,5 @@
 import 'package:tentura_server/domain/entity/notification_kind.dart';
+import 'package:tentura_server/domain/notification/notification_copy_renderer.dart';
 
 /// Sends immediate asks and noted Post shares under conservative gating.
 abstract interface class EmailNotificationPort {
@@ -6,7 +7,8 @@ abstract interface class EmailNotificationPort {
   /// of a just-dispatched notification. No-op unless the category is
   /// asks-of-me or a readable Post share with a note, email is enabled, the
   /// user is absent / push failed, a verified email exists, and the per-category
-  /// cooldown allows it.
+  /// cooldown allows it. [copy] is the recipient's rendered text (live
+  /// identity, localized); when null the stored [title] and [body] are used.
   Future<void> considerImmediate({
     required String recipientUserId,
     required NotificationKind kind,
@@ -16,6 +18,7 @@ abstract interface class EmailNotificationPort {
     required String body,
     required String actionUrl,
     required bool pushDelivered,
+    NotificationCopy? copy,
   });
 
   /// Considers (and, if warranted, sends) an immediate email for a non-beacon,

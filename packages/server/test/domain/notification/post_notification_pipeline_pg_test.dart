@@ -62,6 +62,7 @@ import 'package:tentura_server/domain/use_case/commitment_query_case.dart';
 import 'package:tentura_server/domain/use_case/forward_case.dart';
 import 'package:tentura_server/domain/use_case/post_case.dart';
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
+import 'package:tentura_server/domain/notification/notification_copy_renderer.dart';
 import 'package:tentura_server/env.dart';
 
 import 'package:tentura_server/data/repository/notification_outbox_repository.dart';
@@ -1108,6 +1109,7 @@ final class _SilentEmail extends Fake implements EmailNotificationPort {
     required String body,
     required String actionUrl,
     required bool pushDelivered,
+    NotificationCopy? copy,
   }) async {}
 }
 
@@ -1285,6 +1287,7 @@ final class _TrackedEmail extends Fake implements EmailNotificationPort {
     required String body,
     required String actionUrl,
     required bool pushDelivered,
+    NotificationCopy? copy,
   }) {
     final task = delegate.considerImmediate(
       recipientUserId: recipientUserId,
@@ -1295,6 +1298,7 @@ final class _TrackedEmail extends Fake implements EmailNotificationPort {
       body: body,
       actionUrl: actionUrl,
       pushDelivered: pushDelivered,
+      copy: copy,
     );
     pending.add(task);
     return task;

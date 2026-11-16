@@ -15,18 +15,26 @@ class EmailTemplateRenderer {
   }) {
     final t = _strings(locale);
     final item = content.item;
+    final rendered = item.subject != null;
+    final heading = rendered
+        ? '<a href="${_esc(item.url)}">${_esc(item.title)}</a>'
+        : _esc(item.title);
+    final excerpt = item.excerpt;
     final html = _wrap(
-      body: '''
-<h2>${_esc(item.title)}</h2>
+      body:
+          '''
+<h2>$heading</h2>
 <p>${_esc(item.body)}</p>
-<p><a href="${_esc(item.url)}">${_esc(t.openAction)}</a></p>
+${excerpt == null ? '' : '<blockquote>${_esc(excerpt)}</blockquote>\n'}<p><a href="${_esc(item.url)}">${_esc(t.openAction)}</a></p>
 ''',
       footer: _footerHtml(t, content.unsubscribeUrl, content.managePrefsUrl),
     );
-    final text = '${item.title}\n\n${item.body}\n\n'
+    final text =
+        '${item.title}\n\n${item.body}\n\n'
+        '${excerpt == null ? '' : '"$excerpt"\n\n'}'
         '${t.openAction}: ${item.url}\n\n'
         '${_footerText(t, content.unsubscribeUrl, content.managePrefsUrl)}';
-    return (subject: item.title, html: html, text: text);
+    return (subject: item.subject ?? item.title, html: html, text: text);
   }
 
   RenderedEmail renderDigest({
@@ -57,12 +65,14 @@ class EmailTemplateRenderer {
       body: '<p>${_esc(t.digestIntro)}</p>$htmlSections',
       footer: _footerHtml(t, content.unsubscribeUrl, content.managePrefsUrl),
     );
-    final text = '${t.digestIntro}\n\n$textSections'
+    final text =
+        '${t.digestIntro}\n\n$textSections'
         '${_footerText(t, content.unsubscribeUrl, content.managePrefsUrl)}';
     return (subject: t.digestSubject, html: html, text: text);
   }
 
-  String _wrap({required String body, required String footer}) => '''
+  String _wrap({required String body, required String footer}) =>
+      '''
 <div style="font-family: sans-serif; max-width: 560px; margin: 0 auto;">
 $body
 <hr/>
@@ -90,7 +100,8 @@ $footer
   static const _en = _Strings(
     openAction: 'Open in Tentura',
     digestSubject: 'Your Tentura summary',
-    digestIntro: "Here's what's waiting on you and what moved while you were away.",
+    digestIntro:
+        "Here's what's waiting on you and what moved while you were away.",
     manage: 'Manage notifications',
     unsubscribe: 'Unsubscribe',
   );

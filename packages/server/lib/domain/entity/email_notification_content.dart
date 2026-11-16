@@ -4,11 +4,19 @@ class EmailNotificationItem {
     required this.title,
     required this.body,
     required this.url,
+    this.subject,
+    this.excerpt,
   });
 
   final String title;
   final String body;
   final String url;
+
+  /// Mail subject when it differs from [title]. Set for rendered copy, whose
+  /// [title] is then the entity label (or headline), shown as a link, and
+  /// [excerpt] the sender's own words, quoted under [body].
+  final String? subject;
+  final String? excerpt;
 }
 
 /// A single, high-stakes "asked of you" email (immediate send).
@@ -47,6 +55,5 @@ class EmailDigestContent {
   final String unsubscribeUrl;
   final String managePrefsUrl;
 
-  int get totalItems =>
-      sections.fold(0, (sum, s) => sum + s.items.length);
+  int get totalItems => sections.fold(0, (sum, s) => sum + s.items.length);
 }

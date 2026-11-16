@@ -122,8 +122,8 @@ class BeaconNotificationService implements BeaconNotificationPort {
         ),
         _ => throw StateError('unreachable'),
       };
-      // Email text is rebuilt in the immediate-email path, not here; until it
-      // is, it keeps the stored copy.
+      // Fallback text for forward-helped and the connection email; every
+      // other immediate email renders from [rendered].
       final emailCopy = decision.forwardHelped != null
           ? fullCopy
           : _copyBuilder.localizeStored(
@@ -204,6 +204,7 @@ class BeaconNotificationService implements BeaconNotificationPort {
             body: emailCopy.body,
             actionUrl: decision.actionUrl,
             pushDelivered: pushDelivered,
+            copy: rendered,
           ),
         );
       }

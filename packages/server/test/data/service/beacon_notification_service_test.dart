@@ -21,6 +21,7 @@ import 'package:tentura_server/domain/port/fcm_batch_queue_port.dart';
 import 'package:tentura_server/domain/port/fcm_remote_repository_port.dart';
 import 'package:tentura_server/domain/port/fcm_token_repository_port.dart';
 import 'package:tentura_server/domain/port/notification_preference_repository_port.dart';
+import 'package:tentura_server/domain/notification/notification_copy_renderer.dart';
 import 'package:tentura_server/env.dart';
 
 import '../../support/test_attention_harness.dart';
@@ -165,6 +166,7 @@ class _CapturingEmail implements EmailNotificationPort {
     required String body,
     required String actionUrl,
     required bool pushDelivered,
+    NotificationCopy? copy,
   }) async {
     considers.add((
       recipientUserId: recipientUserId,

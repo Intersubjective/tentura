@@ -1,3 +1,4 @@
+import 'package:characters/characters.dart';
 import 'package:meta/meta.dart';
 
 import 'package:tentura_server/domain/attention/attention_models.dart';
@@ -87,6 +88,28 @@ class NotificationCopyRenderer {
       ),
     };
     return (title: 'Tentura', body: ru ? ruBody : en);
+  }
+
+  static const _subjectLimit = 78;
+  static const _subjectLabelMin = 16;
+
+  /// Email subject `L — «E»` (Post: `L — E`), at most 78 graphemes: the label
+  /// is shortened first (down to 16), then the sentence (spec §4.3). Without
+  /// a readable label it is the headline.
+  String emailSubject(NotificationCopy copy, {required bool quoteLabel}) {
+    final label = copy.entityLabel;
+    if (label == null) return copy.headline;
+    final (open, close) = quoteLabel ? ('«', '»') : ('', '');
+    final overhead = ' — '.length + open.length + close.length;
+    final sentenceLength = copy.sentence.characters.length;
+    final room = _subjectLimit - overhead - sentenceLength;
+    final labelLimit = room < _subjectLabelMin ? _subjectLabelMin : room;
+    final shownLabel = NotificationText.truncate(label, labelLimit);
+    final sentence = NotificationText.truncate(
+      copy.sentence,
+      _subjectLimit - overhead - shownLabel.characters.length,
+    );
+    return '$sentence — $open$shownLabel$close';
   }
 
   /// [presentationKey] is a receipt's `presentation_key`; [facts] its

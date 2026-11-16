@@ -48,6 +48,7 @@ import 'package:tentura_server/domain/port/attention_query_port.dart';
 import 'package:tentura_server/domain/use_case/closure_case.dart';
 import 'package:tentura_server/domain/use_case/coordination_case.dart';
 import 'package:tentura_server/domain/use_case/help_offer_case.dart';
+import 'package:tentura_server/domain/notification/notification_copy_renderer.dart';
 import 'package:tentura_server/env.dart';
 
 import '../../support/disposable_pg_target.dart';
@@ -1388,6 +1389,7 @@ class _NoImmediateEmail extends Fake implements EmailNotificationPort {
     required String body,
     required String actionUrl,
     required bool pushDelivered,
+    NotificationCopy? copy,
   }) async {}
 }
 
