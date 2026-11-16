@@ -305,10 +305,12 @@ void main() {
             final serverBeforeSweep = await repository.fetch(
               view: AttentionView.unread,
             );
-            expect(serverBeforeSweep.summary.unreadTotal, 3);
+            // Read all reads and clears what it reads; only the live
+            // obligation is left counted.
+            expect(serverBeforeSweep.summary.unreadTotal, 1);
             expect(
               serverBeforeSweep.page.items.every(
-                (r) => r.isSeen && !r.isCleared,
+                (r) => r.isSeen && !r.isCleared && r.isLiveObligation,
               ),
               isTrue,
             );
@@ -319,7 +321,7 @@ void main() {
           await _until(
             () =>
                 cubit.state.items.every((r) => r.isSeen) &&
-                cubit.state.summary.unreadTotal == 2 &&
+                cubit.state.summary.unreadTotal == 1 &&
                 !cubit.state.canReadAll,
             diagnostic: () => {
               'state': cubit.state,
@@ -342,7 +344,8 @@ void main() {
             cubit.state.items
                 .singleWhere((r) => r.id == 'counted-forward')
                 .isCleared,
-            isFalse,
+            isTrue,
+            reason: 'Read all clears the forward shell it reads',
           );
           expect(
             cubit.state.items
@@ -357,7 +360,7 @@ void main() {
             isTrue,
           );
           final after = await _responsibility(repository);
-          expect(after['unreadTotal'], 2);
+          expect(after['unreadTotal'], 1);
           expect(after['needsYouTotal'], before['needsYouTotal']);
           expect(after['responsible Requests'], before['responsible Requests']);
           expect(
@@ -373,25 +376,24 @@ void main() {
           await _until(
             () =>
                 cubit.state.view == AttentionView.unread &&
-                cubit.state.items.length == 2,
+                cubit.state.items.length == 1,
           );
           await _pumpHistory(tester, cubit);
-          expect(find.byType(UpdatesFeedTile), findsNWidgets(2));
-          expect(find.text('2'), findsOneWidget);
+          expect(find.byType(UpdatesFeedTile), findsNWidgets(1));
+          expect(find.text('1'), findsOneWidget);
           views['Unread'] = _visible(tester, cubit);
           expect(tester.takeException(), isNull);
           const expected = {
-            'count': 2,
-            'dots': 2,
+            'count': 1,
+            'dots': 1,
             'read all enabled': false,
-            'forward dot': 1,
+            'forward dot': 0,
             'obligation dot': 1,
           };
           expect(
             views,
             {'All': expected, 'Unread': expected},
-            reason:
-                'seen optional forward shells and live obligations stay counted after Read all',
+            reason: 'only the live obligation stays counted after Read all',
           );
         });
       },

@@ -305,7 +305,8 @@ Future<void> _readAllThroughControl(
         'eligible receipt swept': true,
         'dots': 0,
       },
-      'applied receipt IDs': [openId],
+      // Read all itself clears the eligible receipt, so the sweep finds none.
+      'applied receipt IDs': <Object?>[],
       'skipped members': <Object?>[],
       'failed members': <Object?>[],
       'archived receipt read': true,

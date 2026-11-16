@@ -1939,7 +1939,21 @@ forward_outcomes AS (
 )
 UPDATE public.notification_outbox outbox
 SET
-  seen_at = COALESCE(outbox.seen_at, now())
+  seen_at = COALESCE(outbox.seen_at, now()),
+  -- Read all leaves nothing counted: an optional receipt it reads is also
+  -- cleared (the forward shell, which the sweep never takes, included), so
+  -- History's unread total reaches 0. Obligations are only read, and so are
+  -- archived Posts: their attention is not eligible to clear.
+  cleared_at = CASE
+    WHEN outbox.requires_action
+      OR NOT ${AttentionDismissibleSql.postLifecycleExcluded('outbox')}
+    THEN outbox.cleared_at
+    ELSE COALESCE(outbox.cleared_at, now()) END,
+  clear_reason = CASE
+    WHEN outbox.requires_action
+      OR NOT ${AttentionDismissibleSql.postLifecycleExcluded('outbox')}
+    THEN outbox.clear_reason
+    ELSE COALESCE(outbox.clear_reason, 'explicit') END
 FROM targets
 WHERE outbox.account_id = \$1
   AND outbox.id = targets.id

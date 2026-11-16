@@ -28,6 +28,7 @@ final class ProductionReceiptTransport {
     String? postLifecycleFixture,
     bool countedRowsFixture = false,
     bool countedSiblingFixture = false,
+    bool forwardRequestFixture = false,
   }) async {
     final process = await Process.start(
       'dart',
@@ -36,6 +37,8 @@ final class ProductionReceiptTransport {
       environment: {
         'TENTURA_RECEIPT_POST_LIFECYCLE_FIXTURE': ?postLifecycleFixture,
         if (countedRowsFixture) 'TENTURA_RECEIPT_COUNTED_ROWS_FIXTURE': 'true',
+        if (forwardRequestFixture)
+          'TENTURA_RECEIPT_FORWARD_REQUEST_FIXTURE': 'true',
         if (countedSiblingFixture)
           'TENTURA_RECEIPT_COUNTED_SIBLING_FIXTURE': 'true',
       },
