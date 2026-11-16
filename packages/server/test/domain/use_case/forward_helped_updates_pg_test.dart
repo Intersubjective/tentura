@@ -25,7 +25,6 @@ import 'package:tentura_server/domain/port/email_sender_port.dart';
 import 'package:tentura_server/domain/port/fcm_remote_repository_port.dart';
 import 'package:tentura_server/domain/port/fcm_token_repository_port.dart';
 import 'package:tentura_server/domain/port/verified_contact_repository_port.dart';
-import 'package:tentura_server/domain/port/beacon_access_guard.dart';
 import 'package:tentura_server/domain/use_case/email_digest_case.dart';
 import 'package:tentura_server/domain/use_case/notification_preference_case.dart';
 import 'package:injectable/injectable.dart' show Environment;
@@ -403,7 +402,13 @@ ORDER BY id
           if (sent.tokens.contains('token-$account')) sent.message,
       ];
 
-      void expectAcceptedCopy(String text, String locale) {
+      /// [headline]: the push carries «Your forward helped» as its title; the
+      /// digest groups the line under the Request title instead (spec §5.1).
+      void expectAcceptedCopy(
+        String text,
+        String locale, {
+        bool headline = true,
+      }) {
         expect(text, contains(_title));
         for (final name in _names.values.take(4)) {
           expect(
@@ -413,11 +418,11 @@ ORDER BY id
           );
         }
         if (locale == 'ru') {
-          expect(text.toLowerCase(), contains('помог'));
+          if (headline) expect(text.toLowerCase(), contains('помог'));
           expect(text.toLowerCase(), contains('предлож'));
           expect(text, isNot(contains('offered help with')));
         } else {
-          expect(text, contains('Your forward helped'));
+          if (headline) expect(text, contains('Your forward helped'));
           expect(text, contains('offered help with «$_title»'));
         }
       }
@@ -440,7 +445,7 @@ ORDER BY id
           EmailLinkBuilder(env),
           env,
           Logger('ForwardHelpDigest'),
-          getIt<BeaconAccessGuard>(),
+          identity: NotificationIdentityRepository(database),
         ).runDue(now: due);
         return sender;
       }
@@ -468,7 +473,11 @@ ORDER BY id
               .where((m) => m.to == '$_first@example.com')
               .toList();
           expect(messages, hasLength(1));
-          expectAcceptedCopy(messages.single.rendered.text, 'en');
+          expectAcceptedCopy(
+            messages.single.rendered.text,
+            'en',
+            headline: false,
+          );
         },
       );
 
@@ -504,7 +513,11 @@ ORDER BY id
                 .toList();
             expect(messages, hasLength(1));
             expect(messages.single.locale, locale);
-            expectAcceptedCopy(messages.single.rendered.text, locale);
+            expectAcceptedCopy(
+              messages.single.rendered.text,
+              locale,
+              headline: false,
+            );
             expect(messages.single.rendered.html, contains(_title));
             final again = await digest();
             expect(
@@ -736,7 +749,11 @@ ORDER BY id
             hasLength(1),
             reason: 'positive control proves the digest ran',
           );
-          expectAcceptedCopy(control.single.rendered.text, 'en');
+          expectAcceptedCopy(
+            control.single.rendered.text,
+            'en',
+            headline: false,
+          );
           expect(await receipts(_first), hasLength(1));
           await finalize();
           final completed = await digest();
@@ -871,19 +888,19 @@ ORDER BY job.created_at, job.id
       ];
 
       Map<String, dynamic> inner(Map<String, dynamic> job, String key) =>
-          (job['payload'] as Map<String, dynamic>)[key]
-              as Map<String, dynamic>;
+          (job['payload'] as Map<String, dynamic>)[key] as Map<String, dynamic>;
       String jobKey(Map<String, dynamic> job) =>
-          (job['payload'] as Map<String, dynamic>)['presentationKey']
-              as String;
+          (job['payload'] as Map<String, dynamic>)['presentationKey'] as String;
       await accept(_helper);
-      Future<int> rawJobCount() async => (await writer.execute(
-        Sql.named('''
+      Future<int> rawJobCount() async =>
+          (await writer.execute(
+                Sql.named('''
 SELECT count(*)::int FROM public.attention_channel_delivery
 WHERE account_id = @account AND receipt_id IS NOT NULL
 '''),
-        parameters: {'account': _first},
-      )).single.single! as int;
+                parameters: {'account': _first},
+              )).single.single!
+              as int;
       expect(await rawJobCount(), 1);
       final accepted = await jobsFor(_first);
       expect(accepted, hasLength(1));
@@ -908,7 +925,10 @@ WHERE account_id = @account AND receipt_id IS NOT NULL
       // The outbox stores doneEpoch as text (the idempotency predicate
       // compares it as text), and the job must carry the same value.
       expect(inner(done, 'presentationPayload')['doneEpoch'], '$epoch');
-      expect((done['receipt_payload'] as Map<String, dynamic>)['doneEpoch'], '$epoch');
+      expect(
+        (done['receipt_payload'] as Map<String, dynamic>)['doneEpoch'],
+        '$epoch',
+      );
 
       // The done job, claimed as the worker does, still decodes to forward
       // helped content with the receipt's title and path.
@@ -938,12 +958,13 @@ WHERE account_id = @account AND receipt_id IS NOT NULL
         final stored =
             jsonDecode(
                   (await writer.execute(
-                    Sql.named(
-                      'SELECT presentation_payload::text '
-                      'FROM public.notification_outbox WHERE id = @id',
-                    ),
-                    parameters: {'id': decision.receiptId},
-                  )).single.single! as String,
+                        Sql.named(
+                          'SELECT presentation_payload::text '
+                          'FROM public.notification_outbox WHERE id = @id',
+                        ),
+                        parameters: {'id': decision.receiptId},
+                      )).single.single!
+                      as String,
                 )
                 as Map<String, dynamic>;
         expect(content, isNotNull);

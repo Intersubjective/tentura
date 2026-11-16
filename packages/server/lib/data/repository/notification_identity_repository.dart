@@ -104,6 +104,7 @@ ORDER BY r.ord
       expired: readable && isPost && row.read<int?>('status') == 6,
       hasImage:
           readable && isPost && row.read<bool>('root_has_image'),
+      deleted: row.read<int?>('status') == 2,
     );
   }
 }

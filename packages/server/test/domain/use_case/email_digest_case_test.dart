@@ -18,7 +18,7 @@ import 'package:tentura_server/domain/port/verified_contact_repository_port.dart
 import 'package:tentura_server/domain/use_case/email_digest_case.dart';
 import 'package:tentura_server/env.dart';
 
-import '../../support/fake_beacon_access_guard.dart';
+import '../../support/open_notification_identity.dart';
 
 class _FakePrefs implements NotificationPreferenceRepositoryPort {
   _FakePrefs(this._prefs);
@@ -107,6 +107,8 @@ void main() {
     actionUrl: '/#/x',
     createdAt: dueNow,
     collapsedCount: 1,
+    beaconId: 'b1',
+    presentationKey: 'needs_me',
   );
 
   NotificationPreferencesEntity prefs({
@@ -131,6 +133,7 @@ void main() {
         ),
         item('plan', NotificationCategory.coordination).copyWith(
           kind: NotificationKind.coordinationChanged,
+          presentationKey: 'coordination_changed',
           title: 'Plan updated',
           body: 'Coordination changed',
         ),
@@ -143,7 +146,10 @@ void main() {
         links,
         env,
         Logger('test'),
-        FakeBeaconAccessGuard(),
+        identity: const OpenNotificationIdentity(
+          label: 'Fix the roof',
+          actorName: 'Anna',
+        ),
       ).runDue(now: dueNow);
       expect(sender.lastLocale, locale);
       expect(sender.lastDigest?.totalItems, 2);
@@ -160,7 +166,10 @@ void main() {
           final email = await render(locale);
           expect(
             email.subject,
-            locale == 'ru' ? 'Сводка Tentura' : 'Your Tentura summary',
+            // One «Fix the roof» group in each of the two sections.
+            locale == 'ru'
+                ? 'Tentura: «Fix the roof» и ещё 1'
+                : 'Tentura: «Fix the roof» and 1 more',
           );
           final intro = locale == 'ru'
               ? 'Вот что ждёт вас и что изменилось, пока вас не было.'
@@ -202,26 +211,27 @@ void main() {
       },
     );
 
-    test('fixed item titles and bodies use the recipient language', () async {
+    test('item lines are rendered in the recipient language from the event '
+        'key, never from the stored text', () async {
       for (final locale in ['en', 'ru']) {
         final email = await render(locale);
         for (final part in [email.html, email.text]) {
           for (final copy
               in locale == 'ru'
                   ? [
-                      'Вас просят',
-                      'В обсуждении запроса нужен ваш ответ',
-                      'План обновлён',
-                      'Договорённости изменились',
+                      'Fix the roof',
+                      'Anna · Вас просят',
+                      'Anna: договорённости изменились',
                     ]
                   : [
-                      'Asked of you',
-                      'Action needed in the request discussion',
-                      'Plan updated',
-                      'Coordination changed',
+                      'Fix the roof',
+                      'Anna · Asked of you',
+                      'Anna updated the coordination',
                     ]) {
             expect(part, contains(copy), reason: 'recipient locale: $locale');
           }
+          expect(part, isNot(contains('Action needed in the request')));
+          expect(part, isNot(contains('Plan updated')));
           expect(part, contains('https://t.example/'));
         }
       }
@@ -242,7 +252,7 @@ void main() {
       links,
       env,
       Logger('test'),
-      FakeBeaconAccessGuard(),
+      identity: const OpenNotificationIdentity(),
     );
 
     await case_.runDue(now: dueNow);
@@ -265,7 +275,7 @@ void main() {
       links,
       env,
       Logger('test'),
-      FakeBeaconAccessGuard(),
+      identity: const OpenNotificationIdentity(),
     );
 
     await case_.runDue(now: dueNow);
@@ -284,7 +294,7 @@ void main() {
       links,
       env,
       Logger('test'),
-      FakeBeaconAccessGuard(),
+      identity: const OpenNotificationIdentity(),
     );
 
     // 14:30 UTC, tz 0 → local hour 14 != digest hour 8.
@@ -306,7 +316,7 @@ void main() {
       links,
       env,
       Logger('test'),
-      FakeBeaconAccessGuard(),
+      identity: const OpenNotificationIdentity(),
     );
 
     await case_.runDue(now: dueNow);

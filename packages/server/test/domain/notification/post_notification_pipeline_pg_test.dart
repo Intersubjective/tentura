@@ -76,7 +76,6 @@ import 'package:tentura_server/domain/entity/email_notification_content.dart';
 import 'package:tentura_server/domain/port/email_sender_port.dart';
 import 'package:tentura_server/domain/port/verified_contact_repository_port.dart';
 import 'package:tentura_server/domain/use_case/email_digest_case.dart';
-import '../../support/fake_beacon_access_guard.dart';
 
 import '../../support/disposable_pg_target.dart';
 import '../../support/fake_beacon_child_create_port.dart';
@@ -337,7 +336,7 @@ Future<void> main() async {
             EmailLinkBuilder(emailEnv),
             emailEnv,
             Logger('PostShareEmailTest'),
-            FakeBeaconAccessGuard(),
+            identity: NotificationIdentityRepository(database),
           ).runDue(
             now: DateTime.timestamp()
                 .add(const Duration(days: 2))
@@ -556,10 +555,11 @@ Future<void> main() async {
             sender.digests.single.rendered.text
                 .split('\n')
                 .where((line) => line.startsWith('- ')),
-            ['- Bob — A neighbourhood story — Bob: $laterNote'],
+            ['- Bob shared a post with you: $laterNote'],
           );
+          // One Post group holding the one later share.
           expect(
-            RegExp('<li>').allMatches(sender.digests.single.rendered.html),
+            RegExp('<li><a ').allMatches(sender.digests.single.rendered.html),
             hasLength(1),
           );
           for (final part in [

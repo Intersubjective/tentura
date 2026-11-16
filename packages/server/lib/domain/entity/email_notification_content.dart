@@ -32,15 +32,51 @@ class EmailNotificationContent {
   final String managePrefsUrl;
 }
 
-/// One grouped section of a digest (e.g. "Waiting on you").
+/// One entry of a digest section.
+sealed class EmailDigestEntry {
+  const EmailDigestEntry({required this.url});
+
+  final String url;
+
+  int get lineCount;
+}
+
+/// Events about one Request or Post: [label] (linked to [url]) over one line
+/// per event, newest first.
+final class EmailDigestGroup extends EmailDigestEntry {
+  const EmailDigestGroup({
+    required this.label,
+    required this.lines,
+    required super.url,
+  });
+
+  final String label;
+  final List<String> lines;
+
+  @override
+  int get lineCount => lines.length;
+}
+
+/// An event shown on its own (`headline — sentence`): its Request or Post is
+/// not readable, or it has none.
+final class EmailDigestLine extends EmailDigestEntry {
+  const EmailDigestLine({required this.text, required super.url});
+
+  final String text;
+
+  @override
+  int get lineCount => 1;
+}
+
+/// One section of a digest (e.g. "Waiting on you").
 class EmailDigestSection {
   const EmailDigestSection({
     required this.heading,
-    required this.items,
+    required this.entries,
   });
 
   final String heading;
-  final List<EmailNotificationItem> items;
+  final List<EmailDigestEntry> entries;
 }
 
 /// The batched "what's waiting / what moved" digest email.
@@ -49,11 +85,19 @@ class EmailDigestContent {
     required this.sections,
     required this.unsubscribeUrl,
     required this.managePrefsUrl,
+    this.lockScreenSafe = false,
   });
 
   final List<EmailDigestSection> sections;
   final String unsubscribeUrl;
   final String managePrefsUrl;
 
-  int get totalItems => sections.fold(0, (sum, s) => sum + s.items.length);
+  /// The recipient asked for redacted notifications: the subject names
+  /// nothing.
+  final bool lockScreenSafe;
+
+  int get totalItems => sections.fold(
+    0,
+    (sum, s) => s.entries.fold(sum, (n, e) => n + e.lineCount),
+  );
 }

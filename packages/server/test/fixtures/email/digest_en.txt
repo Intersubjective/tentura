@@ -1,0 +1,26 @@
+Subject: Tentura: «Post: Walk in the park» and 2 more
+
+Here's what's waiting on you and what moved while you were away.
+
+Posts shared with you
+Post: Walk in the park
+  https://t.example/#/beacon/view/Bdgpost
+- Anna shared a post with you: Join us
+
+Waiting on you
+Fix the roof
+  https://t.example/#/beacon/view/Bdgroof
+- Anna offered help: I can bring a ladder
+- No activity for 20 days. Close it, extend it or post an update
+
+Moved while you were away
+Fix the roof
+  https://t.example/#/beacon/view/Bdgroof
+- Anna moved the deadline to 25 Nov, 18:00
+
+People
+- New connection — You and Anna are now connected
+  https://t.example/#/profile/view/Udganna
+
+Manage notifications: https://t.example/#/notifications
+Unsubscribe: {unsubscribeUrl}

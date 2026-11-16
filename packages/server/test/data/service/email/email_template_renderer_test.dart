@@ -58,15 +58,14 @@ void main() {
         sections: [
           EmailDigestSection(
             heading: 'Waiting on you',
-            items: [
-              EmailNotificationItem(
-                title: 'Ask A',
-                body: 'do the thing',
+            entries: [
+              EmailDigestLine(
+                text: 'Ask A — do the thing',
                 url: 'https://t.example/a',
               ),
             ],
           ),
-          EmailDigestSection(heading: 'Empty', items: []),
+          EmailDigestSection(heading: 'Empty', entries: []),
         ],
         unsubscribeUrl: 'https://t.example/u',
         managePrefsUrl: 'https://t.example/m',

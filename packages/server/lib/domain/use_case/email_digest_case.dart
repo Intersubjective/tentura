@@ -1,10 +1,11 @@
+import 'package:characters/characters.dart';
 import 'package:injectable/injectable.dart';
 import 'package:logging/logging.dart';
 
-import 'package:tentura_server/domain/coordination/filter_beacon_notifications.dart';
-import 'package:tentura_server/domain/entity/beacon_notification_intent.dart';
 import 'package:tentura_server/domain/notification/beacon_notification_copy_builder.dart';
-import 'package:tentura_server/domain/port/beacon_access_guard.dart';
+import 'package:tentura_server/domain/notification/notification_copy_renderer.dart';
+import 'package:tentura_server/domain/notification/notification_identity.dart';
+import 'package:tentura_server/domain/notification/notification_text.dart';
 import 'package:tentura_server/domain/port/email_link_port.dart';
 import 'package:tentura_server/domain/entity/digest_cadence.dart';
 import 'package:tentura_server/domain/entity/email_notification_content.dart';
@@ -23,6 +24,11 @@ import 'package:tentura_server/env.dart';
 /// emailed_at on the outbox rows is the cadence watermark — once a digest is
 /// sent its rows are marked emailed, so the account only re-qualifies after new
 /// activity and the cadence window has elapsed.
+///
+/// Every row is rendered at send time from its presentation key and facts
+/// plus the recipient's live identity (docs/plans/notification-identity-spec.md
+/// §5.1): rows are grouped by Request/Post within a section, never from the
+/// stored title/body.
 @injectable
 class EmailDigestCase {
   EmailDigestCase(
@@ -32,9 +38,9 @@ class EmailDigestCase {
     this._email,
     this._links,
     this._env,
-    this._logger,
-    this._guard,
-  );
+    this._logger, {
+    required this._identity,
+  });
 
   final NotificationPreferenceRepositoryPort _preferences;
   final NotificationOutboxRepositoryPort _outbox;
@@ -43,9 +49,16 @@ class EmailDigestCase {
   final EmailLinkPort _links;
   final Env _env;
   final Logger _logger;
-  final BeaconAccessGuard _guard;
+  final NotificationIdentityPort _identity;
 
   static const _copyBuilder = BeaconNotificationCopyBuilder();
+  static const _renderer = NotificationCopyRenderer();
+
+  /// Spec §4.3 slot limits, in graphemes.
+  static const _headingLimit = 80;
+
+  /// A text-part line is `- {line}`: 160 graphemes with the marker.
+  static const _lineLimit = 160 - 2;
 
   /// Runs one pass over accounts with pending email, sending digests to those
   /// that are due. Safe to call frequently — it self-gates per account.
@@ -75,22 +88,27 @@ class EmailDigestCase {
       return;
     }
 
-    final pending = await _outbox.pendingForAccount(accountId);
-    final filtered = await filterBeaconNotifications(
-      guard: _guard,
-      viewerId: accountId,
-      items: pending,
-    );
-    final eligible = filtered
+    final eligible = (await _outbox.pendingForAccount(accountId))
         .where((p) => prefs.emailCategories.contains(p.category))
         .where((p) => !kNoDigestKinds.contains(p.kind))
         .toList();
     if (eligible.isEmpty) {
       return;
     }
-
-    final sections = _buildSections(eligible, prefs.locale);
-    if (sections.isEmpty) {
+    final identities = await _identity.resolve(accountId, [
+      for (final item in eligible)
+        IdentityRequest(
+          beaconId: item.beaconId ?? '',
+          actorId: item.actorUserId,
+        ),
+    ]);
+    final rows = [
+      for (final (index, item) in eligible.indexed)
+        if (item.presentationKey case final key?
+            when _shown(item, identities[index], now))
+          (item: item, key: key, identity: identities[index]),
+    ];
+    if (rows.isEmpty) {
       return;
     }
 
@@ -102,104 +120,153 @@ class EmailDigestCase {
       to: email,
       locale: prefs.locale,
       content: EmailDigestContent(
-        sections: sections,
+        sections: _buildSections(rows, prefs, now),
         unsubscribeUrl: unsubscribeUrl,
         managePrefsUrl: _links.manageUrl(),
+        lockScreenSafe: prefs.lockScreenSafe,
       ),
       listUnsubscribeUrl: unsubscribeUrl,
     );
-    await _outbox.markEmailed([for (final e in eligible) e.id]);
+    // Dropped rows stay pending, as filtered rows always have.
+    await _outbox.markEmailed([for (final row in rows) row.item.id]);
+  }
+
+  /// Rows the digest may show now (spec §3): not from a blocked person, not
+  /// about a deleted entity whose tombstone is unreadable, and no warning for
+  /// a Post that has already expired.
+  static bool _shown(
+    NotificationOutboxItemEntity item,
+    NotificationIdentity identity,
+    DateTime now,
+  ) {
+    if (identity.actorHidden) return false;
+    if (identity.deleted && !identity.tombstone) return false;
+    if (item.kind == NotificationKind.postExpiringSoon) {
+      final expiresAt = switch (item.presentationPayload['expiresAt']) {
+        final String iso => DateTime.tryParse(iso),
+        _ => null,
+      };
+      if (identity.expired || (expiresAt != null && !expiresAt.isAfter(now))) {
+        return false;
+      }
+    }
+    return true;
   }
 
   List<EmailDigestSection> _buildSections(
-    List<NotificationOutboxItemEntity> items,
-    String locale,
+    List<
+      ({
+        NotificationOutboxItemEntity item,
+        String key,
+        NotificationIdentity identity,
+      })
+    >
+    rows,
+    NotificationPreferencesEntity prefs,
+    DateTime now,
   ) {
-    final headings = _copyBuilder.digestHeadings(locale);
-    EmailNotificationItem toItem(NotificationOutboxItemEntity i) {
-      final copy = switch (i.forwardHelped) {
-        final helped? => _copyBuilder.forwardHelped(
-          content: helped,
-          locale: locale,
-          actionUrl: i.actionUrl,
-        ),
-        null => _copyBuilder.localizeStored(
-          intent: BeaconNotificationIntent(
-            kind: i.kind,
-            priority: i.priority,
-            beaconId: i.beaconId ?? '',
-            actorUserId: i.actorUserId ?? '',
-            coordinationItemId: i.coordinationItemId,
-          ),
-          title: i.title,
-          body: i.body,
-          actionUrl: i.actionUrl,
-          locale: locale,
-          actorDisplayName: i.actorDisplayName,
-        ),
+    final headings = _copyBuilder.digestHeadings(prefs.locale);
+    final order = [
+      headings.postsShared,
+      headings.postReplies,
+      headings.postsExpiring,
+      headings.waiting,
+      headings.moved,
+      headings.people,
+    ];
+    String sectionOf(
+      NotificationOutboxItemEntity item,
+      NotificationIdentity identity,
+    ) {
+      final beaconId = item.beaconId ?? '';
+      if (beaconId.isEmpty) return headings.people;
+      if (identity.entityKind == NotificationEntityKind.post) {
+        if (item.kind == NotificationKind.newRelay) return headings.postsShared;
+        if (item.kind == NotificationKind.postFirstResponse) {
+          return headings.postReplies;
+        }
+        if (item.kind == NotificationKind.postExpiringSoon) {
+          return headings.postsExpiring;
+        }
+      }
+      return switch (item.category) {
+        NotificationCategory.asksOfMe ||
+        NotificationCategory.unblocksMe => headings.waiting,
+        _ => headings.moved,
       };
-      return EmailNotificationItem(
-        title: copy.title,
-        body: copy.body,
-        url: _links.absolute(copy.actionUrl),
-      );
     }
 
-    bool waiting(NotificationCategory c) =>
-        c == NotificationCategory.asksOfMe ||
-        c == NotificationCategory.unblocksMe;
-
-    final postGroups =
-        <NotificationKind, Map<String, List<NotificationOutboxItemEntity>>>{};
-    final ordinary = <NotificationOutboxItemEntity>[];
-    for (final item in items) {
-      final id = item.beaconId;
-      if (item.digestPost != null &&
-          id != null &&
-          (item.kind == NotificationKind.newRelay ||
-              item.kind == NotificationKind.postFirstResponse ||
-              item.kind == NotificationKind.postExpiringSoon)) {
-        final byPost = postGroups.putIfAbsent(item.kind, () => {});
-        byPost.putIfAbsent(id, () => []).add(item);
+    // Rows arrive newest first, so groups keep their newest event first and
+    // lines inside a group stay newest first.
+    final drafts = {
+      for (final heading in order)
+        heading:
+            <({String? key, String? label, String url, List<String> lines})>[],
+    };
+    for (final (:item, :key, :identity) in rows) {
+      final copy = _renderer.render(
+        presentationKey: key,
+        kind: item.kind,
+        facts: item.presentationPayload,
+        identity: identity,
+        locale: prefs.locale,
+        tzOffsetMinutes: prefs.tzOffsetMinutes,
+        now: now,
+      );
+      final section = drafts[sectionOf(item, identity)]!;
+      final url = _links.absolute(item.actionUrl);
+      final label = copy.entityLabel;
+      if (label == null) {
+        section.add((
+          key: null,
+          label: null,
+          url: url,
+          lines: [
+            NotificationText.truncate(
+              '${copy.headline} — ${copy.sentence}',
+              _lineLimit,
+            ),
+          ],
+        ));
+        continue;
+      }
+      final line = _eventLine(copy);
+      final group = section.where((d) => d.key == item.beaconId).firstOrNull;
+      if (group != null) {
+        group.lines.add(line);
       } else {
-        ordinary.add(item);
+        section.add((
+          key: item.beaconId,
+          label: NotificationText.truncate(label, _headingLimit),
+          url: url,
+          lines: [line],
+        ));
       }
     }
-    final waitingItems = [
-      for (final i in ordinary)
-        if (waiting(i.category)) toItem(i),
-    ];
-    final movedItems = [
-      for (final i in ordinary)
-        if (!waiting(i.category)) toItem(i),
-    ];
-
     return [
-      for (final (kind, heading) in [
-        (NotificationKind.newRelay, headings.postsShared),
-        (NotificationKind.postFirstResponse, headings.postReplies),
-        (NotificationKind.postExpiringSoon, headings.postsExpiring),
-      ])
-        if (postGroups[kind] case final groups?)
+      for (final heading in order)
+        if (drafts[heading]!.isNotEmpty)
           EmailDigestSection(
             heading: heading,
-            items: [
-              for (final receipts in groups.values)
-                _copyBuilder.digestPostItem(
-                  receipts: receipts,
-                  locale: locale,
-                  url: _links.absolute(receipts.first.actionUrl),
-                ),
+            entries: [
+              for (final d in drafts[heading]!)
+                if (d.label case final label?)
+                  EmailDigestGroup(label: label, lines: d.lines, url: d.url)
+                else
+                  EmailDigestLine(text: d.lines.single, url: d.url),
             ],
           ),
-      if (waitingItems.isNotEmpty)
-        EmailDigestSection(heading: headings.waiting, items: waitingItems),
-      if (movedItems.isNotEmpty)
-        EmailDigestSection(
-          heading: headings.moved,
-          items: movedItems,
-        ),
     ];
+  }
+
+  /// `L[: {x}]`, the excerpt shortened first to keep the line in its limit.
+  static String _eventLine(NotificationCopy copy) {
+    final excerpt = copy.excerpt;
+    final room = _lineLimit - copy.sentence.characters.length - ': '.length;
+    if (excerpt == null || room < 1) {
+      return NotificationText.truncate(copy.sentence, _lineLimit);
+    }
+    return '${copy.sentence}: ${NotificationText.truncate(excerpt, room)}';
   }
 
   Future<DateTime?> _last(String accountId) => _outbox.lastEmailedAt(accountId);

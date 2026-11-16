@@ -31,7 +31,7 @@ import 'package:tentura_server/domain/use_case/task_worker_case.dart';
 import 'package:tentura_server/domain/use_case/user_availability_case.dart';
 import 'package:tentura_server/env.dart';
 
-import '../../support/fake_beacon_access_guard.dart';
+import '../../support/open_notification_identity.dart';
 import '../../support/recording_beacon_hierarchy_outbox.dart';
 import '../../support/transaction_statement_recorder.dart';
 import '../../support/test_attention_harness.dart';
@@ -172,7 +172,7 @@ EmailDigestCase _digestCase(_CountingOutbox outbox) => EmailDigestCase(
       EmailLinkBuilder(_testEnv()),
       _testEnv(),
       Logger('test'),
-      FakeBeaconAccessGuard(),
+      identity: const OpenNotificationIdentity(),
     );
 
 TaskWorkerCase _worker({

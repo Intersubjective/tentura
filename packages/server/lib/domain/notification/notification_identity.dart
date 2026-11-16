@@ -29,6 +29,7 @@ class NotificationIdentity {
     required this.relatedLabel,
     required this.expired,
     this.hasImage = false,
+    this.deleted = false,
   });
 
   final NotificationEntityKind entityKind;
@@ -41,6 +42,10 @@ class NotificationIdentity {
   final bool expired;
   final bool hasImage;
 
+  /// The entity is deleted (status 2), whether or not [tombstone] is
+  /// readable.
+  final bool deleted;
+
   @override
   bool operator ==(Object other) =>
       other is NotificationIdentity &&
@@ -52,7 +57,8 @@ class NotificationIdentity {
       other.actorHidden == actorHidden &&
       other.relatedLabel == relatedLabel &&
       other.expired == expired &&
-      other.hasImage == hasImage;
+      other.hasImage == hasImage &&
+      other.deleted == deleted;
 
   @override
   int get hashCode => Object.hash(
@@ -65,6 +71,7 @@ class NotificationIdentity {
     relatedLabel,
     expired,
     hasImage,
+    deleted,
   );
 }
 

@@ -8,6 +8,7 @@ import 'package:test/test.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
 import 'package:tentura_server/data/repository/notification_outbox_repository.dart';
+import 'package:tentura_server/data/repository/notification_identity_repository.dart';
 import 'package:tentura_server/data/repository/notification_preference_repository.dart';
 import 'package:tentura_server/data/service/email/email_link_builder.dart';
 import 'package:tentura_server/data/service/email/templates/email_template_renderer.dart';
@@ -17,7 +18,6 @@ import 'package:tentura_server/domain/port/verified_contact_repository_port.dart
 import 'package:tentura_server/domain/use_case/email_digest_case.dart';
 
 import '../../support/disposable_pg_target.dart';
-import '../../support/fake_beacon_access_guard.dart';
 
 /// Exercise persisted locale and receipts through the real repositories and
 /// digest use case; only contact lookup and email transport are substituted.
@@ -80,16 +80,18 @@ ON CONFLICT (account_id) DO UPDATE SET locale = EXCLUDED.locale
         expect((await preferences.getForAccount('Udigestru')).locale, locale);
         // Stored receipts have the producer's fixed English copy. The digest
         // must apply the reader's current preference at send time.
-        for (final (category, kind, title, body) in const [
+        for (final (category, kind, key, title, body) in const [
           (
             'asksOfMe',
             'needsMe',
+            'needs_me',
             'Asked of you',
             'Action needed in the request discussion',
           ),
           (
             'coordination',
             'coordinationChanged',
+            'coordination_changed',
             'Plan updated',
             'Coordination changed',
           ),
@@ -103,12 +105,13 @@ INSERT INTO public.notification_outbox (
 ) VALUES (
   gen_random_uuid()::text, 'Udigestru', @category, @kind, 'high',
   @title, @body, '/#/',
-  @kind, @kind, 'beacon', @kind, 'beacon_content', 'Bdigestlocale', 'Bdigestlocale'
+  @kind, @kind, 'beacon', @key, 'beacon_content', 'Bdigestlocale', 'Bdigestlocale'
 )
 '''),
             parameters: {
               'category': category,
               'kind': kind,
+              'key': key,
               'title': title,
               'body': body,
             },
@@ -124,7 +127,7 @@ INSERT INTO public.notification_outbox (
           EmailLinkBuilder(env),
           env,
           Logger('digest-locale-test'),
-          FakeBeaconAccessGuard(),
+          identity: NotificationIdentityRepository(database),
         ).runDue(now: DateTime.utc(2026, 11, 3, env.emailDigestHour));
 
         expect(sender.messages, hasLength(1));
@@ -133,7 +136,10 @@ INSERT INTO public.notification_outbox (
         expect(delivered.locale, locale);
         expect(
           delivered.rendered.subject,
-          locale == 'ru' ? 'Сводка Tentura' : 'Your Tentura summary',
+          // The one readable Request heads a group in both sections.
+          locale == 'ru'
+              ? 'Tentura: «Request» и ещё 1'
+              : 'Tentura: «Request» and 1 more',
         );
         final manage = locale == 'ru'
             ? 'Настройки уведомлений'
@@ -181,10 +187,9 @@ INSERT INTO public.notification_outbox (
             expect(part, contains('Unsubscribe'));
             expect(part, contains('Waiting on you'));
             expect(part, contains('Moved while you were away'));
-            expect(part, contains('Asked of you'));
-            expect(part, contains('Plan updated'));
-            expect(part, contains('Action needed in the request discussion'));
-            expect(part, contains('Coordination changed'));
+            expect(part, contains('Someone · Asked of you'));
+            expect(part, contains('Someone updated the coordination'));
+            expect(part, isNot(contains('Plan updated')));
           } else {
             expect(
               part,
@@ -196,10 +201,10 @@ INSERT INTO public.notification_outbox (
             expect(part, contains('Изменилось, пока вас не было'));
             expect(part, isNot(contains('Waiting on you')));
             expect(part, isNot(contains('Moved while you were away')));
-            expect(part, contains('Вас просят'));
-            expect(part, contains('План обновлён'));
-            expect(part, contains('В обсуждении запроса нужен ваш ответ'));
-            expect(part, contains('Договорённости изменились'));
+            expect(part, contains('Кто-то · Вас просят'));
+            expect(part, contains('Кто-то: договорённости изменились'));
+            expect(part, isNot(contains('Plan updated')));
+            expect(part, isNot(contains('Asked of you')));
           }
         }
       }

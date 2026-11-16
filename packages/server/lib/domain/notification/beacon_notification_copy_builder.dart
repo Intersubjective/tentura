@@ -38,6 +38,7 @@ class BeaconNotificationCopyBuilder {
     String postsShared,
     String postReplies,
     String postsExpiring,
+    String people,
   })
   digestHeadings(String locale) => locale.toLowerCase().startsWith('ru')
       ? (
@@ -46,6 +47,7 @@ class BeaconNotificationCopyBuilder {
           postsShared: 'Вам переслали посты',
           postReplies: 'Ответы на ваши посты',
           postsExpiring: 'Скоро истекают',
+          people: 'Люди',
         )
       : (
           waiting: 'Waiting on you',
@@ -53,6 +55,7 @@ class BeaconNotificationCopyBuilder {
           postsShared: 'Posts shared with you',
           postReplies: 'Replies to your posts',
           postsExpiring: 'Expiring soon',
+          people: 'People',
         );
 
   /// One readable Post per event section; each note stays beside its sender.

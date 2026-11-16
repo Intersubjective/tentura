@@ -1,0 +1,26 @@
+Subject: Tentura: «Пост: Walk in the park» и ещё 2
+
+Вот что ждёт вас и что изменилось, пока вас не было.
+
+Вам переслали посты
+Пост: Walk in the park
+  https://t.example/#/beacon/view/Bdgpost
+- Anna делится с вами постом: Join us
+
+Ждёт вашего ответа
+Fix the roof
+  https://t.example/#/beacon/view/Bdgroof
+- Anna предлагает помощь: I can bring a ladder
+- 20 дней без движения. Закройте, продлите или напишите новости
+
+Изменилось, пока вас не было
+Fix the roof
+  https://t.example/#/beacon/view/Bdgroof
+- Anna: новый срок — 25 ноября, 18:00
+
+Люди
+- Новая связь — Вы и Anna теперь на связи
+  https://t.example/#/profile/view/Udganna
+
+Настройки уведомлений: https://t.example/#/notifications
+Отписаться: {unsubscribeUrl}

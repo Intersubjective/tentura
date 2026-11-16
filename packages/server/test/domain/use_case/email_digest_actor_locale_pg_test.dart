@@ -22,6 +22,7 @@ import 'package:tentura_server/domain/port/invite_genealogy_repository_port.dart
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
 import 'package:tentura_server/data/repository/notification_outbox_repository.dart';
+import 'package:tentura_server/data/repository/notification_identity_repository.dart';
 import 'package:tentura_server/data/repository/notification_preference_repository.dart';
 import 'package:tentura_server/data/service/email/email_link_builder.dart';
 import 'package:tentura_server/data/service/email/templates/email_template_renderer.dart';
@@ -80,7 +81,10 @@ VALUES ('$_beacon', '$_reader', 'Request', 'Description', 0)
   group(
     'Russian digests retain actor names and translate notification copy',
     () {
-      for (final (kind, eventType, englishTitle, englishBody, ruTitle, ruBody)
+      // Stored English title/body as the producer writes them, then the
+      // digest line each recipient reads (rendered from the presentation key
+      // and the live actor name).
+      for (final (kind, eventType, englishTitle, englishBody, enLine, ruLine)
           in const [
             // AttentionIntentCase.helpOfferSubmitted constructs a
             // BeaconNotificationIntent(kind: NotificationKind.commitmentEvent)
@@ -92,23 +96,23 @@ VALUES ('$_beacon', '$_reader', 'Request', 'Description', 0)
               'helpOfferSubmitted',
               '{actor}',
               '{actor} offered help',
-              '{actor}',
-              '{actor} предложил(а) помощь',
+              '{actor} offered help',
+              '{actor} предлагает помощь',
             ),
             (
               'roomMention',
               'roomMessagePosted',
               '{actor}',
               '{actor} mentioned you',
-              '{actor}',
-              '{actor} упомянул(а) вас',
+              '{actor} mentioned you',
+              '{actor} упоминает вас',
             ),
             (
               'batonAsked',
               'batonAsked',
               '{actor}',
               '{actor} asks if you can help',
-              '{actor}',
+              '{actor} asks if you can help',
               '{actor} спрашивает, сможете ли вы помочь',
             ),
             (
@@ -116,8 +120,8 @@ VALUES ('$_beacon', '$_reader', 'Request', 'Description', 0)
               'offerAccepted',
               '{actor} accepted your offer',
               'Your offer was accepted',
+              '{actor} accepted your offer',
               '{actor} принял(а) ваше предложение',
-              'Ваше предложение принято',
             ),
           ]) {
         final behavior = switch (kind) {
@@ -263,54 +267,40 @@ ON CONFLICT (id) DO NOTHING
               EmailLinkBuilder(env),
               env,
               Logger('digest-actor-locale-test'),
-              FakeBeaconAccessGuard(),
+              identity: NotificationIdentityRepository(database),
             ).runDue(now: DateTime.utc(2026, 11, 4, env.emailDigestHour));
 
             expect(sender.messages, hasLength(1));
             final delivered = sender.messages.single;
             expect(delivered.to, 'reader@example.com');
             expect(delivered.locale, locale);
-            // Assert the notification fields at the public email delivery
-            // boundary. Title and body are separate values, irrespective of
-            // the HTML markup the template chooses to put around them.
-            final expected = [
-              for (final (actorId, name) in actors)
-                (
-                  title: named(locale == 'ru' ? ruTitle : englishTitle, name),
-                  body: named(locale == 'ru' ? ruBody : englishBody, name),
-                  url: EmailLinkBuilder(env).absolute(
-                    pending
-                        .singleWhere((i) => i.actorUserId == actorId)
-                        .actionUrl,
-                  ),
-                ),
+            // Both receipts are about the one readable Request: one group
+            // headed by its title, one localized line per actor.
+            final lines = [
+              for (final (_, name) in actors)
+                named(locale == 'ru' ? ruLine : enLine, name),
             ];
+            final entries = [
+              for (final section in delivered.content.sections)
+                ...section.entries,
+            ];
+            expect(entries, hasLength(1));
+            final group = entries.single;
+            expect(group, isA<EmailDigestGroup>());
+            group as EmailDigestGroup;
+            expect(group.label, 'Request');
+            expect(group.lines, unorderedEquals(lines));
             expect(
-              [
-                for (final section in delivered.content.sections)
-                  for (final item in section.items)
-                    (title: item.title, body: item.body, url: item.url),
-              ],
-              unorderedEquals(expected),
-              reason: '$locale notification copy delivered to the recipient',
+              group.url,
+              EmailLinkBuilder(env).absolute(pending.first.actionUrl),
             );
-            // EmailTemplateRenderer.renderDigest defines each plain-text row
-            // as "- <title> — <body>\n  <url>" and each HTML row as an <li>
-            // containing a title link followed by " — <body>". Assert those
-            // distinct rendered fields rather than a contiguous title/body.
-            final htmlRows = RegExp('<li>(.*?)</li>', dotAll: true)
-                .allMatches(delivered.rendered.html)
-                .map((m) => m.group(1)!)
-                .toList();
-            expect(htmlRows, hasLength(expected.length));
-            for (final item in expected) {
-              final row = htmlRows.singleWhere((r) => r.contains(item.title));
-              expect(row, contains('>${item.title}</a>'));
-              expect(row, endsWith(' — ${item.body}'));
-              expect(
-                delivered.rendered.text,
-                contains('- ${item.title} — ${item.body}\n  ${item.url}'),
-              );
+            expect(
+              delivered.rendered.text,
+              contains('Request\n  ${group.url}\n'),
+            );
+            for (final line in lines) {
+              expect(delivered.rendered.text, contains('- $line\n'));
+              expect(delivered.rendered.html, contains('<li>$line</li>'));
             }
           }
         });

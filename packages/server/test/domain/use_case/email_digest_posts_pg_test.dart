@@ -23,6 +23,7 @@ import 'package:test/test.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
 import 'package:tentura_server/data/repository/notification_outbox_repository.dart';
+import 'package:tentura_server/data/repository/notification_identity_repository.dart';
 import 'package:tentura_server/data/repository/notification_preference_repository.dart';
 import 'package:tentura_server/data/service/email/email_link_builder.dart';
 import 'package:tentura_server/data/service/email/templates/email_template_renderer.dart';
@@ -32,6 +33,7 @@ import 'package:tentura_server/domain/entity/beacon_notification_intent.dart';
 import 'package:tentura_server/domain/entity/notification_kind.dart';
 import 'package:tentura_server/domain/entity/notification_priority.dart';
 import 'package:tentura_server/domain/notification/beacon_notification_copy_builder.dart';
+import 'package:tentura_server/domain/notification/notification_text.dart';
 import 'package:tentura_server/env.dart';
 import 'package:tentura_server/domain/port/email_sender_port.dart';
 import 'package:tentura_server/domain/port/verified_contact_repository_port.dart';
@@ -121,7 +123,8 @@ INSERT INTO public.beacon_forward_edge
 (id, beacon_id, sender_id, recipient_id, note) VALUES
 ('Fdigestalice', '$_shared', '$_alice', '$_reader', 'Read this before Saturday'),
 ('Fdigestbob', '$_shared', '$_bob', '$_reader', 'This made me think of you'),
-('Fdigestother', '$_other', '$_bob', '$_reader', '')
+('Fdigestother', '$_other', '$_bob', '$_reader', ''),
+('Fdigestrequest', '$_request', '$_alice', '$_reader', 'Request-only note')
 ''');
   });
   tearDownAll(() async {
@@ -144,6 +147,10 @@ INSERT INTO public.beacon_forward_edge
     String note = '',
   }) async {
     final event = kind == 'newRelay' ? 'relayReceived' : kind;
+    final presentationKey = event.replaceAllMapped(
+      RegExp('[A-Z]'),
+      (m) => '_${m.group(0)!.toLowerCase()}',
+    );
     final copy = const BeaconNotificationCopyBuilder().build(
       intent: BeaconNotificationIntent(
         kind: NotificationKind.values.byName(kind),
@@ -173,7 +180,7 @@ VALUES (@id, @reader, 'coordination', @kind, 'normal', @name, @body, @url,
         'url': copy.actionUrl,
         'beacon': beacon,
         'actor': actor,
-        'event': event,
+        'event': presentationKey,
         'payload': jsonEncode({
           'eventType': event,
           'personal': true,
@@ -212,7 +219,7 @@ ON CONFLICT (account_id) DO UPDATE SET locale = EXCLUDED.locale
       EmailLinkBuilder(env),
       env,
       Logger('post-digest-test'),
-      FakeBeaconAccessGuard(),
+      identity: NotificationIdentityRepository(database),
     ).runDue(now: DateTime.now().toUtc().copyWith(hour: env.emailDigestHour));
     expect(
       sender.messages,
@@ -224,27 +231,54 @@ ON CONFLICT (account_id) DO UPDATE SET locale = EXCLUDED.locale
     return sender.messages.single;
   }
 
+  /// The Post group heading (spec §4.1): `Post: {root text ≤ 40}`.
+  String postLabel(String locale, String body) =>
+      '${locale == 'ru' ? 'Пост' : 'Post'}: '
+      '${NotificationText.truncate(body, 40)}';
+
+  String shared(String locale, String name) => locale == 'ru'
+      ? '$name делится с вами постом'
+      : '$name shared a post with you';
+
+  /// The HTML of each section by heading.
+  Map<String, String> sectionsOf(String html) => {
+    for (final part in html.split('<h3>').skip(1))
+      part.substring(0, part.indexOf('</h3>')): part,
+  };
+
   group('Daily digest Post sections', () {
     for (final locale in ['en', 'ru']) {
-      test('$locale shows the Post excerpt when a share has no note', () async {
-        // The real share edge has no note, not merely an empty receipt field.
-        await receipt(id: 'no-note', beacon: _other, actor: _bob, name: 'Bob');
-        final email = await deliver(locale);
-        final row = RegExp(
-          '<li>(.*?)</li>',
-          dotAll: true,
-        ).allMatches(email.html).single.group(1)!;
-        for (final part in [row, email.text]) {
-          expect(part, contains('${_postBody.substring(0, 139)}…'));
-          expect(part, isNot(contains(_postBody.substring(0, 140))));
-          expect(part, contains('Bob'));
-          expect(part, contains('/beacon/view/$_other'));
-        }
-      });
+      test(
+        '$locale names the Post by its label when a share has no note',
+        () async {
+          // The real share edge has no note, not merely an empty receipt field.
+          await receipt(
+            id: 'no-note',
+            beacon: _other,
+            actor: _bob,
+            name: 'Bob',
+          );
+          final email = await deliver(locale);
+          expect(
+            email.text,
+            contains(
+              '${postLabel(locale, _postBody)}\n'
+              '  https://tentura.example/#/beacon/view/$_other'
+              '?is_deep_link=true\n'
+              '- ${shared(locale, 'Bob')}\n',
+            ),
+          );
+          expect(email.html, contains('<li>${shared(locale, 'Bob')}</li>'));
+          for (final part in [email.html, email.text]) {
+            expect(part, isNot(contains(_postBody.substring(0, 41))));
+          }
+        },
+      );
 
-      for (final length in [139, 140, 141]) {
+      for (final length in [39, 40, 41]) {
         test(
-          '$locale preserves short Post text and truncates at the 140 character boundary for length $length',
+          '$locale keeps short Post text and shortens it at the 40 grapheme '
+          'boundary for length $length',
           () async {
             final body = '${List.filled(length - 1, 'x').join()}Z';
             await session.writer.execute(
@@ -260,13 +294,13 @@ ON CONFLICT (account_id) DO UPDATE SET locale = EXCLUDED.locale
               name: 'Bob',
             );
             final email = await deliver(locale);
-            final expected = length <= 140
-                ? body
-                : '${body.substring(0, 139)}…';
-            for (final part in [email.html, email.text]) {
-              expect(part, contains(expected));
-              if (length > 140) expect(part, isNot(contains(body)));
-              if (length <= 140) expect(part, isNot(contains('$body…')));
+            final expected = length <= 40 ? body : '${body.substring(0, 39)}…';
+            final prefix = locale == 'ru' ? 'Пост' : 'Post';
+            expect(email.text, contains('$prefix: $expected\n'));
+            if (length > 40) {
+              for (final part in [email.html, email.text]) {
+                expect(part, isNot(contains(body)));
+              }
             }
           },
         );
@@ -333,26 +367,21 @@ ON CONFLICT (account_id) DO UPDATE SET locale = EXCLUDED.locale
           ).pendingForAccount(_reader);
           expect(pending, hasLength(2));
           final email = await deliver(locale);
-          final rows = RegExp(
-            '<li>(.*?)</li>',
-            dotAll: true,
-          ).allMatches(email.html).map((m) => m.group(1)!).toList();
-          expect(rows, hasLength(1));
-          final row = rows.single.replaceAll(RegExp('<[^>]*>'), '');
-          for (final part in [row, email.text]) {
-            expect(part, isNot(contains(_postBody.substring(0, 139))));
-            expect(part, contains('${persistedBody.substring(0, 139)}…'));
+          final section = sectionsOf(email.html).values.single;
+          expect('/beacon/view/$_shared'.allMatches(section), hasLength(1));
+          expect(section, isNot(contains('/beacon/view/$_other')));
+          expect(section, contains(postLabel(locale, persistedBody)));
+          for (final part in [section, email.text]) {
+            expect(part, isNot(contains(postLabel(locale, _postBody))));
             expect(
               part,
-              matches(RegExp(r'Alice\s*[:—-]\s*Read this before Saturday')),
+              contains('${shared(locale, 'Alice')}: Read this before Saturday'),
             );
             expect(
               part,
-              matches(RegExp(r'Bob\s*[:—-]\s*This made me think of you')),
+              contains('${shared(locale, 'Bob')}: This made me think of you'),
             );
           }
-          expect(rows.single, contains('/beacon/view/$_shared'));
-          expect(rows.single, isNot(contains('/beacon/view/$_other')));
         },
       );
 
@@ -396,36 +425,27 @@ ON CONFLICT (account_id) DO UPDATE SET locale = EXCLUDED.locale
               previous = at;
             }
           }
-          final sections = RegExp(
-            '<h3>(.*?)</h3><ul>(.*?)</ul>',
-            dotAll: true,
-          ).allMatches(email.html).toList();
+          final sections = sectionsOf(email.html);
           for (final (heading, beacon) in [
             (postHeadings[0], _shared),
             (postHeadings[1], _own),
             (postHeadings[2], _own),
           ]) {
-            final section = sections
-                .singleWhere((m) => m.group(1) == heading)
-                .group(2)!;
-            expect(section, contains('/beacon/view/$beacon'));
+            final section = sections[heading]!;
+            expect('/beacon/view/$beacon'.allMatches(section), hasLength(1));
             expect(section, isNot(contains('/beacon/view/$_request')));
             expect(section, isNot(contains('Request-only note')));
-            expect(RegExp('<li>').allMatches(section), hasLength(1));
           }
           final requestHeading = locale == 'ru'
               ? 'Изменилось, пока вас не было'
               : 'Moved while you were away';
-          final requestSection = sections
-              .singleWhere((m) => m.group(1) == requestHeading)
-              .group(2)!;
-          final requestRows = RegExp('<li>(.*?)</li>', dotAll: true)
-              .allMatches(requestSection)
-              .map((m) => m.group(1)!)
-              .where((row) => row.contains('/beacon/view/$_request'))
-              .toList();
-          expect(requestRows, hasLength(1));
-          expect(requestRows.single, contains('Request-only note'));
+          final requestSection = sections[requestHeading]!;
+          expect(
+            '/beacon/view/$_request'.allMatches(requestSection),
+            hasLength(1),
+          );
+          expect(requestSection, contains('Request for help'));
+          expect(requestSection, contains('Request-only note'));
           expect(requestSection, isNot(contains('/beacon/view/$_shared')));
           expect(requestSection, isNot(contains('/beacon/view/$_own')));
           final textSections = email.text.split('\n\n');
@@ -440,7 +460,7 @@ ON CONFLICT (account_id) DO UPDATE SET locale = EXCLUDED.locale
       );
 
       test(
-        '$locale merges shares by Post while retaining both senders and notes',
+        '$locale merges shares by Post while keeping each note with its sender',
         () async {
           await receipt(
             id: 'alice-share',
@@ -454,7 +474,7 @@ ON CONFLICT (account_id) DO UPDATE SET locale = EXCLUDED.locale
             name: 'Bob',
             note: 'This made me think of you',
           );
-          // Same text, different Post: must remain a separate digest item.
+          // Same text, different Post: must remain a separate group.
           await receipt(
             id: 'other-share',
             beacon: _other,
@@ -462,82 +482,24 @@ ON CONFLICT (account_id) DO UPDATE SET locale = EXCLUDED.locale
             name: 'Bob',
           );
           final email = await deliver(locale);
-          final rows = RegExp(
-            '<li>(.*?)</li>',
-            dotAll: true,
-          ).allMatches(email.html).map((m) => m.group(1)!).toList();
-          final sharedRows = rows
-              .where((row) => row.contains('/beacon/view/$_shared'))
-              .toList();
+          final section = sectionsOf(email.html).values.single;
           expect(
-            sharedRows,
+            '/beacon/view/$_shared'.allMatches(section),
             hasLength(1),
-            reason: 'One digest item per Post, even with two senders',
+            reason: 'One group per Post, even with two senders',
           );
-          expect(
-            rows.where((row) => row.contains('/beacon/view/$_other')),
-            hasLength(1),
-          );
-          final shared = sharedRows.single;
-          final sharedText = shared.replaceAll(RegExp('<[^>]*>'), '');
-          // Sender order follows receipt ordering; both orders describe the
-          // same share. Fixed copy and the conjunction follow the locale.
-          final attribution = RegExp(
-            locale == 'ru'
-                ? r'(?:поделились|переслали)\s*:?\s*(?:Alice\s+и\s+Bob|Bob\s+и\s+Alice)'
-                : r'shared by\s+(?:Alice\s+and\s+Bob|Bob\s+and\s+Alice)',
-            caseSensitive: false,
-          );
-          for (final part in [sharedText, email.text]) {
+          expect('/beacon/view/$_other'.allMatches(section), hasLength(1));
+          for (final part in [section, email.text]) {
             expect(
               part,
-              matches(attribution),
-              reason:
-                  'The collapsed share credits both senders in the recipient language',
-            );
-            if (locale == 'ru') {
-              expect(part.toLowerCase(), isNot(contains('shared by')));
-            }
-          }
-          for (final part in [shared, email.text]) {
-            expect(part, contains('${_postBody.substring(0, 139)}…'));
-            expect(
-              part,
-              isNot(contains(_postBody.substring(0, 140))),
-              reason:
-                  'Collapsed shares retain the same short Post excerpt as single shares',
-            );
-          }
-          for (final part in [sharedText, email.text]) {
-            expect(
-              part,
-              matches(RegExp(r'Alice\s*[:—-]\s*Read this before Saturday')),
+              contains('${shared(locale, 'Alice')}: Read this before Saturday'),
             );
             expect(
               part,
-              matches(RegExp(r'Bob\s*[:—-]\s*This made me think of you')),
+              contains('${shared(locale, 'Bob')}: This made me think of you'),
             );
-            expect(
-              part,
-              isNot(
-                matches(RegExp(r'Alice\s*[:—-]\s*This made me think of you')),
-              ),
-            );
-            expect(
-              part,
-              isNot(
-                matches(RegExp(r'Bob\s*[:—-]\s*Read this before Saturday')),
-              ),
-            );
-          }
-          for (final value in [
-            'Alice',
-            'Bob',
-            'Read this before Saturday',
-            'This made me think of you',
-          ]) {
-            expect(shared, contains(value));
-            expect(email.text, contains(value));
+            expect(part, isNot(contains('Alice: This made me think of you')));
+            expect(part, isNot(contains('Bob: Read this before Saturday')));
           }
           expect(
             RegExp('/beacon/view/$_shared\\?').allMatches(email.text),
@@ -566,7 +528,7 @@ ON CONFLICT (account_id) DO UPDATE SET locale = EXCLUDED.locale
             EmailLinkBuilder(env),
             env,
             Logger('post-digest-test'),
-            FakeBeaconAccessGuard(),
+            identity: NotificationIdentityRepository(database),
           ).runDue(
             now: DateTime.now().toUtc().copyWith(hour: env.emailDigestHour),
           );
@@ -574,13 +536,25 @@ ON CONFLICT (account_id) DO UPDATE SET locale = EXCLUDED.locale
         },
       );
 
-      for (final kind in [
-        'newRelay',
-        'postFirstResponse',
-        'postExpiringSoon',
+      for (final (kind, en, ru) in [
+        (
+          'newRelay',
+          'Alice shared a post with you: A personal note',
+          'Alice делится с вами постом: A personal note',
+        ),
+        (
+          'postFirstResponse',
+          'Alice replied to your post',
+          'Alice отвечает на ваш пост',
+        ),
+        (
+          'postExpiringSoon',
+          'Expires soon. Turn it into a request to keep it going',
+          'Скоро исчезнет. Оформите запрос, чтобы продолжить',
+        ),
       ]) {
         test(
-          '$locale $kind shows a short Post excerpt and an absolute deep link',
+          '$locale $kind is a line under the Post label with an absolute deep link',
           () async {
             final beacon = kind == 'newRelay' ? _shared : _own;
             await receipt(
@@ -590,37 +564,13 @@ ON CONFLICT (account_id) DO UPDATE SET locale = EXCLUDED.locale
               note: kind == 'newRelay' ? 'A personal note' : '',
             );
             final email = await deliver(locale);
-            for (final part in [email.html, email.text]) {
-              if (kind != 'newRelay') {
-                final english = kind == 'postFirstResponse'
-                    ? 'Alice replied to your post'
-                    : 'Your post is about to expire';
-                final fixed = locale == 'en'
-                    ? english
-                    : kind == 'postFirstResponse'
-                    ? 'Alice откликнулся на ваш пост'
-                    : 'Пост скоро истечёт';
-                expect(part, contains(fixed));
-                if (locale == 'ru') expect(part, isNot(contains(english)));
-              }
-              expect(
-                part,
-                contains('${_postBody.substring(0, 139)}…'),
-                reason:
-                    'The Post text accompanies the event, rather than only its notification copy',
-              );
-              expect(
-                part,
-                isNot(contains(_postBody.substring(0, 140))),
-                reason: 'The digest uses an excerpt of about 140 characters',
-              );
-              if (kind != 'postExpiringSoon') {
-                expect(part, contains('Alice'));
-                if (kind == 'newRelay') {
-                  expect(part, contains('A personal note'));
-                }
-              }
-            }
+            final line = locale == 'ru' ? ru : en;
+            expect(
+              email.text,
+              contains('${postLabel(locale, _postBody)}\n'),
+            );
+            expect(email.text, contains('- $line\n'));
+            expect(email.html, contains('<li>$line</li>'));
             final href = RegExp(
               '<li><a href="([^"]+)"',
             ).firstMatch(email.html)!.group(1)!;
