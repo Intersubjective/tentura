@@ -212,6 +212,20 @@ class _AttentionMiniCardState extends State<AttentionMiniCard>
       viewerUserId: widget.viewerUserId,
       collapsedCount: widget.receipt.collapsedCount,
     );
+    // A Post's row speaks the shared Updates Post copy (label with its
+    // opening words); no Request-scoped excerpt rules apply to it.
+    final postCopy = widget.receipt.beaconKind == 1
+        ? resolveUpdatesFeedRowCopy(
+            title: widget.receipt.title,
+            body: widget.receipt.body,
+            presentationKey: widget.receipt.presentationKey,
+            presentationPayloadJson: widget.receipt.presentationPayloadJson,
+            l10n: l10n,
+            actorName: shownName.isEmpty ? null : shownName,
+            isPost: true,
+            postRootExcerpt: widget.receipt.postRootExcerpt,
+          )
+        : null;
     final isBaton =
         batonReceiptDisplayCopy(
           title: widget.receipt.title,
@@ -220,13 +234,43 @@ class _AttentionMiniCardState extends State<AttentionMiniCard>
           l10n: l10n,
         ) !=
         null;
+    // The U10 headline, when it names the actor, is the event: one copy for
+    // every surface instead of «Name · generic label».
+    // Help offers and events with their own canned line keep theirs.
+    final hasCannedLine =
+        widget.receipt.presentationKey == 'help_offer_submitted' ||
+        cannedAttentionEventLine(
+              title: widget.receipt.title,
+              body: widget.receipt.body,
+              presentationKey: widget.receipt.presentationKey,
+              presentationPayloadJson: widget.receipt.presentationPayloadJson,
+              l10n: l10n,
+            ) !=
+            null;
+    final named = shownName.isEmpty || hasCannedLine
+        ? null
+        : resolveUpdatesFeedRowCopy(
+            title: widget.receipt.title,
+            body: widget.receipt.body,
+            presentationKey: widget.receipt.presentationKey,
+            presentationPayloadJson: widget.receipt.presentationPayloadJson,
+            l10n: l10n,
+            actorName: shownName,
+            collapsedCount: widget.receipt.collapsedCount,
+            viewerUserId: widget.viewerUserId,
+          ).headline;
+    final scopedEvent = named != null && named.startsWith(shownName)
+        ? named
+        : scoped.event;
     final eventLine = widget.eventLine != null
         ? widget.eventLine!
         : isBaton
         ? scoped.event
+        : postCopy != null
+        ? postCopy.headline
         : widget.nameOnly && shownName.isNotEmpty
         ? shownName
-        : _eventLine(l10n, scoped.event, shownName);
+        : _eventLine(l10n, scopedEvent, shownName);
     final localCreatedAt = widget.receipt.createdAt.toLocal();
     final absoluteTime =
         '${dateFormatDay(localCreatedAt, locale: l10n.localeName)} '
@@ -237,7 +281,16 @@ class _AttentionMiniCardState extends State<AttentionMiniCard>
         ? widget.quotedBody?.trim() ?? ''
         : widget.eventLine != null
         ? ''
-        : scoped.excerpt;
+        : postCopy?.body ?? scoped.excerpt;
+    // The Request this event is about, when the card header does not already
+    // say so (a title the viewer cannot read arrives as null and is skipped).
+    final entityTitle = widget.receipt.beaconTitle?.trim() ?? '';
+    final entityLine =
+        entityTitle.isEmpty ||
+            entityTitle == widget.requestTitle?.trim() ||
+            eventLine.contains(entityTitle)
+        ? ''
+        : entityTitle;
 
     final leading = profile != null
         ? TenturaAvatar.medium(
@@ -364,6 +417,13 @@ class _AttentionMiniCardState extends State<AttentionMiniCard>
                     );
                   },
                 ),
+                if (entityLine.isNotEmpty)
+                  Text(
+                    entityLine,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TenturaText.bodySmall(tt.textMuted),
+                  ),
                 if (quoted.isNotEmpty || widget.capabilitySlugs.isNotEmpty)
                   Padding(
                     padding: EdgeInsets.only(top: tt.tightGap),

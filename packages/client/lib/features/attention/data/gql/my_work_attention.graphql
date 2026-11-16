@@ -12,6 +12,7 @@ query MyWorkAttention($beaconIds: [String!]) {
       requiresAction attentionThreadKey settlementKind settledAt
       clearedAt clearReason
       surface itemKind forwardOutcome forwardCount digestCount
+      beaconTitle beaconKind postRootExcerpt
     }
     liveObligations {
       id category kind priority title body actionUrl createdAt seenAt
@@ -21,6 +22,7 @@ query MyWorkAttention($beaconIds: [String!]) {
       requiresAction attentionThreadKey settlementKind settledAt
       clearedAt clearReason
       surface itemKind forwardOutcome forwardCount digestCount
+      beaconTitle beaconKind postRootExcerpt
     }
   }
 }

@@ -142,12 +142,36 @@ class _ActivityEventSubcardBlockState extends State<ActivityEventSubcardBlock> {
   late Map<String, Profile> _actors = Map<String, Profile>.of(widget.actors);
 
   @override
+  void initState() {
+    super.initState();
+    unawaited(_resolveMissingActors());
+  }
+
+  /// Rows name their actor even when the owning card did not hand over a
+  /// profile (an actor who is neither an admitted helper nor an offerer).
+  Future<void> _resolveMissingActors() async {
+    final missing = attentionActorIds(
+      _events,
+    ).difference(_actors.keys.toSet());
+    if (missing.isEmpty ||
+        !GetIt.I.isRegistered<AttentionActorProfilesCase>()) {
+      return;
+    }
+    final resolved = await GetIt.I<AttentionActorProfilesCase>().resolve(
+      missing,
+    );
+    if (!mounted || resolved.isEmpty) return;
+    setState(() => _actors = {...resolved, ..._actors});
+  }
+
+  @override
   void didUpdateWidget(covariant ActivityEventSubcardBlock oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (!_expanded &&
         oldWidget.eventsPreview != widget.eventsPreview &&
         !_loadingMore) {
       _events = List<AttentionReceipt>.of(widget.eventsPreview);
+      unawaited(_resolveMissingActors());
     }
     if (oldWidget.actors != widget.actors) {
       _actors = {

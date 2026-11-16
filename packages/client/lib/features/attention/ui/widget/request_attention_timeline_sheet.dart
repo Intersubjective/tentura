@@ -4,9 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/attention/attention_actor_ids.dart';
+import 'package:tentura/domain/attention/attention_actor_profiles_case.dart';
 import 'package:tentura/domain/attention/attention_case.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/attention/request_card_room_attention.dart';
+import 'package:tentura/domain/contacts/contact_name_overlay.dart';
+import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/updates/updates_receipt_display_copy.dart';
 import 'package:tentura/features/updates/ui/widget/updates_feed_tile.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -53,6 +57,7 @@ class _RequestAttentionTimelineSheetState
     extends State<RequestAttentionTimelineSheet> {
   final _scrollController = ScrollController();
   final _items = <AttentionReceipt>[];
+  final _actors = <String, Profile>{};
 
   String? _cursor;
   var _loading = true;
@@ -92,10 +97,17 @@ class _RequestAttentionTimelineSheetState
         limit: RequestAttentionTimelineSheet.pageSize,
       );
       if (!mounted) return;
+      final visible = requestCardVisibleAttentionEvents(page.items).toList();
+      final missing = attentionActorIds(
+        visible,
+      ).difference(_actors.keys.toSet());
+      final resolved = missing.isEmpty
+          ? const <String, Profile>{}
+          : await GetIt.I<AttentionActorProfilesCase>().resolve(missing);
+      if (!mounted) return;
       setState(() {
-        _items.addAll(
-          requestCardVisibleAttentionEvents(page.items),
-        );
+        _actors.addAll(resolved);
+        _items.addAll(visible);
         _cursor = page.nextCursor;
         _loading = false;
         _failed = false;
@@ -176,9 +188,14 @@ class _RequestAttentionTimelineSheetState
       controller: _scrollController,
       shrinkWrap: true,
       itemCount: _items.length,
-      itemBuilder: (context, index) => _RequestTimelineRow(
-        receipt: _items[index],
-      ),
+      itemBuilder: (context, index) {
+        final receipt = _items[index];
+        final id = receipt.actorUserId?.trim() ?? '';
+        return _RequestTimelineRow(
+          receipt: receipt,
+          actor: id.isEmpty ? null : _actors[id],
+        );
+      },
     );
   }
 }
@@ -189,9 +206,10 @@ class _RequestAttentionTimelineSheetState
 /// timeline is a chronological receipt log, so it speaks the History voice:
 /// the same resolver the Updates feed uses, not the Request's own title.
 class _RequestTimelineRow extends StatelessWidget {
-  const _RequestTimelineRow({required this.receipt});
+  const _RequestTimelineRow({required this.receipt, this.actor});
 
   final AttentionReceipt receipt;
+  final Profile? actor;
 
   @override
   Widget build(BuildContext context) {
@@ -203,6 +221,11 @@ class _RequestTimelineRow extends StatelessWidget {
       presentationKey: receipt.presentationKey,
       presentationPayloadJson: receipt.presentationPayloadJson,
       l10n: l10n,
+      actorName: actor == null
+          ? null
+          : _nonEmpty(profileWithContactOverlay(actor!).shownName),
+      isPost: receipt.beaconKind == 1,
+      postRootExcerpt: receipt.postRootExcerpt,
     );
     final glyph = updatesFeedGlyphFor(receipt, tt);
     final age = compactRelativeTimeAgo(
@@ -259,3 +282,5 @@ class _RequestTimelineRow extends StatelessWidget {
     );
   }
 }
+
+String? _nonEmpty(String value) => value.trim().isEmpty ? null : value.trim();

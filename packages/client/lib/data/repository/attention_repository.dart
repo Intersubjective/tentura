@@ -187,6 +187,9 @@ final class AttentionRepository implements AttentionRepositoryPort {
     forwardOutcome: item.forwardOutcome,
     forwardCount: item.forwardCount,
     digestCount: item.digestCount,
+    beaconTitle: item.beaconTitle,
+    beaconKind: item.beaconKind,
+    postRootExcerpt: item.postRootExcerpt,
   );
 
   AttentionReceipt _mapMyWorkObligationReceipt(
@@ -222,6 +225,9 @@ final class AttentionRepository implements AttentionRepositoryPort {
     forwardOutcome: item.forwardOutcome,
     forwardCount: item.forwardCount,
     digestCount: item.digestCount,
+    beaconTitle: item.beaconTitle,
+    beaconKind: item.beaconKind,
+    postRootExcerpt: item.postRootExcerpt,
   );
 
   AttentionReceipt _mapReceiptWire({

@@ -137,8 +137,15 @@ ORDER BY beacon_id, created_at DESC, id DESC
 
     final byBeacon = <String, List<AttentionReceipt>>{};
     final anchorByBeacon = <String, DateTime>{};
-    for (final row in rows) {
-      final receipt = _mapRow(row);
+    // One access-gated lookup names every receipt's Request (title, kind,
+    // Post excerpt) — the same gate the feed uses.
+    final mapped = await _attachBeaconTitles(
+      accountId: accountId,
+      items: [for (final row in rows) _mapRow(row)],
+    );
+    for (var i = 0; i < rows.length; i++) {
+      final row = rows[i];
+      final receipt = mapped[i];
       final beaconId = receipt.beaconId;
       if (beaconId == null) {
         continue;
