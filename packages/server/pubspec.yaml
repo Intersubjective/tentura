@@ -42,6 +42,7 @@ dependencies:
   shelf_cors_headers: ^0.1.5
   migrant_db_postgresql: ^0.3.0
   sentry: ^9.22.0
+  characters: ^1.4.0
 
 dev_dependencies:
   # From Workspace
