@@ -7,6 +7,7 @@ import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:uuid/uuid.dart';
 import 'package:tentura_server/data/repository/attention_channel_delivery_repository.dart';
+import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/data/repository/notification_preference_repository.dart';
 import 'package:tentura_server/data/repository/notification_outbox_repository.dart';
 import 'package:tentura_server/data/service/beacon_notification_service.dart';
@@ -843,6 +844,115 @@ ORDER BY id
       );
       expect(await receipts(_second), hasLength(1));
       expect(await receipts(_otherHelper), isEmpty);
+    });
+
+    test('forward helped channel jobs carry the receipt presentation key and '
+        'payload, also after finalization marks them done', () async {
+      Future<List<Map<String, dynamic>>> jobsFor(String account) async => [
+        for (final row in await writer.execute(
+          Sql.named('''
+SELECT job.payload::text AS payload, outbox.presentation_key AS key,
+       outbox.presentation_payload::text AS receipt_payload
+FROM public.attention_channel_delivery job
+JOIN public.notification_outbox outbox ON outbox.id = job.receipt_id
+WHERE job.account_id = @account
+ORDER BY job.created_at, job.id
+'''),
+          parameters: {'account': account},
+        ))
+          {
+            'payload': jsonDecode(row[0]! as String) as Map<String, dynamic>,
+            'key': row[1],
+            'receipt_payload': jsonDecode(row[2]! as String),
+          },
+      ];
+
+      Map<String, dynamic> inner(Map<String, dynamic> job, String key) =>
+          (job['payload'] as Map<String, dynamic>)[key]
+              as Map<String, dynamic>;
+      String jobKey(Map<String, dynamic> job) =>
+          (job['payload'] as Map<String, dynamic>)['presentationKey']
+              as String;
+      await accept(_helper);
+      Future<int> rawJobCount() async => (await writer.execute(
+        Sql.named('''
+SELECT count(*)::int FROM public.attention_channel_delivery
+WHERE account_id = @account AND receipt_id IS NOT NULL
+'''),
+        parameters: {'account': _first},
+      )).single.single! as int;
+      expect(await rawJobCount(), 1);
+      final accepted = await jobsFor(_first);
+      expect(accepted, hasLength(1));
+      expect(jobKey(accepted.single), 'forward_helped');
+      expect(accepted.single['key'], 'forward_helped');
+      expect(
+        inner(accepted.single, 'presentationPayload'),
+        accepted.single['receipt_payload'],
+      );
+
+      await finalize();
+      expect(await rawJobCount(), 2, reason: 'no job without a receipt');
+      final all = await jobsFor(_first);
+      expect(all, hasLength(2), reason: 'accept job and done job');
+      final done = all.last;
+      expect(jobKey(done), 'forward_helped');
+      expect(inner(done, 'presentationPayload'), done['receipt_payload']);
+      expect(inner(done, 'presentationPayload')['done'], isTrue);
+      final epoch = (await ClosureRepository(
+        database,
+      ).latestEpoch(_beacon))!.epoch;
+      // The outbox stores doneEpoch as text (the idempotency predicate
+      // compares it as text), and the job must carry the same value.
+      expect(inner(done, 'presentationPayload')['doneEpoch'], '$epoch');
+      expect((done['receipt_payload'] as Map<String, dynamic>)['doneEpoch'], '$epoch');
+
+      // The done job, claimed as the worker does, still decodes to forward
+      // helped content with the receipt's title and path.
+      // claimDue hands out one job per account at a time, so deliver the
+      // accept job to let the done job be claimed next.
+      final channel = AttentionChannelDeliveryRepository(database);
+      final mine = <AttentionChannelDecision>[];
+      var at = DateTime.timestamp().add(const Duration(days: 2));
+      for (var round = 0; round < 2; round++) {
+        final claimed = await channel.claimDue(
+          workerId: 'forward-help-presentation',
+          now: at,
+          limit: 50,
+        );
+        for (final job in claimed) {
+          if (job.decision.recipientId == _first) mine.add(job.decision);
+          await channel.markDelivered(
+            id: job.id,
+            workerId: 'forward-help-presentation',
+          );
+        }
+        at = at.add(const Duration(minutes: 5));
+      }
+      expect(mine, hasLength(2));
+      for (final decision in mine) {
+        final content = decision.forwardHelped;
+        final stored =
+            jsonDecode(
+                  (await writer.execute(
+                    Sql.named(
+                      'SELECT presentation_payload::text '
+                      'FROM public.notification_outbox WHERE id = @id',
+                    ),
+                    parameters: {'id': decision.receiptId},
+                  )).single.single! as String,
+                )
+                as Map<String, dynamic>;
+        expect(content, isNotNull);
+        expect(content!.beaconTitle, stored['beaconTitle']);
+        expect(content.beaconTitle, _title);
+        expect(
+          [for (final node in content.path) node.userId],
+          [for (final node in stored['path'] as List) (node as Map)['userId']],
+        );
+        expect(content.path, isNotEmpty);
+      }
+      expect(mine.any((decision) => decision.forwardHelped!.done), isTrue);
     });
 
     test('finalization upgrades the same read items to Done and makes them '

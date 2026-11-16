@@ -80,6 +80,7 @@ RETURNING outbox.*
       'dedupKey', completed.dedup_key || '|done:' || $2::int::text,
       'actorUserId', '', 'reason', 'pathForwarder',
       'beaconId', completed.beacon_id, 'beaconKind', 'request',
+      'presentationKey', completed.presentation_key,
       'presentationPayload', completed.presentation_payload
     )
   FROM completed JOIN recipients USING (account_id)

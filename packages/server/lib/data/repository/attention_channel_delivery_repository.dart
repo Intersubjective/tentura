@@ -115,6 +115,10 @@ WHERE id = $1 AND status = 'leased' AND lease_owner = $2''',
         dedupKey: value['dedupKey']! as String,
         actorUserId: value['actorUserId']! as String,
         reason: value['reason']! as String,
+        presentationKey: value['presentationKey']! as String,
+        presentationPayload: Map<String, Object?>.from(
+          value['presentationPayload']! as Map,
+        ),
         beaconId: value['beaconId'] as String?,
         coordinationItemId: value['coordinationItemId'] as String?,
         beaconKind:

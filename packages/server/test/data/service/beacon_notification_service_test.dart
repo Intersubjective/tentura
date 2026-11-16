@@ -242,6 +242,8 @@ void main() {
     dedupKey: dedupKey,
     actorUserId: actorUserId,
     reason: 'test',
+    presentationKey: 'needs_me',
+    presentationPayload: const {},
     beaconId: beaconId,
     actorDisplayName: actorDisplayName,
   );

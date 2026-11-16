@@ -382,6 +382,9 @@ RETURNING id, account_id
                 coordinationItemId: intent.coordinationItemId,
                 beaconKind: intent.beaconKind,
                 actorDisplayName: intent.actorDisplayName,
+                presentationKey: receipts[i].projection.presentationKey,
+                presentationPayload:
+                    receipts[i].projection.presentationPayload,
                 forwardHelped: ForwardHelpedContent.fromPayload(
                   receipts[i].projection.presentationPayload,
                 ),
@@ -539,7 +542,7 @@ WHERE target.job_id IS NULL''',
     'coordinationItemId': decision.coordinationItemId,
     'beaconKind': decision.beaconKind.name,
     'actorDisplayName': decision.actorDisplayName,
-    if (decision.forwardHelped case final helped?)
-      'presentationPayload': helped.toPayload(),
+    'presentationKey': decision.presentationKey,
+    'presentationPayload': decision.presentationPayload,
   };
 }

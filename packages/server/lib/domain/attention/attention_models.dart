@@ -533,6 +533,8 @@ abstract class AttentionChannelDecision with _$AttentionChannelDecision {
     required String dedupKey,
     required String actorUserId,
     required String reason,
+    required String presentationKey,
+    required Map<String, Object?> presentationPayload,
     String? beaconId,
     String? coordinationItemId,
     @Default(BeaconKind.request) BeaconKind beaconKind,
