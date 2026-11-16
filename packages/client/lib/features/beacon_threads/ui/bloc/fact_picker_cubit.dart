@@ -52,8 +52,10 @@ class FactPickerCubit extends Cubit<FactPickerState> {
   /// Bumped whenever a pending search stops being the current one.
   int _searchEpoch = 0;
 
-  /// Folds like the server: lower case, ё as е.
-  static String fold(String s) => s.toLowerCase().replaceAll('ё', 'е');
+  /// Folds like the server (`foldSearchQuery`): lower case, ё as е, every
+  /// '@' removed.
+  static String fold(String s) =>
+      s.toLowerCase().replaceAll('ё', 'е').replaceAll('@', '');
 
   static bool _matches(List<String> words, String? text) {
     final folded = fold(text ?? '');
@@ -188,7 +190,8 @@ class FactPickerCubit extends Cubit<FactPickerState> {
       );
       return;
     }
-    emit(state.copyWith(searched: false));
+    // The old hits answer an old query: drop them until the new answer.
+    emit(state.copyWith(results: const [], searched: false));
     final epoch = _searchEpoch;
     _debounce = Timer(searchDebounce, () => unawaited(_search(epoch)));
   }

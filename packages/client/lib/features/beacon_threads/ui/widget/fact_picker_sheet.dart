@@ -318,6 +318,13 @@ class _FactPickerSheetState extends State<FactPickerSheet> {
         ],
       );
     }
+    if (state.hereRows.isEmpty) {
+      return _muted(
+        state.query.isEmpty
+            ? l10n.beaconFactsSheetEmpty
+            : l10n.capabilitySearchEmpty,
+      );
+    }
     return _list([
       for (final fact in state.hereRows)
         _row(
@@ -334,8 +341,12 @@ class _FactPickerSheetState extends State<FactPickerSheet> {
 
   Widget _savedBody(L10n l10n, FactPickerState state) {
     if (state.savedFailed) return Text(l10n.errorGenericAction);
-    if (state.savedIds.isEmpty) {
-      return _muted(l10n.beaconRoomFactPickerSavedEmpty);
+    if (state.savedRows.isEmpty) {
+      return _muted(
+        state.query.isEmpty
+            ? l10n.beaconRoomFactPickerSavedEmpty
+            : l10n.capabilitySearchEmpty,
+      );
     }
     return _list([
       for (final s in state.savedRows)
