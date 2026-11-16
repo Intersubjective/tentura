@@ -127,6 +127,8 @@ enum BeaconExceptionCode {
   factCopySourceUnavailable, // 1352
   savedFactLimit, // 1353
   factCopyAttachmentUnavailable, // 1354
+  batonPartnerInvalid, // 1355
+  batonNotPartner, // 1356
 }
 
 class BeaconExceptionCodes extends ExceptionCodes {

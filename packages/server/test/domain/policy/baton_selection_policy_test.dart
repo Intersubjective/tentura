@@ -170,6 +170,8 @@ void main() {
       BeaconExceptionCode.batonAlreadyActive,
       BeaconExceptionCode.batonTakerNotAvailable,
       BeaconExceptionCode.batonMessageNotEligible,
+      BeaconExceptionCode.batonPartnerInvalid,
+      BeaconExceptionCode.batonNotPartner,
     ];
     final numbers = codes.map((c) => BeaconExceptionCodes(c).codeNumber).toSet();
     expect(numbers.length, codes.length, reason: 'codes must be unique');

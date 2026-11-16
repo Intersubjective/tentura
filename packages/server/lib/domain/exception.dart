@@ -781,6 +781,24 @@ final class BatonMessageNotEligibleException extends ExceptionBase {
       );
 }
 
+final class BatonPartnerInvalidException extends ExceptionBase {
+  const BatonPartnerInvalidException({String? description})
+    : super(
+        code: const BeaconExceptionCodes(
+          BeaconExceptionCode.batonPartnerInvalid,
+        ),
+        description: description ?? 'This person cannot be named as a partner',
+      );
+}
+
+final class BatonNotPartnerException extends ExceptionBase {
+  const BatonNotPartnerException({String? description})
+    : super(
+        code: const BeaconExceptionCodes(BeaconExceptionCode.batonNotPartner),
+        description: description ?? 'No pending partner invitation to answer',
+      );
+}
+
 final class EvaluationException extends ExceptionBase {
   EvaluationException({
     required EvaluationExceptionCode code,

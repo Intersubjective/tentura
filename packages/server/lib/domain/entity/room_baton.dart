@@ -51,6 +51,26 @@ enum BatonResponse {
   };
 }
 
+/// Canonical persisted partner answer
+/// (`beacon_room_baton_candidate.partner_response` smallint): whether the
+/// person a candidate named agreed to take it on together.
+enum BatonPartnerResponse {
+  pending(0),
+  accepted(1),
+  declined(2);
+
+  const BatonPartnerResponse(this.smallintValue);
+
+  final int smallintValue;
+
+  static BatonPartnerResponse fromSmallint(int v) => switch (v) {
+    0 => BatonPartnerResponse.pending,
+    1 => BatonPartnerResponse.accepted,
+    2 => BatonPartnerResponse.declined,
+    _ => throw ArgumentError.value(v, 'v', 'unknown BatonPartnerResponse'),
+  };
+}
+
 /// How the taker was decided (`beacon_room_baton.selection_mode` smallint).
 enum BatonSelectionMode {
   auto(1),
@@ -78,6 +98,7 @@ class RoomBaton {
     required this.status,
     required this.createdAt,
     this.takerId,
+    this.coTakerId,
     this.selectionMode,
     this.allAnsweredNotifiedAt,
     this.resolvedAt,
@@ -89,6 +110,7 @@ class RoomBaton {
   final String authorId;
   final BatonStatus status;
   final String? takerId;
+  final String? coTakerId;
   final BatonSelectionMode? selectionMode;
   final DateTime? allAnsweredNotifiedAt;
   final DateTime createdAt;
@@ -102,6 +124,10 @@ class RoomBatonCandidate {
     required this.tier,
     required this.response,
     this.respondedAt,
+    this.partnerUserId,
+    this.partnerResponse,
+    this.partnerRespondedAt,
+    this.partnerInvites = 0,
   });
 
   final String batonId;
@@ -109,4 +135,12 @@ class RoomBatonCandidate {
   final int tier;
   final BatonResponse response;
   final DateTime? respondedAt;
+
+  /// The person this candidate asked to take it on together, if any.
+  final String? partnerUserId;
+  final BatonPartnerResponse? partnerResponse;
+  final DateTime? partnerRespondedAt;
+
+  /// Distinct partners this candidate has named on this baton.
+  final int partnerInvites;
 }
