@@ -321,6 +321,9 @@ for target in "${TARGETS[@]}"; do
       # Asserts a 375x667 app viewport (phone fact picker flows).
       integration_test/fact_pick_from_available_test.dart)
         browser_dimension="375x806" ;;
+      # Asserts a 375x667 app viewport (quoted fact photo album taps).
+      integration_test/fact_quote_photo_album_test.dart)
+        browser_dimension="375x806" ;;
     esac
   fi
   log "=== flutter drive: $target (browser $browser_dimension)"

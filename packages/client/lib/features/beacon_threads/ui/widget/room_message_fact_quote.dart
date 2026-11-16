@@ -63,104 +63,87 @@ class _RoomMessageFactQuoteState extends State<RoomMessageFactQuote> {
     final textColor = unpinned ? scheme.onSurfaceVariant : scheme.onSurface;
     final images = _quoteImages(quoted.attachments);
     final hasText = quoted.factText.trim().isNotEmpty;
-    final thumbSize = tt.avatarSize * 1.5;
 
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () => setState(() => _expanded = !_expanded),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (images.isNotEmpty) ...[
-            if (showFull)
-              SizedBox(
-                height: roomMessageInlineImageAlbumHeight(context) * 0.45,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: images.length,
-                  separatorBuilder: (_, _) => SizedBox(width: tt.tightGap * 2),
-                  itemBuilder: (ctx, i) => ClipRRect(
-                    borderRadius: BorderRadius.circular(TenturaRadii.cardDense),
-                    child: SizedBox(
-                      width: thumbSize * 2,
-                      child: roomAttachmentAlbumThumbnail(ctx, images[i]),
-                    ),
-                  ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (images.isNotEmpty) ...[
+          RoomMessageInlineImageAlbum(attachments: images),
+          if (hasText) SizedBox(height: tt.tightGap),
+        ],
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => setState(() => _expanded = !_expanded),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (hasText)
+                Text(
+                  showFull
+                      ? quoted.factText
+                      : _collapsedExcerpt(quoted.factText),
+                  style: TenturaText.bodySmall(textColor),
+                  maxLines: showFull ? null : 1,
+                  overflow: showFull ? null : TextOverflow.ellipsis,
+                )
+              else if (images.isEmpty)
+                Text(
+                  l10n.beaconRoomPinFactAttachmentBodyFallback,
+                  style: TenturaText.bodySmall(textColor),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-              )
-            else
-              ClipRRect(
-                borderRadius: BorderRadius.circular(TenturaRadii.cardDense),
-                child: SizedBox(
-                  width: thumbSize,
-                  height: thumbSize,
-                  child: roomAttachmentAlbumThumbnail(context, images.first),
-                ),
-              ),
-            if (hasText) SizedBox(height: tt.tightGap),
-          ],
-          if (hasText)
-            Text(
-              showFull ? quoted.factText : _collapsedExcerpt(quoted.factText),
-              style: TenturaText.bodySmall(textColor),
-              maxLines: showFull ? null : 1,
-              overflow: showFull ? null : TextOverflow.ellipsis,
-            )
-          else if (images.isEmpty)
-            Text(
-              l10n.beaconRoomPinFactAttachmentBodyFallback,
-              style: TenturaText.bodySmall(textColor),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          if (unpinned)
-            Padding(
-              padding: EdgeInsets.only(top: tt.tightGap),
-              child: Text(
-                l10n.beaconRoomFactQuoteUnpinned,
-                style: TenturaText.status(scheme.onSurfaceVariant),
-              ),
-            ),
-          if (changedSinceQuoted)
-            Padding(
-              padding: EdgeInsets.only(top: tt.tightGap),
-              child: Wrap(
-                crossAxisAlignment: WrapCrossAlignment.center,
-                spacing: tt.iconTextGap / 2,
-                children: [
-                  Text(
-                    l10n.beaconRoomFactQuoteChangedSinceQuoted,
+              if (unpinned)
+                Padding(
+                  padding: EdgeInsets.only(top: tt.tightGap),
+                  child: Text(
+                    l10n.beaconRoomFactQuoteUnpinned,
                     style: TenturaText.status(scheme.onSurfaceVariant),
                   ),
-                  TextButton(
-                    key: const ValueKey('room-fact-quote-diff'),
+                ),
+              if (changedSinceQuoted)
+                Padding(
+                  padding: EdgeInsets.only(top: tt.tightGap),
+                  child: Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: tt.iconTextGap / 2,
+                    children: [
+                      Text(
+                        l10n.beaconRoomFactQuoteChangedSinceQuoted,
+                        style: TenturaText.status(scheme.onSurfaceVariant),
+                      ),
+                      TextButton(
+                        key: const ValueKey('room-fact-quote-diff'),
+                        style: TextButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        onPressed: widget.onOpenHistory,
+                        child: Text(l10n.beaconRoomFactQuoteDiff),
+                      ),
+                    ],
+                  ),
+                ),
+              if (!unpinned && _expanded)
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton(
                     style: TextButton.styleFrom(
                       padding: EdgeInsets.zero,
                       minimumSize: Size.zero,
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
-                    onPressed: widget.onOpenHistory,
-                    child: Text(l10n.beaconRoomFactQuoteDiff),
+                    onPressed: widget.onOpen,
+                    child: Text(l10n.beaconRoomFactQuoteOpen),
                   ),
-                ],
-              ),
-            ),
-          if (!unpinned && _expanded)
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton(
-                style: TextButton.styleFrom(
-                  padding: EdgeInsets.zero,
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
-                onPressed: widget.onOpen,
-                child: Text(l10n.beaconRoomFactQuoteOpen),
-              ),
-            ),
-        ],
-      ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
