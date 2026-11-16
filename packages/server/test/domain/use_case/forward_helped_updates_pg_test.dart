@@ -402,13 +402,9 @@ ORDER BY id
           if (sent.tokens.contains('token-$account')) sent.message,
       ];
 
-      /// [headline]: the push carries «Your forward helped» as its title; the
-      /// digest groups the line under the Request title instead (spec §5.1).
-      void expectAcceptedCopy(
-        String text,
-        String locale, {
-        bool headline = true,
-      }) {
+      /// A readable forwarder's push is titled with the live Request title and
+      /// the body carries the sentence, like the digest line.
+      void expectAcceptedCopy(String text, String locale) {
         expect(text, contains(_title));
         for (final name in _names.values.take(4)) {
           expect(
@@ -418,11 +414,9 @@ ORDER BY id
           );
         }
         if (locale == 'ru') {
-          if (headline) expect(text.toLowerCase(), contains('помог'));
           expect(text.toLowerCase(), contains('предлож'));
           expect(text, isNot(contains('offered help with')));
         } else {
-          if (headline) expect(text, contains('Your forward helped'));
           expect(text, contains('offered help with «$_title»'));
         }
       }
@@ -476,7 +470,6 @@ ORDER BY id
           expectAcceptedCopy(
             messages.single.rendered.text,
             'en',
-            headline: false,
           );
         },
       );
@@ -516,7 +509,6 @@ ORDER BY id
             expectAcceptedCopy(
               messages.single.rendered.text,
               locale,
-              headline: false,
             );
             expect(messages.single.rendered.html, contains(_title));
             final again = await digest();
@@ -752,7 +744,6 @@ ORDER BY id
           expectAcceptedCopy(
             control.single.rendered.text,
             'en',
-            headline: false,
           );
           expect(await receipts(_first), hasLength(1));
           await finalize();

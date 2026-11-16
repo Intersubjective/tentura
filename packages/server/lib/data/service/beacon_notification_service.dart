@@ -55,7 +55,6 @@ class BeaconNotificationService implements BeaconNotificationPort {
   /// Reads the plan head a «Понятно» button confirms up to.
   final BeaconPlanRepositoryPort? _planRepository;
 
-  static const _copyBuilder = BeaconNotificationCopyBuilder();
   static const _gate = NotificationPreferenceGate();
   static const _renderer = NotificationCopyRenderer();
   static const _pushBodyLimit = 140;
@@ -93,37 +92,27 @@ class BeaconNotificationService implements BeaconNotificationPort {
         );
         continue;
       }
-      final rendered = decision.forwardHelped == null
-          ? _renderer.render(
-              presentationKey: decision.presentationKey,
-              kind: decision.kind,
-              facts: decision.presentationPayload,
-              identity: identity,
-              locale: preferences.locale,
-              tzOffsetMinutes: preferences.tzOffsetMinutes,
-              now: now,
-            )
-          : null;
-      final label = rendered?.entityLabel;
-      final fullCopy = switch ((decision.forwardHelped, rendered)) {
-        (final helped?, _) => _copyBuilder.forwardHelped(
-          content: helped,
-          locale: preferences.locale,
-          actionUrl: decision.actionUrl,
+      final rendered = _renderer.render(
+        presentationKey: decision.presentationKey,
+        kind: decision.kind,
+        facts: decision.presentationPayload,
+        identity: identity,
+        locale: preferences.locale,
+        tzOffsetMinutes: preferences.tzOffsetMinutes,
+        now: now,
+      );
+      final label = rendered.entityLabel;
+      final fullCopy = BeaconNotificationCopy(
+        title: label ?? rendered.headline,
+        body: NotificationText.truncate(
+          [
+            rendered.sentence,
+            if (label != null && rendered.excerpt != null) rendered.excerpt,
+          ].join(': '),
+          _pushBodyLimit,
         ),
-        (_, final copy?) => BeaconNotificationCopy(
-          title: label ?? copy.headline,
-          body: NotificationText.truncate(
-            [
-              copy.sentence,
-              if (label != null && copy.excerpt != null) copy.excerpt,
-            ].join(': '),
-            _pushBodyLimit,
-          ),
-          actionUrl: decision.actionUrl,
-        ),
-        _ => throw StateError('unreachable'),
-      };
+        actionUrl: decision.actionUrl,
+      );
       // Fallback text for forward-helped and the connection email; every
       // other immediate email renders from [rendered].
       final emailCopy = decision.forwardHelped != null
