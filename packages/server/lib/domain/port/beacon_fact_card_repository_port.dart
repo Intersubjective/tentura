@@ -94,15 +94,6 @@ abstract class BeaconFactCardRepositoryPort {
     required List<String> factCardIds,
   });
 
-  /// Whether [userId] pinned the live, request-visible fact [factCardId] in a
-  /// Request that is neither deleted nor a draft and is not hidden from them
-  /// by a block. Such a pinner may follow the fact to its source even after
-  /// losing read access to that Request.
-  Future<bool> isUnblockedPinnerOfPublicFact({
-    required String factCardId,
-    required String userId,
-  });
-
   /// The file attachment [attachmentId] of a copied fact's head revision,
   /// with its own stored object; null when there is none.
   Future<CopiedFactFile?> findCopiedFactFile({required String attachmentId});

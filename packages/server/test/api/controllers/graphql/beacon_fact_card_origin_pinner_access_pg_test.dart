@@ -34,12 +34,15 @@ const _stranger = 'Ufpin0000005'; // reads B, never A
 const _leaver = 'Ufpin0000006'; // pinned a fact in A, left, still reads A
 const _blocked = 'Ufpin0000007'; // pinned a fact in A, blocked by the owner
 
-const _a = 'Bfpin00000A'; // source Request, not discoverable
+// Source Request, not discoverable. A full-length id: beaconFork checks it.
+const _a = 'Bfpin0000000A';
 // Destination, read only by the forward-edge recipients (pinner, content
 // reader, stranger, leaver, blocked) and admitted participants.
 const _b = 'Bfpin00000B';
 const _d = 'Bfpin00000D'; // destination of a copy of a copy
 const _gone = 'Bfpin0000G0'; // source Request that is deleted later
+// A Request the pinner may write in, the destination of the pinner's copies.
+const _w = 'Bfpin00000W';
 
 const _srcPinned = 'Ffpin0000001'; // in A, pinned by _pinner
 const _srcPinnedRemoved = 'Ffpin0000002'; // in A, pinned by _pinner, removed
@@ -54,6 +57,11 @@ const _copyOwner = 'Ffpin0000104';
 const _copyLeaver = 'Ffpin0000105';
 const _copyBlocked = 'Ffpin0000106';
 const _copyOfCopy = 'Ffpin0000201'; // in D, copy of _copyOwner
+// A Post the pinner was in once; the source of a bud.
+const _p = 'Bfpin0000000P';
+const _srcPostPinned = 'Ffpin0000009'; // in P, pinned by _pinner
+const _srcAdmitted = 'Ffpin0000008'; // in A, pinned by _admitted
+const _copyAdmitted = 'Ffpin0000108';
 
 const _originQuery = r'''
 query ($beaconId: String!, $factCardId: String!) {
@@ -67,6 +75,35 @@ query ($beaconId: String!, $factCardId: String!) {
 const _destinationsQuery = r'''
 query ($source: String!) {
   BeaconFactCopyDestinations(sourceFactCardId: $source) { id }
+}
+''';
+
+const _copyMutation = r'''
+mutation ($source: String!, $destination: String!) {
+  BeaconFactCardCopy(
+    sourceFactCardId: $source, destinationBeaconId: $destination
+  ) { factCardId outcome }
+}
+''';
+
+const _listQuery = r'''
+query ($beaconId: String!) {
+  BeaconFactCardList(beaconId: $beaconId) { id factText originBeaconKind }
+}
+''';
+
+const _budMutation = r'''
+mutation ($postId: String!, $factIds: [String!]) {
+  beaconBudFromPost(
+    postId: $postId, clientCommandId: "pinner-bud-1", title: "Bud of P",
+    factIds: $factIds
+  ) { outcome childBeaconId }
+}
+''';
+
+const _forkMutation = r'''
+mutation ($id: String!, $factIds: [String!]) {
+  beaconFork(id: $id, factIds: $factIds) { id }
 }
 ''';
 
@@ -183,16 +220,222 @@ Future<void> main() async {
       return data!['BeaconFactCardOrigin'] as Map<String, dynamic>;
     }
 
+    void expectUnavailableError(Map<String, dynamic> body) {
+      final errors = body['errors'] as List<dynamic>?;
+      expect(errors, isNotNull, reason: jsonEncode(body));
+      expect(
+        (errors!.first as Map<String, dynamic>)['extensions'],
+        containsPair('code', '$_unavailableCode'),
+        reason: jsonEncode(body),
+      );
+    }
+
+    Future<List<Map<String, Object?>>> factsIn(String beaconId) async {
+      final result = await writer.execute(
+        Sql.named(
+          'SELECT id, fact_text, origin_fact_card_id '
+          'FROM public.beacon_fact_card WHERE beacon_id = @b ORDER BY id',
+        ),
+        parameters: {'b': beaconId},
+      );
+      return [for (final r in result) r.toColumnMap()];
+    }
+
+    /// No fact, fact revision (where copied attachments live), «facts
+    /// brought» line or room attachment in [beaconId].
+    Future<void> expectNothingCopiedInto(String beaconId) async {
+      for (final sql in [
+        'SELECT r.fact_card_id FROM public.beacon_fact_card_revision r JOIN public.beacon_fact_card f ON f.id = r.fact_card_id WHERE f.beacon_id = @b',
+        'SELECT id FROM public.beacon_room_message WHERE beacon_id = @b',
+        'SELECT a.id FROM public.beacon_room_message_attachment a JOIN public.beacon_room_message m ON m.id = a.message_id WHERE m.beacon_id = @b',
+      ]) {
+        final rows = await writer.execute(
+          Sql.named(sql),
+          parameters: {'b': beaconId},
+        );
+        expect(rows, isEmpty, reason: sql);
+      }
+    }
+
+    /// A fork or bud the pinner started either was refused by the use case
+    /// (an error with a server code, not a schema error) or created a
+    /// Request with no fact copied from [sourceFactId].
+    Future<void> expectRefusedOrNoCopy(
+      Map<String, dynamic> body,
+      String field,
+      String idKey,
+      String sourceFactId,
+    ) async {
+      final errors = body['errors'] as List<dynamic>?;
+      if (errors != null) {
+        expect(
+          (errors.first as Map<String, dynamic>)['extensions'],
+          isA<Map<String, dynamic>>().having(
+            (e) => e['code'],
+            'code',
+            isNotNull,
+          ),
+          reason:
+              'refused by the use case, not by the schema: '
+              '${jsonEncode(body)}',
+        );
+      } else {
+        final childId =
+            ((body['data'] as Map<String, dynamic>)[field]
+                    as Map<String, dynamic>)[idKey]
+                as String?;
+        if (childId != null) {
+          expect(
+            (await factsIn(
+              childId,
+            )).where((f) => f['origin_fact_card_id'] == sourceFactId),
+            isEmpty,
+            reason: jsonEncode(body),
+          );
+        }
+      }
+      final copies = await writer.execute(
+        Sql.named(
+          'SELECT id, beacon_id FROM public.beacon_fact_card '
+          'WHERE origin_fact_card_id = @f AND beacon_id NOT IN (@b, @w)',
+        ),
+        parameters: {'f': sourceFactId, 'b': _b, 'w': _w},
+      );
+      expect(copies, isEmpty, reason: jsonEncode(body));
+    }
+
     test('the user who pinned the source fact, no longer in its room and '
-        'unable to read the source Request, still gets the origin', () async {
-      expect(await origin(_b, _copyPinned, as: _pinner), {
+        'unable to read the source Request, gets the bare unavailable body '
+        'and no way to the source', () async {
+      expect(await origin(_b, _copyPinned, as: _pinner), _nothing);
+    });
+
+    test('the copy still shows where it was brought from to that pinner: '
+        'the fact list keeps its Request origin kind', () async {
+      final body = await post(_listQuery, {'beaconId': _b}, as: _pinner);
+      expect(body['errors'], isNull, reason: jsonEncode(body));
+      final rows =
+          ((body['data'] as Map<String, dynamic>)['BeaconFactCardList']
+                  as List<dynamic>)
+              .cast<Map<String, dynamic>>();
+      final copy = rows.where((r) => r['id'] == _copyPinned).toList();
+      expect(copy, hasLength(1), reason: jsonEncode(body));
+      expect(copy.single['originBeaconKind'], 0);
+    });
+
+    test('that pinner cannot list copy destinations for the fact they '
+        'pinned in a Request they can no longer read', () async {
+      expectUnavailableError(
+        await post(_destinationsQuery, {'source': _srcPinned}, as: _pinner),
+      );
+    });
+
+    test('that pinner cannot copy the fact they pinned into a Request they '
+        'can write: the copy is refused and nothing lands there', () async {
+      final before = await factsIn(_w);
+      expectUnavailableError(
+        await post(_copyMutation, {
+          'source': _srcPinned,
+          'destination': _w,
+        }, as: _pinner),
+      );
+      expect(await factsIn(_w), before);
+      expect(await factsIn(_w), isEmpty);
+      await expectNothingCopiedInto(_w);
+    });
+
+    test(
+      'after the source author corrects that fact, the pinner still '
+      'cannot copy it or list destinations, and neither text leaks',
+      () async {
+        const corrected = 'corrected text the pinner never saw';
+        await writer.execute(
+          Sql.named('''
+INSERT INTO public.beacon_fact_card_revision
+  (fact_card_id, seq, fact_text, actor_id, kind, created_at, attachments_json)
+VALUES (@f, 2, @t, @o, @kind, @t1, '[]'::jsonb)
+'''),
+          parameters: {
+            'f': _srcPinned,
+            't': corrected,
+            'o': _owner,
+            'kind': BeaconFactCardRevisionKindBits.edited,
+            't1': _t0.add(const Duration(hours: 1)),
+          },
+        );
+        await writer.execute(
+          Sql.named('''
+UPDATE public.beacon_fact_card
+SET fact_text = @t, revision_seq = 2, status = @st, updated_at = @t1
+WHERE id = @f
+'''),
+          parameters: {
+            'f': _srcPinned,
+            't': corrected,
+            'st': BeaconFactCardStatusBits.corrected,
+            't1': _t0.add(const Duration(hours: 1)),
+          },
+        );
+
+        expectUnavailableError(
+          await post(_copyMutation, {
+            'source': _srcPinned,
+            'destination': _w,
+          }, as: _pinner),
+        );
+        expectUnavailableError(
+          await post(_destinationsQuery, {
+            'source': _srcPinned,
+          }, as: _pinner),
+        );
+        for (final beaconId in [_w, _b, _d]) {
+          final texts = [
+            for (final f in await factsIn(beaconId)) f['fact_text'],
+          ];
+          expect(texts, isNot(contains(corrected)), reason: beaconId);
+          expect(
+            texts,
+            isNot(contains('text of $_srcPinned')),
+            reason: beaconId,
+          );
+        }
+      },
+    );
+
+    test('a fork started by that pinner with the fact ticked brings no copy '
+        'of it', () async {
+      final body = await post(_forkMutation, {
+        'id': _a,
+        'factIds': [_srcPinned],
+      }, as: _pinner);
+      await expectRefusedOrNoCopy(body, 'beaconFork', 'id', _srcPinned);
+    });
+
+    test('a bud from a Post started by a pinner who left that Post, with '
+        'their pinned fact ticked, brings no copy of it', () async {
+      final body = await post(_budMutation, {
+        'postId': _p,
+        'factIds': [_srcPostPinned],
+      }, as: _pinner);
+      await expectRefusedOrNoCopy(
+        body,
+        'beaconBudFromPost',
+        'childBeaconId',
+        _srcPostPinned,
+      );
+    });
+
+    test('the author of the source fact, an admitted participant of the '
+        'source Request, gets the origin of its copy with the copied '
+        'revision', () async {
+      expect(await origin(_b, _copyAdmitted), {
         'available': true,
         'beaconId': _a,
-        'factCardId': _srcPinned,
+        'factCardId': _srcAdmitted,
         'beaconKind': 0,
         'changedSinceCopy': false,
-        'canSeeCopiedRevision': false,
-        'copiedRevisionSeq': null,
+        'canSeeCopiedRevision': true,
+        'copiedRevisionSeq': 1,
       });
     });
 
@@ -282,6 +525,8 @@ Future<void> main() async {
         (_stranger, _copyPinned, _srcPinned),
         (_pinner, _copyPinnedRemoved, _srcPinnedRemoved),
         (_pinner, _copyPinnedGone, _srcPinnedGone),
+        (_leaver, _copyLeaver, _srcLeaver),
+        (_admitted, _copyAdmitted, _srcAdmitted),
       ]) {
         final available =
             (await origin(_b, copyId, as: viewer))['available'] as bool;
@@ -332,7 +577,7 @@ Future<void> _seed(Connection w) async {
       {'id': u, 'n': 'User$i', 'k': pgTestPublicKey('fpin', i + 1)},
     );
   }
-  for (final id in [_a, _b, _d, _gone]) {
+  for (final id in [_a, _b, _d, _gone, _w]) {
     await run(
       '''
 INSERT INTO public.beacon
@@ -343,6 +588,16 @@ VALUES (@id, @o, @id, 'd', 0, 0, @t0, false)
       {'id': id, 'o': _owner, 't0': _t0},
     );
   }
+  await run(
+    '''
+INSERT INTO public.beacon
+  (id, user_id, title, description, status, kind, forward_policy,
+   is_discoverable, published_at, expires_at)
+VALUES (@id, @o, '', '', 0, 1, 1, false,
+        now() - interval '1 hour', now() + interval '23 hours')
+''',
+    {'id': _p, 'o': _owner},
+  );
   var p = 0;
   Future<void> participant(String beaconId, String user, int access) => run(
     '''
@@ -360,6 +615,10 @@ VALUES (@id, @b, @u, 0, 0, @acc)
   await participant(_gone, _pinner, 0);
   await participant(_a, _leaver, 0);
   await participant(_a, _blocked, 0);
+  // The pinner writes in W.
+  await participant(_w, _pinner, 3);
+  // The pinner was in P's room once and left it.
+  await participant(_p, _pinner, 0);
 
   // Forward edges give Request read access. The pinner reads B only.
   for (final (beaconId, user) in [
@@ -442,6 +701,9 @@ VALUES (@id, @seq, 'text of ' || @id, @o, @kind, @t0, '[]'::jsonb)
   // Edited twice since the copy below was taken at revision 2.
   await fact(_srcOwner, _a, _owner, head: 3);
   await fact(_srcLeaver, _a, _leaver);
+  await fact(_srcPostPinned, _p, _pinner);
+  await fact(_srcAdmitted, _a, _admitted);
+  await fact(_copyAdmitted, _b, _owner, originId: _srcAdmitted);
   await fact(_srcBlocked, _a, _blocked);
   await fact(_copyLeaver, _b, _owner, originId: _srcLeaver);
   await fact(_copyBlocked, _b, _owner, originId: _srcBlocked);

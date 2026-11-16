@@ -796,32 +796,6 @@ LIMIT 1
   }
 
   @override
-  Future<bool> isUnblockedPinnerOfPublicFact({
-    required String factCardId,
-    required String userId,
-  }) async {
-    final row = await _db
-        .customSelect(
-          '''
-SELECT EXISTS (
-  SELECT 1
-  FROM public.beacon_fact_card f
-  JOIN public.beacon b ON b.id = f.beacon_id
-  WHERE f.id = \$1::text
-    AND f.pinned_by = \$2::text
-    AND f.status <> ${BeaconFactCardStatusBits.removed}
-    AND f.visibility = ${BeaconFactCardVisibilityBits.public}
-    AND b.status NOT IN (2, 3)
-    AND NOT public.block_hides(b.user_id, \$2::text)
-) AS ok
-''',
-          variables: [Variable<String>(factCardId), Variable<String>(userId)],
-        )
-        .getSingle();
-    return row.read<bool>('ok');
-  }
-
-  @override
   Future<Map<String, String>> liveCopiesByOrigin({
     required String beaconId,
     required List<String> originFactCardIds,

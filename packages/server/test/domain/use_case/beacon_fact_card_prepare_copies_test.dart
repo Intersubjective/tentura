@@ -122,12 +122,6 @@ class _Facts extends Fake implements BeaconFactCardRepositoryPort {
   }
 
   @override
-  Future<bool> isUnblockedPinnerOfPublicFact({
-    required String factCardId,
-    required String userId,
-  }) async => false;
-
-  @override
   Future<BeaconFactRoomAccess> loadRoomAccess({
     required String beaconId,
     required String userId,
