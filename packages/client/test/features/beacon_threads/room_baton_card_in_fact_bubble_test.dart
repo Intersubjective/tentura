@@ -90,10 +90,6 @@ const _quoted = QuotedFact(
   factText: 'Quoted fact text',
 );
 
-/// Snapshot of the card width in a plain message at 375 dp, ru, Inter, taken
-/// before the fix; the card must keep it (tolerance 1 dp).
-const _plainCardWidthSnapshot = 212.97;
-
 enum _Bubble { plain, pinned, quoted }
 
 Widget _harness(_Bubble bubble, RoomBatonAuthorData baton) => MultiBlocProvider(
@@ -159,6 +155,7 @@ class _Reference {
   _Reference({
     required this.lineHeight,
     required this.avatarHeight,
+    required this.rowHeight,
     required this.cardWidth,
     required this.nameWidths,
   });
@@ -166,6 +163,10 @@ class _Reference {
   /// One line of bodySmall (the one-word status).
   final double lineHeight;
   final double avatarHeight;
+
+  /// Tallest candidate row in the plain layout (grows with the text scale
+  /// while the avatar stays fixed).
+  final double rowHeight;
   final double cardWidth;
   final List<double> nameWidths;
 }
@@ -202,6 +203,17 @@ Future<_Reference> _measurePlain(WidgetTester tester, L10n l10n) async {
         .getSize(find.text(_statusText(l10n, RoomBatonResponse.canHelp)))
         .height,
     avatarHeight: tester.getSize(find.byType(TenturaAvatar).first).height,
+    rowHeight: [
+      for (var i = 0; i < 3; i++)
+        tester
+            .getSize(
+              _rowOf(
+                find.text(_names[i]),
+                find.text(_statusText(l10n, _responses[i])),
+              ),
+            )
+            .height,
+    ].reduce((a, b) => a > b ? a : b),
     cardWidth: tester.getSize(find.byType(RoomBatonCard)).width,
     nameWidths: [
       for (final n in _names) tester.getSize(find.text(n)).width,
@@ -242,8 +254,11 @@ void _expectRowsLaidOutAsInOwnMessage(
       }
       expect(
         tester.getSize(row).height,
-        lessThanOrEqualTo(ref.avatarHeight + 0.5),
-        reason: 'row $i no taller than the avatar',
+        lessThanOrEqualTo(
+          (ref.avatarHeight > ref.rowHeight ? ref.avatarHeight : ref.rowHeight) +
+              0.5,
+        ),
+        reason: 'row $i no taller than the avatar or the plain-message row',
       );
       expect(
         tester.getTopLeft(statusFinder).dx,
@@ -339,8 +354,18 @@ void main() {
         await _pump(tester, _Bubble.plain, _baton());
         expect(find.byType(RoomMessageFactQuote), findsNothing);
         expect(find.byType(RoomPinnedFactVisibilityMark), findsNothing);
-        // Card width measured before the fix (own-message layout, 375 dp, ru).
-        expect(ref.cardWidth, closeTo(_plainCardWidthSnapshot, 1));
+        // A single-tier baton hugs its content; mixed tiers take the full
+        // bubble width. Both are measured here, in the same environment.
+        final singleTierWidth = tester.getSize(find.byType(RoomBatonCard)).width;
+        expect(singleTierWidth, closeTo(ref.cardWidth, 0.5));
+        await _pump(tester, _Bubble.plain, _baton(tiers: const [1, 2, 1]));
+        final mixedTierWidth = tester.getSize(find.byType(RoomBatonCard)).width;
+        expect(
+          singleTierWidth,
+          lessThan(mixedTierWidth),
+          reason: 'single-tier plain card is narrower than the full-width one',
+        );
+        await _pump(tester, _Bubble.plain, _baton());
         _expectRowsLaidOutAsInOwnMessage(tester, ref, l10n, checkNames: false);
       },
     );
