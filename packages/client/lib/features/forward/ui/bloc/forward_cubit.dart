@@ -39,8 +39,14 @@ class ForwardCubit extends Cubit<ForwardState> {
     Map<String, String> initialNotes = const {},
     this.embedded = false,
     ForwardTargetProfile? targetProfile,
+    this.budPostId,
     DateTime Function()? clock,
-  }) : _forwardCase =
+  }) : assert(
+         (targetProfile == ForwardTargetProfile.postBudInvite) ==
+             (budPostId != null),
+         'postBudInvite needs the bud Post id, and only it takes one',
+       ),
+       _forwardCase =
            forwardCase ??
            (debugSkipInitialLoad ? null : GetIt.I<ForwardCase>()),
        _effects = effects ?? GetIt.I<UiEffectPort>(),
@@ -70,6 +76,14 @@ class ForwardCubit extends Cubit<ForwardState> {
   /// When true, first candidate load pre-checks lineage auto-select rows.
   final bool preselectLineageSuggestions;
 
+  /// The Post whose members are invited to a budded Request
+  /// ([ForwardTargetProfile.postBudInvite]); their list replaces the Forward
+  /// candidates and the first load pre-ticks the server's pretick.
+  final String? budPostId;
+
+  bool get _preselectsAutoSelect =>
+      preselectLineageSuggestions || budPostId != null;
+
   /// User-explicit recipient ids passed from profile → new request flow.
   final Set<String> initialSelectedIds;
 
@@ -91,7 +105,7 @@ class ForwardCubit extends Cubit<ForwardState> {
   /// Current time shared by forwarding availability and Post lifetime copy.
   DateTime get now => _clock();
 
-  bool _appliedInitialLineagePreselect = false;
+  bool _appliedInitialAutoPreselect = false;
   bool _appliedInitialUserPreselect = false;
   bool _appliedInitialTags = false;
   bool _suppressForwardChangeReload = false;
@@ -213,11 +227,14 @@ class ForwardCubit extends Cubit<ForwardState> {
       if (isClosed) {
         return;
       }
-      final load = await forwardCase.loadForwardCandidates(
-        beaconId: state.beaconId,
-        context: state.context,
-        isPost: state.profile == ForwardTargetProfile.post,
-      );
+      final budPostId = this.budPostId;
+      final load = budPostId != null
+          ? await forwardCase.loadPostBudInviteCandidates(budPostId)
+          : await forwardCase.loadForwardCandidates(
+              beaconId: state.beaconId,
+              context: state.context,
+              isPost: state.profile == ForwardTargetProfile.post,
+            );
       if (isClosed) {
         return;
       }
@@ -242,15 +259,15 @@ class ForwardCubit extends Cubit<ForwardState> {
         lineageSuggestions: load.lineageSuggestions,
       );
       final preservedSelection = state.selectedIds.intersection(selectableIds);
-      final shouldLineagePreselect =
-          preselectLineageSuggestions &&
-          !_appliedInitialLineagePreselect &&
+      final shouldAutoPreselect =
+          _preselectsAutoSelect &&
+          !_appliedInitialAutoPreselect &&
           preservedSelection.isEmpty;
-      final lineagePreselect = shouldLineagePreselect
+      final autoPreselect = shouldAutoPreselect
           ? load.autoSelectIds.intersection(selectableIds)
           : const <String>{};
-      if (preselectLineageSuggestions && !_appliedInitialLineagePreselect) {
-        _appliedInitialLineagePreselect = true;
+      if (_preselectsAutoSelect && !_appliedInitialAutoPreselect) {
+        _appliedInitialAutoPreselect = true;
       }
 
       final shouldUserPreselect =
@@ -273,7 +290,7 @@ class ForwardCubit extends Cubit<ForwardState> {
 
       final nextSelectedIds = preservedSelection.isNotEmpty
           ? preservedSelection
-          : {...lineagePreselect, ...userPreselect};
+          : {...autoPreselect, ...userPreselect};
 
       emit(
         state.copyWith(

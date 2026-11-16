@@ -10,6 +10,7 @@ import 'package:tentura/domain/entity/beacon_fact_card_consts.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/util/availability_presets.dart';
 import 'package:tentura/domain/port/capability_repository_port.dart';
+import 'package:tentura/domain/port/post_bud_port.dart';
 import 'package:tentura/domain/use_case/use_case_base.dart';
 import 'package:tentura/features/auth/domain/port/auth_local_repository_port.dart';
 import 'package:tentura/features/beacon_threads/data/repository/beacon_fact_card_repository.dart';
@@ -39,7 +40,9 @@ final class ForwardCase extends UseCaseBase {
     required super.env,
     required super.logger,
     @ignoreParam DateTime Function()? clock,
-  }) : _clock = clock ?? DateTime.now;
+    @ignoreParam PostBudPort? postBudPort,
+  }) : _clock = clock ?? DateTime.now,
+       _postBudPortOverride = postBudPort;
 
   final ForwardRepository _forwardRepository;
 
@@ -54,6 +57,11 @@ final class ForwardCase extends UseCaseBase {
   final BlockCase _blockCase;
 
   final DateTime Function() _clock;
+
+  final PostBudPort? _postBudPortOverride;
+
+  PostBudPort get _postBudPort =>
+      _postBudPortOverride ?? GetIt.I<PostBudPort>();
 
   /// Emits beacon ids when a forward edge changes (debounced WS invalidation).
   Stream<String> get forwardChanges => _forwardRepository.forwardChanges;
@@ -78,8 +86,7 @@ final class ForwardCase extends UseCaseBase {
 
   Future<Iterable<Profile>> fetchForwardCandidates({
     String context = '',
-  }) =>
-      _forwardRepository.fetchForwardCandidates(context: context);
+  }) => _forwardRepository.fetchForwardCandidates(context: context);
 
   Future<bool> offerHelp({
     required String beaconId,
@@ -177,8 +184,8 @@ final class ForwardCase extends UseCaseBase {
                 recipientDeclined:
                     involvement.rejectedIds.contains(p.id) ||
                     (involvement.myForwardedRecipientRejected[p.id] ?? false),
-                recipientHasActiveHelpOffer:
-                    involvement.helpOfferedIds.contains(p.id),
+                recipientHasActiveHelpOffer: involvement.helpOfferedIds
+                    .contains(p.id),
               ),
             )
             .toList()
@@ -291,6 +298,54 @@ final class ForwardCase extends UseCaseBase {
       viewerIsAuthor: involvement.beacon.author.id == myId,
       viewerHasActiveHelpOffer: involvement.helpOfferedIds.contains(myId),
       band: band,
+    );
+  }
+
+  /// The Post members the viewer may invite to a Request budded from Post
+  /// [postId], as picker rows: invitable members only, in server order
+  /// (writers first). A member brought in by someone the viewer may not know
+  /// reads «via» that person. [ForwardLoad.autoSelectIds] is the server's
+  /// pretick. There is no beacon yet, so no involvement, lineage or band.
+  Future<ForwardLoad> loadPostBudInviteCandidates(String postId) async {
+    await _contactsCase.refresh();
+    final invitable = [
+      for (final c in await _postBudPort.inviteCandidates(postId: postId))
+        if (c.isInvitable) c,
+    ];
+    final ids = {
+      for (final c in invitable) ...[c.userId, ?c.viaUserId],
+    };
+    final profileById = ids.isEmpty
+        ? const <String, Profile>{}
+        : {
+            for (final p in await _profileRepository.fetchProfilesByIds(ids))
+              p.id: p,
+          };
+    Profile profileOf(String id) => profileById[id] ?? Profile(id: id);
+
+    final candidates = [
+      for (final c in invitable)
+        ForwardCandidate(
+          profile: profileOf(c.userId),
+          reach: switch (c.viaUserId) {
+            null => const ForwardReach(kind: ForwardReachKind.direct),
+            final viaId => ForwardReach(
+              kind: ForwardReachKind.viaConnection,
+              via: [profileOf(viaId)],
+              viaCount: 1,
+            ),
+          },
+        ),
+    ];
+    return ForwardLoad(
+      candidates: applyContactOverlayAll(candidates),
+      lineageSuggestions: const [],
+      suggestedNote: '',
+      autoSelectIds: {
+        for (final c in invitable)
+          if (c.pretick) c.userId,
+      },
+      beacon: Beacon.empty,
     );
   }
 
