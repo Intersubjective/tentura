@@ -1413,6 +1413,10 @@ class RoomMessageTile extends StatelessWidget {
     };
     final hasMediaOrPoll =
         imageAttachments.isNotEmpty ||
+        (message.quotedFact?.attachments.any(
+              (a) => a.isImage && a.imageId.isNotEmpty,
+            ) ??
+            false) ||
         fileAttachments.isNotEmpty ||
         message.linkedPollingId != null ||
         needsFullWidthCard;
