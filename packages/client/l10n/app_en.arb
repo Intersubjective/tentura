@@ -9941,6 +9941,10 @@
   "@forwardSearchNoMatches": {
     "description": "Recipient picker: the name search matched nobody (filtered-empty, #252)."
   },
+  "postBudInviteEmpty": "No one else in this post to invite",
+  "@postBudInviteEmpty": {
+    "description": "Post→Request invite step: the recipient picker's empty state when the post has no other member to invite."
+  },
   "forwardScopeUnseenEmpty": "Everyone you can send to is already involved.",
   "@forwardScopeUnseenEmpty": {
     "description": "Recipient picker, «Not yet seen» tab empty while other candidates exist (#252)."

@@ -567,6 +567,7 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
   }
 
   bool _inviteEnabled(BuildContext context, ForwardState state) {
+    if (!_profile(state).showsInviteNewPersonBar) return false;
     final cubit = context.read<ForwardCubit>();
     return inviteNewPersonEnabled(
       beaconId: widget.beaconId,
@@ -963,13 +964,14 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                                         ),
                                   ),
                                 ),
-                              SliverToBoxAdapter(
-                                child: ForwardTagPicker(
-                                  state: state,
-                                  onToggle: (id) => _toggle(cubit, id),
-                                  showForwardNote: profile.showsReasons,
+                              if (profile.showsTagChips)
+                                SliverToBoxAdapter(
+                                  child: ForwardTagPicker(
+                                    state: state,
+                                    onToggle: (id) => _toggle(cubit, id),
+                                    showForwardNote: profile.showsReasons,
+                                  ),
                                 ),
-                              ),
                               if (widget.embedded)
                                 SliverPersistentHeader(
                                   pinned: true,
@@ -1027,7 +1029,8 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                                     compactEmbedded: compactEmbedded,
                                   ),
                                 ),
-                              if (!showGenuineEmptyMessage)
+                              if (!showGenuineEmptyMessage &&
+                                  profile.showsScopeLinks)
                                 SliverPersistentHeader(
                                   pinned: true,
                                   delegate: ForwardPinnedSliverHeaderDelegate(
@@ -1062,7 +1065,11 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                                   hasScrollBody: false,
                                   child: _ForwardPickerEmptyState(
                                     kind: showGenuineEmptyMessage
-                                        ? _PickerEmptyKind.noOneToSendTo
+                                        ? (profile ==
+                                                  ForwardTargetProfile
+                                                      .postBudInvite
+                                              ? _PickerEmptyKind.noOneToInvite
+                                              : _PickerEmptyKind.noOneToSendTo)
                                         : isFiltering
                                         ? _PickerEmptyKind.searchNoMatches
                                         : state.activeFilter ==
@@ -1119,8 +1126,9 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                         // An embedded picker without its host's send action has
                         // no send footer of its own (#720 keeps the count label
                         // on the disabled button, so it must not show here).
-                        if (!widget.embedded ||
-                            widget.onSendPressed != null) ...[
+                        if (profile.showsSharedComposer &&
+                            (!widget.embedded ||
+                                widget.onSendPressed != null)) ...[
                           // Marks where the scrolling list ends and the send
                           // footer begins, so a cut-off row does not look
                           // like it slides under the footer (#441).
@@ -1554,6 +1562,9 @@ final class _RecipientListRow extends _RecipientListSlot {
 /// search matched nobody, or the active scope tab is empty.
 enum _PickerEmptyKind {
   noOneToSendTo,
+
+  /// The Post→Request invite step: every Post member is already listed.
+  noOneToInvite,
   searchNoMatches,
   everyoneInvolved,
   noOneInvolved,
@@ -1579,6 +1590,10 @@ class _ForwardPickerEmptyState extends StatelessWidget {
         body: l10n.trustWidensReachHint,
         actionLabel: onInvite == null ? null : l10n.emptyInviteSomeoneAction,
         onAction: onInvite,
+      ),
+      _PickerEmptyKind.noOneToInvite => TenturaEmptyState(
+        icon: Icons.group_outlined,
+        title: l10n.postBudInviteEmpty,
       ),
       _PickerEmptyKind.searchNoMatches => TenturaEmptyState(
         icon: Icons.search_off,

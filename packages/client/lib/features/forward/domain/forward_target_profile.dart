@@ -32,6 +32,10 @@ enum ForwardTargetProfile {
   /// «Not yet seen / Already involved» links.
   bool get showsScopeLinks => !_isPostBudInvite;
 
+  /// Whether band and lineage people leave the main list for their own
+  /// sections. The invite step has neither, so it lists every member.
+  bool get setsAsideBandAndLineage => !_isPostBudInvite;
+
   /// The shared note and the picker's send composer.
   bool get showsSharedComposer => !_isPostBudInvite;
 }

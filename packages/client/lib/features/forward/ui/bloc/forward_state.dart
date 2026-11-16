@@ -285,8 +285,11 @@ abstract class ForwardState extends StateBase with _$ForwardState {
   /// Involved scope merges lineage rows so current-beacon involvement is
   /// visible even when the person also appears in lineage suggestions.
   List<ForwardCandidate> get visibleRecipients {
-    final lineageIds = lineageSuggestions.map((c) => c.id).toSet();
-    final bandIds = bandMemberIds;
+    final setsAside = profile.setsAsideBandAndLineage;
+    final lineageIds = setsAside
+        ? lineageSuggestions.map((c) => c.id).toSet()
+        : const <String>{};
+    final bandIds = setsAside ? bandMemberIds : const <String>{};
     final Iterable<ForwardCandidate> picked;
     switch (activeFilter) {
       case ForwardFilter.all:

@@ -6676,6 +6676,7 @@
   "trustWidensReachHint": "Люди, которым вы доверяете и которые доверяют вам, расширяют круг тех, кого вы видите и кому можете отправлять.",
   "emptyInviteSomeoneAction": "Пригласить того, кому доверяете",
   "forwardSearchNoMatches": "Никого не нашлось",
+  "postBudInviteEmpty": "В посте больше некого позвать",
   "forwardScopeUnseenEmpty": "Все, кому вы можете отправить, уже участвуют.",
   "forwardScopeInvolvedEmpty": "Пока никто не участвует.",
   "constellationNoContactsTitle": "В «Поле» пока никого нет",
