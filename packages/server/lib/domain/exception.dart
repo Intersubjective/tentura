@@ -287,6 +287,18 @@ final class FactCopySourceUnavailableException extends ExceptionBase {
       );
 }
 
+/// A file attachment of a fact being copied is gone from storage; the fact
+/// itself is still there.
+final class FactCopyAttachmentUnavailableException extends ExceptionBase {
+  const FactCopyAttachmentUnavailableException({String? description})
+    : super(
+        code: const BeaconExceptionCodes(
+          BeaconExceptionCode.factCopyAttachmentUnavailable,
+        ),
+        description: description ?? 'An attachment is no longer available',
+      );
+}
+
 /// The user already keeps the maximum number of saved facts (plan §5.4).
 final class SavedFactLimitException extends ExceptionBase {
   const SavedFactLimitException({String? description})

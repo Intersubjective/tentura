@@ -11882,6 +11882,8 @@
   "@beaconFactCopyEmpty": {"description": "Destination picker: nothing to copy into"},
   "beaconFactCopyUnavailable": "This fact is no longer available",
   "@beaconFactCopyUnavailable": {"description": "Snackbar: the source fact is gone or unreadable"},
+  "beaconFactCopyAttachmentUnavailable": "An attachment is no longer available",
+  "@beaconFactCopyAttachmentUnavailable": {"description": "Snackbar: a file attachment of the fact being copied is gone"},
   "beaconFactCopyNotAllowed": "You can't add facts there",
   "@beaconFactCopyNotAllowed": {"description": "Snackbar: the destination refuses the copy"},
   "beaconCreateBroughtFactsTitle": "Facts you're bringing ({count})",

@@ -370,7 +370,7 @@ final class BeaconFactCardCase extends UseCaseBase {
                   _ => 'application/octet-stream',
                 },
               );
-            } on FactCopySourceUnavailableException {
+            } on FactCopyAttachmentUnavailableException {
               if (!skipUnavailable) rethrow;
               continue;
             }

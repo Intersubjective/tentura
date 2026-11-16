@@ -1,7 +1,9 @@
 @Tags(['pg'])
 library;
 
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:drift_postgres/drift_postgres.dart';
@@ -11,6 +13,8 @@ import 'package:mockito/mockito.dart';
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
+import 'package:minio/minio.dart' show MinioError;
+import '../../support/s3_errors.dart';
 import 'package:tentura_server/consts/beacon_fact_card_consts.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
@@ -69,9 +73,14 @@ String _publicKey(int world, int slot) =>
 final class _Storage extends Fake implements RemoteStoragePort {
   final objects = <String, Uint8List>{};
 
+  /// Object path → error [getObject] raises for it (a storage outage).
+  final getErrors = <String, Exception>{};
+
   @override
-  Future<Uint8List> getObject(String path) async =>
-      objects[path] ?? (throw StateError('no object at $path'));
+  Future<Uint8List> getObject(String path) async {
+    if (getErrors[path] case final error?) throw error;
+    return objects[path] ?? (throw noSuchKeyError(path));
+  }
 
   @override
   Future<String> putObject(
@@ -864,6 +873,162 @@ VALUES (@u, (now() AT TIME ZONE 'UTC')::date, @cap)
       expect(storage.objects.keys.toSet(), before);
       expect(storage.objects[present.storageKey], present.bytes);
     });
+  });
+
+  group('A fact file the storage cannot give back', () {
+    /// A world whose source fact holds a present file at position 0 and a
+    /// second file at position 1.
+    Future<(_World, _SourceFile, _SourceFile)> twoFileWorld() async {
+      final w = await world();
+      final first = await attachFile(
+        w,
+        position: 0,
+        bytes: Uint8List.fromList(utf8.encode('first ${w.n}')),
+      );
+      final second = await attachFile(
+        w,
+        position: 1,
+        bytes: Uint8List.fromList(utf8.encode('second ${w.n}')),
+        fileName: 'second.pdf',
+      );
+      await pinSourceMessage(w);
+      return (w, first, second);
+    }
+
+    Future<Object?> errorOf(Future<Object?> Function() call) async {
+      try {
+        await call();
+      } on Object catch (e) {
+        return e;
+      }
+      return null;
+    }
+
+    test('a fork or bud (skipUnavailable) drops a file whose object is gone '
+        'and keeps the rest of the fact with a new object for the first '
+        'file', () async {
+      final (w, first, second) = await twoFileWorld();
+      await storage.removeObject(second.storageKey);
+      final before = storage.objects.keys.toSet();
+
+      final result = await case_.prepareCopies(
+        sourceFactCardIds: [w.fact],
+        actorUserId: w.actor,
+        destinationBeaconId: w.published,
+        skipUnavailable: true,
+      );
+
+      final copy = result.prepared.single;
+      final attachments = [
+        for (final e in jsonDecode(copy.attachmentsJson) as List<Object?>)
+          Map<String, Object?>.from(e! as Map),
+      ];
+      expect(attachments, hasLength(1));
+      expect(attachments.single['fileName'], first.fileName);
+      final newKey = attachments.single['fileKey']! as String;
+      expect(newKey, isNot(first.storageKey));
+      expect(copy.newFileKeys, [newKey]);
+      expect(
+        storage.objects.keys.toSet().difference(before),
+        {newKey},
+        reason: 'the kept copy stays stored',
+      );
+    });
+
+    test('a direct copy of a fact with a gone file says an attachment is no '
+        'longer available (not that the fact is unavailable), inserts no '
+        'fact and removes the file it already copied', () async {
+      final (w, _, second) = await twoFileWorld();
+      await storage.removeObject(second.storageKey);
+      final before = storage.objects.keys.toSet();
+
+      final error = await errorOf(
+        () => case_.copy(
+          sourceFactCardId: w.fact,
+          destinationBeaconId: w.published,
+          actorUserId: w.actor,
+        ),
+      );
+
+      expect(error, isA<ExceptionBase>());
+      final base = error! as ExceptionBase;
+      expect(
+        base.toMap['extensions'],
+        containsPair('code', '1354'),
+        reason: 'a new code after 1353, distinct from 1352 fact unavailable',
+      );
+      expect(base.description.toLowerCase(), contains('attachment'));
+      expect(
+        base.description,
+        isNot(const FactCopySourceUnavailableException().description),
+        reason: 'says an attachment, not that the whole fact is gone',
+      );
+      expect(
+        await rows(
+          'SELECT id FROM public.beacon_fact_card WHERE beacon_id = @b',
+          {'b': w.published},
+        ),
+        isEmpty,
+      );
+      expect(storage.objects.keys.toSet(), before, reason: 'no orphan blob');
+    });
+
+    final outages = <String, Exception Function()>{
+      'a timeout': () => TimeoutException('storage timed out'),
+      'a server error (InternalError)': () => s3CodeError('InternalError'),
+      'a 503 response': () => MinioError('503 Service Unavailable'),
+      'AccessDenied credentials': () => s3CodeError('AccessDenied'),
+      'InvalidAccessKeyId credentials': () => s3CodeError('InvalidAccessKeyId'),
+      'a network failure': () => const SocketException('unreachable'),
+    };
+    for (final MapEntry(key: name, value: make) in outages.entries) {
+      test('a direct copy fails with the storage error itself on $name for '
+          'the second file: no fact is inserted and the first copied file is '
+          'removed', () async {
+        final (w, _, second) = await twoFileWorld();
+        final outage = make();
+        storage.getErrors[second.storageKey] = outage;
+        final before = storage.objects.keys.toSet();
+
+        final error = await errorOf(
+          () => case_.copy(
+            sourceFactCardId: w.fact,
+            destinationBeaconId: w.published,
+            actorUserId: w.actor,
+          ),
+        );
+
+        expect(error, same(outage));
+        expect(
+          await rows(
+            'SELECT id FROM public.beacon_fact_card WHERE beacon_id = @b',
+            {'b': w.published},
+          ),
+          isEmpty,
+        );
+        expect(storage.objects.keys.toSet(), before, reason: 'no orphan blob');
+      });
+
+      test('prepareCopies with skipUnavailable does not drop a file on '
+          '$name: it fails and removes what it already copied', () async {
+        final (w, _, second) = await twoFileWorld();
+        final outage = make();
+        storage.getErrors[second.storageKey] = outage;
+        final before = storage.objects.keys.toSet();
+
+        final error = await errorOf(
+          () => case_.prepareCopies(
+            sourceFactCardIds: [w.fact],
+            actorUserId: w.actor,
+            destinationBeaconId: w.published,
+            skipUnavailable: true,
+          ),
+        );
+
+        expect(error, same(outage));
+        expect(storage.objects.keys.toSet(), before, reason: 'no orphan blob');
+      });
+    }
   });
 }
 

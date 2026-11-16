@@ -11,6 +11,7 @@ import 'package:mockito/mockito.dart';
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
+import '../../support/s3_errors.dart';
 import 'package:tentura_server/api/controllers/graphql/input/_input_types.dart';
 import 'package:tentura_server/api/controllers/graphql/mutation/mutation_fact_card.dart';
 import 'package:tentura_server/consts/beacon_fact_card_consts.dart';
@@ -49,7 +50,7 @@ final class _Storage extends Fake implements RemoteStoragePort {
 
   @override
   Future<Uint8List> getObject(String path) async =>
-      objects[path] ?? (throw StateError('no object at $path'));
+      objects[path] ?? (throw noSuchKeyError(path));
 
   @override
   Future<String> putObject(

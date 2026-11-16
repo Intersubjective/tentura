@@ -7109,6 +7109,7 @@
   "beaconFactCopyAlreadyThere": "Уже там",
   "beaconFactCopyEmpty": "У вас нет открытого запроса или поста, куда можно скопировать",
   "beaconFactCopyUnavailable": "Этот факт больше недоступен",
+  "beaconFactCopyAttachmentUnavailable": "Одно из вложений больше недоступно",
   "beaconFactCopyNotAllowed": "Вы не можете добавлять туда факты",
   "beaconCreateBroughtFactsTitle": "Переносимые факты ({count})",
   "beaconCreateBroughtFactsRemove": "Убрать факт",

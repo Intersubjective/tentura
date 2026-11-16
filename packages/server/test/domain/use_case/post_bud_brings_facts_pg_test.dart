@@ -1,18 +1,22 @@
 @Tags(['pg'])
 library;
 
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:graphql_schema2/graphql_schema2.dart';
 import 'package:graphql_server2/graphql_server2.dart';
 import 'package:logging/logging.dart';
+import 'package:minio/minio.dart' show MinioError;
 import 'package:mockito/mockito.dart';
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 import 'package:tentura_root/domain/entity/beacon_child_command_outcome.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
+import '../../support/s3_errors.dart';
 import 'package:tentura_server/api/controllers/graphql/custom_types.dart';
 import 'package:tentura_server/api/controllers/graphql/input/_input_types.dart';
 import 'package:tentura_server/api/controllers/graphql/mutation/mutation_post_bud.dart';
@@ -91,9 +95,14 @@ final class _Storage extends Fake implements RemoteStoragePort {
   final objects = <String, Uint8List>{};
   int puts = 0;
 
+  /// Object path → error [getObject] raises for it (a storage outage).
+  final getErrors = <String, Exception>{};
+
   @override
-  Future<Uint8List> getObject(String path) async =>
-      objects[path] ?? (throw StateError('no object at $path'));
+  Future<Uint8List> getObject(String path) async {
+    if (getErrors[path] case final error?) throw error;
+    return objects[path] ?? (throw noSuchKeyError(path));
+  }
 
   @override
   Future<String> putObject(
@@ -1303,5 +1312,71 @@ VALUES (@id, @m, ${BeaconRoomMessageAttachmentKind.file}, @url,
       expect(created, hasLength(1), reason: 'only the present file is stored');
       expect(storage.objects[created.single], files[1].bytes);
     });
+  });
+
+  group('Budding when the storage fails while copying a fact file', () {
+    final outages = <String, Exception Function()>{
+      'a timeout': () => TimeoutException('storage timed out'),
+      'a server error (InternalError)': () => s3CodeError('InternalError'),
+      'a 503 response': () => MinioError('503 Service Unavailable'),
+      'a network failure': () => const SocketException('unreachable'),
+    };
+    for (final MapEntry(key: name, value: make) in outages.entries) {
+      test('$name fails the bud with that error: no child Request or command '
+          'row is created, every copied blob is removed and the same command '
+          'id succeeds on retry', () async {
+        final w = await world();
+        final factId = 'Fl${'bf${w.n}'.padLeft(10, '0')}';
+        final files = await seedFileFact(
+          beaconId: w.post,
+          author: w.author,
+          factId: factId,
+          count: 2,
+        );
+        final outage = make();
+        storage.getErrors[files[1].key] = outage;
+        final objectsBefore = storage.objects.keys.toSet();
+        Future<int> commandRows() => count(
+          'SELECT count(*)::integer AS n FROM public.beacon_child_commands '
+          'WHERE actor_user_id = @u',
+          {'u': w.budder},
+        );
+
+        Object? error;
+        try {
+          await bud(w, factIds: [w.imageFact, factId], commandId: 'cmd-retry');
+        } on Object catch (e) {
+          error = e;
+        }
+
+        expect(error, same(outage), reason: 'the attachment is not dropped');
+        expect(await childrenOf(w.post), isEmpty);
+        expect(await commandRows(), 0);
+        // Image objects are removed later by the object GC (their rows are
+        // asserted gone below); copied file objects are removed at once.
+        expect(
+          storage.objects.keys.where((k) => !k.startsWith('images/')).toSet(),
+          objectsBefore.where((k) => !k.startsWith('images/')).toSet(),
+        );
+        expect(await imagesBy(w.budder), 0, reason: 'copied blobs removed');
+
+        storage.getErrors.clear();
+        final result = await bud(
+          w,
+          factIds: [w.imageFact, factId],
+          commandId: 'cmd-retry',
+        );
+        expect(result.outcome, PostBudResultJson.outcomeCreated);
+        expect(await commandRows(), 1);
+        final fileCopy = (await factsIn(result.childBeaconId!)).singleWhere(
+          (c) => c['origin_fact_card_id'] == factId,
+        );
+        expect(
+          [for (final e in entriesOf(fileCopy)) e['fileName']],
+          unorderedEquals([for (final f in files) f.name]),
+          reason: 'both files are kept, none silently dropped',
+        );
+      });
+    }
   });
 }

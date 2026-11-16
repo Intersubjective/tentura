@@ -1,7 +1,9 @@
 @Tags(['pg'])
 library;
 
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:drift_postgres/drift_postgres.dart';
@@ -9,11 +11,13 @@ import 'package:graphql_schema2/graphql_schema2.dart';
 import 'package:graphql_server2/graphql_server2.dart';
 import 'package:injectable/injectable.dart' show Environment;
 import 'package:logging/logging.dart';
+import 'package:minio/minio.dart' show MinioError;
 import 'package:mockito/mockito.dart';
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
 import 'package:tentura_root/domain/plan/plan.dart';
+import '../../support/s3_errors.dart';
 import 'package:tentura_server/api/controllers/graphql/input/_input_types.dart';
 import 'package:tentura_server/api/controllers/graphql/mutation/mutation_beacon.dart';
 import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
@@ -76,9 +80,14 @@ String _publicKey(int world, int slot) =>
 final class _Storage extends Fake implements RemoteStoragePort {
   final objects = <String, Uint8List>{};
 
+  /// Object path → error [getObject] raises for it (a storage outage).
+  final getErrors = <String, Exception>{};
+
   @override
-  Future<Uint8List> getObject(String path) async =>
-      objects[path] ?? (throw StateError('no object at $path'));
+  Future<Uint8List> getObject(String path) async {
+    if (getErrors[path] case final error?) throw error;
+    return objects[path] ?? (throw noSuchKeyError(path));
+  }
 
   @override
   Future<String> putObject(
@@ -1361,6 +1370,92 @@ WHERE fact_card_id = @f
       expect(created, hasLength(1));
       expect(storage.objects[created.single], files[1].bytes);
     });
+  });
+
+  group('Forking when the storage fails while copying a fact file', () {
+    final outages = <String, Exception Function()>{
+      'a timeout': () => TimeoutException('storage timed out'),
+      'a server error (InternalError)': () => s3CodeError('InternalError'),
+      'a 503 response': () => MinioError('503 Service Unavailable'),
+      'a network failure': () => const SocketException('unreachable'),
+    };
+    for (final MapEntry(key: name, value: make) in outages.entries) {
+      test('$name fails the fork with that error: no Request is created, '
+          'every copied blob is removed and a retry succeeds', () async {
+        final w = await world();
+        final factId = 'Fl${'fk${w.n}'.padLeft(10, '0')}';
+        final files = await seedFileFact(
+          beaconId: w.source,
+          author: w.author,
+          factId: factId,
+          count: 2,
+        );
+        final outage = make();
+        storage.getErrors[files[1].key] = outage;
+        final beaconsBefore = await count(
+          'SELECT count(*)::integer AS n FROM public.beacon '
+          'WHERE user_id = @u',
+          {'u': w.forker},
+        );
+        final objectsBefore = storage.objects.keys.toSet();
+
+        Object? error;
+        try {
+          await fork(
+            beaconCase(),
+            sourceId: w.source,
+            userId: w.forker,
+            factIds: [w.publicFact, factId],
+          );
+        } on Object catch (e) {
+          error = e;
+        }
+
+        expect(error, same(outage), reason: 'the attachment is not dropped');
+        expect(
+          await count(
+            'SELECT count(*)::integer AS n FROM public.beacon '
+            'WHERE user_id = @u',
+            {'u': w.forker},
+          ),
+          beaconsBefore,
+        );
+        // Image objects are removed later by the object GC (their rows are
+        // asserted gone below); copied file objects are removed at once.
+        expect(
+          storage.objects.keys.where((k) => !k.startsWith('images/')).toSet(),
+          objectsBefore.where((k) => !k.startsWith('images/')).toSet(),
+        );
+        expect(await imagesBy(w.forker), 0, reason: 'copied blobs removed');
+
+        storage.getErrors.clear();
+        final draft = await fork(
+          beaconCase(),
+          sourceId: w.source,
+          userId: w.forker,
+          factIds: [w.publicFact, factId],
+        );
+        final copies = await factsIn(draft.id);
+        expect(
+          [for (final c in copies) c['origin_fact_card_id']],
+          unorderedEquals([w.publicFact, factId]),
+        );
+        final fileCopy = copies.singleWhere(
+          (c) => c['origin_fact_card_id'] == factId,
+        );
+        expect(
+          [for (final e in entriesOf(fileCopy)) e['fileName']],
+          unorderedEquals([for (final f in files) f.name]),
+          reason: 'both files are kept, none silently dropped',
+        );
+        for (final f in files) {
+          expect(
+            copiesOfBytes({for (final x in files) x.key}, f.bytes),
+            hasLength(1),
+          );
+        }
+      });
+    }
   });
 }
 

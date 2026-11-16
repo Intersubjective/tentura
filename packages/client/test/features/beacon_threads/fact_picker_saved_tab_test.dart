@@ -51,6 +51,7 @@ const _tabSaved = 'Saved';
 const _removeFromSaved = 'Remove from saved';
 const _noLongerAvailable = 'No longer available';
 const _snackUnavailable = 'This fact is no longer available';
+const _snackAttachmentGone = 'An attachment is no longer available';
 const _snackUnauthorized = "You can't add facts there";
 
 const _roomFactId = 'Froom00000001';
@@ -652,6 +653,63 @@ void main() {
       );
       expect(_inSheet(find.text(_noLongerAvailable)), findsNothing);
       expect(cubit.state.pendingQuotedFact, isNull);
+    });
+
+    testWidgets('an attachment that is gone (1354) shows «an attachment is no '
+        'longer available», not the whole-fact message, and the row stays '
+        'copyable', (tester) async {
+      final wire = await _SavedWire.start(
+        tester,
+        copyErrorCode: 1354,
+        copyErrorMessage: 'Fact attachment no longer available',
+      );
+      final cubit = await _openWirePicker(tester, wire);
+      final generic = (await L10n.delegate.load(
+        const Locale('en'),
+      )).errorGenericAction;
+
+      await tester.tap(_inSheet(find.text(_elsewhereText)));
+      await pumpRealAsync(tester);
+
+      expect(wire.copyVariables, hasLength(1));
+      expect(_inSnackBar(_snackAttachmentGone), findsOneWidget);
+      expect(_inSnackBar(_snackUnavailable), findsNothing);
+      expect(find.text(generic, findRichText: true), findsNothing);
+      expect(cubit.state.pendingQuotedFact, isNull);
+      expect(_inSheet(find.text(_elsewhereText)), findsOneWidget);
+      expect(_inSheet(find.text(_noLongerAvailable)), findsNothing);
+    });
+
+    testWidgets('Russian locale: an attachment that is gone (1354) shows the '
+        'Russian attachment message, not the whole-fact one', (tester) async {
+      final wire = await _SavedWire.start(
+        tester,
+        copyErrorCode: 1354,
+        copyErrorMessage: 'Fact attachment no longer available',
+      );
+      final cubit = await _openWirePicker(
+        tester,
+        wire,
+        locale: const Locale('ru'),
+      );
+      final generic = (await L10n.delegate.load(
+        const Locale('ru'),
+      )).errorGenericAction;
+
+      await tester.tap(_inSheet(find.text(_elsewhereText)));
+      await pumpRealAsync(tester);
+
+      expect(wire.copyVariables, hasLength(1));
+      expect(russianFor(_snackAttachmentGone), isNot(russianFor(_snackUnavailable)));
+      expect(_inSnackBar(russianFor(_snackAttachmentGone)), findsOneWidget);
+      expect(_inSnackBar(russianFor(_snackUnavailable)), findsNothing);
+      expect(find.text(generic, findRichText: true), findsNothing);
+      expect(cubit.state.pendingQuotedFact, isNull);
+      expect(
+        _inSheet(find.text(russianFor(_noLongerAvailable))),
+        findsNothing,
+      );
+      expect(_inSheet(find.text(_elsewhereText)), findsOneWidget);
     });
 
     testWidgets('Russian locale: read-only (1301) shows the Russian '

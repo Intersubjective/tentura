@@ -8,6 +8,7 @@
 
 import 'dart:convert';
 
+import 'dart:ui' show Locale;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -18,6 +19,8 @@ import 'package:tentura/domain/entity/beacon_fact_history_entry.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/features/beacon_threads/data/repository/beacon_fact_card_repository.dart';
 import 'package:tentura/features/beacon_threads/domain/exception/beacon_fact_card_exceptions.dart';
+import 'package:tentura/features/beacon_threads/ui/widget/fact_copy_destination_sheet.dart' show factCopyFailureText;
+import 'package:tentura/ui/l10n/l10n.dart';
 
 const _beaconId = 'Bfactcopy0001';
 const _factCardId = 'Ffactcopy0001';
@@ -371,6 +374,47 @@ void main() {
         expect(rows, isEmpty);
       });
     }
+  });
+
+  group('attachment unavailable error 1354', () {
+    test('copy throws its own fact-card exception whose failure text says an '
+        'attachment is no longer available', () {
+      return _withRepository(
+        const {},
+        [],
+        (repository) async {
+          Object? thrown;
+          try {
+            await repository.copy(
+              sourceFactCardId: _factCardId,
+              destinationBeaconId: 'Bdest00000001',
+            );
+          } on Object catch (e) {
+            thrown = e;
+          }
+          expect(thrown, isA<BeaconFactCardException>());
+          final known = <Type>{
+            BeaconFactCardException,
+            BeaconFactEditConflictException,
+            BeaconFactRemovedException,
+            BeaconFactRateLimitedException,
+            BeaconFactCopySourceUnavailableException,
+            BeaconFactSavedLimitException,
+          };
+          expect(
+            known,
+            isNot(contains(thrown.runtimeType)),
+            reason: 'a dedicated exception class for 1354',
+          );
+          final l10n = await L10n.delegate.load(const Locale('en'));
+          expect(
+            factCopyFailureText(l10n, thrown!),
+            'An attachment is no longer available',
+          );
+        },
+        errorCodes: {'BeaconFactCardCopy': 1354},
+      );
+    });
   });
 
   group('source unavailable error 1352', () {

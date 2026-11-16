@@ -1,6 +1,7 @@
 import 'package:drift_postgres/drift_postgres.dart';
 import 'package:injectable/injectable.dart';
 import 'package:logging/logging.dart';
+import 'package:minio/minio.dart' show MinioS3Error;
 
 import 'package:tentura_server/env.dart';
 import 'package:tentura_server/domain/exception.dart';
@@ -176,9 +177,13 @@ class ImageRepository implements ImageRepositoryPort {
     final Uint8List bytes;
     try {
       bytes = await _remoteStorageService.getObject(path);
-    } on Object {
-      // The stored object is gone: report the source as unavailable.
-      throw const FactCopySourceUnavailableException();
+    } on MinioS3Error catch (e) {
+      // Only a missing object counts as gone; any other storage failure
+      // must surface so the whole operation fails and can be retried.
+      if (e.error?.code == 'NoSuchKey') {
+        throw const FactCopyAttachmentUnavailableException();
+      }
+      rethrow;
     }
     final copyPath = '${roomAttachmentStorageKey(bytes)}/${generateId('A')}';
     final acl = _env.kS3PutObjectAclValue;

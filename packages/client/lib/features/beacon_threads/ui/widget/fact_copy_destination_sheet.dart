@@ -231,6 +231,8 @@ class _FactCopyDestinationSheetState extends State<_FactCopyDestinationSheet> {
 /// the fact picker's Saved tab (§6.3).
 String factCopyFailureText(L10n l10n, Object error) => switch (error) {
   BeaconFactCopySourceUnavailableException() => l10n.beaconFactCopyUnavailable,
+  BeaconFactCopyAttachmentUnavailableException() =>
+    l10n.beaconFactCopyAttachmentUnavailable,
   RemoteApiException(code: _kUnauthorizedCode) => l10n.beaconFactCopyNotAllowed,
   RemoteApiException(code: _kReadOnlyCode) =>
     const DiscussionReadOnlyMessage().toL10n(l10n.localeName),

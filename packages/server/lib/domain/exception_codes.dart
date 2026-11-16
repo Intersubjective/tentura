@@ -126,6 +126,7 @@ enum BeaconExceptionCode {
   postCloseForbidden, // 1351
   factCopySourceUnavailable, // 1352
   savedFactLimit, // 1353
+  factCopyAttachmentUnavailable, // 1354
 }
 
 class BeaconExceptionCodes extends ExceptionCodes {
