@@ -100,7 +100,10 @@ Duration? _parseEnvDuration(String? raw) {
 /// Raised to 7.60.0 for the QA batch of 2026-10-28 C (#525 per-card unread
 /// count, #766 seen-by and typing, #770 declined-offer state, #771 invitation
 /// expiry, #797 undo-decline mutation).
-const kDefaultMinClientVersion = '7.60.0';
+/// Raised to 7.62.0 for the notification identity release (#1303: actor names
+/// and Request titles in notifications, `relatedBeaconTitle` on
+/// `AttentionReceipt`).
+const kDefaultMinClientVersion = '7.62.0';
 
 class Env {
   Env({
