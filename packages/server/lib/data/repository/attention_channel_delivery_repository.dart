@@ -67,14 +67,34 @@ RETURNING job.id, job.payload::text AS payload''',
           ],
         )
         .get();
-    return [
-      for (final row in rows)
-        AttentionChannelDelivery(
-          id: row.read<String>('id'),
-          decision: _decision(jsonDecode(row.read<String>('payload')) as Map),
-        ),
-    ];
+    final jobs = <AttentionChannelDelivery>[];
+    for (final row in rows) {
+      final id = row.read<String>('id');
+      final payload = jsonDecode(row.read<String>('payload')) as Map;
+      if (payload['presentationKey'] is! String ||
+          payload['presentationPayload'] is! Map) {
+        // Rewritten by the pre-m0317 erasure trigger: it can never be
+        // delivered, so end it here instead of failing the whole batch.
+        await _deadLetterUndeliverable(id: id, workerId: workerId);
+        continue;
+      }
+      jobs.add(AttentionChannelDelivery(id: id, decision: _decision(payload)));
+    }
+    return jobs;
   }
+
+  Future<void> _deadLetterUndeliverable({
+    required String id,
+    required String workerId,
+  }) => _database.customStatement(
+    r'''
+UPDATE public.attention_channel_delivery
+SET status = 'dead', dead_lettered_at = now(),
+    last_error = 'payload has no presentation identity',
+    lease_owner = NULL, lease_until = NULL
+WHERE id = $1 AND status = 'leased' AND lease_owner = $2''',
+    [id, workerId],
+  );
 
   @override
   Future<void> markDelivered({required String id, required String workerId}) =>

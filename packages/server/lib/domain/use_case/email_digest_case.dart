@@ -88,10 +88,23 @@ class EmailDigestCase {
       return;
     }
 
-    final eligible = (await _outbox.pendingForAccount(accountId))
+    final candidates = (await _outbox.pendingForAccount(accountId))
         .where((p) => prefs.emailCategories.contains(p.category))
         .where((p) => !kNoDigestKinds.contains(p.kind))
         .toList();
+    // Rows with no key, or a key the renderer no longer knows, can never be
+    // shown: mark them emailed so they neither block the digest nor keep the
+    // account pending forever.
+    bool renderable(NotificationOutboxItemEntity p) =>
+        switch (p.presentationKey) {
+          final key? => NotificationCopyRenderer.isRenderableKey(key),
+          null => false,
+        };
+    final eligible = candidates.where(renderable).toList();
+    final legacy = candidates.where((p) => !renderable(p)).toList();
+    if (legacy.isNotEmpty) {
+      await _outbox.markEmailed([for (final p in legacy) p.id]);
+    }
     if (eligible.isEmpty) {
       return;
     }

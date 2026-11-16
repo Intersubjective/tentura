@@ -648,6 +648,12 @@ class NotificationCopyRenderer {
     return hours < 1 ? 1 : hours;
   }
 
+  /// Whether [render] can render [key]; rows with any other (legacy) key never
+  /// can.
+  static bool isRenderableKey(String key) =>
+      key == 'closure_opened_bookmark_only' ||
+      AttentionEventType.values.any((type) => _snake(type.name) == key);
+
   static AttentionEventType _eventTypeOf(String key) {
     for (final type in AttentionEventType.values) {
       if (_snake(type.name) == key) return type;
