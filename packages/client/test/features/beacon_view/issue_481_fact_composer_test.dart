@@ -81,7 +81,15 @@ Future<FakeBeaconViewFactCardRepository> _openComposer(
   await tester.tap(find.byKey(TestIds.key(TestIds.beaconFactsAdd)));
   await tester.pumpAndSettle();
   await tester.tap(find.byKey(TestIds.key(TestIds.beaconFactsAddNew)));
-  await tester.pump();
+  // The menu closes and the composer sheet slides in over several frames;
+  // pump until it is built instead of guessing a fixed duration.
+  final submit = find.byKey(TestIds.key(TestIds.beaconFactsComposerSubmit));
+  for (var i = 0; i < 50 && submit.evaluate().isEmpty; i++) {
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 10)),
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+  }
   await tester.pump(const Duration(milliseconds: 400));
   return factsRepo;
 }
