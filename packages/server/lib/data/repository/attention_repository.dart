@@ -1084,6 +1084,11 @@ ORDER BY page.created_at DESC NULLS LAST, page.id DESC NULLS LAST
   /// [AttentionReceipt.title]; an unreadable Request yields no title and no
   /// root excerpt or image. A Post has no title: its description is its root
   /// message, cut at 140 characters, and the first image attached to it.
+  static String? _relatedBeaconId(AttentionReceipt item) {
+    final id = item.presentationPayload['relatedBeaconId'];
+    return id is String && id.isNotEmpty ? id : null;
+  }
+
   Future<List<AttentionReceipt>> _attachBeaconTitles({
     required String accountId,
     required List<AttentionReceipt> items,
@@ -1093,6 +1098,8 @@ ORDER BY page.created_at DESC NULLS LAST, page.id DESC NULLS LAST
         if (item.beaconId != null) item.beaconId!,
         for (final event in item.eventsPreview)
           if (event.beaconId != null) event.beaconId!,
+        ?_relatedBeaconId(item),
+        for (final event in item.eventsPreview) ?_relatedBeaconId(event),
       ],
     };
     if (beaconIds.isEmpty) {
@@ -1142,9 +1149,14 @@ WHERE b.id IN ($placeholders)
         .get();
     final byId = {for (final row in rows) row.read<String>('beacon_id'): row};
     AttentionReceipt withTitle(AttentionReceipt item) {
+      final relatedId = _relatedBeaconId(item);
+      final relatedTitle = relatedId == null
+          ? null
+          : byId[relatedId]?.readNullable<String>('beacon_title');
       final row = item.beaconId == null ? null : byId[item.beaconId];
-      if (row == null) return item;
+      if (row == null) return item.copyWith(relatedBeaconTitle: relatedTitle);
       return item.copyWith(
+        relatedBeaconTitle: relatedTitle,
         beaconTitle: row.readNullable<String>('beacon_title'),
         beaconKind: BeaconKind.fromValue(row.read<int>('beacon_kind')),
         postRootExcerpt: row.readNullable<String>('post_root_excerpt'),

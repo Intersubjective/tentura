@@ -641,6 +641,12 @@ abstract class AttentionReceipt with _$AttentionReceipt {
     /// viewer may not read the Request.
     String? beaconTitle,
 
+    /// The linked Request's current title for a hierarchy notice
+    /// (`presentationPayload.relatedBeaconId`), behind the same content wall
+    /// as [beaconTitle] checked on that Request itself: `null` when there is
+    /// no linked Request or the viewer may not read it.
+    String? relatedBeaconTitle,
+
     /// U10d — whether the action row may offer «Переслать» (§4, §6.3).
     ///
     /// The live gate, not a constant: `BeaconStatus.allowsForward` (the

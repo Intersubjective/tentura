@@ -265,6 +265,7 @@ final GraphQLObjectType gqlTypeAttentionReceipt = () {
     field('beaconKind', graphQLInt),
     field('postRootExcerpt', graphQLString),
     field('postRootImageId', graphQLString),
+    field('relatedBeaconTitle', graphQLString),
   ]);
   return type;
 }();
