@@ -33,37 +33,71 @@ class BootFailureApp extends StatelessWidget {
   final bool isWeb;
 
   @override
-  Widget build(BuildContext context) => MaterialApp(
+  Widget build(BuildContext context) => MaterialApp.router(
     title: kAppTitle,
     debugShowCheckedModeBanner: false,
     theme: TenturaTheme.light(),
     darkTheme: TenturaTheme.dark(),
     supportedLocales: L10n.supportedLocales,
     localizationsDelegates: L10n.localizationsDelegates,
-    home: Builder(
-      builder: (context) {
-        final l10n = L10n.of(context)!;
-        final lockHeld = error is LocalDatabaseLockHeldException;
-        return Scaffold(
-          body: SafeArea(
-            child: TenturaEmptyState(
-              icon: Icons.error_outline,
-              title: lockHeld ? l10n.bootLockHeldTitle : l10n.bootFailureTitle,
-              body: lockHeld
-                  ? l10n.bootLockHeldBody
-                  : isWeb
-                  ? l10n.bootFailureBodyWeb
-                  : l10n.bootFailureBodyNative,
-              actionLabel: !isWeb
-                  ? null
-                  : lockHeld
-                  ? l10n.bootLockHeldReload
-                  : l10n.bootFailureReload,
-              onAction: isWeb ? onReload : null,
+    routeInformationParser: const _IgnoreLinksParser(),
+    routerDelegate: _SinglePageDelegate(
+      Builder(
+        builder: (context) {
+          final l10n = L10n.of(context)!;
+          final lockHeld = error is LocalDatabaseLockHeldException;
+          return Scaffold(
+            body: SafeArea(
+              child: TenturaEmptyState(
+                icon: Icons.error_outline,
+                title: lockHeld
+                    ? l10n.bootLockHeldTitle
+                    : l10n.bootFailureTitle,
+                body: lockHeld
+                    ? l10n.bootLockHeldBody
+                    : isWeb
+                    ? l10n.bootFailureBodyWeb
+                    : l10n.bootFailureBodyNative,
+                actionLabel: !isWeb
+                    ? null
+                    : lockHeld
+                    ? l10n.bootLockHeldReload
+                    : l10n.bootFailureReload,
+                onAction: isWeb ? onReload : null,
+              ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     ),
+  );
+}
+
+/// There is nothing to navigate to while startup has failed: every deep link
+/// (e.g. one dispatched by the browser) is ignored.
+class _IgnoreLinksParser extends RouteInformationParser<Object> {
+  const _IgnoreLinksParser();
+
+  @override
+  Future<Object> parseRouteInformation(RouteInformation routeInformation) =>
+      SynchronousFuture<Object>(const Object());
+}
+
+class _SinglePageDelegate extends RouterDelegate<Object> with ChangeNotifier {
+  _SinglePageDelegate(this.child);
+
+  final Widget child;
+
+  @override
+  Future<void> setNewRoutePath(Object configuration) =>
+      SynchronousFuture<void>(null);
+
+  @override
+  Future<bool> popRoute() => SynchronousFuture<bool>(false);
+
+  @override
+  Widget build(BuildContext context) => Navigator(
+    pages: [MaterialPage<void>(name: '/', child: child)],
+    onDidRemovePage: (_) {},
   );
 }
