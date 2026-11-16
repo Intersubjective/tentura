@@ -8,6 +8,7 @@ import 'package:mockito/mockito.dart';
 import 'package:uuid/uuid.dart';
 import 'package:tentura_server/data/repository/attention_channel_delivery_repository.dart';
 import 'package:tentura_server/domain/attention/attention_models.dart';
+import 'package:tentura_server/data/repository/notification_identity_repository.dart';
 import 'package:tentura_server/data/repository/notification_preference_repository.dart';
 import 'package:tentura_server/data/repository/notification_outbox_repository.dart';
 import 'package:tentura_server/data/service/beacon_notification_service.dart';
@@ -306,6 +307,7 @@ ORDER BY id
           preferences,
           _NoImmediateEmail(),
           logger,
+          identity: NotificationIdentityRepository(database),
         );
         claimAt = DateTime.timestamp().add(const Duration(days: 1));
       });

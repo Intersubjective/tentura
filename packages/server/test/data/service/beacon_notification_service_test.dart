@@ -15,6 +15,7 @@ import 'package:tentura_server/domain/entity/fcm_token_entity.dart';
 import 'package:tentura_server/domain/entity/notification_kind.dart';
 import 'package:tentura_server/domain/entity/notification_preferences_entity.dart';
 import 'package:tentura_server/domain/entity/notification_priority.dart';
+import 'package:tentura_server/domain/notification/notification_identity.dart';
 import 'package:tentura_server/domain/port/email_notification_port.dart';
 import 'package:tentura_server/domain/port/fcm_batch_queue_port.dart';
 import 'package:tentura_server/domain/port/fcm_remote_repository_port.dart';
@@ -202,6 +203,27 @@ class _CapturingEmail implements EmailNotificationPort {
       throw UnimplementedError(invocation.memberName.toString());
 }
 
+/// Every Request readable, no actor hidden.
+class _OpenIdentity implements NotificationIdentityPort {
+  @override
+  Future<List<NotificationIdentity>> resolve(
+    String recipientId,
+    List<IdentityRequest> requests,
+  ) async => [
+    for (final _ in requests)
+      const NotificationIdentity(
+        entityKind: NotificationEntityKind.request,
+        label: 'Title',
+        tombstone: false,
+        readable: true,
+        actorName: 'actor',
+        actorHidden: false,
+        relatedLabel: null,
+        expired: false,
+      ),
+  ];
+}
+
 void main() {
   BeaconNotificationService build({
     _CapturingEmail? email,
@@ -217,6 +239,7 @@ void main() {
     preferences ?? _FakePrefs(),
     email ?? _CapturingEmail(),
     Logger('test'),
+    identity: _OpenIdentity(),
     pushActionTokens: pushActionTokens,
   );
 
@@ -429,29 +452,18 @@ void main() {
   // #367: a Russian reader's push is Russian, the title included.
   group('recipient language', () {
     const recipientId = 'recipient-1';
-    FcmTokenRepositoryPort tokens() => _FakeFcmTokensForUser(recipientId, [
-      FcmTokenEntity(
-        userId: recipientId,
-        appId: const Uuid().v4obj(),
-        platform: 'web',
-        token: 'tok-1',
-        createdAt: DateTime.utc(2026),
-        lastRefreshedAt: DateTime.utc(2026),
-      ),
-    ]);
-
-    Future<FcmNotificationEntity> pushFor(
+    // Push text is rendered from live identity, never from stored text; the
+    // stored copy is still localized for the immediate email, so these cases
+    // read it there.
+    Future<({String title, String body})> pushFor(
       AttentionChannelDecision d, {
       required NotificationPreferenceRepositoryPort preferences,
     }) async {
-      final batch = _CapturingFcmBatch();
-      final service = build(
-        fcmBatch: batch,
-        fcmTokens: tokens(),
-        preferences: preferences,
-      );
+      final email = _CapturingEmail();
+      final service = build(email: email, preferences: preferences);
       await service.handOffChannels([d]);
-      return batch.enqueues.single.message;
+      final sent = email.considers.single;
+      return (title: sent.title, body: sent.body);
     }
 
     test('an accepted offer reads in Russian, title and body', () async {

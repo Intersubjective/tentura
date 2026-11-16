@@ -65,6 +65,7 @@ import 'package:tentura_server/domain/use_case/transactional_attention_case.dart
 import 'package:tentura_server/env.dart';
 
 import 'package:tentura_server/data/repository/notification_outbox_repository.dart';
+import 'package:tentura_server/data/repository/notification_identity_repository.dart';
 import 'package:tentura_server/data/repository/notification_preference_repository.dart';
 import 'package:tentura_server/data/repository/user_presence_repository.dart';
 import 'package:tentura_server/data/service/email_notification_service.dart';
@@ -212,6 +213,7 @@ Future<void> main() async {
         _Preferences(locales),
         _SilentEmail(),
         logger,
+        identity: NotificationIdentityRepository(database),
       );
       await channels.handOffChannels(jobs);
       final deadline = DateTime.timestamp().add(const Duration(seconds: 10));
@@ -299,6 +301,7 @@ Future<void> main() async {
           preferences,
           email,
           Logger('PostShareEmailTest'),
+          identity: NotificationIdentityRepository(database),
         );
         await preparePost();
       });
@@ -723,6 +726,7 @@ Future<void> main() async {
             preferences,
             email,
             Logger('PostShareEmailTest'),
+            identity: NotificationIdentityRepository(database),
           );
           await expectFirstEmail();
         },
@@ -878,7 +882,7 @@ Future<void> main() async {
             locales: const {_bob: 'ru'},
           );
 
-          expect(sent.single.body, 'Alice поделился постом с вами');
+          expect(sent.single.body, 'Alice делится с вами постом');
         },
       );
 

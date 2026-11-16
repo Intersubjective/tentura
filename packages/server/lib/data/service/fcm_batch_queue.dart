@@ -94,12 +94,11 @@ class FcmBatchQueue implements FcmBatchQueuePort {
     for (final MapEntry(key: batchKey, value: entry) in batch.entries) {
       try {
         final dominantKind = _aggregator.pickDominantKind(entry.kindCounts);
-        final aggregated = _aggregator.aggregate(
+        final aggregated = _aggregator.collapsed(
           count: entry.count,
-          dominantKind: dominantKind,
-          latestTitle: entry.latestMessage.title,
-          latestBody: entry.latestMessage.body,
-          beaconTitle: null,
+          locale: entry.latestMessage.locale,
+          entityLabel: entry.latestMessage.entityLabel,
+          latestSentence: entry.latestMessage.eventSentence,
           kindCounts: entry.kindCounts,
           beaconKind: entry.latestMessage.beaconKind,
         );
@@ -115,6 +114,9 @@ class FcmBatchQueue implements FcmBatchQueuePort {
                 kind: dominantKind,
                 priority: entry.latestMessage.priority,
                 beaconKind: entry.latestMessage.beaconKind,
+                entityLabel: entry.latestMessage.entityLabel,
+                eventSentence: entry.latestMessage.eventSentence,
+                locale: entry.latestMessage.locale,
               )
             : entry.latestMessage;
 

@@ -1,4 +1,5 @@
 import 'package:drift_postgres/drift_postgres.dart';
+import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/notification/notification_identity.dart';
 import 'package:tentura_server/domain/notification/notification_text.dart';
@@ -9,6 +10,7 @@ const _actorNameLimit = 32;
 const _requestLabelLimit = 32;
 const _postLabelLimit = 40;
 
+@Singleton(as: NotificationIdentityPort)
 class NotificationIdentityRepository implements NotificationIdentityPort {
   const NotificationIdentityRepository(this._db);
 

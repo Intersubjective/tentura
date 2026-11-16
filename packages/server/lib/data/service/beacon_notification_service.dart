@@ -11,7 +11,10 @@ import 'package:tentura_server/domain/entity/notification_channel.dart';
 import 'package:tentura_server/domain/entity/notification_kind.dart';
 import 'package:tentura_server/domain/entity/notification_priority.dart';
 import 'package:tentura_server/domain/notification/beacon_notification_copy_builder.dart';
+import 'package:tentura_server/domain/notification/notification_copy_renderer.dart';
+import 'package:tentura_server/domain/notification/notification_identity.dart';
 import 'package:tentura_server/domain/notification/notification_preference_gate.dart';
+import 'package:tentura_server/domain/notification/notification_text.dart';
 import 'package:tentura_server/domain/notification/plan_push_policy.dart';
 import 'package:tentura_server/domain/plan/push_action.dart';
 import 'package:tentura_server/domain/port/beacon_notification_port.dart';
@@ -32,6 +35,7 @@ class BeaconNotificationService implements BeaconNotificationPort {
     this._preferences,
     this._emailNotification,
     this._logger, {
+    required this._identity,
     this._pushActionTokens,
     this._planRepository,
   });
@@ -42,6 +46,7 @@ class BeaconNotificationService implements BeaconNotificationPort {
   final NotificationPreferenceRepositoryPort _preferences;
   final EmailNotificationPort _emailNotification;
   final Logger _logger;
+  final NotificationIdentityPort _identity;
 
   /// Signs plan push buttons (#220 §5.9); without it plan pushes carry no
   /// buttons and a tap opens the step.
@@ -52,6 +57,8 @@ class BeaconNotificationService implements BeaconNotificationPort {
 
   static const _copyBuilder = BeaconNotificationCopyBuilder();
   static const _gate = NotificationPreferenceGate();
+  static const _renderer = NotificationCopyRenderer();
+  static const _pushBodyLimit = 140;
 
   @override
   Future<void> handOffChannels(
@@ -70,21 +77,67 @@ class BeaconNotificationService implements BeaconNotificationPort {
       final preferences = await _preferences.getForAccount(
         decision.recipientId,
       );
-      final fullCopy = switch (decision.forwardHelped) {
-        final helped? => _copyBuilder.forwardHelped(
+      final identity = (await _identity.resolve(decision.recipientId, [
+        IdentityRequest(
+          beaconId: decision.beaconId ?? '',
+          actorId: decision.actorUserId,
+        ),
+      ])).single;
+      if (identity.actorHidden) {
+        // A blocked pair (either direction) gets neither push nor email.
+        _logger.info(
+          '[FCM] skipped: blocked pair receiverId=${decision.recipientId} '
+          'kind=${decision.kind.name}',
+        );
+        continue;
+      }
+      final rendered = decision.forwardHelped == null
+          ? _renderer.render(
+              presentationKey: decision.presentationKey,
+              kind: decision.kind,
+              facts: decision.presentationPayload,
+              identity: identity,
+              locale: preferences.locale,
+              tzOffsetMinutes: preferences.tzOffsetMinutes,
+              now: now,
+            )
+          : null;
+      final label = rendered?.entityLabel;
+      final fullCopy = switch ((decision.forwardHelped, rendered)) {
+        (final helped?, _) => _copyBuilder.forwardHelped(
           content: helped,
           locale: preferences.locale,
           actionUrl: decision.actionUrl,
         ),
-        null => _copyBuilder.localizeStored(
-          intent: intent,
-          title: decision.title,
-          body: decision.body,
+        (_, final copy?) => BeaconNotificationCopy(
+          title: label ?? copy.headline,
+          body: NotificationText.truncate(
+            [
+              copy.sentence,
+              if (label != null && copy.excerpt != null) copy.excerpt,
+            ].join(': '),
+            _pushBodyLimit,
+          ),
           actionUrl: decision.actionUrl,
-          actorDisplayName: decision.actorDisplayName ?? '',
-          locale: preferences.locale,
         ),
+        _ => throw StateError('unreachable'),
       };
+      // Email text is rebuilt in the immediate-email path, not here; until it
+      // is, it keeps the stored copy.
+      final emailCopy = decision.forwardHelped != null
+          ? fullCopy
+          : _copyBuilder.localizeStored(
+              intent: intent,
+              title: decision.title,
+              body: decision.body,
+              actionUrl: decision.actionUrl,
+              actorDisplayName: decision.actorDisplayName ?? '',
+              locale: preferences.locale,
+            );
+      final pushCopy = preferences.lockScreenSafe
+          ? _lockScreenSafeCopy(decision, preferences.locale)
+          : fullCopy;
+      final entityLabel = preferences.lockScreenSafe ? null : label;
       final muted = decision.beaconId == null
           ? const <String>{}
           : await _preferences.getMutedBeaconIds(decision.recipientId, now);
@@ -102,9 +155,7 @@ class BeaconNotificationService implements BeaconNotificationPort {
           await _sendDecisionDirect(
             decision: decision,
             intent: intent,
-            copy: preferences.lockScreenSafe
-                ? _copyBuilder.lockScreenSafe(intent)
-                : fullCopy,
+            copy: pushCopy,
           );
         }
         continue;
@@ -117,9 +168,7 @@ class BeaconNotificationService implements BeaconNotificationPort {
         pushDelivered = await _sendPlanDirect(
           decision: decision,
           intent: intent,
-          copy: preferences.lockScreenSafe
-              ? _copyBuilder.lockScreenSafe(intent)
-              : fullCopy,
+          copy: pushCopy,
           locale: preferences.locale,
         );
       } else if (pushAllowed) {
@@ -127,10 +176,10 @@ class BeaconNotificationService implements BeaconNotificationPort {
           receiverId: decision.recipientId,
           intent: intent,
           priority: decision.priority,
-          copy: preferences.lockScreenSafe
-              ? _copyBuilder.lockScreenSafe(intent)
-              : fullCopy,
+          copy: pushCopy,
           reason: decision.reason,
+          entityLabel: entityLabel,
+          locale: preferences.locale,
         );
       }
       if (decision.kind == NotificationKind.inviteAccepted) {
@@ -138,8 +187,8 @@ class BeaconNotificationService implements BeaconNotificationPort {
           _emailNotification.considerImmediateByCategory(
             recipientUserId: decision.recipientId,
             channelCollapseKey: decision.dedupKey,
-            title: fullCopy.title,
-            body: fullCopy.body,
+            title: emailCopy.title,
+            body: emailCopy.body,
             actionUrl: decision.actionUrl,
             categoryScope: NotificationCategory.connections.name,
           ),
@@ -151,14 +200,26 @@ class BeaconNotificationService implements BeaconNotificationPort {
             kind: decision.kind,
             beaconId: decision.beaconId ?? '',
             channelCollapseKey: decision.dedupKey,
-            title: fullCopy.title,
-            body: fullCopy.body,
+            title: emailCopy.title,
+            body: emailCopy.body,
             actionUrl: decision.actionUrl,
             pushDelivered: pushDelivered,
           ),
         );
       }
     }
+  }
+
+  BeaconNotificationCopy _lockScreenSafeCopy(
+    AttentionChannelDecision decision,
+    String locale,
+  ) {
+    final safe = _renderer.lockScreenSafe(categoryOf(decision.kind), locale);
+    return BeaconNotificationCopy(
+      title: safe.title,
+      body: safe.body,
+      actionUrl: decision.actionUrl,
+    );
   }
 
   Future<void> _sendDecisionDirect({
@@ -277,6 +338,8 @@ class BeaconNotificationService implements BeaconNotificationPort {
     required NotificationPriority priority,
     required BeaconNotificationCopy copy,
     required String reason,
+    required String? entityLabel,
+    required String locale,
   }) async {
     if (receiverId.isEmpty) {
       return false;
@@ -320,6 +383,9 @@ class BeaconNotificationService implements BeaconNotificationPort {
         kind: intent.kind,
         priority: priority,
         beaconKind: intent.beaconKind,
+        entityLabel: entityLabel,
+        eventSentence: copy.body,
+        locale: locale,
       ),
     );
     return true;

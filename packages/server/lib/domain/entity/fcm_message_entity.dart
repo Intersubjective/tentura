@@ -30,6 +30,9 @@ class FcmNotificationEntity implements FcmMessageEntity {
     this.tag,
     this.ttlSeconds,
     this.urgency,
+    this.entityLabel,
+    this.eventSentence,
+    this.locale = 'en',
   });
 
   final String title;
@@ -74,6 +77,16 @@ class FcmNotificationEntity implements FcmMessageEntity {
 
   /// Web push `Urgency` header (`very-low` | `low` | `normal` | `high`).
   final String? urgency;
+
+  /// Request/Post label the recipient may read; null when they may not.
+  /// The batch queue uses it as the title of a coalesced push.
+  final String? entityLabel;
+
+  /// Event sentence of this push, quoted as «latest» in a coalesced push.
+  final String? eventSentence;
+
+  /// Recipient locale, for text the batch queue composes.
+  final String locale;
 }
 
 /// One notification button.

@@ -1,5 +1,6 @@
 import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/entity/notification_kind.dart';
+import 'package:tentura_server/domain/notification/notification_text.dart';
 
 class BeaconNotificationBatchAggregator {
   const BeaconNotificationBatchAggregator();
@@ -47,6 +48,63 @@ class BeaconNotificationBatchAggregator {
       body: '$count coordination updates',
     );
   }
+
+  /// Localized coalesced push (spec §5.1): the Request label stays the title
+  /// (`Tentura` when the recipient cannot read it); the body counts updates
+  /// and quotes the latest sentence. One dominant actionable kind leads with
+  /// its own phrase.
+  ({String title, String body}) collapsed({
+    required int count,
+    required String locale,
+    required String? entityLabel,
+    required String? latestSentence,
+    required Map<NotificationKind, int> kindCounts,
+    BeaconKind beaconKind = BeaconKind.request,
+  }) {
+    final ru = locale.startsWith('ru');
+    final label = entityLabel?.trim() ?? '';
+    if (!ru && kindCounts.length == 1) {
+      // One kind, English: its own phrase («2 replies to your posts»).
+      return (
+        title: label.isEmpty ? 'Tentura' : label,
+        body: _pluralBody(
+          kindCounts.keys.first,
+          count,
+          latestSentence ?? '',
+          beaconKind,
+        ),
+      );
+    }
+    final actionable = kindCounts.keys.where(_isActionable).toList();
+    final phrase = actionable.length == 1 && kindCounts.length > 1
+        ? _actionablePhrase(actionable.first, count, ru)
+        : kindCounts.length == 1 && _isActionable(kindCounts.keys.first)
+        ? _actionablePhrase(kindCounts.keys.first, count, ru)
+        : null;
+    final counted =
+        phrase ??
+        '$count ${NotificationText.plural(count, locale, one: ru ? 'обновление' : 'update', few: 'обновления', many: ru ? 'обновлений' : 'updates')}';
+    final sentence = latestSentence ?? '';
+    final tail = label.isEmpty || sentence.isEmpty
+        ? ''
+        : ' · ${ru ? 'последнее' : 'latest'}: $sentence';
+    return (title: label.isEmpty ? 'Tentura' : label, body: '$counted$tail');
+  }
+
+  String _actionablePhrase(NotificationKind kind, int n, bool ru) =>
+      switch (kind) {
+        NotificationKind.needsMe =>
+          ru ? '$n — нужен ваш ответ' : '$n items need you',
+        NotificationKind.staleRemind =>
+          ru ? '$n — требуют внимания' : '$n items need attention',
+        NotificationKind.blockerOpened =>
+          ru ? '$n — открыты блокеры' : '$n blockers opened',
+        NotificationKind.reviewReady =>
+          ru ? '$n — готовы к проверке' : '$n requests ready to review',
+        NotificationKind.roomMention =>
+          ru ? '$n — упоминания вас' : '$n mentions of you',
+        _ => '$n',
+      };
 
   String _pluralBody(
     NotificationKind kind,
