@@ -445,6 +445,19 @@ abstract class AttentionRecipientRoleFacts with _$AttentionRecipientRoleFacts {
     bool? leftDiscussion,
     bool? nextStepMentionsActor,
     ForwardHelpedDetails? forwardHelped,
+
+    /// Facts the notice renderer needs, stored in the receipt payload:
+    /// the deadline a deadline notice is about, the status the Request left,
+    /// the other Request of a hierarchy notice and its direction
+    /// (`ancestor` | `child`), a Post's expiry, a plan step's offset in
+    /// minutes, and whether an offer is a backup.
+    DateTime? newEndAt,
+    String? fromStatus,
+    String? relatedBeaconId,
+    String? direction,
+    DateTime? expiresAt,
+    int? relativeMinutes,
+    bool? isBackupOffer,
   }) = _AttentionRecipientRoleFacts;
 }
 

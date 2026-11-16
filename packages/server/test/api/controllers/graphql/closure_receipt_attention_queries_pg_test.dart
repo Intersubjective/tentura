@@ -212,12 +212,12 @@ void _expectSanitizedClosureReceipt(
   expectSanitizedAttentionPayload(
     mapped['presentationPayloadJson'],
     requiredFields: {'eventType': eventType, 'beaconId': _beaconId},
-    coercibleFields: {
-      'epoch': '2',
+    integerFields: {
+      'epoch': 2,
       if (eventType == 'closureFinalized') ...{
-        'outcome': '1',
-        'band': '3',
-        'draftFlag': '0',
+        'outcome': 1,
+        'band': 3,
+        'draftFlag': 0,
       },
     },
   );

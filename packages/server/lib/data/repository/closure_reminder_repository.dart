@@ -85,15 +85,20 @@ SELECT gen_random_uuid()::text, b.user_id, 'asksOfMe', 'staleRemind', 'normal',
   \$3::text || b.id || '?is_deep_link=true',
   k.skey, b.id, k.skey, 'beacon', b.id,
   'request_stale',
-  jsonb_build_object('eventType', 'requestStale', 'beaconId', b.id),
+  jsonb_strip_nulls(jsonb_build_object(
+    'eventType', 'requestStale', 'beaconId', b.id,
+    'staleReason', CASE WHEN b.end_at < \$1::timestamptz
+      THEN 'deadlinePassed' ELSE 'quiet' END,
+    'endAt', CASE WHEN b.end_at < \$1::timestamptz
+      THEN to_char(b.end_at AT TIME ZONE 'UTC',
+        'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') END,
+    'quietDays', CASE WHEN b.end_at < \$1::timestamptz THEN NULL
+      ELSE floor(extract(epoch FROM \$1::timestamptz - la.last_activity)
+        / 86400)::int END)),
   'standard', 'beacon_content', false, 'primary'
 FROM public.beacon b,
-LATERAL (SELECT 'stale_request:' || b.id || ':' || \$2::text AS skey) k
-WHERE b.kind = 0
-  AND b.status IN (${BeaconStatus.openFamilyValues.join(', ')})
-  AND (
-    b.end_at < \$1::timestamptz
-    OR greatest(
+LATERAL (SELECT 'stale_request:' || b.id || ':' || \$2::text AS skey) k,
+LATERAL (SELECT greatest(
       b.created_at,
       b.status_changed_at,
       (SELECT max(x.created_at) FROM public.beacon_room_message x
@@ -104,7 +109,12 @@ WHERE b.kind = 0
         WHERE x.beacon_id = b.id),
       (SELECT max(x.created_at) FROM public.beacon_commitment_event x
         WHERE x.beacon_id = b.id)
-    ) < \$1::timestamptz - interval '14 days'
+    ) AS last_activity) la
+WHERE b.kind = 0
+  AND b.status IN (${BeaconStatus.openFamilyValues.join(', ')})
+  AND (
+    b.end_at < \$1::timestamptz
+    OR la.last_activity < \$1::timestamptz - interval '14 days'
   )
   AND NOT EXISTS (
     SELECT 1 FROM public.notification_outbox o

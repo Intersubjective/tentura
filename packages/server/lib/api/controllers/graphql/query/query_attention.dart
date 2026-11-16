@@ -443,6 +443,14 @@ final class QueryAttention extends GqlNodeBase {
     'authorId',
     'helperId',
     'doneEpoch',
+    // Notice facts (ISO timestamps, ids and enum names).
+    'newEndAt',
+    'fromStatus',
+    'relatedBeaconId',
+    'direction',
+    'staleReason',
+    'endAt',
+    'expiresAt',
   };
 
   /// #189 — the «вам» flag, a bool rather than a String.
@@ -463,6 +471,18 @@ final class QueryAttention extends GqlNodeBase {
     // invitation ("Can't make it").
     'declinedInvite',
     'done',
+    'isBackupOffer',
+  };
+
+  /// The allowed keys whose value is a JSON integer.
+  @visibleForTesting
+  static const attentionPresentationPayloadIntKeys = {
+    'quietDays',
+    'relativeMinutes',
+    'epoch',
+    'outcome',
+    'band',
+    'draftFlag',
   };
 
   @visibleForTesting
@@ -473,6 +493,8 @@ final class QueryAttention extends GqlNodeBase {
         ? _safeForwardPath(entry.value) != null
         : attentionPresentationPayloadBoolKeys.contains(entry.key)
         ? entry.value is bool
+        : attentionPresentationPayloadIntKeys.contains(entry.key)
+        ? entry.value is int
         : attentionPresentationPayloadAllowedKeys.contains(entry.key) &&
               entry.value is String;
     if (!payload.entries.every(allowed)) {
@@ -530,6 +552,9 @@ final class QueryAttention extends GqlNodeBase {
         else if (attentionPresentationPayloadBoolKeys.contains(entry.key) &&
             entry.value is bool)
           entry.key: entry.value! as bool
+        else if (attentionPresentationPayloadIntKeys.contains(entry.key) &&
+            entry.value is int)
+          entry.key: entry.value! as int
         else if (entry.key == 'path')
           entry.key: ?_safeForwardPath(entry.value),
     };

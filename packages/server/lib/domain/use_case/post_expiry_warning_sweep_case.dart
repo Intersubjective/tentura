@@ -32,6 +32,7 @@ final class PostExpiryWarningSweepCase {
             await _intents.postExpiringSoon(
               beaconId: id,
               authorUserId: authorId,
+              expiresAt: await _beacons.postExpiresAt(id),
             ),
           );
           recorded++;

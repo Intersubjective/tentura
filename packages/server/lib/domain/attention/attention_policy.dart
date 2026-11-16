@@ -765,6 +765,11 @@ class AttentionPolicy {
           : null,
       'inviteOrigin': _safeInviteOrigin(role.inviteOrigin),
       'toStatus': _safeStatusName(role.toStatus),
+      'fromStatus': _safeStatusName(role.fromStatus),
+      'relatedBeaconId': _safeId(role.relatedBeaconId),
+      'direction': _safeDirection(role.direction),
+      'newEndAt': role.newEndAt?.toUtc().toIso8601String(),
+      'expiresAt': role.expiresAt?.toUtc().toIso8601String(),
     };
     for (final MapEntry(:key, :value) in values.entries) {
       if (value != null) {
@@ -777,6 +782,12 @@ class AttentionPolicy {
     if (actorNamePayloadEventTypes.contains(eventType)) {
       final actorName = _safeActorName(actorDisplayName);
       if (actorName != null) payload['actorName'] = actorName;
+    }
+    if (role.relativeMinutes != null) {
+      payload['relativeMinutes'] = role.relativeMinutes;
+    }
+    if (role.isBackupOffer != null) {
+      payload['isBackupOffer'] = role.isBackupOffer;
     }
     if (role.leftDiscussion != null) {
       payload['leftDiscussion'] = role.leftDiscussion;
@@ -821,6 +832,9 @@ class AttentionPolicy {
     }
     return trimmed;
   }
+
+  String? _safeDirection(String? value) =>
+      value == 'ancestor' || value == 'child' ? value : null;
 
   String? _safeStatusName(String? value) {
     final trimmed = value?.trim();

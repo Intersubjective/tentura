@@ -504,6 +504,7 @@ class AttentionIntentCase {
               beaconId: beaconId,
               actorUserId: actorUserId.isEmpty ? null : actorUserId,
               canReadBeaconContent: true,
+              newEndAt: newEndAt,
             ),
           ),
         )
@@ -593,6 +594,7 @@ class AttentionIntentCase {
   Future<AttentionDispatchIntent> postExpiringSoon({
     required String beaconId,
     required String authorUserId,
+    DateTime? expiresAt,
   }) async {
     final sourceEventKey = 'post_expiring:$beaconId';
     return AttentionDispatchIntent(
@@ -616,6 +618,7 @@ class AttentionIntentCase {
           role: AttentionRecipientRoleFacts(
             beaconId: beaconId,
             canReadBeaconContent: true,
+            expiresAt: expiresAt,
           ),
         ),
       ],
@@ -882,6 +885,7 @@ class AttentionIntentCase {
             actorUserId: actor,
             beaconTitle: beaconTitle.trim().isEmpty ? null : beaconTitle.trim(),
             excerpt: stepTitle,
+            relativeMinutes: relativeMinutes,
           ),
         ),
       );
@@ -1017,7 +1021,9 @@ class AttentionIntentCase {
             messageId: messageId,
             actorUserId: actorUserId,
             excerpt:
-                eventType == AttentionEventType.postFirstResponse ||
+                (eventType == AttentionEventType.roomMessagePosted &&
+                        !questionsScope) ||
+                    eventType == AttentionEventType.postFirstResponse ||
                     eventType == AttentionEventType.batonAsked ||
                     eventType == AttentionEventType.batonTaken ||
                     eventType == AttentionEventType.batonAllAnswered
@@ -1106,6 +1112,7 @@ class AttentionIntentCase {
             beaconId: beaconId,
             actorUserId: actorUserId,
             toStatus: toStatus,
+            fromStatus: fromStatus,
           ),
         ),
       );
@@ -1143,6 +1150,7 @@ class AttentionIntentCase {
     required DateTime occurredAt,
     required String sourceEventKey,
     required bool sourceDeleted,
+    String? relatedBeaconId,
     String? actorUserId,
   }) async {
     final context = await _context.loadContextForBeacon(destinationBeaconId);
@@ -1176,6 +1184,8 @@ class AttentionIntentCase {
             messageId: messageId,
             actorUserId: actorUserId,
             toStatus: toStatus.name,
+            relatedBeaconId: relatedBeaconId,
+            direction: direction.name,
           ),
         ),
       );
@@ -1368,6 +1378,10 @@ class AttentionIntentCase {
                   ? null
                   : notification.beaconTitle.trim(),
               excerpt: copy.excerpt,
+              isBackupOffer:
+                  eventType == AttentionEventType.helpOfferSubmitted
+                  ? notification.isBackupOffer
+                  : null,
             ),
           ),
       ],

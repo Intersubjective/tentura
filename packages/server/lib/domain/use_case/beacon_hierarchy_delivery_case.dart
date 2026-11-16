@@ -190,6 +190,7 @@ final class BeaconHierarchyDeliveryCase extends UseCaseBase {
             occurredAt: event.occurredAt,
             sourceEventKey: occurrenceKey,
             sourceDeleted: sourceDeleted,
+            relatedBeaconId: event.sourceBeaconId,
             actorUserId: event.actorUserId,
           );
           if (intent.recipients.isNotEmpty) {

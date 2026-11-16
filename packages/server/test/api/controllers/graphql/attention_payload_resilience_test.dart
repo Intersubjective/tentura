@@ -27,14 +27,16 @@ void main() {
       'actorUserId': 'actor-1',
     },
   };
-  const coerciblePayloads = <String, Map<String, String>>{
-    'closure receipt with integer epoch': {'epoch': '2'},
+  const integerPayloads = <String, Map<String, int>>{
+    'closure receipt with integer epoch': {'epoch': 2},
     'closure receipt with result codes': {
-      'epoch': '2',
-      'outcome': '1',
-      'band': '3',
-      'draftFlag': '0',
+      'epoch': 2,
+      'outcome': 1,
+      'band': 3,
+      'draftFlag': 0,
     },
+  };
+  const coerciblePayloads = <String, Map<String, String>>{
     'receipt with non-string values and unknown fields': {
       'beaconTitle': '42',
       'excerpt': 'true',
@@ -86,7 +88,8 @@ void main() {
               mapped,
               receipt,
               expectedPayload,
-              coerciblePayloads[entry.key]!,
+              coerciblePayloads[entry.key] ?? const {},
+              integerPayloads[entry.key] ?? const {},
             );
 
         void expectHealthy(Map<dynamic, dynamic> mapped) =>
@@ -188,6 +191,7 @@ void _expectUsableReceipt(
   AttentionReceipt receipt,
   Map<String, String> expectedPayload, [
   Map<String, String> coerciblePayload = const {},
+  Map<String, int> integerPayload = const {},
 ]) {
   expect(mapped['id'], receipt.id);
   expect(mapped['beaconId'], receipt.beaconId);
@@ -198,6 +202,7 @@ void _expectUsableReceipt(
     mapped['presentationPayloadJson'],
     requiredFields: expectedPayload,
     coercibleFields: coerciblePayload,
+    integerFields: integerPayload,
   );
 }
 
