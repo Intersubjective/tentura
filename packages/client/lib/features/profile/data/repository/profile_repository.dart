@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:math';
 import 'package:injectable/injectable.dart';
 
+import 'package:tentura/consts.dart';
 import 'package:tentura/data/gql/tentura_v2_upload.dart';
 import 'package:tentura/data/service/remote_api_client/remote_request_client.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
@@ -54,14 +56,23 @@ class ProfileRepository implements ProfileRepositoryPort {
   @override
   Future<List<Profile>> fetchProfilesByIds(Set<String> ids) async {
     if (ids.isEmpty) return const [];
-    final request = GUsersFetchByIdsReq(
-      (b) => b.vars.ids.replace(ids.toList()),
+    final all = ids.toList();
+    final chunks = [
+      for (var i = 0; i < all.length; i += kHasuraUserSelectLimit)
+        all.sublist(i, min(i + kHasuraUserSelectLimit, all.length)),
+    ];
+    final results = await Future.wait(
+      chunks.map(
+        (chunk) => _remoteApiService
+            .request(GUsersFetchByIdsReq((b) => b.vars.ids.replace(chunk)))
+            .firstLinkResponse(label: _label)
+            .then((r) => r.dataOrThrow(label: _label).user),
+      ),
     );
-    final rows = await _remoteApiService
-        .request(request)
-        .firstLinkResponse(label: _label)
-        .then((r) => r.dataOrThrow(label: _label).user);
-    return rows.map(profileFromUsersFetchRow).toList();
+    return {
+      for (final row in results.expand((rows) => rows))
+        row.id: profileFromUsersFetchRow(row),
+    }.values.toList();
   }
 
   //

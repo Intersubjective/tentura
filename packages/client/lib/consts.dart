@@ -9,6 +9,10 @@ const kSnackBarDuration = 5;
 const kFetchListOffset = 0.9;
 const kImageMaxDimension = 600;
 
+/// Hasura select limit of role `user` on table `user` (hasura/metadata.json);
+/// a read by ids returns at most this many rows.
+const kHasuraUserSelectLimit = 10;
+
 // Strings
 //   Routes
 const kPathHome = '/home';
