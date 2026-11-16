@@ -29,7 +29,7 @@ SELECT
   root.body AS root_body,
   EXISTS (
     SELECT 1 FROM public.beacon_room_message_attachment att
-    WHERE att.message_id = root.id AND att.kind = 0
+    WHERE att.message_id = root.id AND att.kind = 1
   ) AS root_has_image,
   public.block_hides(r.actor_id, $1) AS actor_hidden,
   u.display_name AS actor_name,

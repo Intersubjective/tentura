@@ -81,6 +81,8 @@ class BeaconNotificationService implements BeaconNotificationPort {
         IdentityRequest(
           beaconId: decision.beaconId ?? '',
           actorId: decision.actorUserId,
+          relatedBeaconId:
+              decision.presentationPayload['relatedBeaconId'] as String?,
         ),
       ])).single;
       if (identity.actorHidden) {

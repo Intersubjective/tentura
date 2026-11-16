@@ -426,7 +426,7 @@ Future<void> _post(
     await w.execute(
       Sql.named(
         'INSERT INTO public.beacon_room_message_attachment '
-        "(message_id, kind, file_url, mime) VALUES (@m, 0, 'x.png', 'image/png')",
+        "(message_id, kind, file_url, mime) VALUES (@m, 1, 'x.png', 'image/png')",
       ),
       parameters: {'m': root},
     );

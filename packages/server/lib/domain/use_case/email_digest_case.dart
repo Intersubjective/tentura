@@ -100,6 +100,8 @@ class EmailDigestCase {
         IdentityRequest(
           beaconId: item.beaconId ?? '',
           actorId: item.actorUserId,
+          relatedBeaconId:
+              item.presentationPayload['relatedBeaconId'] as String?,
         ),
     ]);
     final rows = [

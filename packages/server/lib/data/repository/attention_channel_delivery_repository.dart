@@ -115,9 +115,13 @@ WHERE id = $1 AND status = 'leased' AND lease_owner = $2''',
         dedupKey: value['dedupKey']! as String,
         actorUserId: value['actorUserId']! as String,
         reason: value['reason']! as String,
-        presentationKey: value['presentationKey']! as String,
+        // Jobs queued before the presentation fields existed, or rewritten by
+        // the actor-anonymising trigger, lack both; decoding must not throw
+        // here (it would wedge the whole leased batch), so the job fails in
+        // the hand-off and is retried or dead-lettered on its own.
+        presentationKey: (value['presentationKey'] as String?) ?? '',
         presentationPayload: Map<String, Object?>.from(
-          value['presentationPayload']! as Map,
+          (value['presentationPayload'] as Map?) ?? const <String, Object?>{},
         ),
         beaconId: value['beaconId'] as String?,
         coordinationItemId: value['coordinationItemId'] as String?,

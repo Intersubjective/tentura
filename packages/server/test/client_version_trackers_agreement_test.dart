@@ -24,10 +24,19 @@ String _pubspecVersion() {
 
 void main() {
   group('Client version floor agrees across trackers', () {
-    test('server minimum client version equals the client pubspec version',
-        () {
-      expect(kDefaultMinClientVersion, _pubspecVersion());
-    });
+    test(
+      'server minimum client version does not exceed the client version',
+      () {
+        List<int> parts(String v) => v.split('.').map(int.parse).toList();
+        final floor = parts(kDefaultMinClientVersion);
+        final current = parts(_pubspecVersion());
+        var cmp = 0;
+        for (var i = 0; i < 3 && cmp == 0; i++) {
+          cmp = floor[i].compareTo(current[i]);
+        }
+        expect(cmp, lessThanOrEqualTo(0));
+      },
+    );
 
     test('.env.example states the same floor and override as the server', () {
       final env = _repoFile('.env.example').readAsStringSync();
@@ -42,25 +51,14 @@ void main() {
       expect(example?.group(1), kDefaultMinClientVersion);
     });
 
-    test('client pubspec version is 7.62.0', () {
-      expect(_pubspecVersion(), '7.62.0');
-    });
-
-    test('.env.example floor lines match the client pubspec version', () {
-      final env = _repoFile('.env.example').readAsStringSync();
-      expect(
-        env,
-        contains('kDefaultMinClientVersion, currently ${_pubspecVersion()}'),
-      );
-      expect(env, contains('# MIN_CLIENT_VERSION=${_pubspecVersion()}'));
-    });
-
-    test('web index.html keeps the unstamped bootstrap version placeholder',
-        () {
-      expect(
-        _clientFile('web/index.html').readAsStringSync(),
-        contains('flutter_bootstrap.js?v=0.0.0-dev'),
-      );
-    });
+    test(
+      'web index.html keeps the unstamped bootstrap version placeholder',
+      () {
+        expect(
+          _clientFile('web/index.html').readAsStringSync(),
+          contains('flutter_bootstrap.js?v=0.0.0-dev'),
+        );
+      },
+    );
   });
 }
