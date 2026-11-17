@@ -650,10 +650,12 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                   )
                 : null,
             onBatonRespond: canWrite
-                ? (messageId, batonId, canHelp) => cubit.batonRespond(
+                ? (messageId, batonId, canHelp, {partnerUserId}) =>
+                      cubit.batonRespond(
                     messageId: messageId,
                     batonId: batonId,
                     canHelp: canHelp,
+                    partnerUserId: partnerUserId,
                   )
                 : null,
             onBatonSelect: canWrite

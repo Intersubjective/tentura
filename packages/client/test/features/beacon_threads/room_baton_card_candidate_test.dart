@@ -99,7 +99,15 @@ Widget _localized(Widget child, {Locale locale = const Locale('en')}) =>
 Widget _cardHarness(
   RoomBatonData baton, {
   void Function(bool canHelp)? onRespond,
-}) => _localized(RoomBatonCard(baton: baton, onRespond: onRespond));
+}) =>
+    _localized(
+      RoomBatonCard(
+        baton: baton,
+        onRespond: onRespond == null
+            ? null
+            : (canHelp, {partnerUserId}) => onRespond(canHelp),
+      ),
+    );
 
 Widget _tileHarness(
   RoomMessage message, {
@@ -118,7 +126,10 @@ Widget _tileHarness(
       myProfile: _viewer,
       participants: participants,
       onToggleReaction: (_, _) async {},
-      onBatonRespond: onBatonRespond,
+      onBatonRespond: onBatonRespond == null
+          ? null
+          : (batonId, canHelp, {partnerUserId}) =>
+                onBatonRespond(batonId, canHelp),
     ),
     locale: locale,
   ),
@@ -849,10 +860,12 @@ void main() {
                   message: message,
                   myProfile: _viewer,
                   onToggleReaction: (_, _) async {},
-                  onBatonRespond: (batonId, canHelp) => cubit.batonRespond(
+                  onBatonRespond: (batonId, canHelp, {partnerUserId}) =>
+                      cubit.batonRespond(
                     messageId: message.id,
                     batonId: batonId,
                     canHelp: canHelp,
+                    partnerUserId: partnerUserId,
                   ),
                 );
               },

@@ -197,7 +197,11 @@ class RoomMessageTile extends StatelessWidget {
   onVotePoll;
 
   /// Answers the «Who'll take it?» baton under this message.
-  final void Function(String batonId, bool canHelp)? onBatonRespond;
+  final void Function(
+    String batonId,
+    bool canHelp, {
+    String? partnerUserId,
+  })? onBatonRespond;
 
   /// Author only: picks who takes the baton (`null` user id = server picks).
   final void Function(String batonId, String? userId)? onBatonSelect;
@@ -691,11 +695,17 @@ class RoomMessageTile extends StatelessWidget {
       baton: baton,
       title: _isBatonMessage(message) ? message.body : '',
       participants: participants,
+      viewerUserId: myProfile.id,
+      batonAuthorUserId: message.authorId,
       onSelect: select == null ? null : (userId) => select(baton.id, userId),
       onCancel: cancel == null ? null : () => cancel(baton.id),
       onRespond: respond == null
           ? null
-          : (canHelp) => respond(baton.id, canHelp),
+          : (canHelp, {partnerUserId}) => respond(
+              baton.id,
+              canHelp,
+              partnerUserId: partnerUserId,
+            ),
     );
   }
 

@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 
+import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
+import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_baton_data.dart';
+import 'package:tentura/features/beacon_plan/ui/widget/plan_person_picker.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_baton_choose_sheet.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/coordination_log_row_chrome.dart';
@@ -60,6 +63,9 @@ class RoomBatonCard extends StatelessWidget {
     required this.baton,
     this.title = '',
     this.participants = const [],
+    this.viewerUserId,
+    this.batonAuthorUserId,
+    this.togetherEnabled = kBatonTogetherEnabled,
     this.onRespond,
     this.onSelect,
     this.onCancel,
@@ -75,8 +81,18 @@ class RoomBatonCard extends StatelessWidget {
   /// Room participants, for avatars.
   final List<BeaconParticipant> participants;
 
-  /// Called with `true` for «Can help» and `false` for «Can't help».
-  final void Function(bool canHelp)? onRespond;
+  /// Admitted viewer; filters the together partner picker.
+  final String? viewerUserId;
+
+  /// Baton author; excluded from the together partner picker.
+  final String? batonAuthorUserId;
+
+  /// Shows «Together with…» when true (defaults to [kBatonTogetherEnabled]).
+  final bool togetherEnabled;
+
+  /// Called with `true` for «Can help» and `false` for «Can't help»; together
+  /// picks pass [RoomBatonCard.onRespond]'s `partnerUserId`.
+  final void Function(bool canHelp, {String? partnerUserId})? onRespond;
 
   /// Author only: called with the chosen user id, or `null` to let the server
   /// pick.
@@ -93,6 +109,10 @@ class RoomBatonCard extends StatelessWidget {
     final body = switch (baton) {
       final RoomBatonCandidateData candidate => _CandidateBody(
         baton: candidate,
+        participants: participants,
+        viewerUserId: viewerUserId,
+        batonAuthorUserId: batonAuthorUserId,
+        togetherEnabled: togetherEnabled,
         onRespond: onRespond,
       ),
       final RoomBatonObserverData observer => _StatusLine(
@@ -315,10 +335,79 @@ class _AuthorBody extends StatelessWidget {
 }
 
 class _CandidateBody extends StatelessWidget {
-  const _CandidateBody({required this.baton, this.onRespond});
+  const _CandidateBody({
+    required this.baton,
+    required this.participants,
+    required this.togetherEnabled,
+    this.viewerUserId,
+    this.batonAuthorUserId,
+    this.onRespond,
+  });
 
   final RoomBatonCandidateData baton;
-  final void Function(bool canHelp)? onRespond;
+  final List<BeaconParticipant> participants;
+  final String? viewerUserId;
+  final String? batonAuthorUserId;
+  final bool togetherEnabled;
+  final void Function(bool canHelp, {String? partnerUserId})? onRespond;
+
+  List<Profile> _togetherPickerPeople() {
+    final viewer = viewerUserId;
+    final author = batonAuthorUserId;
+    final people = <Profile>[];
+    for (final p in participants) {
+      if (p.roomAccess != RoomAccessBits.admitted) continue;
+      if (viewer != null && p.userId == viewer) continue;
+      if (author != null && p.userId == author) continue;
+      people.add(Profile(id: p.userId, displayName: p.userTitle));
+    }
+    return people;
+  }
+
+  Future<bool> _confirmReplacePartner(
+    BuildContext context,
+    String previousName,
+  ) async {
+    final l10n = L10n.of(context)!;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        content: Text(l10n.batonPartnerReplaceConfirm(previousName)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(l10n.batonCancelConfirmKeep),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(l10n.batonCandidateCanHelp),
+          ),
+        ],
+      ),
+    );
+    return ok ?? false;
+  }
+
+  Future<void> _pickTogetherPartner(BuildContext context) async {
+    final respond = onRespond;
+    final l10n = L10n.of(context)!;
+    final pick = await showPlanPersonPicker(
+      context,
+      title: l10n.batonTogetherPickTitle,
+      people: _togetherPickerPeople(),
+    );
+    final partnerId = pick?.userId;
+    if (partnerId == null || !context.mounted) return;
+
+    final accepted = baton.myPartner;
+    if (accepted != null &&
+        accepted.status == 'accepted' &&
+        accepted.id != partnerId) {
+      if (!await _confirmReplacePartner(context, accepted.title)) return;
+    }
+    if (!context.mounted) return;
+    respond?.call(true, partnerUserId: partnerId);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -350,6 +439,8 @@ class _CandidateBody extends StatelessWidget {
     final canHelpChosen = answer == RoomBatonResponse.canHelp;
     final cantHelpChosen = answer == RoomBatonResponse.cantHelp;
     final respond = onRespond;
+    final partner = baton.myPartner;
+    final showTogether = togetherEnabled;
 
     Widget answerButton({
       required bool canHelp,
@@ -363,18 +454,47 @@ class _CandidateBody extends StatelessWidget {
           : OutlinedButton(onPressed: onPressed, child: text);
     }
 
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          answered
+    final String promptText;
+    if (partner != null) {
+      switch (partner.status) {
+        case 'pending':
+          promptText = l10n.batonTogetherPending(partner.title);
+        case 'accepted':
+          promptText = l10n.batonTogetherAccepted(partner.title);
+        case 'declined' when answer == RoomBatonResponse.waiting:
+          promptText = l10n.batonTogetherDeclined(partner.title);
+        default:
+          promptText = answered
               ? l10n.batonCandidateAnswered(
                   canHelpChosen
                       ? l10n.batonCandidateCanHelp
                       : l10n.batonCandidateCantHelp,
                 )
-              : l10n.batonCandidatePrompt,
+              : l10n.batonCandidatePrompt;
+      }
+    } else {
+      promptText = answered
+          ? l10n.batonCandidateAnswered(
+              canHelpChosen
+                  ? l10n.batonCandidateCanHelp
+                  : l10n.batonCandidateCantHelp,
+            )
+          : l10n.batonCandidatePrompt;
+    }
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final invite in baton.partnerInvites) ...[
+          Text(
+            l10n.batonPartnerPrompt(invite.title),
+            style: TenturaText.body(tt.text),
+          ),
+          SizedBox(height: tt.tightGap),
+        ],
+        Text(
+          promptText,
           style: TenturaText.body(tt.text),
         ),
         SizedBox(height: tt.tightGap),
@@ -392,6 +512,11 @@ class _CandidateBody extends StatelessWidget {
               chosen: cantHelpChosen,
               label: l10n.batonCandidateCantHelp,
             ),
+            if (showTogether)
+              TextButton(
+                onPressed: () => _pickTogetherPartner(context),
+                child: Text(l10n.batonTogetherAction),
+              ),
           ],
         ),
         if (!answered) ...[

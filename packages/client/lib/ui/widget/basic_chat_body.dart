@@ -202,8 +202,12 @@ class BasicChatBody extends StatefulWidget {
   })?
   onVotePoll;
 
-  final void Function(String messageId, String batonId, bool canHelp)?
-  onBatonRespond;
+  final void Function(
+    String messageId,
+    String batonId,
+    bool canHelp, {
+    String? partnerUserId,
+  })? onBatonRespond;
 
   final void Function(String messageId, String batonId, String? userId)?
   onBatonSelect;
@@ -777,11 +781,12 @@ class BasicChatBodyState extends State<BasicChatBody> {
                                     ),
                               onBatonRespond: widget.onBatonRespond == null
                                   ? null
-                                  : (batonId, canHelp) =>
+                                  : (batonId, canHelp, {partnerUserId}) =>
                                         widget.onBatonRespond!(
                                           m.id,
                                           batonId,
                                           canHelp,
+                                          partnerUserId: partnerUserId,
                                         ),
                               onBatonSelect: widget.onBatonSelect == null
                                   ? null

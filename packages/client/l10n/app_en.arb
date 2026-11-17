@@ -8141,6 +8141,59 @@
   "@batonCancelledLine": {
     "description": "Shown on a «Who'll take it?» message after its author cancelled it."
   },
+  "batonTogetherAction": "Together with…",
+  "@batonTogetherAction": {
+    "description": "Third answer on a baton candidate card: pick someone to take it together with."
+  },
+  "batonTogetherPickTitle": "Who will you take it with?",
+  "@batonTogetherPickTitle": {
+    "description": "Title of the person picker when answering a baton together with someone."
+  },
+  "batonTogetherPending": "Your answer: can help together with {name}. Waiting for {name}.",
+  "@batonTogetherPending": {
+    "description": "Candidate card after naming a partner who has not answered yet.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "batonTogetherAccepted": "Your answer: can help. Together with you: {name}.",
+  "@batonTogetherAccepted": {
+    "description": "Candidate card after the named partner accepted.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "batonTogetherDeclined": "{name} can't join. Can you help?",
+  "@batonTogetherDeclined": {
+    "description": "Candidate card after the named partner declined; re-prompts for an answer.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "batonPartnerPrompt": "{name} wants to take this on together with you.",
+  "@batonPartnerPrompt": {
+    "description": "On a candidate card when someone else named the viewer as their together partner.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "batonPartnerReplaceConfirm": "This replaces taking it with {name}.",
+  "@batonPartnerReplaceConfirm": {
+    "description": "Confirmation before naming a new partner when one is already accepted.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "beaconRoomSemanticBaton": "Who'll take it?",
   "@beaconRoomSemanticBaton": {
     "description": "Header label of a «Who'll take it?» message bubble."
