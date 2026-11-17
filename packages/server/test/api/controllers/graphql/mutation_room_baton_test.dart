@@ -70,7 +70,17 @@ final class _RecordingBatonCase extends Fake implements RoomBatonCase {
           List<({String userId, int tier})> candidates,
         })
       >[];
-  final respondCalls = <({String actorId, String batonId, bool canHelp})>[];
+  final respondCalls =
+      <({String actorId, String batonId, bool canHelp, String? partnerUserId})>[];
+  final partnerRespondCalls =
+      <
+        ({
+          String actorId,
+          String batonId,
+          String inviterUserId,
+          bool accept,
+        })
+      >[];
   final selectCalls = <({String actorId, String batonId, String? userId})>[];
   final cancelCalls = <({String actorId, String batonId})>[];
   final updateCalls =
@@ -134,7 +144,28 @@ final class _RecordingBatonCase extends Fake implements RoomBatonCase {
     required bool canHelp,
     String? partnerUserId,
   }) async {
-    respondCalls.add((actorId: actorId, batonId: batonId, canHelp: canHelp));
+    respondCalls.add((
+      actorId: actorId,
+      batonId: batonId,
+      canHelp: canHelp,
+      partnerUserId: partnerUserId,
+    ));
+    if (failWith case final Exception e) throw e;
+  }
+
+  @override
+  Future<void> partnerRespond({
+    required String actorId,
+    required String batonId,
+    required String inviterUserId,
+    required bool accept,
+  }) async {
+    partnerRespondCalls.add((
+      actorId: actorId,
+      batonId: batonId,
+      inviterUserId: inviterUserId,
+      accept: accept,
+    ));
     if (failWith case final Exception e) throw e;
   }
 
@@ -164,6 +195,7 @@ const _newMessageId = 'Mmessage00002';
 const _batonId = 'Lbaton000001';
 const _author = 'Ubaton-author';
 const _candidate = 'Ubaton-candidate';
+const _partner = 'Ubaton-partner';
 const _bystander = 'Ubaton-bystander';
 
 /// What the room read path (`batonDataJson`, per viewer) yields for the baton
@@ -176,6 +208,9 @@ const _batonDataJsonByViewer = <String, String>{
   _candidate:
       '{"id":"$_batonId","status":"collecting","viewerRole":"candidate",'
       '"myResponse":"waiting"}',
+  _partner:
+      '{"id":"$_batonId","status":"collecting","viewerRole":"partner",'
+      '"partnerInvites":[{"fromUserId":"$_candidate","status":"pending"}]}',
   _bystander:
       '{"id":"$_batonId","status":"collecting","viewerRole":"observer"}',
 };
@@ -225,6 +260,7 @@ final class _FakeBatonRepository extends Fake
 void main() {
   const authorJwt = JwtEntity(sub: _author);
   const candidateJwt = JwtEntity(sub: _candidate);
+  const partnerJwt = JwtEntity(sub: _partner);
 
   late _RecordingBatonCase batonCase;
   late _RecordingRoomRepository roomRepository;
@@ -258,13 +294,15 @@ void main() {
   );
 
   group('schema registration', () {
-    test('exposes the five baton mutations', () {
+    test('exposes baton create, update, respond, partner respond, select, cancel',
+        () {
       expect(
         mutation.all.map((f) => f.name).toSet(),
         {
           'roomBatonCreate',
           'roomBatonUpdate',
           'roomBatonRespond',
+          'roomBatonPartnerRespond',
           'roomBatonSelect',
           'roomBatonCancel',
         },
@@ -344,6 +382,40 @@ void main() {
       );
       expect(_baseTypeName(update.type), 'String');
     });
+
+    test('roomBatonRespond keeps partnerUserId optional', () {
+      final respond = mutation.all.singleWhere(
+        (f) => f.name == 'roomBatonRespond',
+      );
+      expect(
+        respond.inputs.singleWhere((i) => i.name == 'partnerUserId').type,
+        isNot(isA<GraphQLNonNullableType<dynamic, dynamic>>()),
+      );
+    });
+
+    test(
+      'roomBatonPartnerRespond takes batonId, inviterUserId, and accept',
+      () {
+        final partnerRespond = mutation.all.singleWhere(
+          (f) => f.name == 'roomBatonPartnerRespond',
+        );
+        expect(
+          partnerRespond.inputs.map((i) => i.name).toSet(),
+          {'batonId', 'inviterUserId', 'accept'},
+        );
+        for (final input in partnerRespond.inputs) {
+          expect(
+            input.type,
+            isA<GraphQLNonNullableType<dynamic, dynamic>>(),
+            reason: input.name,
+          );
+        }
+        expect(
+          _baseTypeName(partnerRespond.type),
+          'String',
+        );
+      },
+    );
 
     test('roomBatonSelect keeps userId optional', () {
       final select = mutation.all.singleWhere(
@@ -685,8 +757,66 @@ void main() {
         );
 
         expect(batonCase.respondCalls, [
-          (actorId: _candidate, batonId: _batonId, canHelp: canHelp),
+          (
+            actorId: _candidate,
+            batonId: _batonId,
+            canHelp: canHelp,
+            partnerUserId: null,
+          ),
         ]);
+      });
+    }
+
+    const respondWithPartnerDocument = r'''
+      mutation RespondWithPartner(
+        $batonId: String!
+        $canHelp: Boolean!
+        $partnerUserId: String
+      ) {
+        roomBatonRespond(
+          batonId: $batonId
+          canHelp: $canHelp
+          partnerUserId: $partnerUserId
+        )
+      }
+    ''';
+
+    test('forwards optional partnerUserId for the JWT subject', () async {
+      await run(
+        respondWithPartnerDocument,
+        variables: const {
+          'batonId': _batonId,
+          'canHelp': true,
+          'partnerUserId': _partner,
+        },
+        jwt: candidateJwt,
+      );
+
+      expect(batonCase.respondCalls.single, (
+        actorId: _candidate,
+        batonId: _batonId,
+        canHelp: true,
+        partnerUserId: _partner,
+      ));
+    });
+
+    for (final (label, partnerUserId) in [
+      ('omitted', null),
+      ('null', null),
+      ('empty', ''),
+    ]) {
+      test('a $label partnerUserId reaches the case as null', () async {
+        await run(
+          respondWithPartnerDocument,
+          variables: {
+            'batonId': _batonId,
+            'canHelp': true,
+            if (label != 'omitted') 'partnerUserId': partnerUserId,
+          },
+          jwt: candidateJwt,
+        );
+
+        expect(batonCase.respondCalls.single.partnerUserId, isNull);
       });
     }
 
@@ -755,6 +885,116 @@ void main() {
       await expectLater(
         run(document, jwt: candidateJwt),
         failsWith<BatonNotCollectingException>(1325),
+      );
+      batonCase.failWith = const BatonPartnerInvalidException();
+      await expectLater(
+        run(document, jwt: candidateJwt),
+        failsWith<BatonPartnerInvalidException>(1355),
+      );
+    });
+  });
+
+  group('roomBatonPartnerRespond', () {
+    const partnerRespondDocument = r'''
+      mutation PartnerRespond(
+        $batonId: String!
+        $inviterUserId: String!
+        $accept: Boolean!
+      ) {
+        roomBatonPartnerRespond(
+          batonId: $batonId
+          inviterUserId: $inviterUserId
+          accept: $accept
+        )
+      }
+    ''';
+
+    for (final accept in [true, false]) {
+      test('forwards accept=$accept for the JWT subject', () async {
+        await run(
+          partnerRespondDocument,
+          variables: {
+            'batonId': _batonId,
+            'inviterUserId': _candidate,
+            'accept': accept,
+          },
+          jwt: partnerJwt,
+        );
+
+        expect(batonCase.partnerRespondCalls, [
+          (
+            actorId: _partner,
+            batonId: _batonId,
+            inviterUserId: _candidate,
+            accept: accept,
+          ),
+        ]);
+      });
+    }
+
+    test('returns the partner-view batonDataJson after answering', () async {
+      final result = await run(
+        partnerRespondDocument,
+        variables: const {
+          'batonId': _batonId,
+          'inviterUserId': _candidate,
+          'accept': true,
+        },
+        jwt: partnerJwt,
+      );
+
+      expect(
+        result['roomBatonPartnerRespond'],
+        _batonDataJsonByViewer[_partner],
+      );
+      expect(roomRepository.targetCalls, [
+        (
+          beaconId: _beaconId,
+          messageId: _messageId,
+          viewerUserId: _partner,
+        ),
+      ]);
+    });
+
+    test('missing JWT is rejected without calling the case', () async {
+      await expectLater(
+        run(
+          partnerRespondDocument,
+          variables: const {
+            'batonId': _batonId,
+            'inviterUserId': _candidate,
+            'accept': true,
+          },
+        ),
+        throwsA(isA<UnauthorizedException>()),
+      );
+      expect(batonCase.partnerRespondCalls, isEmpty);
+    });
+
+    test('case exceptions surface with their own codes', () async {
+      const document = '''
+        mutation {
+          roomBatonPartnerRespond(
+            batonId: "Lbaton000001"
+            inviterUserId: "Ubaton-candidate"
+            accept: true
+          )
+        }
+      ''';
+      batonCase.failWith = const BatonNotPartnerException();
+      await expectLater(
+        run(document, jwt: partnerJwt),
+        failsWith<BatonNotPartnerException>(1356),
+      );
+      batonCase.failWith = const BatonNotCollectingException();
+      await expectLater(
+        run(document, jwt: partnerJwt),
+        failsWith<BatonNotCollectingException>(1325),
+      );
+      batonCase.failWith = const BatonPartnerInvalidException();
+      await expectLater(
+        run(document, jwt: partnerJwt),
+        failsWith<BatonPartnerInvalidException>(1355),
       );
     });
   });

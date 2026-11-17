@@ -80,6 +80,16 @@ final class MutationRoomBaton extends GqlNodeBase {
 
   final _canHelp = InputFieldBool(fieldName: 'canHelp');
 
+  final _partnerUserId = GraphQLFieldInput<String?, String?>(
+    'partnerUserId',
+    _NullableStringType(),
+    defaultsToNull: true,
+  );
+
+  final _inviterUserId = InputFieldString(fieldName: 'inviterUserId');
+
+  final _accept = InputFieldBool(fieldName: 'accept');
+
   final _candidates = GraphQLFieldInput(
     'candidates',
     _CandidateListType().nonNullable(),
@@ -89,6 +99,7 @@ final class MutationRoomBaton extends GqlNodeBase {
     roomBatonCreate,
     roomBatonUpdate,
     roomBatonRespond,
+    roomBatonPartnerRespond,
     roomBatonSelect,
     roomBatonCancel,
   ];
@@ -160,6 +171,7 @@ final class MutationRoomBaton extends GqlNodeBase {
         arguments: [
           _batonId.field,
           _canHelp.field,
+          _partnerUserId,
         ],
         resolve: (_, args) async {
           final jwt = getCredentials(args);
@@ -168,6 +180,32 @@ final class MutationRoomBaton extends GqlNodeBase {
             actorId: jwt.sub,
             batonId: batonId,
             canHelp: _canHelp.fromArgsNonNullable(args),
+            partnerUserId: switch (args[_partnerUserId.name]) {
+              final String id when id.isNotEmpty => id,
+              _ => null,
+            },
+          );
+          return _batonDataJsonById(batonId: batonId, viewerId: jwt.sub);
+        },
+      );
+
+  GraphQLObjectField<dynamic, dynamic> get roomBatonPartnerRespond =>
+      GraphQLObjectField(
+        'roomBatonPartnerRespond',
+        graphQLString,
+        arguments: [
+          _batonId.field,
+          _inviterUserId.field,
+          _accept.field,
+        ],
+        resolve: (_, args) async {
+          final jwt = getCredentials(args);
+          final batonId = _batonId.fromArgsNonNullable(args);
+          await _case.partnerRespond(
+            actorId: jwt.sub,
+            batonId: batonId,
+            inviterUserId: _inviterUserId.fromArgsNonNullable(args),
+            accept: _accept.fromArgsNonNullable(args),
           );
           return _batonDataJsonById(batonId: batonId, viewerId: jwt.sub);
         },

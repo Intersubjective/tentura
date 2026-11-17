@@ -24,6 +24,7 @@ import 'package:tentura_server/env.dart';
 const _authorId = 'Ua00000000001';
 const _candidateId = 'Uc00000000001';
 const _otherCandidateId = 'Uc00000000002';
+const _namedPartnerId = 'Uc00000000003';
 const _observerId = 'Ud00000000001';
 const _beaconId = 'Bbeacon000001';
 
@@ -158,6 +159,51 @@ void main() {
       expect(observer.sent, isEmpty);
       expect(author.sent, hasLength(1));
     });
+
+    test(
+      'partner updates reach author, inviting candidate, and named partner only',
+      () async {
+        final dependencies = _Dependencies();
+        final handler = _Harness(Env(realtimeActorEchoEnabled: true), dependencies);
+        final author = _RecordingSession();
+        final candidate = _RecordingSession();
+        final namedPartner = _RecordingSession();
+        final otherCandidate = _RecordingSession();
+        final observer = _RecordingSession();
+        await dependencies.authenticate(handler, author, _authorId);
+        await dependencies.authenticate(handler, candidate, _candidateId);
+        await dependencies.authenticate(handler, namedPartner, _namedPartnerId);
+        await dependencies.authenticate(
+          handler,
+          otherCandidate,
+          _otherCandidateId,
+        );
+        await dependencies.authenticate(handler, observer, _observerId);
+        for (final s in [
+          author,
+          candidate,
+          namedPartner,
+          otherCandidate,
+          observer,
+        ]) {
+          s.sent.clear();
+        }
+
+        await handler.fanOutEntityChange({
+          'entity': 'room_baton',
+          'id': _beaconId,
+          'event': 'update',
+          'actor_user_id': _candidateId,
+          'user_ids': [_authorId, _candidateId, _namedPartnerId],
+        });
+
+        expect(author.sent, hasLength(1));
+        expect(candidate.sent, hasLength(1));
+        expect(namedPartner.sent, hasLength(1));
+        expect(otherCandidate.sent, isEmpty);
+        expect(observer.sent, isEmpty);
+      },
+    );
   });
 }
 
