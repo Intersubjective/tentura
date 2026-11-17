@@ -1,19 +1,18 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 
+import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
-import 'package:tentura/domain/entity/post_bud_invite_candidate.dart';
-import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/features/forward/domain/forward_target_profile.dart';
+import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
+import 'package:tentura/features/forward/ui/widget/forward_recipient_picker.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../bloc/beacon_create_cubit.dart';
 
-/// Second step of budding a Request from a Post (plan D1): which Post members
-/// to invite, a note for each, and whether to close the Post.
-///
-/// Only members the budder can invite now are listed (writers first); the
-/// server's pre-tick is applied by the cubit.
+/// Second step of budding a Request from a Post (plan D1): the shared Forward
+/// recipient picker over the Post's members (the [ForwardCubit] above this
+/// widget), headed by the explanation and the many-invites warning, and
+/// «Close the post» for the Post's author.
 class PostBudInviteStep extends StatelessWidget {
   const PostBudInviteStep({super.key});
 
@@ -21,158 +20,70 @@ class PostBudInviteStep extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
-    return BlocSelector<BeaconCreateCubit, BeaconCreateState, PostBudForm?>(
-      selector: (s) => s.postBud,
-      builder: (context, bud) {
-        if (bud == null) return const SizedBox.shrink();
-        final cubit = context.read<BeaconCreateCubit>();
-        final invitable = bud.invitable;
-        return ListView(
-          key: const Key('PostBud.InviteStep'),
-          children: [
-            Text(
-              l10n.postBudInviteExplanation,
-              style: TenturaText.bodySmall(tt.textMuted),
-            ),
-            SizedBox(height: tt.rowGap),
-            if (bud.showsManyInvitesWarning)
-              _Notice(
-                key: const Key('PostBud.ManyWarning'),
-                icon: Icons.warning_amber_rounded,
-                iconColor: tt.warn,
-                text: l10n.postBudInviteManyWarning(bud.selectedIds.length),
-              ),
-            if (bud.candidatesFailed)
-              Padding(
-                padding: EdgeInsets.symmetric(vertical: tt.sectionGap),
-                child: Column(
-                  children: [
-                    Text(
-                      l10n.postBudInviteLoadFailed,
-                      textAlign: TextAlign.center,
-                      style: TenturaText.bodySmall(tt.text),
-                    ),
-                    SizedBox(height: tt.rowGap),
-                    OutlinedButton(
-                      key: const Key('PostBud.RetryCandidates'),
-                      onPressed: () =>
-                          unawaited(cubit.loadBudInviteCandidates()),
-                      child: Text(l10n.postBudInviteRetry),
-                    ),
-                  ],
-                ),
-              )
-            else if (!bud.candidatesLoaded)
-              Padding(
-                padding: EdgeInsets.symmetric(vertical: tt.sectionGap),
-                child: const Center(
-                  child: TenturaCircularProgress(adaptive: true),
-                ),
-              ),
-            for (final candidate in invitable)
-              _InviteeRow(
-                key: ValueKey('PostBud.Invitee.${candidate.userId}'),
-                candidate: candidate,
-                profile: bud.profiles[candidate.userId],
-                viaName: candidate.viaUserId == null
-                    ? null
-                    : bud.nameOf(candidate.viaUserId!),
-                selected: bud.selectedIds.contains(candidate.userId),
-                note: bud.notes[candidate.userId] ?? '',
-                onSelected: (value) => cubit.setBudInviteeSelected(
-                  candidate.userId,
-                  selected: value,
-                ),
-                onNoteChanged: (value) =>
-                    cubit.setBudInviteeNote(candidate.userId, value),
-              ),
-            if (invitable.isNotEmpty && bud.canClosePost)
-              const TenturaHairlineDivider(),
-            // Only the Post's author may close it (#666).
-            if (bud.canClosePost)
-              CheckboxListTile(
-                key: const Key('PostBud.ClosePost'),
-                contentPadding: EdgeInsets.zero,
-                controlAffinity: ListTileControlAffinity.leading,
-                value: bud.closePost,
-                onChanged: (value) => cubit.setBudClosePost(value ?? false),
-                title: Text(
-                  l10n.postBudClosePost,
-                  style: TenturaText.bodyMedium(tt.text),
-                ),
-              ),
-            SizedBox(height: tt.sectionGap),
-          ],
-        );
-      },
-    );
-  }
-}
-
-class _InviteeRow extends StatelessWidget {
-  const _InviteeRow({
-    required this.candidate,
-    required this.profile,
-    required this.viaName,
-    required this.selected,
-    required this.note,
-    required this.onSelected,
-    required this.onNoteChanged,
-    super.key,
-  });
-
-  final PostBudInviteCandidate candidate;
-  final Profile? profile;
-
-  /// «через X»; null when the budder is expected to know the member.
-  final String? viaName;
-  final bool selected;
-  final String note;
-  final ValueChanged<bool> onSelected;
-  final ValueChanged<String> onNoteChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = L10n.of(context)!;
-    final tt = context.tt;
-    final shown = profile?.shownName ?? '';
-    final name = shown.isEmpty ? l10n.unknownPerson : shown;
-    final via = viaName;
     return Column(
+      key: const Key('PostBud.InviteStep'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        CheckboxListTile(
-          contentPadding: EdgeInsets.zero,
-          controlAffinity: ListTileControlAffinity.leading,
-          value: selected,
-          onChanged: (value) => onSelected(value ?? false),
-          secondary: TenturaAvatar(
-            profile: profile ?? Profile(id: candidate.userId),
-            sizeBucket: TenturaAvatarSize.small,
-          ),
-          title: Text(name, style: TenturaText.bodyMedium(tt.text)),
-          subtitle: via == null || via.isEmpty
-              ? null
-              : Text(
-                  l10n.postBudInviteVia(via),
-                  style: TenturaText.bodySmall(tt.textMuted),
-                ),
-        ),
-        if (selected)
-          Padding(
-            padding: EdgeInsets.only(bottom: tt.rowGap),
-            child: TextFormField(
-              key: ValueKey('PostBud.Note.${candidate.userId}'),
-              initialValue: note,
-              maxLines: null,
-              onChanged: onNoteChanged,
-              style: tenturaFormFieldTextStyle(context),
-              decoration: tenturaFormFieldDecoration(
-                context,
-                labelText: l10n.postBudInviteNoteHint,
+        Expanded(
+          child: ForwardRecipientPicker(
+            beaconId: '',
+            embedded: true,
+            copyProfile: ForwardTargetProfile.postBudInvite,
+            recipientNoteHint: l10n.postBudInviteNoteHint,
+            header: BlocSelector<ForwardCubit, ForwardState, int>(
+              selector: (s) => s.selectedIds.length,
+              builder: (context, ticked) => Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    l10n.postBudInviteExplanation,
+                    style: TenturaText.bodySmall(tt.textMuted),
+                  ),
+                  SizedBox(height: tt.rowGap),
+                  if (ticked > kPostBudInviteWarningAbove)
+                    _Notice(
+                      key: const Key('PostBud.ManyWarning'),
+                      icon: Icons.warning_amber_rounded,
+                      iconColor: tt.warn,
+                      text: l10n.postBudInviteManyWarning(ticked),
+                    ),
+                ],
               ),
             ),
           ),
+        ),
+        // Only the Post's author may close it (#666).
+        BlocBuilder<ForwardCubit, ForwardState>(
+          builder: (context, invite) =>
+              BlocSelector<BeaconCreateCubit, BeaconCreateState, PostBudForm?>(
+                selector: (s) => s.postBud,
+                builder: (context, bud) {
+                  if (bud == null || !bud.canClosePost(invite)) {
+                    return const SizedBox.shrink();
+                  }
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const TenturaHairlineDivider(),
+                      CheckboxListTile(
+                        key: const Key('PostBud.ClosePost'),
+                        contentPadding: EdgeInsets.zero,
+                        controlAffinity: ListTileControlAffinity.leading,
+                        value: bud.closePost(invite),
+                        onChanged: (value) => context
+                            .read<BeaconCreateCubit>()
+                            .setBudClosePost(value ?? false),
+                        title: Text(
+                          l10n.postBudClosePost,
+                          style: TenturaText.bodyMedium(tt.text),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+        ),
       ],
     );
   }

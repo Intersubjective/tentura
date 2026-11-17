@@ -14,6 +14,7 @@ class ForwardLoad {
     this.viewerIsAuthor = false,
     this.viewerHasActiveHelpOffer = false,
     this.band = const [],
+    this.postMemberCount = 0,
   });
 
   final List<ForwardCandidate> candidates;
@@ -25,4 +26,8 @@ class ForwardLoad {
   final bool viewerIsAuthor;
   final bool viewerHasActiveHelpOffer;
   final List<ForwardBandRow> band;
+
+  /// Post bud invites only: how many people the Post has, the viewer and the
+  /// members who cannot be invited included; 0 for any other load.
+  final int postMemberCount;
 }

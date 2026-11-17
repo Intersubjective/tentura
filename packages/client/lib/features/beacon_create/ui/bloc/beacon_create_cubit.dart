@@ -303,8 +303,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
       ),
     );
     validate();
-    unawaited(_loadBudFacts(postId));
-    await loadBudInviteCandidates();
+    await _loadBudFacts(postId);
   }
 
   /// The Post's facts for the «Facts to bring» checklist; a failed read
@@ -322,62 +321,6 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     emit(state.copyWith(postBud: bud.copyWith(factIds: factIds)));
   }
 
-  /// Loads the invite step; ticks the members the server pre-ticks. Also the
-  /// retry after a failed load: the typed form is left as is.
-  Future<void> loadBudInviteCandidates() async {
-    final bud = state.postBud;
-    if (bud == null || isClosed) return;
-    if (bud.candidatesFailed) {
-      emit(state.copyWith(postBud: bud.copyWith(candidatesFailed: false)));
-    }
-    try {
-      final step = await _postBudCase.inviteStep(bud.postId);
-      if (isClosed) return;
-      final current = state.postBud ?? bud;
-      emit(
-        state.copyWith(
-          postBud: current.copyWith(
-            candidatesLoaded: true,
-            candidates: step.candidates,
-            profiles: step.profiles,
-            selectedIds: {
-              for (final c in step.candidates)
-                if (c.isInvitable && c.pretick) c.userId,
-            },
-          ),
-        ),
-      );
-    } catch (e) {
-      if (!isClosed) {
-        final current = state.postBud ?? bud;
-        emit(state.copyWith(postBud: current.copyWith(candidatesFailed: true)));
-      }
-      _effects.emit(ShowError(e));
-    }
-  }
-
-  void setBudInviteeSelected(String userId, {required bool selected}) {
-    final bud = state.postBud;
-    if (bud == null) return;
-    final next = {...bud.selectedIds};
-    if (selected) {
-      next.add(userId);
-    } else {
-      next.remove(userId);
-    }
-    emit(state.copyWith(postBud: bud.copyWith(selectedIds: next)));
-  }
-
-  void setBudInviteeNote(String userId, String note) {
-    final bud = state.postBud;
-    if (bud == null) return;
-    emit(
-      state.copyWith(
-        postBud: bud.copyWith(notes: {...bud.notes, userId: note}),
-      ),
-    );
-  }
-
   void setBudClosePost(bool value) {
     final bud = state.postBud;
     if (bud == null) return;
@@ -388,20 +331,30 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
   /// server answered (navigation stays with the caller), null when nothing
   /// was sent or it failed. A repeat call while one runs is dropped; a retry
   /// after a failure reuses the same `clientCommandId`, so the server replays
-  /// instead of budding twice.
-  Future<PostBudResult?> submitBud({required String context}) async {
+  /// instead of budding twice. The invitees are the ones ticked in
+  /// [forwardCubit], the invite step's picker; nothing is sent until its
+  /// members have loaded.
+  Future<PostBudResult?> submitBud({
+    required String context,
+    required ForwardCubit forwardCubit,
+  }) async {
     if (_budSubmitBusy) return null;
     _budSubmitBusy = true;
     try {
-      return await _submitBud(context: context);
+      return await _submitBud(context: context, invite: forwardCubit.state);
     } finally {
       _budSubmitBusy = false;
     }
   }
 
-  Future<PostBudResult?> _submitBud({required String context}) async {
+  Future<PostBudResult?> _submitBud({
+    required String context,
+    required ForwardState invite,
+  }) async {
     final bud = state.postBud;
-    if (bud == null || isClosed || !bud.candidatesLoaded) return null;
+    if (bud == null || isClosed || !invite.candidatesLoad.isLoaded) {
+      return null;
+    }
     validate();
     if (state.publishBlocker != null) {
       revealValidationHints();
@@ -427,8 +380,8 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
         primaryNeedSlug: state.primaryNeedSlug,
         addressLabel: location.isEmpty ? null : location,
         isDiscoverable: state.isDiscoverable,
-        invitees: bud.invitees,
-        closePost: bud.closePost,
+        invitees: bud.invitees(invite),
+        closePost: bud.closePost(invite),
         factIds: bud.factIds,
       );
       if (!isClosed) {

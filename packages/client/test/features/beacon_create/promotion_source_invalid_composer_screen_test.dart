@@ -22,6 +22,7 @@ import 'package:tentura/data/service/op_id_service.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/use_case/beacon_create_case.dart';
 import 'package:tentura/domain/use_case/message_prefill_case.dart';
+import 'package:tentura/domain/port/post_bud_port.dart';
 import 'package:tentura/domain/use_case/post_bud_case.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/env.dart';
@@ -319,6 +320,8 @@ void main() {
           {'PostBudFromPost': wireCodeError(_code)},
           (remote) async {
             await watch.start(tester);
+            // The invite step loads the Post's members through ForwardCase.
+            GetIt.I.registerSingleton<PostBudPort>(PostBudRepository(remote));
             final h = BudHarness();
             final createCase = h.createCase;
             final cubit = BeaconCreateCubit(
@@ -332,7 +335,6 @@ void main() {
               messagePrefillCase: h.prefillCase,
               postBudCase: PostBudCase(
                 PostBudRepository(remote),
-                h.profiles,
                 OpIdService(),
                 env: const Env(),
                 logger: GetIt.I<Logger>(),
@@ -341,11 +343,11 @@ void main() {
               effects: effects,
             );
             addTearDown(cubit.close);
-            if (!(cubit.state.postBud?.candidatesLoaded ?? false)) {
-              await cubit.stream.firstWhere(
-                (s) => s.postBud?.candidatesLoaded ?? false,
-              );
+            if (cubit.state.postBud == null) {
+              await cubit.stream.firstWhere((s) => s.postBud != null);
             }
+            // Let the bud form's own Post reads settle.
+            await Future<void>.delayed(const Duration(milliseconds: 50));
             cubit
               ..setTitle('Need a ladder')
               ..setDescription('For Saturday.');

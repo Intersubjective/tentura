@@ -50,7 +50,6 @@ void main() {
       final opIds = _CountingOpIds();
       final sut = PostBudCase(
         FakePostBudPort(),
-        FakeBudProfiles(),
         opIds,
         env: const Env(),
         logger: Logger('op-id-port-injection-test'),

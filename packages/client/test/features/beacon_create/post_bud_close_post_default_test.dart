@@ -1,137 +1,205 @@
 // The «Закрыть пост…» choice of a Post→Request bud must never close the Post
 // on people the budder did not invite: its default follows the whole effective
-// membership, stays off while that membership is unknown, and the bud cannot
-// be submitted until the invite candidates have loaded.
+// membership and the selection in the invite step's Forward picker, stays off
+// while that membership is unknown, the budder's own choice wins, and the bud
+// cannot be submitted until the invite candidates have loaded.
+//
+// Driven through the bud create screen: the invite step is the shared
+// ForwardRecipientPicker over a real ForwardCase and the fake bud port.
 
 import 'dart:async';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/domain/entity/post_bud_invite_outcome.dart';
-import 'package:tentura/features/beacon_create/ui/bloc/beacon_create_cubit.dart';
-import 'package:tentura/ui/effect/ui_effect.dart';
+import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
+import 'package:tentura/features/forward/ui/widget/forward_recipient_picker.dart';
+import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/test_ids.dart';
 
-import '../../ui/effect/fake_ui_effect_port.dart';
 import 'post_bud_fakes.dart';
 
-Future<BeaconCreateCubit> _openLoaded(BudHarness h) async {
-  final cubit = h.cubit(effects: FakeUiEffectPort());
-  addTearDown(cubit.close);
-  await cubit.stream.firstWhere((s) => s.postBud?.candidatesLoaded ?? false);
-  return cubit;
+final _en = lookupL10n(const Locale('en'));
+
+Finder _closePostBox() => find.widgetWithText(
+  CheckboxListTile,
+  _en.postBudClosePost,
+  skipOffstage: false,
+);
+
+bool? _closePostValue(WidgetTester tester) =>
+    tester.widget<CheckboxListTile>(_closePostBox()).value;
+
+Finder _submitButton() => find.byKey(const Key('PostBud.SubmitButton'));
+
+/// Opens the bud screen and goes to the invite step.
+Future<BudScreen> _openInviteStep(
+  WidgetTester tester,
+  BudHarness h, {
+  bool expectLoaded = true,
+}) async {
+  final screen = await pumpBudCreateScreen(tester, h);
+  await tester.tap(find.byKey(const Key('PostBud.NextButton')));
+  await settleBud(tester);
+  if (expectLoaded) {
+    expect(
+      find.byType(ForwardRecipientPicker),
+      findsOneWidget,
+      reason: 'the invite step is the Forward recipient picker',
+    );
+  }
+  return screen;
+}
+
+ForwardCubit _forward(WidgetTester tester) => BlocProvider.of<ForwardCubit>(
+  tester.element(find.byType(ForwardRecipientPicker)),
+);
+
+Future<void> _tapRow(WidgetTester tester, String id) async {
+  final row = find.byKey(TestIds.key(TestIds.forwardRecipient(id)));
+  await tester.ensureVisible(row);
+  await tester.tap(row);
+  await settleBud(tester, rounds: 4);
+}
+
+Future<void> _submit(WidgetTester tester) async {
+  await tester.ensureVisible(_submitButton());
+  await tester.tap(_submitButton());
+  await settleBud(tester);
 }
 
 void main() {
   group('close-Post default follows the whole effective membership', () {
-    test(
+    testWidgets(
       'off when a member who is not invitable would be left outside the bud',
-      () async {
+      (tester) async {
         final h = BudHarness();
         h.port.candidates = [
           budCandidate('a', pretick: true),
           budCandidate('b', pretick: true),
           budCandidate('paused', outcome: PostBudInviteOutcome.notEligible),
         ];
-        final cubit = await _openLoaded(h);
+        await _openInviteStep(tester, h);
 
-        final bud = cubit.state.postBud!;
-        expect(bud.memberCount, 4);
-        expect(bud.selectedIds, {'a', 'b'});
-        expect(bud.closePost, isFalse);
+        expect(_forward(tester).state.selectedIds, {'a', 'b'});
+        expect(_closePostValue(tester), isFalse);
 
-        await cubit.submitBud(context: '');
+        await _submit(tester);
         expect(h.port.calls.single.closePost, isFalse);
       },
     );
 
-    test(
+    testWidgets(
       'off when every invitable member is ticked but a blocked one remains',
-      () async {
+      (tester) async {
         final h = BudHarness();
         h.port.candidates = [
           budCandidate('a', pretick: true),
           budCandidate('b', pretick: true),
           budCandidate('blocked', outcome: PostBudInviteOutcome.blocked),
         ];
-        final cubit = await _openLoaded(h);
-        expect(cubit.state.postBud!.closePost, isFalse);
+        await _openInviteStep(tester, h);
+        expect(_closePostValue(tester), isFalse);
       },
     );
 
-    test('on when every member of the Post is ticked', () async {
+    testWidgets('on when every member of the Post is ticked in the picker, '
+        'off once one is unticked', (tester) async {
       final h = BudHarness();
       h.port.candidates = [
         budCandidate('a', pretick: true),
         budCandidate('b', pretick: true),
         budCandidate('c', pretick: true),
       ];
-      final cubit = await _openLoaded(h);
-      expect(cubit.state.postBud!.closePost, isTrue);
+      await _openInviteStep(tester, h);
+      expect(_closePostValue(tester), isTrue);
 
-      cubit.setBudInviteeSelected('c', selected: false);
-      expect(cubit.state.postBud!.closePost, isFalse);
+      await _tapRow(tester, 'c');
+      expect(_forward(tester).state.selectedIds, {'a', 'b'});
+      expect(_closePostValue(tester), isFalse);
+    });
+
+    testWidgets("the budder's own choice wins over the default", (
+      tester,
+    ) async {
+      final h = BudHarness();
+      h.port.candidates = [budCandidate('only')];
+      await _openInviteStep(tester, h);
+      expect(_closePostValue(tester), isTrue, reason: 'two-member Post');
+
+      await tester.ensureVisible(_closePostBox());
+      await tester.tap(_closePostBox());
+      await settleBud(tester, rounds: 4);
+      expect(_closePostValue(tester), isFalse);
+
+      await _submit(tester);
+      expect(h.port.calls.single.closePost, isFalse);
     });
   });
 
   // #666: only the Post's author may close it. A member who did not start
-  // the Post sees the author among the candidates and never gets the choice.
+  // the Post never gets the choice.
   group('a member who is not the Post author', () {
-    test('is never offered «Закрыть пост…» and never sends it', () async {
+    testWidgets('is never offered «Закрыть пост…» and never sends it', (
+      tester,
+    ) async {
       final h = BudHarness(parent: budPost(authorId: 'a'));
       h.port.candidates = [
         budCandidate('a', pretick: true),
         budCandidate('b', pretick: true),
       ];
-      final cubit = await _openLoaded(h);
+      final screen = await _openInviteStep(tester, h);
+      expect(_forward(tester).state.selectedIds, {'a', 'b'});
+      expect(_closePostBox(), findsNothing);
 
-      final bud = cubit.state.postBud!;
-      expect(bud.canClosePost, isFalse);
-      expect(bud.closePost, isFalse, reason: 'every member ticked, still off');
+      screen.cubit.setBudClosePost(true);
+      await settleBud(tester, rounds: 2);
+      expect(_closePostBox(), findsNothing);
 
-      cubit.setBudClosePost(true);
-      expect(cubit.state.postBud!.closePost, isFalse);
-
-      await cubit.submitBud(context: '');
+      await _submit(tester);
       expect(h.port.calls.single.closePost, isFalse);
     });
   });
 
   group('bud before the invite candidates are known', () {
-    test(
-      'close-Post stays off and submit sends nothing while loading',
-      () async {
-        final h = BudHarness();
-        h.port.candidatesGate = Completer<void>();
-        h.port.candidates = [
-          budCandidate('a', pretick: true),
-          budCandidate('b', pretick: true),
-          budCandidate('c'),
-        ];
-        final cubit = h.cubit(effects: FakeUiEffectPort());
-        addTearDown(cubit.close);
-        await cubit.stream.firstWhere((s) => s.postBud != null);
-        await pumpEventQueue();
+    testWidgets('close-Post stays off and submit sends nothing while the '
+        'picker loads', (tester) async {
+      final h = BudHarness();
+      h.port.candidatesGate = Completer<void>();
+      h.port.candidates = [
+        budCandidate('a', pretick: true),
+        budCandidate('b', pretick: true),
+        budCandidate('c'),
+      ];
+      await _openInviteStep(tester, h, expectLoaded: false);
+      expect(find.byType(ForwardRecipientPicker), findsOneWidget);
 
-        final bud = cubit.state.postBud!;
-        expect(bud.candidatesLoaded, isFalse);
-        expect(bud.closePost, isFalse);
-        expect(await cubit.submitBud(context: ''), isNull);
-        expect(h.port.calls, isEmpty);
+      // The budder started the Post, so the choice is offered; with the
+      // membership still unknown its default is off.
+      expect(_closePostBox(), findsOneWidget);
+      expect(_closePostValue(tester), isFalse);
+      expect(tester.widget<FilledButton>(_submitButton()).onPressed, isNull);
+      await tester.tap(_submitButton(), warnIfMissed: false);
+      await settleBud(tester, rounds: 4);
+      expect(h.port.calls, isEmpty);
 
-        h.port.candidatesGate!.complete();
-        await cubit.stream.firstWhere(
-          (s) => s.postBud?.candidatesLoaded ?? false,
-        );
-        expect(await cubit.submitBud(context: ''), isNotNull);
-        expect(h.port.calls, hasLength(1));
-      },
-    );
+      h.port.candidatesGate!.complete();
+      await settleBud(tester);
+      expect(_forward(tester).state.selectedIds, {'a', 'b'});
+      expect(
+        tester.widget<FilledButton>(_submitButton()).onPressed,
+        isNotNull,
+      );
+      await _submit(tester);
+      expect(h.port.calls, hasLength(1));
+      expect(h.port.calls.single.closePost, isFalse);
+    });
 
-    test(
+    testWidgets(
       'a failed candidate load keeps submit blocked until a retry succeeds',
-      () async {
+      (tester) async {
         final h = BudHarness();
-        final effects = FakeUiEffectPort();
         h.port
           ..candidatesError = Exception('offline')
           ..candidates = [
@@ -139,21 +207,20 @@ void main() {
             budCandidate('b'),
             budCandidate('c'),
           ];
-        final cubit = h.cubit(effects: effects);
-        addTearDown(cubit.close);
-        await cubit.stream.firstWhere((s) => s.postBud != null);
-        await pumpEventQueue();
-        expect(effects.emitted.whereType<ShowError>(), isNotEmpty);
+        await _openInviteStep(tester, h, expectLoaded: false);
+        expect(find.byType(ForwardRecipientPicker), findsOneWidget);
 
-        expect(cubit.state.postBud!.candidatesLoaded, isFalse);
-        expect(cubit.state.postBud!.closePost, isFalse);
-        expect(await cubit.submitBud(context: ''), isNull);
+        expect(tester.widget<FilledButton>(_submitButton()).onPressed, isNull);
+        await tester.tap(_submitButton(), warnIfMissed: false);
+        await settleBud(tester, rounds: 4);
         expect(h.port.calls, isEmpty);
 
         h.port.candidatesError = null;
-        await cubit.loadBudInviteCandidates();
-        expect(cubit.state.postBud!.candidatesLoaded, isTrue);
-        expect(await cubit.submitBud(context: ''), isNotNull);
+        await tester.runAsync(_forward(tester).retryLoadCandidates);
+        await settleBud(tester);
+        expect(_forward(tester).state.selectedIds, {'a'});
+        await _submit(tester);
+        expect(h.port.calls, hasLength(1));
         expect(h.port.calls.single.closePost, isFalse);
       },
     );

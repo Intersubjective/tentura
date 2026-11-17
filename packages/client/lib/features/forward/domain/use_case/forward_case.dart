@@ -308,8 +308,9 @@ final class ForwardCase extends UseCaseBase {
   /// pretick. There is no beacon yet, so no involvement, lineage or band.
   Future<ForwardLoad> loadPostBudInviteCandidates(String postId) async {
     await _contactsCase.refresh();
+    final members = await _postBudPort.inviteCandidates(postId: postId);
     final invitable = [
-      for (final c in await _postBudPort.inviteCandidates(postId: postId))
+      for (final c in members)
         if (c.isInvitable) c,
     ];
     final ids = {
@@ -346,6 +347,8 @@ final class ForwardCase extends UseCaseBase {
           if (c.pretick) c.userId,
       },
       beacon: Beacon.empty,
+      // The server lists every member but the viewer.
+      postMemberCount: members.length + 1,
     );
   }
 

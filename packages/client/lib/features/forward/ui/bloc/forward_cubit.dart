@@ -40,6 +40,7 @@ class ForwardCubit extends Cubit<ForwardState> {
     this.embedded = false,
     ForwardTargetProfile? targetProfile,
     this.budPostId,
+    this.budPostAuthorId = '',
     DateTime Function()? clock,
   }) : assert(
          (targetProfile == ForwardTargetProfile.postBudInvite) ==
@@ -80,6 +81,10 @@ class ForwardCubit extends Cubit<ForwardState> {
   /// ([ForwardTargetProfile.postBudInvite]); their list replaces the Forward
   /// candidates and the first load pre-ticks the server's pretick.
   final String? budPostId;
+
+  /// Who started [budPostId]; [ForwardState.viewerIsAuthor] tells whether that
+  /// is the viewer, known before the members load.
+  final String budPostAuthorId;
 
   bool get _preselectsAutoSelect =>
       preselectLineageSuggestions || budPostId != null;
@@ -228,6 +233,13 @@ class ForwardCubit extends Cubit<ForwardState> {
         return;
       }
       final budPostId = this.budPostId;
+      if (budPostId != null) {
+        emit(
+          state.copyWith(
+            viewerIsAuthor: myId.isNotEmpty && myId == budPostAuthorId,
+          ),
+        );
+      }
       final load = budPostId != null
           ? await forwardCase.loadPostBudInviteCandidates(budPostId)
           : await forwardCase.loadForwardCandidates(
@@ -301,7 +313,10 @@ class ForwardCubit extends Cubit<ForwardState> {
           droppedPreselectedIds: droppedPreselected,
           note: state.note.isNotEmpty ? state.note : load.suggestedNote,
           hasMyOutgoingForward: load.hasMyOutgoingForward,
-          viewerIsAuthor: load.viewerIsAuthor,
+          viewerIsAuthor: budPostId != null
+              ? state.viewerIsAuthor
+              : load.viewerIsAuthor,
+          postMemberCount: load.postMemberCount,
           viewerHasActiveHelpOffer: load.viewerHasActiveHelpOffer,
           band: load.band,
           candidatesLoad: _candidatesLoadFor(

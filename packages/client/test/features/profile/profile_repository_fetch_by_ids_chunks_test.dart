@@ -3,14 +3,35 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
 
-import 'package:tentura/data/service/op_id_service.dart';
-import 'package:tentura/domain/use_case/post_bud_case.dart';
+import 'package:get_it/get_it.dart';
+
+import 'package:tentura/domain/contacts/contact_name_store.dart';
 import 'package:tentura/env.dart';
+import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 import 'package:tentura/features/beacon/data/repository/post_bud_repository.dart';
+import 'package:tentura/features/beacon_threads/data/repository/beacon_fact_card_repository.dart';
+import 'package:tentura/features/contacts/domain/use_case/contacts_case.dart';
+import 'package:tentura/features/forward/data/repository/forward_repository.dart';
+import 'package:tentura/features/forward/domain/entity/forward_load.dart';
+import 'package:tentura/features/forward/domain/use_case/forward_case.dart';
 import 'package:tentura/features/profile/data/repository/profile_repository.dart';
 
 import '../../support/remote_wire_harness.dart';
+import '../../support/test_realtime_sync.dart';
 import '../../support/users_fetch_by_ids_wire.dart';
+import '../auth/auth_test_helpers.dart';
+import '../block/support/controllable_block_case.dart';
+import '../contacts/contacts_case_test.dart';
+
+class _NoBeaconRepository implements BeaconRepository {
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _NoFactCards implements BeaconFactCardRepository {
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
 
 Set<String> _ids(int n) => {
   for (var i = 1; i <= n; i++) 'U${i.toString().padLeft(3, '0')}',
@@ -155,7 +176,7 @@ void main() {
     });
   });
 
-  group('PostBudCase.inviteStep with a capped user read', () {
+  group('Post bud invite candidates with a capped user read', () {
     test('12 candidates plus a via user all get a profile', () async {
       final sent = <WireSent>[];
       final candidates = [
@@ -170,22 +191,51 @@ void main() {
             'hasWritten': true,
           },
       ];
-      late PostBudInviteStep step;
+
+      final authLocal = StreamingAuthLocal();
+      final contactsRepo = FakeContactsRepository()
+        ..fetchMineHandler = () async => {};
+      final store = ContactNameStore();
+      GetIt.I.registerSingleton<ContactNameStore>(store);
+      final contactsCase = ContactsCase(
+        contactsRepo,
+        buildTestAuthCase(authLocal, EmptyAuthRemote()),
+        store,
+        buildTestRealtimeSync().case_,
+        env: const Env(),
+        logger: Logger('invite-candidates-test'),
+      );
+      addTearDown(() async {
+        await contactsCase.dispose();
+        await GetIt.I.reset();
+        await store.dispose();
+      });
+      final syncReady = contactsRepo.nextSync();
+      authLocal.emit('Uviewer000001');
+      await syncReady;
+
+      late ForwardLoad load;
       await withCappedUsersWire(
         sent,
         (remote) async {
-          final sut = PostBudCase(
-            PostBudRepository(remote),
+          final sut = ForwardCase(
+            ForwardRepository(
+              remote,
+              _NoBeaconRepository(),
+              buildTestRealtimeSync().port,
+            ),
+            authLocal,
+            _NoFactCards(),
             ProfileRepository(remote),
-            OpIdService(),
+            contactsCase,
+            noopBlockCase(),
+            postBudPort: PostBudRepository(remote),
             env: const Env(),
-            logger: Logger('invite-step-test'),
+            logger: Logger('invite-candidates-test'),
           );
-          step = await sut
-              .inviteStep('post-1')
-              .timeout(
-                const Duration(seconds: 20),
-              );
+          load = await sut
+              .loadPostBudInviteCandidates('post-1')
+              .timeout(const Duration(seconds: 20));
         },
         responses: {
           'PostBudInviteCandidates': {
@@ -194,13 +244,17 @@ void main() {
           },
         },
       );
-      expect(step.profiles.length, 13);
+      expect(load.candidates.map((c) => c.profile.displayName), [
+        for (var i = 1; i <= 12; i++)
+          'Name of Ucand${i.toString().padLeft(3, '0')}',
+      ]);
       expect(
-        step.profiles.keys,
-        containsAll([
-          for (var i = 1; i <= 12; i++) 'Ucand${i.toString().padLeft(3, '0')}',
-          'Uvia000000001',
-        ]),
+        load.candidates.first.reach?.via.single.displayName,
+        'Name of Uvia000000001',
+      );
+      expect(
+        _profileRequests(sent).every((r) => _idsOf(r).length <= 10),
+        isTrue,
       );
     });
   });

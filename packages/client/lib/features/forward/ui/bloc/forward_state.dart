@@ -19,6 +19,10 @@ enum ForwardFilter { all, bestNext, unseen, alreadyInvolved }
 /// actions only.
 sealed class ForwardCandidatesLoad {
   const ForwardCandidatesLoad();
+
+  /// The list is in, possibly empty.
+  bool get isLoaded =>
+      this is ForwardCandidatesReady || this is ForwardCandidatesEmpty;
 }
 
 class ForwardCandidatesLoading extends ForwardCandidatesLoad {
@@ -142,6 +146,10 @@ abstract class ForwardState extends StateBase with _$ForwardState {
     @Default(false) bool viewerIsAuthor,
     @Default(false) bool viewerHasActiveHelpOffer,
     @Default([]) List<ForwardBandRow> band,
+
+    /// [ForwardTargetProfile.postBudInvite] only: everyone in the Post, the
+    /// viewer and members who cannot be invited included; 0 until loaded.
+    @Default(0) int postMemberCount,
     ForwardTargetProfile? targetProfile,
   }) = _ForwardState;
 

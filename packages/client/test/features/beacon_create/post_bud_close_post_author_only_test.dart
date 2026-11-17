@@ -13,17 +13,18 @@ import 'package:tentura/domain/entity/post_bud_invite_candidate.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/env.dart';
-import 'package:tentura/features/auth/domain/use_case/auth_case.dart';
 import 'package:tentura/features/beacon_create/ui/bloc/beacon_create_cubit.dart';
 import 'package:tentura/features/beacon_create/ui/screen/beacon_create_screen.dart';
 import 'package:tentura/features/context/data/repository/context_repository.dart';
 import 'package:tentura/features/context/domain/entity/context_entity.dart';
 import 'package:tentura/features/context/ui/bloc/context_cubit.dart';
+import 'package:tentura/features/forward/ui/widget/forward_recipient_picker.dart';
+import 'package:tentura/features/forward/ui/widget/forward_recipient_row.dart';
+import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';
-import '../auth/auth_test_helpers.dart';
 import 'post_bud_fakes.dart';
 
 class _ContextRepositoryFake extends Fake implements ContextRepository {
@@ -73,9 +74,6 @@ Future<({BudHarness h, BeaconCreateCubit cubit, _Router router})> _pump(
   GetIt.I
     ..registerSingleton<Env>(const Env())
     ..registerSingleton<UiEffectPort>(effects)
-    ..registerSingleton<AuthCase>(
-      buildTestAuthCase(EmptyAuthLocal(), EmptyAuthRemote()),
-    )
     ..registerSingleton<ContextRepository>(_ContextRepositoryFake());
   addTearDown(GetIt.I.reset);
 
@@ -84,6 +82,7 @@ Future<({BudHarness h, BeaconCreateCubit cubit, _Router router})> _pump(
     profiles: _profiles,
   );
   h.port.candidates = candidates;
+  await registerBudInvitePicker(tester, h);
   final cubit = h.cubit(effects: effects);
   addTearDown(cubit.close);
 
@@ -112,6 +111,7 @@ Future<({BudHarness h, BeaconCreateCubit cubit, _Router router})> _pump(
               child: MultiBlocProvider(
                 providers: [
                   BlocProvider(create: (_) => ContextCubit()),
+                  BlocProvider<ProfileCubit>.value(value: BudProfileCubit()),
                   BlocProvider<BeaconCreateCubit>.value(value: cubit),
                 ],
                 child: const BeaconCreateScreen(
@@ -125,27 +125,29 @@ Future<({BudHarness h, BeaconCreateCubit cubit, _Router router})> _pump(
       ),
     ),
   );
-  for (var i = 0; i < 20; i++) {
-    await tester.pump(const Duration(milliseconds: 50));
-  }
+  await settleBud(tester);
   return (h: h, cubit: cubit, router: router);
 }
 
+/// Goes to the invite step, which is the shared Forward recipient picker.
 Future<void> _next(WidgetTester tester) async {
   await tester.tap(find.byKey(const Key('PostBud.NextButton')));
-  for (var i = 0; i < 5; i++) {
-    await tester.pump(const Duration(milliseconds: 50));
-  }
+  await settleBud(tester);
+  expect(find.byType(ForwardRecipientPicker), findsOneWidget);
 }
 
 Future<void> _submit(WidgetTester tester) async {
   await tester.tap(find.byKey(const Key('PostBud.SubmitButton')));
-  for (var i = 0; i < 5; i++) {
-    await tester.pump(const Duration(milliseconds: 50));
-  }
+  await settleBud(tester);
 }
 
-const _closePostLabel = 'Close the post and continue in the request';
+final _closePostLabel = lookupL10n(const Locale('en')).postBudClosePost;
+
+Finder _closePostBox() => find.widgetWithText(
+  CheckboxListTile,
+  _closePostLabel,
+  skipOffstage: false,
+);
 
 void main() {
   group('invite step «Close the post» belongs to the Post author', () {
@@ -163,9 +165,13 @@ void main() {
         );
         await _next(tester);
 
-        expect(find.byKey(const Key('PostBud.InviteStep')), findsOneWidget);
-        expect(find.byKey(const ValueKey('PostBud.Invitee.author')), findsOne);
-        expect(find.byKey(const Key('PostBud.ClosePost')), findsNothing);
+        expect(
+          find.byWidgetPredicate(
+            (w) => w is ForwardRecipientRow && w.candidate.id == 'author',
+          ),
+          findsOne,
+        );
+        expect(_closePostBox(), findsNothing);
         expect(find.text(_closePostLabel), findsNothing);
 
         await _submit(tester);
@@ -190,7 +196,7 @@ void main() {
 
         expect(find.text(_closePostLabel), findsOneWidget);
         final box = tester.widget<CheckboxListTile>(
-          find.byKey(const Key('PostBud.ClosePost')),
+          _closePostBox(),
         );
         expect(box.value, isTrue);
 
@@ -211,7 +217,7 @@ void main() {
         await _next(tester);
 
         final box = tester.widget<CheckboxListTile>(
-          find.byKey(const Key('PostBud.ClosePost')),
+          _closePostBox(),
         );
         expect(box.value, isTrue);
 
@@ -235,7 +241,7 @@ void main() {
         await _next(tester);
 
         final box = tester.widget<CheckboxListTile>(
-          find.byKey(const Key('PostBud.ClosePost')),
+          _closePostBox(),
         );
         expect(box.value, isFalse);
 

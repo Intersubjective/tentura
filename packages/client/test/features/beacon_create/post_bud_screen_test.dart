@@ -1,5 +1,6 @@
 // The Request form in bud mode (plan D1): the Post parent turns the second
-// step into «Кого позвать» — writers first, ineligible members hidden,
+// step into «Кого позвать», hosted by the shared Forward recipient picker —
+// members in the server's order (writers first), ineligible members hidden,
 // «через X», a warning above five ticked, a note per invitee, «Закрыть
 // пост…» — and the form step warns about discoverability and forwarding.
 // With `kPostBuddingEnabled` off none of it shows.
@@ -16,17 +17,19 @@ import 'package:tentura/domain/entity/post_bud_result.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/env.dart';
-import 'package:tentura/features/auth/domain/use_case/auth_case.dart';
 import 'package:tentura/features/beacon_create/ui/bloc/beacon_create_cubit.dart';
 import 'package:tentura/features/beacon_create/ui/screen/beacon_create_screen.dart';
 import 'package:tentura/features/context/data/repository/context_repository.dart';
 import 'package:tentura/features/context/domain/entity/context_entity.dart';
 import 'package:tentura/features/context/ui/bloc/context_cubit.dart';
+import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
+import 'package:tentura/features/forward/ui/widget/forward_recipient_picker.dart';
+import 'package:tentura/features/forward/ui/widget/forward_recipient_row.dart';
+import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';
-import '../auth/auth_test_helpers.dart';
 import 'post_bud_fakes.dart';
 
 class _ContextRepositoryFake extends Fake implements ContextRepository {
@@ -62,6 +65,7 @@ class _Router extends Mock implements StackRouter {
 }
 
 const _profiles = [
+  Profile(id: 'quiet', displayName: 'Quiet Quinn'),
   Profile(id: 'writer', displayName: 'Writer Wanda'),
   Profile(id: 'silent', displayName: 'Silent Sam'),
   Profile(id: 'blocked', displayName: 'Blocked Bob'),
@@ -78,9 +82,6 @@ Future<({BudHarness h, BeaconCreateCubit cubit, _Router router})> _pump(
   GetIt.I
     ..registerSingleton<Env>(const Env())
     ..registerSingleton<UiEffectPort>(effects)
-    ..registerSingleton<AuthCase>(
-      buildTestAuthCase(EmptyAuthLocal(), EmptyAuthRemote()),
-    )
     ..registerSingleton<ContextRepository>(_ContextRepositoryFake());
   addTearDown(GetIt.I.reset);
 
@@ -89,6 +90,7 @@ Future<({BudHarness h, BeaconCreateCubit cubit, _Router router})> _pump(
     profiles: _profiles,
   );
   seed?.call(h.port);
+  await registerBudInvitePicker(tester, h);
   final cubit = h.cubit(effects: effects, enabled: enabled);
   addTearDown(cubit.close);
 
@@ -117,6 +119,7 @@ Future<({BudHarness h, BeaconCreateCubit cubit, _Router router})> _pump(
               child: MultiBlocProvider(
                 providers: [
                   BlocProvider(create: (_) => ContextCubit()),
+                  BlocProvider<ProfileCubit>.value(value: BudProfileCubit()),
                   BlocProvider<BeaconCreateCubit>.value(value: cubit),
                 ],
                 child: const BeaconCreateScreen(
@@ -130,54 +133,94 @@ Future<({BudHarness h, BeaconCreateCubit cubit, _Router router})> _pump(
       ),
     ),
   );
-  for (var i = 0; i < 20; i++) {
-    await tester.pump(const Duration(milliseconds: 50));
-  }
+  await settleBud(tester);
   return (h: h, cubit: cubit, router: router);
 }
 
 Future<void> _next(WidgetTester tester) async {
   await tester.tap(find.byKey(const Key('PostBud.NextButton')));
-  for (var i = 0; i < 5; i++) {
-    await tester.pump(const Duration(milliseconds: 50));
-  }
+  await settleBud(tester);
 }
 
+Finder _rowOf(String id) => find.byWidgetPredicate(
+  (w) => w is ForwardRecipientRow && w.candidate.id == id,
+  skipOffstage: false,
+);
+
+/// The server's order: writers first, then the rest; `blocked` cannot be
+/// invited.
 void _seedMembers(FakePostBudPort port) => port.candidates = [
-  budCandidate('silent', pretick: true),
-  budCandidate('writer', hasWritten: true, pretick: true, viaUserId: 'via'),
+  budCandidate('writer', hasWritten: true, pretick: true),
   budCandidate(
     'blocked',
     hasWritten: true,
     outcome: PostBudInviteOutcome.blocked,
   ),
+  budCandidate('silent', pretick: true),
+  budCandidate('quiet', viaUserId: 'via'),
 ];
 
+final _en = lookupL10n(const Locale('en'));
+
 void main() {
-  testWidgets('invite step: writers first, ineligible hidden, «via X»', (
+  testWidgets('invite step is the Forward picker: server order (writers '
+      'first), ineligible hidden, «via X», pre-ticked members ticked', (
     tester,
   ) async {
     await _pump(tester, seed: _seedMembers);
-    expect(find.text('Make a request'), findsWidgets);
+    expect(find.text(_en.postBudAction), findsWidgets);
     await _next(tester);
 
-    expect(find.text('Who to invite'), findsOneWidget);
-    expect(find.byKey(const Key('PostBud.InviteStep')), findsOneWidget);
-    final writer = find.text('Writer Wanda');
-    final silent = find.text('Silent Sam');
+    expect(find.text(_en.postBudInviteTitle), findsOneWidget);
+    expect(find.byType(ForwardRecipientPicker), findsOneWidget);
+    final writer = find.descendant(
+      of: _rowOf('writer'),
+      matching: find.text('Writer Wanda'),
+    );
+    final silent = find.descendant(
+      of: _rowOf('silent'),
+      matching: find.text('Silent Sam'),
+    );
     expect(writer, findsOneWidget);
     expect(silent, findsOneWidget);
     expect(
       tester.getTopLeft(writer).dy,
       lessThan(tester.getTopLeft(silent).dy),
     );
-    expect(find.text('Blocked Bob'), findsNothing);
-    expect(find.text('via Vika'), findsOneWidget);
-    // Pre-ticked members get a note field.
-    expect(find.byKey(const ValueKey('PostBud.Note.writer')), findsOneWidget);
+    expect(_rowOf('blocked'), findsNothing);
+    expect(find.text('Blocked Bob', skipOffstage: false), findsNothing);
+    expect(
+      find.descendant(
+        of: _rowOf('quiet'),
+        matching: find.textContaining('Vika'),
+      ),
+      findsOneWidget,
+      reason: '«via Vika» on the member Vika brought in',
+    );
+    // Pre-ticked members are ticked and can get a personal note.
+    expect(
+      tester.widget<ForwardRecipientRow>(_rowOf('writer')).isSelected,
+      isTrue,
+    );
+    expect(
+      tester.widget<ForwardRecipientRow>(_rowOf('silent')).isSelected,
+      isTrue,
+    );
+    expect(
+      tester.widget<ForwardRecipientRow>(_rowOf('quiet')).isSelected,
+      isFalse,
+    );
+    expect(
+      find.byTooltip(_en.forwardAddPersonalNoteForName('Writer Wanda')),
+      findsOneWidget,
+    );
+    final picked = BlocProvider.of<ForwardCubit>(
+      tester.element(find.byType(ForwardRecipientPicker)),
+    );
+    expect(picked.state.selectedIds, {'writer', 'silent'});
     expect(find.byKey(const Key('PostBud.ManyWarning')), findsNothing);
     expect(
-      find.text('Close the post and continue in the request'),
+      find.text(_en.postBudClosePost),
       findsOneWidget,
     );
   });
@@ -190,9 +233,10 @@ void main() {
       ],
     );
     await _next(tester);
+    expect(find.byType(ForwardRecipientPicker), findsOneWidget);
     expect(find.byKey(const Key('PostBud.ManyWarning')), findsOneWidget);
     expect(
-      find.text('Everyone ticked gets a request. Ticked: 6'),
+      find.text(_en.postBudInviteManyWarning(6)),
       findsOneWidget,
     );
   });
@@ -209,8 +253,7 @@ void main() {
     expect(find.byKey(const Key('PostBud.DiscoverableWarning')), findsNothing);
 
     opened.cubit.setDiscoverable(true);
-    await tester.pump();
-    await tester.pump();
+    await settleBud(tester, rounds: 2);
     expect(
       find.byKey(const Key('PostBud.DiscoverableWarning')),
       findsOneWidget,
@@ -241,17 +284,16 @@ void main() {
       },
     );
     await _next(tester);
+    expect(find.byType(ForwardRecipientPicker), findsOneWidget);
     await tester.tap(find.byKey(const Key('PostBud.SubmitButton')));
-    for (var i = 0; i < 5; i++) {
-      await tester.pump(const Duration(milliseconds: 50));
-    }
+    await settleBud(tester);
 
     expect(opened.h.port.calls, hasLength(1));
     expect(opened.router.opened, hasLength(1));
     final args = opened.router.opened.single.args! as BeaconViewRouteArgs;
     expect(args.id, 'child-9');
     expect(
-      find.text('Could not invite: Silent Sam', findRichText: true),
+      find.text(_en.postBudNotInvitedSnack('Silent Sam'), findRichText: true),
       findsOneWidget,
     );
   });
@@ -260,6 +302,6 @@ void main() {
     await _pump(tester, enabled: false, seed: _seedMembers);
     expect(find.byKey(const Key('PostBud.NextButton')), findsNothing);
     expect(find.byKey(const Key('PostBud.InviteStep')), findsNothing);
-    expect(find.text('Make a request'), findsNothing);
+    expect(find.text(_en.postBudAction), findsNothing);
   });
 }

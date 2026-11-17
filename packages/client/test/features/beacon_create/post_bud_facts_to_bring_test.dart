@@ -31,7 +31,7 @@ import 'package:tentura/domain/entity/post_bud_result.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/domain/use_case/post_bud_case.dart';
 import 'package:tentura/env.dart';
-import 'package:tentura/features/auth/domain/use_case/auth_case.dart';
+import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/features/beacon/data/repository/post_bud_repository.dart';
 import 'package:tentura/features/beacon_create/ui/bloc/beacon_create_cubit.dart';
 import 'package:tentura/features/beacon_create/ui/screen/beacon_create_screen.dart';
@@ -45,7 +45,6 @@ import 'package:tentura/ui/widget/facts_to_bring_checklist.dart';
 
 import '../../domain/use_case/fake_beacon_hierarchy_ports.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
-import '../auth/auth_test_helpers.dart';
 import '../../support/remote_wire_harness.dart';
 import '../beacon_threads/fact_origin_test_support.dart'
     show pumpRealAsync, registerFactRepository;
@@ -114,6 +113,7 @@ typedef _Pumped = ({
   _Router router,
   _Facts? facts,
   FakeUiEffectPort effects,
+  BudForward forward,
 });
 
 Future<_Pumped> _pump(
@@ -130,9 +130,6 @@ Future<_Pumped> _pump(
   GetIt.I
     ..registerSingleton<Env>(const Env())
     ..registerSingleton<UiEffectPort>(effects)
-    ..registerSingleton<AuthCase>(
-      buildTestAuthCase(EmptyAuthLocal(), EmptyAuthRemote()),
-    )
     ..registerSingleton<ContextRepository>(_ContextRepositoryFake());
   addTearDown(GetIt.I.reset);
   _Facts? repo;
@@ -143,6 +140,7 @@ Future<_Pumped> _pump(
   await beforePump?.call();
 
   final h = BudHarness(parent: post ?? budPost());
+  final forward = await registerBudInvitePicker(tester, h);
   final cubit = BeaconCreateCubit(
     beaconCreateCase: h.createCase,
     hierarchyCase: buildBeaconHierarchyCaseForTest(
@@ -181,6 +179,7 @@ Future<_Pumped> _pump(
               child: MultiBlocProvider(
                 providers: [
                   BlocProvider(create: (_) => ContextCubit()),
+                  BlocProvider<ProfileCubit>.value(value: BudProfileCubit()),
                   BlocProvider<BeaconCreateCubit>.value(value: cubit),
                 ],
                 child: const BeaconCreateScreen(
@@ -195,7 +194,14 @@ Future<_Pumped> _pump(
     ),
   );
   await _settle(tester, real: realFactRepository);
-  return (h: h, cubit: cubit, router: router, facts: repo, effects: effects);
+  return (
+    h: h,
+    cubit: cubit,
+    router: router,
+    facts: repo,
+    effects: effects,
+    forward: forward,
+  );
 }
 
 Future<void> _settle(WidgetTester tester, {bool real = false}) async {
@@ -369,7 +375,11 @@ void main() {
       tester,
     ) async {
       final p = await _pump(tester, facts: _many(2));
-      await tester.runAsync(() => p.cubit.submitBud(context: ''));
+      await tester.runAsync(() async {
+        final invite = await p.forward.inviteCubit();
+        await p.cubit.submitBud(context: '', forwardCubit: invite);
+        await invite.close();
+      });
       expect(p.h.port.calls, hasLength(1));
       expect(p.h.port.calls.single.factIds ?? const [], isEmpty);
     });
@@ -542,7 +552,6 @@ void main() {
 
     PostBudCase realCase(BudHarness h, RemoteApiService remote) => PostBudCase(
       PostBudRepository(remote),
-      h.profiles,
       OpIdService(),
       env: const Env(),
       logger: Logger('post-bud-wire-test'),

@@ -1,11 +1,17 @@
 // Budding a Request from a Post message (plan D1): the Request form detects a
-// Post parent, prefills from the source message, ticks the members the server
-// pre-ticks, defaults «Закрыть пост…», and submits one `beaconBudFromPost` per
-// screen session no matter how often the button is tapped.
+// Post parent, prefills from the source message, takes the invitees from the
+// invite step's Forward picker cubit (which ticks the members the server
+// pre-ticks), and submits one `beaconBudFromPost` per screen session no matter
+// how often the button is tapped.
+//
+// The «Закрыть пост…» default and the many-invites warning are driven through
+// the screen: post_bud_close_post_default_test.dart, post_bud_screen_test.dart
+// and post_bud_invite_picker_test.dart.
 
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:get_it/get_it.dart';
 
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_kind.dart';
@@ -13,6 +19,7 @@ import 'package:tentura/domain/entity/post_bud_invite_outcome.dart';
 import 'package:tentura/domain/entity/post_bud_result.dart';
 import 'package:tentura/domain/use_case/message_prefill_case.dart';
 import 'package:tentura/features/beacon_create/ui/bloc/beacon_create_cubit.dart';
+import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';
@@ -29,16 +36,32 @@ Future<BeaconCreateCubit> _open(
   );
   addTearDown(cubit.close);
   if (enabled) {
-    await cubit.stream.firstWhere(
-      (s) => s.postBud?.candidatesLoaded ?? false,
-    );
+    await cubit.stream.firstWhere((s) => s.postBud != null);
   } else {
     await cubit.stream.firstWhere((s) => s.clientCommandId != null);
   }
   return cubit;
 }
 
+/// The invite step's loaded [ForwardCubit] over [h]'s fake bud port.
+Future<ForwardCubit> _inviteCubit(BudHarness h) async {
+  final forward = await BudForward.start(h);
+  addTearDown(forward.dispose);
+  final cubit = await forward.inviteCubit();
+  addTearDown(cubit.close);
+  return cubit;
+}
+
+/// Submits the bud with the invitees ticked in [forward], the invite step's
+/// picker cubit.
+Future<PostBudResult?> _submit(
+  BeaconCreateCubit cubit,
+  ForwardCubit forward,
+) => cubit.submitBud(context: '', forwardCubit: forward);
+
 void main() {
+  tearDown(() async => GetIt.I.reset());
+
   group('MessagePrefillCase.fromText', () {
     test('first line is the title, the rest the description', () {
       final p = MessagePrefillCase.fromText('  Need a ladder\n\nSaturday.\n');
@@ -91,73 +114,29 @@ void main() {
       expect(cubit.state.isPostBud, isFalse);
     });
 
-    test(
-      'pretick ticks only invitable pre-ticked members; writers first',
-      () async {
-        final h = BudHarness();
-        h.port.candidates = [
-          budCandidate('silent', pretick: true),
-          budCandidate('writer', hasWritten: true, pretick: true),
-          budCandidate(
-            'blocked',
-            hasWritten: true,
-            pretick: true,
-            outcome: PostBudInviteOutcome.blocked,
-          ),
-          budCandidate('plain'),
-        ];
-        final cubit = await _open(h);
-
-        final bud = cubit.state.postBud!;
-        expect(bud.selectedIds, {'silent', 'writer'});
-        expect(
-          bud.invitable.map((c) => c.userId),
-          ['writer', 'silent', 'plain'],
-        );
-        expect(bud.memberCount, 5);
-      },
-    );
-
-    group('«Закрыть пост…» default', () {
-      test('on when E(P) has at most two members', () async {
-        final h = BudHarness();
-        h.port.candidates = [budCandidate('only')];
-        final cubit = await _open(h);
-        expect(cubit.state.postBud!.closePost, isTrue);
-      });
-
-      test('on iff every member is ticked', () async {
-        final h = BudHarness();
-        h.port.candidates = [
-          budCandidate('a', pretick: true),
-          budCandidate('b', pretick: true),
-          budCandidate('c', pretick: true),
-        ];
-        final cubit = await _open(h);
-        expect(cubit.state.postBud!.closePost, isTrue);
-
-        cubit.setBudInviteeSelected('b', selected: false);
-        expect(cubit.state.postBud!.closePost, isFalse);
-      });
-
-      test("the budder's own choice wins over the default", () async {
-        final h = BudHarness();
-        h.port.candidates = [budCandidate('only')];
-        final cubit = await _open(h);
-        cubit.setBudClosePost(false);
-        expect(cubit.state.postBud!.closePost, isFalse);
-      });
-    });
-
-    test('more than five ticked shows the warning', () async {
+    test('the invite picker ticks only invitable pre-ticked members and '
+        'lists the invitable ones in server order (writers first)', () async {
       final h = BudHarness();
       h.port.candidates = [
-        for (var i = 0; i < 6; i++) budCandidate('u$i', pretick: i < 5),
+        budCandidate('writer', hasWritten: true, pretick: true),
+        budCandidate(
+          'blocked',
+          hasWritten: true,
+          pretick: true,
+          outcome: PostBudInviteOutcome.blocked,
+        ),
+        budCandidate('silent', pretick: true),
+        budCandidate('plain'),
       ];
-      final cubit = await _open(h);
-      expect(cubit.state.postBud!.showsManyInvitesWarning, isFalse);
-      cubit.setBudInviteeSelected('u5', selected: true);
-      expect(cubit.state.postBud!.showsManyInvitesWarning, isTrue);
+      await _open(h);
+      final forward = await _inviteCubit(h);
+
+      expect(forward.state.selectedIds, {'silent', 'writer'});
+      expect(forward.state.candidates.map((c) => c.id), [
+        'writer',
+        'silent',
+        'plain',
+      ]);
     });
 
     test(
@@ -170,14 +149,17 @@ void main() {
           budCandidate('c', pretick: true),
         ];
         final cubit = await _open(h);
+        final forward = await _inviteCubit(h);
+        expect(forward.state.selectedIds, {'a', 'c'});
+        forward
+          ..toggleSelection('c')
+          ..toggleSelection('b')
+          ..setRecipientNote('b', '  you know the place  ');
         cubit
-          ..setBudInviteeSelected('c', selected: false)
-          ..setBudInviteeSelected('b', selected: true)
-          ..setBudInviteeNote('b', '  you know the place  ')
           ..setNeeds({'transport'})
           ..setDiscoverable(true);
 
-        final result = await cubit.submitBud(context: '');
+        final result = await _submit(cubit, forward);
 
         expect(result?.childBeaconId, 'child-1');
         expect(h.port.calls, hasLength(1));
@@ -203,10 +185,11 @@ void main() {
         final h = BudHarness();
         final effects = FakeUiEffectPort();
         final cubit = await _open(h, effects: effects);
+        final forward = await _inviteCubit(h);
         h.port.gate = Completer<void>();
 
-        final first = cubit.submitBud(context: '');
-        final second = cubit.submitBud(context: '');
+        final first = _submit(cubit, forward);
+        final second = _submit(cubit, forward);
         h.port.gate!.complete();
         expect(await second, isNull);
         expect(await first, isNotNull);
@@ -215,10 +198,10 @@ void main() {
         h.port
           ..gate = null
           ..budError = Exception('offline');
-        expect(await cubit.submitBud(context: ''), isNull);
+        expect(await _submit(cubit, forward), isNull);
         expect(effects.emitted.whereType<ShowError>(), isNotEmpty);
         h.port.budError = null;
-        expect(await cubit.submitBud(context: ''), isNotNull);
+        expect(await _submit(cubit, forward), isNotNull);
 
         expect(h.port.calls, hasLength(3));
         expect(

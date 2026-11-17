@@ -28,9 +28,7 @@ class BeaconRecipientsTab extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         BlocSelector<ForwardCubit, ForwardState, bool>(
-          selector: (state) =>
-              state.candidatesLoad is ForwardCandidatesReady ||
-              state.candidatesLoad is ForwardCandidatesEmpty,
+          selector: (state) => state.candidatesLoad.isLoaded,
           builder: (context, candidatesShown) {
             // Once sent, "nobody will see it" is false; it showed behind the
             // "Request sent" dialog (#442).

@@ -222,7 +222,6 @@ void main() {
             messagePrefillCase: h.prefillCase,
             postBudCase: PostBudCase(
               PostBudRepository(remote),
-              h.profiles,
               OpIdService(),
               env: const Env(),
               logger: Logger('post-bud-test'),
@@ -231,14 +230,22 @@ void main() {
             effects: effects,
           );
           addTearDown(cubit.close);
-          await cubit.stream.firstWhere(
-            (s) => s.postBud?.candidatesLoaded ?? false,
-          );
+          await cubit.stream.firstWhere((s) => s.postBud != null);
+          // Let the bud form's own Post reads settle.
+          await Future<void>.delayed(const Duration(milliseconds: 50));
           cubit
             ..setTitle('Need a ladder')
             ..setDescription('For Saturday.');
 
-          final result = await cubit.submitBud(context: '');
+          final forward = await BudForward.start(h);
+          addTearDown(forward.dispose);
+          final invite = await forward.inviteCubit();
+          addTearDown(invite.close);
+
+          final result = await cubit.submitBud(
+            context: '',
+            forwardCubit: invite,
+          );
 
           expect(result, isNull);
           expect(

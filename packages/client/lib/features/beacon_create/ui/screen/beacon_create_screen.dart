@@ -14,6 +14,7 @@ import 'package:tentura/domain/port/unsaved_changes_guard_port.dart';
 import 'package:tentura/features/beacon/ui/dialog/beacon_delete_dialog.dart';
 import 'package:tentura/features/beacon_plan/domain/entity/plan_fork_copy.dart';
 import 'package:tentura/features/context/ui/bloc/context_cubit.dart';
+import 'package:tentura/features/forward/domain/forward_target_profile.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
@@ -164,6 +165,9 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen>
 
   ForwardCubit? _forwardCubit;
   String? _forwardCubitDraftId;
+
+  /// Bud mode: the invite step's picker over the Post's members.
+  ForwardCubit? _budInviteCubit;
   bool _recipientsDraftEnsuring = false;
   bool _leaveInProgress = false;
 
@@ -190,6 +194,7 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen>
       GetIt.I<UnsavedChangesGuardPort>().setDirty(this, false);
     }
     unawaited(_forwardCubit?.close());
+    unawaited(_budInviteCubit?.close());
     super.dispose();
   }
 
@@ -320,6 +325,15 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen>
     return _forwardCubit;
   }
 
+  ForwardCubit _budInviteCubitFor(PostBudForm bud) =>
+      _budInviteCubit ??= ForwardCubit(
+        beaconId: '',
+        budPostId: bud.postId,
+        budPostAuthorId: bud.postAuthorId,
+        targetProfile: ForwardTargetProfile.postBudInvite,
+        embedded: true,
+      );
+
   Future<void> _makeLive() async {
     final contextName = context.read<ContextCubit>().state.selected;
     await _beaconCreateCubit.makeLive(context: contextName);
@@ -335,15 +349,22 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen>
   Future<void> _submitBud() async {
     final contextName = context.read<ContextCubit>().state.selected;
     final l10n = L10n.of(context)!;
-    final bud = _beaconCreateCubit.state.postBud;
-    final result = await _beaconCreateCubit.submitBud(context: contextName);
+    final invite = _budInviteCubit;
+    if (invite == null) return;
+    final result = await _beaconCreateCubit.submitBud(
+      context: contextName,
+      forwardCubit: invite,
+    );
     if (!mounted || result == null) return;
     final childId = result.childBeaconId;
     final skipped = result.notInvitedUserIds;
     if (skipped.isNotEmpty) {
+      final nameById = {
+        for (final c in invite.state.candidates) c.id: c.profile.shownName,
+      };
       final names = [
         for (final id in skipped)
-          switch (bud?.nameOf(id) ?? '') {
+          switch (nameById[id] ?? '') {
             '' => l10n.unknownPerson,
             final name => name,
           },
@@ -760,8 +781,8 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen>
                                           widget.initialTab ==
                                           kBeaconCreateTabImage,
                                     ),
-                                    if (state.isPostBud)
-                                      const PostBudInviteStep()
+                                    if (state.postBud case final bud?)
+                                      _buildBudInviteStep(bud)
                                     else
                                       _buildRecipientsTab(state, contextName),
                                   ],
@@ -830,8 +851,8 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen>
                     );
                   }
 
-                  if (state.isPostBud) {
-                    return _budBottomBar(state, l10n, tt);
+                  if (state.postBud case final bud?) {
+                    return _budBottomBar(state, bud, l10n, tt);
                   }
 
                   if (_step == _recipientsStep) {
@@ -1010,6 +1031,7 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen>
   /// Bud mode: «Next» to the invite step, then «Оформить запрос».
   Widget _budBottomBar(
     BeaconCreateState state,
+    PostBudForm bud,
     L10n l10n,
     TenturaTokens tt,
   ) {
@@ -1024,16 +1046,18 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen>
           height: tt.buttonHeight,
           width: double.infinity,
           child: onInvites
-              ? FilledButton(
-                  key: const Key('PostBud.SubmitButton'),
-                  onPressed:
-                      state.isLoading ||
-                          !(state.postBud?.candidatesLoaded ?? false)
-                      ? null
-                      : () => unawaited(_submitBud()),
-                  child: _BusyLabel(
-                    isSaving: state.isLoading,
-                    label: l10n.postBudAction,
+              ? BlocSelector<ForwardCubit, ForwardState, bool>(
+                  bloc: _budInviteCubitFor(bud),
+                  selector: (s) => s.candidatesLoad.isLoaded,
+                  builder: (context, membersLoaded) => FilledButton(
+                    key: const Key('PostBud.SubmitButton'),
+                    onPressed: state.isLoading || !membersLoaded
+                        ? null
+                        : () => unawaited(_submitBud()),
+                    child: _BusyLabel(
+                      isSaving: state.isLoading,
+                      label: l10n.postBudAction,
+                    ),
                   ),
                 )
               : FilledButton(
@@ -1047,6 +1071,15 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen>
       ],
     );
   }
+
+  /// Like [_buildRecipientsTab], the members load once the step is shown;
+  /// the screen keeps the picker's cubit, so going back keeps the ticks.
+  Widget _buildBudInviteStep(PostBudForm bud) => _step == _recipientsStep
+      ? BlocProvider.value(
+          value: _budInviteCubitFor(bud),
+          child: const PostBudInviteStep(),
+        )
+      : const SizedBox.shrink();
 
   Widget _buildRecipientsTab(BeaconCreateState state, String contextName) {
     final l10n = L10n.of(context)!;
