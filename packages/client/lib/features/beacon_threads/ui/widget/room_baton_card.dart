@@ -67,6 +67,7 @@ class RoomBatonCard extends StatelessWidget {
     this.batonAuthorUserId,
     this.togetherEnabled = kBatonTogetherEnabled,
     this.onRespond,
+    this.onPartnerRespond,
     this.onSelect,
     this.onCancel,
     super.key,
@@ -93,6 +94,11 @@ class RoomBatonCard extends StatelessWidget {
   /// Called with `true` for «Can help» and `false` for «Can't help»; together
   /// picks pass [RoomBatonCard.onRespond]'s `partnerUserId`.
   final void Function(bool canHelp, {String? partnerUserId})? onRespond;
+
+  /// Partner only: called with the inviter's id and `true` to join or `false`
+  /// to decline / withdraw.
+  final void Function(String inviterUserId, {required bool accept})?
+  onPartnerRespond;
 
   /// Author only: called with the chosen user id, or `null` to let the server
   /// pick.
@@ -126,9 +132,9 @@ class RoomBatonCard extends StatelessWidget {
         onSelect: onSelect,
         onCancel: onCancel,
       ),
-      final RoomBatonPartnerData partner => _StatusLine(
-        status: partner.status,
-        participants: participants,
+      final RoomBatonPartnerData partner => _PartnerBody(
+        baton: partner,
+        onRespond: onPartnerRespond,
       ),
     };
     return Card.outlined(
@@ -212,6 +218,98 @@ class _StatusLine extends StatelessWidget {
           ? l10n.batonCancelledLine
           : l10n.batonObserverCollecting,
       style: TenturaText.bodySmall(tt.textMuted),
+    );
+  }
+}
+
+/// A named partner's card: one prompt per invitation with Join / Can't, then
+/// «Can't after all» once joined, then the outcome. Never names anyone else.
+class _PartnerBody extends StatelessWidget {
+  const _PartnerBody({required this.baton, this.onRespond});
+
+  final RoomBatonPartnerData baton;
+  final void Function(String inviterUserId, {required bool accept})? onRespond;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
+    final tt = context.tt;
+    final mutedBody = TenturaText.bodySmall(tt.textMuted);
+    final respond = onRespond;
+
+    final outcome =
+        baton.outcome ??
+        (baton.status == RoomBatonStatus.cancelled
+            ? RoomBatonOutcome.closed
+            : null);
+    if (baton.status != RoomBatonStatus.collecting) {
+      if (outcome == null) return const SizedBox.shrink();
+      final accepted = baton.partnerInvites.where(
+        (i) => i.status == 'accepted',
+      );
+      return Text(
+        switch (outcome) {
+          RoomBatonOutcome.you =>
+            accepted.isEmpty
+                ? l10n.batonOutcomeYou
+                : l10n.batonOutcomeYouTogether(accepted.first.title),
+          RoomBatonOutcome.someoneElse => l10n.batonOutcomeSomeoneElse,
+          RoomBatonOutcome.closed => l10n.batonOutcomeClosed,
+        },
+        style: mutedBody,
+      );
+    }
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final invite in baton.partnerInvites)
+          Padding(
+            padding: EdgeInsets.only(bottom: tt.tightGap),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  invite.status == 'accepted'
+                      ? l10n.batonPartnerJoined(invite.title)
+                      : l10n.batonPartnerPrompt(invite.title),
+                  style: TenturaText.body(tt.text),
+                ),
+                SizedBox(height: tt.tightGap),
+                Wrap(
+                  spacing: tt.rowGap,
+                  runSpacing: tt.tightGap,
+                  children: [
+                    if (invite.status == 'accepted')
+                      OutlinedButton(
+                        onPressed: respond == null
+                            ? null
+                            : () => respond(invite.fromUserId, accept: false),
+                        child: Text(l10n.batonPartnerCantAfterAll),
+                      )
+                    else ...[
+                      FilledButton(
+                        onPressed: respond == null
+                            ? null
+                            : () => respond(invite.fromUserId, accept: true),
+                        child: Text(l10n.batonPartnerJoin),
+                      ),
+                      OutlinedButton(
+                        onPressed: respond == null
+                            ? null
+                            : () => respond(invite.fromUserId, accept: false),
+                        child: Text(l10n.batonPartnerCant),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
+            ),
+          ),
+        Text(l10n.batonPartnerNote, style: mutedBody),
+      ],
     );
   }
 }

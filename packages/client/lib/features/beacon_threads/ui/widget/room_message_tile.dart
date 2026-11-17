@@ -102,6 +102,7 @@ class RoomMessageTile extends StatelessWidget {
     this.onOpenFileAttachment,
     this.onVotePoll,
     this.onBatonRespond,
+    this.onBatonPartnerRespond,
     this.onBatonSelect,
     this.onBatonCancel,
     this.previousMessage,
@@ -201,7 +202,16 @@ class RoomMessageTile extends StatelessWidget {
     String batonId,
     bool canHelp, {
     String? partnerUserId,
-  })? onBatonRespond;
+  })?
+  onBatonRespond;
+
+  /// Partner only: answers an invitation to take the baton together.
+  final void Function(
+    String batonId,
+    String inviterUserId, {
+    required bool accept,
+  })?
+  onBatonPartnerRespond;
 
   /// Author only: picks who takes the baton (`null` user id = server picks).
   final void Function(String batonId, String? userId)? onBatonSelect;
@@ -690,6 +700,7 @@ class RoomMessageTile extends StatelessWidget {
     if (baton == null) return null;
     final respond = onBatonRespond;
     final select = onBatonSelect;
+    final partnerRespond = onBatonPartnerRespond;
     final cancel = onBatonCancel;
     return RoomBatonCard(
       baton: baton,
@@ -697,6 +708,10 @@ class RoomMessageTile extends StatelessWidget {
       participants: participants,
       viewerUserId: myProfile.id,
       batonAuthorUserId: message.authorId,
+      onPartnerRespond: partnerRespond == null
+          ? null
+          : (inviterUserId, {required accept}) =>
+                partnerRespond(baton.id, inviterUserId, accept: accept),
       onSelect: select == null ? null : (userId) => select(baton.id, userId),
       onCancel: cancel == null ? null : () => cancel(baton.id),
       onRespond: respond == null

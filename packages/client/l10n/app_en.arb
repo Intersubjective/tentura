@@ -8185,6 +8185,40 @@
       }
     }
   },
+  "batonPartnerJoin": "Join",
+  "@batonPartnerJoin": {
+    "description": "Button on the partner card: accept the together invitation."
+  },
+  "batonPartnerCant": "Can't",
+  "@batonPartnerCant": {
+    "description": "Button on the partner card: decline the together invitation."
+  },
+  "batonPartnerJoined": "You'll take it together with {name}. You can change your mind while it's open.",
+  "@batonPartnerJoined": {
+    "description": "Partner card after joining.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "batonPartnerCantAfterAll": "Can't after all",
+  "@batonPartnerCantAfterAll": {
+    "description": "Button on the partner card after joining: withdraw."
+  },
+  "batonPartnerNote": "This is not taking it yet: the author chooses who takes it.",
+  "@batonPartnerNote": {
+    "description": "Note on the partner card."
+  },
+  "batonOutcomeYouTogether": "You and {name} took it.",
+  "@batonOutcomeYouTogether": {
+    "description": "Partner outcome when the pair was chosen.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "batonPartnerReplaceConfirm": "This replaces taking it with {name}.",
   "@batonPartnerReplaceConfirm": {
     "description": "Confirmation before naming a new partner when one is already accepted.",

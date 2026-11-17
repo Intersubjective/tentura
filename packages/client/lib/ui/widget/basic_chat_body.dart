@@ -90,6 +90,7 @@ class BasicChatBody extends StatefulWidget {
     this.onOpenFileAttachment,
     this.onVotePoll,
     this.onBatonRespond,
+    this.onBatonPartnerRespond,
     this.onBatonSelect,
     this.onBatonCancel,
     this.header,
@@ -207,7 +208,16 @@ class BasicChatBody extends StatefulWidget {
     String batonId,
     bool canHelp, {
     String? partnerUserId,
-  })? onBatonRespond;
+  })?
+  onBatonRespond;
+
+  final void Function(
+    String messageId,
+    String batonId,
+    String inviterUserId, {
+    required bool accept,
+  })?
+  onBatonPartnerRespond;
 
   final void Function(String messageId, String batonId, String? userId)?
   onBatonSelect;
@@ -788,6 +798,19 @@ class BasicChatBodyState extends State<BasicChatBody> {
                                           canHelp,
                                           partnerUserId: partnerUserId,
                                         ),
+                              onBatonPartnerRespond:
+                                  widget.onBatonPartnerRespond == null
+                                  ? null
+                                  : (
+                                      batonId,
+                                      inviterUserId, {
+                                      required accept,
+                                    }) => widget.onBatonPartnerRespond!(
+                                      m.id,
+                                      batonId,
+                                      inviterUserId,
+                                      accept: accept,
+                                    ),
                               onBatonSelect: widget.onBatonSelect == null
                                   ? null
                                   : (batonId, userId) => widget.onBatonSelect!(

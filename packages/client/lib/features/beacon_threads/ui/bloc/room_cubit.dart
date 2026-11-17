@@ -1999,6 +1999,27 @@ class RoomCubit extends Cubit<RoomState> {
     }
   }
 
+  /// A named partner's answer to a together invitation; refetches so the
+  /// card shows the server's projection.
+  Future<void> batonPartnerRespond({
+    required String messageId,
+    required String batonId,
+    required String inviterUserId,
+    required bool accept,
+  }) async {
+    if (_rejectIfDiscussionReadOnly()) return;
+    try {
+      await _case.batonPartnerRespond(
+        batonId: batonId,
+        inviterUserId: inviterUserId,
+        accept: accept,
+      );
+      await _requestRefresh(scope: _RoomRefreshScope.messages);
+    } on Object catch (e) {
+      _showSnackError(e);
+    }
+  }
+
   /// Author: picks who takes the baton (`null` user id = server picks), then
   /// refetches so the card shows the taker.
   ///
