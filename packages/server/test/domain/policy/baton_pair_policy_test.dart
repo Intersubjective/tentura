@@ -298,7 +298,8 @@ void main() {
         }
         final pairs = <String, Set<String>>{};
         for (final c in rows) {
-          if (c.partnerUserId != null) {
+          if (c.partnerUserId != null &&
+              c.partnerResponse != BatonPartnerResponse.declined) {
             expect(c.response, BatonResponse.canHelp, reason: 'seq $seq');
           }
           if (c.partnerResponse == BatonPartnerResponse.accepted) {

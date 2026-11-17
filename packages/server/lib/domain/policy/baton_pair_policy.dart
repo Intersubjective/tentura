@@ -303,10 +303,12 @@ abstract final class BatonPairPolicy {
       if (r.userId == row.userId) row else r,
   ];
 
-  /// Back to waiting; the partner marker stays as «declined» without a name.
+  /// Back to waiting; the partner stays on the row marked «declined», so the
+  /// person can be told who can't join.
   static RoomBatonCandidate _declined(RoomBatonCandidate row) => _row(
     row,
     response: BatonResponse.waiting,
+    partner: row.partnerUserId,
     partnerResponse: BatonPartnerResponse.declined,
     invites: row.partnerInvites,
   );

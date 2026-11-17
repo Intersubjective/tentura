@@ -76,14 +76,24 @@ class BeaconNotificationService implements BeaconNotificationPort {
       final preferences = await _preferences.getForAccount(
         decision.recipientId,
       );
-      final identity = (await _identity.resolve(decision.recipientId, [
+      final withUserId = decision.presentationKey == 'baton_taken'
+          ? decision.presentationPayload['withUserId']
+          : null;
+      final hasCoTaker = withUserId is String && withUserId.isNotEmpty;
+      final identities = await _identity.resolve(decision.recipientId, [
         IdentityRequest(
           beaconId: decision.beaconId ?? '',
           actorId: decision.actorUserId,
           relatedBeaconId:
               decision.presentationPayload['relatedBeaconId'] as String?,
         ),
-      ])).single;
+        if (hasCoTaker)
+          IdentityRequest(
+            beaconId: decision.beaconId ?? '',
+            actorId: withUserId,
+          ),
+      ]);
+      final identity = identities.first;
       if (identity.actorHidden) {
         // A blocked pair (either direction) gets neither push nor email.
         _logger.info(
@@ -95,7 +105,10 @@ class BeaconNotificationService implements BeaconNotificationPort {
       final rendered = _renderer.render(
         presentationKey: decision.presentationKey,
         kind: decision.kind,
-        facts: decision.presentationPayload,
+        facts: NotificationCopyRenderer.mergeCoTakerFacts(
+          decision.presentationPayload,
+          hasCoTaker ? identities[1] : null,
+        ),
         identity: identity,
         locale: preferences.locale,
         tzOffsetMinutes: preferences.tzOffsetMinutes,
