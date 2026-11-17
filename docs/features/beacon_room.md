@@ -151,46 +151,80 @@ Unread counts for **General** appear on the **Chat** tab badge (`threadsTabUnrea
 
 ## Who'll take it?
 
-In a writable Request or Post discussion, any admitted participant can choose
-**Who'll take it?** / **Кто возьмётся?** on their own non-system message. The
-message action is available through the action button, secondary click, or long
-press. The author privately asks 1–12 other admitted participants, with optional
-priority tiers 1–3 (1 is highest; everyone starts at 1).
+In a writable Request or Post discussion, a **Who'll take it?** / **Кто возьмётся?**
+ask (internal: baton) is its own discussion message (semantic marker 13), like a
+poll. Any admitted participant can post it from the composer's attach menu, or
+from the actions of another non-system message (the new message is then a reply
+to it). The author privately asks 1–12 other admitted participants, with optional
+priority tiers 1–3 (1 is highest; everyone starts at 1). The author can edit the
+ask and the people asked, or cancel it, while answers are being collected. The
+bubble takes no emoji reactions.
 
-Each person asked receives an Activity receipt and a private card on the source
-message, and can answer **Can help** or **Can't help**. They can change their
-answer while answers are being collected. **Can help** means availability; it
-does not mean the person has already taken it.
+Each person asked receives an Activity receipt and a private card in the bubble,
+and can answer **Can help** or **Can't help**. They can change their answer while
+answers are being collected. **Can help** means availability; it does not mean the
+person has already taken it.
 
-The author can **Choose now** as soon as someone has answered **Can help**, even
-when other people are still waiting. They can select an available person who is
-still admitted, or use **Pick for me** to pick randomly among available people
-in the highest priority tier. When everyone has answered, the author receives a
-prompt to choose; nobody is selected automatically. With no available person,
-the author can wait or cancel.
+### Together with…
+
+A person who was asked and is not ready to take it alone can answer **Together
+with…** / **Вместе с кем-то…**: they pick one other admitted participant (not
+themselves and not the ask's author) with the existing single-select people
+picker. The named person gets an Activity receipt and a card, **Join** or
+**Can't**. Rules:
+
+- The pair is exactly two people. One confirmed pair per person per ask; joining
+  a new pair replaces the old one after a confirmation.
+- Until the named person joins, the asked person's answer reads as waiting. If
+  the named person declines or withdraws, only the asked person is told, and
+  their answer goes back to waiting. The author never sees a decline.
+- A confirmed pair is one entry for the author («A and X — can help together»),
+  one entry in **Choose now**, and one entry for **Pick for me** within its tier.
+  Choosing it selects both people; both get a **took it** receipt, and the
+  shared line reads **{A} and {X} took it.**
+- The named person is not a candidate unless the author also asked them. They
+  never see other candidates, tiers, or other pairs. An asked person can name at
+  most three distinct partners per ask.
+- Joining is not taking it: only the author's selection is. It adds no
+  obligation.
+
+### Choosing and visibility
+
+The author can **Choose now** as soon as someone has answered **Can help** (alone
+or as a confirmed pair), even when other people are still waiting. They can
+select an available person or pair who is still admitted, or use **Pick for me**
+to pick randomly among available entries in the highest priority tier. When
+everyone has answered, the author receives a prompt to choose; nobody is selected
+automatically. With nobody available, the author can wait or cancel.
 
 Visibility is private and depends on who is viewing the message:
 
 - Only the author sees the candidate list, priority tiers, answers, waiting
-  people, and whether everyone has answered.
-- A candidate sees only their own answer, never other candidates, their own
-  priority tier, or how many people were asked. After selection, their card says
-  **You took it.**, **Someone else was selected. Thanks for offering.**, or
-  **No longer needed.** The card identifies the selected person only when that
-  person is the viewer; the shared system line remains visible to everyone.
-- Other admitted participants see nothing while answers are collected. After
-  selection, they see **{name} took it.** and a small chip on the source message,
-  without candidate lists, refusals, waiting people, or priority tiers.
+  people, and whether everyone has answered. A pair appears only once confirmed.
+- A candidate sees only their own answer (and their own partner), never other
+  candidates, their own priority tier, or how many people were asked. After
+  selection, their card says **You took it.**, **Someone else was selected. Thanks
+  for offering.**, or **No longer needed.**
+- A named partner sees only the invitation addressed to them and its outcome:
+  never the author's list, tiers, counts, or other pairs. This is the
+  partner-privacy rule.
+- Everyone else in the discussion sees **Looking for someone to take it.** while
+  answers are collected; after selection **{name} took it.** (or **{A} and {X}
+  took it.**) and a small chip on the source message; after a cancel,
+  **Cancelled.** None of them sees candidate lists, refusals, waiting people, or
+  priority tiers.
 
-Selection is final, and the selected person also receives an Activity receipt.
-Cancelling is silent for the discussion: candidates see **No longer needed.**,
-and the author and observers see no card. A cancelled attempt allows a new one
-on the same message; a selected one does not.
+Selection is final. After it, the author is offered a plan step for the taker
+(for a pair: one step assigned to the asked person, naming the partner).
+Cancelling is silent for the discussion except the **Cancelled.** line; candidates
+and partners with an open answer see **No longer needed.** A cancelled ask allows
+a new one; a selected one does not.
 
 This is not a task: it adds no due date, progress status, obligation, or item in
 My Work. Activity receipts are optional responses, not required actions. When
 the work needs separate coordination, participants can create a child Request
-themselves.
+themselves. Design: `docs/plans/baton-who-takes-it-plan.md` (rev 2) and
+`docs/plans/baton-together-plan.md`.
 
 ## Read receipts
 

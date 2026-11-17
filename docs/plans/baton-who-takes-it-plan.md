@@ -4,6 +4,8 @@ Status: rev 2, 2026-10-11 (see §0); rev 1, 2026-10-03. Epic in beads: see §7. 
 (needs `RoomHost` / `RoomCapabilities` and Post rooms; all brd4 server units are already closed, so
 migration numbers do not collide).
 
+> **Rev 3 (2026-11-16):** an asked person may answer «Together with…» a named participant (a confirmed pair is one entry for the author). See `docs/plans/baton-together-plan.md`; it extends, and does not replace, the rules below.
+
 ## 0. Rev 2 (2026-10-11): the baton is its own message
 
 Owner decisions after the first release; they override the rev 1 text below where they disagree.
