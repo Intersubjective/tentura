@@ -1959,10 +1959,15 @@ class RoomCubit extends Cubit<RoomState> {
         final optimisticPartner = partnerUserId != null && canHelp
             ? RoomBatonMyPartner(
                 id: partnerUserId,
-                title: '',
+                title:
+                    state.participants
+                        .where((p) => p.userId == partnerUserId)
+                        .map((p) => p.userTitle)
+                        .firstOrNull ??
+                    '',
                 status: 'pending',
               )
-            : (canHelp ? null : baton.myPartner);
+            : null;
         final updated = msg.copyWith(
           baton: RoomBatonCandidateData(
             id: baton.id,

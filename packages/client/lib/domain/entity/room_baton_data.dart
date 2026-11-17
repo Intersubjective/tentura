@@ -360,10 +360,15 @@ class RoomBatonAuthorData extends RoomBatonData {
   List<RoomBatonAuthorRow> get rows {
     final partnerIds = {for (final p in pairs) p.partnerId};
     final takerIds = {for (final p in pairs) p.takerId};
+    final pairTier = {for (final p in pairs) p.takerId: p.tier};
     return [
       for (final c in candidates)
         if (takerIds.contains(c.userId) && c.partner != null)
-          RoomBatonAuthorRow(candidate: c, partner: c.partner)
+          RoomBatonAuthorRow(
+            candidate: c,
+            partner: c.partner,
+            tier: pairTier[c.userId],
+          )
         else if (!partnerIds.contains(c.userId) ||
             !candidates.any(
               (o) => takerIds.contains(o.userId) && o.partner?.id == c.userId,
@@ -376,10 +381,18 @@ class RoomBatonAuthorData extends RoomBatonData {
 /// One row of the author's collecting view: an asked person, or a confirmed
 /// pair ([candidate] is the pair's taker, [partner] their partner).
 class RoomBatonAuthorRow {
-  const RoomBatonAuthorRow({required this.candidate, this.partner});
+  RoomBatonAuthorRow({
+    required this.candidate,
+    this.partner,
+    int? tier,
+  }) : tier = tier ?? candidate.tier;
 
   final RoomBatonCandidate candidate;
   final RoomBatonTaker? partner;
+
+  /// Priority the row is listed under: a pair's tier (min of both members),
+  /// otherwise the candidate's own.
+  final int tier;
 }
 
 /// An asked person's view: only their own answer, then the outcome.

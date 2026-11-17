@@ -429,18 +429,18 @@ class _AuthorBody extends StatelessWidget {
                   ),
                   if (showTiers) ...[
                     Text(
-                      l10n.batonTierLabel(row.candidate.tier),
+                      l10n.batonTierLabel(row.tier),
                       style: mutedBody,
                     ),
                     SizedBox(width: tt.rowGap),
                   ],
                   ConstrainedBox(
                     // A pair row carries two avatars: its status takes at most
-                    // half the row and ellipsizes instead of overflowing.
+                    // 40% of the row and ellipsizes instead of overflowing.
                     constraints: BoxConstraints(
                       maxWidth: row.partner == null
                           ? double.infinity
-                          : box.maxWidth / 2,
+                          : box.maxWidth * 0.4,
                     ),
                     child: Text(
                       switch (row.candidate.response) {
@@ -663,7 +663,9 @@ class _CandidateBody extends StatelessWidget {
       children: [
         for (final invite in baton.partnerInvites) ...[
           Text(
-            l10n.batonPartnerPrompt(invite.title),
+            invite.status == 'accepted'
+                ? l10n.batonPartnerJoined(invite.title)
+                : l10n.batonPartnerPrompt(invite.title),
             style: TenturaText.body(tt.text),
           ),
           SizedBox(height: tt.tightGap),

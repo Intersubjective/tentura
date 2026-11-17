@@ -45,11 +45,11 @@ class _ChooseSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
-    final showTiers = rows.map((r) => r.candidate.tier).toSet().length > 1;
+    final showTiers = rows.map((r) => r.tier).toSet().length > 1;
     final byTier = <int, List<RoomBatonAuthorRow>>{};
     for (final r in rows) {
       if (r.candidate.response == RoomBatonResponse.canHelp) {
-        byTier.putIfAbsent(r.candidate.tier, () => []).add(r);
+        byTier.putIfAbsent(r.tier, () => []).add(r);
       }
     }
     final tiers = byTier.keys.toList()..sort();
