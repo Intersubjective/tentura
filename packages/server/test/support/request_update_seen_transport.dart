@@ -140,6 +140,10 @@ INSERT INTO public.beacon_participant (
         'true') {
       await seedForwardRequestHistory(writer);
     }
+    if (Platform.environment['TENTURA_RECEIPT_LEFTOVER_FORWARD_FIXTURE'] ==
+        'true') {
+      await seedLeftoverForwardRequestHistory(writer);
+    }
     if (Platform.environment['TENTURA_RECEIPT_COUNTED_SIBLING_FIXTURE'] ==
         'true') {
       await seedCountedReceipts(writer, siblings: true);

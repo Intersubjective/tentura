@@ -29,6 +29,7 @@ final class ProductionReceiptTransport {
     bool countedRowsFixture = false,
     bool countedSiblingFixture = false,
     bool forwardRequestFixture = false,
+    bool leftoverForwardRequestFixture = false,
   }) async {
     final process = await Process.start(
       'dart',
@@ -39,6 +40,8 @@ final class ProductionReceiptTransport {
         if (countedRowsFixture) 'TENTURA_RECEIPT_COUNTED_ROWS_FIXTURE': 'true',
         if (forwardRequestFixture)
           'TENTURA_RECEIPT_FORWARD_REQUEST_FIXTURE': 'true',
+        if (leftoverForwardRequestFixture)
+          'TENTURA_RECEIPT_LEFTOVER_FORWARD_FIXTURE': 'true',
         if (countedSiblingFixture)
           'TENTURA_RECEIPT_COUNTED_SIBLING_FIXTURE': 'true',
       },

@@ -1925,7 +1925,9 @@ WITH ${AttentionDismissibleSql.visibleWithSurface},
 targets AS (
   SELECT id
   FROM visible
-  WHERE seen_at IS NULL
+  -- Unread rows, and optional rows an older Read all marked seen but never
+  -- cleared: History still counts those, so they are targets too.
+  WHERE (seen_at IS NULL OR (${AttentionDismissibleSql.activeOptional('visible')}))
     AND (\$2::text IS NULL OR surface = \$2)
 ),
 forward_outcomes AS (

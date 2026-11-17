@@ -1,7 +1,6 @@
 @Tags(['pg'])
 library;
 
-
 import 'dart:convert';
 
 import 'package:logging/logging.dart';
@@ -107,7 +106,10 @@ FOR EACH ROW EXECUTE FUNCTION public.capture_attention_uow_receipt()
       );
       query = AttentionRepository(database);
       ack = AttentionAckRepository(database);
-      dispatch = AttentionDispatchRepository(database, Logger('attention_pg_test'));
+      dispatch = AttentionDispatchRepository(
+        database,
+        Logger('attention_pg_test'),
+      );
       delivery = AttentionChannelDeliveryRepository(database);
       unitOfWork = MutatingUnitOfWork(database);
       room = BeaconRoomRepository(database);
@@ -590,8 +592,19 @@ INSERT INTO public.notification_preference (
         await _assertSeenOnly(writer, 'Nvisible');
 
         await _insertReceipt(writer, id: 'Nvisible2');
-        expect(await ack.markAllSeen(_viewerId), 1);
+        // «Read all» also takes the receipt `markSeen` read but left counted.
+        expect(await ack.markAllSeen(_viewerId), 2);
         await _assertSeenOnly(writer, 'Nvisible2');
+        final readAll = await writer.execute('''
+SELECT id, seen_at, cleared_at
+FROM public.notification_outbox
+WHERE id IN ('Nvisible', 'Nvisible2')
+''');
+        expect(readAll, hasLength(2));
+        expect(
+          readAll.every((row) => row[1] != null && row[2] != null),
+          isTrue,
+        );
 
         final hidden = await writer.execute('''
 SELECT id, seen_at, read_at
@@ -605,14 +618,11 @@ ORDER BY id
           accountId: _viewerId,
           view: AttentionFeedView.unread,
         );
-        // `markSeen` moves the read axis only, so Nvisible stays counted.
-        // «Read all» (`markAllSeen`) also clears what it reads, so
-        // Nvisible2 leaves the total and the list together (M1).
-        expect(result.summary.unreadTotal, 1);
-        expect(result.page.items.map((item) => item.id).toSet(), {
-          'Nvisible',
-        });
-        expect(result.summary.unreadTotal, result.page.items.length);
+        // `markSeen` moves the read axis only, but «Read all» (`markAllSeen`)
+        // also clears everything optional it reads or finds read-but-counted,
+        // so both receipts leave the total and the list together (M1).
+        expect(result.summary.unreadTotal, 0);
+        expect(result.page.items, isEmpty);
       },
     );
 
@@ -954,35 +964,34 @@ FROM public.notification_outbox
       'event_type throws',
       () async {
         const sourceEventKey = 'attention-idem-event-type-mismatch';
-        Future<void> recordWith(AttentionEventType eventType) =>
-            unitOfWork.run(
+        Future<void> recordWith(AttentionEventType eventType) => unitOfWork.run(
+          actorUserId: _viewerId,
+          action: () => dispatch.record(
+            AttentionDispatchIntent(
+              eventType: eventType,
+              sourceEventKey: sourceEventKey,
               actorUserId: _viewerId,
-              action: () => dispatch.record(
-                AttentionDispatchIntent(
-                  eventType: eventType,
-                  sourceEventKey: sourceEventKey,
-                  actorUserId: _viewerId,
-                  priority: NotificationPriority.normal,
-                  kind: NotificationKind.newRelay,
-                  title: 'Forwarded Request',
-                  body: 'A Request was forwarded to you',
-                  actionUrl: '/#/view?id=$_contentBeaconId',
-                  collapseKey: 'idem-event-type-mismatch',
-                  recipients: const [
-                    AttentionRecipientSnapshot(
-                      recipientId: _otherId,
-                      reasons: {AttentionRecipientReason.forwardRecipient},
-                      role: AttentionRecipientRoleFacts(
-                        canReadBeaconContent: true,
-                        beaconId: _contentBeaconId,
-                        actorUserId: _viewerId,
-                      ),
-                    ),
-                  ],
-                  beaconId: _contentBeaconId,
+              priority: NotificationPriority.normal,
+              kind: NotificationKind.newRelay,
+              title: 'Forwarded Request',
+              body: 'A Request was forwarded to you',
+              actionUrl: '/#/view?id=$_contentBeaconId',
+              collapseKey: 'idem-event-type-mismatch',
+              recipients: const [
+                AttentionRecipientSnapshot(
+                  recipientId: _otherId,
+                  reasons: {AttentionRecipientReason.forwardRecipient},
+                  role: AttentionRecipientRoleFacts(
+                    canReadBeaconContent: true,
+                    beaconId: _contentBeaconId,
+                    actorUserId: _viewerId,
+                  ),
                 ),
-              ),
-            );
+              ],
+              beaconId: _contentBeaconId,
+            ),
+          ),
+        );
 
         await recordWith(AttentionEventType.relayReceived);
         await expectLater(
@@ -1401,4 +1410,3 @@ WHERE id = @id
   expect(row.single[0], isNull);
   expect(row.single[1], isNull);
 }
-
