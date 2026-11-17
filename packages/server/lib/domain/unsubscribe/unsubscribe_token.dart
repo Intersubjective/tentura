@@ -50,7 +50,10 @@ class UnsubscribeToken {
   }
 
   String _mac(String bodyB64) {
-    final mac = Hmac(sha256, utf8.encode(_secret)).convert(utf8.encode(bodyB64));
+    final mac = Hmac(
+      sha256,
+      utf8.encode(_secret),
+    ).convert(utf8.encode(bodyB64));
     return base64Url.encode(mac.bytes);
   }
 

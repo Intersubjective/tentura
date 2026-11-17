@@ -67,9 +67,10 @@ class DriftUserProfileBatchLookup implements UserProfileBatchLookup {
     final imageByUuid = await _imagesByUuidForUsers(users);
     final presenceByUserId = await _presenceByUserId(idList);
     final todayUtc = publicUserAvailabilityTodayUtc();
-    final availabilityEntities = await _userAvailabilityRepository.fetchByUserIds(
-      idList.toSet(),
-    );
+    final availabilityEntities = await _userAvailabilityRepository
+        .fetchByUserIds(
+          idList.toSet(),
+        );
 
     final overlayTrustAndScores =
         viewerTrustsPeerIds.isNotEmpty || scoresByPeerId.isNotEmpty;
@@ -127,8 +128,7 @@ WHERE u.id = ANY($1::text[])
         .get();
 
     return {
-      for (final row in rows)
-        row.read<String>('id'): _constellationPeer(row),
+      for (final row in rows) row.read<String>('id'): _constellationPeer(row),
     };
   }
 

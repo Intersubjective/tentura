@@ -65,22 +65,24 @@ class SessionRepository implements SessionRepositoryPort {
   }
 
   @override
-  Future<void> revokeByTokenHash(String tokenHash) =>
-      _database.managers.accountSessions
-          .filter((e) => e.tokenHash(tokenHash))
-          .update(
-            (o) => o(revokedAt: Value(PgDateTime(DateTime.timestamp()))),
-          );
+  Future<void> revokeByTokenHash(String tokenHash) => _database
+      .managers
+      .accountSessions
+      .filter((e) => e.tokenHash(tokenHash))
+      .update(
+        (o) => o(revokedAt: Value(PgDateTime(DateTime.timestamp()))),
+      );
 
   @override
-  Future<void> revokeAllForAccount(String accountId) =>
-      _database.managers.accountSessions
-          .filter(
-            (e) => e.accountId.id(accountId) & e.revokedAt.isNull(),
-          )
-          .update(
-            (o) => o(revokedAt: Value(PgDateTime(DateTime.timestamp()))),
-          );
+  Future<void> revokeAllForAccount(String accountId) => _database
+      .managers
+      .accountSessions
+      .filter(
+        (e) => e.accountId.id(accountId) & e.revokedAt.isNull(),
+      )
+      .update(
+        (o) => o(revokedAt: Value(PgDateTime(DateTime.timestamp()))),
+      );
 
   @override
   Future<void> revokeByCredentialId(String credentialId) =>

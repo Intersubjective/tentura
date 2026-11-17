@@ -5,6 +5,5 @@ final class ForwardGraphIntegrityException implements Exception {
   final String committerId;
 
   @override
-  String toString() =>
-      'ForwardGraphIntegrityException(committer=$committerId)';
+  String toString() => 'ForwardGraphIntegrityException(committer=$committerId)';
 }

@@ -91,9 +91,10 @@ ORDER BY subject_user_id, tag_slug
     ];
   }
 
-  static EvidenceChannel _channelFromSourceType(int sourceType) => switch (sourceType) {
-    3 => EvidenceChannel.outcome,
-    1 || 4 => EvidenceChannel.seed,
-    _ => throw StateError('unexpected source_type $sourceType'),
-  };
+  static EvidenceChannel _channelFromSourceType(int sourceType) =>
+      switch (sourceType) {
+        3 => EvidenceChannel.outcome,
+        1 || 4 => EvidenceChannel.seed,
+        _ => throw StateError('unexpected source_type $sourceType'),
+      };
 }

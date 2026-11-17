@@ -73,9 +73,10 @@ class MutualFriendsRepository implements MutualFriendsRepositoryPort {
 
     final userIds = rows.map((r) => r.data['id']! as String).toSet();
     final todayUtc = publicUserAvailabilityTodayUtc();
-    final availabilityEntities = await _userAvailabilityRepository.fetchByUserIds(
-      userIds,
-    );
+    final availabilityEntities = await _userAvailabilityRepository
+        .fetchByUserIds(
+          userIds,
+        );
 
     final out = <UserPublicRecord>[];
     for (final row in rows) {

@@ -34,19 +34,19 @@ enum LineageSuggestionGroup {
 
 extension LineageSuggestionGroupWire on LineageSuggestionGroup {
   String get wireSlug => switch (this) {
-        LineageSuggestionGroup.involved => 'involved',
-        LineageSuggestionGroup.reviewedPositive => 'reviewedPositive',
-        LineageSuggestionGroup.routedHelp => 'routedHelp',
-        LineageSuggestionGroup.privateTag => 'privateTag',
-      };
+    LineageSuggestionGroup.involved => 'involved',
+    LineageSuggestionGroup.reviewedPositive => 'reviewedPositive',
+    LineageSuggestionGroup.routedHelp => 'routedHelp',
+    LineageSuggestionGroup.privateTag => 'privateTag',
+  };
 
   static LineageSuggestionGroup? fromWire(String slug) => switch (slug) {
-        'involved' => LineageSuggestionGroup.involved,
-        'reviewedPositive' => LineageSuggestionGroup.reviewedPositive,
-        'routedHelp' => LineageSuggestionGroup.routedHelp,
-        'privateTag' => LineageSuggestionGroup.privateTag,
-        _ => null,
-      };
+    'involved' => LineageSuggestionGroup.involved,
+    'reviewedPositive' => LineageSuggestionGroup.reviewedPositive,
+    'routedHelp' => LineageSuggestionGroup.routedHelp,
+    'privateTag' => LineageSuggestionGroup.privateTag,
+    _ => null,
+  };
 }
 
 class LineageForwardSuggestion {
@@ -54,7 +54,8 @@ class LineageForwardSuggestion {
     required this.userId,
     required this.group,
     required this.reasonCode,
-    required this.autoSelect, this.reasonArg,
+    required this.autoSelect,
+    this.reasonArg,
   });
 
   final String userId;

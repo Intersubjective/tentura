@@ -16,8 +16,7 @@ class ForwardAttributionRepositoryMock
   @override
   Future<List<ForwardAttributionEntity>> fetchByBatchIds(
     List<String> batchIds,
-  ) async =>
-      const [];
+  ) async => const [];
 
   @override
   Future<void> record({

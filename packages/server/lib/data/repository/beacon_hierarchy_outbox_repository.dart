@@ -418,7 +418,9 @@ SELECT event_id, target_beacon_id, direction FROM claimed
             Variable(TypedValue(Type.timestampTz, now.toUtc())),
             Variable<int>(limit),
             Variable<String>(leaseOwner),
-            Variable<int>(BeaconHierarchyDeliverySafeError.poisonAttemptThreshold),
+            Variable<int>(
+              BeaconHierarchyDeliverySafeError.poisonAttemptThreshold,
+            ),
           ],
         )
         .get();
@@ -587,15 +589,16 @@ WHERE event_id = $1 AND target_beacon_id = $2
     return rows.single.read<int>('attempt_count');
   }
 
-  static BeaconHierarchyEvent _eventFromRow(QueryRow row) => BeaconHierarchyEvent(
-    eventId: row.read<String>('id'),
-    sourceBeaconId: row.read<String>('source_beacon_id'),
-    sourceSequence: row.read<int>('source_sequence'),
-    fromStatus: BeaconStatus.fromSmallint(row.read<int>('from_status')),
-    toStatus: BeaconStatus.fromSmallint(row.read<int>('to_status')),
-    occurredAt: DateTime.parse(row.read<String>('occurred_at')).toUtc(),
-    actorUserId: row.readNullable<String>('actor_user_id'),
-  );
+  static BeaconHierarchyEvent _eventFromRow(QueryRow row) =>
+      BeaconHierarchyEvent(
+        eventId: row.read<String>('id'),
+        sourceBeaconId: row.read<String>('source_beacon_id'),
+        sourceSequence: row.read<int>('source_sequence'),
+        fromStatus: BeaconStatus.fromSmallint(row.read<int>('from_status')),
+        toStatus: BeaconStatus.fromSmallint(row.read<int>('to_status')),
+        occurredAt: DateTime.parse(row.read<String>('occurred_at')).toUtc(),
+        actorUserId: row.readNullable<String>('actor_user_id'),
+      );
 
   static String _directionWire(BeaconHierarchyDeliveryDirection direction) =>
       switch (direction) {

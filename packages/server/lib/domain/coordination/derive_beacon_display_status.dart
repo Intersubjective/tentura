@@ -6,6 +6,7 @@ enum BeaconDisplayPhase {
   wrappingUp,
   needsMoreHelp,
   enoughHelpInMotion,
+
   /// Retained for GraphQL `byName` compat. Not derived: unreviewed offers
   /// stay on YOU/ACT (`reviewOffers`), not the shared STATUS line.
   offersAwaitingAuthor,
@@ -56,6 +57,7 @@ class BeaconDisplayStatusInput {
 
   final BeaconStatus status;
   final BeaconDisplayTier tier;
+
   /// Active help offers (any review state). An offer alone is not a team:
   /// it only changes the "no offers yet" cue, never the phase.
   final int helpOfferCount;
@@ -237,8 +239,8 @@ BeaconDisplayStatusResult _derivePublic(BeaconDisplayStatusInput input) {
 
 BeaconDisplaySlot2Kind _lookingSlot2(BeaconDisplayStatusInput input) =>
     input.helpOfferCount > 0
-        ? BeaconDisplaySlot2Kind.freshness
-        : BeaconDisplaySlot2Kind.noOffersYet;
+    ? BeaconDisplaySlot2Kind.freshness
+    : BeaconDisplaySlot2Kind.noOffersYet;
 
 BeaconDisplaySlot2Kind _reviewSlot2(BeaconDisplayStatusInput input) {
   final closesAt = input.reviewClosesAt;

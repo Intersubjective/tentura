@@ -67,7 +67,9 @@ abstract class UserBlockRepositoryPort {
   });
 
   // --- cascade job surface ---
-  Future<List<UserBlockIntentEntity>> claimPendingCascades({required int limit});
+  Future<List<UserBlockIntentEntity>> claimPendingCascades({
+    required int limit,
+  });
 
   Future<int> materializeCascadeBatch({
     required String blockerId,

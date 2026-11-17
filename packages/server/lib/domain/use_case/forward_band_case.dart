@@ -160,9 +160,7 @@ final class ForwardBandCase extends UseCaseBase {
   ) {
     final grouped = <String, List<ScoredProjection>>{};
     for (final projection in projections) {
-      grouped
-          .putIfAbsent(projection.subjectUserId, () => [])
-          .add(projection);
+      grouped.putIfAbsent(projection.subjectUserId, () => []).add(projection);
     }
     return grouped;
   }
@@ -227,14 +225,15 @@ final class ForwardBandCase extends UseCaseBase {
       withinDays: kCapExplorationRecentForwardDays,
     );
 
-    final pool = forwardableCandidates
-        .where(
-          (candidate) =>
-              !evidencedUserIds.contains(candidate.userId) &&
-              !recentlyForwarded.contains(candidate.userId),
-        )
-        .toList(growable: false)
-      ..sort(_compareExplorationCandidates);
+    final pool =
+        forwardableCandidates
+            .where(
+              (candidate) =>
+                  !evidencedUserIds.contains(candidate.userId) &&
+                  !recentlyForwarded.contains(candidate.userId),
+            )
+            .toList(growable: false)
+          ..sort(_compareExplorationCandidates);
 
     if (pool.isEmpty) {
       return const [];
@@ -285,10 +284,11 @@ final class ForwardBandCase extends UseCaseBase {
     required ProjectionTier rowTier,
     required String? primaryNeedSlug,
   }) {
-    final sameTier = projections
-        .where((projection) => projection.tier == rowTier)
-        .toList(growable: false)
-      ..sort((a, b) => _compareLabelProjections(a, b, primaryNeedSlug));
+    final sameTier =
+        projections
+            .where((projection) => projection.tier == rowTier)
+            .toList(growable: false)
+          ..sort((a, b) => _compareLabelProjections(a, b, primaryNeedSlug));
 
     return sameTier
         .take(_kCapBandLabelSlots)
@@ -302,8 +302,7 @@ final class ForwardBandCase extends UseCaseBase {
         .toList(growable: false);
   }
 
-  int _tierStrength(ProjectionTier tier) =>
-      ProjectionTier.values.indexOf(tier);
+  int _tierStrength(ProjectionTier tier) => ProjectionTier.values.indexOf(tier);
 
   int _compareEvidenceCandidates(
     _RankedEvidenceCandidate a,

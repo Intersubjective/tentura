@@ -179,7 +179,7 @@ class EpisodeSettlement {
   }
 
   ({Map<String, double> authorPart, Map<String, double> imp, double lost})
-      _runPeerLoop(
+  _runPeerLoop(
     List<SettlementMember> sorted,
     Map<String, double> aPct,
     SettlementParams params,
@@ -198,7 +198,8 @@ class EpisodeSettlement {
 
     for (final voter in sorted) {
       final i = voter.userId;
-      final slice = (1 - alpha) *
+      final slice =
+          (1 - alpha) *
           poolH *
           (params.beta / n + (1 - params.beta) * aPct[i]! / 100);
 

@@ -47,6 +47,7 @@ abstract final class BatonPairPolicy {
     required bool canHelp,
     required DateTime now,
     String? partnerUserId,
+    Set<String> namedBefore = const {},
   }) {
     if (partnerUserId != null && (!canHelp || partnerUserId == actorId)) {
       throw const BatonPartnerInvalidException();
@@ -68,7 +69,8 @@ abstract final class BatonPairPolicy {
       );
     }
 
-    final isNew = partnerUserId != current;
+    final isNew =
+        partnerUserId != current && !namedBefore.contains(partnerUserId);
     if (isNew && actor.partnerInvites >= maxDistinctPartners) {
       throw const BatonPartnerInvalidException(
         description: 'Too many partners named',
@@ -121,8 +123,7 @@ abstract final class BatonPairPolicy {
     }
 
     final keepsAnswer =
-        !isNew &&
-        current != null &&
+        partnerUserId == current &&
         actor.partnerResponse == BatonPartnerResponse.accepted;
     next = _replace(
       next,
@@ -228,8 +229,8 @@ abstract final class BatonPairPolicy {
     );
   }
 
-  /// One accepted pair per person: every other accepted row that involves
-  /// either member of the new pair goes back to waiting and is told.
+  /// One confirmed pair per person: every other accepted or pending row that
+  /// involves either member of the new pair goes back to waiting and is told.
   static List<RoomBatonCandidate> _settle(
     List<RoomBatonCandidate> rows,
     String a,
@@ -243,9 +244,10 @@ abstract final class BatonPairPolicy {
       final involves = {row.userId, row.partnerUserId}.any(
         (id) => id == a || id == b,
       );
-      if (row.partnerResponse == BatonPartnerResponse.accepted &&
-          involves &&
-          !inPair) {
+      if (involves &&
+          !inPair &&
+          (row.partnerResponse == BatonPartnerResponse.accepted ||
+              row.partnerResponse == BatonPartnerResponse.pending)) {
         next = _replace(next, _declined(row));
         receipts.add(
           _answered(

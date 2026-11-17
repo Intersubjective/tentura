@@ -204,7 +204,10 @@ LIMIT $_coverageTripleLimit
       return (eligibleClearing: 0, ineligibleOnly: 0);
     }
 
-    final egoIds = tripleRows.map((r) => r.read<String>('ego_id')).toSet().toList();
+    final egoIds = tripleRows
+        .map((r) => r.read<String>('ego_id'))
+        .toSet()
+        .toList();
     final factsByEgo = await _fetchWindowFactsByEgo(egoIds);
 
     final cellRows = await _database
@@ -253,7 +256,8 @@ INNER JOIN public.capability_evidence_edge c
         )
         .get();
 
-    final cellsByTriple = <String, List<({String observerId, double eOut, double eSeed})>>{};
+    final cellsByTriple =
+        <String, List<({String observerId, double eOut, double eSeed})>>{};
     for (final row in cellRows) {
       final key =
           '${row.read<String>('ego_id')}|${row.read<String>('subject_user_id')}|${row.read<String>('tag_slug')}';
@@ -466,19 +470,25 @@ CROSS JOIN LATERAL (
     final topPeersByEgo = <String, List<RawPeerFact>>{};
     for (final row in peerRows) {
       final egoId = row.read<String>('ego_id');
-      topPeersByEgo.putIfAbsent(egoId, () => []).add(
-        RawPeerFact(
-          peerId: row.read<String>('peer_id'),
-          forwardMr: row.read<double>('forward_mr'),
-          explicitlyTrusted: row.read<bool>('viewer_explicitly_trusts_subject'),
-        ),
-      );
+      topPeersByEgo
+          .putIfAbsent(egoId, () => [])
+          .add(
+            RawPeerFact(
+              peerId: row.read<String>('peer_id'),
+              forwardMr: row.read<double>('forward_mr'),
+              explicitlyTrusted: row.read<bool>(
+                'viewer_explicitly_trusts_subject',
+              ),
+            ),
+          );
     }
 
     final trustedByEgo = <String, List<double>>{};
     for (final row in trustedRows) {
       final egoId = row.read<String>('ego_id');
-      trustedByEgo.putIfAbsent(egoId, () => []).add(row.read<double>('forward_mr'));
+      trustedByEgo
+          .putIfAbsent(egoId, () => [])
+          .add(row.read<double>('forward_mr'));
     }
 
     return {

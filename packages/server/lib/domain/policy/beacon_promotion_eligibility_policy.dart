@@ -1,4 +1,3 @@
-
 /// Facts about a candidate promotion source message.
 ///
 /// Client-side twin for Task 11: mirror this shape in

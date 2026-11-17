@@ -21,7 +21,9 @@ final class CapabilityCase extends UseCaseBase {
     for (final slug in slugs) {
       if (!kAllowedCapabilitySlugs.contains(slug)) {
         throw ExceptionBase(
-          code: const CapabilityExceptionCodes(CapabilityExceptionCode.invalidSlug),
+          code: const CapabilityExceptionCodes(
+            CapabilityExceptionCode.invalidSlug,
+          ),
           description: 'Unknown capability slug: $slug',
         );
       }

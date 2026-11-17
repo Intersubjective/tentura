@@ -40,14 +40,14 @@ abstract class CoordinationItemRecord with _$CoordinationItemRecord {
   const CoordinationItemRecord._();
 
   CoordinationStaleItemView get staleView => CoordinationStaleItemView(
-        kind: CoordinationItemKind.fromSmallint(kind),
-        status: CoordinationItemStatus.fromSmallint(status),
-        creatorId: creatorId,
-        targetPersonId: targetPersonId,
-        acceptedById: acceptedById,
-        staleAt: staleAt,
-        staleAfterDays: staleAfterDays,
-      );
+    kind: CoordinationItemKind.fromSmallint(kind),
+    status: CoordinationItemStatus.fromSmallint(status),
+    creatorId: creatorId,
+    targetPersonId: targetPersonId,
+    acceptedById: acceptedById,
+    staleAt: staleAt,
+    staleAfterDays: staleAfterDays,
+  );
 }
 
 /// Domain id factory alias kept for repository call sites.

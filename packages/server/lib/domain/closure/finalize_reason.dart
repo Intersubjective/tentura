@@ -8,8 +8,8 @@ enum FinalizeReason {
   final int dbValue;
 
   static FinalizeReason? tryFromInt(int? v) => switch (v) {
-        1 => authorCloseNow,
-        2 => expired,
-        _ => null,
-      };
+    1 => authorCloseNow,
+    2 => expired,
+    _ => null,
+  };
 }

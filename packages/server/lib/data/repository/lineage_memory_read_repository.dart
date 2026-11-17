@@ -20,13 +20,15 @@ class LineageMemoryReadRepository implements LineageMemoryReadPort {
   Future<List<String>> fetchLineageBeaconIds({
     required String rootBeaconId,
   }) async {
-    final rows = await _database.customSelect(
-      r'''
+    final rows = await _database
+        .customSelect(
+          r'''
       SELECT id FROM beacon
        WHERE id = $1 OR lineage_root_beacon_id = $1
       ''',
-      variables: [Variable.withString(rootBeaconId)],
-    ).get();
+          variables: [Variable.withString(rootBeaconId)],
+        )
+        .get();
     return rows.map((r) => r.read<String>('id')).toList();
   }
 
@@ -36,17 +38,19 @@ class LineageMemoryReadRepository implements LineageMemoryReadPort {
     required Set<String> beaconIds,
   }) async {
     if (beaconIds.isEmpty) return {};
-    final rows = await _database.customSelect(
-      r'''
+    final rows = await _database
+        .customSelect(
+          r'''
       SELECT id FROM beacon
        WHERE user_id = $1
          AND id = ANY($2::text[])
       ''',
-      variables: [
-        Variable.withString(userId),
-        Variable(TypedValue(Type.textArray, beaconIds.toList())),
-      ],
-    ).get();
+          variables: [
+            Variable.withString(userId),
+            Variable(TypedValue(Type.textArray, beaconIds.toList())),
+          ],
+        )
+        .get();
     return rows.map((r) => r.read<String>('id')).toSet();
   }
 
@@ -56,8 +60,9 @@ class LineageMemoryReadRepository implements LineageMemoryReadPort {
     required Set<String> beaconIds,
   }) async {
     if (beaconIds.isEmpty) return const [];
-    final rows = await _database.customSelect(
-      r'''
+    final rows = await _database
+        .customSelect(
+          r'''
       SELECT recipient_id, note, created_at::text AS created_at,
              beacon_id, recipient_rejected
         FROM beacon_forward_edge
@@ -65,11 +70,12 @@ class LineageMemoryReadRepository implements LineageMemoryReadPort {
          AND beacon_id = ANY($2::text[])
          AND cancelled_at IS NULL
       ''',
-      variables: [
-        Variable.withString(userId),
-        Variable(TypedValue(Type.textArray, beaconIds.toList())),
-      ],
-    ).get();
+          variables: [
+            Variable.withString(userId),
+            Variable(TypedValue(Type.textArray, beaconIds.toList())),
+          ],
+        )
+        .get();
     return [
       for (final row in rows)
         LineageForwardEdgeFact(
@@ -90,19 +96,21 @@ class LineageMemoryReadRepository implements LineageMemoryReadPort {
     required Set<String> recipientIds,
   }) async {
     if (myTouchedBeaconIds.isEmpty || recipientIds.isEmpty) return {};
-    final rows = await _database.customSelect(
-      r'''
+    final rows = await _database
+        .customSelect(
+          r'''
       SELECT DISTINCT user_id
         FROM beacon_help_offer
        WHERE beacon_id = ANY($1::text[])
          AND user_id = ANY($2::text[])
          AND status = 0
       ''',
-      variables: [
-        Variable(TypedValue(Type.textArray, myTouchedBeaconIds.toList())),
-        Variable(TypedValue(Type.textArray, recipientIds.toList())),
-      ],
-    ).get();
+          variables: [
+            Variable(TypedValue(Type.textArray, myTouchedBeaconIds.toList())),
+            Variable(TypedValue(Type.textArray, recipientIds.toList())),
+          ],
+        )
+        .get();
     return rows.map((r) => r.read<String>('user_id')).toSet();
   }
 
@@ -113,8 +121,9 @@ class LineageMemoryReadRepository implements LineageMemoryReadPort {
     required Set<String> recipientIds,
   }) async {
     if (myTouchedBeaconIds.isEmpty || recipientIds.isEmpty) return {};
-    final rows = await _database.customSelect(
-      r'''
+    final rows = await _database
+        .customSelect(
+          r'''
       WITH RECURSIVE downstream AS (
         SELECT e.id,
                e.recipient_id AS direct_recipient_id,
@@ -144,12 +153,13 @@ class LineageMemoryReadRepository implements LineageMemoryReadPort {
          AND h.status = 0
        WHERE d.direct_recipient_id = ANY($3::text[])
       ''',
-      variables: [
-        Variable.withString(userId),
-        Variable(TypedValue(Type.textArray, myTouchedBeaconIds.toList())),
-        Variable(TypedValue(Type.textArray, recipientIds.toList())),
-      ],
-    ).get();
+          variables: [
+            Variable.withString(userId),
+            Variable(TypedValue(Type.textArray, myTouchedBeaconIds.toList())),
+            Variable(TypedValue(Type.textArray, recipientIds.toList())),
+          ],
+        )
+        .get();
     return rows.map((r) => r.read<String>('direct_recipient_id')).toSet();
   }
 
@@ -157,8 +167,9 @@ class LineageMemoryReadRepository implements LineageMemoryReadPort {
   Future<List<LineagePrivateTagFact>> fetchMyPrivateTags({
     required String userId,
   }) async {
-    final rows = await _database.customSelect(
-      r'''
+    final rows = await _database
+        .customSelect(
+          r'''
       SELECT subject_user_id, tag_slug
         FROM person_capability_event
        WHERE observer_user_id = $1
@@ -166,8 +177,9 @@ class LineageMemoryReadRepository implements LineageMemoryReadPort {
          AND is_negative = false
          AND deleted_at IS NULL
       ''',
-      variables: [Variable.withString(userId)],
-    ).get();
+          variables: [Variable.withString(userId)],
+        )
+        .get();
     return [
       for (final row in rows)
         LineagePrivateTagFact(

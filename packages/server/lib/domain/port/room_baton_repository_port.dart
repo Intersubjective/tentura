@@ -31,6 +31,13 @@ abstract interface class RoomBatonRepositoryPort {
   /// `partner_responded_at` is stamped when the partner's answer changes.
   Future<void> saveCandidate(RoomBatonCandidate candidate);
 
+  /// Everyone [userId] has ever named as a partner on [batonId], from the
+  /// one «partner asked» receipt each distinct person produced.
+  Future<Set<String>> namedPartnerIds({
+    required String batonId,
+    required String userId,
+  });
+
   /// `block_hides`: either of [a] and [b] blocked the other.
   Future<bool> isPairBlocked({required String a, required String b});
 

@@ -84,6 +84,7 @@ class InboxRepository implements InboxRepositoryPort {
     required String senderId,
     required String beaconId,
     String? context,
+
     /// When true (forward path), bumps `latest_forward_at` to now so the row
     /// sorts like fresh activity. When false (withdraw→watching on OPEN),
     /// does **not** touch `latest_forward_at` on conflict (avoids false
@@ -95,32 +96,38 @@ class InboxRepository implements InboxRepositoryPort {
     final insertLatest = touchForwardOrdering
         ? now
         : PgDateTime(DateTime.utc(1970));
-    await _database.into(_database.inboxItems).insert(
-      InboxItemsCompanion.insert(
-        userId: senderId,
-        beaconId: beaconId,
-        context: Value(context),
-        status: const Value(1),
-        forwardCount: const Value(0),
-        latestForwardAt: Value(insertLatest),
-        latestNotePreview: const Value(''),
-        rejectionMessage: const Value(''),
-      ),
-      onConflict: DoUpdate(
-        (_) => touchForwardOrdering
-            ? InboxItemsCompanion(
-                status: const Value(1),
-                rejectionMessage: const Value(''),
-                latestForwardAt: Value(now),
-                context: context != null ? Value(context) : const Value.absent(),
-              )
-            : InboxItemsCompanion(
-                status: const Value(1),
-                rejectionMessage: const Value(''),
-                context: context != null ? Value(context) : const Value.absent(),
-              ),
-      ),
-    );
+    await _database
+        .into(_database.inboxItems)
+        .insert(
+          InboxItemsCompanion.insert(
+            userId: senderId,
+            beaconId: beaconId,
+            context: Value(context),
+            status: const Value(1),
+            forwardCount: const Value(0),
+            latestForwardAt: Value(insertLatest),
+            latestNotePreview: const Value(''),
+            rejectionMessage: const Value(''),
+          ),
+          onConflict: DoUpdate(
+            (_) => touchForwardOrdering
+                ? InboxItemsCompanion(
+                    status: const Value(1),
+                    rejectionMessage: const Value(''),
+                    latestForwardAt: Value(now),
+                    context: context != null
+                        ? Value(context)
+                        : const Value.absent(),
+                  )
+                : InboxItemsCompanion(
+                    status: const Value(1),
+                    rejectionMessage: const Value(''),
+                    context: context != null
+                        ? Value(context)
+                        : const Value.absent(),
+                  ),
+          ),
+        );
   }
 
   @override
@@ -195,37 +202,35 @@ WHERE user_id = $1
   Future<void> markForwardCancelledForRecipient({
     required String beaconId,
     required String recipientId,
-  }) =>
-      _database.withJoinedTransaction(() async {
-        await _database.customStatement(
-          r"SELECT set_config('tentura.allow_inbox_tombstone_transition', '1', true)",
+  }) => _database.withJoinedTransaction(() async {
+    await _database.customStatement(
+      r"SELECT set_config('tentura.allow_inbox_tombstone_transition', '1', true)",
+    );
+    await _database.managers.inboxItems
+        .filter(
+          (e) =>
+              e.userId.id(recipientId) &
+              e.beaconId.id(beaconId) &
+              e.status.equals(0),
+        )
+        .update(
+          (o) => o(
+            status: const Value(3),
+            beforeResponseTerminalAt: Value(
+              PgDateTime(DateTime.timestamp()),
+            ),
+          ),
         );
-        await _database.managers.inboxItems
-            .filter(
-              (e) =>
-                  e.userId.id(recipientId) &
-                  e.beaconId.id(beaconId) &
-                  e.status.equals(0),
-            )
-            .update(
-              (o) => o(
-                status: const Value(3),
-                beforeResponseTerminalAt: Value(
-                  PgDateTime(DateTime.timestamp()),
-                ),
-              ),
-            );
-      });
+  });
 
-  static InboxItemEntity _toEntity(InboxItem row) =>
-      InboxItemEntity(
-        userId: row.userId,
-        beaconId: row.beaconId,
-        context: row.context,
-        forwardCount: row.forwardCount,
-        latestForwardAt: row.latestForwardAt.dateTime,
-        latestNotePreview: row.latestNotePreview,
-        status: row.status,
-        rejectionMessage: row.rejectionMessage,
-      );
+  static InboxItemEntity _toEntity(InboxItem row) => InboxItemEntity(
+    userId: row.userId,
+    beaconId: row.beaconId,
+    context: row.context,
+    forwardCount: row.forwardCount,
+    latestForwardAt: row.latestForwardAt.dateTime,
+    latestNotePreview: row.latestNotePreview,
+    status: row.status,
+    rejectionMessage: row.rejectionMessage,
+  );
 }

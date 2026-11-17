@@ -18,8 +18,9 @@ class UserBookkeepingRepository implements UserBookkeepingRepositoryPort {
   @override
   Future<List<AdmittedOfferCoordinationGap>>
   listAdmittedOffersMissingCoordination(String authorUserId) async {
-    final rows = await _database.customSelect(
-      r'''
+    final rows = await _database
+        .customSelect(
+          r'''
 SELECT ho.beacon_id, ho.user_id AS offer_user_id, b.user_id AS author_user_id
 FROM public.beacon_help_offer ho
 JOIN public.beacon_participant bp
@@ -36,9 +37,10 @@ WHERE b.user_id = $1
       AND c.offer_user_id = ho.user_id
   )
 ''',
-      variables: [Variable<String>(authorUserId)],
-      readsFrom: {},
-    ).get();
+          variables: [Variable<String>(authorUserId)],
+          readsFrom: {},
+        )
+        .get();
 
     return [
       for (final row in rows)
@@ -97,8 +99,9 @@ WHERE ii.user_id = $1
           updateKind: UpdateKind.update,
         );
 
-        final insertedRows = await _database.customSelect(
-          r'''
+        final insertedRows = await _database
+            .customSelect(
+              r'''
 WITH edge_latest AS (
   SELECT DISTINCT ON (fe.beacon_id)
     fe.beacon_id,
@@ -148,12 +151,14 @@ inserted AS (
 )
 SELECT beacon_id FROM inserted
 ''',
-          variables: [Variable<String>(userId)],
-          readsFrom: {},
-        ).get();
+              variables: [Variable<String>(userId)],
+              readsFrom: {},
+            )
+            .get();
 
-        final repairedBeaconIds = await _database.customSelect(
-          r'''
+        final repairedBeaconIds = await _database
+            .customSelect(
+              r'''
 WITH edge_latest AS (
   SELECT DISTINCT ON (fe.beacon_id)
     fe.beacon_id,
@@ -180,9 +185,10 @@ JOIN edge_latest el ON el.beacon_id = ii.beacon_id
 JOIN edge_counts ec ON ec.beacon_id = ii.beacon_id
 WHERE ii.user_id = $1
 ''',
-          variables: [Variable<String>(userId)],
-          readsFrom: {},
-        ).get();
+              variables: [Variable<String>(userId)],
+              readsFrom: {},
+            )
+            .get();
 
         final beaconIds = {
           for (final row in insertedRows) row.read<String>('beacon_id'),

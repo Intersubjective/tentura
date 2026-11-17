@@ -9,8 +9,7 @@ import 'package:tentura_server/domain/port/invite_seed_prompt_port.dart';
   order: 1,
 )
 class InviteSeedPromptRepositoryMock implements InviteSeedPromptPort {
-  final pendingInserts =
-      <({String inviterId, String inviteeId})>[];
+  final pendingInserts = <({String inviterId, String inviteeId})>[];
 
   PromptState? state;
 

@@ -9,10 +9,10 @@ enum ClosureBand {
   final int smallintValue;
 
   static ClosureBand? tryFromInt(int? v) => switch (v) {
-        0 => none,
-        1 => raised,
-        2 => asIfSilent,
-        3 => lowered,
-        _ => null,
-      };
+    0 => none,
+    1 => raised,
+    2 => asIfSilent,
+    3 => lowered,
+    _ => null,
+  };
 }

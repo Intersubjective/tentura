@@ -42,8 +42,8 @@ class InvitationRepository implements InvitationRepositoryPort {
     final issuerImage = issuer.imageId == null
         ? null
         : await _database.managers.images
-            .filter((e) => e.id(issuer.imageId))
-            .getSingleOrNull();
+              .filter((e) => e.id(issuer.imageId))
+              .getSingleOrNull();
     return invitationModelToEntity(
       row,
       issuer: issuer,
@@ -68,14 +68,14 @@ class InvitationRepository implements InvitationRepositoryPort {
     final issuerImage = issuerImgId == null
         ? null
         : await _database.managers.images
-            .filter((e) => e.id(issuerImgId))
-            .getSingleOrNull();
+              .filter((e) => e.id(issuerImgId))
+              .getSingleOrNull();
     final invitedImgId = invited?.imageId;
     final invitedImage = invitedImgId == null
         ? null
         : await _database.managers.images
-            .filter((e) => e.id(invitedImgId))
-            .getSingleOrNull();
+              .filter((e) => e.id(invitedImgId))
+              .getSingleOrNull();
     return invitationModelToEntity(
       result.$1,
       issuer: issuer,

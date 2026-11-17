@@ -21,10 +21,13 @@ class UserContactRepositoryMock implements UserContactRepositoryPort {
       Future.value(false);
 
   @override
-  Future<List<UserContactEntity>> fetchAllByViewer({required String viewerId}) =>
-      Future.value(const []);
+  Future<List<UserContactEntity>> fetchAllByViewer({
+    required String viewerId,
+  }) => Future.value(const []);
 
   @override
-  Future<String?> getName({required String viewerId, required String subjectId}) =>
-      Future.value();
+  Future<String?> getName({
+    required String viewerId,
+    required String subjectId,
+  }) => Future.value();
 }

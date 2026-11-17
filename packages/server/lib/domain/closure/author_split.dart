@@ -104,7 +104,9 @@ Map<String, int> moveSlider({
   final moved = ((clamped / 5).round()) * 5;
 
   final others = Map<String, num>.fromEntries(
-    current.entries.where((e) => e.key != helperId).map(
+    current.entries
+        .where((e) => e.key != helperId)
+        .map(
           (e) => MapEntry(e.key, e.value),
         ),
   );

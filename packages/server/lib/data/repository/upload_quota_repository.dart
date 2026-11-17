@@ -27,19 +27,21 @@ class UploadQuotaRepository implements UploadQuotaRepositoryPort {
       return true;
     }
     // Atomically accumulate today's usage and read back the new total.
-    final row = await _database.customSelect(
-      '''
+    final row = await _database
+        .customSelect(
+          '''
 INSERT INTO public.upload_daily_usage AS u (user_id, usage_date, bytes)
 VALUES (\$1, (now() AT TIME ZONE 'UTC')::date, \$2)
 ON CONFLICT (user_id, usage_date)
   DO UPDATE SET bytes = u.bytes + EXCLUDED.bytes
 RETURNING bytes AS c
 ''',
-      variables: [
-        Variable<String>(userId),
-        Variable<int>(bytes),
-      ],
-    ).getSingle();
+          variables: [
+            Variable<String>(userId),
+            Variable<int>(bytes),
+          ],
+        )
+        .getSingle();
     final total = row.read<int>('c');
     if (total > dailyCapBytes) {
       // Over cap: undo the speculative increment so a rejected upload keeps
@@ -59,14 +61,16 @@ WHERE user_id = \$1 AND usage_date = (now() AT TIME ZONE 'UTC')::date
 
   @override
   Future<int> usedBytesToday(String userId) async {
-    final row = await _database.customSelect(
-      '''
+    final row = await _database
+        .customSelect(
+          '''
 SELECT COALESCE(bytes, 0)::bigint AS c
 FROM public.upload_daily_usage
 WHERE user_id = \$1 AND usage_date = (now() AT TIME ZONE 'UTC')::date
 ''',
-      variables: [Variable<String>(userId)],
-    ).getSingleOrNull();
+          variables: [Variable<String>(userId)],
+        )
+        .getSingleOrNull();
     return row?.read<int>('c') ?? 0;
   }
 }

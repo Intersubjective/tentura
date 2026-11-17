@@ -7,7 +7,6 @@ String isoWeekKey(DateTime date) {
   final utc = date.toUtc();
   final day = DateTime.utc(utc.year, utc.month, utc.day);
   final thursday = day.add(Duration(days: DateTime.thursday - day.weekday));
-  final week =
-      thursday.difference(DateTime.utc(thursday.year)).inDays ~/ 7 + 1;
+  final week = thursday.difference(DateTime.utc(thursday.year)).inDays ~/ 7 + 1;
   return '${thursday.year}-W${week.toString().padLeft(2, '0')}';
 }

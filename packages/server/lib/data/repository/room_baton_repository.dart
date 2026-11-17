@@ -220,6 +220,26 @@ UPDATE public.beacon_room_baton_candidate
       );
 
   @override
+  Future<Set<String>> namedPartnerIds({
+    required String batonId,
+    required String userId,
+  }) async {
+    final prefix = 'baton_partner_asked:$batonId:$userId:';
+    final rows = await _database
+        .customSelect(
+          r'''
+SELECT substr(source_event_key, length($1) + 1) AS partner_id
+  FROM public.attention_occurrence
+ WHERE event_type = 'batonPartnerAsked'
+   AND starts_with(source_event_key, $1)
+''',
+          variables: [Variable<String>(prefix)],
+        )
+        .get();
+    return {for (final r in rows) r.read<String>('partner_id')};
+  }
+
+  @override
   Future<bool> isPairBlocked({required String a, required String b}) async {
     final row = await _database
         .customSelect(

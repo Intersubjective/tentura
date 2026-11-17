@@ -8,8 +8,7 @@ import 'package:tentura_server/domain/use_case/_use_case_base.dart';
 final class CapabilityTelemetryCase extends UseCaseBase {
   CapabilityTelemetryCase(
     this._routingMute,
-    this._telemetry,
-    {
+    this._telemetry, {
     required super.env,
     required super.logger,
   });
@@ -65,7 +64,8 @@ final class CapabilityTelemetryCase extends UseCaseBase {
   }
 
   Future<void> _logReciprocalAcknowledgementRings() async {
-    final counts = await _telemetry.countReciprocalIsolatedAcknowledgementPairs();
+    final counts = await _telemetry
+        .countReciprocalIsolatedAcknowledgementPairs();
     if (counts.count == 0) {
       logger.info('capability_reciprocal_ring_pairs count=0');
       return;

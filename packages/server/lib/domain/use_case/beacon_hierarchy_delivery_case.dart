@@ -72,7 +72,8 @@ final class BeaconHierarchyDeliveryCase extends UseCaseBase {
           attemptCount: attemptCount,
           safeErrorCode: safeCode,
         );
-        if (attemptCount >= BeaconHierarchyDeliverySafeError.poisonAttemptThreshold) {
+        if (attemptCount >=
+            BeaconHierarchyDeliverySafeError.poisonAttemptThreshold) {
           logger.warning(
             'beacon hierarchy delivery poison threshold reached '
             'event=${target.eventId} target=${target.targetBeaconId} '
@@ -159,8 +160,7 @@ final class BeaconHierarchyDeliveryCase extends UseCaseBase {
         // #450b: a Post notice names the request (title snapshot, like the
         // Post bud payload) — Post members who are not observers of the child
         // cannot read it. Never for a deleted source or a Request target.
-        final sourceTitle =
-            destinationKind == BeaconKind.post && !sourceDeleted
+        final sourceTitle = destinationKind == BeaconKind.post && !sourceDeleted
             ? (await _outbox.loadBeaconTitle(event.sourceBeaconId))?.trim()
             : null;
 

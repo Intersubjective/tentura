@@ -11,11 +11,11 @@ enum CoordinationResponseType {
   final int smallintValue;
 
   static CoordinationResponseType? tryFromInt(int v) => switch (v) {
-        0 => useful,
-        1 => overlapping,
-        2 => needDifferentSkill,
-        3 => needCoordination,
-        4 => notSuitable,
-        _ => null,
-      };
+    0 => useful,
+    1 => overlapping,
+    2 => needDifferentSkill,
+    3 => needCoordination,
+    4 => notSuitable,
+    _ => null,
+  };
 }

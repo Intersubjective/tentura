@@ -86,8 +86,9 @@ ORDER BY r.ord
     final rawTitle = row.read<String?>('title');
     final rootBody = row.read<String?>('root_body');
     return NotificationIdentity(
-      entityKind:
-          isPost ? NotificationEntityKind.post : NotificationEntityKind.request,
+      entityKind: isPost
+          ? NotificationEntityKind.post
+          : NotificationEntityKind.request,
       label: !readable
           ? null
           : isPost
@@ -104,8 +105,7 @@ ORDER BY r.ord
         _requestLabelLimit,
       ),
       expired: readable && isPost && row.read<int?>('status') == 6,
-      hasImage:
-          readable && isPost && row.read<bool>('root_has_image'),
+      hasImage: readable && isPost && row.read<bool>('root_has_image'),
       deleted: row.read<int?>('status') == 2,
       authorName: readable && isPost
           ? _clean(row.read<String?>('author_name'), _actorNameLimit)

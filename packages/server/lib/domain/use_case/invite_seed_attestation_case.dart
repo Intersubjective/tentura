@@ -108,7 +108,9 @@ final class InviteSeedAttestationCase extends UseCaseBase {
       inviterUserId: prompt.inviterUserId,
       inviteeUserId: prompt.inviteeUserId,
       state: prompt.state,
-      slugs: kCapabilitySlugOrder.where(ledger.contains).toList(growable: false),
+      slugs: kCapabilitySlugOrder
+          .where(ledger.contains)
+          .toList(growable: false),
     );
   }
 

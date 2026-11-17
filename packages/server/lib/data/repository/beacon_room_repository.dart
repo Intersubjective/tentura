@@ -808,9 +808,12 @@ ORDER BY tier, user_id
           null => null,
         };
 
-    // A candidate whose partner has not accepted has not answered yet.
+    // A candidate whose partner has not accepted, or whose accepted partner
+    // account was erased, has not answered yet.
     BatonResponse effectiveResponseOf(QueryRow c) =>
-        partnerResponseOf(c) == BatonPartnerResponse.pending
+        partnerResponseOf(c) == BatonPartnerResponse.pending ||
+            (partnerResponseOf(c) == BatonPartnerResponse.accepted &&
+                c.readNullable<String>('partner_user_id') == null)
         ? BatonResponse.waiting
         : responseOf(c);
 

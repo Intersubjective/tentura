@@ -43,12 +43,10 @@ final class BeaconLineageSuggestionsCase extends UseCaseBase {
       );
     }
 
-    final rootBeaconId =
-        source.lineageRootBeaconId ?? parentId;
-    final lineageBeaconIds =
-        await _lineageMemoryReadPort.fetchLineageBeaconIds(
-          rootBeaconId: rootBeaconId,
-        );
+    final rootBeaconId = source.lineageRootBeaconId ?? parentId;
+    final lineageBeaconIds = await _lineageMemoryReadPort.fetchLineageBeaconIds(
+      rootBeaconId: rootBeaconId,
+    );
     final lineageSet = lineageBeaconIds.toSet();
 
     final myEdges = await _lineageMemoryReadPort.fetchMyLineageForwardEdges(
@@ -68,14 +66,16 @@ final class BeaconLineageSuggestionsCase extends UseCaseBase {
       ...myEdges.map((e) => e.recipientId),
     };
 
-    final whoHelped = candidateRecipientIds.isEmpty || myTouchedBeaconIds.isEmpty
+    final whoHelped =
+        candidateRecipientIds.isEmpty || myTouchedBeaconIds.isEmpty
         ? <String>{}
         : await _lineageMemoryReadPort.fetchRecipientsWhoHelped(
             myTouchedBeaconIds: myTouchedBeaconIds,
             recipientIds: candidateRecipientIds,
           );
 
-    final whoRouted = candidateRecipientIds.isEmpty || myTouchedBeaconIds.isEmpty
+    final whoRouted =
+        candidateRecipientIds.isEmpty || myTouchedBeaconIds.isEmpty
         ? <String>{}
         : await _lineageMemoryReadPort.fetchRecipientsWhoRoutedToHelp(
             userId: userId,
@@ -131,21 +131,23 @@ final class BeaconLineageSuggestionsCase extends UseCaseBase {
       LineageSuggestionGroup.privateTag: 3,
     };
 
-    final suggestions = classified.entries
-        .map(
-          (e) => LineageForwardSuggestion(
-            userId: e.key,
-            group: e.value.group,
-            reasonCode: e.value.reasonCode,
-            reasonArg: e.value.reasonArg,
-            autoSelect: e.value.group == LineageSuggestionGroup.involved ||
-                e.value.group == LineageSuggestionGroup.routedHelp,
-          ),
-        )
-        .toList()
-      ..sort(
-        (a, b) => groupOrder[a.group]!.compareTo(groupOrder[b.group]!),
-      );
+    final suggestions =
+        classified.entries
+            .map(
+              (e) => LineageForwardSuggestion(
+                userId: e.key,
+                group: e.value.group,
+                reasonCode: e.value.reasonCode,
+                reasonArg: e.value.reasonArg,
+                autoSelect:
+                    e.value.group == LineageSuggestionGroup.involved ||
+                    e.value.group == LineageSuggestionGroup.routedHelp,
+              ),
+            )
+            .toList()
+          ..sort(
+            (a, b) => groupOrder[a.group]!.compareTo(groupOrder[b.group]!),
+          );
 
     return LineageForwardSuggestions(
       sourceBeaconId: source.id,

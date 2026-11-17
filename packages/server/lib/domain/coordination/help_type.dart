@@ -4,4 +4,6 @@ export 'package:tentura_root/consts.dart'
     show kMaxHelpOfferHelpTypes, kMaxHelpOfferRoleLabelLength;
 
 bool isAllowedHelpType(String? helpType) =>
-    helpType == null || helpType.isEmpty || kAllowedCapabilitySlugs.contains(helpType);
+    helpType == null ||
+    helpType.isEmpty ||
+    kAllowedCapabilitySlugs.contains(helpType);

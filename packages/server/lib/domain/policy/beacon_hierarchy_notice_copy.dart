@@ -22,13 +22,11 @@ abstract final class BeaconHierarchyNoticeCopy {
 
   static String attentionTitle({
     required BeaconHierarchyDeliveryDirection direction,
-  }) =>
-      switch (direction) {
-        BeaconHierarchyDeliveryDirection.ancestor =>
-          'Ancestor request status changed',
-        BeaconHierarchyDeliveryDirection.child =>
-          'Child request status changed',
-      };
+  }) => switch (direction) {
+    BeaconHierarchyDeliveryDirection.ancestor =>
+      'Ancestor request status changed',
+    BeaconHierarchyDeliveryDirection.child => 'Child request status changed',
+  };
 
   static String attentionBody({
     required BeaconHierarchyDeliveryDirection direction,

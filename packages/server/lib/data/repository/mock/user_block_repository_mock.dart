@@ -17,8 +17,10 @@ class UserBlockRepositoryMock implements UserBlockRepositoryPort {
   }) => Future.value();
 
   @override
-  Future<void> unblock({required String blockerId, required String blockedId}) =>
-      Future.value();
+  Future<void> unblock({
+    required String blockerId,
+    required String blockedId,
+  }) => Future.value();
 
   @override
   Future<int> countRecentByBlocker({

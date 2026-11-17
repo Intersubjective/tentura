@@ -12,12 +12,9 @@ double computeREgo(List<RawPeerFact> topPeers) {
     return 0;
   }
   if (topPeers.length < 3) {
-    return topPeers
-        .map((p) => p.forwardMr)
-        .reduce(math.max);
+    return topPeers.map((p) => p.forwardMr).reduce(math.max);
   }
-  final topThree = topPeers.take(3).map((p) => p.forwardMr).toList()
-    ..sort();
+  final topThree = topPeers.take(3).map((p) => p.forwardMr).toList()..sort();
   return topThree[1];
 }
 
@@ -86,6 +83,5 @@ double continuousPercentile(List<double> values, double p) {
     return sorted[lower];
   }
   final fraction = pos - lower;
-  return sorted[lower] +
-      fraction * (sorted[upper] - sorted[lower]);
+  return sorted[lower] + fraction * (sorted[upper] - sorted[lower]);
 }

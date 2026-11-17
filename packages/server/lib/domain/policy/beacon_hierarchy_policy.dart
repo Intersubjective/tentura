@@ -61,9 +61,7 @@ abstract final class BeaconHierarchyPolicy {
     if (facts.isBlockedByOwner) {
       return false;
     }
-    return facts.isAuthor ||
-        facts.isSteward ||
-        facts.isAdmittedParticipant;
+    return facts.isAuthor || facts.isSteward || facts.isAdmittedParticipant;
   }
 
   static BeaconHierarchyCapabilities resolveCapabilities(

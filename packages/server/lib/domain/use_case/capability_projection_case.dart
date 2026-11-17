@@ -125,13 +125,13 @@ final class CapabilityProjectionCase extends UseCaseBase {
       }
       final (tier, channel) = switch (own.channel) {
         EvidenceChannel.outcome => (
-            ProjectionTier.ownOutcome,
-            EvidenceChannel.outcome,
-          ),
+          ProjectionTier.ownOutcome,
+          EvidenceChannel.outcome,
+        ),
         EvidenceChannel.seed => (
-            ProjectionTier.ownRouting,
-            EvidenceChannel.seed,
-          ),
+          ProjectionTier.ownRouting,
+          EvidenceChannel.seed,
+        ),
       };
       merged[key] = ScoredProjection(
         subjectUserId: own.subjectUserId,
@@ -374,6 +374,5 @@ final class CapabilityProjectionCase extends UseCaseBase {
     Set<(String, String)> blockedPairs,
     String a,
     String b,
-  ) =>
-      blockedPairs.contains(_canonicalPair(a, b));
+  ) => blockedPairs.contains(_canonicalPair(a, b));
 }

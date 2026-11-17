@@ -535,6 +535,30 @@ TenturaDb openDisposablePgDatabase(
       : () => DbWaitGuard.forTarget(target, deadline: waitDeadline),
 );
 
+/// Opens a second handle on the target's database whose pool holds
+/// [connections] connections whatever [testPoolSizeEnvVar] says, for tests
+/// that must really overlap two scopes (tag them `multi-connection`).
+({TenturaDb db, Env env}) openMultiConnectionPgDatabase(
+  DisposablePgTarget target, {
+  int connections = 4,
+}) {
+  assert(connections > 1, 'a multi-connection handle needs more than one');
+  final base = target.databaseEnv;
+  final env = Env(
+    environment: Environment.test,
+    pgHost: base.pgHost,
+    pgPort: base.pgPort,
+    pgDatabase: base.pgDatabase,
+    pgUsername: base.pgUsername,
+    pgPassword: base.pgPassword,
+    printEnv: false,
+    isDebugModeOn: false,
+    maxConnectionCount: connections,
+    constellationDbMaxConcurrent: connections,
+  );
+  return (db: TenturaDb(env), env: env);
+}
+
 /// Closes `drift` then `session.writer`, then drops the database (locked).
 /// No-op when `session.setupComplete` is false.
 Future<void> tearDownDisposablePgWriter({

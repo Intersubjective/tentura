@@ -191,6 +191,9 @@ class RoomBatonCase extends UseCaseBase {
           canHelp: canHelp,
           now: now,
           partnerUserId: partnerUserId,
+          namedBefore: partnerUserId == null
+              ? const {}
+              : await _repo.namedPartnerIds(batonId: batonId, userId: actorId),
         ),
         now: now,
       );
@@ -220,7 +223,8 @@ class RoomBatonCase extends UseCaseBase {
         accept: accept,
         now: now,
       );
-      if (!await _canPair(baton, inviterUserId, actorId)) {
+      // Declining is always allowed, so an inviter is never left waiting.
+      if (accept && !await _canPair(baton, inviterUserId, actorId)) {
         throw const BatonPartnerInvalidException();
       }
       await _apply(

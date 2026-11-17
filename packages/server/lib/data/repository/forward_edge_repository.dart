@@ -24,31 +24,34 @@ class ForwardEdgeRepository implements ForwardEdgeRepositoryPort {
   final TenturaDb _database;
 
   @override
-  Future<ForwardEdgeEntity?> fetchById(String edgeId) =>
-      _database.managers.beaconForwardEdges
-          .filter((e) => e.id.equals(edgeId))
-          .getSingleOrNull()
-          .then((row) => row == null ? null : _toEntity(row));
+  Future<ForwardEdgeEntity?> fetchById(String edgeId) => _database
+      .managers
+      .beaconForwardEdges
+      .filter((e) => e.id.equals(edgeId))
+      .getSingleOrNull()
+      .then((row) => row == null ? null : _toEntity(row));
 
   @override
-  Future<bool> existsWithParent(String parentEdgeId) =>
-      _database.managers.beaconForwardEdges
-          .filter((e) => e.parentEdgeId.id(parentEdgeId))
-          .exists();
+  Future<bool> existsWithParent(String parentEdgeId) => _database
+      .managers
+      .beaconForwardEdges
+      .filter((e) => e.parentEdgeId.id(parentEdgeId))
+      .exists();
 
   @override
-  Future<void> cancel(String edgeId, String senderId) =>
-      _database.managers.beaconForwardEdges
-          .filter(
-            (e) =>
-                e.id.equals(edgeId) &
-                e.senderId.id(senderId) &
-                e.cancelledAt.isNull() &
-                e.recipientReadAt.isNull(),
-          )
-          .update(
-            (o) => o(cancelledAt: Value(PgDateTime(DateTime.timestamp()))),
-          );
+  Future<void> cancel(String edgeId, String senderId) => _database
+      .managers
+      .beaconForwardEdges
+      .filter(
+        (e) =>
+            e.id.equals(edgeId) &
+            e.senderId.id(senderId) &
+            e.cancelledAt.isNull() &
+            e.recipientReadAt.isNull(),
+      )
+      .update(
+        (o) => o(cancelledAt: Value(PgDateTime(DateTime.timestamp()))),
+      );
 
   @override
   Future<void> updateNote(String edgeId, String senderId, String note) =>
@@ -62,20 +65,21 @@ class ForwardEdgeRepository implements ForwardEdgeRepositoryPort {
           .update((o) => o(note: Value(note)));
 
   @override
-  Future<void> markAsRead(String edgeId, String recipientId) =>
-      _database.managers.beaconForwardEdges
-          .filter(
-            (e) =>
-                e.id.equals(edgeId) &
-                e.recipientId.id(recipientId) &
-                e.recipientReadAt.isNull() &
-                e.cancelledAt.isNull(),
-          )
-          .update(
-            (o) => o(
-              recipientReadAt: Value(PgDateTime(DateTime.timestamp())),
-            ),
-          );
+  Future<void> markAsRead(String edgeId, String recipientId) => _database
+      .managers
+      .beaconForwardEdges
+      .filter(
+        (e) =>
+            e.id.equals(edgeId) &
+            e.recipientId.id(recipientId) &
+            e.recipientReadAt.isNull() &
+            e.cancelledAt.isNull(),
+      )
+      .update(
+        (o) => o(
+          recipientReadAt: Value(PgDateTime(DateTime.timestamp())),
+        ),
+      );
 
   @override
   Future<void> create({
@@ -386,11 +390,11 @@ ORDER BY route.position
         )
         .map(
           (person) => person.read<bool>('hidden')
-            ? const HelpPathNode.anonymous(1)
-            : HelpPathNode.named(
-                userId: person.read<String>('id'),
-                displayName: person.read<String>('display_name'),
-              ),
+              ? const HelpPathNode.anonymous(1)
+              : HelpPathNode.named(
+                  userId: person.read<String>('id'),
+                  displayName: person.read<String>('display_name'),
+                ),
         )
         .get();
   }
@@ -441,17 +445,16 @@ ORDER BY route.position
   Future<List<ForwardEdgeEntity>> fetchActiveInboundEdges({
     required String beaconId,
     required String recipientId,
-  }) =>
-      _database.managers.beaconForwardEdges
-          .filter(
-            (e) =>
-                e.beaconId.id(beaconId) &
-                e.recipientId.id(recipientId) &
-                e.cancelledAt.isNull(),
-          )
-          .orderBy((e) => e.createdAt.desc())
-          .get()
-          .then((rows) => rows.map(_toEntity).toList());
+  }) => _database.managers.beaconForwardEdges
+      .filter(
+        (e) =>
+            e.beaconId.id(beaconId) &
+            e.recipientId.id(recipientId) &
+            e.cancelledAt.isNull(),
+      )
+      .orderBy((e) => e.createdAt.desc())
+      .get()
+      .then((rows) => rows.map(_toEntity).toList());
 
   @override
   Future<List<ForwardEdgeEntity>> lockActiveInboundEdges({
@@ -496,10 +499,9 @@ FOR SHARE
     required String beaconId,
     required String senderId,
     required String batchId,
-  }) =>
-      _database
-          .customSelect(
-            r'''
+  }) => _database
+      .customSelect(
+        r'''
 SELECT count(DISTINCT batch_id)::int AS c
 FROM beacon_forward_edge
 WHERE beacon_id = $1
@@ -507,31 +509,30 @@ WHERE beacon_id = $1
   AND batch_id IS NOT NULL
   AND batch_id <> $3
 ''',
-            variables: [
-              Variable.withString(beaconId),
-              Variable.withString(senderId),
-              Variable.withString(batchId),
-            ],
-          )
-          .map((r) => r.read<int>('c'))
-          .getSingle();
+        variables: [
+          Variable.withString(beaconId),
+          Variable.withString(senderId),
+          Variable.withString(batchId),
+        ],
+      )
+      .map((r) => r.read<int>('c'))
+      .getSingle();
 
   @override
   Future<ForwardEdgeEntity?> findActiveEdge({
     required String beaconId,
     required String senderId,
     required String recipientId,
-  }) =>
-      _database.managers.beaconForwardEdges
-          .filter(
-            (e) =>
-                e.beaconId.id(beaconId) &
-                e.senderId.id(senderId) &
-                e.recipientId.id(recipientId) &
-                e.cancelledAt.isNull(),
-          )
-          .getSingleOrNull()
-          .then((row) => row == null ? null : _toEntity(row));
+  }) => _database.managers.beaconForwardEdges
+      .filter(
+        (e) =>
+            e.beaconId.id(beaconId) &
+            e.senderId.id(senderId) &
+            e.recipientId.id(recipientId) &
+            e.cancelledAt.isNull(),
+      )
+      .getSingleOrNull()
+      .then((row) => row == null ? null : _toEntity(row));
 
   @override
   Future<void> createForInviteAccept({
@@ -539,16 +540,15 @@ WHERE beacon_id = $1
     required String senderId,
     required String recipientId,
     String? parentEdgeId,
-  }) =>
-      _database.withMutatingUser(recipientId, () async {
-        await _insertActiveEdge(
-          beaconId: beaconId,
-          senderId: senderId,
-          recipientId: recipientId,
-          note: '',
-          parentEdgeId: parentEdgeId,
-        );
-      });
+  }) => _database.withMutatingUser(recipientId, () async {
+    await _insertActiveEdge(
+      beaconId: beaconId,
+      senderId: senderId,
+      recipientId: recipientId,
+      note: '',
+      parentEdgeId: parentEdgeId,
+    );
+  });
 
   @override
   Future<Set<String>> fetchRecipientIdsForwardedBySenderWithinDays({
@@ -707,8 +707,9 @@ FROM (SELECT id FROM unnest($1::text[]) WITH ORDINALITY AS t(id, ord) ORDER BY o
     String? context,
     String? parentEdgeId,
     String? batchId,
-  }) =>
-      _database.into(_database.beaconForwardEdges).insert(
+  }) => _database
+      .into(_database.beaconForwardEdges)
+      .insert(
         BeaconForwardEdgesCompanion.insert(
           id: edgeId == null ? const Value.absent() : Value(edgeId),
           beaconId: beaconId,

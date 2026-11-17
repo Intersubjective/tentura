@@ -95,8 +95,7 @@ class HelpOfferWithCoordinationRow {
         : lastRemoveReason ?? this.lastRemoveReason,
     stakeState: stakeState ?? this.stakeState,
     offerKind: offerKind ?? this.offerKind,
-    isDirectAuthorForward:
-        isDirectAuthorForward ?? this.isDirectAuthorForward,
+    isDirectAuthorForward: isDirectAuthorForward ?? this.isDirectAuthorForward,
     authorSeenAt: clearAdmissionFields ? null : authorSeenAt,
     editedAt: editedAt,
   );

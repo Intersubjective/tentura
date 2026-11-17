@@ -10,7 +10,7 @@ import 'package:tentura_server/env.dart';
 @injectable
 class UnsubscribeCase {
   UnsubscribeCase(this._preferences, Env env)
-      : _token = UnsubscribeToken(env.unsubscribeSigningSecret);
+    : _token = UnsubscribeToken(env.unsubscribeSigningSecret);
 
   final NotificationPreferenceRepositoryPort _preferences;
   final UnsubscribeToken _token;

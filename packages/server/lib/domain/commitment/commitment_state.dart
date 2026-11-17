@@ -3,7 +3,14 @@ import 'package:tentura_server/consts/commitment_consts.dart';
 import 'commitment_event.dart';
 import 'commitment_event_kind.dart';
 
-enum CommitmentStakeState { none, offered, acknowledged, softened, exited, released }
+enum CommitmentStakeState {
+  none,
+  offered,
+  acknowledged,
+  softened,
+  exited,
+  released,
+}
 
 List<CommitmentEvent> _sortedBySeq(List<CommitmentEvent> events) {
   final copy = List<CommitmentEvent>.from(events);

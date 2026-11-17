@@ -15,8 +15,7 @@ class UploadQuotaRepositoryMock implements UploadQuotaRepositoryPort {
     required String userId,
     required int bytes,
     required int dailyCapBytes,
-  }) async =>
-      true;
+  }) async => true;
 
   @override
   Future<int> usedBytesToday(String userId) async => 0;

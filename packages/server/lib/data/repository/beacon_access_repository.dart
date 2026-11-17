@@ -15,8 +15,7 @@ class BeaconAccessRepository implements BeaconAccessGuard {
   Future<bool> canReadContent({
     required String beaconId,
     required String viewerId,
-  }) =>
-      _callPredicate('beacon_can_read_content', beaconId, viewerId);
+  }) => _callPredicate('beacon_can_read_content', beaconId, viewerId);
 
   @override
   Future<Set<String>> readableContentIds({
@@ -62,15 +61,13 @@ class BeaconAccessRepository implements BeaconAccessGuard {
   Future<bool> canReadInvolvement({
     required String beaconId,
     required String viewerId,
-  }) =>
-      _callPredicate('beacon_can_read_involvement', beaconId, viewerId);
+  }) => _callPredicate('beacon_can_read_involvement', beaconId, viewerId);
 
   @override
   Future<bool> canReadTombstone({
     required String beaconId,
     required String viewerId,
-  }) =>
-      _callPredicate('beacon_can_read_tombstone', beaconId, viewerId);
+  }) => _callPredicate('beacon_can_read_tombstone', beaconId, viewerId);
 
   Future<bool> _callPredicate(
     String functionName,

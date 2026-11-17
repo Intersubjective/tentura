@@ -28,13 +28,13 @@ class InviteSeedPromptRepository implements InviteSeedPromptPort {
     if (inviteeIds.isEmpty) {
       return const [];
     }
-    final rows = await (_database.select(_database.inviteSeedPromptStates)
-          ..where(
-            (t) =>
-                t.inviterUserId.equals(inviterId) &
-                t.inviteeUserId.isIn(inviteeIds),
-          ))
-        .get();
+    final rows =
+        await (_database.select(_database.inviteSeedPromptStates)..where(
+              (t) =>
+                  t.inviterUserId.equals(inviterId) &
+                  t.inviteeUserId.isIn(inviteeIds),
+            ))
+            .get();
     return rows
         .map(
           (row) => PromptState(
@@ -51,9 +51,9 @@ class InviteSeedPromptRepository implements InviteSeedPromptPort {
     required String inviterId,
     required String inviteeId,
   }) async {
-    final row = await (_database.select(_database.inviteSeedPromptStates)
-          ..where((t) => t.inviteeUserId.equals(inviteeId)))
-        .getSingleOrNull();
+    final row = await (_database.select(
+      _database.inviteSeedPromptStates,
+    )..where((t) => t.inviteeUserId.equals(inviteeId))).getSingleOrNull();
     if (row == null || row.inviterUserId != inviterId) {
       return null;
     }
@@ -108,18 +108,18 @@ class InviteSeedPromptRepository implements InviteSeedPromptPort {
     required String inviteeId,
     required int state,
   }) async {
-    final updated = await (_database.update(_database.inviteSeedPromptStates)
-          ..where(
-            (t) =>
-                t.inviteeUserId.equals(inviteeId) &
-                t.inviterUserId.equals(inviterId),
-          ))
-        .write(
-          InviteSeedPromptStatesCompanion(
-            state: Value(state),
-            updatedAt: Value(PgDateTime(DateTime.timestamp())),
-          ),
-        );
+    final updated =
+        await (_database.update(_database.inviteSeedPromptStates)..where(
+              (t) =>
+                  t.inviteeUserId.equals(inviteeId) &
+                  t.inviterUserId.equals(inviterId),
+            ))
+            .write(
+              InviteSeedPromptStatesCompanion(
+                state: Value(state),
+                updatedAt: Value(PgDateTime(DateTime.timestamp())),
+              ),
+            );
     if (updated == 0) {
       throw StateError(
         'invite_seed_prompt_state row missing for inviter=$inviterId '

@@ -24,14 +24,12 @@ final class UserAvailabilityCase extends UseCaseBase {
 
   Future<Map<String, UserAvailabilityEntity>> fetchByUserIds(
     Set<String> userIds,
-  ) =>
-      _repository.fetchByUserIds(userIds);
+  ) => _repository.fetchByUserIds(userIds);
 
   Future<void> setLimited({
     required String userId,
     required bool isLimited,
-  }) =>
-      _repository.setLimited(userId: userId, isLimited: isLimited);
+  }) => _repository.setLimited(userId: userId, isLimited: isLimited);
 
   Future<void> pause({
     required String userId,

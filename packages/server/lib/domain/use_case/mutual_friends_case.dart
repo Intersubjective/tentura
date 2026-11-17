@@ -18,10 +18,9 @@ final class MutualFriendsCase extends UseCaseBase {
     required String aliceId,
     required String bobId,
     required String context,
-  }) =>
-      _repository.fetchMutualFriends(
-        aliceId: aliceId,
-        bobId: bobId,
-        context: context,
-      );
+  }) => _repository.fetchMutualFriends(
+    aliceId: aliceId,
+    bobId: bobId,
+    context: context,
+  );
 }

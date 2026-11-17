@@ -12,10 +12,10 @@ enum ConstellationProjection {
   final String wireValue;
 
   static ConstellationProjection? fromWire(String wire) => switch (wire) {
-        'FULL' => ConstellationProjection.full,
-        'ANCHORS' => ConstellationProjection.anchors,
-        _ => null,
-      };
+    'FULL' => ConstellationProjection.full,
+    'ANCHORS' => ConstellationProjection.anchors,
+    _ => null,
+  };
 }
 
 @immutable
@@ -31,9 +31,9 @@ class ConstellationFieldMembershipFilters {
   static const defaults = ConstellationFieldMembershipFilters();
 
   Map<String, Object> toFixtureMap() => {
-        'showClosed': showClosed,
-        'participatedOnly': participatedOnly,
-      };
+    'showClosed': showClosed,
+    'participatedOnly': participatedOnly,
+  };
 
   @override
   bool operator ==(Object other) =>
@@ -57,10 +57,9 @@ bool isKnownConstellationBeaconStatus(int status) =>
 
 Set<int> constellationFieldBeaconStatuses({
   required bool showClosed,
-}) =>
-    showClosed
-        ? kConstellationShowClosedFieldBeaconStatuses
-        : kConstellationDefaultFieldBeaconStatuses;
+}) => showClosed
+    ? kConstellationShowClosedFieldBeaconStatuses
+    : kConstellationDefaultFieldBeaconStatuses;
 
 bool constellationBeaconStatusPermittedInField({
   required int status,
@@ -103,11 +102,11 @@ class ConstellationAnchorProjection {
   );
 
   Map<String, Object> toFixtureMap() => {
-        ...revision.toFixtureMap(),
-        'serverFilteredBeaconCount': serverFilteredBeaconCount,
-        'serverFilteredBeaconIds': serverFilteredBeaconIds,
-        'anchorCount': anchors.length,
-      };
+    ...revision.toFixtureMap(),
+    'serverFilteredBeaconCount': serverFilteredBeaconCount,
+    'serverFilteredBeaconIds': serverFilteredBeaconIds,
+    'anchorCount': anchors.length,
+  };
 
   @override
   bool operator ==(Object other) =>
@@ -124,15 +123,15 @@ class ConstellationAnchorProjection {
 
   @override
   int get hashCode => Object.hash(
-        revision,
-        Object.hashAll(anchors),
-        Object.hashAll(pinnedPeers),
-        Object.hashAll(pinnedRequests),
-        Object.hashAll(supportPeers),
-        Object.hashAll(supportEdges),
-        Object.hashAll(serverFilteredBeaconIds),
-        serverFilteredBeaconCount,
-      );
+    revision,
+    Object.hashAll(anchors),
+    Object.hashAll(pinnedPeers),
+    Object.hashAll(pinnedRequests),
+    Object.hashAll(supportPeers),
+    Object.hashAll(supportEdges),
+    Object.hashAll(serverFilteredBeaconIds),
+    serverFilteredBeaconCount,
+  );
 }
 
 bool _listEquals<T>(List<T> a, List<T> b) {

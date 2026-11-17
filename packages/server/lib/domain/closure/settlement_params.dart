@@ -18,12 +18,12 @@ final class SettlementParams {
   final double bandThreshold;
 
   Map<String, num> toJson() => {
-        'version': settlementVersion,
-        'B': B,
-        'rho': rho,
-        'alphaA': alphaA,
-        'beta': beta,
-        't': t,
-        'bandThreshold': bandThreshold,
-      };
+    'version': settlementVersion,
+    'B': B,
+    'rho': rho,
+    'alphaA': alphaA,
+    'beta': beta,
+    't': t,
+    'bandThreshold': bandThreshold,
+  };
 }

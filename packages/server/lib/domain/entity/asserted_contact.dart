@@ -34,9 +34,8 @@ class AssertedContact {
   /// Filters [contacts] to authoritative entries with valid normalized values.
   static List<AssertedContact> authoritativeOnly(
     Iterable<AssertedContact?> contacts,
-  ) =>
-      contacts
-          .whereType<AssertedContact>()
-          .where((c) => c.authoritative)
-          .toList();
+  ) => contacts
+      .whereType<AssertedContact>()
+      .where((c) => c.authoritative)
+      .toList();
 }

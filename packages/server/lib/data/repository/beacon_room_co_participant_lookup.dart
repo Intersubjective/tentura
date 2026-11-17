@@ -25,26 +25,30 @@ class BeaconRoomCoParticipantLookup
       return {};
     }
 
-    final viewerBeaconRows = await (_database.select(
-      _database.beaconParticipants,
-    )..where(
-      (p) =>
-          p.userId.equals(viewerId) &
-          p.roomAccess.equals(RoomAccessBits.admitted),
-    )).get();
+    final viewerBeaconRows =
+        await (_database.select(
+              _database.beaconParticipants,
+            )..where(
+              (p) =>
+                  p.userId.equals(viewerId) &
+                  p.roomAccess.equals(RoomAccessBits.admitted),
+            ))
+            .get();
     if (viewerBeaconRows.isEmpty) {
       return {};
     }
 
     final viewerBeaconIds = viewerBeaconRows.map((r) => r.beaconId).toSet();
-    final coParticipantRows = await (_database.select(
-      _database.beaconParticipants,
-    )..where(
-      (p) =>
-          p.beaconId.isIn(viewerBeaconIds) &
-          p.userId.isIn(candidates) &
-          p.roomAccess.equals(RoomAccessBits.admitted),
-    )).get();
+    final coParticipantRows =
+        await (_database.select(
+              _database.beaconParticipants,
+            )..where(
+              (p) =>
+                  p.beaconId.isIn(viewerBeaconIds) &
+                  p.userId.isIn(candidates) &
+                  p.roomAccess.equals(RoomAccessBits.admitted),
+            ))
+            .get();
     return coParticipantRows.map((r) => r.userId).toSet();
   }
 
@@ -56,13 +60,15 @@ class BeaconRoomCoParticipantLookup
     final stewards = await (_database.select(
       _database.beaconStewards,
     )..where((s) => s.beaconId.equals(beaconId))).get();
-    final admitted = await (_database.select(
-      _database.beaconParticipants,
-    )..where(
-      (p) =>
-          p.beaconId.equals(beaconId) &
-          p.roomAccess.equals(RoomAccessBits.admitted),
-    )).get();
+    final admitted =
+        await (_database.select(
+              _database.beaconParticipants,
+            )..where(
+              (p) =>
+                  p.beaconId.equals(beaconId) &
+                  p.roomAccess.equals(RoomAccessBits.admitted),
+            ))
+            .get();
     return {
       for (final b in authors) ?b.userId,
       for (final s in stewards) s.userId,

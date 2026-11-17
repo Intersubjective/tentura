@@ -37,15 +37,17 @@ class ForwardAttributionRepository implements ForwardAttributionRepositoryPort {
     }
 
     for (final entry in weightByParentEdgeId.entries) {
-      await _db.into(_db.forwardDecisionAttributions).insert(
-        ForwardDecisionAttributionsCompanion.insert(
-          childForwardBatchId: batchId,
-          parentForwardEdgeId: entry.key,
-          attributionWeight: entry.value,
-          attributionMethod: method.key,
-        ),
-        onConflict: DoNothing(),
-      );
+      await _db
+          .into(_db.forwardDecisionAttributions)
+          .insert(
+            ForwardDecisionAttributionsCompanion.insert(
+              childForwardBatchId: batchId,
+              parentForwardEdgeId: entry.key,
+              attributionWeight: entry.value,
+              attributionMethod: method.key,
+            ),
+            onConflict: DoNothing(),
+          );
     }
   }
 

@@ -12,6 +12,7 @@ abstract class InboxItemEntity with _$InboxItemEntity {
     required DateTime latestForwardAt,
     @Default(0) int forwardCount,
     @Default('') String latestNotePreview,
+
     /// 0 = needs_me, 1 = watching, 2 = rejected
     @Default(0) int status,
     @Default('') String rejectionMessage,

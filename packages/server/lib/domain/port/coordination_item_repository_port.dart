@@ -173,7 +173,8 @@ abstract class CoordinationItemRepositoryPort {
   });
 
   /// Batch YOU-line counts per beacon for [viewerUserId].
-  Future<List<CoordinationResponsibilityCounts>> responsibilityCountsByBeaconIds({
+  Future<List<CoordinationResponsibilityCounts>>
+  responsibilityCountsByBeaconIds({
     required String viewerUserId,
     required List<String> beaconIds,
   });

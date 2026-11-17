@@ -8,9 +8,9 @@ enum ClosureOutcome {
   final int smallintValue;
 
   static ClosureOutcome? tryFromInt(int? v) => switch (v) {
-        1 => done,
-        2 => notDone,
-        3 => cantJudge,
-        _ => null,
-      };
+    1 => done,
+    2 => notDone,
+    3 => cantJudge,
+    _ => null,
+  };
 }

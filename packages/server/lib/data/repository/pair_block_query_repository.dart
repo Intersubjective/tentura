@@ -40,8 +40,7 @@ WHERE blocker_id = ANY($1::text[])
         .get();
 
     return {
-      for (final row in rows)
-        (row.read<String>('a'), row.read<String>('b')),
+      for (final row in rows) (row.read<String>('a'), row.read<String>('b')),
     };
   }
 }

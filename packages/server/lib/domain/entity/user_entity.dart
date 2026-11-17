@@ -16,6 +16,7 @@ abstract class UserEntity with _$UserEntity {
     required String id,
     @Default('') String publicKey,
     @Default('') String displayName,
+
     /// Optional @mention handle (5–30 `[a-z0-9_]`, not globally unique).
     @Default('') String handle,
     @Default('') String description,

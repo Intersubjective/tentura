@@ -1,11 +1,14 @@
 @Tags(['pg'])
 library;
 
+import 'dart:convert';
+
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
+import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
 import 'package:tentura_server/data/repository/attention_dispatch_repository.dart';
@@ -289,7 +292,7 @@ Future<void> main() async {
         expect(await _recipients(writer, _answered), [_candA]);
         expect(
           await _eventBlob(writer, _answered, _candA),
-          matches(RegExp(r'"accepted"\s*:\s*true')),
+          _answerIs(true),
         );
       });
 
@@ -307,7 +310,7 @@ Future<void> main() async {
         expect(await _recipients(writer, _answered), [_candA]);
         expect(
           await _eventBlob(writer, _answered, _candA),
-          matches(RegExp(r'"accepted"\s*:\s*false')),
+          _answerIs(false),
         );
       });
 
@@ -329,7 +332,7 @@ Future<void> main() async {
         final answers = await _eventBlobs(writer, _answered, _candA);
         expect(answers, hasLength(2));
         expect(
-          answers.where((b) => RegExp(r'"accepted"\s*:\s*false').hasMatch(b)),
+          answers.where((b) => _acceptedOf(b) == false),
           hasLength(1),
         );
       });
@@ -413,7 +416,7 @@ Future<void> main() async {
         expect(await _recipients(writer, _answered), [_candA]);
         expect(
           await _eventBlob(writer, _answered, _candA),
-          matches(RegExp(r'"accepted"\s*:\s*true')),
+          _answerIs(true),
         );
       });
 
@@ -434,9 +437,7 @@ Future<void> main() async {
           expect(rows[_candA]!.partnerResponse, _declined);
           final released = await _eventBlobs(writer, _answered, _candA);
           expect(
-            released.where(
-              (b) => RegExp(r'"accepted"\s*:\s*false').hasMatch(b),
-            ),
+            released.where((b) => _acceptedOf(b) == false),
             hasLength(1),
           );
           expect(await _peopleInSeveralPairs(writer, baton.id), isEmpty);
@@ -521,52 +522,403 @@ Future<void> main() async {
       });
     });
 
-    test('racing join against withdrawal always ends consistent', () async {
-      for (var round = 0; round < 10; round++) {
-        final baton = await createBaton(
-          candidates: [(userId: _candA, tier: 1)],
-        );
+    group('declining is always allowed', () {
+      test(
+        'an invited person who is no longer admitted can still decline',
+        () async {
+          final baton = await createBaton();
+          await respond(_candA, baton, canHelp: true, partnerUserId: _partnerX);
+          await writer.execute(
+            "DELETE FROM public.beacon_participant WHERE user_id = '$_partnerX'",
+          );
+
+          await partnerRespond(
+            _partnerX,
+            baton,
+            inviter: _candA,
+            accept: false,
+          );
+
+          final row = (await _rows(writer, baton.id))[_candA]!;
+          expect(row.response, _waiting);
+          expect(row.partnerResponse, _declined);
+          expect(row.respondedAt, isNull);
+          expect(await _recipients(writer, _answered), [_candA]);
+          expect(
+            await _eventBlob(writer, _answered, _candA),
+            _answerIs(false),
+          );
+        },
+      );
+
+      for (final (label, blocker, blocked) in [
+        ('the invited person blocked the inviter', _partnerX, _candA),
+        ('the inviter blocked the invited person', _candA, _partnerX),
+      ]) {
+        test('an invitation can be declined when $label', () async {
+          final baton = await createBaton();
+          await respond(_candA, baton, canHelp: true, partnerUserId: _partnerX);
+          await block(blocker, blocked);
+
+          await partnerRespond(
+            _partnerX,
+            baton,
+            inviter: _candA,
+            accept: false,
+          );
+
+          final row = (await _rows(writer, baton.id))[_candA]!;
+          expect(row.response, _waiting);
+          expect(row.partnerResponse, _declined);
+        });
+      }
+
+      test('a joined person who lost admission can still withdraw', () async {
+        final baton = await createBaton();
         await respond(_candA, baton, canHelp: true, partnerUserId: _partnerX);
-
-        Future<void> tolerate(Future<void> call) async {
-          try {
-            await call;
-          } on BatonNotPartnerException {
-            // The withdrawal won: nothing left to join.
-          }
-        }
-
-        // Any other error (a CHECK or unique violation surfacing as a
-        // Postgres error, a lock error) fails the round.
-        await Future.wait([
-          tolerate(
-            partnerRespond(_partnerX, baton, inviter: _candA, accept: true),
-          ),
-          respond(_candA, baton, canHelp: false),
-        ]);
-        expect(
-          await _partnerConstraintViolations(writer, baton.id),
-          isEmpty,
-          reason: 'round $round: every row satisfies the partner CHECKs',
+        await partnerRespond(_partnerX, baton, inviter: _candA, accept: true);
+        await writer.execute(
+          "DELETE FROM public.beacon_participant WHERE user_id = '$_partnerX'",
         );
-        expect(await _peopleInSeveralPairs(writer, baton.id), isEmpty);
+
+        await partnerRespond(_partnerX, baton, inviter: _candA, accept: false);
 
         final row = (await _rows(writer, baton.id))[_candA]!;
-        final withdrawn =
-            row.response == _cantHelp &&
-            row.partner == null &&
-            row.partnerResponse == null;
-        final paired =
-            row.response == _canHelp &&
-            row.partner == _partnerX &&
-            row.partnerResponse == _accepted;
+        expect(row.response, _waiting);
+        expect(row.partnerResponse, _declined);
+        expect(row.respondedAt, isNull);
+      });
+    });
+
+    group('a confirmed pair releases its members other invitations', () {
+      Future<void> expectReleased(
+        RoomBaton baton,
+        String person,
+      ) async {
+        final row = (await _rows(writer, baton.id))[person]!;
+        expect(row.response, _waiting);
+        expect(row.partnerResponse, _declined);
+        expect(row.respondedAt, isNull);
+        final answers = await _eventBlobs(writer, _answered, person);
         expect(
-          withdrawn || paired,
-          isTrue,
-          reason: 'round $round ended as $row',
+          answers.where((b) => _acceptedOf(b) == false),
+          hasLength(1),
+          reason: '$person is told the invitation is over',
         );
       }
+
+      test(
+        'joining releases a competing invitation to the same person',
+        () async {
+          final baton = await createBaton();
+          await respond(_candA, baton, canHelp: true, partnerUserId: _partnerX);
+          await respond(_candB, baton, canHelp: true, partnerUserId: _partnerX);
+
+          await partnerRespond(_partnerX, baton, inviter: _candA, accept: true);
+
+          final rows = await _rows(writer, baton.id);
+          expect(rows[_candA]!.response, _canHelp);
+          expect(rows[_candA]!.partner, _partnerX);
+          expect(rows[_candA]!.partnerResponse, _accepted);
+          await expectReleased(baton, _candB);
+          expect(
+            rows.entries.where(
+              (e) =>
+                  e.value.partnerResponse == _pending &&
+                  (e.key == _candA ||
+                      e.key == _partnerX ||
+                      e.value.partner == _candA ||
+                      e.value.partner == _partnerX),
+            ),
+            isEmpty,
+          );
+        },
+      );
+
+      test(
+        'a chain of pending invitations is released around the new pair',
+        () async {
+          final baton = await createBaton(
+            candidates: [
+              (userId: _candA, tier: 1),
+              (userId: _candB, tier: 1),
+              (userId: _partnerY, tier: 1),
+            ],
+          );
+          await respond(_candA, baton, canHelp: true, partnerUserId: _candB);
+          await respond(_candB, baton, canHelp: true, partnerUserId: _partnerY);
+          await respond(_partnerY, baton, canHelp: true, partnerUserId: _candA);
+
+          await partnerRespond(_candB, baton, inviter: _candA, accept: true);
+
+          final rows = await _rows(writer, baton.id);
+          expect(rows[_candA]!.partner, _candB);
+          expect(rows[_candA]!.partnerResponse, _accepted);
+          expect(rows[_candB]!.partner, _candA);
+          expect(rows[_candB]!.partnerResponse, _accepted);
+          await expectReleased(baton, _partnerY);
+          expect(
+            rows.values.where(
+              (r) =>
+                  r.partnerResponse == _pending &&
+                  (r.partner == _candA || r.partner == _candB),
+            ),
+            isEmpty,
+          );
+          expect(await _peopleInSeveralPairs(writer, baton.id), isEmpty);
+        },
+      );
+
+      test(
+        'a mutual pair released by choosing releases a third invitation',
+        () async {
+          final baton = await createBaton(
+            candidates: [
+              (userId: _candA, tier: 1),
+              (userId: _candB, tier: 1),
+              (userId: _partnerY, tier: 1),
+            ],
+          );
+          await respond(_partnerY, baton, canHelp: true, partnerUserId: _candA);
+          await respond(_candB, baton, canHelp: true, partnerUserId: _candA);
+
+          await respond(_candA, baton, canHelp: true, partnerUserId: _candB);
+
+          final rows = await _rows(writer, baton.id);
+          expect(rows[_candA]!.partnerResponse, _accepted);
+          expect(rows[_candB]!.partnerResponse, _accepted);
+          await expectReleased(baton, _partnerY);
+        },
+      );
     });
+
+    group('the partner cap counts distinct people', () {
+      test(
+        'naming the same person again after declines uses no extra slot',
+        () async {
+          final baton = await createBaton();
+          for (var i = 0; i < 3; i++) {
+            await respond(
+              _candA,
+              baton,
+              canHelp: true,
+              partnerUserId: _partnerX,
+            );
+            await partnerRespond(
+              _partnerX,
+              baton,
+              inviter: _candA,
+              accept: false,
+            );
+          }
+
+          await respond(_candA, baton, canHelp: true, partnerUserId: _partnerX);
+          var row = (await _rows(writer, baton.id))[_candA]!;
+          expect(row.partner, _partnerX);
+          expect(row.partnerResponse, _pending);
+          expect(row.invites, 1);
+
+          await respond(_candA, baton, canHelp: true, partnerUserId: _partnerY);
+          await respond(_candA, baton, canHelp: true, partnerUserId: _partnerZ);
+          row = (await _rows(writer, baton.id))[_candA]!;
+          expect(row.invites, 3);
+
+          final rowsBefore = await _rows(writer, baton.id);
+          await expectLater(
+            respond(_candA, baton, canHelp: true, partnerUserId: _partnerW),
+            throwsA(isA<BatonPartnerInvalidException>()),
+          );
+          expect(await _rows(writer, baton.id), rowsBefore);
+        },
+      );
+
+      test('switching to someone else and back uses no extra slot', () async {
+        final baton = await createBaton();
+        await respond(_candA, baton, canHelp: true, partnerUserId: _partnerX);
+        await respond(_candA, baton, canHelp: true, partnerUserId: _partnerY);
+        await respond(_candA, baton, canHelp: true, partnerUserId: _partnerX);
+
+        var row = (await _rows(writer, baton.id))[_candA]!;
+        expect(row.partner, _partnerX);
+        expect(row.invites, 2);
+
+        await respond(_candA, baton, canHelp: true, partnerUserId: _partnerZ);
+        row = (await _rows(writer, baton.id))[_candA]!;
+        expect(row.invites, 3);
+
+        final rowsBefore = await _rows(writer, baton.id);
+        final keysBefore = await _keys(writer, _asked);
+        await expectLater(
+          respond(_candA, baton, canHelp: true, partnerUserId: _partnerW),
+          throwsA(isA<BatonPartnerInvalidException>()),
+        );
+        expect(await _rows(writer, baton.id), rowsBefore);
+        expect((await _rows(writer, baton.id))[_candA]!.partner, _partnerZ);
+        expect(await _keys(writer, _asked), keysBefore);
+        expect(await _recipients(writer, _asked), isNot(contains(_partnerW)));
+      });
+    });
+
+    group('a partner whose account was deleted', () {
+      late RoomBaton baton;
+
+      setUp(() async {
+        baton = await createBaton();
+        await respond(_candB, baton, canHelp: true);
+        await respond(_candA, baton, canHelp: true, partnerUserId: _partnerX);
+        await partnerRespond(_partnerX, baton, inviter: _candA, accept: true);
+        await writer.execute(
+          "DELETE FROM public.beacon_participant WHERE user_id = '$_partnerX'",
+        );
+        await writer.execute(
+          'DELETE FROM public."user" '
+          "WHERE id = '$_partnerX'",
+        );
+        final row = (await _rows(writer, baton.id))[_candA]!;
+        expect(row.partner, isNull, reason: 'fixture: partner erased');
+        expect(row.partnerResponse, _accepted, reason: 'fixture');
+      });
+
+      Future<Map<String, Object?>> payloadFor(String viewer) async {
+        final rows = await BeaconRoomRepository(database).listMessagesEnriched(
+          beaconId: _request,
+          viewerUserId: viewer,
+        );
+        final raw = rows.singleWhere(
+          (r) => r['id'] == baton.messageId,
+        )['batonDataJson'];
+        return (jsonDecode(raw! as String) as Map).cast<String, Object?>();
+      }
+
+      test('is shown as waiting and not counted as eligible', () async {
+        final p = await payloadFor(_author);
+
+        final a = (p['candidates']! as List)
+            .cast<Map<String, Object?>>()
+            .singleWhere((c) => c['userId'] == _candA);
+        expect(a['response'], 'waiting');
+        expect(a.containsKey('partner'), isFalse);
+        expect(
+          ((p['pairs'] as List?) ?? const [])
+              .cast<Map<String, Object?>>()
+              .where((pair) => pair['takerUserId'] == _candA),
+          isEmpty,
+        );
+        expect(p['eligibleCount'], 1);
+        expect(p['allAnswered'], isFalse);
+
+        final mine = await payloadFor(_candA);
+        expect(
+          (mine['myPartner']! as Map<String, Object?>)['status'],
+          'declined',
+        );
+      });
+
+      test('cannot be selected, while the solo candidate still can', () async {
+        await expectLater(
+          batonCase.select(
+            actorId: _author,
+            batonId: baton.id,
+            userId: _candA,
+          ),
+          throwsA(isA<BatonTakerNotAvailableException>()),
+        );
+
+        await batonCase.select(actorId: _author, batonId: baton.id);
+
+        final marker = await writer.execute(
+          Sql.named(
+            'SELECT system_payload::text FROM public.beacon_room_message '
+            'WHERE semantic_marker = @marker AND beacon_id = @beacon',
+          ),
+          parameters: {
+            'marker': BeaconRoomSemanticMarker.batonTaken,
+            'beacon': _request,
+          },
+        );
+        expect(
+          marker,
+          hasLength(1),
+          reason: 'one taken marker for the request',
+        );
+        final payload = jsonDecode(marker.single[0]! as String) as Map;
+        expect(payload['takerUserId'], _candB);
+        expect(payload['coTakerUserId'], isNull);
+      });
+    });
+
+    // The join and the withdrawal each hold their own pooled connection, so
+    // the race needs a handle with several connections even when CI forces
+    // pool size 1 for the rest of the file.
+    test(
+      'racing join against withdrawal always ends consistent',
+      tags: [
+        'multi-connection',
+      ],
+      () async {
+        final race = openMultiConnectionPgDatabase(target);
+        addTearDown(race.db.close);
+        expect(
+          race.env.pgPoolSettings.maxConnectionCount,
+          greaterThan(1),
+          reason: 'the race must not be serialized by a one-connection pool',
+        );
+        final raceCase = _buildCase(race.db, race.env);
+        for (var round = 0; round < 10; round++) {
+          final baton = await createBaton(
+            candidates: [(userId: _candA, tier: 1)],
+          );
+          await respond(_candA, baton, canHelp: true, partnerUserId: _partnerX);
+
+          Future<void> tolerate(Future<void> call) async {
+            try {
+              await call;
+            } on BatonNotPartnerException {
+              // The withdrawal won: nothing left to join.
+            }
+          }
+
+          // Any other error (a CHECK or unique violation surfacing as a
+          // Postgres error, a lock error) fails the round.
+          await Future.wait([
+            tolerate(
+              raceCase.partnerRespond(
+                actorId: _partnerX,
+                batonId: baton.id,
+                inviterUserId: _candA,
+                accept: true,
+              ),
+            ),
+            raceCase.respond(
+              actorId: _candA,
+              batonId: baton.id,
+              canHelp: false,
+            ),
+          ]);
+          expect(
+            await _partnerConstraintViolations(writer, baton.id),
+            isEmpty,
+            reason: 'round $round: every row satisfies the partner CHECKs',
+          );
+          expect(await _peopleInSeveralPairs(writer, baton.id), isEmpty);
+
+          final row = (await _rows(writer, baton.id))[_candA]!;
+          final withdrawn =
+              row.response == _cantHelp &&
+              row.partner == null &&
+              row.partnerResponse == null;
+          final paired =
+              row.response == _canHelp &&
+              row.partner == _partnerX &&
+              row.partnerResponse == _accepted;
+          expect(
+            withdrawn || paired,
+            isTrue,
+            reason: 'round $round ended as $row',
+          );
+        }
+      },
+    );
   });
 }
 
@@ -821,3 +1173,59 @@ VALUES ('Pbatonpair${(n++).toString().padLeft(3, '0')}', '$_request', '$user', 0
 
 final class _NoopInviteGenealogyRepository extends Fake
     implements InviteGenealogyRepositoryPort {}
+
+/// The `accepted` flag carried in an event blob (see `_eventBlobs`): the
+/// first JSON object holding that key, read after decoding.
+bool? _acceptedOf(String blob) {
+  bool? found;
+  void walk(Object? node) {
+    if (node is Map) {
+      if (node['accepted'] is bool) found ??= node['accepted'] as bool;
+      node.values.forEach(walk);
+    } else if (node is List) {
+      node.forEach(walk);
+    } else if (node is String && node.startsWith(RegExp(r'[{\[]'))) {
+      try {
+        walk(jsonDecode(node));
+      } on FormatException {
+        // not JSON
+      }
+    }
+  }
+
+  var rest = blob;
+  while (rest.isNotEmpty) {
+    final end = _firstObjectEnd(rest);
+    if (end <= 0) break;
+    walk(jsonDecode(rest.substring(0, end)));
+    rest = rest.substring(end);
+  }
+  return found;
+}
+
+int _firstObjectEnd(String s) {
+  var depth = 0;
+  var inString = false;
+  for (var i = 0; i < s.length; i++) {
+    final c = s[i];
+    if (inString) {
+      if (c == r'\\') {
+        i++;
+      } else if (c == '"') {
+        inString = false;
+      }
+    } else if (c == '"') {
+      inString = true;
+    } else if (c == '{') {
+      depth++;
+    } else if (c == '}' && --depth == 0) {
+      return i + 1;
+    }
+  }
+  return -1;
+}
+
+Matcher _answerIs(bool accepted) => predicate<String>(
+  (blob) => _acceptedOf(blob) == accepted,
+  'an answer receipt with accepted == $accepted',
+);

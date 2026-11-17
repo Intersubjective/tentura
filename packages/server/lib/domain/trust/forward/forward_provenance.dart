@@ -33,14 +33,13 @@ extension ForwardProvenanceEdgeMapper on ForwardProvenanceEdge {
     String? parentEdgeId,
     String? batchId,
     DateTime? cancelledAt,
-  }) =>
-      ForwardProvenanceEdge(
-        id: id,
-        senderId: senderId,
-        recipientId: recipientId,
-        createdAt: createdAt,
-        parentEdgeId: parentEdgeId,
-        batchId: batchId,
-        cancelledAt: cancelledAt,
-      );
+  }) => ForwardProvenanceEdge(
+    id: id,
+    senderId: senderId,
+    recipientId: recipientId,
+    createdAt: createdAt,
+    parentEdgeId: parentEdgeId,
+    batchId: batchId,
+    cancelledAt: cancelledAt,
+  );
 }

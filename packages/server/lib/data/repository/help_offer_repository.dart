@@ -34,28 +34,30 @@ class HelpOfferRepository implements HelpOfferRepositoryPort {
     final previous = await _database.managers.beaconHelpOffers
         .filter((e) => e.beaconId.id(beaconId) & e.userId.id(userId))
         .getSingleOrNull();
-    await _database.into(_database.beaconHelpOffers).insert(
-      BeaconHelpOffersCompanion.insert(
-        beaconId: beaconId,
-        userId: userId,
-        message: Value(message),
-        helpType: Value(helpTypesJson),
-        status: Value(status),
-        offerKind: Value(offerKind),
-      ),
-      onConflict: DoUpdate(
-        (_) => BeaconHelpOffersCompanion(
-          message: Value(message),
-          helpType: Value(helpTypesJson),
-          withdrawReason: status == 0
-              ? const Value(null)
-              : const Value.absent(),
-          status: Value(status),
-          offerKind: Value(offerKind),
-          updatedAt: Value(PgDateTime(DateTime.timestamp())),
-        ),
-      ),
-    );
+    await _database
+        .into(_database.beaconHelpOffers)
+        .insert(
+          BeaconHelpOffersCompanion.insert(
+            beaconId: beaconId,
+            userId: userId,
+            message: Value(message),
+            helpType: Value(helpTypesJson),
+            status: Value(status),
+            offerKind: Value(offerKind),
+          ),
+          onConflict: DoUpdate(
+            (_) => BeaconHelpOffersCompanion(
+              message: Value(message),
+              helpType: Value(helpTypesJson),
+              withdrawReason: status == 0
+                  ? const Value(null)
+                  : const Value.absent(),
+              status: Value(status),
+              offerKind: Value(offerKind),
+              updatedAt: Value(PgDateTime(DateTime.timestamp())),
+            ),
+          ),
+        );
     // A re-offer after a withdrawal (or deactivation) reuses the row; the
     // author's answer to the earlier offer must not file the new one (#399).
     if (status == 0 && previous != null && previous.status != 0) {
@@ -168,12 +170,13 @@ class HelpOfferRepository implements HelpOfferRepositoryPort {
       .then((rows) => rows.map(_toEntity).toList());
 
   @override
-  Future<List<HelpOfferEntity>> fetchByUserId(String userId) =>
-      _database.managers.beaconHelpOffers
-          .filter((e) => e.userId.id(userId) & e.status.equals(0))
-          .orderBy((e) => e.updatedAt.desc())
-          .get()
-          .then((rows) => rows.map(_toEntity).toList());
+  Future<List<HelpOfferEntity>> fetchByUserId(String userId) => _database
+      .managers
+      .beaconHelpOffers
+      .filter((e) => e.userId.id(userId) & e.status.equals(0))
+      .orderBy((e) => e.updatedAt.desc())
+      .get()
+      .then((rows) => rows.map(_toEntity).toList());
 
   @override
   Future<bool> hasActiveHelpOffer({
@@ -182,7 +185,10 @@ class HelpOfferRepository implements HelpOfferRepositoryPort {
   }) async {
     final row = await _database.managers.beaconHelpOffers
         .filter(
-          (e) => e.beaconId.id(beaconId) & e.userId.id(userId) & e.status.equals(0),
+          (e) =>
+              e.beaconId.id(beaconId) &
+              e.userId.id(userId) &
+              e.status.equals(0),
         )
         .getSingleOrNull();
     return row != null;
@@ -195,7 +201,10 @@ class HelpOfferRepository implements HelpOfferRepositoryPort {
   }) async {
     final row = await _database.managers.beaconHelpOffers
         .filter(
-          (e) => e.beaconId.id(beaconId) & e.userId.id(userId) & e.status.equals(0),
+          (e) =>
+              e.beaconId.id(beaconId) &
+              e.userId.id(userId) &
+              e.status.equals(0),
         )
         .getSingleOrNull();
     if (row == null) {
@@ -237,18 +246,17 @@ class HelpOfferRepository implements HelpOfferRepositoryPort {
     return [for (final item in decoded) item.toString()];
   }
 
-  static HelpOfferEntity _toEntity(BeaconHelpOffer row) =>
-      HelpOfferEntity(
-        beaconId: row.beaconId,
-        userId: row.userId,
-        message: row.message,
-        status: row.status,
-        offerKind: row.offerKind,
-        stakeState: row.stakeState,
-        helpType: row.helpType,
-        roleLabel: row.roleLabel,
-        withdrawReason: row.withdrawReason,
-        createdAt: row.createdAt.dateTime,
-        updatedAt: row.updatedAt.dateTime,
-      );
+  static HelpOfferEntity _toEntity(BeaconHelpOffer row) => HelpOfferEntity(
+    beaconId: row.beaconId,
+    userId: row.userId,
+    message: row.message,
+    status: row.status,
+    offerKind: row.offerKind,
+    stakeState: row.stakeState,
+    helpType: row.helpType,
+    roleLabel: row.roleLabel,
+    withdrawReason: row.withdrawReason,
+    createdAt: row.createdAt.dateTime,
+    updatedAt: row.updatedAt.dateTime,
+  );
 }
