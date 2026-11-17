@@ -1039,6 +1039,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
         canWrite &&
         !isThreadMode &&
         linkedItem == null &&
+        message.isPromotionEligible() &&
         !_suppressesRichMessageActions(message);
     final hasBodyText = message.body.trim().isNotEmpty;
     // Starts a new baton message that replies to this one (anyone's plain or

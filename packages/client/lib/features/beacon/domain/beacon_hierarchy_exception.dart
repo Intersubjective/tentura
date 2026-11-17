@@ -33,10 +33,23 @@ final class BeaconParentNotCoordinatableException
 
 /// The referenced promotion source message is not eligible.
 final class BeaconPromotionSourceInvalidException
-    extends BeaconHierarchyException {
+    extends BeaconHierarchyException
+    implements Localizable {
   const BeaconPromotionSourceInvalidException([super.message]);
 
   static const codeNumber = 1311;
+
+  @override
+  String get toEn => 'This message cannot be turned into a request';
+
+  @override
+  String get toRu => 'Из этого сообщения нельзя создать запрос';
+
+  @override
+  String toL10n(String? locale) => switch (locale) {
+    'ru' => toRu,
+    _ => toEn,
+  };
 }
 
 /// The source message already has a published child.
