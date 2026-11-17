@@ -133,4 +133,13 @@ const kServerErrorCopy = <String, ServerErrorCopy>{
     en: "That role name can't be used. Make it one short line.",
     ru: 'Такое название роли не подходит. Сделайте его короче, в одну строку.',
   ),
+  // BeaconExceptionCode — baton together partner validation
+  '1355': (
+    en: 'This person cannot be named as a partner.',
+    ru: 'Этого человека нельзя указать напарником.',
+  ),
+  '1356': (
+    en: 'No pending partner invitation to answer.',
+    ru: 'Нет ожидающего приглашения напарника для ответа.',
+  ),
 };

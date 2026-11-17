@@ -534,7 +534,24 @@ base class BeaconThreadsCase extends UseCaseBase {
   Future<RoomBatonData?> batonRespond({
     required String batonId,
     required bool canHelp,
-  }) => _room.batonRespond(batonId: batonId, canHelp: canHelp);
+    String? partnerUserId,
+  }) =>
+      _room.batonRespond(
+        batonId: batonId,
+        canHelp: canHelp,
+        partnerUserId: partnerUserId,
+      );
+
+  Future<RoomBatonData?> batonPartnerRespond({
+    required String batonId,
+    required String inviterUserId,
+    required bool accept,
+  }) =>
+      _room.batonPartnerRespond(
+        batonId: batonId,
+        inviterUserId: inviterUserId,
+        accept: accept,
+      );
 
   Future<RoomBatonData?> batonUpdate({
     required String batonId,

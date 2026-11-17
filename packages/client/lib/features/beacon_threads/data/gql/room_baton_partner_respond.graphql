@@ -1,0 +1,11 @@
+mutation RoomBatonPartnerRespond(
+  $batonId: String!
+  $inviterUserId: String!
+  $accept: Boolean!
+) {
+  roomBatonPartnerRespond(
+    batonId: $batonId
+    inviterUserId: $inviterUserId
+    accept: $accept
+  )
+}

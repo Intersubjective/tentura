@@ -1946,6 +1946,7 @@ class RoomCubit extends Cubit<RoomState> {
     required String messageId,
     required String batonId,
     required bool canHelp,
+    String? partnerUserId,
   }) async {
     if (_rejectIfDiscussionReadOnly()) return;
     final idx = state.messages.indexWhere((m) => m.id == messageId);
@@ -1955,6 +1956,13 @@ class RoomCubit extends Cubit<RoomState> {
       final baton = msg.baton;
       if (baton is RoomBatonCandidateData) {
         previousMessages = List<RoomMessage>.from(state.messages);
+        final optimisticPartner = partnerUserId != null && canHelp
+            ? RoomBatonMyPartner(
+                id: partnerUserId,
+                title: '',
+                status: 'pending',
+              )
+            : (canHelp ? null : baton.myPartner);
         final updated = msg.copyWith(
           baton: RoomBatonCandidateData(
             id: baton.id,
@@ -1964,6 +1972,9 @@ class RoomCubit extends Cubit<RoomState> {
                 : RoomBatonResponse.cantHelp,
             outcome: baton.outcome,
             taker: baton.taker,
+            coTaker: baton.coTaker,
+            myPartner: optimisticPartner,
+            partnerInvites: baton.partnerInvites,
           ),
         );
         emit(
@@ -1975,7 +1986,11 @@ class RoomCubit extends Cubit<RoomState> {
     }
 
     try {
-      await _case.batonRespond(batonId: batonId, canHelp: canHelp);
+      await _case.batonRespond(
+        batonId: batonId,
+        canHelp: canHelp,
+        partnerUserId: partnerUserId,
+      );
       // Silent refresh, like [votePoll]: the answer is already shown.
       unawaited(_requestRefresh(scope: _RoomRefreshScope.messages));
     } on Object catch (e) {

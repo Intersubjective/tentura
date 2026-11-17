@@ -69,6 +69,20 @@ final class BatonMessageNotEligibleException extends BatonException {
   static const codeNumber = 1329;
 }
 
+/// The named partner is not allowed on this answer (admission, limits, etc.).
+final class BatonPartnerInvalidException extends BatonException {
+  const BatonPartnerInvalidException([super.message]);
+
+  static const codeNumber = 1355;
+}
+
+/// The viewer has no pending partner invitation to answer on this baton.
+final class BatonNotPartnerException extends BatonException {
+  const BatonNotPartnerException([super.message]);
+
+  static const codeNumber = 1356;
+}
+
 /// Throws the matching [BatonException] for a recognized baton GraphQL error
 /// [code]. Returns normally (no throw) for any other code, so the caller
 /// falls through to its generic mapping.
@@ -90,5 +104,9 @@ void throwIfBatonError(int? code) {
       throw const BatonTakerNotAvailableException();
     case BatonMessageNotEligibleException.codeNumber:
       throw const BatonMessageNotEligibleException();
+    case BatonPartnerInvalidException.codeNumber:
+      throw const BatonPartnerInvalidException();
+    case BatonNotPartnerException.codeNumber:
+      throw const BatonNotPartnerException();
   }
 }

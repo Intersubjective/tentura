@@ -255,6 +255,22 @@ class RoomMessageTile extends StatelessWidget {
     }
   }
 
+  /// Co-taker on a «{A} and {X} took it.» system line; null when solo.
+  static String? batonCoTakerUserId(RoomMessage m) {
+    final raw = m.systemPayloadJson;
+    if (raw == null || raw.trim().isEmpty) return null;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map<String, dynamic>) return null;
+      final coTaker = decoded['coTakerUserId'];
+      return coTaker is String && coTaker.trim().isNotEmpty
+          ? coTaker.trim()
+          : null;
+    } on Object {
+      return null;
+    }
+  }
+
   static bool isParticipantJoinedNotification(RoomMessage m) =>
       m.semanticMarker == BeaconRoomSemanticMarker.participantJoined;
 

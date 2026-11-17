@@ -232,6 +232,7 @@ class _BatonRespondRepository extends FakeBeaconThreadsRepository {
   Future<RoomBatonData?> batonRespond({
     required String batonId,
     required bool canHelp,
+    String? partnerUserId,
   }) async {
     calls.add((batonId: batonId, canHelp: canHelp));
     final held = gate;

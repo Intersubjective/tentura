@@ -3,6 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/features/beacon_threads/domain/exception/baton_exceptions.dart';
 
+import 'support/baton_together_expectations.dart';
+
 void main() {
   test('baton start action is enabled for release', () {
     expect(kBatonEnabled, isTrue);
@@ -59,6 +61,22 @@ void main() {
       expect(() => throwIfBatonError(1320), returnsNormally);
       expect(() => throwIfBatonError(1330), returnsNormally);
       expect(() => throwIfBatonError(null), returnsNormally);
+    });
+
+    test('partner exception types expose server code numbers', () {
+      expect(BatonPartnerInvalidException.codeNumber, 1355);
+      expect(BatonNotPartnerException.codeNumber, 1356);
+    });
+
+    test('throwIfBatonError maps partner invalid and not-partner codes', () {
+      expect(
+        () => throwIfBatonError(1355),
+        throwsA(isExpectedBatonPartnerInvalidException()),
+      );
+      expect(
+        () => throwIfBatonError(1356),
+        throwsA(isExpectedBatonNotPartnerException()),
+      );
     });
   });
 }

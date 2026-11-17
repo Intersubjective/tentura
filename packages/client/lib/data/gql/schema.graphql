@@ -4116,7 +4116,8 @@ type mutation_root {
   revokeAcknowledgement(beaconId: String!, slug: String!, subjectId: String!): Boolean!
   roomBatonCancel(batonId: String!): Boolean!
   roomBatonCreate(beaconId: String!, candidates: [v2_RoomBatonCandidateInput!]!, replyToMessageId: String, text: String!): String!
-  roomBatonRespond(batonId: String!, canHelp: Boolean!): String
+  roomBatonRespond(batonId: String!, canHelp: Boolean!, partnerUserId: String): String
+  roomBatonPartnerRespond(batonId: String!, inviterUserId: String!, accept: Boolean!): String
   roomBatonSelect(batonId: String!, userId: String): String
   roomBatonUpdate(batonId: String!, candidates: [v2_RoomBatonCandidateInput!]!, text: String!): String
   seedRoutingAttestation(slugs: [String!], subjectId: String!): Boolean!

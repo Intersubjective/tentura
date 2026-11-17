@@ -70,6 +70,96 @@ class RoomBatonTaker {
   }
 }
 
+/// The viewer's named partner on a «together» answer (`myPartner` on candidate).
+class RoomBatonMyPartner {
+  const RoomBatonMyPartner({
+    required this.id,
+    required this.title,
+    required this.status,
+  });
+
+  final String id;
+  final String title;
+
+  /// Wire: `pending`, `accepted`, or `declined`.
+  final String status;
+
+  static RoomBatonMyPartner? _tryParse(Object? raw) {
+    if (raw is! Map) return null;
+    final id = raw['id'];
+    final status = raw['status'];
+    if (id is! String || id.isEmpty) return null;
+    if (status is! String || status.isEmpty) return null;
+    final title = raw['title'];
+    return RoomBatonMyPartner(
+      id: id,
+      title: title is String ? title : '',
+      status: status,
+    );
+  }
+}
+
+/// An invitation to join someone else's «together» answer.
+class RoomBatonPartnerInvite {
+  const RoomBatonPartnerInvite({
+    required this.fromUserId,
+    required this.title,
+    required this.status,
+  });
+
+  final String fromUserId;
+  final String title;
+
+  /// Wire: `pending` or `accepted`.
+  final String status;
+
+  static RoomBatonPartnerInvite? _tryParse(Object? raw) {
+    if (raw is! Map) return null;
+    final fromUserId = raw['fromUserId'];
+    final status = raw['status'];
+    if (fromUserId is! String || fromUserId.isEmpty) return null;
+    if (status is! String || status.isEmpty) return null;
+    final title = raw['title'];
+    return RoomBatonPartnerInvite(
+      fromUserId: fromUserId,
+      title: title is String ? title : '',
+      status: status,
+    );
+  }
+}
+
+/// A confirmed pair in the author's collecting view.
+class RoomBatonConfirmedPair {
+  const RoomBatonConfirmedPair({
+    required this.takerId,
+    required this.partnerId,
+    required this.tier,
+  });
+
+  final String takerId;
+  final String partnerId;
+  final int tier;
+
+  static RoomBatonConfirmedPair? _tryParse(Object? raw) {
+    if (raw is! Map) return null;
+    final takerId = raw['takerId'];
+    final partnerId = raw['partnerId'];
+    final tier = raw['tier'];
+    if (takerId is! String ||
+        takerId.isEmpty ||
+        partnerId is! String ||
+        partnerId.isEmpty) {
+      return null;
+    }
+    if (tier is! num) return null;
+    return RoomBatonConfirmedPair(
+      takerId: takerId,
+      partnerId: partnerId,
+      tier: tier.toInt(),
+    );
+  }
+}
+
 /// One asked person, as the author sees them.
 class RoomBatonCandidate {
   const RoomBatonCandidate({
@@ -78,6 +168,7 @@ class RoomBatonCandidate {
     required this.tier,
     required this.response,
     this.respondedAt,
+    this.partner,
   });
 
   final String userId;
@@ -85,6 +176,9 @@ class RoomBatonCandidate {
   final int tier;
   final RoomBatonResponse response;
   final DateTime? respondedAt;
+
+  /// Set when the candidate's «together» partner is confirmed (author only).
+  final RoomBatonTaker? partner;
 
   static RoomBatonCandidate? _tryParse(Object? raw) {
     if (raw is! Map) return null;
@@ -103,6 +197,7 @@ class RoomBatonCandidate {
       respondedAt: respondedAt is String
           ? DateTime.tryParse(respondedAt)?.toUtc()
           : null,
+      partner: RoomBatonTaker._tryParse(raw['partner']),
     );
   }
 }
@@ -116,6 +211,16 @@ sealed class RoomBatonData {
 
   final String id;
   final RoomBatonStatus status;
+
+  static List<RoomBatonPartnerInvite> _parsePartnerInvites(Object? raw) {
+    if (raw is! List) return const [];
+    final invites = <RoomBatonPartnerInvite>[];
+    for (final item in raw) {
+      final invite = RoomBatonPartnerInvite._tryParse(item);
+      if (invite != null) invites.add(invite);
+    }
+    return invites;
+  }
 
   /// Parses `batonDataJson`; null for absent, non-JSON or malformed input.
   /// Unknown keys are ignored.
@@ -133,13 +238,8 @@ sealed class RoomBatonData {
     if (id is! String || id.isEmpty || status == null) return null;
     return switch (decoded['viewerRole']) {
       'author' => _parseAuthor(decoded, id, status),
-      'candidate' => RoomBatonCandidateData(
-        id: id,
-        status: status,
-        myResponse: RoomBatonResponse.fromWire(decoded['myResponse']),
-        outcome: RoomBatonOutcome.fromWire(decoded['outcome']),
-        taker: RoomBatonTaker._tryParse(decoded['taker']),
-      ),
+      'candidate' => _parseCandidate(decoded, id, status),
+      'partner' => _parsePartner(decoded, id, status),
       'observer' => _parseObserver(decoded, id, status),
       _ => null,
     };
@@ -160,6 +260,15 @@ sealed class RoomBatonData {
     }
     final allAnswered = map['allAnswered'];
     final eligibleCount = map['eligibleCount'];
+    final rawPairs = map['pairs'];
+    final pairs = <RoomBatonConfirmedPair>[];
+    if (rawPairs is List) {
+      for (final raw in rawPairs) {
+        final pair = RoomBatonConfirmedPair._tryParse(raw);
+        if (pair == null) return null;
+        pairs.add(pair);
+      }
+    }
     return RoomBatonAuthorData(
       id: id,
       status: status,
@@ -167,7 +276,39 @@ sealed class RoomBatonData {
       allAnswered: allAnswered is bool && allAnswered,
       eligibleCount: eligibleCount is num ? eligibleCount.toInt() : 0,
       taker: RoomBatonTaker._tryParse(map['taker']),
+      coTaker: RoomBatonTaker._tryParse(map['coTaker']),
       selectionMode: RoomBatonSelectionMode.fromWire(map['selectionMode']),
+      pairs: pairs,
+    );
+  }
+
+  static RoomBatonCandidateData? _parseCandidate(
+    Map<dynamic, dynamic> map,
+    String id,
+    RoomBatonStatus status,
+  ) {
+    return RoomBatonCandidateData(
+      id: id,
+      status: status,
+      myResponse: RoomBatonResponse.fromWire(map['myResponse']),
+      outcome: RoomBatonOutcome.fromWire(map['outcome']),
+      taker: RoomBatonTaker._tryParse(map['taker']),
+      coTaker: RoomBatonTaker._tryParse(map['coTaker']),
+      myPartner: RoomBatonMyPartner._tryParse(map['myPartner']),
+      partnerInvites: _parsePartnerInvites(map['partnerInvites']),
+    );
+  }
+
+  static RoomBatonPartnerData? _parsePartner(
+    Map<dynamic, dynamic> map,
+    String id,
+    RoomBatonStatus status,
+  ) {
+    return RoomBatonPartnerData(
+      id: id,
+      status: status,
+      outcome: RoomBatonOutcome.fromWire(map['outcome']),
+      partnerInvites: _parsePartnerInvites(map['partnerInvites']),
     );
   }
 
@@ -178,7 +319,12 @@ sealed class RoomBatonData {
   ) {
     final taker = RoomBatonTaker._tryParse(map['taker']);
     if (status == RoomBatonStatus.taken && taker == null) return null;
-    return RoomBatonObserverData(id: id, status: status, taker: taker);
+    return RoomBatonObserverData(
+      id: id,
+      status: status,
+      taker: taker,
+      coTaker: RoomBatonTaker._tryParse(map['coTaker']),
+    );
   }
 }
 
@@ -191,7 +337,9 @@ class RoomBatonAuthorData extends RoomBatonData {
     required this.allAnswered,
     required this.eligibleCount,
     this.taker,
+    this.coTaker,
     this.selectionMode,
+    this.pairs = const [],
   });
 
   final List<RoomBatonCandidate> candidates;
@@ -200,7 +348,9 @@ class RoomBatonAuthorData extends RoomBatonData {
   /// Number of candidates currently selectable («Can help»).
   final int eligibleCount;
   final RoomBatonTaker? taker;
+  final RoomBatonTaker? coTaker;
   final RoomBatonSelectionMode? selectionMode;
+  final List<RoomBatonConfirmedPair> pairs;
 
   /// Whether the candidate rows carry a priority label (more than one tier).
   bool get showsTiers => candidates.map((c) => c.tier).toSet().length > 1;
@@ -214,12 +364,31 @@ class RoomBatonCandidateData extends RoomBatonData {
     this.myResponse,
     this.outcome,
     this.taker,
+    this.coTaker,
+    this.myPartner,
+    this.partnerInvites = const [],
   });
 
   /// Null on a cancelled baton, where the answer is no longer shown.
   final RoomBatonResponse? myResponse;
   final RoomBatonOutcome? outcome;
   final RoomBatonTaker? taker;
+  final RoomBatonTaker? coTaker;
+  final RoomBatonMyPartner? myPartner;
+  final List<RoomBatonPartnerInvite> partnerInvites;
+}
+
+/// A named partner's view: invitations from asked people, then the outcome.
+class RoomBatonPartnerData extends RoomBatonData {
+  const RoomBatonPartnerData({
+    required super.id,
+    required super.status,
+    this.outcome,
+    this.partnerInvites = const [],
+  });
+
+  final RoomBatonOutcome? outcome;
+  final List<RoomBatonPartnerInvite> partnerInvites;
 }
 
 /// Everyone else's view: that the baton exists and its status, plus the taker
@@ -229,8 +398,10 @@ class RoomBatonObserverData extends RoomBatonData {
     required super.id,
     required super.status,
     this.taker,
+    this.coTaker,
   });
 
   /// Set exactly when [status] is [RoomBatonStatus.taken].
   final RoomBatonTaker? taker;
+  final RoomBatonTaker? coTaker;
 }

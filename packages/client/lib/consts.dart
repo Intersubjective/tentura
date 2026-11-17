@@ -269,6 +269,9 @@ const kPostBudInviteWarningAbove = 5;
 /// Enables the «Who'll take it?» (baton) start action.
 const kBatonEnabled = true;
 
+/// Enables the «Together with…» baton answer path (baton together plan C2–C6).
+const kBatonTogetherEnabled = false;
+
 /// Enables every client entry point of private people tags (#699, phase 1).
 const kPeopleTagsEnabled = true;
 

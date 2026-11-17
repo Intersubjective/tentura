@@ -4,6 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/domain/entity/room_baton_data.dart';
 
+import '../../support/baton_together_projection_accessors.dart';
+
 String _json(Map<String, Object?> map) => jsonEncode(map);
 
 void main() {
@@ -416,5 +418,229 @@ void main() {
         isNull,
       );
     });
+  });
+
+  group('RoomBatonData.tryParse baton together shapes', () {
+    test('named partner sees partnerInvites while collecting', () {
+      final data = RoomBatonData.tryParse(
+        _json({
+          'id': 'Zbaton000001',
+          'status': 'collecting',
+          'viewerRole': 'partner',
+          'partnerInvites': [
+            {
+              'fromUserId': 'Uaaaaaaaaaaa',
+              'title': 'Alice',
+              'status': 'pending',
+            },
+          ],
+        }),
+      );
+
+      expect(data, isRoomBatonPartnerData());
+      expect(partnerInviteCount(data), 1);
+      expect(
+        partnerInviteFromTitle(data, 'Uaaaaaaaaaaa'),
+        'Alice',
+      );
+    });
+
+    test('named partner taken outcome is you', () {
+      final data = RoomBatonData.tryParse(
+        _json({
+          'id': 'Zbaton000001',
+          'status': 'taken',
+          'viewerRole': 'partner',
+          'outcome': 'you',
+          'partnerInvites': [
+            {
+              'fromUserId': 'Uaaaaaaaaaaa',
+              'title': 'Alice',
+              'status': 'accepted',
+            },
+          ],
+        }),
+      );
+
+      expect(data, isRoomBatonPartnerData());
+      expect(partnerRoleOutcome(data), 'you');
+    });
+
+    test('named partner declined after someone else was selected', () {
+      final data = RoomBatonData.tryParse(
+        _json({
+          'id': 'Zbaton000001',
+          'status': 'taken',
+          'viewerRole': 'partner',
+          'outcome': 'someoneElse',
+        }),
+      );
+
+      expect(data, isRoomBatonPartnerData());
+      expect(partnerRoleOutcome(data), 'someoneElse');
+    });
+
+    test('candidate pending partner answer exposes myPartner status', () {
+      final data = RoomBatonData.tryParse(
+        _json({
+          'id': 'Zbaton000001',
+          'status': 'collecting',
+          'viewerRole': 'candidate',
+          'myResponse': 'can_help',
+          'myPartner': {
+            'id': 'Uxxxxxxxxxxx',
+            'title': 'Xavier',
+            'status': 'pending',
+          },
+        }),
+      );
+
+      expect(data, isA<RoomBatonCandidateData>());
+      expect(candidatePartnerStatus(data), 'pending');
+    });
+
+    test('candidate sees invitations from other askers', () {
+      final data = RoomBatonData.tryParse(
+        _json({
+          'id': 'Zbaton000001',
+          'status': 'collecting',
+          'viewerRole': 'candidate',
+          'myResponse': 'can_help',
+          'partnerInvites': [
+            {
+              'fromUserId': 'Uaaaaaaaaaaa',
+              'title': 'Alice',
+              'status': 'pending',
+            },
+            {
+              'fromUserId': 'Ubbbbbbbbbbb',
+              'title': 'Bob',
+              'status': 'accepted',
+            },
+          ],
+        }),
+      );
+
+      expect(data, isA<RoomBatonCandidateData>());
+      expect(candidatePartnerInvitesCount(data), 2);
+      expect(
+        partnerInviteFromTitle(data, 'Uaaaaaaaaaaa'),
+        'Alice',
+      );
+    });
+
+    test('author collecting view lists confirmed pairs and eligible entries',
+        () {
+      final data = RoomBatonData.tryParse(
+        _json({
+          'id': 'Zbaton000001',
+          'status': 'collecting',
+          'viewerRole': 'author',
+          'candidates': [
+            {
+              'userId': 'Uaaaaaaaaaaa',
+              'title': 'Alice',
+              'tier': 1,
+              'response': 'waiting',
+              'respondedAt': null,
+            },
+            {
+              'userId': 'Ubbbbbbbbbbb',
+              'title': 'Bob',
+              'tier': 2,
+              'response': 'can_help',
+              'respondedAt': '2026-10-05T10:00:00.000Z',
+              'partner': {'id': 'Uyyyyyyyyyyy', 'title': 'Yuri'},
+            },
+            {
+              'userId': 'Uccccccccccc',
+              'title': 'Carol',
+              'tier': 1,
+              'response': 'can_help',
+              'respondedAt': '2026-10-05T10:05:00.000Z',
+            },
+          ],
+          'pairs': [
+            {
+              'takerId': 'Ubbbbbbbbbbb',
+              'partnerId': 'Uyyyyyyyyyyy',
+              'tier': 2,
+            },
+          ],
+          'allAnswered': false,
+          'eligibleCount': 2,
+        }),
+      );
+
+      final author = data! as RoomBatonAuthorData;
+      expect(authorConfirmedPairCount(data), 1);
+      expect(author.eligibleCount, 2);
+      final bob = author.candidates.singleWhere(
+        (c) => c.userId == 'Ubbbbbbbbbbb',
+      );
+      expect(authorCandidatePartnerId(bob), 'Uyyyyyyyyyyy');
+    });
+
+    test('observer after a pair selection exposes coTaker beside taker', () {
+      final data = RoomBatonData.tryParse(
+        _json({
+          'id': 'Zbaton000001',
+          'status': 'taken',
+          'viewerRole': 'observer',
+          'taker': {'id': 'Ubbbbbbbbbbb', 'title': 'Bob'},
+          'coTaker': {'id': 'Uyyyyyyyyyyy', 'title': 'Yuri'},
+        }),
+      );
+
+      expect(data, isA<RoomBatonObserverData>());
+      expect((data! as RoomBatonObserverData).taker?.id, 'Ubbbbbbbbbbb');
+      expect(observerCoTaker(data)?.id, 'Uyyyyyyyyyyy');
+    });
+
+    test('author after pair selection exposes coTaker beside taker', () {
+      final data = RoomBatonData.tryParse(
+        _json({
+          'id': 'Zbaton000001',
+          'status': 'taken',
+          'viewerRole': 'author',
+          'candidates': [
+            {
+              'userId': 'Ubbbbbbbbbbb',
+              'title': 'Bob',
+              'tier': 1,
+              'response': 'can_help',
+              'respondedAt': '2026-10-05T10:00:00.000Z',
+            },
+          ],
+          'allAnswered': true,
+          'eligibleCount': 1,
+          'taker': {'id': 'Ubbbbbbbbbbb', 'title': 'Bob'},
+          'coTaker': {'id': 'Uyyyyyyyyyyy', 'title': 'Yuri'},
+          'selectionMode': 'manual',
+        }),
+      );
+
+      expect(data, isA<RoomBatonAuthorData>());
+      expect(authorCoTaker(data)?.id, 'Uyyyyyyyyyyy');
+    });
+
+    test('candidate with you outcome exposes co-taker beside own taker', () {
+      final data = RoomBatonData.tryParse(
+        _json({
+          'id': 'Zbaton000001',
+          'status': 'taken',
+          'viewerRole': 'candidate',
+          'myResponse': 'can_help',
+          'outcome': 'you',
+          'taker': {'id': 'Uaaaaaaaaaaa', 'title': 'Alice'},
+          'coTaker': {'id': 'Uyyyyyyyyyyy', 'title': 'Yuri'},
+        }),
+      );
+
+      expect(data, isA<RoomBatonCandidateData>());
+      expect((data! as RoomBatonCandidateData).taker?.id, 'Uaaaaaaaaaaa');
+      expect(candidateCoTaker(data)?.id, 'Uyyyyyyyyyyy');
+    });
+
   });
 }

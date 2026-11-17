@@ -106,6 +106,10 @@ class RoomBatonCard extends StatelessWidget {
         onSelect: onSelect,
         onCancel: onCancel,
       ),
+      final RoomBatonPartnerData partner => _StatusLine(
+        status: partner.status,
+        participants: participants,
+      ),
     };
     return Card.outlined(
       margin: EdgeInsets.zero,

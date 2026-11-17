@@ -51,6 +51,7 @@ import '../gql/_g/room_message_target.req.gql.dart';
 import '../gql/_g/room_message_target.data.gql.dart';
 import '../gql/_g/room_baton_cancel.req.gql.dart';
 import '../gql/_g/room_baton_create.req.gql.dart';
+import '../gql/_g/room_baton_partner_respond.req.gql.dart';
 import '../gql/_g/room_baton_respond.req.gql.dart';
 import '../gql/_g/room_baton_update.req.gql.dart';
 import '../gql/_g/room_baton_select.req.gql.dart';
@@ -925,18 +926,41 @@ class BeaconThreadsRepository {
   Future<RoomBatonData?> batonRespond({
     required String batonId,
     required bool canHelp,
+    String? partnerUserId,
   }) => _remoteApiService
       .request(
         GRoomBatonRespondReq(
           (b) => b.vars
             ..batonId = batonId
-            ..canHelp = canHelp,
+            ..canHelp = canHelp
+            ..partnerUserId = partnerUserId,
         ),
       )
       .firstLinkResponse(label: _label)
       .then(
         (r) => RoomBatonData.tryParse(
           r.dataOrThrow(label: _label).roomBatonRespond,
+        ),
+      );
+
+  /// Accept or decline a «together» invitation; returns the partner view.
+  Future<RoomBatonData?> batonPartnerRespond({
+    required String batonId,
+    required String inviterUserId,
+    required bool accept,
+  }) => _remoteApiService
+      .request(
+        GRoomBatonPartnerRespondReq(
+          (b) => b.vars
+            ..batonId = batonId
+            ..inviterUserId = inviterUserId
+            ..accept = accept,
+        ),
+      )
+      .firstLinkResponse(label: _label)
+      .then(
+        (r) => RoomBatonData.tryParse(
+          r.dataOrThrow(label: _label).roomBatonPartnerRespond,
         ),
       );
 
