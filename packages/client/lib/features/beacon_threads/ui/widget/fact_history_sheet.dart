@@ -33,6 +33,7 @@ Future<void> showFactHistorySheet(
 }) {
   return showTenturaAdaptiveSheet<void>(
     context: context,
+    showSnackBars: true,
     useRootNavigator: true,
     builder: (_) => FactHistorySheet(
       beaconId: beaconId,
@@ -502,10 +503,11 @@ class _FactHistoryTimelineRow extends StatelessWidget {
 
   Future<void> _onRestore(BuildContext context, int fromSeq) async {
     final cubit = context.read<FactHistoryCubit>();
+    // Restore is only offered on revision rows, so a head revision exists.
     final previousHeadSeq = cubit.state.entries
         .whereType<BeaconFactHistoryEntry>()
-        .firstOrNull
-        ?.seq;
+        .first
+        .seq;
 
     await cubit.restore(fromSeq);
     if (!context.mounted) return;
@@ -517,14 +519,6 @@ class _FactHistoryTimelineRow extends StatelessWidget {
         text: l10n.beaconRoomFactHistoryRestoreFailed,
         isError: true,
         error: cubit.state.loadError,
-      );
-      return;
-    }
-
-    if (previousHeadSeq == null) {
-      showSnackBar(
-        context,
-        text: l10n.beaconRoomFactHistoryRestoredSnackbar,
       );
       return;
     }

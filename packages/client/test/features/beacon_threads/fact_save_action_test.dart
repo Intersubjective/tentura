@@ -27,6 +27,8 @@ import 'package:tentura/features/beacon_threads/ui/widget/fact_actions_sheet.dar
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_fact_actions.dart';
 
+import '../../support/fact_sheet_feedback.dart';
+import '../../support/phone_surface.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../beacon_view/beacon_view_case_test_support.dart';
 import '../beacon_view/beacon_view_initial_load_test.dart' show pumpUntil;
@@ -221,6 +223,51 @@ Future<void> _openRequestSheet(
 );
 
 void main() {
+  group('phone feedback from fact actions', () {
+    setUp(registerPhoneFeedbackLogger);
+    for (final code in [1353, 9999]) {
+      testWidgets(
+        '${code == 1353 ? 'the saved fact limit' : 'a failed save'} is visible and Copy text dismisses the actions sheet with confirmation',
+        (tester) async {
+          final wire = await _startWire(tester, errorCode: code);
+          registerFactRepository(wire.repository);
+          await _openRoomSheet(
+            tester,
+            _fact(saved: false),
+            size: kPhoneSurface,
+          );
+          await tester.ensureVisible(find.text('Copy text'));
+          final actionsRoute = ModalRoute.of(
+            tester.element(find.text('Copy text')),
+          )!;
+          expect(actionsRoute.isActive, isTrue);
+          await tester.tap(find.text('Copy text'));
+          await pumpRealAsync(tester);
+          expect(
+            actionsRoute.isActive,
+            isFalse,
+            reason: 'Copy text must dismiss the fact actions route',
+          );
+          expect(find.text('Copy text'), findsNothing);
+          expectPhoneFeedback(tester, 'Copied to clipboard.');
+          await _openRoomSheet(
+            tester,
+            _fact(saved: false),
+            size: kPhoneSurface,
+          );
+          await tester.ensureVisible(find.text(_save));
+          await tester.tap(find.text(_save));
+          await pumpRealAsync(tester);
+          expect(wire.sent.map((s) => s.operationName), ['BeaconFactCardSave']);
+          expectPhoneFeedback(
+            tester,
+            code == 1353 ? _limit : 'Something went wrong. Please try again.',
+          );
+        },
+      );
+    }
+  });
+
   group('host sheet without onSave', () {
     testWidgets('shows neither «Save to my facts» nor «Remove from my '
         'facts»', (tester) async {

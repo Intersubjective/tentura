@@ -35,6 +35,7 @@ Future<void> showFactPickerSheet(
 }) {
   return showTenturaAdaptiveSheet<void>(
     context: context,
+    showSnackBars: true,
     useRootNavigator: true,
     builder: (ctx) =>
         FactPickerSheet(cubit: cubit, onAddFact: onAddFact, isPost: isPost),
@@ -51,13 +52,17 @@ Future<void> showFactPickFromAvailableSheet(
   required String beaconId,
   required bool isPost,
   required Future<void> Function() onBrought,
-}) {
-  return showTenturaAdaptiveSheet<void>(
+}) async {
+  final message = await showTenturaAdaptiveSheet<String>(
     context: context,
+    showSnackBars: true,
     useRootNavigator: true,
     builder: (ctx) =>
         FactPickerSheet.bring(beaconId: beaconId, onBrought: onBrought),
   );
+  if (message != null && context.mounted) {
+    showSnackBar(context, text: message);
+  }
 }
 
 typedef _Bring = ({String beaconId, Future<void> Function() onBrought});
@@ -163,13 +168,11 @@ class _FactPickerSheetState extends State<FactPickerSheet> {
       }
       await bring.onBrought();
       if (!mounted) return;
-      showSnackBar(
-        context,
-        text: result.copyOutcome == BeaconFactCopyOutcome.alreadyThere
+      Navigator.of(context).pop(
+        result.copyOutcome == BeaconFactCopyOutcome.alreadyThere
             ? l10n.beaconFactCopyAlreadyThere
             : l10n.factPickerFactAdded,
       );
-      Navigator.of(context).pop();
     } on Object catch (e, st) {
       if (e is BeaconFactCopySourceUnavailableException) {
         _picker.markUnavailable(factCardId);

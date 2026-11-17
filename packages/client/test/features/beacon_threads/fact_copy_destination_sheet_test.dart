@@ -34,6 +34,8 @@ import 'package:tentura/features/beacon_threads/ui/message/discussion_read_only_
 import 'package:tentura/domain/exception/server_error_copy.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../support/fact_sheet_feedback.dart';
+import '../../support/phone_surface.dart';
 import 'fact_origin_test_support.dart';
 import 'room_cubit_fakes.dart';
 
@@ -182,6 +184,50 @@ List<String> _shownTitles(WidgetTester tester, List<String> candidates) {
 final _allTitles = [for (final d in _sixDestinations) d.title];
 
 void main() {
+  testWidgets(
+    'phone feedback keeps successful copy and Open usable and exposes attachment failures',
+    (tester) async {
+      final repo = _CopyRepo(rows: [_dest('Bgarden0001', 'Garden day')]);
+      _registerLogger();
+      registerFactRepository(repo);
+      final cubit = await _roomCubit();
+      final router = await pumpOriginRouter(
+        tester,
+        size: kPhoneSurface,
+        openCopy: (ctx) =>
+            unawaited(showFactActionsSheet(ctx, cubit: cubit, fact: _fact())),
+      );
+      await tester.tap(find.text('open-copy'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(kUseInAnotherRequest));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Garden day'));
+      await tester.pumpAndSettle();
+      expect(find.text('Garden day'), findsNothing);
+      expectPhoneFeedback(tester, 'Copied to Garden day');
+      expect(
+        find.widgetWithText(SnackBarAction, kOpen).hitTestable(),
+        findsOneWidget,
+      );
+      await tester.tap(find.widgetWithText(SnackBarAction, kOpen));
+      await tester.pumpAndSettle();
+      expect(routerLocation(router).path, contains('Bgarden0001'));
+
+      tester.binding.platformDispatcher.clearDefaultRouteNameTestValue();
+      await _openPicker(
+        tester,
+        _CopyRepo(
+          rows: [_dest('Bgarden0001', 'Garden day')],
+          copyError: const BeaconFactCopyAttachmentUnavailableException(),
+        ),
+        size: kPhoneSurface,
+      );
+      await tester.tap(find.text('Garden day'));
+      await tester.pumpAndSettle();
+      expectPhoneFeedback(tester, 'An attachment is no longer available');
+    },
+  );
+
   group('opening the picker from the fact actions sheet', () {
     testWidgets('the tile opens a sheet titled «Use in another Request» with '
         'the fact preview and the visible-in-that-discussion note', (

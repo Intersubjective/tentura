@@ -44,6 +44,9 @@ import 'package:tentura/features/post_view/ui/widget/post_info_sheet.dart';
 import 'package:tentura/features/post_view/ui/widget/post_participants_list.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../support/fact_sheet_feedback.dart';
+import '../../support/phone_surface.dart';
+import '../beacon_threads/fact_origin_test_support.dart' as origin;
 import '../../support/test_realtime_sync.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../beacon_threads/room_cubit_fakes.dart';
@@ -275,6 +278,23 @@ const _two = <_Row>[
 ];
 
 void main() {
+  testWidgets(
+    'phone feedback exposes an unavailable origin in Post info pinned facts',
+    (tester) async {
+      origin.registerFactRepository(origin.FakeOriginFactCardRepository());
+      await _openInfoSheet(
+        tester,
+        size: kPhoneSurface,
+        rows: [(id: 'Ffact0000001', text: _keyFact, origin: 0)],
+      );
+      await tester.ensureVisible(find.byType(FactOriginLine));
+      await tester.tap(find.byType(FactOriginLine));
+      await tester.pumpAndSettle();
+      expectPhoneFeedback(tester, "The original isn't available to you");
+    },
+  );
+
+
   group('Facts section of the Post info sheet', () {
     testWidgets('lists the Post facts top to bottom in list order, each as '
         'the existing fact row, under a «Facts» heading', (tester) async {

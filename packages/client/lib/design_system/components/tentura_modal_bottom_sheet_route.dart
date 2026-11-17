@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'tentura_sheet_snack_bar_host.dart';
+
 /// Modal bottom sheet route that dismisses via [Navigator.maybePop].
 ///
 /// Stock [showModalBottomSheet] calls [Navigator.pop] from the sheet's
@@ -16,6 +18,7 @@ class TenturaModalBottomSheetRoute<T> extends PopupRoute<T> {
     this.enableDrag = true,
     this.isDismissible = true,
     this.useSafeArea = true,
+    this.showSnackBars = false,
     this.barrierLabel,
     this.modalBarrierColor,
     super.settings,
@@ -29,6 +32,7 @@ class TenturaModalBottomSheetRoute<T> extends PopupRoute<T> {
   final bool enableDrag;
   final bool isDismissible;
   final bool useSafeArea;
+  final bool showSnackBars;
   final Color? modalBarrierColor;
 
   AnimationController? _animationController;
@@ -103,6 +107,12 @@ class TenturaModalBottomSheetRoute<T> extends PopupRoute<T> {
       child: content,
     );
 
+    if (showSnackBars) {
+      content = TenturaSheetSnackBarHost(
+        isDismissible: isDismissible,
+        child: content,
+      );
+    }
     return capturedThemes?.wrap(content) ?? content;
   }
 }

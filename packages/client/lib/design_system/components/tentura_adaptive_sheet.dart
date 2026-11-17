@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import '../tentura_tokens.dart';
 import '../tentura_window_class.dart';
 import 'tentura_modal_bottom_sheet_route.dart';
+import 'tentura_sheet_snack_bar_host.dart';
 
 /// Shows app-owned modal content as a bottom sheet on compact windows and as a
 /// centered constrained dialog on regular/expanded windows.
@@ -17,6 +18,10 @@ import 'tentura_modal_bottom_sheet_route.dart';
 /// route), unless [isDismissible] is false. On close, keyboard focus returns to
 /// the control that opened the sheet; a text field that held focus is not
 /// refocused (#403).
+///
+/// [showSnackBars] gives the route its own messenger above the modal barrier.
+/// Feedback that should survive closing the sheet must use the page context
+/// after the sheet completes.
 ///
 /// While the sheet animates away the route no longer takes taps, so the
 /// second tap of a double tap on its last button would land on the page
@@ -33,6 +38,7 @@ Future<T?> showTenturaAdaptiveSheet<T>({
   bool useSafeArea = true,
   bool enableDrag = true,
   bool isDismissible = true,
+  bool showSnackBars = false,
   double? maxWidth,
   double maxHeightFraction = 0.9,
 }) async {
@@ -54,6 +60,7 @@ Future<T?> showTenturaAdaptiveSheet<T>({
           to: navigator.context,
         ),
         isScrollControlled: isScrollControlled,
+        showSnackBars: showSnackBars,
         showDragHandle: showDragHandle,
         enableDrag: enableDrag,
         isDismissible: isDismissible,
@@ -74,7 +81,7 @@ Future<T?> showTenturaAdaptiveSheet<T>({
         final maxHeight = size.height * maxHeightFraction;
         final child = builder(dialogContext);
 
-        return _AbsorbTapsWhileClosing(
+        final dialog = _AbsorbTapsWhileClosing(
           child: SafeArea(
             child: Dialog(
               child: ConstrainedBox(
@@ -86,6 +93,11 @@ Future<T?> showTenturaAdaptiveSheet<T>({
               ),
             ),
           ),
+        );
+        if (!showSnackBars) return dialog;
+        return TenturaSheetSnackBarHost(
+          isDismissible: isDismissible,
+          child: dialog,
         );
       },
     );

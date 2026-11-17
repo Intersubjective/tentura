@@ -144,6 +144,7 @@ Future<void> showFactActionsHostSheet(
 
   return showTenturaAdaptiveSheet<void>(
     context: context,
+    showSnackBars: true,
     useRootNavigator: true,
     builder: (ctx) => SafeArea(
       child: SingleChildScrollView(

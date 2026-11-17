@@ -21,6 +21,7 @@ Future<void> showBeaconPinnedFactsSheet(
   try {
     await showTenturaAdaptiveSheet<void>(
       context: pageContext,
+      showSnackBars: true,
       builder: (ctx) => _BeaconPinnedFactsSheetBody(
         cubit: cubit,
         pageContext: pageContext,

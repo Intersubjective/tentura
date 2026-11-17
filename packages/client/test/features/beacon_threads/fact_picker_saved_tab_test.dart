@@ -39,6 +39,8 @@ import 'package:tentura/features/beacon_threads/ui/message/discussion_read_only_
 import 'package:tentura/features/beacon_threads/ui/widget/fact_picker_sheet.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../support/fact_sheet_feedback.dart';
+import '../../support/phone_surface.dart';
 import 'fact_origin_test_support.dart';
 import 'room_cubit_fakes.dart';
 
@@ -319,6 +321,93 @@ class _QuoteWatch {
 }
 
 void main() {
+  group('phone feedback from the fact picker', () {
+    testWidgets(
+      'saved fact confirmations and failures stay visible across picker dismissal in EN and RU',
+      (tester) async {
+        _registerLogger();
+        await usePhoneSurface(tester);
+        // Only HTTP is stubbed by _SavedWire: RemoteApiService builds the
+        // real Ferry client and BeaconFactCardRepository maps the JSON
+        // outcome. The real BeaconThreadsCase and FactPickerCubit consume
+        // it in bring mode (there is no RoomCubit or stubbed bring result).
+        // Distinct created/alreadyThere messages also guard outcome mapping;
+        // the failure case below exposes feedback hidden by the open picker.
+        for (final sample in [
+          (language: 'en', outcome: 'alreadyThere', message: 'Already there'),
+          (language: 'ru', outcome: 'alreadyThere', message: 'Уже там'),
+          (language: 'en', outcome: 'created', message: 'Fact added'),
+        ]) {
+          final wire = await _SavedWire.start(
+            tester,
+            copyOutcome: sample.outcome,
+          );
+          registerFactRepository(wire.repository);
+          var refreshed = false;
+          await pumpOpener(
+            tester,
+            locale: Locale(sample.language),
+            size: kPhoneSurface,
+            open: (ctx) => unawaited(
+              showFactPickFromAvailableSheet(
+                ctx,
+                beaconId: _room,
+                isPost: false,
+                onBrought: () async {
+                  refreshed = true;
+                },
+              ),
+            ),
+          );
+          await pumpRealAsync(tester);
+          expect(find.text(_elsewhereText).hitTestable(), findsOneWidget);
+          await tester.tap(find.text(_elsewhereText));
+          await pumpRealAsync(tester);
+          expect(wire.copyVariables, [
+            {'sourceFactCardId': _elsewhereId, 'destinationBeaconId': _room},
+          ]);
+          expect(wire.sent, contains('BeaconFactCardSavedList'));
+          expect(wire.sent, contains('BeaconFactCardCopy'));
+          expect(refreshed, isTrue);
+          expect(find.byType(FactPickerSheet), findsNothing);
+          expectPhoneFeedback(tester, sample.message);
+        }
+        final failedWire = await _SavedWire.start(tester, copyErrorCode: 1352);
+        registerFactRepository(failedWire.repository);
+        await pumpOpener(
+          tester,
+          size: kPhoneSurface,
+          open: (ctx) => unawaited(
+            showFactPickFromAvailableSheet(
+              ctx,
+              beaconId: _room,
+              isPost: false,
+              onBrought: () async {},
+            ),
+          ),
+        );
+        await pumpRealAsync(tester);
+        await tester.tap(find.text(_elsewhereText));
+        await pumpRealAsync(tester);
+        expect(failedWire.copyVariables, hasLength(1));
+        expectPhoneFeedback(tester, 'This fact is no longer available');
+      },
+    );
+    testWidgets(
+      'a failed removal from saved facts reports its error above the picker',
+      (tester) async {
+        await _openPicker(tester, _UnsaveFailureRepo(), size: kPhoneSurface);
+        await tester.tap(_tab(_tabSaved));
+        await tester.pumpAndSettle();
+        await tester.tap(_inRow(_elsewhereText, find.byIcon(Icons.more_vert)));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text(_removeFromSaved));
+        await tester.pumpAndSettle();
+        expectPhoneFeedback(tester, 'Something went wrong. Please try again.');
+      },
+    );
+  });
+
   group('tabs', () {
     testWidgets('a Request room shows «In this Request» and «Saved» tabs; the '
         'first lists this episode’s facts and a tap still quotes one', (
@@ -1062,4 +1151,11 @@ final class _SavedWire {
     addTearDown(() => tester.runAsync(remote.close));
     return wire;
   }
+}
+
+class _UnsaveFailureRepo extends _SavedRepo {
+  _UnsaveFailureRepo() : super(saved: [_saved(_elsewhereId, _elsewhereText)]);
+  @override
+  Future<void> unsave({required String factCardId}) async =>
+      throw StateError('offline');
 }

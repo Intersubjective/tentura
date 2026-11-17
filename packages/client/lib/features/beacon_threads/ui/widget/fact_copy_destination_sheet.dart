@@ -33,6 +33,7 @@ Future<void> showFactCopyDestinationSheet(
   required BeaconFactCard fact,
 }) => showTenturaAdaptiveSheet<void>(
   context: pageContext,
+  showSnackBars: true,
   useRootNavigator: true,
   builder: (_) => SafeArea(
     child: _FactCopyDestinationSheet(pageContext: pageContext, fact: fact),
@@ -96,9 +97,9 @@ class _FactCopyDestinationSheetState extends State<_FactCopyDestinationSheet> {
         ),
       );
     } on Object catch (e, st) {
-      if (!page.mounted) return;
+      if (!mounted) return;
       showSnackBar(
-        page,
+        context,
         isError: true,
         text: factCopyFailureText(l10n, e),
         error: e,

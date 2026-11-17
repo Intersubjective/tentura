@@ -35,6 +35,7 @@ Future<PostAction?> showPostInfoSheet(
   bool scrollToParticipants = false,
 }) => showTenturaAdaptiveSheet<PostAction>(
   context: context,
+  showSnackBars: true,
   builder: (_) => PostInfoSheet(
     cubit: cubit,
     host: host,
