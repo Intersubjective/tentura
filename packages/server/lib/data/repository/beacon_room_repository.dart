@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math' show min;
 
 import 'package:injectable/injectable.dart';
 import 'package:drift_postgres/drift_postgres.dart';
@@ -20,7 +21,7 @@ import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/entity/room_read_watermark_record.dart';
 import 'package:tentura_server/domain/entity/room_latest_activity.dart';
 import 'package:tentura_server/domain/entity/room_baton.dart'
-    show BatonResponse, BatonSelectionMode, BatonStatus;
+    show BatonPartnerResponse, BatonResponse, BatonSelectionMode, BatonStatus;
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/domain/util/room_reply_excerpt.dart';
 import 'package:tentura_server/utils/id.dart';
@@ -728,7 +729,7 @@ JOIN public.beacon_fact_card_revision r
         .customSelect(
           r'''
 SELECT b.id, b.message_id, b.author_id, b.status::integer AS status,
-       b.taker_id, b.selection_mode::integer AS selection_mode
+       b.taker_id, b.co_taker_id, b.selection_mode::integer AS selection_mode
 FROM public.beacon_room_baton b
 WHERE b.message_id = ANY($1::text[])
 ''',
@@ -742,7 +743,8 @@ WHERE b.message_id = ANY($1::text[])
         .customSelect(
           r'''
 SELECT baton_id, user_id, tier::integer AS tier,
-       response::integer AS response, responded_at
+       response::integer AS response, responded_at, partner_user_id,
+       partner_response::integer AS partner_response
 FROM public.beacon_room_baton_candidate
 WHERE baton_id = ANY($1::text[])
 ORDER BY tier, user_id
@@ -761,11 +763,24 @@ ORDER BY tier, user_id
       for (final r in batonRows)
         if (r.readNullable<String>('taker_id') case final String id) id,
       for (final r in batonRows)
-        if (r.read<String>('author_id') == viewerUserId)
-          for (final c
-              in candidatesByBatonId[r.read<String>('id')] ??
-                  const <QueryRow>[])
-            c.read<String>('user_id'),
+        if (r.readNullable<String>('co_taker_id') case final String id) id,
+      for (final r in batonRows)
+        for (final c
+            in candidatesByBatonId[r.read<String>('id')] ?? const <QueryRow>[])
+          ...switch (r.read<String>('author_id') == viewerUserId) {
+            true => [
+              c.read<String>('user_id'),
+              ?c.readNullable<String>('partner_user_id'),
+            ],
+            false when c.read<String>('user_id') == viewerUserId => [
+              ?c.readNullable<String>('partner_user_id'),
+            ],
+            false
+                when c.readNullable<String>('partner_user_id') ==
+                    viewerUserId =>
+              [c.read<String>('user_id')],
+            false => const <String>[],
+          },
     }.toList();
     final titleById = <String, String>{};
     if (titleUserIds.isNotEmpty) {
@@ -787,6 +802,18 @@ ORDER BY tier, user_id
     BatonResponse responseOf(QueryRow c) =>
         BatonResponse.fromSmallint(c.read<int>('response'));
 
+    BatonPartnerResponse? partnerResponseOf(QueryRow c) =>
+        switch (c.readNullable<int>('partner_response')) {
+          final int v => BatonPartnerResponse.fromSmallint(v),
+          null => null,
+        };
+
+    // A candidate whose partner has not accepted has not answered yet.
+    BatonResponse effectiveResponseOf(QueryRow c) =>
+        partnerResponseOf(c) == BatonPartnerResponse.pending
+        ? BatonResponse.waiting
+        : responseOf(c);
+
     final out = <String, String?>{};
     for (final b in batonRows) {
       final batonId = b.read<String>('id');
@@ -798,8 +825,64 @@ ORDER BY tier, user_id
         'id': takerId,
         'title': titleById[takerId] ?? '',
       };
+      final coTakerId = b.readNullable<String>('co_taker_id');
+      Map<String, Object?> coTaker() => {
+        'id': coTakerId,
+        'title': titleById[coTakerId] ?? '',
+      };
       final candidates = candidatesByBatonId[batonId] ?? const <QueryRow>[];
       final Map<String, Object?> payload;
+
+      QueryRow? candidateOf(String? userId) {
+        for (final c in candidates) {
+          if (c.read<String>('user_id') == userId) return c;
+        }
+        return null;
+      }
+
+      String? acceptedPartnerOf(QueryRow c) =>
+          partnerResponseOf(c) == BatonPartnerResponse.accepted
+          ? c.readNullable<String>('partner_user_id')
+          : null;
+
+      // Two candidates naming each other form one pair; count it at the
+      // candidate with the smaller id.
+      bool isSecondOfMutualPair(QueryRow c) {
+        final partnerId = acceptedPartnerOf(c);
+        final other = candidateOf(partnerId);
+        return other != null &&
+            acceptedPartnerOf(other) == c.read<String>('user_id') &&
+            c.read<String>('user_id').compareTo(partnerId!) > 0;
+      }
+
+      // Invitations naming the viewer that are still pending or accepted.
+      final invites = <Map<String, Object?>>[];
+      for (final c in candidates) {
+        final r = partnerResponseOf(c);
+        if (c.readNullable<String>('partner_user_id') == viewerUserId &&
+            r != null &&
+            r != BatonPartnerResponse.declined) {
+          invites.add({
+            'fromUserId': c.read<String>('user_id'),
+            'title': titleById[c.read<String>('user_id')] ?? '',
+            'status': r.name,
+          });
+        }
+      }
+
+      final pairs = [
+        for (final c in candidates)
+          if (acceptedPartnerOf(c) case final String partnerId)
+            if (candidateOf(partnerId) case final QueryRow? other
+                when !isSecondOfMutualPair(c))
+              {
+                'takerId': c.read<String>('user_id'),
+                'partnerId': partnerId,
+                'tier': other == null
+                    ? c.read<int>('tier')
+                    : min(c.read<int>('tier'), other.read<int>('tier')),
+              },
+      ];
 
       if (b.read<String>('author_id') == viewerUserId) {
         payload = {
@@ -812,18 +895,26 @@ ORDER BY tier, user_id
                 'userId': c.read<String>('user_id'),
                 'title': titleById[c.read<String>('user_id')] ?? '',
                 'tier': c.read<int>('tier'),
-                'response': responseOf(c).wireName,
+                'response': effectiveResponseOf(c).wireName,
                 'respondedAt': isoOrNull(c, 'responded_at'),
+                if (acceptedPartnerOf(c) case final String partnerId)
+                  'partner': {
+                    'id': partnerId,
+                    'title': titleById[partnerId] ?? '',
+                  },
               },
           ],
+          if (pairs.isNotEmpty) 'pairs': pairs,
           'allAnswered': candidates.every(
-            (c) => responseOf(c) != BatonResponse.waiting,
+            (c) => effectiveResponseOf(c) != BatonResponse.waiting,
           ),
           'eligibleCount': candidates
-              .where((c) => responseOf(c) == BatonResponse.canHelp)
+              .where((c) => effectiveResponseOf(c) == BatonResponse.canHelp)
+              .where((c) => !isSecondOfMutualPair(c))
               .length,
           if (taken) ...{
             'taker': taker(),
+            if (coTakerId != null) 'coTaker': coTaker(),
             'selectionMode':
                 b.readNullable<int>('selection_mode') ==
                     BatonSelectionMode.manual.smallintValue
@@ -852,8 +943,41 @@ ORDER BY tier, user_id
             'viewerRole': 'candidate',
             if (status != BatonStatus.cancelled)
               'myResponse': myResponse.wireName,
+            if (partnerResponseOf(mine) case final BatonPartnerResponse r)
+              'myPartner': {
+                if (mine.readNullable<String>('partner_user_id')
+                    case final String id) ...{
+                  'id': id,
+                  'title': titleById[id] ?? '',
+                },
+                // An erased partner can no longer accept.
+                'status': mine.readNullable<String>('partner_user_id') == null
+                    ? BatonPartnerResponse.declined.name
+                    : r.name,
+              },
+            if (invites.isNotEmpty) 'partnerInvites': invites,
             'outcome': ?outcome,
-            if (outcome == 'you') 'taker': taker(),
+            if (outcome == 'you') ...{
+              'taker': taker(),
+              if (coTakerId != null) 'coTaker': coTaker(),
+            },
+          };
+        } else if (invites.isNotEmpty &&
+            (status == BatonStatus.collecting ||
+                status == BatonStatus.cancelled ||
+                coTakerId == viewerUserId ||
+                invites.any((i) => i['status'] == 'accepted'))) {
+          payload = {
+            'id': batonId,
+            'status': statusName,
+            'viewerRole': 'partner',
+            'partnerInvites': invites,
+            if (status != BatonStatus.collecting)
+              'outcome': status == BatonStatus.cancelled
+                  ? 'closed'
+                  : coTakerId == viewerUserId
+                  ? 'you'
+                  : 'someoneElse',
           };
         } else {
           // The baton is its own message, so the room sees that it exists;
@@ -862,7 +986,10 @@ ORDER BY tier, user_id
             'id': batonId,
             'status': statusName,
             'viewerRole': 'observer',
-            if (taken) 'taker': taker(),
+            if (taken) ...{
+              'taker': taker(),
+              if (coTakerId != null) 'coTaker': coTaker(),
+            },
           };
         }
       }
