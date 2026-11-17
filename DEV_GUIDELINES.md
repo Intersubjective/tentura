@@ -107,6 +107,10 @@ When adding a new V2 server query or mutation:
    proxied to Tentura in production (`Caddyfile`) and in local web dev
    (`packages/client/web_dev_config.yaml`).
 
+## Hasura user select limit
+
+The Hasura `user` select limit is 10 rows for role `user`. A single `user(where:{id:{_in:$ids}})` silently returns at most 10 profiles, so `ProfileRepository.fetchProfilesByIds` chunks ids by `kHasuraUserSelectLimit`. Any new batch lookup of users by id must chunk the same way.
+
 ## Invite, landing, and deep links
 
 Flutter web uses **hash routing** (`#/…`). Landing → app handoff must use explicit

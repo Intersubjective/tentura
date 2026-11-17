@@ -1,6 +1,6 @@
 # #1292 Post→Request invite step: real names, reuse the Forward picker
 
-Status: planned (2026-11-15). Epic: see beads labelled `issue-1292`. Runs after epic tentura-gkcp (#1288) because both touch the ARB files, the docs and the version.
+Status: shipped (2026-11-17). Epic: see beads labelled `issue-1292`. Runs after epic tentura-gkcp (#1288) because both touch the ARB files, the docs and the version.
 
 ## Symptom
 
