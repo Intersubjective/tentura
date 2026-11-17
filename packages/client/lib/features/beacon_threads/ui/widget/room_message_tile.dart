@@ -1447,9 +1447,10 @@ class RoomMessageTile extends StatelessWidget {
             ),
             style: theme.textTheme.labelSmall,
           );
-    // Name, priority label and answer per row need more than the 75% bubble.
+    // Name, priority label and answer per row (and a pair's two avatars) need
+    // more than the 75% bubble.
     final needsFullWidthCard = switch (message.baton) {
-      final RoomBatonAuthorData a => a.showsTiers,
+      final RoomBatonAuthorData a => a.showsTiers || a.pairs.isNotEmpty,
       _ => false,
     };
     final hasMediaOrPoll =

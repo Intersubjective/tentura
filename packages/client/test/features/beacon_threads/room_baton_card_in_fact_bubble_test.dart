@@ -255,7 +255,9 @@ void _expectRowsLaidOutAsInOwnMessage(
       expect(
         tester.getSize(row).height,
         lessThanOrEqualTo(
-          (ref.avatarHeight > ref.rowHeight ? ref.avatarHeight : ref.rowHeight) +
+          (ref.avatarHeight > ref.rowHeight
+                  ? ref.avatarHeight
+                  : ref.rowHeight) +
               0.5,
         ),
         reason: 'row $i no taller than the avatar or the plain-message row',
@@ -301,6 +303,74 @@ void _expectRowsLaidOutAsInOwnMessage(
       }
     }
   }
+}
+
+/// A confirmed pair of two long names (candidates 0 and 1 of [_names]) plus a
+/// waiting third person.
+RoomBatonAuthorData _pairBaton() => RoomBatonAuthorData(
+  id: 'baton-1',
+  status: RoomBatonStatus.collecting,
+  candidates: [
+    RoomBatonCandidate(
+      userId: 'u0',
+      title: _names[0],
+      tier: 1,
+      response: RoomBatonResponse.canHelp,
+      partner: RoomBatonTaker(id: 'u1', title: _names[1]),
+    ),
+    RoomBatonCandidate(
+      userId: 'u2',
+      title: _names[2],
+      tier: 1,
+      response: RoomBatonResponse.waiting,
+    ),
+  ],
+  allAnswered: false,
+  eligibleCount: 1,
+  pairs: const [
+    RoomBatonConfirmedPair(takerId: 'u0', partnerId: 'u1', tier: 1),
+  ],
+);
+
+/// The pair row keeps one ellipsized line of names, no taller than a solo
+/// row, with «могут вместе» at the right edge shared with the other rows.
+void _expectPairRowOnOneLine(WidgetTester tester, _Reference ref, L10n l10n) {
+  expect(tester.takeException(), isNull);
+  final pairNames = '${_names[0]} и ${_names[1]}';
+  final names = find.text(pairNames);
+  final status = find.text('могут вместе');
+  expect(names, findsOneWidget, reason: 'pair names are one text');
+  expect(find.text(_names[0]), findsNothing, reason: 'no solo row for A');
+  expect(find.text(_names[1]), findsNothing, reason: 'no solo row for X');
+  expect(status, findsOneWidget);
+  final row = _rowOf(names, status);
+  expect(row, findsOneWidget, reason: 'names and status share one row');
+
+  final text = tester.widget<Text>(names);
+  expect(text.maxLines, 1);
+  expect(text.overflow, TextOverflow.ellipsis);
+  expect(tester.getSize(names).height, closeTo(ref.lineHeight, 0.5));
+  expect(tester.getSize(names).width, greaterThan(40));
+  expect(
+    tester.getSize(row).height,
+    lessThanOrEqualTo(
+      (ref.avatarHeight > ref.rowHeight ? ref.avatarHeight : ref.rowHeight) +
+          0.5,
+    ),
+    reason: 'pair row no taller than a solo row',
+  );
+  expect(tester.getSize(status).height, closeTo(ref.lineHeight, 0.5));
+  expect(
+    tester.getTopLeft(status).dx,
+    greaterThanOrEqualTo(tester.getTopRight(names).dx - 0.5),
+    reason: 'status is right of the names',
+  );
+  final waiting = find.text(l10n.batonStatusWaiting);
+  expect(
+    tester.getTopRight(status).dx,
+    closeTo(tester.getTopRight(waiting).dx, 1),
+    reason: 'status right edge lines up with the other rows',
+  );
 }
 
 void main() {
@@ -356,7 +426,9 @@ void main() {
         expect(find.byType(RoomPinnedFactVisibilityMark), findsNothing);
         // A single-tier baton hugs its content; mixed tiers take the full
         // bubble width. Both are measured here, in the same environment.
-        final singleTierWidth = tester.getSize(find.byType(RoomBatonCard)).width;
+        final singleTierWidth = tester
+            .getSize(find.byType(RoomBatonCard))
+            .width;
         expect(singleTierWidth, closeTo(ref.cardWidth, 0.5));
         await _pump(tester, _Bubble.plain, _baton(tiers: const [1, 2, 1]));
         final mixedTierWidth = tester.getSize(find.byType(RoomBatonCard)).width;
@@ -369,5 +441,25 @@ void main() {
         _expectRowsLaidOutAsInOwnMessage(tester, ref, l10n, checkNames: false);
       },
     );
+  });
+
+  group('RoomBatonCard pair row with long names', () {
+    testWidgets('stays on one ellipsized line in a pinned-fact bubble', (
+      tester,
+    ) async {
+      final ref = await _measurePlain(tester, l10n);
+      await _pump(tester, _Bubble.pinned, _pairBaton());
+      expect(find.byType(RoomPinnedFactVisibilityMark), findsOneWidget);
+      _expectPairRowOnOneLine(tester, ref, l10n);
+    });
+
+    testWidgets('stays on one ellipsized line in a quoted-fact bubble', (
+      tester,
+    ) async {
+      final ref = await _measurePlain(tester, l10n);
+      await _pump(tester, _Bubble.quoted, _pairBaton());
+      expect(find.byType(RoomMessageFactQuote), findsOneWidget);
+      _expectPairRowOnOneLine(tester, ref, l10n);
+    });
   });
 }

@@ -39,7 +39,8 @@ final class RoomReceiptIndex {
     if (!hasOtherAdmittedDiscussionMember) {
       return null;
     }
-    if (message.id.startsWith('local:') || pendingLocalIds.contains(message.id)) {
+    if (message.id.startsWith('local:') ||
+        pendingLocalIds.contains(message.id)) {
       return const RoomMessageReceipt(state: RoomMessageReceiptState.pending);
     }
 

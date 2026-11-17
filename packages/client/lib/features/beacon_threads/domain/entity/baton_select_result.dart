@@ -15,9 +15,10 @@ final class BatonSelectFailed extends BatonSelectResult {
 /// author may be offered a plan step for it (#479, D9): a Request whose plan
 /// they may edit.
 final class BatonSelected extends BatonSelectResult {
-  const BatonSelected({this.taker, this.planStepOffer});
+  const BatonSelected({this.taker, this.coTaker, this.planStepOffer});
 
   final RoomBatonTaker? taker;
+  final RoomBatonTaker? coTaker;
   final BatonPlanStepOffer? planStepOffer;
 }
 
@@ -33,6 +34,7 @@ final class BatonPlanStepOffer {
     required this.assigneeId,
     required this.assigneeName,
     required this.title,
+    this.coAssigneeName,
   });
 
   final String beaconId;
@@ -40,6 +42,10 @@ final class BatonPlanStepOffer {
   final String stepId;
   final String assigneeId;
   final String assigneeName;
+
+  /// The taker's partner when a pair was picked (the step stays one, on
+  /// [assigneeId]).
+  final String? coAssigneeName;
 
   /// Prefill for the step title: the baton's ask (or the quoted message).
   final String title;

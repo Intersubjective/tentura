@@ -9,6 +9,5 @@ final class BeaconFactPinAfterMessageException implements Exception {
   final Object cause;
 
   @override
-  String toString() =>
-      'BeaconFactPinAfterMessageException($messageId, $cause)';
+  String toString() => 'BeaconFactPinAfterMessageException($messageId, $cause)';
 }

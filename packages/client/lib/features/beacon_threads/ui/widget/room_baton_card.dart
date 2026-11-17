@@ -356,42 +356,86 @@ class _AuthorBody extends StatelessWidget {
       children: [
         Text(l10n.batonAuthorTitle, style: mutedBody),
         SizedBox(height: tt.tightGap),
-        for (final candidate in baton.candidates)
+        for (final row in baton.rows)
           Padding(
             padding: EdgeInsets.only(bottom: tt.tightGap),
-            child: Row(
-              children: [
-                batonPersonAvatar(
-                  userId: candidate.userId,
-                  title: candidate.title,
-                  participants: participants,
-                ),
-                SizedBox(width: tt.avatarTextGap),
-                Expanded(
-                  child: Text(
-                    candidate.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TenturaText.bodySmall(tt.text),
+            child: LayoutBuilder(
+              builder: (context, box) => Row(
+                children: [
+                  if (row.partner == null)
+                    batonPersonAvatar(
+                      userId: row.candidate.userId,
+                      title: row.candidate.title,
+                      participants: participants,
+                    )
+                  else
+                    // The pair's avatars overlap so the row stays as narrow as
+                    // a solo row plus a little.
+                    Align(
+                      widthFactor: 0.6,
+                      alignment: Alignment.centerLeft,
+                      child: batonPersonAvatar(
+                        userId: row.candidate.userId,
+                        title: row.candidate.title,
+                        participants: participants,
+                      ),
+                    ),
+                  if (row.partner case final partner?) ...[
+                    batonPersonAvatar(
+                      userId: partner.id,
+                      title: partner.title,
+                      participants: participants,
+                    ),
+                  ],
+                  SizedBox(width: tt.avatarTextGap),
+                  Expanded(
+                    child: Text(
+                      row.partner == null
+                          ? row.candidate.title
+                          : l10n.batonPairNames(
+                              row.candidate.title,
+                              row.partner!.title,
+                            ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TenturaText.bodySmall(tt.text),
+                    ),
                   ),
-                ),
-                if (showTiers) ...[
-                  Text(l10n.batonTierLabel(candidate.tier), style: mutedBody),
-                  SizedBox(width: tt.rowGap),
+                  if (showTiers) ...[
+                    Text(
+                      l10n.batonTierLabel(row.candidate.tier),
+                      style: mutedBody,
+                    ),
+                    SizedBox(width: tt.rowGap),
+                  ],
+                  ConstrainedBox(
+                    // A pair row carries two avatars: its status takes at most
+                    // half the row and ellipsizes instead of overflowing.
+                    constraints: BoxConstraints(
+                      maxWidth: row.partner == null
+                          ? double.infinity
+                          : box.maxWidth / 2,
+                    ),
+                    child: Text(
+                      switch (row.candidate.response) {
+                        RoomBatonResponse.canHelp =>
+                          row.partner == null
+                              ? l10n.batonStatusCanHelp
+                              : l10n.batonStatusCanHelpTogether,
+                        RoomBatonResponse.waiting => l10n.batonStatusWaiting,
+                        RoomBatonResponse.cantHelp => l10n.batonStatusCantHelp,
+                      },
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TenturaText.bodySmall(
+                        row.candidate.response == RoomBatonResponse.canHelp
+                            ? tt.good
+                            : tt.textMuted,
+                      ),
+                    ),
+                  ),
                 ],
-                Text(
-                  switch (candidate.response) {
-                    RoomBatonResponse.canHelp => l10n.batonStatusCanHelp,
-                    RoomBatonResponse.waiting => l10n.batonStatusWaiting,
-                    RoomBatonResponse.cantHelp => l10n.batonStatusCantHelp,
-                  },
-                  style: TenturaText.bodySmall(
-                    candidate.response == RoomBatonResponse.canHelp
-                        ? tt.good
-                        : tt.textMuted,
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
         if (baton.allAnswered) ...[
@@ -411,7 +455,7 @@ class _AuthorBody extends StatelessWidget {
               onPressed: canChoose && select != null
                   ? () => showRoomBatonChooseSheet(
                       context,
-                      candidates: baton.candidates,
+                      rows: baton.rows,
                       participants: participants,
                       onSelect: select,
                     )

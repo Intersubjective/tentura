@@ -7980,6 +7980,29 @@
   "beaconPreviewAsOthers": "How others see it",
   "beaconPreviewBanner": "This is how people outside the request see it",
   "beaconPreviewExit": "Back to my view",
+  "batonStatusCanHelpTogether": "can help together",
+  "@batonStatusCanHelpTogether": {
+    "description": "Author's view: a confirmed pair (asked person and their partner) can help together."
+  },
+  "batonPairNames": "{a} and {b}",
+  "@batonPairNames": {
+    "description": "Names of a confirmed «together» pair, in one line.",
+    "placeholders": {
+      "a": {"type": "String"},
+      "b": {"type": "String"}
+    }
+  },
+  "batonChoosePairHint": "together",
+  "@batonChoosePairHint": {
+    "description": "Subtitle of a pair entry in the author's choose sheet."
+  },
+  "batonPlanStepPromptBodyPair": "{name} takes it on together with them.",
+  "@batonPlanStepPromptBodyPair": {
+    "description": "Plan-step prompt sentence naming the partner when the author picked a pair; replaces the solo body.",
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
   "batonStatusCanHelp": "can help",
   "@batonStatusCanHelp": {
     "description": "Author's view: this asked person answered that they can help."

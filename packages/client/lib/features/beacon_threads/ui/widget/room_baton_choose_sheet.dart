@@ -12,7 +12,7 @@ import 'room_baton_card.dart';
 /// priority (calls [onSelect] with that person's id). The sheet closes first.
 Future<void> showRoomBatonChooseSheet(
   BuildContext context, {
-  required List<RoomBatonCandidate> candidates,
+  required List<RoomBatonAuthorRow> rows,
   required void Function(String? userId) onSelect,
   List<BeaconParticipant> participants = const [],
 }) => showModalBottomSheet<void>(
@@ -21,7 +21,7 @@ Future<void> showRoomBatonChooseSheet(
   useRootNavigator: true,
   isScrollControlled: true,
   builder: (ctx) => _ChooseSheet(
-    candidates: candidates,
+    rows: rows,
     participants: participants,
     onSelect: (userId) {
       Navigator.pop(ctx);
@@ -32,12 +32,12 @@ Future<void> showRoomBatonChooseSheet(
 
 class _ChooseSheet extends StatelessWidget {
   const _ChooseSheet({
-    required this.candidates,
+    required this.rows,
     required this.onSelect,
     required this.participants,
   });
 
-  final List<RoomBatonCandidate> candidates;
+  final List<RoomBatonAuthorRow> rows;
   final List<BeaconParticipant> participants;
   final void Function(String? userId) onSelect;
 
@@ -45,11 +45,11 @@ class _ChooseSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
-    final showTiers = candidates.map((c) => c.tier).toSet().length > 1;
-    final byTier = <int, List<RoomBatonCandidate>>{};
-    for (final c in candidates) {
-      if (c.response == RoomBatonResponse.canHelp) {
-        byTier.putIfAbsent(c.tier, () => []).add(c);
+    final showTiers = rows.map((r) => r.candidate.tier).toSet().length > 1;
+    final byTier = <int, List<RoomBatonAuthorRow>>{};
+    for (final r in rows) {
+      if (r.candidate.response == RoomBatonResponse.canHelp) {
+        byTier.putIfAbsent(r.candidate.tier, () => []).add(r);
       }
     }
     final tiers = byTier.keys.toList()..sort();
@@ -77,15 +77,25 @@ class _ChooseSheet extends StatelessWidget {
                   style: TenturaText.bodySmall(tt.textMuted),
                 ),
               ),
-            for (final c in byTier[tier]!)
+            for (final r in byTier[tier]!)
               ListTile(
                 leading: batonPersonAvatar(
-                  userId: c.userId,
-                  title: c.title,
+                  userId: r.candidate.userId,
+                  title: r.candidate.title,
                   participants: participants,
                 ),
-                title: Text(c.title),
-                onTap: () => onSelect(c.userId),
+                title: Text(
+                  r.partner == null
+                      ? r.candidate.title
+                      : l10n.batonPairNames(
+                          r.candidate.title,
+                          r.partner!.title,
+                        ),
+                ),
+                subtitle: r.partner == null
+                    ? null
+                    : Text(l10n.batonChoosePairHint),
+                onTap: () => onSelect(r.candidate.userId),
               ),
           ],
         ],

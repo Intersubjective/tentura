@@ -2,12 +2,12 @@ import '../../domain/entity/request_thread.dart';
 import '../gql/_g/beacon_threads_list.data.gql.dart';
 
 RequestThreadKind parseRequestThreadKind(String raw) => switch (raw) {
-      'general' => RequestThreadKind.general,
-      'ask' => RequestThreadKind.ask,
-      'promise' => RequestThreadKind.promise,
-      'blocker' => RequestThreadKind.blocker,
-      _ => throw ArgumentError.value(raw, 'threadKind'),
-    };
+  'general' => RequestThreadKind.general,
+  'ask' => RequestThreadKind.ask,
+  'promise' => RequestThreadKind.promise,
+  'blocker' => RequestThreadKind.blocker,
+  _ => throw ArgumentError.value(raw, 'threadKind'),
+};
 
 ThreadMessagePreview mapThreadMessagePreview(
   GBeaconThreadsListData_beaconThreads_lastMessagePreview preview,
@@ -36,7 +36,9 @@ ThreadMessagePreview mapThreadMessagePreview(
 DateTime? _parseOptionalDate(String? raw) =>
     raw == null || raw.isEmpty ? null : DateTime.parse(raw);
 
-extension type const RequestThreadRowModel(GBeaconThreadsListData_beaconThreads i)
+extension type const RequestThreadRowModel(
+  GBeaconThreadsListData_beaconThreads i
+)
     implements GBeaconThreadsListData_beaconThreads {
   RequestThread toEntity() {
     final preview = i.lastMessagePreview;
@@ -48,8 +50,9 @@ extension type const RequestThreadRowModel(GBeaconThreadsListData_beaconThreads 
       lastSeenAt: _parseOptionalDate(i.lastSeenAt),
       lastMessageAt: _parseOptionalDate(i.lastMessageAt),
       lastMessageAuthorId: i.lastMessageAuthorId,
-      lastMessagePreview:
-          preview == null ? null : mapThreadMessagePreview(preview),
+      lastMessagePreview: preview == null
+          ? null
+          : mapThreadMessagePreview(preview),
     );
   }
 }

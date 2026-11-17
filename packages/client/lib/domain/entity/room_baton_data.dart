@@ -354,6 +354,32 @@ class RoomBatonAuthorData extends RoomBatonData {
 
   /// Whether the candidate rows carry a priority label (more than one tier).
   bool get showsTiers => candidates.map((c) => c.tier).toSet().length > 1;
+
+  /// What the author sees per row: a confirmed pair is one row (its taker,
+  /// with the partner), never also a solo row for the partner.
+  List<RoomBatonAuthorRow> get rows {
+    final partnerIds = {for (final p in pairs) p.partnerId};
+    final takerIds = {for (final p in pairs) p.takerId};
+    return [
+      for (final c in candidates)
+        if (takerIds.contains(c.userId) && c.partner != null)
+          RoomBatonAuthorRow(candidate: c, partner: c.partner)
+        else if (!partnerIds.contains(c.userId) ||
+            !candidates.any(
+              (o) => takerIds.contains(o.userId) && o.partner?.id == c.userId,
+            ))
+          RoomBatonAuthorRow(candidate: c),
+    ];
+  }
+}
+
+/// One row of the author's collecting view: an asked person, or a confirmed
+/// pair ([candidate] is the pair's taker, [partner] their partner).
+class RoomBatonAuthorRow {
+  const RoomBatonAuthorRow({required this.candidate, this.partner});
+
+  final RoomBatonCandidate candidate;
+  final RoomBatonTaker? partner;
 }
 
 /// An asked person's view: only their own answer, then the outcome.

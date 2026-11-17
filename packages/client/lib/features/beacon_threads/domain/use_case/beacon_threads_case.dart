@@ -464,8 +464,7 @@ base class BeaconThreadsCase extends UseCaseBase {
   }
 
   /// The origin answer that last led to source fact [factCardId], if any.
-  BeaconFactOrigin? factArrival(String factCardId) =>
-      _factArrivals[factCardId];
+  BeaconFactOrigin? factArrival(String factCardId) => _factArrivals[factCardId];
 
   Future<List<BeaconFactCopyDestination>> factCopyDestinations({
     required String sourceFactCardId,
@@ -535,23 +534,21 @@ base class BeaconThreadsCase extends UseCaseBase {
     required String batonId,
     required bool canHelp,
     String? partnerUserId,
-  }) =>
-      _room.batonRespond(
-        batonId: batonId,
-        canHelp: canHelp,
-        partnerUserId: partnerUserId,
-      );
+  }) => _room.batonRespond(
+    batonId: batonId,
+    canHelp: canHelp,
+    partnerUserId: partnerUserId,
+  );
 
   Future<RoomBatonData?> batonPartnerRespond({
     required String batonId,
     required String inviterUserId,
     required bool accept,
-  }) =>
-      _room.batonPartnerRespond(
-        batonId: batonId,
-        inviterUserId: inviterUserId,
-        accept: accept,
-      );
+  }) => _room.batonPartnerRespond(
+    batonId: batonId,
+    inviterUserId: inviterUserId,
+    accept: accept,
+  );
 
   Future<RoomBatonData?> batonUpdate({
     required String batonId,

@@ -77,6 +77,7 @@ class _RoomBatonPlanStepSheetState extends State<RoomBatonPlanStepSheet> {
     final theme = Theme.of(context);
     final tt = context.tt;
     final name = widget.offer.assigneeName;
+    final coName = widget.offer.coAssigneeName;
     return Padding(
       padding: EdgeInsets.only(
         left: tt.screenHPadding,
@@ -94,7 +95,9 @@ class _RoomBatonPlanStepSheetState extends State<RoomBatonPlanStepSheet> {
           ),
           SizedBox(height: tt.tightGap),
           Text(
-            l10n.batonPlanStepPromptBody(name),
+            coName == null
+                ? l10n.batonPlanStepPromptBody(name)
+                : l10n.batonPlanStepPromptBodyPair(coName),
             style: TenturaText.bodySmall(theme.colorScheme.onSurfaceVariant),
           ),
           SizedBox(height: tt.sectionGap),

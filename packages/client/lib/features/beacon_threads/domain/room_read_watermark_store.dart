@@ -68,14 +68,12 @@ class RoomReadWatermarkStore {
   DateTime? readThrough(
     String beaconId, {
     String threadId = RequestThread.generalId,
-  }) =>
-      _readThroughByKey[_key(beaconId, threadId)];
+  }) => _readThroughByKey[_key(beaconId, threadId)];
 
   DateTime? syncedAt(
     String beaconId, {
     String threadId = RequestThread.generalId,
-  }) =>
-      _syncedByKey[_key(beaconId, threadId)];
+  }) => _syncedByKey[_key(beaconId, threadId)];
 
   /// True when local read-through is ahead of the last confirmed server watermark.
   bool hasPendingSync(

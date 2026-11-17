@@ -2044,14 +2044,21 @@ class RoomCubit extends Cubit<RoomState> {
     } on Object catch (e) {
       _showSnackError(e);
     }
-    final taker =
+    final taken =
         view is RoomBatonAuthorData && view.status == RoomBatonStatus.taken
-        ? view.taker
+        ? view
         : null;
+    final taker = taken?.taker;
     if (taker == null) return const BatonSelected();
+    final coTaker = taken?.coTaker;
     return BatonSelected(
       taker: taker,
-      planStepOffer: await _batonPlanStepOffer(batonId: batonId, taker: taker),
+      coTaker: coTaker,
+      planStepOffer: await _batonPlanStepOffer(
+        batonId: batonId,
+        taker: taker,
+        coTaker: coTaker,
+      ),
     );
   }
 
@@ -2060,6 +2067,7 @@ class RoomCubit extends Cubit<RoomState> {
   Future<BatonPlanStepOffer?> _batonPlanStepOffer({
     required String batonId,
     required RoomBatonTaker taker,
+    RoomBatonTaker? coTaker,
   }) async {
     if (!capabilities.plan || isClosed) return null;
     try {
@@ -2075,6 +2083,7 @@ class RoomCubit extends Cubit<RoomState> {
       stepId: _newPlanStepId(),
       assigneeId: taker.id,
       assigneeName: taker.title,
+      coAssigneeName: coTaker?.title,
       title: _batonAskTitle(batonId),
     );
   }
