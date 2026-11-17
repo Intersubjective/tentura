@@ -6263,6 +6263,33 @@
   "@batonReceiptAllAnswered": {
     "description": "Private Activity receipt telling the message author everyone answered."
   },
+  "batonReceiptPartnerAsked": "{author} предлагает взяться вместе",
+  "@batonReceiptPartnerAsked": {
+    "description": "Private Activity receipt inviting the viewer to take a baton on together.",
+    "placeholders": {
+      "author": {
+        "type": "String"
+      }
+    }
+  },
+  "batonReceiptPartnerAnsweredAccepted": "{author} возьмётся вместе с вами",
+  "@batonReceiptPartnerAnsweredAccepted": {
+    "description": "Private Activity receipt when the named partner accepted a together invite.",
+    "placeholders": {
+      "author": {
+        "type": "String"
+      }
+    }
+  },
+  "batonReceiptPartnerAnsweredDeclined": "{author} не сможет присоединиться. Ответьте ещё раз",
+  "@batonReceiptPartnerAnsweredDeclined": {
+    "description": "Private Activity receipt when the named partner declined a together invite.",
+    "placeholders": {
+      "author": {
+        "type": "String"
+      }
+    }
+  },
   "batonActionStart": "Кто возьмётся?",
   "@batonActionStart": {
     "description": "Message action that starts a «Who'll take it?» baton on the viewer's own message."

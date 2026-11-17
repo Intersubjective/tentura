@@ -59,6 +59,8 @@ const _expectedEn = {
   'author_invite_received': 'Bob asks you to help',
   'baton_all_answered': "Everyone answered your «Who'll take it?»",
   'baton_asked': 'Bob asks if you can help',
+  'baton_partner_asked': 'Bob wants to take it on together with you',
+  'baton_partner_answered': "Bob can't join you. Answer again",
   'baton_taken': 'You took it: Bring gloves',
   'beacon_hierarchy_status_changed': 'Linked request status changed',
   'blocker_opened': 'Blocker opened',
@@ -114,6 +116,9 @@ const _expectedRu = {
   'author_invite_received': 'Bob зовёт вас помочь',
   'baton_all_answered': 'Все ответили на ваше «Кто возьмётся?»',
   'baton_asked': 'Bob спрашивает, сможете ли вы помочь',
+  'baton_partner_asked': 'Bob предлагает взяться вместе',
+  'baton_partner_answered':
+      'Bob не сможет присоединиться. Ответьте ещё раз',
   'baton_taken': 'Вы взялись: Bring gloves',
   'beacon_hierarchy_status_changed': 'Статус связанного запроса изменился',
   'blocker_opened': 'Открыт блокер',

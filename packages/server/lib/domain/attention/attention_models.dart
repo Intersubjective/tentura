@@ -61,6 +61,8 @@ abstract final class AttentionEventTypeCatalog {
       case AttentionEventType.batonAsked:
       case AttentionEventType.batonTaken:
       case AttentionEventType.batonAllAnswered:
+      case AttentionEventType.batonPartnerAsked:
+      case AttentionEventType.batonPartnerAnswered:
       case AttentionEventType.authorInviteReceived:
       case AttentionEventType.authorInviteAccepted:
       case AttentionEventType.authorInviteDeclined:
@@ -134,6 +136,10 @@ enum AttentionEventType {
   batonAsked,
   batonTaken,
   batonAllAnswered,
+
+  /// «Take it on together» — `docs/plans/baton-together-plan.md` §2.6.
+  batonPartnerAsked,
+  batonPartnerAnswered,
 
   /// Post→Request budding (Arch §5.6, plan C2). The author of a Request
   /// budded from a Post asks a Post member to help; the invitee answers.
@@ -214,6 +220,9 @@ enum AttentionRecipientReason {
 
   /// A person asked to help on a baton («Who'll take it?»).
   batonCandidate,
+
+  /// A person the baton author invited to take it on together.
+  batonPartner,
 
   /// The person a baton's author selected.
   batonTaker,

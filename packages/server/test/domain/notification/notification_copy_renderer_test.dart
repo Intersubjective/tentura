@@ -486,6 +486,13 @@ void main() {
       });
     }
 
+    test('the table and the key list carry the baton-together keys', () {
+      for (final key in ['baton_partner_asked', 'baton_partner_answered']) {
+        expect(_allKeys, contains(key));
+        expect(_table.map((row) => row.key), contains(key));
+      }
+    });
+
     test('the table covers every presentation key', () {
       expect(_table.map((row) => row.key).toSet(), containsAll(_allKeys));
     });
@@ -939,6 +946,33 @@ final _table = <_Row>[
     facts: {'excerpt': 'hello'},
     en: ("Who'll take it?", 'Anna asks if you can help: hello'),
     ru: ('Кто возьмётся?', 'Anna спрашивает, сможете ли вы помочь: hello'),
+  ),
+  _Row(
+    'baton_partner_asked',
+    'baton_partner_asked',
+    facts: {'excerpt': 'hello'},
+    en: (
+      'Take it on together?',
+      'Anna wants to take it on together with you: hello',
+    ),
+    ru: ('Взяться вместе?', 'Anna предлагает взяться вместе: hello'),
+  ),
+  _Row(
+    'baton_partner_answered accepted',
+    'baton_partner_answered',
+    facts: {'accepted': true, 'excerpt': 'hello'},
+    en: ('Together', 'Anna will take it on with you: hello'),
+    ru: ('Вместе', 'Anna возьмётся вместе с вами: hello'),
+  ),
+  _Row(
+    'baton_partner_answered declined',
+    'baton_partner_answered',
+    facts: {'accepted': false, 'excerpt': 'hello'},
+    en: ("Can't join", "Anna can't join you. Answer again: hello"),
+    ru: (
+      'Не сможет присоединиться',
+      'Anna не сможет присоединиться. Ответьте ещё раз: hello',
+    ),
   ),
   _Row(
     'baton_taken',

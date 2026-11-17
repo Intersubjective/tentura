@@ -112,6 +112,23 @@ class NotificationCopyRenderer {
     return '$sentence — $open$shownLabel$close';
   }
 
+  /// Merges co-taker visibility from [coTaker] into [facts] for `baton_taken`.
+  static Map<String, Object?> mergeCoTakerFacts(
+    Map<String, Object?> facts,
+    NotificationIdentity? coTaker,
+  ) {
+    final withUserId = facts['withUserId'];
+    if (withUserId is! String || withUserId.isEmpty) return facts;
+    if (coTaker == null || coTaker.actorHidden) {
+      return {...facts, 'withUserHidden': true};
+    }
+    final name = coTaker.actorName;
+    if (name == null || NotificationText.normalize(name).isEmpty) {
+      return {...facts, 'withUserHidden': true};
+    }
+    return {...facts, 'withUserName': name};
+  }
+
   /// [presentationKey] is a receipt's `presentation_key`; [facts] its
   /// `presentation_payload`. Throws [ArgumentError] for an unknown key.
   NotificationCopy render({
@@ -322,10 +339,48 @@ class NotificationCopyRenderer {
           ),
         ),
       ),
-      AttentionEventType.batonTaken => (
-        t('You took it', 'Вы взялись'),
-        withX(t('You took it', 'Вы взялись')),
+      AttentionEventType.batonPartnerAsked => (
+        t('Take it on together?', 'Взяться вместе?'),
+        withX(
+          t(
+            '$actor wants to take it on together with you',
+            '$actor предлагает взяться вместе',
+          ),
+        ),
       ),
+      AttentionEventType.batonPartnerAnswered =>
+        facts['accepted'] == true
+            ? (
+                t('Together', 'Вместе'),
+                withX(
+                  t(
+                    '$actor will take it on with you',
+                    '$actor возьмётся вместе с вами',
+                  ),
+                ),
+              )
+            : (
+                t("Can't join", 'Не сможет присоединиться'),
+                withX(
+                  t(
+                    "$actor can't join you. Answer again",
+                    '$actor не сможет присоединиться. Ответьте ещё раз',
+                  ),
+                ),
+              ),
+      AttentionEventType.batonTaken => () {
+        final partner = _visibleCoTakerName(facts);
+        if (partner != null) {
+          return (
+            t('You took it', 'Вы взялись'),
+            withX(t('You and $partner took it', 'Вы и $partner взялись')),
+          );
+        }
+        return (
+          t('You took it', 'Вы взялись'),
+          withX(t('You took it', 'Вы взялись')),
+        );
+      }(),
       AttentionEventType.batonAllAnswered => (
         t('Everyone answered', 'Все ответили'),
         t(
@@ -661,6 +716,13 @@ class NotificationCopyRenderer {
       if (_snake(type.name) == key) return type;
     }
     throw ArgumentError.value(key, 'presentationKey', 'Unknown key');
+  }
+
+  static String? _visibleCoTakerName(Map<String, Object?> facts) {
+    if (facts['withUserHidden'] == true) return null;
+    final name = _text(facts['withUserName']);
+    if (name.isEmpty) return null;
+    return NotificationText.truncate(name, _actorLimit);
   }
 
   static String _snake(String camel) => camel.replaceAllMapped(

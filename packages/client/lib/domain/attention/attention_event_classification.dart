@@ -96,6 +96,14 @@ const attentionEventClassifications = <String, AttentionEventClassification>{
     headlineTreatment: AttentionHeadlineTreatment.beacon,
     coalescible: true,
   ),
+  'batonPartnerAsked': AttentionEventClassification(
+    headlineTreatment: AttentionHeadlineTreatment.beacon,
+    coalescible: true,
+  ),
+  'batonPartnerAnswered': AttentionEventClassification(
+    headlineTreatment: AttentionHeadlineTreatment.beacon,
+    coalescible: true,
+  ),
   // Post→Request budding (plan C2). The invitation carries the inviter's
   // note, so it never folds (K6), exactly like a forward.
   'authorInviteReceived': AttentionEventClassification(

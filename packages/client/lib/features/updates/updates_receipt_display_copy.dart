@@ -414,6 +414,26 @@ UpdatesFeedRowCopy? batonReceiptDisplayCopy({
       headline: l10n.batonReceiptAllAnswered,
       body: excerpt,
     ),
+    'batonPartnerAsked' || 'baton_partner_asked' => UpdatesFeedRowCopy(
+      headline: l10n.batonReceiptPartnerAsked(
+        author != null && author.isNotEmpty ? author : title.trim(),
+      ),
+      body: excerpt,
+    ),
+    'batonPartnerAnswered' || 'baton_partner_answered' =>
+      _payloadBool(presentationPayloadJson, 'accepted') == true
+          ? UpdatesFeedRowCopy(
+              headline: l10n.batonReceiptPartnerAnsweredAccepted(
+                author != null && author.isNotEmpty ? author : title.trim(),
+              ),
+              body: excerpt,
+            )
+          : UpdatesFeedRowCopy(
+              headline: l10n.batonReceiptPartnerAnsweredDeclined(
+                author != null && author.isNotEmpty ? author : title.trim(),
+              ),
+              body: excerpt,
+            ),
     _ => null,
   };
 }

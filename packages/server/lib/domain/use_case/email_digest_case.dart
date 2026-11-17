@@ -108,20 +108,46 @@ class EmailDigestCase {
     if (eligible.isEmpty) {
       return;
     }
-    final identities = await _identity.resolve(accountId, [
-      for (final item in eligible)
+    final identityRequests = <IdentityRequest>[];
+    final itemIdentityIndex = <int>[];
+    final coTakerIdentityIndex = <int, int>{};
+    for (var i = 0; i < eligible.length; i++) {
+      final item = eligible[i];
+      itemIdentityIndex.add(identityRequests.length);
+      identityRequests.add(
         IdentityRequest(
           beaconId: item.beaconId ?? '',
           actorId: item.actorUserId,
           relatedBeaconId:
               item.presentationPayload['relatedBeaconId'] as String?,
         ),
-    ]);
+      );
+      final withUserId = item.presentationPayload['withUserId'];
+      if (item.presentationKey == 'baton_taken' &&
+          withUserId is String &&
+          withUserId.isNotEmpty) {
+        coTakerIdentityIndex[i] = identityRequests.length;
+        identityRequests.add(
+          IdentityRequest(
+            beaconId: item.beaconId ?? '',
+            actorId: withUserId,
+          ),
+        );
+      }
+    }
+    final identities = await _identity.resolve(accountId, identityRequests);
     final rows = [
       for (final (index, item) in eligible.indexed)
         if (item.presentationKey case final key?
-            when _shown(item, identities[index], now))
-          (item: item, key: key, identity: identities[index]),
+            when _shown(item, identities[itemIdentityIndex[index]], now))
+          (
+            item: item,
+            key: key,
+            identity: identities[itemIdentityIndex[index]],
+            coTaker: coTakerIdentityIndex.containsKey(index)
+                ? identities[coTakerIdentityIndex[index]!]
+                : null,
+          ),
     ];
     if (rows.isEmpty) {
       return;
@@ -174,6 +200,7 @@ class EmailDigestCase {
         NotificationOutboxItemEntity item,
         String key,
         NotificationIdentity identity,
+        NotificationIdentity? coTaker,
       })
     >
     rows,
@@ -218,11 +245,14 @@ class EmailDigestCase {
         heading:
             <({String? key, String? label, String url, List<String> lines})>[],
     };
-    for (final (:item, :key, :identity) in rows) {
+    for (final (:item, :key, :identity, :coTaker) in rows) {
       final copy = _renderer.render(
         presentationKey: key,
         kind: item.kind,
-        facts: item.presentationPayload,
+        facts: NotificationCopyRenderer.mergeCoTakerFacts(
+          item.presentationPayload,
+          coTaker,
+        ),
         identity: identity,
         locale: prefs.locale,
         tzOffsetMinutes: prefs.tzOffsetMinutes,

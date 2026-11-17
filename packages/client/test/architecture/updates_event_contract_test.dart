@@ -56,6 +56,8 @@ const _runtimeAttentionEventTypes = <String>[
   'batonAsked',
   'batonTaken',
   'batonAllAnswered',
+  'batonPartnerAsked',
+  'batonPartnerAnswered',
   // Post→Request budding: author invitations.
   'authorInviteReceived',
   'authorInviteAccepted',
@@ -132,6 +134,8 @@ const _pendingProducerEventTypes = <String>[
   'batonAsked',
   'batonTaken',
   'batonAllAnswered',
+  'batonPartnerAsked',
+  'batonPartnerAnswered',
 ];
 
 const _expectedEventTypes = <Map<String, String>>[
@@ -320,6 +324,26 @@ const _expectedEventTypes = <Map<String, String>>[
     'muteability': 'standard',
     'coveringTest':
         'packages/server/test/domain/use_case/room_baton_case_pg_test.dart',
+  },
+  {
+    'eventType': 'batonPartnerAsked',
+    'producer':
+        'none (no live producer yet; wired in S4, see docs/plans/baton-together-plan.md)',
+    'recipientCategory': 'baton_partner',
+    'destinationFamily': 'beacon_room_message',
+    'muteability': 'standard',
+    'coveringTest':
+        'packages/server/test/domain/attention/baton_partner_attention_policy_test.dart',
+  },
+  {
+    'eventType': 'batonPartnerAnswered',
+    'producer':
+        'none (no live producer yet; wired in S4, see docs/plans/baton-together-plan.md)',
+    'recipientCategory': 'baton_candidate',
+    'destinationFamily': 'beacon_room_message',
+    'muteability': 'standard',
+    'coveringTest':
+        'packages/server/test/domain/attention/baton_partner_attention_policy_test.dart',
   },
   {
     'eventType': 'authorInviteReceived',

@@ -571,6 +571,14 @@ _fixtureFor(String eventName) => switch (eventName) {
     reasons: const {AttentionRecipientReason.batonAuthor},
     role: _baseRole,
   ),
+  'batonPartnerAsked' => (
+    reasons: const {AttentionRecipientReason.batonPartner},
+    role: _baseRole,
+  ),
+  'batonPartnerAnswered' => (
+    reasons: const {AttentionRecipientReason.batonCandidate},
+    role: _baseRole,
+  ),
   'authorInviteReceived' => (
     reasons: const {AttentionRecipientReason.authorInvitee},
     role: _baseRole,

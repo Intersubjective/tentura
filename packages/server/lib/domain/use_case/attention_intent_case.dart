@@ -1026,7 +1026,9 @@ class AttentionIntentCase {
                     eventType == AttentionEventType.postFirstResponse ||
                     eventType == AttentionEventType.batonAsked ||
                     eventType == AttentionEventType.batonTaken ||
-                    eventType == AttentionEventType.batonAllAnswered
+                    eventType == AttentionEventType.batonAllAnswered ||
+                    eventType == AttentionEventType.batonPartnerAsked ||
+                    eventType == AttentionEventType.batonPartnerAnswered
                 ? excerpt
                 : null,
           ),

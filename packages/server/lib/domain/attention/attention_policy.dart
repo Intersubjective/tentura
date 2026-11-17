@@ -121,6 +121,8 @@ class AttentionPolicy {
     AttentionEventType.batonAsked ||
     AttentionEventType.batonTaken ||
     AttentionEventType.batonAllAnswered ||
+    AttentionEventType.batonPartnerAsked ||
+    AttentionEventType.batonPartnerAnswered ||
     AttentionEventType.authorInviteReceived ||
     AttentionEventType.authorInviteAccepted ||
     AttentionEventType.authorInviteDeclined ||
@@ -184,6 +186,8 @@ class AttentionPolicy {
     AttentionEventType.batonAsked ||
     AttentionEventType.batonTaken ||
     AttentionEventType.batonAllAnswered ||
+    AttentionEventType.batonPartnerAsked ||
+    AttentionEventType.batonPartnerAnswered ||
     AttentionEventType.authorInviteReceived ||
     AttentionEventType.authorInviteAccepted ||
     AttentionEventType.authorInviteDeclined ||
@@ -243,6 +247,8 @@ class AttentionPolicy {
     AttentionEventType.batonAsked ||
     AttentionEventType.batonTaken ||
     AttentionEventType.batonAllAnswered ||
+    AttentionEventType.batonPartnerAsked ||
+    AttentionEventType.batonPartnerAnswered ||
     AttentionEventType.authorInviteReceived ||
     AttentionEventType.authorInviteAccepted ||
     AttentionEventType.authorInviteDeclined ||
@@ -345,7 +351,9 @@ class AttentionPolicy {
       AttentionEventType.postFirstResponse ||
       AttentionEventType.batonAsked ||
       AttentionEventType.batonTaken ||
-      AttentionEventType.batonAllAnswered => AttentionDestination(
+      AttentionEventType.batonAllAnswered ||
+      AttentionEventType.batonPartnerAsked ||
+      AttentionEventType.batonPartnerAnswered => AttentionDestination(
         kind: AttentionDestinationKind.beaconRoomMessage,
         targetEntityId: role.messageId,
       ),
@@ -420,6 +428,8 @@ class AttentionPolicy {
     AttentionEventType.batonAsked => false,
     AttentionEventType.batonTaken => false,
     AttentionEventType.batonAllAnswered => false,
+    AttentionEventType.batonPartnerAsked => false,
+    AttentionEventType.batonPartnerAnswered => false,
     AttentionEventType.authorInviteReceived => false,
     AttentionEventType.authorInviteAccepted => false,
     AttentionEventType.authorInviteDeclined => false,
@@ -478,6 +488,7 @@ class AttentionPolicy {
     AttentionRecipientReason.directedChatTarget,
     AttentionRecipientReason.targetOfAsk,
     AttentionRecipientReason.batonCandidate,
+    AttentionRecipientReason.batonPartner,
     AttentionRecipientReason.postAuthor,
     AttentionRecipientReason.affectedParticipant,
     AttentionRecipientReason.authorInvitee,
@@ -503,6 +514,7 @@ class AttentionPolicy {
     AttentionEventType.commitmentCancelled ||
     AttentionEventType.commitmentRedirected ||
     AttentionEventType.batonAsked ||
+    AttentionEventType.batonPartnerAsked ||
     AttentionEventType.authorInviteReceived ||
     AttentionEventType.authorInviteAccepted ||
     AttentionEventType.authorInviteDeclined => true,
@@ -526,6 +538,7 @@ class AttentionPolicy {
     AttentionEventType.requestStale ||
     AttentionEventType.batonTaken ||
     AttentionEventType.batonAllAnswered ||
+    AttentionEventType.batonPartnerAnswered ||
     AttentionEventType.planStepDue ||
     AttentionEventType.planStepTurn ||
     AttentionEventType.planChangePending ||
@@ -720,6 +733,8 @@ class AttentionPolicy {
     AttentionEventType.batonAsked => 'baton_asked',
     AttentionEventType.batonTaken => 'baton_taken',
     AttentionEventType.batonAllAnswered => 'baton_all_answered',
+    AttentionEventType.batonPartnerAsked => 'baton_partner_asked',
+    AttentionEventType.batonPartnerAnswered => 'baton_partner_answered',
     AttentionEventType.authorInviteReceived => 'author_invite_received',
     AttentionEventType.authorInviteAccepted => 'author_invite_accepted',
     AttentionEventType.authorInviteDeclined => 'author_invite_declined',
