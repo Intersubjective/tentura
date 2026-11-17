@@ -425,6 +425,26 @@ void main() {
       expect(find.text("Can't help"), findsNothing);
     });
 
+    testWidgets('tells a co-taker they took it together with the taker', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _cardHarness(
+          const RoomBatonCandidateData(
+            id: 'baton-1',
+            status: RoomBatonStatus.taken,
+            myResponse: RoomBatonResponse.canHelp,
+            outcome: RoomBatonOutcome.you,
+            coTaker: RoomBatonTaker(id: 'u-anna', title: 'Anna Author'),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('You and Anna Author took it.'), findsOneWidget);
+      expect(find.text('You took it.'), findsNothing);
+    });
+
     testWidgets('tells an unchosen volunteer someone else was selected', (
       tester,
     ) async {

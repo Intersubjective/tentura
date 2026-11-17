@@ -931,7 +931,7 @@ ORDER BY tier, user_id
           final myResponse = responseOf(mine);
           final outcome = status == BatonStatus.collecting
               ? null
-              : takerId == viewerUserId
+              : takerId == viewerUserId || coTakerId == viewerUserId
               ? 'you'
               : status == BatonStatus.taken &&
                     myResponse == BatonResponse.canHelp
@@ -959,7 +959,11 @@ ORDER BY tier, user_id
             'outcome': ?outcome,
             if (outcome == 'you') ...{
               'taker': taker(),
-              if (coTakerId != null) 'coTaker': coTaker(),
+              // For the co-taker, "the other person" is the taker.
+              if (coTakerId == viewerUserId)
+                'coTaker': taker()
+              else if (coTakerId != null)
+                'coTaker': coTaker(),
             },
           };
         } else if (invites.isNotEmpty &&

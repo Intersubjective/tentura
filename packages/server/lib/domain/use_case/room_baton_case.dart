@@ -267,10 +267,20 @@ class RoomBatonCase extends UseCaseBase {
     required DateTime now,
   }) async {
     final previous = {for (final row in before) row.userId: row};
-    for (final row in result.rows) {
-      if (!_sameAnswer(previous[row.userId], row)) {
-        await _repo.saveCandidate(row);
-      }
+    // The accepted-partner unique index (m0316) is checked per statement, so
+    // rows that stop being an accepted pair are saved before rows that
+    // become one, whatever order the candidates come in.
+    final changed = [
+      for (final row in result.rows)
+        if (!_sameAnswer(previous[row.userId], row)) row,
+    ];
+    bool becomesAccepted(RoomBatonCandidate row) =>
+        row.partnerResponse == BatonPartnerResponse.accepted;
+    for (final row in changed.where((r) => !becomesAccepted(r))) {
+      await _repo.saveCandidate(row);
+    }
+    for (final row in changed.where(becomesAccepted)) {
+      await _repo.saveCandidate(row);
     }
     final message = await _room.getRoomMessageById(baton.messageId);
     final body = message?.body.trim() ?? '';

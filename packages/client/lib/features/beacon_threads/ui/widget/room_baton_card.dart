@@ -593,9 +593,13 @@ class _CandidateBody extends StatelessWidget {
             : null);
     if (baton.status != RoomBatonStatus.collecting) {
       if (outcome == null) return const SizedBox.shrink();
+      final coTaker = baton.coTaker;
       return Text(
         switch (outcome) {
-          RoomBatonOutcome.you => l10n.batonOutcomeYou,
+          RoomBatonOutcome.you =>
+            coTaker == null
+                ? l10n.batonOutcomeYou
+                : l10n.batonOutcomeYouTogether(coTaker.title),
           RoomBatonOutcome.someoneElse => l10n.batonOutcomeSomeoneElse,
           RoomBatonOutcome.closed => l10n.batonOutcomeClosed,
         },

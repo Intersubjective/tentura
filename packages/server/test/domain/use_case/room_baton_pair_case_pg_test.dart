@@ -442,6 +442,25 @@ Future<void> main() async {
           expect(await _peopleInSeveralPairs(writer, baton.id), isEmpty);
         },
       );
+
+      test(
+        'joining a pair whose inviter sorts first releases the older pair',
+        () async {
+          final baton = await createBaton();
+          await respond(_candB, baton, canHelp: true, partnerUserId: _partnerX);
+          await partnerRespond(_partnerX, baton, inviter: _candB, accept: true);
+          await respond(_candA, baton, canHelp: true, partnerUserId: _partnerX);
+
+          await partnerRespond(_partnerX, baton, inviter: _candA, accept: true);
+
+          final rows = await _rows(writer, baton.id);
+          expect(rows[_candA]!.partner, _partnerX);
+          expect(rows[_candA]!.partnerResponse, _accepted);
+          expect(rows[_candB]!.response, _waiting);
+          expect(rows[_candB]!.partnerResponse, _declined);
+          expect(await _peopleInSeveralPairs(writer, baton.id), isEmpty);
+        },
+      );
     });
 
     group('after the baton is resolved', () {

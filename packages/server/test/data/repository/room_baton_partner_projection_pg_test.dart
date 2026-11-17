@@ -272,6 +272,22 @@ UPDATE public.beacon_room_baton_candidate
       expect(px.containsKey('outcome'), isFalse);
     });
 
+    test('mutual pair: both members are told they took it together', () async {
+      await create({_a: 2, _c: 1});
+      await setRow(_a, response: 1, partner: _c, partnerResponse: 1);
+      await setRow(_c, response: 1, partner: _a, partnerResponse: 1);
+      await select(_a, coTaker: _c);
+
+      final pa = await payloadFor(_a);
+      expect(pa['viewerRole'], 'candidate');
+      expect(pa['outcome'], 'you');
+      expect(pa['coTaker'], {'id': _c, 'title': _titles[_c]});
+      final pc = await payloadFor(_c);
+      expect(pc['viewerRole'], 'candidate');
+      expect(pc['outcome'], 'you');
+      expect(pc['coTaker'], {'id': _a, 'title': _titles[_a]});
+    });
+
     test('after selecting a solo taker the partner lost out', () async {
       await collecting();
       await select(_c);
