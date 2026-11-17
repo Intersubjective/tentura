@@ -5,6 +5,7 @@ import 'package:injectable/injectable.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/domain/entity/room_baton.dart';
 import 'package:tentura_server/domain/exception.dart';
+import 'package:tentura_server/domain/policy/baton_pair_policy.dart';
 import 'package:tentura_server/domain/policy/baton_selection_policy.dart';
 import 'package:tentura_server/domain/port/beacon_hierarchy_repository_port.dart';
 import 'package:tentura_server/domain/use_case/room_write_guard.dart';
@@ -147,19 +148,18 @@ class RoomBatonCase extends UseCaseBase {
     },
   );
 
+  /// A candidate answers. With [partnerUserId] (only with [canHelp]) they
+  /// ask that admitted person to take it on together with them
+  /// (`docs/plans/baton-together-plan.md` §2.4).
   Future<void> respond({
     required String actorId,
     required String batonId,
     required bool canHelp,
+    String? partnerUserId,
   }) => _attention.runAction(
     actorUserId: actorId,
     action: (transaction) async {
-      final baton = await _repo.getById(batonId);
-      if (baton == null) {
-        throw const BatonNotFoundException();
-      }
-      await _postLock.lockForPostMutation(baton.beaconId);
-      await _rejectIfRoomNotWritable(baton.beaconId);
+      final baton = await _lockedBaton(batonId);
 
       final candidates = await _repo.getCandidates(batonId);
       final isCandidate = candidates.any((c) => c.userId == actorId);
@@ -172,41 +172,171 @@ class RoomBatonCase extends UseCaseBase {
       if (!await _isAdmitted(beaconId: baton.beaconId, userId: actorId)) {
         throw const BatonNotCandidateException();
       }
+      if (partnerUserId != null &&
+          (!canHelp ||
+              partnerUserId == baton.authorId ||
+              !await _canPair(baton, actorId, partnerUserId))) {
+        throw const BatonPartnerInvalidException();
+      }
 
-      final respondedAt = DateTime.timestamp();
-      await _repo.updateCandidateResponse(
-        batonId: batonId,
-        userId: actorId,
-        response: canHelp ? BatonResponse.canHelp : BatonResponse.cantHelp,
-        respondedAt: respondedAt,
-      );
-      if (await _repo.hasWaitingCandidate(batonId)) {
-        return;
-      }
-      final notifyAuthor = await _repo.markAllAnsweredNotifiedIfUnset(
-        batonId: batonId,
-        at: respondedAt,
-      );
-      if (!notifyAuthor) {
-        return;
-      }
-      final message = await _room.getRoomMessageById(baton.messageId);
-      await transaction.record(
-        await _attentionIntents.batonAllAnswered(
-          beaconId: baton.beaconId,
-          messageId: baton.messageId,
-          actorUserId: actorId,
-          recipientId: baton.authorId,
-          excerpt: message?.body.trim() ?? '',
-          // An edit that adds someone opens a new answering round (the stamp
-          // is cleared), so the key is per round, not per baton.
-          sourceEventKey:
-              'baton_all_answered:$batonId:'
-              '${respondedAt.microsecondsSinceEpoch}',
+      final now = DateTime.timestamp();
+      await _apply(
+        transaction,
+        baton: baton,
+        actorId: actorId,
+        before: candidates,
+        result: BatonPairPolicy.respond(
+          rows: candidates,
+          actorId: actorId,
+          canHelp: canHelp,
+          now: now,
+          partnerUserId: partnerUserId,
         ),
+        now: now,
       );
     },
   );
+
+  /// The person [inviterUserId] named answers: [accept] joins the pair,
+  /// otherwise declines (or withdraws after joining).
+  Future<void> partnerRespond({
+    required String actorId,
+    required String batonId,
+    required String inviterUserId,
+    required bool accept,
+  }) => _attention.runAction(
+    actorUserId: actorId,
+    action: (transaction) async {
+      final baton = await _lockedBaton(batonId);
+      if (baton.status != BatonStatus.collecting) {
+        throw const BatonNotCollectingException();
+      }
+      final candidates = await _repo.getCandidates(batonId);
+      final now = DateTime.timestamp();
+      final result = BatonPairPolicy.partnerRespond(
+        rows: candidates,
+        actorId: actorId,
+        inviterId: inviterUserId,
+        accept: accept,
+        now: now,
+      );
+      if (!await _canPair(baton, inviterUserId, actorId)) {
+        throw const BatonPartnerInvalidException();
+      }
+      await _apply(
+        transaction,
+        baton: baton,
+        actorId: actorId,
+        before: candidates,
+        result: result,
+        now: now,
+      );
+    },
+  );
+
+  Future<RoomBaton> _lockedBaton(String batonId) async {
+    final found = await _repo.getById(batonId);
+    if (found == null) {
+      throw const BatonNotFoundException();
+    }
+    await _postLock.lockForPostMutation(found.beaconId);
+    await _rejectIfRoomNotWritable(found.beaconId);
+    return (await _repo.getById(batonId))!;
+  }
+
+  /// [partnerId] is admitted to the room like candidates are, is not
+  /// [actorId], and neither has blocked the other.
+  Future<bool> _canPair(
+    RoomBaton baton,
+    String actorId,
+    String partnerId,
+  ) async =>
+      partnerId != actorId &&
+      (await _admittedIds(baton.beaconId)).contains(partnerId) &&
+      !await _repo.isPairBlocked(a: actorId, b: partnerId);
+
+  /// Writes the rows [result] changed, records its receipts, then runs the
+  /// shared all-answered rule: an unanswered candidate opens a new round;
+  /// the first time everyone has answered, the author is told once.
+  Future<void> _apply(
+    AttentionTransaction transaction, {
+    required RoomBaton baton,
+    required String actorId,
+    required List<RoomBatonCandidate> before,
+    required BatonPairResult result,
+    required DateTime now,
+  }) async {
+    final previous = {for (final row in before) row.userId: row};
+    for (final row in result.rows) {
+      if (!_sameAnswer(previous[row.userId], row)) {
+        await _repo.saveCandidate(row);
+      }
+    }
+    final message = await _room.getRoomMessageById(baton.messageId);
+    final body = message?.body.trim() ?? '';
+    if (result.receipts.isNotEmpty) {
+      final replyToId = message?.replyToMessageId;
+      final excerpt = body.isEmpty && replyToId != null
+          ? (await _room.getRoomMessageById(replyToId))?.body.trim() ?? ''
+          : body;
+      for (final receipt in result.receipts) {
+        await transaction.record(switch (receipt.kind) {
+          BatonPairReceiptKind.partnerAsked =>
+            await _attentionIntents.batonPartnerAsked(
+              beaconId: baton.beaconId,
+              messageId: baton.messageId,
+              actorUserId: receipt.fromUserId,
+              recipientId: receipt.recipientId,
+              excerpt: excerpt,
+              sourceEventKey: receipt.key,
+            ),
+          BatonPairReceiptKind.partnerAnswered =>
+            await _attentionIntents.batonPartnerAnswered(
+              beaconId: baton.beaconId,
+              messageId: baton.messageId,
+              actorUserId: receipt.fromUserId,
+              recipientId: receipt.recipientId,
+              excerpt: excerpt,
+              sourceEventKey: receipt.key,
+              accepted: receipt.accepted ?? false,
+            ),
+        });
+      }
+    }
+
+    if (await _repo.hasUnansweredCandidate(baton.id)) {
+      await _repo.clearAllAnsweredNotified(baton.id);
+      return;
+    }
+    final notifyAuthor = await _repo.markAllAnsweredNotifiedIfUnset(
+      batonId: baton.id,
+      at: now,
+    );
+    if (!notifyAuthor) {
+      return;
+    }
+    await transaction.record(
+      await _attentionIntents.batonAllAnswered(
+        beaconId: baton.beaconId,
+        messageId: baton.messageId,
+        actorUserId: actorId,
+        recipientId: baton.authorId,
+        excerpt: body,
+        // An edit that adds someone, or a partner who declines, opens a new
+        // answering round (the stamp is cleared), so the key is per round.
+        sourceEventKey:
+            'baton_all_answered:${baton.id}:${now.microsecondsSinceEpoch}',
+      ),
+    );
+  }
+
+  static bool _sameAnswer(RoomBatonCandidate? a, RoomBatonCandidate b) =>
+      a != null &&
+      a.response == b.response &&
+      a.respondedAt == b.respondedAt &&
+      a.partnerUserId == b.partnerUserId &&
+      a.partnerResponse == b.partnerResponse &&
+      a.partnerInvites == b.partnerInvites;
 
   Future<void> select({
     required String actorId,

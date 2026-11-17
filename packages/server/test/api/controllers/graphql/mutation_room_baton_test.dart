@@ -132,6 +132,7 @@ final class _RecordingBatonCase extends Fake implements RoomBatonCase {
     required String actorId,
     required String batonId,
     required bool canHelp,
+    String? partnerUserId,
   }) async {
     respondCalls.add((actorId: actorId, batonId: batonId, canHelp: canHelp));
     if (failWith case final Exception e) throw e;

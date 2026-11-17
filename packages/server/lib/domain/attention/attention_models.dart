@@ -467,6 +467,10 @@ abstract class AttentionRecipientRoleFacts with _$AttentionRecipientRoleFacts {
     DateTime? expiresAt,
     int? relativeMinutes,
     bool? isBackupOffer,
+
+    /// «Take it on together» (`batonPartnerAnswered`): whether the named
+    /// person joined (`true`) or declined / withdrew (`false`).
+    bool? accepted,
   }) = _AttentionRecipientRoleFacts;
 }
 

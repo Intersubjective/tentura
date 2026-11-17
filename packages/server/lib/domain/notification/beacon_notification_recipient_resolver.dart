@@ -204,6 +204,8 @@ class BeaconNotificationRecipientResolver {
       case NotificationKind.batonAsked:
       case NotificationKind.batonTaken:
       case NotificationKind.batonAllAnswered:
+      case NotificationKind.batonPartnerAsked:
+      case NotificationKind.batonPartnerAnswered:
       case NotificationKind.authorInviteReceived:
       case NotificationKind.authorInviteAccepted:
       case NotificationKind.authorInviteDeclined:

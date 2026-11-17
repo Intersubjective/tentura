@@ -523,6 +523,7 @@ WHERE target.job_id IS NULL''',
     'withdrawReason': role.withdrawReason,
     'leftDiscussion': role.leftDiscussion,
     'nextStepMentionsActor': role.nextStepMentionsActor,
+    'accepted': ?role.accepted,
     if (role.forwardHelped case final helped?)
       'forwardHelped': helped.toPayload(),
   };

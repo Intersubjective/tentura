@@ -53,6 +53,8 @@ NotificationCategory categoryOf(
   NotificationKind.batonAsked ||
   NotificationKind.batonTaken ||
   NotificationKind.batonAllAnswered ||
+  NotificationKind.batonPartnerAsked ||
+  NotificationKind.batonPartnerAnswered ||
   NotificationKind.authorInviteReceived ||
   NotificationKind.authorInviteAccepted ||
   NotificationKind.authorInviteDeclined => NotificationCategory.coordination,

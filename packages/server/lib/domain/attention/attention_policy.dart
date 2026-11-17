@@ -804,6 +804,9 @@ class AttentionPolicy {
     if (role.isBackupOffer != null) {
       payload['isBackupOffer'] = role.isBackupOffer;
     }
+    if (role.accepted != null) {
+      payload['accepted'] = role.accepted;
+    }
     if (role.leftDiscussion != null) {
       payload['leftDiscussion'] = role.leftDiscussion;
     }

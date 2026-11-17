@@ -27,8 +27,21 @@ abstract interface class RoomBatonRepositoryPort {
     required DateTime respondedAt,
   });
 
-  /// Whether any candidate on [batonId] is still [BatonResponse.waiting].
-  Future<bool> hasWaitingCandidate(String batonId);
+  /// Writes [candidate]'s answer and partner fields (§2.3 columns).
+  /// `partner_responded_at` is stamped when the partner's answer changes.
+  Future<void> saveCandidate(RoomBatonCandidate candidate);
+
+  /// `block_hides`: either of [a] and [b] blocked the other.
+  Future<bool> isPairBlocked({required String a, required String b});
+
+  /// Opens a new answering round: the author is told again once everyone
+  /// has answered.
+  Future<void> clearAllAnsweredNotified(String batonId);
+
+  /// Whether any candidate on [batonId] has not answered: still
+  /// [BatonResponse.waiting], or `can_help` with a partner who has not
+  /// answered yet.
+  Future<bool> hasUnansweredCandidate(String batonId);
 
   /// Sets `all_answered_notified_at` if it is still null. Returns `true` the
   /// first time (the caller should dispatch the `batonAllAnswered` receipt),

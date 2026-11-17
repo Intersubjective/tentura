@@ -36,6 +36,10 @@ enum NotificationKind {
   batonTaken,
   batonAllAnswered,
 
+  /// «Take it on together» (`docs/plans/baton-together-plan.md` §2.6).
+  batonPartnerAsked,
+  batonPartnerAnswered,
+
   /// Post→Request budding (plan C2): an author invitation and its answers.
   authorInviteReceived,
   authorInviteAccepted,

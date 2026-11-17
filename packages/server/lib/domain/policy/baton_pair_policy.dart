@@ -8,12 +8,17 @@ class BatonPairReceipt {
   const BatonPairReceipt({
     required this.kind,
     required this.recipientId,
+    required this.fromUserId,
     required this.key,
     this.accepted,
   });
 
   final BatonPairReceiptKind kind;
   final String recipientId;
+
+  /// Who the receipt is from: the asker of [BatonPairReceiptKind.partnerAsked],
+  /// the person who answered for [BatonPairReceiptKind.partnerAnswered].
+  final String fromUserId;
   final String key;
 
   /// Set for [BatonPairReceiptKind.partnerAnswered] only.
@@ -137,6 +142,7 @@ abstract final class BatonPairPolicy {
         BatonPairReceipt(
           kind: BatonPairReceiptKind.partnerAsked,
           recipientId: partnerUserId,
+          fromUserId: actorId,
           key: 'baton_partner_asked:${actor.batonId}:$actorId:$partnerUserId',
         ),
       );
@@ -332,6 +338,7 @@ abstract final class BatonPairPolicy {
   }) => BatonPairReceipt(
     kind: BatonPairReceiptKind.partnerAnswered,
     recipientId: inviterId,
+    fromUserId: answererId,
     key:
         'baton_partner_answered:$batonId:$inviterId:$answererId:'
         '${now.microsecondsSinceEpoch}',

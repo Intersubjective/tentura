@@ -47,6 +47,13 @@ class RoomBatonRepository implements RoomBatonRepositoryPort {
     tier: row.read<int>('tier'),
     response: BatonResponse.fromSmallint(row.read<int>('response')),
     respondedAt: _readTimestamp(row, 'responded_at'),
+    partnerUserId: row.readNullable<String>('partner_user_id'),
+    partnerResponse: switch (row.readNullable<int>('partner_response')) {
+      final int v => BatonPartnerResponse.fromSmallint(v),
+      null => null,
+    },
+    partnerRespondedAt: _readTimestamp(row, 'partner_responded_at'),
+    partnerInvites: row.read<int>('partner_invites'),
   );
 
   @override
@@ -184,12 +191,63 @@ UPDATE public.beacon_room_baton_candidate
   );
 
   @override
-  Future<bool> hasWaitingCandidate(String batonId) async {
+  Future<void> saveCandidate(RoomBatonCandidate candidate) =>
+      _database.customUpdate(
+        r'''
+UPDATE public.beacon_room_baton_candidate
+   SET response = $3,
+       responded_at = $4::timestamptz,
+       partner_user_id = $5,
+       partner_response = $6::smallint,
+       partner_invites = $7,
+       partner_responded_at = CASE
+         WHEN $6::smallint IS NULL OR $6::smallint = 0 THEN NULL
+         WHEN partner_response IS DISTINCT FROM $6::smallint THEN now()
+         ELSE partner_responded_at
+       END
+ WHERE baton_id = $1 AND user_id = $2
+''',
+        variables: [
+          Variable<String>(candidate.batonId),
+          Variable<String>(candidate.userId),
+          Variable<int>(candidate.response.smallintValue),
+          Variable<String>(candidate.respondedAt?.toUtc().toIso8601String()),
+          Variable<String>(candidate.partnerUserId),
+          Variable<int>(candidate.partnerResponse?.smallintValue),
+          Variable<int>(candidate.partnerInvites),
+        ],
+      );
+
+  @override
+  Future<bool> isPairBlocked({required String a, required String b}) async {
+    final row = await _database
+        .customSelect(
+          r'SELECT public.block_hides($1, $2) AS hidden',
+          variables: [Variable<String>(a), Variable<String>(b)],
+        )
+        .getSingle();
+    return row.read<bool>('hidden');
+  }
+
+  @override
+  Future<void> clearAllAnsweredNotified(String batonId) =>
+      _database.customUpdate(
+        r'''
+UPDATE public.beacon_room_baton
+   SET all_answered_notified_at = NULL
+ WHERE id = $1 AND all_answered_notified_at IS NOT NULL
+''',
+        variables: [Variable<String>(batonId)],
+      );
+
+  @override
+  Future<bool> hasUnansweredCandidate(String batonId) async {
     final row = await _database
         .customSelect(
           r'''
 SELECT count(*)::int AS waiting FROM public.beacon_room_baton_candidate
- WHERE baton_id = $1 AND response = 0
+ WHERE baton_id = $1
+   AND (response = 0 OR partner_response IS NOT DISTINCT FROM 0)
 ''',
           variables: [Variable<String>(batonId)],
         )

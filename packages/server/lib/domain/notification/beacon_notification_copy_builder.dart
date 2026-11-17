@@ -411,6 +411,18 @@ class BeaconNotificationCopyBuilder {
             ? 'Все ответили на ваше «Кто возьмётся?»'
             : "Everyone answered your «Who'll take it?»",
       ),
+      NotificationKind.batonPartnerAsked => (
+        ru ? 'Взяться вместе?' : 'Take it on together?',
+        ru
+            ? '$actor предлагает взяться вместе'
+            : '$actor wants to take it on together with you',
+      ),
+      NotificationKind.batonPartnerAnswered => (
+        ru ? 'Взяться вместе' : 'Take it on together',
+        ru
+            ? '$actor ответил(а) на ваше предложение'
+            : '$actor answered your invitation',
+      ),
       NotificationKind.authorInviteReceived => (
         actor,
         excerpt.isNotEmpty
@@ -691,7 +703,9 @@ class BeaconNotificationCopyBuilder {
       NotificationKind.commitmentRedirected ||
       NotificationKind.batonAsked ||
       NotificationKind.batonTaken ||
-      NotificationKind.batonAllAnswered => roomUrl,
+      NotificationKind.batonAllAnswered ||
+      NotificationKind.batonPartnerAsked ||
+      NotificationKind.batonPartnerAnswered => roomUrl,
       NotificationKind.deadlineChanged ||
       NotificationKind.deadlineReminder ||
       NotificationKind.postExpiringSoon => genericUrl,

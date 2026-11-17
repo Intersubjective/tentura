@@ -675,6 +675,58 @@ class AttentionIntentCase {
     reason: AttentionRecipientReason.batonTaker,
   );
 
+  /// «Take it on together» (`docs/plans/baton-together-plan.md` §2.6):
+  /// [actorUserId] asks [recipientId] to take the baton on with them.
+  Future<AttentionDispatchIntent> batonPartnerAsked({
+    required String beaconId,
+    required String messageId,
+    required String actorUserId,
+    required String recipientId,
+    required String excerpt,
+    required String sourceEventKey,
+  }) => _directedRoomMessage(
+    beaconId: beaconId,
+    messageId: messageId,
+    actorUserId: actorUserId,
+    recipientUserIds: {recipientId},
+    excerpt: excerpt,
+    sourceEventKey: sourceEventKey,
+    kind: NotificationKind.batonPartnerAsked,
+    emptyTitle: 'Take it on together?',
+    emptyBody: 'wants to take it on together with you',
+    bodyPrefixedWithActor: true,
+    eventType: AttentionEventType.batonPartnerAsked,
+    reason: AttentionRecipientReason.batonPartner,
+  );
+
+  /// The inviter ([recipientId]) hears whether [actorUserId] joined
+  /// ([accepted]) or declined / withdrew.
+  Future<AttentionDispatchIntent> batonPartnerAnswered({
+    required String beaconId,
+    required String messageId,
+    required String actorUserId,
+    required String recipientId,
+    required String excerpt,
+    required String sourceEventKey,
+    required bool accepted,
+  }) => _directedRoomMessage(
+    beaconId: beaconId,
+    messageId: messageId,
+    actorUserId: actorUserId,
+    recipientUserIds: {recipientId},
+    excerpt: excerpt,
+    sourceEventKey: sourceEventKey,
+    kind: NotificationKind.batonPartnerAnswered,
+    emptyTitle: accepted ? 'Together' : "Can't join",
+    emptyBody: accepted
+        ? 'will take it on with you'
+        : "can't join you. Answer again",
+    bodyPrefixedWithActor: true,
+    eventType: AttentionEventType.batonPartnerAnswered,
+    reason: AttentionRecipientReason.batonCandidate,
+    accepted: accepted,
+  );
+
   /// The author ([recipientId]) is told everyone answered their baton.
   /// Dispatched once per baton (guarded by `all_answered_notified_at`, B4).
   Future<AttentionDispatchIntent> batonAllAnswered({
@@ -994,6 +1046,7 @@ class AttentionIntentCase {
     AttentionEventType eventType = AttentionEventType.roomMessagePosted,
     AttentionRecipientReason reason =
         AttentionRecipientReason.directedChatTarget,
+    bool? accepted,
   }) async {
     final actor = await _users.getById(actorUserId);
     final actorName = actor.displayName.trim();
@@ -1031,6 +1084,7 @@ class AttentionIntentCase {
                     eventType == AttentionEventType.batonPartnerAnswered
                 ? excerpt
                 : null,
+            accepted: accepted,
           ),
         ),
       );
@@ -1380,8 +1434,7 @@ class AttentionIntentCase {
                   ? null
                   : notification.beaconTitle.trim(),
               excerpt: copy.excerpt,
-              isBackupOffer:
-                  eventType == AttentionEventType.helpOfferSubmitted
+              isBackupOffer: eventType == AttentionEventType.helpOfferSubmitted
                   ? notification.isBackupOffer
                   : null,
             ),
