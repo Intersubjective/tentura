@@ -660,6 +660,7 @@ class AttentionIntentCase {
     required String recipientId,
     required String excerpt,
     required String sourceEventKey,
+    String? withUserId,
   }) => _directedRoomMessage(
     beaconId: beaconId,
     messageId: messageId,
@@ -673,6 +674,7 @@ class AttentionIntentCase {
     titleIsActorName: false,
     eventType: AttentionEventType.batonTaken,
     reason: AttentionRecipientReason.batonTaker,
+    withUserId: withUserId,
   );
 
   /// «Take it on together» (`docs/plans/baton-together-plan.md` §2.6):
@@ -1047,6 +1049,7 @@ class AttentionIntentCase {
     AttentionRecipientReason reason =
         AttentionRecipientReason.directedChatTarget,
     bool? accepted,
+    String? withUserId,
   }) async {
     final actor = await _users.getById(actorUserId);
     final actorName = actor.displayName.trim();
@@ -1085,6 +1088,7 @@ class AttentionIntentCase {
                 ? excerpt
                 : null,
             accepted: accepted,
+            withUserId: withUserId,
           ),
         ),
       );

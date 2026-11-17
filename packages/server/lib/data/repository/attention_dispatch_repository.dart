@@ -524,6 +524,7 @@ WHERE target.job_id IS NULL''',
     'leftDiscussion': role.leftDiscussion,
     'nextStepMentionsActor': role.nextStepMentionsActor,
     'accepted': ?role.accepted,
+    'withUserId': ?role.withUserId,
     if (role.forwardHelped case final helped?)
       'forwardHelped': helped.toPayload(),
   };

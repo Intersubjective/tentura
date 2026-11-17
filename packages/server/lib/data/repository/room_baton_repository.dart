@@ -32,6 +32,7 @@ class RoomBatonRepository implements RoomBatonRepositoryPort {
       authorId: row.read<String>('author_id'),
       status: BatonStatus.fromSmallint(row.read<int>('status')),
       takerId: row.readNullable<String>('taker_id'),
+      coTakerId: row.readNullable<String>('co_taker_id'),
       selectionMode: selectionMode == null
           ? null
           : BatonSelectionMode.fromSmallint(selectionMode),
@@ -283,10 +284,12 @@ RETURNING id
     required String takerId,
     required BatonSelectionMode mode,
     required DateTime resolvedAt,
+    String? coTakerId,
   }) => _database.customUpdate(
     r'''
 UPDATE public.beacon_room_baton
-   SET status = 1, taker_id = $2, selection_mode = $3, resolved_at = $4
+   SET status = 1, taker_id = $2, selection_mode = $3, resolved_at = $4,
+       co_taker_id = $5
  WHERE id = $1
 ''',
     variables: [
@@ -294,6 +297,7 @@ UPDATE public.beacon_room_baton
       Variable<String>(takerId),
       Variable<int>(mode.smallintValue),
       Variable(PgDateTime(resolvedAt), PgTypes.timestampWithTimezone),
+      Variable<String>(coTakerId),
     ],
   );
 

@@ -56,6 +56,7 @@ abstract interface class RoomBatonRepositoryPort {
     required String takerId,
     required BatonSelectionMode mode,
     required DateTime resolvedAt,
+    String? coTakerId,
   });
 
   Future<void> cancel({required String batonId, required DateTime resolvedAt});

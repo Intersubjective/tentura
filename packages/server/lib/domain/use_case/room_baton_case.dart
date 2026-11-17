@@ -361,16 +361,25 @@ class RoomBatonCase extends UseCaseBase {
 
       final candidates = await _repo.getCandidates(batonId);
       final admittedIds = await _admittedIds(baton.beaconId);
-      final present = candidates
-          .where((c) => admittedIds.contains(c.userId))
-          .toList(growable: false);
+      final present = <RoomBatonCandidate>[];
+      for (final c in candidates) {
+        final partnerId = c.partnerUserId;
+        if (!admittedIds.contains(c.userId) ||
+            (c.partnerResponse == BatonPartnerResponse.accepted &&
+                partnerId != null &&
+                !await _canPair(baton, c.userId, partnerId))) {
+          continue;
+        }
+        present.add(c);
+      }
       final taker = userId == null
           ? BatonSelectionPolicy.pick(present, random: _random)
           : BatonSelectionPolicy.pickManual(present, userId);
 
       await _repo.select(
         batonId: batonId,
-        takerId: taker.userId,
+        takerId: taker.takerId,
+        coTakerId: taker.coTakerId,
         mode: userId == null
             ? BatonSelectionMode.auto
             : BatonSelectionMode.manual,
@@ -384,20 +393,29 @@ class RoomBatonCase extends UseCaseBase {
         systemPayload: {
           'batonId': batonId,
           'sourceMessageId': baton.messageId,
-          'takerUserId': taker.userId,
+          'takerUserId': taker.takerId,
+          'coTakerUserId': ?taker.coTakerId,
         },
       );
       final message = await _room.getRoomMessageById(baton.messageId);
-      await transaction.record(
-        await _attentionIntents.batonTaken(
-          beaconId: baton.beaconId,
-          messageId: baton.messageId,
-          actorUserId: actorId,
-          recipientId: taker.userId,
-          excerpt: message?.body.trim() ?? '',
-          sourceEventKey: 'baton_taken:$batonId',
-        ),
-      );
+      final coTakerId = taker.coTakerId;
+      for (final (recipientId, withUserId, key) in [
+        (taker.takerId, coTakerId, 'baton_taken:$batonId'),
+        if (coTakerId != null)
+          (coTakerId, taker.takerId, 'baton_taken:$batonId:$coTakerId'),
+      ]) {
+        await transaction.record(
+          await _attentionIntents.batonTaken(
+            beaconId: baton.beaconId,
+            messageId: baton.messageId,
+            actorUserId: actorId,
+            recipientId: recipientId,
+            excerpt: message?.body.trim() ?? '',
+            sourceEventKey: key,
+            withUserId: withUserId,
+          ),
+        );
+      }
     },
   );
 

@@ -807,6 +807,9 @@ class AttentionPolicy {
     if (role.accepted != null) {
       payload['accepted'] = role.accepted;
     }
+    if (role.withUserId != null) {
+      payload['withUserId'] = role.withUserId;
+    }
     if (role.leftDiscussion != null) {
       payload['leftDiscussion'] = role.leftDiscussion;
     }

@@ -471,6 +471,10 @@ abstract class AttentionRecipientRoleFacts with _$AttentionRecipientRoleFacts {
     /// «Take it on together» (`batonPartnerAnswered`): whether the named
     /// person joined (`true`) or declined / withdrew (`false`).
     bool? accepted,
+
+    /// «Take it on together» (`batonTaken`): the other member of the taken
+    /// pair, shown to each of the two.
+    String? withUserId,
   }) = _AttentionRecipientRoleFacts;
 }
 
