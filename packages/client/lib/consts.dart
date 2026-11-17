@@ -270,7 +270,7 @@ const kPostBudInviteWarningAbove = 5;
 const kBatonEnabled = true;
 
 /// Enables the «Together with…» baton answer path (baton together plan C2–C6).
-const kBatonTogetherEnabled = false;
+const kBatonTogetherEnabled = true;
 
 /// Enables every client entry point of private people tags (#699, phase 1).
 const kPeopleTagsEnabled = true;

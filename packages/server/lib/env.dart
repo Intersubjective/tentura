@@ -103,8 +103,8 @@ Duration? _parseEnvDuration(String? raw) {
 /// Raised to 7.62.0 for the notification identity release (#1303: actor names
 /// and Request titles in notifications, `relatedBeaconTitle` on
 /// `AttentionReceipt`).
-/// Raised to 7.62.1 for baton-together Activity receipt copy (S3).
-const kDefaultMinClientVersion = '7.62.1';
+/// Raised to 7.63.0 for the released baton-together partner role and mutations.
+const kDefaultMinClientVersion = '7.63.0';
 
 class Env {
   Env({

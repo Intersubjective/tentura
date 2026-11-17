@@ -49,10 +49,10 @@ void main() {
   });
 
   group('together feature flag', () {
-    test('stays off until the ship unit flips it', () {
+    test('is on in the released client', () {
       final consts = File('lib/consts.dart').readAsStringSync();
       expect(consts, contains('kBatonTogetherEnabled'));
-      expect(consts, contains('kBatonTogetherEnabled = false'));
+      expect(consts, contains('kBatonTogetherEnabled = true'));
     });
   });
 

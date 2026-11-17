@@ -81,4 +81,18 @@ void main() {
       expect(example?.group(1), kDefaultMinClientVersion);
     });
   });
+
+  group('Minimum client version floor', () {
+    const previousRelease = '7.62.1';
+
+    test('shipped client version is strictly above the previous release', () {
+      expect(_compare(_pubspecVersion(), previousRelease), greaterThan(0));
+    });
+
+    test('floor equals the shipped client, so a client below it is refused',
+        () {
+      expect(kDefaultMinClientVersion, _pubspecVersion());
+      expect(_compare(previousRelease, kDefaultMinClientVersion), lessThan(0));
+    });
+  });
 }

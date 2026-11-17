@@ -97,14 +97,23 @@ Widget _cardHarness(
   bool? togetherEnabled,
 }) =>
     _localized(
-      RoomBatonCard(
-        baton: baton,
-        participants: _roomParticipants,
-        viewerUserId: _viewer.id,
-        batonAuthorUserId: _batonAuthor.id,
-        togetherEnabled: togetherEnabled ?? !kBatonTogetherEnabled,
-        onRespond: onRespond,
-      ),
+      // Omitting togetherEnabled exercises the released default.
+      togetherEnabled == null
+          ? RoomBatonCard(
+              baton: baton,
+              participants: _roomParticipants,
+              viewerUserId: _viewer.id,
+              batonAuthorUserId: _batonAuthor.id,
+              onRespond: onRespond,
+            )
+          : RoomBatonCard(
+              baton: baton,
+              participants: _roomParticipants,
+              viewerUserId: _viewer.id,
+              batonAuthorUserId: _batonAuthor.id,
+              togetherEnabled: togetherEnabled,
+              onRespond: onRespond,
+            ),
     );
 
 Future<void> _focusTogetherAction(WidgetTester tester) async {
@@ -156,15 +165,15 @@ void main() {
       );
     });
 
-    testWidgets('hides the together action while kBatonTogetherEnabled is false',
+    testWidgets('shows the together action when kBatonTogetherEnabled is true',
         (tester) async {
-      expect(kBatonTogetherEnabled, isFalse);
+      expect(kBatonTogetherEnabled, isTrue);
       await tester.pumpWidget(
         _cardHarness(_waiting, togetherEnabled: kBatonTogetherEnabled),
       );
       await tester.pumpAndSettle();
 
-      expect(find.text(_togetherAction), findsNothing);
+      expect(find.text(_togetherAction), findsOneWidget);
     });
 
     testWidgets('hides the together action once the baton is no longer collecting',

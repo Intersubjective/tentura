@@ -50,7 +50,6 @@ Widget _candidate(RoomBatonCandidateData b) => RoomBatonCard(
   participants: [_p('me', 'Я'), _p('x', _long), _p('author', 'Автор')],
   viewerUserId: 'me',
   batonAuthorUserId: 'author',
-  togetherEnabled: true,
   onRespond: (_, {partnerUserId}) {},
   onPartnerRespond: (_, {required accept}) {},
 );
