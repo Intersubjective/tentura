@@ -103,7 +103,11 @@ class _SettlingAttention extends StubAttentionRepository {
 
   @override
   Future<int> settle({required String receiptId, required String kind}) async {
-    if (failIds.contains(receiptId)) throw StateError('refused $receiptId');
+    if (failIds.contains(receiptId)) {
+      // A refused attempt is still an attempt.
+      settleCalls.add(receiptId);
+      throw StateError('refused $receiptId');
+    }
     _live.removeWhere((r) => r.id == receiptId);
     _publish();
     return super.settle(receiptId: receiptId, kind: kind);
@@ -397,8 +401,121 @@ void main() {
 
     // Both receipts were attempted; the close did not succeed, so the sheet
     // (which pops only on a true result) is still there.
-    expect(attention.settleCalls, contains('r2'));
-    expect(_liveIds(cubit), contains('r1'));
+    expect(attention.settleCalls.where((i) => i == 'r2'), hasLength(1));
+    expect(attention.settleCalls.where((i) => i == 'r1'), hasLength(1));
+    expect(_liveIds(cubit), ['r1']);
+    expect(find.byType(SnackBar), findsOneWidget);
     expect(_sheetClose(), findsOneWidget);
+  });
+
+  testWidgets('a partial refusal on the inline row drops the dismissed '
+      'receipt, keeps the refused one and reports one error', (tester) async {
+    final (:attention, :cubit) = await _pumpDesk(
+      tester,
+      live: [_r2(), _r1()],
+      offerActive: false,
+    );
+    attention.failIds.add('r1');
+
+    await tester.tap(_rowClose('r2'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(SnackBar), findsOneWidget);
+    expect(_liveIds(cubit), ['r1']);
+    expect(_rowClose('r2'), findsNothing);
+    expect(_rowClose('r1'), findsOneWidget);
+  });
+
+  testWidgets('a partial refusal attempts every receipt and leaves only the '
+      'refused one in the row', (tester) async {
+    final (:attention, :cubit) = await _pumpDesk(
+      tester,
+      live: [_r2(), _r1()],
+      offerActive: false,
+    );
+    attention.failIds.add('r1');
+
+    await expectLater(
+      cubit.dismissObligation(_beaconId, ['r2', 'r1']),
+      throwsA(anything),
+    );
+
+    expect(attention.settleCalls.where((i) => i == 'r2'), hasLength(1));
+    expect(attention.settleCalls.where((i) => i == 'r1'), hasLength(1));
+    expect(_liveIds(cubit), ['r1']);
+  });
+
+  testWidgets('a refusal of the first receipt does not stop the remaining '
+      'receipt from being dismissed', (tester) async {
+    final (:attention, :cubit) = await _pumpDesk(
+      tester,
+      live: [_r2(), _r1()],
+      offerActive: false,
+    );
+    attention.failIds.add('r2');
+
+    await expectLater(
+      cubit.dismissObligation(_beaconId, ['r2', 'r1']),
+      throwsA(anything),
+    );
+
+    expect(attention.settleCalls, contains('r1'));
+    expect(_liveIds(cubit), ['r2']);
+  });
+
+  testWidgets('the next attention read after a partial refusal changes '
+      'nothing in the row', (tester) async {
+    final (:attention, :cubit) = await _pumpDesk(
+      tester,
+      live: [_r2(), _r1()],
+      offerActive: false,
+    );
+    attention.failIds.add('r1');
+    await expectLater(
+      cubit.dismissObligation(_beaconId, ['r2', 'r1']),
+      throwsA(anything),
+    );
+    final before = _liveIds(cubit);
+
+    await cubit.fetch(showLoading: false);
+
+    expect(before, ['r1']);
+    expect(_liveIds(cubit), ['r1']);
+  });
+
+  testWidgets('several refusals in one close give one error and keep the '
+      'refused receipts in order', (tester) async {
+    final r0 = _offer('r0', 'offerer-1', DateTime.utc(2026, 8));
+    final (:attention, :cubit) = await _pumpDesk(
+      tester,
+      live: [_r2(), _r1(), r0],
+      offerActive: false,
+    );
+    attention.failIds.addAll({'r1', 'r0'});
+
+    await tester.tap(_rowClose('r2'));
+    await tester.pumpAndSettle();
+
+    expect(attention.settleCalls.toSet(), {'r2', 'r1', 'r0'});
+    expect(find.byType(SnackBar), findsOneWidget);
+    expect(_liveIds(cubit), ['r1', 'r0']);
+  });
+
+  testWidgets('when every receipt is refused the row is unchanged and one '
+      'error is shown', (tester) async {
+    final (:attention, :cubit) = await _pumpDesk(
+      tester,
+      live: [_r2(), _r1()],
+      offerActive: false,
+    );
+    attention.failIds.addAll({'r2', 'r1'});
+
+    await tester.tap(_rowClose('r2'));
+    await tester.pumpAndSettle();
+
+    expect(attention.settleCalls.where((i) => i == 'r2'), hasLength(1));
+    expect(attention.settleCalls.where((i) => i == 'r1'), hasLength(1));
+    expect(find.byType(SnackBar), findsOneWidget);
+    expect(_liveIds(cubit), ['r2', 'r1']);
   });
 }

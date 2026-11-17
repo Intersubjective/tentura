@@ -565,19 +565,29 @@ class MyWorkCubit extends Cubit<MyWorkState> {
   /// Closes the card of a help-offer obligation that cannot be answered any
   /// more. The server settles each of [receiptIds] (every live receipt of the
   /// helper), and the row leaves in one update; the card then adopts its answer.
-  /// A refusal leaves the obligation where it is and rethrows for the caller
-  /// to say why.
+  /// Every receipt is attempted; the dismissed ones leave the row even when
+  /// another is refused, and the first refusal is rethrown after the row is
+  /// updated, for the caller to say why.
   Future<void> dismissObligation(
     String beaconId,
     Iterable<String> receiptIds,
   ) async {
     final ids = receiptIds.where((id) => id.isNotEmpty).toSet();
     if (beaconId.isEmpty || ids.isEmpty) return;
+    final settled = <String>{};
+    Object? refusal;
+    StackTrace? refusalTrace;
     for (final id in ids) {
-      await _myWorkCase.dismissObligation(id);
+      try {
+        await _myWorkCase.dismissObligation(id);
+        settled.add(id);
+      } catch (e, st) {
+        refusal ??= e;
+        refusalTrace ??= st;
+      }
     }
     if (isClosed) return;
-    // Settled: the row goes now, whatever the re-read below manages to say.
+    // Settled: those rows go now, whatever the re-read below manages to say.
     final current = state.attentionByBeacon[beaconId];
     if (current != null) {
       emit(
@@ -587,7 +597,7 @@ class MyWorkCubit extends Cubit<MyWorkState> {
             beaconId: current.copyWith(
               liveObligations: [
                 for (final r in current.liveObligations)
-                  if (!ids.contains(r.id)) r,
+                  if (!settled.contains(r.id)) r,
               ],
             ),
           },
@@ -595,6 +605,9 @@ class MyWorkCubit extends Cubit<MyWorkState> {
       );
     }
     await _adoptServerAttention(beaconId, fallback: current);
+    if (refusal != null) {
+      Error.throwWithStackTrace(refusal, refusalTrace!);
+    }
   }
 
   /// «Готово» on a plan step row of a card (#220 §5.8). The step leaves the
