@@ -7,9 +7,11 @@ import 'app/platform/path_deep_link.dart';
 import 'app/sentry/install_web_script_error_filter.dart';
 import 'app/sentry/sentry_init.dart';
 import 'app/tentura_widgets_binding.dart';
+import 'features/constellation/ui/util/field_arranging_browser_back.dart';
 
 Future<void> main() async {
   adoptPathDeepLink();
+  installFieldArrangingBrowserBack();
   TenturaWidgetsBinding.ensureInitialized();
   if (kDebugMode) {
     await App.runner(debugErrors: true);

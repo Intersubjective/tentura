@@ -23,15 +23,19 @@ class FieldArrangingBrowserBackSync {
 
   bool get sentinelPushed => _sentinelPushed;
 
-  void onPopState() {
+  /// Returns whether this pop only exits the local editing mode, so the
+  /// browser adapter can keep it from reaching the application router.
+  bool onPopState() {
     if (_suppressNextPop) {
       _suppressNextPop = false;
-      return;
+      return true;
     }
     if (_sentinelPushed) {
       _sentinelPushed = false;
       _onPop?.call();
+      return true;
     }
+    return false;
   }
 
   void onExitForNavigation() {

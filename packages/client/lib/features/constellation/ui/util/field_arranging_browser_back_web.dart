@@ -21,10 +21,14 @@ final _sync = FieldArrangingBrowserBackSync(
 var _listenerAttached = false;
 
 void _onPopState(web.Event event) {
-  _sync.onPopState();
+  if (_sync.onPopState()) {
+    event.stopImmediatePropagation();
+  }
 }
 
-void _ensureListener() {
+/// Register before Flutter's router history listener. Window popstate
+/// listeners run in registration order, including at-target capture listeners.
+void installFieldArrangingBrowserBack() {
   if (_listenerAttached) return;
   web.window.addEventListener('popstate', _onPopState.toJS);
   _listenerAttached = true;
@@ -41,7 +45,7 @@ void syncFieldArrangingBrowserBackSentinel({
   required void Function() onPopWhileArranging,
 }) {
   if (arranging) {
-    _ensureListener();
+    installFieldArrangingBrowserBack();
   }
   _sync.sync(
     arranging: arranging,

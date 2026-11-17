@@ -8,6 +8,7 @@ import 'package:tentura/env.dart';
 import 'package:tentura_root/domain/constellation/constellation_anchor.dart';
 import 'package:tentura/features/constellation/domain/constellation_consts.dart';
 import 'package:tentura/features/constellation/domain/constellation_layout.dart';
+import 'package:tentura/features/constellation/domain/placement_overlay.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
@@ -93,6 +94,7 @@ final class _HarnessFieldRepository implements ConstellationRepositoryPort {
 
   final List<ConstellationField> fields;
   int fetchCount = 0;
+  final fetchProjections = <ConstellationProjection>[];
   Completer<void> fullGate = Completer<void>()..complete();
   Completer<void> anchorsGate = Completer<void>()..complete();
 
@@ -103,6 +105,7 @@ final class _HarnessFieldRepository implements ConstellationRepositoryPort {
     ConstellationProjection projection = ConstellationProjection.full,
   }) async {
     fetchCount++;
+    fetchProjections.add(projection);
     if (projection == ConstellationProjection.full) {
       if (!fullGate.isCompleted) {
         await fullGate.future;
@@ -255,6 +258,9 @@ Future<
     _HarnessAnchorRepository anchorRepo,
     TestRealtimeSyncPort port,
     ConstellationAnchorCase anchorCase,
+    ConstellationPlacementCase placement,
+    FakeClockPort clock,
+    FakeWakeUpPort wakeUp,
   })
 >
 _harness({
@@ -281,18 +287,21 @@ _harness({
     accountId: 'ego',
     realtime: sync.case_,
   ).store;
+  final clock = FakeClockPort();
+  final wakeUp = FakeWakeUpPort();
+  final placement = ConstellationPlacementCase(
+    anchorRepo,
+    store,
+    clock,
+    wakeUp,
+    realtime: sync.case_,
+    env: const Env.fromEnvironment(),
+    logger: Logger('ConstellationAnchorCubitTest'),
+  );
   final cubit = ConstellationCubit(
     case_: store,
     anchorCase: anchorCase,
-    placementCase: ConstellationPlacementCase(
-      anchorRepo,
-      store,
-      FakeClockPort(),
-      FakeWakeUpPort(),
-      realtime: sync.case_,
-      env: const Env.fromEnvironment(),
-      logger: Logger('ConstellationAnchorCubitTest'),
-    ),
+    placementCase: placement,
     viewer: _ego,
     forwardCase: buildTestForwardCase(_FakeForwardRepository()),
     loadOnCreate: false,
@@ -306,10 +315,222 @@ _harness({
     anchorRepo: anchorRepo,
     port: sync.port,
     anchorCase: anchorCase,
+    placement: placement,
+    clock: clock,
+    wakeUp: wakeUp,
   );
 }
 
 void main() {
+  group('Saving a moved Field node in place', () {
+    const drop = Offset(6784, 6624);
+    final target = ConstellationAnchorTarget.person('p1');
+
+    for (final echo in [false, true]) {
+      test(
+        echo
+            ? 'own realtime echo keeps the saved anchor without fetching a FULL Field'
+            : 'successful drop preserves Field selection and filters throughout acknowledgement',
+        () async {
+          final harness = await _harness();
+          final cubit = harness.cubit;
+          addTearDown(cubit.close);
+          addTearDown(harness.placement.dispose);
+          await cubit.setShowClosed(true);
+          cubit
+            ..setFilterCapabilitySlugs({'x'})
+            ..selectPerson('p1');
+          final before = cubit.state;
+          expect(before.status, isA<StateIsSuccess>());
+          expect(before.field, isNotNull);
+          expect(before.selectedPersonId, 'p1');
+          expect(before.filterCapabilitySlugs, {'x'});
+          expect(before.membershipFilters.showClosed, isTrue);
+          final fullFetches = harness.fieldRepo.fetchProjections
+              .where((p) => p == ConstellationProjection.full)
+              .length;
+          final totalFetches = harness.fieldRepo.fetchCount;
+          // The fake server's ack must continue the loaded revision, just as
+          // the real server does, so an own echo is already covered.
+          harness.anchorRepo._applyRevision =
+              before.confirmedProjection!.revision.value;
+          harness.anchorRepo.upsertGate = Completer<void>();
+          final emissions = <ConstellationState>[];
+          final subscription = cubit.stream.listen(emissions.add);
+          addTearDown(subscription.cancel);
+
+          void expectFieldPreserved() {
+            expect(
+              emissions.where((s) => s.status is StateIsLoading),
+              isEmpty,
+              reason:
+                  'No loading emission is allowed from drop through acknowledgement and echo',
+            );
+            expect(
+              harness.fieldRepo.fetchProjections
+                  .where((p) => p == ConstellationProjection.full)
+                  .length,
+              fullFetches,
+            );
+            expect(harness.fieldRepo.fetchCount, totalFetches);
+            expect(cubit.state.loadGeneration, before.loadGeneration);
+            for (final state in emissions) {
+              expect(state.status, isA<StateIsSuccess>());
+              expect(state.field, isNotNull);
+              expect(
+                state.field!.copyWith(anchorProjection: null),
+                before.field!.copyWith(anchorProjection: null),
+              );
+              expect(state.selectedPersonId, before.selectedPersonId);
+              expect(state.selectedRequestId, before.selectedRequestId);
+              expect(state.filters, before.filters);
+              expect(state.membershipFilters, before.membershipFilters);
+            }
+          }
+
+          cubit
+            ..beginDragExisting(target: target)
+            ..updateDragPresentation(nodeId: 'fp:p1', sceneCentre: drop);
+          await cubit.onExistingNodeDrop(target: target, sceneCentre: drop);
+          await pumpEventQueue();
+          expect(harness.anchorRepo.upsertCount, 1);
+          expect(harness.placement.current.targets, isNotEmpty);
+          expect(emissions, isNotEmpty);
+          expectFieldPreserved();
+
+          harness.anchorRepo.upsertGate.complete();
+          await pumpEventQueue();
+          expect(harness.placement.current.targets, isEmpty);
+          expect(cubit.isAnchored(target), isTrue);
+          final expected = constellationPointToV1Anchor((
+            x: drop.dx,
+            y: drop.dy,
+          ));
+          expect(
+            cubit.state.composition!.anchorOverlay.anchors
+                .singleWhere((a) => a.target == target)
+                .position,
+            expected,
+          );
+          expect(
+            cubit.state.confirmedProjection!.anchors
+                .singleWhere((a) => a.target == target)
+                .position,
+            expected,
+          );
+          expectFieldPreserved();
+          if (echo) {
+            harness.port.emitChange(
+              RealtimeEntityChange(
+                kind: RealtimeEntityKind.constellationAnchor,
+                aggregateId: 'ego',
+                operation: RealtimeOperation.update,
+                source: RealtimeChangeSource.serverInvalidation,
+                revision: cubit.state.confirmedProjection!.revision.value,
+              ),
+            );
+            await pumpEventQueue();
+            expectFieldPreserved();
+            expect(
+              cubit.state.composition!.anchorOverlay.anchors
+                  .singleWhere((a) => a.target == target)
+                  .position,
+              expected,
+            );
+          }
+        },
+      );
+    }
+
+    test(
+      'failed upsert keeps the dropped arrangement and reports the unsaved target after retries',
+      () async {
+        final harness = await _harness(
+          fields: [
+            _field(
+              peers: const [
+                ConstellationPerson(id: 'p1'),
+                ConstellationPerson(id: 'p2'),
+              ],
+              anchors: [
+                _anchor(personId: 'p1', revision: BigInt.one),
+                _anchor(personId: 'p2', revision: BigInt.one, x: -2, y: -3),
+              ],
+            ),
+          ],
+        );
+        final cubit = harness.cubit;
+        addTearDown(cubit.close);
+        addTearDown(harness.placement.dispose);
+        cubit.selectPerson('p1');
+        final before = cubit.state;
+        final fullFetches = harness.fieldRepo.fetchProjections
+            .where((p) => p == ConstellationProjection.full)
+            .length;
+        final otherPosition = cubit.state.composition!.anchorOverlay.anchors
+            .singleWhere((a) => a.target.id == 'p2')
+            .position;
+        expect(otherPosition, isNotNull);
+        harness.anchorRepo.upsertError = StateError('server unavailable');
+        final emissions = <ConstellationState>[];
+        final subscription = cubit.stream.listen(emissions.add);
+        addTearDown(subscription.cancel);
+        cubit
+          ..beginDragExisting(target: target)
+          ..updateDragPresentation(nodeId: 'fp:p1', sceneCentre: drop);
+        await cubit.onExistingNodeDrop(target: target, sceneCentre: drop);
+        await pumpEventQueue();
+        // A transport failure is commit-unknown until automatic retries are
+        // exhausted. Advance the existing retry policy rather than demanding
+        // a terminal failure from the first transient error.
+        for (var retry = 0; retry < 2; retry++) {
+          harness.clock.advance(const Duration(seconds: 60));
+          harness.wakeUp.elapse(const Duration(seconds: 60));
+          await pumpEventQueue();
+        }
+        expect(harness.anchorRepo.upsertCount, 3);
+        expect(
+          placementCues(
+            harness.placement.current,
+            now: harness.clock.now(),
+          ).cues[target],
+          PlacementCue.notSaved,
+        );
+        expect(
+          harness.fieldRepo.fetchProjections
+              .where((p) => p == ConstellationProjection.full)
+              .length,
+          fullFetches,
+        );
+        expect(cubit.state.loadGeneration, before.loadGeneration);
+        expect(emissions, isNotEmpty);
+        expect(
+          emissions.where((s) => s.status is StateIsLoading),
+          isEmpty,
+          reason: 'Failed saves and their retries must never emit loading',
+        );
+        for (final state in emissions) {
+          expect(state.status, isA<StateIsSuccess>());
+          expect(state.field, same(before.field));
+          expect(state.selectedPersonId, 'p1');
+        }
+        expect(
+          cubit.state.composition!.anchorOverlay.anchors
+              .singleWhere((a) => a.target == target)
+              .position,
+          constellationPointToV1Anchor((x: drop.dx, y: drop.dy)),
+        );
+        expect(cubit.graphController.getPositionOrNullForId('fp:p1'), drop);
+        expect(
+          cubit.state.composition!.anchorOverlay.anchors
+              .singleWhere((a) => a.target.id == 'p2')
+              .position,
+          otherPosition,
+        );
+      },
+    );
+  });
+
   group('Composer person pin settlement', () {
     const dropCentre = Offset(6784, 6624);
     final target = ConstellationAnchorTarget.person('p1');
