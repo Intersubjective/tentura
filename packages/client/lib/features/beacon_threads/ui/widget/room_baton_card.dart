@@ -120,6 +120,7 @@ class RoomBatonCard extends StatelessWidget {
         batonAuthorUserId: batonAuthorUserId,
         togetherEnabled: togetherEnabled,
         onRespond: onRespond,
+        onPartnerRespond: onPartnerRespond,
       ),
       final RoomBatonObserverData observer => _StatusLine(
         status: observer.status,
@@ -286,37 +287,53 @@ class _PartnerBody extends StatelessWidget {
                   style: TenturaText.body(tt.text),
                 ),
                 SizedBox(height: tt.tightGap),
-                Wrap(
-                  spacing: tt.rowGap,
-                  runSpacing: tt.tightGap,
-                  children: [
-                    if (invite.status == 'accepted')
-                      OutlinedButton(
-                        onPressed: respond == null
-                            ? null
-                            : () => respond(invite.fromUserId, accept: false),
-                        child: Text(l10n.batonPartnerCantAfterAll),
-                      )
-                    else ...[
-                      FilledButton(
-                        onPressed: respond == null
-                            ? null
-                            : () => respond(invite.fromUserId, accept: true),
-                        child: Text(l10n.batonPartnerJoin),
-                      ),
-                      OutlinedButton(
-                        onPressed: respond == null
-                            ? null
-                            : () => respond(invite.fromUserId, accept: false),
-                        child: Text(l10n.batonPartnerCant),
-                      ),
-                    ],
-                  ],
-                ),
+                _PartnerInviteActions(invite: invite, onRespond: respond),
               ],
             ),
           ),
         Text(l10n.batonPartnerNote, style: mutedBody),
+      ],
+    );
+  }
+}
+
+/// Join / Can't (or «Can't after all» once joined) for one partner invite.
+class _PartnerInviteActions extends StatelessWidget {
+  const _PartnerInviteActions({required this.invite, this.onRespond});
+
+  final RoomBatonPartnerInvite invite;
+  final void Function(String inviterUserId, {required bool accept})? onRespond;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
+    final tt = context.tt;
+    final respond = onRespond;
+    return Wrap(
+      spacing: tt.rowGap,
+      runSpacing: tt.tightGap,
+      children: [
+        if (invite.status == 'accepted')
+          OutlinedButton(
+            onPressed: respond == null
+                ? null
+                : () => respond(invite.fromUserId, accept: false),
+            child: Text(l10n.batonPartnerCantAfterAll),
+          )
+        else ...[
+          FilledButton(
+            onPressed: respond == null
+                ? null
+                : () => respond(invite.fromUserId, accept: true),
+            child: Text(l10n.batonPartnerJoin),
+          ),
+          OutlinedButton(
+            onPressed: respond == null
+                ? null
+                : () => respond(invite.fromUserId, accept: false),
+            child: Text(l10n.batonPartnerCant),
+          ),
+        ],
       ],
     );
   }
@@ -493,6 +510,7 @@ class _CandidateBody extends StatelessWidget {
     this.viewerUserId,
     this.batonAuthorUserId,
     this.onRespond,
+    this.onPartnerRespond,
   });
 
   final RoomBatonCandidateData baton;
@@ -501,6 +519,8 @@ class _CandidateBody extends StatelessWidget {
   final String? batonAuthorUserId;
   final bool togetherEnabled;
   final void Function(bool canHelp, {String? partnerUserId})? onRespond;
+  final void Function(String inviterUserId, {required bool accept})?
+  onPartnerRespond;
 
   List<Profile> _togetherPickerPeople() {
     final viewer = viewerUserId;
@@ -641,6 +661,11 @@ class _CandidateBody extends StatelessWidget {
           Text(
             l10n.batonPartnerPrompt(invite.title),
             style: TenturaText.body(tt.text),
+          ),
+          SizedBox(height: tt.tightGap),
+          _PartnerInviteActions(
+            invite: invite,
+            onRespond: onPartnerRespond,
           ),
           SizedBox(height: tt.tightGap),
         ],
