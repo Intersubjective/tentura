@@ -8,6 +8,7 @@ import 'package:tentura/domain/attention/closed_request_attention.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/attention/request_attention_predicate.dart';
 import 'package:tentura/domain/attention/request_card_zones.dart';
+import 'package:tentura/domain/attention/attention_actor_ids.dart';
 import 'package:tentura/domain/contacts/contact_name_overlay.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
@@ -622,6 +623,15 @@ class RequestAttentionCard extends StatelessWidget {
 
   // ----------------------------------------------------------- change line
 
+  /// The partner a pair «took it» receipt names, when the card knows them.
+  String? _partnerName(String payload) {
+    final id = batonPartnerUserId(payload);
+    final partner = id == null ? null : actors[id];
+    return partner == null
+        ? null
+        : profileWithContactOverlay(partner).shownName;
+  }
+
   /// The newest general event as one line: glyph, text, age. Items churn
   /// reads as one «Пункты обновлены» whatever moved.
   String _changeText(L10n l10n, AttentionReceipt receipt) {
@@ -638,6 +648,7 @@ class RequestAttentionCard extends StatelessWidget {
       presentationPayloadJson: payload,
       requestTitle: beacon.title,
       actorName: name,
+      partnerName: _partnerName(payload),
       l10n: l10n,
     );
     return switch (whoDidWhatEventTypeOf(payload) ??

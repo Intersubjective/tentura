@@ -124,6 +124,7 @@ class RoomBatonCard extends StatelessWidget {
       final RoomBatonObserverData observer => _StatusLine(
         status: observer.status,
         taker: observer.taker,
+        coTaker: observer.coTaker,
         participants: participants,
       ),
       final RoomBatonAuthorData author => _AuthorBody(
@@ -184,10 +185,12 @@ class _StatusLine extends StatelessWidget {
     required this.status,
     required this.participants,
     this.taker,
+    this.coTaker,
   });
 
   final RoomBatonStatus status;
   final RoomBatonTaker? taker;
+  final RoomBatonTaker? coTaker;
   final List<BeaconParticipant> participants;
 
   @override
@@ -195,18 +198,23 @@ class _StatusLine extends StatelessWidget {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
     final taker = this.taker;
+    final coTaker = this.coTaker;
     if (status == RoomBatonStatus.taken && taker != null) {
       return Row(
         children: [
-          batonPersonAvatar(
-            userId: taker.id,
-            title: taker.title,
-            participants: participants,
-          ),
-          SizedBox(width: tt.avatarTextGap),
+          for (final person in [taker, ?coTaker]) ...[
+            batonPersonAvatar(
+              userId: person.id,
+              title: person.title,
+              participants: participants,
+            ),
+            SizedBox(width: tt.avatarTextGap),
+          ],
           Expanded(
             child: Text(
-              l10n.batonTookIt(taker.title),
+              coTaker == null
+                  ? l10n.batonTookIt(taker.title)
+                  : l10n.batonTookItPair(taker.title, coTaker.title),
               style: TenturaText.body(tt.text),
             ),
           ),
@@ -337,6 +345,7 @@ class _AuthorBody extends StatelessWidget {
       return _StatusLine(
         status: baton.status,
         taker: baton.taker,
+        coTaker: baton.coTaker,
         participants: participants,
       );
     }

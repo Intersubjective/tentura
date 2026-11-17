@@ -10437,6 +10437,21 @@
       }
     }
   },
+  "batonTookItPair": "{a} and {b} took it.",
+  "@batonTookItPair": {
+    "description": "Room system line and observer status naming the two people of a «together» pair who took the baton.",
+    "placeholders": {"a": {"type": "String"}, "b": {"type": "String"}}
+  },
+  "batonTookItPairAsk": "{a} and {b} took it: {ask}",
+  "@batonTookItPairAsk": {
+    "description": "Room system line for a pair taking the baton when the ask is not right above it.",
+    "placeholders": {"a": {"type": "String"}, "b": {"type": "String"}, "ask": {"type": "String"}}
+  },
+  "batonReceiptTakenTogether": "You and {name} took it: {excerpt}",
+  "@batonReceiptTakenTogether": {
+    "description": "Updates row when the viewer took the baton together with a partner.",
+    "placeholders": {"name": {"type": "String"}, "excerpt": {"type": "String"}}
+  },
   "declineRemainingOffersAction": "Decline remaining offers",
   "@declineRemainingOffersAction": {
     "description": "#268: author action on the People tab after «Enough help»: decline every offer still waiting for an answer."

@@ -10,6 +10,7 @@ import 'package:mockito/mockito.dart';
 import 'package:tentura/ui/navigation/app_navigator.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/attention/attention_actor_profiles_case.dart';
 import 'package:tentura/domain/attention/attention_case.dart';
 import 'package:tentura/domain/attention/destination_map.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
@@ -17,7 +18,9 @@ import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/attention/feed_session_registry.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';
+import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
+import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
 import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
 import 'package:tentura/features/inbox/ui/bloc/activity_offers_cubit.dart';
 import 'package:tentura/features/inbox/ui/bloc/inbox_cubit.dart';
@@ -188,6 +191,7 @@ class _Boot {
 Future<_Boot> _boot({
   required FakeInboxRepository inboxRepo,
   required _FeedAttentionRepo attentionRepo,
+  AttentionActorProfilesCase? actorProfiles,
 }) async {
   final accounts = _Accounts();
   final sync = buildTestRealtimeSync();
@@ -209,7 +213,7 @@ Future<_Boot> _boot({
     userId: 'viewer',
     inboxCase: inboxCase,
     attentionCase: attention,
-    actorProfiles: buildNoopAttentionActorProfiles(),
+    actorProfiles: actorProfiles ?? buildNoopAttentionActorProfiles(),
   );
   await offers.loadFirst();
   final stream = UpdatesFeedCubit(
@@ -218,7 +222,7 @@ Future<_Boot> _boot({
     setup: NoopInviteAcceptedSetupPort(),
     realtime: sync.case_,
     logger: Logger('activity-stream-test'),
-    actorProfiles: buildNoopAttentionActorProfiles(),
+    actorProfiles: actorProfiles ?? buildNoopAttentionActorProfiles(),
   );
   await attention.refresh();
   return _Boot(
@@ -396,9 +400,7 @@ void main() {
               );
               expect(
                 destination.path,
-                beaconKind == 1
-                    ? '$kPathPostView/B1'
-                    : '$kPathBeaconView/B1',
+                beaconKind == 1 ? '$kPathPostView/B1' : '$kPathBeaconView/B1',
               );
               expect(
                 destination.queryParameters[kQueryBeaconViewTab],
@@ -412,6 +414,257 @@ void main() {
       }
     }
   }
+
+  group('pair baton receipts', () {
+    const anna = Profile(id: 'u-anna', displayName: 'Anna');
+    const xenia = Profile(id: 'u-xenia', displayName: 'Xenia');
+
+    AttentionReceipt receiptOf(
+      String type,
+      int beaconKind, {
+      String actorId = 'u-anna',
+      Map<String, Object?> payload = const {},
+    }) => AttentionReceipt(
+      id: 'receipt-$type',
+      category: 'coordination',
+      kind: type,
+      priority: 'normal',
+      title: 'Server English title',
+      body: 'Carry the boxes',
+      actionUrl: '/beacon/view/B1?tab=threads&messageId=M1',
+      createdAt: DateTime.utc(2026, 10, 5, 12),
+      collapsedCount: 1,
+      presentationPayloadJson: jsonEncode({
+        'eventType': type,
+        // Partner invitations and answers reach one person directly.
+        'personal': type != 'batonTaken',
+        'excerpt': 'Carry the boxes',
+        // Extra payload fields must never become rendered names.
+        'candidates': [
+          {'userId': 'other-candidate', 'title': 'Private candidate'},
+        ],
+        ...payload,
+      }),
+      presentationKey: switch (type) {
+        'batonPartnerAsked' => 'baton_partner_asked',
+        'batonPartnerAnswered' => 'baton_partner_answered',
+        _ => 'baton_taken',
+      },
+      actorUserId: actorId,
+      beaconId: 'B1',
+      beaconKind: beaconKind,
+      destinationKind: 'beacon_room_message',
+      targetEntityId: 'M1',
+      surface: AttentionSurface.activity,
+    );
+
+    AttentionReceipt groupedOf(AttentionReceipt event) => event.copyWith(
+      id: 'group-B1',
+      itemKind: AttentionItemKind.requestActivity,
+      title: 'Request or Post title',
+      kind: 'roomActivityLowPriority',
+      presentationKey: null,
+      presentationPayloadJson: '{}',
+      destinationKind: 'beacon',
+      targetEntityId: 'B1',
+      eventsPreview: [event],
+      eventTotal: 1,
+      eventUnseenCount: 1,
+    );
+
+    // (name, receipt builder, EN headline, RU headline)
+    final cases = <(String, AttentionReceipt Function(int), String, String)>[
+      (
+        'partner asked',
+        (k) => receiptOf('batonPartnerAsked', k),
+        'Anna wants to take it on together with you',
+        'Anna предлагает взяться вместе',
+      ),
+      (
+        'partner answered accepted',
+        (k) => receiptOf(
+          'batonPartnerAnswered',
+          k,
+          actorId: 'u-xenia',
+          payload: {'accepted': true},
+        ),
+        'Xenia will take it on with you',
+        'Xenia возьмётся вместе с вами',
+      ),
+      (
+        'partner answered declined',
+        (k) => receiptOf(
+          'batonPartnerAnswered',
+          k,
+          actorId: 'u-xenia',
+          payload: {'accepted': false},
+        ),
+        "Xenia can't join you. Answer again",
+        'Xenia не сможет присоединиться. Ответьте ещё раз',
+      ),
+      (
+        'pair taken',
+        (k) => receiptOf(
+          'batonTaken',
+          k,
+          actorId: 'author',
+          payload: {'withUserId': 'u-xenia'},
+        ),
+        'You and Xenia took it: Carry the boxes',
+        'Вы и Xenia взялись: Carry the boxes',
+      ),
+    ];
+
+    Future<void> openFeed(
+      WidgetTester tester,
+      AttentionReceipt receipt,
+      String locale, {
+      List<Profile> known = const [anna, xenia],
+    }) async {
+      final profiles = AttentionActorProfilesCase(
+        _KnownProfiles(known),
+        _Accounts(),
+      );
+      addTearDown(profiles.dispose);
+      GetIt.I.registerSingleton<AttentionActorProfilesCase>(profiles);
+      final boot = await _boot(
+        inboxRepo: FakeInboxRepository(),
+        attentionRepo: _FeedAttentionRepo(firstPage: [receipt]),
+        actorProfiles: profiles,
+      );
+      addTearDown(boot.dispose);
+      await _pumpStreamView(
+        tester,
+        boot: boot,
+        locale: Locale(locale),
+        logicalSize: const Size(600, 1100),
+      );
+    }
+
+    for (final locale in ['en', 'ru']) {
+      for (final beaconKind in [0, 1]) {
+        for (final grouped in [false, true]) {
+          for (final (name, build, en, ru) in cases) {
+            testWidgets(
+              '$name $locale host=$beaconKind grouped=$grouped shows the '
+              'named line and opens the room at the baton message',
+              (tester) async {
+                final event = build(beaconKind);
+                await openFeed(
+                  tester,
+                  grouped ? groupedOf(event) : event,
+                  locale,
+                );
+                final expected = locale == 'ru' ? ru : en;
+                final copy = find.textContaining(expected, findRichText: true);
+                expect(copy, findsOneWidget);
+                // The «taken» line already quotes the ask in its headline, so
+                // there is no separate body to find; the other kinds show it
+                // as the body under the headline.
+                if (name != 'pair taken') {
+                  expect(
+                    find.textContaining('Carry the boxes'),
+                    findsOneWidget,
+                  );
+                }
+                expect(find.textContaining('Private candidate'), findsNothing);
+                expect(find.textContaining('other-candidate'), findsNothing);
+                expect(
+                  find.textContaining('Server English title'),
+                  findsNothing,
+                );
+                expect(tester.takeException(), isNull);
+
+                await tester.tap(copy);
+                await _pumpFrames(tester);
+                expect(navigator.named('openFromUpdate'), hasLength(1));
+                final destination = attentionDestination(
+                  navigator.openedReceipts.single,
+                );
+                expect(
+                  destination.path,
+                  beaconKind == 1 ? '$kPathPostView/B1' : '$kPathBeaconView/B1',
+                );
+                expect(
+                  destination.queryParameters[kQueryBeaconViewTab],
+                  kBeaconViewTabThreads,
+                );
+                expect(destination.queryParameters[kQueryMessageId], 'M1');
+                expect(tester.takeException(), isNull);
+              },
+            );
+          }
+        }
+      }
+    }
+
+    for (final locale in ['en', 'ru']) {
+      for (final grouped in [false, true]) {
+        testWidgets(
+          'taken without a partner id reads the solo line $locale '
+          'grouped=$grouped',
+          (tester) async {
+            final event = receiptOf('batonTaken', 0, actorId: 'author');
+            await openFeed(tester, grouped ? groupedOf(event) : event, locale);
+            expect(
+              find.textContaining(
+                locale == 'ru'
+                    ? 'Вы взялись: Carry the boxes'
+                    : 'You took it: Carry the boxes',
+                findRichText: true,
+              ),
+              findsOneWidget,
+            );
+            expect(find.textContaining('Xenia'), findsNothing);
+          },
+        );
+
+        testWidgets(
+          'taken with a partner the client cannot name reads the solo line '
+          '$locale grouped=$grouped',
+          (tester) async {
+            final event = receiptOf(
+              'batonTaken',
+              0,
+              actorId: 'author',
+              payload: {'withUserId': 'u-unknown'},
+            );
+            await openFeed(
+              tester,
+              grouped ? groupedOf(event) : event,
+              locale,
+              known: const [anna],
+            );
+            expect(
+              find.textContaining(
+                locale == 'ru'
+                    ? 'Вы взялись: Carry the boxes'
+                    : 'You took it: Carry the boxes',
+                findRichText: true,
+              ),
+              findsOneWidget,
+            );
+            expect(find.textContaining('u-unknown'), findsNothing);
+            expect(find.textContaining(' and '), findsNothing);
+            expect(find.textContaining(' и '), findsNothing);
+          },
+        );
+      }
+    }
+  });
+}
+
+/// Profiles the client already knows by id.
+final class _KnownProfiles extends Fake implements ProfileRepositoryPort {
+  _KnownProfiles(this._known);
+
+  final List<Profile> _known;
+
+  @override
+  Future<List<Profile>> fetchProfilesByIds(Set<String> ids) async => [
+    for (final p in _known)
+      if (ids.contains(p.id)) p,
+  ];
 }
 
 final class _Accounts implements AttentionAccountPort {

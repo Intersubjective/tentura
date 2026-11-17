@@ -114,6 +114,7 @@ class UpdatesFeedTile extends StatefulWidget {
     this.onDismiss,
     this.unreadView = false,
     this.viewerUserId,
+    this.partnerName,
     super.key,
   });
 
@@ -128,6 +129,9 @@ class UpdatesFeedTile extends StatefulWidget {
   /// When non-null, leading shows a tappable [TenturaAvatar.medium] instead of
   /// the type glyph. Must sit outside the row [InkWell].
   final Profile? actor;
+
+  /// Name of the partner a pair «took it» receipt names, when known.
+  final String? partnerName;
 
   /// #476: the row sits in the Activity list, beside tombstones and Request
   /// cards. It then reads their short card age («7m», #189) and ends in their
@@ -238,6 +242,7 @@ class _UpdatesFeedTileState extends State<UpdatesFeedTile> {
       postRootExcerpt: widget.receipt.postRootExcerpt,
       collapsedCount: widget.receipt.collapsedCount,
       viewerUserId: widget.viewerUserId,
+      partnerName: widget.partnerName,
       relatedBeaconTitle: widget.receipt.relatedBeaconTitle,
       postAuthorName: widget.receipt.beaconAuthorName,
     );

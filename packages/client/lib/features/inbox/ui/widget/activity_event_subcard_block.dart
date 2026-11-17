@@ -8,6 +8,7 @@ import 'package:tentura/domain/attention/attention_actor_ids.dart';
 import 'package:tentura/domain/attention/attention_actor_profiles_case.dart';
 import 'package:tentura/domain/attention/attention_case.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
+import 'package:tentura/domain/contacts/contact_name_overlay.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/inbox/ui/widget/attention_mini_card.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -271,6 +272,7 @@ class _ActivityEventSubcardBlockState extends State<ActivityEventSubcardBlock> {
     final card = AttentionMiniCard(
       receipt: receipt,
       actor: _actorFor(receipt),
+      partnerName: _partnerNameFor(receipt),
       quotedBody: widget.quotedBodyOf?.call(receipt),
       trailing: widget.trailingBuilder?.call(receipt),
       requestTitle: widget.requestTitle,
@@ -291,6 +293,14 @@ class _ActivityEventSubcardBlockState extends State<ActivityEventSubcardBlock> {
       mainAxisSize: MainAxisSize.min,
       children: [card, cta],
     );
+  }
+
+  String? _partnerNameFor(AttentionReceipt receipt) {
+    final id = batonPartnerUserId(receipt.presentationPayloadJson);
+    final partner = id == null ? null : _actors[id];
+    return partner == null
+        ? null
+        : profileWithContactOverlay(partner).shownName;
   }
 
   Profile? _actorFor(AttentionReceipt receipt) {

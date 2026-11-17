@@ -1,7 +1,15 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/attention/entity/attention_feed.dart';
+import 'package:tentura/domain/attention/entity/attention_receipt.dart';
+import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/features/inbox/ui/widget/activity_event_subcard_block.dart';
+import 'package:tentura/ui/bloc/screen_cubit.dart';
+import '../../ui/effect/fake_ui_effect_port.dart';
 
 import 'package:tentura/features/updates/updates_receipt_display_copy.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -117,8 +125,7 @@ const _expectedRu = {
   'baton_all_answered': 'Все ответили на ваше «Кто возьмётся?»',
   'baton_asked': 'Bob спрашивает, сможете ли вы помочь',
   'baton_partner_asked': 'Bob предлагает взяться вместе',
-  'baton_partner_answered':
-      'Bob не сможет присоединиться. Ответьте ещё раз',
+  'baton_partner_answered': 'Bob не сможет присоединиться. Ответьте ещё раз',
   'baton_taken': 'Вы взялись: Bring gloves',
   'beacon_hierarchy_status_changed': 'Статус связанного запроса изменился',
   'blocker_opened': 'Открыт блокер',
@@ -214,6 +221,74 @@ void main() {
       }
     });
 
+    test('${l10n.localeName}: an accepted partner answer reads as joining '
+        'the taker', () {
+      final copy = resolveUpdatesFeedRowCopy(
+        title: 'Bob',
+        body: '',
+        presentationKey: 'baton_partner_answered',
+        presentationPayloadJson: jsonEncode({
+          'eventType': 'batonPartnerAnswered',
+          'personal': true,
+          'accepted': true,
+          'excerpt': 'Bring gloves',
+        }),
+        l10n: l10n,
+      );
+      expect(
+        copy.headline,
+        l10n.localeName == 'ru'
+            ? 'Bob возьмётся вместе с вами'
+            : 'Bob will take it on with you',
+      );
+    });
+
+    test('${l10n.localeName}: a partner invitation names the inviter and '
+        'carries the ask', () {
+      final copy = resolveUpdatesFeedRowCopy(
+        title: 'Server title',
+        body: '',
+        presentationKey: 'baton_partner_asked',
+        presentationPayloadJson: jsonEncode({
+          'eventType': 'batonPartnerAsked',
+          'personal': true,
+          'excerpt': 'Bring gloves',
+        }),
+        l10n: l10n,
+        actorName: 'Bob',
+      );
+      expect(
+        copy.headline,
+        l10n.localeName == 'ru'
+            ? 'Bob предлагает взяться вместе'
+            : 'Bob wants to take it on together with you',
+      );
+      expect(copy.body, 'Bring gloves');
+    });
+
+    test('${l10n.localeName}: a declined partner answer asks to answer '
+        'again', () {
+      final copy = resolveUpdatesFeedRowCopy(
+        title: 'Server title',
+        body: '',
+        presentationKey: 'baton_partner_answered',
+        presentationPayloadJson: jsonEncode({
+          'eventType': 'batonPartnerAnswered',
+          'personal': true,
+          'accepted': false,
+          'excerpt': 'Bring gloves',
+        }),
+        l10n: l10n,
+        actorName: 'Bob',
+      );
+      expect(
+        copy.headline,
+        l10n.localeName == 'ru'
+            ? 'Bob не сможет присоединиться. Ответьте ещё раз'
+            : "Bob can't join you. Answer again",
+      );
+    });
+
     test('${l10n.localeName}: an unknown key reads as a generic event', () {
       final copy = resolveUpdatesFeedRowCopy(
         title: 'Bob',
@@ -243,4 +318,70 @@ void main() {
     expect(_expectedEn['relay_received'], 'Bob forwarded a request to you');
     expect(_expectedRu['relay_received'], 'Bob переслал(а) вам запрос');
   });
+
+  // The pair form of baton_taken names the partner, who is not in the
+  // receipt's text: the client resolves `withUserId` to a known profile.
+  for (final (locale, expected) in [
+    ('en', 'You and Xenia took it: Bring gloves'),
+    ('ru', 'Вы и Xenia взялись: Bring gloves'),
+  ]) {
+    testWidgets('$locale: a pair baton_taken headline names the partner and '
+        'the ask', (tester) async {
+      final receipt = AttentionReceipt(
+        id: 'r1',
+        category: 'coordination',
+        kind: 'batonTaken',
+        priority: 'normal',
+        title: 'Bob',
+        body: '',
+        actionUrl: '/#/',
+        createdAt: DateTime.utc(2026, 10, 5),
+        collapsedCount: 1,
+        presentationKey: 'baton_taken',
+        presentationPayloadJson: jsonEncode({
+          'eventType': 'batonTaken',
+          'personal': false,
+          'withUserId': 'u-xenia',
+          'excerpt': 'Bring gloves',
+        }),
+        actorUserId: 'u-bob',
+        beaconId: 'B1',
+        surface: AttentionSurface.activity,
+      );
+      await tester.binding.setSurfaceSize(const Size(600, 900));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.pumpWidget(
+        BlocProvider<ScreenCubit>.value(
+          value: ScreenCubit.local(FakeUiEffectPort()),
+          child: MaterialApp(
+            locale: Locale(locale),
+            theme: TenturaTheme.light(),
+            localizationsDelegates: L10n.localizationsDelegates,
+            supportedLocales: L10n.supportedLocales,
+            home: MediaQuery(
+              data: const MediaQueryData(size: Size(600, 900)),
+              child: TenturaResponsiveScope(
+                child: Scaffold(
+                  body: ActivityEventSubcardBlock(
+                    eventTotal: 1,
+                    eventsPreview: [receipt],
+                    actors: const {
+                      'u-bob': Profile(id: 'u-bob', displayName: 'Bob'),
+                      'u-xenia': Profile(id: 'u-xenia', displayName: 'Xenia'),
+                    },
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(
+        find.textContaining(expected, findRichText: true),
+        findsOneWidget,
+      );
+    });
+  }
 }

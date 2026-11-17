@@ -395,10 +395,12 @@ UpdatesFeedRowCopy? batonReceiptDisplayCopy({
   required String presentationPayloadJson,
   required L10n l10n,
   String? actorName,
+  String? partnerName,
 }) {
   final type = attentionEventTypeOf(presentationPayloadJson);
   final excerpt = excerptFromPresentationPayload(presentationPayloadJson) ?? '';
   final author = actorName?.trim();
+  final partner = partnerName?.trim();
   return switch (type ?? presentationKey) {
     'batonAsked' || 'baton_asked' => UpdatesFeedRowCopy(
       headline: l10n.batonReceiptAsked(
@@ -407,7 +409,9 @@ UpdatesFeedRowCopy? batonReceiptDisplayCopy({
       body: excerpt,
     ),
     'batonTaken' || 'baton_taken' => UpdatesFeedRowCopy(
-      headline: l10n.batonReceiptTaken(excerpt),
+      headline: partner != null && partner.isNotEmpty
+          ? l10n.batonReceiptTakenTogether(partner, excerpt)
+          : l10n.batonReceiptTaken(excerpt),
       body: '',
     ),
     'batonAllAnswered' || 'baton_all_answered' => UpdatesFeedRowCopy(
@@ -817,6 +821,7 @@ UpdatesFeedRowCopy resolveUpdatesFeedRowCopy({
   String? viewerUserId,
   String? relatedBeaconTitle,
   String? postAuthorName,
+  String? partnerName,
 }) {
   final shared = isPost
       ? _postRowCopy(
@@ -850,6 +855,7 @@ UpdatesFeedRowCopy resolveUpdatesFeedRowCopy({
     presentationPayloadJson: presentationPayloadJson,
     l10n: l10n,
     actorName: actorName,
+    partnerName: partnerName,
   );
   if (baton != null) return baton;
   final eventCopy =
@@ -1460,6 +1466,7 @@ RequestScopedEventCopy requestScopedEventCopy({
   String? actorName,
   String? viewerUserId,
   int collapsedCount = 1,
+  String? partnerName,
 }) {
   final forwardHelped = forwardHelpedReceiptDisplayCopy(
     receiptTitle: title,
@@ -1497,6 +1504,7 @@ RequestScopedEventCopy requestScopedEventCopy({
     presentationPayloadJson: presentationPayloadJson,
     l10n: l10n,
     actorName: actorName,
+    partnerName: partnerName,
   );
   if (baton != null) {
     return RequestScopedEventCopy(event: baton.headline, excerpt: baton.body);

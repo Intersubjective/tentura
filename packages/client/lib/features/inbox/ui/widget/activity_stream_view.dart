@@ -12,6 +12,8 @@ import 'package:tentura/domain/attention/for_you_stream_entries.dart';
 import 'package:tentura/domain/attention/request_card_room_attention.dart';
 import 'package:tentura/features/beacon_threads/data/repository/beacon_room_hints_repository.dart';
 import 'package:tentura/domain/entity/author_invite.dart';
+import 'package:tentura/domain/attention/attention_actor_ids.dart';
+import 'package:tentura/domain/contacts/contact_name_overlay.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/inbox/ui/bloc/inbox_cubit.dart';
 import 'package:tentura/features/updates/domain/entity/prompt_projection.dart';
@@ -1322,10 +1324,18 @@ class _ActivityStreamCell extends StatelessWidget {
     }
     final actorId = receipt.actorUserId?.trim() ?? '';
     final actor = actorId.isEmpty ? null : streamCubit.state.actors[actorId];
+    final partnerId = batonPartnerUserId(receipt.presentationPayloadJson);
+    final partner = partnerId == null
+        ? null
+        : streamCubit.state.actors[partnerId];
+    final partnerName = partner == null
+        ? null
+        : profileWithContactOverlay(partner).shownName;
     return UpdatesFeedTile(
       key: ValueKey(receipt.id),
       receipt: receipt,
       actor: actor,
+      partnerName: partnerName,
       onTap: () => unawaited(onOpenParent()),
       onMarkSeen: () => streamCubit.markSeen(receipt.id),
       onMarkUnseen: () => streamCubit.markUnseen(receipt.id),

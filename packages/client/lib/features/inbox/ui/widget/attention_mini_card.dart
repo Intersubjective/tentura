@@ -64,6 +64,7 @@ class AttentionMiniCard extends StatefulWidget {
     this.eventMaxLines = 2,
     this.dismissDuration = const Duration(milliseconds: 180),
     this.viewerUserId,
+    this.partnerName,
     super.key,
   });
 
@@ -80,6 +81,9 @@ class AttentionMiniCard extends StatefulWidget {
   final AttentionReceipt receipt;
   final AttentionMiniCardKind kind;
   final Profile? actor;
+
+  /// Name of the partner a pair «took it» receipt names, when known.
+  final String? partnerName;
 
   /// A forward's note, shown behind the quote rule. Left-aligned (K4).
   ///
@@ -211,6 +215,7 @@ class _AttentionMiniCardState extends State<AttentionMiniCard>
       l10n: l10n,
       viewerUserId: widget.viewerUserId,
       collapsedCount: widget.receipt.collapsedCount,
+      partnerName: widget.partnerName,
     );
     // A Post's row speaks the shared Updates Post copy (label with its
     // opening words); no Request-scoped excerpt rules apply to it.
@@ -224,6 +229,7 @@ class _AttentionMiniCardState extends State<AttentionMiniCard>
             actorName: shownName.isEmpty ? null : shownName,
             isPost: true,
             postRootExcerpt: widget.receipt.postRootExcerpt,
+            partnerName: widget.partnerName,
           )
         : null;
     final isBaton =

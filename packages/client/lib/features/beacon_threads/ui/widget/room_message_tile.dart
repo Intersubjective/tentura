@@ -912,10 +912,23 @@ class RoomMessageTile extends StatelessWidget {
       );
       // Further down the room, say what was taken.
       final ask = sourceId == null ? null : _batonAskExcerpt(context, sourceId);
+      final coTakerId = batonCoTakerUserId(message);
+      final coName = coTakerId == null
+          ? null
+          : _participantDisplayName(
+              participants: participants,
+              userId: coTakerId,
+              viewer: myProfile,
+              l10n: l10n,
+            );
       return _CenteredSystemNotice(
-        text: ask == null
-            ? l10n.batonTookIt(name)
-            : l10n.batonTookItAsk(name, ask),
+        text: coName != null
+            ? (ask == null
+                  ? l10n.batonTookItPair(name, coName)
+                  : l10n.batonTookItPairAsk(name, coName, ask))
+            : (ask == null
+                  ? l10n.batonTookIt(name)
+                  : l10n.batonTookItAsk(name, ask)),
       );
     }
 
