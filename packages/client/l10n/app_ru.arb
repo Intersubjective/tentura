@@ -6400,17 +6400,7 @@
   "postBudAction": "Оформить запрос",
   "postBudInviteTitle": "Кого позвать",
   "postBudInviteExplanation": "Позванные получат приглашение и сами решат, участвовать ли. Остальные участники поста увидят запрос и смогут предложить помощь сами.",
-  "postBudInviteLoadFailed": "Не удалось загрузить участников поста.",
-  "postBudInviteRetry": "Повторить",
-  "postBudInviteVia": "через {name}",
-  "@postBudInviteVia": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
-  "postBudInviteManyWarning": "Каждый отмеченный получит просьбу. Отмечено: {count}",
+  "postBudInviteManyWarning": "Каждый отмеченный получит запрос. Отмечено: {count}",
   "@postBudInviteManyWarning": {
     "placeholders": {
       "count": {
