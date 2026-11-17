@@ -25,6 +25,9 @@ abstract class ForwardCandidate with _$ForwardCandidate {
     String? lineageReasonCode,
     String? lineageReasonArg,
     @Default(false) bool lineageAutoSelect,
+    /// A member of the Post being budded: invitable whatever the viewer's
+    /// visibility or MeritRank of them (the server already vetted the list).
+    @Default(false) bool isBudPostMember,
     DateTime? mutualSince,
     ForwardReach? reach,
   }) = _ForwardCandidate;
@@ -36,7 +39,9 @@ abstract class ForwardCandidate with _$ForwardCandidate {
   String get displayName => profile.displayName;
 
   bool get isReachable =>
-      profile.isMutuallyVisible || profile.sharesActiveContext;
+      isBudPostMember ||
+      profile.isMutuallyVisible ||
+      profile.sharesActiveContext;
 
   double get mrScore => profile.score;
 

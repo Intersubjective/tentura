@@ -187,6 +187,24 @@ void main() {
       },
     );
 
+    test('a cold member (no vote, no trust, no shared context) is still '
+        'tickable and keeps the server pretick', () async {
+      final h = await _harness(
+        profiles: {
+          for (final id in ['A', 'X', 'B', 'C', 'V']) id: Profile(id: id),
+        },
+      );
+
+      final load = await h.forwardCase.loadPostBudInviteCandidates('post-1');
+
+      expect(load.candidates.map((c) => c.profile.id), ['A', 'B', 'C']);
+      for (final c in load.candidates) {
+        expect(c.isReachable, isTrue, reason: c.profile.id);
+        expect(c.canForwardTo, isTrue, reason: c.profile.id);
+      }
+      expect(load.autoSelectIds, {'A', 'C'});
+    });
+
     test('a warm member is reached directly; a member brought by someone '
         'shows «via» that person even when they are not a candidate', () async {
       final h = await _harness();

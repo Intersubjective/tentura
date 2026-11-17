@@ -328,6 +328,7 @@ final class ForwardCase extends UseCaseBase {
       for (final c in invitable)
         ForwardCandidate(
           profile: profileOf(c.userId),
+          isBudPostMember: true,
           reach: switch (c.viaUserId) {
             null => const ForwardReach(kind: ForwardReachKind.direct),
             final viaId => ForwardReach(
