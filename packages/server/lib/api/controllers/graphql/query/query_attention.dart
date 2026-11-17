@@ -422,6 +422,8 @@ final class QueryAttention extends GqlNodeBase {
   static const attentionPresentationPayloadAllowedKeys = {
     'eventType',
     'actorUserId',
+    // Baton together: the other member of a pair `batonTaken` receipt.
+    'withUserId',
     'beaconId',
     'coordinationItemId',
     'targetEntityId',
