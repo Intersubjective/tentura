@@ -4,7 +4,7 @@ Subject: Tentura: «Пост: Walk in the park» и ещё 2
 
 Вам переслали посты
 Пост: Walk in the park
-  https://t.example/#/beacon/view/Bdgpost
+  https://t.example/#/post/view/Bdgpost
 - Anna делится с вами постом: Join us
 
 Ждёт вашего ответа

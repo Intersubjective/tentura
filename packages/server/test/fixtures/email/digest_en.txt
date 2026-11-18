@@ -4,7 +4,7 @@ Here's what's waiting on you and what moved while you were away.
 
 Posts shared with you
 Post: Walk in the park
-  https://t.example/#/beacon/view/Bdgpost
+  https://t.example/#/post/view/Bdgpost
 - Anna shared a post with you: Join us
 
 Waiting on you

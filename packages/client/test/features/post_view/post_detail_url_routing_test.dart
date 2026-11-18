@@ -1,5 +1,3 @@
-// Refs #1082 — in-app navigation and legacy URLs use /post/view for Posts.
-
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/beacon_detail_path.dart';
@@ -12,8 +10,8 @@ import 'package:tentura/ui/effect/ui_effect.dart';
 import '../../support/remote_wire_harness.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 
-const _postId = 'B1082post0001';
-const _requestId = 'B1082request1';
+const _postId = 'Bsharedpost01';
+const _requestId = 'Bsharedreq001';
 
 void main() {
   test('ScreenCubit.showPost emits /post/view navigation', () {
@@ -31,7 +29,7 @@ void main() {
     expect(path.startsWith('$kPathPostView/$_postId'), isTrue);
   });
 
-  test('request opened at /post/view rewrites to /beacon/view', () {
+  test('the Request detail path uses /beacon/view', () {
     expect(
       beaconDetailPathFor(_requestId, isPost: false),
       '$kPathBeaconView/$_requestId',

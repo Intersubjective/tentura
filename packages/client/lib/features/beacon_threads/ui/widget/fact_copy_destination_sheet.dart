@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:tentura_root/domain/entity/localizable.dart';
 
+import 'package:tentura/beacon_detail_path.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
@@ -85,12 +86,13 @@ class _FactCopyDestinationSheetState extends State<_FactCopyDestinationSheet> {
           label: l10n.beaconRoomFactHistoryOpenOrigin,
           onPressed: () {
             if (!page.mounted) return;
+            final isPost = destination.kind == BeaconKind.post.value;
             unawaited(
               page.router.root.navigatePath(
                 destination.isDraft
-                    ? '${destination.kind == BeaconKind.post.value ? kPathPostNew : kPathBeaconNew}'
+                    ? '${isPost ? kPathPostNew : kPathBeaconNew}'
                           '?$kQueryBeaconDraftId=${destination.id}'
-                    : '$kPathBeaconView/${destination.id}',
+                    : beaconDetailPathFor(destination.id, isPost: isPost),
               ),
             );
           },

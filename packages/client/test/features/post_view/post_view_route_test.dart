@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
@@ -17,11 +18,21 @@ import 'package:tentura/data/repository/image_repository.dart';
 import 'package:tentura/data/repository/presence_repository.dart';
 import 'package:tentura/features/beacon_threads/domain/coordination_item_room_sync.dart';
 import 'package:tentura/app/router/root_router.dart';
+import 'package:tentura/beacon_detail_path.dart';
+import 'package:tentura/consts.dart';
+import 'package:tentura/domain/attention/attention_case.dart';
+import 'package:tentura/domain/attention/entity/attention_feed.dart';
+import 'package:tentura/domain/attention/entity/attention_receipt.dart';
+import 'package:tentura/domain/attention/feed_session_registry.dart';
+import 'package:tentura/domain/attention/port/attention_account_port.dart';
 import 'package:tentura/domain/use_case/beacon_hierarchy_case.dart';
 import 'package:tentura/features/beacon_view/domain/use_case/beacon_view_case.dart';
 import 'package:tentura/features/beacon_view/ui/screen/beacon_view_screen.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_view_loading_shell.dart';
 import 'package:tentura/features/home/ui/bloc/home_tab_reselect_cubit.dart';
+import 'package:tentura/features/home/ui/bloc/post_join_navigation_cubit.dart';
+import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
+import 'package:tentura/features/settings/ui/bloc/settings_cubit.dart';
 import 'package:tentura/features/inbox/domain/use_case/posts_case.dart';
 import 'package:tentura/features/inbox/ui/bloc/posts_cubit.dart';
 import 'package:tentura_root/domain/entity/beacon_hierarchy_capabilities.dart';
@@ -35,13 +46,25 @@ import 'package:tentura/features/post_view/data/repository/beacon_kind_repositor
 import 'package:tentura/features/post_view/ui/bloc/post_view_cubit.dart';
 import 'package:tentura/features/post_view/ui/screen/post_view_screen.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
+import 'package:tentura/features/updates/ui/bloc/updates_feed_cubit.dart';
+import 'package:tentura/features/updates/ui/widget/updates_feed_pane.dart';
+import 'package:tentura/ui/effect/ui_effect_bus.dart';
+import 'package:tentura/ui/effect/ui_effect_handler.dart';
+import 'package:tentura/ui/effect/ui_effect_port.dart';
+import 'package:tentura/ui/navigation/app_navigator.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 
+import '../../support/noop_attention_actor_profiles.dart';
+import '../../support/forward_outcome_wire.dart';
+import '../../support/test_realtime_sync.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../beacon_threads/room_cubit_fakes.dart';
 import '../beacon_view/beacon_view_case_test_support.dart';
 import '../beacon_view/beacon_view_screen_harness.dart';
+import '../block/support/controllable_block_case.dart';
+import '../updates/support/mark_unread_server_fake.dart';
+import '../updates/support/noop_invite_setup_port.dart';
 
 const _postId = 'Bpostroute001';
 const _requestId = 'Brequestroute01';
@@ -80,9 +103,10 @@ class _BeaconOnlyRepository implements BeaconRepository {
 }
 
 class _FakeBeaconKindRepository implements BeaconKindRepository {
-  _FakeBeaconKindRepository(this.kinds);
+  _FakeBeaconKindRepository(this.kinds, {this.lookupGates = const {}});
 
   final Map<String, BeaconKind> kinds;
+  final Map<String, Completer<void>> lookupGates;
   final List<String> requested = [];
   final Completer<void> gate = Completer<void>();
   bool gated = false;
@@ -91,6 +115,7 @@ class _FakeBeaconKindRepository implements BeaconKindRepository {
   Future<BeaconKind> fetchKind(String beaconId) async {
     requested.add(beaconId);
     if (gated) await gate.future;
+    await lookupGates[beaconId]?.future;
     return kinds[beaconId]!;
   }
 
@@ -104,6 +129,23 @@ class _ProfileCubit extends Mock implements ProfileCubit {
 
   @override
   Stream<ProfileState> get stream => Stream.value(state);
+}
+
+class _Auth extends Fake implements AuthCubit {
+  @override
+  AuthState get state =>
+      AuthState(updatedAt: DateTime(2026), currentAccountId: _viewer.id);
+
+  @override
+  Stream<AuthState> get stream => const Stream.empty();
+}
+
+class _Settings extends Fake implements SettingsCubit {
+  @override
+  SettingsState get state => const SettingsState(introEnabled: false);
+
+  @override
+  Stream<SettingsState> get stream => const Stream.empty();
 }
 
 /// Minimal router mounting the production host page and its operational child.
@@ -144,7 +186,7 @@ Future<void> _register<T extends Object>(T instance) async {
 /// Pumps the real route for [id]. Request-only collaborators are registered
 /// only when [withRequestCollaborators] is set, so a Post that touches them
 /// fails with a GetIt error.
-Future<_TestRouter> _pumpRoute(
+Future<RootStackRouter> _pumpRoute(
   WidgetTester tester, {
   required String id,
   required _FakeBeaconKindRepository kinds,
@@ -153,6 +195,10 @@ Future<_TestRouter> _pumpRoute(
   bool withThrowingRequestCollaborators = false,
   PostsCase? activityCase,
   FakeBeaconThreadsRepository? roomRepo,
+  RootRouter? rootRouter,
+  String? initialLocation,
+  Widget? home,
+  UiEffectPort? effects,
 }) async {
   _requestOnlyTouches.clear();
   await registerBeaconViewHarnessGetIt(profile: _viewer, roomRepo: roomRepo);
@@ -200,7 +246,21 @@ Future<_TestRouter> _pumpRoute(
     }
     await unregisterBeaconViewHarnessGetIt();
   });
-  final router = _TestRouter();
+  final router = rootRouter ?? _TestRouter();
+  if (rootRouter != null) {
+    final homePage = HomeRoute.page;
+    HomeRoute.page = PageInfo(
+      HomeRoute.name,
+      builder: (_) => Scaffold(body: home ?? const Text('Home')),
+    );
+    addTearDown(() => HomeRoute.page = homePage);
+    await _register<AppNavigator>(rootRouter);
+    tester.binding.platformDispatcher.defaultRouteNameTestValue =
+        initialLocation!;
+    addTearDown(
+      tester.binding.platformDispatcher.clearDefaultRouteNameTestValue,
+    );
+  }
   // A compact window throughout: surface and MediaQuery agree, so the route
   // does not render regular-window chrome (the rail) into a phone-wide box.
   tester.view
@@ -214,15 +274,26 @@ Future<_TestRouter> _pumpRoute(
     localizationsDelegates: L10n.localizationsDelegates,
     supportedLocales: L10n.supportedLocales,
     locale: const Locale('en'),
-    builder: (_, child) => TenturaResponsiveScope(child: child!),
-    routerConfig: router.config(
-      deepLinkBuilder: (_) => DeepLink([
-        if (activityCase == null)
-          BeaconViewRoute(id: id)
-        else
-          ConversationsRoute(),
-      ]),
+    builder: (_, child) => TenturaResponsiveScope(
+      child: effects == null
+          ? child!
+          : UiEffectHandler(effects: effects, child: child!),
     ),
+    routerConfig: rootRouter != null
+        ? rootRouter.config(
+            deepLinkBuilder: rootRouter.deepLinkBuilder,
+            deepLinkTransformer: rootRouter.deepLinkTransformer,
+            reevaluateListenable: rootRouter.reevaluateListenable,
+            includePrefixMatches: false,
+          )
+        : router.config(
+            deepLinkBuilder: (_) => DeepLink([
+              if (activityCase == null)
+                BeaconViewRoute(id: id)
+              else
+                ConversationsRoute(),
+            ]),
+          ),
   );
   if (activityCase != null) {
     app = MultiBlocProvider(
@@ -259,7 +330,266 @@ class _NoopWritePort implements BeaconWritePort {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
+Future<RootRouter> _pumpDetailRoot(
+  WidgetTester tester,
+  String location, {
+  Widget? home,
+  UiEffectPort? effects,
+  Map<String, Completer<void>> lookupGates = const {},
+}) async {
+  final router = RootRouter(
+    Logger('PostDetailLinks'),
+    _Auth(),
+    _Settings(),
+    PostJoinNavigationCubit(),
+  );
+  addTearDown(router.dispose);
+  final kinds = _FakeBeaconKindRepository({
+    _postId: BeaconKind.post,
+    _requestId: BeaconKind.request,
+  }, lookupGates: lookupGates);
+  final beacons = TrackingBeaconRepository()
+    ..fetchByIdHandler = (id) async => _beacon(id, kinds.kinds[id]!);
+  addTearDown(beacons.dispose);
+  await _pumpRoute(
+    tester,
+    id: _postId,
+    kinds: kinds,
+    beacons: beacons,
+    withRequestCollaborators: true,
+    rootRouter: router,
+    initialLocation: location,
+    home: home,
+    effects: effects,
+  );
+  await tester.pumpAndSettle();
+  return router;
+}
+
+Future<void> _expectDetail(
+  WidgetTester tester,
+  RootRouter router,
+  String id,
+  String prefix,
+  Type screen,
+  Map<String, Completer<void>> gates,
+) async {
+  // Read the destination before the kind lookup unblocks. At that point a
+  // mistaken legacy path cannot pass by being rewritten by the detail screen.
+  await tester.pump();
+  final path = '$prefix/$id';
+  expect(Uri.parse(router.currentUrl).path, path);
+  gates[id]!.complete();
+  await tester.pumpAndSettle();
+  expect(find.byType(screen), findsOneWidget);
+  expect(Uri.parse(router.currentUrl).path, path);
+}
+
+class _ViewerAccount implements AttentionAccountPort {
+  @override
+  Stream<String> get currentAccountChanges => Stream.value(_viewer.id);
+}
+
+Future<List<AttentionReceipt>> _wireAttentionReceipts() =>
+    mapStreamRowsThroughRepository([
+      for (final (id, kind, title) in [
+        (_postId, BeaconKind.post, 'A shared Post'),
+        (_requestId, BeaconKind.request, 'A forwarded Request'),
+      ])
+        {
+          ...attentionStreamRowWire(
+            id: 'receipt-$id',
+            itemKind: 'receipt',
+            beaconId: id,
+            createdAt: '2026-10-31T00:10:00.000Z',
+            kind: 'newRelay',
+            title: title,
+            presentationPayloadJson: '{"eventType":"relayReceived"}',
+          ),
+          'presentationKey': 'relay_received',
+          'beaconKind': kind.value,
+        },
+    ]);
+
 void main() {
+  testWidgets(
+    'the root router replaces a legacy Post URL and keeps its message link',
+    (
+      tester,
+    ) async {
+      const query = {
+        'is_deep_link': 'true',
+        'tab': 'threads',
+        'thread': 'general',
+        'message': 'Mpost0000001',
+      };
+      final router = await _pumpDetailRoot(
+        tester,
+        Uri(
+          path: '/beacon/view/$_postId',
+          queryParameters: query,
+        ).toString(),
+      );
+      final routes = router.routes.where(
+        (route) => route.path == '/post/view/:id',
+      );
+      expect(routes.map((route) => route.name), [PostViewRoute.name]);
+      expect(
+        router.routes.where((route) => route.name == PostViewRoute.name),
+        hasLength(1),
+      );
+      expect(
+        beaconDetailPathFor(
+          'B1',
+          isPost: true,
+          queryParameters: {'is_deep_link': 'true'},
+        ),
+        '/post/view/B1?is_deep_link=true',
+      );
+
+      expect(find.byType(PostViewScreen), findsOneWidget);
+      expect(find.byType(BeaconViewScreen), findsNothing);
+      expect(router.stackData.last.name, PostViewRoute.name);
+      expect(router.navigationHistory.urlState.uri.path, '/post/view/$_postId');
+      expect(router.navigationHistory.urlState.uri.queryParameters, query);
+      expect(
+        router.navigationHistory.canNavigateBack,
+        isFalse,
+        reason: 'rewriting the initial URL must not create a second entry',
+      );
+    },
+  );
+
+  testWidgets('a cold canonical Post link opens the Post at the same URL', (
+    tester,
+  ) async {
+    const url = '/post/view/$_postId?is_deep_link=true';
+    final router = await _pumpDetailRoot(tester, url);
+    expect(find.byType(PostViewScreen), findsOneWidget);
+    expect(find.byType(BeaconViewScreen), findsNothing);
+    expect(router.stackData.last.name, PostViewRoute.name);
+    expect(router.currentUrl, url);
+    expect(router.navigationHistory.canNavigateBack, isFalse);
+  });
+
+  testWidgets('a cold Request link opens the Request without a Post redirect', (
+    tester,
+  ) async {
+    const path = '/beacon/view/$_requestId';
+    final router = await _pumpDetailRoot(tester, path);
+    expect(find.byType(BeaconViewScreen), findsOneWidget);
+    expect(find.byType(PostViewScreen), findsNothing);
+    expect(router.stackData.last.name, BeaconViewRoute.name);
+    expect(Uri.parse(router.currentUrl).path, path);
+    expect(router.navigationHistory.canNavigateBack, isFalse);
+  });
+
+  testWidgets('ScreenCubit opens the Post and Request through the app router', (
+    tester,
+  ) async {
+    final effects = UiEffectBus();
+    final screen = ScreenCubit.local(effects);
+    addTearDown(screen.close);
+    final gates = {_postId: Completer<void>(), _requestId: Completer<void>()};
+    final router = await _pumpDetailRoot(
+      tester,
+      kPathMyWork,
+      effects: effects,
+      lookupGates: gates,
+      home: Column(
+        children: [
+          TextButton(
+            onPressed: () => screen.showBeacon(_postId, kind: BeaconKind.post),
+            child: const Text('Open Post'),
+          ),
+          TextButton(
+            onPressed: () =>
+                screen.showBeacon(_requestId, kind: BeaconKind.request),
+            child: const Text('Open Request'),
+          ),
+        ],
+      ),
+    );
+
+    await tester.tap(find.text('Open Post'));
+    await _expectDetail(
+      tester,
+      router,
+      _postId,
+      '/post/view',
+      PostViewScreen,
+      gates,
+    );
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Open Request'));
+    await _expectDetail(
+      tester,
+      router,
+      _requestId,
+      '/beacon/view',
+      BeaconViewScreen,
+      gates,
+    );
+  });
+
+  testWidgets('tapping Updates receipts opens the Post and Request details', (
+    tester,
+  ) async {
+    final receipts = await _wireAttentionReceipts();
+    final sync = buildTestRealtimeSync();
+    final attention = AttentionCase(
+      MarkUnreadServerFake(receipts),
+      _ViewerAccount(),
+      sync.case_,
+      noopBlockCase(),
+      FeedSessionRegistry(),
+      Logger('PostDetailAttention'),
+    );
+    final feed = UpdatesFeedCubit(
+      destinationId: AttentionFeedDestinationId.activityStream,
+      attention: attention,
+      setup: NoopInviteAcceptedSetupPort(),
+      realtime: sync.case_,
+      logger: Logger('PostDetailUpdates'),
+      actorProfiles: buildNoopAttentionActorProfiles(),
+    );
+    addTearDown(() async {
+      await feed.close();
+      await attention.dispose();
+      await sync.port.dispose();
+    });
+
+    final gates = {_postId: Completer<void>(), _requestId: Completer<void>()};
+    final router = await _pumpDetailRoot(
+      tester,
+      kPathMyWork,
+      lookupGates: gates,
+      home: BlocProvider.value(value: feed, child: const UpdatesFeedPane()),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('receipt-$_postId')));
+    await _expectDetail(
+      tester,
+      router,
+      _postId,
+      '/post/view',
+      PostViewScreen,
+      gates,
+    );
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('receipt-$_requestId')));
+    await _expectDetail(
+      tester,
+      router,
+      _requestId,
+      '/beacon/view',
+      BeaconViewScreen,
+      gates,
+    );
+  });
+
   group('kind-aware beacon route', () {
     testWidgets('shows the loading view until the beacon kind resolves', (
       tester,

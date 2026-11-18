@@ -394,6 +394,11 @@ Future<void> main() async {
               expect(part, contains('Read this before Saturday'));
               expect(
                 part,
+                contains('https://tentura.example/#/post/view/$_beacon'),
+              );
+              expect(part, isNot(contains('/beacon/view/$_beacon')));
+              expect(
+                part,
                 contains(
                   locale == 'ru' ? 'Открыть в Tentura' : 'Open in Tentura',
                 ),
@@ -403,8 +408,6 @@ Future<void> main() async {
               message.rendered.text,
               contains('Read this before Saturday'),
             );
-            expect(message.rendered.text, contains('/beacon/view/$_beacon'));
-            expect(message.rendered.text, contains('https://tentura.example'));
             await digest();
             expect(
               sender.digests,
@@ -443,8 +446,11 @@ Future<void> main() async {
             delivered.rendered.html,
             delivered.rendered.text,
           ]) {
-            expect(part, contains('/beacon/view/$_beacon'));
-            expect(part, isNot(contains('/beacon/view/$otherPost')));
+            expect(part, contains('/post/view/$_beacon'));
+            expect(
+              part,
+              isNot(matches(RegExp('/(?:post|beacon)/view/$otherPost'))),
+            );
             expect(
               part,
               anyOf(
@@ -487,10 +493,10 @@ Future<void> main() async {
             sender.digests.single.rendered.text,
             sender.digests.single.rendered.html,
           ]) {
-            expect(part, contains('/beacon/view/$otherPost'));
+            expect(part, contains('/post/view/$otherPost'));
             expect(
               part,
-              isNot(contains('/beacon/view/$_beacon')),
+              isNot(matches(RegExp('/(?:post|beacon)/view/$_beacon'))),
               reason:
                   'The immediately emailed family must not appear again in the digest',
             );
@@ -568,7 +574,7 @@ Future<void> main() async {
           ]) {
             expect(part, contains('Bob'));
             expect(part, contains(laterNote));
-            expect(part, contains('/beacon/view/$_beacon'));
+            expect(part, contains('/post/view/$_beacon'));
             expect(part, isNot(contains(firstNote)));
           }
         },
@@ -597,7 +603,7 @@ Future<void> main() async {
             sender.digests.single.rendered.text,
             sender.digests.single.rendered.html,
           ]) {
-            expect(part, contains('/beacon/view/$_beacon'));
+            expect(part, contains('/post/view/$_beacon'));
             expect(part, contains('Bob'));
             expect(part, contains('Another personal recommendation'));
           }
@@ -629,7 +635,7 @@ Future<void> main() async {
           expect(sender.immediate, hasLength(2));
           expect(
             sender.immediate.last.rendered.text,
-            contains('/beacon/view/$secondPost'),
+            contains('/post/view/$secondPost'),
           );
           expect(
             sender.immediate.last.rendered.text,
@@ -752,7 +758,7 @@ Future<void> main() async {
           );
           expect(
             carolDigests.single.rendered.text,
-            contains('/beacon/view/$_beacon'),
+            contains('/post/view/$_beacon'),
           );
         },
       );
@@ -863,13 +869,17 @@ Future<void> main() async {
         }
       });
 
-      test('is pushed with the Post copy', () async {
+      test('is pushed with the Post copy and a Post detail link', () async {
         await publish();
         final job = forRecipient(await claimJobs(), _bob).single;
 
         final sent = await pushed([job]);
 
         expect(sent.single.body, 'Alice shared a post with you');
+        expect(
+          sent.single.actionUrl,
+          '/#/post/view/$_beacon?is_deep_link=true',
+        );
       });
 
       test(

@@ -606,7 +606,7 @@ class AttentionIntentCase {
       title: 'Your post is about to expire',
       body: 'Your post expires in under 3 hours',
       actionUrl:
-          '/#$kPathBeaconView/${Uri.encodeQueryComponent(beaconId)}'
+          '/#$kPathPostView/${Uri.encodeQueryComponent(beaconId)}'
           '?is_deep_link=true',
       collapseKey: AttentionCollapseKey.none(sourceEventKey),
       beaconId: beaconId,
@@ -1112,6 +1112,8 @@ class AttentionIntentCase {
         : (bodyPrefixedWithActor && actorName.isNotEmpty
               ? '$actorName $emptyBody'
               : emptyBody);
+    final isPost = kind == NotificationKind.postFirstResponse;
+    final detailPath = isPost ? kPathPostView : kPathBeaconView;
     return AttentionDispatchIntent(
       eventType: eventType,
       sourceEventKey: sourceEventKey,
@@ -1124,16 +1126,14 @@ class AttentionIntentCase {
       // General.
       actionUrl: questionsScope
           ? '/#$kPathBeaconQuestions/$encodedBeacon'
-          : '/#$kPathBeaconView/$encodedBeacon?tab=threads&thread=$encodedThread'
+          : '/#$detailPath/$encodedBeacon?tab=threads&thread=$encodedThread'
                 '&entry=deep_link&is_deep_link=true&message=$encodedMessage',
       collapseKey: AttentionCollapseKey.none(sourceEventKey),
       recipients: recipients,
       beaconId: beaconId,
       coordinationItemId: threadItemId,
       messageId: messageId,
-      beaconKind: kind == NotificationKind.postFirstResponse
-          ? BeaconKind.post
-          : BeaconKind.request,
+      beaconKind: isPost ? BeaconKind.post : BeaconKind.request,
       actorDisplayName: actorName,
     );
   }

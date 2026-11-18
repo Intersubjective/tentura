@@ -466,10 +466,10 @@ INSERT INTO public.notification_outbox (
       final sections = digest.html.split('<h3>').skip(1).toList();
       final shared = sections.firstWhere((s) => s.startsWith('Posts shared'));
       const postLink =
-          '<a href="https://t.example/#/beacon/view/$_post">Post: '
+          '<a href="https://t.example/#/post/view/$_post">Post: '
           'Walk in the park</a>';
       expect(postLink.allMatches(shared), hasLength(1));
-      expect('/#/beacon/view/$_post'.allMatches(shared), hasLength(1));
+      expect('/#/post/view/$_post'.allMatches(shared), hasLength(1));
       final annaShareAt = shared.indexOf('Anna shared a post with you');
       final bobShareAt = shared.indexOf('Bob shared a post with you');
       expect(annaShareAt, greaterThan(shared.indexOf(postLink)));
@@ -796,7 +796,7 @@ INSERT INTO public.notification_outbox (
           digest.text,
           contains(
             '$section\n$label\n'
-            '  https://t.example/#/beacon/view/Bdgownpost\n'
+            '  https://t.example/#/post/view/Bdgownpost\n'
             '- $bullet\n',
           ),
         );

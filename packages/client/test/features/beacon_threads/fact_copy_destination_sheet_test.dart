@@ -404,9 +404,11 @@ void main() {
     ) async {
       final beaconCreate = BeaconCreateRoute.page;
       final postCreate = PostCreateRoute.page;
+      final postView = PostViewRoute.page;
       addTearDown(() {
         BeaconCreateRoute.page = beaconCreate;
         PostCreateRoute.page = postCreate;
+        PostViewRoute.page = postView;
       });
       // The editors are not under test: only where «Open» leads.
       BeaconCreateRoute.page = PageInfo(
@@ -416,6 +418,10 @@ void main() {
       PostCreateRoute.page = PageInfo(
         PostCreateRoute.name,
         builder: (_) => const Scaffold(body: Text('post-editor')),
+      );
+      PostViewRoute.page = PageInfo(
+        PostViewRoute.name,
+        builder: (_) => const Scaffold(body: Text('Post detail')),
       );
       final repo = _CopyRepo(rows: [destination]);
       _registerLogger();
@@ -468,12 +474,13 @@ void main() {
       expect(uri.path, '/beacon/view/Bpubreq00001');
     });
 
-    testWidgets('a published Post opens the Request screen', (tester) async {
+    testWidgets('a published Post opens the Post detail URL', (tester) async {
       final uri = await openCopiedDestination(
         tester,
         dest('Bpubpost0001', kind: 1, draft: false),
       );
-      expect(uri.path, '/beacon/view/Bpubpost0001');
+      expect(uri.path, '/post/view/Bpubpost0001');
+      expect(find.text('Post detail'), findsOneWidget);
     });
   });
 
@@ -729,6 +736,66 @@ void main() {
   });
 
   group('real path (HTTP -> Ferry -> repository -> case -> sheet)', () {
+    testWidgets('Open after copying a fact uses the destination detail URL', (
+      tester,
+    ) async {
+      final postPage = PostViewRoute.page;
+      addTearDown(() => PostViewRoute.page = postPage);
+      PostViewRoute.page = PageInfo(
+        PostViewRoute.name,
+        builder: (_) => const Scaffold(body: Text('Post detail')),
+      );
+      final wire = await _CopyWire.start(tester, includePublishedPost: true);
+      _registerLogger();
+      registerFactRepository(wire.repository);
+      final cubit = await _roomCubit();
+      const locale = Locale('ru');
+      final l10n = await L10n.delegate.load(locale);
+      final router = await pumpOriginRouter(
+        tester,
+        locale: locale,
+        size: kPhoneSurface,
+        openCopy: (ctx) => unawaited(
+          showFactActionsSheet(ctx, cubit: cubit, fact: _fact()),
+        ),
+      );
+
+      for (final (id, title, path, detail) in [
+        (
+          'Bwire000001',
+          'Wire garden day',
+          '/beacon/view',
+          'source-page:Bwire000001',
+        ),
+        ('Bwire000005', 'Wire garden Post', '/post/view', 'Post detail'),
+      ]) {
+        await tester.tap(find.text('open-copy'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text(russianFor(kUseInAnotherRequest)));
+        await pumpRealAsync(tester);
+        await tester.tap(find.textContaining(title, findRichText: true));
+        await pumpRealAsync(tester);
+        expect(wire.copyVariables.last, {
+          'sourceFactCardId': _factId,
+          'destinationBeaconId': id,
+        });
+        expectPhoneFeedback(tester, l10n.beaconFactCopyCopiedTo(title));
+        final open = find.widgetWithText(
+          SnackBarAction,
+          l10n.beaconRoomFactHistoryOpenOrigin,
+        );
+        expect(open.hitTestable(), findsOneWidget);
+        await tester.tap(open);
+        await tester.pumpAndSettle();
+        expect(routerLocation(router).path, '$path/$id');
+        expect(find.text(detail), findsOneWidget);
+        if (path == '/beacon/view') {
+          unawaited(router.navigatePath('/beacon/view/$kCopyBeaconId'));
+          await tester.pumpAndSettle();
+        }
+      }
+    });
+
     testWidgets('destinations and the copy result come from the GraphQL '
         'responses, with the right ids on the wire', (tester) async {
       final wire = await _CopyWire.start(tester);
@@ -815,6 +882,7 @@ final class _CopyWire {
     WidgetTester tester, {
     int? copyErrorCode,
     String copyErrorMessage = 'failed',
+    bool includePublishedPost = false,
   }) async {
     late _CopyWire wire;
     late RemoteApiService remote;
@@ -875,6 +943,8 @@ final class _CopyWire {
                     ('Bwire000002', 'Wire tool shed', 0, false),
                     ('Bwire000003', 'Wire draft request', 0, true),
                     ('Bwire000004', 'Wire draft post', 1, true),
+                    if (includePublishedPost)
+                      ('Bwire000005', 'Wire garden Post', 1, false),
                   ])
                     {
                       '__typename': 'v2_BeaconFactCopyDestinationRow',

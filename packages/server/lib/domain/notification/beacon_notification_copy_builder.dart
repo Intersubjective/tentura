@@ -664,17 +664,19 @@ class BeaconNotificationCopyBuilder {
     final id = intent.beaconId;
     final item = intent.coordinationItemId;
     final thread = item != null && item.isNotEmpty ? item : 'general';
-    final peopleUrl =
-        '/#$kPathBeaconView/$id?tab=people&entry=deep_link&is_deep_link=true';
+    final path = intent.beaconKind == BeaconKind.post
+        ? kPathPostView
+        : kPathBeaconView;
+    final detailUrl = '/#$path/$id';
+    final peopleUrl = '$detailUrl?tab=people&entry=deep_link&is_deep_link=true';
     final roomUrl =
-        '/#$kPathBeaconView/$id?tab=threads&thread=$thread'
+        '$detailUrl?tab=threads&thread=$thread'
         '&entry=deep_link&is_deep_link=true';
-    final genericUrl = '/#$kPathBeaconView/$id?is_deep_link=true';
+    final genericUrl = '$detailUrl?is_deep_link=true';
     // Step pushes open that step's card (`step=` survives only with
     // `tab=plan`, see the client route normalizer).
     final planStep = item != null && item.isNotEmpty ? '&step=$item' : '';
-    final planUrl =
-        '/#$kPathBeaconView/$id?tab=plan$planStep&is_deep_link=true';
+    final planUrl = '$detailUrl?tab=plan$planStep&is_deep_link=true';
 
     return switch (intent.kind) {
       NotificationKind.reviewReady => '/#$kPathReviewContributions/$id',

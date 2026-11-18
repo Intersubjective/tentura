@@ -263,7 +263,7 @@ ON CONFLICT (account_id) DO UPDATE SET locale = EXCLUDED.locale
             email.text,
             contains(
               '${postLabel(locale, _postBody)}\n'
-              '  https://tentura.example/#/beacon/view/$_other'
+              '  https://tentura.example/#/post/view/$_other'
               '?is_deep_link=true\n'
               '- ${shared(locale, 'Bob')}\n',
             ),
@@ -368,8 +368,11 @@ ON CONFLICT (account_id) DO UPDATE SET locale = EXCLUDED.locale
           expect(pending, hasLength(2));
           final email = await deliver(locale);
           final section = sectionsOf(email.html).values.single;
-          expect('/beacon/view/$_shared'.allMatches(section), hasLength(1));
-          expect(section, isNot(contains('/beacon/view/$_other')));
+          expect('/post/view/$_shared'.allMatches(section), hasLength(1));
+          expect(
+            section,
+            isNot(matches(RegExp('/(?:post|beacon)/view/$_other'))),
+          );
           expect(section, contains(postLabel(locale, persistedBody)));
           for (final part in [section, email.text]) {
             expect(part, isNot(contains(postLabel(locale, _postBody))));
@@ -432,7 +435,7 @@ ON CONFLICT (account_id) DO UPDATE SET locale = EXCLUDED.locale
             (postHeadings[2], _own),
           ]) {
             final section = sections[heading]!;
-            expect('/beacon/view/$beacon'.allMatches(section), hasLength(1));
+            expect('/post/view/$beacon'.allMatches(section), hasLength(1));
             expect(section, isNot(contains('/beacon/view/$_request')));
             expect(section, isNot(contains('Request-only note')));
           }
@@ -446,16 +449,41 @@ ON CONFLICT (account_id) DO UPDATE SET locale = EXCLUDED.locale
           );
           expect(requestSection, contains('Request for help'));
           expect(requestSection, contains('Request-only note'));
-          expect(requestSection, isNot(contains('/beacon/view/$_shared')));
-          expect(requestSection, isNot(contains('/beacon/view/$_own')));
+          expect(
+            requestSection,
+            isNot(matches(RegExp('/(?:post|beacon)/view/$_shared'))),
+          );
+          expect(
+            requestSection,
+            isNot(matches(RegExp('/(?:post|beacon)/view/$_own'))),
+          );
           final textSections = email.text.split('\n\n');
           final requestText = textSections.singleWhere(
             (section) => section.startsWith('$requestHeading\n'),
           );
           expect(requestText, contains('/beacon/view/$_request'));
           expect(requestText, contains('Request-only note'));
-          expect(requestText, isNot(contains('/beacon/view/$_shared')));
-          expect(requestText, isNot(contains('/beacon/view/$_own')));
+          for (final part in [email.html, email.text]) {
+            expect(
+              part,
+              contains('https://tentura.example/#/beacon/view/$_request'),
+            );
+            for (final post in [_shared, _own]) {
+              expect(
+                part,
+                contains('https://tentura.example/#/post/view/$post'),
+              );
+              expect(part, isNot(contains('/beacon/view/$post')));
+            }
+          }
+          expect(
+            requestText,
+            isNot(matches(RegExp('/(?:post|beacon)/view/$_shared'))),
+          );
+          expect(
+            requestText,
+            isNot(matches(RegExp('/(?:post|beacon)/view/$_own'))),
+          );
         },
       );
 
@@ -484,11 +512,11 @@ ON CONFLICT (account_id) DO UPDATE SET locale = EXCLUDED.locale
           final email = await deliver(locale);
           final section = sectionsOf(email.html).values.single;
           expect(
-            '/beacon/view/$_shared'.allMatches(section),
+            '/post/view/$_shared'.allMatches(section),
             hasLength(1),
             reason: 'One group per Post, even with two senders',
           );
-          expect('/beacon/view/$_other'.allMatches(section), hasLength(1));
+          expect('/post/view/$_other'.allMatches(section), hasLength(1));
           for (final part in [section, email.text]) {
             expect(
               part,
@@ -502,7 +530,7 @@ ON CONFLICT (account_id) DO UPDATE SET locale = EXCLUDED.locale
             expect(part, isNot(contains('Bob: Read this before Saturday')));
           }
           expect(
-            RegExp('/beacon/view/$_shared\\?').allMatches(email.text),
+            RegExp('/post/view/$_shared\\?').allMatches(email.text),
             hasLength(1),
           );
           final marked = await session.writer.execute(
@@ -577,7 +605,7 @@ ON CONFLICT (account_id) DO UPDATE SET locale = EXCLUDED.locale
             final url = Uri.parse(href.replaceAll('&amp;', '&'));
             expect(url.scheme, 'https');
             expect(url.host, 'tentura.example');
-            expect(url.fragment, contains('/beacon/view/$beacon'));
+            expect(url.fragment, contains('/post/view/$beacon'));
             expect(email.text, contains(url.toString()));
           },
         );

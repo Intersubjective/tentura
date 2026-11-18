@@ -53,6 +53,7 @@ class EmailDigestCase {
 
   static const _copyBuilder = BeaconNotificationCopyBuilder();
   static const _renderer = NotificationCopyRenderer();
+  static final _legacyPostLink = RegExp('^/#$kPathBeaconView/');
 
   /// Spec §4.3 slot limits, in graphemes.
   static const _headingLimit = 80;
@@ -259,7 +260,11 @@ class EmailDigestCase {
         now: now,
       );
       final section = drafts[sectionOf(item, identity)]!;
-      final url = _links.absolute(item.actionUrl);
+      // Pending Post receipts can predate the canonical Post route.
+      final actionUrl = identity.entityKind == NotificationEntityKind.post
+          ? item.actionUrl.replaceFirst(_legacyPostLink, '/#$kPathPostView/')
+          : item.actionUrl;
+      final url = _links.absolute(actionUrl);
       final label = copy.entityLabel;
       if (label == null) {
         section.add((
