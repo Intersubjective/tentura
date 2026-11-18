@@ -85,12 +85,14 @@ class BeaconViewHostScreen extends StatelessWidget implements AutoRouteWrapper {
 
   // The Post's own route keeps Home's rail beside it, like every browse
   // route; Inbox's list-detail pane builds the same scope without it.
-  Widget _postScope(Profile myProfile) => HomeRailFrame(
+  Widget _postScope(Profile myProfile, {String? focusFactId}) => HomeRailFrame(
     selectedTab: HomeTab.conversations,
     child: PostViewScope(
       id: id,
       myProfile: myProfile,
       retargetOwnerHomeTabOnLeave: isDeepLinkQueryTruthy(isDeepLink),
+      focusFactId: focusFactId,
+      messageId: messageId,
     ),
   );
 
@@ -160,14 +162,9 @@ class PostViewHostScreen extends BeaconViewHostScreen {
           child: BlocBuilder<ProfileCubit, ProfileState>(
             buildWhen: (previous, current) =>
                 previous.profile.id != current.profile.id,
-            builder: (context, profileState) => HomeRailFrame(
-              selectedTab: HomeTab.conversations,
-              child: PostViewScope(
-                id: id,
-                myProfile: profileState.profile,
-                retargetOwnerHomeTabOnLeave: isDeepLinkQueryTruthy(isDeepLink),
-                focusFactId: focusFact,
-              ),
+            builder: (context, profileState) => _postScope(
+              profileState.profile,
+              focusFactId: focusFact,
             ),
           ),
         );

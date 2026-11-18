@@ -72,6 +72,7 @@ class _BeaconRoomSurfaceState extends State<BeaconRoomSurface> {
   StreamSubscription<void>? _hostSub;
   StreamSubscription<ThreadsState>? _threadsSub;
   var _ensuring = false;
+  var _preparingScroll = false;
 
   static const _fallbackGeneral = RequestThread(
     threadId: RequestThread.generalId,
@@ -119,6 +120,12 @@ class _BeaconRoomSurfaceState extends State<BeaconRoomSurface> {
       unawaited(_hostSub?.cancel());
       _wasAdmissionBlocked = widget.host.isAdmissionBlocked;
       _hostSub = widget.host.changes.listen((_) => _onHostChanged());
+    }
+    final general = _generalThread;
+    if (general != null &&
+        !_isLegacyThreadId() &&
+        oldWidget.messageId != widget.messageId) {
+      unawaited(_prepareThreadScroll(general));
     }
   }
 
@@ -184,16 +191,44 @@ class _BeaconRoomSurfaceState extends State<BeaconRoomSurface> {
     await widget.roomLease.acquire(this, general);
     if (!mounted) return;
 
-    final roomCubit = context.read<ThreadHostCubit>().roomCubit;
-    roomCubit?.prepareThreadScroll(
-      messageId: widget.messageId,
-      coordinationItemId: widget.coordinationItemId ?? general.item?.id,
-    );
-
     setState(() {
       _generalThread = general;
       _roomReady = widget.roomLease.isReady;
     });
+    unawaited(_prepareThreadScroll(general));
+  }
+
+  Future<void> _prepareThreadScroll(RequestThread general) async {
+    if (_preparingScroll) return;
+    _preparingScroll = true;
+    try {
+      final isPost = widget.host.capabilities.isPost;
+      // Mount the Post chat before handing it a message jump. Request
+      // coordination anchors are queued immediately after acquiring the room.
+      if (isPost) await WidgetsBinding.instance.endOfFrame;
+      if (!mounted) return;
+      final host = context.read<ThreadHostCubit>();
+      final room = host.roomCubit;
+      if (room == null) return;
+      // Check Post links against the first page before reloading for an
+      // older target. Read the current link after the load if it changed.
+      if (isPost &&
+          widget.messageId != null &&
+          !room.state.firstLoadDone &&
+          !room.state.hasError) {
+        await room.stream.firstWhere(
+          (state) => state.firstLoadDone || state.hasError,
+          orElse: () => room.state,
+        );
+      }
+      if (!mounted || room.isClosed || host.roomCubit != room) return;
+      room.prepareThreadScroll(
+        messageId: widget.messageId,
+        coordinationItemId: widget.coordinationItemId ?? general.item?.id,
+      );
+    } finally {
+      _preparingScroll = false;
+    }
   }
 
   @override

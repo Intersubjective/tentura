@@ -405,12 +405,29 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
         );
       });
     }
+    // The room can resolve a linked message before this body is mounted.
+    final messageId = s.scrollToMessageId;
+    if (messageId != null) _scheduleMessageJump(messageId);
     // Same for a fact focus set before this body mounted (focus_fact).
     if (s.pendingFactsFocusFactId != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) unawaited(_openPendingFactsFocus(context));
       });
     }
+  }
+
+  void _scheduleMessageJump(String id) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      final cubit = context.read<RoomCubit>();
+      if (cubit.state.scrollToMessageId != id) return;
+      await _basicChatKey.currentState?.scrollToMessage(id);
+      if (mounted &&
+          identical(context.read<RoomCubit>(), cubit) &&
+          cubit.state.scrollToMessageId == id) {
+        cubit.clearScrollToMessageTarget();
+      }
+    });
   }
 
   /// Opens the actions of the fact the room was asked to focus, once.
@@ -444,17 +461,9 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
           listenWhen: (p, c) =>
               c.scrollToMessageId != null &&
               c.scrollToMessageId != p.scrollToMessageId,
-          listener: (ctx, state) {
+          listener: (_, state) {
             final id = state.scrollToMessageId;
-            if (id == null) return;
-            WidgetsBinding.instance.addPostFrameCallback((_) async {
-              if (!ctx.mounted) return;
-              await (_basicChatKey.currentState?.scrollToMessage(id) ??
-                  Future.value(false));
-              if (ctx.mounted) {
-                ctx.read<RoomCubit>().clearScrollToMessageTarget();
-              }
-            });
+            if (id != null) _scheduleMessageJump(id);
           },
         ),
         BlocListener<RoomCubit, RoomState>(
@@ -478,6 +487,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
       child: BlocBuilder<RoomCubit, RoomState>(
         buildWhen: (p, c) =>
             p.messages != c.messages ||
+            p.scrollToMessageId != c.scrollToMessageId ||
             p.factCards
                     .map(
                       (e) =>

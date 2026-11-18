@@ -664,7 +664,7 @@ class RoomCubit extends Cubit<RoomState> {
       _requestRefresh(scope: _RoomRefreshScope.full, silent: silent);
 
   void clearScrollToMessageTarget() {
-    if (state.scrollToMessageId != null) {
+    if (!isClosed && state.scrollToMessageId != null) {
       emit(state.copyWith(scrollToMessageId: null));
     }
   }
@@ -884,7 +884,7 @@ class RoomCubit extends Cubit<RoomState> {
   }) {
     _pendingThreadMessageId = _trimOrNull(messageId);
     _pendingThreadItemId = _trimOrNull(coordinationItemId);
-    if (state.messages.isNotEmpty &&
+    if ((state.firstLoadDone || state.messages.isNotEmpty) &&
         (_pendingThreadMessageId != null || _pendingThreadItemId != null)) {
       if (_pendingThreadMessageId != null &&
           !state.messages.any((m) => m.id == _pendingThreadMessageId)) {

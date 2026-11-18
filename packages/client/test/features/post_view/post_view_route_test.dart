@@ -11,6 +11,7 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
+import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 import 'package:tentura/domain/port/beacon_write_port.dart';
 import 'package:tentura/domain/use_case/beacon_create_case.dart';
@@ -39,8 +40,10 @@ import 'package:tentura_root/domain/entity/beacon_hierarchy_capabilities.dart';
 
 import '../../domain/use_case/fake_beacon_hierarchy_ports.dart';
 import 'package:tentura/features/beacon_threads/domain/room_host.dart';
+import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/threads_cubit.dart';
+import 'package:tentura/features/beacon_threads/ui/widget/room_message_tile.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_room_surface.dart';
 import 'package:tentura/features/post_view/data/repository/beacon_kind_repository.dart';
 import 'package:tentura/features/post_view/ui/bloc/post_view_cubit.dart';
@@ -54,12 +57,18 @@ import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/navigation/app_navigator.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
+import 'package:tentura/ui/bloc/presence_cubit.dart';
+import 'package:tentura/ui/widget/basic_chat_body.dart';
 
 import '../../support/noop_attention_actor_profiles.dart';
+import '../../support/phone_surface.dart';
 import '../../support/forward_outcome_wire.dart';
 import '../../support/test_realtime_sync.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../beacon_threads/room_cubit_fakes.dart';
+import '../beacon_threads/support/room_hint_wire_harness.dart';
+import '../beacon_threads/support/room_body_harness.dart'
+    show RoomBodyHarnessPresenceCubit;
 import '../beacon_view/beacon_view_case_test_support.dart';
 import '../beacon_view/beacon_view_screen_harness.dart';
 import '../block/support/controllable_block_case.dart';
@@ -67,6 +76,11 @@ import '../updates/support/mark_unread_server_fake.dart';
 import '../updates/support/noop_invite_setup_port.dart';
 
 const _postId = 'Bpostroute001';
+const _firstReply = 'Mpost0000001';
+const _secondReply = 'Mpost0000002';
+const _unknownReply = 'Mpostmissing';
+const _postUrl = '/post/view/$_postId';
+const _messageLinkTests = 'Post chat message links';
 const _requestId = 'Brequestroute01';
 const _viewer = Profile(id: 'Uviewer', displayName: 'Viewer');
 const _author = Profile(id: 'Uauthor', displayName: 'Author');
@@ -197,6 +211,7 @@ Future<RootStackRouter> _pumpRoute(
   FakeBeaconThreadsRepository? roomRepo,
   RootRouter? rootRouter,
   String? initialLocation,
+  bool phoneRu = false,
   Widget? home,
   UiEffectPort? effects,
 }) async {
@@ -265,7 +280,7 @@ Future<RootStackRouter> _pumpRoute(
   // does not render regular-window chrome (the rail) into a phone-wide box.
   tester.view
     ..physicalSize = activityCase == null
-        ? kBeaconViewHarnessCompact
+        ? (phoneRu ? kPhoneSurface : kBeaconViewHarnessCompact)
         : kBeaconViewHarnessExpanded
     ..devicePixelRatio = 1;
   addTearDown(tester.view.reset);
@@ -273,7 +288,7 @@ Future<RootStackRouter> _pumpRoute(
     theme: TenturaTheme.light(),
     localizationsDelegates: L10n.localizationsDelegates,
     supportedLocales: L10n.supportedLocales,
-    locale: const Locale('en'),
+    locale: Locale(phoneRu ? 'ru' : 'en'),
     builder: (_, child) => TenturaResponsiveScope(
       child: effects == null
           ? child!
@@ -302,6 +317,12 @@ Future<RootStackRouter> _pumpRoute(
         BlocProvider(create: (_) => ScreenCubit.local()),
         BlocProvider(create: (_) => PostsCubit(postsCase: activityCase)),
       ],
+      child: app,
+    );
+  }
+  if (roomRepo != null) {
+    app = BlocProvider<PresenceCubit>.value(
+      value: RoomBodyHarnessPresenceCubit(),
       child: app,
     );
   }
@@ -336,6 +357,8 @@ Future<RootRouter> _pumpDetailRoot(
   Widget? home,
   UiEffectPort? effects,
   Map<String, Completer<void>> lookupGates = const {},
+  FakeBeaconThreadsRepository? roomRepo,
+  bool phoneRu = false,
 }) async {
   final router = RootRouter(
     Logger('PostDetailLinks'),
@@ -359,6 +382,8 @@ Future<RootRouter> _pumpDetailRoot(
     withRequestCollaborators: true,
     rootRouter: router,
     initialLocation: location,
+    roomRepo: roomRepo,
+    phoneRu: phoneRu,
     home: home,
     effects: effects,
   );
@@ -411,9 +436,248 @@ Future<List<AttentionReceipt>> _wireAttentionReceipts() =>
         },
     ]);
 
+mixin _PostGeneralChat on FakeBeaconThreadsRepository {
+  @override
+  Future<List<RequestThread>> fetchThreads(String beaconId) async => [
+    RequestThread(
+      threadId: RequestThread.generalId,
+      kind: RequestThreadKind.general,
+      lastSeenAt: DateTime.utc(2026, 1, 1, 13),
+    ),
+  ];
+}
+
+class _PostChatRepository extends FakeBeaconThreadsRepository
+    with _PostGeneralChat {
+  _PostChatRepository() : super(userId: _viewer.id);
+
+  final requestedTargets = <String>[];
+
+  @override
+  Future<RoomMessage?> fetchMessageTarget({
+    required String beaconId,
+    required String messageId,
+  }) {
+    requestedTargets.add(messageId);
+    return super.fetchMessageTarget(beaconId: beaconId, messageId: messageId);
+  }
+}
+
+class _WirePostChatRepository extends RoomOverRealHintWireRepository
+    with _PostGeneralChat {
+  _WirePostChatRepository(super._real);
+}
+
+_PostChatRepository _postChat({
+  List<String> ids = const [_firstReply, _secondReply],
+}) => _PostChatRepository()
+  ..messages = [
+    for (final (index, id) in ids.indexed)
+      RoomMessage(
+        id: id,
+        beaconId: _postId,
+        authorId: _author.id,
+        author: _author,
+        body: 'Reply ${index + 1}',
+        createdAt: DateTime.utc(2026, 1, 1, 12, index),
+      ),
+  ];
+
+Finder _tile(String id) => find.byWidgetPredicate(
+  (widget) => widget is RoomMessageTile && widget.message.id == id,
+  description: 'chat tile for $id',
+);
+
+String? _visibleHighlight(WidgetTester tester, String id) {
+  final tile = _tile(id).hitTestable();
+  if (tile.evaluate().isEmpty) return null;
+  return tester.widget<RoomMessageTile>(tile).highlightedMessageId?.value;
+}
+
+Future<String?> _waitForHighlight(WidgetTester tester, String id) async {
+  // Observe the flash while it is active, with a bounded wait on a red run.
+  for (var frame = 0; frame < 90; frame++) {
+    final highlighted = _visibleHighlight(tester, id);
+    if (highlighted == id) return highlighted;
+    await tester.pump(const Duration(milliseconds: 16));
+  }
+  return _visibleHighlight(tester, id);
+}
+
+void _expectUnfocusedChat(WidgetTester tester) {
+  expect(find.byType(PostViewScreen), findsOneWidget);
+  expect(_tile(_secondReply).hitTestable(), findsOneWidget);
+  final chat = tester.widget<BasicChatBody>(find.byType(BasicChatBody));
+  expect(chat.hasError, isFalse);
+  expect(chat.isLoading, isFalse);
+  final chatState = tester.state<BasicChatBodyState>(
+    find.byType(BasicChatBody),
+  );
+  expect(chatState.highlightedMessageId.value, isNull);
+}
+
 void main() {
+  group(_messageLinkTests, () {
+    testWidgets(
+      'selects an older reply returned by GraphQL outside the latest page',
+      (tester) async {
+        const target = 'Mpostolder01';
+        const targetBody = 'Первый ответ';
+        Map<String, dynamic> row(String id, String body, int minute) =>
+            roomHintWireMessageRow(
+              id: id,
+              authorId: _author.id,
+              authorTitle: _author.displayName,
+              createdAt: DateTime.utc(2026, 1, 1, 12, minute).toIso8601String(),
+              body: body,
+            )..['beaconId'] = _postId;
+
+        final server = RoomHintWireServer()
+          ..messageRows = [
+            for (var i = 1; i <= 50; i++)
+              row('Mrecent${i.toString().padLeft(5, '0')}', 'Ответ $i', i),
+          ]
+          ..messageTargets[target] = row(target, targetBody, 0);
+        final wire = (await tester.runAsync(() => RoomHintWire.start(server)))!;
+        addTearDown(() => tester.runAsync(wire.close));
+        final repo = _WirePostChatRepository(wire.repository);
+        await _pumpDetailRoot(
+          tester,
+          '$_postUrl?message=$target',
+          roomRepo: repo,
+          phoneRu: true,
+        );
+        expect(find.byType(PostViewScreen), findsOneWidget);
+        final selected = await _waitForHighlight(tester, target);
+        expect(server.queried, contains('RoomMessageList'));
+        final chat = tester.widget<BasicChatBody>(find.byType(BasicChatBody));
+        expect(chat.isLoading, isFalse);
+        expect(chat.hasError, isFalse);
+        expect(
+          chat.messages.any((message) => message.body == 'Ответ 50'),
+          isTrue,
+        );
+        expect(
+          selected,
+          target,
+          reason: 'the historical tile must be visible and highlighted',
+        );
+        // The rich text may end with an invisible inline timestamp spacer.
+        expect(
+          find.textContaining(RegExp('^$targetBody\uFFFC?\$')).hitTestable(),
+          findsOneWidget,
+        );
+      },
+    );
+
+    testWidgets('retargets an open Post without remounting its screen', (
+      tester,
+    ) async {
+      final router = await _pumpDetailRoot(
+        tester,
+        '$_postUrl?message=$_firstReply',
+        roomRepo: _postChat(
+          ids: [
+            _secondReply,
+            for (var i = 0; i < 25; i++)
+              'Mmiddle${i.toString().padLeft(5, '0')}',
+            _firstReply,
+          ],
+        ),
+      );
+      final screen = tester.state(find.byType(PostViewScreen));
+      final firstSelection = await _waitForHighlight(tester, _firstReply);
+      expect(_tile(_firstReply).hitTestable(), findsOneWidget);
+      expect(_tile(_secondReply).hitTestable(), findsNothing);
+      await router.navigatePath('$_postUrl?message=$_secondReply');
+      await tester.pump();
+      expect(
+        Uri.parse(router.currentUrl).queryParameters['message'],
+        _secondReply,
+      );
+      final secondSelection = await _waitForHighlight(tester, _secondReply);
+      expect(tester.state(find.byType(PostViewScreen)), same(screen));
+      expect([firstSelection, secondSelection], [_firstReply, _secondReply]);
+    });
+
+    testWidgets(
+      'selects a reply when a Request URL resolves to a Post',
+      (tester) async {
+        const link = '/beacon/view/$_postId?message=$_firstReply';
+        final lookup = Completer<void>();
+        final router = await _pumpDetailRoot(
+          tester,
+          link,
+          lookupGates: {_postId: lookup},
+          roomRepo: _postChat(),
+        );
+        expect(router.currentUrl, link);
+        expect(router.stackData.last.name, BeaconViewRoute.name);
+
+        lookup.complete();
+        await tester.pumpAndSettle();
+        expect(router.currentUrl, '$_postUrl?message=$_firstReply');
+        expect(find.byType(PostViewScreen), findsOneWidget);
+        expect(await _waitForHighlight(tester, _firstReply), _firstReply);
+      },
+    );
+
+    for (final (description, query) in [
+      ('no target', ''),
+      ('an empty target', '?message='),
+      ('a whitespace-only target', '?message=%20%20'),
+    ]) {
+      testWidgets('opens normally with $description and honors a later link', (
+        tester,
+      ) async {
+        final room = _postChat();
+        final router = await _pumpDetailRoot(
+          tester,
+          '$_postUrl$query',
+          roomRepo: room,
+        );
+        _expectUnfocusedChat(tester);
+        expect(room.fetchMessagesCallCount, 1);
+        expect(room.fetchParticipantsCallCount, 1);
+        expect(room.requestedTargets, isEmpty);
+
+        await router.navigatePath('$_postUrl?message=$_firstReply');
+        await tester.pump();
+        expect(await _waitForHighlight(tester, _firstReply), _firstReply);
+      });
+    }
+
+    testWidgets('reloads the chat and stays usable when a reply is missing', (
+      tester,
+    ) async {
+      final room = _postChat();
+      final router = await _pumpDetailRoot(
+        tester,
+        '$_postUrl?message=$_unknownReply',
+        roomRepo: room,
+      );
+      expect(router.currentUrl, '$_postUrl?message=$_unknownReply');
+      _expectUnfocusedChat(tester);
+      expect(
+        room.fetchMessagesCallCount,
+        greaterThan(1),
+        reason: 'a missing reply requires a second chat load',
+      );
+      expect(
+        room.fetchParticipantsCallCount,
+        greaterThan(1),
+        reason: 'the retry reloads the full room snapshot',
+      );
+      expect(
+        room.requestedTargets,
+        contains(_unknownReply),
+        reason: 'the chat must stay usable after the server reports no match',
+      );
+    });
+  });
+
   testWidgets(
-    'the root router replaces a legacy Post URL and keeps its message link',
+    'a legacy Post URL becomes canonical and selects its chat reply',
     (
       tester,
     ) async {
@@ -421,7 +685,7 @@ void main() {
         'is_deep_link': 'true',
         'tab': 'threads',
         'thread': 'general',
-        'message': 'Mpost0000001',
+        'message': _firstReply,
       };
       final router = await _pumpDetailRoot(
         tester,
@@ -429,6 +693,7 @@ void main() {
           path: '/beacon/view/$_postId',
           queryParameters: query,
         ).toString(),
+        roomRepo: _postChat(),
       );
       final routes = router.routes.where(
         (route) => route.path == '/post/view/:id',
@@ -457,6 +722,7 @@ void main() {
         isFalse,
         reason: 'rewriting the initial URL must not create a second entry',
       );
+      expect(await _waitForHighlight(tester, _firstReply), _firstReply);
     },
   );
 

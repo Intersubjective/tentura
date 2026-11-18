@@ -66,10 +66,12 @@ class PostViewScreen extends StatefulWidget {
     this.inPane = false,
     this.postBuddingEnabled = kPostBuddingEnabled,
     this.retargetOwnerHomeTabOnLeave = false,
+    this.messageId,
     super.key,
   });
 
   final String id;
+  final String? messageId;
 
   /// Offers «Оформить запрос» in ⋮; defaults to [kPostBuddingEnabled].
   final bool postBuddingEnabled;
@@ -163,6 +165,7 @@ class _PostViewScreenState extends State<PostViewScreen> {
           child: BeaconRoomSurface(
             host: cubit,
             roomLease: _roomLease,
+            messageId: widget.messageId,
             postRoot: _postRoot(state),
             postArchived: state.beacon.isPostArchivedAt(cubit.now()),
             postExpiresAt: state.beacon.expiresAt,
