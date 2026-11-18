@@ -54,7 +54,8 @@ final class BeaconPromotionSourceInvalidException
 
 /// The source message already has a published child.
 final class BeaconSourceAlreadyPromotedException
-    extends BeaconHierarchyException {
+    extends BeaconHierarchyException
+    implements Localizable {
   const BeaconSourceAlreadyPromotedException({
     this.existingChildBeaconId,
     Object? message,
@@ -66,6 +67,15 @@ final class BeaconSourceAlreadyPromotedException
   final String? existingChildBeaconId;
 
   static const codeNumber = 1312;
+
+  @override
+  String get toEn => 'A child request already exists for this message.';
+
+  @override
+  String get toRu => 'Из этого сообщения уже создан дочерний запрос.';
+
+  @override
+  String toL10n(String? locale) => locale == 'ru' ? toRu : toEn;
 }
 
 /// The `clientCommandId` was reused with different input.

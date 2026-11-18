@@ -157,7 +157,8 @@ class BasicChatBody extends StatefulWidget {
 
   final Future<void> Function()? onMarkSeenNearBottom;
 
-  final void Function(RoomMessage message)? onMessageActions;
+  final void Function(RoomMessage message, {required bool hasPromotedChild})?
+  onMessageActions;
 
   final void Function(RoomMessage message)? onReply;
 
@@ -702,6 +703,7 @@ class BasicChatBodyState extends State<BasicChatBody> {
 
     final listHeader = widget.messageListHeader;
     final listHeaderCount = listHeader == null ? 0 : 1;
+    final onMessageActions = widget.onMessageActions;
 
     return TenturaChatColumn(
       child: Column(
@@ -757,6 +759,8 @@ class BasicChatBodyState extends State<BasicChatBody> {
 
                             final toggle = widget.onToggleReaction;
                             final vote = widget.onVotePoll;
+                            final promotedChildBeaconId =
+                                promotedChildBySourceMessageId[m.id];
                             final pinnedFact = widget.pinnedFactForMessage
                                 ?.call(
                                   m,
@@ -767,15 +771,20 @@ class BasicChatBodyState extends State<BasicChatBody> {
                               myProfile: widget.myProfile,
                               previousMessage: prev,
                               nextMessage: next,
-                              promotedChildBeaconId:
-                                  promotedChildBySourceMessageId[m.id],
+                              promotedChildBeaconId: promotedChildBeaconId,
                               breakGroupAbove:
                                   dateChanged ||
                                   showUnreadBand ||
                                   promotedChildBySourceMessageId.containsKey(
                                     prev.id,
                                   ),
-                              onActionsPressed: widget.onMessageActions,
+                              onActionsPressed: onMessageActions == null
+                                  ? null
+                                  : (message) => onMessageActions(
+                                      message,
+                                      hasPromotedChild:
+                                          promotedChildBeaconId != null,
+                                    ),
                               onReplyPressed: widget.onReply,
                               onJumpToReply: widget.onJumpToReply,
                               onToggleReaction: toggle,

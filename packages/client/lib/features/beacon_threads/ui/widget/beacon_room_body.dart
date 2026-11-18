@@ -613,14 +613,16 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
             unreadBandMessageId: state.unreadBandMessageId,
             unreadBandCount: state.unreadBandCount,
             onMarkSeenNearBottom: cubit.markReadToBottom,
-            onMessageActions: (msg) => _onMessageActionsPressed(
-              context,
-              cubit,
-              l10n,
-              myProfile,
-              msg,
-              isThreadMode: isThreadMode,
-            ),
+            onMessageActions: (msg, {required hasPromotedChild}) =>
+                _onMessageActionsPressed(
+                  context,
+                  cubit,
+                  l10n,
+                  myProfile,
+                  msg,
+                  isThreadMode: isThreadMode,
+                  hasPromotedChild: hasPromotedChild,
+                ),
             onReply: canWrite ? cubit.startReplyTo : null,
             onJumpToReply: (id) => unawaited(cubit.jumpToRepliedMessage(id)),
             replyTarget: state.replyTarget,
@@ -1002,6 +1004,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     Profile viewer,
     RoomMessage message, {
     bool isThreadMode = false,
+    bool hasPromotedChild = false,
   }) {
     final baton = message.baton;
     if (message.semanticMarker == BeaconRoomSemanticMarker.baton &&
@@ -1040,9 +1043,9 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
         !isThreadMode &&
         linkedItem == null &&
         !_suppressesRichMessageActions(message);
-    // A pinned fact, system line or event message cannot become a child
-    // Request (the server refuses it); the plan action stays offered.
-    final showCreateChild = showTurnInto && message.isPromotionEligible();
+    // A source message can have only one promoted child Request.
+    final showCreateChild =
+        showTurnInto && !hasPromotedChild && message.isPromotionEligible();
     final hasBodyText = message.body.trim().isNotEmpty;
     // Starts a new baton message that replies to this one (anyone's plain or
     // poll message; not system lines — baton messages have their own menu).

@@ -20,6 +20,7 @@ import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/port/beacon_image_port.dart';
 import 'package:tentura/domain/use_case/beacon_create_case.dart';
 import 'package:tentura/domain/use_case/beacon_hierarchy_case.dart';
+import 'package:tentura/features/beacon/domain/beacon_hierarchy_exception.dart';
 import 'package:tentura/features/beacon_threads/domain/use_case/beacon_threads_case.dart';
 import 'package:tentura/domain/use_case/message_prefill_case.dart';
 import 'package:tentura/domain/use_case/post_bud_case.dart';
@@ -440,7 +441,14 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
   void reportError(Object error) => _effects.emit(ShowError(error));
 
   void _emitSnackError(Object error) {
-    _effects.emit(ShowError(error));
+    final userFacingError = switch (error) {
+      BeaconChildPromotionConflict(:final existingChildBeaconId) =>
+        BeaconSourceAlreadyPromotedException(
+          existingChildBeaconId: existingChildBeaconId,
+        ),
+      _ => error,
+    };
+    _effects.emit(ShowError(userFacingError));
     if (!isClosed) {
       emit(state.copyWith(status: const StateIsSuccess()));
     }

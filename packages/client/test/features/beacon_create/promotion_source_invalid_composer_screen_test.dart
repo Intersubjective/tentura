@@ -3,6 +3,7 @@
 // a snackbar, the composer stays open and usable, and neither the global error
 // handlers nor Sentry hear about it.
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:ui';
 
@@ -19,6 +20,7 @@ import 'package:tentura_root/domain/entity/localizable.dart';
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/app/sentry/sentry_init.dart';
 import 'package:tentura/data/service/op_id_service.dart';
+import 'package:tentura/data/service/remote_api_client/beacon_hierarchy_error_mapper.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/use_case/beacon_create_case.dart';
 import 'package:tentura/domain/use_case/message_prefill_case.dart';
@@ -28,6 +30,7 @@ import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_hierarchy_repository.dart';
 import 'package:tentura/features/beacon/data/repository/post_bud_repository.dart';
+import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 import 'package:tentura/features/beacon/domain/beacon_hierarchy_exception.dart';
 import 'package:tentura/features/beacon_create/ui/bloc/beacon_create_cubit.dart';
 import 'package:tentura/features/beacon_create/ui/screen/beacon_create_screen.dart';
@@ -39,7 +42,9 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
 import '../../domain/use_case/fake_beacon_hierarchy_ports.dart';
+import '../../support/phone_surface.dart';
 import '../../support/remote_wire_harness.dart';
+import '../../support/test_realtime_sync.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'child_request_send_widget_support.dart';
 import 'fake_beacon_ports.dart';
@@ -184,8 +189,8 @@ Future<void> _pumpApp(
   required BeaconCreateCubit cubit,
   required Widget screen,
   required ContextCubit contextCubit,
+  Size surface = const Size(800, 1600),
 }) async {
-  const surface = Size(800, 1600);
   await tester.binding.setSurfaceSize(surface);
   addTearDown(() => tester.binding.setSurfaceSize(null));
   final router = _Router();
@@ -198,7 +203,7 @@ Future<void> _pumpApp(
       home: UiEffectHandler(
         effects: effects,
         child: MediaQuery(
-          data: const MediaQueryData(size: surface),
+          data: MediaQueryData(size: surface),
           child: TenturaResponsiveScope(
             child: RouterScope(
               controller: router,
@@ -236,7 +241,160 @@ Future<void> _settle(WidgetTester tester) async {
   }
 }
 
+class _WirePublishWritePort extends FakeBeaconWritePort {
+  _WirePublishWritePort(this.repository);
+
+  final BeaconRepository repository;
+
+  @override
+  Future<void> publishDraft(String id) => repository.publishDraft(id);
+}
+
+Localizable _localizedPromotionConflict() {
+  try {
+    throwIfBeaconHierarchyError(1312, null);
+  } catch (error) {
+    expect(error, isA<Localizable>());
+    return error as Localizable;
+  }
+  fail('The server conflict must map to a localized error');
+}
+
 void main() {
+  for (final locale in ['en', 'ru']) {
+    testWidgets(
+      'Send shows the localized child Request conflict and becomes usable again ($locale)',
+      (tester) async {
+        final contextCubit = await registerChildSendCollaborators();
+        addTearDown(contextCubit.close);
+        final effects = FakeUiEffectPort();
+        await GetIt.I.unregister<UiEffectPort>();
+        GetIt.I.registerSingleton<UiEffectPort>(effects);
+        final realtime = buildTestRealtimeSync();
+        addTearDown(realtime.port.dispose);
+        final sent = <WireSent>[];
+        final publishResponse = Completer<void>();
+
+        await tester.runAsync(
+          () => withRemoteWire(
+            const {
+              ..._sourceResponses,
+              'BeaconChildCreate': {
+                '__typename': 'mutation_root',
+                'beaconChildCreate': {
+                  '__typename': 'v2_BeaconChildCreateResult',
+                  'outcome': 'created',
+                  'beaconId': 'Bdraft000001',
+                  'beacon': {'__typename': 'v2_Beacon', 'id': 'Bdraft000001'},
+                },
+              },
+            },
+            sent,
+            (remote) async {
+              final hierarchy = BeaconHierarchyRepository(remote);
+              final write = _WirePublishWritePort(
+                BeaconRepository(remote, realtime.port),
+              );
+              final createCase = BeaconCreateCase(write, FakeBeaconImagePort());
+              final cubit = BeaconCreateCubit(
+                beaconCreateCase: createCase,
+                hierarchyCase: buildBeaconHierarchyCaseForTest(
+                  hierarchy,
+                  createCase: createCase,
+                  beacons: write,
+                  commandStore: InMemoryBeaconChildCommandStore(),
+                ),
+                messagePrefillCase: MessagePrefillCase(hierarchy),
+                postBuddingEnabled: false,
+                childCreationContext: const BeaconCreationContextPromotedChild(
+                  parentBeaconId: _parentId,
+                  sourceMessageId: 'msg-1',
+                ),
+                effects: effects,
+              );
+              addTearDown(cubit.close);
+              if (cubit.state.clientCommandId == null) {
+                await cubit.stream
+                    .firstWhere((s) => s.clientCommandId != null)
+                    .timeout(const Duration(seconds: 5));
+              }
+              cubit
+                ..setTitle('Need a ladder')
+                ..setDescription('For Saturday.');
+              final watch = _Watch();
+              await watch.start(tester);
+              try {
+                await _pumpApp(
+                  tester,
+                  locale: locale,
+                  effects: effects,
+                  cubit: cubit,
+                  contextCubit: contextCubit,
+                  surface: kPhoneSurface,
+                  screen: const BeaconCreateScreen(
+                    forwardToUserId: 'recipient',
+                    parentBeaconId: _parentId,
+                    sourceMessageId: 'msg-1',
+                  ),
+                );
+                await tester.tap(
+                  find.byKey(TestIds.key(TestIds.requestRecipientsTab)),
+                );
+                await _settle(tester);
+
+                final send = find.byKey(TestIds.key(TestIds.forwardSubmit));
+                expect(
+                  tester.widget<OutlinedButton>(send).onPressed,
+                  isNotNull,
+                );
+                await tester.tap(send);
+                await _settle(tester);
+                expect(
+                  sent.where(
+                    (request) => request.operationName == 'BeaconPublish',
+                  ),
+                  hasLength(1),
+                  reason: 'Send must reach the server for publication',
+                );
+                expect(
+                  find.byType(CircularProgressIndicator),
+                  findsWidgets,
+                  reason: 'the server is still processing Send',
+                );
+
+                publishResponse.complete();
+                await _settle(tester);
+              } finally {
+                if (!publishResponse.isCompleted) publishResponse.complete();
+                await watch.stop(tester);
+              }
+
+              expect(find.byType(BeaconCreateScreen), findsOneWidget);
+              final send = find.byKey(TestIds.key(TestIds.forwardSubmit));
+              expect(tester.widget<OutlinedButton>(send).onPressed, isNotNull);
+              expect(find.byType(CircularProgressIndicator), findsNothing);
+              expect(watch.flutterErrors, isEmpty);
+              expect(watch.platformErrors, isEmpty);
+              final text = _snackText(tester);
+              final l10n = lookupL10n(Locale(locale));
+              expect(text, isNot(contains(l10n.errorGenericAction)));
+              expect(
+                text,
+                contains(_localizedPromotionConflict().toL10n(locale)),
+              );
+              expect(watch.transport.events, isEmpty);
+            },
+            errorFor: (request) async {
+              if (request.operationName != 'BeaconPublish') return null;
+              await publishResponse.future.timeout(const Duration(seconds: 5));
+              return wireCodeError(1312);
+            },
+          ),
+        );
+      },
+    );
+  }
+
   for (final locale in ['en', 'ru']) {
     group('composer screen after a refused promotion source ($locale)', () {
       testWidgets('saving a child draft from a message shows handled copy and '
