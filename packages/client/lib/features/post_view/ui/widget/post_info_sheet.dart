@@ -409,7 +409,7 @@ class _RevealOnOpenState extends State<_RevealOnOpen> {
     if (!widget.enabled) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      unawaited(Scrollable.ensureVisible(context));
+      Scrollable.ensureVisible(context);
     });
   }
 
