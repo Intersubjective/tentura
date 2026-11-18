@@ -931,7 +931,7 @@ ORDER BY tier, user_id
           if (c.read<String>('user_id') == viewerUserId) mine = c;
         }
         if (mine != null) {
-          final myResponse = responseOf(mine);
+          final myResponse = effectiveResponseOf(mine);
           final outcome = status == BatonStatus.collecting
               ? null
               : takerId == viewerUserId || coTakerId == viewerUserId

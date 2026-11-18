@@ -246,6 +246,22 @@ void main() {
       'a message pinned as a fact': _message(linkedFactCardId: 'fact-1'),
       'a thread-item message': _message(threadItemId: 'item-1'),
     };
+    testWidgets('a message pinned as a fact still offers Update plan from '
+        'message while Create child request is hidden', (tester) async {
+      final l10n = lookupL10n(const Locale('en'));
+      expect(
+        await createChildOffered(
+          tester,
+          _message(linkedFactCardId: 'fact-1'),
+        ),
+        isFalse,
+      );
+      expect(
+        find.text(l10n.beaconRoomActionUpdatePlanFromMessage),
+        findsOneWidget,
+      );
+    });
+
     for (final entry in ineligible.entries) {
       testWidgets('${entry.key} does not offer it', (tester) async {
         expect(entry.value.isPromotionEligible(), isFalse);

@@ -1034,13 +1034,15 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     // Already-linked messages can be opened/resolved but never re-promoted;
     // only plain, non-system messages offer the "Turn into…" verbs.
     final linkedItem = message.linkedCoordinationItem;
-    final showCreateChild =
+    final showTurnInto =
         caps.coordinationItems &&
         canWrite &&
         !isThreadMode &&
         linkedItem == null &&
-        message.isPromotionEligible() &&
         !_suppressesRichMessageActions(message);
+    // A pinned fact, system line or event message cannot become a child
+    // Request (the server refuses it); the plan action stays offered.
+    final showCreateChild = showTurnInto && message.isPromotionEligible();
     final hasBodyText = message.body.trim().isNotEmpty;
     // Starts a new baton message that replies to this one (anyone's plain or
     // poll message; not system lines — baton messages have their own menu).
@@ -1175,7 +1177,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                   },
                 ),
               // ── Coordination: turn a plain message into an item … ──
-              if (showCreateChild) ...[
+              if (showTurnInto) ...[
                 Padding(
                   padding: EdgeInsets.only(
                     left: tt.screenHPadding,
@@ -1189,20 +1191,21 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                     ),
                   ),
                 ),
-                ListTile(
-                  leading: const Icon(
-                    Icons.subdirectory_arrow_right_outlined,
+                if (showCreateChild)
+                  ListTile(
+                    leading: const Icon(
+                      Icons.subdirectory_arrow_right_outlined,
+                    ),
+                    title: Text(l10n.beaconCreateChildRequest),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _openChildRequestComposerFromMessage(
+                        context,
+                        cubit,
+                        message,
+                      );
+                    },
                   ),
-                  title: Text(l10n.beaconCreateChildRequest),
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    _openChildRequestComposerFromMessage(
-                      context,
-                      cubit,
-                      message,
-                    );
-                  },
-                ),
                 // Same gate as the plan strip / app-bar (#379):
                 // plan editor AND allowsCoordination.
                 if (caps.plan && !isPoll && cubit.state.canUpdatePlan)

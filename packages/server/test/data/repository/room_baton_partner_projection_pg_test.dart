@@ -356,6 +356,22 @@ UPDATE public.beacon_room_baton_candidate
       );
     });
 
+    test('erased ACCEPTED partner sends the candidate back to waiting',
+        () async {
+      await create({_a: 1, _c: 1});
+      await setRow(_a, response: 1, partner: _x, partnerResponse: 1);
+      await writer.execute(
+        "DELETE FROM public.beacon_participant WHERE user_id = '$_x'",
+      );
+      await writer.execute("DELETE FROM public.\"user\" WHERE id = '$_x'");
+
+      final pa = await payloadFor(_a);
+      expect(pa['myResponse'], 'waiting');
+      expect((pa['myPartner']! as Map)['status'], 'declined');
+      final a = candidateRow(await payloadFor(_author), _a);
+      expect(a['response'], 'waiting');
+    });
+
     test('a message without a baton has no baton data for anyone', () async {
       await collecting();
       for (final v in [_author, _a, _x, _y, _observer]) {
