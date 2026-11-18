@@ -50,7 +50,6 @@ Future<void> initSentry({
 
 void _onZoneError(Object error, StackTrace stackTrace) {
   print(error);
-  // ignore: avoid_print
   print(stackTrace);
   if (isBenignServerThrowable(error)) {
     return;
