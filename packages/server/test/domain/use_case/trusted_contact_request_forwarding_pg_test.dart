@@ -5,6 +5,7 @@ import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
+import 'package:tentura_server/data/database/migration/_migrations.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
 import 'package:tentura_server/data/repository/attention_dispatch_repository.dart';
@@ -54,6 +55,21 @@ const _recipient = 'Utrustrecv';
 const _outsider = 'Utrustoutside';
 const _request = 'Btrustrequest';
 const _privateRequest = 'Btrustprivate';
+const _sourcePost = 'Btrustpost';
+const _bud = 'Btrustbud';
+const _postMember = 'Utrustpostmember';
+const _forwardSender = 'Utrustsender';
+const _offerer = 'Utrustofferer';
+const _roomMember = 'Utrustroom';
+const _steward = 'Utruststeward';
+
+final _involvementDenied = isA<UnauthorizedException>()
+    .having((e) => e.code.codeNumber, 'code', 1102)
+    .having(
+      (e) => e.description,
+      'description',
+      'Viewer cannot read request involvement',
+    );
 
 // Coverage: the forward picker loads beaconInvolvement; inbound sources,
 // coordination offers and the forward graph share the same access boundary.
@@ -217,6 +233,331 @@ SELECT
       },
     );
   }, skip: skip);
+
+  group('Request forwarding availability', () {
+    test(
+      'discoverability lets a trusted contact read involvement and deliver a forward',
+      () async {
+        final writer = session.writer;
+        await _setRequestState(writer, _request, discoverable: false);
+        await expectLater(
+          h.involvement.asMap(beaconId: _request, currentUserId: _viewer),
+          throwsA(_involvementDenied),
+        );
+        final hidden = await _viewerCanForward(writer, _request, _viewer);
+
+        await _setRequestState(writer, _request, discoverable: true);
+        final available = await _viewerCanForward(writer, _request, _viewer);
+        final closedPolicy = await _viewerCanForward(
+          writer,
+          _request,
+          _viewer,
+          closedPolicy: true,
+        );
+        final involvement = await h.involvement.asMap(
+          beaconId: _request,
+          currentUserId: _viewer,
+        );
+        expect(involvement.myForwardedRecipients, isEmpty);
+        final delivery = await h.forward.forward(
+          senderId: _viewer,
+          beaconId: _request,
+          recipientIds: [_recipient],
+        );
+        expect(delivery.deliveredRecipientIds, [_recipient]);
+        final edges = await ForwardEdgeRepository(db).fetchByBeaconId(_request);
+        expect(edges.map((e) => (e.senderId, e.recipientId, e.cancelledAt)), [
+          (_viewer, _recipient, null),
+        ]);
+
+        expect(
+          {
+            'discoverable, open policy': available,
+            'non-discoverable, open policy': hidden,
+            'discoverable, closed policy': closedPolicy,
+          },
+          {
+            'discoverable, open policy': true,
+            'non-discoverable, open policy': false,
+            'discoverable, closed policy': false,
+          },
+        );
+      },
+    );
+
+    test('reading a bud through its Post does not grant forwarding', () async {
+      final writer = session.writer;
+      await _seedPostBudAudience(writer);
+      final flags = <String, bool>{};
+      for (final discoverable in [true, false]) {
+        await _setRequestState(writer, _bud, discoverable: discoverable);
+        expect(
+          await h.access.canReadContent(beaconId: _bud, viewerId: _postMember),
+          isTrue,
+          reason: 'the Post member can see the bud through its source Post',
+        );
+        await expectLater(
+          h.involvement.asMap(beaconId: _bud, currentUserId: _postMember),
+          throwsA(_involvementDenied),
+        );
+        flags['Post member, discoverable=$discoverable'] =
+            await _viewerCanForward(writer, _bud, _postMember);
+      }
+      flags['outsider on a discoverable Request'] = await _viewerCanForward(
+        writer,
+        _request,
+        _outsider,
+      );
+      expect(flags, {
+        'Post member, discoverable=true': false,
+        'Post member, discoverable=false': false,
+        'outsider on a discoverable Request': false,
+      });
+    });
+
+    test(
+      'the flag matches involvement access and Request forwarding rules',
+      () async {
+        final writer = session.writer;
+        await _seedPostBudAudience(writer);
+        await writer.execute('''
+INSERT INTO public.beacon_forward_edge (beacon_id, sender_id, recipient_id)
+VALUES ('$_bud', '$_forwardSender', '$_recipient'),
+       ('$_sourcePost', '$_author', '$_recipient')
+''');
+        await writer.execute('''
+INSERT INTO public.beacon_help_offer (beacon_id, user_id, status)
+VALUES ('$_bud', '$_offerer', 0)
+''');
+        await writer.execute('''
+INSERT INTO public.beacon_participant (beacon_id, user_id, role, room_access)
+VALUES ('$_bud', '$_roomMember', 2, 3)
+''');
+        await writer.execute('''
+INSERT INTO public.beacon_steward (beacon_id, user_id)
+VALUES ('$_bud', '$_steward')
+''');
+
+        // A closed forward policy is legal on Posts only. All of these
+        // viewers can read involvement, but only the author may forward.
+        for (final viewer in [_author, _recipient, _postMember]) {
+          expect(
+            await h.access.canReadInvolvement(
+              beaconId: _sourcePost,
+              viewerId: viewer,
+            ),
+            isTrue,
+            reason: viewer,
+          );
+          expect(
+            await _viewerCanForward(writer, _sourcePost, viewer),
+            viewer == _author,
+            reason: 'closed policy for $viewer',
+          );
+        }
+
+        const audience = {
+          'author': _author,
+          'forward recipient': _recipient,
+          'forward sender': _forwardSender,
+          'active help offerer': _offerer,
+          'room member': _roomMember,
+          'steward': _steward,
+          'trusted contact': _viewer,
+          'Post member': _postMember,
+          'outsider': _outsider,
+        };
+        final mismatches = <String>[];
+        for (final status in [0, 7, 8, 6]) {
+          for (final discoverable in [true, false]) {
+            await _setRequestState(
+              writer,
+              _bud,
+              status: status,
+              discoverable: discoverable,
+            );
+            for (final MapEntry(key: role, value: viewer) in audience.entries) {
+              final state =
+                  '$role, status=$status, '
+                  'discoverable=$discoverable';
+              final canReadInvolvement = await h.access.canReadInvolvement(
+                beaconId: _bud,
+                viewerId: viewer,
+              );
+              if (status == 0 ||
+                  (viewer == _author && const {7, 8}.contains(status))) {
+                // Pin the actual standing of the fixture, independently of
+                // the flag. This also protects existing participant access.
+                final readsInvolvement = switch (viewer) {
+                  _postMember || _outsider => false,
+                  _viewer => discoverable,
+                  _ => true,
+                };
+                expect(canReadInvolvement, readsInvolvement, reason: state);
+              }
+              for (final closedPolicy in [false, true]) {
+                final expected =
+                    canReadInvolvement &&
+                    const {0, 7, 8}.contains(status) &&
+                    (!closedPolicy || viewer == _author);
+                final actual = await _viewerCanForward(
+                  writer,
+                  _bud,
+                  viewer,
+                  closedPolicy: closedPolicy,
+                );
+                if (actual != expected) {
+                  final policy = closedPolicy ? 'closed' : 'open';
+                  mismatches.add(
+                    '$state, policy=$policy: expected $expected, got $actual',
+                  );
+                }
+              }
+            }
+          }
+        }
+        expect(mismatches, isEmpty);
+      },
+    );
+
+    group('schema upgrade', () {
+      final upgradeTarget = DisposablePgTarget.fromNamedEnvironment(
+        envVarName: 'TENTURA_REQUEST_FORWARD_FLAG_UPGRADE_TEST_DB',
+        defaultNamePrefix: 'tentura_test_request_forward_upgrade',
+      );
+
+      late DisposablePgWriterSession upgrade;
+
+      setUpAll(() async {
+        upgrade = await setUpDisposablePgWriter(
+          target: upgradeTarget,
+          lastInclusiveVersion: '0317',
+        );
+      });
+
+      tearDownAll(() async {
+        await tearDownDisposablePgWriter(session: upgrade);
+      });
+
+      test(
+        'upgrading corrects the flag for an existing non-discoverable Request',
+        () async {
+          final writer = upgrade.writer;
+          await _seed(writer);
+          expect(
+            await _viewerCanForward(writer, _privateRequest, _viewer),
+            isTrue,
+          );
+
+          await migrateDbSchema(writer);
+
+          final signature = await writer.execute('''
+SELECT proargnames, pg_get_function_result(oid)
+FROM pg_proc
+WHERE oid =
+  'public.beacon_get_viewer_can_forward(public.beacon, json)'::regprocedure
+''');
+          expect(signature.single.toList(), [
+            ['beacon_row', 'hasura_session'],
+            'boolean',
+          ]);
+          expect(
+            await _viewerCanForward(writer, _privateRequest, _viewer),
+            isFalse,
+            reason:
+                'the migrated flag must hide forwarding for this trusted contact',
+          );
+          expect(migrationsForTesting.map((m) => m.version), contains('0318'));
+        },
+      );
+    });
+  }, skip: skip);
+}
+
+Future<bool> _viewerCanForward(
+  Connection writer,
+  String beaconId,
+  String viewer, {
+  bool closedPolicy = false,
+}) async {
+  // The table constraint permits closed policy on Posts only. Exercise the
+  // function's closed-policy Request input with a typed composite, preserving
+  // the stored Request and all involvement data it uses.
+  final rows = await writer.execute(
+    Sql.named('''
+SELECT public.beacon_get_viewer_can_forward(
+  CASE WHEN @closed_policy::boolean
+       THEN jsonb_populate_record(b, '{"forward_policy": 0}'::jsonb)
+       ELSE b
+  END,
+  json_build_object('x-hasura-user-id', @viewer::text)
+)
+FROM public.beacon b WHERE b.id = @beacon
+'''),
+    parameters: {
+      'beacon': beaconId,
+      'viewer': viewer,
+      'closed_policy': closedPolicy,
+    },
+  );
+  return rows.single.single! as bool;
+}
+
+Future<void> _setRequestState(
+  Connection writer,
+  String beaconId, {
+  required bool discoverable,
+  int status = 0,
+}) => writer.execute(
+  Sql.named('''
+UPDATE public.beacon
+SET is_discoverable = @discoverable, status = @status
+WHERE id = @beacon
+'''),
+  parameters: {
+    'beacon': beaconId,
+    'discoverable': discoverable,
+    'status': status,
+  },
+);
+
+Future<void> _seedPostBudAudience(Connection writer) async {
+  for (final (i, id) in [
+    _postMember,
+    _forwardSender,
+    _offerer,
+    _roomMember,
+    _steward,
+  ].indexed) {
+    await writer.execute(
+      Sql.named('''
+INSERT INTO public."user" (id, display_name, public_key)
+VALUES (@id, @id, @key)
+'''),
+      parameters: {'id': id, 'key': pgTestPublicKey('bud-forward', i + 1)},
+    );
+  }
+  await writer.execute('''
+INSERT INTO public.beacon (id, user_id, title, description, status, kind,
+  is_discoverable, forward_policy, parent_beacon_id, published_at)
+VALUES ('$_sourcePost', '$_author', '', '', 0, 1, false, 0, NULL, now())
+''');
+  await writer.execute('''
+INSERT INTO public.beacon_participant (beacon_id, user_id, role, room_access)
+VALUES ('$_sourcePost', '$_postMember', 2, 3),
+       ('$_sourcePost', '$_forwardSender', 2, 3)
+''');
+  await writer.execute('''
+INSERT INTO public.beacon (id, user_id, title, description, status, kind,
+  is_discoverable, forward_policy, parent_beacon_id, published_at)
+VALUES ('$_bud', '$_author', 'Budded Request', '', 0, 0, true, 1, '$_sourcePost', now())
+''');
+  // The sender can read the bud through its Post. Its outgoing edge is what
+  // adds involvement access, while the uninvited Post member has only content.
+  await writer.execute('''
+INSERT INTO public.beacon_bud_observer (beacon_id, user_id)
+VALUES ('$_bud', '$_postMember'), ('$_bud', '$_forwardSender')
+''');
 }
 
 Future<void> _seed(Connection writer) async {
@@ -242,8 +583,8 @@ INSERT INTO public.vote_user (subject, object, amount) VALUES
     await writer.execute(
       Sql.named('''
 INSERT INTO public.beacon (id, user_id, title, description, status, kind,
-  is_discoverable, published_at)
-VALUES (@id, @author, 'Need a hand', 'Moving day', 0, 0, @discoverable, now())
+  is_discoverable, forward_policy, published_at)
+VALUES (@id, @author, 'Need a hand', 'Moving day', 0, 0, @discoverable, 1, now())
 '''),
       parameters: {'id': id, 'author': _author, 'discoverable': discoverable},
     );

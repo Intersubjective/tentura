@@ -89,12 +89,15 @@ Future<void> main() async {
     });
   });
 
-  group('full schema', () {
+  group('forwarding policy when the computed field was introduced', () {
     late DisposablePgWriterSession session;
     late Connection writer;
 
     setUpAll(() async {
-      session = await setUpDisposablePgWriter(target: target);
+      session = await setUpDisposablePgWriter(
+        target: target,
+        lastInclusiveVersion: '0211',
+      );
       writer = session.writer;
       await _insertUser(writer, _author);
       await _insertUser(writer, _viewer);
