@@ -13,6 +13,7 @@
 #   Failed analysis retains its complete output at the printed report path.
 #   analyze-baseline-inventory.tsv records existing diagnostics as key<TAB>line
 #   (sorted unique lines per key, including both CLI formats for the client).
+#   TENTURA_ANALYZER_CAPTURE writes validated rows for the debt generator.
 
 set -euo pipefail
 
@@ -105,8 +106,9 @@ fi
 # Count unique diagnostics: the analyzer sometimes reports the same issue
 # twice (seen for hook/build and tool/ files in CI), which made the gate
 # flaky (2122 vs 2126 for identical sources).
-errors="$(grep -E '^[[:space:]]*error (•|-) ' "$out" | sort -u | wc -l || true)"
-total="$(grep -E '^[[:space:]]*(error|warning|info) (•|-) ' "$out" | sort -u | wc -l || true)"
+diagnostics="$(grep -E '^[[:space:]]*(error|warning|info) (•|-) ' "$out" | LC_ALL=C sort -u || true)"
+errors="$(printf '%s\n' "$diagnostics" | grep -cE '^[[:space:]]*error ' || true)"
+total="$(printf '%s\n' "$diagnostics" | grep -c . || true)"
 
 fail_analysis() {
   echo "check-analyze-baseline: $1" >&2
@@ -142,14 +144,19 @@ if [[ "$total" -gt "$baseline" ]]; then
     # Compare exact diagnostic lines, using the same extraction and uniqueness
     # as the count above. Use one locale for both sides of the set difference.
     new_diagnostics="$(comm -23 \
-      <(grep -E '^[[:space:]]*(error|warning|info) (•|-) ' "$out" | LC_ALL=C sort -u) \
+      <(printf '%s\n' "$diagnostics" | sed '/^$/d') \
       <(awk -F '\t' -v k="$KEY" '$1 == k { sub(/^[^\t]*\t/, ""); print }' "$INVENTORY_FILE" | LC_ALL=C sort -u))"
   else
     new_diagnostics="check-analyze-baseline: missing diagnostic inventory $INVENTORY_FILE; cannot identify new issues."
   fi
   fail_analysis "$KEY has $total issues, baseline is $baseline." "$new_diagnostics"
 fi
+if [[ -n "${TENTURA_ANALYZER_CAPTURE:-}" ]]; then
+  # Reuse the gate's exact extraction, validation and ratchet in the generator.
+  # A clean analyzer has no rows (not a single blank row).
+  printf '%s\n' "$diagnostics" | sed '/^$/d' >"$TENTURA_ANALYZER_CAPTURE"
+fi
 if [[ "$total" -lt "$baseline" ]]; then
-  echo "check-analyze-baseline: $KEY improved ($total < $baseline); lower its baseline in $BASELINE_FILE."
+  echo "check-analyze-baseline: $KEY improved ($total < $baseline); run \`python3 scripts/generate_analyze_baseline.py\` to refresh both debt files."
 fi
 echo "check-analyze-baseline: $KEY OK ($total <= $baseline)"

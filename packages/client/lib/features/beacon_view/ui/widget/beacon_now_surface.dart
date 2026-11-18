@@ -80,12 +80,10 @@ class _BeaconNowSurfaceState extends State<BeaconNowSurface> {
   void _scrollTo(GlobalKey key) {
     final ctx = key.currentContext;
     if (ctx == null) return;
-    unawaited(
-      Scrollable.ensureVisible(
-        ctx,
-        duration: const Duration(milliseconds: 250),
-        curve: Curves.easeOut,
-      ),
+    Scrollable.ensureVisible(
+      ctx,
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOut,
     );
   }
 

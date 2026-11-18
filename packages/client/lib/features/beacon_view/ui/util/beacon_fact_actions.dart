@@ -31,13 +31,14 @@ Future<void> showBeaconFactActions(
     copyArrival: copyArrival,
     onSave: factSaveAction(fact, refreshFacts: cubit.refreshFactCards),
     canMutate: cubit.state.beacon.status.allowsDiscussionWrites,
-    onCorrect: ({required factCardId, required newText, String? attachmentsJson}) =>
+    onCorrect: ({required factCardId, required newText, attachmentsJson}) =>
         cubit.correctFact(
           factCardId: factCardId,
           newText: newText,
           attachmentsJson: attachmentsJson,
         ),
-    onRemove: ({required factCardId}) => cubit.removeFact(factCardId: factCardId),
+    onRemove: ({required factCardId}) =>
+        cubit.removeFact(factCardId: factCardId),
     onSetVisibility: ({required factCardId, required visibility}) =>
         cubit.setFactVisibility(
           factCardId: factCardId,
