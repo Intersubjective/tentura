@@ -93,6 +93,8 @@ class _TenturaFullscreenImageViewerState
       _goTo(_currentIndex - 1);
     } else if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
       _goTo(_currentIndex + 1);
+    } else if (event.logicalKey == LogicalKeyboardKey.escape) {
+      Navigator.of(context).maybePop();
     }
   }
 

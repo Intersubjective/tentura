@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:blurhash_shader/blurhash_shader.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -332,6 +333,7 @@ class _RoomAttachmentFullscreenGalleryState
     extends State<RoomAttachmentFullscreenGallery> {
   late final PageController _controller;
   late int _index;
+  final _focusNode = FocusNode();
 
   @override
   void initState() {
@@ -345,15 +347,30 @@ class _RoomAttachmentFullscreenGalleryState
   @override
   void dispose() {
     _controller.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
 
+  void _onKey(KeyEvent event) {
+    if (event is! KeyDownEvent) return;
+    if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+      _goTo(_index - 1);
+    } else if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
+      _goTo(_index + 1);
+    } else if (event.logicalKey == LogicalKeyboardKey.escape) {
+      Navigator.of(context).maybePop();
+    }
+  }
+
   void _goTo(int index) {
-    _controller.animateToPage(
-      index,
-      duration: const Duration(milliseconds: 280),
-      curve: Curves.easeInOut,
-    );
+    final clamped = index.clamp(0, widget.attachments.length - 1);
+    if (clamped != _index) {
+      _controller.animateToPage(
+        clamped,
+        duration: const Duration(milliseconds: 280),
+        curve: Curves.easeInOut,
+      );
+    }
   }
 
   @override
@@ -364,90 +381,95 @@ class _RoomAttachmentFullscreenGalleryState
     final chromeFg = tt.text;
     final chromeMuted = tt.textMuted;
     final materialL10n = MaterialLocalizations.of(context);
-    return Scaffold(
-      backgroundColor: chromeBg,
-      appBar: AppBar(
+    return KeyboardListener(
+      focusNode: _focusNode,
+      autofocus: true,
+      onKeyEvent: _onKey,
+      child: Scaffold(
         backgroundColor: chromeBg,
-        foregroundColor: chromeFg,
-        leading: IconButton(
-          icon: const Icon(Icons.close),
-          tooltip: materialL10n.closeButtonTooltip,
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: items.length > 1
-            ? Text(
-                '${_index + 1} / ${items.length}',
-                style: TenturaText.body(chromeFg),
-              )
-            : null,
-      ),
-      body: Stack(
-        alignment: Alignment.center,
-        children: [
-          PageView.builder(
-            controller: _controller,
-            onPageChanged: (i) => setState(() => _index = i),
-            itemCount: items.length,
-            itemBuilder: (ctx, i) {
-              final a = items[i];
-              final url = roomAttachmentImageUrl(a);
-              final img = Image.network(
-                url,
-                fit: BoxFit.contain,
-                errorBuilder: (_, _, _) => Icon(
-                  Icons.broken_image_outlined,
-                  color: chromeMuted,
-                  size: 64,
-                ),
-              );
-              return InteractiveViewer(
-                minScale: 0.5,
-                maxScale: 4,
-                child: Center(
-                  child: a.blurHash.isEmpty
-                      ? img
-                      : BlurHash(a.blurHash, child: img),
-                ),
-              );
-            },
+        appBar: AppBar(
+          backgroundColor: chromeBg,
+          foregroundColor: chromeFg,
+          leading: IconButton(
+            icon: const Icon(Icons.close),
+            tooltip: materialL10n.closeButtonTooltip,
+            onPressed: () => Navigator.of(context).pop(),
           ),
-          if (items.length > 1) ...[
-            Positioned(
-              left: 0,
-              top: 0,
-              bottom: 0,
-              child: Center(
-                child: IconButton(
-                  icon: Icon(
-                    Icons.chevron_left,
+          title: items.length > 1
+              ? Text(
+                  '${_index + 1} / ${items.length}',
+                  style: TenturaText.body(chromeFg),
+                )
+              : null,
+        ),
+        body: Stack(
+          alignment: Alignment.center,
+          children: [
+            PageView.builder(
+              controller: _controller,
+              onPageChanged: (i) => setState(() => _index = i),
+              itemCount: items.length,
+              itemBuilder: (ctx, i) {
+                final a = items[i];
+                final url = roomAttachmentImageUrl(a);
+                final img = Image.network(
+                  url,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, _, _) => Icon(
+                    Icons.broken_image_outlined,
                     color: chromeMuted,
-                    size: 40,
+                    size: 64,
                   ),
-                  tooltip: materialL10n.previousPageTooltip,
-                  onPressed: _index > 0 ? () => _goTo(_index - 1) : null,
+                );
+                return InteractiveViewer(
+                  minScale: 0.5,
+                  maxScale: 4,
+                  child: Center(
+                    child: a.blurHash.isEmpty
+                        ? img
+                        : BlurHash(a.blurHash, child: img),
+                  ),
+                );
+              },
+            ),
+            if (items.length > 1) ...[
+              Positioned(
+                left: 0,
+                top: 0,
+                bottom: 0,
+                child: Center(
+                  child: IconButton(
+                    icon: Icon(
+                      Icons.chevron_left,
+                      color: chromeMuted,
+                      size: 40,
+                    ),
+                    tooltip: materialL10n.previousPageTooltip,
+                    onPressed: _index > 0 ? () => _goTo(_index - 1) : null,
+                  ),
                 ),
               ),
-            ),
-            Positioned(
-              right: 0,
-              top: 0,
-              bottom: 0,
-              child: Center(
-                child: IconButton(
-                  icon: Icon(
-                    Icons.chevron_right,
-                    color: chromeMuted,
-                    size: 40,
+              Positioned(
+                right: 0,
+                top: 0,
+                bottom: 0,
+                child: Center(
+                  child: IconButton(
+                    icon: Icon(
+                      Icons.chevron_right,
+                      color: chromeMuted,
+                      size: 40,
+                    ),
+                    tooltip: materialL10n.nextPageTooltip,
+                    onPressed: _index < items.length - 1
+                        ? () => _goTo(_index + 1)
+                        : null,
                   ),
-                  tooltip: materialL10n.nextPageTooltip,
-                  onPressed: _index < items.length - 1
-                      ? () => _goTo(_index + 1)
-                      : null,
                 ),
               ),
-            ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }

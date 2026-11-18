@@ -1,0 +1,26 @@
+{
+  "capture": {
+    "date": "2026-11-18",
+    "production_changes": "None; git diff --name-only listed only the test file.",
+    "command": "cd packages/client && ../../scripts/run_with_test_cleanup.sh --timeout 5m -- flutter test --no-pub --dart-define=ENV=test --dart-define-from-file=env/test.env test/ui/widget/modal_keyboard_navigation_test.dart --plain-name='Escape preserves focused editor text and dismissal'",
+    "exit_code": 0,
+    "stdout": "[test-cleanup] run ade8780cdd754bf2b0c2c1c4fbb25935 timeout=5m cwd=/home/vader/MY_SRC/tentura/packages/client\n00:00 +0: loading /home/vader/MY_SRC/tentura/packages/client/test/ui/widget/modal_keyboard_navigation_test.dart\n00:00 +0: Shared adaptive sheet keyboard dismissal Escape preserves focused editor text and dismissal with snackbar host false\n00:00 +1: Shared adaptive sheet keyboard dismissal Escape preserves focused editor text and dismissal with snackbar host true\n00:00 +2: All tests passed!\n",
+    "production_sha256": {
+      "packages/client/lib/design_system/components/tentura_adaptive_sheet.dart": "427f34a74d535955cd354ab3f42b6204460e6247c0dbc8b93b353815c1d71f6e",
+      "packages/client/lib/design_system/components/tentura_sheet_snack_bar_host.dart": "0326de7579a9389cfd68d30e8eb2c5ab8d4b90c5b34af2d61f4bc16a4f5d7816"
+    },
+    "interpretation": "Both tests passed before implementation changes. Each focused the editor, entered text, pressed Escape, and checked retained text and route completion. These observations preserve prior behavior; they do not prescribe a new dismissal policy. Source hashes are provenance only, never runtime assertions."
+  },
+  "observations": [
+    {
+      "showSnackBars": false,
+      "closesOnEscape": true,
+      "textAfterEscape": "Текст остаётся"
+    },
+    {
+      "showSnackBars": true,
+      "closesOnEscape": false,
+      "textAfterEscape": "Текст остаётся"
+    }
+  ]
+}

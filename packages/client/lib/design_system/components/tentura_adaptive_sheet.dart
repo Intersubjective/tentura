@@ -232,9 +232,9 @@ void _restoreFocusAfterSheet(FocusNode? trigger) {
   FocusManager.instance.primaryFocus?.unfocus();
 }
 
-/// Closes the enclosing sheet route on Escape when keyboard focus is outside
-/// it. With focus inside, the route's own [DismissIntent] handling runs
-/// instead (so the key is never handled twice).
+/// Closes the enclosing sheet route on Escape, including when a focused
+/// control's Scaffold consumes DismissIntent. Editors retain their existing
+/// Escape handling.
 class _EscapeDismissesSheet extends StatefulWidget {
   const _EscapeDismissesSheet({required this.child});
 
@@ -266,6 +266,13 @@ class _EscapeDismissesSheetState extends State<_EscapeDismissesSheet> {
   }
 
   bool _onKey(KeyEvent event) {
+    if (FocusScope.of(context, createDependency: false).hasFocus) {
+      return false;
+    }
+    return _dismissOnEscape(event);
+  }
+
+  bool _dismissOnEscape(KeyEvent event) {
     final route = _route;
     if (event is! KeyDownEvent ||
         event.logicalKey != LogicalKeyboardKey.escape ||
@@ -273,7 +280,10 @@ class _EscapeDismissesSheetState extends State<_EscapeDismissesSheet> {
         route == null ||
         !route.isCurrent ||
         !route.barrierDismissible ||
-        FocusScope.of(context, createDependency: false).hasFocus) {
+        (FocusScope.of(context, createDependency: false).hasFocus &&
+            FocusManager.instance.primaryFocus?.context
+                    ?.findAncestorStateOfType<EditableTextState>() !=
+                null)) {
       return false;
     }
     route.navigator?.maybePop();
@@ -281,5 +291,12 @@ class _EscapeDismissesSheetState extends State<_EscapeDismissesSheet> {
   }
 
   @override
-  Widget build(BuildContext context) => widget.child;
+  Widget build(BuildContext context) => Focus(
+    canRequestFocus: false,
+    // Descendants such as menus get the first chance to consume Escape.
+    onKeyEvent: (_, event) => _dismissOnEscape(event)
+        ? KeyEventResult.handled
+        : KeyEventResult.ignored,
+    child: widget.child,
+  );
 }
