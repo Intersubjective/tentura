@@ -183,10 +183,10 @@ abstract final class TestIds {
   /// close-now entry (HUD, status sheet, My Work card CTA).
   static const beaconCloseNowConfirm = 'beacon.close_now.confirm';
 
-  /// Status bottom-sheet row, keyed by [BeaconStatusMenuRowId.name].
+  /// Status bottom-sheet row, keyed by `BeaconStatusMenuRowId.name`.
   static String beaconStatusRow(String rowId) => 'beacon.status_row.$rowId';
 
-  /// Author HUD primary action, keyed by [BeaconHudAuthorAction.name]
+  /// Author HUD primary action, keyed by `BeaconHudAuthorAction.name`
   /// (e.g. `wrapUpForReview`, `closeNow`).
   static String beaconHudAuthorAction(String action) =>
       'beacon.hud_author_action.$action';
