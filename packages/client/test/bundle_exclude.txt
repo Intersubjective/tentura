@@ -10,3 +10,11 @@
 # bar then keeps its labels and drops the icons other files look for).
 test/features/beacon_view/beacon_surface_tabs_360_labels_test.dart
 test/features/post_view/post_view_screen_test.dart
+
+# Install a recording SharePlatform fake. share_plus caches
+# SharePlatform.instance in `static final SharePlus.instance` on first use, so
+# in a shared isolate the fake sticks and a later file's real-channel share
+# (forward_invite_close_discards_test "Share link") never reaches its mock.
+test/features/beacon_threads/room_file_attachment_open_test.dart
+test/features/beacon_threads/room_file_attachment_open_entry_points_test.dart
+test/features/beacon_threads/room_file_open_support_isolation_test.dart

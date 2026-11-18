@@ -3,11 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
-// Transitive dependency: the platform seam under share_plus.
-// ignore: depend_on_referenced_packages -- same seam as room_file_open_support
-import 'package:share_plus_platform_interface/method_channel/method_channel_share.dart';
-// ignore: depend_on_referenced_packages -- same seam as room_file_open_support
-import 'package:share_plus_platform_interface/share_plus_platform_interface.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_theme.dart';
@@ -158,12 +153,6 @@ const _shareChannel = MethodChannel('dev.fluttercommunity.plus/share');
 /// the list of share calls seen.
 List<MethodCall> _mockShareSheetSuccess(WidgetTester tester) {
   final calls = <MethodCall>[];
-  // Another suite in the same isolate may leave a fake SharePlatform behind;
-  // this test answers the real platform channel, so pin the channel
-  // implementation for its duration.
-  final previousPlatform = SharePlatform.instance;
-  SharePlatform.instance = MethodChannelShare();
-  addTearDown(() => SharePlatform.instance = previousPlatform);
   tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
     _shareChannel,
     (call) async {
