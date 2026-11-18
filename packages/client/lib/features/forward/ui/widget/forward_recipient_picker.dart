@@ -1299,21 +1299,22 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
     final directRest = rest
         .where((c) => c.effectiveReachKind == ForwardReachKind.direct)
         .toList();
-    final throughRest =
-        rest
-            .where(
-              (c) =>
-                  c.effectiveReachKind == ForwardReachKind.viaConnection ||
-                  c.effectiveReachKind == ForwardReachKind.sharedRequest,
-            )
-            .toList()
-          ..sort((a, b) {
-            final viaOrder = b.reachViaCount.compareTo(a.reachViaCount);
-            if (viaOrder != 0) {
-              return viaOrder;
-            }
-            return b.mrScore.compareTo(a.mrScore);
-          });
+    final throughRest = rest
+        .where(
+          (c) =>
+              c.effectiveReachKind == ForwardReachKind.viaConnection ||
+              c.effectiveReachKind == ForwardReachKind.sharedRequest,
+        )
+        .toList();
+    if (_profile(state) != ForwardTargetProfile.postBudInvite) {
+      throughRest.sort((a, b) {
+        final viaOrder = b.reachViaCount.compareTo(a.reachViaCount);
+        if (viaOrder != 0) {
+          return viaOrder;
+        }
+        return b.mrScore.compareTo(a.mrScore);
+      });
+    }
     final widerRest = rest
         .where((c) => c.effectiveReachKind == ForwardReachKind.wider)
         .toList();

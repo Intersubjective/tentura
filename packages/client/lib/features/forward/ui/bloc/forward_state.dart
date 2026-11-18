@@ -287,7 +287,8 @@ abstract class ForwardState extends StateBase with _$ForwardState {
   /// Full-list scope sizes (no search filter).
   ForwardScopeCounts get scopeCounts => scopeCountsForSearch('');
 
-  /// Recipients for the active scope, MR-sorted.
+  /// Recipients for the active scope, MR-sorted except Post bud invites,
+  /// which keep the server's member order.
   ///
   /// Unseen / all scopes exclude lineage block rows (shown separately).
   /// Involved scope merges lineage rows so current-beacon involvement is
@@ -317,7 +318,9 @@ abstract class ForwardState extends StateBase with _$ForwardState {
         );
     }
     final list = picked.toList();
-    _sortByMr(list);
+    if (profile != ForwardTargetProfile.postBudInvite) {
+      _sortByMr(list);
+    }
     return list;
   }
 
