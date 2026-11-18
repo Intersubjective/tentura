@@ -385,6 +385,11 @@ OR FALSE''';
 EXISTS (SELECT 1 FROM activity_optional_dismissible)
 OR EXISTS (SELECT 1 FROM activity_outcome_dismissible)''';
 
+  /// [forYouSweepEligibleExpression] without Set O: the enablement of a sweep
+  /// that leaves outcome rows alone (`includeOutcomes: false`).
+  static const forYouReceiptSweepEligibleExpression =
+      'EXISTS (SELECT 1 FROM activity_optional_dismissible)';
+
   /// Set O — dismissible outcome rows, the `inbox_item` axis.
   ///
   /// `NOT IN eligible_pinned` is the load-bearing exclusion and the entire

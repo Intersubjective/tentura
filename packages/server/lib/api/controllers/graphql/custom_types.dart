@@ -282,6 +282,8 @@ final gqlTypeAttentionSurfaceSummary =
         // `forYouDot`: that includes the pinned decision zone the sweep never
         // touches.
         field('forYouSweepEligible', graphQLBoolean.nonNullable()),
+        // The same, for a sweep that leaves outcome rows alone (Read all).
+        field('forYouReceiptSweepEligible', graphQLBoolean.nonNullable()),
       ]);
 
 /// U088 — what `BeaconLobby` returns: the lobby's thread scope id and what

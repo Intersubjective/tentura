@@ -58,7 +58,7 @@ final class UpdatesFeedCubit extends Cubit<UpdatesFeedState> {
     _accountSub = _attention.feedPages.listen((_) => _projectFromDomain());
     _surfaceSummarySub = _attention.surfaceSummary.listen((summary) {
       if (isClosed) return;
-      emit(state.copyWith(sweepEligible: summary.forYouSweepEligible));
+      emit(state.copyWith(sweepEligible: summary.forYouReceiptSweepEligible));
     });
     _sessionSub = _attention
         .watchFeedSession(_destinationId)
@@ -99,7 +99,8 @@ final class UpdatesFeedCubit extends Cubit<UpdatesFeedState> {
         view: session.activeView,
         searchText: session.searchText,
         summary: session.summary,
-        sweepEligible: _attention.surfaceSummarySnapshot.forYouSweepEligible,
+        sweepEligible:
+            _attention.surfaceSummarySnapshot.forYouReceiptSweepEligible,
         items: items,
         hasNextPage: page?.nextCursor?.isNotEmpty ?? false,
         refreshError: session.headRefreshError,

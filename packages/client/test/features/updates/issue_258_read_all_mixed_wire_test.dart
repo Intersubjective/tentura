@@ -142,6 +142,7 @@ Map<String, dynamic> _surfaceSummary({required bool sweepEligible}) => {
     'myDeskCount': 0,
     'forYouDot': sweepEligible,
     'forYouSweepEligible': sweepEligible,
+    'forYouReceiptSweepEligible': sweepEligible,
   },
 };
 

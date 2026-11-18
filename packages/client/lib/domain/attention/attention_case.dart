@@ -949,6 +949,7 @@ final class AttentionCase implements AttentionReconcilePort {
   Future<AttentionDismissAllResult> dismissAll({
     String? operationId,
     int? maxBatches,
+    bool includeOutcomes = true,
   }) async {
     final generation = _accountGeneration;
     final id = operationId ?? _uuid.v4();
@@ -969,6 +970,7 @@ final class AttentionCase implements AttentionReconcilePort {
         run: () => _repository.dismissAll(
           operationId: id,
           maxBatches: maxBatches,
+          includeOutcomes: includeOutcomes,
         ),
         appliedIdsOf: (result) => result.appliedReceiptIds,
         generation: generation,
@@ -999,9 +1001,12 @@ final class AttentionCase implements AttentionReconcilePort {
   /// viewer works on (My Desk), and those stayed there after Read all. What
   /// is still optional on Unread after the sweep is cleared per Request
   /// ([clearBeacon]), or per row when it has no Request ([clearReceipt]).
+  ///
+  /// The sweep takes receipts only: an outcome row (tombstone) is read here
+  /// and stays in Activity until the viewer dismisses it themself.
   Future<AttentionDismissAllResult> readAll() async {
     await markAllSeen();
-    final result = await dismissAll();
+    final result = await dismissAll(includeOutcomes: false);
     await _clearUnreadLeftovers(
       sweepCompleted: result.status == AttentionOperationStatus.complete,
     );

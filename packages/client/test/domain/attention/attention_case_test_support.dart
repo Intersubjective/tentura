@@ -141,6 +141,7 @@ final class AttentionCaseTestRepository extends AttentionRepositoryFake {
   Future<AttentionDismissAllResult> dismissAll({
     required String operationId,
     int? maxBatches,
+    bool includeOutcomes = true,
   }) {
     dismissAllCalls.add((operationId: operationId, maxBatches: maxBatches));
     return pendingDismissAll.removeAt(0).future;

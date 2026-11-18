@@ -197,6 +197,7 @@ final class MarkSeenServerFake extends AttentionRepositoryFake {
   Future<AttentionDismissAllResult> dismissAll({
     required String operationId,
     int? maxBatches,
+    bool includeOutcomes = true,
   }) async {
     dismissAllOperationIds.add(operationId);
     if (failWrites) throw StateError('offline');

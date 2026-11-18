@@ -87,6 +87,8 @@ final class MutationAttention extends GqlNodeBase {
               'myDeskCount': result.summary.myDeskCount,
               'forYouDot': result.summary.forYouDot,
               'forYouSweepEligible': result.summary.forYouSweepEligible,
+              'forYouReceiptSweepEligible':
+                  result.summary.forYouReceiptSweepEligible,
             },
           };
         },
@@ -109,13 +111,18 @@ final class MutationAttention extends GqlNodeBase {
       GraphQLObjectField(
         'attentionDismissAll',
         gqlTypeAttentionDismissAllResult.nonNullable(),
-        arguments: [_operationId.field, _maxBatches.fieldNullable],
+        arguments: [
+          _operationId.field,
+          _maxBatches.fieldNullable,
+          _includeOutcomes.fieldNullable,
+        ],
         resolve: (_, args) async {
           final accountId = getCredentials(args).sub;
           final result = await _sweep.dismissAll(
             accountId: accountId,
             operationId: _operationId.fromArgsNonNullable(args),
             maxBatches: _maxBatches.fromArgs(args),
+            includeOutcomes: _includeOutcomes.fromArgs(args) ?? true,
           );
           Map<String, dynamic> member(AttentionSweepMember member) => {
             'kind': member.kind.wireName,
@@ -299,6 +306,9 @@ final class MutationAttention extends GqlNodeBase {
   static final _snapshotToken = InputFieldString(fieldName: 'snapshotToken');
   static final _operationId = InputFieldString(fieldName: 'operationId');
   static final _maxBatches = InputFieldInt(fieldName: 'maxBatches');
+  static final _includeOutcomes = InputFieldBool(
+    fieldName: 'includeOutcomes',
+  );
   static final _undoToken = InputFieldString(fieldName: 'undoToken');
 
   GraphQLObjectField<dynamic, dynamic> get attentionSettle =>

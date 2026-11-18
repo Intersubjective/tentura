@@ -51,7 +51,12 @@ Future<void> main() async {
     envVarName: 'TENTURA_RECEIPT_TRANSPORT_TEST_DB',
     defaultNamePrefix: 'tentura_test_receipt_transport',
   );
-  final session = await setUpDisposablePgWriter(target: target);
+  // The Activity stream ranks forward provenance through pgmer2.
+  final session = await setUpDisposablePgWriter(
+    target: target,
+    createPgmer2Extension:
+        Platform.environment['TENTURA_RECEIPT_ACTIVITY_ROWS_FIXTURE'] == 'true',
+  );
   Connection? listener;
   HttpServer? httpServer;
   StreamSubscription<String>? subscription;
@@ -140,6 +145,10 @@ INSERT INTO public.beacon_participant (
         'true') {
       await seedForwardRequestHistory(writer);
     }
+    if (Platform.environment['TENTURA_RECEIPT_ACTIVITY_ROWS_FIXTURE'] ==
+        'true') {
+      await seedActivityTombstoneAndPendingForward(writer);
+    }
     if (Platform.environment['TENTURA_RECEIPT_LEFTOVER_FORWARD_FIXTURE'] ==
         'true') {
       await seedLeftoverForwardRequestHistory(writer);
@@ -199,6 +208,35 @@ INSERT INTO public.beacon_participant (
           request.response.write('{}');
           await request.response.close();
           done.complete();
+          return;
+        }
+        if (request.uri.path == '/tombstone-dismissed-at') {
+          // Raw row read, for tests that assert Postgres state directly.
+          final rows = await writer.execute(
+            Sql.named(
+              'SELECT tombstone_dismissed_at, before_response_terminal_at, '
+              'status, latest_forward_at FROM public.inbox_item '
+              'WHERE user_id = @u AND beacon_id = @b',
+            ),
+            parameters: {
+              'u': request.uri.queryParameters['viewer'],
+              'b': request.uri.queryParameters['beacon'],
+            },
+          );
+          String? iso(Object? v) => (v as DateTime?)?.toUtc().toIso8601String();
+          request.response
+            ..headers.contentType = ContentType.json
+            ..write(
+              jsonEncode({
+                'found': rows.isNotEmpty,
+                'dismissedAt': rows.isEmpty ? null : iso(rows.first[0]),
+                'beforeResponseTerminalAt': rows.isEmpty
+                    ? null
+                    : iso(rows.first[1]),
+                'status': rows.isEmpty ? null : rows.first[2],
+                'latestForwardAt': rows.isEmpty ? null : iso(rows.first[3]),
+              }),
+            );
           return;
         }
         final body =

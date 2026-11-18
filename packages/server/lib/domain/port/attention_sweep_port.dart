@@ -19,11 +19,15 @@ abstract interface class AttentionSweepPort {
   ///
   /// [maxBatches] bounds the work of one call; the caller resumes by invoking
   /// the same [operationId] again.
+  ///
+  /// [includeOutcomes] false captures the optional receipts only and leaves
+  /// every outcome row (Set O, a tombstone) where it is.
   Future<AttentionSweepResult> dismissAll({
     required String accountId,
     required String operationId,
     int batchSize,
     int? maxBatches,
+    bool includeOutcomes = true,
   });
 
   /// Reverses, within the window, exactly what [operationId] applied.

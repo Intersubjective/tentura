@@ -283,6 +283,9 @@ my_desk_count AS (
 for_you_sweep_eligible AS (
   SELECT (${AttentionDismissibleSql.forYouSweepEligibleExpression}) AS value
 ),
+for_you_receipt_sweep_eligible AS (
+  SELECT (${AttentionDismissibleSql.forYouReceiptSweepEligibleExpression}) AS value
+),
 history_summary AS (
   SELECT
     COUNT(*) FILTER (WHERE ${AttentionDismissibleSql.historyAttention('v')})::int AS unread_total,
@@ -295,8 +298,10 @@ SELECT
   my_desk_dot.value AS my_desk_dot,
   for_you_dot.value AS for_you_dot,
   my_desk_count.value AS my_desk_count,
-  for_you_sweep_eligible.value AS for_you_sweep_eligible
-FROM my_desk_dot, for_you_dot, my_desk_count, for_you_sweep_eligible, history_summary
+  for_you_sweep_eligible.value AS for_you_sweep_eligible,
+  for_you_receipt_sweep_eligible.value AS for_you_receipt_sweep_eligible
+FROM my_desk_dot, for_you_dot, my_desk_count, for_you_sweep_eligible,
+  for_you_receipt_sweep_eligible, history_summary
 ''',
           variables: [Variable<String>(accountId)],
         )
@@ -310,6 +315,9 @@ FROM my_desk_dot, for_you_dot, my_desk_count, for_you_sweep_eligible, history_su
       myDeskCount: row.read<int>('my_desk_count'),
       forYouDot: row.read<bool>('for_you_dot'),
       forYouSweepEligible: row.read<bool>('for_you_sweep_eligible'),
+      forYouReceiptSweepEligible: row.read<bool>(
+        'for_you_receipt_sweep_eligible',
+      ),
     );
   }
 

@@ -70,9 +70,13 @@ abstract interface class AttentionRepositoryPort {
 
   /// Bounded sweep. Resume a `partial` answer with the **same**
   /// [operationId]; a second id would capture a second membership.
+  ///
+  /// [includeOutcomes] false sweeps optional receipts only and leaves outcome
+  /// rows (tombstones) in place.
   Future<AttentionDismissAllResult> dismissAll({
     required String operationId,
     int? maxBatches,
+    bool includeOutcomes = true,
   });
 
   /// Bounded restore of exactly what [operationId] applied (D13).

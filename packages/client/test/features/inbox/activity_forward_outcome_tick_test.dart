@@ -137,6 +137,7 @@ final class _StreamServer extends ConfigurableActivityOffersAttentionRepo {
   Future<AttentionDismissAllResult> dismissAll({
     required String operationId,
     int? maxBatches,
+    bool includeOutcomes = true,
   }) async => AttentionDismissAllResult(
     operationId: operationId,
     status: AttentionOperationStatus.complete,

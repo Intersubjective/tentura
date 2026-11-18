@@ -173,3 +173,47 @@ INSERT INTO public.notification_outbox (
     );
   }
 }
+
+const activityTombstoneBeaconId = 'Bfwdtomb00001';
+const activityTombstoneRowId = 'inbox:$activityTombstoneBeaconId';
+
+/// [seedForwardRequestHistory] plus a second forwarded Request that closed
+/// before the viewer answered (inbox status 3), whose outcome row is unread.
+Future<void> seedActivityTombstoneAndPendingForward(Connection writer) async {
+  await seedForwardRequestHistory(writer);
+  await writer.execute(
+    Sql.named('''
+INSERT INTO public.beacon (id, user_id, title, description, status)
+VALUES (@b, @a, 'Closed forwarded Request', 'Closed before the viewer answered', 0)
+'''),
+    parameters: {'b': activityTombstoneBeaconId, 'a': forwardRequestAuthorId},
+  );
+  await writer.execute(
+    Sql.named('''
+INSERT INTO public.beacon_forward_edge (
+  id, beacon_id, sender_id, recipient_id, created_at, cancelled_at
+) VALUES ('FEfwdtomb00001', @b, @a, @v, now() - interval '3 hours', NULL)
+'''),
+    parameters: {
+      'b': activityTombstoneBeaconId,
+      'a': forwardRequestAuthorId,
+      'v': forwardRequestViewerId,
+    },
+  );
+  await writer.execute(
+    Sql.named('''
+INSERT INTO public.inbox_item (
+  user_id, beacon_id, status, forward_count, latest_forward_at,
+  latest_note_preview, rejection_message
+) VALUES (@v, @b, 0, 1, now() - interval '3 hours', '', '')
+ON CONFLICT (user_id, beacon_id) DO UPDATE SET status = 0
+'''),
+    parameters: {'b': activityTombstoneBeaconId, 'v': forwardRequestViewerId},
+  );
+  // Closing the Request is what moves an unanswered inbox row to a tombstone
+  // (the guard trigger refuses a direct write).
+  await writer.execute(
+    Sql.named('UPDATE public.beacon SET status = 1 WHERE id = @b'),
+    parameters: {'b': activityTombstoneBeaconId},
+  );
+}

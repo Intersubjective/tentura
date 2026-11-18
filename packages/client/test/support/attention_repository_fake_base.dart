@@ -63,6 +63,7 @@ abstract class AttentionRepositoryFake implements AttentionRepositoryPort {
   Future<AttentionDismissAllResult> dismissAll({
     required String operationId,
     int? maxBatches,
+    bool includeOutcomes = true,
   }) async => throw UnimplementedError('dismissAll');
 
   @override

@@ -227,6 +227,7 @@ final class _GroupRepository extends AttentionRepositoryFake {
   Future<AttentionDismissAllResult> dismissAll({
     required String operationId,
     int? maxBatches,
+    bool includeOutcomes = true,
   }) {
     if (!holdDismissAll) {
       return Future.value(

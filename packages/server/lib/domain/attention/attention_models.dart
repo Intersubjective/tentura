@@ -786,6 +786,10 @@ abstract class AttentionSurfaceSummary with _$AttentionSurfaceSummary {
     /// that includes the pinned decision zone, which owner decision A keeps
     /// out of the sweep.
     @Default(false) bool forYouSweepEligible,
+
+    /// [forYouSweepEligible] without the outcome rows: would a sweep that
+    /// leaves outcomes alone (History *Read all*) clear anything?
+    @Default(false) bool forYouReceiptSweepEligible,
   }) = _AttentionSurfaceSummary;
 }
 

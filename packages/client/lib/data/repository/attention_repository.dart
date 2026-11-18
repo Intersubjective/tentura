@@ -458,6 +458,7 @@ final class AttentionRepository implements AttentionRepositoryPort {
       myDeskCount: summary.myDeskCount,
       forYouDot: summary.forYouDot,
       forYouSweepEligible: summary.forYouSweepEligible,
+      forYouReceiptSweepEligible: summary.forYouReceiptSweepEligible,
     );
   }
 
@@ -654,13 +655,15 @@ final class AttentionRepository implements AttentionRepositoryPort {
   Future<AttentionDismissAllResult> dismissAll({
     required String operationId,
     int? maxBatches,
+    bool includeOutcomes = true,
   }) async {
     final data = await _remoteClient
         .request(
           GAttentionDismissAllReq(
             (request) => request.vars
               ..operationId = operationId
-              ..maxBatches = maxBatches,
+              ..maxBatches = maxBatches
+              ..includeOutcomes = includeOutcomes,
           ),
         )
         .firstLinkResponse(label: _label)
@@ -751,6 +754,7 @@ final class AttentionRepository implements AttentionRepositoryPort {
         myDeskCount: result.summary.myDeskCount,
         forYouDot: result.summary.forYouDot,
         forYouSweepEligible: result.summary.forYouSweepEligible,
+        forYouReceiptSweepEligible: result.summary.forYouReceiptSweepEligible,
       ),
       createdObligationCount: result.createdObligationCount,
       settledObligationCount: result.settledObligationCount,

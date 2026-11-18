@@ -306,6 +306,7 @@ class _FakeSweep implements AttentionSweepPort {
     required String operationId,
     int batchSize = AttentionSweepLimits.batchSize,
     int? maxBatches,
+    bool includeOutcomes = true,
   }) async {
     sweptAccountId = accountId;
     sweptOperationId = operationId;
@@ -627,6 +628,7 @@ void main() {
         'myDeskCount': 3,
         // CHANGES IN U16c-1: the *Dismiss all* enablement signal.
         'forYouSweepEligible': true,
+        'forYouReceiptSweepEligible': false,
       });
       expect(query.accountId, 'U1');
     },
@@ -636,7 +638,7 @@ void main() {
     expect(
       gqlTypeAttentionSurfaceSummary.fields.map((f) => f.name).toList(),
       ['unreadTotal', 'needsYouTotal', 'myDeskDot', 'myDeskCount',
-       'forYouDot', 'forYouSweepEligible'],
+       'forYouDot', 'forYouSweepEligible', 'forYouReceiptSweepEligible'],
       reason: 'the retired per-surface totals and forYouCount stay absent',
     );
   });
@@ -802,6 +804,7 @@ void main() {
           // CHANGES IN U16c-1: the reconcile result carries the same summary
           // object, so it gains the field too.
           'forYouSweepEligible': true,
+          'forYouReceiptSweepEligible': false,
         },
       });
       expect(reconciliation.accountId, 'U1');
@@ -1062,9 +1065,11 @@ void main() {
       sweep: AttentionSweepCase(_FakeSweep()),
     ).all.singleWhere((field) => field.name == 'attentionDismissAll');
 
+    // `includeOutcomes` only drops a whole kind (outcome rows); it names no
+    // member.
     expect(
       field.inputs.map((input) => input.name).toSet(),
-      {'operationId', 'maxBatches'},
+      {'operationId', 'maxBatches', 'includeOutcomes'},
     );
   });
 

@@ -35,11 +35,12 @@ abstract class UpdatesFeedState extends StateBase with _$UpdatesFeedState {
   bool get hasRefreshError => refreshError != null;
   bool get hasActionError => actionError != null;
 
-  /// «Read all» has something to do (#258): the sweep would take rows, or a
-  /// loaded row on Unread ([isInUnreadView]) is unseen or an
-  /// [isReadAllLeftover]. `summary.unreadTotal` is not the gate: it also
-  /// counts unanswered forwards, which Read all never clears. Rows off
-  /// Unread (Dismiss all clears without reading) do not count.
+  /// «Read all» has something to do (#258): the sweep would take receipts
+  /// (`sweepEligible` is the receipts-only enablement, since Read all leaves
+  /// outcome rows alone), or a loaded row on Unread ([isInUnreadView]) is
+  /// unseen or an [isReadAllLeftover]. `summary.unreadTotal` is not the gate:
+  /// it also counts unanswered forwards, which Read all never clears. Rows
+  /// off Unread (Dismiss all clears without reading) do not count.
   bool get canReadAll =>
       sweepEligible ||
       items.any(

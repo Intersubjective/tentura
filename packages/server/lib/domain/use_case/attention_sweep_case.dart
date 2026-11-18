@@ -22,6 +22,7 @@ class AttentionSweepCase {
     required String operationId,
     int? batchSize,
     int? maxBatches,
+    bool includeOutcomes = true,
   }) {
     if (operationId.isEmpty || operationId.length > 64) {
       throw ArgumentError.value(
@@ -38,6 +39,7 @@ class AttentionSweepCase {
       operationId: operationId,
       batchSize: batchSize ?? AttentionSweepLimits.batchSize,
       maxBatches: maxBatches,
+      includeOutcomes: includeOutcomes,
     );
   }
 

@@ -544,6 +544,28 @@ class MockImageRepositoryPort extends _i1.Mock
             returnValueForMissingStub: _i5.Future<void>.value(),
           )
           as _i5.Future<void>);
+
+  @override
+  _i5.Future<String> copyFile({required String? path, required String? mime}) =>
+      (super.noSuchMethod(
+            Invocation.method(#copyFile, [], {#path: path, #mime: mime}),
+            returnValue: _i5.Future<String>.value(
+              _i7.dummyValue<String>(
+                this,
+                Invocation.method(#copyFile, [], {#path: path, #mime: mime}),
+              ),
+            ),
+          )
+          as _i5.Future<String>);
+
+  @override
+  _i5.Future<void> removeFile({required String? path}) =>
+      (super.noSuchMethod(
+            Invocation.method(#removeFile, [], {#path: path}),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
+          )
+          as _i5.Future<void>);
 }
 
 /// A class which mocks [TaskRepositoryPort].

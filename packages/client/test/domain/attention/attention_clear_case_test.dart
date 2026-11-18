@@ -588,6 +588,7 @@ final class _ClearRepository extends AttentionRepositoryFake {
   Future<AttentionDismissAllResult> dismissAll({
     required String operationId,
     int? maxBatches,
+    bool includeOutcomes = true,
   }) async {
     final error = dismissAllError;
     if (error != null) throw error;

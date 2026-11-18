@@ -1,5 +1,13 @@
-mutation AttentionDismissAll($operationId: String!, $maxBatches: Int) {
-  attentionDismissAll(operationId: $operationId, maxBatches: $maxBatches) {
+mutation AttentionDismissAll(
+  $operationId: String!
+  $maxBatches: Int
+  $includeOutcomes: Boolean
+) {
+  attentionDismissAll(
+    operationId: $operationId
+    maxBatches: $maxBatches
+    includeOutcomes: $includeOutcomes
+  ) {
     operationId
     appliedReceiptIds
     appliedOutcomeBeaconIds

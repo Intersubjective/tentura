@@ -952,6 +952,14 @@ class MockBeaconRepositoryPort extends _i1.Mock
           as _i6.Future<void>);
 
   @override
+  _i6.Future<List<String>> copiedFactFileKeys(String? beaconId) =>
+      (super.noSuchMethod(
+            Invocation.method(#copiedFactFileKeys, [beaconId]),
+            returnValue: _i6.Future<List<String>>.value(<String>[]),
+          )
+          as _i6.Future<List<String>>);
+
+  @override
   _i6.Future<List<String>> deadlineReminderCandidateIds({
     required DateTime? nextUtcDayStart,
     required DateTime? followingUtcDayStart,

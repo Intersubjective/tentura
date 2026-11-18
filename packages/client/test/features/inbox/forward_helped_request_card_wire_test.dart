@@ -263,6 +263,7 @@ final class _Server {
             'myDeskCount': 0,
             'forYouDot': !cleared,
             'forYouSweepEligible': !cleared,
+            'forYouReceiptSweepEligible': !cleared,
           },
         };
       case 'AttentionMarkers':

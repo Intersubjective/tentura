@@ -175,6 +175,7 @@ class _ChromeAttentionRepo extends AttentionRepositoryFake {
   Future<AttentionDismissAllResult> dismissAll({
     required String operationId,
     int? maxBatches,
+    bool includeOutcomes = true,
   }) async {
     dismissAllOperationIds.add(operationId);
     sweepEligible = false;

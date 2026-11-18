@@ -197,6 +197,7 @@ void main() {
           'myDeskCount': 7,
           'forYouDot': true,
           'forYouSweepEligible': true,
+          'forYouReceiptSweepEligible': true,
         },
       },
     })!;

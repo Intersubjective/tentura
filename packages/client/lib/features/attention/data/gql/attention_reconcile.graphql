@@ -10,6 +10,7 @@ mutation AttentionReconcile {
       myDeskCount
       forYouDot
       forYouSweepEligible
+      forYouReceiptSweepEligible
     }
   }
 }

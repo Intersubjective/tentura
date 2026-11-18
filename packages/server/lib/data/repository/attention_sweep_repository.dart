@@ -41,7 +41,10 @@ class AttentionSweepRepository implements AttentionSweepPort {
   /// Exposed so that the exclusion tests can loosen *this* string rather than
   /// a paraphrase of it: an exclusion test that cannot fail is the one defect
   /// that lets the sweep reject somebody's offer of help.
-  static String get captureSql =>
+  static String get captureSql => captureSqlFor(includeOutcomes: true);
+
+  /// [captureSql], with or without the outcome branch (Set O).
+  static String captureSqlFor({required bool includeOutcomes}) =>
       '''
 WITH ${AttentionDismissibleSql.cte}
 SELECT
@@ -53,6 +56,7 @@ SELECT
 FROM activity_optional_dismissible dismissible
 LEFT JOIN public.attention_request_state state
   ON state.account_id = \$1 AND state.beacon_id = dismissible.beacon_id
+${includeOutcomes ? '''
 UNION ALL
 SELECT
   'outcome',
@@ -61,7 +65,7 @@ SELECT
   dismissible.outcome_generation,
   dismissible.decision_revision
 FROM activity_outcome_dismissible dismissible
-ORDER BY 1, 2
+''' : ''}ORDER BY 1, 2
 ''';
 
   @override
@@ -70,6 +74,7 @@ ORDER BY 1, 2
     required String operationId,
     int batchSize = AttentionSweepLimits.batchSize,
     int? maxBatches,
+    bool includeOutcomes = true,
   }) => _database.withWorkContext(
     () async {
       final bounded = batchSize.clamp(1, AttentionSweepLimits.maxBatchSize);
@@ -92,7 +97,10 @@ INSERT INTO public.attention_clear_operation
         );
         if (inserted == 0) return null;
         final rows = await _database
-            .customSelect(captureSql, variables: [Variable<String>(accountId)])
+            .customSelect(
+              captureSqlFor(includeOutcomes: includeOutcomes),
+              variables: [Variable<String>(accountId)],
+            )
             .get();
         final members = [for (final row in rows) row.data];
         await _database.customUpdate(

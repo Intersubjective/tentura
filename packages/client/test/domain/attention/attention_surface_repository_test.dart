@@ -118,6 +118,7 @@ void main() {
         // touches, so a relay that wired the header control to the dot — or
         // defaulted the new field — fails here.
         'forYouSweepEligible': false,
+        'forYouReceiptSweepEligible': false,
       },
     });
     final summary = await repository.surfaceSummary();

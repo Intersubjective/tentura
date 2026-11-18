@@ -49,5 +49,9 @@ abstract class AttentionSurfaceSummary with _$AttentionSurfaceSummary {
     /// zone, and owner decision A keeps that zone out of the sweep. Gating
     /// the button on the dot would light a control that does nothing.
     @Default(false) bool forYouSweepEligible,
+
+    /// [forYouSweepEligible] without outcome rows (tombstones): would a sweep
+    /// that leaves them alone, like History *Read all*, clear anything?
+    @Default(false) bool forYouReceiptSweepEligible,
   }) = _AttentionSurfaceSummary;
 }

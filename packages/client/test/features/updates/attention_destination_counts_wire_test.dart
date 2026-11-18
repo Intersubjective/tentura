@@ -648,6 +648,7 @@ final class _Server {
     'myDeskCount': 0,
     'forYouDot': true,
     'forYouSweepEligible': true,
+    'forYouReceiptSweepEligible': true,
     'unreadTotal': accountWideCount,
     'needsYouTotal': 0,
   };

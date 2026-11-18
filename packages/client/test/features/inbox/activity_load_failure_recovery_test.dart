@@ -157,6 +157,7 @@ class _Server {
           'myDeskCount': 0,
           'forYouDot': false,
           'forYouSweepEligible': false,
+          'forYouReceiptSweepEligible': false,
         },
       },
       'InboxFetch' => <String, dynamic>{'inbox_item': <Object>[]},

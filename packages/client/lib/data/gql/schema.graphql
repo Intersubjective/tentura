@@ -3839,7 +3839,7 @@ type mutation_root {
   RoomPollCreate(allowRevote: Boolean, beaconId: String!, isAnonymous: Boolean, pollType: String, question: String!, variants: [String!]): v2_RoomMessageRow!
   acceptHelpOffer(id: String!, offerUserId: String!): v2_BeaconStatusResult!
   attentionClear(operationId: String!, snapshotToken: String!): v2_AttentionClearResult!
-  attentionDismissAll(maxBatches: Int, operationId: String!): v2_AttentionDismissAllResult!
+  attentionDismissAll(includeOutcomes: Boolean, maxBatches: Int, operationId: String!): v2_AttentionDismissAllResult!
   attentionMarkAllSeen(surface: String): Int!
   attentionMarkSeen(ids: [String!]): Int!
   attentionMarkSeenForBeacon(beaconId: String!): Int!
@@ -7772,6 +7772,7 @@ type v2_AttentionSurfaceSummary {
   unreadTotal: Int
   needsYouTotal: Int
   forYouDot: Boolean!
+  forYouReceiptSweepEligible: Boolean!
   forYouSweepEligible: Boolean!
   myDeskCount: Int!
   myDeskDot: Boolean!

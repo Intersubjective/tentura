@@ -30,6 +30,7 @@ final class ProductionReceiptTransport {
     bool countedSiblingFixture = false,
     bool forwardRequestFixture = false,
     bool leftoverForwardRequestFixture = false,
+    bool activityRowsFixture = false,
   }) async {
     final process = await Process.start(
       'dart',
@@ -42,6 +43,8 @@ final class ProductionReceiptTransport {
           'TENTURA_RECEIPT_FORWARD_REQUEST_FIXTURE': 'true',
         if (leftoverForwardRequestFixture)
           'TENTURA_RECEIPT_LEFTOVER_FORWARD_FIXTURE': 'true',
+        if (activityRowsFixture)
+          'TENTURA_RECEIPT_ACTIVITY_ROWS_FIXTURE': 'true',
         if (countedSiblingFixture)
           'TENTURA_RECEIPT_COUNTED_SIBLING_FIXTURE': 'true',
       },
@@ -109,6 +112,35 @@ final class ProductionReceiptTransport {
       response.statusCode,
       headers: {'content-type': 'application/json'},
     );
+  }
+
+  /// The viewer's `inbox_item` row read straight from Postgres (timestamps are
+  /// ISO strings, null when unset). Fails if the row does not exist.
+  Future<Map<String, dynamic>> inboxItemRow(
+    String viewer,
+    String beaconId,
+  ) async {
+    final request = await _client.getUrl(
+      Uri.parse(
+        'http://127.0.0.1:$_port/tombstone-dismissed-at'
+        '?viewer=$viewer&beacon=$beaconId',
+      ),
+    );
+    final response = await request.close();
+    final body =
+        jsonDecode(await utf8.decoder.bind(response).join())
+            as Map<String, dynamic>;
+    if (body['found'] != true) {
+      throw StateError('no inbox_item for $viewer/$beaconId');
+    }
+    return body;
+  }
+
+  /// `inbox_item.tombstone_dismissed_at` read straight from Postgres; null
+  /// when the row is not dismissed.
+  Future<DateTime?> tombstoneDismissedAt(String viewer, String beaconId) async {
+    final at = (await inboxItemRow(viewer, beaconId))['dismissedAt'] as String?;
+    return at == null ? null : DateTime.parse(at);
   }
 
   Future<void> close() async {
