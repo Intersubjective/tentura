@@ -52,18 +52,16 @@ Future<void> showFactPickFromAvailableSheet(
   required String beaconId,
   required bool isPost,
   required Future<void> Function() onBrought,
-}) async {
-  final message = await showTenturaAdaptiveSheet<String>(
+}) => showSheetResultSnackBar(
+  context,
+  showTenturaAdaptiveSheet<String>(
     context: context,
     showSnackBars: true,
     useRootNavigator: true,
     builder: (ctx) =>
         FactPickerSheet.bring(beaconId: beaconId, onBrought: onBrought),
-  );
-  if (message != null && context.mounted) {
-    showSnackBar(context, text: message);
-  }
-}
+  ),
+);
 
 typedef _Bring = ({String beaconId, Future<void> Function() onBrought});
 

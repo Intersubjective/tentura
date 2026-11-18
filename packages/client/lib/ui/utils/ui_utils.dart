@@ -11,6 +11,7 @@ import 'package:flutter/scheduler.dart';
 
 import 'package:tentura/app/sentry/report_user_facing_error.dart';
 import 'package:tentura/consts.dart';
+import 'package:tentura/design_system/components/tentura_sheet_snack_bar_host.dart';
 
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 
@@ -202,8 +203,19 @@ ScaffoldFeatureController<SnackBar, SnackBarClosedReason>? showSnackBarOn(
   return resolved.showSnackBar(SnackBar(content: Text(text)));
 }
 
-/// Returns null (and shows nothing) when no [ScaffoldMessenger] is reachable:
-/// neither above [context] nor mounted under [snackbarKey] (#613).
+/// Shows a sheet's returned message on the surface that remains open.
+Future<void> showSheetResultSnackBar(
+  BuildContext context,
+  Future<String?> result,
+) async {
+  final message = await result;
+  if (message != null && context.mounted) {
+    showSnackBar(context, text: message);
+  }
+}
+
+/// Returns null when no [ScaffoldMessenger] is reachable from the sheet
+/// host, [context] or [snackbarKey] (#613).
 ScaffoldFeatureController<SnackBar, SnackBarClosedReason>? showSnackBar(
   BuildContext context, {
   String? text,
@@ -244,11 +256,10 @@ ScaffoldFeatureController<SnackBar, SnackBarClosedReason>? showSnackBar(
     GetIt.I<Logger>().warning(fullText);
   }
 
-  // No messenger above the context and the app-level one is not mounted
-  // (early start-up, teardown, a detached overlay): drop the bar rather than
-  // crash on a null state (#613).
   final scaffoldMessenger =
-      ScaffoldMessenger.maybeOf(context) ?? snackbarKey.currentState;
+      TenturaSheetSnackBarHost.messengerFor(context) ??
+      ScaffoldMessenger.maybeOf(context) ??
+      snackbarKey.currentState;
   if (scaffoldMessenger == null) {
     if (GetIt.I.isRegistered<Logger>()) {
       GetIt.I<Logger>().warning(

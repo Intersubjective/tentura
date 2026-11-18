@@ -22,8 +22,8 @@ import 'tentura_sheet_snack_bar_host.dart';
 /// refocused (#403).
 ///
 /// [showSnackBars] gives the route its own messenger above the modal barrier.
-/// Feedback that should survive closing the sheet must use the page context
-/// after the sheet completes.
+/// Feedback sent from the calling page after a sheet closes can reach another
+/// sheet still open above that page.
 ///
 /// While the sheet animates away the route no longer takes taps, so the
 /// second tap of a double tap on its last button would land on the page
@@ -47,6 +47,7 @@ Future<T?> showTenturaAdaptiveSheet<T>({
   final windowClass = windowClassForWidth(MediaQuery.sizeOf(context).width);
   final trigger = FocusManager.instance.primaryFocus;
   final navigator = Navigator.of(context, rootNavigator: useRootNavigator);
+  final snackBarOwner = showSnackBars ? ModalRoute.of(context) : null;
   final T? result;
   if (windowClass == WindowClass.compact) {
     final localizations = MaterialLocalizations.of(context);
@@ -63,6 +64,7 @@ Future<T?> showTenturaAdaptiveSheet<T>({
         ),
         isScrollControlled: isScrollControlled,
         showSnackBars: showSnackBars,
+        snackBarOwner: snackBarOwner,
         showDragHandle: showDragHandle,
         enableDrag: enableDrag,
         isDismissible: isDismissible,
@@ -99,6 +101,7 @@ Future<T?> showTenturaAdaptiveSheet<T>({
         if (!showSnackBars) return dialog;
         return TenturaSheetSnackBarHost(
           isDismissible: isDismissible,
+          ownerRoute: snackBarOwner,
           child: dialog,
         );
       },

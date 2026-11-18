@@ -19,6 +19,7 @@ class TenturaModalBottomSheetRoute<T> extends PopupRoute<T> {
     this.isDismissible = true,
     this.useSafeArea = true,
     this.showSnackBars = false,
+    this.snackBarOwner,
     this.barrierLabel,
     this.modalBarrierColor,
     super.settings,
@@ -33,6 +34,7 @@ class TenturaModalBottomSheetRoute<T> extends PopupRoute<T> {
   final bool isDismissible;
   final bool useSafeArea;
   final bool showSnackBars;
+  final ModalRoute<dynamic>? snackBarOwner;
   final Color? modalBarrierColor;
 
   AnimationController? _animationController;
@@ -110,6 +112,7 @@ class TenturaModalBottomSheetRoute<T> extends PopupRoute<T> {
     if (showSnackBars) {
       content = TenturaSheetSnackBarHost(
         isDismissible: isDismissible,
+        ownerRoute: snackBarOwner,
         child: content,
       );
     }
