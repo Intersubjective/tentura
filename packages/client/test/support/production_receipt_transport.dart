@@ -136,13 +136,6 @@ final class ProductionReceiptTransport {
     return body;
   }
 
-  /// `inbox_item.tombstone_dismissed_at` read straight from Postgres; null
-  /// when the row is not dismissed.
-  Future<DateTime?> tombstoneDismissedAt(String viewer, String beaconId) async {
-    final at = (await inboxItemRow(viewer, beaconId))['dismissedAt'] as String?;
-    return at == null ? null : DateTime.parse(at);
-  }
-
   Future<void> close() async {
     try {
       final request = await _client.postUrl(

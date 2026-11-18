@@ -1934,8 +1934,10 @@ targets AS (
   SELECT id
   FROM visible
   -- Unread rows, and optional rows an older Read all marked seen but never
-  -- cleared: History still counts those, so they are targets too.
-  WHERE (seen_at IS NULL OR (${AttentionDismissibleSql.activeOptional('visible')}))
+  -- cleared: History still counts those, so they are targets too. An expired
+  -- Post's receipt is never cleared here, so it is not a target once read.
+  WHERE (seen_at IS NULL OR (${AttentionDismissibleSql.activeOptional('visible')}
+      AND ${AttentionDismissibleSql.postLifecycleExcluded('visible')}))
     AND (\$2::text IS NULL OR surface = \$2)
 ),
 forward_outcomes AS (

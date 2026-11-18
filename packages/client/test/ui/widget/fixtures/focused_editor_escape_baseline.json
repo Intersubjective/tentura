@@ -9,7 +9,7 @@
       "packages/client/lib/design_system/components/tentura_adaptive_sheet.dart": "427f34a74d535955cd354ab3f42b6204460e6247c0dbc8b93b353815c1d71f6e",
       "packages/client/lib/design_system/components/tentura_sheet_snack_bar_host.dart": "0326de7579a9389cfd68d30e8eb2c5ab8d4b90c5b34af2d61f4bc16a4f5d7816"
     },
-    "interpretation": "Both tests passed before implementation changes. Each focused the editor, entered text, pressed Escape, and checked retained text and route completion. These observations preserve prior behavior; they do not prescribe a new dismissal policy. Source hashes are provenance only, never runtime assertions."
+    "interpretation": "Both tests passed before implementation changes. Each focused the editor, entered text, pressed Escape, and checked retained text and route completion. The host variant captured closesOnEscape=false, which was a regression against sheets without a host (the host Scaffold swallowed Escape); pre-push review 2026-11-18 set it to true and the host now routes Escape to the route dismissal. Source hashes are provenance only, never runtime assertions."
   },
   "observations": [
     {
@@ -19,7 +19,7 @@
     },
     {
       "showSnackBars": true,
-      "closesOnEscape": false,
+      "closesOnEscape": true,
       "textAfterEscape": "Текст остаётся"
     }
   ]
