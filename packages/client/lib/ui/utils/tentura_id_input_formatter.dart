@@ -14,6 +14,7 @@ bool _looksLikePastedUrlOrLink(String text) =>
     text.contains('/invite/') ||
     text.contains('/profile/view/') ||
     text.contains('/beacon/view/') ||
+    text.contains('/post/view/') ||
     text.contains('?id=');
 
 /// Normalizes keyboard/context-menu paste of invite links into a bare code and

@@ -76,12 +76,12 @@ String? extractInviteCodeFromText(String text, {String prefix = ''}) {
 
 final _entityIdExact = RegExp(r'^[UBCI][0-9a-f]{12}$');
 final _entityIdInPath = RegExp(
-  r'/(?:invite|profile/view|beacon/view)/([UBCI][0-9a-f]{12})(?![0-9a-f])',
+  r'/(?:invite|profile/view|beacon/view|post/view)/([UBCI][0-9a-f]{12})(?![0-9a-f])',
 );
 
 /// Extracts a profile / request / invite id (`U`/`B`/`C`/`I` + 12 hex) from a
 /// bare id, a share link (`/profile/view/U…`, `/beacon/view/B…`,
-/// `/invite/I…`, also behind `#/` hash routing) or a legacy `?id=` query.
+/// `/post/view/B…`, `/invite/I…`, also behind `#/` hash routing) or a legacy `?id=` query.
 ///
 /// Used by the connect sheet for typed, pasted and QR-scanned input: a
 /// scanned profile QR is the full link, not the bare id.

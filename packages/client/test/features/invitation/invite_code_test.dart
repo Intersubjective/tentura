@@ -79,6 +79,12 @@ void main() {
         'B65bdcbaa3a6e',
       );
       expect(
+        extractEntityIdFromText(
+          'https://dev.tentura.io/#/post/view/B65bdcbaa3a6e?tab=threads',
+        ),
+        'B65bdcbaa3a6e',
+      );
+      expect(
         extractEntityIdFromText('https://dev.tentura.io/invite/I806d29daebbe'),
         'I806d29daebbe',
       );
