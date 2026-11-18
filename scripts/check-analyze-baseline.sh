@@ -10,6 +10,9 @@
 # Usage: scripts/check-analyze-baseline.sh <package-dir> [<scoped-path>]
 #   packages/client uses `flutter analyze`, packages/server `dart analyze`.
 #   A scoped path is keyed as "<package-dir>:<scoped-path>" in the baseline.
+#   Failed analysis retains its complete output at the printed report path.
+#   analyze-baseline-inventory.tsv records existing diagnostics as key<TAB>line
+#   (sorted unique lines per key, including both CLI formats for the client).
 
 set -euo pipefail
 
@@ -17,6 +20,7 @@ PKG="${1:?usage: check-analyze-baseline.sh <package-dir> [<scoped-path>]}"
 SCOPE="${2:-}"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BASELINE_FILE="$REPO_ROOT/scripts/analyze-baseline.txt"
+INVENTORY_FILE="$REPO_ROOT/scripts/analyze-baseline-inventory.tsv"
 
 if [[ ! -f "$BASELINE_FILE" ]]; then
   echo "check-analyze-baseline: missing baseline file $BASELINE_FILE" >&2
@@ -104,6 +108,18 @@ fi
 errors="$(grep -E '^[[:space:]]*error (•|-) ' "$out" | sort -u | wc -l || true)"
 total="$(grep -E '^[[:space:]]*(error|warning|info) (•|-) ' "$out" | sort -u | wc -l || true)"
 
+fail_analysis() {
+  echo "check-analyze-baseline: $1" >&2
+  if [[ -n "${2:-}" ]]; then
+    printf '%s\n' "$2" >&2
+  fi
+  # Keep our own output, including when the CI driver removes its shared log.
+  # Reuse the uniquely allocated file so concurrent runs cannot overwrite it.
+  trap - EXIT
+  echo "check-analyze-baseline: full analyzer report: $out" >&2
+  exit 1
+}
+
 # Exit 0-3 are the analyzer's own verdicts (clean / info / warning / error; the
 # diagnostics are gated below). Anything else (crash 255, usage error 64) or an
 # unhandled exception / SDK write failure on stderr means it did not complete,
@@ -115,17 +131,23 @@ if [[ "$analyze_status" -gt 3 ]] \
   || grep -Eq '^(Unhandled exception:|[A-Za-z]*FileSystemException)' "$out" \
   || grep -Eq 'An error occurred while (executing an analyzer plugin|setting up the analyzer plugin)' "$out" \
   || ! grep -Eq '^[[:space:]]*([0-9]+ issues? found\.|No issues found!)' "$out"; then
-  echo "check-analyze-baseline: analyzer did not complete for $KEY (exit $analyze_status)" >&2
-  exit 1
+  fail_analysis "analyzer did not complete for $KEY (exit $analyze_status)"
 fi
 
 if [[ "$errors" -gt 0 ]]; then
-  echo "check-analyze-baseline: $errors analyzer error(s) in $KEY" >&2
-  exit 1
+  fail_analysis "$errors analyzer error(s) in $KEY"
 fi
 if [[ "$total" -gt "$baseline" ]]; then
-  echo "check-analyze-baseline: $KEY has $total issues, baseline is $baseline." >&2
-  exit 1
+  if [[ -f "$INVENTORY_FILE" ]]; then
+    # Compare exact diagnostic lines, using the same extraction and uniqueness
+    # as the count above. Use one locale for both sides of the set difference.
+    new_diagnostics="$(comm -23 \
+      <(grep -E '^[[:space:]]*(error|warning|info) (•|-) ' "$out" | LC_ALL=C sort -u) \
+      <(awk -F '\t' -v k="$KEY" '$1 == k { sub(/^[^\t]*\t/, ""); print }' "$INVENTORY_FILE" | LC_ALL=C sort -u))"
+  else
+    new_diagnostics="check-analyze-baseline: missing diagnostic inventory $INVENTORY_FILE; cannot identify new issues."
+  fi
+  fail_analysis "$KEY has $total issues, baseline is $baseline." "$new_diagnostics"
 fi
 if [[ "$total" -lt "$baseline" ]]; then
   echo "check-analyze-baseline: $KEY improved ($total < $baseline); lower its baseline in $BASELINE_FILE."
