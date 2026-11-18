@@ -4,16 +4,19 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:logging/logging.dart';
 
+import 'package:tentura/data/service/network_reachability.dart';
 import 'package:tentura/domain/contacts/contact_name_store.dart';
 import 'package:tentura/domain/entity/availability.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/domain/port/network_reachability_port.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura/features/beacon_threads/data/repository/beacon_fact_card_repository.dart';
 import 'package:tentura/features/contacts/domain/use_case/contacts_case.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 import 'package:tentura/features/forward/domain/entity/forward_delivery_result.dart';
+import 'package:tentura/features/forward/domain/exception.dart';
 import 'package:tentura/features/forward/domain/use_case/forward_case.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
 import 'package:tentura/features/forward/ui/message/forward_messages.dart';
@@ -32,6 +35,8 @@ class _LiveSyncForwardRepository implements ForwardRepository {
   });
 
   List<Profile> candidates;
+  Future<Iterable<Profile>> Function()? fetchCandidatesHandler;
+  Future<Beacon> Function(String)? fetchBeaconHandler;
   int fetchForwardCandidatesCalls = 0;
   int forwardBeaconCalls = 0;
   Map<String, String>? lastPerRecipientNotes;
@@ -48,14 +53,30 @@ class _LiveSyncForwardRepository implements ForwardRepository {
     String context = '',
   }) async {
     fetchForwardCandidatesCalls++;
-    return candidates;
+    final handler = fetchCandidatesHandler;
+    return handler == null ? candidates : await handler();
+  }
+
+  @override
+  Future<Beacon> fetchBeaconById(String beaconId) async {
+    final handler = fetchBeaconHandler;
+    return handler == null
+        ? Beacon.empty.copyWith(id: beaconId, viewerCanForward: true)
+        : await handler(beaconId);
   }
 
   @override
   Future<BeaconInvolvementData> fetchBeaconInvolvement({
     required String beaconId,
-  }) async => (
-    beacon: Beacon.empty.copyWith(id: beaconId, viewerCanForward: true),
+  }) => fetchInvolvementForBeacon(
+    Beacon.empty.copyWith(id: beaconId, viewerCanForward: true),
+  );
+
+  @override
+  Future<BeaconInvolvementData> fetchInvolvementForBeacon(
+    Beacon beacon,
+  ) async => (
+    beacon: beacon,
     forwardedToIds: <String>{},
     helpOfferedIds: <String>{},
     withdrawnIds: <String>{},
@@ -165,7 +186,285 @@ _buildForwardCaseHarness() async {
   );
 }
 
+Matcher _readyWith(String candidateId) => isA<ForwardState>()
+    .having(
+      (state) => state.candidatesLoad,
+      'load',
+      isA<ForwardCandidatesReady>(),
+    )
+    .having((state) => state.candidates.map((c) => c.id), 'candidate IDs', [
+      candidateId,
+    ])
+    .having((state) => state.status, 'status', isA<StateIsSuccess>());
+
+final _permissionDenied = isA<ForwardCandidatesError>().having(
+  (load) => load.error,
+  'error',
+  isA<ForwardPermissionDenied>(),
+);
+
+class _PendingCandidateFetch {
+  final _started = Completer<void>();
+  final _response = Completer<Iterable<Profile>>();
+  final _returned = Completer<void>();
+
+  Future<void> get started => _started.future;
+
+  Future<Iterable<Profile>> fetch() async {
+    _started.complete();
+    try {
+      return await _response.future;
+    } finally {
+      _returned.complete();
+    }
+  }
+
+  Future<void> succeed(Profile candidate) {
+    _response.complete([candidate]);
+    return _settle();
+  }
+
+  Future<void> fail(Exception error) {
+    _response.completeError(error);
+    return _settle();
+  }
+
+  Future<void> _settle() async {
+    await _returned.future;
+    // After the fake returns or throws, let the use case and cubit consume
+    // that result. Every other dependency in this harness resolves in memory.
+    await Future<void>.delayed(Duration.zero);
+  }
+}
+
 void main() {
+  group('Forward picker uses the latest load', () {
+    const alice = Profile(id: 'u-alice', displayName: 'Alice');
+    const bob = Profile(id: 'u-bob', displayName: 'Bob');
+    const carol = Profile(id: 'u-carol', displayName: 'Carol');
+    const waitForResponse = Duration(seconds: 5);
+
+    late _LiveSyncForwardRepository forwardRepo;
+    late ControllableBlockCase blockCase;
+    late FakeUiEffectPort effects;
+    late NetworkReachability reachability;
+    late ForwardCubit Function() openPicker;
+
+    setUp(() async {
+      final harness = await _buildForwardCaseHarness();
+      addTearDown(() async {
+        await harness.forwardRepo.dispose();
+        await harness.contactsCase.dispose();
+        await harness.blockCase.dispose();
+        await GetIt.I.unregister<ContactNameStore>();
+        await harness.store.dispose();
+      });
+      forwardRepo = harness.forwardRepo;
+      blockCase = harness.blockCase;
+      effects = FakeUiEffectPort();
+      reachability = NetworkReachability.forTesting();
+      GetIt.I.registerSingleton<NetworkReachabilityPort>(reachability);
+      addTearDown(() async {
+        await GetIt.I.unregister<NetworkReachabilityPort>();
+        await reachability.dispose();
+      });
+      openPicker = () {
+        final cubit = ForwardCubit(
+          beaconId: 'b1',
+          forwardCase: harness.forwardCase,
+          effects: effects,
+          checkForwardPermission: true,
+        );
+        addTearDown(cubit.close);
+        return cubit;
+      };
+    });
+
+    for (final trigger in ['a block change', 'a forwarding change']) {
+      test(
+        'permission denial from $trigger survives a late response',
+        () async {
+          final olderCandidates = _PendingCandidateFetch();
+          forwardRepo.fetchCandidatesHandler = olderCandidates.fetch;
+          final cubit = openPicker();
+          await olderCandidates.started.timeout(waitForResponse);
+
+          forwardRepo.fetchBeaconHandler = (id) async =>
+              Beacon.empty.copyWith(id: id, viewerCanForward: false);
+          final denial = cubit.stream.firstWhere(
+            (state) => state.candidatesLoad is ForwardCandidatesError,
+          );
+          if (trigger == 'a block change') {
+            blockCase.emitBlock();
+          } else {
+            forwardRepo.emitForwardCompleted(cubit.state.beaconId);
+          }
+          expect(
+            (await denial.timeout(waitForResponse)).candidatesLoad,
+            _permissionDenied,
+          );
+
+          final loadsAfterDenial = <ForwardCandidatesLoad>[];
+          final subscription = cubit.stream.listen(
+            (state) => loadsAfterDenial.add(state.candidatesLoad),
+          );
+          addTearDown(subscription.cancel);
+          await olderCandidates.succeed(alice).timeout(waitForResponse);
+
+          expect(cubit.state.candidatesLoad, _permissionDenied);
+          expect(cubit.state.candidates, isEmpty);
+          expect(cubit.state.status, isA<StateIsSuccess>());
+          expect(loadsAfterDenial.where((load) => load.isLoaded), isEmpty);
+        },
+      );
+    }
+
+    final refreshTriggers =
+        <
+          ({
+            String name,
+            bool afterLoadError,
+            Future<void>? Function(ForwardCubit) start,
+          })
+        >[
+          (
+            name: 'manual refresh',
+            afterLoadError: false,
+            start: (cubit) => cubit.reloadCandidates(),
+          ),
+          (
+            name: 'block change',
+            afterLoadError: false,
+            start: (_) {
+              blockCase.emitBlock();
+              return null;
+            },
+          ),
+          (
+            name: 'forwarding change',
+            afterLoadError: false,
+            start: (cubit) {
+              forwardRepo.emitForwardCompleted(cubit.state.beaconId);
+              return null;
+            },
+          ),
+          (
+            name: 'retry',
+            afterLoadError: true,
+            start: (cubit) => cubit.retryLoadCandidates(),
+          ),
+          (
+            name: 'reconnect',
+            afterLoadError: true,
+            start: (_) {
+              reachability.reportSuccess();
+              return null;
+            },
+          ),
+        ];
+
+    for (final trigger in refreshTriggers) {
+      group(trigger.name, () {
+        for (final outcome in ['success', 'failure']) {
+          test(
+            'a late $outcome leaves the latest recipients in place',
+            () async {
+              final initialError = Exception('Offline during first load');
+              forwardRepo.candidates = [carol];
+              if (trigger.afterLoadError) {
+                forwardRepo.fetchCandidatesHandler = () async {
+                  reachability.reportTransportFailure();
+                  throw initialError;
+                };
+              }
+              final cubit = openPicker();
+              final initialState = await cubit.stream
+                  .firstWhere((state) => state.status is StateIsSuccess)
+                  .timeout(waitForResponse);
+              if (trigger.afterLoadError) {
+                expect(
+                  initialState.candidatesLoad,
+                  isA<ForwardCandidatesError>().having(
+                    (load) => load.error,
+                    'error',
+                    same(initialError),
+                  ),
+                );
+              } else {
+                expect(initialState, _readyWith(carol.id));
+              }
+
+              final olderCandidates = _PendingCandidateFetch();
+              forwardRepo.fetchCandidatesHandler = olderCandidates.fetch;
+              final olderReload = trigger.start(cubit);
+              await olderCandidates.started.timeout(waitForResponse);
+
+              forwardRepo
+                ..fetchCandidatesHandler = null
+                ..candidates = [bob];
+              await cubit.reloadCandidates().timeout(waitForResponse);
+              expect(cubit.state, _readyWith(bob.id));
+
+              if (outcome == 'success') {
+                await olderCandidates.succeed(alice).timeout(waitForResponse);
+              } else {
+                await olderCandidates
+                    .fail(Exception('Candidate fetch failed'))
+                    .timeout(waitForResponse);
+              }
+              if (olderReload != null) {
+                await olderReload.timeout(waitForResponse);
+              }
+              final stateAfterOlderReload = cubit.state;
+              final staleErrors = effects.emitted
+                  .whereType<ShowError>()
+                  .toList();
+
+              forwardRepo.candidates = [carol];
+              await cubit.reloadCandidates().timeout(waitForResponse);
+              expect(cubit.state, _readyWith(carol.id));
+
+              expect(stateAfterOlderReload, _readyWith(bob.id));
+              expect(staleErrors, isEmpty);
+            },
+          );
+        }
+      });
+    }
+
+    test(
+      'an older denial cannot hide recipients after a permitted reload',
+      () async {
+        final checkingPermission = Completer<String>();
+        final olderBeacon = Completer<Beacon>();
+        forwardRepo.fetchBeaconHandler = (id) {
+          checkingPermission.complete(id);
+          return olderBeacon.future;
+        };
+        final cubit = openPicker();
+        final beaconId = await checkingPermission.future.timeout(
+          waitForResponse,
+        );
+
+        forwardRepo
+          ..fetchBeaconHandler = null
+          ..candidates = [bob];
+        final ready = cubit.stream.firstWhere(
+          (state) => state.candidatesLoad is ForwardCandidatesReady,
+        );
+        blockCase.emitBlock();
+        expect(await ready.timeout(waitForResponse), _readyWith(bob.id));
+
+        olderBeacon.complete(
+          Beacon.empty.copyWith(id: beaconId, viewerCanForward: false),
+        );
+        await Future<void>.delayed(Duration.zero);
+
+        expect(cubit.state, _readyWith(bob.id));
+      },
+    );
+  });
+
   group('ForwardCubit live contact sync', () {
     test(
       'forwardChanges reloads candidates even when memo key unchanged',

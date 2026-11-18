@@ -181,6 +181,7 @@ class ForwardCubit extends Cubit<ForwardState> {
       : const ForwardCandidatesReady();
 
   String? _loadMemoKey;
+  int _loadGeneration = 0;
 
   Future<void> reloadCandidates({bool forceReload = true}) =>
       _loadCandidates(forceReload: forceReload);
@@ -226,6 +227,9 @@ class ForwardCubit extends Cubit<ForwardState> {
     if (forwardCase == null || isClosed) {
       return;
     }
+    final generation = ++_loadGeneration;
+    bool isCurrentLoad() => !isClosed && generation == _loadGeneration;
+
     final isInitialLoad = _isInitialCandidatesLoad(state.candidatesLoad);
     emit(
       state.copyWith(
@@ -237,7 +241,7 @@ class ForwardCubit extends Cubit<ForwardState> {
     );
     try {
       final myId = await forwardCase.getCurrentAccountId();
-      if (isClosed) {
+      if (!isCurrentLoad()) {
         return;
       }
       final budPostId = this.budPostId;
@@ -256,7 +260,7 @@ class ForwardCubit extends Cubit<ForwardState> {
               isPost: state.profile == ForwardTargetProfile.post,
               checkPermissionAt: checkForwardPermission ? now : null,
             );
-      if (isClosed) {
+      if (!isCurrentLoad()) {
         return;
       }
       final memoKey =
@@ -336,18 +340,17 @@ class ForwardCubit extends Cubit<ForwardState> {
         ),
       );
       _applyInitialTags();
-    } on ForwardPermissionDenied catch (denied) {
-      _showForwardDenial(denied);
     } catch (e) {
-      if (isInitialLoad) {
-        if (!isClosed) {
-          emit(
-            state.copyWith(
-              candidatesLoad: ForwardCandidatesError(e),
-              status: const StateIsSuccess(),
-            ),
-          );
-        }
+      if (!isCurrentLoad()) return;
+      if (e is ForwardPermissionDenied) {
+        _showForwardDenial(e);
+      } else if (isInitialLoad) {
+        emit(
+          state.copyWith(
+            candidatesLoad: ForwardCandidatesError(e),
+            status: const StateIsSuccess(),
+          ),
+        );
       } else {
         _emitSnackError(e);
       }
