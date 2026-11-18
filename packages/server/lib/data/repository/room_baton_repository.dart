@@ -225,15 +225,18 @@ UPDATE public.beacon_room_baton_candidate
     required String userId,
   }) async {
     final prefix = 'baton_partner_asked:$batonId:$userId:';
+    // Bound the existing source_event_key btree lookup by the final delimiter.
+    final prefixEnd = 'baton_partner_asked:$batonId:$userId;';
     final rows = await _database
         .customSelect(
           r'''
 SELECT substr(source_event_key, length($1) + 1) AS partner_id
   FROM public.attention_occurrence
  WHERE event_type = 'batonPartnerAsked'
+   AND source_event_key >= $1 AND source_event_key < $2
    AND starts_with(source_event_key, $1)
 ''',
-          variables: [Variable<String>(prefix)],
+          variables: [Variable<String>(prefix), Variable<String>(prefixEnd)],
         )
         .get();
     return {for (final r in rows) r.read<String>('partner_id')};

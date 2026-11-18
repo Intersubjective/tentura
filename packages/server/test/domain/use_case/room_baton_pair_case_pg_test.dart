@@ -3,6 +3,7 @@ library;
 
 import 'dart:convert';
 
+import 'package:drift_postgres/drift_postgres.dart';
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:postgres/postgres.dart';
@@ -139,6 +140,222 @@ Future<void> main() async {
         'VALUES (@x, @y, @x)',
       ),
       parameters: {'x': blocker, 'y': blocked},
+    );
+
+    test(
+      'partner history stays isolated and index-backed after reusing an invitation',
+      () async {
+        final plans = _PartnerHistoryPlans();
+        final instrumentedDb = TenturaDb.forTest(
+          database: PgDatabase.opened(
+            Pool<dynamic>.withEndpoints(
+              [target.databaseEnv.pgEndpoint],
+              settings: target.databaseEnv.pgPoolSettings,
+            ),
+            enableMigrations: false,
+          ).interceptWith(plans),
+        );
+        addTearDown(instrumentedDb.close);
+        final history = RoomBatonRepository(instrumentedDb);
+        final realCase = _buildCase(instrumentedDb, target.databaseEnv);
+        final first = await createBaton();
+        final second = await createBaton();
+
+        Future<Set<String>> named(String batonId, String candidate) =>
+            history.namedPartnerIds(batonId: batonId, userId: candidate);
+        Future<void> name(String batonId, String candidate, String partner) =>
+            realCase.respond(
+              actorId: candidate,
+              batonId: batonId,
+              canHelp: true,
+              partnerUserId: partner,
+            );
+
+        expect(await named(first.id, _candA), isEmpty);
+        await name(first.id, _candA, _partnerX);
+        await name(first.id, _candA, _partnerY);
+        expect(await named(first.id, _candA), {_partnerX, _partnerY});
+
+        await name(first.id, _candB, _partnerZ);
+        await name(second.id, _candA, _partnerW);
+        // These are valid ledger rows with misleading keys: event type and
+        // every literal underscore in the prefix must still be respected.
+        await writer.execute(
+          Sql.named("""
+INSERT INTO public.attention_occurrence
+  (source_event_key, event_type, immutable_payload)
+VALUES
+  (@wrongTypeKey, 'batonPartnerAnswered', '{}'::jsonb),
+  (@wrongPrefixKey, 'batonPartnerAsked', '{}'::jsonb)
+"""),
+          parameters: {
+            'wrongTypeKey':
+                'baton_partner_asked:${first.id}:$_candA:$_outsider',
+            'wrongPrefixKey':
+                'batonXpartner_asked:${first.id}:$_candA:$_author',
+          },
+        );
+        await writer.execute("""
+INSERT INTO public.attention_occurrence
+  (source_event_key, event_type, immutable_payload)
+SELECT 'unrelated-event:' || i::text,
+  CASE WHEN i % 2 = 0 THEN 'batonPartnerAnswered'
+    ELSE 'roomMessagePosted' END,
+  '{}'::jsonb
+FROM generate_series(1, 1200) AS i
+""");
+        final noiseCount = await writer.execute(
+          'SELECT count(*) FROM public.attention_occurrence '
+          "WHERE source_event_key LIKE 'unrelated-event:%' "
+          "AND event_type <> 'batonPartnerAsked'",
+        );
+        expect(noiseCount.single.single, greaterThanOrEqualTo(1000));
+        await writer.execute("""
+INSERT INTO public.attention_occurrence
+  (source_event_key, event_type, immutable_payload)
+SELECT 'baton_partner_asked:noise-baton-' || i::text || ':noise-candidate:noise-partner',
+  'batonPartnerAsked', '{}'::jsonb
+FROM generate_series(1, 1200) AS i
+""");
+        final otherAskedCount = await writer.execute(
+          'SELECT count(*) FROM public.attention_occurrence '
+          "WHERE starts_with(source_event_key, 'baton_partner_asked:noise-baton-') "
+          "AND event_type = 'batonPartnerAsked'",
+        );
+        expect(otherAskedCount.single.single, greaterThanOrEqualTo(1000));
+        // The migrated database accepts this non-asked occurrence. Verify
+        // it actually exists before testing that its suffix is excluded.
+        final decoy = await writer.execute(
+          Sql.named(
+            'SELECT event_type, immutable_payload::text '
+            'FROM public.attention_occurrence WHERE source_event_key = @key',
+          ),
+          parameters: {
+            'key': 'baton_partner_asked:${first.id}:$_candA:$_outsider',
+          },
+        );
+        expect(decoy, hasLength(1));
+        expect(decoy.single[0], 'batonPartnerAnswered');
+        expect(jsonDecode(decoy.single[1]! as String), isEmpty);
+        expect(await named(first.id, _candA), isNot(contains(_outsider)));
+        await writer.execute('ANALYZE public.attention_occurrence');
+
+        expect(await named(first.id, _candA), {_partnerX, _partnerY});
+        expect(await named(first.id, _candB), {_partnerZ});
+        expect(await named(second.id, _candA), {_partnerW});
+
+        await name(first.id, _candA, _partnerZ);
+        Future<List<List<Object?>>> askedRows() async => (await writer.execute(
+          Sql.named(
+            'SELECT id, source_event_key FROM public.attention_occurrence '
+            "WHERE event_type = 'batonPartnerAsked' "
+            'AND starts_with(source_event_key, @prefix) ORDER BY id',
+          ),
+          parameters: {
+            'prefix': 'baton_partner_asked:${first.id}:$_candA:',
+          },
+        )).map((r) => r.toList()).toList();
+        final askedBefore = await askedRows();
+        expect(askedBefore, hasLength(3));
+        final keysBefore = await _keys(writer, _asked);
+        final eventsBefore = await _count(writer, 'attention_occurrence');
+        expect((await _rows(writer, first.id))[_candA]!.invites, 3);
+        await name(first.id, _candA, _partnerX);
+        final row = (await _rows(writer, first.id))[_candA]!;
+        expect(row.partner, _partnerX);
+        expect(row.invites, 3);
+        expect(await _keys(writer, _asked), keysBefore);
+        expect(await _count(writer, 'attention_occurrence'), eventsBefore);
+        expect(await askedRows(), askedBefore);
+        await expectLater(
+          name(first.id, _candA, _partnerW),
+          throwsA(isA<BatonPartnerInvalidException>()),
+        );
+        expect(await _rows(writer, first.id), containsPair(_candA, row));
+        expect(await _keys(writer, _asked), keysBefore);
+
+        // EXPLAIN the actual repository statements and bound values rather
+        // than a copy of the SQL that could drift from namedPartnerIds.
+        await instrumentedDb.transaction(() async {
+          plans.enabled = true;
+          try {
+            expect(
+              await named(first.id, _candA),
+              {_partnerX, _partnerY, _partnerZ},
+            );
+          } finally {
+            plans.enabled = false;
+          }
+        });
+        expect(
+          plans.reads,
+          hasLength(1),
+          reason: 'Only the namedPartnerIds call is instrumented',
+        );
+        final read = plans.reads.single;
+        expect(read.statement, contains('source_event_key'));
+        expect(read.statement, contains('attention_occurrence'));
+        expect(read.args, contains('baton_partner_asked:${first.id}:$_candA:'));
+        expect(
+          read.explainedStatement,
+          'EXPLAIN (COSTS OFF) ${read.statement}',
+        );
+        expect(read.explainedArgs, read.args);
+        expect(read.seqscan, 'off');
+        final plan = read.text;
+        expect(
+          plan,
+          isNot(matches(r'Seq Scan on (?:public\.)?attention_occurrence\b')),
+          reason: 'Partner history must avoid a ledger scan:\n$plan',
+        );
+        final occurrenceScans = _historyPlanNodes(read.plan)
+            .where(
+              (node) =>
+                  node['Relation Name'] == 'attention_occurrence' &&
+                  {
+                    'Index Scan',
+                    'Index Only Scan',
+                    'Bitmap Heap Scan',
+                  }.contains(node['Node Type']),
+            )
+            .toList();
+        expect(occurrenceScans, isNotEmpty, reason: plan);
+        final occurrenceIndexes = await writer.execute(
+          'SELECT indexname, indexdef FROM pg_indexes '
+          "WHERE schemaname = 'public' AND tablename = 'attention_occurrence'",
+        );
+        final usedDefinitions = <String>[];
+        for (final scan in occurrenceScans) {
+          // A bitmap index node belongs to the occurrence heap scan above
+          // it; an index used on another relation cannot satisfy this check.
+          final indexNodes = _historyPlanNodes(
+            scan,
+          ).where((node) => node.containsKey('Index Name')).toList();
+          expect(indexNodes, isNotEmpty, reason: plan);
+          for (final indexNode in indexNodes) {
+            final catalogRows = occurrenceIndexes
+                .where(
+                  (row) => row[0] == indexNode['Index Name'],
+                )
+                .toList();
+            expect(catalogRows, hasLength(1), reason: plan);
+            usedDefinitions.add(catalogRows.single[1]! as String);
+            final condition = indexNode['Index Cond'] as String? ?? '';
+            expect(condition, contains('source_event_key'), reason: plan);
+            expect(
+              condition,
+              contains('baton_partner_asked:${first.id}:$_candA:'),
+              reason:
+                  'This occurrence index must bound the requested prefix: $plan',
+            );
+          }
+        }
+        // The event predicate can be a runtime filter/index condition or
+        // the predicate of a partial index actually used by this lookup.
+        final eventRestriction = [plan, ...usedDefinitions].join('\n');
+        expect(eventRestriction, contains('event_type'));
+        expect(eventRestriction, contains('batonPartnerAsked'));
+      },
     );
 
     group('naming a partner', () {
@@ -1229,3 +1446,70 @@ Matcher _answerIs(bool accepted) => predicate<String>(
   (blob) => _acceptedOf(blob) == accepted,
   'an answer receipt with accepted == $accepted',
 );
+
+/// Explains each real attention read on the same executor with the original
+/// parameters. Planner settings are restored before returning to the caller.
+final class _PartnerHistoryPlans extends QueryInterceptor {
+  bool enabled = false;
+  final reads =
+      <
+        ({
+          String statement,
+          List<Object?> args,
+          String explainedStatement,
+          List<Object?> explainedArgs,
+          String seqscan,
+          String text,
+          Map<String, Object?> plan,
+        })
+      >[];
+
+  @override
+  Future<List<Map<String, Object?>>> runSelect(
+    QueryExecutor executor,
+    String statement,
+    List<Object?> args,
+  ) async {
+    if (enabled) {
+      await executor.runCustom('SET enable_seqscan = off', []);
+      try {
+        final setting = await executor.runSelect('SHOW enable_seqscan', []);
+        final explainedStatement = 'EXPLAIN (COSTS OFF) $statement';
+        final explainedArgs = List<Object?>.of(args);
+        final rows = await executor.runSelect(
+          explainedStatement,
+          explainedArgs,
+        );
+        final jsonRows = await executor.runSelect(
+          'EXPLAIN (COSTS OFF, FORMAT JSON) $statement',
+          explainedArgs,
+        );
+        final rawPlan = jsonRows.single.values.single;
+        final decoded = rawPlan is String ? jsonDecode(rawPlan) : rawPlan;
+        final root = ((decoded! as List).single as Map)['Plan']! as Map;
+        reads.add((
+          statement: statement,
+          args: List<Object?>.of(args),
+          explainedStatement: explainedStatement,
+          explainedArgs: explainedArgs,
+          seqscan: setting.single.values.single! as String,
+          text: rows.map((row) => row.values.single).join('\n'),
+          plan: root.cast<String, Object?>(),
+        ));
+      } finally {
+        await executor.runCustom('RESET enable_seqscan', []);
+      }
+    }
+    return super.runSelect(executor, statement, args);
+  }
+}
+
+/// Walks the structured plan while preserving each relation's subtree.
+Iterable<Map<String, Object?>> _historyPlanNodes(
+  Map<String, Object?> node,
+) sync* {
+  yield node;
+  for (final child in (node['Plans'] as List?) ?? const []) {
+    yield* _historyPlanNodes((child as Map).cast<String, Object?>());
+  }
+}
