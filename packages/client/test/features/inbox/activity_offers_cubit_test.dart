@@ -267,18 +267,28 @@ void main() {
 
       await cubit.loadFirst();
       final demoted = <String>[];
-      final sub = cubit.demotedBeaconIds.listen(demoted.add);
+      final demotionObserved = Completer<void>();
+      final sub = cubit.demotedBeaconIds.listen((beaconId) {
+        demoted.add(beaconId);
+        if (!demotionObserved.isCompleted) demotionObserved.complete();
+      });
+      addTearDown(sub.cancel);
+      final rowRemoved = cubit.stream.firstWhere(
+        (state) => state.items.isEmpty && state.totalCount == 0,
+      );
 
       attentionRepo.offerRows = attentionRepo.offerRows
           .where((row) => row.beaconId != 'B1')
           .toList();
       forwardRepo.emitDeskChange('B1');
-      await _settle(20);
+      await Future.wait([
+        rowRemoved,
+        demotionObserved.future,
+      ]).timeout(const Duration(seconds: 5));
 
       expect(cubit.state.items, isEmpty);
       expect(cubit.state.totalCount, 0);
       expect(demoted, ['B1']);
-      await sub.cancel();
     });
 
     test('reject demotes via help-offer stream', () async {
