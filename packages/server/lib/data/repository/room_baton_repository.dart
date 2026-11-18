@@ -268,7 +268,8 @@ UPDATE public.beacon_room_baton
           r'''
 SELECT count(*)::int AS waiting FROM public.beacon_room_baton_candidate
  WHERE baton_id = $1
-   AND (response = 0 OR partner_response IS NOT DISTINCT FROM 0)
+   AND (response = 0 OR partner_response IS NOT DISTINCT FROM 0
+        OR (partner_response = 1 AND partner_user_id IS NULL))
 ''',
           variables: [Variable<String>(batonId)],
         )
