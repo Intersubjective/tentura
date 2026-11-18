@@ -340,13 +340,14 @@ void main() {
 
     test('v2_RoomMessageRow exposes nullable quotedFact in sorted order', () {
       final row = typeDefinition('v2_RoomMessageRow');
+      final fields = row
+          .split('\n')
+          .where((line) => line.startsWith('  '))
+          .toList();
+      expect(fields, contains('  quotedFact: v2_RoomMessageQuotedFact'));
       expect(
-        row,
-        contains(
-          '  pollDataJson: String\n'
-          '  quotedFact: v2_RoomMessageQuotedFact\n'
-          '  reactionsJson: String\n',
-        ),
+        fields,
+        orderedEquals([...fields]..sort()),
       );
     });
 

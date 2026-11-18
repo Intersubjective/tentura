@@ -32,6 +32,9 @@ final class RoomHintWireServer {
   /// `RoomMessageList` rows, as the server's `v2_RoomMessageRow` type.
   List<Map<String, dynamic>> messageRows = [];
 
+  final messageTargets = <String, Map<String, dynamic>>{};
+  final requestedMessageTargetIds = <String>[];
+
   /// `BeaconRoomReadWatermarks` rows, as `v2_v2_RoomReadWatermark`.
   List<Map<String, dynamic>> watermarkRows = [];
 
@@ -51,7 +54,25 @@ final class RoomHintWireServer {
     if (query.contains('RoomMessageList(')) {
       queried.add('RoomMessageList');
       return _json({
-        'data': {'RoomMessageList': messageRows},
+        'data': {
+          'RoomMessageList': [
+            for (final row in messageRows) _selectPromotedChild(row, query),
+          ],
+        },
+      });
+    }
+    if (query.contains('roomMessageTarget(')) {
+      queried.add('roomMessageTarget');
+      final variables = body['variables'] as Map<String, dynamic>;
+      final messageId = variables['messageId'] as String;
+      requestedMessageTargetIds.add(messageId);
+      final row = messageTargets[messageId];
+      return _json({
+        'data': {
+          'roomMessageTarget': row == null
+              ? null
+              : _selectPromotedChild(row, query),
+        },
       });
     }
     if (query.contains('BeaconRoomReadWatermarks(')) {
@@ -68,6 +89,15 @@ final class RoomHintWireServer {
       ],
     });
   }
+
+  // GraphQL only returns selected fields. The shared fixture already supplies
+  // the existing selections, so project just the new field under test.
+  static Map<String, dynamic> _selectPromotedChild(
+    Map<String, dynamic> row,
+    String query,
+  ) => query.contains('promotedChildBeaconId')
+      ? row
+      : (Map.of(row)..remove('promotedChildBeaconId'));
 
   static http.Response _json(Object body) => http.Response(
     jsonEncode(body),
@@ -251,6 +281,12 @@ class RoomOverRealHintWireRepository extends FakeBeaconThreadsRepository {
       threadItemId: threadItemId,
     );
   }
+
+  @override
+  Future<RoomMessage?> fetchMessageTarget({
+    required String beaconId,
+    required String messageId,
+  }) => _real.fetchMessageTarget(beaconId: beaconId, messageId: messageId);
 
   @override
   Future<List<RoomReadWatermark>> fetchMainRoomReadWatermarks(

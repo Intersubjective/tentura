@@ -612,6 +612,7 @@ final gqlTypeRoomMessageRow = GraphQLObjectType('RoomMessageRow', null)
     field('linkedBlockerId', graphQLString),
     field('linkedFactCardId', graphQLString),
     field('linkedPollingId', graphQLString),
+    field('promotedChildBeaconId', graphQLString),
     field('linkedItemId', graphQLString),
     field('linkedEventKind', graphQLInt),
     field('linkedItemKind', graphQLInt),

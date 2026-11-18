@@ -1,10 +1,15 @@
 @Tags(['pg'])
 library;
 
+import 'package:graphql_schema2/graphql_schema2.dart';
+import 'package:graphql_server2/graphql_server2.dart';
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
 
+import 'package:tentura_server/api/controllers/graphql/input/_input_types.dart';
+import 'package:tentura_server/api/controllers/graphql/query/query_beacon_room.dart';
+import 'package:tentura_server/domain/entity/jwt_entity.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
 import 'package:tentura_server/data/repository/attention_dispatch_repository.dart';
@@ -122,11 +127,17 @@ ON CONFLICT (id) DO UPDATE SET
     );
   }
 
-  Future<void> seedBeacon(String id, String ownerId) async {
+  Future<void> seedBeacon(
+    String id,
+    String ownerId, {
+    String? parentId,
+    bool published = false,
+  }) async {
     await database.customStatement(
       '''
-INSERT INTO public.beacon (id, user_id, title, description)
-VALUES ('$id', '$ownerId', 'Reply PG', 'Reply readback contract')
+INSERT INTO public.beacon (id, user_id, title, description, parent_beacon_id, published_at, status)
+VALUES ('$id', '$ownerId', 'Reply PG', 'Reply readback contract',
+  ${parentId == null ? 'NULL' : "'$parentId'"}, ${published ? 'now()' : 'NULL'}, ${parentId != null && !published ? 3 : 0})
 ON CONFLICT (id) DO NOTHING
 ''',
     );
@@ -147,11 +158,11 @@ ON CONFLICT DO NOTHING
     );
   }
 
-  Future<void> seedBaseRoom() async {
+  Future<void> seedBaseRoom({bool published = false}) async {
     await seedUser(parentAuthorId, 1);
     await seedUser(replyAuthorId, 2);
     await seedUser(newMentionUserId, 3, handle: 'newmention');
-    await seedBeacon(beaconId, parentAuthorId);
+    await seedBeacon(beaconId, parentAuthorId, published: published);
     await seedBeacon(otherBeaconId, parentAuthorId);
     await seedParticipant(
       participantId: 'Preplypg00001',
@@ -169,6 +180,169 @@ ON CONFLICT DO NOTHING
       userId: newMentionUserId,
     );
   }
+
+  BeaconRoomCase buildRoomCase() {
+    final dispatch = AttentionDispatchRepository(
+      database,
+      Logger('room_message_reply_readback_pg_test'),
+    );
+    final unitOfWork = MutatingUnitOfWork(database);
+    final attention = TransactionalAttentionCase(unitOfWork, dispatch);
+    final attentionIntents = AttentionIntentCase(
+      BeaconRoomNotificationContextRepository(
+        room,
+        database,
+        HelpOfferRepository(database),
+        CommitmentRepository(database),
+      ),
+      UserRepository(
+        target.databaseEnv,
+        database,
+        _NoopInviteGenealogyRepository(),
+        InviteSeedPromptRepositoryMock(),
+      ),
+      BeaconAccessRepository(database),
+      FakeUserBlockRepository(),
+    );
+    final items = CoordinationItemRepository(database);
+    return BeaconRoomCase(
+      room,
+      items,
+      _PgFakeFactCards(),
+      _PgFakeImages(),
+      _PgFakeTasks(),
+      _PgFakeRemoteStorage(),
+      _PgFakePolling(),
+      _PgFakeUploadQuota(),
+      FakeUserBlockRepository(),
+      PassThroughMutatingUnitOfWork(),
+      FakeBeaconHierarchyRepository(),
+      const ProductionDiscussionProductPolicy(),
+      attentionIntents: attentionIntents,
+      attention: attention,
+      env: target.databaseEnv,
+      logger: Logger('room_message_reply_readback_pg_test'),
+    );
+  }
+
+  group('Published child IDs in room message queries', () {
+    for (final targetOnly in [false, true]) {
+      test(
+        targetOnly
+            ? 'a direct message lookup returns the published child ID'
+            : 'a message page returns child IDs only for published promotions',
+        () async {
+          await seedBaseRoom(published: true);
+          const publishedChild = 'Breplypgchild';
+          const draftChild = 'Breplypgdraft';
+          await seedBeacon(
+            publishedChild,
+            parentAuthorId,
+            parentId: beaconId,
+            published: true,
+          );
+          await seedBeacon(
+            draftChild,
+            parentAuthorId,
+            parentId: beaconId,
+          );
+          final published = await room.insertRoomMessage(
+            beaconId: beaconId,
+            authorId: parentAuthorId,
+            body: 'Published child source',
+          );
+          final draft = await room.insertRoomMessage(
+            beaconId: beaconId,
+            authorId: parentAuthorId,
+            body: 'Unpublished child source',
+          );
+          final ordinary = await room.insertRoomMessage(
+            beaconId: beaconId,
+            authorId: parentAuthorId,
+            body: 'Ordinary message',
+          );
+          try {
+            await database.customStatement(
+              """
+INSERT INTO public.beacon_promotions (
+  child_beacon_id, parent_beacon_id, source_message_id, promoter_user_id,
+  published_at
+) VALUES
+  ('$publishedChild', '$beaconId', '${published.id}', '$viewerId', now()),
+  ('$draftChild', '$beaconId', '${draft.id}', '$viewerId', NULL)
+""",
+            );
+            final root = QueryBeaconRoom(beaconRoomCase: buildRoomCase());
+            final graphQL = GraphQL(
+              GraphQLSchema(
+                queryType: GraphQLObjectType('Query', null)
+                  ..fields.addAll([
+                    root.roomMessageList,
+                    root.roomMessageTarget,
+                  ]),
+              ),
+            );
+
+            Future<Map<String, Object?>> query(String selection) async =>
+                (await graphQL.parseAndExecute(
+                      selection,
+                      globalVariables: {
+                        kGlobalInputQueryJwt: const JwtEntity(sub: viewerId),
+                      },
+                    ))
+                    as Map<String, Object?>;
+
+            final ids = [published.id, draft.id, ordinary.id];
+            Future<Map<String, Map<String, Object?>>> fetchRows(
+              String fields,
+            ) async {
+              if (targetOnly) {
+                return {
+                  for (final id in ids)
+                    id:
+                        (await query(
+                              '{ roomMessageTarget(beaconId: "$beaconId", messageId: "$id") { $fields } }',
+                            ))['roomMessageTarget']!
+                            as Map<String, Object?>,
+                };
+              }
+              final response = await query(
+                '{ RoomMessageList(beaconId: "$beaconId") { $fields } }',
+              );
+              final rows = response['RoomMessageList']! as List<Object?>;
+              return {
+                for (final row in rows.cast<Map<String, Object?>>())
+                  row['id']! as String: row,
+              };
+            }
+
+            expect(
+              (await fetchRows('id')).values.map((row) => row['id']),
+              unorderedEquals(ids),
+            );
+            final rows = await fetchRows('id promotedChildBeaconId');
+            expect(rows, {
+              published.id: {
+                'id': published.id,
+                'promotedChildBeaconId': publishedChild,
+              },
+              draft.id: {'id': draft.id, 'promotedChildBeaconId': null},
+              ordinary.id: {'id': ordinary.id, 'promotedChildBeaconId': null},
+            });
+          } finally {
+            await database.customStatement(
+              'DELETE FROM public.beacon_promotions '
+              "WHERE parent_beacon_id = '$beaconId'",
+            );
+            await database.customStatement(
+              "DELETE FROM public.beacon WHERE id IN ('$publishedChild', '$draftChild')",
+            );
+          }
+        },
+        skip: skipReason,
+      );
+    }
+  });
 
   void expectReplyFields(
     Map<String, Object?> row, {
@@ -623,47 +797,7 @@ WHERE id = '${reply.id}'
     'parent edit notifies only newly added mentions, not reply author',
     () async {
       await seedBaseRoom();
-      final dispatch = AttentionDispatchRepository(
-        database,
-        Logger('room_message_reply_readback_pg_test'),
-      );
-      final unitOfWork = MutatingUnitOfWork(database);
-      final attention = TransactionalAttentionCase(unitOfWork, dispatch);
-      final attentionIntents = AttentionIntentCase(
-        BeaconRoomNotificationContextRepository(
-          room,
-          database,
-          HelpOfferRepository(database),
-          CommitmentRepository(database),
-        ),
-        UserRepository(
-          target.databaseEnv,
-          database,
-          _NoopInviteGenealogyRepository(),
-          InviteSeedPromptRepositoryMock(),
-        ),
-        BeaconAccessRepository(database),
-        FakeUserBlockRepository(),
-      );
-      final items = CoordinationItemRepository(database);
-      final roomCase = BeaconRoomCase(
-        room,
-        items,
-        _PgFakeFactCards(),
-        _PgFakeImages(),
-        _PgFakeTasks(),
-        _PgFakeRemoteStorage(),
-        _PgFakePolling(),
-        _PgFakeUploadQuota(),
-        FakeUserBlockRepository(),
-        PassThroughMutatingUnitOfWork(),
-        FakeBeaconHierarchyRepository(),
-        const ProductionDiscussionProductPolicy(),
-        attentionIntents: attentionIntents,
-        attention: attention,
-        env: target.databaseEnv,
-        logger: Logger('room_message_reply_readback_pg_test'),
-      );
+      final roomCase = buildRoomCase();
 
       final parent = await room.insertRoomMessage(
         beaconId: beaconId,

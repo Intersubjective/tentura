@@ -12,6 +12,7 @@ import 'package:tentura_server/domain/port/beacon_hierarchy_command_port.dart';
 import 'package:tentura_server/utils/id.dart';
 
 import '../database/tentura_db.dart';
+import 'published_child_lookup.dart';
 
 @Singleton(as: BeaconHierarchyCommandPort)
 class BeaconHierarchyCommandRepository implements BeaconHierarchyCommandPort {
@@ -132,21 +133,10 @@ WHERE actor_user_id = $1 AND client_command_id = $2
   Future<String?> findPublishedChildForSourceMessage({
     required String sourceMessageId,
   }) async {
-    final rows = await _database
-        .customSelect(
-          r'''
-SELECT child_beacon_id
-FROM public.beacon_promotions
-WHERE source_message_id = $1
-  AND published_at IS NOT NULL
-''',
-          variables: [Variable<String>(sourceMessageId)],
-        )
-        .get();
-    if (rows.isEmpty) {
-      return null;
-    }
-    return rows.single.read<String>('child_beacon_id');
+    final children = await loadPublishedChildrenBySourceMessageId(_database, [
+      sourceMessageId,
+    ]);
+    return children[sourceMessageId];
   }
 
   @override

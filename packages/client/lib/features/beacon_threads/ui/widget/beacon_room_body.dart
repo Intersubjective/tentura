@@ -1045,7 +1045,10 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
         !_suppressesRichMessageActions(message);
     // A source message can have only one promoted child Request.
     final showCreateChild =
-        showTurnInto && !hasPromotedChild && message.isPromotionEligible();
+        showTurnInto &&
+        message.promotedChildBeaconId == null &&
+        !hasPromotedChild &&
+        message.isPromotionEligible();
     final hasBodyText = message.body.trim().isNotEmpty;
     // Starts a new baton message that replies to this one (anyone's plain or
     // poll message; not system lines — baton messages have their own menu).

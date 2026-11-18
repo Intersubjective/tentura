@@ -38,6 +38,7 @@ import 'beacon_room_participant_join_recorder.dart';
 import 'participant_activity_sql.dart';
 import '../mapper/coordination_row_mappers.dart';
 import 'offer_accepted_dismissal_repository.dart';
+import 'published_child_lookup.dart';
 
 /// Beacon Room messages + participants — Postgres via Drift.
 @LazySingleton(as: BeaconRoomRepositoryPort)
@@ -352,6 +353,11 @@ JOIN public.beacon_fact_card_revision r
     final userById = {for (final u in users) u.id: u};
 
     final ids = msgs.map((m) => m.id).toList();
+    final promotedChildBySourceId =
+        await loadPublishedChildrenBySourceMessageId(
+          _db,
+          ids,
+        );
     final reactionRows = await (_db.select(
       _db.beaconRoomMessageReactions,
     )..where((r) => r.messageId.isIn(ids))).get();
@@ -638,6 +644,7 @@ JOIN public.beacon_fact_card_revision r
             : null,
         'linkedFactCardId': m.linkedFactCardId,
         'linkedPollingId': m.linkedPollingId,
+        'promotedChildBeaconId': promotedChildBySourceId[id],
         'linkedItemId': linkedId,
         'linkedEventKind': m.linkedEventKind,
         if (linkedRow != null) ...<String, Object?>{

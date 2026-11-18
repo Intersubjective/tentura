@@ -21,6 +21,7 @@ query RoomMessageList(
     linkedBlockerId
     linkedFactCardId
     linkedPollingId
+    promotedChildBeaconId
     linkedItemId
     linkedEventKind
     linkedItemKind

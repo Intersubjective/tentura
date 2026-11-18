@@ -30,6 +30,7 @@ abstract class RoomMessage with _$RoomMessage {
     String? linkedBlockerId,
     String? linkedFactCardId,
     String? linkedPollingId,
+    String? promotedChildBeaconId,
     String? pollDataJson,
     RoomBatonData? baton,
     String? linkedItemId,

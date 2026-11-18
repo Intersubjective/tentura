@@ -322,7 +322,10 @@ void main() {
           }),
           select: (sql, _) => sql.contains('FROM public.beacon_promotions')
               ? [
-                  {'child_beacon_id': 'Bexisting001'},
+                  {
+                    'source_message_id': 'Msource00001',
+                    'child_beacon_id': 'Bexisting001',
+                  },
                 ]
               : const [],
           beforeStatement: failUniqueInsert,

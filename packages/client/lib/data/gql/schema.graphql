@@ -9047,6 +9047,7 @@ type v2_RoomMessageRow {
   mentions: [String!]
   myReaction: String
   pollDataJson: String
+  promotedChildBeaconId: String
   quotedFact: v2_RoomMessageQuotedFact
   reactionsJson: String
   reactorsJson: String
