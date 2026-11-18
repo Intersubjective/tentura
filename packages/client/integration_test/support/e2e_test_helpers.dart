@@ -40,7 +40,6 @@ import 'package:tentura/features/beacon_create/ui/bloc/beacon_create_cubit.dart'
 import 'package:tentura/features/beacon_create/ui/dialog/beacon_send_confirmation_dialog.dart';
 import 'package:tentura/features/beacon_create/ui/screen/post_create_screen.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
-import 'package:tentura/features/forward/ui/widget/forward_recipient_picker.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_tile.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
@@ -56,6 +55,8 @@ import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart'
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
 import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart' show LinearPiActive;
+
+import 'reveal_forward_recipient.dart';
 
 class IntegrationFixture {
   const IntegrationFixture({
@@ -751,50 +752,21 @@ Future<String> createAndForwardRequest(
       () => createCubit.state.draftId?.isNotEmpty ?? false,
     ),
   );
-  final selectRecipient = find.byKey(
-    TestIds.key(TestIds.forwardRecipientCheckbox(fixture.helperUserId)),
-  );
-  // On a phone-height window the header, tags and pinned bars fill the
-  // viewport, so the lazy recipient list has not built its rows yet.
-  await pumpUntil(
-    tester,
-    () {
-      if (finderHasMatch(selectRecipient)) return true;
-      final scrollable = find.ancestor(
-        of: find.byKey(ForwardRecipientPicker.newSectionKey),
-        matching: find.byType(Scrollable),
-      );
-      if (finderHasMatch(scrollable)) {
-        final position = tester
-            .state<ScrollableState>(scrollable.first)
-            .position;
-        // Step one viewport per pump, wrapping at the end, so a row in the
-        // middle of the lazy list is built at some point.
-        position.jumpTo(
-          position.pixels >= position.maxScrollExtent
-              ? 0
-              : (position.pixels + position.viewportDimension).clamp(
-                  0,
-                  position.maxScrollExtent,
-                ),
-        );
-      }
-      return false;
-    },
-    label: 'visible(recipient checkbox, scrolled)',
-  );
-  // Pin the row on screen now: the lazy list may rebuild and drop it from the
-  // built range before tapAndSettle looks for it again.
-  await tester.ensureVisible(selectRecipient);
-  // Picker rows toggle via checkbox (or row tap); candidate details use ⓘ
-  // [TestIds.forwardRecipientDetails] or avatar (#440 mn5y.5).
-  final forwardCubit = tester.element(selectRecipient).read<ForwardCubit>();
   await runE2eStep('recipient selection', () async {
+    final selectRecipient = await revealForwardRecipientCheckbox(
+      tester,
+      fixture.helperUserId,
+    );
+    final forwardCubit = tester.element(selectRecipient).read<ForwardCubit>();
     expect(
       forwardCubit.state.selectedIds,
       isNot(contains(fixture.helperUserId)),
     );
-    await tapAndSettle(tester, selectRecipient);
+    // Tap in the frame that revealed the hit-testable checkbox. A separate
+    // tapAndSettle would pump before tapping and can evict a lazy row again.
+    await tester.tap(selectRecipient);
+    await pumpSettleBounded(tester);
+    drainTesterExceptions(tester);
     expect(
       forwardCubit.state.selectedIds,
       contains(fixture.helperUserId),

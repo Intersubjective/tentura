@@ -27,6 +27,7 @@ import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
+import '../../../integration_test/support/reveal_forward_recipient.dart';
 import '../../support/phone_surface.dart';
 import '../../support/remote_wire_harness.dart';
 import '../../support/test_realtime_sync.dart';
@@ -289,6 +290,92 @@ List<String> _compositingViolations(Finder entry, String state) {
 }
 
 void main() {
+  testWidgets(
+    'recipient helper reveals a lazy checkbox without a NEW section at 375x667 RU',
+    (tester) async {
+      await _withPicker(
+        tester,
+        selectedWithBand: false,
+        check: (cubit, _) async {
+          final id = _id(99);
+          expect(
+            find.byKey(ForwardRecipientPicker.newSectionKey),
+            findsNothing,
+          );
+          expect(
+            find.byKey(TestIds.key(TestIds.forwardRecipientCheckbox(id))),
+            findsNothing,
+            reason: 'the lazy recipient starts outside the built range',
+          );
+          final checkbox = await revealForwardRecipientCheckbox(
+            tester,
+            id,
+            timeout: const Duration(seconds: 2),
+          );
+          expect(checkbox.hitTestable(), findsOneWidget);
+          expect(cubit.state.selectedIds, isNot(contains(id)));
+          await tester.tap(checkbox);
+          await tester.pumpAndSettle();
+          expect(cubit.state.selectedIds, contains(id));
+          expect(tester.takeException(), isNull);
+        },
+      );
+    },
+  );
+  testWidgets(
+    'recipient helper reveals a cached off-screen checkbox at 375x667 RU',
+    (tester) async {
+      await _withPicker(
+        tester,
+        selectedWithBand: false,
+        check: (cubit, _) async {
+          final scrollable = find
+              .descendant(
+                of: find.byType(ForwardRecipientPicker),
+                matching: find.byType(Scrollable),
+              )
+              .first;
+          tester.state<ScrollableState>(scrollable).position.jumpTo(2000);
+          await tester.pumpAndSettle();
+          final cachedIds = cubit.state.candidates.map((c) => c.id).where((id) {
+            final checkbox = find.byKey(
+              TestIds.key(TestIds.forwardRecipientCheckbox(id)),
+            );
+            return checkbox.evaluate().isNotEmpty &&
+                checkbox.hitTestable().evaluate().isEmpty;
+          }).toList();
+          expect(cachedIds, isNotEmpty);
+          final id = cachedIds.last;
+          expect(
+            find.byKey(ForwardRecipientPicker.newSectionKey),
+            findsNothing,
+          );
+          expect(
+            find.byKey(TestIds.key(TestIds.forwardRecipientCheckbox(id))),
+            findsOneWidget,
+            reason: 'the cached recipient is mounted before it is visible',
+          );
+          expect(
+            find
+                .byKey(TestIds.key(TestIds.forwardRecipientCheckbox(id)))
+                .hitTestable(),
+            findsNothing,
+          );
+          final checkbox = await revealForwardRecipientCheckbox(
+            tester,
+            id,
+            timeout: const Duration(seconds: 2),
+          );
+          expect(checkbox.hitTestable(), findsOneWidget);
+          expect(cubit.state.selectedIds, isNot(contains(id)));
+          await tester.tap(checkbox);
+          await tester.pumpAndSettle();
+          expect(cubit.state.selectedIds, contains(id));
+          expect(tester.takeException(), isNull);
+        },
+      );
+    },
+  );
   testWidgets(
     'recipient entries avoid compositing widgets before and after selecting and opening a note',
     (tester) async {
