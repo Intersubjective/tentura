@@ -2888,6 +2888,8 @@
   "@notReachable": {
     "context": "ForwardBeaconScreen"
   },
+  "forwardRequestNotAllowed": "You can’t forward this Request.",
+  "forwardPostNotAllowed": "You can’t forward this Post.",
   "forwardToCount": "Forward to {count}",
   "@forwardToCount": {
     "context": "ForwardBeaconScreen",

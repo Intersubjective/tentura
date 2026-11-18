@@ -38,6 +38,7 @@ class ForwardCubit extends Cubit<ForwardState> {
     this.initialTagIds = const {},
     Map<String, String> initialNotes = const {},
     this.embedded = false,
+    this.checkForwardPermission = false,
     ForwardTargetProfile? targetProfile,
     this.budPostId,
     this.budPostAuthorId = '',
@@ -69,7 +70,11 @@ class ForwardCubit extends Cubit<ForwardState> {
     }
     _subscribeLiveUpdates();
     _reloadWhenOnline = ReloadWhenOnline(
-      lastLoadFailed: () => state.candidatesLoad is ForwardCandidatesError,
+      lastLoadFailed: () => switch (state.candidatesLoad) {
+        ForwardCandidatesError(:final error) =>
+          error is! ForwardPermissionDenied,
+        _ => false,
+      },
       reload: () => unawaited(retryLoadCandidates()),
     );
   }
@@ -98,6 +103,9 @@ class ForwardCubit extends Cubit<ForwardState> {
 
   /// When true, [forward] does not emit [NavigateBack] (beacon-create tab host).
   final bool embedded;
+
+  /// The standalone route must check the server flag before loading recipients.
+  final bool checkForwardPermission;
 
   final ForwardCase? _forwardCase;
 
@@ -246,6 +254,7 @@ class ForwardCubit extends Cubit<ForwardState> {
               beaconId: state.beaconId,
               context: state.context,
               isPost: state.profile == ForwardTargetProfile.post,
+              checkPermissionAt: checkForwardPermission ? now : null,
             );
       if (isClosed) {
         return;
@@ -327,6 +336,8 @@ class ForwardCubit extends Cubit<ForwardState> {
         ),
       );
       _applyInitialTags();
+    } on ForwardPermissionDenied catch (denied) {
+      _showForwardDenial(denied);
     } catch (e) {
       if (isInitialLoad) {
         if (!isClosed) {
@@ -341,6 +352,17 @@ class ForwardCubit extends Cubit<ForwardState> {
         _emitSnackError(e);
       }
     }
+  }
+
+  void _showForwardDenial(ForwardPermissionDenied denied) {
+    if (isClosed) return;
+    emit(
+      state.copyWith(
+        beacon: denied.beacon,
+        candidatesLoad: ForwardCandidatesError(denied),
+        status: const StateIsSuccess(),
+      ),
+    );
   }
 
   void _applyInitialTags() {
@@ -818,10 +840,9 @@ class ForwardCubit extends Cubit<ForwardState> {
     }
     final beacon = state.beacon;
     if (!embedded) {
-      if (beacon == null || !beacon.viewerCanForwardAt(now)) {
-        _emitSnackError(
-          Exception('Forwarding is only available while the request is open'),
-        );
+      if (beacon == null) return false;
+      if (!beacon.viewerCanForwardAt(now)) {
+        _showForwardDenial(ForwardPermissionDenied(beacon));
         return false;
       }
     }

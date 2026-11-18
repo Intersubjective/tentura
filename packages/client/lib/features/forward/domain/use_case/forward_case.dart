@@ -27,6 +27,7 @@ import '../entity/forward_graph.dart';
 import '../entity/forward_load.dart';
 import '../entity/forward_reach.dart';
 import '../entity/lineage_suggestion_group.dart';
+import '../exception.dart';
 
 @singleton
 final class ForwardCase extends UseCaseBase {
@@ -138,13 +139,24 @@ final class ForwardCase extends UseCaseBase {
     required String beaconId,
     String context = '',
     bool isPost = false,
+    DateTime? checkPermissionAt,
   }) async {
+    Beacon? beacon;
+    if (checkPermissionAt != null) {
+      beacon = await _forwardRepository.fetchBeaconById(beaconId);
+      // A viewer may read the Request even when its involvement is private.
+      if (!beacon.viewerCanForwardAt(checkPermissionAt)) {
+        throw ForwardPermissionDenied(beacon);
+      }
+    }
     await _contactsCase.refresh();
 
     final profilesFuture = _forwardRepository.fetchForwardCandidates(
       context: context,
     );
-    final involvementFuture = _involvementOf(beaconId);
+    final involvementFuture = beacon == null
+        ? _involvementOf(beaconId)
+        : _forwardRepository.fetchInvolvementForBeacon(beacon);
     await Future.wait([profilesFuture, involvementFuture]);
     final profiles = await profilesFuture;
     final involvement = await involvementFuture;

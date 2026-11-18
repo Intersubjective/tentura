@@ -252,6 +252,9 @@ class ForwardRepository {
             return profiles;
           });
 
+  Future<Beacon> fetchBeaconById(String beaconId) =>
+      _beaconRepository.fetchBeaconById(beaconId);
+
   /// Loads beacon header + forward-screen involvement in parallel.
   ///
   /// **Do not** merge Hasura `beacon_by_pk { rejected_user_ids, ... }` into one
@@ -261,7 +264,7 @@ class ForwardRepository {
   Future<BeaconInvolvementData> fetchBeaconInvolvement({
     required String beaconId,
   }) async {
-    final beaconFuture = _beaconRepository.fetchBeaconById(beaconId);
+    final beaconFuture = fetchBeaconById(beaconId);
     final invFuture = _remoteApiService
         .request(
           GBeaconInvolvementDataReq((r) => r..vars.id = beaconId),

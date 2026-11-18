@@ -2653,6 +2653,8 @@
   "@notReachable": {
     "context": "ForwardBeaconScreen"
   },
+  "forwardRequestNotAllowed": "Вы не можете переслать этот запрос.",
+  "forwardPostNotAllowed": "Вы не можете переслать этот пост.",
   "forwardToCount": "Переслать ({count})",
   "@forwardToCount": {
     "context": "ForwardBeaconScreen",

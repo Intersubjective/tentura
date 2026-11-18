@@ -647,6 +647,7 @@ Widget buildBeaconViewHarnessWidget({
   String? messageId,
   String? planPage,
   ThreadsCubit? threadsCubit,
+  BeaconViewCubit? beaconViewCubit,
   ThreadHostCubit? host,
   BeaconViewRoomCubitRecorder? recorder,
   // Kept by the caller across rebuilds (a route rebuilding the screen).
@@ -655,7 +656,7 @@ Widget buildBeaconViewHarnessWidget({
 }) {
   final harnessRecorder = recorder ?? BeaconViewRoomCubitRecorder();
   final harnessHost = host ?? beaconViewHarnessHost(recorder: harnessRecorder);
-  final beaconCubit = _HarnessBeaconViewCubit(beaconState);
+  final beaconCubit = beaconViewCubit ?? _HarnessBeaconViewCubit(beaconState);
   final harnessThreadsCubit =
       threadsCubit ?? _HarnessThreadsCubit(threadsState);
 

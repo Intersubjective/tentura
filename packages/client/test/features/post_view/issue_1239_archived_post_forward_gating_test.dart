@@ -283,6 +283,7 @@ class _ThreadsCubit extends Mock implements ThreadsCubit {
 Beacon _post({
   required DateTime? expiresAt,
   BeaconKind kind = BeaconKind.post,
+  bool viewerCanForward = true,
 }) => Beacon(
   id: _postId,
   kind: kind,
@@ -290,7 +291,7 @@ Beacon _post({
   updatedAt: _createdAt,
   author: _author,
   postRootMessageId: _rootId,
-  viewerCanForward: true,
+  viewerCanForward: viewerCanForward,
   expiresAt: expiresAt,
 );
 
@@ -302,7 +303,7 @@ Future<void> _settle(WidgetTester tester) async {
 Finder _inAppBar(Finder f) =>
     find.descendant(of: find.byType(AppBar), matching: f);
 
-Future<void> _openInfoSheet(WidgetTester tester, L10n l10n) async {
+Future<void> openPostInfoSheet(WidgetTester tester, L10n l10n) async {
   await tester.tap(_inAppBar(find.byIcon(Icons.more_vert)));
   await _settle(tester);
   await tester.tap(find.text(l10n.postMenuInfo));
@@ -450,7 +451,7 @@ void main() {
       );
 
       expect(find.byTooltip(appBarForwardRu), findsNothing);
-      await _openInfoSheet(tester, l10nRu);
+      await openPostInfoSheet(tester, l10nRu);
       expect(find.text(sheetForwardRu), findsNothing);
     });
 
@@ -467,7 +468,7 @@ void main() {
       );
 
       expect(find.byTooltip(appBarForwardEn), findsOneWidget);
-      await _openInfoSheet(tester, l10nEn);
+      await openPostInfoSheet(tester, l10nEn);
       expect(find.text(sheetForwardEn), findsOneWidget);
     });
 
@@ -512,3 +513,19 @@ void main() {
     });
   });
 }
+
+/// Mounts the same live Post with either value of the server permission.
+Future<void> pumpLivePostForForwardPermission(
+  WidgetTester tester, {
+  required bool canForward,
+  required Locale locale,
+}) => _pumpPostScreen(
+  tester,
+  beacon: _post(
+    expiresAt: _clockNow.add(const Duration(days: 2)),
+    viewerCanForward: canForward,
+  ),
+  locale: locale,
+  surface: const Size(1280, 800),
+  clock: () => _clockNow,
+);

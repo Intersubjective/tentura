@@ -467,7 +467,7 @@ class _ShowcaseBottomPanel extends StatelessWidget {
         !state.coordinationDeniesRoomAdmission;
     final secondary = [
       ...actions.where((a) => !a.filled),
-      if (beacon.viewerCanForward || isPreview)
+      if (beacon.viewerCanForward)
         BeaconHudActionSpec(
           icon: Icons.send,
           label: l10n.labelForward,
