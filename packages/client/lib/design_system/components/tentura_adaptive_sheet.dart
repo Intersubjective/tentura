@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -13,9 +15,9 @@ import 'tentura_sheet_snack_bar_host.dart';
 /// Compact sheets use [TenturaModalBottomSheetRoute] so drag-to-dismiss goes
 /// through [Navigator.maybePop] and respects [TenturaSheetDismissGuard].
 ///
-/// Escape closes the sheet through [Navigator.maybePop] even when keyboard
-/// focus is not inside it (on the web the browser can park focus outside the
-/// route), unless [isDismissible] is false. On close, keyboard focus returns to
+/// Escape closes the topmost sheet through [Navigator.maybePop] even when
+/// keyboard focus is outside it (as can happen on the web), unless
+/// [isDismissible] is false. On close, keyboard focus returns to
 /// the control that opened the sheet; a text field that held focus is not
 /// refocused (#403).
 ///
@@ -233,8 +235,8 @@ void _restoreFocusAfterSheet(FocusNode? trigger) {
 }
 
 /// Closes the enclosing sheet route on Escape, including when a focused
-/// control's Scaffold consumes DismissIntent. Editors retain their existing
-/// Escape handling.
+/// control's Scaffold consumes DismissIntent. Focused editors reach the same
+/// dismissal through the DismissIntent action.
 class _EscapeDismissesSheet extends StatefulWidget {
   const _EscapeDismissesSheet({required this.child});
 
@@ -273,20 +275,37 @@ class _EscapeDismissesSheetState extends State<_EscapeDismissesSheet> {
   }
 
   bool _dismissOnEscape(KeyEvent event) {
-    final route = _route;
     if (event is! KeyDownEvent ||
         event.logicalKey != LogicalKeyboardKey.escape ||
-        !mounted ||
-        route == null ||
-        !route.isCurrent ||
-        !route.barrierDismissible ||
         (FocusScope.of(context, createDependency: false).hasFocus &&
             FocusManager.instance.primaryFocus?.context
                     ?.findAncestorStateOfType<EditableTextState>() !=
                 null)) {
       return false;
     }
-    route.navigator?.maybePop();
+    return _dismiss();
+  }
+
+  bool _dismiss() {
+    final route = _route;
+    final navigator = route?.navigator;
+    if (!mounted ||
+        route == null ||
+        navigator == null ||
+        !route.isCurrent ||
+        !route.barrierDismissible) {
+      return false;
+    }
+    // A nested navigator's current route can still be covered by a route
+    // pushed on an enclosing navigator.
+    var enclosingRoute = ModalRoute.of(navigator.context);
+    while (enclosingRoute != null) {
+      if (!enclosingRoute.isCurrent) return false;
+      final enclosingNavigator = enclosingRoute.navigator;
+      if (enclosingNavigator == null) return false;
+      enclosingRoute = ModalRoute.of(enclosingNavigator.context);
+    }
+    unawaited(navigator.maybePop());
     return true;
   }
 
@@ -297,6 +316,18 @@ class _EscapeDismissesSheetState extends State<_EscapeDismissesSheet> {
     onKeyEvent: (_, event) => _dismissOnEscape(event)
         ? KeyEventResult.handled
         : KeyEventResult.ignored,
-    child: widget.child,
+    // Override the host Scaffold's DismissIntent and the modal default, so
+    // focused editors also respect the enclosing navigator's route order.
+    child: Actions(
+      actions: {
+        DismissIntent: CallbackAction<DismissIntent>(
+          onInvoke: (_) {
+            _dismiss();
+            return null;
+          },
+        ),
+      },
+      child: widget.child,
+    ),
   );
 }

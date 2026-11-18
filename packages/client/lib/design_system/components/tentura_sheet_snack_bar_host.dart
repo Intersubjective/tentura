@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 
 /// Keeps sheet feedback above the modal barrier without changing the sheet's
@@ -34,24 +32,7 @@ class TenturaSheetSnackBarHost extends StatelessWidget {
                 : null,
             child: const SizedBox.expand(),
           ),
-          // The host Scaffold registers a DismissIntent action of its own that
-          // answers Escape from a focused text field and does nothing (no
-          // drawer). This action sits closer to the focus and routes Escape to
-          // the route's dismissal, as a sheet without a host does.
-          Actions(
-            actions: {
-              DismissIntent: CallbackAction<DismissIntent>(
-                onInvoke: (_) {
-                  if (isDismissible &&
-                      (ModalRoute.of(context)?.isCurrent ?? false)) {
-                    unawaited(Navigator.of(context).maybePop());
-                  }
-                  return null;
-                },
-              ),
-            },
-            child: child,
-          ),
+          child,
         ],
       ),
     ),
