@@ -361,7 +361,7 @@ WHERE id = '$_post'
             'invites': 1,
           });
           expect(await status(), 6);
-          expect(await lifecycleReasons(), ['directClose']);
+          expect(await lifecycleReasons(), ['postClosedByAuthor']);
           final closed = await postClosedNotices();
           expect(closed, hasLength(1));
           expect(closed.single['reason'], 'budded');

@@ -261,6 +261,29 @@ WHERE beacon_id = '$_post'
   });
 
   group('PostCloseOperation.closeForBud', () {
+    group('public closure', () {
+      test('records one open-to-closed author transition', () async {
+        await closeForBud();
+
+        final events = await lifecycleEvents();
+        expect(events, hasLength(1));
+        final event = events.single;
+        final diff = _json(event[0]);
+        expect(
+          [diff['reason'], diff['fromStatus'], diff['toStatus'], event[1]],
+          ['postClosedByAuthor', 0, 6, _author],
+        );
+      });
+
+      test('ends an open Post before its scheduled expiry', () async {
+        expect(await endedAtOrBeforeNow(), isFalse);
+
+        await closeForBud();
+
+        expect(await endedAtOrBeforeNow(), isTrue);
+      });
+    });
+
     test('keeps the child and title in the notice and adds reason budded',
         () async {
       await closeForBud();

@@ -59,7 +59,7 @@ final class PostBudPrivacyFixture {
   static const bob = 'UbudprivacyB';
   static const carol = 'UbudprivacyC';
   static const helper = 'UbudprivacyH';
-  static const post = 'BbudprivacyP';
+  static const post = 'BbudprivacyP0';
   static const postRoot = 'RbudprivacyP';
   static const postBody = 'Planning notes for the neighborhood garden';
   static const title = 'Move the greenhouse';

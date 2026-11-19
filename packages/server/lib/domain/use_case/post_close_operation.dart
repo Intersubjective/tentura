@@ -29,6 +29,7 @@ final class PostCloseOperation {
 
   /// Moves [postId] from open to closed and inserts the kind-5 notice that
   /// points at the budded Request [childBeaconId] with a [title] snapshot.
+  /// The lifecycle event and expiry follow the same rules as [closeByAuthor].
   ///
   /// The status transition is recorded **without**
   /// `BeaconLifecycleEffectsCase.recordEligibleSourceTransition`: that would
@@ -55,7 +56,6 @@ final class PostCloseOperation {
     }
     await _close(
       post,
-      lifecycleReason: BeaconLifecycleChangeReason.directClose,
       noticeReason: PostClosedNoticeReason.budded,
       actorId: actorId,
       childBeaconId: childBeaconId,
@@ -67,10 +67,8 @@ final class PostCloseOperation {
   Future<void> expire({required String postId}) async {
     await _close(
       await _requireOpenPost(postId),
-      lifecycleReason: BeaconLifecycleChangeReason.postExpired,
       noticeReason: PostClosedNoticeReason.expired,
       actorId: null,
-      endNow: true,
     );
   }
 
@@ -82,10 +80,8 @@ final class PostCloseOperation {
   }) async {
     await _close(
       await _requireOpenPost(postId),
-      lifecycleReason: BeaconLifecycleChangeReason.postClosedByAuthor,
       noticeReason: PostClosedNoticeReason.closedByAuthor,
       actorId: actorId,
-      endNow: true,
     );
   }
 
@@ -99,12 +95,10 @@ final class PostCloseOperation {
 
   Future<void> _close(
     BeaconEntity post, {
-    required String lifecycleReason,
     required String noticeReason,
     required String? actorId,
     String? childBeaconId,
     String? title,
-    bool endNow = false,
   }) async {
     final verdict = validateBeaconStatusTransition(
       from: post.status,
@@ -117,10 +111,12 @@ final class PostCloseOperation {
       beaconId: post.id,
       fromStatus: post.status,
       toStatus: BeaconStatus.closed,
-      reason: lifecycleReason,
+      reason: actorId == null
+          ? BeaconLifecycleChangeReason.postExpired
+          : BeaconLifecycleChangeReason.postClosedByAuthor,
       actorId: actorId,
     );
-    if (endNow) await _beacons.endPostNow(post.id);
+    await _beacons.endPostNow(post.id);
     await _beacons.postClosedMessage(
       postId: post.id,
       reason: noticeReason,
