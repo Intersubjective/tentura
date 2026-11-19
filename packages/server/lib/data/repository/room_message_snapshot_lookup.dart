@@ -25,7 +25,15 @@ final class RoomMessageSnapshotLookup implements RoomMessageSnapshotLookupPort {
   }) async {
     final row =
         await (_database.select(_database.beaconRoomMessages)..where(
-              (m) => m.id.equals(messageId) & m.beaconId.equals(beaconId),
+              // Bud room hints also reach invitees without Chat admission.
+              // Those viewers may get an invalidation but cannot read paint.
+              (m) =>
+                  m.id.equals(messageId) &
+                  m.beaconId.equals(beaconId) &
+                  FunctionCallExpression<bool>(
+                    'public.realtime_is_post_bud',
+                    [m.beaconId],
+                  ).not(),
             ))
             .getSingleOrNull();
     if (row == null) {
