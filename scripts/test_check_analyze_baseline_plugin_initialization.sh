@@ -30,7 +30,7 @@ for package in "${packages[@]}"; do
       output="$case_dir/output.log"
       calls="$case_dir/calls.log"
       mkdir -p "$root/scripts" "$root/$package/${scope:-lib}" "$bin"
-      cp "$REAL_ROOT/scripts/check-analyze-baseline.sh" "$root/scripts/"
+      cp "$REAL_ROOT/scripts/check-analyze-baseline.sh" "$REAL_ROOT/scripts/check-custom-lints.sh" "$root/scripts/"
       # Both at-baseline and below-baseline clean runs must remain successful.
       # A fix that simply rejects zero counts cannot satisfy these paired cases.
       printf 'packages/client %s\npackages/server %s\n%s:%s %s\n' \

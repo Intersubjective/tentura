@@ -14,14 +14,17 @@
 #   analyze-baseline-inventory.tsv records existing diagnostics as key<TAB>line
 #   (sorted unique lines per key, including both CLI formats for the client).
 #   TENTURA_ANALYZER_CAPTURE writes validated rows for the debt generator.
+#   TENTURA_ANALYZER_DEBT_DIR selects the debt files for the live inventory test.
 
 set -euo pipefail
 
 PKG="${1:?usage: check-analyze-baseline.sh <package-dir> [<scoped-path>]}"
 SCOPE="${2:-}"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-BASELINE_FILE="$REPO_ROOT/scripts/analyze-baseline.txt"
-INVENTORY_FILE="$REPO_ROOT/scripts/analyze-baseline-inventory.tsv"
+DEBT_DIR="${TENTURA_ANALYZER_DEBT_DIR:-$REPO_ROOT/scripts}"
+[[ "$DEBT_DIR" = /* ]] || DEBT_DIR="$PWD/$DEBT_DIR"
+BASELINE_FILE="$DEBT_DIR/analyze-baseline.txt"
+INVENTORY_FILE="$DEBT_DIR/analyze-baseline-inventory.tsv"
 
 if [[ ! -f "$BASELINE_FILE" ]]; then
   echo "check-analyze-baseline: missing baseline file $BASELINE_FILE" >&2
@@ -79,19 +82,21 @@ elif [[ ! -f lib/domain/entity/jwt_entity.freezed.dart \
   dart run build_runner build -d
 fi
 
-# CI runs the analyzer once per package (scripts/check-analysis.sh): a plugin-
-# loading `dart analyze` whose output also feeds check-custom-lints.sh. Its
-# diagnostics are exactly `flutter analyze`'s plus the custom-rule hits, which
-# check-custom-lints.sh gates on their own, so they are left out here.
+# CI shares one analyzer run with check-custom-lints.sh. Client Flutter
+# analysis can also emit plugin hits, so use the same rule list in both paths.
+custom_rules=
 if [[ -n "${TENTURA_ANALYZER_OUTPUT:-}" ]]; then
   if [[ -n "$SCOPE" ]]; then
     echo "check-analyze-baseline: a shared analyzer output cannot serve a scoped run" >&2
     exit 2
   fi
   custom_rules="${TENTURA_CUSTOM_LINT_RULES:?TENTURA_CUSTOM_LINT_RULES must accompany TENTURA_ANALYZER_OUTPUT}"
-  grep -Ev " - ($custom_rules)\$" "$TENTURA_ANALYZER_OUTPUT" >"$out" || true
+  cp -- "$TENTURA_ANALYZER_OUTPUT" "$out"
   analyze_status="${TENTURA_ANALYZER_STATUS:?TENTURA_ANALYZER_STATUS must accompany TENTURA_ANALYZER_OUTPUT}"
 else
+  if [[ "$PKG" == "packages/client" ]]; then
+    custom_rules="$(bash "$REPO_ROOT/scripts/check-custom-lints.sh" --print-rules)"
+  fi
   # Package-level runs target the package root so plugin diagnostics surface.
   target="${SCOPE:-.}"
   set +e
@@ -106,8 +111,12 @@ fi
 # Count unique diagnostics: the analyzer sometimes reports the same issue
 # twice (seen for hook/build and tool/ files in CI), which made the gate
 # flaky (2122 vs 2126 for identical sources).
-diagnostics="$(grep -E '^[[:space:]]*(error|warning|info) (•|-) ' "$out" | LC_ALL=C sort -u || true)"
-errors="$(printf '%s\n' "$diagnostics" | grep -cE '^[[:space:]]*error ' || true)"
+raw_diagnostics="$(grep -E '^[[:space:]]*(error|warning|info) (•|-) ' "$out" | LC_ALL=C sort -u || true)"
+errors="$(printf '%s\n' "$raw_diagnostics" | grep -cE '^[[:space:]]*error ' || true)"
+diagnostics="$raw_diagnostics"
+if [[ -n "$custom_rules" ]]; then
+  diagnostics="$(printf '%s\n' "$raw_diagnostics" | grep -Ev " (•|-) (tentura_lints/)?($custom_rules)\$" || true)"
+fi
 total="$(printf '%s\n' "$diagnostics" | grep -c . || true)"
 
 fail_analysis() {
@@ -129,7 +138,7 @@ fail_analysis() {
 # reported on a successful run too, which means plugin diagnostics never ran
 # (as check-custom-lints.sh).
 if [[ "$analyze_status" -gt 3 ]] \
-  || [[ "$analyze_status" -ne 0 && "$total" -eq 0 ]] \
+  || [[ "$analyze_status" -ne 0 && -z "$raw_diagnostics" ]] \
   || grep -Eq '^(Unhandled exception:|[A-Za-z]*FileSystemException)' "$out" \
   || grep -Eq 'An error occurred while (executing an analyzer plugin|setting up the analyzer plugin)' "$out" \
   || ! grep -Eq '^[[:space:]]*([0-9]+ issues? found\.|No issues found!)' "$out"; then

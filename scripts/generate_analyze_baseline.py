@@ -27,9 +27,9 @@ def run(command, *, cwd=ROOT, env=None):
     return result.stdout
 
 
-def refresh():
-    baseline = SCRIPTS / "analyze-baseline.txt"
-    inventory = SCRIPTS / "analyze-baseline-inventory.tsv"
+def refresh(debt_dir):
+    baseline = debt_dir / "analyze-baseline.txt"
+    inventory = debt_dir / "analyze-baseline-inventory.tsv"
     original = baseline.read_text()
     totals = {}
     for line in original.splitlines():
@@ -44,6 +44,7 @@ def refresh():
         raise ValueError("inventory must start with its seven header lines")
     env = {key: value for key, value in os.environ.items()
            if not key.startswith("TENTURA_ANALYZER_") and key != "TENTURA_CUSTOM_LINT_RULES"}
+    env["TENTURA_ANALYZER_DEBT_DIR"] = str(debt_dir)
     rules = run(["bash", str(SCRIPTS / "check-custom-lints.sh"), "--print-rules"], env=env).strip()
     rows = {}
     with tempfile.TemporaryDirectory() as scratch:
@@ -92,7 +93,7 @@ def refresh():
     # inventory first: a crash can leave an older, higher count, never an
     # inventory that omits debt accepted by a newly lowered count. A rerun
     # repairs an interrupted pair using fresh completed analyzer output.
-    with tempfile.TemporaryDirectory(dir=SCRIPTS, prefix=".analyze-refresh-") as staging:
+    with tempfile.TemporaryDirectory(dir=debt_dir, prefix=".analyze-refresh-") as staging:
         staged_inventory = Path(staging) / inventory.name
         staged_baseline = Path(staging) / baseline.name
         staged_inventory.write_text(contents)
@@ -106,11 +107,14 @@ def refresh():
 def main():
     # One publisher owns both files. Unlike locking a replaced baseline inode,
     # this stable lock also serializes a writer that starts during publication.
-    cache = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "tentura"
-    cache.mkdir(parents=True, exist_ok=True)
-    with (cache / "analyze-baseline-refresh.lock").open("a") as lock:
+    debt_dir = Path(os.environ.get("TENTURA_ANALYZER_DEBT_DIR") or SCRIPTS).resolve()
+    lock_dir = debt_dir
+    if debt_dir == SCRIPTS:
+        lock_dir = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "tentura"
+        lock_dir.mkdir(parents=True, exist_ok=True)
+    with (lock_dir / "analyze-baseline-refresh.lock").open("a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
-        refresh()
+        refresh(debt_dir)
 
 
 if __name__ == "__main__":

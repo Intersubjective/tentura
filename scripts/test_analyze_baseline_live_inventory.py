@@ -1,13 +1,15 @@
 """Refreshed analyzer debt equals the real checkout's SDK diagnostics.
 
 Run through run_with_test_cleanup.sh (this test invokes the real SDK gates).
-Only the two debt files are temporarily changed; cleanup restores their exact
-bytes even on assertion failure. Do not run alongside manual baseline edits.
+The gates analyze the checkout's sources using private copies of the debt files.
 """
 
 import os
+from pathlib import Path
 import re
+import shutil
 import subprocess
+import tempfile
 import unittest
 
 from test_analyze_baseline_generation import (
@@ -19,29 +21,31 @@ from test_analyze_baseline_generation import (
 class LiveAnalyzerInventoryTest(unittest.TestCase):
     maxDiff = 6000
 
+    def setUp(self):
+        scratch = tempfile.TemporaryDirectory()
+        self.addCleanup(scratch.cleanup)
+        self.debt_dir = Path(scratch.name).resolve()
+
     def run_cli(self, command, timeout=600):
         env = {key: value for key, value in os.environ.items()
                if not key.startswith("TENTURA_ANALYZER_")
                and key not in ("TENTURA_CUSTOM_LINT_RULES", "GENERATION_TEST_OUTPUTS")}
         env["LC_ALL"] = "C"
+        env["TENTURA_ANALYZER_DEBT_DIR"] = str(self.debt_dir)
         result = subprocess.run(command, cwd=SCRIPTS.parent, env=env,
                                 capture_output=True, text=True, timeout=timeout)
         return result.returncode, result.stdout + result.stderr
 
     def test_refresh_matches_live_diagnostics_and_baseline_zero_reports_no_new_debt(self):
         originals = {name: (SCRIPTS / name).read_bytes() for name in (BASELINE, INVENTORY)}
-
-        def restore():
-            for name, content in originals.items():
-                (SCRIPTS / name).write_bytes(content)
-
-        self.addCleanup(restore)
-        old_totals = read_baselines(SCRIPTS / BASELINE)
+        for name, content in originals.items():
+            (self.debt_dir / name).write_bytes(content)
+        baseline = self.debt_dir / BASELINE
+        old_totals = read_baselines(baseline)
         with self.subTest(behavior="one command refreshes both debt files"):
             # Trigger the public improvement guidance even if today's server
             # count equals its baseline. Restore the original ratchet BEFORE
             # invoking the documented generator.
-            baseline = SCRIPTS / BASELINE
             baseline.write_text(re.sub(
                 rf"^{re.escape(SERVER)} \d+$", f"{SERVER} {old_totals[SERVER] + 1000000}",
                 originals[BASELINE].decode(), flags=re.MULTILINE))
@@ -54,11 +58,11 @@ class LiveAnalyzerInventoryTest(unittest.TestCase):
             status, output = self.run_cli(command, timeout=1200)
             self.assertEqual(status, 0, output[-6000:])
         # Even when the CLI is missing, exercise live analysis against the
-        # checked-in inventory. This exposes stale/missing rows independently
+        # copied inventory. This exposes stale or missing rows independently
         # of script existence and cannot be satisfied by fixture-shaped rows.
-        generated_baseline = (SCRIPTS / BASELINE).read_bytes()
-        generated_totals = read_baselines(SCRIPTS / BASELINE)
-        inventory = (SCRIPTS / INVENTORY).read_text()
+        generated_baseline = baseline.read_bytes()
+        generated_totals = read_baselines(baseline)
+        inventory = (self.debt_dir / INVENTORY).read_text()
         with self.subTest(behavior="headers and baseline key order are preserved"):
             self.assertTrue(inventory.startswith(HEADERS))
             self.assertEqual(list(generated_totals), list(old_totals))
@@ -81,14 +85,14 @@ class LiveAnalyzerInventoryTest(unittest.TestCase):
                        "scripts/check-analyze-baseline.sh", package]
             if scope:
                 command.append(scope)
-            (SCRIPTS / BASELINE).write_text(re.sub(
+            baseline.write_text(re.sub(
                 rf"^{re.escape(key)} \d+$", key + " 0",
                 generated_baseline.decode(), flags=re.MULTILINE))
             try:
                 print(f"Checking live diagnostics: {key}, shared={shared}", flush=True)
                 status, output = self.run_cli(command)
             finally:
-                (SCRIPTS / BASELINE).write_bytes(generated_baseline)
+                baseline.write_bytes(generated_baseline)
             # A missing summary or an analyzer crash must not masquerade as
             # the intended baseline-zero overrun.
             marker = re.search(re.escape(key) + r" has (\d+) issues, baseline is 0\.", output)
@@ -124,8 +128,11 @@ class LiveAnalyzerInventoryTest(unittest.TestCase):
                 self.assertIn(f"{package} OK ({total} <= {total})", output)
                 self.assertNotIn("improved", output)
         with self.subTest(behavior="generated files pass the SDK-free drift guard"):
+            # The guard reads the debt files beside its own script.
+            guard = self.debt_dir / "test_analyze_baseline_generation.py"
+            shutil.copyfile(SCRIPTS / guard.name, guard)
             status, output = self.run_cli([
-                "python3", "scripts/test_analyze_baseline_generation.py", "InventoryDriftTest"], timeout=30)
+                "python3", str(guard), "InventoryDriftTest"], timeout=30)
             self.assertEqual(status, 0, output)
 
 
