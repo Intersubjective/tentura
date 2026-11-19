@@ -1,6 +1,6 @@
 # Beacon visibility, content access, and forwarding — reference matrix
 
-**Sources:** ADR 0008 (Amendment A), `beacon_can_read_content` (m0098, amended m0123), `beacon_visibility.dart`, profile GraphQL queries, `forward_case.dart`.
+**Sources:** ADR 0008 (Amendments A–C), `beacon_can_read_content` (m0098, amended m0123), `beacon_visibility.dart`, profile GraphQL queries, `forward_case.dart`.
 
 ---
 
@@ -39,8 +39,14 @@
 | Vote-mutual or one-way friend of author (trust only) | ❌ |
 | MR-connected (but not otherwise involved) | ❌ |
 | Bridge / indirect friend | ❌ |
-| **Parent member** (effective admission to parent) viewing **child** content (`contextChild` only) | ✅ |
-| **Child member** viewing **parent** or other **ancestor** (`contextAncestor` only) | ✅ |
+| **Effective member of the immediate parent Request** viewing child Request content (`contextChild` only) | ✅ |
+| **Child Request member** viewing the parent Request or another Request ancestor (`contextAncestor` only) | ✅ |
+| **Post member** viewing a Request budded from that Post with no independent access to the bud (neither invited nor ticked and otherwise uninvolved) | ❌ |
+
+A bud is a fresh Request with the normal Request audience: its author, people
+invited or ticked by the author, forward recipients, admitted participants and
+stewards, and active helpers. Post membership grants no access to the bud and
+adds no extra audience.
 
 ## Access level and reasons
 
@@ -60,7 +66,7 @@ and some rights (see rights table). Canonical SQL: `beacon_access_level`,
 | 3 | 8 | forwarded (active inbound forward edge) |
 | 4 | 16 | applied (active help offer, `status = 0`) |
 | 5 | 32 | discovered (D11, trust-only) |
-| 6 | 64 | contextChild (member of the immediate parent), from phase 2 |
+| 6 | 64 | contextChild (effective member of the immediate parent Request), from phase 2 |
 | 7 | 128 | contextAncestor (member of some descendant), from phase 2 |
 
 Access level: 0 author, 1 member, 2 observer, 3 stranger.
@@ -124,7 +130,7 @@ The three profile surfaces + "open detail" + "can forward" for each relationship
 | **Withdrawn help offerer** | — | — | ❌ | ❌ | ❌ |
 | **Steward** | If P = author | If you forwarded to P | If both offered | ✅ | ✅ open-family only |
 | **Room-admitted participant** (`room_access = 3`) | If P = author | If you forwarded to P | If both offered | ✅ | ✅ open-family only |
-| **Parent member, child not admitted** (`contextChild`) | If P = parent author | If you forwarded to child | — | ✅ on child as observer; no child discussion/Plan/involvement unless separately admitted or involved | ✅ on child, open-family only (D2) |
+| **Effective member of the immediate parent Request, child not admitted** (`contextChild`) | If P = parent author | If you forwarded to child | — | ✅ on child as observer; no child discussion/Plan/involvement unless separately admitted or involved | ✅ on child, open-family only (D2) |
 | **Child member, ancestor not admitted** (`contextAncestor`) | — | — | — | ✅ on child; ✅ on parent and other ancestors as observer; no ancestor discussion/Plan/involvement unless separately admitted or involved | ✅ on child and ancestors, open-family only (D2) |
 | **Room participant, not admitted** | — | — | — | ❌ | ❌ |
 | **Invite not yet accepted** | ❌ | ❌ | ❌ | Preview only (`canPreviewInvite`) | — |

@@ -24,9 +24,8 @@ the existing machinery it rides on and the smallest seam it needs.
    own-message gate, no one-child-per-message cap on the Post path). An own message may optionally
    prefill the form; others' messages cannot be quoted. Request→Request promotion stays one child
    per source message.
-3. **Observers are a snapshot** (`beacon_bud_observer`) of the Post's *effective, unblocked* members
-   at bud time (N3). `contextAncestor` never grants read of a **Post**. Realtime hierarchy recipients
-   follow the same snapshot.
+3. **A bud is a fresh Request** with the normal Request audience. Post membership grants no access
+   to the bud (N3). See the [visibility matrix](../beacon-visibility-matrix.md#content-read-predicate).
 4. **Invitations** (`beacon_author_invite`) hold the author's confirmation; delivery rides on a real
    `beacon_forward_edge` (inbox row, «Для вас» pin, decline, contact hooks reused). **Accept** runs one
    shared admission operation that writes exactly the rows offer + acknowledgement write. Invite
@@ -72,24 +71,11 @@ the existing machinery it rides on and the smallest seam it needs.
 
 ## 2. Data model
 
-### 2.1 `beacon_bud_observer` (N3)
+### 2.1 Bud audience (N3)
 
-```
-beacon_bud_observer(beacon_id text FK beacon ON DELETE CASCADE,  -- child Request
-                    user_id   text FK user,
-                    created_at timestamptz,
-                    PRIMARY KEY (beacon_id, user_id))
-```
-
-Written once in the publication pipeline when the parent has `kind = 1`, from the **effective Post
-member set** `E(post)`:
-- the Post author (no participant row required), plus
-- participants with `room_access = 3` (role 6 or steward) that pass `beacon_effective_admission(post, u)`,
-- minus users blocked with the **Post author** (`_isBlockedFromPost` predicate) and minus users
-  blocked with the **child author**, minus the child author.
-
-Never extended. Leaving the Post later does not remove the row; a later block hides reads
-(`block_hides`) as everywhere.
+The parent reference records where the Request came from. Reads use the
+[normal Request audience](../beacon-visibility-matrix.md#content-read-predicate).
+Post membership grants no access.
 
 ### 2.2 `beacon_author_invite` (D7 author confirmation)
 
@@ -165,12 +151,12 @@ mutation can create a Post child without it.
 ### 3.2 Reads of the child
 
 In `beacon_can_read_content`, `beacon_access_reasons`, `beacon_readable_ids`, `BeaconAccessPolicy`:
-- **contextChild:** immediate parent `kind = 1` → membership is a `beacon_bud_observer` row for
-  (child, viewer); parent not deleted (status 2) — as today. Parent `kind = 0` → unchanged.
+- **contextChild:** effective members of the immediate parent Request can read the child Request.
+  This grant is unavailable when the immediate parent is a Post.
 - **contextAncestor:** an ancestor with `kind = 1` is never granted.
 
-Observer level = today's contextChild level: content, admitted helpers, offer help, forward, fork; no
-chat, no involvement, no invite rows.
+Request context grants observer-level access to content and admitted helpers, plus the ability
+to offer help, forward and fork. Discussion, involvement and invite rows have separate access rules.
 
 ### 3.3 Invite eligibility (N1)
 
@@ -181,14 +167,14 @@ U is invitable on child C (parent Post P) iff, evaluated under the locks of §4.
 - U is not availability-paused (else outcome `recipientPaused`);
 - N5 slot free.
 
-Later invites from the child's People tab (`beaconAuthorInviteCreate`): only for C's snapshot observers, same rules. Everyone else:
-ordinary forward (a direct author forward is **not** a confirmation).
+Later invites from the child's People tab (`beaconAuthorInviteCreate`) can target the Post author or
+current effective Post members whose admitted participant row was last updated by the time the child
+was published. They must also meet the invite checks. Invite eligibility alone grants no read access.
 
 ### 3.4 Realtime
 
-For a Post parent, `beacon_hierarchy` recipients are the child's direct audience + snapshot observers,
-not live Post membership. Former recipients are included only for revocation invalidation (block,
-parent deletion). Child-specific hints are never sent to live Post members outside the snapshot.
+For a child of a Post, `beacon_hierarchy` hints go to the child author, stewards, participants and
+active forward recipients. Post membership alone adds no recipients.
 
 ## 4. Budding (server)
 
@@ -213,15 +199,13 @@ One transaction:
    Post parent is refused). For a Post parent it keeps the client's title/description (no override
    from the source body) and takes `isDiscoverable` (default false; the column default is true).
    A Post-parent stage then, inside the same transaction:
-   a. writes `beacon_bud_observer` (§2.1);
-   b. for each invitee: assert §3.3; create the delivery edge author → U on the child via
+   a. for each invitee: assert §3.3; create the delivery edge author → U on the child via
       `ForwardEdgeRepository.createBatch` (no parent edge; `contact_sweep_exempt = warm`); set U's
       `inbox_item` to `status 0` and clear `tombstone_dismissed_at` (explicit re-pin, because the
       insert trigger keeps an existing status); insert `beacon_author_invite`;
-   c. inserts the **single** `childCreated` notice with payload `{childBeaconId, sourceMessageId,
-      title, invitedCount}` (title snapshot: non-observers cannot read the child) — visible to everyone in the Post (N6) — and **no** attention receipts for a
-      Post parent;
-   d. emits `authorInviteReceived` per created invite (optional update, Activity «Для вас», N4).
+   b. inserts the **single** `childCreated` notice with payload `{childBeaconId, sourceMessageId,
+      title, invitedCount}` in the Post (N6), with **no** attention receipts for the Post parent;
+   c. emits `authorInviteReceived` per created invite (optional update, Activity «Для вас», N4).
 3. If `closePost`: Post status 6 + closed notice.
 4. Store the result in `beacon_child_commands.bud_result` (hash in `normalized_input_hash`, `bud:` prefix).
 5. After commit, nudge the anchor sweep (§8.1); no anchor work inside the bud transaction.
@@ -386,7 +370,7 @@ child survives (soft delete, non-cascading).
   acknowledged commitment (pg audit; covers #283, #284, accept).
 - **I2** No admission without both confirmations.
 - **I3** A Post is never readable through `contextAncestor`.
-- **I4** Observers = snapshot of `E(P)` at bud time; joining later grants nothing; blocked members never.
+- **I4** A bud has the normal Request audience. Post membership grants no access.
 - **I5** `kind` never changes.
 - **I6** ≤ 1 pending invite per (inviter, invitee, source Post).
 - **I7** Invite accept and offer+accept produce identical row sets (golden comparison).
@@ -395,7 +379,7 @@ child survives (soft delete, non-cascading).
 - **I9** Invite-admitted helpers credit only their recorded Post arrival chain; the delivery edge
   earns nothing.
 - **I10** Bud replay returns the stored result with no new effects.
-- **I11** Hierarchy realtime for Post children reaches only the snapshot + direct audience.
+- **I11** Hierarchy realtime for Post children uses the recipients in §3.4.
 - Concurrency: bud ∥ accept ∥ cancel ∥ delete ∥ block ∥ Post close.
 - Extend `post_request_only_audit_pg_test.dart`, `beacon_room_admission_matrix_test.dart`.
 
@@ -423,16 +407,16 @@ child survives (soft delete, non-cascading).
 |---|---|---|---|
 | 1 | blocker | Post-row-before-hierarchy lock order deadlocks with `PostLockPort` / child publish | §4.1 single order via `PostLockPort` + concurrency test |
 | 2 | blocker | Accept validates outside the lifecycle lock; races Cancel/Delete | §5.1 locks first, re-validates inside |
-| 3 | blocker | Raw role-6/access-3 rows are not an authorization snapshot (blocked members, access 0) | §2.1 effective unblocked set `E(P)`, author without a row |
+| 3 | blocker | Raw role-6/access-3 rows omit effective membership checks | Use effective Post membership for invite eligibility (§3.3). Post membership grants no access (§2.1). |
 | 4 | major | Child idempotency hash misses bud fields; double notice | §2.6 command record; single pipeline owns notice (§4.2) |
 | 5 | major | Actor extraction incomplete (room admission and commitments are actor-scoped) | §5.3 one admission operation, confirming author as data |
 | 6 | major | NULL deadline disables engage/decline; noisy written even with wall off | §2.5 sweep-exempt flag, deadline kept; §6 table corrected |
 | 7 | major | Forward cancel ≠ withdrawal; stale invites hold N5 slot | §5.4 authoritative withdraw + supersede |
-| 8 | major | Inbox status not reset on re-invite; paused/dedup; catalog and projections missing | §4.2 b re-pin; §3.3 paused; §2.2 projections; §5.6 catalog |
+| 8 | major | Inbox status not reset on re-invite; paused/dedup; catalog and projections missing | §4.2 a re-pin; §3.3 paused; §2.2 projections; §5.6 catalog |
 | 9 | major | Expired invites can still be swept as noisy | §5.4 expiry resolves contacts without evidence |
 | 10 | major | Unioning Post edges credits unrelated paths; delivery edge removal breaks onward chains | §7 per-helper provenance; delivery edge structural |
 | 11 | major | Repair keyed on "no active offer" is wrong; frozen review epochs | §10.2 history-based audit; invites for unconfirmed; review/closed untouched |
 | 12 | major | Closed Posts vanish from `post_my_posts`/`postSummary`; guards missing | §2.3 enumerated |
 | 13 | major | Reject forbidding source deletion; keep a detached published promotion | §10.3 adopted |
-| 14 | major | Hierarchy realtime uses live membership and carries metadata | §3.4 snapshot recipients |
+| 14 | major | Hierarchy realtime uses live membership and carries metadata | §3.4 child hierarchy recipients |
 | 15 | major | Anchor copy can't run as a nested system actor | §8.1 after-commit task, insert-if-absent |

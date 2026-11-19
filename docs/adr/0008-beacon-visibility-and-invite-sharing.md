@@ -83,9 +83,19 @@ Issue #146 fixes this across migrations `m0170`–`m0173`.
 
 ### Consequences
 
-- `beacon_can_read_content` is widened with the `contextChild` and `contextAncestor` reasons (`m0170`, `m0171` ancestor closure). The separate linked-detail predicate is dropped (`m0172`).
+- Through `contextChild`, effective members of the immediate parent Request can read the child Request's content (`m0170`).
+- Through `contextAncestor`, child Request members can read the parent Request and other Request ancestors (`m0170`, `m0171` ancestor closure). The separate linked-detail predicate is dropped (`m0172`).
 - Context observers have the same observer rights as forward and discovery observers (D2). They do not get discussion, Plan or involvement visibility unless separately admitted or involved.
 - `person_bond` (`m0173`) and server `personVisible` drive profile and forward-picker visibility between co-participants.
 - Discovery (D11) stays trust-only (D4).
 - Decision 2's content-read parity now covers the widened access level and reasons.
 - The nested-requests plan's one-edge split (§3.2) is superseded.
+
+## Amendment C (2026-11-19): access to Requests budded from Posts
+
+The Post-parent `contextChild` grant and its observer snapshot were removed.
+Migration `m0320` dropped the `beacon_bud_observer` table.
+
+A bud is a fresh Request with the [normal Request audience](../beacon-visibility-matrix.md#content-read-predicate).
+Post membership grants no access to the bud. The Request hierarchy grants in
+Amendment B continue to apply.

@@ -8,6 +8,9 @@ codex quota ran out.
 **For:** an implementer (human or model) who follows units literally, test-first, one unit at a time.
 Each unit lists its goal, files, the tests to write **first**, the steps, and "done when".
 
+**Current access rule.** A bud is a fresh Request with the normal Request audience. Post membership
+grants no access to the bud. See the [visibility matrix](../beacon-visibility-matrix.md#content-read-predicate).
+
 **Sources of truth (read before any unit):**
 1. [`post-request-budding-architecture.md`](post-request-budding-architecture.md) rev 2.2. "Arch §N" points there.
 2. [`post-request-budding-design.md`](post-request-budding-design.md): owner decisions D1–D7 and N1–N6 (in Russian).
@@ -62,12 +65,12 @@ If a step contradicts the architecture, stop and report; do not guess. Line numb
 | `postBudAction` | Оформить запрос | message action, ⋯ menu |
 | `postBudPickMessageTitle` | Из какого сообщения оформить запрос? | non-author source picker |
 | `postBudInviteTitle` | Кого позвать | invite step |
-| `postBudInviteExplanation` | Позванные получат приглашение и сами решат, участвовать ли. Остальные участники поста увидят запрос и смогут предложить помощь сами. | invite step |
+| `postBudInviteExplanation` | Позванные получат приглашение и сами решат, участвовать ли. У нового запроса обычные правила доступа. Участие в посте само по себе не даёт доступа к запросу. | invite step |
 | `postBudInviteVia` | через {name} | invite step, for a member the budder may not know |
 | `postBudInviteManyWarning` | Каждый отмеченный получит просьбу. Отмечено: {count} | above N = 5 |
 | `postBudInviteNoteHint` | Почему зовёте (необязательно) | per-invitee note |
 | `postBudClosePost` | Закрыть пост и продолжить в запросе | checkbox |
-| `postBudDiscoverableWarning` | Пост видели только его участники. Если сделать запрос видимым для всех, его увидят и другие. | discoverable toggle |
+| `postBudDiscoverableWarning` | При включении этой настройки запрос смогут найти люди, с которыми у вас есть взаимная видимость. | discoverable toggle |
 | `postBudForwardingWarning` | В посте пересылка была выключена. Запрос можно пересылать. | when the Post's forward policy is off |
 | `postBudNotInvitedSnack` | Не удалось позвать: {names} | after submit |
 | `roomBudNotice` | {name} оформил(а) запрос «{title}» и позвал(а) {count, plural, one{# человека} few{# человек} many{# человек} other{# человека}} | Post room notice |
@@ -78,7 +81,7 @@ If a step contradicts the architecture, stop and report; do not guess. Line numb
 | `inviteCardTitle` | {name} зовёт вас помочь | Activity card |
 | `inviteAccept` | Принять | Activity card |
 | `inviteDecline` | Не смогу | Activity card |
-| `inviteAction` | Позвать | child People tab (snapshot observers) |
+| `inviteAction` | Позвать | child People tab (eligible invite candidates) |
 | `inviteStatusPending` | приглашён(а) | child People tab |
 | `inviteStatusDeclined` | не сможет | child People tab |
 | `inviteWithdraw` | Отозвать приглашение | child People tab |
@@ -90,9 +93,9 @@ If a step contradicts the architecture, stop and report; do not guess. Line numb
 | A1 | Promotion source may detach (source-delete fix) | — |
 | A2 | Shared admission operation (refactor, no behaviour change) | — |
 | A3 | Remove `BeaconRoomAdmit` (#283) | — |
-| B1 | Schema: observers, invites, bud columns on child commands, sweep exemption, closed Post status, indexes | — |
+| B1 | Schema: invites, bud columns on child commands, sweep exemption, closed Post status, indexes | — |
 | B2 | Effective Post members `E(P)` and invite facts (SQL + port) | B1 |
-| B3 | Read wall: snapshot contextChild, no Post contextAncestor | B1 |
+| B3 | Read wall: Request-only hierarchy context | B1 |
 | B4 | Hierarchy realtime recipients for Post children | B3 |
 | B5 | Contact sweep exemption + `contact_resolve_without_evidence` | B1 |
 | C1 | Post-parent branch in the child pipeline (`createChildUnderPost`) | B2 |
@@ -209,9 +212,6 @@ The commit closes #283.
 **Files:** a new migration (next free number), `_migrations.dart`, and a pg test. No Drift classes (§0).
 
 **SQL (Arch §2):**
-- `beacon_bud_observer(beacon_id, user_id, created_at)`:
-  - PK `(beacon_id, user_id)`; FK to beacon `ON DELETE CASCADE`; FK to user `ON DELETE CASCADE` (users are hard-deleted, `user_repository.dart:898`);
-  - index `(user_id, beacon_id)`.
 - `beacon_author_invite` as in Arch §2.2:
   - `source_post_id` is **nullable** (repair invites in E2 have none);
   - FKs: `beacon_id`, `inviter_id`, `invitee_id` `ON DELETE CASCADE`; `resolved_by ON DELETE SET NULL`; `forward_edge_id ON DELETE SET NULL`; `arrival_post_edge_id` has **no FK** (it is immutable provenance; an FK `SET NULL` would collide with the immutability trigger);
@@ -222,7 +222,7 @@ The commit closes #283.
 - `beacon_child_commands` (m0193:4932) gets `bud_result jsonb NULL` and `anchor_inherited_at timestamptz NULL`, plus a partial index `(created_at) WHERE bud_result IS NOT NULL AND anchor_inherited_at IS NULL`. This is the one idempotency table (Arch §2.6). There is no separate bud table and no second hash column: the bud hash goes into the existing `normalized_input_hash` with a `bud:` prefix, which `findCommand` and `recordCreateOutcome` already compare (`beacon_hierarchy_command_repository.dart:84-90`), so a `clientCommandId` reused across the two endpoints conflicts naturally.
 - `beacon_forward_edge.contact_sweep_exempt boolean NOT NULL DEFAULT false`.
 - `beacon_post_shape_ck`: Post statuses `{0, 2, 3, 6}`.
-- No Hasura tracking for the new table and columns. Add `beacon_bud_observer` and `beacon_author_invite` to the "untracked tables" architecture test list (`test/architecture/hasura_metadata_closure_tables_untracked_test.dart`).
+- No Hasura tracking for the new table and columns. Keep `beacon_author_invite` in the "untracked tables" architecture test list (`test/architecture/hasura_metadata_closure_tables_untracked_test.dart`).
 
 **Tests first (pg):**
 - N5 uniqueness;
@@ -270,17 +270,16 @@ Use bond or reciprocal-explicit-trust fixtures for the positive cold case and a 
 - tests.
 
 **Change (Arch §3.2):**
-- **contextChild** (bit 64; `cand` in readable_ids): when the immediate parent has `kind = 1`, require `EXISTS beacon_bud_observer(child, viewer)` instead of live parent membership. The parent must still not be in status 2 or 3, and `NOT block_hides(post_author, viewer)` applies (today's contextChild applies the parent-author block, m0193:683). In `beacon_readable_ids` the `cand` CTE has no parent kind (m0226:14-18): join `beacon parent ON parent.id = c.parent_beacon_id` for this branch.
+- **contextChild** (bit 64) applies only when the immediate parent is a Request and the viewer is an effective member of it. For a Post parent, apply the bud's normal Request read rules.
 - **contextAncestor** (bit 128): the **target** must be a Request.
   - In `beacon_can_read_content` and `beacon_access_reasons`, add `b.kind = 0` to the ancestor branch (the `a.ancestor_id = b.id` join, m0193:451-470).
   - In `beacon_readable_ids` (m0226), add `kind` to `cand` and require `c.kind = 0` in the `member_ancestors` branch.
 - Re-apply `ALTER FUNCTION public.beacon_can_read_content(...) COST 1000` (m0227) and keep the other attributes.
-- `BeaconAccessFacts` gets `parentIsPost` and `isBudObserver`. `BeaconAccessPolicy` mirrors the SQL.
+- `BeaconAccessPolicy` mirrors the SQL.
 
 **Tests first (pg leak matrix, `post_bud_read_wall_pg_test.dart`):**
-- a snapshot observer reads the child;
-- a member who joined the Post after the bud cannot;
-- a blocked observer cannot;
+- a Post member with no separate grant cannot read the child, regardless of when they joined;
+- an invitee or forward recipient can read the child through their own grant;
 - a Request helper or forward recipient of the child **cannot** read the Post;
 - Request-parent shared context is unchanged (the existing #146 tests pass);
 - `beacon_readable_ids` agrees with `beacon_can_read_content` on every row of the matrix;
@@ -293,12 +292,12 @@ Also run the existing readable-ids consistency and perf tests.
 
 **Files:** a migration redefining the hierarchy recipient function (m0193:3925-3990, CTE `parent_linked` at :3950-3970), and a pg test.
 
-**Change.** When the **owner's** parent has `kind = 1`, replace `parent_linked` with the owner's `beacon_bud_observer` rows minus `block_hides(owner_author, u)`. The observer CTE keeps `parent.status NOT IN (2,3)`, matching the read wall. The block path passes former recipients through the existing `p_extra_user_ids` (m0193:2557). The parent-deletion path passes no extras today (m0193:2668-2676); this is an **accepted gap** (former observers refetch on their next read and the wall answers) — pin it with a test. Emits whose owner is the Post itself (m0193:2613, 2643) are unchanged.
+**Change.** For a child of a Post, use the child author, stewards, participants and active forward
+recipients for child hierarchy hints. Post membership adds no recipients (Arch §3.4).
 
 **Tests first (pg):**
-- a later Post member gets no child hint;
-- a snapshot observer who left the Post still gets it;
-- a blocked observer gets only the invalidation.
+- a Post member without a separate grant gets no child hint, regardless of when they joined;
+- an active forward recipient of the child gets the child hint.
 
 ### B5 — Contact sweep exemption + resolve without evidence
 
@@ -413,18 +412,17 @@ Also run the existing readable-ids consistency and perf tests.
 3. Post locks, then the Post asserts.
 4. Create and publish the child: client content; `isDiscoverable` default `false`.
 5. `PostParentStage` runs:
-   - (a) the observers snapshot: `post_effective_members` minus the budder, minus users blocked with the budder;
-   - (b) per invitee, via `PostBudPort.inviteCandidates`, which must return eligible:
+   - (a) per invitee, via `PostBudPort.inviteCandidates`, which must return eligible:
      - `createBatch` author → U on the child, no parent edge, `sweepExemptFor(U) = warm`. The invite note is **not** copied into the edge note;
      - re-pin the inbox (`status = 0`, `tombstone_dismissed_at = NULL`);
      - `arrival_post_edge_id` = U's latest active inbound edge on the Post (NULL for the Post author);
      - insert the invite and emit `authorInviteReceived`;
-   - (c) the notice with `title` and `invitedCount`;
+   - (b) the notice with `title` and `invitedCount`;
 6. If `closePost`: `PostCloseOperation.closeForBud`.
 7. Store `bud_result` (the hash goes into `normalized_input_hash` with the `bud:` prefix). `anchor_inherited_at` stays NULL. After commit, nudge the C8 sweep (same pattern as `_publisher.nudge()`). No anchor work inside the bud transaction (C8).
 
 **Tests first (pg, real attention dispatch):**
-- the happy path writes: child parent; observers; invites; edges with per-recipient exempt flags; the inbox row pinned in «Для вас» (`eligiblePinned`); one notice with title and count; zero receipts to non-invited members;
+- the happy path writes: child parent; invites; edges with per-recipient exempt flags; the inbox row pinned in «Для вас» (`eligiblePinned`); one notice with title and count; zero receipts to non-invited members;
 - replay returns an identical result with no new rows;
 - replay after `closePost` works;
 - a different input under the same `clientCommandId` → conflict;
@@ -446,7 +444,7 @@ Also run the existing readable-ids consistency and perf tests.
 **Behaviour (Arch §5):**
 - **Create (later invites, Arch §3.3).**
   - Child author only. Takes `PostLockPort` on `source_post_id` (lock-order step 2) before the child, so N5 cannot race a concurrent bud from the same Post.
-  - The target must be a snapshot observer and eligible under the B2/§3.3 rules.
+  - The target must meet the later-invite eligibility checks in Arch §3.3.
   - Forward edge author → U via `createBatch`. It does not return the id of an edge it reused (`forward_edge_repository.dart:144-157`), so call `findActiveEdge` afterwards and set `forward_edge_id` to it.
   - If warm: `UPDATE … SET contact_sweep_exempt = true` on that edge (a reused ordinary edge is not exempt; otherwise I8 breaks).
   - Re-pin the inbox row; insert the invite with `INSERT … ON CONFLICT DO NOTHING` on the N5 index predicate — no row inserted → `alreadyInvited`; `authorInviteReceived`.
@@ -613,7 +611,7 @@ Invoke the `material-3-flutter` skill first.
 
 **Tests:**
 - the notice shows while its source message is loaded;
-- a non-observer sees the payload title;
+- a viewer without child access sees the notice title in the Post. The notice grants no child access;
 - the closed state hides reactions, forward and leave;
 - the marker shows in Разговоры.
 
@@ -630,7 +628,7 @@ A «Для вас» row with `inviteId` renders the invite card (inviter, note, 
 - **Parent link.** «Вырос из поста» via `BeaconHierarchyParentLink`, shown only when the parent is readable; otherwise the generic reference.
 - **People tab, for the author:**
   - an invites section (status, note, withdraw);
-  - an «Позвать» action on snapshot observers (`beaconAuthorInviteCreate`).
+  - an «Позвать» action for eligible invite candidates (`beaconAuthorInviteCreate`).
 
 **Tests:** widget tests for author vs non-author.
 
@@ -683,7 +681,7 @@ The commit closes #284.
 - Flip `kPostBuddingEnabled`.
 - Run all suites serially (§0.2 of the shared rules) and the custom lints.
 - Update the docs:
-  - `CONTEXT.md`: Post children, budding, author invite, the observers snapshot, the two-confirmation rule, closed Post;
+  - `CONTEXT.md`: Post children, budding, author invite, the two-confirmation rule, closed Post;
   - `.cursor/rules/terminology.mdc`: no new nouns; the «Оформить запрос» copy;
   - `docs/Tentura_current_status_quo.md`;
   - mark the Q10 / A7 amendments in `post-and-constellation-composer-plan.md`;
@@ -697,14 +695,14 @@ The commit closes #284.
 | I1 committers acknowledged | A3, E2 audit pg test |
 | I2 two confirmations | A2, A3, C4 |
 | I3 no Post via contextAncestor | B3 |
-| I4 snapshot observers | B2, B3, B4 |
+| I4 normal Request audience | B3 |
 | I5 kind immutable | E1 |
 | I6 one pending invite | B1, C3, C4 |
 | I7 identical row sets | A2, C4 |
 | I8 warm / expired → no noisy | B5, C4 |
 | I9 route credit chain only | C7 |
 | I10 bud replay | C1, C3, C9 |
-| I11 realtime snapshot | B4 |
+| I11 child hierarchy recipients | B4 |
 
 ## 8. Revision history
 
