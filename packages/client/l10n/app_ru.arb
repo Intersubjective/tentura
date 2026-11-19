@@ -6405,7 +6405,7 @@
   "attentionCardDismissRow": "Убрать: {name}",
   "postBudAction": "Оформить запрос",
   "postBudInviteTitle": "Кого позвать",
-  "postBudInviteExplanation": "Позванные получат приглашение и сами решат, участвовать ли. Остальные участники поста увидят запрос и смогут предложить помощь сами.",
+  "postBudInviteExplanation": "Позванные получат приглашение в запрос и сами решат, участвовать ли.",
   "postBudInvitePrivacyHint": "Те, кого вы не отметите, не узнают об этом запросе. Пост останется без изменений.",
   "postBudInviteManyWarning": "Каждый отмеченный получит запрос. Отмечено: {count}",
   "@postBudInviteManyWarning": {

@@ -11,6 +11,7 @@ NotificationIdentity _make({
   String? relatedLabel = 'Other',
   bool expired = false,
   bool hasImage = false,
+  bool isPostBud = false,
 }) => NotificationIdentity(
   entityKind: entityKind,
   label: label,
@@ -21,9 +22,28 @@ NotificationIdentity _make({
   relatedLabel: relatedLabel,
   expired: expired,
   hasImage: hasImage,
+  isPostBud: isPostBud,
 );
 
 void main() {
+  group('NotificationIdentity.hidesNotification', () {
+    test('hides an unreadable bud with no tombstone access', () {
+      expect(_make(isPostBud: true, readable: false).hidesNotification, isTrue);
+    });
+    test('keeps the deleted-bud notice for a viewer who may see the tombstone',
+        () {
+      expect(
+        _make(isPostBud: true, readable: false, tombstone: true)
+            .hidesNotification,
+        isFalse,
+      );
+    });
+    test('never hides a non-bud or a readable bud', () {
+      expect(_make(readable: false).hidesNotification, isFalse);
+      expect(_make(isPostBud: true).hidesNotification, isFalse);
+    });
+  });
+
   group('NotificationIdentity value semantics', () {
     test('exposes the constructed fields', () {
       final id = _make(hasImage: true, expired: true);

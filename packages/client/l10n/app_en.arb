@@ -8610,7 +8610,7 @@
   "@postBudInviteTitle": {
     "description": "Title of the invite step when budding a Request from a Post."
   },
-  "postBudInviteExplanation": "Invited people get an invitation and decide for themselves whether to take part. The other post members will see the request and can offer help themselves.",
+  "postBudInviteExplanation": "Invited people get an invitation and decide for themselves whether to take part.",
   "@postBudInviteExplanation": {
     "description": "Explanation above the invite list of the bud form."
   },

@@ -53,8 +53,9 @@ class NotificationIdentity {
 
   final bool isPostBud;
 
-  /// Even generic copy or a deep link would disclose an unreadable bud.
-  bool get hidesNotification => isPostBud && !readable;
+  /// Even generic copy or a deep link would disclose an unreadable bud, but a
+  /// viewer who may see the tombstone still gets the «deleted» notice.
+  bool get hidesNotification => isPostBud && !readable && !tombstone;
 
   @override
   bool operator ==(Object other) =>
