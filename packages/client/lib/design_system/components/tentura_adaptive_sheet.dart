@@ -14,6 +14,8 @@ import 'tentura_sheet_snack_bar_host.dart';
 ///
 /// Compact sheets use [TenturaModalBottomSheetRoute] so drag-to-dismiss goes
 /// through [Navigator.maybePop] and respects [TenturaSheetDismissGuard].
+/// Set [limitCompactHeight] to apply [maxHeightFraction] to the compact sheet
+/// as well, including its drag handle.
 ///
 /// Escape closes the topmost sheet through [Navigator.maybePop] even when
 /// keyboard focus is outside it (as can happen on the web), unless
@@ -43,6 +45,7 @@ Future<T?> showTenturaAdaptiveSheet<T>({
   bool showSnackBars = false,
   double? maxWidth,
   double maxHeightFraction = 0.9,
+  bool limitCompactHeight = false,
 }) async {
   final windowClass = windowClassForWidth(MediaQuery.sizeOf(context).width);
   final trigger = FocusManager.instance.primaryFocus;
@@ -63,6 +66,7 @@ Future<T?> showTenturaAdaptiveSheet<T>({
           to: navigator.context,
         ),
         isScrollControlled: isScrollControlled,
+        maxHeightFraction: limitCompactHeight ? maxHeightFraction : null,
         showSnackBars: showSnackBars,
         snackBarOwner: snackBarOwner,
         showDragHandle: showDragHandle,

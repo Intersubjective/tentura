@@ -35,6 +35,7 @@ Future<void> showFactHistorySheet(
     context: context,
     showSnackBars: true,
     useRootNavigator: true,
+    limitCompactHeight: true,
     builder: (_) => FactHistorySheet(
       beaconId: beaconId,
       factCardId: factCardId,
@@ -117,30 +118,26 @@ class _FactHistorySheetState extends State<FactHistorySheet> {
 
   @override
   Widget build(BuildContext context) {
-    final maxH = MediaQuery.sizeOf(context).height * 0.9;
     return BlocProvider.value(
       value: _cubit,
       child: SafeArea(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(maxHeight: maxH),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _FactHistorySheetBody(
-                  canMutate: widget.canMutate,
-                  highlightSeq: widget.highlightSeq,
-                  onShowUndo: _showUndoBanner,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _FactHistorySheetBody(
+                canMutate: widget.canMutate,
+                highlightSeq: widget.highlightSeq,
+                onShowUndo: _showUndoBanner,
+              ),
+              if (widget.originBeaconKind != null)
+                _EarlierHistoryFooter(
+                  beaconId: widget.beaconId,
+                  factCardId: widget.factCardId,
                 ),
-                if (widget.originBeaconKind != null)
-                  _EarlierHistoryFooter(
-                    beaconId: widget.beaconId,
-                    factCardId: widget.factCardId,
-                  ),
-                if (_undoBanner case final banner?) banner,
-              ],
-            ),
+              if (_undoBanner case final banner?) banner,
+            ],
           ),
         ),
       ),

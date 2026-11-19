@@ -14,6 +14,7 @@ class TenturaModalBottomSheetRoute<T> extends PopupRoute<T> {
     this.capturedThemes,
     this.isScrollControlled = true,
     this.scrollControlDisabledMaxHeightRatio = 9.0 / 16.0,
+    this.maxHeightFraction,
     this.showDragHandle = true,
     this.enableDrag = true,
     this.isDismissible = true,
@@ -29,6 +30,7 @@ class TenturaModalBottomSheetRoute<T> extends PopupRoute<T> {
   final CapturedThemes? capturedThemes;
   final bool isScrollControlled;
   final double scrollControlDisabledMaxHeightRatio;
+  final double? maxHeightFraction;
   final bool showDragHandle;
   final bool enableDrag;
   final bool isDismissible;
@@ -100,9 +102,9 @@ class TenturaModalBottomSheetRoute<T> extends PopupRoute<T> {
       builder: (context, child) => CustomSingleChildLayout(
         delegate: _TenturaSheetLayout(
           progress: animation.value,
-          isScrollControlled: isScrollControlled,
-          scrollControlDisabledMaxHeightRatio:
-              scrollControlDisabledMaxHeightRatio,
+          maxHeightFraction:
+              maxHeightFraction ??
+              (isScrollControlled ? 1 : scrollControlDisabledMaxHeightRatio),
         ),
         child: child,
       ),
@@ -126,22 +128,18 @@ const _kBottomSheetExitDuration = Duration(milliseconds: 200);
 class _TenturaSheetLayout extends SingleChildLayoutDelegate {
   _TenturaSheetLayout({
     required this.progress,
-    required this.isScrollControlled,
-    required this.scrollControlDisabledMaxHeightRatio,
+    required this.maxHeightFraction,
   });
 
   final double progress;
-  final bool isScrollControlled;
-  final double scrollControlDisabledMaxHeightRatio;
+  final double maxHeightFraction;
 
   @override
   BoxConstraints getConstraintsForChild(BoxConstraints constraints) {
     return BoxConstraints(
       minWidth: constraints.maxWidth,
       maxWidth: constraints.maxWidth,
-      maxHeight: isScrollControlled
-          ? constraints.maxHeight
-          : constraints.maxHeight * scrollControlDisabledMaxHeightRatio,
+      maxHeight: constraints.maxHeight * maxHeightFraction,
     );
   }
 
@@ -152,7 +150,5 @@ class _TenturaSheetLayout extends SingleChildLayoutDelegate {
   @override
   bool shouldRelayout(_TenturaSheetLayout oldDelegate) =>
       progress != oldDelegate.progress ||
-      isScrollControlled != oldDelegate.isScrollControlled ||
-      scrollControlDisabledMaxHeightRatio !=
-          oldDelegate.scrollControlDisabledMaxHeightRatio;
+      maxHeightFraction != oldDelegate.maxHeightFraction;
 }
