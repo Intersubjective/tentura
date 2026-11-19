@@ -15,6 +15,9 @@ import '../../support/phone_surface.dart';
 const _bannerText =
     'You can see this request because you take part in a related request.';
 
+const _relatedRussian =
+    'Вы видите этот запрос, потому что участвуете в связанном запросе.';
+
 Beacon _beacon({
   required BeaconAccessLevel? accessLevel,
   int accessReasons = 0,
@@ -42,11 +45,7 @@ Beacon _parent({
   updatedAt: DateTime.utc(2026, 6, 19),
 );
 
-const _postBannerText =
-    "You can see this request because you're in the post "
-    '«GQ1024: planning a weekend» it grew from.';
-
-/// Long enough that a single-line ellipsis hid «post» on a 375 px phone (#724).
+/// An excerpt that must not influence the banner layout.
 const _longPostExcerpt =
     'GQ1024: planning an extended weekend garden cleanup with neighbors '
     'and friends from the whole city block joining together';
@@ -114,19 +113,6 @@ Future<void> _pumpBanner(
 }
 
 void main() {
-  test('clipParentPostExcerptForAccessBanner keeps a short excerpt intact', () {
-    const short = 'GQ1024: planning a weekend';
-    expect(clipParentPostExcerptForAccessBanner(short), short);
-    expect(clipParentPostExcerptForAccessBanner('  $short  '), short);
-  });
-
-  test('clipParentPostExcerptForAccessBanner shortens a long excerpt', () {
-    final clipped = clipParentPostExcerptForAccessBanner(_longPostExcerpt);
-    expect(clipped.length, lessThanOrEqualTo(40));
-    expect(clipped, endsWith('…'));
-    expect(clipped, startsWith('GQ1024:'));
-  });
-
   testWidgets('shown for context-child observer', (tester) async {
     await _pumpBanner(
       tester,
@@ -185,78 +171,84 @@ void main() {
     expect(find.text(_bannerText), findsOneWidget);
   });
 
-  group('a Request budded from a Post (#724)', () {
+  group('access explanations for Requests budded from Posts', () {
     final budded = _beacon(
       accessLevel: BeaconAccessLevel.observer,
       accessReasons: 64,
       lineageParentBeaconId: 'P1',
     );
 
-    testWidgets('a post member is told it grew from that post', (
+    testWidgets('an observer sees the related Request explanation', (
       tester,
     ) async {
       await _pumpBanner(tester, budded, parent: _parent());
-      expect(find.text(_postBannerText), findsOneWidget);
-      expect(find.text(_bannerText), findsNothing);
+      expect(find.text(_bannerText), findsOneWidget);
+      expect(find.textContaining('it grew from'), findsNothing);
       expect(
         find.byKey(RequestAccessReasonBanner.openParentKey),
-        findsOneWidget,
+        findsNothing,
       );
     });
 
-    testWidgets('a declined post member also sees the post reason', (
-      tester,
-    ) async {
-      // Eve: her offer was declined, so only the bud snapshot remains.
-      await _pumpBanner(
+    testWidgets(
+      'discovery alongside parent context keeps the related Request explanation',
+      (
         tester,
-        _beacon(
-          accessLevel: BeaconAccessLevel.observer,
-          accessReasons: 32 | 64,
-          lineageParentBeaconId: 'P1',
-        ),
-        parent: _parent(),
-      );
-      expect(find.text(_postBannerText), findsOneWidget);
-    });
+      ) async {
+        // Eve: her offer was declined, so only the bud snapshot remains.
+        await _pumpBanner(
+          tester,
+          _beacon(
+            accessLevel: BeaconAccessLevel.observer,
+            accessReasons: 32 | 64,
+            lineageParentBeaconId: 'P1',
+          ),
+          parent: _parent(),
+        );
+        expect(find.text(_bannerText), findsOneWidget);
+        expect(find.textContaining('it grew from'), findsNothing);
+      },
+    );
 
-    testWidgets('real data: a bud has no lineage parent, the post is named', (
-      tester,
-    ) async {
-      // QA on dev: a budded Request's Post is its hierarchy parent; the
-      // Request itself carries no lineage parent.
-      await _pumpBanner(
+    testWidgets(
+      'a bud without a lineage parent shows the related Request explanation',
+      (
         tester,
-        _beacon(
-          accessLevel: BeaconAccessLevel.observer,
-          accessReasons: 32 | 64,
-        ),
-        parent: _parent(),
-      );
-      expect(find.text(_postBannerText), findsOneWidget);
-      expect(find.text(_bannerText), findsNothing);
-      expect(
-        find.byKey(RequestAccessReasonBanner.openParentKey),
-        findsOneWidget,
-      );
-    });
+      ) async {
+        // QA on dev: a budded Request's Post is its hierarchy parent; the
+        // Request itself carries no lineage parent.
+        await _pumpBanner(
+          tester,
+          _beacon(
+            accessLevel: BeaconAccessLevel.observer,
+            accessReasons: 32 | 64,
+          ),
+          parent: _parent(),
+        );
+        expect(find.text(_bannerText), findsOneWidget);
+        expect(find.textContaining('it grew from'), findsNothing);
+        expect(
+          find.byKey(RequestAccessReasonBanner.openParentKey),
+          findsNothing,
+        );
+      },
+    );
 
-    testWidgets('a post with empty excerpt keeps untitled copy', (
-      tester,
-    ) async {
-      await _pumpBanner(
+    testWidgets(
+      'an empty Post excerpt leaves the related Request explanation intact',
+      (
         tester,
-        budded,
-        parent: _parent(),
-        parentPostExcerpt: '',
-      );
-      expect(
-        find.text(
-          "You can see this request because you're in the post it grew from.",
-        ),
-        findsOneWidget,
-      );
-    });
+      ) async {
+        await _pumpBanner(
+          tester,
+          budded,
+          parent: _parent(),
+          parentPostExcerpt: '',
+        );
+        expect(find.text(_bannerText), findsOneWidget);
+        expect(find.textContaining('it grew from'), findsNothing);
+      },
+    );
 
     testWidgets('guard: a Request parent keeps the related-request line', (
       tester,
@@ -270,12 +262,15 @@ void main() {
       expect(find.byKey(RequestAccessReasonBanner.openParentKey), findsNothing);
     });
 
-    testWidgets('guard: until the parent is read, the general line stays', (
-      tester,
-    ) async {
-      await _pumpBanner(tester, budded);
-      expect(find.text(_bannerText), findsOneWidget);
-    });
+    testWidgets(
+      'guard: the related Request explanation needs no parent fixture',
+      (
+        tester,
+      ) async {
+        await _pumpBanner(tester, budded);
+        expect(find.text(_bannerText), findsOneWidget);
+      },
+    );
 
     testWidgets('guard: access through a child Request is not the post', (
       tester,
@@ -290,10 +285,10 @@ void main() {
         parent: _parent(),
       );
       expect(find.text(_bannerText), findsOneWidget);
-      expect(find.text(_postBannerText), findsNothing);
+      expect(find.textContaining('it grew from'), findsNothing);
     });
 
-    testWidgets('Russian names the post too', (tester) async {
+    testWidgets('Russian explains related Request access', (tester) async {
       await _pumpBannerPhone(
         tester,
         locale: const Locale('ru'),
@@ -303,13 +298,13 @@ void main() {
       final paragraph = _bannerParagraph(tester);
       expect(paragraph.didExceedMaxLines, isFalse);
       final plain = paragraph.text.toPlainText();
-      expect(plain, contains('пост'));
-      expect(plain, contains('GQ1024'));
+      expect(plain, _relatedRussian);
+      expect(plain, isNot(contains('GQ1024')));
       expect(plain, isNot(contains('…')));
     });
 
     testWidgets(
-      '375 phone EN: long excerpt wraps without clipping the reason',
+      '375 phone EN: a long Post excerpt leaves the explanation fully visible',
       (
         tester,
       ) async {
@@ -323,18 +318,17 @@ void main() {
         final paragraph = _bannerParagraph(tester);
         expect(paragraph.didExceedMaxLines, isFalse);
         final plain = paragraph.text.toPlainText();
-        expect(plain, contains('post'));
-        expect(plain, contains('GQ1024'));
-        expect(plain, contains('…'));
+        expect(plain, _bannerText);
+        expect(plain, isNot(contains('GQ1024')));
         expect(
           find.byKey(RequestAccessReasonBanner.openParentKey),
-          findsOneWidget,
+          findsNothing,
         );
       },
     );
 
     testWidgets(
-      '375 phone RU: long excerpt wraps without clipping the reason',
+      '375 phone RU: a long Post excerpt leaves the explanation fully visible',
       (
         tester,
       ) async {
@@ -348,24 +342,26 @@ void main() {
         final paragraph = _bannerParagraph(tester);
         expect(paragraph.didExceedMaxLines, isFalse);
         final plain = paragraph.text.toPlainText();
-        expect(plain, contains('пост'));
-        expect(plain, contains('GQ1024'));
-        expect(plain, contains('…'));
+        expect(plain, _relatedRussian);
+        expect(plain, isNot(contains('GQ1024')));
       },
     );
 
-    testWidgets('desktop: long excerpt wraps within the line cap', (
-      tester,
-    ) async {
-      await _pumpBanner(
+    testWidgets(
+      'desktop: a long Post excerpt leaves the explanation fully visible',
+      (
         tester,
-        budded,
-        parent: _parent(),
-        parentPostExcerpt: _longPostExcerpt,
-      );
-      final paragraph = _bannerParagraph(tester);
-      expect(paragraph.didExceedMaxLines, isFalse);
-      expect(paragraph.text.toPlainText(), contains('post'));
-    });
+      ) async {
+        await _pumpBanner(
+          tester,
+          budded,
+          parent: _parent(),
+          parentPostExcerpt: _longPostExcerpt,
+        );
+        final paragraph = _bannerParagraph(tester);
+        expect(paragraph.didExceedMaxLines, isFalse);
+        expect(paragraph.text.toPlainText(), _bannerText);
+      },
+    );
   });
 }

@@ -20,10 +20,8 @@ import 'child_beacon_preview_loader.dart';
 /// notices stay person-free one-liners. Callers that already show a
 /// source-message footer must skip the notice row (see `BasicChatBody`).
 ///
-/// A Request budded from a Post renders from its payload (title snapshot and
-/// invite count), because Post members who are not observers of the child
-/// cannot read it (plan D2). A `postClosed` row renders the closed notice for
-/// its reason; only a bud links to the child.
+/// Post bud and closure notices use the payload supplied by the server.
+/// The server strips the continuation when the viewer cannot read the child.
 class BeaconHierarchyNotice extends StatelessWidget {
   const BeaconHierarchyNotice({
     required this.message,
@@ -295,10 +293,7 @@ class _ChildCreatedCenteredNoticeState
   }
 }
 
-/// Centered one-line notice that opens the child Request on tap: the Post
-/// bud notice and the closed-Post notice. Text comes from the payload only.
-/// Without [childBeaconId] the line is plain text (a Post that expired or
-/// was closed by its author).
+/// Centered notice with a link when the payload supplies a child Request ID.
 class _CenteredLinkNotice extends StatelessWidget {
   const _CenteredLinkNotice({
     required this.line,

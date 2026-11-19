@@ -42,8 +42,7 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 
 /// True when [message] is a `childCreated` notice whose promotion source is
 /// already in [loadedMessageIds] — the source bubble owns the preview card.
-/// A Post bud notice is never redundant: it names the budder, the title and
-/// the invite count, which the footer does not (plan D2).
+/// A Post bud notice is the only link to that Request in Post Chat.
 bool isRedundantChildCreatedNotice(
   RoomMessage message,
   Set<String> loadedMessageIds,
@@ -753,7 +752,10 @@ class BasicChatBodyState extends State<BasicChatBody> {
 
                             final toggle = widget.onToggleReaction;
                             final vote = widget.onVotePoll;
-                            final promotedChildBeaconId = promotedChildFor(m);
+                            final promotedChildBeaconId =
+                                widget.capabilities.childPromotion
+                                ? promotedChildFor(m)
+                                : null;
                             final pinnedFact = widget.pinnedFactForMessage
                                 ?.call(
                                   m,
@@ -768,7 +770,8 @@ class BasicChatBodyState extends State<BasicChatBody> {
                               breakGroupAbove:
                                   dateChanged ||
                                   showUnreadBand ||
-                                  promotedChildFor(prev) != null,
+                                  (widget.capabilities.childPromotion &&
+                                      promotedChildFor(prev) != null),
                               onActionsPressed: onMessageActions == null
                                   ? null
                                   : (message) => onMessageActions(

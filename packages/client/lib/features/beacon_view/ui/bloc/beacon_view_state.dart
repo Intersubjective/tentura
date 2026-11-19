@@ -377,16 +377,14 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
 
     /// Where the Request's own read stands.
     @Default(BeaconViewLoad.loading) BeaconViewLoad load,
-
-    /// The Request's hierarchy parent, fetched only when the viewer sees the
-    /// Request through it: the access banner names a Post parent.
-    Beacon? accessParent,
-
-    /// Root message excerpt for [accessParent] when it is a Post.
-    @Default('') String accessParentPostExcerpt,
   }) = _BeaconViewState;
 
   const BeaconViewState._();
+
+  /// Access explanations carry no Post context.
+  Beacon? get accessParent => null;
+
+  String get accessParentPostExcerpt => '';
 
   bool get forwardsLoaded => forwardsLoad == ForwardsLoad.loaded;
 

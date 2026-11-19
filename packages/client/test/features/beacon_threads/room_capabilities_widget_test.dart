@@ -641,7 +641,7 @@ void main() {
       expect(find.byType(RoomClosureStoryCard), findsOneWidget);
     });
 
-    testWidgets('Post room renders the footer under a bud source (plan D2)', (
+    testWidgets('Post room leaves a bud source without a child footer', (
       tester,
     ) async {
       _registerHierarchyWithChildPreview();
@@ -652,7 +652,7 @@ void main() {
         promotedChildBeaconId: 'child-1',
       );
 
-      expect(find.byType(BeaconChildPromotionFooter), findsOneWidget);
+      expect(find.byType(BeaconChildPromotionFooter), findsNothing);
     });
 
     testWidgets('Request room renders the child promotion footer', (

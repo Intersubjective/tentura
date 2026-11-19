@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:injectable/injectable.dart';
-import 'package:tentura_root/domain/entity/beacon_parent_reference.dart';
 
 import 'package:tentura/domain/entity/beacon_activity_event.dart';
 import 'package:tentura/domain/entity/beacon.dart';
@@ -23,7 +22,6 @@ import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/domain/use_case/use_case_base.dart';
 import 'package:tentura/data/repository/presence_repository.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
-import 'package:tentura/features/beacon/domain/port/beacon_hierarchy_repository_port.dart';
 import 'package:tentura/features/closure/data/repository/closure_repository.dart';
 import 'package:tentura/features/closure/domain/entity/beacon_close_result.dart';
 import 'package:tentura/features/closure/domain/entity/closure_state.dart';
@@ -33,9 +31,7 @@ import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
 import 'package:tentura/features/forward/domain/entity/forward_edge.dart';
 import 'package:tentura/features/inbox/data/repository/inbox_repository.dart';
 import 'package:tentura/features/inbox/domain/entity/inbox_provenance.dart';
-import 'package:tentura/features/inbox/domain/entity/post_summary.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
-import 'package:tentura/features/inbox/domain/port/posts_repository_port.dart';
 import 'package:tentura/features/beacon_threads/data/repository/beacon_activity_event_repository.dart';
 import 'package:tentura/features/beacon_threads/data/repository/beacon_fact_card_repository.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/beacon_room_invalidation.dart';
@@ -57,7 +53,6 @@ final class BeaconViewCase extends UseCaseBase {
     this._coordinationRepository,
     this._displayRepository,
     this._inboxRepository,
-    this._postsRepository,
     this._factCards,
     this._beaconRoomCase,
     this._activityEvents,
@@ -65,9 +60,7 @@ final class BeaconViewCase extends UseCaseBase {
     required super.env,
     required super.logger,
     required PresenceRepository presenceRepository,
-    BeaconHierarchyRepositoryPort? hierarchyRepository,
-  }) : _presence = presenceRepository,
-       _hierarchy = hierarchyRepository;
+  }) : _presence = presenceRepository;
 
   final BeaconRepository _beaconRepository;
 
@@ -83,8 +76,6 @@ final class BeaconViewCase extends UseCaseBase {
 
   final InboxRepository _inboxRepository;
 
-  final PostsRepositoryPort _postsRepository;
-
   final BeaconFactCardRepository _factCards;
 
   final BeaconThreadsCase _beaconRoomCase;
@@ -95,8 +86,6 @@ final class BeaconViewCase extends UseCaseBase {
 
   final PresenceRepository _presence;
 
-  final BeaconHierarchyRepositoryPort? _hierarchy;
-
   static final _epoch = DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
 
   /// In-process seen cursors keyed by `userId\\tbeaconId`.
@@ -104,16 +93,6 @@ final class BeaconViewCase extends UseCaseBase {
 
   final _seenUpdates =
       <({String beaconId, String userId, DateTime updatedAt, int revision})>{};
-
-  /// The Request's hierarchy (nesting) parent, for the access banner
-  /// (#724); no parent when no hierarchy repository is wired.
-  Future<BeaconParentReference> fetchParentReference(String beaconId) async =>
-      await _hierarchy?.fetchParentReference(beaconId: beaconId) ??
-      BeaconParentReference.none;
-
-  /// Root message excerpt for a Post (#724 access banner).
-  Future<PostSummary?> postSummary(String id) =>
-      _postsRepository.postSummary(id);
 
   Stream<RepositoryEvent<Beacon>> get beaconChanges =>
       _beaconRepository.changes;

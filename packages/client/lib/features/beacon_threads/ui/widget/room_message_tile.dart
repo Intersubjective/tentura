@@ -753,9 +753,12 @@ class RoomMessageTile extends StatelessWidget {
         breakGroupAbove || _groupBreak(previousMessage, message);
     // A promoted-source footer ends the visual cluster so the next same-author
     // message (if any) starts fresh rather than merging through the footer.
+    final childBeaconId = capabilities.childPromotion
+        ? promotedChildBeaconId
+        : null;
     final batonCard = _batonCard();
     final isGroupEnd =
-        promotedChildBeaconId != null || _groupBreak(message, nextMessage);
+        childBeaconId != null || _groupBreak(message, nextMessage);
 
     final topPad = isGroupStart ? tt.bubbleRowTop : 0.0;
     final bottomPad = tt.tightGap;
@@ -1937,11 +1940,6 @@ class RoomMessageTile extends StatelessWidget {
       hasFooterContent: hasFooterContent,
     );
 
-    final childBeaconId =
-        capabilities.childPromotion || capabilities.childPromotionOwnOnly
-        ? promotedChildBeaconId
-        : null;
-
     final measuredBubble = LayoutBuilder(
       builder: (context, constraints) {
         final proportionalCap =
@@ -2307,7 +2305,6 @@ class RoomMessageTile extends StatelessWidget {
             ],
           );
 
-    // Post rooms show the footer under a bud source too (plan D2).
     final underBubble = [
       if (childBeaconId != null)
         BeaconChildPromotionFooter(childBeaconId: childBeaconId),

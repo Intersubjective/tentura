@@ -11,7 +11,6 @@ import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/port/realtime_sync_port.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/env.dart';
-import 'package:tentura/features/beacon/data/repository/beacon_hierarchy_repository.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 import 'package:tentura/features/beacon_threads/data/repository/beacon_activity_event_repository.dart';
 import 'package:tentura/features/beacon_threads/data/repository/beacon_fact_card_repository.dart';
@@ -25,7 +24,6 @@ import 'package:tentura/features/beacon_view/domain/use_case/beacon_view_case.da
 import 'package:tentura/features/closure/data/repository/closure_repository.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 import 'package:tentura/features/inbox/data/repository/inbox_repository.dart';
-import 'package:tentura/features/inbox/data/repository/posts_repository.dart';
 import 'package:tentura/features/my_work/data/repository/archive_repository.dart';
 import 'package:tentura/features/polling/data/repository/polling_repository.dart';
 
@@ -154,7 +152,6 @@ buildWiredBeaconViewCase(
     CoordinationRepository(remote),
     BeaconDisplayRepository(remote),
     InboxRepository(remote, hints),
-    PostsRepository(remote),
     BeaconFactCardRepository(remote),
     threads,
     BeaconActivityEventRepository(remote, realtime.port),
@@ -162,7 +159,6 @@ buildWiredBeaconViewCase(
     env: const Env(),
     logger: Logger('request-open-rounds'),
     presenceRepository: quietTestPresenceRepository(),
-    hierarchyRepository: BeaconHierarchyRepository(remote),
   );
   return (viewCase: viewCase, threadsCase: threads, beacons: beacons);
 }

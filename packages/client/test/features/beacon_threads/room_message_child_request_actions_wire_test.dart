@@ -383,8 +383,8 @@ void main() {
     );
 
     testWidgets(
-      'a Post message shows its child Request when the notice is outside '
-      'the page',
+      'Post Chat leaves the source message unlinked when the bud notice is '
+      'outside the page',
       (tester) async {
         final server = RoomHintWireServer()
           ..messageRows = page(
@@ -407,7 +407,13 @@ void main() {
               .promotedChildBeaconId,
           childId,
         );
-        expectSourceFooterOnScreen(tester);
+        expect(footers, findsNothing);
+        expect(find.text(childTitle), findsNothing);
+        expect(
+          tester.widget<RoomMessageTile>(tile(_ordinaryId)).breakGroupAbove,
+          isFalse,
+        );
+        expect(tester.takeException(), isNull);
       },
     );
   });

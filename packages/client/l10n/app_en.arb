@@ -11829,23 +11829,6 @@
   "@beaconPeopleLensParticipationEndedHeading": {
     "description": "People tab section: helpers whose participation the author ended or who were removed from the discussion (#701)"
   },
-  "requestAccessViaParentPost": "You can see this request because you're in the post «{title}» it grew from.",
-  "@requestAccessViaParentPost": {
-    "description": "Banner on a Request for someone who sees it only because they are in the Post it was made from (#724)",
-    "placeholders": {
-      "title": {
-        "type": "String"
-      }
-    }
-  },
-  "requestAccessViaParentPostUntitled": "You can see this request because you're in the post it grew from.",
-  "@requestAccessViaParentPostUntitled": {
-    "description": "Same banner when the Post has no readable title (#724)"
-  },
-  "requestAccessOpenParentPost": "Open the post",
-  "@requestAccessOpenParentPost": {
-    "description": "Link on the banner that opens the Post the Request grew from (#724)"
-  },
   "constellationMinimapShow": "Show minimap",
   "constellationMinimapHide": "Hide minimap",
   "constellationPlaceAsMagnet": "Place as magnet",

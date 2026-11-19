@@ -1,7 +1,6 @@
 // The Post room side of budding (plan D2): the `childCreated` notice of a bud
-// renders from its payload (budder, title snapshot, invite count) and is never
-// folded into the source-message footer, and a closed Post renders its
-// kind-5 notice.
+// renders from its payload (budder, title snapshot, invite count).
+// A closed Post renders its kind-5 notice.
 
 import 'dart:convert';
 
@@ -192,19 +191,21 @@ void main() {
       find.text(l10n.roomBudNotice('Maria', 'Ladder for Saturday', 2)),
       findsOneWidget,
     );
-    // The source still carries the existing footer.
-    expect(find.byType(BeaconChildPromotionFooter), findsOneWidget);
+    expect(find.byType(BeaconChildPromotionFooter), findsNothing);
   });
 
-  testWidgets('a non-observer sees the payload title', (tester) async {
-    registerHierarchy(readable: false);
-    final l10n = await pumpChat(tester, messages: [_budNotice()]);
+  testWidgets(
+    'a server-sent notice shows its payload title without a preview',
+    (tester) async {
+      registerHierarchy(readable: false);
+      final l10n = await pumpChat(tester, messages: [_budNotice()]);
 
-    expect(
-      find.text(l10n.roomBudNotice('Maria', 'Ladder for Saturday', 2)),
-      findsOneWidget,
-    );
-  });
+      expect(
+        find.text(l10n.roomBudNotice('Maria', 'Ladder for Saturday', 2)),
+        findsOneWidget,
+      );
+    },
+  );
 
   testWidgets('no invites: the short notice', (tester) async {
     registerHierarchy(readable: false);

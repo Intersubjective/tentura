@@ -543,7 +543,6 @@ Future<_Session> _openRequestView(
         FakeBeaconViewCoordinationRepository(),
         FakeBeaconDisplayRepository(),
         FakeBeaconViewInboxRepository(),
-        FakeBeaconViewPostsRepository(),
         FakeBeaconViewFactCardRepository(),
         threads,
         FakeBeaconViewActivityEventRepository(),

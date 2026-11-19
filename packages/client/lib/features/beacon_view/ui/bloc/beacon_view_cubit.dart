@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:tentura_root/domain/entity/beacon_access.dart';
-import 'package:tentura_root/domain/entity/beacon_parent_reference.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:get_it/get_it.dart';
@@ -43,7 +42,6 @@ import 'package:tentura/features/closure/domain/entity/beacon_close_result.dart'
 import 'package:tentura/features/closure/domain/entity/closure_state.dart';
 
 import '../../domain/help_offer_row_record.dart';
-import '../../domain/request_access_reason.dart';
 import '../../domain/use_case/beacon_view_case.dart';
 import 'package:tentura/features/beacon/domain/exception.dart';
 import 'package:tentura/domain/exception/generic_exception.dart';
@@ -182,8 +180,6 @@ class BeaconViewCubit extends Cubit<BeaconViewState> implements RoomHost {
     }
     return '';
   }
-
-  bool _accessParentLoading = false;
 
   void _showSnackError(Object error) {
     _effects.emit(ShowError(error));
@@ -1671,7 +1667,6 @@ class BeaconViewCubit extends Cubit<BeaconViewState> implements RoomHost {
           ),
         );
       }
-      unawaited(_loadAccessParent(beacon));
       _markForwardReadOnFirstOpen(beacon);
 
       // Involvement (offers / Plan activity) stays behind canReadInvolvement.
@@ -1964,43 +1959,6 @@ class BeaconViewCubit extends Cubit<BeaconViewState> implements RoomHost {
       } else if (!background) {
         _showSnackError(e);
       }
-    }
-  }
-
-  /// Someone who sees the Request only through the Post it grew from
-  /// is told so by name; the banner needs the parent's kind and title. The
-  /// parent is the hierarchy (nesting) parent the server's contextChild
-  /// reason is about — a budded Request has no lineage parent. One read per
-  /// screen; a failed or unreadable parent leaves the general wording.
-  Future<void> _loadAccessParent(Beacon beacon) async {
-    if (_accessParentLoading ||
-        state.accessParent != null ||
-        !requestAccessViaParent(beacon)) {
-      return;
-    }
-    _accessParentLoading = true;
-    try {
-      final reference = await _case.fetchParentReference(beacon.id);
-      final parentId = reference.beaconId?.trim() ?? '';
-      if (isClosed ||
-          reference.state != BeaconParentReferenceState.available ||
-          !reference.isPost ||
-          parentId.isEmpty) {
-        return;
-      }
-      final parent = await _case.fetchBeaconById(parentId);
-      final summary = await _case.postSummary(parentId);
-      if (isClosed || state.beacon.id != beacon.id) return;
-      emit(
-        state.copyWith(
-          accessParent: parent,
-          accessParentPostExcerpt: summary?.rootExcerpt.trim() ?? '',
-        ),
-      );
-    } on Object {
-      // Not readable: the banner keeps its general wording.
-    } finally {
-      _accessParentLoading = false;
     }
   }
 

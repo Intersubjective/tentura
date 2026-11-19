@@ -126,8 +126,6 @@ class BeaconShowcaseSurface extends StatelessWidget {
                     ),
                     RequestAccessReasonBanner(
                       beacon: beacon,
-                      parent: state.accessParent,
-                      parentPostExcerpt: state.accessParentPostExcerpt,
                     ),
                     SizedBox(height: tt.rowGap),
                     BeaconShowcaseDescription(text: beacon.description),
