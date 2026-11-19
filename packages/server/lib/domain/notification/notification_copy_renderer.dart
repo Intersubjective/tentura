@@ -270,6 +270,10 @@ class NotificationCopyRenderer {
               'Оформите запрос, чтобы продолжить',
             ),
       ),
+      AttentionEventType.postRequestCreated => (
+        t('Request created', 'Запрос создан'),
+        t('You created a request from a post', 'Вы создали запрос из поста'),
+      ),
       AttentionEventType.requestStatusChanged => (
         t('Status changed', 'Статус изменён'),
         switch (_text(facts['toStatus'])) {

@@ -58,6 +58,7 @@ abstract final class AttentionEventTypeCatalog {
       case AttentionEventType.requestStale:
       case AttentionEventType.postFirstResponse:
       case AttentionEventType.postExpiringSoon:
+      case AttentionEventType.postRequestCreated:
       case AttentionEventType.batonAsked:
       case AttentionEventType.batonTaken:
       case AttentionEventType.batonAllAnswered:
@@ -129,6 +130,9 @@ enum AttentionEventType {
 
   /// The author-only notice a few hours before a Post expires.
   postExpiringSoon,
+
+  /// Records the new Request for the Post member who created it.
+  postRequestCreated,
 
   /// «Who'll take it?» (baton) — plan §2.2/B3
   /// (`docs/plans/baton-who-takes-it-plan.md`). All three are

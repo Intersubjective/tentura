@@ -563,8 +563,7 @@ final class BeaconChildCreateCase extends UseCaseBase
               ) ??
               const PostParentStageResult();
 
-          // The single notice for a Post parent: a title snapshot (observers
-          // only can read the child) and no attention receipts (Arch §4.2c).
+          // The Post room notice is separate from the stage's receipts.
           await _commands.insertChildCreationNotice(
             parentBeaconId: postId,
             childBeaconId: child.id,

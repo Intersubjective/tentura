@@ -625,6 +625,38 @@ class AttentionIntentCase {
     );
   }
 
+  /// Records a Post's new Request for its author in Activity and the digest.
+  AttentionDispatchIntent postRequestCreated(BeaconEntity request) {
+    final sourceEventKey = 'post_request_created:${request.id}';
+    return AttentionDispatchIntent(
+      eventType: AttentionEventType.postRequestCreated,
+      sourceEventKey: sourceEventKey,
+      actorUserId: request.author.id,
+      priority: NotificationPriority.low,
+      kind: NotificationKind.coordinationChanged,
+      title: 'Request created',
+      body: request.title,
+      actionUrl:
+          '/#$kPathBeaconView/${Uri.encodeQueryComponent(request.id)}'
+          '?is_deep_link=true',
+      collapseKey: AttentionCollapseKey.none(sourceEventKey),
+      beaconId: request.id,
+      recipients: [
+        AttentionRecipientSnapshot(
+          recipientId: request.author.id,
+          reasons: const {AttentionRecipientReason.authorOfBeacon},
+          role: AttentionRecipientRoleFacts(
+            beaconId: request.id,
+            beaconTitle: request.title,
+            canReadBeaconContent: true,
+          ),
+          // The digest reads the receipt. This event needs no push job.
+          channelEligible: false,
+        ),
+      ],
+    );
+  }
+
   /// «Who'll take it?» (baton) — plan §2.2/B3
   /// (`docs/plans/baton-who-takes-it-plan.md`). All three carry only the
   /// source message's excerpt and never name other candidates (D3/D10).

@@ -5472,6 +5472,10 @@
   "@updatesFallbackBodyPostExpiringSoon": {
     "description": "Updates row body fallback for postExpiringSoon when the server body is blank."
   },
+  "updatesFallbackTitlePostRequestCreated": "Запрос создан",
+  "@updatesFallbackTitlePostRequestCreated": {
+    "description": "Activity headline for the author of a Request created from a Post."
+  },
   "updatesFallbackTitleCommitmentAccepted": "Обязательство принято",
   "updatesFallbackBodyCommitmentAccepted": "Кто-то принял обязательство по запросу.",
   "updatesFallbackTitleCommitmentResolved": "Обязательство закрыто",

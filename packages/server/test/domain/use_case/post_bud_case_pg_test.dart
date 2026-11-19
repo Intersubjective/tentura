@@ -441,16 +441,23 @@ VALUES ('$kira', '$_author', 1), ('$_author', '$kira', 1)
       expect(notices.single['title'], 'Move the piano');
       expect(notices.single['invitedCount'], 3);
 
-      // Receipts: one authorInviteReceived per invitee, none to anyone else.
+      // Each invitee gets an invitation. The Request author gets one creation
+      // receipt even when the Post's author is a different person.
       final receipts = await _receipts(writer);
       expect(receipts.map((r) => r.account).toSet(), {
         _warm,
         _cold,
         _author,
+        _budder,
       });
-      expect(receipts, hasLength(3));
+      expect(receipts, hasLength(4));
       for (final receipt in receipts) {
         expect(receipt.beaconId, child);
+        if (receipt.account == _budder) {
+          expect(receipt.presentationKey, 'post_request_created');
+          expect(receipt.sourceEventKey, 'post_request_created:$child');
+          continue;
+        }
         expect(receipt.kind, 'authorInviteReceived');
         expect(
           receipt.sourceEventKey,
@@ -754,7 +761,13 @@ SELECT public.beacon_effective_admission(@p, @v),
       expect((await _invites(writer, child)).keys, [_warm]);
       expect((await _childEdges(writer, child)).keys, [_warm]);
       expect((await _childCreatedNotices(writer)).single['invitedCount'], 1);
-      expect((await _receipts(writer)).map((r) => r.account), [_warm]);
+      expect(
+        (await _receipts(writer)).map((r) => (r.account, r.presentationKey)),
+        unorderedEquals([
+          (_budder, 'post_request_created'),
+          (_warm, 'author_invite_received'),
+        ]),
+      );
     });
 
     test('the Post author may bud from the root message', () async {
@@ -949,11 +962,12 @@ typedef _Receipt = ({
   String? beaconId,
   String kind,
   String sourceEventKey,
+  String? presentationKey,
 });
 
 Future<List<_Receipt>> _receipts(Connection writer) async {
   final rows = await writer.execute(
-    'SELECT account_id, beacon_id, kind, source_event_key '
+    'SELECT account_id, beacon_id, kind, source_event_key, presentation_key '
     'FROM public.notification_outbox ORDER BY account_id',
   );
   return [
@@ -963,6 +977,7 @@ Future<List<_Receipt>> _receipts(Connection writer) async {
         beaconId: r[1] as String?,
         kind: r[2]! as String,
         sourceEventKey: r[3]! as String,
+        presentationKey: r[4] as String?,
       ),
   ];
 }

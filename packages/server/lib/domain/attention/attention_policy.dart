@@ -110,6 +110,7 @@ class AttentionPolicy {
     AttentionEventType.relayReceived ||
     AttentionEventType.roomMessagePosted ||
     AttentionEventType.postFirstResponse ||
+    AttentionEventType.postRequestCreated ||
     AttentionEventType.mutualConnectionFormed ||
     AttentionEventType.inviteAccepted ||
     AttentionEventType.blockerResolved ||
@@ -176,6 +177,7 @@ class AttentionPolicy {
     AttentionEventType.roomMessagePosted ||
     AttentionEventType.postFirstResponse ||
     AttentionEventType.postExpiringSoon ||
+    AttentionEventType.postRequestCreated ||
     AttentionEventType.requestStatusChanged ||
     AttentionEventType.beaconHierarchyStatusChanged ||
     AttentionEventType.blockerOpened ||
@@ -230,6 +232,7 @@ class AttentionPolicy {
     AttentionEventType.offerAccepted ||
     AttentionEventType.roomMessagePosted ||
     AttentionEventType.postFirstResponse ||
+    AttentionEventType.postRequestCreated ||
     AttentionEventType.requestStatusChanged ||
     AttentionEventType.beaconHierarchyStatusChanged ||
     AttentionEventType.obligationEnded ||
@@ -292,6 +295,7 @@ class AttentionPolicy {
     return switch (eventType) {
       AttentionEventType.relayReceived ||
       AttentionEventType.requestStatusChanged ||
+      AttentionEventType.postRequestCreated ||
       AttentionEventType.authorInviteReceived ||
       AttentionEventType.forwardDeclined ||
       AttentionEventType.forwardHelped => AttentionDestination(
@@ -400,6 +404,7 @@ class AttentionPolicy {
     AttentionEventType.offerRemoved => false,
     AttentionEventType.roomMessagePosted => false,
     AttentionEventType.postFirstResponse => false,
+    AttentionEventType.postRequestCreated => false,
     AttentionEventType.requestStatusChanged => false,
     AttentionEventType.beaconHierarchyStatusChanged => false,
     AttentionEventType.obligationEnded => false,
@@ -531,6 +536,7 @@ class AttentionPolicy {
     AttentionEventType.deadlineChanged ||
     AttentionEventType.deadlineReminder ||
     AttentionEventType.postExpiringSoon ||
+    AttentionEventType.postRequestCreated ||
     AttentionEventType.closureOpened ||
     AttentionEventType.closureDraftReminder ||
     AttentionEventType.closureFinalized ||
@@ -703,6 +709,7 @@ class AttentionPolicy {
     AttentionEventType.roomMessagePosted => 'room_message_posted',
     AttentionEventType.postFirstResponse => 'post_first_response',
     AttentionEventType.postExpiringSoon => 'post_expiring_soon',
+    AttentionEventType.postRequestCreated => 'post_request_created',
     AttentionEventType.requestStatusChanged => 'request_status_changed',
     AttentionEventType.beaconHierarchyStatusChanged =>
       'beacon_hierarchy_status_changed',

@@ -25,6 +25,7 @@ final class ProductionReceiptTransport {
   Stream<({String viewer, Object frame})> get frames => _frames.stream;
 
   static Future<ProductionReceiptTransport> start({
+    String serverFixture = 'test/support/request_update_seen_transport.dart',
     String? postLifecycleFixture,
     bool countedRowsFixture = false,
     bool countedSiblingFixture = false,
@@ -34,7 +35,7 @@ final class ProductionReceiptTransport {
   }) async {
     final process = await Process.start(
       'dart',
-      ['run', 'test/support/request_update_seen_transport.dart'],
+      ['run', serverFixture],
       workingDirectory: '../server',
       environment: {
         'TENTURA_RECEIPT_POST_LIFECYCLE_FIXTURE': ?postLifecycleFixture,
@@ -99,10 +100,17 @@ final class ProductionReceiptTransport {
 
   Future<http.Response> graphql(
     String viewer,
-    Map<String, dynamic> body,
-  ) async {
+    Map<String, dynamic> body, {
+    String path = '/graphql',
+  }) async {
     final request = await _client.postUrl(
-      Uri.parse('http://127.0.0.1:$_port/graphql?viewer=$viewer'),
+      Uri(
+        scheme: 'http',
+        host: '127.0.0.1',
+        port: _port,
+        path: path,
+        queryParameters: {'viewer': viewer},
+      ),
     );
     request.headers.contentType = ContentType.json;
     request.write(jsonEncode(body));

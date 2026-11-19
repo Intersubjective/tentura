@@ -322,6 +322,7 @@ String _fallbackTitle(
   'stale_reminder' => l10n.updatesFallbackTitleStaleReminder,
   'post_first_response' => l10n.updatesFallbackTitlePostFirstResponse,
   'post_expiring_soon' => l10n.updatesFallbackTitlePostExpiringSoon,
+  'post_request_created' => l10n.updatesFallbackTitlePostRequestCreated,
   'commitment_accepted' => l10n.updatesFallbackTitleCommitmentAccepted,
   'commitment_resolved' => l10n.updatesFallbackTitleCommitmentResolved,
   'commitment_cancelled' => l10n.updatesFallbackTitleCommitmentCancelled,

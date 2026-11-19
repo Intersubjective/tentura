@@ -84,6 +84,10 @@ const attentionEventClassifications = <String, AttentionEventClassification>{
     headlineTreatment: AttentionHeadlineTreatment.beacon,
     coalescible: true,
   ),
+  'postRequestCreated': AttentionEventClassification(
+    headlineTreatment: AttentionHeadlineTreatment.beacon,
+    coalescible: false,
+  ),
   'batonAsked': AttentionEventClassification(
     headlineTreatment: AttentionHeadlineTreatment.beacon,
     coalescible: true,

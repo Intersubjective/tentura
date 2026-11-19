@@ -244,6 +244,8 @@ class PostBudCase {
       }
     }
 
+    await stage.transaction.record(_intents.postRequestCreated(child));
+
     final results = [
       for (final invitee in invitees)
         PostBudInviteeResult(

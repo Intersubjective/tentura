@@ -863,6 +863,14 @@ final _table = <_Row>[
     ),
   ),
   _Row(
+    'Request created from a Post',
+    'post_request_created',
+    kind: NotificationKind.coordinationChanged,
+    withActor: false,
+    en: ('Request created', 'You created a request from a post'),
+    ru: ('Запрос создан', 'Вы создали запрос из поста'),
+  ),
+  _Row(
     'request_status_changed',
     'request_status_changed',
     facts: {'fromStatus': 'open', 'toStatus': 'closed'},

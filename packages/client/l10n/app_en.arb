@@ -6323,6 +6323,10 @@
   "@updatesFallbackBodyPostExpiringSoon": {
     "description": "Updates row body fallback for postExpiringSoon when the server body is blank."
   },
+  "updatesFallbackTitlePostRequestCreated": "Request created",
+  "@updatesFallbackTitlePostRequestCreated": {
+    "description": "Activity headline for the author of a Request created from a Post."
+  },
   "updatesFallbackTitleCommitmentAccepted": "Commitment accepted",
   "updatesFallbackBodyCommitmentAccepted": "Someone accepted a commitment on a request.",
   "updatesFallbackTitleCommitmentResolved": "Commitment resolved",

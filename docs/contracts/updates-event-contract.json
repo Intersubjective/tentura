@@ -1778,6 +1778,33 @@
       ]
     },
     {
+      "eventType": "postRequestCreated",
+      "status": "supported",
+      "variants": [
+        {
+          "recipientPredicate": "reason:authorOfBeacon",
+          "scope": "beacon",
+          "attentionClass": "optional",
+          "placement": "primary",
+          "groupKey": "beaconId",
+          "orderingEffect": "stable",
+          "accessPolicy": "beacon_content",
+          "recoverableVia": "request_timeline",
+          "clearPolicy": "explicit_or_request_open",
+          "selfAuthored": true,
+          "headlineTreatment": "beacon",
+          "coalescible": false,
+          "producerTests": [
+            "packages/server/test/domain/use_case/post_bud_case_pg_test.dart"
+          ],
+          "transitionTests": [],
+          "personal": false,
+          "stateLike": false,
+          "ownDutyReminder": false
+        }
+      ]
+    },
+    {
       "eventType": "batonAsked",
       "status": "supported",
       "variants": [
