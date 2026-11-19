@@ -20,6 +20,7 @@ class PostBudInviteStep extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
+    final explanationStyle = TenturaText.bodySmall(tt.textMuted);
     return Column(
       key: const Key('PostBud.InviteStep'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -37,7 +38,12 @@ class PostBudInviteStep extends StatelessWidget {
                 children: [
                   Text(
                     l10n.postBudInviteExplanation,
-                    style: TenturaText.bodySmall(tt.textMuted),
+                    style: explanationStyle,
+                  ),
+                  SizedBox(height: tt.rowGap),
+                  Text(
+                    l10n.postBudInvitePrivacyHint,
+                    style: explanationStyle,
                   ),
                   SizedBox(height: tt.rowGap),
                   if (ticked > kPostBudInviteWarningAbove)

@@ -6402,6 +6402,7 @@
   "postBudAction": "Оформить запрос",
   "postBudInviteTitle": "Кого позвать",
   "postBudInviteExplanation": "Позванные получат приглашение и сами решат, участвовать ли. Остальные участники поста увидят запрос и смогут предложить помощь сами.",
+  "postBudInvitePrivacyHint": "Те, кого вы не отметите, не узнают об этом запросе. Пост останется без изменений.",
   "postBudInviteManyWarning": "Каждый отмеченный получит запрос. Отмечено: {count}",
   "@postBudInviteManyWarning": {
     "placeholders": {

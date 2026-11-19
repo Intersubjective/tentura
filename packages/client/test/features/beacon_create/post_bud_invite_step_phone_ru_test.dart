@@ -43,7 +43,9 @@ import 'package:tentura/features/context/data/repository/context_repository.dart
 import 'package:tentura/features/context/domain/entity/context_entity.dart';
 import 'package:tentura/features/context/ui/bloc/context_cubit.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
+import 'package:tentura/features/forward/domain/forward_target_profile.dart';
 import 'package:tentura/features/forward/domain/use_case/forward_case.dart';
+import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
 import 'package:tentura/features/forward/ui/widget/forward_recipient_picker.dart';
 import 'package:tentura/features/forward/ui/widget/forward_recipient_row.dart';
 import 'package:tentura/features/forward/ui/widget/per_recipient_note_input.dart';
@@ -455,6 +457,161 @@ Set<String> _arbKeys(String path) =>
 Map<String, dynamic> _arb(String path) =>
     jsonDecode(File(path).readAsStringSync()) as Map<String, dynamic>;
 
+const _privacyKey = 'postBudInvitePrivacyHint';
+
+// Keep the concepts within a clause without pinning the translation to a
+// single wording. Editorial review still checks the meaning in context.
+const _withinClause = r'[^.!?;()\n]*';
+const _enUnticked =
+    r'(?:\bun(?:ticked|checked|selected|chosen|marked)|(?:\bnot|n[’\x27]t)\s+(?:\w+\s+){0,2}(?:tick\w*|check\w*|select\w*|choos\w*|chosen|pick\w*|mark\w*))\b';
+const _enUnaware =
+    r'\b(?:not|won[’\x27]t|never)\s+(?:be\s+)?(?:know|learn|find out|hear|see|become aware|aware)\b';
+const _ruUnticked = r'(?:не\s*(?:отмет|выбер|выбра)[а-яё]*|без отметки)';
+const _ruUnaware =
+    r'(?:не\s+(?:узна[а-яё]*|увид[а-яё]*|услыш[а-яё]*|буд[а-яё]*\s+(?:знать|в курсе))|остан[а-яё]*\s+в неведении)';
+
+Matcher _privacyCopy(Locale locale) => switch (locale.languageCode) {
+  'ru' => allOf(
+    anyOf(
+      matches(
+        '$_ruUnticked$_withinClause$_ruUnaware$_withinClause'
+        'запрос',
+      ),
+      matches(
+        '$_ruUnticked$_withinClause'
+        'запрос$_withinClause$_ruUnaware',
+      ),
+      matches(
+        '(?:о запросе|про запрос)$_withinClause$_ruUnaware$_withinClause$_ruUnticked',
+      ),
+      matches(
+        '(?:о запросе|про запрос)$_withinClause(?:узна[а-яё]*|увид[а-яё]*)'
+        r'\s+только\s+(?:отмеч|выбран)[а-яё]*',
+      ),
+      matches(
+        r'только\s+(?:отмеч|выбран)[а-яё]*'
+        '$_withinClause(?:узна[а-яё]*|увид[а-яё]*)$_withinClause'
+        'запрос',
+      ),
+    ),
+    matches(
+      r'пост\s+(?:(?:остан[а-яё]*|оста[её]тся|сохранится)\s+)?(?:без изменени[яй]|как есть|как был[оа]?|прежним)|'
+      r'пост\s+не (?:изменится|меняется|будет измен[её]н)|'
+      '(?:не изменит|не меняет|не затронет)$_withinClauseпост',
+    ),
+    isNot(contains('просьб')),
+    isNot(contains('маяк')),
+    isNot(contains('beacon')),
+  ),
+  _ => allOf(
+    matches(RegExp(r"\bnot\b|won['’]t")),
+    anyOf(
+      matches(
+        '$_enUnticked$_withinClause$_enUnaware$_withinClause\\brequest\\b',
+      ),
+      matches(
+        '$_enUnaware$_withinClause\\brequest\\b$_withinClause$_enUnticked',
+      ),
+      matches(
+        r'\bonly\s+(?:the\s+)?(?:ticked|checked|selected|chosen|picked|marked)'
+        '$_withinClause(?:know|learn|hear|see|find out)$_withinClause\\brequest\\b',
+      ),
+      matches(
+        '$_enUnaware$_withinClause\\brequest\\b$_withinClause\\bunless\\b'
+        '$_withinClause(?:tick|check|select|choose|pick|mark)',
+      ),
+    ),
+    matches(
+      r'\bpost\s+(?:itself\s+)?(?:will\s+)?(?:(?:stays?|remains?|is|be)\s+)?(?:unchanged|as (?:it is|it was|is)|the same)|'
+      r'\bpost\s+(?:itself\s+)?(?:will\s+)?(?:not|won[’\x27]t)\s+(?:be\s+)?(?:change[ds]?|affected)|'
+      '(?:not|won[’\\x27]t)\\s+(?:change|affect)$_withinClause\\bpost\\b',
+    ),
+    isNot(contains('beacon')),
+  ),
+};
+
+Finder _privacyLine(Locale locale, {bool skipOffstage = true}) {
+  final arbText = _arb('l10n/app_${locale.languageCode}.arb')[_privacyKey];
+  if (arbText is String && arbText.trim().isNotEmpty) {
+    return find.text(arbText, skipOffstage: skipOffstage);
+  }
+  // On a checkout without the ARB entry, still check the rendered text.
+  final copy = _privacyCopy(locale);
+  final l10n = lookupL10n(locale);
+  return find.byWidgetPredicate(
+    (widget) =>
+        widget is Text &&
+        widget.data != null &&
+        widget.data != l10n.postBudInviteExplanation &&
+        widget.data != l10n.postBudClosePost &&
+        copy.matches(widget.data!.toLowerCase(), {}),
+    description: 'invite privacy line about the Request and its source Post',
+    skipOffstage: skipOffstage,
+  );
+}
+
+void _expectPrivacyLine(WidgetTester tester, Finder line, {String? after}) {
+  expect(line, findsOneWidget, reason: after);
+  expect(
+    tester.renderObject<RenderParagraph>(line).didExceedMaxLines,
+    isFalse,
+    reason: after,
+  );
+  final tt = tester.element(line).tt;
+  expect(tester.widget<Text>(line).style, TenturaText.bodySmall(tt.textMuted));
+}
+
+Finder _recipient(String id) =>
+    find.byKey(TestIds.key(TestIds.forwardRecipient(id)));
+
+double _budBottomBarTop(WidgetTester tester) {
+  final scaffold = tester.widget<Scaffold>(
+    find.descendant(
+      of: find.byType(BeaconCreateScreen),
+      matching: find.byType(Scaffold),
+    ),
+  );
+  return tester.getTopLeft(find.byWidget(scaffold.bottomNavigationBar!)).dy;
+}
+
+Finder _manyWarning({bool skipOffstage = true}) => find.byKey(
+  const Key('PostBud.ManyWarning'),
+  skipOffstage: skipOffstage,
+);
+
+void _expectWarningCount(
+  WidgetTester tester,
+  L10n l10n,
+  int count, {
+  bool skipOffstage = true,
+}) {
+  final warning = _manyWarning(skipOffstage: skipOffstage);
+  if (count < 6) {
+    expect(warning, findsNothing);
+    return;
+  }
+  expect(warning, findsOneWidget);
+  final message = find.descendant(
+    of: warning,
+    matching: find.byType(Text, skipOffstage: skipOffstage),
+    skipOffstage: skipOffstage,
+  );
+  expect(message, findsOneWidget);
+  final text = tester.widget<Text>(message).data;
+  expect(
+    text,
+    l10n.postBudInviteManyWarning(count),
+    reason: 'the displayed warning reports $count selected recipients',
+  );
+  if (l10n.localeName == 'ru') {
+    expect(text, endsWith('Отмечено: $count'));
+  }
+  expect(
+    tester.renderObject<RenderParagraph>(message).didExceedMaxLines,
+    isFalse,
+  );
+}
+
 List<String> _overflowExceptions(WidgetTester tester) {
   final found = <String>[];
   Object? e;
@@ -505,6 +662,266 @@ void main() {
   final deadKeys = [
     for (final tail in ['Via', 'LoadFailed', 'Retry']) 'postBudInvite$tail',
   ];
+
+  group('Bud invite privacy', () {
+    for (final locale in const [Locale('ru'), Locale('en')]) {
+      final l10n = lookupL10n(locale);
+      final language = locale.languageCode.toUpperCase();
+      for (final count in [0, 6]) {
+        testWidgets('the $language phone shows the full privacy line with '
+            '$count recipients ticked and room for the first row', (
+          tester,
+        ) async {
+          await _pumpInviteStep(
+            tester,
+            _Server(members: twelve, preticked: twelve.take(count).toSet()),
+            locale: locale,
+            phone: true,
+          );
+          _expectInviteStepIsThePicker();
+          final first = _recipient(_member(1));
+          expect(first, findsOneWidget);
+          final firstTop = tester.getTopLeft(first).dy;
+          expect(firstTop, inInclusiveRange(0, kPhoneSurface.height));
+          expect(firstTop, lessThan(_budBottomBarTop(tester)));
+          _expectWarningCount(tester, l10n, count);
+          expect(_overflowExceptions(tester), isEmpty);
+
+          final explanation = find.text(l10n.postBudInviteExplanation);
+          expect(explanation, findsOneWidget);
+          final line = _privacyLine(locale);
+          _expectPrivacyLine(tester, line);
+          expect(
+            tester.getTopLeft(line).dy,
+            greaterThan(tester.getTopLeft(explanation).dy),
+          );
+          expect(tester.getBottomLeft(line).dy, lessThanOrEqualTo(firstTop));
+          if (count == 6) {
+            expect(
+              find.descendant(of: _manyWarning(), matching: line),
+              findsNothing,
+            );
+          }
+        });
+      }
+
+      test('$language translates the privacy line in Request and Post '
+          'vocabulary and exposes it through L10n', () {
+        final arb = _arb('l10n/app_${locale.languageCode}.arb');
+        final source = arb[_privacyKey];
+        expect(source, isA<String>(), reason: '$_privacyKey in $language ARB');
+        final copy = (source as String).trim();
+        expect(copy, isNotEmpty);
+        expect(copy.toLowerCase(), _privacyCopy(locale));
+        if (locale.languageCode == 'en') {
+          expect(
+            arb['@$_privacyKey'],
+            containsPair(
+              'description',
+              matches(
+                RegExp(
+                  r'\bbud\w*\b.*\binvite step\b|\binvite step\b.*\bbud\w*\b',
+                  caseSensitive: false,
+                ),
+              ),
+            ),
+          );
+        }
+        expect(_arbKeys('l10n/app_ru.arb'), _arbKeys('l10n/app_en.arb'));
+        // The getter is generated by gen-l10n once the ARB key exists.
+        final dynamic generated = l10n;
+        // Dynamic lookup lets the baseline compile before gen-l10n adds it.
+        // ignore: avoid_dynamic_calls
+        expect(generated.postBudInvitePrivacyHint, source);
+      });
+    }
+
+    testWidgets('the Russian privacy line survives ticking and unticking '
+        'seven people', (tester) async {
+      const locale = Locale('ru');
+      await _pumpInviteStep(
+        tester,
+        _Server(members: twelve),
+        locale: locale,
+        phone: true,
+      );
+      // The header can scroll out of view as the tester reaches later rows.
+      final line = _privacyLine(locale, skipOffstage: false);
+      final visibleLine = _privacyLine(locale);
+      final explanation = find.text(
+        _ru.postBudInviteExplanation,
+        skipOffstage: false,
+      );
+      final missingAt = <String>[];
+      Future<void> checkSelection(int count, String action) async {
+        _expectWarningCount(tester, _ru, count, skipOffstage: false);
+        for (final previousCount in [6, 7]) {
+          if (previousCount == count) continue;
+          expect(
+            find.text(
+              _ru.postBudInviteManyWarning(previousCount),
+              skipOffstage: false,
+            ),
+            findsNothing,
+            reason: '$action leaves no warning for $previousCount selections',
+          );
+        }
+        expect(
+          explanation,
+          findsOneWidget,
+          reason: '$action keeps the explanation',
+        );
+        expect(_overflowExceptions(tester), isEmpty);
+        final matches = line.evaluate().length;
+        if (matches == 1) {
+          _expectPrivacyLine(tester, line, after: action);
+        } else {
+          missingAt.add('$action ($matches matches)');
+        }
+        await tester.ensureVisible(explanation);
+        await tester.pump();
+        if (matches == 1) {
+          _expectPrivacyLine(tester, visibleLine, after: action);
+          final bounds = tester.getRect(visibleLine);
+          expect(bounds.top, greaterThanOrEqualTo(0), reason: action);
+          expect(
+            bounds.bottom,
+            lessThanOrEqualTo(_budBottomBarTop(tester)),
+            reason: action,
+          );
+        }
+      }
+
+      Future<void> toggleMember(int n, {required bool ticked}) async {
+        final id = _member(n);
+        final row = _recipient(id);
+        if (row.evaluate().isEmpty) {
+          await tester.scrollUntilVisible(
+            row,
+            150,
+            scrollable: find.byType(Scrollable).first,
+          );
+        }
+        await Scrollable.ensureVisible(tester.element(row), alignment: 0.5);
+        await tester.pump();
+        await tester.tap(row);
+        await _settle(tester);
+        expect(
+          tester.widget<ForwardRecipientRow>(_rowOf(id)).isSelected,
+          ticked,
+        );
+        await checkSelection(
+          ticked ? n : n - 1,
+          '${ticked ? 'tick' : 'untick'} $n',
+        );
+      }
+
+      await checkSelection(0, 'before any selection');
+      for (var n = 1; n <= 7; n++) {
+        await toggleMember(n, ticked: true);
+      }
+      for (var n = 7; n >= 1; n--) {
+        await toggleMember(n, ticked: false);
+      }
+      expect(
+        missingAt,
+        isEmpty,
+        reason: 'the privacy line appears exactly once at every step',
+      );
+    });
+
+    for (final locale in const [Locale('ru'), Locale('en')]) {
+      final l10n = lookupL10n(locale);
+      final language = locale.languageCode.toUpperCase();
+      testWidgets('the $language phone fits the privacy line between the '
+          'explanation and the empty invite list', (tester) async {
+        await _pumpInviteStep(
+          tester,
+          _Server(members: const []),
+          locale: locale,
+          phone: true,
+        );
+        _expectInviteStepIsThePicker();
+        final explanation = find.text(l10n.postBudInviteExplanation);
+        final emptyList = find.text(l10n.postBudInviteEmpty);
+        expect(explanation, findsOneWidget);
+        expect(emptyList, findsOneWidget);
+        _expectParagraphNotTruncated(tester, l10n.postBudInviteEmpty);
+        final listRect = tester.getRect(emptyList);
+        expect(listRect.bottom, lessThanOrEqualTo(_budBottomBarTop(tester)));
+        expect(listRect.bottom, lessThanOrEqualTo(kPhoneSurface.height));
+        expect(_manyWarning(), findsNothing);
+        expect(_overflowExceptions(tester), isEmpty);
+
+        final line = _privacyLine(locale);
+        _expectPrivacyLine(tester, line);
+        final lineRect = tester.getRect(line);
+        expect(lineRect.top, greaterThanOrEqualTo(0));
+        expect(lineRect.top, greaterThan(tester.getTopLeft(explanation).dy));
+        expect(lineRect.bottom, lessThanOrEqualTo(listRect.top));
+      });
+    }
+
+    for (final profile in ForwardTargetProfile.values) {
+      if (profile == ForwardTargetProfile.postBudInvite) continue;
+      final target = profile == ForwardTargetProfile.request
+          ? 'Request'
+          : 'Post';
+      testWidgets('the privacy line belongs to budding and is absent when '
+          'forwarding a $target', (tester) async {
+        await _pumpInviteStep(tester, _Server(members: twelve));
+        final first = _rowOf(_member(1));
+        expect(first, findsOneWidget);
+        final candidate = tester.widget<ForwardRecipientRow>(first).candidate;
+        final line = _privacyLine(const Locale('en'));
+        final buddingCount = line.evaluate().length;
+
+        const beaconId = 'Bforward00001';
+        final title = profile == ForwardTargetProfile.post
+            ? _en.forwardPostTitle
+            : _en.forwardBeaconTitle;
+        for (final hasCandidates in [false, true]) {
+          final forward = ForwardCubit(
+            beaconId: beaconId,
+            debugSkipInitialLoad: true,
+            debugInitialState: ForwardState(
+              beaconId: beaconId,
+              targetProfile: profile,
+              candidates: hasCandidates ? [candidate] : const [],
+              candidatesLoad: hasCandidates
+                  ? const ForwardCandidatesReady()
+                  : const ForwardCandidatesEmpty(),
+            ),
+          );
+          addTearDown(forward.close);
+          await tester.pumpWidget(
+            MaterialApp(
+              locale: const Locale('en'),
+              localizationsDelegates: L10n.localizationsDelegates,
+              supportedLocales: L10n.supportedLocales,
+              theme: TenturaTheme.light(),
+              home: MultiBlocProvider(
+                key: ValueKey(hasCandidates),
+                providers: [
+                  BlocProvider<ForwardCubit>.value(value: forward),
+                  BlocProvider<ProfileCubit>.value(value: _MockProfileCubit()),
+                ],
+                child: const Scaffold(
+                  body: ForwardRecipientPicker(beaconId: beaconId),
+                ),
+              ),
+            ),
+          );
+          await _settle(tester);
+          expect(find.text(title), findsOneWidget);
+          expect(first, hasCandidates ? findsOneWidget : findsNothing);
+          expect(_overflowExceptions(tester), isEmpty);
+          expect(line, findsNothing);
+        }
+        expect(buddingCount, 1, reason: 'budding shows the privacy line once');
+      });
+    }
+  });
 
   group('Bud invite step copy on a 375×667 RU phone', () {
     testWidgets('title, explanation, warning and close-post label render in '
@@ -659,8 +1076,8 @@ void main() {
   });
 
   group('Bud invite step copy on a 1280×800 EN desktop', () {
-    testWidgets('title, explanation, warning and close-post label render, no '
-        'overflow, nobody unknown', (tester) async {
+    testWidgets('title, explanation, warning, close-post label and bud invite '
+        'privacy render, no overflow, nobody unknown', (tester) async {
       await _pumpInviteStep(
         tester,
         _Server(members: twelve, preticked: twelve.take(6).toSet()),
@@ -695,6 +1112,7 @@ void main() {
       _expectParagraphNotTruncated(tester, _en.postBudClosePost);
       expect(find.text(_en.unknownPerson, skipOffstage: false), findsNothing);
       expect(_overflowExceptions(tester), isEmpty);
+      _expectPrivacyLine(tester, _privacyLine(const Locale('en')));
     });
   });
 

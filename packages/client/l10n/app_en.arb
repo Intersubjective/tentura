@@ -8610,6 +8610,10 @@
   "@postBudInviteExplanation": {
     "description": "Explanation above the invite list of the bud form."
   },
+  "postBudInvitePrivacyHint": "People you don’t tick won’t know about this Request. The Post stays as it is.",
+  "@postBudInvitePrivacyHint": {
+    "description": "Privacy hint in the bud invite step, above the recipient list."
+  },
   "postBudInviteManyWarning": "Everyone ticked gets a request. Ticked: {count}",
   "@postBudInviteManyWarning": {
     "description": "Warning in the bud invite step when more than five members are ticked.",
