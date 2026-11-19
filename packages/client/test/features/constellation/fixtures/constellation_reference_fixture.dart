@@ -233,6 +233,7 @@ Future<FakeUiEffectPort> pumpConstellationBody(
   WidgetTester tester,
   ConstellationCubit cubit, {
   Size size = const Size(375, 547),
+  Widget Function(Widget body)? wrapBody,
   double textScale = 1.0,
   TextScaler? textScaler,
   Locale locale = const Locale('ru'),
@@ -252,6 +253,14 @@ Future<FakeUiEffectPort> pumpConstellationBody(
   await tester.binding.setSurfaceSize(size);
   addTearDown(() => tester.binding.setSurfaceSize(null));
   final fx = effects ?? FakeUiEffectPort();
+  final fieldBody = Material(
+    child: ConstellationBody(
+      legendExpanded: false,
+      onToggleLegend: () {},
+      arrangeV2Enabled: arrangeV2Enabled,
+      presentationFrameHolder: presentationFrameHolder,
+    ),
+  );
   await tester.pumpPeopleTagsWidget(
     MaterialApp(
       locale: locale,
@@ -300,14 +309,7 @@ Future<FakeUiEffectPort> pumpConstellationBody(
                     value: presence,
                   ),
               ],
-              child: Material(
-                child: ConstellationBody(
-                  legendExpanded: false,
-                  onToggleLegend: () {},
-                  arrangeV2Enabled: arrangeV2Enabled,
-                  presentationFrameHolder: presentationFrameHolder,
-                ),
-              ),
+              child: wrapBody?.call(fieldBody) ?? fieldBody,
             ),
           ),
         ),

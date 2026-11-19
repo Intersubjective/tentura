@@ -204,21 +204,13 @@ void main() {
         }
 
         final misses = <String>[];
-        // Fractions avoid an exact nearest-centre tie. Both sides of each
-        // segment must resolve by distance, even inside C's expanded target.
+        // Sample both sides of each centre-to-centre segment away from its
+        // bisector, so subpixel placement of the browser's clickable boxes
+        // does not determine which side the fixture exercises.
         for (final (label, from, to, fraction, expected, offset) in [
           ('B centre', 'p0', 'p0', 0.0, 'p0', Offset.zero),
           ('E centre', 'p2', 'p2', 0.0, 'p2', Offset.zero),
-          // Touch semantics favour C's expanded target between centres; tap
-          // just inside B's painted body away from C (still nearer B than C).
-          (
-            'between C and B, nearer B',
-            'p0',
-            'p0',
-            0.0,
-            'p0',
-            const Offset(-2, -0.5),
-          ),
+          ('between C and B, nearer B', 'p1', 'p0', 0.75, 'p0', Offset.zero),
           ('between C and B, nearer C', 'p1', 'p0', 0.25, 'p1', Offset.zero),
           ('between C and E, nearer E', 'p1', 'p2', 0.75, 'p2', Offset.zero),
           ('between C and E, nearer C', 'p1', 'p2', 0.25, 'p1', Offset.zero),

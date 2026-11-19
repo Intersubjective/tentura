@@ -1370,7 +1370,8 @@ class ConstellationSceneController {
   /// Fit-all: frames every node on the Field, zooming out below the
   /// detail-level scales when that is what it takes; the view's own minimum
   /// zoom still bounds it.
-  void fitWholeField(EdgeInsets insets) => fitNodes(insets);
+  void fitWholeField(EdgeInsets insets) =>
+      fitNodes(insets, reserveNodeRadius: true);
 
   /// Scene pixels [GraphController.fitToRect] reserves around a fitted rect
   /// by default.
@@ -1382,23 +1383,39 @@ class ConstellationSceneController {
   /// [minScale] keeps the fit from landing below it (the content may then
   /// overflow the viewport). Content that overflows is then framed as close
   /// to [focus] as it allows, when given.
+  /// [reserveNodeRadius] keeps a screen-space margin around the whole fit.
   void fitNodes(
     EdgeInsets insets, {
     bool Function(GraphNodeId)? include,
     double? minScale,
     GraphNodeId? focus,
+    bool reserveNodeRadius = false,
   }) {
     if (!graphController.canLayout) {
       return;
     }
-    var bounds = _placedBounds(include);
-    if (bounds == null) {
+    final placed = _placedBounds(include);
+    if (placed == null) {
       return;
     }
+    var bounds = placed.bounds;
     final focusPoint = focus == null
         ? null
         : graphController.renderSnapshot.resolveTargetPosition(focus);
     final viewport = graphController.viewportSize;
+    var fitInsets = insets;
+    var scenePadding = _fitPadding;
+    if (reserveNodeRadius && viewport != null) {
+      // Keep the scene padding when it already gives enough room on screen.
+      // At smaller scales, reserve the radius in viewport pixels instead.
+      final radius = placed.maxBodyRadius;
+      final scale = math.min(1, _fitScale(bounds, insets, viewport));
+      if (scenePadding * scale < radius &&
+          insets.deflateSize(viewport).shortestSide > 2 * radius) {
+        fitInsets += EdgeInsets.all(radius);
+        scenePadding = 0;
+      }
+    }
     if (minScale != null &&
         focusPoint != null &&
         viewport != null &&
@@ -1424,7 +1441,8 @@ class ConstellationSceneController {
     }
     graphController.fitToRect(
       bounds,
-      viewportInsets: insets,
+      padding: scenePadding,
+      viewportInsets: fitInsets,
       maxScale: 1,
       minScale: minScale,
     );
@@ -1439,11 +1457,14 @@ class ConstellationSceneController {
     );
   }
 
-  /// The placed footprints of the nodes [include] accepts (every node when
-  /// null), or null when none is placed.
-  Rect? _placedBounds(bool Function(GraphNodeId)? include) {
+  /// The union of the accepted placed footprints and the largest Field body
+  /// radius among them, or null when none is placed.
+  ({Rect bounds, double maxBodyRadius})? _placedBounds(
+    bool Function(GraphNodeId)? include,
+  ) {
     final snapshot = graphController.renderSnapshot;
     Rect? bounds;
+    var maxBodyRadius = 0.0;
     for (final entry in snapshot.topology.nodesById.entries) {
       final graphId = entry.key;
       if (include != null && !include(graphId)) {
@@ -1475,8 +1496,14 @@ class ConstellationSceneController {
         continue;
       }
       bounds = bounds == null ? rect : bounds.expandToInclude(rect);
+      final payload = sceneNode.payload;
+      if (payload is FieldPersonNode || payload is FieldBeaconNode) {
+        maxBodyRadius = math.max(maxBodyRadius, sceneNode.size.width / 2);
+      }
     }
-    return bounds;
+    return bounds == null
+        ? null
+        : (bounds: bounds, maxBodyRadius: maxBodyRadius);
   }
 
   /// Jumps the camera to [beaconId]'s node; false when it is not placed.
