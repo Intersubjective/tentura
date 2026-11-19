@@ -399,7 +399,9 @@ Future<void> main() async {
       );
     });
 
-    raceTest('blocking during budding clears invites and observers', (round) async {
+    raceTest('blocking during budding clears invites and Questions access', (
+      round,
+    ) async {
       await race<void>(
         roundIndex: round,
         setUpRound: () async {},
@@ -437,7 +439,11 @@ Future<void> main() async {
               reason: round,
             );
           }
-          expect(await _observers(writer, child), isEmpty, reason: round);
+          expect(
+            await _questionsAudience(writer, child),
+            isNot(contains(_invitee)),
+            reason: round,
+          );
         },
       );
     });
@@ -480,7 +486,11 @@ Future<void> main() async {
             parameters: {'b': child, 'u': _invitee},
           );
           expect(access.single.single, invited, reason: round);
-          expect(await _observers(writer, child), isEmpty, reason: round);
+          expect(
+            await _questionsAudience(writer, child),
+            invited ? contains(_invitee) : isNot(contains(_invitee)),
+            reason: round,
+          );
         },
       );
     });
@@ -1637,10 +1647,10 @@ WHERE beacon_id = @b AND invitee_id = @u AND status = 0
   return rows.isEmpty ? null : rows.single.single! as String;
 }
 
-Future<Set<String>> _observers(Connection writer, String child) async {
+Future<Set<String>> _questionsAudience(Connection writer, String child) async {
   final rows = await writer.execute(
     Sql.named(
-      'SELECT user_id FROM public.beacon_bud_observer WHERE beacon_id = @b',
+      'SELECT user_id FROM public.questions_audience(@b)',
     ),
     parameters: {'b': child},
   );
@@ -1943,7 +1953,6 @@ TRUNCATE TABLE
   public.attention_occurrence,
   public.beacon_child_commands,
   public.beacon_promotions,
-  public.beacon_bud_observer,
   public.beacon_author_invite,
   public.post_first_response,
   public.user_availability,

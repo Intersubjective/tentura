@@ -76,19 +76,3 @@ COALESCE((
         ) access WHERE access.access > 0
       )
   ), 0)''';
-
-/// The Request card total and Field flag share both room-access decisions and
-/// message rules. Each scope uses its own cursor; unreadable rooms add zero.
-///
-/// Shipped migrations must not interpolate this live helper. Inline frozen
-/// SQL instead so later helper changes cannot alter migration replay.
-String requestUnreadMessageCountBodySql({
-  required String viewer,
-  required String beaconId,
-}) =>
-    '''
-(
-  ${requestDiscussionUnreadCountSql(viewer: viewer, beaconId: beaconId)}
-  + ${requestQuestionsUnreadCountSql(viewer: viewer, beaconId: beaconId)}
-)
-''';

@@ -5,8 +5,6 @@ import 'package:migrant/testing.dart';
 import 'package:postgres/postgres.dart';
 import 'package:migrant_db_postgresql/migrant_db_postgresql.dart';
 
-import '../sql/request_unread_sql.dart';
-
 part 'm0193.dart';
 part 'm0194.dart';
 part 'm0195.dart';
@@ -133,6 +131,7 @@ part 'm0316.dart';
 part 'm0317.dart';
 part 'm0318.dart';
 part 'm0319.dart';
+part 'm0320.dart';
 
 /// `m0193` is a squashed baseline, not an ordinary migration: it is a generated
 /// `pg_dump` of the schema that `m0001`…`m0192` (plus the out-of-band `0161a`
@@ -285,10 +284,29 @@ final _allMigrations = <Migration>[
   m0317,
   m0318,
   m0319,
+  m0320,
 ];
 
 /// Test inventory in the exact order passed to migrant.
 List<Migration> get migrationsForTesting => List.unmodifiable(_allMigrations);
+
+// m0289 used the live unread helper before m0300 froze the identical body.
+// Keep the original interpolation byte-for-byte using that shipped snapshot.
+String requestUnreadMessageCountBodySql({
+  required String viewer,
+  required String beaconId,
+}) {
+  final signature =
+      'request_unread_message_count($viewer text, $beaconId text)';
+  final statement = m0300.statements.singleWhere(
+    (sql) => sql.startsWith('CREATE OR REPLACE FUNCTION public.$signature'),
+  );
+  const bodyStart = 'AS \$\$\nSELECT ';
+  return statement.substring(
+    statement.indexOf(bodyStart) + bodyStart.length,
+    statement.lastIndexOf('\n\$\$'),
+  );
+}
 
 const _schemaUpgradeLockKey = 'tentura_schema_upgrade';
 final _upgradeBackoff = Random();

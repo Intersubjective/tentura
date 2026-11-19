@@ -66,7 +66,7 @@ INSERT INTO public.beacon_child_commands
 VALUES ('$_author', 'cmd-m0239-upg', 'h', 0)
 ''');
 
-      await migrateDbSchema(writer);
+      await migrateDbSchemaThrough(writer, '0319');
 
       final edge = await writer.execute(
         'SELECT contact_sweep_exempt FROM public.beacon_forward_edge '
@@ -93,7 +93,7 @@ VALUES ('$_author', 'cmd-m0239-upg', 'h', 0)
     });
   });
 
-  group('full schema', () {
+  group('current schema', () {
     late DisposablePgWriterSession session;
     late Connection writer;
 
@@ -228,34 +228,16 @@ WHERE id = 'BI1'
       });
     });
 
-    test('bud observers cascade with the child and the user', () async {
-      await writer.execute('''
-INSERT INTO public.beacon_bud_observer (beacon_id, user_id)
-VALUES ('$_child', '$_member'), ('$_child', '$_other'), ('$_child2', '$_member')
-''');
-      await writer.execute("DELETE FROM public.\"user\" WHERE id = '$_other'");
-      await writer.execute("DELETE FROM public.beacon WHERE id = '$_child2'");
-      final rows = await writer.execute(
-        'SELECT beacon_id, user_id FROM public.beacon_bud_observer',
-      );
-      expect(rows.map((r) => [r[0], r[1]]), [
-        [_child, _member],
-      ]);
-    });
-
     test('the bud indexes exist', () async {
       final rows = await writer.execute('''
 SELECT indexname FROM pg_indexes
 WHERE schemaname = 'public'
-  AND tablename IN ('beacon_bud_observer', 'beacon_author_invite',
-                    'beacon_child_commands')
+  AND tablename IN ('beacon_author_invite', 'beacon_child_commands')
 ''');
       final names = rows.map((r) => r.single! as String).toSet();
       expect(
         names,
         containsAll([
-          'beacon_bud_observer_pkey',
-          'beacon_bud_observer_user_idx',
           'beacon_author_invite_pkey',
           'beacon_author_invite_pending_source_uq',
           'beacon_author_invite_pending_beacon_uq',
@@ -266,6 +248,52 @@ WHERE schemaname = 'public'
         ]),
       );
     });
+  });
+  group('historical Post observer schema', () {
+    late Connection writer;
+
+    setUpAll(() async {
+      final session = await setUpDisposablePgWriter(
+        target: migrationTarget,
+        lastInclusiveVersion: '0319',
+      );
+      addTearDown(() => tearDownDisposablePgWriter(session: session));
+      writer = session.writer;
+      await _seed(writer);
+      await _insertChild(writer, _child);
+      await _insertChild(writer, _child2);
+    });
+
+    test(
+      'bud observers have their indexes and cascade with the child and user',
+      () async {
+        final indexes = await writer.execute(
+          "SELECT indexname FROM pg_indexes WHERE schemaname = 'public' "
+          "AND tablename = 'beacon_bud_observer'",
+        );
+        expect(
+          indexes.map((row) => row.single),
+          containsAll([
+            'beacon_bud_observer_pkey',
+            'beacon_bud_observer_user_idx',
+          ]),
+        );
+        await writer.execute('''
+INSERT INTO public.beacon_bud_observer (beacon_id, user_id)
+VALUES ('$_child', '$_member'), ('$_child', '$_other'), ('$_child2', '$_member')
+''');
+        await writer.execute(
+          "DELETE FROM public.\"user\" WHERE id = '$_other'",
+        );
+        await writer.execute("DELETE FROM public.beacon WHERE id = '$_child2'");
+        final rows = await writer.execute(
+          'SELECT beacon_id, user_id FROM public.beacon_bud_observer',
+        );
+        expect(rows.map((r) => [r[0], r[1]]), [
+          [_child, _member],
+        ]);
+      },
+    );
   });
 }
 

@@ -182,11 +182,23 @@ $$
                 ).readAsStringSync(),
               )
               as Map<String, dynamic>;
+      // The archived policy still reads the legacy snapshot. Reproduce its
+      // empty m0319 state in this connection's temporary schema.
       await sql(
-        (shipped['0300'] as List).first.toString().replaceFirst(
-          'public.questions_access_levels(',
-          'public.test_shipped_questions_access_levels(',
-        ),
+        'CREATE TEMP TABLE test_shipped_post_observers '
+        '(beacon_id text, user_id text)',
+      );
+      await sql(
+        (shipped['0300'] as List).first
+            .toString()
+            .replaceFirst(
+              'public.questions_access_levels(',
+              'public.test_shipped_questions_access_levels(',
+            )
+            .replaceFirst(
+              'public.beacon_bud_observer',
+              'pg_temp.test_shipped_post_observers',
+            ),
       );
       db = TenturaDb(target.databaseEnv);
     });

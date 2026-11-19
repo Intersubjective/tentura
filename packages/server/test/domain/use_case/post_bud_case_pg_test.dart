@@ -18,6 +18,7 @@ import 'package:tentura_server/data/repository/attention_dispatch_repository.dar
 import 'package:tentura_server/data/repository/beacon_access_repository.dart';
 import 'package:tentura_server/data/repository/beacon_hierarchy_command_repository.dart';
 import 'package:tentura_server/data/repository/beacon_hierarchy_repository.dart';
+import 'package:tentura_server/data/repository/beacon_lobby_repository.dart';
 import 'package:tentura_server/data/repository/beacon_repository.dart';
 import 'package:tentura_server/data/repository/beacon_room_notification_context_repository.dart';
 import 'package:tentura_server/data/repository/beacon_room_repository.dart';
@@ -206,6 +207,156 @@ Future<void> main() async {
       for (final i in result.invitees) i.userId: i.outcome,
     };
 
+    test(
+      'a bud uses its own Questions audience, unread counts and hierarchy recipients',
+      () async {
+        const bob = _warm;
+        const carol = _cold;
+        const kira = _hidden;
+        const circleViewer = _outsider;
+        const standalone = 'Bpbud3solo01';
+        final result = await buds.budFromPost(
+          actorUserId: _author,
+          postId: _post,
+          sourceMessageId: _rootMsg,
+          clientCommandId: 'cmd-bud-questions',
+          title: 'Move the piano',
+          isDiscoverable: true,
+        );
+        expect(result.outcome, 'created');
+        final child = result.childBeaconId!;
+        final lobby = BeaconLobbyRepository(database);
+
+        await writer.execute(
+          Sql.named('''
+INSERT INTO public.beacon
+  (id, user_id, title, description, status, kind, is_discoverable, published_at)
+SELECT @standalone, user_id, title, description, status, kind,
+       is_discoverable, published_at
+FROM public.beacon WHERE id = @child
+'''),
+          parameters: {'standalone': standalone, 'child': child},
+        );
+        await writer.execute('''
+INSERT INTO public.vote_user (subject, object, amount)
+VALUES ('$circleViewer', '$_author', 1), ('$_author', '$circleViewer', 1)
+''');
+
+        Future<void> question(String beacon, String scope, String author) =>
+            writer.execute(
+              Sql.named('''
+INSERT INTO public.beacon_room_message (beacon_id, author_id, body, thread_item_id)
+VALUES (@beacon, @author, 'When should we meet?', @scope)
+'''),
+              parameters: {'beacon': beacon, 'author': author, 'scope': scope},
+            );
+
+        final scopes = <String, String>{};
+        for (final beacon in [child, standalone]) {
+          await writer.execute(
+            Sql.named('''
+INSERT INTO public.beacon_forward_edge (beacon_id, sender_id, recipient_id)
+VALUES (@beacon, '$_author', '$bob')
+'''),
+            parameters: {'beacon': beacon},
+          );
+          await writer.execute(
+            Sql.named('''
+INSERT INTO public.beacon_help_offer (beacon_id, user_id, message, status)
+VALUES (@beacon, '$carol', 'I can help', 0)
+'''),
+            parameters: {'beacon': beacon},
+          );
+          final scope = scopes[beacon] = await lobby.ensureLobby(
+            beaconId: beacon,
+            authorId: _author,
+          );
+          await writer.execute(
+            Sql.named('''
+INSERT INTO public.beacon_room_message (beacon_id, author_id, body)
+VALUES (@beacon, '$_author', 'The piano is ready to move')
+'''),
+            parameters: {'beacon': beacon},
+          );
+          await question(beacon, scope, _author);
+        }
+
+        Future<Set<String>> audience(String beacon) async => {
+          for (final member in await lobby.audience(beacon)) member.userId,
+        };
+        Future<Map<String, int>> accessLevels(String beacon) async {
+          final rows = await writer.execute(
+            Sql.named('''
+SELECT user_id, access FROM public.questions_access_levels(@beacon, @viewers::text[])
+'''),
+            parameters: {
+              'beacon': beacon,
+              'viewers': [_author, bob, carol, kira, circleViewer],
+            },
+          );
+          return {for (final row in rows) row[0]! as String: row[1]! as int};
+        }
+
+        Future<int> unread(String beacon, String viewer) async {
+          final rows = await writer.execute(
+            Sql.named(
+              'SELECT public.request_unread_message_count(@viewer, @beacon)',
+            ),
+            parameters: {'beacon': beacon, 'viewer': viewer},
+          );
+          return rows.single.single! as int;
+        }
+
+        expect(await audience(child), {_author, bob, carol});
+        final standaloneLevels = await accessLevels(standalone);
+        expect(standaloneLevels, {
+          _author: 2,
+          bob: 2,
+          carol: 2,
+          kira: 0,
+          circleViewer: 2,
+        });
+        expect(await accessLevels(child), standaloneLevels);
+        expect(await unread(standalone, kira), 0);
+        expect(await unread(child, kira), await unread(standalone, kira));
+        // A forward includes Questions unread without admitting Bob to General.
+        expect(await unread(standalone, bob), 1);
+        expect(await unread(child, bob), await unread(standalone, bob));
+
+        final recipients = await writer.execute(
+          Sql.named(
+            'SELECT unnest(public.realtime_beacon_hierarchy_recipients(@child))',
+          ),
+          parameters: {'child': child},
+        );
+
+        // Let Kira discover both Requests so she can post without a direct grant.
+        await writer.execute('''
+INSERT INTO public.vote_user (subject, object, amount)
+VALUES ('$kira', '$_author', 1), ('$_author', '$kira', 1)
+''');
+        expect((await accessLevels(child))[kira], 2);
+        for (final beacon in [child, standalone]) {
+          expect(await audience(beacon), {_author, bob, carol});
+          await question(beacon, scopes[beacon]!, kira);
+          expect(await audience(beacon), {_author, bob, carol, kira});
+          await question(beacon, scopes[beacon]!, circleViewer);
+          expect(await audience(beacon), {
+            _author,
+            bob,
+            carol,
+            kira,
+            circleViewer,
+          });
+        }
+
+        expect(
+          {for (final row in recipients) row.single},
+          allOf(containsAll([_author, bob]), isNot(contains(kira))),
+        );
+      },
+    );
+
     test('budding gives access, pins and receipts to invitees', () async {
       final result = await bud(
         invitees: const [
@@ -343,7 +494,6 @@ SELECT public.beacon_effective_admission(@p, @v),
         {
           'access (Post admission, active forward, reasons, content, list, involvement)':
               access,
-          'observer rows written': await _observerCount(writer, child),
           'snapshot writer declared': snapshotWriters,
         },
         {
@@ -360,7 +510,6 @@ SELECT public.beacon_effective_admission(@p, @v),
                   ],
                 _hidden: [true, false, 0, false, false, false],
               },
-          'observer rows written': 0,
           'snapshot writer declared': isEmpty,
         },
       );
@@ -692,16 +841,6 @@ SELECT public.beacon_effective_admission(@p, @v),
 
 List<String> _sorted(Iterable<String> ids) => ids.toList()..sort();
 
-Future<Object?> _observerCount(Connection writer, String child) async {
-  final rows = await writer.execute(
-    Sql.named(
-      'SELECT count(*)::int FROM public.beacon_bud_observer WHERE beacon_id = @c',
-    ),
-    parameters: {'c': child},
-  );
-  return rows.single.single;
-}
-
 typedef _InviteRow = ({
   String id,
   String inviter,
@@ -839,7 +978,7 @@ Future<List<int>> _rowCounts(Connection writer) async {
   final rows = await writer.execute('''
 SELECT
   (SELECT count(*)::int FROM public.beacon),
-  (SELECT count(*)::int FROM public.beacon_bud_observer),
+  (SELECT count(*)::int FROM public.beacon_child_commands),
   (SELECT count(*)::int FROM public.beacon_author_invite),
   (SELECT count(*)::int FROM public.beacon_forward_edge),
   (SELECT count(*)::int FROM public.beacon_room_message),
@@ -860,7 +999,6 @@ TRUNCATE TABLE
   public.attention_occurrence,
   public.beacon_child_commands,
   public.beacon_promotions,
-  public.beacon_bud_observer,
   public.beacon_author_invite,
   public.post_first_response,
   public.user_availability,

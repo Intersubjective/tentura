@@ -112,10 +112,6 @@ Future<void> main() async {
 
     test('anchor inheritance places the author and invitees, preserves '
         'moves and skips uninvited Post members', () async {
-      await writer.execute('''
-INSERT INTO public.beacon_bud_observer (beacon_id, user_id)
-VALUES ('$_child', '$_member')
-''');
       await sweep.runDue();
 
       final placed = await _anchorsOn(writer, _child);
@@ -271,7 +267,6 @@ TRUNCATE TABLE
   public.constellation_anchor,
   public.constellation_anchor_cursor,
   public.beacon_child_commands,
-  public.beacon_bud_observer,
   public.beacon_forward_edge,
   public.beacon_participant,
   public.beacon,

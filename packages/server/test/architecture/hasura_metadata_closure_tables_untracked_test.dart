@@ -6,7 +6,7 @@ import 'dart:io';
 
 import 'package:test/test.dart';
 
-/// Server-only tables (closure, post-bud observers and author invites):
+/// Server-only tables (closure and author invites):
 /// Hasura must never track them.
 void main() {
   group('Hasura metadata', () {
@@ -32,11 +32,10 @@ void main() {
       expect(closureTracked, isEmpty);
     });
 
-    test('does not track the post-bud tables', () {
-      const untracked = {'beacon_bud_observer', 'beacon_author_invite'};
+    test('does not track the author invite table', () {
       final tracked = tableEntries.where((entry) {
         final name = (entry['table'] as Map<String, dynamic>)['name'] as String;
-        return untracked.contains(name);
+        return name == 'beacon_author_invite';
       });
       expect(tracked, isEmpty);
     });

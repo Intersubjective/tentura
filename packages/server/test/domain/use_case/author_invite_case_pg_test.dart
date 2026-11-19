@@ -1935,7 +1935,6 @@ TRUNCATE TABLE
   public.notification_outbox,
   public.attention_occurrence_recipient,
   public.attention_occurrence,
-  public.beacon_bud_observer,
   public.beacon_author_invite,
   public.post_first_response,
   public.user_availability,

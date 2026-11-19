@@ -416,7 +416,6 @@ TRUNCATE TABLE
   public.attention_occurrence,
   public.beacon_child_commands,
   public.beacon_promotions,
-  public.beacon_bud_observer,
   public.beacon_author_invite,
   public.beacon_activity_event,
   public.post_first_response,

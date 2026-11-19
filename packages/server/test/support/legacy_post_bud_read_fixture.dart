@@ -2,7 +2,7 @@ import 'package:postgres/postgres.dart';
 
 import 'pg_test_public_keys.dart';
 
-/// A previously budded Request with legacy observer rows for two Post members.
+/// A Request budded from a Post with two members.
 /// Only one of them was sent the Request.
 abstract final class LegacyPostBudReadFixture {
   static const child = 'Bhasurabud01';
@@ -38,10 +38,6 @@ INSERT INTO public.beacon_forward_edge (beacon_id, sender_id, recipient_id)
 VALUES ('$post', '$author', '$uninvited'),
        ('$post', '$author', '$invited'),
        ('$child', '$author', '$invited')
-''');
-    await writer.execute('''
-INSERT INTO public.beacon_bud_observer (beacon_id, user_id)
-VALUES ('$child', '$uninvited'), ('$child', '$invited')
 ''');
   }
 }

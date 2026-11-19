@@ -141,7 +141,7 @@ Future<void> main() async {
 
     test('rows written before the migration get the new wall', () async {
       final writer = session.writer;
-      await _seed(writer);
+      await _seed(writer, withHistoricalObservers: true);
       // Before: live Post membership reads the child, child members the Post.
       expect(await _canRead(writer, _child, _late), isTrue);
       expect(await _canRead(writer, _post, _childHelper), isTrue);
@@ -168,7 +168,7 @@ Future<void> main() async {
 
     test('a schema upgrade clears legacy Post observer grants', () async {
       final writer = session.writer;
-      await _seed(writer);
+      await _seed(writer, withHistoricalObservers: true);
       Future<Object?> observerCount() async => (await writer.execute(
         'SELECT count(*)::int FROM public.beacon_bud_observer',
       )).single.single;
@@ -176,7 +176,7 @@ Future<void> main() async {
       expect(await observerCount(), greaterThan(0));
       expect(await _canRead(writer, _child, _observer), isTrue);
       final previousFunctions = await _readFunctionAttributes(writer);
-      await migrateDbSchema(writer);
+      await migrateDbSchemaThrough(writer, '0319');
 
       expect(
         {
@@ -445,7 +445,10 @@ Future<int> _level(Connection writer, String beacon, String viewer) async {
   return rows.single.single! as int;
 }
 
-Future<void> _seed(Connection writer) async {
+Future<void> _seed(
+  Connection writer, {
+  bool withHistoricalObservers = false,
+}) async {
   for (var i = 0; i < _users.length; i++) {
     await writer.execute(
       Sql.named('''
@@ -503,14 +506,16 @@ VALUES ('P$beacon$user', '$beacon', '$user', 0, 0, 3)
     (_closedPost, _closedChild),
   ]) {
     await request(c, _budder, p);
-    for (final o in [
-      _postAuthor,
-      _observer,
-      _childFwd,
-      _obsBlockedPost,
-      _obsBlockedChild,
-    ]) {
-      await observe(c, o);
+    if (withHistoricalObservers) {
+      for (final o in [
+        _postAuthor,
+        _observer,
+        _childFwd,
+        _obsBlockedPost,
+        _obsBlockedChild,
+      ]) {
+        await observe(c, o);
+      }
     }
   }
   await forward(_child, _budder, _childFwd);

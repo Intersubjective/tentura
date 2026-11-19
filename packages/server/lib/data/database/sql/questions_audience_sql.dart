@@ -29,9 +29,6 @@ UNION
 SELECT qa_ho.user_id FROM public.beacon_help_offer qa_ho
 WHERE qa_ho.beacon_id = $beaconId
 UNION
-SELECT qa_o.user_id FROM public.beacon_bud_observer qa_o
-WHERE qa_o.beacon_id = $beaconId
-UNION
 SELECT qa_m.author_id FROM public.coordination_item qa_ci
 JOIN public.beacon_room_message qa_m ON qa_m.thread_item_id = qa_ci.id
 WHERE qa_ci.beacon_id = $beaconId AND qa_ci.kind = ${CoordinationItemKind.lobby.smallintValue}

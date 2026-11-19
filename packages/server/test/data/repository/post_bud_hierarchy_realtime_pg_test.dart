@@ -13,8 +13,8 @@ import '../../support/pg_notification_recorder.dart';
 import '../../support/pg_test_public_keys.dart';
 
 /// Budding B4 (Arch §3.4, I11): `beacon_hierarchy` hints for a Request budded
-/// from a Post go to the child's own audience plus its bud snapshot
-/// observers, never to live Post membership.
+/// from a Post go to the child's own audience. Historical migrations
+/// also sent hints to snapshot observers.
 ///
 /// Post `_post` (author `_postAuthor`) → child `_child` (author `_budder`).
 /// Snapshot observers: `_postAuthor`, `_observer`, `_leaver` (left the Post
@@ -79,6 +79,7 @@ Future<void> main() async {
     test('rows written before the migration get snapshot recipients', () async {
       final writer = session.writer;
       await _seed(writer);
+      await _seedHistoricalObservers(writer);
       expect(await _recipients(writer, _child), contains(_late));
 
       await migrateDbSchemaThrough(writer, '0243');
@@ -93,7 +94,7 @@ Future<void> main() async {
     });
   });
 
-  group('full schema', () {
+  group('historical snapshot notifications', () {
     late DisposablePgWriterSession session;
     late Connection writer;
     late Connection listener;
@@ -101,7 +102,10 @@ Future<void> main() async {
     var markerSeq = 0;
 
     setUpAll(() async {
-      session = await setUpDisposablePgWriter(target: target);
+      session = await setUpDisposablePgWriter(
+        target: target,
+        lastInclusiveVersion: '0319',
+      );
       writer = session.writer;
       listener = await Connection.open(
         target.databaseEnv.pgEndpoint,
@@ -113,6 +117,7 @@ Future<void> main() async {
 
     setUp(() async {
       await _seed(writer);
+      await _seedHistoricalObservers(writer);
     });
 
     tearDownAll(() async {
@@ -226,14 +231,24 @@ VALUES ('$_postAuthor', '$_blockee', '$_postAuthor')
         }
       },
     );
+  });
+
+  group('current hierarchy recipients', () {
+    late DisposablePgWriterSession session;
+
+    setUpAll(() async {
+      session = await setUpDisposablePgWriter(target: target);
+      addTearDown(() => tearDownDisposablePgWriter(session: session));
+      await _seed(session.writer);
+    });
 
     test('emits owned by the Post itself still reach live members', () async {
-      expect(await _recipients(writer, _post), contains(_late));
+      expect(await _recipients(session.writer, _post), contains(_late));
     });
 
     test('Request parents keep live parent membership', () async {
       expect(
-        await _recipients(writer, _reqChild),
+        await _recipients(session.writer, _reqChild),
         {_reqAuthor, _reqMember},
       );
     });
@@ -241,7 +256,7 @@ VALUES ('$_postAuthor', '$_blockee', '$_postAuthor')
     test(
       'the recipient function stays STABLE with default attributes',
       () async {
-        final rows = await writer.execute('''
+        final rows = await session.writer.execute('''
 SELECT p.procost::int, p.provolatile::text, p.prosecdef, p.proconfig IS NULL
 FROM pg_proc p
 JOIN pg_namespace n ON n.oid = p.pronamespace
@@ -267,7 +282,6 @@ Future<Set<String>> _recipients(Connection writer, String owner) async {
 Future<void> _seed(Connection writer) async {
   await writer.execute('''
 TRUNCATE TABLE
-  public.beacon_bud_observer,
   public.user_block,
   public.beacon_forward_edge,
   public.beacon_participant,
@@ -308,12 +322,6 @@ VALUES ('$id', '$author', 'Request', '', 0, false,
         ${parent == null ? 'NULL' : "'$parent'"}, now())
 ''');
   await request(_child, _budder, _post);
-  for (final o in [_postAuthor, _observer, _leaver, _blockee]) {
-    await writer.execute('''
-INSERT INTO public.beacon_bud_observer (beacon_id, user_id)
-VALUES ('$_child', '$o')
-''');
-  }
   await request(_req, _reqAuthor, null);
   await request(_reqChild, _reqAuthor, _req);
   await writer.execute('''
@@ -321,4 +329,13 @@ INSERT INTO public.beacon_participant
   (id, beacon_id, user_id, role, status, room_access)
 VALUES ('P$_req$_reqMember', '$_req', '$_reqMember', 0, 0, 3)
 ''');
+}
+
+Future<void> _seedHistoricalObservers(Connection writer) async {
+  for (final o in [_postAuthor, _observer, _leaver, _blockee]) {
+    await writer.execute('''
+INSERT INTO public.beacon_bud_observer (beacon_id, user_id)
+VALUES ('$_child', '$o')
+''');
+  }
 }

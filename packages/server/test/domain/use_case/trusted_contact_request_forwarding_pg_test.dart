@@ -552,11 +552,6 @@ INSERT INTO public.beacon (id, user_id, title, description, status, kind,
   is_discoverable, forward_policy, parent_beacon_id, published_at)
 VALUES ('$_bud', '$_author', 'Budded Request', '', 0, 0, true, 1, '$_sourcePost', now())
 ''');
-  // Neither a legacy observer row nor an outgoing forward grants content.
-  await writer.execute('''
-INSERT INTO public.beacon_bud_observer (beacon_id, user_id)
-VALUES ('$_bud', '$_postMember'), ('$_bud', '$_forwardSender')
-''');
 }
 
 Future<void> _seed(Connection writer) async {
