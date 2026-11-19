@@ -1,11 +1,14 @@
 import 'package:test/test.dart';
 
+import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/entity/notification_kind.dart';
 
 import '../../support/test_attention_harness.dart';
 
 void main() {
-  final intents = TestAttentionHarness().intents;
+  final intents = TestAttentionHarness(
+    beaconKinds: const {'Bpost': BeaconKind.post},
+  ).intents;
 
   test('a first response to a Post links to the message in the Post', () async {
     final requestMessage = await intents.roomMessagePosted(

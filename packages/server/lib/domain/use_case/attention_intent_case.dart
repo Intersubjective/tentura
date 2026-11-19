@@ -1112,8 +1112,11 @@ class AttentionIntentCase {
         : (bodyPrefixedWithActor && actorName.isNotEmpty
               ? '$actorName $emptyBody'
               : emptyBody);
-    final isPost = kind == NotificationKind.postFirstResponse;
-    final detailPath = isPost ? kPathPostView : kPathBeaconView;
+    final beaconKind = await _context.loadBeaconKind(beaconId);
+    final detailPath = switch (beaconKind) {
+      BeaconKind.post => kPathPostView,
+      BeaconKind.request => kPathBeaconView,
+    };
     return AttentionDispatchIntent(
       eventType: eventType,
       sourceEventKey: sourceEventKey,
@@ -1133,7 +1136,7 @@ class AttentionIntentCase {
       beaconId: beaconId,
       coordinationItemId: threadItemId,
       messageId: messageId,
-      beaconKind: isPost ? BeaconKind.post : BeaconKind.request,
+      beaconKind: beaconKind,
       actorDisplayName: actorName,
     );
   }

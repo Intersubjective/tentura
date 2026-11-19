@@ -88,7 +88,7 @@ const kPathBeaconView = '/beacon/view';
 const kPathPostView = '/post/view';
 
 /// Request Questions screen (client Auto Route; internally the lobby).
-const kPathBeaconQuestions = '/beacon/lobby';
+const kPathBeaconQuestions = '/beacon/questions';
 
 /// Post-close review contributions screen (client Auto Route).
 const kPathReviewContributions = '/beacon/review';

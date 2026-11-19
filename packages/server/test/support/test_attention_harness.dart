@@ -1,6 +1,7 @@
 import 'package:mockito/mockito.dart';
 
 import 'package:tentura_server/domain/attention/attention_models.dart';
+import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/entity/beacon_notification_context.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/port/attention_dispatch_port.dart';
@@ -17,6 +18,7 @@ import 'fake_user_block_repository.dart';
 final class TestAttentionHarness {
   TestAttentionHarness({
     BeaconNotificationContext context = const BeaconNotificationContext(),
+    Map<String, BeaconKind> beaconKinds = const {},
     bool canReadBeaconContent = true,
     void Function()? onContextLoaded,
     FakeUserBlockRepository? userBlocks,
@@ -24,7 +26,7 @@ final class TestAttentionHarness {
     BeaconHelpOffererForwardPathCase? helpPaths,
   }) : _dispatch = _RecordingDispatch(),
        intents = AttentionIntentCase(
-         _Context(context, onContextLoaded),
+         _Context(context, onContextLoaded, beaconKinds),
          _Users(),
          _Access(allowed: canReadBeaconContent, read: canReadContent),
          userBlocks ?? FakeUserBlockRepository(),
@@ -61,10 +63,15 @@ final class _RecordingDispatch extends Fake implements AttentionDispatchPort {
 }
 
 final class _Context extends Fake implements BeaconRoomNotificationContextPort {
-  _Context(this.context, this.onLoaded);
+  _Context(this.context, this.onLoaded, this.beaconKinds);
 
   final BeaconNotificationContext context;
   final void Function()? onLoaded;
+  final Map<String, BeaconKind> beaconKinds;
+
+  @override
+  Future<BeaconKind> loadBeaconKind(String beaconId) async =>
+      beaconKinds[beaconId] ?? BeaconKind.request;
 
   @override
   Future<BeaconNotificationContext> loadContextForBeacon(

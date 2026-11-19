@@ -13,6 +13,7 @@ import 'package:tentura_server/data/database/tentura_db.dart'
 import 'package:tentura_server/data/repository/attention_dispatch_repository.dart';
 import 'package:tentura_server/data/repository/beacon_access_repository.dart';
 import 'package:tentura_server/data/repository/beacon_hierarchy_repository.dart';
+import 'package:tentura_server/data/repository/beacon_lobby_repository.dart';
 import 'package:tentura_server/data/repository/beacon_repository.dart';
 import 'package:tentura_server/data/repository/beacon_room_notification_context_repository.dart';
 import 'package:tentura_server/data/repository/beacon_room_repository.dart';
@@ -21,6 +22,8 @@ import 'package:tentura_server/data/repository/coordination_item_repository.dart
 import 'package:tentura_server/data/repository/help_offer_repository.dart';
 import 'package:tentura_server/data/repository/mock/invite_seed_prompt_repository_mock.dart';
 import 'package:tentura_server/data/repository/mutating_unit_of_work.dart';
+import 'package:tentura_server/data/repository/post_lock_repository.dart';
+import 'package:tentura_server/data/repository/room_baton_repository.dart';
 import 'package:tentura_server/data/repository/user_block_repository.dart';
 import 'package:tentura_server/data/repository/user_repository.dart';
 import 'package:tentura_server/domain/entity/task_entity.dart';
@@ -34,6 +37,7 @@ import 'package:tentura_server/domain/port/task_repository_port.dart';
 import 'package:tentura_server/domain/port/upload_quota_repository_port.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 import 'package:tentura_server/domain/use_case/beacon_room_case.dart';
+import 'package:tentura_server/domain/use_case/room_baton_case.dart';
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
 import 'package:tentura_server/env.dart';
 
@@ -82,6 +86,7 @@ Future<void> main() async {
     late Connection writer;
     late BeaconRoomCase room;
     late BeaconRoomRepository roomRepository;
+    late RoomBatonCase batonCase;
 
     setUpAll(() async {
       session = await setUpDisposablePgWriter(target: target);
@@ -90,12 +95,311 @@ Future<void> main() async {
       final built = _buildRoom(database, target.databaseEnv);
       room = built.room;
       roomRepository = built.roomRepository;
+      batonCase = built.batonCase;
     });
 
     setUp(() async => _seed(writer));
 
     tearDownAll(() async {
       await tearDownDisposablePgWriter(session: session, drift: database);
+    });
+
+    group('Directed chat notifications open the room they came from', () {
+      setUp(() async {
+        await writer.execute('''
+UPDATE public."user"
+SET handle = CASE WHEN id = '$_memberB' THEN 'roommemberb' ELSE 'roommemberc' END
+WHERE id IN ('$_memberB', '$_memberC')
+''');
+        await writer.execute('''
+INSERT INTO public.beacon_forward_edge (id, beacon_id, sender_id, recipient_id)
+VALUES ('Ffirstrespedge4', '$_request', '$_author', '$_memberC')
+''');
+        await writer.execute('''
+INSERT INTO public.beacon_participant
+  (id, beacon_id, user_id, role, status, room_access)
+VALUES ('Pfirstrespreqc01', '$_request', '$_memberC', 0, 0, 3)
+''');
+      });
+
+      Future<({String? beaconKind, String? receiptUrl, String? deliveryUrl})>
+      notification({
+        required String beaconId,
+        required String recipient,
+        required String eventType,
+        required String kind,
+        required String messageId,
+        required Pattern sourceKey,
+      }) async {
+        final rows = await writer.execute(
+          Sql.named('''
+SELECT occurrence.source_event_key, occurrence.immutable_payload->>'messageId',
+       receipt.kind, receipt.action_url,
+       delivery.payload->>'kind', delivery.payload->>'beaconKind',
+       delivery.payload->>'actionUrl'
+FROM public.notification_outbox receipt
+JOIN public.attention_occurrence occurrence ON occurrence.id = receipt.occurrence_id
+JOIN public.attention_channel_delivery delivery
+  ON delivery.receipt_id = receipt.id AND delivery.account_id = receipt.account_id
+WHERE receipt.beacon_id = @beacon AND receipt.account_id = @recipient
+  AND occurrence.event_type = @event
+'''),
+          parameters: {
+            'beacon': beaconId,
+            'recipient': recipient,
+            'event': eventType,
+          },
+        );
+        expect(
+          rows,
+          hasLength(1),
+          reason:
+              '$kind for message $messageId must reach $recipient in $beaconId',
+        );
+        final row = rows.single;
+        if (sourceKey case final String key) {
+          expect(row[0], key);
+        } else if (sourceKey case final RegExp key) {
+          expect(row[0], matches(key));
+        }
+        expect(row[1], messageId);
+        expect(row[2], kind, reason: 'receipt notification kind');
+        expect(row[4], kind, reason: 'delivery notification kind');
+        return (
+          receiptUrl: row[3] as String?,
+          beaconKind: row[5] as String?,
+          deliveryUrl: row[6] as String?,
+        );
+      }
+
+      test(
+        'a Questions mention opens the Request Questions screen',
+        () async {
+          final lobby = await room.beaconLobby(
+            beaconId: _request,
+            userId: _author,
+          );
+          final lobbyId = lobby['lobbyId']! as String;
+          final question = await room.createMessage(
+            beaconId: _request,
+            userId: _author,
+            body: 'What do you think, @roommemberb?',
+            threadItemId: lobbyId,
+          );
+          final questionId = question['id']! as String;
+          expect(
+            await notification(
+              beaconId: _request,
+              recipient: _memberB,
+              eventType: 'roomMessagePosted',
+              kind: 'roomMention',
+              messageId: questionId,
+              sourceKey: 'room_mention:$questionId',
+            ),
+            _notificationLink('request', '/#/beacon/questions/$_request'),
+          );
+        },
+      );
+
+      test(
+        'General mentions and first-response notices open their source message',
+        () async {
+          for (final (beaconId, kind, path) in _roomDestinations) {
+            final message = await room.createMessage(
+              beaconId: beaconId,
+              userId: _memberB,
+              body: 'Can you check this, @roommemberc?',
+            );
+            final id = message['id']! as String;
+            final url = _messageLink(path, beaconId, id);
+            if (beaconId == _post) {
+              expect(
+                await notification(
+                  beaconId: beaconId,
+                  recipient: _author,
+                  eventType: 'postFirstResponse',
+                  kind: 'postFirstResponse',
+                  messageId: id,
+                  sourceKey: 'post_first_response:$beaconId:$_memberB',
+                ),
+                _notificationLink('post', url),
+              );
+            }
+            expect(
+              await notification(
+                beaconId: beaconId,
+                recipient: _memberC,
+                eventType: 'roomMessagePosted',
+                kind: 'roomMention',
+                messageId: id,
+                sourceKey: 'room_mention:$id',
+              ),
+              _notificationLink(kind, url),
+            );
+          }
+        },
+      );
+
+      test(
+        'directed replies and reaction-first notices open their source message',
+        () async {
+          await room.reactionToggle(
+            beaconId: _post,
+            messageId: _postRoot,
+            userId: _memberC,
+            emoji: '👍',
+          );
+          expect(
+            await notification(
+              beaconId: _post,
+              recipient: _author,
+              eventType: 'postFirstResponse',
+              kind: 'postFirstResponse',
+              messageId: _postRoot,
+              sourceKey: 'post_first_response:$_post:$_memberC',
+            ),
+            _notificationLink('post', _messageLink('post', _post, _postRoot)),
+          );
+
+          for (final (beaconId, kind, path) in _roomDestinations) {
+            final original = await room.createMessage(
+              beaconId: beaconId,
+              userId: _memberC,
+              body: 'Is Saturday still an option?',
+            );
+            final reply = await room.createMessage(
+              beaconId: beaconId,
+              userId: _memberB,
+              body: 'Saturday works for me.',
+              replyToMessageId: original['id']! as String,
+            );
+            final id = reply['id']! as String;
+            expect(
+              await notification(
+                beaconId: beaconId,
+                recipient: _memberC,
+                eventType: 'roomMessagePosted',
+                kind: 'roomActivityLowPriority',
+                messageId: id,
+                sourceKey: 'room_message:$id',
+              ),
+              _notificationLink(kind, _messageLink(path, beaconId, id)),
+            );
+          }
+        },
+      );
+
+      test(
+        'a mention added during an edit opens the edited Post message',
+        () async {
+          final message = await room.createMessage(
+            beaconId: _post,
+            userId: _memberB,
+            body: 'Can someone check this?',
+          );
+          final id = message['id']! as String;
+          expect(
+            await room.editMessage(
+              beaconId: _post,
+              userId: _memberB,
+              messageId: id,
+              newBody: 'Can you check this, @roommemberc?',
+            ),
+            isTrue,
+          );
+          expect(
+            await notification(
+              beaconId: _post,
+              recipient: _memberC,
+              eventType: 'roomMessagePosted',
+              kind: 'roomMention',
+              messageId: id,
+              sourceKey: RegExp(
+                '^room_mention_edit:${RegExp.escape(id)}:[0-9]+\$',
+              ),
+            ),
+            _notificationLink('post', _messageLink('post', _post, id)),
+          );
+        },
+      );
+
+      test(
+        'baton invitations, answers and selection link to their source room',
+        () async {
+          for (final (beaconId, kind, path) in _roomDestinations) {
+            final baton = await batonCase.create(
+              actorId: _author,
+              beaconId: beaconId,
+              text: 'Who can bring the ladder?',
+              candidates: [(userId: _memberB, tier: 1)],
+            );
+            await batonCase.respond(
+              actorId: _memberB,
+              batonId: baton.id,
+              canHelp: true,
+              partnerUserId: _memberC,
+            );
+            await batonCase.partnerRespond(
+              actorId: _memberC,
+              batonId: baton.id,
+              inviterUserId: _memberB,
+              accept: true,
+            );
+            await batonCase.select(
+              actorId: _author,
+              batonId: baton.id,
+              userId: _memberB,
+            );
+            final expected = _notificationLink(
+              kind,
+              _messageLink(path, beaconId, baton.messageId),
+            );
+            final id = baton.id;
+            final escapedId = RegExp.escape(id);
+            final targets = <(String, String, Pattern)>[
+              ('batonAsked', _memberB, 'baton_asked:$id:$_memberB'),
+              (
+                'batonPartnerAsked',
+                _memberC,
+                'baton_partner_asked:$id:$_memberB:$_memberC',
+              ),
+              (
+                'batonPartnerAnswered',
+                _memberB,
+                RegExp(
+                  '^baton_partner_answered:$escapedId:$_memberB:$_memberC:[0-9]+\$',
+                ),
+              ),
+              (
+                'batonAllAnswered',
+                _author,
+                RegExp('^baton_all_answered:$escapedId:[0-9]+\$'),
+              ),
+              ('batonTaken', _memberB, 'baton_taken:$id'),
+              ('batonTaken', _memberC, 'baton_taken:$id:$_memberC'),
+            ];
+            final deliveries = {
+              for (final (event, recipient, sourceKey) in targets)
+                (event, recipient): await notification(
+                  beaconId: beaconId,
+                  recipient: recipient,
+                  eventType: event,
+                  kind: event,
+                  messageId: baton.messageId,
+                  sourceKey: sourceKey,
+                ),
+            };
+            expect(
+              deliveries,
+              {
+                for (final (event, recipient, _) in targets)
+                  (event, recipient): expected,
+              },
+              reason: 'Every baton notification in $beaconId opens the baton',
+            );
+          }
+        },
+      );
     });
 
     Future<int> receipts(String accountId) async {
@@ -397,7 +701,26 @@ VALUES ('Efirstresprow001', '$_postRoot', '$_memberC', '👍')
   });
 }
 
-({BeaconRoomCase room, BeaconRoomRepository roomRepository}) _buildRoom(
+const _roomDestinations = [
+  (_request, 'request', 'beacon'),
+  (_post, 'post', 'post'),
+];
+
+String _messageLink(String path, String beaconId, String messageId) =>
+    '/#/$path/view/$beaconId?tab=threads&thread=general'
+    '&entry=deep_link&is_deep_link=true&message=$messageId';
+
+({String beaconKind, String receiptUrl, String deliveryUrl}) _notificationLink(
+  String kind,
+  String url,
+) => (beaconKind: kind, receiptUrl: url, deliveryUrl: url);
+
+({
+  BeaconRoomCase room,
+  BeaconRoomRepository roomRepository,
+  RoomBatonCase batonCase,
+})
+_buildRoom(
   TenturaDb db,
   Env env,
 ) {
@@ -440,12 +763,23 @@ VALUES ('Efirstresprow001', '$_postRoot', '$_memberC', '👍')
       BeaconHierarchyRepository(db),
       const ProductionDiscussionProductPolicy(),
       beaconRepository: BeaconRepository(db),
+      lobby: BeaconLobbyRepository(db),
       attentionIntents: intents,
       attention: attention,
       env: env,
       logger: logger,
     ),
     roomRepository: roomRepository,
+    batonCase: RoomBatonCase(
+      RoomBatonRepository(db),
+      roomRepository,
+      BeaconHierarchyRepository(db),
+      PostLockRepository(db),
+      attention,
+      intents,
+      env: env,
+      logger: logger,
+    ),
   );
 }
 

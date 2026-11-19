@@ -502,6 +502,10 @@ class RootRouter extends RootStackRouter implements AppNavigator {
     ),
 
     // Request lobby (U088): questions before helping.
+    RedirectRoute(
+      path: '$kPathBeaconQuestions/:id',
+      redirectTo: '$kPathBeaconLobby/:id',
+    ),
     AutoRoute(
       usesPathAsKey: true,
       page: BeaconLobbyRoute.page,

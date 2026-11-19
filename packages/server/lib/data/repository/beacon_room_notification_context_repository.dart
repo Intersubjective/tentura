@@ -2,8 +2,10 @@ import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/consts/coordination_item_consts.dart';
 import 'package:tentura_server/domain/commitment/commitment_state.dart';
+import 'package:tentura_server/domain/entity/beacon_kind.dart';
 import 'package:tentura_server/domain/entity/beacon_notification_context.dart';
 import 'package:tentura_server/domain/entity/help_offer_entity.dart';
+import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/beacon_room_notification_context_port.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/domain/port/commitment_repository_port.dart';
@@ -25,6 +27,19 @@ class BeaconRoomNotificationContextRepository
   final TenturaDb _db;
   final HelpOfferRepositoryPort _helpOffers;
   final CommitmentRepositoryPort _commitments;
+
+  @override
+  Future<BeaconKind> loadBeaconKind(String beaconId) async {
+    final beacons = _db.beacons;
+    final kind =
+        await (_db.selectOnly(beacons)
+              ..addColumns([beacons.kind])
+              ..where(beacons.id.equals(beaconId)))
+            .map((row) => row.read(beacons.kind))
+            .getSingleOrNull();
+    if (kind == null) throw IdNotFoundException(id: beaconId);
+    return BeaconKind.fromValue(kind);
+  }
 
   @override
   Future<BeaconNotificationContext> loadContextForBeacon(

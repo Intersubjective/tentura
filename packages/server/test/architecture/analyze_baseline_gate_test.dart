@@ -34,6 +34,9 @@ class _Fixture {
     root = Directory.systemTemp.createTempSync('analyze_baseline_gate_');
     Directory(p.join(root.path, 'scripts')).createSync();
     _script.copySync(p.join(root.path, 'scripts', 'check-analyze-baseline.sh'));
+    File('${_repoRoot.path}/scripts/check-custom-lints.sh').copySync(
+      p.join(root.path, 'scripts', 'check-custom-lints.sh'),
+    );
     File(
       p.join(root.path, 'scripts', 'analyze-baseline.txt'),
     ).writeAsStringSync(baselineText);

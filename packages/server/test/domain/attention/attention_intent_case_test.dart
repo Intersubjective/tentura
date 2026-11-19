@@ -643,7 +643,7 @@ void main() {
           expect(intent.body, isNot(contains('Saturday')));
           expect(intent.body, contains('Questions'));
           expect(intent.title, isNot(contains('thread')));
-          expect(intent.actionUrl, '/#/beacon/lobby/$beacon');
+          expect(intent.actionUrl, '/#/beacon/questions/$beacon');
         }
       });
     });
