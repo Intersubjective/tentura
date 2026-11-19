@@ -44,8 +44,8 @@ abstract class BeaconRoomRepositoryPort {
     required String viewerUserId,
   });
 
-  /// [RoomViewerFacts] of [viewerUserId] for each existing Request of
-  /// [beaconIds], keyed by beacon id, read in one query.
+  /// [RoomViewerFacts] for the beacons in [beaconIds] whose content
+  /// [viewerUserId] can read, keyed by beacon id, read in one query.
   Future<Map<String, RoomViewerFacts>> roomViewerFacts(
     Iterable<String> beaconIds, {
     required String viewerUserId,

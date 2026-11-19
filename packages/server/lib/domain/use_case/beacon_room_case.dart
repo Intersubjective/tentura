@@ -1339,20 +1339,23 @@ class BeaconRoomCase extends UseCaseBase {
       return [];
     }
     final slice = unique.length > 80 ? unique.sublist(0, 80) : unique;
-    final snippets = await _factCards.publicFactSnippetsByBeaconIds(slice);
+    // Keep every requested id in the response. Only load context for beacons
+    // whose content the viewer can read, so the rest use the unknown-id row.
+    final facts = await _room.roomViewerFacts(slice, viewerUserId: userId);
+    final readable = facts.keys.toSet();
+    final snippets = await _factCards.publicFactSnippetsByBeaconIds(
+      readable.toList(),
+    );
     // #487 — one batched guarded read for every parent link in the slice
     // (PR #610 review: no per-Request round trip).
     final parents = await _hierarchyRepository.loadParentReferences(
-      childBeaconIds: slice.toSet(),
+      childBeaconIds: readable,
       viewerId: userId,
     );
     final postExcerpts = await _room.postRootExcerpts(
-      slice,
+      readable,
       viewerUserId: userId,
     );
-    // #747 — every per-Request fact below is one batched read for the whole
-    // slice, never a read per card.
-    final facts = await _room.roomViewerFacts(slice, viewerUserId: userId);
     final blockedPostAuthors = await _userBlockRepository.hiddenPeerIds(
       viewerId: userId,
       peerIds: {
@@ -1373,7 +1376,7 @@ class BeaconRoomCase extends UseCaseBase {
           f.beaconId: f,
     };
     final unread = await _room.unreadRoomSummaries(
-      slice,
+      readable,
       viewerUserId: userId,
     );
     final blockers = await _items.openBlockersByBeaconIds(
@@ -1527,6 +1530,7 @@ class BeaconRoomCase extends UseCaseBase {
     ];
   }
 
+  /// List activity after the caller's access to the beacon content is checked.
   Future<List<Map<String, Object?>>> listActivityEvents({
     required String beaconId,
     required String userId,

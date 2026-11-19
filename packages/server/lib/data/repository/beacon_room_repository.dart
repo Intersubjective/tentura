@@ -2208,6 +2208,7 @@ LEFT JOIN public.beacon_room_seen seen
   ON seen.beacon_id = b.id AND seen.user_id = $2
   AND seen.thread_item_id IS NULL
 WHERE b.id = ANY($1::text[])
+  AND public.beacon_can_read_content(b.id, $2)
 ''',
           variables: [
             Variable(TypedValue(Type.textArray, ids)),
