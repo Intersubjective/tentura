@@ -1914,8 +1914,11 @@ WHERE outbox.account_id = \$1
       (index) => '\$${index + 2}',
     ).join(', ');
     try {
-      return await _database.customUpdate(
-        '''
+      return await _withHistoryCloseUnseen(
+        accountId: accountId,
+        ids: ids,
+        updateReceipts: () => _database.customUpdate(
+          '''
 UPDATE public.notification_outbox outbox
 SET
   seen_at = NULL
@@ -1934,11 +1937,12 @@ WHERE outbox.account_id = \$1
       AND sibling.seen_at IS NULL
   )
 ''',
-        variables: [
-          Variable<String>(accountId),
-          for (final id in ids) Variable<String>(id),
-        ],
-        updateKind: UpdateKind.update,
+          variables: [
+            Variable<String>(accountId),
+            for (final id in ids) Variable<String>(id),
+          ],
+          updateKind: UpdateKind.update,
+        ),
       );
     } on UniqueViolationException {
       return 0;
@@ -1961,8 +1965,11 @@ WHERE outbox.account_id = \$1
     // facts (together, per notification_outbox__clear_facts_chk) and the read
     // axis. No unseen-sibling guard: un-clearing one row must not depend on
     // other rows of its dedup family.
-    return _database.customUpdate(
-      '''
+    return _withHistoryCloseUnseen(
+      accountId: accountId,
+      ids: ids,
+      updateReceipts: () => _database.customUpdate(
+        '''
 UPDATE public.notification_outbox outbox
 SET
   seen_at = NULL,
@@ -1978,12 +1985,58 @@ WHERE outbox.account_id = \$1
     FROM public.visible_attention_receipts(\$1)
   )
 ''',
-      variables: [
-        Variable<String>(accountId),
-        for (final id in ids) Variable<String>(id),
-      ],
-      updateKind: UpdateKind.update,
+        variables: [
+          Variable<String>(accountId),
+          for (final id in ids) Variable<String>(id),
+        ],
+        updateKind: UpdateKind.update,
+      ),
     );
+  }
+
+  Future<int> _withHistoryCloseUnseen({
+    required String accountId,
+    required List<String> ids,
+    required Future<int> Function() updateReceipts,
+  }) {
+    final closeIds = ids.where((id) => id.startsWith('inbox:')).toList();
+    if (closeIds.isEmpty) return updateReceipts();
+
+    final placeholders = List.generate(
+      closeIds.length,
+      (index) => '\$${index + 2}',
+    ).join(', ');
+    return _database.transaction(() async {
+      // History close cards have no outbox row to update. Reset only the
+      // viewer's seen outcome tick for a close card still listed in History.
+      final closeCards = await _database.customUpdate(
+        '''
+WITH ${AttentionRepository._visibleWithSurfaceCte},
+${AttentionRepository._requestEntryCte},
+${AttentionRepository._forwardRowsCtes},
+${AttentionRepository._historyRowsCte}
+UPDATE public.inbox_item ii
+SET outcome_seen_at = NULL
+WHERE ii.user_id = \$1
+  AND ii.status = 3
+  AND ii.tombstone_dismissed_at IS NULL
+  AND ii.outcome_changed_at <= ii.outcome_seen_at
+  AND ii.outcome_changed_by IS DISTINCT FROM \$1
+  AND ('inbox:' || ii.beacon_id) IN (
+    SELECT h.id FROM history_rows h
+    WHERE h.forward_outcome = 'closedBeforeResponse'
+      AND h.id IN ($placeholders)
+  )
+''',
+        variables: [
+          Variable<String>(accountId),
+          for (final id in closeIds) Variable<String>(id),
+        ],
+        updates: {_database.inboxItems},
+        updateKind: UpdateKind.update,
+      );
+      return closeCards + await updateReceipts();
+    });
   }
 
   @override
