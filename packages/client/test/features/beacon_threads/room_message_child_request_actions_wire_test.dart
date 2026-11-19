@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tentura_root/domain/entity/beacon_hierarchy_owner_summary.dart';
+import 'package:tentura_root/domain/entity/beacon_hierarchy_summary.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/app/router/root_router.dart';
@@ -22,6 +24,7 @@ import 'package:tentura/features/beacon_threads/domain/use_case/beacon_threads_c
 import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/beacon_child_promotion_footer.dart';
+import 'package:tentura/features/beacon_threads/ui/widget/beacon_hierarchy_notice.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/beacon_room_body.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_tile.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_text_body.dart';
@@ -222,14 +225,19 @@ void main() {
 
   Future<RoomHintWire> startWire(
     WidgetTester tester,
-    RoomHintWireServer server,
-  ) async {
+    RoomHintWireServer server, {
+    BeaconHierarchySummary? childPreview,
+  }) async {
     await usePhoneSurface(tester);
     addTearDown(GetIt.I.reset);
     registerRoomCubitProfileCubit(roomHintWireViewerId);
     final write = FakeBeaconWritePort();
+    final hierarchyPort = FakeBeaconHierarchyRepositoryPort();
+    if (childPreview != null) {
+      hierarchyPort.childPreviews[childPreview.beaconId] = childPreview;
+    }
     final hierarchy = buildBeaconHierarchyCaseForTest(
-      FakeBeaconHierarchyRepositoryPort(),
+      hierarchyPort,
       createCase: BeaconCreateCase(write, FakeBeaconImagePort()),
       beacons: write,
       commandStore: InMemoryBeaconChildCommandStore(),
@@ -244,6 +252,165 @@ void main() {
     addTearDown(() => tester.runAsync(wire.close));
     return wire;
   }
+
+  group('Child Request footers on loaded chat messages', () {
+    const childId = 'child-1';
+    const childTitle = 'Лестница для ремонта';
+    final preview = BeaconHierarchySummary(
+      beaconId: childId,
+      title: childTitle,
+      owner: const BeaconHierarchyOwnerSummary(
+        id: roomHintWireViewerId,
+        displayName: 'Автор',
+      ),
+      status: BeaconStatus.open,
+      publishedAt: DateTime.utc(2026, 6, 30, 12, 3),
+      isTombstone: false,
+    );
+
+    Finder tile(String id) => find.byWidgetPredicate(
+      (widget) => widget is RoomMessageTile && widget.message.id == id,
+      description: 'chat message tile for $id',
+    );
+
+    final footers = find.byType(BeaconChildPromotionFooter);
+    final sourceFooter = find.descendant(
+      of: tile(_sourceId),
+      matching: footers,
+    );
+
+    List<Map<String, dynamic>> page({
+      String? promotedId,
+      bool notice = false,
+    }) => [
+      if (notice)
+        _messageRow(_noticeId, '', 3)
+          ..['systemMessageKind'] = BeaconRoomSystemMessageKind.childCreated
+          ..['systemPayloadJson'] = jsonEncode({
+            'version': 1,
+            'kind': 'childCreated',
+            'childBeaconId': childId,
+            'sourceMessageId': _sourceId,
+            'title': childTitle,
+          }),
+      _messageWithChild(_ordinaryId, _otherText, 2, null),
+      _messageWithChild(_sourceId, _sourceText, 1, promotedId),
+    ];
+
+    void expectSourceFooterOnScreen(WidgetTester tester) {
+      expect(footers, findsOneWidget);
+      expect(sourceFooter, findsOneWidget);
+      expect(
+        tester.widget<BeaconChildPromotionFooter>(sourceFooter).childBeaconId,
+        childId,
+      );
+      expect(
+        find.descendant(of: sourceFooter, matching: find.text(childTitle)),
+        findsOneWidget,
+      );
+      final footerBounds = tester.getRect(sourceFooter);
+      final chatBounds = tester.getRect(find.byType(BasicChatBody));
+      expect(footerBounds.isEmpty, isFalse);
+      expect(footerBounds.intersect(Offset.zero & kPhoneSurface), footerBounds);
+      expect(footerBounds.intersect(chatBounds), footerBounds);
+      expect(tester.takeException(), isNull);
+    }
+
+    testWidgets(
+      'Request promotion stays visible and ends the message group '
+      'when its notice is outside the page',
+      (tester) async {
+        const capabilities = RoomCapabilities.request();
+        final server = RoomHintWireServer()..messageRows = page();
+        final wire = await startWire(tester, server, childPreview: preview);
+
+        await _openRoom(tester, wire, capabilities);
+        expect(tile(_sourceId), findsOneWidget);
+        expect(footers, findsNothing);
+        expect(
+          tester.widget<RoomMessageTile>(tile(_ordinaryId)).breakGroupAbove,
+          isFalse,
+        );
+        await _openActions(tester, _sourceText);
+        expect(_sheetText(l10n.beaconCreateChildRequest), findsOneWidget);
+        await _closeActions(tester);
+
+        // A notice alone still supplies the footer, and an overlapping notice
+        // and message field must share a single footer.
+        for (final promotedId in <String?>[null, childId]) {
+          await tester.pumpWidget(const SizedBox.shrink());
+          server.messageRows = page(promotedId: promotedId, notice: true);
+          final room = await _openRoom(tester, wire, capabilities);
+          _expectLoadedChildNotice(room);
+          expectSourceFooterOnScreen(tester);
+          expect(find.byType(BeaconHierarchyNotice), findsNothing);
+          expect(tile(_noticeId), findsNothing);
+          expect(
+            tester.widget<RoomMessageTile>(tile(_ordinaryId)).breakGroupAbove,
+            isTrue,
+          );
+        }
+
+        await tester.pumpWidget(const SizedBox.shrink());
+        server.messageRows = page(promotedId: childId);
+        final room = await _openRoom(tester, wire, capabilities);
+        expect(room.state.messages.map((message) => message.id), [
+          _sourceId,
+          _ordinaryId,
+        ]);
+        expect(
+          tester
+              .widget<RoomMessageTile>(tile(_sourceId))
+              .message
+              .promotedChildBeaconId,
+          childId,
+        );
+        await _openActions(tester, _sourceText);
+        expect(_sheetText(l10n.beaconCreateChildRequest), findsNothing);
+        await _closeActions(tester);
+
+        expect(
+          (
+            sourceFooters: sourceFooter.evaluate().length,
+            followingMessageStartsGroup: tester
+                .widget<RoomMessageTile>(tile(_ordinaryId))
+                .breakGroupAbove,
+          ),
+          (sourceFooters: 1, followingMessageStartsGroup: true),
+        );
+        expectSourceFooterOnScreen(tester);
+      },
+    );
+
+    testWidgets(
+      'a Post message shows its child Request when the notice is outside '
+      'the page',
+      (tester) async {
+        final server = RoomHintWireServer()
+          ..messageRows = page(
+            promotedId: childId,
+          );
+        final wire = await startWire(tester, server, childPreview: preview);
+        final room = await _openRoom(
+          tester,
+          wire,
+          const RoomCapabilities.post(),
+        );
+        expect(room.state.messages.map((message) => message.id), [
+          _sourceId,
+          _ordinaryId,
+        ]);
+        expect(
+          tester
+              .widget<RoomMessageTile>(tile(_sourceId))
+              .message
+              .promotedChildBeaconId,
+          childId,
+        );
+        expectSourceFooterOnScreen(tester);
+      },
+    );
+  });
 
   group('Published child on room messages', () {
     for (final targetOnly in [false, true]) {

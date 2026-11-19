@@ -647,11 +647,7 @@ class BasicChatBodyState extends State<BasicChatBody> {
     final messages = widget.messages;
     final showListContent = !widget.hasError || messages.isNotEmpty;
 
-    // The new hierarchy child-creation system never marks its own source
-    // message (plan §3.4.9) — only the sibling `childCreated` notice row
-    // carries `sourceMessageId`. Derive the reverse mapping once per build
-    // so each tile can find its own promoted-child footer target, if any.
-    final promotedChildBySourceMessageId = <String, String>{};
+    final childIdFromNoticeBySource = <String, String>{};
     final loadedMessageIds = <String>{};
     for (final m in messages) {
       loadedMessageIds.add(m.id);
@@ -659,17 +655,15 @@ class BasicChatBodyState extends State<BasicChatBody> {
       if (payload is RoomMessageHierarchyChildCreated) {
         final sourceMessageId = payload.sourceMessageId;
         if (sourceMessageId != null) {
-          promotedChildBySourceMessageId[sourceMessageId] =
-              payload.childBeaconId;
+          childIdFromNoticeBySource[sourceMessageId] = payload.childBeaconId;
         }
       }
     }
 
-    // When the promotion source is in this loaded page, the source bubble
-    // already carries the preview footer — hide the sibling notice card so
-    // we never show two full cards for one publication. Keep building the
-    // reverse map from the full list so pagination / source-missing stays
-    // correct when the notice is the only row present.
+    String? promotedChildFor(RoomMessage message) =>
+        message.promotedChildBeaconId ?? childIdFromNoticeBySource[message.id];
+
+    // Hide redundant notices after collecting their child IDs for the footer.
     final visibleMessages = [
       for (final m in messages)
         if (!isRedundantChildCreatedNotice(m, loadedMessageIds)) m,
@@ -759,8 +753,7 @@ class BasicChatBodyState extends State<BasicChatBody> {
 
                             final toggle = widget.onToggleReaction;
                             final vote = widget.onVotePoll;
-                            final promotedChildBeaconId =
-                                promotedChildBySourceMessageId[m.id];
+                            final promotedChildBeaconId = promotedChildFor(m);
                             final pinnedFact = widget.pinnedFactForMessage
                                 ?.call(
                                   m,
@@ -775,9 +768,7 @@ class BasicChatBodyState extends State<BasicChatBody> {
                               breakGroupAbove:
                                   dateChanged ||
                                   showUnreadBand ||
-                                  promotedChildBySourceMessageId.containsKey(
-                                    prev.id,
-                                  ),
+                                  promotedChildFor(prev) != null,
                               onActionsPressed: onMessageActions == null
                                   ? null
                                   : (message) => onMessageActions(

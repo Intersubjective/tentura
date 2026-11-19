@@ -143,18 +143,16 @@ class RoomMessageTile extends StatelessWidget {
   /// Sender read/delivery state for the viewer's own messages; ignored for others.
   final RoomMessageReceipt? receipt;
 
-  /// Set by the caller when this message is a promotion source with a
-  /// published child (derived from sibling `childCreated` notice rows'
-  /// `sourceMessageId`, since the new hierarchy system never marks the
-  /// source message itself — plan §3.4.9/§6.2). Renders
-  /// [BeaconChildPromotionFooter] below the ordinary bubble when set.
+  /// The source message's published child ID, with a loaded `childCreated`
+  /// notice as a fallback. Enables [BeaconChildPromotionFooter] below the
+  /// bubble in rooms that support child promotion.
   final String? promotedChildBeaconId;
 
   final RoomMessage? previousMessage;
 
   final RoomMessage? nextMessage;
 
-  /// True when a date pill or unread band sits directly above this tile.
+  /// True when a date pill, unread band, or promoted child ends the group above.
   final bool breakGroupAbove;
 
   /// Current user (for aligning / styling mine vs others').
