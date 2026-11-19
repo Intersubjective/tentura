@@ -277,6 +277,7 @@ sealed class RoomBatonData {
       eligibleCount: eligibleCount is num ? eligibleCount.toInt() : 0,
       taker: RoomBatonTaker._tryParse(map['taker']),
       coTaker: RoomBatonTaker._tryParse(map['coTaker']),
+      displayCoTakerFirst: map['displayCoTakerFirst'] == true,
       selectionMode: RoomBatonSelectionMode.fromWire(map['selectionMode']),
       pairs: pairs,
     );
@@ -324,6 +325,7 @@ sealed class RoomBatonData {
       status: status,
       taker: taker,
       coTaker: RoomBatonTaker._tryParse(map['coTaker']),
+      displayCoTakerFirst: map['displayCoTakerFirst'] == true,
     );
   }
 }
@@ -338,6 +340,7 @@ class RoomBatonAuthorData extends RoomBatonData {
     required this.eligibleCount,
     this.taker,
     this.coTaker,
+    this.displayCoTakerFirst = false,
     this.selectionMode,
     this.pairs = const [],
   });
@@ -349,6 +352,7 @@ class RoomBatonAuthorData extends RoomBatonData {
   final int eligibleCount;
   final RoomBatonTaker? taker;
   final RoomBatonTaker? coTaker;
+  final bool displayCoTakerFirst;
   final RoomBatonSelectionMode? selectionMode;
   final List<RoomBatonConfirmedPair> pairs;
 
@@ -438,9 +442,11 @@ class RoomBatonObserverData extends RoomBatonData {
     required super.status,
     this.taker,
     this.coTaker,
+    this.displayCoTakerFirst = false,
   });
 
   /// Set exactly when [status] is [RoomBatonStatus.taken].
   final RoomBatonTaker? taker;
   final RoomBatonTaker? coTaker;
+  final bool displayCoTakerFirst;
 }

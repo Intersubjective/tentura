@@ -542,8 +542,18 @@ JOIN public.beacon_fact_card_revision r
       viewerUserId: viewerUserId,
     );
 
-    final batonDataJsonByMid = await _batonDataJsonByMessageIds(
-      messageIds: ids,
+    String? pairSourceId(BeaconRoomMessage message) =>
+        switch ((message.semanticMarker, message.systemPayload)) {
+          (
+            BeaconRoomSemanticMarker.batonTaken,
+            {'sourceMessageId': final String id, 'coTakerUserId': String()},
+          ) =>
+            id,
+          _ => null,
+        };
+
+    final batonByMessageId = await _batonProjectionsByMessageId(
+      messageIds: {...ids, for (final m in msgs) ?pairSourceId(m)}.toList(),
       viewerUserId: viewerUserId,
     );
 
@@ -701,11 +711,18 @@ JOIN public.beacon_fact_card_revision r
               .toIso8601String(),
         },
         'pollDataJson': pollDataJsonByMid[id],
-        'batonDataJson': batonDataJsonByMid[id],
+        'batonDataJson': batonByMessageId[id]?.dataJson,
         'systemPayloadJson': encodeSystemPayload(
-          restrictedClosures.contains(id)
-              ? const {'reason': PostClosedNoticeReason.closedByAuthor}
-              : m.systemPayload,
+          switch (m.systemPayload) {
+            _ when restrictedClosures.contains(id) => const {
+              'reason': PostClosedNoticeReason.closedByAuthor,
+            },
+            final Map<String, Object?> payload
+                when batonByMessageId[pairSourceId(m)]?.displayCoTakerFirst ==
+                    true =>
+              {...payload, 'displayCoTakerFirst': true},
+            final payload => payload,
+          },
         ),
         'authorTitle': displayName,
         'authorHasPicture': authorHasPicture,
@@ -765,8 +782,9 @@ JOIN public.beacon_fact_card_revision r
     return rows.isEmpty ? null : rows.first;
   }
 
-  /// Per-viewer «Who'll take it?» payload (plan §1.4); absent key = `null`.
-  Future<Map<String, String?>> _batonDataJsonByMessageIds({
+  /// Per-viewer baton data and the display order shared with the room marker.
+  Future<Map<String, ({String dataJson, bool displayCoTakerFirst})>>
+  _batonProjectionsByMessageId({
     required List<String> messageIds,
     required String viewerUserId,
   }) async {
@@ -863,7 +881,7 @@ ORDER BY tier, user_id
         ? BatonResponse.waiting
         : responseOf(c);
 
-    final out = <String, String?>{};
+    final out = <String, ({String dataJson, bool displayCoTakerFirst})>{};
     for (final b in batonRows) {
       final batonId = b.read<String>('id');
       final status = BatonStatus.fromSmallint(b.read<int>('status'));
@@ -898,11 +916,23 @@ ORDER BY tier, user_id
       // candidate with the smaller id.
       bool isSecondOfMutualPair(QueryRow c) {
         final partnerId = acceptedPartnerOf(c);
+        if (partnerId == null) return false;
         final other = candidateOf(partnerId);
         return other != null &&
             acceptedPartnerOf(other) == c.read<String>('user_id') &&
-            c.read<String>('user_id').compareTo(partnerId!) > 0;
+            c.read<String>('user_id').compareTo(partnerId) > 0;
       }
+
+      // A mutual pair is listed under its smaller ID, but selection assigns
+      // the taker role to the earlier answer. Keep that role and order only
+      // the displayed names as in the Choose list.
+      final takerCandidate = candidateOf(takerId);
+      final displayCoTakerFirst =
+          taken &&
+          takerCandidate != null &&
+          coTakerId != null &&
+          acceptedPartnerOf(takerCandidate) == coTakerId &&
+          isSecondOfMutualPair(takerCandidate);
 
       // Invitations naming the viewer that are still pending or accepted.
       final invites = <Map<String, Object?>>[];
@@ -964,6 +994,7 @@ ORDER BY tier, user_id
           if (taken) ...{
             'taker': taker(),
             if (coTakerId != null) 'coTaker': coTaker(),
+            if (displayCoTakerFirst) 'displayCoTakerFirst': true,
             'selectionMode':
                 b.readNullable<int>('selection_mode') ==
                     BatonSelectionMode.manual.smallintValue
@@ -1042,11 +1073,15 @@ ORDER BY tier, user_id
             if (taken) ...{
               'taker': taker(),
               if (coTakerId != null) 'coTaker': coTaker(),
+              if (displayCoTakerFirst) 'displayCoTakerFirst': true,
             },
           };
         }
       }
-      out[b.read<String>('message_id')] = jsonEncode(payload);
+      out[b.read<String>('message_id')] = (
+        dataJson: jsonEncode(payload),
+        displayCoTakerFirst: displayCoTakerFirst,
+      );
     }
     return out;
   }

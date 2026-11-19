@@ -126,6 +126,7 @@ class RoomBatonCard extends StatelessWidget {
         status: observer.status,
         taker: observer.taker,
         coTaker: observer.coTaker,
+        displayCoTakerFirst: observer.displayCoTakerFirst,
         participants: participants,
       ),
       final RoomBatonAuthorData author => _AuthorBody(
@@ -185,6 +186,7 @@ class _StatusLine extends StatelessWidget {
   const _StatusLine({
     required this.status,
     required this.participants,
+    required this.displayCoTakerFirst,
     this.taker,
     this.coTaker,
   });
@@ -192,6 +194,7 @@ class _StatusLine extends StatelessWidget {
   final RoomBatonStatus status;
   final RoomBatonTaker? taker;
   final RoomBatonTaker? coTaker;
+  final bool displayCoTakerFirst;
   final List<BeaconParticipant> participants;
 
   @override
@@ -201,9 +204,12 @@ class _StatusLine extends StatelessWidget {
     final taker = this.taker;
     final coTaker = this.coTaker;
     if (status == RoomBatonStatus.taken && taker != null) {
+      final (first, second) = displayCoTakerFirst && coTaker != null
+          ? (coTaker, taker)
+          : (taker, coTaker);
       return Row(
         children: [
-          for (final person in [taker, ?coTaker]) ...[
+          for (final person in [first, ?second]) ...[
             batonPersonAvatar(
               userId: person.id,
               title: person.title,
@@ -213,9 +219,9 @@ class _StatusLine extends StatelessWidget {
           ],
           Expanded(
             child: Text(
-              coTaker == null
-                  ? l10n.batonTookIt(taker.title)
-                  : l10n.batonTookItPair(taker.title, coTaker.title),
+              second == null
+                  ? l10n.batonTookIt(first.title)
+                  : l10n.batonTookItPair(first.title, second.title),
               style: TenturaText.body(tt.text),
             ),
           ),
@@ -363,6 +369,7 @@ class _AuthorBody extends StatelessWidget {
         status: baton.status,
         taker: baton.taker,
         coTaker: baton.coTaker,
+        displayCoTakerFirst: baton.displayCoTakerFirst,
         participants: participants,
       );
     }

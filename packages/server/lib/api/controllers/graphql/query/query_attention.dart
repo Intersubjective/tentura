@@ -470,6 +470,7 @@ final class QueryAttention extends GqlNodeBase {
     // #665: an accepted helper's forward row, admitted by accepting the
     // author's invitation rather than by an accepted offer.
     'acceptedInvite',
+    'accepted',
     // #725: a "not interested" forward row that answered an author
     // invitation ("Can't make it").
     'declinedInvite',

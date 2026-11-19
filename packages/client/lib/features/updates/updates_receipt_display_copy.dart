@@ -410,9 +410,14 @@ UpdatesFeedRowCopy? batonReceiptDisplayCopy({
       body: excerpt,
     ),
     'batonTaken' || 'baton_taken' => UpdatesFeedRowCopy(
-      headline: partner != null && partner.isNotEmpty
-          ? l10n.batonReceiptTakenTogether(partner, excerpt)
-          : l10n.batonReceiptTaken(excerpt),
+      headline: switch ((partner, excerpt)) {
+        (final String name, '') when name.isNotEmpty =>
+          l10n.batonOutcomeYouTogether(name),
+        (_, '') => l10n.batonOutcomeYou,
+        (final String name, _) when name.isNotEmpty =>
+          l10n.batonReceiptTakenTogether(name, excerpt),
+        _ => l10n.batonReceiptTaken(excerpt),
+      },
       body: '',
     ),
     'batonAllAnswered' || 'baton_all_answered' => UpdatesFeedRowCopy(

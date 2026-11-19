@@ -272,7 +272,7 @@ class RequestAttentionCard extends StatelessWidget {
                     key: changeLineKey,
                     receipt: change,
                     text: _changeText(l10n, change),
-                    carriesReason: _changeCarriesReason(change),
+                    wrapHeadline: _changeWrapsHeadline(change),
                     onTap: onEventTap == null
                         ? null
                         : () => onEventTap!(change),
@@ -681,15 +681,22 @@ class RequestAttentionCard extends StatelessWidget {
     };
   }
 
-  /// The author's own words ride the line (a decline, removal or release
-  /// reason), so it wraps instead of cutting the reason off at one line.
-  bool _changeCarriesReason(AttentionReceipt receipt) {
+  /// Keep the full baton outcome and any reason carried by a change line.
+  bool _changeWrapsHeadline(AttentionReceipt receipt) {
     final payload = receipt.presentationPayloadJson;
     // A withdrawal or «Can't help» line names the person and their reason.
     if (whoDidWhatEventTypeOf(payload) != null) return true;
+    final eventType = attentionEventTypeOf(payload) ?? receipt.presentationKey;
+    switch (eventType) {
+      case 'batonTaken' ||
+          'baton_taken' ||
+          'batonPartnerAnswered' ||
+          'baton_partner_answered':
+        return true;
+    }
     final words = excerptFromPresentationPayload(payload) ?? '';
     if (words.isEmpty || words == beacon.title) return false;
-    return switch (attentionEventTypeOf(payload)) {
+    return switch (eventType) {
       'offerDeclined' || 'offerRemoved' || 'commitmentReleased' => true,
       _ => false,
     };
@@ -1054,7 +1061,7 @@ class _ChangeLine extends StatelessWidget {
   const _ChangeLine({
     required this.receipt,
     required this.text,
-    this.carriesReason = false,
+    this.wrapHeadline = false,
     this.onTap,
     super.key,
   });
@@ -1062,9 +1069,8 @@ class _ChangeLine extends StatelessWidget {
   final AttentionReceipt receipt;
   final String text;
 
-  /// A reason (at most a short excerpt) wraps to a few lines; every other
-  /// change line stays one line.
-  final bool carriesReason;
+  /// Longer headlines wrap to a few lines.
+  final bool wrapHeadline;
   final VoidCallback? onTap;
 
   // The age, and the spoken line carrying it, follow the shared clock, so
@@ -1114,7 +1120,7 @@ class _ChangeLine extends StatelessWidget {
                 Expanded(
                   child: Text(
                     text,
-                    maxLines: carriesReason ? kChangeLineReasonMaxLines : 1,
+                    maxLines: wrapHeadline ? kChangeLineReasonMaxLines : 1,
                     overflow: TextOverflow.ellipsis,
                     style: style,
                   ),

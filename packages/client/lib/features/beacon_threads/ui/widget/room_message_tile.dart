@@ -254,31 +254,26 @@ class RoomMessageTile extends StatelessWidget {
   static const _batonAskExcerptMaxChars = 80;
 
   /// Taker of a «{name} took it.» system line; null without a usable payload.
-  static String? batonTakerUserId(RoomMessage m) {
-    final raw = m.systemPayloadJson;
-    if (raw == null || raw.trim().isEmpty) return null;
-    try {
-      final decoded = jsonDecode(raw);
-      if (decoded is! Map<String, dynamic>) return null;
-      final taker = decoded['takerUserId'];
-      return taker is String && taker.trim().isNotEmpty ? taker.trim() : null;
-    } on Object {
-      return null;
-    }
-  }
+  static String? batonTakerUserId(RoomMessage m) => _batonTaken(m)?.taker;
 
   /// Co-taker on a «{A} and {X} took it.» system line; null when solo.
-  static String? batonCoTakerUserId(RoomMessage m) {
-    final raw = m.systemPayloadJson;
+  static String? batonCoTakerUserId(RoomMessage m) => _batonTaken(m)?.coTaker;
+
+  static ({String? taker, String? coTaker, bool displayCoTakerFirst})?
+  _batonTaken(RoomMessage message) {
+    final raw = message.systemPayloadJson;
     if (raw == null || raw.trim().isEmpty) return null;
     try {
       final decoded = jsonDecode(raw);
       if (decoded is! Map<String, dynamic>) return null;
-      final coTaker = decoded['coTakerUserId'];
-      return coTaker is String && coTaker.trim().isNotEmpty
-          ? coTaker.trim()
-          : null;
-    } on Object {
+      String? userId(Object? value) =>
+          value is String && value.trim().isNotEmpty ? value.trim() : null;
+      return (
+        taker: userId(decoded['takerUserId']),
+        coTaker: userId(decoded['coTakerUserId']),
+        displayCoTakerFirst: decoded['displayCoTakerFirst'] == true,
+      );
+    } on FormatException {
       return null;
     }
   }
@@ -897,8 +892,15 @@ class RoomMessageTile extends StatelessWidget {
     }
 
     if (message.semanticMarker == BeaconRoomSemanticMarker.batonTaken) {
-      final takerId = batonTakerUserId(message);
-      if (takerId == null) return const SizedBox.shrink();
+      final outcome = _batonTaken(message);
+      final takerId = outcome?.taker;
+      if (outcome == null || takerId == null) {
+        return const SizedBox.shrink();
+      }
+      final coTakerId = outcome.coTaker;
+      final (first, second) = outcome.displayCoTakerFirst && coTakerId != null
+          ? (coTakerId, takerId)
+          : (takerId, coTakerId);
       // The baton card right above already says «{name} took it.» (#479):
       // the line would only repeat it.
       final sourceId = message.sourceMessageId;
@@ -907,18 +909,17 @@ class RoomMessageTile extends StatelessWidget {
       }
       final name = _participantDisplayName(
         participants: participants,
-        userId: takerId,
+        userId: first,
         viewer: myProfile,
         l10n: l10n,
       );
       // Further down the room, say what was taken.
       final ask = sourceId == null ? null : _batonAskExcerpt(context, sourceId);
-      final coTakerId = batonCoTakerUserId(message);
-      final coName = coTakerId == null
+      final coName = second == null
           ? null
           : _participantDisplayName(
               participants: participants,
-              userId: coTakerId,
+              userId: second,
               viewer: myProfile,
               l10n: l10n,
             );
