@@ -98,6 +98,13 @@ void main() {
     'copied fact history fits short revisions and scrolls longer ones '
     'by mouse wheel',
     (tester) async {
+      // This journey needs a 375x667 app viewport. The runner must launch
+      // headless Chrome at 375x806 to allow for its 139 px toolbar.
+      expect(
+        tester.view.physicalSize / tester.view.devicePixelRatio,
+        const Size(375, 667),
+        reason: 'Fact history requires a 375x667 logical browser viewport.',
+      );
       final l10n = await L10n.delegate.load(const Locale('ru'));
       await launchApp(app.main);
       final fixture = await bootstrapFixture(
@@ -171,6 +178,7 @@ void main() {
       expect(seq, 8);
 
       await _openHistory(tester, copy.factCardId, l10n);
+      expect(MediaQuery.sizeOf(tester.element(_history)), viewport);
       final firstBody = _inHistory(
         find.textContaining(lines, findRichText: true),
       ).first;

@@ -5,6 +5,7 @@
 # is set explicitly:
 #   - constellation_trust_chain_edges_phone_test.dart asserts a 375x667 app
 #     viewport; Chrome's toolbar takes 139 px, so the window is 375x806.
+#   - fact_history_phone_web_test.dart needs the same 375x667 app viewport.
 #   - request_threads_navigation_test.dart keeps its 390x844 window.
 #   - every other target keeps the 1600x1024 default.
 # An explicit BROWSER_DIMENSION always wins. Everything the runner shells out
@@ -28,6 +29,7 @@ stub() {
 }
 
 PHONE_TARGET=integration_test/constellation_trust_chain_edges_phone_test.dart
+FACT_HISTORY_TARGET=integration_test/fact_history_phone_web_test.dart
 THREADS_TARGET=integration_test/request_threads_navigation_test.dart
 OTHER_TARGET=integration_test/placement_probe_test.dart
 
@@ -104,6 +106,13 @@ expect_dimension() {
   grep -qF "=== flutter drive: $target (browser $dimension)" "$OUT" \
     || fail "$label: log must read '=== flutter drive: $target (browser $dimension)'"
 }
+
+run_case fact_history_default "$FACT_HISTORY_TARGET"
+expect_dimension "fact history, BROWSER_DIMENSION unset" "$FACT_HISTORY_TARGET" 375x806
+grep -qF "PASS: $FACT_HISTORY_TARGET" "$OUT" \
+  || fail "fact history: runner must report PASS when flutter drive succeeds"
+ok "fact history defaults to a 375x806 window (a 375x667 app viewport)"
+[[ "${1:-}" != --fact-history-only ]] || exit 0
 
 run_case phone_default "$PHONE_TARGET"
 expect_dimension "phone smoke, BROWSER_DIMENSION unset" "$PHONE_TARGET" 375x806
