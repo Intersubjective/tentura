@@ -25,6 +25,16 @@ import 'room_typing_wire_harness.dart' show RoomTypingWireSocket;
 
 const roomHintWireViewerId = 'Uviewer000001';
 
+// The GraphqlController response for a missing room message on older servers.
+const roomMessageTargetNotFoundResponse = {
+  'errors': [
+    {
+      'message': 'Message is not on this request',
+      'extensions': {'code': '1002', 'path': ''},
+    },
+  ],
+};
+
 /// The fake backend: answers the GraphQL root fields the room refetches on a
 /// hint from mutable state, so a test can change what the server reports
 /// between the first load and the hint.
@@ -33,6 +43,7 @@ final class RoomHintWireServer {
   List<Map<String, dynamic>> messageRows = [];
 
   final messageTargets = <String, Map<String, dynamic>>{};
+  final messageTargetResponses = <String, Map<String, dynamic>>{};
   final requestedMessageTargetIds = <String>[];
 
   /// `BeaconRoomReadWatermarks` rows, as `v2_v2_RoomReadWatermark`.
@@ -66,6 +77,9 @@ final class RoomHintWireServer {
       final variables = body['variables'] as Map<String, dynamic>;
       final messageId = variables['messageId'] as String;
       requestedMessageTargetIds.add(messageId);
+      if (messageTargetResponses[messageId] case final response?) {
+        return _json(response);
+      }
       final row = messageTargets[messageId];
       return _json({
         'data': {
@@ -263,6 +277,7 @@ class RoomOverRealHintWireRepository extends FakeBeaconThreadsRepository {
     : super(userId: roomHintWireViewerId);
 
   final BeaconThreadsRepository _real;
+  final messageTargetResults = <RoomMessage?>[];
 
   @override
   Stream<BeaconRoomInvalidation> get beaconRoomInvalidations =>
@@ -286,7 +301,14 @@ class RoomOverRealHintWireRepository extends FakeBeaconThreadsRepository {
   Future<RoomMessage?> fetchMessageTarget({
     required String beaconId,
     required String messageId,
-  }) => _real.fetchMessageTarget(beaconId: beaconId, messageId: messageId);
+  }) async {
+    final result = await _real.fetchMessageTarget(
+      beaconId: beaconId,
+      messageId: messageId,
+    );
+    messageTargetResults.add(result);
+    return result;
+  }
 
   @override
   Future<List<RoomReadWatermark>> fetchMainRoomReadWatermarks(

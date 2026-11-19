@@ -28,6 +28,7 @@ import 'package:tentura/domain/entity/room_read_watermark.dart';
 import 'package:tentura/domain/entity/room_message_attachment.dart';
 import 'package:tentura/domain/entity/room_message_mention_span.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
+import 'package:tentura/domain/exception/generic_exception.dart';
 import 'package:tentura/domain/port/realtime_sync_port.dart';
 
 import '../gql/_g/beacon_participant_list.req.gql.dart';
@@ -321,17 +322,26 @@ class BeaconThreadsRepository {
     required String beaconId,
     required String messageId,
   }) async {
-    final r = await _remoteApiService
-        .request(
-          GRoomMessageTargetReq(
-            (b) => b.vars
-              ..beaconId = beaconId
-              ..messageId = messageId,
-          ),
-        )
-        .firstLinkResponse(label: _label);
-    final target = r.dataOrThrow(label: _label).roomMessageTarget;
-    return target == null ? null : _toRoomMessageTarget(target);
+    try {
+      final r = await _remoteApiService
+          .request(
+            GRoomMessageTargetReq(
+              (b) => b.vars
+                ..beaconId = beaconId
+                ..messageId = messageId,
+            ),
+          )
+          .firstLinkResponse(label: _label);
+      final target = r.dataOrThrow(label: _label).roomMessageTarget;
+      return target == null ? null : _toRoomMessageTarget(target);
+    } on RemoteApiException catch (error) {
+      // Older servers sent this error for a missing target.
+      if (error.code == '1002' &&
+          error.message == 'Message is not on this request') {
+        return null;
+      }
+      rethrow;
+    }
   }
 
   static RoomMessage _toRoomMessageTarget(

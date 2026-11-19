@@ -877,7 +877,8 @@ class RoomCubit extends Cubit<RoomState> {
   }
 
   /// Queues scrolling to a coordination item’s room thread after messages load
-  /// (or immediately if messages are already present). Cleared when applied.
+  /// (or immediately if messages are already present). A message target is
+  /// cleared once applied or confirmed absent.
   void prepareThreadScroll({
     String? messageId,
     String? coordinationItemId,
@@ -1061,14 +1062,17 @@ class RoomCubit extends Cubit<RoomState> {
         threadItemId: state.threadItemId,
       );
       final pendingMessageId = _pendingThreadMessageId;
-      final target =
-          pendingMessageId == null ||
-              rawMessages.any((message) => message.id == pendingMessageId)
-          ? null
-          : await _case.fetchMessageTarget(
-              beaconId: state.beaconId,
-              messageId: pendingMessageId,
-            );
+      RoomMessage? target;
+      if (pendingMessageId != null &&
+          !rawMessages.any((message) => message.id == pendingMessageId)) {
+        target = await _case.fetchMessageTarget(
+          beaconId: state.beaconId,
+          messageId: pendingMessageId,
+        );
+        if (target == null && _pendingThreadMessageId == pendingMessageId) {
+          _pendingThreadMessageId = null;
+        }
+      }
       // The server refuses the participant list outside the room.
       final participantsF = state.lobbyCanPost != null
           ? Future.value(const <BeaconParticipant>[])

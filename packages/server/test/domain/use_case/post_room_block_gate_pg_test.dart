@@ -1,10 +1,17 @@
 @Tags(['pg'])
 library;
 
+import 'dart:convert';
+
 import 'package:injectable/injectable.dart' show Environment;
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:postgres/postgres.dart';
+import 'package:shelf/shelf.dart';
+import 'package:tentura_server/api/controllers/graphql/input/_input_types.dart';
+import 'package:tentura_server/api/controllers/graphql/query/query_beacon_room.dart';
+import 'package:tentura_server/api/controllers/graphql/schema.dart';
+import 'package:tentura_server/api/controllers/graphql_controller.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
 import 'package:tentura_server/data/repository/attention_dispatch_repository.dart';
@@ -22,6 +29,7 @@ import 'package:tentura_server/data/repository/post_lock_repository.dart';
 import 'package:tentura_server/data/repository/user_block_repository.dart';
 import 'package:tentura_server/data/repository/user_repository.dart';
 import 'package:tentura_server/domain/exception.dart';
+import 'package:tentura_server/domain/entity/jwt_entity.dart';
 import 'package:tentura_server/domain/policy/discussion_product_policy.dart';
 import 'package:tentura_server/domain/port/beacon_fact_card_repository_port.dart';
 import 'package:tentura_server/domain/port/image_repository_port.dart';
@@ -242,6 +250,122 @@ VALUES
 
     Future<void> recipientBlocksAuthor() =>
         blocks.block(blockerId: _recipient, blockedId: _author, cascadeMode: 0);
+
+    group('Post Chat after a member deletes a reply', () {
+      late String deletedReplyId;
+      late String survivingReplyId;
+
+      setUp(() async {
+        Future<String> reply(String body) async {
+          final row = await roomCase.createMessage(
+            beaconId: _post,
+            userId: _recipient,
+            body: body,
+            replyToMessageId: _postRootMessage,
+          );
+          return row['id']! as String;
+        }
+
+        deletedReplyId = await reply('I can help');
+        survivingReplyId = await reply('I am still available');
+        expect(
+          await roomCase.deleteMessage(
+            beaconId: _post,
+            userId: _recipient,
+            messageId: deletedReplyId,
+          ),
+          isTrue,
+        );
+        final deletedRows = await writer.execute(
+          Sql.named('SELECT id FROM public.beacon_room_message WHERE id = @id'),
+          parameters: {'id': deletedReplyId},
+        );
+        expect(deletedRows, isEmpty);
+      });
+
+      test('the author can resolve a deleted reply as absent', () async {
+        expect(
+          await roomCase.roomMessageTarget(
+            beaconId: _post,
+            messageId: deletedReplyId,
+            userId: _author,
+          ),
+          isNull,
+        );
+      });
+
+      test(
+        'GraphQL returns a null target without an error',
+        () async {
+          final query = QueryBeaconRoom(beaconRoomCase: roomCase);
+          final controller = GraphqlController(
+            target.databaseEnv,
+            schema: TenturaGraphQL(
+              GraphQLSchema(
+                queryType: GraphQLObjectType('Query', null)
+                  ..fields.add(query.roomMessageTarget),
+              ),
+            ),
+          );
+          final response = await controller.handler(
+            Request(
+              'POST',
+              Uri.parse('http://localhost/api/v2/graphql'),
+              context: {kGlobalInputQueryJwt: const JwtEntity(sub: _author)},
+              headers: {'content-type': 'application/json'},
+              body: jsonEncode({
+                'query':
+                    '''
+{
+  roomMessageTarget(beaconId: "$_post", messageId: "$deletedReplyId") { id }
+}
+''',
+              }),
+            ),
+          );
+          expect(response.statusCode, 200);
+          final payload =
+              jsonDecode(await response.readAsString()) as Map<String, dynamic>;
+          expect(payload, isNot(contains('errors')));
+          expect(payload['data'], containsPair('roomMessageTarget', null));
+        },
+      );
+
+      test(
+        'the author still sees the surviving General Chat replies',
+        () async {
+          final messages = await roomCase.listMessages(
+            beaconId: _post,
+            userId: _author,
+          );
+          final ids = messages.map((row) => row['id']);
+          expect(ids, isNot(contains(deletedReplyId)));
+          expect(
+            ids,
+            unorderedEquals([
+              _postRootMessage,
+              _recipientPostMessage,
+              survivingReplyId,
+            ]),
+          );
+        },
+      );
+
+      test(
+        'the member without room access is denied an existing reply',
+        () async {
+          await authorBlocksRecipient();
+          await expectLater(
+            roomCase.roomMessageTarget(
+              beaconId: _post,
+              messageId: survivingReplyId,
+              userId: _recipient,
+            ),
+            throwsA(isA<UnauthorizedException>()),
+          );
+        },
+      );
+    });
 
     Future<int> reactionCount(String messageId, String userId) async {
       final rows = await writer.execute(

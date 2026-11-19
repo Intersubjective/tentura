@@ -1144,13 +1144,14 @@ class BeaconRoomCase extends UseCaseBase {
   }
 
   /// Resolves one exact Chat target after checking the target's actual scope.
-  Future<Map<String, Object?>> roomMessageTarget({
+  Future<Map<String, Object?>?> roomMessageTarget({
     required String beaconId,
     required String messageId,
     required String userId,
   }) async {
     final message = await _room.getRoomMessageById(messageId);
-    if (message == null || message.beaconId != beaconId) {
+    if (message == null) return null;
+    if (message.beaconId != beaconId) {
       throw IdNotFoundException(
         id: messageId,
         description: 'Message is not on this request',
@@ -1184,15 +1185,11 @@ class BeaconRoomCase extends UseCaseBase {
         await _userBlockRepository.isBlockedPair(a: userId, b: targetAuthor)) {
       throw IdNotFoundException(id: messageId);
     }
-    final target = await _room.roomMessageTarget(
+    return _room.roomMessageTarget(
       beaconId: beaconId,
       messageId: messageId,
       viewerUserId: userId,
     );
-    if (target == null) {
-      throw IdNotFoundException(id: messageId);
-    }
-    return target;
   }
 
   Future<Map<String, Object?>> beaconRoomStateGet({

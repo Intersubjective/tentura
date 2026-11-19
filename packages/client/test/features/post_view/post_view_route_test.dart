@@ -52,6 +52,7 @@ import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/features/updates/ui/bloc/updates_feed_cubit.dart';
 import 'package:tentura/features/updates/ui/widget/updates_feed_pane.dart';
 import 'package:tentura/ui/effect/ui_effect_bus.dart';
+import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_handler.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/navigation/app_navigator.dart';
@@ -217,6 +218,7 @@ Future<RootStackRouter> _pumpRoute(
 }) async {
   _requestOnlyTouches.clear();
   await registerBeaconViewHarnessGetIt(profile: _viewer, roomRepo: roomRepo);
+  if (effects != null) await _register<UiEffectPort>(effects);
   await _register<BeaconKindRepository>(kinds);
   await _register<BeaconRepository>(beacons);
   if (withRequestCollaborators) {
@@ -468,6 +470,27 @@ class _WirePostChatRepository extends RoomOverRealHintWireRepository
   _WirePostChatRepository(super._real);
 }
 
+class _LinkedPostChatRepository extends _WirePostChatRepository {
+  _LinkedPostChatRepository(super._real);
+
+  final targetLookupFinished = Completer<void>();
+
+  @override
+  Future<RoomMessage?> fetchMessageTarget({
+    required String beaconId,
+    required String messageId,
+  }) async {
+    try {
+      return await super.fetchMessageTarget(
+        beaconId: beaconId,
+        messageId: messageId,
+      );
+    } finally {
+      if (!targetLookupFinished.isCompleted) targetLookupFinished.complete();
+    }
+  }
+}
+
 _PostChatRepository _postChat({
   List<String> ids = const [_firstReply, _secondReply],
 }) => _PostChatRepository()
@@ -518,6 +541,73 @@ void _expectUnfocusedChat(WidgetTester tester) {
 
 void main() {
   group(_messageLinkTests, () {
+    testWidgets(
+      'a deleted reply link leaves Chat loaded without highlighting or retrying the reply',
+      (tester) async {
+        const body = 'Другой ответ';
+        final server = RoomHintWireServer()
+          ..messageRows = [
+            roomHintWireMessageRow(
+              id: _secondReply,
+              authorId: _author.id,
+              authorTitle: _author.displayName,
+              createdAt: DateTime.utc(2026, 1, 1, 12).toIso8601String(),
+              body: body,
+            )..['beaconId'] = _postId,
+          ]
+          ..messageTargetResponses[_unknownReply] =
+              roomMessageTargetNotFoundResponse;
+        final wire = (await tester.runAsync(() => RoomHintWire.start(server)))!;
+        addTearDown(() => tester.runAsync(wire.close));
+        GetIt.I.registerSingleton<Logger>(Logger('PostChatLinks'));
+        addTearDown(() => GetIt.I.unregister<Logger>());
+        final effects = FakeUiEffectPort();
+        final repo = _LinkedPostChatRepository(wire.repository);
+        await _pumpDetailRoot(
+          tester,
+          '$_postUrl?message=$_unknownReply',
+          roomRepo: repo,
+          phoneRu: true,
+          effects: effects,
+        );
+
+        for (
+          var frame = 0;
+          frame < 90 && !repo.targetLookupFinished.isCompleted;
+          frame++
+        ) {
+          await tester.pump(const Duration(milliseconds: 16));
+        }
+        expect(repo.targetLookupFinished.isCompleted, isTrue);
+        await repo.targetLookupFinished.future;
+        await tester.pumpAndSettle();
+
+        void expectChatLoaded() {
+          expect(find.byType(SnackBar), findsNothing);
+          expect(effects.emitted.whereType<ShowError>(), isEmpty);
+          _expectUnfocusedChat(tester);
+          expect(_tile(_unknownReply), findsNothing);
+          expect(
+            find.textContaining(RegExp('^$body\uFFFC?\$')).hitTestable(),
+            findsOneWidget,
+          );
+        }
+
+        expect(server.requestedMessageTargetIds, [_unknownReply]);
+        expectChatLoaded();
+
+        final room = tester
+            .element(find.byType(PostViewScreen))
+            .read<ThreadHostCubit>()
+            .roomCubit!;
+        await room.reloadMessages(silent: true);
+        await tester.pumpAndSettle();
+
+        expectChatLoaded();
+        expect(server.requestedMessageTargetIds, [_unknownReply]);
+      },
+    );
+
     testWidgets(
       'selects an older reply returned by GraphQL outside the latest page',
       (tester) async {
