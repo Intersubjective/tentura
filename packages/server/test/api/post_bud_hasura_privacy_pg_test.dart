@@ -65,12 +65,16 @@ Future<void> main() async {
       ),
       logger: Logger('PostBudHasuraPrivacy'),
     );
-    hasura = await IsolatedHasuraSession.start(
-      databaseEnv: target.databaseEnv,
-      jwtPublicPem: jwt.publicKey,
-    );
-    addTearDown(hasura.stop);
-    await hasura.applyRepoMetadata();
+    // The CI builder container has no Docker daemon: the test below is
+    // skipped there, so Hasura must not be started either.
+    if (dockerAvailable) {
+      hasura = await IsolatedHasuraSession.start(
+        databaseEnv: target.databaseEnv,
+        jwtPublicPem: jwt.publicKey,
+      );
+      addTearDown(hasura.stop);
+      await hasura.applyRepoMetadata();
+    }
   });
 
   test(
