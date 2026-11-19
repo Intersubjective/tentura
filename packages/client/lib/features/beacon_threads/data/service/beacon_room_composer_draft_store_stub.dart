@@ -19,6 +19,9 @@ void clearBeaconRoomComposerDraft(String beaconId) {
   _draftByBeaconId.remove(beaconId);
 }
 
-void resetBeaconRoomComposerDraftStoreForTest() {
+void clearAllBeaconRoomComposerDrafts() {
   _draftByBeaconId.clear();
 }
+
+void resetBeaconRoomComposerDraftStoreForTest() =>
+    clearAllBeaconRoomComposerDrafts();

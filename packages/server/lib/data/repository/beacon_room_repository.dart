@@ -357,6 +357,7 @@ JOIN public.beacon_fact_card_revision r
         await loadPublishedChildrenBySourceMessageId(
           _db,
           ids,
+          viewerUserId: viewerUserId,
         );
     final reactionRows = await (_db.select(
       _db.beaconRoomMessageReactions,

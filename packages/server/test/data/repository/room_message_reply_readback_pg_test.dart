@@ -21,6 +21,7 @@ import 'package:tentura_server/data/repository/coordination_item_repository.dart
 import 'package:tentura_server/data/repository/help_offer_repository.dart';
 import 'package:tentura_server/data/repository/mutating_unit_of_work.dart';
 import 'package:tentura_server/data/repository/mock/invite_seed_prompt_repository_mock.dart';
+import 'package:tentura_server/data/repository/published_child_lookup.dart';
 import 'package:tentura_server/data/repository/user_repository.dart';
 import 'package:tentura_server/domain/port/beacon_fact_card_repository_port.dart';
 import 'package:tentura_server/domain/port/image_repository_port.dart';
@@ -343,6 +344,60 @@ INSERT INTO public.beacon_promotions (
       );
     }
   });
+
+  test(
+    'a published child the viewer cannot read (child author blocked them) '
+    'keeps its ID out of the lookup',
+    () async {
+      await seedBaseRoom(published: true);
+      const child = 'Breplypgblock1';
+      await seedBeacon(
+        child,
+        newMentionUserId,
+        parentId: beaconId,
+        published: true,
+      );
+      final source = await room.insertRoomMessage(
+        beaconId: beaconId,
+        authorId: parentAuthorId,
+        body: 'Source of a blocked child',
+      );
+      try {
+        await database.customStatement(
+          """
+INSERT INTO public.beacon_promotions (
+  child_beacon_id, parent_beacon_id, source_message_id, promoter_user_id,
+  published_at
+) VALUES ('$child', '$beaconId', '${source.id}', '$parentAuthorId', now())
+""",
+        );
+        await database.customStatement(
+          'INSERT INTO public.user_block (blocker_id, blocked_id, origin_id) '
+          "VALUES ('$newMentionUserId', '$replyAuthorId', '$newMentionUserId')",
+        );
+        Future<Map<String, String>> lookup(String? viewer) =>
+            loadPublishedChildrenBySourceMessageId(
+              database,
+              [source.id],
+              viewerUserId: viewer,
+            );
+        expect(await lookup(replyAuthorId), isEmpty);
+        expect(await lookup(parentAuthorId), {source.id: child});
+        expect(await lookup(null), {source.id: child});
+      } finally {
+        await database.customStatement(
+          "DELETE FROM public.user_block WHERE blocker_id = '$newMentionUserId'",
+        );
+        await database.customStatement(
+          "DELETE FROM public.beacon_promotions WHERE parent_beacon_id = '$beaconId'",
+        );
+        await database.customStatement(
+          "DELETE FROM public.beacon WHERE id = '$child'",
+        );
+      }
+    },
+    skip: skipReason,
+  );
 
   void expectReplyFields(
     Map<String, Object?> row, {

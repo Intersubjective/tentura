@@ -1,3 +1,5 @@
+import 'package:tentura/features/beacon_threads/data/service/beacon_room_composer_draft_store.dart';
+
 import '../../domain/port/auth_local_repository_port.dart';
 import '../../domain/port/auth_remote_repository_port.dart';
 import '../../domain/use_case/session_sign_in.dart';
@@ -5,10 +7,12 @@ import '../../domain/use_case/session_sign_in.dart';
 /// Web sign-out: drop every locally stored account (seeds, session markers, rows).
 /// The landing surface owns re-auth; stale device state must not survive logout.
 Future<void> clearLocalAuthOnSignOut(AuthLocalRepositoryPort local) async {
+  clearAllBeaconRoomComposerDrafts();
   await local.clearAllAuthData();
 }
 
 Future<void> clearAllLocalAuthData(AuthLocalRepositoryPort local) async {
+  clearAllBeaconRoomComposerDrafts();
   await local.clearAllAuthData();
 }
 
