@@ -62,7 +62,7 @@ Future<void> main() async {
     return;
   }
 
-  group('upgrade from the previous schema version', () {
+  group('upgrade from live membership to snapshot recipients', () {
     late DisposablePgWriterSession session;
 
     setUpAll(() async {
@@ -81,12 +81,15 @@ Future<void> main() async {
       await _seed(writer);
       expect(await _recipients(writer, _child), contains(_late));
 
-      await migrateDbSchema(writer);
+      await migrateDbSchemaThrough(writer, '0243');
 
       expect(
         await _recipients(writer, _child),
         {_budder, _postAuthor, _observer, _leaver, _blockee},
       );
+
+      await migrateDbSchema(writer);
+      expect(await _recipients(writer, _child), {_budder});
     });
   });
 

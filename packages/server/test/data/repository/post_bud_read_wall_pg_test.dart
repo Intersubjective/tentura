@@ -1,21 +1,28 @@
 @Tags(['pg'])
 library;
 
+import 'dart:io';
+
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 import 'package:tentura_root/domain/entity/beacon_access.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura_server/data/database/migration/_migrations.dart';
+import 'package:tentura_server/domain/policy/beacon_access_policy.dart';
 
 import '../../support/disposable_pg_target.dart';
 import '../../support/pg_test_public_keys.dart';
 
+const _migrationDir = 'lib/data/database/migration';
+const _lastShippedVersion = '0318';
+
 /// Budding B3 (Arch §3.2, I3, I4): the read wall around a Request budded from
 /// a Post.
 ///
-/// - contextChild of a Post child is the snapshot `beacon_bud_observer` row,
-///   not live Post membership; the Post must not be deleted and the Post
-///   author's block still applies.
+/// Legacy observer rows let us check migration cleanup and read access
+/// independently. Only direct grants reach the child of a Post.
+///
 /// - contextAncestor never grants a Post: members of the child do not read
 ///   the Post through it.
 /// - Request parents keep live-membership shared context (#146).
@@ -25,7 +32,7 @@ import '../../support/pg_test_public_keys.dart';
 ///   `_budder`). Snapshot observers: `_postAuthor`, `_observer`,
 ///   `_obsBlockedPost` (later blocked by the Post author), `_obsBlockedChild`
 ///   (later blocks the budder). `_late` joined the Post after the bud.
-///   `_helper` offered help on the child, `_childFwd` received it by forward,
+///   `_helper` offered help on the child, `_childFwd` was invited from the Post,
 ///   `_childHelper` is an admitted helper of the child (a child member).
 /// - Deleted Post `_deadPost` → `_deadChild`, closed Post `_closedPost` →
 ///   `_closedChild`; `_observer` observes both children.
@@ -84,16 +91,16 @@ const _beacons = [
 /// Expected `beacon_can_read_content` per viewer; beacons not listed are
 /// unreadable for that viewer.
 const _readable = <String, Set<String>>{
-  _postAuthor: {_post, _child, _closedPost, _closedChild},
+  _postAuthor: {_post, _closedPost},
   _budder: {_post, _child, _closedPost, _closedChild, _deadChild},
-  _observer: {_post, _child, _closedPost, _closedChild},
+  _observer: {_post, _closedPost},
   // Joined the Post after the bud: no snapshot row, no child.
   _late: {_post, _closedPost},
   _obsBlockedPost: {},
   _obsBlockedChild: {_post, _closedPost},
   // Child members and helpers never read the Post through the child.
   _helper: {_child},
-  _childFwd: {_child},
+  _childFwd: {_child, _post, _closedPost},
   _childHelper: {_child},
   _stranger: {},
   _reqAuthor: {_req, _reqChild},
@@ -118,7 +125,7 @@ Future<void> main() async {
     return;
   }
 
-  group('upgrade from the previous schema version', () {
+  group('upgrade from live Post membership to snapshot-based access', () {
     late DisposablePgWriterSession session;
 
     setUpAll(() async {
@@ -139,11 +146,69 @@ Future<void> main() async {
       expect(await _canRead(writer, _child, _late), isTrue);
       expect(await _canRead(writer, _post, _childHelper), isTrue);
 
-      await migrateDbSchema(writer);
+      await migrateDbSchemaThrough(writer, '0242');
 
       expect(await _canRead(writer, _child, _late), isFalse);
       expect(await _canRead(writer, _post, _childHelper), isFalse);
       expect(await _canRead(writer, _child, _observer), isTrue);
+    });
+  });
+
+  group('upgrade from the schema with legacy Post observer grants', () {
+    late DisposablePgWriterSession session;
+
+    setUpAll(() async {
+      session = await setUpDisposablePgWriter(
+        target: migrationTarget,
+        lastInclusiveVersion: _lastShippedVersion,
+      );
+    });
+
+    tearDownAll(() => tearDownDisposablePgWriter(session: session));
+
+    test('a schema upgrade clears legacy Post observer grants', () async {
+      final writer = session.writer;
+      await _seed(writer);
+      Future<Object?> observerCount() async => (await writer.execute(
+        'SELECT count(*)::int FROM public.beacon_bud_observer',
+      )).single.single;
+
+      expect(await observerCount(), greaterThan(0));
+      expect(await _canRead(writer, _child, _observer), isTrue);
+      final previousFunctions = await _readFunctionAttributes(writer);
+      await migrateDbSchema(writer);
+
+      expect(
+        {
+          'legacy observer rows': await observerCount(),
+          'uninvited member can read': await _canRead(
+            writer,
+            _child,
+            _observer,
+          ),
+          'first registered migration after 0318': migrationsForTesting
+              .skipWhile(
+                (migration) => migration.version != _lastShippedVersion,
+              )
+              .skip(1)
+              .firstOrNull
+              ?.version,
+          'migration file': File('$_migrationDir/m0319.dart').existsSync(),
+          'function attributes': await _readFunctionAttributes(writer),
+        },
+        {
+          'legacy observer rows': 0,
+          'uninvited member can read': false,
+          'first registered migration after 0318': '0319',
+          'migration file': true,
+          'function attributes': previousFunctions,
+        },
+      );
+      expect(previousFunctions, [
+        ['beacon_access_reasons', 100, 's', false, true],
+        ['beacon_can_read_content', 1000, 's', false, true],
+        ['beacon_readable_ids', 100, 's', false, true],
+      ]);
     });
   });
 
@@ -161,7 +226,7 @@ Future<void> main() async {
       await tearDownDisposablePgWriter(session: session);
     });
 
-    test('beacon_can_read_content leak matrix', () async {
+    test('content is visible only to viewers with a read grant', () async {
       for (final viewer in _users) {
         for (final beacon in _beacons) {
           expect(
@@ -173,53 +238,48 @@ Future<void> main() async {
       }
     });
 
-    test('beacon_readable_ids agrees on every row of the matrix', () async {
-      for (final viewer in _users) {
-        final rows = await writer.execute(
-          Sql.named(
-            'SELECT public.beacon_readable_ids(@v, @ids::text[])',
-          ),
-          parameters: {'v': viewer, 'ids': _beacons},
-        );
-        expect(
-          {for (final r in rows) r.single! as String},
-          _readable[viewer],
-          reason: viewer,
-        );
-      }
-    });
+    test(
+      'readable IDs include only Requests and Posts the viewer can read',
+      () async {
+        for (final viewer in _users) {
+          final rows = await writer.execute(
+            Sql.named(
+              'SELECT public.beacon_readable_ids(@v, @ids::text[])',
+            ),
+            parameters: {'v': viewer, 'ids': _beacons},
+          );
+          expect(
+            {for (final r in rows) r.single! as String},
+            _readable[viewer],
+            reason: viewer,
+          );
+        }
+      },
+    );
 
     test(
-      'beacon_access_reasons agrees and never grants a Post by context',
+      'Post and Request hierarchies grant the same access in Dart and SQL',
       () async {
-        final contextBits =
-            BeaconAccessReason.contextChild.bit |
-            BeaconAccessReason.contextAncestor.bit;
+        final mismatches = <String, (List<Object?>, List<Object?>)>{};
         for (final viewer in _users) {
           for (final beacon in _beacons) {
-            final reasons = await _reasons(writer, beacon, viewer);
-            final level = await _level(writer, beacon, viewer);
-            expect(
-              BeaconAccessLevel.fromInt(level).canReadContent,
-              _readable[viewer]!.contains(beacon),
-              reason: 'level $viewer @ $beacon',
-            );
-            if (beacon == _post ||
-                beacon == _deadPost ||
-                beacon == _closedPost) {
-              expect(reasons & contextBits, 0, reason: '$viewer @ $beacon');
+            final reasons = BeaconAccessPolicy.reasons(_facts(beacon, viewer));
+            final level = beaconAccessLevelFromReasons(reasons);
+            final sqlReasons = await _reasons(writer, beacon, viewer);
+            final sqlLevel = await _level(writer, beacon, viewer);
+            final sqlRead = await _canRead(writer, beacon, viewer);
+            final expectedRead = _readable[viewer]!.contains(beacon);
+            if (sqlReasons != reasons ||
+                sqlLevel != level.value ||
+                sqlRead != level.canReadContent ||
+                sqlRead != expectedRead) {
+              mismatches['$viewer @ $beacon'] = (
+                [sqlReasons, sqlLevel, sqlRead],
+                [reasons, level.value, expectedRead],
+              );
             }
           }
         }
-        expect(
-          await _reasons(writer, _child, _observer),
-          BeaconAccessReason.contextChild.bit,
-        );
-        expect(
-          await _reasons(writer, _closedChild, _observer),
-          BeaconAccessReason.contextChild.bit,
-        );
-        expect(await _reasons(writer, _child, _late), 0);
         expect(
           await _reasons(writer, _reqChild, _reqMember),
           BeaconAccessReason.contextChild.bit,
@@ -228,12 +288,72 @@ Future<void> main() async {
           await _reasons(writer, _req, _reqChildMember),
           BeaconAccessReason.contextAncestor.bit,
         );
+        expect(
+          mismatches,
+          isEmpty,
+          reason: 'SQL and Dart (reasons, level, read)',
+        );
+        expect(
+          await _reasons(writer, _child, _childFwd),
+          BeaconAccessReason.forwarded.bit,
+        );
+        expect(await _reasons(writer, _child, _late), 0);
       },
     );
 
-    test('beacon_can_read_content keeps COST 1000; attributes kept', () async {
-      final rows = await writer.execute('''
-SELECT p.proname, p.procost::int, p.provolatile::text, p.prosecdef,
+    test(
+      'an uninvited Post member cannot read the child or its tombstone',
+      () async {
+        final rows = await writer.execute(
+          Sql.named('''
+SELECT public.beacon_effective_admission(@post, @viewer),
+       public.beacon_access_reasons(@child, @viewer),
+       public.beacon_can_read_content(@child, @viewer),
+       public.beacon_can_read_involvement(@child, @viewer)
+'''),
+          parameters: {'post': _post, 'child': _child, 'viewer': _observer},
+        );
+        final canReadTombstone = await writer.runTx((tx) async {
+          final args = {'child': _child, 'viewer': _observer};
+          await tx.execute(
+            Sql.named('UPDATE public.beacon SET status = 2 WHERE id = @child'),
+            parameters: {'child': _child},
+          );
+          final row = await tx.execute(
+            Sql.named(
+              'SELECT public.beacon_can_read_tombstone(@child, @viewer)',
+            ),
+            parameters: args,
+          );
+          await tx.rollback();
+          return row.single.single;
+        });
+        expect(
+          [...rows.single, canReadTombstone],
+          [true, 0, false, false, false],
+        );
+      },
+    );
+
+    test(
+      'read functions are stable and retain their execution attributes',
+      () async {
+        expect(
+          await _readFunctionAttributes(writer),
+          [
+            ['beacon_access_reasons', 100, 's', false, true],
+            ['beacon_can_read_content', 1000, 's', false, true],
+            ['beacon_readable_ids', 100, 's', false, true],
+          ],
+        );
+      },
+    );
+  });
+}
+
+Future<List<List<Object?>>> _readFunctionAttributes(Connection writer) async {
+  final rows = await writer.execute('''
+SELECT p.proname, p.procost::double precision, p.provolatile::text, p.prosecdef,
        p.proconfig IS NULL
 FROM pg_proc p
 JOIN pg_namespace n ON n.oid = p.pronamespace
@@ -243,16 +363,62 @@ WHERE n.nspname = 'public'
   )
 ORDER BY p.proname
 ''');
-      expect(
-        [for (final r in rows) r.toList()],
-        [
-          ['beacon_access_reasons', 100, 's', false, true],
-          ['beacon_can_read_content', 1000, 's', false, true],
-          ['beacon_readable_ids', 100, 's', false, true],
-        ],
-      );
-    });
-  });
+  return [for (final row in rows) row.toList()];
+}
+
+const _posts = {_post, _deadPost, _closedPost};
+const _postChildren = {_child, _deadChild, _closedChild};
+const _postRecipients = {
+  _budder,
+  _observer,
+  _childFwd,
+  _late,
+  _obsBlockedPost,
+  _obsBlockedChild,
+};
+
+BeaconAccessFacts _facts(String beacon, String viewer) {
+  final isPost = _posts.contains(beacon);
+  final hasPostParent = _postChildren.contains(beacon);
+  final author = isPost ? _postAuthor : (hasPostParent ? _budder : _reqAuthor);
+  return BeaconAccessFacts(
+    status: switch (beacon) {
+      _deadPost => BeaconStatus.deleted,
+      _closedPost => BeaconStatus.closed,
+      _ => BeaconStatus.open,
+    },
+    isBlocked:
+        (isPost && viewer == _obsBlockedPost) ||
+        (hasPostParent && viewer == _obsBlockedChild),
+    isAuthor: viewer == author,
+    isSteward: false,
+    isAdmitted:
+        (isPost && _postRecipients.contains(viewer)) ||
+        (beacon == _child && viewer == _childHelper) ||
+        (beacon == _req && viewer == _reqMember) ||
+        (beacon == _reqChild && viewer == _reqChildMember),
+    hasActiveForwardEdgeAsRecipient:
+        (isPost && _postRecipients.contains(viewer)) ||
+        (beacon == _child && viewer == _childFwd),
+    isActiveHelpOfferer: beacon == _child && viewer == _helper,
+    isDiscoverable: false,
+    isPublished: true,
+    isTrustVisibleWithAuthor: false,
+    isMemberOfImmediateParent:
+        (hasPostParent &&
+            beacon != _deadChild &&
+            (viewer == _postAuthor || _postRecipients.contains(viewer)) &&
+            viewer != _obsBlockedPost) ||
+        (beacon == _reqChild && (viewer == _reqAuthor || viewer == _reqMember)),
+    isMemberOfDescendant: switch (beacon) {
+      _post => viewer == _budder || viewer == _childHelper,
+      _deadPost || _closedPost => viewer == _budder,
+      _req => viewer == _reqAuthor || viewer == _reqChildMember,
+      _ => false,
+    },
+    isPost: isPost,
+    parentIsPost: hasPostParent,
+  );
 }
 
 Future<bool> _canRead(Connection writer, String beacon, String viewer) async {
@@ -325,15 +491,9 @@ INSERT INTO public.beacon_participant
 VALUES ('P$beacon$user', '$beacon', '$user', 0, 0, 3)
 ''');
 
-  for (final p in [_post, _deadPost, _closedPost]) {
+  for (final p in _posts) {
     await post(p);
-    for (final member in [
-      _budder,
-      _observer,
-      _late,
-      _obsBlockedPost,
-      _obsBlockedChild,
-    ]) {
+    for (final member in _postRecipients) {
       await forward(p, _postAuthor, member);
     }
   }
@@ -346,6 +506,7 @@ VALUES ('P$beacon$user', '$beacon', '$user', 0, 0, 3)
     for (final o in [
       _postAuthor,
       _observer,
+      _childFwd,
       _obsBlockedPost,
       _obsBlockedChild,
     ]) {

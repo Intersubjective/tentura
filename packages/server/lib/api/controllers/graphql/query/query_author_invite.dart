@@ -70,7 +70,7 @@ final class QueryAuthorInvite extends GqlNodeBase {
         },
       );
 
-  /// The snapshot observers of a budded Request, for its author (plan D4).
+  /// Post members the Request's author can consider for a later invite.
   GraphQLObjectField<dynamic, dynamic> get beaconBudObservers =>
       GraphQLObjectField(
         'beaconBudObservers',

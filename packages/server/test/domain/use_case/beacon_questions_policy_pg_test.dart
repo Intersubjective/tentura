@@ -161,7 +161,7 @@ Future<void> main() async {
   const blockedByAuthor = 'Uqblockd0001';
   // Cross-recipient block: peer blocked forwardee.
   const peer = 'Uqpeer000001';
-  // Member of the parent Post of a budded Request, never invited by hand.
+  // Member of the parent Post invited to the Request.
   const postMember = 'Uqpostmem001';
 
   const matrix = <_Case>[
@@ -1623,10 +1623,7 @@ Future<void> main() async {
       );
     });
 
-    group('a Request budded from a Post: members of the parent Post', () {
-      // `postId` is the parent Post of `buddedId`. `postMember` belongs to the
-      // Post and was snapshotted as a bud observer, but nobody ticked them
-      // under "Who to invite": no forward edge, offer or participant row.
+    group('Questions for a Post member invited to the Request', () {
       const buddedId = 'Bquestbud001';
       // A sub-request of the main Request (`beaconId`), whose participants
       // read it through the parent but were never addressed on it.
@@ -1645,8 +1642,10 @@ Future<void> main() async {
           "'2026-01-01T00:00:00Z')",
         );
         await sql(
-          'INSERT INTO public.beacon_bud_observer (beacon_id, user_id) '
-          "VALUES ('$buddedId', '$author'), ('$buddedId', '$postMember')",
+          'INSERT INTO public.beacon_forward_edge '
+          '(beacon_id, sender_id, recipient_id) '
+          "VALUES ('$postId', '$author', '$postMember'), "
+          "('$buddedId', '$author', '$postMember')",
         );
       }
 
@@ -1677,7 +1676,7 @@ Future<void> main() async {
         expect(await canReadContent(buddedId, postMember), isTrue);
       });
 
-      test('an uninvited Post member of an open Request may ask', () async {
+      test('an invitee on an open Request may ask', () async {
         expect(await levelOf(buddedId, postMember), QuestionsAccess.write);
       });
 
@@ -1773,13 +1772,11 @@ Future<void> main() async {
 
       test('a participant of the parent Request gets no Questions standing '
           'on its sub-request', () async {
-        // The only difference from the Post member is how they got in: the
-        // helper reads the sub-request through the parent Request.
+        // The helper reads the sub-request through the parent Request.
         expect(await canReadContent(subRequestId, helper), isTrue);
         expect(await levelOf(subRequestId, helper), QuestionsAccess.none);
         expect((await audienceOf(subRequestId)).keys, isNot(contains(helper)));
-        // Positive control: the same Post-member rule is live on the sibling
-        // budded Request.
+        // Positive control: the invite grants standing on the budded Request.
         expect(await levelOf(buddedId, postMember), QuestionsAccess.write);
       });
 

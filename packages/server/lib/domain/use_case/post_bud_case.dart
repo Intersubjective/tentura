@@ -20,8 +20,8 @@ import 'package:tentura_server/utils/id.dart';
 /// The bud runs as one transaction through
 /// [BeaconChildCreatePort.createChildUnderPost] (global lock, replay, Post
 /// lock and asserts, child create + publish); this case supplies the
-/// Post-parent stage: the observers snapshot, the author invites with their
-/// delivery edges, and closing the Post.
+/// Post-parent stage: the author invites with their delivery edges, and
+/// closing the Post.
 @Singleton(order: 2)
 class PostBudCase {
   const PostBudCase(
@@ -152,7 +152,7 @@ class PostBudCase {
     ];
   }
 
-  /// The Post-parent stage (Arch §4.2 step 2a–b, d), run by
+  /// The Post-parent stage (Arch §4.2 steps 2b and 2d), run by
   /// `createChildUnderPost` inside the bud transaction with every lock held.
   Future<PostParentStageResult> _stage(
     PostParentStageContext stage, {
@@ -161,13 +161,6 @@ class PostBudCase {
   }) async {
     final child = stage.child;
     final budderId = stage.actorUserId;
-
-    // (a) Observers snapshot.
-    await _postBud.writeObservers(
-      childId: child.id,
-      postId: stage.postId,
-      budderId: budderId,
-    );
 
     // (b) Invites: eligibility under the locks (Arch §3.3).
     final candidates = {

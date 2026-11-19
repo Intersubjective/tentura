@@ -24,8 +24,8 @@ import '../../support/pg_test_public_keys.dart';
 ///
 /// `_post` (author `_author`) admits `_budder`, `_viewer`, `_moved` and
 /// `_member` through forward edges. `_child` budded from it by `_budder`;
-/// its snapshot observers are `_budder`, `_viewer` and `_moved`, so `_member`
-/// (a Post member who is not an observer) cannot read it. `_childReader`
+/// `_viewer` and `_moved` received the Request, while the uninvited `_member`
+/// cannot read it. `_childReader`
 /// reads the child through a forward edge but cannot read the Post.
 const _author = 'Ubudanchauth';
 const _budder = 'Ubudanchbudr';
@@ -110,8 +110,12 @@ Future<void> main() async {
       await place(_moved, _child, 5, 5);
     });
 
-    test('one run anchors the budder and another viewer next to the Post, '
-        'keeps a moved anchor, skips a non-reader, marks the row', () async {
+    test('anchor inheritance places the author and invitees, preserves '
+        'moves and skips uninvited Post members', () async {
+      await writer.execute('''
+INSERT INTO public.beacon_bud_observer (beacon_id, user_id)
+VALUES ('$_child', '$_member')
+''');
       await sweep.runDue();
 
       final placed = await _anchorsOn(writer, _child);
@@ -301,11 +305,14 @@ INSERT INTO public.beacon
   (id, user_id, title, description, status, parent_beacon_id, published_at)
 VALUES ('$child', '$_budder', 'Move the piano', '', 0, '$_post', now())
 ''');
-    for (final observer in [_budder, _viewer, _moved, _member]) {
-      if (child == _child && observer == _member) continue;
+    for (final recipient in [
+      _viewer,
+      _moved,
+      if (child == _promotedChild) _member,
+    ]) {
       await writer.execute('''
-INSERT INTO public.beacon_bud_observer (beacon_id, user_id)
-VALUES ('$child', '$observer')
+INSERT INTO public.beacon_forward_edge (beacon_id, sender_id, recipient_id)
+VALUES ('$child', '$_budder', '$recipient')
 ''');
     }
   }

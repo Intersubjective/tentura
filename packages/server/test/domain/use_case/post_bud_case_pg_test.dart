@@ -2,11 +2,13 @@
 library;
 
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
+import 'package:tentura_root/domain/entity/beacon_access.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura_server/data/database/tentura_db.dart'
@@ -204,8 +206,7 @@ Future<void> main() async {
       for (final i in result.invitees) i.userId: i.outcome,
     };
 
-    test('happy path: child, observers, invites, edges, pins, one notice, '
-        'receipts only to invitees', () async {
+    test('budding gives access, pins and receipts to invitees', () async {
       final result = await bud(
         invitees: const [
           PostBudInvitee(userId: _warm, note: '  You have a van  '),
@@ -241,16 +242,6 @@ Future<void> main() async {
       expect(childRow.single[0], _post);
       expect(childRow.single[1], isFalse);
       expect(childRow.single[2], 'Move the piano');
-
-      // Observers: E(P) minus the budder and minus users blocked with them.
-      expect(await _observers(writer, child), {
-        _author,
-        _warm,
-        _cold,
-        _hidden,
-        _paused,
-        _invited,
-      });
 
       // Invites: provenance, note only on the invite.
       final invites = await _invites(writer, child);
@@ -318,6 +309,61 @@ Future<void> main() async {
 
       // The Post stays open without closePost.
       expect(await _postStatus(writer), BeaconStatus.open.smallintValue);
+
+      final access = <String, List<Object?>>{};
+      for (final viewer in [_warm, _cold, _author, _hidden]) {
+        final rows = await writer.execute(
+          Sql.named('''
+SELECT public.beacon_effective_admission(@p, @v),
+     EXISTS (
+       SELECT 1 FROM public.beacon_forward_edge
+       WHERE beacon_id = @c AND recipient_id = @v
+         AND cancelled_at IS NULL AND NOT recipient_rejected
+     ),
+     public.beacon_access_reasons(@c, @v),
+     public.beacon_can_read_content(@c, @v),
+     EXISTS (SELECT 1 FROM public.beacon_readable_ids(@v, ARRAY[@c]::text[])),
+     public.beacon_can_read_involvement(@c, @v)
+'''),
+          parameters: {'p': _post, 'c': child, 'v': viewer},
+        );
+        access[viewer] = rows.single.toList();
+      }
+      final snapshotWriters = [
+        for (final path in [
+          'lib/domain/port/post_bud_port.dart',
+          'lib/data/repository/post_bud_repository.dart',
+        ])
+          if (RegExp(
+            r'\bwriteObservers\s*\(',
+          ).hasMatch(File(path).readAsStringSync()))
+            path,
+      ];
+      expect(
+        {
+          'access (Post admission, active forward, reasons, content, list, involvement)':
+              access,
+          'observer rows written': await _observerCount(writer, child),
+          'snapshot writer declared': snapshotWriters,
+        },
+        {
+          'access (Post admission, active forward, reasons, content, list, involvement)':
+              {
+                for (final viewer in [_warm, _cold, _author])
+                  viewer: [
+                    true,
+                    true,
+                    BeaconAccessReason.forwarded.bit,
+                    true,
+                    true,
+                    true,
+                  ],
+                _hidden: [true, false, 0, false, false, false],
+              },
+          'observer rows written': 0,
+          'snapshot writer declared': isEmpty,
+        },
+      );
     });
 
     test('replay returns an identical result and writes no new rows', () async {
@@ -646,14 +692,14 @@ Future<void> main() async {
 
 List<String> _sorted(Iterable<String> ids) => ids.toList()..sort();
 
-Future<Set<String>> _observers(Connection writer, String child) async {
+Future<Object?> _observerCount(Connection writer, String child) async {
   final rows = await writer.execute(
     Sql.named(
-      'SELECT user_id FROM public.beacon_bud_observer WHERE beacon_id = @c',
+      'SELECT count(*)::int FROM public.beacon_bud_observer WHERE beacon_id = @c',
     ),
     parameters: {'c': child},
   );
-  return {for (final r in rows) r[0]! as String};
+  return rows.single.single;
 }
 
 typedef _InviteRow = ({

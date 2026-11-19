@@ -399,7 +399,7 @@ Future<void> main() async {
       );
     });
 
-    raceTest('bud ∥ block(budder, invitee)', (round) async {
+    raceTest('blocking during budding clears invites and observers', (round) async {
       await race<void>(
         roundIndex: round,
         setUpRound: () async {},
@@ -423,16 +423,11 @@ Future<void> main() async {
             reason: '$round: no pending invite between a blocked pair',
           );
           if (outcome != PostBudInviteOutcome.invited) {
-            // The block came first: no invite, no snapshot row.
+            // The block came first and prevented the invite from being created.
             expect(outcome, PostBudInviteOutcome.blocked, reason: round);
             expect(
               await _inviteStatuses(writer, child, _invitee),
               isEmpty,
-              reason: round,
-            );
-            expect(
-              await _observers(writer, child),
-              isNot(contains(_invitee)),
               reason: round,
             );
           } else {
@@ -442,11 +437,12 @@ Future<void> main() async {
               reason: round,
             );
           }
+          expect(await _observers(writer, child), isEmpty, reason: round);
         },
       );
     });
 
-    raceTest('bud ∥ the invitee leaves the Post', (round) async {
+    raceTest('leaving a Post preserves Requests already sent', (round) async {
       await race<void>(
         roundIndex: round,
         setUpRound: () async {},
@@ -467,11 +463,6 @@ Future<void> main() async {
               isNotNull,
               reason: round,
             );
-            expect(
-              await _observers(writer, child),
-              contains(_invitee),
-              reason: round,
-            );
           } else {
             expect(
               result.invitees.single.outcome,
@@ -483,12 +474,13 @@ Future<void> main() async {
               isEmpty,
               reason: round,
             );
-            expect(
-              await _observers(writer, child),
-              isNot(contains(_invitee)),
-              reason: round,
-            );
           }
+          final access = await writer.execute(
+            Sql.named('SELECT public.beacon_can_read_content(@b, @u)'),
+            parameters: {'b': child, 'u': _invitee},
+          );
+          expect(access.single.single, invited, reason: round);
+          expect(await _observers(writer, child), isEmpty, reason: round);
         },
       );
     });

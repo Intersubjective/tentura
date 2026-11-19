@@ -339,8 +339,8 @@ $$
     group('Questions standing bypasses unnecessary discoverability lookups', () {
       for (final grant in [
         'a steward',
-        'bud observers',
-        'addressees with a bud snapshot',
+        'forward recipients of a Request from a Post',
+        'active help offerers on a Request from a Post',
         'addressees with parent stewardship',
         'addressees with parent membership',
       ]) {
@@ -379,10 +379,18 @@ $$
                 "VALUES ('$scope', '$user')",
               );
             }
-            if (grant == 'bud observers' || grant.contains('snapshot')) {
+            if (grant.startsWith('forward recipients')) {
               await sql(
-                'INSERT INTO public.beacon_bud_observer (beacon_id, user_id) '
-                "VALUES ('$beaconId', '$user')",
+                'INSERT INTO public.beacon_forward_edge '
+                '(beacon_id, sender_id, recipient_id) '
+                "VALUES ('$beaconId', '$author', '$user')",
+              );
+            }
+            if (grant.startsWith('active help offerers')) {
+              await sql(
+                'INSERT INTO public.beacon_help_offer '
+                '(beacon_id, user_id, message, status) '
+                "VALUES ('$beaconId', '$user', 'I can help', 0)",
               );
             }
             if (grant.startsWith('addressees')) {
@@ -400,8 +408,7 @@ $$
               );
             }
           }
-          // Confirm that snapshot grants really refer to a live Post and
-          // that the content wall accepts each viewer before measuring cost.
+          // Verify the parent shape and measure the cost of the reader grants.
           final parentShape = await writer.execute(
             'SELECT kind, status, published_at IS NOT NULL FROM public.beacon '
             "WHERE id = '$parent'",

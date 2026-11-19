@@ -75,27 +75,6 @@ ORDER BY f.user_id
   }
 
   @override
-  Future<int> writeObservers({
-    required String childId,
-    required String postId,
-    required String budderId,
-  }) => _database.customUpdate(
-    r'''
-INSERT INTO public.beacon_bud_observer (beacon_id, user_id)
-SELECT $1, m.user_id
-FROM public.post_effective_members($2) m
-WHERE m.user_id <> $3
-  AND NOT public.block_hides($3, m.user_id)
-ON CONFLICT DO NOTHING
-''',
-    variables: [
-      Variable.withString(childId),
-      Variable.withString(postId),
-      Variable.withString(budderId),
-    ],
-  );
-
-  @override
   Future<String?> insertInvite({
     required String beaconId,
     required String inviterId,
@@ -153,34 +132,31 @@ RETURNING id
         .customSelect(
           r'''
 SELECT
-  (p.user_id = $4
+  (p.user_id = $3
      OR EXISTS (
        SELECT 1 FROM public.post_first_response fr
-       WHERE fr.beacon_id = p.id AND fr.user_id = $4)) AS warm,
+       WHERE fr.beacon_id = p.id AND fr.user_id = $3)) AS warm,
   (CASE
-     WHEN public.block_hides($3, $4) OR public.block_hides(p.user_id, $4)
-       THEN 2
+     WHEN public.block_hides($2, $3) THEN 2
      WHEN EXISTS (
        SELECT 1 FROM public.user_availability ua
-       WHERE ua.user_id = $4
+       WHERE ua.user_id = $3
          AND ua.resume_on > public.utc_today()) THEN 4
      WHEN EXISTS (
        SELECT 1 FROM public.beacon_author_invite i
        WHERE i.status = 0
-         AND i.invitee_id = $4
+         AND i.invitee_id = $3
          AND (i.beacon_id = $1
-              OR (i.inviter_id = $3 AND i.source_post_id = p.id))) THEN 5
+              OR (i.inviter_id = $2 AND i.source_post_id = p.id))) THEN 5
      ELSE 0
    END)::smallint AS reason
-FROM public.beacon_bud_observer o
-JOIN public.beacon p ON p.id = $2
-WHERE o.beacon_id = $1 AND o.user_id = $4 AND o.user_id <> $3
-''',
+'''
+          '$_laterInviteAudience AND m.user_id = \$3 AND p.id = \$4',
           variables: [
             Variable.withString(childId),
-            Variable.withString(postId),
             Variable.withString(inviterId),
             Variable.withString(inviteeId),
+            Variable.withString(postId),
           ],
         )
         .getSingleOrNull();
@@ -212,16 +188,9 @@ WHERE o.beacon_id = $1 AND o.user_id = $4 AND o.user_id <> $3
   }) async {
     final rows = await _database
         .customSelect(
-          r'''
-SELECT o.user_id
-FROM public.beacon_bud_observer o
-JOIN public.beacon b ON b.id = o.beacon_id
-WHERE o.beacon_id = $1
-  AND b.user_id = $2
-  AND o.user_id <> $2
-  AND NOT public.block_hides($2, o.user_id)
-ORDER BY o.user_id
-''',
+          'SELECT m.user_id '
+          '$_laterInviteAudience '
+          r'AND NOT public.block_hides($2, m.user_id) ORDER BY m.user_id',
           variables: [
             Variable.withString(childId),
             Variable.withString(authorId),
@@ -230,6 +199,21 @@ ORDER BY o.user_id
         .get();
     return [for (final r in rows) r.read<String>('user_id')];
   }
+
+  // Later invites use an existing Post admission that predates publication.
+  // A join or return after publication does not establish that admission.
+  static const _laterInviteAudience = r'''
+FROM public.beacon c
+JOIN public.beacon p ON p.id = c.parent_beacon_id AND p.kind = 1
+CROSS JOIN LATERAL public.post_effective_members(p.id) m
+WHERE c.id = $1 AND c.user_id = $2 AND c.kind = 0
+  AND c.published_at IS NOT NULL AND m.user_id <> c.user_id
+  AND (m.user_id = p.user_id OR EXISTS (
+    SELECT 1 FROM public.beacon_participant bp
+    WHERE bp.beacon_id = p.id AND bp.user_id = m.user_id
+      AND bp.room_access = 3 AND bp.updated_at <= c.published_at
+  ))
+''';
 
   static PostBudInviteCandidate _candidate({
     required String userId,

@@ -47,9 +47,7 @@ class _FakeUploadQuota extends Fake implements UploadQuotaRepositoryPort {}
 /// [BeaconRoomCase] and a real Postgres policy (`questions_access_levels`),
 /// for a Request budded from a Post.
 ///
-/// A member of the parent Post reads the budded Request through the bud
-/// snapshot (`beacon_bud_observer`) even when nobody ticked them under "Who to
-/// invite"; the entry row on the Request must offer them Questions.
+/// The entry row offers Questions to a Post member invited to the Request.
 Future<void> main() async {
   final target = DisposablePgTarget.fromNamedEnvironment(
     envVarName: 'TENTURA_BEACON_LOBBY_BUDDED_GQL_TEST_DB',
@@ -61,6 +59,7 @@ Future<void> main() async {
   const buddedId = 'Blgqbudded01';
   const author = 'Ulgqauthor01';
   const postMember = 'Ulgqpostmem1';
+  const invited = 'Ulgqinvite01';
   const stranger = 'Ulgqstrange01';
 
   group('BeaconLobbyAccess for a Request budded from a Post', () {
@@ -111,7 +110,7 @@ Future<void> main() async {
       await writer.execute(
         'INSERT INTO public."user" (id, display_name, handle, public_key) '
         'VALUES ${[
-          for (final u in [author, postMember, stranger]) "('$u', '${u.substring(2, 8)}', '${u.substring(2, 8)}', 'k$u')",
+          for (final u in [author, postMember, invited, stranger]) "('$u', '${u.substring(2, 8)}', '${u.substring(2, 8)}', 'k$u')",
         ].join(', ')}',
       );
       await writer.execute(
@@ -125,11 +124,11 @@ Future<void> main() async {
         "'$postId', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z', "
         "'2026-01-01T00:00:00Z')",
       );
-      // The bud snapshot: the Post author and the Post member, who was not
-      // ticked under "Who to invite" (no forward edge, offer or participant).
       await writer.execute(
-        'INSERT INTO public.beacon_bud_observer (beacon_id, user_id) VALUES '
-        "('$buddedId', '$author'), ('$buddedId', '$postMember')",
+        'INSERT INTO public.beacon_forward_edge (beacon_id, sender_id, recipient_id) VALUES '
+        "('$postId', '$author', '$postMember'), "
+        "('$postId', '$author', '$invited'), "
+        "('$buddedId', '$author', '$invited')",
       );
     });
 
@@ -139,12 +138,19 @@ Future<void> main() async {
       await tearDownDisposablePgWriter(session: session);
     });
 
-    test('an uninvited Post member may read and post in Questions', () async {
-      final probe = await access(postMember);
+    test('an invited Post member may read and post in Questions', () async {
+      final probe = await access(invited);
       expect(probe['beaconId'], buddedId);
       expect(probe['canRead'], isTrue);
       expect(probe['canPost'], isTrue);
       expect(probe['readOnlyReason'], isNull);
+    });
+
+    test('an uninvited Post member has no Questions access', () async {
+      final probe = await access(postMember);
+      expect(probe['beaconId'], buddedId);
+      expect(probe['canRead'], isFalse);
+      expect(probe['canPost'], isFalse);
     });
 
     test('someone outside the Post has no Questions on it', () async {

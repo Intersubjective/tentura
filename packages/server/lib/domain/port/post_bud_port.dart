@@ -15,15 +15,6 @@ abstract interface class PostBudPort {
     required String budderId,
   });
 
-  /// Writes the observers snapshot of the budded Request [childId]
-  /// (Arch §2.1): `E(postId)` minus [budderId] and minus users blocked with
-  /// [budderId]. Written once; returns the number of rows written.
-  Future<int> writeObservers({
-    required String childId,
-    required String postId,
-    required String budderId,
-  });
-
   /// Inserts a pending author invite into [beaconId] (Arch §2.2) and returns
   /// its id. `arrival_post_edge_id` is the invitee's latest active inbound
   /// edge on [sourcePostId] (NULL for the Post author). Returns null when a
@@ -41,11 +32,10 @@ abstract interface class PostBudPort {
 
   /// A later invite of [inviteeId] into the budded Request [childId] by its
   /// author [inviterId] (Arch §3.3): the same facts as [inviteCandidates],
-  /// evaluated for a snapshot observer of [childId] rather than the live
-  /// Post membership. Null when [inviteeId] is not an observer of [childId].
-  /// A block with the Post author ([postId]) or with [inviterId] is
-  /// [PostBudInviteReason.blocked]; a pending invite on [childId] or for the
-  /// same inviter and Post is [PostBudInviteReason.alreadyInvited].
+  /// evaluated for effective Post members whose admission predates the Request.
+  /// Null when [inviteeId] is outside that audience. A block with [inviterId]
+  /// is [PostBudInviteReason.blocked]; a pending invite on [childId] or for
+  /// the same inviter and Post is [PostBudInviteReason.alreadyInvited].
   Future<PostBudInviteCandidate?> laterInviteCandidate({
     required String childId,
     required String postId,
@@ -53,10 +43,8 @@ abstract interface class PostBudPort {
     required String inviteeId,
   });
 
-  /// The snapshot observers of the budded Request [childId] (Arch §2.1),
-  /// ordered by id, for its author's People tab (plan D4). Empty unless
-  /// [authorId] is the author of [childId]; an observer hidden from the
-  /// author by a block is left out.
+  /// Post members eligible to be considered for a later invite to [childId],
+  /// ordered by id. Empty unless [authorId] is the Request's author.
   Future<List<String>> observerIdsForAuthor({
     required String childId,
     required String authorId,

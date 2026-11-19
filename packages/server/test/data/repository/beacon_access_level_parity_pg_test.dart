@@ -9,6 +9,7 @@ import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/domain/policy/beacon_access_policy.dart';
 
 import '../../support/beacon_hierarchy_fixture.dart';
+import '../../support/legacy_post_bud_read_fixture.dart';
 import '../../support/pg_test_public_keys.dart';
 
 /// One beacon per status. Drafts are unpublished and relationship-free, as in
@@ -292,6 +293,84 @@ Future<void> main() async {
     );
 
     test(
+      'Post and child Request access reasons agree in Dart and SQL',
+      () async {
+        await LegacyPostBudReadFixture.seed(writer);
+        const post = LegacyPostBudReadFixture.post;
+        const child = LegacyPostBudReadFixture.child;
+        const author = LegacyPostBudReadFixture.author;
+        const invited = LegacyPostBudReadFixture.invited;
+        const uninvited = LegacyPostBudReadFixture.uninvited;
+        await writer.execute(
+          Sql.named('''
+INSERT INTO public.beacon_participant
+  (id, beacon_id, user_id, role, status, room_access)
+VALUES ('Paclpbudchild', @child, @viewer, 0, 0, @access)
+'''),
+          parameters: {
+            'child': child,
+            'viewer': _ctxChild,
+            'access': RoomAccessBits.admitted,
+          },
+        );
+
+        final authored = BeaconAccessReason.author.bit;
+        final forwarded = BeaconAccessReason.forwarded.bit;
+        final admitted = BeaconAccessReason.admitted.bit;
+        final expectedReasons = {
+          author: {post: authored, child: authored},
+          invited: {post: admitted | forwarded, child: forwarded},
+          uninvited: {post: admitted | forwarded, child: 0},
+          _ctxChild: {post: 0, child: admitted},
+          _stranger: {post: 0, child: 0},
+        };
+        final expected = <String, List<Object?>>{};
+        final actual = <String, List<Object?>>{};
+        for (final MapEntry(key: viewer, value: byBeacon)
+            in expectedReasons.entries) {
+          final isAuthor = viewer == author;
+          final isPostRecipient = viewer == invited || viewer == uninvited;
+          final isChildMember = viewer == _ctxChild;
+          for (final MapEntry(key: beacon, value: reasons)
+              in byBeacon.entries) {
+            final isPost = beacon == post;
+            final facts = _ctxFacts(
+              status: BeaconStatus.open,
+              isBlocked: false,
+              isAdmitted: isPost ? isPostRecipient : isChildMember,
+              isDiscoverable: false,
+              isPublished: true,
+              isMemberOfImmediateParent:
+                  !isPost && (isAuthor || isPostRecipient),
+              isMemberOfDescendant: isPost && (isAuthor || isChildMember),
+              isAuthor: isAuthor,
+              hasForward: isPost ? isPostRecipient : viewer == invited,
+              isPost: isPost,
+              parentIsPost: !isPost,
+            );
+            final label = '$viewer @ $beacon';
+            final dartReasons = BeaconAccessPolicy.reasons(facts);
+            expect(dartReasons, reasons, reason: label);
+            final level = beaconAccessLevelFromReasons(dartReasons);
+            expect(BeaconAccessPolicy.level(facts), level, reason: label);
+            final rows = await writer.execute(
+              Sql.named('''
+SELECT public.beacon_access_reasons(@beacon, @viewer),
+       public.beacon_access_level(@beacon, @viewer),
+       public.beacon_can_read_content(@beacon, @viewer)
+'''),
+              parameters: {'beacon': beacon, 'viewer': viewer},
+            );
+            expected[label] = [dartReasons, level.value, level.canReadContent];
+            actual[label] = rows.single.toList();
+          }
+        }
+        expect(actual, expected, reason: 'reasons, level, and content access');
+      },
+      skip: skipReason,
+    );
+
+    test(
       'forward sender and withdrawn offerer get no reason bits',
       () async {
         expect(await scalar('beacon_access_reasons', _fwdSender), 0);
@@ -452,19 +531,26 @@ BeaconAccessFacts _ctxFacts({
   required bool isPublished,
   required bool isMemberOfImmediateParent,
   required bool isMemberOfDescendant,
+  bool isAuthor = false,
+  bool hasForward = false,
+  bool isDiscoverable = true,
+  bool isPost = false,
+  bool parentIsPost = false,
 }) => BeaconAccessFacts(
   status: status,
   isBlocked: isBlocked,
-  isAuthor: false,
+  isAuthor: isAuthor,
   isSteward: false,
   isAdmitted: isAdmitted,
-  hasActiveForwardEdgeAsRecipient: false,
+  hasActiveForwardEdgeAsRecipient: hasForward,
   isActiveHelpOfferer: false,
-  isDiscoverable: true,
+  isDiscoverable: isDiscoverable,
   isPublished: isPublished,
   isTrustVisibleWithAuthor: false,
   isMemberOfImmediateParent: isMemberOfImmediateParent,
   isMemberOfDescendant: isMemberOfDescendant,
+  isPost: isPost,
+  parentIsPost: parentIsPost,
 );
 
 Future<void> _seedContext(Connection writer) async {

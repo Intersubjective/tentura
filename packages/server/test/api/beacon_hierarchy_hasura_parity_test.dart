@@ -17,6 +17,7 @@ import 'package:tentura_server/env.dart';
 import '../support/beacon_hierarchy_fixture.dart';
 import '../support/hasura_pg_jwt_keys.dart';
 import '../support/isolated_hasura_session.dart';
+import '../support/legacy_post_bud_read_fixture.dart';
 import '../data/repository/beacon_hierarchy_pg_helpers.dart';
 
 /// Hasura read-side parity for hierarchy predicates (Task 03).
@@ -150,6 +151,29 @@ ON CONFLICT (id) DO UPDATE SET room_access = EXCLUDED.room_access
           .toList();
       expect(hierarchyRelNames, isEmpty);
     });
+
+    test('Hasura lists a child Request for the invited Post member only',
+        () async {
+      await LegacyPostBudReadFixture.seed(writer);
+      const child = LegacyPostBudReadFixture.child;
+      Future<List<Map<String, dynamic>>> listRequest(String viewer) =>
+          _queryBeacons(
+            hasuraUrl: hasura!.baseUrl,
+            jwt: authCase.issueAccessToken(viewer).rawToken,
+            where: '{id: {_eq: "$child"}, can_read_content: {_eq: true}}',
+            fields: 'id',
+          );
+      expect(
+        {
+          'uninvited': await listRequest(LegacyPostBudReadFixture.uninvited),
+          'invited': await listRequest(LegacyPostBudReadFixture.invited),
+        },
+        {
+          'uninvited': isEmpty,
+          'invited': [{'id': child}],
+        },
+      );
+    }, skip: skipReason);
 
     test(
       'JWT context observer reads hierarchy rows via widened content permission',

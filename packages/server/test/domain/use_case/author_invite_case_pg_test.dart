@@ -92,11 +92,11 @@ import '../../support/user_erasure_test_stack.dart';
 /// and real attention dispatch.
 ///
 /// `_child` is a Request budded by `_author` from `_post` (author
-/// `_postAuthor`). Its snapshot observers are `_postAuthor`, `_warm` (a first
+/// `_postAuthor`). Its later invite candidates are `_postAuthor`, `_warm` (a first
 /// responder), `_cold` (forward-visible to `_author`), `_hidden` (not
 /// visible), `_paused` (availability-paused) and `_helper`; `_late` joined the
-/// Post after the bud and is not an observer. `_helper2` and `_helper3` are
-/// plain users (not observers) that only the final-check cases admit, so
+/// Post after the bud. `_helper2` and `_helper3` are
+/// plain users that only the final-check cases admit, so
 /// those Requests have three voters (#733).
 const _postAuthor = 'Uai4postauth';
 const _author = 'Uai4author01';
@@ -116,7 +116,14 @@ const _users = [
   _helper,
   _late,
 ];
-const _observers = [_postAuthor, _warm, _cold, _hidden, _paused, _helper];
+const _laterInviteCandidates = [
+  _postAuthor,
+  _warm,
+  _cold,
+  _hidden,
+  _paused,
+  _helper,
+];
 
 // Seeded under their own key namespace: `pgTestPublicKey` has 9 slots.
 const _helper2 = 'Uai4helper02';
@@ -289,7 +296,7 @@ WHERE id = '${row.forwardEdgeId}'
     }
 
     group('create (later invites)', () {
-      test('a warm observer: edge, exempt flag, pinned row, receipt', () async {
+      test('a warm candidate: edge, exempt flag, pinned row, receipt', () async {
         final id = await invited(_warm, note: '  You have a van  ');
 
         final row = await _invite(writer, id);
@@ -314,7 +321,7 @@ WHERE id = '${row.forwardEdgeId}'
         expect(receipts.single.sourceEventKey, 'author_invite:$id');
       });
 
-      test('a cold visible observer gets a non-exempt edge', () async {
+      test('a cold visible candidate gets a non-exempt edge', () async {
         final id = await invited(_cold);
         final row = await _invite(writer, id);
         expect(row.warm, isFalse);
@@ -1597,11 +1604,11 @@ WHERE id = '${row.forwardEdgeId}'
     });
 
     group('People tab (D4)', () {
-      test('the author sees the snapshot observers, a blocked one '
+      test('the author sees earlier Post members, a blocked one '
           'hidden', () async {
         expect(
           await s.invites.budObservers(actorUserId: _author, beaconId: _child),
-          [..._observers]..sort(),
+          [..._laterInviteCandidates]..sort(),
         );
 
         await writer.execute('''
@@ -1610,7 +1617,7 @@ VALUES ('$_cold', '$_author', '$_cold')
 ''');
         expect(
           await s.invites.budObservers(actorUserId: _author, beaconId: _child),
-          ([..._observers]..remove(_cold))..sort(),
+          ([..._laterInviteCandidates]..remove(_cold))..sort(),
         );
       });
 
@@ -1640,6 +1647,13 @@ VALUES ('$_cold', '$_author', '$_cold')
 
       test('the parent reference marks a readable Post parent', () async {
         final hierarchy = BeaconHierarchyRepository(database);
+        final beforeInvite = await hierarchy.loadParentReference(
+          childBeaconId: _child,
+          viewerId: _postAuthor,
+        );
+        expect(beforeInvite.state, BeaconParentReferenceState.none);
+
+        await invited(_postAuthor);
         final reference = await hierarchy.loadParentReference(
           childBeaconId: _child,
           viewerId: _postAuthor,
@@ -1961,6 +1975,13 @@ INSERT INTO public.beacon
    is_discoverable, published_at)
 VALUES ('$_post', '$_postAuthor', '', '', 0, 1, 1, false, now())
 ''');
+  for (final member in [_author, ..._laterInviteCandidates]) {
+    if (member == _postAuthor) continue;
+    await writer.execute('''
+INSERT INTO public.beacon_participant (beacon_id, user_id, role, room_access)
+VALUES ('$_post', '$member', 6, 3)
+''');
+  }
   await writer.execute('''
 INSERT INTO public.beacon
   (id, user_id, title, description, status, parent_beacon_id,
@@ -1968,12 +1989,10 @@ INSERT INTO public.beacon
 VALUES ('$_child', '$_author', 'Move the piano', 'Saturday', 0, '$_post',
         false, now())
 ''');
-  for (final observer in _observers) {
-    await writer.execute('''
-INSERT INTO public.beacon_bud_observer (beacon_id, user_id)
-VALUES ('$_child', '$observer')
+  await writer.execute('''
+INSERT INTO public.beacon_participant (beacon_id, user_id, role, room_access)
+VALUES ('$_post', '$_late', 6, 3)
 ''');
-  }
   await writer.execute('''
 INSERT INTO public.beacon_room_message (id, beacon_id, author_id, body)
 VALUES ('Rai4warm0001', '$_post', '$_warm', 'I have a van')

@@ -76,9 +76,8 @@ class AuthorInviteCase {
     required String beaconId,
   }) => _invites.listForAuthor(beaconId: beaconId, authorId: actorUserId);
 
-  /// The snapshot observers of [beaconId] for its author's People tab, the
-  /// targets of a later invite (plan D4). Anyone but the author gets an
-  /// empty list, like [beaconInvites].
+  /// The targets of a later invite to [beaconId] for its author's People tab.
+  /// Anyone but the author gets an empty list, like [beaconInvites].
   Future<List<String>> budObservers({
     required String actorUserId,
     required String beaconId,
@@ -88,8 +87,8 @@ class AuthorInviteCase {
   );
 
   /// A later invite from the child's People tab (Arch §3.3): only the child
-  /// author, only for a snapshot observer, under the same eligibility rules
-  /// as the bud. Ineligible targets are an outcome, not an error.
+  /// author, for effective Post members whose admission predates the Request.
+  /// Ineligible targets are an outcome, not an error.
   Future<AuthorInviteCreateResult> create({
     required String actorUserId,
     required String beaconId,

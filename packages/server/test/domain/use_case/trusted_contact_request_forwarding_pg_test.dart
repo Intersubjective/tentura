@@ -285,7 +285,7 @@ SELECT
       },
     );
 
-    test('reading a bud through its Post does not grant forwarding', () async {
+    test('an uninvited Post member cannot read or forward the Request', () async {
       final writer = session.writer;
       await _seedPostBudAudience(writer);
       final flags = <String, bool>{};
@@ -293,8 +293,8 @@ SELECT
         await _setRequestState(writer, _bud, discoverable: discoverable);
         expect(
           await h.access.canReadContent(beaconId: _bud, viewerId: _postMember),
-          isTrue,
-          reason: 'the Post member can see the bud through its source Post',
+          isFalse,
+          reason: 'Post membership with discoverable=$discoverable',
         );
         await expectLater(
           h.involvement.asMap(beaconId: _bud, currentUserId: _postMember),
@@ -316,7 +316,7 @@ SELECT
     });
 
     test(
-      'the flag matches involvement access and Request forwarding rules',
+      'Request forwarding requires involvement and direct access to the Request',
       () async {
         final writer = session.writer;
         await _seedPostBudAudience(writer);
@@ -389,7 +389,7 @@ VALUES ('$_bud', '$_steward')
                 // Pin the actual standing of the fixture, independently of
                 // the flag. This also protects existing participant access.
                 final readsInvolvement = switch (viewer) {
-                  _postMember || _outsider => false,
+                  _postMember || _outsider || _forwardSender => false,
                   _viewer => discoverable,
                   _ => true,
                 };
@@ -552,8 +552,7 @@ INSERT INTO public.beacon (id, user_id, title, description, status, kind,
   is_discoverable, forward_policy, parent_beacon_id, published_at)
 VALUES ('$_bud', '$_author', 'Budded Request', '', 0, 0, true, 1, '$_sourcePost', now())
 ''');
-  // The sender can read the bud through its Post. Its outgoing edge is what
-  // adds involvement access, while the uninvited Post member has only content.
+  // Neither a legacy observer row nor an outgoing forward grants content.
   await writer.execute('''
 INSERT INTO public.beacon_bud_observer (beacon_id, user_id)
 VALUES ('$_bud', '$_postMember'), ('$_bud', '$_forwardSender')

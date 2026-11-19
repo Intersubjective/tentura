@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:tentura_root/domain/entity/beacon_access.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_server/domain/policy/beacon_access_policy.dart';
@@ -130,25 +132,22 @@ void main() {
     expect(flips, 8 * 10 * 512);
   });
 
-  group('budding read wall (B3, mirrors post_bud_read_wall_pg_test)', () {
+  group('Post and Request hierarchy access', () {
     BeaconAccessFacts facts({
       bool isBlocked = false,
-      bool isAdmitted = false,
       bool hasForward = false,
-      bool isOfferer = false,
       bool parentMember = false,
       bool descendantMember = false,
       bool isPost = false,
       bool parentIsPost = false,
-      bool isBudObserver = false,
     }) => BeaconAccessFacts(
       status: BeaconStatus.open,
       isBlocked: isBlocked,
       isAuthor: false,
       isSteward: false,
-      isAdmitted: isAdmitted,
+      isAdmitted: false,
       hasActiveForwardEdgeAsRecipient: hasForward,
-      isActiveHelpOfferer: isOfferer,
+      isActiveHelpOfferer: false,
       isDiscoverable: false,
       isPublished: true,
       isTrustVisibleWithAuthor: false,
@@ -156,55 +155,61 @@ void main() {
       isMemberOfDescendant: descendantMember,
       isPost: isPost,
       parentIsPost: parentIsPost,
-      isBudObserver: isBudObserver,
     );
 
-    final contextChild = BeaconAccessReason.contextChild.bit;
-    final contextAncestor = BeaconAccessReason.contextAncestor.bit;
-
-    test('a snapshot observer reads the Post child', () {
-      final f = facts(
+    test('only Request hierarchy membership grants shared context', () {
+      final postChild = facts(parentIsPost: true, parentMember: true);
+      final requestChild = facts(parentMember: true);
+      final postWithDescendant = facts(isPost: true, descendantMember: true);
+      final requestWithDescendant = facts(descendantMember: true);
+      final invitedMember = facts(
         parentIsPost: true,
         parentMember: true,
-        isBudObserver: true,
+        hasForward: true,
       );
-      expect(BeaconAccessPolicy.reasons(f), contextChild);
-      expect(BeaconAccessPolicy.level(f), BeaconAccessLevel.observer);
-    });
-
-    test('a live Post member without a snapshot row cannot', () {
-      final f = facts(parentIsPost: true, parentMember: true);
-      expect(BeaconAccessPolicy.reasons(f), 0);
-      expect(BeaconAccessPolicy.level(f).canReadContent, isFalse);
-    });
-
-    test('a blocked observer cannot', () {
-      final f = facts(
+      final blockedInvitee = facts(
         isBlocked: true,
         parentIsPost: true,
-        isBudObserver: true,
+        parentMember: true,
+        hasForward: true,
       );
-      expect(BeaconAccessPolicy.level(f), BeaconAccessLevel.stranger);
-    });
 
-    test('child helpers and forward recipients never read the Post', () {
-      // Their child membership is the descendant fact on the Post.
-      final f = facts(isPost: true, descendantMember: true);
-      expect(BeaconAccessPolicy.reasons(f), 0);
-      expect(BeaconAccessPolicy.level(f).canReadContent, isFalse);
-    });
+      (int, BeaconAccessLevel) access(BeaconAccessFacts facts) =>
+          (BeaconAccessPolicy.reasons(facts), BeaconAccessPolicy.level(facts));
 
-    test('Request parents keep live shared context (#146)', () {
-      expect(
-        BeaconAccessPolicy.reasons(facts(parentMember: true)),
-        contextChild,
+      const observer = BeaconAccessLevel.observer;
+      const stranger = BeaconAccessLevel.stranger;
+      expect(access(postChild), (0, stranger));
+      expect(access(requestChild), (
+        BeaconAccessReason.contextChild.bit,
+        observer,
+      ));
+      expect(access(postWithDescendant), (0, stranger));
+      expect(access(requestWithDescendant), (
+        BeaconAccessReason.contextAncestor.bit,
+        observer,
+      ));
+      expect(access(invitedMember), (
+        BeaconAccessReason.forwarded.bit,
+        observer,
+      ));
+      expect(access(blockedInvitee), (0, stranger));
+
+      // The source contract covers callers as well as the facts declaration.
+      final retiredFact = RegExp(
+        r'\bisBud'
+        r'Observer\b',
       );
-      expect(
-        BeaconAccessPolicy.reasons(facts(descendantMember: true)),
-        contextAncestor,
-      );
-      // A stray snapshot row grants nothing under a Request parent.
-      expect(BeaconAccessPolicy.reasons(facts(isBudObserver: true)), 0);
+      final references =
+          ['bin', 'lib', 'test', 'tool']
+              .expand((path) => Directory(path).listSync(recursive: true))
+              .whereType<File>()
+              .where((file) => file.path.endsWith('.dart'))
+              .where((file) => retiredFact.hasMatch(file.readAsStringSync()))
+              .map((file) => file.path)
+              .toList()
+            ..sort();
+      expect(references, isEmpty, reason: 'The policy has no snapshot grant');
     });
   });
 }

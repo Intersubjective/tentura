@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:logging/logging.dart';
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
+import 'package:tentura_root/domain/entity/beacon_access.dart';
 import 'package:tentura_server/domain/port/invitation_repository_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
 import 'package:tentura_server/domain/use_case/auth_case.dart';
@@ -16,6 +17,7 @@ import '../support/beacon_hierarchy_fixture.dart';
 import '../support/disposable_pg_target.dart' show isPgTestsRequired;
 import '../support/hasura_pg_jwt_keys.dart';
 import '../support/isolated_hasura_session.dart';
+import '../support/legacy_post_bud_read_fixture.dart';
 import '../data/repository/beacon_hierarchy_pg_helpers.dart';
 
 /// Issue-146 T07: `access_level` / `access_reasons` are exposed to the `user`
@@ -87,6 +89,32 @@ Future<void> main() async {
     });
 
     const fields = 'access_level access_reasons can_read_involvement';
+
+    test('only the invited Post member can open the Request in Hasura',
+        () async {
+      await LegacyPostBudReadFixture.seed(writer);
+      Future<Map<String, dynamic>?> openRequest(String viewer) =>
+          _queryBeaconByPk(
+            hasuraUrl: hasura!.baseUrl,
+            jwt: authCase.issueAccessToken(viewer).rawToken,
+            beaconId: LegacyPostBudReadFixture.child,
+            fields: fields,
+          );
+      expect(
+        {
+          'uninvited': await openRequest(LegacyPostBudReadFixture.uninvited),
+          'invited': await openRequest(LegacyPostBudReadFixture.invited),
+        },
+        {
+          'uninvited': null,
+          'invited': {
+            'access_level': BeaconAccessLevel.observer.value,
+            'access_reasons': BeaconAccessReason.forwarded.bit,
+            'can_read_involvement': true,
+          },
+        },
+      );
+    }, skip: skipReason);
 
     test('forward recipient sees observer level with forwarded reason', () async {
       await fixture.seedFullTopology();
