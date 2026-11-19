@@ -315,6 +315,101 @@ INSERT INTO public.beacon_help_offer (
       parameters: {'b': _requestId, 'u': _viewerId},
     );
 
+    group('When the author closes an already-read forward', () {
+      Future<AttentionFeed> historyUnread(AttentionRepository repo) =>
+          repo.attentionFeed(
+            accountId: _viewerId,
+            view: AttentionFeedView.unread,
+          );
+
+      setUp(() async {
+        await seedRelayReceipt(_requestId);
+        await ack.markAllSeen(_viewerId);
+        final pending = await feedRepo.activityOffers(
+          accountId: _viewerId,
+          beaconId: _requestId,
+        );
+        // An open, unanswered forward is pinned in Activity. If the stream
+        // also projects it, that projection must agree that it was read.
+        expect(pending.items.single.beaconId, _requestId);
+        expect(pending.items.single.unseen, isFalse);
+        final stream = await activity();
+        expect(
+          stream.page.items.where(
+            (item) =>
+                item.beaconId == _requestId &&
+                item.itemKind == AttentionItemKind.forward &&
+                item.seenAt == null,
+          ),
+          isEmpty,
+          reason: 'Activity has no unread forward before the author closes it',
+        );
+        expect((await history()).summary.unreadTotal, 0);
+
+        await authorCloses();
+
+        final row = forwardRowOf(await activity());
+        expect(row.forwardOutcome, 'closedBeforeResponse');
+        expect(row.seenAt, isNull);
+      });
+
+      void expectUnreadClosure(AttentionFeed feed) {
+        expect(
+          feed.page.items.where(
+            (item) => item.beaconId == _requestId && item.seenAt == null,
+          ),
+          isNotEmpty,
+          reason: 'History lists an unread item for the newly closed Request',
+        );
+      }
+
+      test(
+        'History All lists and counts the closure until Read all clears it',
+        () async {
+          final before = await history();
+          await ack.markAllSeen(_viewerId);
+
+          Future<void> expectRead(AttentionRepository repo) async {
+            final activityFeed = await activity(repo);
+            expect(forwardRowOf(activityFeed).seenAt, isNotNull);
+            expect(activityFeed.summary.unreadTotal, 0);
+            final historyFeed = await history(repo);
+            expect(
+              historyFeed.page.items.map((item) => item.seenAt),
+              everyElement(isNotNull),
+            );
+            expect(historyFeed.summary.unreadTotal, 0);
+            expect((await historyUnread(repo)).page.items, isEmpty);
+          }
+
+          await expectRead(feedRepo);
+          await withFreshConnection(expectRead);
+
+          expectUnreadClosure(before);
+          expect(before.summary.unreadTotal, greaterThanOrEqualTo(1));
+        },
+      );
+
+      test(
+        'History Unread lists the closure and Activity Read all clears its dot',
+        () async {
+          final before = await historyUnread(feedRepo);
+          await ack.markAllSeen(_viewerId, surface: AttentionSurface.activity);
+
+          Future<void> expectRead(AttentionRepository repo) async {
+            final feed = await activity(repo);
+            expect(forwardRowOf(feed).seenAt, isNotNull);
+            expect(feed.summary.unreadTotal, 0);
+          }
+
+          await expectRead(feedRepo);
+          await withFreshConnection(expectRead);
+
+          expectUnreadClosure(before);
+        },
+      );
+    });
+
     test(
       'Read all leaves the unread forward row and the unread ordinary receipt '
       'read, and a reload on a new connection still shows them read',

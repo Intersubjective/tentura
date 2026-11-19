@@ -222,8 +222,10 @@ final class _App {
 
 Future<void> _withApp(
   WidgetTester tester,
-  Future<void> Function(_App app) body,
-) =>
+  Future<void> Function(_App app, ProductionReceiptTransport transport) body, {
+  void Function(Map<String, dynamic> request, http.Response response)?
+  onGraphqlResponse,
+}) =>
     tester.runAsync(() async {
           final transport = await ProductionReceiptTransport.start(
             activityRowsFixture: true,
@@ -233,7 +235,7 @@ Future<void> _withApp(
               () async {
                 final app = await _App.open();
                 try {
-                  await body(app);
+                  await body(app, transport);
                 } finally {
                   await app.close();
                 }
@@ -250,10 +252,11 @@ Future<void> _withApp(
                     headers: {'content-type': 'application/json'},
                   );
                 }
-                return transport.graphql(
-                  _viewer,
-                  jsonDecode(request.body) as Map<String, dynamic>,
-                );
+                final payload =
+                    jsonDecode(request.body) as Map<String, dynamic>;
+                final response = await transport.graphql(_viewer, payload);
+                onGraphqlResponse?.call(payload, response);
+                return response;
               }),
             );
           } finally {
@@ -360,6 +363,194 @@ Future<void> _readAllOnHistory(
 }
 
 void main() {
+  testWidgets(
+    'History Unread offers Read all for a newly closed forward and clears '
+    'its Activity dot',
+    (tester) async {
+      await usePhoneSurface(tester);
+      const locale = Locale('ru');
+      const closedLabel = 'Автор закрыл запрос до вашего ответа';
+      final readAll = find.widgetWithText(TextButton, 'Прочитать всё');
+      var markAllResponses = 0;
+      Map<String, dynamic>? activityFeed;
+      Map<String, dynamic>? historyUnreadFeed;
+      Iterable<Map<String, dynamic>> requestItems(Map<String, dynamic>? feed) {
+        expect(feed, isNotNull, reason: 'The app fetched the feed');
+        final page = feed!['page'] as Map<String, dynamic>;
+        return (page['items'] as List<dynamic>)
+            .cast<Map<String, dynamic>>()
+            .where((item) => item['beaconId'] == _pendingBeaconId);
+      }
+
+      await _withApp(
+        tester,
+        (app, transport) async {
+          await _until(() => app.history.state.canReadAll);
+          await _pumpHistory(tester, app, locale);
+          expect(tester.widget<TextButton>(readAll).onPressed, isNotNull);
+          await tester.tap(readAll);
+          await _until(
+            () =>
+                markAllResponses == 1 &&
+                app.history.state.summary.unreadTotal == 0 &&
+                !app.history.state.canReadAll,
+            why: () =>
+                'History after reading the open forward: ${app.history.state}',
+          );
+
+          // The transport seeds Postgres and executes these queries with the
+          // production schema. Compare the same Request across the mutation.
+          expect(
+            requestItems(activityFeed).where(
+              (item) => item['forwardOutcome'] == 'closedBeforeResponse',
+            ),
+            isEmpty,
+            reason: 'Activity has no closure outcome before the author closes',
+          );
+          final close = await transport.graphql('Ua00000000001', {
+            'query': r'''
+              mutation CloseForwardedRequest($beaconId: String!) {
+                beaconClose(beaconId: $beaconId)
+              }
+            ''',
+            'variables': {'beaconId': _pendingBeaconId},
+          });
+          expect(jsonDecode(close.body), {
+            'data': {'beaconClose': true},
+          });
+
+          activityFeed = null;
+          historyUnreadFeed = null;
+          await app.activity.refresh();
+          await app.offers.loadFirst();
+          await app.history.setView(AttentionView.unread);
+          await app.history.refresh();
+          await _until(
+            () =>
+                activityFeed != null &&
+                historyUnreadFeed != null &&
+                !app.history.state.isLoading,
+            why: () => 'Activity and History Unread responses after closure',
+          );
+          expect(app.history.state.hasRefreshError, isFalse);
+          final wireForward = requestItems(
+            activityFeed,
+          ).where((item) => item['itemKind'] == 'forward');
+          expect(wireForward, hasLength(1));
+          expect(
+            wireForward.single,
+            containsPair('forwardOutcome', 'closedBeforeResponse'),
+          );
+          expect(wireForward.single, containsPair('seenAt', isNull));
+          final closedRow = _identified(
+            TestIds.activityForwardRow(_pendingBeaconId),
+          );
+          final dot = find.descendant(
+            of: closedRow,
+            matching: find.byKey(TombstoneRow.unreadDotKey),
+          );
+          final outcome = find.descendant(
+            of: closedRow,
+            matching: find.text(closedLabel),
+          );
+          await _pumpActivity(tester, app, locale);
+          expect(outcome, findsOneWidget);
+          expect(dot, findsOneWidget);
+          expect(tester.takeException(), isNull);
+
+          await _pumpHistory(tester, app, locale);
+          expect(
+            {
+              'wire has unread closure':
+                  requestItems(
+                    historyUnreadFeed,
+                  ).any(
+                    (item) =>
+                        item.containsKey('seenAt') && item['seenAt'] == null,
+                  ),
+              'History Unread lists the closure': app.history.state.items.any(
+                (item) => item.beaconId == _pendingBeaconId && !item.isSeen,
+              ),
+              'canReadAll': app.history.state.canReadAll,
+              'Read all button enabled':
+                  tester.widget<TextButton>(readAll).onPressed != null,
+            },
+            {
+              'wire has unread closure': true,
+              'History Unread lists the closure': true,
+              'canReadAll': true,
+              'Read all button enabled': true,
+            },
+            reason: 'History before reading the closure',
+          );
+
+          await tester.tap(readAll);
+          await _until(
+            () =>
+                markAllResponses == 2 &&
+                app.history.state.summary.unreadTotal == 0 &&
+                !app.history.state.canReadAll,
+            why: () =>
+                'History after reading the closure: ${app.history.state}',
+          );
+          activityFeed = null;
+          historyUnreadFeed = null;
+          await app.history.refresh();
+          await app.activity.refresh();
+          await _until(
+            () =>
+                activityFeed != null &&
+                historyUnreadFeed != null &&
+                !app.history.state.isLoading,
+            why: () => 'Refetched Activity and History Unread after Read all',
+          );
+          expect(requestItems(historyUnreadFeed), isEmpty);
+          expect(
+            historyUnreadFeed!['summary'],
+            containsPair('unreadTotal', 0),
+          );
+          final readForward = requestItems(
+            activityFeed,
+          ).singleWhere((item) => item['itemKind'] == 'forward');
+          expect(readForward, containsPair('seenAt', isNotNull));
+          expect(app.history.state.hasRefreshError, isFalse);
+          expect(app.history.state.items, isEmpty);
+          expect(app.history.state.summary.unreadTotal, 0);
+          expect(app.history.state.canReadAll, isFalse);
+          await _pumpHistory(tester, app, locale);
+          expect(tester.widget<TextButton>(readAll).onPressed, isNull);
+          await _pumpActivity(tester, app, locale);
+          expect(outcome, findsOneWidget);
+          expect(dot, findsNothing);
+          expect(tester.takeException(), isNull);
+        },
+        onGraphqlResponse: (request, response) {
+          final operation = request['operationName'];
+          if (operation != 'AttentionMarkAllSeen' &&
+              operation != 'AttentionFeed') {
+            return;
+          }
+          final envelope = jsonDecode(response.body) as Map<String, dynamic>;
+          final data = envelope['data'] as Map<String, dynamic>?;
+          if (envelope['errors'] != null || data == null) return;
+          if (operation == 'AttentionMarkAllSeen') {
+            if (data['attentionMarkAllSeen'] is int) markAllResponses++;
+            return;
+          }
+          final variables = request['variables'] as Map<String, dynamic>;
+          final feed = data['attentionFeed'] as Map<String, dynamic>;
+          if (variables['surface'] == 'activity' &&
+              variables['view'] == 'all') {
+            activityFeed = feed;
+          }
+          if (variables['surface'] == null && variables['view'] == 'unread') {
+            historyUnreadFeed = feed;
+          }
+        },
+      );
+    },
+  );
+
   for (final (locale, label) in const [
     (Locale('en'), 'Read all'),
     (Locale('ru'), 'Прочитать всё'),
@@ -370,7 +561,7 @@ void main() {
       '(${locale.languageCode})',
       (tester) async {
         await usePhoneSurface(tester);
-        await _withApp(tester, (app) async {
+        await _withApp(tester, (app, _) async {
           await _pumpActivity(tester, app, locale);
           expect(_tombstoneRow(), findsOneWidget, reason: 'precondition');
           expect(_pendingRow(), findsOneWidget, reason: 'precondition');
@@ -406,7 +597,7 @@ void main() {
     'forwarded Request from Activity, not even for one frame',
     (tester) async {
       await usePhoneSurface(tester);
-      await _withApp(tester, (app) async {
+      await _withApp(tester, (app, _) async {
         await _pumpHistory(tester, app, const Locale('en'));
         final streamFrames = <List<String>>[];
         final offerFrames = <List<String>>[];

@@ -264,6 +264,9 @@ ORDER BY beacon_id, created_at DESC, id DESC
         .customSelect(
           '''
 WITH ${AttentionDismissibleSql.cte},
+$_requestEntryCte,
+$_forwardRowsCtes,
+$_historyRowsCte,
 -- §6 `my desk.dot` and `for you.dot`. Both expressions live in
 -- `AttentionDismissibleSql` so the M1 test composes the *same* rule instead
 -- of a hand-copy of it — U15R-d's verify pass caught exactly that drift.
@@ -288,9 +291,9 @@ for_you_receipt_sweep_eligible AS (
 ),
 history_summary AS (
   SELECT
-    COUNT(*) FILTER (WHERE ${AttentionDismissibleSql.historyAttention('v')})::int AS unread_total,
+    COUNT(*) FILTER (WHERE v.history_unread)::int AS unread_total,
     COUNT(*) FILTER (WHERE ${AttentionDismissibleSql.liveObligation('v')})::int AS needs_you_total
-  FROM visible v
+  FROM history_rows v
 )
 SELECT
   history_summary.unread_total,
@@ -360,6 +363,16 @@ FROM my_desk_dot, for_you_dot, my_desk_count, for_you_sweep_eligible,
       AND ${AttentionDismissibleSql.primaryPlacement('v')}
     ) AS is_active_attention''';
 
+  static String get _receiptStreamColumns =>
+      '''
+    $_visibleStreamColumns,
+    'receipt'::text AS item_kind,
+    NULL::text AS forward_outcome,
+    NULL::int AS forward_count,
+    NULL::int AS digest_count,
+    NULL::int AS event_total,
+    NULL::int AS event_unseen_count''';
+
   // Today's grouping rule, in three lines:
   // 1. Receipts on the activity surface group per beacon into one synthetic
   //    `requestActivity` row, unless the beacon is pinned or a forward row.
@@ -386,14 +399,15 @@ FROM my_desk_dot, for_you_dot, my_desk_count, for_you_sweep_eligible,
   /// child rather than over the active ones: they are ordering inputs, and
   /// narrowing them would make clearing or receiving an optional event
   /// silently reshuffle the zone — the defect this unit inherited.
-  static String get _activityGroupingCtes =>
-      '''
-${AttentionDismissibleSql.eligiblePinned},
+  static const _requestEntryCte = r'''
 request_entry AS (
   SELECT state.beacon_id, state.first_entry_at
   FROM public.attention_request_state state
-  WHERE state.account_id = \$1
-),
+  WHERE state.account_id = $1
+)''';
+
+  static String get _forwardRowsCtes =>
+      '''
 -- #747: every condition that needs no visibility check, materialized before
 -- the readability guard below. Inlined, the guard (it reads only inbox
 -- columns) ran on each of the viewer's inbox rows before the join dropped
@@ -453,6 +467,14 @@ eligible_forward AS (
   FROM forward_candidate ii
   WHERE ${AttentionDismissibleSql.outcomeReadabilityGuard}
 ),
+forward_rows AS (
+  $_forwardSelect
+)''';
+
+  static String get _activityGroupingCtes =>
+      '''
+${AttentionDismissibleSql.eligiblePinned},
+$_requestEntryCte,
 -- U15R-a / R1 — *representative* now means "an attention object that owns
 -- this Request's children", and only the pinned zone is one. An outcome row
 -- is a dated memory of the viewer's own act (contract section 7, owner
@@ -504,24 +526,8 @@ beacon_activity_stats AS (
   GROUP BY beacon_id
 )''';
 
-  static String get _activityPageStreamCte =>
+  static String get _forwardSelect =>
       '''
-$_activityGroupingCtes,
-page_stream AS (
-  SELECT
-    $_visibleStreamColumns,
-    'receipt'::text AS item_kind,
-    NULL::text AS forward_outcome,
-    NULL::int AS forward_count,
-    NULL::int AS digest_count,
-    NULL::int AS event_total,
-    NULL::int AS event_unseen_count
-  FROM visible v
-  WHERE v.surface = 'activity'
-    AND v.beacon_id IS NULL
-
-  UNION ALL
-
   SELECT
     ('inbox:' || ef.beacon_id) AS id,
     \$1::text AS account_id,
@@ -686,7 +692,53 @@ page_stream AS (
           AND bp.room_access = 3
       )
     LIMIT 1
-  ) hs ON true
+  ) hs ON true''';
+
+  static String get _historyRowsCte =>
+      '''
+history_rows AS (
+  SELECT
+    v.*,
+    'receipt'::text AS item_kind,
+    NULL::text AS forward_outcome,
+    NULL::int AS forward_count,
+    ${AttentionDismissibleSql.postLifecycleExcluded('v')} AS history_lifecycle_eligible,
+    ${AttentionDismissibleSql.historyAttention('v')} AS history_unread
+  FROM visible v
+
+  UNION ALL
+
+  -- A close can light the forward's outcome tick after Read all took its
+  -- relay receipt out of History Unread. A seen but uncleared receipt is
+  -- already counted there.
+  -- Use the outbox row type so ordinary receipts retain every stored column.
+  SELECT receipt.*, f.tombstone_copy, f.surface,
+    f.item_kind, f.forward_outcome, f.forward_count, true, f.seen_at IS NULL
+  FROM forward_rows f
+  CROSS JOIN LATERAL jsonb_populate_record(
+    NULL::public.notification_outbox, to_jsonb(f)
+  ) receipt
+  WHERE f.forward_outcome = 'closedBeforeResponse'
+    AND EXISTS (
+      SELECT 1 FROM visible relay
+      WHERE relay.beacon_id = f.beacon_id
+        AND relay.presentation_key = 'relay_received'
+        AND relay.seen_at < f.created_at
+        AND relay.cleared_at < f.created_at
+    )
+)''';
+
+  static String get _activityPageStreamCte =>
+      '''
+page_stream AS (
+  SELECT $_receiptStreamColumns
+  FROM visible v
+  WHERE v.surface = 'activity'
+    AND v.beacon_id IS NULL
+
+  UNION ALL
+
+  SELECT * FROM forward_rows
 
   UNION ALL
 
@@ -832,7 +884,7 @@ page_stream AS (
     final cursorClause = StringBuffer();
     final streamAlias = surface == AttentionSurface.activity
         ? 'stream'
-        : 'visible';
+        : 'history';
     final actorNameMatch =
         '''
 EXISTS (
@@ -884,44 +936,46 @@ page AS (
 )'''
         : '''
 page AS (
-  SELECT visible.*,
-    ${AttentionDismissibleSql.postLifecycleExcluded('visible')} AS history_lifecycle_eligible
-  FROM visible
+  SELECT history.*
+  FROM history_rows history
   WHERE (
     \$2 = 'all'
-    OR (\$2 = 'unread' AND ${AttentionDismissibleSql.historyAttention('visible')})
-    OR (\$2 = 'needsYou' AND ${AttentionDismissibleSql.liveObligation('visible')})
+    OR (\$2 = 'unread' AND history.history_unread)
+    OR (\$2 = 'needsYou' AND ${AttentionDismissibleSql.liveObligation('history')})
   )
   AND (
     \$3::text IS NULL
     OR to_tsvector(
       'simple',
-      coalesce(visible.presentation_payload ->> 'eventType', '') || ' ' ||
-      coalesce(visible.presentation_payload ->> 'beaconId', '') || ' ' ||
-      coalesce(visible.presentation_payload ->> 'coordinationItemId', '') || ' ' ||
-      coalesce(visible.presentation_payload ->> 'targetEntityId', '') || ' ' ||
-      coalesce(visible.presentation_payload ->> 'messageId', '')
+      coalesce(history.presentation_payload ->> 'eventType', '') || ' ' ||
+      coalesce(history.presentation_payload ->> 'beaconId', '') || ' ' ||
+      coalesce(history.presentation_payload ->> 'coordinationItemId', '') || ' ' ||
+      coalesce(history.presentation_payload ->> 'targetEntityId', '') || ' ' ||
+      coalesce(history.presentation_payload ->> 'messageId', '')
     ) @@ websearch_to_tsquery('simple', \$3)
     OR $actorNameMatch
   )
-  AND (\$4::text IS NULL OR visible.surface = \$4)
+  AND (\$4::text IS NULL OR history.surface = \$4)
     $cursorClause
-  ORDER BY visible.created_at DESC, visible.id DESC
+  ORDER BY history.created_at DESC, history.id DESC
   LIMIT $limitParameter
 )''';
 
     final rows = await _database.customSelect(
       '''
 WITH $_visibleWithSurfaceCte,
+${surface == AttentionSurface.activity ? _activityGroupingCtes : _requestEntryCte},
+$_forwardRowsCtes,
+$_historyRowsCte,
 summary AS (
   SELECT COUNT(*) FILTER (
-    WHERE ${AttentionDismissibleSql.historyAttention('v')}
+    WHERE v.history_unread
       AND (\$4::text IS NULL OR v.surface = \$4)
   )::int AS unread_total,
   COUNT(*) FILTER (
     WHERE ${AttentionDismissibleSql.liveObligation('v')}
   )::int AS needs_you_total
-  FROM visible v
+  FROM history_rows v
 ),
 $pageCte
 SELECT summary.unread_total, summary.needs_you_total, page.*
@@ -977,6 +1031,15 @@ ORDER BY page.created_at DESC NULLS LAST, page.id DESC NULLS LAST
     final preferenceName = row.readNullable<String>(
       'in_app_preference_class',
     );
+    final historyLifecycleEligible =
+        row.data.containsKey('history_lifecycle_eligible')
+        ? row.read<bool>('history_lifecycle_eligible')
+        : null;
+    final forwardOutcome = row.readNullable<String>('forward_outcome');
+    final historyClosure =
+        historyLifecycleEligible == true &&
+        forwardOutcome == 'closedBeforeResponse';
+    final presentationPayload = _readJsonObject(row, 'presentation_payload');
     return AttentionReceipt(
       id: row.read<String>('id'),
       accountId: row.read<String>('account_id'),
@@ -1003,8 +1066,12 @@ ORDER BY page.created_at DESC NULLS LAST, page.id DESC NULLS LAST
           ? null
           : _destinationFromName(destinationName),
       targetEntityId: row.readNullable<String>('target_entity_id'),
-      presentationKey: row.readNullable<String>('presentation_key'),
-      presentationPayload: _readJsonObject(row, 'presentation_payload'),
+      presentationKey: historyClosure
+          ? 'request_status_changed'
+          : row.readNullable<String>('presentation_key'),
+      presentationPayload: historyClosure
+          ? {...presentationPayload, 'toStatus': BeaconStatus.closed.name}
+          : presentationPayload,
       inAppPreferenceClass: preferenceName == null
           ? null
           : _preferenceFromName(preferenceName),
@@ -1031,15 +1098,12 @@ ORDER BY page.created_at DESC NULLS LAST, page.id DESC NULLS LAST
       clearReason: row.data.containsKey('clear_reason')
           ? row.readNullable<String>('clear_reason')
           : null,
-      historyLifecycleEligible:
-          row.data.containsKey('history_lifecycle_eligible')
-          ? row.read<bool>('history_lifecycle_eligible')
-          : null,
+      historyLifecycleEligible: historyLifecycleEligible,
       surface: attentionSurfaceFromWireName(row.read<String>('surface')),
       itemKind: row.data['item_kind'] == null
           ? AttentionItemKind.receipt
           : attentionItemKindFromWireName(row.read<String>('item_kind')),
-      forwardOutcome: row.readNullable<String>('forward_outcome'),
+      forwardOutcome: forwardOutcome,
       forwardCount: row.readNullable<int>('forward_count'),
       digestCount: row.readNullable<int>('digest_count'),
       eventTotal: row.data['event_total'] == null
