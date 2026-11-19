@@ -257,7 +257,7 @@ Future<void> main() async {
 
       final lineageOnly = await writer.execute(
         Sql.named(
-          'SELECT lineage_parent_beacon_id FROM public.beacon WHERE id = @id',
+          'SELECT stored_lineage_parent_beacon_id FROM public.beacon WHERE id = @id',
         ),
         parameters: {'id': forkId},
       );

@@ -551,7 +551,7 @@ ORDER BY f.origin_fact_card_id
 
   Future<int> forksOf(String sourceId) => count(
     'SELECT count(*)::integer AS n FROM public.beacon '
-    'WHERE lineage_parent_beacon_id = @s',
+    'WHERE stored_lineage_parent_beacon_id = @s',
     {'s': sourceId},
   );
 

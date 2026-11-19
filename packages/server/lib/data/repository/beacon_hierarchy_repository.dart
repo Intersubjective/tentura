@@ -111,14 +111,17 @@ class BeaconHierarchyRepository
     }
     variables.add(Variable<String>(viewerId));
     final viewer = '\$${variables.length}';
-    // Deleted children are unreadable on their own; admitted parent viewers
-    // still see the tombstone.
+    // Request parents share tombstones with admitted members. A Post bud
+    // needs its own tombstone grant.
     final visibilitySql =
         '''
   AND NOT public.block_hides(b.user_id, $viewer)
   AND (
     (b.status <> 2 AND public.beacon_can_read_content(b.id, $viewer))
-    OR (b.status = 2 AND public.beacon_effective_admission(\$1, $viewer))
+    OR (b.status = 2 AND CASE
+      WHEN parent.kind = 1 THEN public.beacon_can_read_tombstone(b.id, $viewer)
+      ELSE public.beacon_effective_admission(\$1, $viewer)
+    END)
   )
 ''';
 
@@ -140,6 +143,7 @@ SELECT
   b.primary_need_slug,
   b.needs
 FROM public.beacon b
+JOIN public.beacon parent ON parent.id = b.parent_beacon_id
 LEFT JOIN public."user" u ON u.id = b.user_id
 WHERE b.parent_beacon_id = $1
   AND b.published_at IS NOT NULL

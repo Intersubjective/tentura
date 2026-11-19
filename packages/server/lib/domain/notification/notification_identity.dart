@@ -31,6 +31,7 @@ class NotificationIdentity {
     this.hasImage = false,
     this.deleted = false,
     this.authorName,
+    this.isPostBud = false,
   });
 
   final NotificationEntityKind entityKind;
@@ -50,6 +51,11 @@ class NotificationIdentity {
   /// The Post author's live name, set only for a readable Post.
   final String? authorName;
 
+  final bool isPostBud;
+
+  /// Even generic copy or a deep link would disclose an unreadable bud.
+  bool get hidesNotification => isPostBud && !readable;
+
   @override
   bool operator ==(Object other) =>
       other is NotificationIdentity &&
@@ -63,7 +69,8 @@ class NotificationIdentity {
       other.expired == expired &&
       other.hasImage == hasImage &&
       other.deleted == deleted &&
-      other.authorName == authorName;
+      other.authorName == authorName &&
+      other.isPostBud == isPostBud;
 
   @override
   int get hashCode => Object.hash(
@@ -78,6 +85,7 @@ class NotificationIdentity {
     hasImage,
     deleted,
     authorName,
+    isPostBud,
   );
 }
 

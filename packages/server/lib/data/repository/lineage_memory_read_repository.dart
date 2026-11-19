@@ -24,7 +24,7 @@ class LineageMemoryReadRepository implements LineageMemoryReadPort {
         .customSelect(
           r'''
       SELECT id FROM beacon
-       WHERE id = $1 OR lineage_root_beacon_id = $1
+       WHERE id = $1 OR stored_lineage_root_beacon_id = $1
       ''',
           variables: [Variable.withString(rootBeaconId)],
         )

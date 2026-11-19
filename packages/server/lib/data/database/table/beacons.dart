@@ -54,13 +54,16 @@ class Beacons extends Table
   late final coverThumbImageId = customType(PgTypes.uuid).nullable()();
 
   /// Immediate source beacon when this row was created via lineage fork.
-  late final lineageParentBeaconId = text().nullable().references(
-    Beacons,
-    #id,
-  )();
+  late final lineageParentBeaconId = text()
+      .named('stored_lineage_parent_beacon_id')
+      .nullable()
+      .references(Beacons, #id)();
 
   /// Root of the lineage tree (self when this beacon is the original).
-  late final lineageRootBeaconId = text().nullable().references(Beacons, #id)();
+  late final lineageRootBeaconId = text()
+      .named('stored_lineage_root_beacon_id')
+      .nullable()
+      .references(Beacons, #id)();
 
   late final Column<int> reviewReopenCount =
       integer().withDefault(const Constant(0))();

@@ -173,15 +173,14 @@ class EmailDigestCase {
     await _outbox.markEmailed([for (final row in rows) row.item.id]);
   }
 
-  /// Rows the digest may show now (spec §3): not from a blocked person, not
-  /// about a deleted entity whose tombstone is unreadable, and no warning for
-  /// a Post that has already expired.
+  /// The digest omits blocked actors, private buds, inaccessible tombstones
+  /// and expiration warnings for Posts that already expired.
   static bool _shown(
     NotificationOutboxItemEntity item,
     NotificationIdentity identity,
     DateTime now,
   ) {
-    if (identity.actorHidden) return false;
+    if (identity.actorHidden || identity.hidesNotification) return false;
     if (identity.deleted && !identity.tombstone) return false;
     if (item.kind == NotificationKind.postExpiringSoon) {
       final expiresAt = switch (item.presentationPayload['expiresAt']) {

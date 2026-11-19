@@ -94,6 +94,7 @@ class BeaconNotificationService implements BeaconNotificationPort {
           ),
       ]);
       final identity = identities.first;
+      if (identity.hidesNotification) continue;
       if (identity.actorHidden) {
         // A blocked pair (either direction) gets neither push nor email.
         _logger.info(

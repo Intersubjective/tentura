@@ -9,6 +9,7 @@ import 'package:tentura_server/app/sentry/sentry_db_span.dart';
 import 'package:tentura_server/consts/beacon_participant_status_bits.dart';
 import 'package:tentura_server/consts/beacon_fact_card_consts.dart';
 import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
+import 'package:tentura_server/consts/beacon_hierarchy_consts.dart';
 import 'package:tentura_server/consts/coordination_item_consts.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
@@ -104,7 +105,24 @@ WHERE b.id = ANY($2::text[]) AND b.kind = 1
     String? messageId,
     int limit = 50,
     String? hideBlockedAuthorsFor,
-  }) async {
+  }) => _messagePage(
+    beaconId: beaconId,
+    threadItemId: threadItemId,
+    before: before,
+    messageId: messageId,
+    limit: limit,
+    hideBlockedAuthorsFor: hideBlockedAuthorsFor,
+  ).get();
+
+  SimpleSelectStatement<$BeaconRoomMessagesTable, BeaconRoomMessage>
+  _messagePage({
+    required String beaconId,
+    required String? threadItemId,
+    required DateTime? before,
+    required String? messageId,
+    required int limit,
+    required String? hideBlockedAuthorsFor,
+  }) {
     Expression<bool> threadFilter($BeaconRoomMessagesTable m) {
       final tid = threadItemId;
       if (tid == null) {
@@ -136,39 +154,30 @@ WHERE b.id = ANY($2::text[]) AND b.kind = 1
           );
     }
 
-    if (before == null) {
-      return (_db.select(_db.beaconRoomMessages)
-            ..where(
-              (m) =>
-                  m.beaconId.equals(beaconId) &
-                  threadFilter(m) &
-                  messageFilter(m) &
-                  blockFilter(m),
-            )
-            ..orderBy([
-              (m) => OrderingTerm(
-                expression: m.createdAt,
-                mode: OrderingMode.desc,
-              ),
-            ])
-            ..limit(limit))
-          .get();
+    final query = _db.select(_db.beaconRoomMessages)
+      ..where(
+        (m) =>
+            m.beaconId.equals(beaconId) &
+            threadFilter(m) &
+            messageFilter(m) &
+            blockFilter(m),
+      )
+      ..orderBy([(m) => OrderingTerm.desc(m.createdAt)])
+      ..limit(limit);
+    if (before != null) {
+      query.where((m) => m.createdAt.isSmallerThanValue(PgDateTime(before)));
     }
-    return (_db.select(_db.beaconRoomMessages)
-          ..where(
-            (m) =>
-                m.beaconId.equals(beaconId) &
-                threadFilter(m) &
-                messageFilter(m) &
-                blockFilter(m) &
-                m.createdAt.isSmallerThanValue(PgDateTime(before)),
-          )
-          ..orderBy([
-            (m) =>
-                OrderingTerm(expression: m.createdAt, mode: OrderingMode.desc),
-          ])
-          ..limit(limit))
-        .get();
+    return query;
+  }
+
+  Expression<bool> _canReadNotice(String viewer) {
+    final messages = _db.beaconRoomMessages;
+    return FunctionCallExpression('public.beacon_can_read_room_notice', [
+      messages.beaconId,
+      messages.systemMessageKind,
+      messages.systemPayload,
+      Variable<String>(viewer),
+    ]);
   }
 
   /// Same shape as the `attachmentsJson` field returned by
@@ -268,9 +277,7 @@ WHERE b.id = ANY($2::text[]) AND b.kind = 1
   /// Room messages with author profile projection + reaction aggregates for V2
   /// `RoomMessageList`.
   ///
-  /// Uses drift `listMessages` for ordering/filter (same SQL path as before beacon
-  /// room enrichment). Raw SQL with `ORDER BY`/`LIMIT` + drift placeholders hit a
-  /// Postgres parser issue (`syntax error at or near "ORDER"`).
+  /// Filters private notices before applying the page limit.
   // DORMANT(item-threads): thread-scoped reply-parent lookup filter; always null in production (General is thread_item_id IS NULL).
   // Rooms are General-only (guard: beacon_room_message_general_only_guard, DiscussionScopeDisabledException); thread_item_id is always NULL for new rows. Do not design for this path. See #192.
   Future<List<Map<String, Object?>>> listMessagesEnriched({
@@ -281,7 +288,12 @@ WHERE b.id = ANY($2::text[]) AND b.kind = 1
     String? messageId,
     int limit = 50,
   }) async {
-    final msgs = await listMessages(
+    final messages = _db.beaconRoomMessages;
+    final canReadNotice = _canReadNotice(viewerUserId);
+    final postClosed = messages.systemMessageKind.equals(
+      BeaconRoomSystemMessageKind.postClosed,
+    );
+    final page = _messagePage(
       beaconId: beaconId,
       threadItemId: threadItemId,
       before: before,
@@ -290,10 +302,20 @@ WHERE b.id = ANY($2::text[]) AND b.kind = 1
       // The only live thread scope is Request Questions, whose audience
       // crosses blocks: hide authors blocked either way from the viewer.
       hideBlockedAuthorsFor: threadItemId == null ? null : viewerUserId,
-    );
-    if (msgs.isEmpty) {
+    ).join([]);
+    final rows =
+        await (page
+              ..addColumns([canReadNotice])
+              ..where(canReadNotice | postClosed))
+            .get();
+    if (rows.isEmpty) {
       return [];
     }
+    final msgs = [for (final row in rows) row.readTable(messages)];
+    final restrictedClosures = {
+      for (final row in rows)
+        if (row.read(canReadNotice) != true) row.readTable(messages).id,
+    };
 
     // Plan §8.4: one batch for the page's quoted revision snapshots, before
     // the author / attachment batches so pinner ids and fact source message
@@ -545,6 +567,7 @@ JOIN public.beacon_fact_card_revision r
         if ((m.replyToMessageId ?? '').isNotEmpty) m.replyToMessageId!,
     }.toList();
     final parentById = <String, BeaconRoomMessage>{};
+    final hiddenParentIds = <String>{};
     if (parentIds.isNotEmpty) {
       Expression<bool> parentThreadFilter($BeaconRoomMessagesTable t) {
         final tid = threadItemId;
@@ -554,14 +577,25 @@ JOIN public.beacon_fact_card_revision r
         return t.threadItemId.equals(tid);
       }
 
-      final parents =
-          await (_db.select(_db.beaconRoomMessages)..where(
-                (t) =>
-                    t.id.isIn(parentIds) &
-                    t.beaconId.equals(beaconId) &
-                    parentThreadFilter(t),
-              ))
+      final parentRows =
+          await ((_db.select(messages)..where(
+                    (t) =>
+                        t.id.isIn(parentIds) &
+                        t.beaconId.equals(beaconId) &
+                        parentThreadFilter(t),
+                  ))
+                  .join([])
+                ..addColumns([canReadNotice | postClosed]))
               .get();
+      final parents = <BeaconRoomMessage>[];
+      for (final row in parentRows) {
+        final parent = row.readTable(messages);
+        if (row.read(canReadNotice | postClosed) == true) {
+          parents.add(parent);
+        } else {
+          hiddenParentIds.add(parent.id);
+        }
+      }
       // Questions (the only live thread scope): a reply never quotes an
       // author the viewer is blocked with, either way.
       final hiddenParentAuthors = threadItemId == null
@@ -668,7 +702,11 @@ JOIN public.beacon_fact_card_revision r
         },
         'pollDataJson': pollDataJsonByMid[id],
         'batonDataJson': batonDataJsonByMid[id],
-        'systemPayloadJson': encodeSystemPayload(m.systemPayload),
+        'systemPayloadJson': encodeSystemPayload(
+          restrictedClosures.contains(id)
+              ? const {'reason': PostClosedNoticeReason.closedByAuthor}
+              : m.systemPayload,
+        ),
         'authorTitle': displayName,
         'authorHasPicture': authorHasPicture,
         'authorPicHeight': authorPicHeight,
@@ -683,10 +721,10 @@ JOIN public.beacon_fact_card_revision r
         // GraphQL `[String!]` — never emit null/empty slots (see migration 0060).
         'mentions': m.mentions.where((id) => id.isNotEmpty).toList(),
         'threadItemId': m.threadItemId,
-        // A reply to a message hidden from this viewer (Questions blocks)
-        // does not reveal the hidden message's id either.
+        // Keep hidden reply targets out of the response, including their ids.
         'replyToMessageId':
-            m.replyToMessageId != null && threadItemId != null && parent == null
+            hiddenParentIds.contains(m.replyToMessageId) ||
+                (threadItemId != null && parent == null)
             ? null
             : m.replyToMessageId,
         'replyToAuthorId': parent?.authorId,

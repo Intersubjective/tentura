@@ -19,7 +19,7 @@ Future<void> insertPublishedChildBeacon({
     Sql.named(r'''
 INSERT INTO public.beacon (
   id, user_id, title, description, status,
-  parent_beacon_id, published_at, lineage_parent_beacon_id,
+  parent_beacon_id, published_at, stored_lineage_parent_beacon_id,
   created_at, updated_at
 ) VALUES (
   @id, @ownerId, @title, '', @status,
@@ -29,7 +29,7 @@ INSERT INTO public.beacon (
 ON CONFLICT (id) DO UPDATE
 SET published_at = EXCLUDED.published_at,
     status = EXCLUDED.status,
-    lineage_parent_beacon_id = EXCLUDED.lineage_parent_beacon_id
+    stored_lineage_parent_beacon_id = EXCLUDED.stored_lineage_parent_beacon_id
 '''),
     parameters: {
       'id': childId,

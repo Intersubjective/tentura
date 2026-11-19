@@ -1,20 +1,19 @@
-@Tags(['pg', 'mr'])
+@Tags(['pg', 'mr', 'repo-files'])
 library;
 
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:http/http.dart' as http;
-import 'package:injectable/injectable.dart' show Environment;
 import 'package:test/test.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
-import 'package:tentura_server/env.dart';
 
-import '../../support/pg_test_public_keys.dart';
 import '../../support/disposable_pg_target.dart';
+import '../../support/hasura_pg_jwt_keys.dart';
+import '../../support/isolated_hasura_session.dart';
+import '../../support/pg_test_public_keys.dart';
 
 /// Hasura returns `beacon: null` for an `inbox_item` row whose beacon fails
 /// the `can_read_content` row permission (e.g. the viewer's own beacon after
@@ -29,40 +28,32 @@ import '../../support/disposable_pg_target.dart';
 /// `beacons_fetch_by_user_id.graphql`). This test locks in that Hasura-level
 /// contract directly, since it cannot be exercised by a pure Dart unit test.
 Future<void> main() async {
-  final postgresReachable = await canReachPostgresAdmin(_target);
-  DisposablePgWriterSession? pgSession;
-  if (postgresReachable) {
-    pgSession = await setUpDisposablePgWriter(
-      target: _target,
-      createPgmer2Extension: true,
-    );
-    tearDownAll(() => tearDownDisposablePgWriter(session: pgSession!));
-  }
-  final hasuraReachable = postgresReachable && await _canConnectHasura();
-  final skipReason = !postgresReachable
-      ? 'local Postgres not reachable'
-      : !hasuraReachable
-      ? 'local Hasura not reachable'
-      : false;
+  final pgSkip = await pgSkipReason(_target);
+  final hasuraAvailable =
+      pgSkip == null && await IsolatedHasuraSession.isDockerAvailable();
+  final skipReason =
+      pgSkip ?? (hasuraAvailable ? false : 'Docker not available');
 
   late TenturaDb db;
-  Map<String, dynamic>? originalHasuraSourceConfiguration;
-
+  late IsolatedHasuraSession hasura;
   if (skipReason == false) {
     setUpAll(() async {
-      final env = _testEnv();
-      db = TenturaDb(env);
-      originalHasuraSourceConfiguration = await _pointHasuraAtTestDatabase();
-    });
+      final session = await setUpDisposablePgWriter(
+        target: _target,
+        createPgmer2Extension: true,
+      );
+      addTearDown(() => tearDownDisposablePgWriter(session: session));
+      db = openDisposablePgDatabase(_target);
+      addTearDown(db.close);
 
-    tearDownAll(() async {
-      try {
-        await _restoreHasuraSourceConfiguration(
-          originalHasuraSourceConfiguration,
-        );
-      } finally {
-        await db.close();
-      }
+      final jwt = loadJwtKeysForHasuraPgTests();
+      hasura = await IsolatedHasuraSession.start(
+        databaseEnv: _target.databaseEnv,
+        jwtPublicPem: jwt.publicKey,
+      );
+      addTearDown(hasura.stop);
+      await hasura.applyRepoMetadata();
+      await hasura.assertMetadataConsistent();
     });
 
     tearDown(() async {
@@ -148,6 +139,7 @@ ON CONFLICT (user_id, beacon_id) DO NOTHING
       await seedInboxItem('Bibxvisgone1');
 
       final unfiltered = await _queryInboxItem(
+        hasura,
         userId: 'Uibxvisauth',
         filtered: false,
       );
@@ -164,6 +156,7 @@ ON CONFLICT (user_id, beacon_id) DO NOTHING
       );
 
       final filtered = await _queryInboxItem(
+        hasura,
         userId: 'Uibxvisauth',
         filtered: true,
       );
@@ -211,6 +204,7 @@ SELECT public.beacon_can_read_content('Bibxvisdisc1', 'Uibxvispeer1') AS ok
 
       expect(
         await _hasuraBeaconReadable(
+          hasura,
           userId: 'Uibxvispeer1',
           beaconId: 'Bibxvisdisc1',
         ),
@@ -218,6 +212,7 @@ SELECT public.beacon_can_read_content('Bibxvisdisc1', 'Uibxvispeer1') AS ok
       );
       expect(
         await _hasuraBeaconReadable(
+          hasura,
           userId: 'Uibxvispeer1',
           beaconId: 'Bibxvisdisc1',
           filtered: false,
@@ -229,12 +224,8 @@ SELECT public.beacon_can_read_content('Bibxvisdisc1', 'Uibxvispeer1') AS ok
   );
 }
 
-final _hasuraUrl =
-    Platform.environment['HASURA_URL'] ?? 'http://127.0.0.1:8080';
-final _hasuraAdminSecret =
-    Platform.environment['HASURA_GRAPHQL_ADMIN_SECRET'] ?? 'password';
-
-Future<bool> _hasuraBeaconReadable({
+Future<bool> _hasuraBeaconReadable(
+  IsolatedHasuraSession hasura, {
   required String userId,
   required String beaconId,
   bool filtered = true,
@@ -244,10 +235,10 @@ Future<bool> _hasuraBeaconReadable({
       'query { beacon(where: {id: {_eq: "$beaconId"}$filter}) { id } }';
   final response = await http
       .post(
-        Uri.parse('$_hasuraUrl/v1/graphql'),
+        Uri.parse('${hasura.baseUrl}/v1/graphql'),
         headers: {
           'Content-Type': 'application/json',
-          'X-Hasura-Admin-Secret': _hasuraAdminSecret,
+          'X-Hasura-Admin-Secret': hasura.adminSecret,
           'X-Hasura-Role': 'user',
           'X-Hasura-User-Id': userId,
         },
@@ -260,7 +251,8 @@ Future<bool> _hasuraBeaconReadable({
   return rows.isNotEmpty;
 }
 
-Future<List<Map<String, dynamic>>> _queryInboxItem({
+Future<List<Map<String, dynamic>>> _queryInboxItem(
+  IsolatedHasuraSession hasura, {
   required String userId,
   required bool filtered,
 }) async {
@@ -271,10 +263,10 @@ Future<List<Map<String, dynamic>>> _queryInboxItem({
       'query { inbox_item(order_by: {latest_forward_at: desc}$where) '
       '{ beacon_id beacon { id } } }';
   final response = await http.post(
-    Uri.parse('$_hasuraUrl/v1/graphql'),
+    Uri.parse('${hasura.baseUrl}/v1/graphql'),
     headers: {
       'Content-Type': 'application/json',
-      'X-Hasura-Admin-Secret': _hasuraAdminSecret,
+      'X-Hasura-Admin-Secret': hasura.adminSecret,
       'X-Hasura-Role': 'user',
       'X-Hasura-User-Id': userId,
     },
@@ -286,111 +278,7 @@ Future<List<Map<String, dynamic>>> _queryInboxItem({
   return rows.cast<Map<String, dynamic>>();
 }
 
-/// The tagged suite runs against an isolated database. Hasura is a separate
-/// process, however, and its configured source normally remains the local
-/// `postgres` database. Point it at the same disposable database for this
-/// metadata/permission test, then restore its prior source configuration.
-///
-/// This is intentionally a no-op for the ordinary local `postgres` target so
-/// developers can run the test without changing their Hasura configuration.
-Future<Map<String, dynamic>?> _pointHasuraAtTestDatabase() async {
-  final database = _testEnv().pgDatabase;
-  if (database == 'postgres') return null;
-
-  final metadata = await _postHasuraMetadata('export_metadata');
-  final sources = metadata['sources']! as List;
-  final source = sources.cast<Map<String, dynamic>>().singleWhere(
-    (source) => source['name'] == 'postgres',
-  );
-  final original = Map<String, dynamic>.from(
-    source['configuration']! as Map<String, dynamic>,
-  );
-  final connectionInfo = Map<String, dynamic>.from(
-    original['connection_info']! as Map<String, dynamic>,
-  )..['database_url'] = _hasuraTestDatabaseUrl(database);
-
-  await _postHasuraMetadata(
-    'pg_update_source',
-    args: {
-      'name': 'postgres',
-      'configuration': {'connection_info': connectionInfo},
-    },
-  );
-  return original;
-}
-
-Future<void> _restoreHasuraSourceConfiguration(
-  Map<String, dynamic>? configuration,
-) async {
-  if (configuration == null) return;
-  await _postHasuraMetadata(
-    'pg_update_source',
-    args: {'name': 'postgres', 'configuration': configuration},
-  );
-}
-
-String _hasuraTestDatabaseUrl(String database) {
-  final configured = Platform.environment['HASURA_TEST_DATABASE_URL'];
-  if (configured != null && configured.isNotEmpty) return configured;
-
-  return Uri(
-    scheme: 'postgres',
-    userInfo:
-        '${Platform.environment['POSTGRES_USERNAME'] ?? 'postgres'}:'
-        '${Platform.environment['POSTGRES_PASSWORD'] ?? 'password'}',
-    host: Platform.environment['POSTGRES_HOST'] ?? '127.0.0.1',
-    port: int.tryParse(Platform.environment['POSTGRES_PORT'] ?? '') ?? 5432,
-    path: database,
-  ).toString();
-}
-
-Future<Map<String, dynamic>> _postHasuraMetadata(
-  String type, {
-  Map<String, dynamic> args = const {},
-}) async {
-  final response = await http.post(
-    Uri.parse('$_hasuraUrl/v1/metadata'),
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Hasura-Admin-Secret': _hasuraAdminSecret,
-    },
-    body: jsonEncode({'type': type, 'args': args}),
-  );
-  final body = jsonDecode(response.body) as Map<String, dynamic>;
-  expect(response.statusCode, 200, reason: body.toString());
-  expect(body['error'], isNull, reason: body.toString());
-  return body;
-}
-
 final _target = DisposablePgTarget.fromNamedEnvironment(
   envVarName: 'TENTURA_INBOX_BEACON_VISIBILITY_HASURA_TEST_DB',
   defaultNamePrefix: 'tentura_test_inbox_beacon_vis',
 );
-
-Env _testEnv() => Env(
-  environment: Environment.test,
-  pgHost: Platform.environment['POSTGRES_HOST'] ?? '127.0.0.1',
-  pgPort: int.tryParse(Platform.environment['POSTGRES_PORT'] ?? '') ?? 5432,
-  pgDatabase: _target.databaseName,
-  pgPassword: Platform.environment['POSTGRES_PASSWORD'] ?? 'password',
-  printEnv: false,
-  isDebugModeOn: false,
-);
-
-Future<bool> _canConnectHasura() async {
-  try {
-    final response = await http
-        .post(
-          Uri.parse('$_hasuraUrl/v1/graphql'),
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Hasura-Admin-Secret': _hasuraAdminSecret,
-          },
-          body: jsonEncode({'query': '{ __typename }'}),
-        )
-        .timeout(const Duration(seconds: 2));
-    return response.statusCode == 200;
-  } on Object catch (_) {
-    return false;
-  }
-}
