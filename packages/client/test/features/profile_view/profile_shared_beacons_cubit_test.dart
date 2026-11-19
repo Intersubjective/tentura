@@ -1,12 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:logging/logging.dart';
 
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/features/profile_view/data/repository/profile_shared_beacons_repository.dart';
 import 'package:tentura/features/profile_view/domain/use_case/profile_shared_beacons_case.dart';
 import 'package:tentura/features/profile_view/ui/bloc/profile_shared_beacons_cubit.dart';
@@ -119,8 +117,6 @@ final class _SharedBeaconsHarness {
     case_ = ProfileSharedBeaconsCase(
       repository,
       realtimeCase,
-      env: const Env(),
-      logger: Logger('test'),
     );
   }
 

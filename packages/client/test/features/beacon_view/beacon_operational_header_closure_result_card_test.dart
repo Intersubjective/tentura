@@ -3,7 +3,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
@@ -12,7 +11,6 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_operational_header_card.dart';
 import 'package:tentura/features/closure/data/repository/closure_repository.dart';
@@ -73,8 +71,6 @@ Future<void> _pumpRequestHeader(
   GetIt.I.registerSingleton<ClosureCase>(
     ClosureCase(
       _FakeClosureRepository(),
-      env: const Env(),
-      logger: Logger('test'),
     ),
   );
   addTearDown(() => GetIt.I.unregister<ClosureCase>());

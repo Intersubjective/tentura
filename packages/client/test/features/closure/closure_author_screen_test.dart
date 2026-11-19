@@ -19,10 +19,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:logging/logging.dart';
 
 import 'package:tentura/design_system/tentura_theme.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/features/closure/data/repository/closure_repository.dart';
 import 'package:tentura/features/closure/domain/closure_exception.dart';
 import 'package:tentura/features/closure/domain/entity/closure_member.dart';
@@ -178,7 +176,7 @@ Future<_FakeClosureRepository> _pump(
   addTearDown(tester.view.reset);
   final fake = _FakeClosureRepository(state);
   final cubit = ClosureAuthorCubit(
-    ClosureCase(fake, env: const Env(), logger: Logger('test')),
+    ClosureCase(fake),
     beaconId: _beaconId,
   );
   addTearDown(cubit.close);

@@ -7,14 +7,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
-import 'package:logging/logging.dart';
 import 'package:tentura_root/domain/entity/beacon_access.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/help_offer_admission_action.dart';
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_request_modes.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_hud_pinned_block.dart';
@@ -178,8 +176,6 @@ Future<List<WireSent>> _open(
           GetIt.I.registerSingleton<ClosureCase>(
             ClosureCase(
               ClosureRepository(remote),
-              env: const Env(),
-              logger: Logger('test'),
             ),
           );
         },

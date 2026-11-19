@@ -10,14 +10,12 @@ import 'dart:async';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 
 import 'package:tentura/design_system/tentura_theme.dart';
 import 'package:tentura/domain/capability/forward_band_row.dart';
 import 'package:tentura/domain/entity/invitation_entity.dart';
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/features/forward/domain/entity/forward_candidate.dart';
 import 'package:tentura/features/forward/domain/entity/forward_inbound_source.dart';
 import 'package:tentura/features/forward/domain/entity/forward_reach.dart';
@@ -288,8 +286,6 @@ void main() {
       ..registerSingleton<LoadForwardCandidateContextCase>(
         LoadForwardCandidateContextCase(
           _PendingContextRepository(),
-          env: const Env(),
-          logger: Logger('BudInvitePickerTest'),
         ),
       );
   });

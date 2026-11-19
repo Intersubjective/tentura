@@ -6,7 +6,6 @@ import 'package:logging/logging.dart';
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/features/forward/domain/entity/forward_candidate.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
@@ -144,8 +143,6 @@ void main() {
     GetIt.I.registerSingleton<LoadForwardCandidateContextCase>(
       LoadForwardCandidateContextCase(
         _ContextRepository(),
-        env: const Env(),
-        logger: Logger('ForwardCandidateContextSheetRouterTest'),
       ),
     );
     ForwardBeaconRoute.page = PageInfo(

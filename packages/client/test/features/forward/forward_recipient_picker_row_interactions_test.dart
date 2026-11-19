@@ -1,12 +1,10 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/features/forward/domain/entity/forward_candidate.dart';
 import 'package:tentura/features/forward/domain/entity/forward_reach.dart';
 import 'package:tentura/features/forward/ui/model/forward_recipient_row_host.dart';
@@ -99,8 +97,6 @@ void main() {
     GetIt.I.registerSingleton<LoadForwardCandidateContextCase>(
       LoadForwardCandidateContextCase(
         _FakeContextRepo(),
-        env: const Env(),
-        logger: Logger('ForwardRecipientPickerRowInteractionsTest'),
       ),
     );
   });

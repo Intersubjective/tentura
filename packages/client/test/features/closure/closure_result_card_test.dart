@@ -32,10 +32,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
-import 'package:logging/logging.dart';
 
 import 'package:tentura/design_system/tentura_theme.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/features/closure/data/repository/closure_repository.dart';
 import 'package:tentura/features/closure/domain/entity/closure_band.dart';
 import 'package:tentura/features/closure/domain/entity/closure_draft_flag.dart';
@@ -216,7 +214,7 @@ Future<_FakeClosureRepository> _pump(
     ..devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   GetIt.I.registerSingleton<ClosureCase>(
-    ClosureCase(fake, env: const Env(), logger: Logger('test')),
+    ClosureCase(fake),
   );
   addTearDown(() => GetIt.I.unregister<ClosureCase>());
   await tester.pumpWidget(

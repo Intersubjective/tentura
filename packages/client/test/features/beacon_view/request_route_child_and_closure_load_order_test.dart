@@ -290,8 +290,6 @@ Future<_Opened> _open(
         ..registerSingleton<ClosureCase>(
           ClosureCase(
             ClosureRepository(remote),
-            env: const Env(),
-            logger: Logger('request-route-load-order'),
           ),
         )
         ..registerSingleton<BeaconHierarchyCase>(

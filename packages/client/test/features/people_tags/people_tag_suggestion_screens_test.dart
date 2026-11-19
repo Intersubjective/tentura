@@ -153,8 +153,6 @@ void main() {
       final cubit = ClosureAuthorCubit(
         ClosureCase(
           _FakeClosureRepository(),
-          env: const Env(),
-          logger: Logger('test'),
         ),
         beaconId: 'Bclosure00001',
       );

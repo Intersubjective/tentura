@@ -6,7 +6,6 @@ import 'package:get_it/get_it.dart';
 import 'package:logging/logging.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/features/closure/data/repository/closure_repository.dart';
 import 'package:tentura/features/closure/domain/entity/closure_member.dart';
 import 'package:tentura/features/closure/domain/entity/closure_outcome.dart';
@@ -91,7 +90,7 @@ Future<_FakeRepo> _pumpAuthor(
   addTearDown(tester.view.reset);
   final repo = _FakeRepo(state);
   final cubit = ClosureAuthorCubit(
-    ClosureCase(repo, env: const Env(), logger: Logger('test')),
+    ClosureCase(repo),
     beaconId: _beaconId,
   );
   addTearDown(cubit.close);
@@ -137,7 +136,7 @@ Future<void> _pumpHelper(
     ),
   );
   final cubit = ClosureHelperCubit(
-    ClosureCase(repo, env: const Env(), logger: Logger('test')),
+    ClosureCase(repo),
     beaconId: _beaconId,
     viewerId: _me,
     author: const ClosureMember(id: 'auth', displayName: 'Name auth'),

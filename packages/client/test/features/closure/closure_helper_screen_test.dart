@@ -39,11 +39,9 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:logging/logging.dart';
 
 import 'package:tentura/design_system/components/tentura_avatar.dart';
 import 'package:tentura/design_system/tentura_theme.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/features/closure/data/repository/closure_repository.dart';
 import 'package:tentura/features/closure/domain/closure_exception.dart';
 import 'package:tentura/features/closure/domain/entity/closure_member.dart';
@@ -299,7 +297,7 @@ Future<_FakeClosureRepository> _pump(
     ..devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   final cubit = ClosureHelperCubit(
-    ClosureCase(fake, env: const Env(), logger: Logger('test')),
+    ClosureCase(fake),
     beaconId: _beaconId,
     viewerId: _me,
     author: _author,

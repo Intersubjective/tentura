@@ -1,19 +1,13 @@
 import 'package:injectable/injectable.dart';
 
-import 'package:tentura/domain/use_case/use_case_base.dart';
-
 import '../../data/repository/closure_repository.dart';
 import '../entity/closure_outcome.dart';
 import '../entity/closure_result.dart';
 import '../entity/closure_state.dart';
 
 @singleton
-final class ClosureCase extends UseCaseBase {
-  ClosureCase(
-    this._repository, {
-    required super.env,
-    required super.logger,
-  });
+final class ClosureCase {
+  ClosureCase(this._repository);
 
   final ClosureRepository _repository;
 

@@ -101,8 +101,6 @@ class RecordingComplaintCase {
       ),
       beacons,
       profiles,
-      env: const Env(),
-      logger: Logger('RecordingComplaintCase'),
     );
   }
 

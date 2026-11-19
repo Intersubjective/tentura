@@ -10,7 +10,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
-import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
@@ -23,7 +22,6 @@ import 'package:tentura/domain/entity/beacon_display_status_dto.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_status_change.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/features/beacon_view/domain/beacon_status_menu.dart';
 import 'package:tentura/features/beacon_view/domain/beacon_status_menu_presenter.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
@@ -306,8 +304,6 @@ void main() {
             GetIt.I.registerSingleton<ClosureCase>(
               ClosureCase(
                 ClosureRepository(remote),
-                env: const Env(),
-                logger: Logger('test'),
               ),
             );
             addTearDown(() async {

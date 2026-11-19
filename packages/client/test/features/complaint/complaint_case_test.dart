@@ -33,8 +33,6 @@ void main() {
       credentialsCase,
       FakeComplaintBeacons(),
       FakeComplaintProfiles(),
-      env: const Env.fromEnvironment(),
-      logger: Logger('ComplaintCaseTest'),
     );
   });
 

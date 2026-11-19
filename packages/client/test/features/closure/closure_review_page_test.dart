@@ -6,10 +6,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:logging/logging.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/features/closure/data/repository/closure_repository.dart';
 import 'package:tentura/features/closure/domain/entity/closure_member.dart';
 import 'package:tentura/features/closure/domain/entity/closure_outcome.dart';
@@ -146,8 +144,7 @@ final class _FirstRoundRepository implements ClosureRepository {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-ClosureCase _case(ClosureRepository repo) =>
-    ClosureCase(repo, env: const Env(), logger: Logger('test'));
+ClosureCase _case(ClosureRepository repo) => ClosureCase(repo);
 
 Future<void> _pumpHostAndOpen(
   WidgetTester tester,

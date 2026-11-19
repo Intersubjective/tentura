@@ -4,11 +4,9 @@ import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
-import 'package:logging/logging.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/features/forward/domain/entity/candidate_involvement.dart';
 import 'package:tentura/features/forward/domain/entity/forward_candidate.dart';
 import 'package:tentura/features/forward/domain/entity/forward_reach.dart';
@@ -102,8 +100,6 @@ void main() {
     GetIt.I.registerSingleton<LoadForwardCandidateContextCase>(
       LoadForwardCandidateContextCase(
         repository,
-        env: const Env(),
-        logger: Logger('ForwardCandidateContextSheetTest'),
       ),
     );
     forwardCubit = _MutableForwardCubit(

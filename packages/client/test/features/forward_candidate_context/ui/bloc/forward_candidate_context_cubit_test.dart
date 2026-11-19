@@ -1,9 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:logging/logging.dart';
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/features/forward_candidate_context/domain/entity/candidate_connection_context.dart';
 import 'package:tentura/features/forward_candidate_context/domain/port/forward_candidate_context_repository_port.dart';
 import 'package:tentura/features/forward_candidate_context/domain/use_case/load_forward_candidate_context_case.dart';
@@ -18,8 +16,6 @@ void main() {
     repository = _DeferredRepository();
     loadCase = LoadForwardCandidateContextCase(
       repository,
-      env: const Env(),
-      logger: Logger('ForwardCandidateContextCubitTest'),
     );
   });
 
