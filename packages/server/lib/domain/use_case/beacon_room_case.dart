@@ -1143,43 +1143,43 @@ class BeaconRoomCase extends UseCaseBase {
     );
   }
 
-  /// Resolves one exact Chat target after checking the target's actual scope.
+  /// Checks the requested Chat's access before looking up a message ID.
   Future<Map<String, Object?>?> roomMessageTarget({
     required String beaconId,
     required String messageId,
     required String userId,
   }) async {
+    const denied = UnauthorizedException(
+      description: 'Room or item thread access required',
+    );
+    final roomMember = await _canUseRoom(beaconId: beaconId, userId: userId);
+    // Questions readers may have access independently of the General Chat.
+    if (!roomMember &&
+        !(await _questionsAccess(beaconId: beaconId, userId: userId)).canRead) {
+      throw denied;
+    }
     final message = await _room.getRoomMessageById(messageId);
-    if (message == null) return null;
-    if (message.beaconId != beaconId) {
-      throw IdNotFoundException(
-        id: messageId,
-        description: 'Message is not on this request',
-      );
+    if (message == null || message.beaconId != beaconId) {
+      if (!roomMember) throw denied;
+      return null;
     }
     final threadItemId = message.threadItemId?.trim();
+    final inThread = threadItemId != null && threadItemId.isNotEmpty;
     await _rejectDisabledScope(
       beaconId: beaconId,
-      threadScopeId: threadItemId == null || threadItemId.isEmpty
-          ? null
-          : threadItemId,
+      threadScopeId: inThread ? threadItemId : null,
     );
-    final allowed = threadItemId == null || threadItemId.isEmpty
-        ? await _canUseRoom(beaconId: beaconId, userId: userId)
-        : await _canAccessThread(
+    final allowed = inThread
+        ? await _canAccessThread(
             beaconId: beaconId,
             userId: userId,
             threadItemId: threadItemId,
-          );
-    if (!allowed) {
-      throw const UnauthorizedException(
-        description: 'Room or item thread access required',
-      );
-    }
+          )
+        : roomMember;
+    if (!allowed) throw denied;
     // Questions hides authors blocked either way from the viewer.
     final targetAuthor = message.authorId;
-    if (threadItemId != null &&
-        threadItemId.isNotEmpty &&
+    if (inThread &&
         targetAuthor != null &&
         targetAuthor != userId &&
         await _userBlockRepository.isBlockedPair(a: userId, b: targetAuthor)) {
