@@ -255,7 +255,8 @@ VALUES (@id, @room, @author, @kind::smallint, @payload::jsonb)
     expect(audiences, {
       'child creation': allOf(budReaders, contains(_dave)),
       'child lifecycle': budReaders,
-      'Post closed by budding': budReaders,
+      // Indistinguishable from a plain close for an uninvited Post member.
+      'Post closed by budding': contains(_bob),
       'Post expiration': contains(_bob),
       'Post closed by author': contains(_bob),
       'ordinary Post message': contains(_bob),

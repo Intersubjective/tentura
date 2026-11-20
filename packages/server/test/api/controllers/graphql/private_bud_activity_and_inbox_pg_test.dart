@@ -40,6 +40,14 @@ query BeaconActivityEventList($beaconId: String!) {
 }
 ''';
 
+const _myWorkDocument = r'''
+query MyWorkLastActivityEvent($beaconIds: [String!]!) {
+  myWorkLastActivityEvent(beaconIds: $beaconIds) {
+    beaconId id type actorId actorTitle actorImageId createdAt diffJson
+  }
+}
+''';
+
 const _inboxDocument = r'''
 query InboxRoomContextBatch($beaconIds: [String!]!) {
   InboxRoomContextBatch(beaconIds: $beaconIds) {
@@ -250,6 +258,33 @@ Future<void> main() async {
         await expectSameEmptyActivityAsUnknown(await activity(_carol, bud));
       },
     );
+  });
+
+  group('My Work last activity for a private Request created from a Post', () {
+    test('an uninvited Post member gets the unknown Request row', () async {
+      final bud = await fixture.bud();
+      Future<List<Map<String, Object?>>> myWork(String viewer, String id) async =>
+          _rows(
+            await query(viewer, _myWorkDocument, {
+              'beaconIds': [id],
+            }),
+            'myWorkLastActivityEvent',
+          );
+
+      final annaRows = await myWork(_anna, bud);
+      expect(annaRows.single['id'], isNotNull, reason: 'the author reads it');
+
+      final unknown = await myWork(_carol, _unknown);
+      final unreadable = await myWork(_carol, bud);
+      expect(unreadable.single['id'], isNull);
+      expect(unreadable.single['beaconId'], bud);
+      expect(
+        {...unreadable.single, 'beaconId': _unknown},
+        unknown.single,
+        reason: 'no field distinguishes it from an unknown Request',
+      );
+      expect(jsonEncode(unreadable), isNot(contains(_title)));
+    });
   });
 
   group('Inbox room context for a private Request created from a Post', () {
