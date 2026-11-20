@@ -131,6 +131,14 @@ log "infra OK (hasura :8080 healthy)"
 
 # --- 2. tentura-server -------------------------------------------------------
 STARTED_SERVER=""
+cleanup_server() {
+  if [[ -n "$STARTED_SERVER" ]]; then
+    pkill -P "$STARTED_SERVER" >/dev/null 2>&1 || true
+    kill "$STARTED_SERVER" >/dev/null 2>&1 || true
+  fi
+}
+# Preflight can exit before the browser cleanup is ready to take over.
+trap cleanup_server EXIT
 if ! curl -sf -m 3 http://127.0.0.1:2080/health >/dev/null 2>&1; then
   log "starting tentura-server (log: $SERVER_LOG)"
   nohup "$ROOT/scripts/run-server-local.sh" >"$SERVER_LOG" 2>&1 &
@@ -227,8 +235,7 @@ cleanup() {
     kill "$STARTED_CHROMEDRIVER" >/dev/null 2>&1 || true
   fi
   reap_leaked_browsers
-  [[ -n "$STARTED_SERVER" ]] && pkill -P "$STARTED_SERVER" >/dev/null 2>&1 || true
-  [[ -n "$STARTED_SERVER" ]] && kill "$STARTED_SERVER" >/dev/null 2>&1 || true
+  cleanup_server
 }
 trap cleanup EXIT
 
