@@ -318,24 +318,61 @@ The Tentura server applies pending SQL migrations on startup. The history was sq
 
 ## 7. Hasura metadata (automatic on deploy)
 
-Every `deploy.sh` run (CI or manual) waits for Tentura and Hasura healthchecks (`docker compose up -d --wait`), then applies [`hasura/metadata.json`](../hasura/metadata.json) via the internal Docker network using [`scripts/hasura_apply_metadata.sh`](../scripts/hasura_apply_metadata.sh).
-
 **CI** copies `hasura/metadata.json` and the apply script to `/opt/tentura` before invoking `deploy.sh`. **Bootstrap** must seed those files once (see §1).
 
 `replace_metadata` is a **full replace** — git `hasura/metadata.json` is the source of truth. Console-only edits (common when staging override enables the Hasura console) are wiped on the next deploy.
 
-**Break-glass manual apply** (from a machine that can reach Hasura):
+### Deploy order and mixed-version window
+
+Follow the same order for a manual deploy as `deploy.sh` uses in CI.
+
+1. Start the new Tentura server. It applies pending migrations on startup before
+   reporting healthy. `docker compose up -d --wait` waits for Tentura and Hasura
+   to become healthy.
+2. Apply `hasura/metadata.json` using `scripts/hasura_apply_metadata.sh` over the
+   internal Docker network.
+3. The stack is ready to serve traffic on the new version once the metadata
+   apply succeeds.
+
+Run one Tentura server instance per host. Never run rolling or side-by-side
+deploys of two server versions against the same database. `deploy.sh` stops the
+old container before the new server runs migrations. The window from migration
+to metadata apply normally lasts seconds on the single dev or prod host. The
+proxy can accept requests during that window, when metadata-dependent requests
+can fail.
+
+- `m0320` drops `beacon_bud_observer`. A server built before `m0320` fails when
+  it tries to write to that table once the migration has run.
+- `m0321` renames `beacon.lineage_parent_beacon_id` and
+  `beacon.lineage_root_beacon_id` to `stored_lineage_parent_beacon_id` and
+  `stored_lineage_root_beacon_id` and adds the
+  `beacon_get_lineage_parent_beacon_id` and `beacon_get_lineage_root_beacon_id`
+  computed fields. Between the migration and the metadata apply, old servers
+  fail when reading the old column names. Hasura with pre-m0321 metadata fails
+  until the new metadata is applied.
+
+There is no compatibility shim for old servers or old clients. Server or
+client versions older than this release are expected to fail until updated.
+
+If the metadata apply fails or is skipped after migration, rerun
+`bash /opt/tentura/scripts/hasura_apply_metadata.sh` from a container that can
+reach the internal Metadata API. On the VPS, export
+`HASURA_GRAPHQL_ADMIN_SECRET` and run:
 
 ```bash
-# Internal (on VPS, after stack is up):
-HASURA_URL=http://hasura:8080 \
-HASURA_GRAPHQL_ADMIN_SECRET=<your-admin-secret> \
-bash /opt/tentura/scripts/hasura_apply_metadata.sh
+docker run --rm --network container:hasura \
+  -e HASURA_GRAPHQL_ADMIN_SECRET \
+  -v /opt/tentura/hasura:/opt/tentura/hasura:ro \
+  -v /opt/tentura/scripts/hasura_apply_metadata.sh:/opt/tentura/scripts/hasura_apply_metadata.sh:ro \
+  badouralix/curl-jq:ubuntu bash /opt/tentura/scripts/hasura_apply_metadata.sh
+```
 
-# Or from local dev against a public endpoint (path must be the Metadata API root):
-HASURA_URL=https://dev.tentura.io/api \
-HASURA_GRAPHQL_ADMIN_SECRET=<your-admin-secret> \
-bash scripts/hasura_apply_metadata.sh
+After recovery and after every deploy that includes a migration, run
+`scripts/hasura_check_metadata.sh`. From your checkout with the target host's
+`HASURA_GRAPHQL_ADMIN_SECRET` exported, use its Metadata API base URL:
+
+```bash
+HASURA_URL=https://dev.tentura.io/api bash scripts/hasura_check_metadata.sh
 ```
 
 ---
