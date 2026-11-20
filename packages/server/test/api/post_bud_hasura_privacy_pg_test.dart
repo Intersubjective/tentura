@@ -2,6 +2,7 @@
 library;
 
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:http/http.dart' as http;
 import 'package:injectable/injectable.dart' show Environment;
@@ -16,6 +17,7 @@ import 'package:tentura_server/domain/port/user_repository_port.dart';
 import 'package:tentura_server/domain/use_case/auth_case.dart';
 import 'package:tentura_server/env.dart';
 
+import '../support/beacon_metadata_reader.dart';
 import '../support/disposable_pg_target.dart';
 import '../support/hasura_pg_jwt_keys.dart';
 import '../support/isolated_hasura_session.dart';
@@ -32,16 +34,28 @@ Future<void> main() async {
     envVarName: 'TENTURA_POST_BUD_HASURA_PRIVACY_TEST_DB',
     defaultNamePrefix: 'tentura_test_bud_hasura_privacy',
   );
-  final skip = await pgSkipReason(target);
+  final environment = Platform.environment;
+  final inCi =
+      environment['CI'] == 'true' || environment['GITHUB_ACTIONS'] == 'true';
+  final skip = await pgSkipReason(
+    target,
+    environment: {
+      ...environment,
+      if (inCi) pgTestsRequiredEnvVar: '1',
+    },
+  );
   if (skip != null) {
     test('Postgres unavailable', () {}, skip: skip);
     return;
   }
-  final dockerAvailable = await IsolatedHasuraSession.isDockerAvailable();
+  final useHasura =
+      !inCi &&
+      await IsolatedHasuraSession.isDockerAvailable(requiredForPg: false);
 
   late PostBudPrivacyFixture fixture;
-  late AuthCase auth;
-  late IsolatedHasuraSession hasura;
+  late final Future<Map<String, Object?>> Function(String, String) query;
+  BeaconMetadataReader? metadata;
+
   setUpAll(() async {
     final session = await setUpDisposablePgWriter(target: target);
     final database = openDisposablePgDatabase(target);
@@ -53,8 +67,13 @@ Future<void> main() async {
       database,
       target.databaseEnv,
     );
+    if (!useHasura) {
+      metadata = BeaconMetadataReader.fromRepo(session.writer);
+      return;
+    }
+
     final jwt = loadJwtKeysForHasuraPgTests();
-    auth = AuthCase(
+    final auth = AuthCase(
       _UnusedUsers(),
       _UnusedInvitations(),
       env: Env(
@@ -65,79 +84,45 @@ Future<void> main() async {
       ),
       logger: Logger('PostBudHasuraPrivacy'),
     );
-    // The CI builder container has no Docker daemon: the test below is
-    // skipped there, so Hasura must not be started either.
-    if (dockerAvailable) {
-      hasura = await IsolatedHasuraSession.start(
-        databaseEnv: target.databaseEnv,
-        jwtPublicPem: jwt.publicKey,
+    final hasura = await IsolatedHasuraSession.start(
+      databaseEnv: target.databaseEnv,
+      jwtPublicPem: jwt.publicKey,
+    );
+    addTearDown(hasura.stop);
+    await hasura.applyRepoMetadata();
+    query = (viewer, document) async {
+      final response = await http.post(
+        Uri.parse('${hasura.baseUrl}/v1/graphql'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${auth.issueAccessToken(viewer).rawToken}',
+        },
+        body: jsonEncode({'query': document}),
       );
-      addTearDown(hasura.stop);
-      await hasura.applyRepoMetadata();
-    }
+      expect(response.statusCode, 200);
+      if (jsonDecode(response.body) case final Map<String, Object?> wire) {
+        expect(wire['errors'], isNull, reason: response.body);
+        if (wire['data'] case final Map<String, Object?> data) return data;
+      }
+      throw StateError('Invalid Hasura response: ${response.body}');
+    };
   });
 
   test(
     'Hasura reveals Request lineage only to viewers who can read its source',
     () async {
       await fixture.seedPost();
-      Future<Map<String, dynamic>> query(String viewer, String document) async {
-        final response = await http.post(
-          Uri.parse('${hasura.baseUrl}/v1/graphql'),
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ${auth.issueAccessToken(viewer).rawToken}',
-          },
-          body: jsonEncode({'query': document}),
-        );
-        expect(response.statusCode, 200);
-        final wire = jsonDecode(response.body) as Map<String, dynamic>;
-        expect(wire['errors'], isNull, reason: response.body);
-        return wire['data'] as Map<String, dynamic>;
-      }
-
-      // Introspect the user role, which can select fewer fields than admin.
-      // Include any child-count field it can actually select in the Post read.
-      final schema = await query(_carol, '''
-query {
-  beacon: __type(name: "beacon") { fields { name } }
-  root: __schema { queryType { fields { name } } }
-}
-''');
-      List<String> fieldNames(Object? type) {
-        if (type case {'fields': final List<Object?> fields}) {
-          return [
-            for (final field in fields)
-              switch (field) {
-                {'name': final String name} => name,
-                _ => throw StateError('Invalid schema field: $field'),
-              },
-          ];
-        }
-        throw StateError('Invalid schema type: $type');
-      }
-
       final childField = RegExp('child|descendant', caseSensitive: false);
       final countField = RegExp('count|total|number|num', caseSensitive: false);
-      final childFields = fieldNames(
-        schema['beacon'],
-      ).where(childField.hasMatch).toList();
+      final selectableFields =
+          metadata?.fields ?? await _hasuraBeaconFields(query, childField);
+      final childFields = selectableFields.where(childField.hasMatch).toList();
       final childCounts = childFields.where(countField.hasMatch).toList();
       expect(
         childFields.where((field) => !childCounts.contains(field)),
         isEmpty,
         reason:
             'Any exposed child relationship needs an authenticated privacy check',
-      );
-      final root = (schema['root'] as Map<String, dynamic>)['queryType'];
-      expect(
-        fieldNames(root).where(
-          (field) =>
-              field == 'beacon_aggregate' ||
-              (field.contains('beacon') && childField.hasMatch(field)),
-        ),
-        isEmpty,
-        reason: 'Any beacon aggregate needs an authenticated child-count check',
       );
 
       void expectChildCounts(Object? post, int expected, String viewer) {
@@ -150,20 +135,60 @@ query {
         }
       }
 
-      const accessFields = '''
-    can_read_content can_read_involvement can_read_admitted_helpers
-    access_level access_reasons
-''';
-      final postSelection =
-          '''
-  post: beacon_by_pk(id: "$_post") {
-    id title description post_root_message_id $accessFields ${childCounts.join(' ')}
-  }
-''';
-      final postBeforeBud = (await query(
-        _carol,
-        'query { $postSelection }',
-      ))['post'];
+      const accessFields = [
+        'can_read_content',
+        'can_read_involvement',
+        'can_read_admitted_helpers',
+        'access_level',
+        'access_reasons',
+      ];
+      const lineageFields = [
+        'lineage_parent_beacon_id',
+        'lineage_root_beacon_id',
+      ];
+      final post = (
+        ids: [_post],
+        fields: [
+          'id',
+          'title',
+          'description',
+          'post_root_message_id',
+          ...accessFields,
+          ...childCounts,
+        ],
+      );
+      Future<Map<String, Object?>> read(
+        String viewer,
+        Map<String, ({List<String> ids, List<String> fields})> selections,
+      ) async {
+        if (metadata case final BeaconMetadataReader sql) {
+          final result = <String, Object?>{};
+          for (final MapEntry(key: alias, value: selection)
+              in selections.entries) {
+            final rows = await sql.read(
+              viewer,
+              selection.ids,
+              selection.fields,
+            );
+            result[alias] = selection.ids.length == 1
+                ? rows.singleOrNull
+                : rows;
+          }
+          return result;
+        }
+        final fields = <String>[];
+        for (final MapEntry(key: alias, value: selection)
+            in selections.entries) {
+          final ids = selection.ids.map(jsonEncode);
+          final arguments = selection.ids.length == 1
+              ? 'beacon_by_pk(id: ${ids.single})'
+              : 'beacon(where: {id: {_in: [${ids.join(', ')}]}})';
+          fields.add('$alias: $arguments { ${selection.fields.join(' ')} }');
+        }
+        return query(viewer, 'query { ${fields.join(' ')} }');
+      }
+
+      final postBeforeBud = (await read(_carol, {'post': post}))['post'];
       expect(postBeforeBud, containsPair('id', _post));
       expect(postBeforeBud, containsPair('can_read_content', true));
       expectChildCounts(postBeforeBud, 0, 'Carol before budding');
@@ -199,30 +224,44 @@ VALUES (@fork, '$_bob', '$_carol')
         parameters: {'fork': fork.id},
       );
 
-      Future<Map<String, dynamic>> reads(String viewer) => query(
-        viewer,
-        '''
-query {
-  bud: beacon_by_pk(id: "$child") {
-    id title description $accessFields
-    lineage_parent_beacon_id lineage_root_beacon_id
-  }
-  $postSelection
-  visible: beacon(where: {id: {_in: ["$_post", "$child"]}}) {
-    id $accessFields
-    lineage_parent_beacon_id lineage_root_beacon_id
-  }
-  fork: beacon_by_pk(id: "${fork.id}") {
-    id lineage_parent_beacon_id lineage_root_beacon_id
-  }
-}
-''',
-      );
+      Future<Map<String, Object?>> reads(String viewer) => read(viewer, {
+        'bud': (
+          ids: [child],
+          fields: [
+            'id',
+            'title',
+            'description',
+            ...accessFields,
+            ...lineageFields,
+          ],
+        ),
+        'post': post,
+        'visible': (
+          ids: [_post, child],
+          fields: ['id', ...accessFields, ...lineageFields],
+        ),
+        'fork': (ids: [fork.id], fields: ['id', ...lineageFields]),
+      });
 
-      List<String> visibleIds(Map<String, dynamic> data) => [
-        for (final row in data['visible'] as List)
-          (row as Map<String, dynamic>)['id'] as String,
-      ];
+      List<String> visibleIds(Map<String, Object?> data) {
+        if (data['visible'] case final List<Object?> rows) {
+          return [
+            for (final row in rows)
+              switch (row) {
+                {'id': final String id} => id,
+                _ => throw StateError('Invalid visible beacon row: $row'),
+              },
+          ];
+        }
+        throw StateError('Missing visible beacon rows: $data');
+      }
+
+      final carol = await reads(_carol);
+      expect(
+        carol['bud'],
+        isNull,
+        reason: 'Carol must not be able to read the bud Request',
+      );
 
       final bob = await reads(_bob);
       expect(
@@ -264,13 +303,11 @@ query {
       expect(bobParent.beaconId, _post);
       expect(bobParent.isPost, isTrue);
 
-      final carol = await reads(_carol);
       expect(
         carol['post'],
         postBeforeBud,
         reason: 'The Post projection and access fields reveal no change',
       );
-      expect(carol['bud'], isNull);
       expect(visibleIds(carol), [_post]);
       expectChildCounts(carol['post'], 0, 'Carol');
       expect(carol['fork'], containsPair('id', fork.id));
@@ -281,8 +318,47 @@ query {
             'Sharing the fork must not reveal the unreadable source Request',
       );
     },
-    skip: dockerAvailable ? false : 'Docker not available',
   );
+}
+
+Future<Iterable<String>> _hasuraBeaconFields(
+  Future<Map<String, Object?>> Function(String, String) query,
+  RegExp childField,
+) async {
+  // Inspect the schema as a user, so any exposed child counts are exercised.
+  final schema = await query(_carol, '''
+query {
+  beacon: __type(name: "beacon") { fields { name } }
+  root: __schema { queryType { fields { name } } }
+}
+''');
+  List<String> fieldNames(Object? type) {
+    if (type case {'fields': final List<Object?> fields}) {
+      return [
+        for (final field in fields)
+          switch (field) {
+            {'name': final String name} => name,
+            _ => throw StateError('Invalid schema field: $field'),
+          },
+      ];
+    }
+    throw StateError('Invalid schema type: $type');
+  }
+
+  final root = switch (schema['root']) {
+    {'queryType': final Object? type} => type,
+    _ => throw StateError('Missing Hasura root query type'),
+  };
+  expect(
+    fieldNames(root).where(
+      (field) =>
+          field == 'beacon_aggregate' ||
+          (field.contains('beacon') && childField.hasMatch(field)),
+    ),
+    isEmpty,
+    reason: 'Any beacon aggregate needs an authenticated child-count check',
+  );
+  return fieldNames(schema['beacon']);
 }
 
 final class _UnusedUsers extends Fake implements UserRepositoryPort {}

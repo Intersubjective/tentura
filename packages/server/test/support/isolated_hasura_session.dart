@@ -24,12 +24,12 @@ final class IsolatedHasuraSession {
   final int port;
   final _PortClaim _portClaim;
 
-  static Future<bool> isDockerAvailable() async {
+  static Future<bool> isDockerAvailable({bool requiredForPg = true}) async {
     try {
       final result = await Process.run('docker', ['info']);
       if (result.exitCode == 0) return true;
     } on Object catch (_) {}
-    if (isPgTestsRequired()) {
+    if (requiredForPg && isPgTestsRequired()) {
       throw StateError(
         'Docker required ($pgTestsRequiredEnvVar=1) but not available',
       );
