@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:typed_data';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -25,12 +25,13 @@ const _longRuTitle =
 final _thumbBytes = ImageEntity(
   id: 'thumb-covered',
   authorId: 'ego',
-  imageBytes: Uint8List.fromList([0, 1, 2, 3]),
+  imageBytes: base64Decode(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNwaDjwHwAFBAKAPJ4DgAAAAABJRU5ErkJggg==',
+  ),
 );
 
 Future<void> _pumpPickerHost(
   WidgetTester tester, {
-  required List<ConstellationRequest> requests,
   required Locale locale,
   required void Function(BuildContext context) openPicker,
 }) async {
@@ -71,11 +72,11 @@ ConstellationRequest _request({
   title: title,
   status: 0,
   isMine: true,
-      coverThumb: coverThumb,
-      coverSource: coverSource,
-      needs: needs,
-      primaryNeedSlug: primaryNeedSlug,
-    );
+  coverThumb: coverThumb,
+  coverSource: coverSource,
+  needs: needs,
+  primaryNeedSlug: primaryNeedSlug,
+);
 
 void main() {
   group('tag lens forward-which-Request picker', () {
@@ -104,17 +105,82 @@ void main() {
       await _pumpPickerHost(
         tester,
         locale: const Locale('ru'),
-        requests: requests,
         openPicker: (context) {
           unawaited(showConstellationTagLensRequestPicker(context, requests));
         },
       );
 
-      expect(find.text(l10n.constellationTagLensPickRequest), findsOneWidget);
-      expect(find.text(_longRuTitle), findsOneWidget);
-      expect(find.text('Запрос с обложкой'), findsOneWidget);
+      final heading = find.text(l10n.constellationTagLensPickRequest);
+      expect(heading, findsOneWidget);
       expect(find.byType(BeaconIdentityTile), findsNWidgets(3));
+      for (final request in requests) {
+        final title = find.text(request.title);
+        expect(title, findsOneWidget);
+        final row = find.ancestor(of: title, matching: find.byType(ListTile));
+        final tile = find.descendant(
+          of: row,
+          matching: find.byType(BeaconIdentityTile),
+        );
+        expect(tester.widget<ListTile>(row).leading, same(tester.widget(tile)));
+        expect(
+          tester.getTopLeft(tile).dx,
+          lessThan(tester.getTopLeft(title).dx),
+        );
+        expect(
+          tester.getTopLeft(row).dy,
+          greaterThanOrEqualTo(tester.getBottomLeft(heading).dy),
+        );
+        expect(
+          tester.getRect(title).right,
+          lessThanOrEqualTo(kPhoneSurface.width),
+        );
+
+        final image = find.descendant(of: tile, matching: find.byType(Image));
+        final neutral = find.descendant(
+          of: tile,
+          matching: find.byType(BeaconIdentityNeutralGlyph),
+        );
+        final symbol = find.descendant(
+          of: tile,
+          matching: find.byType(TenturaCapabilityGlyph),
+        );
+        expect(image, request.id == 'r-cover' ? findsOneWidget : findsNothing);
+        expect(
+          neutral,
+          request.id == 'r-neutral' ? findsOneWidget : findsNothing,
+        );
+        expect(
+          symbol,
+          request.id == 'r-symbol' ? findsOneWidget : findsNothing,
+        );
+        if (request.id == 'r-neutral') {
+          expect(
+            find.descendant(
+              of: neutral,
+              matching: find.byIcon(Icons.campaign_outlined),
+            ),
+            findsOneWidget,
+          );
+        }
+      }
       expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('empty picker shows the localized message', (tester) async {
+      const locale = Locale('ru');
+      await _pumpPickerHost(
+        tester,
+        locale: locale,
+        openPicker: (context) {
+          unawaited(showConstellationTagLensRequestPicker(context, const []));
+        },
+      );
+
+      expect(
+        find.text(lookupL10n(locale).constellationTagLensNoRequests),
+        findsOneWidget,
+      );
+      expect(find.byType(BeaconIdentityTile), findsNothing);
     });
 
     testWidgets('tapping a row pops that Request', (tester) async {
@@ -127,7 +193,6 @@ void main() {
       await _pumpPickerHost(
         tester,
         locale: const Locale('en'),
-        requests: requests,
         openPicker: (context) async {
           picked = await showConstellationTagLensRequestPicker(
             context,
@@ -140,6 +205,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(picked?.id, 'pick-me');
+      expect(find.byType(BottomSheet), findsNothing);
       expect(find.text('open'), findsOneWidget);
     });
 
