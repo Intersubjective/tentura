@@ -23,6 +23,7 @@ import 'package:tentura/features/updates/ui/widget/updates_feed_tile.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/l10n/l10n_en.dart';
 
+import '../../support/attention_case_factory.dart';
 import '../../support/attention_repository_fake_base.dart';
 import '../../support/test_realtime_sync.dart';
 import '../block/support/controllable_block_case.dart';
@@ -38,8 +39,7 @@ class _HarnessRouter extends Mock implements StackRouter {
     bool ignoreChildRoutes = false,
     bool ignoreParentRoutes = false,
     bool ignorePagelessRoutes = false,
-  }) =>
-      true;
+  }) => true;
 }
 
 final class _Accounts implements AttentionAccountPort {
@@ -57,21 +57,20 @@ AttentionReceipt _receipt({
   required String id,
   required String title,
   required AttentionSurface surface,
-}) =>
-    AttentionReceipt(
-      id: id,
-      category: 'requestProgress',
-      kind: 'commitmentAccepted',
-      priority: 'normal',
-      title: title,
-      body: 'Body',
-      actionUrl: '/#/',
-      createdAt: DateTime.utc(2026, 9, 10, 12),
-      collapsedCount: 1,
-      presentationPayloadJson: '{}',
-      surface: surface,
-      beaconId: 'beacon-$id',
-    );
+}) => AttentionReceipt(
+  id: id,
+  category: 'requestProgress',
+  kind: 'commitmentAccepted',
+  priority: 'normal',
+  title: title,
+  body: 'Body',
+  actionUrl: '/#/',
+  createdAt: DateTime.utc(2026, 9, 10, 12),
+  collapsedCount: 1,
+  presentationPayloadJson: '{}',
+  surface: surface,
+  beaconId: 'beacon-$id',
+);
 
 class _HistoryFeedRepo extends AttentionRepositoryFake {
   _HistoryFeedRepo(this._items);
@@ -93,9 +92,7 @@ class _HistoryFeedRepo extends AttentionRepositoryFake {
     final query = (search ?? '').trim().toLowerCase();
     final filtered = query.isEmpty
         ? _items
-        : _items
-              .where((r) => r.title.toLowerCase().contains(query))
-              .toList();
+        : _items.where((r) => r.title.toLowerCase().contains(query)).toList();
     return AttentionFeed(
       summary: AttentionSummary(unreadTotal: filtered.length),
       page: AttentionFeedPage(items: filtered),
@@ -128,13 +125,13 @@ Future<void> _pumpHistory(
 }) async {
   final accounts = _Accounts();
   final sync = buildTestRealtimeSync();
-  final attention = AttentionCase(
-    repository,
-    accounts,
-    sync.case_,
-    noopBlockCase(),
-    FeedSessionRegistry(),
-    Logger('notification-history-test'),
+  final attention = buildAttentionCase(
+    repository: repository,
+    accounts: accounts,
+    realtimeSyncCase: sync.case_,
+    blockCase: noopBlockCase(),
+    feedSessions: FeedSessionRegistry(),
+    logger: Logger('notification-history-test'),
   );
   accounts.emit('viewer');
 
@@ -199,29 +196,32 @@ Future<void> _pumpHistory(
 }
 
 void main() {
-  testWidgets('history screen shows receipts from activity and my work surfaces', (
-    tester,
-  ) async {
-    final repo = _HistoryFeedRepo([
-      _receipt(
-        id: 'a1',
-        title: 'Activity surface event',
-        surface: AttentionSurface.activity,
-      ),
-      _receipt(
-        id: 'm1',
-        title: 'My work surface event',
-        surface: AttentionSurface.myWork,
-      ),
-    ]);
-    await _pumpHistory(tester, repository: repo);
+  testWidgets(
+    'history screen shows receipts from activity and my work surfaces',
+    (
+      tester,
+    ) async {
+      final repo = _HistoryFeedRepo([
+        _receipt(
+          id: 'a1',
+          title: 'Activity surface event',
+          surface: AttentionSurface.activity,
+        ),
+        _receipt(
+          id: 'm1',
+          title: 'My work surface event',
+          surface: AttentionSurface.myWork,
+        ),
+      ]);
+      await _pumpHistory(tester, repository: repo);
 
-    final l10n = L10nEn();
-    expect(find.text(l10n.notificationHistoryScreenTitle), findsOneWidget);
-    expect(find.text('Activity surface event'), findsOneWidget);
-    expect(find.text('My work surface event'), findsOneWidget);
-    expect(repo.lastFetchSurface, isNull);
-  });
+      final l10n = L10nEn();
+      expect(find.text(l10n.notificationHistoryScreenTitle), findsOneWidget);
+      expect(find.text('Activity surface event'), findsOneWidget);
+      expect(find.text('My work surface event'), findsOneWidget);
+      expect(repo.lastFetchSurface, isNull);
+    },
+  );
 
   testWidgets('history search filters visible receipts', (tester) async {
     final repo = _HistoryFeedRepo([
@@ -252,19 +252,22 @@ void main() {
     expect(repo.lastSearch, 'Garden');
   });
 
-  testWidgets('history uses unscoped destination (both surfaces on first fetch)', (
-    tester,
-  ) async {
-    final repo = _HistoryFeedRepo([
-      _receipt(
-        id: 'a1',
-        title: 'Only activity',
-        surface: AttentionSurface.activity,
-      ),
-    ]);
-    await _pumpHistory(tester, repository: repo);
+  testWidgets(
+    'history uses unscoped destination (both surfaces on first fetch)',
+    (
+      tester,
+    ) async {
+      final repo = _HistoryFeedRepo([
+        _receipt(
+          id: 'a1',
+          title: 'Only activity',
+          surface: AttentionSurface.activity,
+        ),
+      ]);
+      await _pumpHistory(tester, repository: repo);
 
-    expect(find.byType(UpdatesFeedTile), findsWidgets);
-    expect(repo.lastFetchSurface, isNull);
-  });
+      expect(find.byType(UpdatesFeedTile), findsWidgets);
+      expect(repo.lastFetchSurface, isNull);
+    },
+  );
 }

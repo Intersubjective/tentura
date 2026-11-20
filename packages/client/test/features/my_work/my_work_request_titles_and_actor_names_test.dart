@@ -40,6 +40,7 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
+import '../../support/attention_case_factory.dart';
 import '../../support/attention_repository_fake_base.dart';
 import '../../support/remote_wire_harness.dart';
 import '../../support/test_realtime_sync.dart';
@@ -166,13 +167,13 @@ final class _TestProfileCubit extends Mock implements ProfileCubit {
 }
 
 Future<MyWorkCubit> _cubit(RemoteRequestClient remote) async {
-  final attention = AttentionCase(
-    AttentionRepository(remote),
-    _Accounts(),
-    buildTestRealtimeSync().case_,
-    noopBlockCase(),
-    FeedSessionRegistry(),
-    Logger('my-work-names'),
+  final attention = buildAttentionCase(
+    repository: AttentionRepository(remote),
+    accounts: _Accounts(),
+    realtimeSyncCase: buildTestRealtimeSync().case_,
+    blockCase: noopBlockCase(),
+    feedSessions: FeedSessionRegistry(),
+    logger: Logger('my-work-names'),
   );
   final repo = FakeMyWorkRepository()
     ..initResult = (
@@ -541,13 +542,13 @@ void main() {
         );
       final realtime = buildTestRealtimeSync();
       realtimePort = realtime.port;
-      attention = AttentionCase(
-        repository,
-        _Accounts(),
-        realtime.case_,
-        noopBlockCase(),
-        FeedSessionRegistry(),
-        Logger('timeline-names'),
+      attention = buildAttentionCase(
+        repository: repository,
+        accounts: _Accounts(),
+        realtimeSyncCase: realtime.case_,
+        blockCase: noopBlockCase(),
+        feedSessions: FeedSessionRegistry(),
+        logger: Logger('timeline-names'),
       );
       GetIt.I
         ..registerSingleton<AttentionCase>(attention)

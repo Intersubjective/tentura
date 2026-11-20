@@ -5,11 +5,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
-import 'package:tentura/domain/attention/attention_case.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/attention/feed_session_registry.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';
+import '../../support/attention_case_factory.dart';
 import '../../support/attention_repository_fake_base.dart';
 import 'package:tentura/features/updates/ui/bloc/updates_feed_cubit.dart';
 import 'package:tentura/features/updates/ui/widget/updates_feed_pane.dart';
@@ -103,13 +103,13 @@ void main() {
       const AttentionSummary(unreadTotal: 2, needsYouTotal: 5),
     );
     final sync = buildTestRealtimeSync();
-    final attention = AttentionCase(
-      repository,
-      accounts,
-      sync.case_,
-      noopBlockCase(),
-      FeedSessionRegistry(),
-      Logger('updates-feed-views-activity'),
+    final attention = buildAttentionCase(
+      repository: repository,
+      accounts: accounts,
+      realtimeSyncCase: sync.case_,
+      blockCase: noopBlockCase(),
+      feedSessions: FeedSessionRegistry(),
+      logger: Logger('updates-feed-views-activity'),
     );
     accounts.emit('viewer');
     await _drain();
@@ -161,13 +161,13 @@ void main() {
         AttentionSummary(unreadTotal: unreadOnly, needsYouTotal: needsYouOnly),
       );
       final sync = buildTestRealtimeSync();
-      final attention = AttentionCase(
-        repository,
-        accounts,
-        sync.case_,
-        noopBlockCase(),
-        FeedSessionRegistry(),
-        Logger('updates-feed-views-unread-badge'),
+      final attention = buildAttentionCase(
+        repository: repository,
+        accounts: accounts,
+        realtimeSyncCase: sync.case_,
+        blockCase: noopBlockCase(),
+        feedSessions: FeedSessionRegistry(),
+        logger: Logger('updates-feed-views-unread-badge'),
       );
       accounts.emit('viewer');
       await _drain();

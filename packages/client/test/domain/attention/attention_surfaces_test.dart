@@ -10,6 +10,7 @@ import 'package:tentura/domain/attention/feed_session_registry.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 
+import '../../support/attention_case_factory.dart';
 import '../../features/block/support/controllable_block_case.dart';
 import '../../support/test_realtime_sync.dart';
 import 'attention_case_test_support.dart';
@@ -66,13 +67,13 @@ void main() {
       final realtime = buildTestRealtimeSync();
       realtimePort = realtime.port;
       realtimeCase = realtime.case_;
-      attention = AttentionCase(
-        repository,
-        accounts,
-        realtimeCase,
-        noopBlockCase(),
-        feedSessions,
-        Logger('attention-surfaces-test'),
+      attention = buildAttentionCase(
+        repository: repository,
+        accounts: accounts,
+        realtimeSyncCase: realtimeCase,
+        blockCase: noopBlockCase(),
+        feedSessions: feedSessions,
+        logger: Logger('attention-surfaces-test'),
       );
       surfaceSummaries = [];
       attention.surfaceSummary.listen(surfaceSummaries.add);
@@ -107,7 +108,10 @@ void main() {
       summary.complete(_surfaceSummary(deskCount: 2, forYouDot: true));
       head.complete(attentionCaseTestFeed());
       await attentionCaseTestSettle();
-      expect(surfaceSummaries, contains(_surfaceSummary(deskCount: 2, forYouDot: true)));
+      expect(
+        surfaceSummaries,
+        contains(_surfaceSummary(deskCount: 2, forYouDot: true)),
+      );
     });
 
     test('refreshes on notification events', () async {
@@ -134,7 +138,10 @@ void main() {
       summary.complete(_surfaceSummary(deskCount: 3, myDeskDot: true));
       page.complete(attentionCaseTestFeed());
       await attentionCaseTestSettle();
-      expect(surfaceSummaries.last, _surfaceSummary(deskCount: 3, myDeskDot: true));
+      expect(
+        surfaceSummaries.last,
+        _surfaceSummary(deskCount: 3, myDeskDot: true),
+      );
     });
 
     test('refreshes on helpOffer events', () async {
@@ -158,7 +165,10 @@ void main() {
       summary.complete(_surfaceSummary(deskCount: 4, forYouDot: true));
       page.complete(attentionCaseTestFeed());
       await attentionCaseTestSettle();
-      expect(surfaceSummaries.last, _surfaceSummary(deskCount: 4, forYouDot: true));
+      expect(
+        surfaceSummaries.last,
+        _surfaceSummary(deskCount: 4, forYouDot: true),
+      );
     });
 
     test('refreshes on inboxItem events', () async {
@@ -182,23 +192,28 @@ void main() {
       summary.complete(_surfaceSummary(deskCount: 5, forYouDot: true));
       page.complete(attentionCaseTestFeed());
       await attentionCaseTestSettle();
-      expect(surfaceSummaries.last, _surfaceSummary(deskCount: 5, forYouDot: true));
+      expect(
+        surfaceSummaries.last,
+        _surfaceSummary(deskCount: 5, forYouDot: true),
+      );
     });
 
-    Future<void> expectOneRefreshForSameTurnBurst(List<String> requestIds) async {
+    Future<void> expectOneRefreshForSameTurnBurst(
+      List<String> requestIds,
+    ) async {
       // A flushed invalidation batch is expanded synchronously. Keep that
       // delivery boundary explicit without changing other tests' async ports.
       await attention.dispose();
       await realtimePort.dispose();
       realtimePort = TestRealtimeSyncPort(synchronousChanges: true);
       realtimeCase = RealtimeSyncCase(realtimePort);
-      attention = AttentionCase(
-        repository,
-        accounts,
-        realtimeCase,
-        noopBlockCase(),
-        feedSessions,
-        Logger('attention-surfaces-burst-test'),
+      attention = buildAttentionCase(
+        repository: repository,
+        accounts: accounts,
+        realtimeSyncCase: realtimeCase,
+        blockCase: noopBlockCase(),
+        feedSessions: feedSessions,
+        logger: Logger('attention-surfaces-burst-test'),
       );
       final summarySubscription = attention.surfaceSummary.listen(
         surfaceSummaries.add,
@@ -213,8 +228,10 @@ void main() {
         unread: 3,
         items: [attentionCaseTestReceipt(id: 'refreshed-receipt')],
       );
-      final refreshedSummary = _surfaceSummary(deskCount: 4, myDeskDot: true)
-          .copyWith(historySummary: const AttentionSummary(unreadTotal: 7));
+      final refreshedSummary = _surfaceSummary(
+        deskCount: 4,
+        myDeskDot: true,
+      ).copyWith(historySummary: const AttentionSummary(unreadTotal: 7));
       final page = Completer<AttentionFeed>();
       final summary = Completer<AttentionSurfaceSummary>();
       repository.pendingFetches.add(page);
@@ -236,7 +253,10 @@ void main() {
         invalidations.add(id);
         summariesAtAnnouncement.add(attention.surfaceSummarySnapshot);
         receiptsAtAnnouncement.add(
-          attention.feedSession(destination).pages[AttentionView.all]!.items
+          attention
+              .feedSession(destination)
+              .pages[AttentionView.all]!
+              .items
               .map((receipt) => receipt.id)
               .toList(),
         );
@@ -336,17 +356,19 @@ void main() {
 
     test('refreshes on block changes', () async {
       final blockCase = ControllableBlockCase();
-      final blockAttention = AttentionCase(
-        repository,
-        accounts,
-        realtimeCase,
-        blockCase,
-        feedSessions,
-        Logger('attention-surfaces-block'),
+      final blockAttention = buildAttentionCase(
+        repository: repository,
+        accounts: accounts,
+        realtimeSyncCase: realtimeCase,
+        blockCase: blockCase,
+        feedSessions: feedSessions,
+        logger: Logger('attention-surfaces-block'),
       );
       final blockSummaries = <AttentionSurfaceSummary>[];
       blockAttention.surfaceSummary.listen(blockSummaries.add);
-      blockAttention.attachFeedSession(AttentionFeedDestinationId.activityStream);
+      blockAttention.attachFeedSession(
+        AttentionFeedDestinationId.activityStream,
+      );
       addTearDown(blockAttention.dispose);
       addTearDown(blockCase.dispose);
 
@@ -367,7 +389,10 @@ void main() {
       await attentionCaseTestSettle();
       afterBlock.complete(_surfaceSummary(deskCount: 7, forYouDot: true));
       await attentionCaseTestSettle();
-      expect(blockSummaries.last, _surfaceSummary(deskCount: 7, forYouDot: true));
+      expect(
+        blockSummaries.last,
+        _surfaceSummary(deskCount: 7, forYouDot: true),
+      );
     });
 
     test('refreshes after mark-seen ack', () async {
@@ -377,7 +402,10 @@ void main() {
       final initialSummary = Completer<AttentionSurfaceSummary>();
       final afterAckSummary = Completer<AttentionSurfaceSummary>();
       repository.pendingFetches.addAll([initial, afterAckHead]);
-      repository.pendingSurfaceSummaries.addAll([initialSummary, afterAckSummary]);
+      repository.pendingSurfaceSummaries.addAll([
+        initialSummary,
+        afterAckSummary,
+      ]);
       accounts.emit('account-a');
       await attentionCaseTestSettle();
       initial.complete(attentionCaseTestFeed());
@@ -439,13 +467,13 @@ void main() {
       await attention.dispose();
       const streamDest = AttentionFeedDestinationId.activityStream;
       const historyDest = AttentionFeedDestinationId.history;
-      final scopedAttention = AttentionCase(
-        repository,
-        accounts,
-        realtimeCase,
-        noopBlockCase(),
-        feedSessions,
-        Logger('attention-surfaces-help-offer'),
+      final scopedAttention = buildAttentionCase(
+        repository: repository,
+        accounts: accounts,
+        realtimeSyncCase: realtimeCase,
+        blockCase: noopBlockCase(),
+        feedSessions: feedSessions,
+        logger: Logger('attention-surfaces-help-offer'),
       );
       scopedAttention.attachFeedSession(streamDest);
       scopedAttention.attachFeedSession(historyDest);
@@ -498,13 +526,13 @@ void main() {
     test('activity stream fetch passes activity surface', () async {
       await attention.dispose();
       const streamDest = AttentionFeedDestinationId.activityStream;
-      final streamOnly = AttentionCase(
-        repository,
-        accounts,
-        realtimeCase,
-        noopBlockCase(),
-        feedSessions,
-        Logger('attention-surfaces-stream-fetch'),
+      final streamOnly = buildAttentionCase(
+        repository: repository,
+        accounts: accounts,
+        realtimeSyncCase: realtimeCase,
+        blockCase: noopBlockCase(),
+        feedSessions: feedSessions,
+        logger: Logger('attention-surfaces-stream-fetch'),
       );
       streamOnly.attachFeedSession(streamDest);
       addTearDown(streamOnly.dispose);
@@ -527,13 +555,13 @@ void main() {
         await attention.dispose();
         const streamDest = AttentionFeedDestinationId.activityStream;
         const historyDest = AttentionFeedDestinationId.history;
-        final roundTripAttention = AttentionCase(
-          repository,
-          accounts,
-          realtimeCase,
-          noopBlockCase(),
-          feedSessions,
-          Logger('attention-surfaces-round-trip'),
+        final roundTripAttention = buildAttentionCase(
+          repository: repository,
+          accounts: accounts,
+          realtimeSyncCase: realtimeCase,
+          blockCase: noopBlockCase(),
+          feedSessions: feedSessions,
+          logger: Logger('attention-surfaces-round-trip'),
         );
         roundTripAttention.attachFeedSession(streamDest);
         addTearDown(roundTripAttention.dispose);
@@ -561,7 +589,11 @@ void main() {
         repository.pendingFetches.addAll([unreadRefresh, searchRefresh]);
         roundTripAttention.setActiveView(streamDest, AttentionView.unread);
         await attentionCaseTestSettle();
-        unreadRefresh.complete(attentionCaseTestFeed(items: [attentionCaseTestReceipt(id: 'stream-item')]));
+        unreadRefresh.complete(
+          attentionCaseTestFeed(
+            items: [attentionCaseTestReceipt(id: 'stream-item')],
+          ),
+        );
         await attentionCaseTestSettle();
         roundTripAttention.setSearch(streamDest, 'needle');
         await attentionCaseTestSettle();
@@ -589,7 +621,11 @@ void main() {
           ),
         );
         await attentionCaseTestSettle();
-        historyHead.complete(attentionCaseTestFeed(items: [attentionCaseTestReceipt(id: 'history-item')]));
+        historyHead.complete(
+          attentionCaseTestFeed(
+            items: [attentionCaseTestReceipt(id: 'history-item')],
+          ),
+        );
         await attentionCaseTestSettle();
         expect(repository.fetches.last.surface, isNull);
 
@@ -608,36 +644,44 @@ void main() {
     // CHANGES IN U15R-c (was: "mark-seen adjusts surface totals by receipt
     // surface"). It must not adjust them at all: both surface totals are
     // `active attention` server-side, and reading is not clearing (R2/D02).
-    test('mark-seen leaves both surface totals where the server put them',
-        () async {
-      attention.attachFeedSession(AttentionFeedDestinationId.activityStream);
-      final initial = Completer<AttentionFeed>();
-      final initialSummary = Completer<AttentionSurfaceSummary>();
-      repository.pendingFetches.add(initial);
-      repository.pendingSurfaceSummaries.add(initialSummary);
-      repository.pendingMarkSeen.add(Completer<int>());
-      accounts.emit('account-a');
-      await attentionCaseTestSettle();
-      initial.complete(
-        attentionCaseTestFeed(
-          items: [
-            attentionCaseTestReceipt(id: 'a').copyWith(surface: AttentionSurface.activity),
-            attentionCaseTestReceipt(id: 'b').copyWith(surface: AttentionSurface.myWork),
-          ],
-        ),
-      );
-      initialSummary.complete(_surfaceSummary(deskCount: 2, myDeskDot: true, forYouDot: true));
-      await attentionCaseTestSettle();
+    test(
+      'mark-seen leaves both surface totals where the server put them',
+      () async {
+        attention.attachFeedSession(AttentionFeedDestinationId.activityStream);
+        final initial = Completer<AttentionFeed>();
+        final initialSummary = Completer<AttentionSurfaceSummary>();
+        repository.pendingFetches.add(initial);
+        repository.pendingSurfaceSummaries.add(initialSummary);
+        repository.pendingMarkSeen.add(Completer<int>());
+        accounts.emit('account-a');
+        await attentionCaseTestSettle();
+        initial.complete(
+          attentionCaseTestFeed(
+            items: [
+              attentionCaseTestReceipt(
+                id: 'a',
+              ).copyWith(surface: AttentionSurface.activity),
+              attentionCaseTestReceipt(
+                id: 'b',
+              ).copyWith(surface: AttentionSurface.myWork),
+            ],
+          ),
+        );
+        initialSummary.complete(
+          _surfaceSummary(deskCount: 2, myDeskDot: true, forYouDot: true),
+        );
+        await attentionCaseTestSettle();
 
-      final summaries = <AttentionSurfaceSummary>[];
-      final sub = attention.surfaceSummary.listen(summaries.add);
-      attention.markSeen(['a']);
-      await attentionCaseTestSettle();
-      expect(
-        attention.surfaceSummarySnapshot,
-        _surfaceSummary(deskCount: 2, myDeskDot: true, forYouDot: true),
-      );
-      await sub.cancel();
-    });
+        final summaries = <AttentionSurfaceSummary>[];
+        final sub = attention.surfaceSummary.listen(summaries.add);
+        attention.markSeen(['a']);
+        await attentionCaseTestSettle();
+        expect(
+          attention.surfaceSummarySnapshot,
+          _surfaceSummary(deskCount: 2, myDeskDot: true, forYouDot: true),
+        );
+        await sub.cancel();
+      },
+    );
   });
 }

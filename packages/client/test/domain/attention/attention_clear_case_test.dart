@@ -10,6 +10,7 @@ import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/attention/feed_session_registry.dart';
 
+import '../../support/attention_case_factory.dart';
 import '../../features/block/support/controllable_block_case.dart';
 import '../../support/attention_repository_fake_base.dart';
 import '../../support/test_realtime_sync.dart';
@@ -21,17 +22,18 @@ void main() {
   late TestRealtimeSyncPort realtimePort;
   late AttentionCase attention;
 
-  AttentionCase buildCase(_ClearRepository repo) => AttentionCase(
-    repo,
-    accounts,
-    buildTestRealtimeSync().case_,
-    noopBlockCase(),
-    FeedSessionRegistry(),
-    Logger('AttentionClearCaseTest'),
+  AttentionCase buildCase(_ClearRepository repo) => buildAttentionCase(
+    repository: repo,
+    accounts: accounts,
+    realtimeSyncCase: buildTestRealtimeSync().case_,
+    blockCase: noopBlockCase(),
+    feedSessions: FeedSessionRegistry(),
+    logger: Logger('AttentionClearCaseTest'),
     qaLatencyMeasurementEnabled: false,
   );
 
-  Future<void> signIn(AttentionCase target, {
+  Future<void> signIn(
+    AttentionCase target, {
     List<AttentionReceipt>? items,
   }) async {
     target.attachFeedSession(attentionCaseTestFeedDest);
@@ -42,7 +44,9 @@ void main() {
   }
 
   List<AttentionReceipt> pageItems(AttentionCase target) =>
-      target.feedSession(attentionCaseTestFeedDest).pages[AttentionView.all]
+      target
+          .feedSession(attentionCaseTestFeedDest)
+          .pages[AttentionView.all]
           ?.items ??
       const [];
 
@@ -86,143 +90,151 @@ void main() {
     expect(clearedIds(attention), {'r-1'});
   });
 
-  test('a partial sweep leaves skipped and pending members untouched',
-      () async {
-    await signIn(attention);
-    repository.dismissAllResult = (operationId) => AttentionDismissAllResult(
-      operationId: operationId,
-      status: AttentionOperationStatus.partial,
-      appliedReceiptIds: const ['r-1'],
-      appliedCount: 1,
-      skipped: const [
-        AttentionSweepMember(
-          id: 'r-2',
-          kind: AttentionSweepMemberKind.receipt,
-          reason: AttentionSweepSkipReason.awaitingDecision,
-        ),
-      ],
-      pendingCount: 1,
-    );
-    final result = await attention.dismissAll();
-    await attentionCaseTestSettle();
+  test(
+    'a partial sweep leaves skipped and pending members untouched',
+    () async {
+      await signIn(attention);
+      repository.dismissAllResult = (operationId) => AttentionDismissAllResult(
+        operationId: operationId,
+        status: AttentionOperationStatus.partial,
+        appliedReceiptIds: const ['r-1'],
+        appliedCount: 1,
+        skipped: const [
+          AttentionSweepMember(
+            id: 'r-2',
+            kind: AttentionSweepMemberKind.receipt,
+            reason: AttentionSweepSkipReason.awaitingDecision,
+          ),
+        ],
+        pendingCount: 1,
+      );
+      final result = await attention.dismissAll();
+      await attentionCaseTestSettle();
 
-    expect(result.isComplete, isFalse, reason: 'pendingCount > 0');
-    expect(result.needsResume, isTrue);
-    expect(clearedIds(attention), {'r-1'});
-  });
+      expect(result.isComplete, isFalse, reason: 'pendingCount > 0');
+      expect(result.needsResume, isTrue);
+      expect(clearedIds(attention), {'r-1'});
+    },
+  );
 
-  test('a failed clear rolls its own optimism back and reports the failure',
-      () async {
-    await signIn(attention);
-    repository.snapshot = const AttentionClearSnapshot(
-      snapshotToken: 'snap-1',
-      receiptIds: ['r-1'],
-    );
-    repository.clearError = StateError('offline');
+  test(
+    'a failed clear rolls its own optimism back and reports the failure',
+    () async {
+      await signIn(attention);
+      repository.snapshot = const AttentionClearSnapshot(
+        snapshotToken: 'snap-1',
+        receiptIds: ['r-1'],
+      );
+      repository.clearError = StateError('offline');
 
-    await expectLater(
-      attention.clearReceipt(receiptId: 'r-1'),
-      throwsA(isA<StateError>()),
-    );
-    await attentionCaseTestSettle();
-    expect(clearedIds(attention), isEmpty);
-  });
+      await expectLater(
+        attention.clearReceipt(receiptId: 'r-1'),
+        throwsA(isA<StateError>()),
+      );
+      await attentionCaseTestSettle();
+      expect(clearedIds(attention), isEmpty);
+    },
+  );
 
-  test('a page fetch started before a clear cannot overwrite its result',
-      () async {
-    // Seed the account total independently, then hold a stale summary and
-    // page until after the clear commits.
-    repository.historySummary = const AttentionSummary(unreadTotal: 3);
-    await signIn(attention);
-    expect(attention.snapshot.summary.unreadTotal, 3);
-    repository.holdSummaries = true;
-    unawaited(attention.refresh(destinationId: attentionCaseTestFeedDest));
-    await attention.reconcile();
-    await attentionCaseTestSettle();
-    expect(repository._pendingSummaries, hasLength(1));
+  test(
+    'a page fetch started before a clear cannot overwrite its result',
+    () async {
+      // Seed the account total independently, then hold a stale summary and
+      // page until after the clear commits.
+      repository.historySummary = const AttentionSummary(unreadTotal: 3);
+      await signIn(attention);
+      expect(attention.snapshot.summary.unreadTotal, 3);
+      repository.holdSummaries = true;
+      unawaited(attention.refresh(destinationId: attentionCaseTestFeedDest));
+      await attention.reconcile();
+      await attentionCaseTestSettle();
+      expect(repository._pendingSummaries, hasLength(1));
 
-    repository.snapshot = const AttentionClearSnapshot(
-      snapshotToken: 'snap-1',
-      receiptIds: ['r-1', 'r-2', 'r-3'],
-    );
-    repository.clearResult = (operationId) => AttentionClearResult(
-      operationId: operationId,
-      status: AttentionOperationStatus.complete,
-      appliedReceiptIds: const ['r-1', 'r-2', 'r-3'],
-    );
-    await attention.clearRequestOpen(beaconId: 'B1');
-    await attentionCaseTestSettle();
-    expect(clearedIds(attention), {'r-1', 'r-2', 'r-3'});
-    expect(attention.snapshot.summary.unreadTotal, 0);
+      repository.snapshot = const AttentionClearSnapshot(
+        snapshotToken: 'snap-1',
+        receiptIds: ['r-1', 'r-2', 'r-3'],
+      );
+      repository.clearResult = (operationId) => AttentionClearResult(
+        operationId: operationId,
+        status: AttentionOperationStatus.complete,
+        appliedReceiptIds: const ['r-1', 'r-2', 'r-3'],
+      );
+      await attention.clearRequestOpen(beaconId: 'B1');
+      await attentionCaseTestSettle();
+      expect(clearedIds(attention), {'r-1', 'r-2', 'r-3'});
+      expect(attention.snapshot.summary.unreadTotal, 0);
 
-    // The stale page and the stale summary land now, both describing the
-    // world as it was before the clear. Neither may win.
-    repository.completeFirstFetch(_threeReceipts, unread: 3);
-    // CHANGES IN U18c: the stale summary used to carry
-    // `activityUnreadTotal: 3`. It carries a lit `forYouDot` instead — a
-    // §6 field, and still a value the post-clear world does not have.
-    repository.completeFirstSummary(
-      const AttentionSurfaceSummary(forYouDot: true),
-    );
-    await attentionCaseTestSettle();
+      // The stale page and the stale summary land now, both describing the
+      // world as it was before the clear. Neither may win.
+      repository.completeFirstFetch(_threeReceipts, unread: 3);
+      // CHANGES IN U18c: the stale summary used to carry
+      // `activityUnreadTotal: 3`. It carries a lit `forYouDot` instead — a
+      // §6 field, and still a value the post-clear world does not have.
+      repository.completeFirstSummary(
+        const AttentionSurfaceSummary(forYouDot: true),
+      );
+      await attentionCaseTestSettle();
 
-    expect(
-      attention.snapshot.summary.unreadTotal,
-      0,
-      reason: 'a page fetched before the clear cannot restore its total',
-    );
-    final surface = await attention.surfaceSummary.first;
-    expect(
-      surface.forYouDot,
-      isFalse,
-      reason: 'nor can a summary fetched before the clear',
-    );
-    expect(clearedIds(attention), {'r-1', 'r-2', 'r-3'});
-  });
+      expect(
+        attention.snapshot.summary.unreadTotal,
+        0,
+        reason: 'a page fetched before the clear cannot restore its total',
+      );
+      final surface = await attention.surfaceSummary.first;
+      expect(
+        surface.forYouDot,
+        isFalse,
+        reason: 'nor can a summary fetched before the clear',
+      );
+      expect(clearedIds(attention), {'r-1', 'r-2', 'r-3'});
+    },
+  );
 
-  test('a second session clearing the same rows converges, never resurrects',
-      () async {
-    await signIn(attention);
-    final second = buildCase(repository);
-    second.attachFeedSession(attentionCaseTestFeedDest);
-    accounts.emit('account-1');
-    await attentionCaseTestSettle();
-    repository.completeFetches(_threeReceipts);
-    await attentionCaseTestSettle();
+  test(
+    'a second session clearing the same rows converges, never resurrects',
+    () async {
+      await signIn(attention);
+      final second = buildCase(repository);
+      second.attachFeedSession(attentionCaseTestFeedDest);
+      accounts.emit('account-1');
+      await attentionCaseTestSettle();
+      repository.completeFetches(_threeReceipts);
+      await attentionCaseTestSettle();
 
-    repository.snapshot = const AttentionClearSnapshot(
-      snapshotToken: 'snap-1',
-      receiptIds: ['r-1'],
-    );
-    repository.clearResult = (operationId) => AttentionClearResult(
-      operationId: operationId,
-      status: AttentionOperationStatus.complete,
-      appliedReceiptIds: const ['r-1'],
-    );
-    await attention.clearReceipt(receiptId: 'r-1');
-    await attentionCaseTestSettle();
+      repository.snapshot = const AttentionClearSnapshot(
+        snapshotToken: 'snap-1',
+        receiptIds: ['r-1'],
+      );
+      repository.clearResult = (operationId) => AttentionClearResult(
+        operationId: operationId,
+        status: AttentionOperationStatus.complete,
+        appliedReceiptIds: const ['r-1'],
+      );
+      await attention.clearReceipt(receiptId: 'r-1');
+      await attentionCaseTestSettle();
 
-    // The second device clears the same row; the server already applied it,
-    // so it answers with a skip, not an apply.
-    repository.clearResult = (operationId) => AttentionClearResult(
-      operationId: operationId,
-      status: AttentionOperationStatus.partial,
-      skippedReceiptIds: const ['r-1'],
-    );
-    await second.clearReceipt(receiptId: 'r-1');
-    await attentionCaseTestSettle();
-    // Both sessions refetch; the server's truth is that r-1 is cleared.
-    repository.completeFetches(_threeReceiptsWithCleared);
-    await attentionCaseTestSettle();
+      // The second device clears the same row; the server already applied it,
+      // so it answers with a skip, not an apply.
+      repository.clearResult = (operationId) => AttentionClearResult(
+        operationId: operationId,
+        status: AttentionOperationStatus.partial,
+        skippedReceiptIds: const ['r-1'],
+      );
+      await second.clearReceipt(receiptId: 'r-1');
+      await attentionCaseTestSettle();
+      // Both sessions refetch; the server's truth is that r-1 is cleared.
+      repository.completeFetches(_threeReceiptsWithCleared);
+      await attentionCaseTestSettle();
 
-    expect(clearedIds(attention), {'r-1'});
-    expect(
-      clearedIds(second),
-      {'r-1'},
-      reason: 'rolling back its own skip must not un-clear server truth',
-    );
-    await second.dispose();
-  });
+      expect(clearedIds(attention), {'r-1'});
+      expect(
+        clearedIds(second),
+        {'r-1'},
+        reason: 'rolling back its own skip must not un-clear server truth',
+      );
+      await second.dispose();
+    },
+  );
 
   group('the sweep reward channel (D18)', () {
     // The reward the cleared state may show is a *presentation* of the last
@@ -614,7 +626,6 @@ final class _ClearRepository extends AttentionRepositoryFake {
   Future<AttentionReconcileResult> reconcile() async =>
       reconcileResult ??
       const AttentionReconcileResult(
-        summary: AttentionSurfaceSummary(
-        ),
+        summary: AttentionSurfaceSummary(),
       );
 }

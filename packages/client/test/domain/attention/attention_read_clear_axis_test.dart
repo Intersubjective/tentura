@@ -14,6 +14,7 @@ import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/attention/feed_session_registry.dart';
 
+import '../../support/attention_case_factory.dart';
 import '../../features/block/support/controllable_block_case.dart';
 import '../../support/attention_axis_contract.dart';
 import '../../support/test_realtime_sync.dart';
@@ -49,13 +50,13 @@ void main() {
       feedSessions = FeedSessionRegistry();
       final realtime = buildTestRealtimeSync();
       realtimePort = realtime.port;
-      attention = AttentionCase(
-        repository,
-        accounts,
-        realtime.case_,
-        noopBlockCase(),
-        feedSessions,
-        Logger('attention-read-clear-axis-test'),
+      attention = buildAttentionCase(
+        repository: repository,
+        accounts: accounts,
+        realtimeSyncCase: realtime.case_,
+        blockCase: noopBlockCase(),
+        feedSessions: feedSessions,
+        logger: Logger('attention-read-clear-axis-test'),
       );
     });
 
@@ -116,41 +117,44 @@ void main() {
       repository.pendingFetches.add(Completer<AttentionFeed>());
     }
 
-    test('markSeen leaves the surface totals where the server put them',
-        () async {
-      // The server's own case: seen but uncleared still asks for attention.
-      final axisCase =
-          contract.axisCase('seen but uncleared optional receipt still asks '
-              'for attention');
-      // CHANGES IN U18c: the contract no longer records `myWorkUnreadTotal`.
-      // The same case records `myDeskDot`, which is what the surface shows.
-      final expectedDot = axisCase['myDeskDot']! as bool;
+    test(
+      'markSeen leaves the surface totals where the server put them',
+      () async {
+        // The server's own case: seen but uncleared still asks for attention.
+        final axisCase = contract.axisCase(
+          'seen but uncleared optional receipt still asks '
+          'for attention',
+        );
+        // CHANGES IN U18c: the contract no longer records `myWorkUnreadTotal`.
+        // The same case records `myDeskDot`, which is what the surface shows.
+        final expectedDot = axisCase['myDeskDot']! as bool;
 
-      await signIn(
-        items: [_optional(id: 'r-1', surface: AttentionSurface.myWork)],
-        activityTotal: 0,
-        myWorkTotal: 1,
-      );
+        await signIn(
+          items: [_optional(id: 'r-1', surface: AttentionSurface.myWork)],
+          activityTotal: 0,
+          myWorkTotal: 1,
+        );
 
-      final commit = Completer<int>();
-      repository.pendingMarkSeen.add(commit);
-      unawaited(attention.markSeen(const ['r-1']).catchError((_) {}));
-      await attentionCaseTestSettle();
+        final commit = Completer<int>();
+        repository.pendingMarkSeen.add(commit);
+        unawaited(attention.markSeen(const ['r-1']).catchError((_) {}));
+        await attentionCaseTestSettle();
 
-      expect(
-        attention.surfaceSummarySnapshot.myDeskDot,
-        expectedDot,
-        reason: axisCase['note'] as String? ??
-            'reading is not clearing (D02)',
-      );
-      expect(
-        attention.snapshot.summary.unreadTotal,
-        1,
-        reason: 'unreadTotal is an active-attention count on the server too',
-      );
-      commit.complete(1);
-      await attentionCaseTestSettle();
-    });
+        expect(
+          attention.surfaceSummarySnapshot.myDeskDot,
+          expectedDot,
+          reason:
+              axisCase['note'] as String? ?? 'reading is not clearing (D02)',
+        );
+        expect(
+          attention.snapshot.summary.unreadTotal,
+          1,
+          reason: 'unreadTotal is an active-attention count on the server too',
+        );
+        commit.complete(1);
+        await attentionCaseTestSettle();
+      },
+    );
 
     test('markAllSeen does not zero a surface it only read', () async {
       await signIn(
@@ -199,10 +203,12 @@ void main() {
         // `r-2` is a live obligation: Set R excludes it from the sweep and
         // `isInUnreadView` keeps it, so it is the control that proves the
         // un-read really reached the projected frame.
-        final swept = _optional(id: 'r-1')
-            .copyWith(seenAt: DateTime.utc(2026, 9, 18));
-        final obligation = _obligation(id: 'r-2')
-            .copyWith(seenAt: DateTime.utc(2026, 9, 18));
+        final swept = _optional(
+          id: 'r-1',
+        ).copyWith(seenAt: DateTime.utc(2026, 9, 18));
+        final obligation = _obligation(
+          id: 'r-2',
+        ).copyWith(seenAt: DateTime.utc(2026, 9, 18));
         await signIn(
           items: [swept, obligation],
           activityTotal: 2,
@@ -244,7 +250,8 @@ void main() {
         expect(
           afterSweep.pages[afterSweep.activeView]!.items.map((r) => r.id),
           ['r-2'],
-          reason: 'the clear is what takes it off Unread — the premise this '
+          reason:
+              'the clear is what takes it off Unread — the premise this '
               'test then tries to undo',
         );
 
@@ -270,19 +277,22 @@ void main() {
         expect(
           items['r-2']?.isSeen,
           isFalse,
-          reason: 'the read axis moved — the control is un-read in the frame '
+          reason:
+              'the read axis moved — the control is un-read in the frame '
               'the user sees',
         );
         expect(
           items.keys,
           isNot(contains('r-1')),
-          reason: 'the Unread view is the clear axis; un-reading a cleared '
+          reason:
+              'the Unread view is the clear axis; un-reading a cleared '
               'row does not put it back on the list',
         );
         expect(
           attention.snapshot.summary.unreadTotal,
           1,
-          reason: 'unreadTotal is active attention, not a count of unread '
+          reason:
+              'unreadTotal is active attention, not a count of unread '
               'rows — un-reading must not raise it back',
         );
         // RETIRED IN U18c: `activityUnreadTotal == 1` stood here. It said
@@ -335,8 +345,9 @@ void main() {
 
         // The intermediate frame — the only frame the user actually sees
         // before the server answers.
-        final session =
-            attention.feedSession(AttentionFeedDestinationId.activityStream);
+        final session = attention.feedSession(
+          AttentionFeedDestinationId.activityStream,
+        );
         final page = session.pages[session.activeView]!;
         final cleared = {
           for (final r in page.items)
@@ -345,7 +356,8 @@ void main() {
         expect(
           cleared,
           {'sweepable'},
-          reason: 'Set R is: activity surface, not an obligation, uncleared, '
+          reason:
+              'Set R is: activity surface, not an obligation, uncleared, '
               'not a relay_received shell — and Set O excludes anything in '
               'eligible_pinned, i.e. an unanswered forward',
         );
@@ -386,7 +398,8 @@ void main() {
       expect(
         projection.eventUnseenCount,
         2,
-        reason: 'the server defines eventUnseenCount as active *optional* '
+        reason:
+            'the server defines eventUnseenCount as active *optional* '
             'attention; seen_at is not in it',
       );
       expect(projection.unseen, isTrue);
@@ -443,5 +456,5 @@ AttentionReceipt _optional({
 AttentionReceipt _obligation({required String id}) =>
     _base(id: id).copyWith(requiresAction: true);
 
-AttentionReceipt _pendingForward({required String id}) => _base(id: id)
-    .copyWith(itemKind: AttentionItemKind.forward);
+AttentionReceipt _pendingForward({required String id}) =>
+    _base(id: id).copyWith(itemKind: AttentionItemKind.forward);

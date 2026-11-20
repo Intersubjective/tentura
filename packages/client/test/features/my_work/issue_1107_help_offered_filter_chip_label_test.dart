@@ -36,6 +36,7 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
+import '../../support/attention_case_factory.dart';
 import '../../support/test_realtime_sync.dart';
 import '../block/support/controllable_block_case.dart';
 import 'my_work_test_support.dart';
@@ -81,8 +82,8 @@ final class _FakeOrientationPrefs implements HomeOrientationPreferencesPort {
 final class _TestProfileCubit extends Mock implements ProfileCubit {
   @override
   ProfileState get state => ProfileState(
-        profile: Profile(id: _accountId, displayName: 'Viewer'),
-      );
+    profile: Profile(id: _accountId, displayName: 'Viewer'),
+  );
 
   @override
   Stream<ProfileState> get stream =>
@@ -90,11 +91,11 @@ final class _TestProfileCubit extends Mock implements ProfileCubit {
 }
 
 Beacon _beacon(String id, String title) => Beacon.empty.copyWith(
-      id: id,
-      title: title,
-      updatedAt: DateTime.utc(2026, 9, 5),
-      status: BeaconStatus.open,
-    );
+  id: id,
+  title: title,
+  updatedAt: DateTime.utc(2026, 9, 5),
+  status: BeaconStatus.open,
+);
 
 Future<void> _drain([int turns = 12]) async {
   for (var i = 0; i < turns; i++) {
@@ -107,13 +108,13 @@ Future<({AttentionCase attention, _Accounts accounts})> _bootAttention(
 ) async {
   final accounts = _Accounts();
   final sync = buildTestRealtimeSync();
-  final attention = AttentionCase(
-    repo,
-    accounts,
-    sync.case_,
-    noopBlockCase(),
-    FeedSessionRegistry(),
-    Logger('1107-attention'),
+  final attention = buildAttentionCase(
+    repository: repo,
+    accounts: accounts,
+    realtimeSyncCase: sync.case_,
+    blockCase: noopBlockCase(),
+    feedSessions: FeedSessionRegistry(),
+    logger: Logger('1107-attention'),
   );
   GetIt.I.registerSingleton<AttentionCase>(attention);
   GetIt.I.registerSingleton<InviteAcceptedSetupPort>(

@@ -5,6 +5,7 @@ import 'package:tentura/domain/attention/attention_case.dart';
 import 'package:tentura/domain/attention/feed_session_registry.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';
+import '../../support/attention_case_factory.dart';
 import '../../support/attention_repository_fake_base.dart';
 
 import '../../features/block/support/controllable_block_case.dart'
@@ -36,15 +37,15 @@ final class _Repository extends AttentionRepositoryFake {
     String? search,
     int limit = 50,
     AttentionSurface? surface,
-  }) async =>
-      throw UnimplementedError();
+  }) async => throw UnimplementedError();
 
   @override
   Future<Set<String>> unreadForBeacons(Set<String> beaconIds) async =>
       throw UnimplementedError();
 
   @override
-  Future<int> markAllSeen({AttentionSurface? surface}) async => throw UnimplementedError();
+  Future<int> markAllSeen({AttentionSurface? surface}) async =>
+      throw UnimplementedError();
 
   @override
   Future<int> markSeen(List<String> ids) async => throw UnimplementedError();
@@ -64,13 +65,13 @@ void main() {
   setUp(() {
     repository = _Repository();
     final realtime = buildTestRealtimeSync();
-    attention = AttentionCase(
-      repository,
-      _Accounts(),
-      realtime.case_,
-      noopBlockCase(),
-      FeedSessionRegistry(),
-      Logger('attention-live-obligations-test'),
+    attention = buildAttentionCase(
+      repository: repository,
+      accounts: _Accounts(),
+      realtimeSyncCase: realtime.case_,
+      blockCase: noopBlockCase(),
+      feedSessions: FeedSessionRegistry(),
+      logger: Logger('attention-live-obligations-test'),
       qaLatencyMeasurementEnabled: false,
     );
   });

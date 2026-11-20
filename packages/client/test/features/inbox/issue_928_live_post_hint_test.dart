@@ -42,6 +42,7 @@ import 'package:tentura/features/inbox/ui/widget/request_attention_card.dart';
 import 'package:tentura/features/updates/ui/bloc/updates_feed_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../support/attention_case_factory.dart';
 import '../../support/fake_app_navigator.dart';
 import '../../support/noop_attention_actor_profiles.dart';
 import '../../support/phone_surface.dart';
@@ -279,13 +280,13 @@ Future<_Harness> _pumpActivity({
 
   final accounts = _Accounts();
   final sync = buildTestRealtimeSync();
-  final attention = AttentionCase(
-    attentionRepo,
-    accounts,
-    sync.case_,
-    noopBlockCase(),
-    FeedSessionRegistry(),
-    Logger('issue-928-test'),
+  final attention = buildAttentionCase(
+    repository: attentionRepo,
+    accounts: accounts,
+    realtimeSyncCase: sync.case_,
+    blockCase: noopBlockCase(),
+    feedSessions: FeedSessionRegistry(),
+    logger: Logger('issue-928-test'),
   );
   final inboxCase = buildTestInboxCase(
     inboxRepo,

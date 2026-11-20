@@ -8,11 +8,11 @@ import 'package:logging/logging.dart';
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
-import 'package:tentura/domain/attention/attention_case.dart';
 import 'package:tentura/domain/attention/feed_session_registry.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';
+import '../../support/attention_case_factory.dart';
 import '../../support/attention_repository_fake_base.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
@@ -146,13 +146,13 @@ Future<HomeAttentionCubit> _seedAttentionCubit({
   required _Repository repository,
 }) async {
   final sync = buildTestRealtimeSync();
-  final attentionCase = AttentionCase(
-    repository,
-    accounts,
-    sync.case_,
-    noopBlockCase(),
-    FeedSessionRegistry(),
-    Logger('constellation-nav-test'),
+  final attentionCase = buildAttentionCase(
+    repository: repository,
+    accounts: accounts,
+    realtimeSyncCase: sync.case_,
+    blockCase: noopBlockCase(),
+    feedSessions: FeedSessionRegistry(),
+    logger: Logger('constellation-nav-test'),
   );
   final cubit = HomeAttentionCubit(
     attentionCase,

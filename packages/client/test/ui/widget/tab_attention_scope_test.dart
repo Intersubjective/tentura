@@ -11,6 +11,7 @@ import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/attention/feed_session_registry.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';
+import '../../support/attention_case_factory.dart';
 import '../../support/attention_repository_fake_base.dart';
 import 'package:tentura/domain/entity/realtime/realtime_catch_up.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
@@ -109,8 +110,7 @@ final class ControllableAttentionRepository extends AttentionRepositoryFake {
       pendingSummaries.removeAt(0).future;
 
   @override
-  Future<Set<String>> unreadForBeacons(Set<String> beaconIds) async =>
-      const {};
+  Future<Set<String>> unreadForBeacons(Set<String> beaconIds) async => const {};
 
   @override
   Future<Set<String>> liveObligationBeacons() async => const {};
@@ -132,7 +132,9 @@ final class ControllableAttentionRepository extends AttentionRepositoryFake {
 }
 
 AttentionSurfaceSummary buildAccountSummary({required int unread}) =>
-    AttentionSurfaceSummary(historySummary: AttentionSummary(unreadTotal: unread));
+    AttentionSurfaceSummary(
+      historySummary: AttentionSummary(unreadTotal: unread),
+    );
 
 /// Same real-async microtask drain as [updates_feed_cubit_test.dart].
 Future<void> settle([int turns = 8]) async {
@@ -189,13 +191,13 @@ void main() {
       final sync = buildTestRealtimeSync();
       realtimePort = sync.port;
       realtimeCase = sync.case_;
-      attention = AttentionCase(
-        repository,
-        accounts,
-        realtimeCase,
-        noopBlockCase(),
-        FeedSessionRegistry(),
-        Logger('tab-attention-scope-test'),
+      attention = buildAttentionCase(
+        repository: repository,
+        accounts: accounts,
+        realtimeSyncCase: realtimeCase,
+        blockCase: noopBlockCase(),
+        feedSessions: FeedSessionRegistry(),
+        logger: Logger('tab-attention-scope-test'),
       );
       indicator = RecordingTabAttentionIndicator(isBackground: true);
       controller = TabAttentionController(

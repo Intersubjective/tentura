@@ -9,6 +9,7 @@ import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/attention/feed_session_registry.dart';
 
+import '../../support/attention_case_factory.dart';
 import '../../features/block/support/controllable_block_case.dart';
 import '../../support/attention_repository_fake_base.dart';
 import '../../support/test_realtime_sync.dart';
@@ -38,13 +39,13 @@ void main() {
     final realtime = buildTestRealtimeSync();
     realtimePort = realtime.port;
     sessions = FeedSessionRegistry();
-    attention = AttentionCase(
-      repository,
-      accounts,
-      realtime.case_,
-      noopBlockCase(),
-      sessions,
-      Logger('attention-cursor-reset-test'),
+    attention = buildAttentionCase(
+      repository: repository,
+      accounts: accounts,
+      realtimeSyncCase: realtime.case_,
+      blockCase: noopBlockCase(),
+      feedSessions: sessions,
+      logger: Logger('attention-cursor-reset-test'),
       qaLatencyMeasurementEnabled: false,
     );
   });
@@ -182,4 +183,3 @@ final class _CursorRepository extends AttentionRepositoryFake {
   Future<int> settle({required String receiptId, required String kind}) async =>
       0;
 }
-

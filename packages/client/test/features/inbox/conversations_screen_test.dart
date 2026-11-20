@@ -42,6 +42,7 @@ import 'package:tentura/features/updates/domain/use_case/invite_accepted_setup_c
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../support/attention_case_factory.dart';
 import '../../support/attention_repository_fake_base.dart';
 import '../../support/noop_attention_actor_profiles.dart';
 import '../../support/test_realtime_sync.dart';
@@ -206,13 +207,13 @@ Future<void> _pumpInbox(
   final accounts = _Accounts();
   final sync = buildTestRealtimeSync();
   _syncPort = sync.port;
-  final attention = AttentionCase(
-    _AttentionRepo(),
-    accounts,
-    sync.case_,
-    noopBlockCase(),
-    FeedSessionRegistry(),
-    Logger('inbox-conversations-tab-test'),
+  final attention = buildAttentionCase(
+    repository: _AttentionRepo(),
+    accounts: accounts,
+    realtimeSyncCase: sync.case_,
+    blockCase: noopBlockCase(),
+    feedSessions: FeedSessionRegistry(),
+    logger: Logger('inbox-conversations-tab-test'),
   );
   accounts.emit('viewer');
   for (var i = 0; i < 12; i++) {

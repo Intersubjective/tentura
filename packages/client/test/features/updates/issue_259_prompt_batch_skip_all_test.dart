@@ -15,7 +15,6 @@ import 'package:get_it/get_it.dart';
 import 'package:logging/logging.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
-import 'package:tentura/domain/attention/attention_case.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/attention/entity/attention_summary.dart';
@@ -29,6 +28,7 @@ import 'package:tentura/features/updates/ui/bloc/updates_feed_cubit.dart';
 import 'package:tentura/features/updates/ui/widget/prompt_batch_sheet.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../support/attention_case_factory.dart';
 import '../../support/attention_repository_fake_base.dart';
 import '../../support/noop_attention_actor_profiles.dart';
 import '../../support/phone_surface.dart';
@@ -171,13 +171,13 @@ Future<UpdatesFeedCubit> _openSheet(
   await usePhoneSurface(tester);
   final accounts = _Accounts();
   final sync = buildTestRealtimeSync();
-  final attention = AttentionCase(
-    _EmptyRepository(),
-    accounts,
-    sync.case_,
-    noopBlockCase(),
-    FeedSessionRegistry(),
-    Logger('issue-259'),
+  final attention = buildAttentionCase(
+    repository: _EmptyRepository(),
+    accounts: accounts,
+    realtimeSyncCase: sync.case_,
+    blockCase: noopBlockCase(),
+    feedSessions: FeedSessionRegistry(),
+    logger: Logger('issue-259'),
   );
   accounts.emit('viewer');
   await _drain();

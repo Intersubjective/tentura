@@ -23,6 +23,7 @@ import 'package:tentura/features/updates/ui/screen/updates_screen.dart';
 import 'package:tentura/features/updates/ui/widget/updates_feed_tile.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../support/attention_case_factory.dart';
 import '../../support/attention_repository_fake_base.dart';
 import '../../support/phone_surface.dart';
 import '../../support/test_realtime_sync.dart';
@@ -114,13 +115,13 @@ Future<void> _pumpUpdatesHistory(
 }) async {
   final accounts = _Accounts();
   final sync = buildTestRealtimeSync();
-  final attention = AttentionCase(
-    repository,
-    accounts,
-    sync.case_,
-    noopBlockCase(),
-    FeedSessionRegistry(),
-    Logger('issue-805-updates-test'),
+  final attention = buildAttentionCase(
+    repository: repository,
+    accounts: accounts,
+    realtimeSyncCase: sync.case_,
+    blockCase: noopBlockCase(),
+    feedSessions: FeedSessionRegistry(),
+    logger: Logger('issue-805-updates-test'),
   );
   accounts.emit('viewer');
 

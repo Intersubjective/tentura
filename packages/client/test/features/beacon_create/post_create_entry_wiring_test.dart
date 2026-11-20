@@ -50,6 +50,7 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../support/attention_case_factory.dart';
 import '../../support/attention_repository_fake_base.dart';
 import '../../support/noop_attention_actor_profiles.dart';
 import '../../support/test_realtime_sync.dart';
@@ -232,13 +233,13 @@ _baseHarness(WidgetTester tester) async {
 
   final accounts = _Accounts();
   final sync = buildTestRealtimeSync();
-  final attention = AttentionCase(
-    _EmptyAttentionRepo(),
-    accounts,
-    sync.case_,
-    noopBlockCase(),
-    FeedSessionRegistry(),
-    Logger('post-create-entry-wiring'),
+  final attention = buildAttentionCase(
+    repository: _EmptyAttentionRepo(),
+    accounts: accounts,
+    realtimeSyncCase: sync.case_,
+    blockCase: noopBlockCase(),
+    feedSessions: FeedSessionRegistry(),
+    logger: Logger('post-create-entry-wiring'),
   );
   accounts.emit(_accountId);
   for (var i = 0; i < 12; i++) {

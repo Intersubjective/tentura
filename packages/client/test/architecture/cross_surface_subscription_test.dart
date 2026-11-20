@@ -3,11 +3,11 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
 
-import 'package:tentura/domain/attention/attention_case.dart';
 import 'package:tentura/domain/attention/feed_session_registry.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';
+import '../support/attention_case_factory.dart';
 import '../support/attention_repository_fake_base.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/beacon_room_invalidation.dart';
@@ -30,13 +30,13 @@ void main() {
       final repository = _RecordingAttentionRepository();
       final sync = buildTestRealtimeSync();
       addTearDown(sync.port.dispose);
-      final attention = AttentionCase(
-        repository,
-        accounts,
-        sync.case_,
-        noopBlockCase(),
-        FeedSessionRegistry(),
-        Logger('cross-surface-updates'),
+      final attention = buildAttentionCase(
+        repository: repository,
+        accounts: accounts,
+        realtimeSyncCase: sync.case_,
+        blockCase: noopBlockCase(),
+        feedSessions: FeedSessionRegistry(),
+        logger: Logger('cross-surface-updates'),
       );
       attention.attachFeedSession(AttentionFeedDestinationId.activityStream);
       addTearDown(attention.dispose);
@@ -66,13 +66,13 @@ void main() {
       final repository = _RecordingAttentionRepository();
       final sync = buildTestRealtimeSync();
       addTearDown(sync.port.dispose);
-      final attention = AttentionCase(
-        repository,
-        accounts,
-        sync.case_,
-        noopBlockCase(),
-        FeedSessionRegistry(),
-        Logger('cross-surface-feed'),
+      final attention = buildAttentionCase(
+        repository: repository,
+        accounts: accounts,
+        realtimeSyncCase: sync.case_,
+        blockCase: noopBlockCase(),
+        feedSessions: FeedSessionRegistry(),
+        logger: Logger('cross-surface-feed'),
       );
       addTearDown(attention.dispose);
       final cubit = UpdatesFeedCubit(

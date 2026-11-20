@@ -40,6 +40,7 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/l10n/l10n_ru.dart';
 
+import '../../support/attention_case_factory.dart';
 import '../../support/phone_surface.dart';
 import '../../support/test_realtime_sync.dart';
 import '../block/support/controllable_block_case.dart';
@@ -231,13 +232,13 @@ Future<_Desk> _openDesk(
 
   final accounts = _Accounts();
   final sync = buildTestRealtimeSync();
-  final attentionCase = AttentionCase(
-    attentionRepo,
-    accounts,
-    sync.case_,
-    noopBlockCase(),
-    FeedSessionRegistry(),
-    Logger('my-desk-reselect-attention'),
+  final attentionCase = buildAttentionCase(
+    repository: attentionRepo,
+    accounts: accounts,
+    realtimeSyncCase: sync.case_,
+    blockCase: noopBlockCase(),
+    feedSessions: FeedSessionRegistry(),
+    logger: Logger('my-desk-reselect-attention'),
   );
   GetIt.I
     ..registerSingleton<AttentionCase>(attentionCase)

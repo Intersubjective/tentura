@@ -13,6 +13,7 @@ import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 
+import '../../support/attention_case_factory.dart';
 import '../../support/test_realtime_sync.dart';
 import '../../features/block/support/controllable_block_case.dart';
 import 'attention_case_test_support.dart';
@@ -47,13 +48,16 @@ void main() {
     expect(store.apply(_seenReceipt()).isSeen, isTrue);
   });
 
-  test('ack store stale unseen fetch does not confirm an uncommitted overlay', () {
-    final store = AttentionAckStore()
-      ..resetForAccount('account-a')
-      ..markUnseen(['receipt-1']);
-    expect(store.apply(_receipt()).isSeen, isFalse);
-    expect(store.isOptimisticallyUnseen('receipt-1'), isTrue);
-  });
+  test(
+    'ack store stale unseen fetch does not confirm an uncommitted overlay',
+    () {
+      final store = AttentionAckStore()
+        ..resetForAccount('account-a')
+        ..markUnseen(['receipt-1']);
+      expect(store.apply(_receipt()).isSeen, isFalse);
+      expect(store.isOptimisticallyUnseen('receipt-1'), isTrue);
+    },
+  );
 
   test('ack store resets optimistic state on account changes', () {
     final store = AttentionAckStore()
@@ -80,17 +84,16 @@ void main() {
       final realtime = buildTestRealtimeSync();
       realtimePort = realtime.port;
       realtimeCase = realtime.case_;
-      attention = AttentionCase(
-        repository,
-        accounts,
-        realtimeCase,
-        noopBlockCase(),
-        feedSessions,
-        Logger('attention-case-test'),
+      attention = buildAttentionCase(
+        repository: repository,
+        accounts: accounts,
+        realtimeSyncCase: realtimeCase,
+        blockCase: noopBlockCase(),
+        feedSessions: feedSessions,
+        logger: Logger('attention-case-test'),
       );
       attention.attachFeedSession(_feedDest);
     });
-
 
     // R10 — `is_active_attention` is not one expression. The stream union
     // gives each item kind its own, and a synthetic `requestActivity` row's
@@ -146,7 +149,8 @@ void main() {
             (receipt) => receipt.id,
           ),
           isNot(contains('group-1')),
-          reason: 'the server returns a requestActivity row only while '
+          reason:
+              'the server returns a requestActivity row only while '
               'event_unseen_count > 0; with its one child cleared the client '
               'must not keep showing a card the server has dropped',
         );
@@ -236,8 +240,11 @@ void main() {
       second.complete(_feed(unread: 2));
       await _settle();
       expect(_feedSession(attention).summary.unreadTotal, 2);
-      expect(attention.snapshot.summary, const AttentionSummary(),
-          reason: 'a scoped page cannot supply the account-wide total');
+      expect(
+        attention.snapshot.summary,
+        const AttentionSummary(),
+        reason: 'a scoped page cannot supply the account-wide total',
+      );
     });
 
     test('catch-up keeps one UI receipt for each stable receipt id', () async {
@@ -278,13 +285,13 @@ void main() {
       final second = Completer<AttentionFeed>();
       qaRepository.pendingFetches.addAll([first, second]);
       final qaSessions = FeedSessionRegistry();
-      final qaAttention = AttentionCase(
-        qaRepository,
-        qaAccounts,
-        realtimeCase,
-        noopBlockCase(),
-        qaSessions,
-        Logger('attention-case-qa-latency-test'),
+      final qaAttention = buildAttentionCase(
+        repository: qaRepository,
+        accounts: qaAccounts,
+        realtimeSyncCase: realtimeCase,
+        blockCase: noopBlockCase(),
+        feedSessions: qaSessions,
+        logger: Logger('attention-case-qa-latency-test'),
         qaLatencyMeasurementEnabled: true,
       );
       qaAttention.attachFeedSession(_feedDest);
@@ -315,7 +322,10 @@ void main() {
       await _settle();
 
       expect(samples, hasLength(1));
-      expect(samples.single.latency, greaterThanOrEqualTo(const Duration(seconds: 4)));
+      expect(
+        samples.single.latency,
+        greaterThanOrEqualTo(const Duration(seconds: 4)),
+      );
       expect(samples.single.latency, lessThan(const Duration(seconds: 10)));
       expect(qaAttention.lastQaHeadRefreshLatency, samples.single);
 
@@ -327,13 +337,13 @@ void main() {
       final blockAccounts = _Accounts();
       final blockCase = ControllableBlockCase();
       final blockSessions = FeedSessionRegistry();
-      final blockAttention = AttentionCase(
-        blockRepository,
-        blockAccounts,
-        realtimeCase,
-        blockCase,
-        blockSessions,
-        Logger('attention-case-block-test'),
+      final blockAttention = buildAttentionCase(
+        repository: blockRepository,
+        accounts: blockAccounts,
+        realtimeSyncCase: realtimeCase,
+        blockCase: blockCase,
+        feedSessions: blockSessions,
+        logger: Logger('attention-case-block-test'),
       );
       blockAttention.attachFeedSession(_feedDest);
       addTearDown(blockAttention.dispose);
@@ -450,13 +460,12 @@ void main() {
             (receipt) => receipt.id,
           ),
           contains('r0'),
-          reason: 'the `unread` view is `is_active_attention`; r0 is read but '
+          reason:
+              'the `unread` view is `is_active_attention`; r0 is read but '
               'uncleared, so the server still returns it',
         );
         expect(
-          _feedSession(attention)
-              .pages[AttentionView.unread]!
-              .items
+          _feedSession(attention).pages[AttentionView.unread]!.items
               .firstWhere((receipt) => receipt.id == 'r0')
               .isSeen,
           isTrue,
@@ -509,33 +518,36 @@ void main() {
       },
     );
 
-    test('optimistic unsee restores unread and rolls back on failure', () async {
-      final initial = Completer<AttentionFeed>();
-      final rejected = Completer<int>();
-      repository.pendingFetches.add(initial);
-      repository.pendingMarkUnseen.add(rejected);
-      accounts.emit('account-a');
-      await _settle();
-      initial.complete(_feed(unread: 0, items: [_seenReceipt()]));
-      await _settle();
+    test(
+      'optimistic unsee restores unread and rolls back on failure',
+      () async {
+        final initial = Completer<AttentionFeed>();
+        final rejected = Completer<int>();
+        repository.pendingFetches.add(initial);
+        repository.pendingMarkUnseen.add(rejected);
+        accounts.emit('account-a');
+        await _settle();
+        initial.complete(_feed(unread: 0, items: [_seenReceipt()]));
+        await _settle();
 
-      final command = attention.markUnseen(['receipt-1']);
-      await _settle();
-      expect(
-        _feedSession(attention).pages[AttentionView.all]!.items.single.isSeen,
-        isFalse,
-      );
-      // CHANGES IN U15R-c: was `1`. Marking unread is the read axis too.
-      expect(_feedSession(attention).summary.unreadTotal, 0);
+        final command = attention.markUnseen(['receipt-1']);
+        await _settle();
+        expect(
+          _feedSession(attention).pages[AttentionView.all]!.items.single.isSeen,
+          isFalse,
+        );
+        // CHANGES IN U15R-c: was `1`. Marking unread is the read axis too.
+        expect(_feedSession(attention).summary.unreadTotal, 0);
 
-      rejected.completeError(StateError('offline'));
-      await expectLater(command, throwsStateError);
-      expect(
-        _feedSession(attention).pages[AttentionView.all]!.items.single.isSeen,
-        isTrue,
-      );
-      expect(_feedSession(attention).summary.unreadTotal, 0);
-    });
+        rejected.completeError(StateError('offline'));
+        await expectLater(command, throwsStateError);
+        expect(
+          _feedSession(attention).pages[AttentionView.all]!.items.single.isSeen,
+          isTrue,
+        );
+        expect(_feedSession(attention).summary.unreadTotal, 0);
+      },
+    );
 
     test('queued unsee runs after in-flight markSeen', () async {
       final initial = Completer<AttentionFeed>();
@@ -657,7 +669,8 @@ void main() {
         expect(
           _feedSession(attention).summary.unreadTotal,
           0,
-          reason: "the total is the server's active-attention count, and a "
+          reason:
+              "the total is the server's active-attention count, and a "
               'queued read-axis ack is not a delta on it (§3)',
         );
         expect(
@@ -892,13 +905,13 @@ void main() {
         final secondAccounts = _Accounts();
         final secondRealtime = buildTestRealtimeSync();
         final secondSessions = FeedSessionRegistry();
-        final secondAttention = AttentionCase(
-          secondRepository,
-          secondAccounts,
-          secondRealtime.case_,
-          noopBlockCase(),
-          secondSessions,
-          Logger('attention-case-second-client-test'),
+        final secondAttention = buildAttentionCase(
+          repository: secondRepository,
+          accounts: secondAccounts,
+          realtimeSyncCase: secondRealtime.case_,
+          blockCase: noopBlockCase(),
+          feedSessions: secondSessions,
+          logger: Logger('attention-case-second-client-test'),
         );
         secondAttention.attachFeedSession(_feedDest);
         addTearDown(secondAttention.dispose);
@@ -934,11 +947,9 @@ void main() {
 
         expect(_feedSession(secondAttention).summary.unreadTotal, 0);
         expect(
-          _feedSession(secondAttention)
-              .pages[AttentionView.all]!
-              .items
-              .single
-              .isSeen,
+          _feedSession(
+            secondAttention,
+          ).pages[AttentionView.all]!.items.single.isSeen,
           isTrue,
         );
       },

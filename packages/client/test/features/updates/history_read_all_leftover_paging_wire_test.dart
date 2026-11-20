@@ -17,6 +17,7 @@ import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/features/updates/ui/bloc/updates_feed_cubit.dart';
 
+import '../../support/attention_case_factory.dart';
 import '../../domain/attention/attention_case_test_support.dart';
 import '../../support/noop_attention_actor_profiles.dart';
 import '../../support/production_receipt_transport.dart';
@@ -70,13 +71,13 @@ final class _Session {
     final repository = AttentionRepository(remote);
     final accounts = AttentionCaseTestAccounts();
     final sync = buildTestRealtimeSync();
-    final attention = AttentionCase(
-      repository,
-      accounts,
-      sync.case_,
-      noopBlockCase(),
-      FeedSessionRegistry(),
-      Logger('history-read-all-forward'),
+    final attention = buildAttentionCase(
+      repository: repository,
+      accounts: accounts,
+      realtimeSyncCase: sync.case_,
+      blockCase: noopBlockCase(),
+      feedSessions: FeedSessionRegistry(),
+      logger: Logger('history-read-all-forward'),
     );
     accounts.emit(_viewer);
     await Future<void>.delayed(Duration.zero);

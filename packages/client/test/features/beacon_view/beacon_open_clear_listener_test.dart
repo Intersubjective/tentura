@@ -20,6 +20,7 @@ import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 
+import '../../support/attention_case_factory.dart';
 import '../../domain/attention/attention_case_test_support.dart';
 import '../block/support/controllable_block_case.dart';
 import '../../support/burst_coalescer_test_timing.dart';
@@ -263,13 +264,13 @@ void main() {
         );
       final accounts = AttentionCaseTestAccounts();
       addTearDown(accounts.dispose);
-      final attention = AttentionCase(
-        repo,
-        accounts,
-        buildTestRealtimeSync().case_,
-        noopBlockCase(),
-        FeedSessionRegistry(),
-        Logger('BeaconOpenClearListenerTest'),
+      final attention = buildAttentionCase(
+        repository: repo,
+        accounts: accounts,
+        realtimeSyncCase: buildTestRealtimeSync().case_,
+        blockCase: noopBlockCase(),
+        feedSessions: FeedSessionRegistry(),
+        logger: Logger('BeaconOpenClearListenerTest'),
         qaLatencyMeasurementEnabled: false,
       );
       addTearDown(attention.dispose);

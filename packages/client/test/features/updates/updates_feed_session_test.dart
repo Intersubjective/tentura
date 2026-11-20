@@ -9,6 +9,7 @@ import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/attention/feed_session_registry.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';
+import '../../support/attention_case_factory.dart';
 import '../../support/attention_repository_fake_base.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/features/updates/ui/bloc/updates_feed_cubit.dart';
@@ -108,13 +109,13 @@ void main() {
     final sync = buildTestRealtimeSync();
     realtime = sync.port;
     realtimeSync = sync.case_;
-    attention = AttentionCase(
-      repository,
-      accounts,
-      sync.case_,
-      noopBlockCase(),
-      feedSessions,
-      Logger('updates-feed-session-test'),
+    attention = buildAttentionCase(
+      repository: repository,
+      accounts: accounts,
+      realtimeSyncCase: sync.case_,
+      blockCase: noopBlockCase(),
+      feedSessions: feedSessions,
+      logger: Logger('updates-feed-session-test'),
     );
   });
 

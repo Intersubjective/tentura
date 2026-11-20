@@ -37,6 +37,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/l10n/l10n_en.dart';
 import 'package:tentura/ui/widget/caught_up_panel.dart';
 
+import '../../support/attention_case_factory.dart';
 import '../../support/test_realtime_sync.dart';
 import '../block/support/controllable_block_case.dart';
 import '../updates/support/noop_invite_setup_port.dart';
@@ -130,13 +131,13 @@ Future<
 _bootAttention(AttentionRepositoryPort repo) async {
   final accounts = _Accounts();
   final sync = buildTestRealtimeSync();
-  final attention = AttentionCase(
-    repo,
-    accounts,
-    sync.case_,
-    noopBlockCase(),
-    FeedSessionRegistry(),
-    Logger('my-work-sectioned-body-attention'),
+  final attention = buildAttentionCase(
+    repository: repo,
+    accounts: accounts,
+    realtimeSyncCase: sync.case_,
+    blockCase: noopBlockCase(),
+    feedSessions: FeedSessionRegistry(),
+    logger: Logger('my-work-sectioned-body-attention'),
   );
   GetIt.I.registerSingleton<AttentionCase>(attention);
   GetIt.I.registerSingleton<InviteAcceptedSetupPort>(
@@ -186,7 +187,9 @@ Future<void> _pumpMyWork(
               BlocProvider<MyWorkCubit>.value(value: cubit),
               BlocProvider<HomeActivationCubit>.value(value: homeActivation),
               BlocProvider<HomeAttentionCubit>.value(value: homeAttention),
-              BlocProvider<InboxOperationalCubit>.value(value: inboxOperational),
+              BlocProvider<InboxOperationalCubit>.value(
+                value: inboxOperational,
+              ),
               BlocProvider<ProfileCubit>.value(value: _TestProfileCubit()),
               BlocProvider(create: (_) => HomeTabReselectCubit()),
               BlocProvider(create: (_) => ScreenCubit.local()),
@@ -241,9 +244,9 @@ void main() {
     }
   });
 
-  testWidgets('redesign on: section headers and obligation count at 360×1200',
-      (tester) async {
-
+  testWidgets('redesign on: section headers and obligation count at 360×1200', (
+    tester,
+  ) async {
     final attentionRepo = StubAttentionRepository()
       ..myWorkAttentionResult = [
         MyWorkBeaconAttention(
@@ -291,9 +294,9 @@ void main() {
     unawaited(boot.accounts.close());
   });
 
-  testWidgets('redesign on: no Needs you header when zero obligations',
-      (tester) async {
-
+  testWidgets('redesign on: no Needs you header when zero obligations', (
+    tester,
+  ) async {
     final attentionRepo = StubAttentionRepository()
       ..myWorkAttentionResult = const [];
 
@@ -429,9 +432,9 @@ void main() {
     unawaited(boot.accounts.close());
   });
 
-  testWidgets('redesign on: first card fully visible on first paint',
-      (tester) async {
-
+  testWidgets('redesign on: first card fully visible on first paint', (
+    tester,
+  ) async {
     final attentionRepo = StubAttentionRepository()
       ..myWorkAttentionResult = const [];
 

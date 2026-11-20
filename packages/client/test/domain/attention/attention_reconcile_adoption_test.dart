@@ -10,6 +10,7 @@ import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/attention/feed_session_registry.dart';
 
+import '../../support/attention_case_factory.dart';
 import '../../features/block/support/controllable_block_case.dart';
 import '../../support/test_realtime_sync.dart';
 import 'attention_case_test_support.dart';
@@ -33,13 +34,13 @@ void main() {
     feedSessions = FeedSessionRegistry();
     final realtime = buildTestRealtimeSync();
     realtimePort = realtime.port;
-    attention = AttentionCase(
-      repository,
-      accounts,
-      realtime.case_,
-      noopBlockCase(),
-      feedSessions,
-      Logger('attention-reconcile-adoption-test'),
+    attention = buildAttentionCase(
+      repository: repository,
+      accounts: accounts,
+      realtimeSyncCase: realtime.case_,
+      blockCase: noopBlockCase(),
+      feedSessions: feedSessions,
+      logger: Logger('attention-reconcile-adoption-test'),
     );
   });
 
@@ -87,7 +88,8 @@ void main() {
       expect(
         attention.surfaceSummarySnapshot.myDeskCount,
         0,
-        reason: 'the fixture starts where the adopted value is not already true',
+        reason:
+            'the fixture starts where the adopted value is not already true',
       );
 
       final reconciled = Completer<AttentionReconcileResult>();
@@ -119,8 +121,9 @@ void main() {
         AttentionFeedDestinationId.activityStream,
       );
       expect(
-        session.pages[session.activeView]!.items
-            .every((receipt) => receipt.isCleared),
+        session.pages[session.activeView]!.items.every(
+          (receipt) => receipt.isCleared,
+        ),
         isTrue,
         reason: 'the optimistic sweep is the premise this test undoes',
       );
@@ -169,7 +172,8 @@ void main() {
       expect(
         attention.surfaceSummarySnapshot,
         authoritative,
-        reason: 'a withdrawn operation may not post deltas onto the adopted '
+        reason:
+            'a withdrawn operation may not post deltas onto the adopted '
             'snapshot afterwards',
       );
     },

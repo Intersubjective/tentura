@@ -9,6 +9,7 @@ import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/attention/feed_session_registry.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';
+import '../../support/attention_case_factory.dart';
 import '../../support/attention_repository_fake_base.dart';
 import 'package:tentura/domain/capability/invite_seed_prompt_state.dart';
 import 'package:tentura/domain/capability/prompt_state_value.dart';
@@ -143,13 +144,13 @@ void main() {
       realtime = sync.port;
       realtimeSync = sync.case_;
       setup = _FakeSetupPort();
-      attention = AttentionCase(
-        repository,
-        accounts,
-        sync.case_,
-        noopBlockCase(),
-        FeedSessionRegistry(),
-        Logger('prompt-projection-test'),
+      attention = buildAttentionCase(
+        repository: repository,
+        accounts: accounts,
+        realtimeSyncCase: sync.case_,
+        blockCase: noopBlockCase(),
+        feedSessions: FeedSessionRegistry(),
+        logger: Logger('prompt-projection-test'),
       );
     });
 

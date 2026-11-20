@@ -53,6 +53,7 @@ import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/screen_load_error_panel.dart';
 
+import '../../support/attention_case_factory.dart';
 import '../../support/noop_attention_actor_profiles.dart';
 import '../../support/noop_posts_case.dart';
 import '../../support/phone_surface.dart';
@@ -309,13 +310,13 @@ Future<void> _withActivity(
   final sync = buildTestRealtimeSync();
   final logger = Logger('activity-load-failure-recovery');
   final effects = FakeUiEffectPort();
-  final attention = AttentionCase(
-    AttentionRepository(remote),
-    accounts,
-    sync.case_,
-    noopBlockCase(),
-    FeedSessionRegistry(),
-    logger,
+  final attention = buildAttentionCase(
+    repository: AttentionRepository(remote),
+    accounts: accounts,
+    realtimeSyncCase: sync.case_,
+    blockCase: noopBlockCase(),
+    feedSessions: FeedSessionRegistry(),
+    logger: logger,
   );
   final inboxRepository = InboxRepository(
     remote,

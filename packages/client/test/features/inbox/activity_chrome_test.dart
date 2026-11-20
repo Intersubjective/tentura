@@ -34,6 +34,7 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/l10n/l10n_en.dart';
 
+import '../../support/attention_case_factory.dart';
 import '../../support/attention_repository_fake_base.dart';
 import '../../support/phone_surface.dart';
 import '../../support/test_realtime_sync.dart';
@@ -255,13 +256,13 @@ Future<void> _pumpInbox(
   final accounts = _Accounts();
   final sync = buildTestRealtimeSync();
   registerNoopPostsCase(sync.case_);
-  final attention = AttentionCase(
-    attentionRepo,
-    accounts,
-    sync.case_,
-    noopBlockCase(),
-    FeedSessionRegistry(),
-    Logger('activity-chrome-test'),
+  final attention = buildAttentionCase(
+    repository: attentionRepo,
+    accounts: accounts,
+    realtimeSyncCase: sync.case_,
+    blockCase: noopBlockCase(),
+    feedSessions: FeedSessionRegistry(),
+    logger: Logger('activity-chrome-test'),
   );
   accounts.emit('viewer');
   for (var i = 0; i < 12; i++) {

@@ -33,6 +33,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/l10n/l10n_en.dart';
 import 'package:tentura/ui/l10n/l10n_ru.dart';
 
+import '../../support/attention_case_factory.dart';
 import '../../support/test_realtime_sync.dart';
 import '../block/support/controllable_block_case.dart';
 import '../updates/support/noop_invite_setup_port.dart';
@@ -112,13 +113,13 @@ Future<({AttentionCase attention, _Accounts accounts})> _bootAttention(
 ) async {
   final accounts = _Accounts();
   final sync = buildTestRealtimeSync();
-  final attention = AttentionCase(
-    repo,
-    accounts,
-    sync.case_,
-    noopBlockCase(),
-    FeedSessionRegistry(),
-    Logger('my-work-archived-filter-notice-attention'),
+  final attention = buildAttentionCase(
+    repository: repo,
+    accounts: accounts,
+    realtimeSyncCase: sync.case_,
+    blockCase: noopBlockCase(),
+    feedSessions: FeedSessionRegistry(),
+    logger: Logger('my-work-archived-filter-notice-attention'),
   );
   GetIt.I.registerSingleton<AttentionCase>(attention);
   GetIt.I.registerSingleton<InviteAcceptedSetupPort>(

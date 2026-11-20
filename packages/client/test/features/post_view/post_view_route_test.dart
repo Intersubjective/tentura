@@ -21,7 +21,6 @@ import 'package:tentura/features/beacon_threads/domain/coordination_item_room_sy
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/beacon_detail_path.dart';
 import 'package:tentura/consts.dart';
-import 'package:tentura/domain/attention/attention_case.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/attention/feed_session_registry.dart';
@@ -38,6 +37,7 @@ import 'package:tentura/features/inbox/domain/use_case/posts_case.dart';
 import 'package:tentura/features/inbox/ui/bloc/posts_cubit.dart';
 import 'package:tentura_root/domain/entity/beacon_hierarchy_capabilities.dart';
 
+import '../../support/attention_case_factory.dart';
 import '../../domain/use_case/fake_beacon_hierarchy_ports.dart';
 import 'package:tentura/features/beacon_threads/domain/room_host.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
@@ -894,13 +894,13 @@ void main() {
   ) async {
     final receipts = await _wireAttentionReceipts();
     final sync = buildTestRealtimeSync();
-    final attention = AttentionCase(
-      MarkUnreadServerFake(receipts),
-      _ViewerAccount(),
-      sync.case_,
-      noopBlockCase(),
-      FeedSessionRegistry(),
-      Logger('PostDetailAttention'),
+    final attention = buildAttentionCase(
+      repository: MarkUnreadServerFake(receipts),
+      accounts: _ViewerAccount(),
+      realtimeSyncCase: sync.case_,
+      blockCase: noopBlockCase(),
+      feedSessions: FeedSessionRegistry(),
+      logger: Logger('PostDetailAttention'),
     );
     final feed = UpdatesFeedCubit(
       destinationId: AttentionFeedDestinationId.activityStream,

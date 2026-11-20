@@ -20,6 +20,7 @@ import 'package:tentura/features/home/ui/widget/inbox_navbar_item.dart';
 import 'package:tentura/features/home/ui/widget/my_work_navbar_item.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../support/attention_case_factory.dart';
 import '../../support/attention_repository_fake_base.dart';
 import '../../support/test_realtime_sync.dart';
 import '../block/support/controllable_block_case.dart';
@@ -177,13 +178,13 @@ void main() {
     server = _Server();
     final sync = buildTestRealtimeSync();
     realtime = sync.port;
-    attention = AttentionCase(
-      server,
-      accounts,
-      sync.case_,
-      noopBlockCase(),
-      FeedSessionRegistry(),
-      Logger('nav-dot-test'),
+    attention = buildAttentionCase(
+      repository: server,
+      accounts: accounts,
+      realtimeSyncCase: sync.case_,
+      blockCase: noopBlockCase(),
+      feedSessions: FeedSessionRegistry(),
+      logger: Logger('nav-dot-test'),
     );
     home = HomeAttentionCubit(attention, accounts, Logger('nav-dot-test'));
   });
@@ -223,24 +224,26 @@ void main() {
       expect(home.state.hasMyWorkDot, isFalse);
     });
 
-    test('a Request the viewer can no longer open does not hold the dot',
-        () async {
-      server
-        ..readable = {'R1'}
-        ..unreadBeacons = {'R1'}
-        ..myDeskDot = true;
-      await report(myWork: {'R1'});
-      expect(home.state.hasMyWorkDot, isTrue);
+    test(
+      'a Request the viewer can no longer open does not hold the dot',
+      () async {
+        server
+          ..readable = {'R1'}
+          ..unreadBeacons = {'R1'}
+          ..myDeskDot = true;
+        await report(myWork: {'R1'});
+        expect(home.state.hasMyWorkDot, isTrue);
 
-      server
-        ..readable = {}
-        ..myDeskDot = false;
-      realtime.emitChange(_beaconChange('R1'));
-      await _settle();
+        server
+          ..readable = {}
+          ..myDeskDot = false;
+        realtime.emitChange(_beaconChange('R1'));
+        await _settle();
 
-      expect(home.state.hasMyWorkDot, isFalse);
-      expect(home.state.showRedesignMyWorkUnreadDot, isFalse);
-    });
+        expect(home.state.hasMyWorkDot, isFalse);
+        expect(home.state.showRedesignMyWorkUnreadDot, isFalse);
+      },
+    );
   });
 
   group('Activity dot', () {
@@ -287,24 +290,26 @@ void main() {
       expect(home.state.showRedesignActivityUnreadDot, isFalse);
     });
 
-    test('a Request the viewer can no longer open does not hold the dot',
-        () async {
-      server
-        ..readable = {'A1'}
-        ..unreadBeacons = {'A1'}
-        ..forYouDot = true;
-      await report(inbox: {'A1'});
-      expect(home.state.hasInboxDot, isTrue);
+    test(
+      'a Request the viewer can no longer open does not hold the dot',
+      () async {
+        server
+          ..readable = {'A1'}
+          ..unreadBeacons = {'A1'}
+          ..forYouDot = true;
+        await report(inbox: {'A1'});
+        expect(home.state.hasInboxDot, isTrue);
 
-      server
-        ..readable = {}
-        ..forYouDot = false;
-      realtime.emitChange(_beaconChange('A1'));
-      await _settle();
+        server
+          ..readable = {}
+          ..forYouDot = false;
+        realtime.emitChange(_beaconChange('A1'));
+        await _settle();
 
-      expect(home.state.inboxMarkerIds, isEmpty);
-      expect(home.state.showRedesignActivityUnreadDot, isFalse);
-    });
+        expect(home.state.inboxMarkerIds, isEmpty);
+        expect(home.state.showRedesignActivityUnreadDot, isFalse);
+      },
+    );
 
     test('a marker for an item missing from the snapshot is ignored', () async {
       server
@@ -320,130 +325,139 @@ void main() {
     });
   });
 
-  group('dots clear from what was seen while the server summary still reports a dot', () {
-    setUp(() async {
-      // Rebuild the stack on the seen-only server.
-      await home.close();
-      await attention.dispose();
-      await realtime.dispose();
-      await accounts.close();
-      accounts = _Accounts();
-      server = _ClearAxisServer();
-      final sync = buildTestRealtimeSync();
-      realtime = sync.port;
-      attention = AttentionCase(
-        server,
-        accounts,
-        sync.case_,
-        noopBlockCase(),
-        FeedSessionRegistry(),
-        Logger('nav-dot-test'),
-      );
-      home = HomeAttentionCubit(attention, accounts, Logger('nav-dot-test'));
-    });
+  group(
+    'dots clear from what was seen while the server summary still reports a dot',
+    () {
+      setUp(() async {
+        // Rebuild the stack on the seen-only server.
+        await home.close();
+        await attention.dispose();
+        await realtime.dispose();
+        await accounts.close();
+        accounts = _Accounts();
+        server = _ClearAxisServer();
+        final sync = buildTestRealtimeSync();
+        realtime = sync.port;
+        attention = buildAttentionCase(
+          repository: server,
+          accounts: accounts,
+          realtimeSyncCase: sync.case_,
+          blockCase: noopBlockCase(),
+          feedSessions: FeedSessionRegistry(),
+          logger: Logger('nav-dot-test'),
+        );
+        home = HomeAttentionCubit(attention, accounts, Logger('nav-dot-test'));
+      });
 
-    test('My Work dot clears once every unread item has been seen', () async {
-      server
-        ..readable = {'R1'}
-        ..unreadBeacons = {'R1'}
-        ..receiptBeacon = {'r1': 'R1'}
-        ..myDeskDot = true;
-      await report(myWork: {'R1'});
-      expect(home.state.showRedesignMyWorkUnreadDot, isTrue);
-
-      await attention.markSeen(['r1']);
-      await _settle();
-
-      expect(home.state.showRedesignMyWorkUnreadDot, isFalse);
-      expect(home.state.hasMyWorkDot, isFalse);
-      expect(home.state.myWorkMarkerIds, isEmpty);
-    });
-
-    test('Activity dot clears once every unread item has been seen', () async {
-      server
-        ..readable = {'A1'}
-        ..unreadBeacons = {'A1'}
-        ..receiptBeacon = {'r1': 'A1'}
-        ..forYouDot = true;
-      await report(inbox: {'A1'});
-      expect(home.state.showRedesignActivityUnreadDot, isTrue);
-
-      await attention.markSeen(['r1']);
-      await _settle();
-
-      expect(home.state.showRedesignActivityUnreadDot, isFalse);
-      expect(home.state.hasInboxDot, isFalse);
-      expect(home.state.inboxMarkerIds, isEmpty);
-    });
-
-    test('opening the Request clears the My Work dot', () async {
-      server
-        ..readable = {'R1'}
-        ..unreadBeacons = {'R1'}
-        ..myDeskDot = true;
-      await report(myWork: {'R1'});
-      expect(home.state.showRedesignMyWorkUnreadDot, isTrue);
-
-      await attention.markSeenForBeacon('R1');
-      await _settle();
-
-      expect(home.state.showRedesignMyWorkUnreadDot, isFalse);
-    });
-
-    testWidgets('My Work icon drops its dot after its item is seen',
-        (tester) async {
-      await tester.runAsync(() async {
+      test('My Work dot clears once every unread item has been seen', () async {
         server
           ..readable = {'R1'}
           ..unreadBeacons = {'R1'}
           ..receiptBeacon = {'r1': 'R1'}
           ..myDeskDot = true;
         await report(myWork: {'R1'});
-      });
-      await pumpNav(tester);
-      expect(find.byKey(MyWorkNavbarItem.dotKey), findsOneWidget);
+        expect(home.state.showRedesignMyWorkUnreadDot, isTrue);
 
-      await tester.runAsync(() async {
         await attention.markSeen(['r1']);
         await _settle();
+
+        expect(home.state.showRedesignMyWorkUnreadDot, isFalse);
+        expect(home.state.hasMyWorkDot, isFalse);
+        expect(home.state.myWorkMarkerIds, isEmpty);
       });
-      await tester.pump();
 
-      expect(find.byKey(MyWorkNavbarItem.dotKey), findsNothing);
-    });
+      test(
+        'Activity dot clears once every unread item has been seen',
+        () async {
+          server
+            ..readable = {'A1'}
+            ..unreadBeacons = {'A1'}
+            ..receiptBeacon = {'r1': 'A1'}
+            ..forYouDot = true;
+          await report(inbox: {'A1'});
+          expect(home.state.showRedesignActivityUnreadDot, isTrue);
 
-    testWidgets('Activity icon drops its dot after its item is seen',
-        (tester) async {
-      await tester.runAsync(() async {
+          await attention.markSeen(['r1']);
+          await _settle();
+
+          expect(home.state.showRedesignActivityUnreadDot, isFalse);
+          expect(home.state.hasInboxDot, isFalse);
+          expect(home.state.inboxMarkerIds, isEmpty);
+        },
+      );
+
+      test('opening the Request clears the My Work dot', () async {
         server
-          ..readable = {'A1'}
-          ..unreadBeacons = {'A1'}
-          ..receiptBeacon = {'r1': 'A1'}
-          ..forYouDot = true;
-        await report(inbox: {'A1'});
-      });
-      await pumpNav(tester);
-      expect(
-        find.bySemanticsIdentifier('activity-surface-unread-dot'),
-        findsOneWidget,
-      );
+          ..readable = {'R1'}
+          ..unreadBeacons = {'R1'}
+          ..myDeskDot = true;
+        await report(myWork: {'R1'});
+        expect(home.state.showRedesignMyWorkUnreadDot, isTrue);
 
-      await tester.runAsync(() async {
-        await attention.markSeen(['r1']);
+        await attention.markSeenForBeacon('R1');
         await _settle();
-      });
-      await tester.pump();
 
-      expect(
-        find.bySemanticsIdentifier('activity-surface-unread-dot'),
-        findsNothing,
-      );
-    });
-  });
+        expect(home.state.showRedesignMyWorkUnreadDot, isFalse);
+      });
+
+      testWidgets('My Work icon drops its dot after its item is seen', (
+        tester,
+      ) async {
+        await tester.runAsync(() async {
+          server
+            ..readable = {'R1'}
+            ..unreadBeacons = {'R1'}
+            ..receiptBeacon = {'r1': 'R1'}
+            ..myDeskDot = true;
+          await report(myWork: {'R1'});
+        });
+        await pumpNav(tester);
+        expect(find.byKey(MyWorkNavbarItem.dotKey), findsOneWidget);
+
+        await tester.runAsync(() async {
+          await attention.markSeen(['r1']);
+          await _settle();
+        });
+        await tester.pump();
+
+        expect(find.byKey(MyWorkNavbarItem.dotKey), findsNothing);
+      });
+
+      testWidgets('Activity icon drops its dot after its item is seen', (
+        tester,
+      ) async {
+        await tester.runAsync(() async {
+          server
+            ..readable = {'A1'}
+            ..unreadBeacons = {'A1'}
+            ..receiptBeacon = {'r1': 'A1'}
+            ..forYouDot = true;
+          await report(inbox: {'A1'});
+        });
+        await pumpNav(tester);
+        expect(
+          find.bySemanticsIdentifier('activity-surface-unread-dot'),
+          findsOneWidget,
+        );
+
+        await tester.runAsync(() async {
+          await attention.markSeen(['r1']);
+          await _settle();
+        });
+        await tester.pump();
+
+        expect(
+          find.bySemanticsIdentifier('activity-surface-unread-dot'),
+          findsNothing,
+        );
+      });
+    },
+  );
 
   group('nav widgets', () {
-    testWidgets('My Work icon drops its dot after the Request is opened',
-        (tester) async {
+    testWidgets('My Work icon drops its dot after the Request is opened', (
+      tester,
+    ) async {
       await tester.runAsync(() async {
         server
           ..readable = {'R1'}
@@ -463,8 +477,9 @@ void main() {
       expect(find.byKey(MyWorkNavbarItem.dotKey), findsNothing);
     });
 
-    testWidgets('Activity icon drops its dot once its receipt is seen',
-        (tester) async {
+    testWidgets('Activity icon drops its dot once its receipt is seen', (
+      tester,
+    ) async {
       await tester.runAsync(() async {
         server
           ..readable = {'A1'}

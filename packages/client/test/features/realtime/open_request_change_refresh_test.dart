@@ -47,6 +47,7 @@ import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/features/inbox/ui/bloc/inbox_cubit.dart';
 import 'package:tentura/features/my_work/ui/bloc/my_work_cubit.dart';
 
+import '../../support/attention_case_factory.dart';
 import '../../domain/attention/attention_case_test_support.dart';
 import '../../domain/use_case/fake_beacon_hierarchy_ports.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
@@ -216,13 +217,13 @@ class OpenRequestObserverHarness {
       env: const Env(),
       logger: Logger('open request refresh'),
     );
-    attention = AttentionCase(
-      attentionRepo,
-      accounts,
-      realtime,
-      noopBlockCase(),
-      FeedSessionRegistry(),
-      Logger('open client attention'),
+    attention = buildAttentionCase(
+      repository: attentionRepo,
+      accounts: accounts,
+      realtimeSyncCase: realtime,
+      blockCase: noopBlockCase(),
+      feedSessions: FeedSessionRegistry(),
+      logger: Logger('open client attention'),
       qaLatencyMeasurementEnabled: false,
     )..attachFeedSession(_feedDestination);
 

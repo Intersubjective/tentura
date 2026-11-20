@@ -4,12 +4,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
-import 'package:tentura/domain/attention/attention_case.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/feed_session_registry.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';
+import '../../support/attention_case_factory.dart';
 import '../../support/burst_coalescer_test_timing.dart';
 import '../../support/attention_repository_fake_base.dart';
 import 'package:tentura/domain/entity/beacon.dart';
@@ -49,13 +49,13 @@ void main() {
       final accounts = _Accounts();
       final repository = _Repository();
       final sync = buildTestRealtimeSync();
-      final attention = AttentionCase(
-        repository,
-        accounts,
-        sync.case_,
-        noopBlockCase(),
-        FeedSessionRegistry(),
-        Logger('cross-surface-accept'),
+      final attention = buildAttentionCase(
+        repository: repository,
+        accounts: accounts,
+        realtimeSyncCase: sync.case_,
+        blockCase: noopBlockCase(),
+        feedSessions: FeedSessionRegistry(),
+        logger: Logger('cross-surface-accept'),
       );
       attention.attachFeedSession(AttentionFeedDestinationId.activityStream);
       addTearDown(() async {
@@ -70,7 +70,7 @@ void main() {
         ..initResult = (
           authoredNonArchived: [readableBeacon()],
           helpOfferedNonArchived: const [],
-        obligationBeacons: const [],
+          obligationBeacons: const [],
           archivedCountHint: 0,
         );
       final myWorkCase = buildTestMyWorkCase(
@@ -146,7 +146,13 @@ void main() {
         ..unread = {beaconId};
       await attention.refresh();
       await _settle();
-      expect(attention.feedSession(AttentionFeedDestinationId.activityStream).summary.unreadTotal, 1);
+      expect(
+        attention
+            .feedSession(AttentionFeedDestinationId.activityStream)
+            .summary
+            .unreadTotal,
+        1,
+      );
 
       roomRepo.emitRoomInvalidation(
         const BeaconRoomInvalidation(

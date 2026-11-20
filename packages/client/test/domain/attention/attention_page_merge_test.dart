@@ -1,4 +1,3 @@
-
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
 
@@ -8,6 +7,7 @@ import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/attention/feed_session_registry.dart';
 
+import '../../support/attention_case_factory.dart';
 import '../../features/block/support/controllable_block_case.dart';
 import '../../support/attention_repository_fake_base.dart';
 import '../../support/test_realtime_sync.dart';
@@ -44,13 +44,13 @@ void main() {
     accounts = AttentionCaseTestAccounts();
     final realtime = buildTestRealtimeSync();
     realtimePort = realtime.port;
-    attention = AttentionCase(
-      repository,
-      accounts,
-      realtime.case_,
-      noopBlockCase(),
-      FeedSessionRegistry(),
-      Logger('AttentionPageMergeTest'),
+    attention = buildAttentionCase(
+      repository: repository,
+      accounts: accounts,
+      realtimeSyncCase: realtime.case_,
+      blockCase: noopBlockCase(),
+      feedSessions: FeedSessionRegistry(),
+      logger: Logger('AttentionPageMergeTest'),
       qaLatencyMeasurementEnabled: false,
     );
   });
@@ -61,52 +61,54 @@ void main() {
     await realtimePort.dispose();
   });
 
-  test('a group whose sort key moves between pages merges once, losing nothing',
-      () async {
-    // Page one, held by the user.
-    repository.pages.add(
-      AttentionFeed(
-        summary: const AttentionSummary(unreadTotal: 2),
-        page: AttentionFeedPage(
-          items: [groupRow('row-b1', 'B1'), groupRow('row-b2', 'B2')],
-          nextCursor: 'page-two',
+  test(
+    'a group whose sort key moves between pages merges once, losing nothing',
+    () async {
+      // Page one, held by the user.
+      repository.pages.add(
+        AttentionFeed(
+          summary: const AttentionSummary(unreadTotal: 2),
+          page: AttentionFeedPage(
+            items: [groupRow('row-b1', 'B1'), groupRow('row-b2', 'B2')],
+            nextCursor: 'page-two',
+          ),
         ),
-      ),
-    );
-    attention.attachFeedSession(attentionCaseTestFeedDest);
-    accounts.emit('account-1');
-    await attentionCaseTestSettle();
+      );
+      attention.attachFeedSession(attentionCaseTestFeedDest);
+      accounts.emit('account-1');
+      await attentionCaseTestSettle();
 
-    expect(items().map((item) => item.beaconId), ['B1', 'B2']);
+      expect(items().map((item) => item.beaconId), ['B1', 'B2']);
 
-    // B1 gains an optional event, so its key moves past the cursor and the
-    // tail query returns it again -- under a fresh row id, which is what
-    // makes receipt-id dedupe insufficient.
-    repository.pages.add(
-      AttentionFeed(
-        summary: const AttentionSummary(unreadTotal: 3),
-        page: AttentionFeedPage(
-          items: [groupRow('row-b1-again', 'B1'), groupRow('row-b3', 'B3')],
+      // B1 gains an optional event, so its key moves past the cursor and the
+      // tail query returns it again -- under a fresh row id, which is what
+      // makes receipt-id dedupe insufficient.
+      repository.pages.add(
+        AttentionFeed(
+          summary: const AttentionSummary(unreadTotal: 3),
+          page: AttentionFeedPage(
+            items: [groupRow('row-b1-again', 'B1'), groupRow('row-b3', 'B3')],
+          ),
         ),
-      ),
-    );
-    await attention.fetchNextPage(destinationId: attentionCaseTestFeedDest);
-    await attentionCaseTestSettle();
+      );
+      await attention.fetchNextPage(destinationId: attentionCaseTestFeedDest);
+      await attentionCaseTestSettle();
 
-    final beaconIds = items()
-        .map((item) => item.beaconId)
-        .toList(growable: false);
-    expect(
-      beaconIds.toSet().length,
-      beaconIds.length,
-      reason: 'one Request, one card -- the moved group is not duplicated',
-    );
-    expect(
-      beaconIds.toSet(),
-      {'B1', 'B2', 'B3'},
-      reason: 'and the other direction: nothing either page carried vanished',
-    );
-  });
+      final beaconIds = items()
+          .map((item) => item.beaconId)
+          .toList(growable: false);
+      expect(
+        beaconIds.toSet().length,
+        beaconIds.length,
+        reason: 'one Request, one card -- the moved group is not duplicated',
+      );
+      expect(
+        beaconIds.toSet(),
+        {'B1', 'B2', 'B3'},
+        reason: 'and the other direction: nothing either page carried vanished',
+      );
+    },
+  );
 
   test('two distinct Requests are never collapsed into one row', () async {
     repository.pages.add(

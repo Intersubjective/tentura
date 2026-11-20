@@ -27,6 +27,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/l10n/l10n_en.dart';
 import 'package:tentura/ui/l10n/l10n_ru.dart';
 
+import '../../support/attention_case_factory.dart';
 import '../block/support/controllable_block_case.dart';
 import '../../support/test_realtime_sync.dart';
 
@@ -217,13 +218,13 @@ void main() {
       accounts = _Accounts();
       final realtime = buildTestRealtimeSync();
       realtimePort = realtime.port;
-      attention = AttentionCase(
-        repository,
-        accounts,
-        realtime.case_,
-        noopBlockCase(),
-        FeedSessionRegistry(),
-        Logger('linked-request-and-post-row-copy'),
+      attention = buildAttentionCase(
+        repository: repository,
+        accounts: accounts,
+        realtimeSyncCase: realtime.case_,
+        blockCase: noopBlockCase(),
+        feedSessions: FeedSessionRegistry(),
+        logger: Logger('linked-request-and-post-row-copy'),
       );
       GetIt.I.registerSingleton<AttentionCase>(attention);
     });

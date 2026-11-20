@@ -44,15 +44,13 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
+import '../../support/attention_case_factory.dart';
 import '../../support/test_realtime_sync.dart';
 import '../../support/noop_posts_case.dart';
 import '../block/support/controllable_block_case.dart';
 import '../inbox/activity_offers_test_support.dart';
 import '../inbox/inbox_case_test.dart'
-    show
-        FakeInboxRepository,
-        buildTestBeaconThreadsCase,
-        buildTestInboxCase;
+    show FakeInboxRepository, buildTestBeaconThreadsCase, buildTestInboxCase;
 import '../my_work/my_work_test_support.dart' hide buildTestBeaconThreadsCase;
 import '../updates/support/noop_invite_setup_port.dart';
 import '../../support/noop_attention_actor_profiles.dart';
@@ -70,7 +68,6 @@ class _HarnessRouter extends Mock implements StackRouter {}
 
 class _TestInboxCubit extends Cubit<InboxState> implements InboxCubit {
   _TestInboxCubit(super.initial);
-
 
   @override
   void clearPendingMovedNudge() {}
@@ -288,13 +285,13 @@ Future<void> _pumpMyWorkShell(WidgetTester tester) async {
   final accounts = _Accounts();
   final sync = buildTestRealtimeSync();
   registerNoopPostsCase(sync.case_);
-  final attention = AttentionCase(
-    attentionRepo,
-    accounts,
-    sync.case_,
-    noopBlockCase(),
-    FeedSessionRegistry(),
-    Logger('work-activity-first-paint'),
+  final attention = buildAttentionCase(
+    repository: attentionRepo,
+    accounts: accounts,
+    realtimeSyncCase: sync.case_,
+    blockCase: noopBlockCase(),
+    feedSessions: FeedSessionRegistry(),
+    logger: Logger('work-activity-first-paint'),
   );
   GetIt.I.registerSingleton<AttentionCase>(attention);
   ensureNoopAttentionActorProfilesRegistered();
@@ -364,7 +361,9 @@ Future<void> _pumpMyWorkShell(WidgetTester tester) async {
               BlocProvider<MyWorkCubit>.value(value: cubit),
               BlocProvider<HomeActivationCubit>.value(value: homeActivation),
               BlocProvider<HomeAttentionCubit>.value(value: homeAttention),
-              BlocProvider<InboxOperationalCubit>.value(value: inboxOperational),
+              BlocProvider<InboxOperationalCubit>.value(
+                value: inboxOperational,
+              ),
               BlocProvider<ProfileCubit>.value(value: _TestProfileCubit()),
               BlocProvider(create: (_) => HomeTabReselectCubit()),
               BlocProvider(create: (_) => ScreenCubit.local()),
@@ -386,13 +385,13 @@ Future<void> _pumpActivityShell(WidgetTester tester) async {
   final accounts = _Accounts();
   final sync = buildTestRealtimeSync();
   registerNoopPostsCase(sync.case_);
-  final attention = AttentionCase(
-    attentionRepo,
-    accounts,
-    sync.case_,
-    noopBlockCase(),
-    FeedSessionRegistry(),
-    Logger('work-activity-first-paint-inbox'),
+  final attention = buildAttentionCase(
+    repository: attentionRepo,
+    accounts: accounts,
+    realtimeSyncCase: sync.case_,
+    blockCase: noopBlockCase(),
+    feedSessions: FeedSessionRegistry(),
+    logger: Logger('work-activity-first-paint-inbox'),
   );
   accounts.emit(_accountId);
   await _drain();
@@ -526,8 +525,9 @@ void main() {
     }
   });
 
-  testWidgets('My Work shell: first card visible, no obligations pane (§9)',
-      (tester) async {
+  testWidgets('My Work shell: first card visible, no obligations pane (§9)', (
+    tester,
+  ) async {
     await _pumpMyWorkShell(tester);
 
     final cardFinder = find.byType(MyWorkCardRouter);
@@ -539,8 +539,9 @@ void main() {
     expect(find.text('Standalone obligation receipt'), findsNothing);
   });
 
-  testWidgets('Activity shell: first offer card visible on first paint (§9)',
-      (tester) async {
+  testWidgets('Activity shell: first offer card visible on first paint (§9)', (
+    tester,
+  ) async {
     await _pumpActivityShell(tester);
 
     final offerFinder = find.bySemanticsIdentifier(
@@ -557,8 +558,9 @@ void main() {
     expect(find.byType(RequestAttentionCard), findsOneWidget);
   });
 
-  testWidgets('Activity shell: no in-scope myWork receipt rows (§9.1)',
-      (tester) async {
+  testWidgets('Activity shell: no in-scope myWork receipt rows (§9.1)', (
+    tester,
+  ) async {
     await _pumpActivityShell(tester);
 
     expect(find.text(_kActivityStreamTitle), findsOneWidget);

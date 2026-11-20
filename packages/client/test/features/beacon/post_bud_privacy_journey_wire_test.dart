@@ -9,7 +9,6 @@ import 'package:http/testing.dart';
 import 'package:logging/logging.dart';
 import 'package:tentura/data/repository/attention_repository.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
-import 'package:tentura/domain/attention/attention_case.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/attention/feed_session_registry.dart';
@@ -30,6 +29,7 @@ import 'package:tentura/features/updates/ui/bloc/updates_feed_cubit.dart';
 import 'package:tentura_root/domain/entity/beacon_hierarchy_child_group.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
+import '../../support/attention_case_factory.dart';
 import '../../domain/attention/attention_case_test_support.dart';
 import '../../support/noop_attention_actor_profiles.dart';
 import '../../support/production_receipt_transport.dart';
@@ -454,13 +454,13 @@ final class _Session {
 
   Future<List<AttentionReceipt>> feed(String destination) async {
     final accounts = AttentionCaseTestAccounts();
-    final attention = AttentionCase(
-      AttentionRepository(remote),
-      accounts,
-      sync.case_,
-      noopBlockCase(),
-      FeedSessionRegistry(),
-      Logger('PostBudJourneyAttention'),
+    final attention = buildAttentionCase(
+      repository: AttentionRepository(remote),
+      accounts: accounts,
+      realtimeSyncCase: sync.case_,
+      blockCase: noopBlockCase(),
+      feedSessions: FeedSessionRegistry(),
+      logger: Logger('PostBudJourneyAttention'),
     );
     accounts.emit(viewer);
     await Future<void>.delayed(Duration.zero);

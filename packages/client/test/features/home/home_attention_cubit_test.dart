@@ -9,6 +9,7 @@ import 'package:tentura/domain/attention/feed_session_registry.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';
+import '../../support/attention_case_factory.dart';
 import '../../support/attention_repository_fake_base.dart';
 import 'package:tentura/features/home/ui/bloc/home_attention_cubit.dart';
 
@@ -29,8 +30,7 @@ final class _Accounts implements AttentionAccountPort {
 final class _Repository extends AttentionRepositoryFake {
   Set<String> unread = const {};
   int needsYouTotal = 0;
-  AttentionSurfaceSummary surfaceSummaryValue = const AttentionSurfaceSummary(
-  );
+  AttentionSurfaceSummary surfaceSummaryValue = const AttentionSurfaceSummary();
   bool failMarkers = false;
   final markerQueries = <Set<String>>[];
   final pendingMarkers = <Completer<Set<String>>>[];
@@ -56,8 +56,7 @@ final class _Repository extends AttentionRepositoryFake {
   }
 
   @override
-  Future<AttentionSurfaceSummary> surfaceSummary() async =>
-      surfaceSummaryValue;
+  Future<AttentionSurfaceSummary> surfaceSummary() async => surfaceSummaryValue;
 
   @override
   Future<Set<String>> liveObligationBeacons() async => const {};
@@ -94,13 +93,13 @@ void main() {
     repository = _Repository();
     final sync = buildTestRealtimeSync();
     realtime = sync.port;
-    attention = AttentionCase(
-      repository,
-      accounts,
-      sync.case_,
-      noopBlockCase(),
-      FeedSessionRegistry(),
-      Logger('home-attention-test'),
+    attention = buildAttentionCase(
+      repository: repository,
+      accounts: accounts,
+      realtimeSyncCase: sync.case_,
+      blockCase: noopBlockCase(),
+      feedSessions: FeedSessionRegistry(),
+      logger: Logger('home-attention-test'),
     );
     home = HomeAttentionCubit(
       attention,

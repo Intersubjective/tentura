@@ -40,6 +40,7 @@ import 'package:tentura/ui/l10n/l10n_ru.dart';
 import 'package:tentura/ui/navigation/app_navigator.dart';
 import 'package:tentura/ui/test_ids.dart';
 
+import '../../support/attention_case_factory.dart';
 import '../../support/fake_app_navigator.dart';
 import '../../support/forward_outcome_wire.dart';
 import '../../support/noop_attention_actor_profiles.dart';
@@ -284,13 +285,13 @@ Future<_Harness> _pumpActivity(
 
   final accounts = _Accounts();
   final sync = buildTestRealtimeSync();
-  final attention = AttentionCase(
-    server,
-    accounts,
-    sync.case_,
-    noopBlockCase(),
-    FeedSessionRegistry(),
-    Logger('forward-outcome-tick-test'),
+  final attention = buildAttentionCase(
+    repository: server,
+    accounts: accounts,
+    realtimeSyncCase: sync.case_,
+    blockCase: noopBlockCase(),
+    feedSessions: FeedSessionRegistry(),
+    logger: Logger('forward-outcome-tick-test'),
   );
   final inboxCase = buildTestInboxCase(
     inboxRepo,

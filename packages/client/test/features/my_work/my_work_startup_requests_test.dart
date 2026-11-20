@@ -11,7 +11,6 @@ import 'package:http/http.dart' as http;
 import 'package:logging/logging.dart';
 import 'package:tentura/data/repository/attention_repository.dart';
 import 'package:tentura/data/service/bookkeeping_refresh_signal.dart';
-import 'package:tentura/domain/attention/attention_case.dart';
 import 'package:tentura/domain/attention/feed_session_registry.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';
 import 'package:tentura/env.dart';
@@ -40,6 +39,7 @@ import 'package:tentura/features/inbox/ui/bloc/posts_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 
+import '../../support/attention_case_factory.dart';
 import '../../data/service/remote_api_client/retry_later_wire_support.dart';
 import '../../support/test_realtime_sync.dart';
 import '../beacon_plan/beacon_plan_test_support.dart';
@@ -134,13 +134,13 @@ void main() {
           final block = noopBlockCase();
           // Auth/session restoration is complete when the authenticated root
           // mounts. Domain account-change background refreshes are quiescent.
-          final attention = AttentionCase(
-            AttentionRepository(remote),
-            _NoAccountChanges(),
-            realtime.case_,
-            block,
-            FeedSessionRegistry(),
-            Logger('root-startup-attention'),
+          final attention = buildAttentionCase(
+            repository: AttentionRepository(remote),
+            accounts: _NoAccountChanges(),
+            realtimeSyncCase: realtime.case_,
+            blockCase: block,
+            feedSessions: FeedSessionRegistry(),
+            logger: Logger('root-startup-attention'),
             qaLatencyMeasurementEnabled: false,
           );
           final homeAttention = HomeAttentionCubit(

@@ -14,12 +14,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
 
 import 'package:tentura/data/repository/attention_repository.dart';
-import 'package:tentura/domain/attention/attention_case.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/feed_session_registry.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';
 import 'package:tentura/features/updates/ui/bloc/updates_feed_cubit.dart';
 
+import '../../support/attention_case_factory.dart';
 import '../../support/noop_attention_actor_profiles.dart';
 import '../../support/remote_wire_harness.dart';
 import '../../support/test_realtime_sync.dart';
@@ -171,13 +171,13 @@ Future<({bool all, bool unread})> _readAllOnBothFilters({
   await withRemoteWire(responses, sent, (remote) async {
     final accounts = _Accounts();
     final sync = buildTestRealtimeSync();
-    final attention = AttentionCase(
-      AttentionRepository(remote),
-      accounts,
-      sync.case_,
-      noopBlockCase(),
-      FeedSessionRegistry(),
-      Logger('issue-258-mixed'),
+    final attention = buildAttentionCase(
+      repository: AttentionRepository(remote),
+      accounts: accounts,
+      realtimeSyncCase: sync.case_,
+      blockCase: noopBlockCase(),
+      feedSessions: FeedSessionRegistry(),
+      logger: Logger('issue-258-mixed'),
     );
     final cubit = UpdatesFeedCubit(
       destinationId: AttentionFeedDestinationId.activityStream,

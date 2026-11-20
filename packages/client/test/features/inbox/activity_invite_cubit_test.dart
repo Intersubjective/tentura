@@ -7,7 +7,6 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
 
-import 'package:tentura/domain/attention/attention_case.dart';
 import 'package:tentura/domain/attention/feed_session_registry.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_summary.dart';
@@ -23,6 +22,7 @@ import 'package:tentura/features/beacon/domain/beacon_hierarchy_exception.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/message/action_message_base.dart';
 
+import '../../support/attention_case_factory.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'author_invite_test_support.dart';
 
@@ -125,13 +125,13 @@ void main() {
 
   ActivityOffersCubit buildCubit() {
     final sync = buildTestRealtimeSync();
-    final attentionCase = AttentionCase(
-      attentionRepo,
-      _Accounts(),
-      sync.case_,
-      noopBlockCase(),
-      FeedSessionRegistry(),
-      Logger('activity-invite-test'),
+    final attentionCase = buildAttentionCase(
+      repository: attentionRepo,
+      accounts: _Accounts(),
+      realtimeSyncCase: sync.case_,
+      blockCase: noopBlockCase(),
+      feedSessions: FeedSessionRegistry(),
+      logger: Logger('activity-invite-test'),
     );
     final inboxCase = buildTestInboxCase(
       repo,

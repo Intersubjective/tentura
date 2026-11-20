@@ -21,6 +21,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/model/tab_attention_display.dart';
 import 'package:tentura/ui/widget/tab_attention_scope.dart';
 
+import '../../support/attention_case_factory.dart';
 import '../../support/noop_attention_actor_profiles.dart';
 import '../../support/phone_surface.dart';
 import '../../support/remote_wire_harness.dart';
@@ -527,13 +528,13 @@ Future<void> _exercise(
 
 final class _Harness {
   _Harness(RemoteApiService remote, this.sent) {
-    attention = AttentionCase(
-      AttentionRepository(remote),
-      accounts,
-      sync.case_,
-      noopBlockCase(),
-      FeedSessionRegistry(),
-      Logger('attention-destination-counts'),
+    attention = buildAttentionCase(
+      repository: AttentionRepository(remote),
+      accounts: accounts,
+      realtimeSyncCase: sync.case_,
+      blockCase: noopBlockCase(),
+      feedSessions: FeedSessionRegistry(),
+      logger: Logger('attention-destination-counts'),
     );
     controller = TabAttentionController(
       indicator: indicator,

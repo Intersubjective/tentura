@@ -6,7 +6,6 @@ import 'package:get_it/get_it.dart';
 import 'package:logging/logging.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
-import 'package:tentura/domain/attention/attention_case.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/feed_session_registry.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';
@@ -15,6 +14,7 @@ import 'package:tentura/features/updates/ui/widget/updates_feed_pane.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
+import '../../support/attention_case_factory.dart';
 import '../block/support/controllable_block_case.dart';
 import '../../support/noop_attention_actor_profiles.dart';
 import '../../support/test_realtime_sync.dart';
@@ -39,13 +39,13 @@ void main() {
       ])..failWrites = true;
       final accounts = _Accounts();
       final sync = buildTestRealtimeSync();
-      final attention = AttentionCase(
-        server,
-        accounts,
-        sync.case_,
-        noopBlockCase(),
-        FeedSessionRegistry(),
-        Logger('updates-mark-seen-failure-336'),
+      final attention = buildAttentionCase(
+        repository: server,
+        accounts: accounts,
+        realtimeSyncCase: sync.case_,
+        blockCase: noopBlockCase(),
+        feedSessions: FeedSessionRegistry(),
+        logger: Logger('updates-mark-seen-failure-336'),
       );
       final cubit = UpdatesFeedCubit(
         destinationId: AttentionFeedDestinationId.history,

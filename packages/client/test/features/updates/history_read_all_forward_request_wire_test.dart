@@ -24,6 +24,7 @@ import 'package:tentura/features/updates/ui/widget/updates_feed_tile.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
+import '../../support/attention_case_factory.dart';
 import '../../domain/attention/attention_case_test_support.dart';
 import '../../support/noop_attention_actor_profiles.dart';
 import '../../support/phone_surface.dart';
@@ -68,13 +69,13 @@ final class _Session {
     await remote.setSessionAuth();
     final accounts = AttentionCaseTestAccounts();
     final sync = buildTestRealtimeSync();
-    final attention = AttentionCase(
-      AttentionRepository(remote),
-      accounts,
-      sync.case_,
-      noopBlockCase(),
-      FeedSessionRegistry(),
-      Logger('history-read-all-forward'),
+    final attention = buildAttentionCase(
+      repository: AttentionRepository(remote),
+      accounts: accounts,
+      realtimeSyncCase: sync.case_,
+      blockCase: noopBlockCase(),
+      feedSessions: FeedSessionRegistry(),
+      logger: Logger('history-read-all-forward'),
     );
     accounts.emit(_viewer);
     await Future<void>.delayed(Duration.zero);

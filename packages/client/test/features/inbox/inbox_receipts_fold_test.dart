@@ -10,6 +10,7 @@ import 'package:tentura/domain/attention/feed_session_registry.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';
+import '../../support/attention_case_factory.dart';
 import '../../support/attention_repository_fake_base.dart';
 import 'package:tentura/features/inbox/ui/widget/inbox_receipts_tab_label.dart';
 
@@ -91,13 +92,13 @@ void main() {
     repository = _Repository();
     final sync = buildTestRealtimeSync();
     realtime = sync.port;
-    attention = AttentionCase(
-      repository,
-      accounts,
-      sync.case_,
-      noopBlockCase(),
-      FeedSessionRegistry(),
-      Logger('inbox-receipts-read-state-test'),
+    attention = buildAttentionCase(
+      repository: repository,
+      accounts: accounts,
+      realtimeSyncCase: sync.case_,
+      blockCase: noopBlockCase(),
+      feedSessions: FeedSessionRegistry(),
+      logger: Logger('inbox-receipts-read-state-test'),
     );
     attention.attachFeedSession(AttentionFeedDestinationId.activityStream);
     if (GetIt.I.isRegistered<AttentionCase>()) {
@@ -105,7 +106,9 @@ void main() {
     }
     GetIt.I.registerSingleton<AttentionCase>(attention);
     if (!GetIt.I.isRegistered<Logger>()) {
-      GetIt.I.registerSingleton<Logger>(Logger('inbox-receipts-read-state-test'));
+      GetIt.I.registerSingleton<Logger>(
+        Logger('inbox-receipts-read-state-test'),
+      );
     }
   });
 
@@ -118,56 +121,80 @@ void main() {
     await accounts.close();
   });
 
-  test('read-state survives fold: seen receipt stays seen after refresh', () async {
-    const receiptId = 'receipt-fold-1';
-    repository.feed = AttentionFeed(
-      summary: const AttentionSummary(unreadTotal: 1),
-      page: AttentionFeedPage(
-        items: [_receipt(id: receiptId, seen: false)],
-      ),
-    );
-    accounts.emit('user');
-    await attention.refresh();
-    await Future<void>.delayed(Duration.zero);
+  test(
+    'read-state survives fold: seen receipt stays seen after refresh',
+    () async {
+      const receiptId = 'receipt-fold-1';
+      repository.feed = AttentionFeed(
+        summary: const AttentionSummary(unreadTotal: 1),
+        page: AttentionFeedPage(
+          items: [_receipt(id: receiptId, seen: false)],
+        ),
+      );
+      accounts.emit('user');
+      await attention.refresh();
+      await Future<void>.delayed(Duration.zero);
 
-    expect(attention.feedSession(AttentionFeedDestinationId.activityStream).summary.unreadTotal, 1);
-    await attention.markSeen([receiptId]);
-    // CHANGES IN U15R-c: was `0`. `unreadTotal` counts active attention, and
-    // a read receipt is still uncleared (R2/D02). What this test is actually
-    // about — the read state surviving a refresh — is asserted below.
-    expect(attention.feedSession(AttentionFeedDestinationId.activityStream).summary.unreadTotal, 1);
+      expect(
+        attention
+            .feedSession(AttentionFeedDestinationId.activityStream)
+            .summary
+            .unreadTotal,
+        1,
+      );
+      await attention.markSeen([receiptId]);
+      // CHANGES IN U15R-c: was `0`. `unreadTotal` counts active attention, and
+      // a read receipt is still uncleared (R2/D02). What this test is actually
+      // about — the read state surviving a refresh — is asserted below.
+      expect(
+        attention
+            .feedSession(AttentionFeedDestinationId.activityStream)
+            .summary
+            .unreadTotal,
+        1,
+      );
 
-    repository.feed = AttentionFeed(
-      summary: const AttentionSummary(unreadTotal: 1),
-      page: AttentionFeedPage(
-        items: [_receipt(id: receiptId, seen: false)],
-      ),
-    );
-    await attention.refresh();
-    await Future<void>.delayed(Duration.zero);
+      repository.feed = AttentionFeed(
+        summary: const AttentionSummary(unreadTotal: 1),
+        page: AttentionFeedPage(
+          items: [_receipt(id: receiptId, seen: false)],
+        ),
+      );
+      await attention.refresh();
+      await Future<void>.delayed(Duration.zero);
 
-    // CHANGES IN U17b: was `0`, and only ever was because a pending read-axis
-    // ack was folded into this total — which is what let History's "mark
-    // unread" raise the badge for an already-cleared row (§3). It now reports
-    // what the server reported, which is the same `1` the comment fifteen
-    // lines above already states for a read-but-uncleared receipt.
-    expect(attention.feedSession(AttentionFeedDestinationId.activityStream).summary.unreadTotal, 1);
-    expect(
-      attention
-          .feedSession(AttentionFeedDestinationId.activityStream)
-          .pages[AttentionView.all]!
-          .items
-          .single
-          .isSeen,
-      isTrue,
-    );
-  });
+      // CHANGES IN U17b: was `0`, and only ever was because a pending read-axis
+      // ack was folded into this total — which is what let History's "mark
+      // unread" raise the badge for an already-cleared row (§3). It now reports
+      // what the server reported, which is the same `1` the comment fifteen
+      // lines above already states for a read-but-uncleared receipt.
+      expect(
+        attention
+            .feedSession(AttentionFeedDestinationId.activityStream)
+            .summary
+            .unreadTotal,
+        1,
+      );
+      expect(
+        attention
+            .feedSession(AttentionFeedDestinationId.activityStream)
+            .pages[AttentionView.all]!
+            .items
+            .single
+            .isSeen,
+        isTrue,
+      );
+    },
+  );
 
   test('receipts tab label uses the destination unread total', () {
     expect(formatInboxReceiptsTabLabel('Receipts', 3), 'Receipts (3)');
     expect(formatInboxReceiptsTabLabel('Receipts', 0), 'Receipts');
     expect(
-      attention.feedSession(AttentionFeedDestinationId.activityStream).summary.unreadTotal,
+      attention
+          .feedSession(AttentionFeedDestinationId.activityStream)
+          .summary
+          .unreadTotal,
       repository.feed.summary.unreadTotal,
     );
   });

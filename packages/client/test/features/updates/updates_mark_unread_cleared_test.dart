@@ -15,6 +15,7 @@ import 'package:tentura/features/updates/ui/widget/updates_feed_pane.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
+import '../../support/attention_case_factory.dart';
 import '../block/support/controllable_block_case.dart';
 import '../../support/noop_attention_actor_profiles.dart';
 import '../../support/test_realtime_sync.dart';
@@ -57,7 +58,8 @@ void main() {
         expect(
           server.markUnreadIds,
           ['r1'],
-          reason: 'Mark unread on a cleared item must send the un-clear '
+          reason:
+              'Mark unread on a cleared item must send the un-clear '
               'command (attentionMarkUnread), not only the read dot',
         );
         expect(server.row('r1').clearedAt, isNull);
@@ -273,13 +275,13 @@ final class _Client {
   factory _Client.build(MarkUnreadServerFake server) {
     final accounts = _Accounts();
     final sync = buildTestRealtimeSync();
-    final attention = AttentionCase(
-      server,
-      accounts,
-      sync.case_,
-      noopBlockCase(),
-      FeedSessionRegistry(),
-      Logger('updates-mark-unread-601'),
+    final attention = buildAttentionCase(
+      repository: server,
+      accounts: accounts,
+      realtimeSyncCase: sync.case_,
+      blockCase: noopBlockCase(),
+      feedSessions: FeedSessionRegistry(),
+      logger: Logger('updates-mark-unread-601'),
     );
     final cubit = UpdatesFeedCubit(
       destinationId: AttentionFeedDestinationId.history,

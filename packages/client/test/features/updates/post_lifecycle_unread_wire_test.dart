@@ -21,6 +21,7 @@ import 'package:tentura/features/updates/ui/widget/updates_feed_pane.dart';
 import 'package:tentura/features/updates/ui/widget/updates_feed_tile.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../support/attention_case_factory.dart';
 import '../../domain/attention/attention_case_test_support.dart';
 import '../block/support/controllable_block_case.dart';
 import '../../support/noop_attention_actor_profiles.dart';
@@ -86,13 +87,13 @@ Future<void> _withHistory(
           );
           final accounts = AttentionCaseTestAccounts();
           final sync = buildTestRealtimeSync();
-          final attention = AttentionCase(
-            AttentionRepository(remote),
-            accounts,
-            sync.case_,
-            noopBlockCase(),
-            FeedSessionRegistry(),
-            Logger('post-lifecycle-history'),
+          final attention = buildAttentionCase(
+            repository: AttentionRepository(remote),
+            accounts: accounts,
+            realtimeSyncCase: sync.case_,
+            blockCase: noopBlockCase(),
+            feedSessions: FeedSessionRegistry(),
+            logger: Logger('post-lifecycle-history'),
           );
           UpdatesFeedCubit? cubit;
           try {

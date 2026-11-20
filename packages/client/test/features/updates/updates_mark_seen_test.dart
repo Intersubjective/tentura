@@ -15,6 +15,7 @@ import 'package:tentura/features/updates/ui/widget/updates_feed_pane.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
+import '../../support/attention_case_factory.dart';
 import '../block/support/controllable_block_case.dart';
 import '../../support/fake_app_navigator.dart';
 import '../../support/noop_attention_actor_profiles.dart';
@@ -279,13 +280,13 @@ final class _Client {
   factory _Client.build(MarkSeenServerFake server) {
     final accounts = _Accounts();
     final sync = buildTestRealtimeSync();
-    final attention = AttentionCase(
-      server,
-      accounts,
-      sync.case_,
-      noopBlockCase(),
-      FeedSessionRegistry(),
-      Logger('updates-mark-seen-336'),
+    final attention = buildAttentionCase(
+      repository: server,
+      accounts: accounts,
+      realtimeSyncCase: sync.case_,
+      blockCase: noopBlockCase(),
+      feedSessions: FeedSessionRegistry(),
+      logger: Logger('updates-mark-seen-336'),
     );
     final cubit = UpdatesFeedCubit(
       destinationId: AttentionFeedDestinationId.history,

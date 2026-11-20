@@ -10,6 +10,7 @@ import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/attention/feed_session_registry.dart';
 
+import '../../support/attention_case_factory.dart';
 import '../../features/block/support/controllable_block_case.dart';
 import '../../support/attention_repository_fake_base.dart';
 import '../../support/test_realtime_sync.dart';
@@ -35,22 +36,21 @@ void main() {
     required List<AttentionReceipt> children,
     int? eventTotal,
     int? eventUnseenCount,
-  }) =>
-      attentionCaseTestReceipt(id: 'beacon:B1').copyWith(
-        beaconId: 'B1',
-        itemKind: AttentionItemKind.requestActivity,
-        eventTotal: eventTotal ?? children.length,
-        // CHANGES IN U15R-c: was `!event.isSeen`. The server defines
-        // `event_unseen_count` as active *optional* attention
-        // (`NOT requires_action AND cleared_at IS NULL`) — see
-        // docs/contracts/attention-active-attention-axis.json. Building the
-        // fixture from `seen_at` gave this whole file a server value that the
-        // server never produces, which is how the read-axis subtraction below
-        // looked correct (R2).
-        eventUnseenCount: eventUnseenCount ??
-            children.where((event) => !event.isCleared).length,
-        eventsPreview: children,
-      );
+  }) => attentionCaseTestReceipt(id: 'beacon:B1').copyWith(
+    beaconId: 'B1',
+    itemKind: AttentionItemKind.requestActivity,
+    eventTotal: eventTotal ?? children.length,
+    // CHANGES IN U15R-c: was `!event.isSeen`. The server defines
+    // `event_unseen_count` as active *optional* attention
+    // (`NOT requires_action AND cleared_at IS NULL`) — see
+    // docs/contracts/attention-active-attention-axis.json. Building the
+    // fixture from `seen_at` gave this whole file a server value that the
+    // server never produces, which is how the read-axis subtraction below
+    // looked correct (R2).
+    eventUnseenCount:
+        eventUnseenCount ?? children.where((event) => !event.isCleared).length,
+    eventsPreview: children,
+  );
 
   Future<void> signIn(List<AttentionReceipt> items) async {
     attention.attachFeedSession(attentionCaseTestFeedDest);
@@ -62,10 +62,10 @@ void main() {
 
   AttentionReceipt row(String id) =>
       (attention
-              .feedSession(attentionCaseTestFeedDest)
-              .pages[AttentionView.all]
-              ?.items ??
-          const <AttentionReceipt>[])
+                  .feedSession(attentionCaseTestFeedDest)
+                  .pages[AttentionView.all]
+                  ?.items ??
+              const <AttentionReceipt>[])
           .firstWhere((item) => item.id == id);
 
   setUp(() {
@@ -73,13 +73,13 @@ void main() {
     accounts = AttentionCaseTestAccounts();
     final realtime = buildTestRealtimeSync();
     realtimePort = realtime.port;
-    attention = AttentionCase(
-      repository,
-      accounts,
-      realtime.case_,
-      noopBlockCase(),
-      FeedSessionRegistry(),
-      Logger('AttentionGroupProjectionTest'),
+    attention = buildAttentionCase(
+      repository: repository,
+      accounts: accounts,
+      realtimeSyncCase: realtime.case_,
+      blockCase: noopBlockCase(),
+      feedSessions: FeedSessionRegistry(),
+      logger: Logger('AttentionGroupProjectionTest'),
       qaLatencyMeasurementEnabled: false,
     );
   });
@@ -90,67 +90,74 @@ void main() {
     await realtimePort.dispose();
   });
 
-  test('dismissing one child updates the card preview and its counts',
-      () async {
-    await signIn([
-      group(
-        children: [child('e-1'), child('e-2'), child('e-3', seen: true)],
-      ),
-    ]);
+  test(
+    'dismissing one child updates the card preview and its counts',
+    () async {
+      await signIn([
+        group(
+          children: [child('e-1'), child('e-2'), child('e-3', seen: true)],
+        ),
+      ]);
 
-    expect(row('beacon:B1').eventsPreview, hasLength(3));
-    expect(row('beacon:B1').eventTotal, 3);
-    expect(row('beacon:B1').eventUnseenCount, 3);
+      expect(row('beacon:B1').eventsPreview, hasLength(3));
+      expect(row('beacon:B1').eventTotal, 3);
+      expect(row('beacon:B1').eventUnseenCount, 3);
 
-    repository.snapshot = const AttentionClearSnapshot(
-      snapshotToken: 'snap-1',
-      receiptIds: ['e-1'],
-    );
-    await attention.clearReceipt(receiptId: 'e-1');
-    await attentionCaseTestSettle();
+      repository.snapshot = const AttentionClearSnapshot(
+        snapshotToken: 'snap-1',
+        receiptIds: ['e-1'],
+      );
+      await attention.clearReceipt(receiptId: 'e-1');
+      await attentionCaseTestSettle();
 
-    final projected = row('beacon:B1');
-    expect(
-      projected.eventsPreview.map((event) => event.id),
-      ['e-2', 'e-3'],
-      reason: 'the dismissed event leaves the preview',
-    );
-    expect(projected.eventTotal, 2, reason: 'the total follows the preview');
-    expect(
-      projected.eventUnseenCount,
-      2,
-      reason: 'a cleared event leaves the count — one each, whether or not '
-          'it had been read',
-    );
-  });
+      final projected = row('beacon:B1');
+      expect(
+        projected.eventsPreview.map((event) => event.id),
+        ['e-2', 'e-3'],
+        reason: 'the dismissed event leaves the preview',
+      );
+      expect(projected.eventTotal, 2, reason: 'the total follows the preview');
+      expect(
+        projected.eventUnseenCount,
+        2,
+        reason:
+            'a cleared event leaves the count — one each, whether or not '
+            'it had been read',
+      );
+    },
+  );
 
   // CHANGES IN U15R-c (was: "dismissing a seen child leaves the unseen count
   // alone"). It never should have: a seen-but-uncleared child is active
   // optional attention the server is still counting, so clearing it is
   // exactly what takes it off the count (R2/D02).
-  test('dismissing a seen child lowers the unseen count like any other',
-      () async {
-    await signIn([
-      group(children: [child('e-1'), child('e-2', seen: true)]),
-    ]);
-    repository.snapshot = const AttentionClearSnapshot(
-      snapshotToken: 'snap-2',
-      receiptIds: ['e-2'],
-    );
-    await attention.clearReceipt(receiptId: 'e-2');
-    await attentionCaseTestSettle();
+  test(
+    'dismissing a seen child lowers the unseen count like any other',
+    () async {
+      await signIn([
+        group(children: [child('e-1'), child('e-2', seen: true)]),
+      ]);
+      repository.snapshot = const AttentionClearSnapshot(
+        snapshotToken: 'snap-2',
+        receiptIds: ['e-2'],
+      );
+      await attention.clearReceipt(receiptId: 'e-2');
+      await attentionCaseTestSettle();
 
-    expect(row('beacon:B1').eventTotal, 1);
-    expect(row('beacon:B1').eventUnseenCount, 1);
-  });
+      expect(row('beacon:B1').eventTotal, 1);
+      expect(row('beacon:B1').eventUnseenCount, 1);
+    },
+  );
 
-  test('a child id is known to the case, so its surface delta is counted',
-      () async {
-    await signIn([
-      group(children: [child('e-1'), child('e-2')]),
-    ]);
-    expect(attention.knowsReceipt('e-1'), isTrue);
-  });
+  test(
+    'a child id is known to the case, so its surface delta is counted',
+    () async {
+      await signIn([
+        group(children: [child('e-1'), child('e-2')]),
+      ]);
+      expect(attention.knowsReceipt('e-1'), isTrue);
+    },
+  );
 
   /// CHANGES IN U15R-c (was: "dismissAll decrements a grouped card's surface
   /// exactly once", expecting 2). The interim review named this assertion as
@@ -186,7 +193,8 @@ void main() {
     expect(
       (await attention.surfaceSummary.first).forYouSweepEligible,
       isTrue,
-      reason: 'membership unknown: neither the card nor its indexed children '
+      reason:
+          'membership unknown: neither the card nor its indexed children '
           'move the summary before the server answers',
     );
 

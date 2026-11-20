@@ -10,6 +10,7 @@ import 'package:tentura/domain/attention/feed_session_registry.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';
+import '../../support/attention_case_factory.dart';
 import '../../support/attention_repository_fake_base.dart';
 import 'package:tentura/features/home/ui/bloc/home_attention_cubit.dart';
 
@@ -100,13 +101,13 @@ void main() {
     repository = _Repository();
     final sync = buildTestRealtimeSync();
     realtime = sync.port;
-    attention = AttentionCase(
-      repository,
-      accounts,
-      sync.case_,
-      noopBlockCase(),
-      FeedSessionRegistry(),
-      Logger('updates-102-attention-test'),
+    attention = buildAttentionCase(
+      repository: repository,
+      accounts: accounts,
+      realtimeSyncCase: sync.case_,
+      blockCase: noopBlockCase(),
+      feedSessions: FeedSessionRegistry(),
+      logger: Logger('updates-102-attention-test'),
     );
     attention.attachFeedSession(AttentionFeedDestinationId.history);
     home = HomeAttentionCubit(
@@ -144,7 +145,10 @@ void main() {
       await _settle();
 
       expect(
-        attention.feedSession(AttentionFeedDestinationId.history).summary.unreadTotal,
+        attention
+            .feedSession(AttentionFeedDestinationId.history)
+            .summary
+            .unreadTotal,
         1,
       );
       expect(

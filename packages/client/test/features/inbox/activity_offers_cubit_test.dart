@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
 
-import 'package:tentura/domain/attention/attention_case.dart';
 import 'package:tentura/domain/attention/feed_session_registry.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_summary.dart';
@@ -17,6 +16,7 @@ import 'package:tentura/features/inbox/domain/entity/inbox_item.dart';
 import 'package:tentura/features/inbox/domain/use_case/inbox_case.dart';
 import 'package:tentura/features/inbox/ui/bloc/activity_offers_cubit.dart';
 
+import '../../support/attention_case_factory.dart';
 import '../../support/test_realtime_sync.dart';
 import '../block/support/controllable_block_case.dart';
 import 'activity_offers_test_support.dart';
@@ -121,13 +121,13 @@ void main() {
     int pageSize = 20,
   }) {
     final sync = buildTestRealtimeSync();
-    final attentionCase = AttentionCase(
-      attention ?? attentionRepo,
-      _Accounts(),
-      sync.case_,
-      noopBlockCase(),
-      FeedSessionRegistry(),
-      Logger('activity-offers-test'),
+    final attentionCase = buildAttentionCase(
+      repository: attention ?? attentionRepo,
+      accounts: _Accounts(),
+      realtimeSyncCase: sync.case_,
+      blockCase: noopBlockCase(),
+      feedSessions: FeedSessionRegistry(),
+      logger: Logger('activity-offers-test'),
     );
     inboxCase = buildTestInboxCase(
       inboxRepo ?? repo,

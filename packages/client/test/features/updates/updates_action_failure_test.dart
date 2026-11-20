@@ -17,6 +17,7 @@ import 'package:tentura/features/updates/ui/widget/updates_feed_pane.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
+import '../../support/attention_case_factory.dart';
 import '../block/support/controllable_block_case.dart';
 import '../../support/noop_attention_actor_profiles.dart';
 import '../../support/test_realtime_sync.dart';
@@ -121,13 +122,13 @@ AttentionCase _attention(
   MarkSeenServerFake server,
   _Accounts accounts,
   _Sync sync,
-) => AttentionCase(
-  server,
-  accounts,
-  sync.case_,
-  noopBlockCase(),
-  FeedSessionRegistry(),
-  Logger('updates-action-failure-601'),
+) => buildAttentionCase(
+  repository: server,
+  accounts: accounts,
+  realtimeSyncCase: sync.case_,
+  blockCase: noopBlockCase(),
+  feedSessions: FeedSessionRegistry(),
+  logger: Logger('updates-action-failure-601'),
 );
 
 UpdatesFeedCubit _cubit(AttentionCase attention, _Sync sync) =>

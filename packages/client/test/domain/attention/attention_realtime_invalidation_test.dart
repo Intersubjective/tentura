@@ -11,6 +11,7 @@ import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/attention/feed_session_registry.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 
+import '../../support/attention_case_factory.dart';
 import '../../features/block/support/controllable_block_case.dart';
 import '../../support/attention_repository_fake_base.dart';
 import '../../support/test_realtime_sync.dart';
@@ -41,13 +42,13 @@ void main() {
     accounts = AttentionCaseTestAccounts();
     final realtime = buildTestRealtimeSync();
     realtimePort = realtime.port;
-    attention = AttentionCase(
-      repository,
-      accounts,
-      realtime.case_,
-      noopBlockCase(),
-      FeedSessionRegistry(),
-      Logger('AttentionRealtimeInvalidationTest'),
+    attention = buildAttentionCase(
+      repository: repository,
+      accounts: accounts,
+      realtimeSyncCase: realtime.case_,
+      blockCase: noopBlockCase(),
+      feedSessions: FeedSessionRegistry(),
+      logger: Logger('AttentionRealtimeInvalidationTest'),
       qaLatencyMeasurementEnabled: false,
     );
   });
@@ -58,145 +59,151 @@ void main() {
     await realtimePort.dispose();
   });
 
-  test('a surface move never shows the Request on both surfaces, or neither',
-      () async {
-    // For You holds B1; the account summary counts it there.
-    repository.feedRows = [row('B1')];
-    repository.summary = const AttentionSurfaceSummary(forYouDot: true);
-    attention.attachFeedSession(attentionCaseTestFeedDest);
-    accounts.emit('account-1');
-    await attentionCaseTestSettle();
+  test(
+    'a surface move never shows the Request on both surfaces, or neither',
+    () async {
+      // For You holds B1; the account summary counts it there.
+      repository.feedRows = [row('B1')];
+      repository.summary = const AttentionSurfaceSummary(forYouDot: true);
+      attention.attachFeedSession(attentionCaseTestFeedDest);
+      accounts.emit('account-1');
+      await attentionCaseTestSettle();
 
-    // CHANGES IN U18c: the two legacy totals this record sampled are retired.
-    // §6's dots say the same thing the two counts said here — "the account
-    // summary places B1 on this surface" — and are what the nav actually
-    // reads.
-    ({bool onForYou, bool forYouDot, bool deskDot}) sample() {
-      final items = attention
-              .feedSession(attentionCaseTestFeedDest)
-              .pages[AttentionView.all]
-              ?.items ??
-          const <AttentionReceipt>[];
-      return (
-        onForYou: items.any((item) => item.beaconId == 'B1'),
-        forYouDot: attention.surfaceSummarySnapshot.forYouDot,
-        deskDot: attention.surfaceSummarySnapshot.myDeskDot,
+      // CHANGES IN U18c: the two legacy totals this record sampled are retired.
+      // §6's dots say the same thing the two counts said here — "the account
+      // summary places B1 on this surface" — and are what the nav actually
+      // reads.
+      ({bool onForYou, bool forYouDot, bool deskDot}) sample() {
+        final items =
+            attention
+                .feedSession(attentionCaseTestFeedDest)
+                .pages[AttentionView.all]
+                ?.items ??
+            const <AttentionReceipt>[];
+        return (
+          onForYou: items.any((item) => item.beaconId == 'B1'),
+          forYouDot: attention.surfaceSummarySnapshot.forYouDot,
+          deskDot: attention.surfaceSummarySnapshot.myDeskDot,
+        );
+      }
+
+      expect(sample(), (onForYou: true, forYouDot: true, deskDot: false));
+
+      // Responsibility changed: the server now answers For You without B1 and
+      // counts it on My Desk instead. The two answers are held apart on
+      // purpose -- that gap is where a two-step refresh shows the broken
+      // in-between state, and it is the transition this test is about.
+      repository.feedRows = const [];
+      repository.summary = const AttentionSurfaceSummary(
+        myDeskDot: true,
+        myDeskCount: 1,
       );
-    }
+      repository.hold = true;
+      realtimePort.emitChange(
+        const RealtimeEntityChange(
+          kind: RealtimeEntityKind.beacon,
+          aggregateId: 'B1',
+          operation: RealtimeOperation.update,
+          source: RealtimeChangeSource.serverInvalidation,
+        ),
+      );
+      await attentionCaseTestSettle();
 
-    expect(sample(), (onForYou: true, forYouDot: true, deskDot: false));
+      // The new counters land first; the page has not answered yet.
+      repository.releaseSummaries();
+      await attentionCaseTestSettle();
+      final midway = sample();
+      expect(
+        midway.onForYou && midway.deskDot,
+        isFalse,
+        reason: 'on For You and already counted on My Desk at once: $midway',
+      );
+      expect(
+        !midway.onForYou && midway.forYouDot,
+        isFalse,
+        reason: 'dropped from For You while still counted there: $midway',
+      );
 
-    // Responsibility changed: the server now answers For You without B1 and
-    // counts it on My Desk instead. The two answers are held apart on
-    // purpose -- that gap is where a two-step refresh shows the broken
-    // in-between state, and it is the transition this test is about.
-    repository.feedRows = const [];
-    repository.summary = const AttentionSurfaceSummary(
-      myDeskDot: true,
-      myDeskCount: 1,
-    );
-    repository.hold = true;
-    realtimePort.emitChange(
-      const RealtimeEntityChange(
-        kind: RealtimeEntityKind.beacon,
-        aggregateId: 'B1',
-        operation: RealtimeOperation.update,
-        source: RealtimeChangeSource.serverInvalidation,
-      ),
-    );
-    await attentionCaseTestSettle();
+      repository.releaseFetches();
+      await attentionCaseTestSettle();
+      await attentionCaseTestSettle();
 
-    // The new counters land first; the page has not answered yet.
-    repository.releaseSummaries();
-    await attentionCaseTestSettle();
-    final midway = sample();
-    expect(
-      midway.onForYou && midway.deskDot,
-      isFalse,
-      reason: 'on For You and already counted on My Desk at once: $midway',
-    );
-    expect(
-      !midway.onForYou && midway.forYouDot,
-      isFalse,
-      reason: 'dropped from For You while still counted there: $midway',
-    );
+      final settled = sample();
+      expect(settled.onForYou, isFalse);
+      expect(settled.deskDot, isTrue);
+      expect(settled.forYouDot, isFalse);
+    },
+  );
 
-    repository.releaseFetches();
-    await attentionCaseTestSettle();
-    await attentionCaseTestSettle();
+  test(
+    'a surface move invalidates the Request for projection owners',
+    () async {
+      repository.feedRows = [row('B1')];
+      attention.attachFeedSession(attentionCaseTestFeedDest);
+      accounts.emit('account-1');
+      await attentionCaseTestSettle();
 
-    final settled = sample();
-    expect(settled.onForYou, isFalse);
-    expect(settled.deskDot, isTrue);
-    expect(settled.forYouDot, isFalse);
-  });
+      final invalidated = <String>[];
+      final sub = attention.requestInvalidations.listen(invalidated.add);
+      addTearDown(sub.cancel);
 
-  test('a surface move invalidates the Request for projection owners',
-      () async {
-    repository.feedRows = [row('B1')];
-    attention.attachFeedSession(attentionCaseTestFeedDest);
-    accounts.emit('account-1');
-    await attentionCaseTestSettle();
+      realtimePort.emitChange(
+        const RealtimeEntityChange(
+          kind: RealtimeEntityKind.beacon,
+          aggregateId: 'B1',
+          operation: RealtimeOperation.update,
+          source: RealtimeChangeSource.serverInvalidation,
+        ),
+      );
+      await attentionCaseTestSettle();
 
-    final invalidated = <String>[];
-    final sub = attention.requestInvalidations.listen(invalidated.add);
-    addTearDown(sub.cancel);
+      expect(invalidated, contains('B1'));
+    },
+  );
 
-    realtimePort.emitChange(
-      const RealtimeEntityChange(
-        kind: RealtimeEntityKind.beacon,
-        aggregateId: 'B1',
-        operation: RealtimeOperation.update,
-        source: RealtimeChangeSource.serverInvalidation,
-      ),
-    );
-    await attentionCaseTestSettle();
+  test(
+    'clearing a Request invalidates it, and an outcome hint invalidates too',
+    () async {
+      repository.feedRows = [row('B1')];
+      attention.attachFeedSession(attentionCaseTestFeedDest);
+      accounts.emit('account-1');
+      await attentionCaseTestSettle();
 
-    expect(invalidated, contains('B1'));
-  });
+      final invalidated = <String>[];
+      final sub = attention.requestInvalidations.listen(invalidated.add);
+      addTearDown(sub.cancel);
 
-  test('clearing a Request invalidates it, and an outcome hint invalidates too',
-      () async {
-    repository.feedRows = [row('B1')];
-    attention.attachFeedSession(attentionCaseTestFeedDest);
-    accounts.emit('account-1');
-    await attentionCaseTestSettle();
+      repository.snapshot = const AttentionClearSnapshot(
+        snapshotToken: 'snap-1',
+        receiptIds: ['row-B1'],
+      );
+      await attention.clearRequestOpen(beaconId: 'B1');
+      await attentionCaseTestSettle();
+      expect(invalidated, contains('B1'));
 
-    final invalidated = <String>[];
-    final sub = attention.requestInvalidations.listen(invalidated.add);
-    addTearDown(sub.cancel);
-
-    repository.snapshot = const AttentionClearSnapshot(
-      snapshotToken: 'snap-1',
-      receiptIds: ['row-B1'],
-    );
-    await attention.clearRequestOpen(beaconId: 'B1');
-    await attentionCaseTestSettle();
-    expect(invalidated, contains('B1'));
-
-    invalidated.clear();
-    realtimePort.emitChange(
-      const RealtimeEntityChange(
-        kind: RealtimeEntityKind.notification,
-        aggregateId: 'n-1',
-        operation: RealtimeOperation.insert,
-        source: RealtimeChangeSource.serverInvalidation,
-        childId: 'B2',
-      ),
-    );
-    await attentionCaseTestSettle();
-    expect(
-      invalidated,
-      contains('B2'),
-      reason: 'outcome generation arrives as a notification hint',
-    );
-  });
+      invalidated.clear();
+      realtimePort.emitChange(
+        const RealtimeEntityChange(
+          kind: RealtimeEntityKind.notification,
+          aggregateId: 'n-1',
+          operation: RealtimeOperation.insert,
+          source: RealtimeChangeSource.serverInvalidation,
+          childId: 'B2',
+        ),
+      );
+      await attentionCaseTestSettle();
+      expect(
+        invalidated,
+        contains('B2'),
+        reason: 'outcome generation arrives as a notification hint',
+      );
+    },
+  );
 }
 
 final class _RealtimeRepository extends AttentionRepositoryFake {
   List<AttentionReceipt> feedRows = const [];
-  AttentionSurfaceSummary summary = const AttentionSurfaceSummary(
-  );
+  AttentionSurfaceSummary summary = const AttentionSurfaceSummary();
   AttentionClearSnapshot snapshot = const AttentionClearSnapshot(
     snapshotToken: 'snap-1',
   );

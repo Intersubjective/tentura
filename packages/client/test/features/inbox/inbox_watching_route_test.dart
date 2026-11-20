@@ -12,6 +12,7 @@ import 'package:tentura/domain/attention/feed_session_registry.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';
+import '../../support/attention_case_factory.dart';
 import '../../support/attention_repository_fake_base.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -197,13 +198,13 @@ Future<void> _pumpInboxOverflow(
   final sync = buildTestRealtimeSync();
   registerNoopPostsCase(sync.case_);
   unawaited(sync.port.dispose());
-  final attentionCase = AttentionCase(
-    _Repository(),
-    accounts,
-    sync.case_,
-    noopBlockCase(),
-    FeedSessionRegistry(),
-    Logger('inbox-watching-test'),
+  final attentionCase = buildAttentionCase(
+    repository: _Repository(),
+    accounts: accounts,
+    realtimeSyncCase: sync.case_,
+    blockCase: noopBlockCase(),
+    feedSessions: FeedSessionRegistry(),
+    logger: Logger('inbox-watching-test'),
   );
   unawaited(attentionCase.dispose());
   if (GetIt.I.isRegistered<AttentionCase>()) {

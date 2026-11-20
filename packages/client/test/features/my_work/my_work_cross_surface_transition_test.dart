@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
 
-import 'package:tentura/domain/attention/attention_case.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/util/burst_coalescer.dart';
@@ -13,6 +12,7 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/features/my_work/ui/bloc/my_work_cubit.dart';
 
+import '../../support/attention_case_factory.dart';
 import '../block/support/controllable_block_case.dart';
 import '../../domain/attention/attention_case_test_support.dart';
 import '../../support/test_realtime_sync.dart';
@@ -42,13 +42,13 @@ void main() {
         final realtime = buildTestRealtimeSync();
         final attentionRepo = AttentionCaseTestRepository();
         final accounts = AttentionCaseTestAccounts();
-        final attention = AttentionCase(
-          attentionRepo,
-          accounts,
-          realtime.case_,
-          noopBlockCase(),
-          FeedSessionRegistry(),
-          Logger('cross-surface-$kind'),
+        final attention = buildAttentionCase(
+          repository: attentionRepo,
+          accounts: accounts,
+          realtimeSyncCase: realtime.case_,
+          blockCase: noopBlockCase(),
+          feedSessions: FeedSessionRegistry(),
+          logger: Logger('cross-surface-$kind'),
           qaLatencyMeasurementEnabled: false,
         );
         addTearDown(attention.dispose);
@@ -143,8 +143,7 @@ void main() {
         // still held. My Desk must not have jumped ahead of the commit.
         // The hint burst coalescer holds the refresh for its whole window
         // first.
-        final heldSamples =
-            BurstCoalescer.window.inMilliseconds ~/ 50 + 6;
+        final heldSamples = BurstCoalescer.window.inMilliseconds ~/ 50 + 6;
         for (var i = 0; i < heldSamples; i++) {
           await Future<void>.delayed(const Duration(milliseconds: 50));
           sample();

@@ -23,6 +23,7 @@ import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/features/beacon_threads/domain/room_read_watermark_store.dart';
 import 'package:tentura/features/beacon_threads/domain/use_case/beacon_threads_case.dart';
 
+import '../../support/attention_case_factory.dart';
 import '../beacon_threads/room_cubit_fakes.dart';
 
 import '../../support/attention_repository_fake_base.dart';
@@ -281,13 +282,13 @@ void main() {
       registerRoomCubitProfileCubit('Uauthor');
       final accounts = _Accounts();
       addTearDown(accounts.close);
-      attention = AttentionCase(
-        _AttentionServer(notices),
-        accounts,
-        sync.case_,
-        noopBlockCase(),
-        FeedSessionRegistry(),
-        Logger('questions-read-cursor-widget-test'),
+      attention = buildAttentionCase(
+        repository: _AttentionServer(notices),
+        accounts: accounts,
+        realtimeSyncCase: sync.case_,
+        blockCase: noopBlockCase(),
+        feedSessions: FeedSessionRegistry(),
+        logger: Logger('questions-read-cursor-widget-test'),
       );
       addTearDown(attention.dispose);
       GetIt.I.registerSingleton<AttentionCase>(attention);

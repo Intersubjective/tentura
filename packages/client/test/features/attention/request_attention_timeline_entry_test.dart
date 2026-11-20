@@ -16,6 +16,7 @@ import 'package:tentura/domain/attention/port/attention_account_port.dart';
 import 'package:tentura/features/attention/ui/widget/request_attention_timeline_sheet.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../support/attention_case_factory.dart';
 import '../../features/block/support/controllable_block_case.dart';
 import '../../support/attention_repository_fake_base.dart';
 import '../../support/test_realtime_sync.dart';
@@ -70,7 +71,8 @@ void main() {
       expect(
         offenders,
         isEmpty,
-        reason: 'the Timeline control must open the Request timeline (§9), '
+        reason:
+            'the Timeline control must open the Request timeline (§9), '
             "not a route of the call site's own choosing",
       );
     });
@@ -87,13 +89,13 @@ void main() {
       accounts = _Accounts();
       final realtime = buildTestRealtimeSync();
       realtimePort = realtime.port;
-      attention = AttentionCase(
-        repository,
-        accounts,
-        realtime.case_,
-        noopBlockCase(),
-        FeedSessionRegistry(),
-        Logger('request-attention-timeline-sheet'),
+      attention = buildAttentionCase(
+        repository: repository,
+        accounts: accounts,
+        realtimeSyncCase: realtime.case_,
+        blockCase: noopBlockCase(),
+        feedSessions: FeedSessionRegistry(),
+        logger: Logger('request-attention-timeline-sheet'),
       );
       GetIt.I.registerSingleton<AttentionCase>(attention);
     });
@@ -223,7 +225,8 @@ void main() {
       expect(
         find.text(l10n.updatesEmptyAllHint),
         findsNothing,
-        reason: '"nothing happened here" is a different claim from "I could '
+        reason:
+            '"nothing happened here" is a different claim from "I could '
             'not find out" (§4 honest failure)',
       );
     });

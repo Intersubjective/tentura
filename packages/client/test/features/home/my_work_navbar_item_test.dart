@@ -7,11 +7,11 @@ import 'package:logging/logging.dart';
 
 import 'package:tentura/app/router/home_tab_branches.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
-import 'package:tentura/domain/attention/attention_case.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/attention/feed_session_registry.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';
+import '../../support/attention_case_factory.dart';
 import '../../support/attention_repository_fake_base.dart';
 import 'package:tentura/features/home/ui/bloc/home_attention_cubit.dart';
 import 'package:tentura/features/home/ui/widget/my_work_navbar_item.dart';
@@ -32,12 +32,10 @@ final class _Accounts implements AttentionAccountPort {
 }
 
 final class _Repository extends AttentionRepositoryFake {
-  AttentionSurfaceSummary surfaceSummaryValue = const AttentionSurfaceSummary(
-  );
+  AttentionSurfaceSummary surfaceSummaryValue = const AttentionSurfaceSummary();
 
   @override
-  Future<AttentionSurfaceSummary> surfaceSummary() async =>
-      surfaceSummaryValue;
+  Future<AttentionSurfaceSummary> surfaceSummary() async => surfaceSummaryValue;
 
   @override
   Future<AttentionFeed> fetch({
@@ -46,15 +44,13 @@ final class _Repository extends AttentionRepositoryFake {
     String? search,
     int limit = 50,
     AttentionSurface? surface,
-  }) async =>
-      const AttentionFeed(
-        summary: AttentionSummary(),
-        page: AttentionFeedPage(),
-      );
+  }) async => const AttentionFeed(
+    summary: AttentionSummary(),
+    page: AttentionFeedPage(),
+  );
 
   @override
-  Future<Set<String>> unreadForBeacons(Set<String> beaconIds) async =>
-      const {};
+  Future<Set<String>> unreadForBeacons(Set<String> beaconIds) async => const {};
 
   @override
   Future<Set<String>> liveObligationBeacons() async => const {};
@@ -85,13 +81,13 @@ Future<HomeAttentionCubit> _bootHome({
   required WidgetTester tester,
 }) async {
   final sync = buildTestRealtimeSync();
-  final attention = AttentionCase(
-    repository,
-    accounts,
-    sync.case_,
-    noopBlockCase(),
-    FeedSessionRegistry(),
-    Logger('my-work-navbar-item-test'),
+  final attention = buildAttentionCase(
+    repository: repository,
+    accounts: accounts,
+    realtimeSyncCase: sync.case_,
+    blockCase: noopBlockCase(),
+    feedSessions: FeedSessionRegistry(),
+    logger: Logger('my-work-navbar-item-test'),
   );
   final home = HomeAttentionCubit(
     attention,
@@ -190,35 +186,38 @@ void main() {
   /// R7 — §6 and D09: "Dot and number are independent: a Request with both
   /// shows both, and a tab shows its dot whether or not it also shows a
   /// number." The navbar used to return as soon as it had a number.
-  testWidgets('draws only the count badge when the dot and the number both apply', (tester) async {
-    // CHANGES IN U15R-d: §6 `my desk.dot` is its own field; the unread total
-    // beside it included obligations and never was the dot's rule.
-    // CHANGES IN U15R-e: and the number beside the dot is `my desk.count`.
-    // CHANGES IN U18c: that unread total is retired and gone from here.
-    repository.surfaceSummaryValue = const AttentionSurfaceSummary(
-      myDeskCount: 2,
-      myDeskDot: true,
-    );
-    final home = await _bootHome(
-      accounts: accounts,
-      repository: repository,
-      tester: tester,
-    );
-    home.setActiveHomeTab(HomeTab.work);
-    await _pumpNavItem(tester, home);
+  testWidgets(
+    'draws only the count badge when the dot and the number both apply',
+    (tester) async {
+      // CHANGES IN U15R-d: §6 `my desk.dot` is its own field; the unread total
+      // beside it included obligations and never was the dot's rule.
+      // CHANGES IN U15R-e: and the number beside the dot is `my desk.count`.
+      // CHANGES IN U18c: that unread total is retired and gone from here.
+      repository.surfaceSummaryValue = const AttentionSurfaceSummary(
+        myDeskCount: 2,
+        myDeskDot: true,
+      );
+      final home = await _bootHome(
+        accounts: accounts,
+        repository: repository,
+        tester: tester,
+      );
+      home.setActiveHomeTab(HomeTab.work);
+      await _pumpNavItem(tester, home);
 
-    expect(find.byKey(MyWorkNavbarItem.countKey), findsOneWidget);
-    expect(_badgeLabelText(tester), '2');
-    // The count badge already signals attention, so the dot is not drawn
-    // beside it; the Semantics label (nav_unread_dot_position_test) keeps both.
-    expect(
-      find.byKey(MyWorkNavbarItem.dotKey),
-      findsNothing,
-      reason: 'the count badge stands alone when the dot would also show',
-    );
-    await tester.pumpWidget(const SizedBox.shrink());
-    unawaited(home.close());
-  });
+      expect(find.byKey(MyWorkNavbarItem.countKey), findsOneWidget);
+      expect(_badgeLabelText(tester), '2');
+      // The count badge already signals attention, so the dot is not drawn
+      // beside it; the Semantics label (nav_unread_dot_position_test) keeps both.
+      expect(
+        find.byKey(MyWorkNavbarItem.dotKey),
+        findsNothing,
+        reason: 'the count badge stands alone when the dot would also show',
+      );
+      await tester.pumpWidget(const SizedBox.shrink());
+      unawaited(home.close());
+    },
+  );
 
   /// RETIRED IN U18c — 'the number is my desk.count, not the legacy
   /// needsYouTotal' stood here. It gave `myWorkUnreadTotal` / `needsYouTotal`

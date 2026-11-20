@@ -18,6 +18,7 @@ import 'package:tentura/features/beacon_threads/data/repository/beacon_room_hint
 import 'package:tentura/features/inbox/data/repository/inbox_repository.dart';
 import 'package:tentura/features/updates/ui/bloc/updates_feed_cubit.dart';
 
+import '../../support/attention_case_factory.dart';
 import '../../domain/attention/attention_case_test_support.dart';
 import '../../support/noop_attention_actor_profiles.dart';
 import '../../support/production_receipt_transport.dart';
@@ -74,13 +75,13 @@ final class _Session {
     final accounts = AttentionCaseTestAccounts();
     final sync = buildTestRealtimeSync();
     final repository = AttentionRepository(remote);
-    final attention = AttentionCase(
-      repository,
-      accounts,
-      sync.case_,
-      noopBlockCase(),
-      FeedSessionRegistry(),
-      Logger('history-read-all-activity'),
+    final attention = buildAttentionCase(
+      repository: repository,
+      accounts: accounts,
+      realtimeSyncCase: sync.case_,
+      blockCase: noopBlockCase(),
+      feedSessions: FeedSessionRegistry(),
+      logger: Logger('history-read-all-activity'),
     );
     accounts.emit(_viewer);
     await Future<void>.delayed(Duration.zero);

@@ -18,7 +18,6 @@ import 'package:tentura/data/repository/mock/client_repository_mocks.dart';
 import 'package:tentura/data/service/bookkeeping_refresh_signal.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
-import 'package:tentura/domain/attention/attention_case.dart';
 import 'package:tentura/domain/attention/feed_session_registry.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -53,6 +52,7 @@ import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/l10n/l10n_ru.dart';
 
+import '../../support/attention_case_factory.dart';
 import '../../support/phone_surface.dart';
 import '../../support/test_realtime_sync.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
@@ -328,13 +328,13 @@ MyWorkCase _deskCase(RemoteApiService remote) {
     FakeMyWorkClosureRepository(),
     realtime,
     BookkeepingRefreshSignal(),
-    AttentionCase(
-      AttentionRepository(remote),
-      _Accounts(),
-      realtime,
-      noopBlockCase(),
-      FeedSessionRegistry(),
-      Logger('desk-reselect-attention'),
+    buildAttentionCase(
+      repository: AttentionRepository(remote),
+      accounts: _Accounts(),
+      realtimeSyncCase: realtime,
+      blockCase: noopBlockCase(),
+      feedSessions: FeedSessionRegistry(),
+      logger: Logger('desk-reselect-attention'),
     ),
     FakeBeaconPlanRepository(BeaconPlan.decode(planJson())),
     env: const Env(),

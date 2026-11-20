@@ -21,6 +21,7 @@ import 'package:tentura/features/home/ui/widget/my_work_navbar_item.dart';
 import 'package:tentura/features/home/ui/bloc/post_join_navigation_cubit.dart';
 import 'package:tentura/features/settings/ui/bloc/settings_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import '../../support/attention_case_factory.dart';
 import '../../support/attention_repository_fake_base.dart';
 import '../../support/test_realtime_sync.dart';
 import '../block/support/controllable_block_case.dart';
@@ -37,12 +38,10 @@ final class _Accounts implements AttentionAccountPort {
 }
 
 final class _SurfaceRepository extends AttentionRepositoryFake {
-  AttentionSurfaceSummary surfaceSummaryValue = const AttentionSurfaceSummary(
-  );
+  AttentionSurfaceSummary surfaceSummaryValue = const AttentionSurfaceSummary();
 
   @override
-  Future<AttentionSurfaceSummary> surfaceSummary() async =>
-      surfaceSummaryValue;
+  Future<AttentionSurfaceSummary> surfaceSummary() async => surfaceSummaryValue;
 
   @override
   Future<AttentionFeed> fetch({
@@ -57,8 +56,7 @@ final class _SurfaceRepository extends AttentionRepositoryFake {
   );
 
   @override
-  Future<Set<String>> unreadForBeacons(Set<String> beaconIds) async =>
-      const {};
+  Future<Set<String>> unreadForBeacons(Set<String> beaconIds) async => const {};
 
   @override
   Future<Set<String>> liveObligationBeacons() async => const {};
@@ -86,27 +84,27 @@ Future<void> _settle([int turns = 12]) async {
 AttentionReceipt _updateReceipt({
   required AttentionSurface surface,
   String id = 'r1',
-}) =>
-    AttentionReceipt(
-      id: id,
-      category: surface == AttentionSurface.activity ? 'social' : 'requestProgress',
-      kind: surface == AttentionSurface.activity
-          ? 'inviteAccepted'
-          : 'relayReceived',
-      priority: 'normal',
-      title: 'Title',
-      body: 'Body',
-      actionUrl: '/profile/view/U2',
-      createdAt: DateTime.utc(2026, 9, 10),
-      collapsedCount: 1,
-      presentationPayloadJson: '{}',
-      surface: surface,
-      destinationKind: 'profile',
-      targetEntityId: 'U2',
-      presentationKey:
-          surface == AttentionSurface.activity ? 'invite_accepted' : null,
-      beaconId: surface == AttentionSurface.myWork ? 'beacon-1' : null,
-    );
+}) => AttentionReceipt(
+  id: id,
+  category: surface == AttentionSurface.activity ? 'social' : 'requestProgress',
+  kind: surface == AttentionSurface.activity
+      ? 'inviteAccepted'
+      : 'relayReceived',
+  priority: 'normal',
+  title: 'Title',
+  body: 'Body',
+  actionUrl: '/profile/view/U2',
+  createdAt: DateTime.utc(2026, 9, 10),
+  collapsedCount: 1,
+  presentationPayloadJson: '{}',
+  surface: surface,
+  destinationKind: 'profile',
+  targetEntityId: 'U2',
+  presentationKey: surface == AttentionSurface.activity
+      ? 'invite_accepted'
+      : null,
+  beaconId: surface == AttentionSurface.myWork ? 'beacon-1' : null,
+);
 
 HomeAttentionState _redesignState({
   // CHANGES IN U18c: `activityUnread` / `myWorkUnread` knobs are gone with the
@@ -122,32 +120,34 @@ HomeAttentionState _redesignState({
   bool forYouDot = false,
   HomeTab activeTab = HomeTab.work,
   bool loaded = true,
-}) =>
-    HomeAttentionState(
-      surfaceSummaryLoaded: loaded,
-      surfaceMyDeskCount: myDeskCount,
-      surfaceMyDeskDot: myDeskDot,
-      surfaceForYouDot: forYouDot,
-      activeHomeTab: activeTab,
-    );
+}) => HomeAttentionState(
+  surfaceSummaryLoaded: loaded,
+  surfaceMyDeskCount: myDeskCount,
+  surfaceMyDeskDot: myDeskDot,
+  surfaceForYouDot: forYouDot,
+  activeHomeTab: activeTab,
+);
 
-Future<({
-  HomeAttentionCubit home,
-  AttentionCase attention,
-  TestRealtimeSyncPort sync,
-})> _bootCubitWithSurface({
+Future<
+  ({
+    HomeAttentionCubit home,
+    AttentionCase attention,
+    TestRealtimeSyncPort sync,
+  })
+>
+_bootCubitWithSurface({
   required _Accounts accounts,
   required _SurfaceRepository repository,
   WidgetTester? tester,
 }) async {
   final syncBundle = buildTestRealtimeSync();
-  final attention = AttentionCase(
-    repository,
-    accounts,
-    syncBundle.case_,
-    noopBlockCase(),
-    FeedSessionRegistry(),
-    Logger('work-activity-nav-indicators'),
+  final attention = buildAttentionCase(
+    repository: repository,
+    accounts: accounts,
+    realtimeSyncCase: syncBundle.case_,
+    blockCase: noopBlockCase(),
+    feedSessions: FeedSessionRegistry(),
+    logger: Logger('work-activity-nav-indicators'),
   );
   final home = HomeAttentionCubit(
     attention,
@@ -170,7 +170,8 @@ Future<void> _disposeBoot(
     HomeAttentionCubit home,
     AttentionCase attention,
     TestRealtimeSyncPort sync,
-  }) boot,
+  })
+  boot,
 ) async {
   await boot.home.close();
   await boot.attention.dispose();
@@ -226,87 +227,90 @@ void main() {
     // CHANGES IN U18c: those two totals are retired and their columns are
     // gone. D09's independence is still proved here, by `myDeskCount` and
     // `myDeskDot` carrying opposite values across the cases.
-    const cases = <({
-      String name,
-      int myDeskCount,
-      bool forYouDot,
-      bool myDeskDot,
-      HomeTab tab,
-      bool activityDot,
-      bool myWorkNumber,
-      bool myWorkDot,
-    })>[
-      (
-        name: 'obligations and optional updates show a number and a dot',
-        myDeskCount: 3,
-        forYouDot: true,
-        myDeskDot: true,
-        tab: HomeTab.work,
-        activityDot: true,
-        myWorkNumber: true,
-        myWorkDot: true,
-      ),
-      (
-        name: 'the activity dot survives its own tab being open',
-        myDeskCount: 3,
-        forYouDot: true,
-        myDeskDot: true,
-        tab: HomeTab.inbox,
-        activityDot: true,
-        myWorkNumber: true,
-        myWorkDot: true,
-      ),
-      (
-        name: 'activity unread only',
-        myDeskCount: 0,
-        forYouDot: true,
-        myDeskDot: false,
-        tab: HomeTab.work,
-        activityDot: true,
-        myWorkNumber: false,
-        myWorkDot: false,
-      ),
-      (
-        name: 'my work unread dot when no obligations',
-        myDeskCount: 0,
-        forYouDot: false,
-        myDeskDot: true,
-        tab: HomeTab.inbox,
-        activityDot: false,
-        myWorkNumber: false,
-        myWorkDot: true,
-      ),
-      (
-        name: 'the my work dot survives its own tab being open',
-        myDeskCount: 0,
-        forYouDot: false,
-        myDeskDot: true,
-        tab: HomeTab.work,
-        activityDot: false,
-        myWorkNumber: false,
-        myWorkDot: true,
-      ),
-      (
-        name: 'obligations do not extinguish the my work dot',
-        myDeskCount: 2,
-        forYouDot: false,
-        myDeskDot: true,
-        tab: HomeTab.inbox,
-        activityDot: false,
-        myWorkNumber: true,
-        myWorkDot: true,
-      ),
-      (
-        name: 'all clear',
-        myDeskCount: 0,
-        forYouDot: false,
-        myDeskDot: false,
-        tab: HomeTab.work,
-        activityDot: false,
-        myWorkNumber: false,
-        myWorkDot: false,
-      ),
-    ];
+    const cases =
+        <
+          ({
+            String name,
+            int myDeskCount,
+            bool forYouDot,
+            bool myDeskDot,
+            HomeTab tab,
+            bool activityDot,
+            bool myWorkNumber,
+            bool myWorkDot,
+          })
+        >[
+          (
+            name: 'obligations and optional updates show a number and a dot',
+            myDeskCount: 3,
+            forYouDot: true,
+            myDeskDot: true,
+            tab: HomeTab.work,
+            activityDot: true,
+            myWorkNumber: true,
+            myWorkDot: true,
+          ),
+          (
+            name: 'the activity dot survives its own tab being open',
+            myDeskCount: 3,
+            forYouDot: true,
+            myDeskDot: true,
+            tab: HomeTab.inbox,
+            activityDot: true,
+            myWorkNumber: true,
+            myWorkDot: true,
+          ),
+          (
+            name: 'activity unread only',
+            myDeskCount: 0,
+            forYouDot: true,
+            myDeskDot: false,
+            tab: HomeTab.work,
+            activityDot: true,
+            myWorkNumber: false,
+            myWorkDot: false,
+          ),
+          (
+            name: 'my work unread dot when no obligations',
+            myDeskCount: 0,
+            forYouDot: false,
+            myDeskDot: true,
+            tab: HomeTab.inbox,
+            activityDot: false,
+            myWorkNumber: false,
+            myWorkDot: true,
+          ),
+          (
+            name: 'the my work dot survives its own tab being open',
+            myDeskCount: 0,
+            forYouDot: false,
+            myDeskDot: true,
+            tab: HomeTab.work,
+            activityDot: false,
+            myWorkNumber: false,
+            myWorkDot: true,
+          ),
+          (
+            name: 'obligations do not extinguish the my work dot',
+            myDeskCount: 2,
+            forYouDot: false,
+            myDeskDot: true,
+            tab: HomeTab.inbox,
+            activityDot: false,
+            myWorkNumber: true,
+            myWorkDot: true,
+          ),
+          (
+            name: 'all clear',
+            myDeskCount: 0,
+            forYouDot: false,
+            myDeskDot: false,
+            tab: HomeTab.work,
+            activityDot: false,
+            myWorkNumber: false,
+            myWorkDot: false,
+          ),
+        ];
 
     for (final c in cases) {
       test(c.name, () {
@@ -334,39 +338,43 @@ void main() {
     // independent (D09). CHANGES IN U18c: `activityUnreadTotal`,
     // `myWorkUnreadTotal` and `surfaceNeedsYouTotal` fed no indicator and are
     // retired — no state field one could be inferred from survives.
-    test('U15R-d §6 — an obligation-only My Desk shows the number and no dot',
-        () {
-      final state = _redesignState(
-        myDeskCount: 3,
-        myDeskDot: false,
-      );
-      expect(
-        state.showRedesignMyWorkObligationBadge,
-        isTrue,
-        reason: '§6 `my desk.count` = sum of live obligations',
-      );
-      expect(
-        state.showRedesignMyWorkUnreadDot,
-        isFalse,
-        reason:
-            '§6 `request.dot` is optional events and outcomes only — an '
-            'obligation is the number, never the dot. The legacy '
-            '`myWorkUnreadTotal` counted the obligation here and must not be '
-            'what the dot reads; U18c retired it outright.',
-      );
-    });
+    test(
+      'U15R-d §6 — an obligation-only My Desk shows the number and no dot',
+      () {
+        final state = _redesignState(
+          myDeskCount: 3,
+          myDeskDot: false,
+        );
+        expect(
+          state.showRedesignMyWorkObligationBadge,
+          isTrue,
+          reason: '§6 `my desk.count` = sum of live obligations',
+        );
+        expect(
+          state.showRedesignMyWorkUnreadDot,
+          isFalse,
+          reason:
+              '§6 `request.dot` is optional events and outcomes only — an '
+              'obligation is the number, never the dot. The legacy '
+              '`myWorkUnreadTotal` counted the obligation here and must not be '
+              'what the dot reads; U18c retired it outright.',
+        );
+      },
+    );
 
-    test('U15R-d §6 — a pending forward lights For You with no receipt total',
-        () {
-      final state = _redesignState(forYouDot: true);
-      expect(
-        state.showRedesignActivityUnreadDot,
-        isTrue,
-        reason:
-            '§6 `for you.dot` counts the pending-forward zone, which no '
-            'receipt total has ever seen',
-      );
-    });
+    test(
+      'U15R-d §6 — a pending forward lights For You with no receipt total',
+      () {
+        final state = _redesignState(forYouDot: true);
+        expect(
+          state.showRedesignActivityUnreadDot,
+          isTrue,
+          reason:
+              '§6 `for you.dot` counts the pending-forward zone, which no '
+              'receipt total has ever seen',
+        );
+      },
+    );
 
     test('U15R-d §6 — For You is structurally unable to show a count', () {
       // `for you.count = never`. The client cannot render one because there
@@ -582,28 +590,31 @@ void main() {
     // are live", asserting the dot was suppressed). That came from the U14c
     // brief's paraphrase, not from the contract: §6 and D09 both say the dot
     // and the number are independent and appear together (R7).
-    testWidgets('only the count badge is drawn when the dot and the number both apply', (
-      tester,
-    ) async {
-      // CHANGES IN U15R-d: both dots are §6 fields now.
-      repository.surfaceSummaryValue = const AttentionSurfaceSummary(
-        myDeskCount: 3,
-        myDeskDot: true,
-        forYouDot: true,
-      );
-      final home = await pumpNav(tester, activeTab: HomeTab.work);
+    testWidgets(
+      'only the count badge is drawn when the dot and the number both apply',
+      (
+        tester,
+      ) async {
+        // CHANGES IN U15R-d: both dots are §6 fields now.
+        repository.surfaceSummaryValue = const AttentionSurfaceSummary(
+          myDeskCount: 3,
+          myDeskDot: true,
+          forYouDot: true,
+        );
+        final home = await pumpNav(tester, activeTab: HomeTab.work);
 
-      expect(find.text('3'), findsOneWidget);
-      expect(find.byKey(MyWorkNavbarItem.countKey), findsOneWidget);
-      expect(find.byKey(MyWorkNavbarItem.dotKey), findsNothing);
-      expect(
-        find.bySemanticsLabel(
-          RegExp(lookupL10n(const Locale('en')).myWorkNavBadgeObligations(3)),
-        ),
-        findsOneWidget,
-      );
-      expect(home.state.showRedesignMyWorkUnreadDot, isTrue);
-    });
+        expect(find.text('3'), findsOneWidget);
+        expect(find.byKey(MyWorkNavbarItem.countKey), findsOneWidget);
+        expect(find.byKey(MyWorkNavbarItem.dotKey), findsNothing);
+        expect(
+          find.bySemanticsLabel(
+            RegExp(lookupL10n(const Locale('en')).myWorkNavBadgeObligations(3)),
+          ),
+          findsOneWidget,
+        );
+        expect(home.state.showRedesignMyWorkUnreadDot, isTrue);
+      },
+    );
 
     testWidgets('the dot returns when the count drops to zero', (tester) async {
       // CHANGES IN U15R-d: the dot is §6 `my desk.dot`, its own field.
@@ -722,8 +733,7 @@ void main() {
     });
 
     Future<void> pumpOnWorkTab(WidgetTester tester) async {
-      tester.binding.platformDispatcher.defaultRouteNameTestValue =
-          kPathMyWork;
+      tester.binding.platformDispatcher.defaultRouteNameTestValue = kPathMyWork;
       addTearDown(
         tester.binding.platformDispatcher.clearDefaultRouteNameTestValue,
       );
@@ -748,7 +758,9 @@ void main() {
       expect(tabs.activeIndex, HomeTabSpec.forTab(HomeTab.work).index);
 
       unawaited(
-        router.openFromUpdate(_updateReceipt(surface: AttentionSurface.activity)),
+        router.openFromUpdate(
+          _updateReceipt(surface: AttentionSurface.activity),
+        ),
       );
       for (var i = 0; i < 16; i++) {
         await tester.pump();
@@ -772,6 +784,5 @@ void main() {
       expect(tabs.activeIndex, HomeTabSpec.forTab(HomeTab.work).index);
       expect(find.text('profile:U2'), findsOneWidget);
     });
-
   });
 }

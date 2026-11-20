@@ -36,6 +36,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/first_load_progress.dart';
 import 'package:tentura/ui/widget/screen_load_error_panel.dart';
 
+import '../../support/attention_case_factory.dart';
 import '../../support/burst_coalescer_test_timing.dart';
 import '../../support/test_realtime_sync.dart';
 import '../block/support/controllable_block_case.dart';
@@ -132,13 +133,13 @@ Future<
 _bootAttention(AttentionRepositoryPort repo) async {
   final accounts = _Accounts();
   final sync = buildTestRealtimeSync();
-  final attention = AttentionCase(
-    repo,
-    accounts,
-    sync.case_,
-    noopBlockCase(),
-    FeedSessionRegistry(),
-    Logger('my-work-first-load-attention'),
+  final attention = buildAttentionCase(
+    repository: repo,
+    accounts: accounts,
+    realtimeSyncCase: sync.case_,
+    blockCase: noopBlockCase(),
+    feedSessions: FeedSessionRegistry(),
+    logger: Logger('my-work-first-load-attention'),
   );
   GetIt.I.registerSingleton<AttentionCase>(attention);
   GetIt.I.registerSingleton<InviteAcceptedSetupPort>(

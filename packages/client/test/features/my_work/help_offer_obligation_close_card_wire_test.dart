@@ -13,7 +13,6 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura/data/repository/attention_repository.dart';
 import 'package:tentura/data/service/remote_api_client/remote_request_client.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
-import 'package:tentura/domain/attention/attention_case.dart';
 import 'package:tentura/domain/attention/feed_session_registry.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';
 import 'package:tentura/domain/entity/beacon.dart';
@@ -27,6 +26,7 @@ import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../support/attention_case_factory.dart';
 import '../../support/remote_wire_harness.dart';
 import '../../support/test_realtime_sync.dart';
 import '../block/support/controllable_block_case.dart';
@@ -116,13 +116,13 @@ final class _Server {
 }
 
 Future<MyWorkCubit> _cubit(RemoteRequestClient remote) async {
-  final attention = AttentionCase(
-    AttentionRepository(remote),
-    _Accounts(),
-    buildTestRealtimeSync().case_,
-    noopBlockCase(),
-    FeedSessionRegistry(),
-    Logger('close-card-wire'),
+  final attention = buildAttentionCase(
+    repository: AttentionRepository(remote),
+    accounts: _Accounts(),
+    realtimeSyncCase: buildTestRealtimeSync().case_,
+    blockCase: noopBlockCase(),
+    feedSessions: FeedSessionRegistry(),
+    logger: Logger('close-card-wire'),
   );
   final repo = FakeMyWorkRepository()
     ..initResult = (

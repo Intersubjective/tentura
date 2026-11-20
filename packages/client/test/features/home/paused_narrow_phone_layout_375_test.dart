@@ -43,6 +43,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/availability_line.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
+import '../../support/attention_case_factory.dart';
 import '../../support/test_realtime_sync.dart';
 import '../block/support/controllable_block_case.dart';
 import '../my_work/my_work_test_support.dart';
@@ -137,13 +138,13 @@ Future<({AttentionCase attention, _Accounts accounts})> _bootAttention(
 ) async {
   final accounts = _Accounts();
   final sync = buildTestRealtimeSync();
-  final attention = AttentionCase(
-    repo,
-    accounts,
-    sync.case_,
-    noopBlockCase(),
-    FeedSessionRegistry(),
-    Logger('paused-375-attention'),
+  final attention = buildAttentionCase(
+    repository: repo,
+    accounts: accounts,
+    realtimeSyncCase: sync.case_,
+    blockCase: noopBlockCase(),
+    feedSessions: FeedSessionRegistry(),
+    logger: Logger('paused-375-attention'),
   );
   GetIt.I.registerSingleton<AttentionCase>(attention);
   GetIt.I.registerSingleton<InviteAcceptedSetupPort>(

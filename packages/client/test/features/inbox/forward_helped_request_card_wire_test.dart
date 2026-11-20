@@ -27,6 +27,7 @@ import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/features/constellation/ui/util/constellation_forward_tree_request.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../support/attention_case_factory.dart';
 import '../../support/remote_wire_harness.dart';
 import 'package:tentura/data/repository/attention_repository.dart';
 import 'package:tentura/features/inbox/domain/entity/inbox_item.dart';
@@ -432,13 +433,13 @@ void main() {
             final sync = buildTestRealtimeSync();
             final actors = buildNoopAttentionActorProfiles();
             final logger = Logger('forward-helped-request-card');
-            final attention = AttentionCase(
-              AttentionRepository(remote),
-              accounts,
-              sync.case_,
-              noopBlockCase(),
-              FeedSessionRegistry(),
-              logger,
+            final attention = buildAttentionCase(
+              repository: AttentionRepository(remote),
+              accounts: accounts,
+              realtimeSyncCase: sync.case_,
+              blockCase: noopBlockCase(),
+              feedSessions: FeedSessionRegistry(),
+              logger: logger,
             );
             final inbox = FakeInboxRepository()
               ..inboxItemsByBeacon = {

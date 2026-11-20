@@ -33,6 +33,7 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/navigation/app_navigator.dart';
 
+import '../../support/attention_case_factory.dart';
 import '../../support/attention_repository_fake_base.dart';
 import '../../support/noop_attention_actor_profiles.dart';
 import '../../support/fake_app_navigator.dart';
@@ -316,13 +317,13 @@ Future<void> _pumpActivityStream(
   final attentionRepo = _StreamFeedRepo(streamPage);
   final accounts = _Accounts();
   final sync = buildTestRealtimeSync();
-  final attention = AttentionCase(
-    attentionRepo,
-    accounts,
-    sync.case_,
-    noopBlockCase(),
-    FeedSessionRegistry(),
-    Logger('issue-774-activity'),
+  final attention = buildAttentionCase(
+    repository: attentionRepo,
+    accounts: accounts,
+    realtimeSyncCase: sync.case_,
+    blockCase: noopBlockCase(),
+    feedSessions: FeedSessionRegistry(),
+    logger: Logger('issue-774-activity'),
   );
   final inboxCase = buildTestInboxCase(
     inboxRepo,
@@ -646,13 +647,13 @@ void main() {
     final repo = _ClearSpyRepo(feed);
     final accounts = _Accounts();
     final sync = buildTestRealtimeSync();
-    final attention = AttentionCase(
-      repo,
-      accounts,
-      sync.case_,
-      noopBlockCase(),
-      FeedSessionRegistry(),
-      Logger('issue-774-clear'),
+    final attention = buildAttentionCase(
+      repository: repo,
+      accounts: accounts,
+      realtimeSyncCase: sync.case_,
+      blockCase: noopBlockCase(),
+      feedSessions: FeedSessionRegistry(),
+      logger: Logger('issue-774-clear'),
     );
     GetIt.I.registerSingleton<AttentionCase>(attention);
     GetIt.I.registerSingleton<ProfileCubit>(_FakeProfileCubit(_kiraId));

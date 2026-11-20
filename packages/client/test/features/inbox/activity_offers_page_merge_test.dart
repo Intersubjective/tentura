@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
 
-import 'package:tentura/domain/attention/attention_case.dart';
 import 'package:tentura/domain/attention/feed_session_registry.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_summary.dart';
@@ -14,6 +13,7 @@ import 'package:tentura/features/inbox/domain/entity/inbox_item.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/features/inbox/ui/bloc/activity_offers_cubit.dart';
 
+import '../../support/attention_case_factory.dart';
 import '../../support/noop_attention_actor_profiles.dart';
 import '../../support/test_realtime_sync.dart';
 import '../block/support/controllable_block_case.dart';
@@ -47,67 +47,69 @@ void main() {
     await repo.dispose();
   });
 
-  test('a Request repeated by a moved page key appears once, losing nothing',
-      () async {
-    final at = DateTime.utc(2026, 3, 1, 12);
-    final all = [offer('B1', at), offer('B2', at), offer('B3', at)];
-    wireActivityOffersV2(
-      inbox: repo,
-      attention: attentionRepo,
-      items: all,
-      nextCursor: 'page-two',
-      totalCount: 3,
-    );
-    attentionRepo.offerRows = [
-      activityOfferSortRow(all[0]),
-      activityOfferSortRow(all[1]),
-    ];
-    // B1's key moved past the cursor, so the tail repeats it alongside B3.
-    attentionRepo.secondOfferRows = [
-      activityOfferSortRow(all[0]),
-      activityOfferSortRow(all[2]),
-    ];
-    attentionRepo.secondOffersNextCursor = null;
+  test(
+    'a Request repeated by a moved page key appears once, losing nothing',
+    () async {
+      final at = DateTime.utc(2026, 3, 1, 12);
+      final all = [offer('B1', at), offer('B2', at), offer('B3', at)];
+      wireActivityOffersV2(
+        inbox: repo,
+        attention: attentionRepo,
+        items: all,
+        nextCursor: 'page-two',
+        totalCount: 3,
+      );
+      attentionRepo.offerRows = [
+        activityOfferSortRow(all[0]),
+        activityOfferSortRow(all[1]),
+      ];
+      // B1's key moved past the cursor, so the tail repeats it alongside B3.
+      attentionRepo.secondOfferRows = [
+        activityOfferSortRow(all[0]),
+        activityOfferSortRow(all[2]),
+      ];
+      attentionRepo.secondOffersNextCursor = null;
 
-    final sync = buildTestRealtimeSync();
-    cubit = ActivityOffersCubit(
-      userId: 'u1',
-      inboxCase: buildTestInboxCase(
-        repo,
-        buildTestBeaconThreadsCase(),
-        forwardRepository: forwardRepo,
-        realtimeSyncCase: sync.case_,
-      ),
-      attentionCase: AttentionCase(
-        attentionRepo,
-        _Accounts(),
-        sync.case_,
-        noopBlockCase(),
-        FeedSessionRegistry(),
-        Logger('activity-offers-page-merge-test'),
-        qaLatencyMeasurementEnabled: false,
-      ),
-      pageSize: 2,
-      actorProfiles: buildNoopAttentionActorProfiles(),
-    );
+      final sync = buildTestRealtimeSync();
+      cubit = ActivityOffersCubit(
+        userId: 'u1',
+        inboxCase: buildTestInboxCase(
+          repo,
+          buildTestBeaconThreadsCase(),
+          forwardRepository: forwardRepo,
+          realtimeSyncCase: sync.case_,
+        ),
+        attentionCase: buildAttentionCase(
+          repository: attentionRepo,
+          accounts: _Accounts(),
+          realtimeSyncCase: sync.case_,
+          blockCase: noopBlockCase(),
+          feedSessions: FeedSessionRegistry(),
+          logger: Logger('activity-offers-page-merge-test'),
+          qaLatencyMeasurementEnabled: false,
+        ),
+        pageSize: 2,
+        actorProfiles: buildNoopAttentionActorProfiles(),
+      );
 
-    await cubit.loadFirst();
-    await cubit.loadMore();
+      await cubit.loadFirst();
+      await cubit.loadMore();
 
-    final ids = cubit.state.items
-        .map((item) => item.beaconId)
-        .toList(growable: false);
-    expect(
-      ids.toSet().length,
-      ids.length,
-      reason: 'the repeated Request is not shown twice',
-    );
-    expect(
-      ids.toSet(),
-      {'B1', 'B2', 'B3'},
-      reason: 'and the row only the tail carried is still there',
-    );
-  });
+      final ids = cubit.state.items
+          .map((item) => item.beaconId)
+          .toList(growable: false);
+      expect(
+        ids.toSet().length,
+        ids.length,
+        reason: 'the repeated Request is not shown twice',
+      );
+      expect(
+        ids.toSet(),
+        {'B1', 'B2', 'B3'},
+        reason: 'and the row only the tail carried is still there',
+      );
+    },
+  );
 }
 
 final class _Accounts implements AttentionAccountPort {

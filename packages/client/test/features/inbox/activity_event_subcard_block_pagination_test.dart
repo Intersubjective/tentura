@@ -14,6 +14,7 @@ import 'package:tentura/features/inbox/ui/widget/activity_event_subcard_block.da
 import 'package:tentura/features/inbox/ui/widget/attention_mini_card.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../support/attention_case_factory.dart';
 import '../block/support/controllable_block_case.dart';
 import '../../domain/attention/attention_case_test_support.dart';
 import '../../support/attention_repository_fake_base.dart';
@@ -152,13 +153,13 @@ void main() {
 
   void registerCase(_PagingRepository repository) {
     GetIt.I.registerSingleton<AttentionCase>(
-      AttentionCase(
-        repository,
-        accounts,
-        buildTestRealtimeSync().case_,
-        noopBlockCase(),
-        FeedSessionRegistry(),
-        Logger('ActivityEventSubcardBlockPaginationTest'),
+      buildAttentionCase(
+        repository: repository,
+        accounts: accounts,
+        realtimeSyncCase: buildTestRealtimeSync().case_,
+        blockCase: noopBlockCase(),
+        feedSessions: FeedSessionRegistry(),
+        logger: Logger('ActivityEventSubcardBlockPaginationTest'),
         qaLatencyMeasurementEnabled: false,
       ),
     );
