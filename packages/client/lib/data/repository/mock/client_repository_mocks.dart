@@ -6,6 +6,8 @@ import 'package:mockito/mockito.dart';
 import 'package:tentura/data/repository/app_update_repository.dart';
 import 'package:tentura/data/repository/clipboard_image_repository.dart';
 import 'package:tentura/data/repository/image_repository.dart';
+import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/domain/port/platform_repository_port.dart';
 import 'package:tentura/domain/attention/port/attention_repository_port.dart';
 import 'package:tentura/domain/attention/offer_accepted_dismissals.dart';
@@ -127,7 +129,10 @@ class MyWorkRepositoryMock extends Mock implements MyWorkRepository {}
 class ProfileRepositoryMock extends Mock implements ProfileRepositoryPort {}
 
 @Injectable(as: BeaconRepository, env: [Environment.test], order: 1)
-class BeaconRepositoryMock extends Mock implements BeaconRepository {}
+class BeaconRepositoryMock extends Mock implements BeaconRepository {
+  @override
+  Stream<RepositoryEvent<Beacon>> get changes => const Stream.empty();
+}
 
 @Injectable(as: BeaconPlanRepository, env: [Environment.test], order: 1)
 class BeaconPlanRepositoryMock extends Mock implements BeaconPlanRepository {

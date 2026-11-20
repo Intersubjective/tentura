@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:injectable/injectable.dart';
+import 'package:logging/logging.dart';
 import 'package:rxdart/rxdart.dart';
 
 import 'package:tentura/domain/entity/beacon.dart';
@@ -8,12 +9,14 @@ import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/domain/use_case/use_case_base.dart';
+import 'package:tentura/env.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 
 import '../entity/post_summary.dart';
 import '../port/posts_repository_port.dart';
 
-@singleton
+// The test-environment repository bindings are registered at order 1.
+@Singleton(order: 1)
 final class PostsCase extends UseCaseBase {
   PostsCase(
     this._repository,
@@ -32,6 +35,21 @@ final class PostsCase extends UseCaseBase {
         })
         .listen((_) => _refreshWhileUnread());
   }
+
+  @factoryMethod
+  PostsCase.withBeaconRepository(
+    PostsRepositoryPort repository,
+    RealtimeSyncCase realtimeSyncCase, {
+    required Env env,
+    required Logger logger,
+    required BeaconRepository beaconRepository,
+  }) : this(
+         repository,
+         realtimeSyncCase,
+         env: env,
+         logger: logger,
+         beaconRepository: beaconRepository,
+       );
 
   final PostsRepositoryPort _repository;
   final RealtimeSyncCase _realtimeSyncCase;
