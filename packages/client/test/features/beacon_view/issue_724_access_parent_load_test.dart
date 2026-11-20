@@ -68,30 +68,26 @@ void main() {
       await pumpEventQueue();
 
       expect(cubit.state.beacon.id, requestId);
-      expect(cubit.state.accessParent, isNull);
-      expect(cubit.state.accessParentPostExcerpt, isEmpty);
       expect(fetchedIds, [requestId]);
     },
   );
 
   test('guard: a member of the request does not read the parent', () async {
-    final (cubit, fetchedIds) = await load(
+    final (_, fetchedIds) = await load(
       request(accessLevel: BeaconAccessLevel.member, accessReasons: 4 | 64),
     );
     await pumpEventQueue();
 
-    expect(cubit.state.accessParent, isNull);
     expect(fetchedIds, isNot(contains(postId)));
   });
 
   test('guard: a Request parent is not read for the banner', () async {
-    final (cubit, fetchedIds) = await load(
+    final (_, fetchedIds) = await load(
       request(),
       parentKind: BeaconKind.request,
     );
     await pumpEventQueue();
 
-    expect(cubit.state.accessParent, isNull);
     expect(fetchedIds, isNot(contains(postId)));
   });
 }

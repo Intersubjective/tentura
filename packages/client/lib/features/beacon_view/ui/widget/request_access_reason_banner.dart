@@ -10,17 +10,10 @@ import '../../domain/request_access_reason.dart';
 class RequestAccessReasonBanner extends StatelessWidget {
   const RequestAccessReasonBanner({
     required this.beacon,
-    this.parent,
-    this.parentPostExcerpt = '',
     super.key,
   });
 
   final Beacon beacon;
-
-  /// Optional context supplied by callers. The explanation uses access reasons.
-  final Beacon? parent;
-
-  final String parentPostExcerpt;
 
   static const openParentKey = Key('request-access-reason-open-parent');
 

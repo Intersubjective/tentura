@@ -63,7 +63,6 @@ Future<void> _pumpBanner(
   WidgetTester tester, {
   required Locale locale,
   required Beacon request,
-  required BeaconKind? parentKind,
 }) async {
   await tester.pumpWidget(
     MaterialApp(
@@ -75,10 +74,6 @@ Future<void> _pumpBanner(
         child: Scaffold(
           body: RequestAccessReasonBanner(
             beacon: request,
-            parent: parentKind == null
-                ? null
-                : Beacon.empty.copyWith(id: 'Bparent000001', kind: parentKind),
-            parentPostExcerpt: parentKind == BeaconKind.post ? _excerpt : '',
           ),
         ),
       ),
@@ -134,7 +129,6 @@ void main() {
           tester,
           locale: en,
           request: request,
-          parentKind: BeaconKind.request,
         );
         if (viaRelated) {
           expect(find.text(_english), findsOneWidget, reason: '$reasons');
@@ -151,8 +145,9 @@ void main() {
       await _pumpBanner(
         tester,
         locale: en,
-        request: _request([_child]),
-        parentKind: BeaconKind.post,
+        request: _request([
+          _child,
+        ]).copyWith(lineageParentBeaconId: 'Bparent000001'),
       );
       _expectRelatedBannerWithoutPostCopy(
         _english,
@@ -177,7 +172,6 @@ void main() {
         tester,
         locale: ru,
         request: _request([_ancestor]),
-        parentKind: null,
       );
       _expectRelatedBannerWithoutPostCopy(_russian, postCopy: postCopy);
       expect(tester.takeException(), isNull);
@@ -185,8 +179,9 @@ void main() {
       await _pumpBanner(
         tester,
         locale: ru,
-        request: _request([_child]),
-        parentKind: BeaconKind.post,
+        request: _request([
+          _child,
+        ]).copyWith(lineageParentBeaconId: 'Bparent000001'),
       );
 
       final banner = find.byType(RequestAccessReasonBanner);

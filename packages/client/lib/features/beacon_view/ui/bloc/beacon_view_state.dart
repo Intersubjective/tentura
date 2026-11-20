@@ -381,11 +381,6 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
 
   const BeaconViewState._();
 
-  /// Access explanations carry no Post context.
-  Beacon? get accessParent => null;
-
-  String get accessParentPostExcerpt => '';
-
   bool get forwardsLoaded => forwardsLoad == ForwardsLoad.loaded;
 
   bool get forwardsLoading => forwardsLoad == ForwardsLoad.loading;

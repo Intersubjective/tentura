@@ -5,7 +5,6 @@ import 'package:tentura_root/domain/entity/beacon_access.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
-import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon_view/ui/widget/request_access_reason_banner.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -33,23 +32,6 @@ Beacon _beacon({
   lineageParentBeaconId: lineageParentBeaconId,
 );
 
-Beacon _parent({
-  BeaconKind kind = BeaconKind.post,
-  String title = '',
-}) => Beacon(
-  id: 'P1',
-  title: title,
-  kind: kind,
-  author: const Profile(id: 'U1', displayName: 'a'),
-  createdAt: DateTime.utc(2026, 6, 19),
-  updatedAt: DateTime.utc(2026, 6, 19),
-);
-
-/// An excerpt that must not influence the banner layout.
-const _longPostExcerpt =
-    'GQ1024: planning an extended weekend garden cleanup with neighbors '
-    'and friends from the whole city block joining together';
-
 RenderParagraph _bannerParagraph(WidgetTester tester) =>
     tester.renderObject<RenderParagraph>(
       find.byKey(RequestAccessReasonBanner.bodyTextKey),
@@ -59,8 +41,6 @@ Future<void> _pumpBannerPhone(
   WidgetTester tester, {
   required Locale locale,
   required Beacon beacon,
-  Beacon? parent,
-  String parentPostExcerpt = 'GQ1024: planning a weekend',
 }) async {
   await usePhoneSurface(tester);
   await tester.pumpWidget(
@@ -73,8 +53,6 @@ Future<void> _pumpBannerPhone(
         child: Scaffold(
           body: RequestAccessReasonBanner(
             beacon: beacon,
-            parent: parent,
-            parentPostExcerpt: parentPostExcerpt,
           ),
         ),
       ),
@@ -85,10 +63,8 @@ Future<void> _pumpBannerPhone(
 
 Future<void> _pumpBanner(
   WidgetTester tester,
-  Beacon beacon, {
-  Beacon? parent,
-  String parentPostExcerpt = 'GQ1024: planning a weekend',
-}) async {
+  Beacon beacon,
+) async {
   await tester.pumpWidget(
     MaterialApp(
       locale: const Locale('en'),
@@ -101,8 +77,6 @@ Future<void> _pumpBanner(
             width: 400,
             child: RequestAccessReasonBanner(
               beacon: beacon,
-              parent: parent,
-              parentPostExcerpt: parentPostExcerpt,
             ),
           ),
         ),
@@ -181,7 +155,7 @@ void main() {
     testWidgets('an observer sees the related Request explanation', (
       tester,
     ) async {
-      await _pumpBanner(tester, budded, parent: _parent());
+      await _pumpBanner(tester, budded);
       expect(find.text(_bannerText), findsOneWidget);
       expect(find.textContaining('it grew from'), findsNothing);
       expect(
@@ -203,7 +177,6 @@ void main() {
             accessReasons: 32 | 64,
             lineageParentBeaconId: 'P1',
           ),
-          parent: _parent(),
         );
         expect(find.text(_bannerText), findsOneWidget);
         expect(find.textContaining('it grew from'), findsNothing);
@@ -223,7 +196,6 @@ void main() {
             accessLevel: BeaconAccessLevel.observer,
             accessReasons: 32 | 64,
           ),
-          parent: _parent(),
         );
         expect(find.text(_bannerText), findsOneWidget);
         expect(find.textContaining('it grew from'), findsNothing);
@@ -235,28 +207,25 @@ void main() {
     );
 
     testWidgets(
-      'an empty Post excerpt leaves the related Request explanation intact',
+      'a bud with a lineage parent uses the generic explanation',
       (
         tester,
       ) async {
         await _pumpBanner(
           tester,
           budded,
-          parent: _parent(),
-          parentPostExcerpt: '',
         );
         expect(find.text(_bannerText), findsOneWidget);
         expect(find.textContaining('it grew from'), findsNothing);
       },
     );
 
-    testWidgets('guard: a Request parent keeps the related-request line', (
+    testWidgets('a linked Request has no action in its access explanation', (
       tester,
     ) async {
       await _pumpBanner(
         tester,
         budded,
-        parent: _parent(kind: BeaconKind.request),
       );
       expect(find.text(_bannerText), findsOneWidget);
       expect(find.byKey(RequestAccessReasonBanner.openParentKey), findsNothing);
@@ -282,7 +251,6 @@ void main() {
           accessReasons: 128,
           lineageParentBeaconId: 'P1',
         ),
-        parent: _parent(),
       );
       expect(find.text(_bannerText), findsOneWidget);
       expect(find.textContaining('it grew from'), findsNothing);
@@ -293,7 +261,6 @@ void main() {
         tester,
         locale: const Locale('ru'),
         beacon: budded,
-        parent: _parent(),
       );
       final paragraph = _bannerParagraph(tester);
       expect(paragraph.didExceedMaxLines, isFalse);
@@ -304,7 +271,7 @@ void main() {
     });
 
     testWidgets(
-      '375 phone EN: a long Post excerpt leaves the explanation fully visible',
+      'English phone layout shows the full related Request explanation',
       (
         tester,
       ) async {
@@ -312,8 +279,6 @@ void main() {
           tester,
           locale: const Locale('en'),
           beacon: budded,
-          parent: _parent(),
-          parentPostExcerpt: _longPostExcerpt,
         );
         final paragraph = _bannerParagraph(tester);
         expect(paragraph.didExceedMaxLines, isFalse);
@@ -328,7 +293,7 @@ void main() {
     );
 
     testWidgets(
-      '375 phone RU: a long Post excerpt leaves the explanation fully visible',
+      'Russian phone layout shows the full related Request explanation',
       (
         tester,
       ) async {
@@ -336,8 +301,6 @@ void main() {
           tester,
           locale: const Locale('ru'),
           beacon: budded,
-          parent: _parent(),
-          parentPostExcerpt: _longPostExcerpt,
         );
         final paragraph = _bannerParagraph(tester);
         expect(paragraph.didExceedMaxLines, isFalse);
@@ -348,15 +311,13 @@ void main() {
     );
 
     testWidgets(
-      'desktop: a long Post excerpt leaves the explanation fully visible',
+      'desktop layout shows the full related Request explanation',
       (
         tester,
       ) async {
         await _pumpBanner(
           tester,
           budded,
-          parent: _parent(),
-          parentPostExcerpt: _longPostExcerpt,
         );
         final paragraph = _bannerParagraph(tester);
         expect(paragraph.didExceedMaxLines, isFalse);

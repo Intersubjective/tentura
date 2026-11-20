@@ -265,46 +265,20 @@ ORDER BY beacon_id, created_at DESC, id DESC
           '''
 WITH ${AttentionDismissibleSql.cte},
 $_requestEntryCte,
-$_forwardRowsCtes,
-$_historyRowsCte,
--- §6 `my desk.dot` and `for you.dot`. Both expressions live in
--- `AttentionDismissibleSql` so the M1 test composes the *same* rule instead
--- of a hand-copy of it — U15R-d's verify pass caught exactly that drift.
-my_desk_dot AS (
-  SELECT (${AttentionDismissibleSql.myDeskDotExpression}) AS value
-),
-for_you_dot AS (
-  SELECT (${AttentionDismissibleSql.forYouDotExpression}) AS value
-),
--- §6 `my desk.count`. Also one definition. U18c retired the three legacy
--- totals this used to sit beside. History has separate account-wide totals.
-my_desk_count AS (
-  ${AttentionDismissibleSql.myDeskCountExpression}
-),
--- U16c-1 — the *Dismiss all* enablement signal. The capture set of the sweep,
--- composed rather than restated, so the control and the action cannot drift.
-for_you_sweep_eligible AS (
-  SELECT (${AttentionDismissibleSql.forYouSweepEligibleExpression}) AS value
-),
-for_you_receipt_sweep_eligible AS (
-  SELECT (${AttentionDismissibleSql.forYouReceiptSweepEligibleExpression}) AS value
-),
-history_summary AS (
-  SELECT
-    COUNT(*) FILTER (WHERE v.history_unread)::int AS unread_total,
-    COUNT(*) FILTER (WHERE ${AttentionDismissibleSql.liveObligation('v')})::int AS needs_you_total
-  FROM history_rows v
-)
+${_forwardCandidateCte(historyClosesOnly: true)}
 SELECT
-  history_summary.unread_total,
-  history_summary.needs_you_total,
-  my_desk_dot.value AS my_desk_dot,
-  for_you_dot.value AS for_you_dot,
-  my_desk_count.value AS my_desk_count,
-  for_you_sweep_eligible.value AS for_you_sweep_eligible,
-  for_you_receipt_sweep_eligible.value AS for_you_receipt_sweep_eligible
-FROM my_desk_dot, for_you_dot, my_desk_count, for_you_sweep_eligible,
-  for_you_receipt_sweep_eligible, history_summary
+  (COUNT(*) FILTER (WHERE ${AttentionDismissibleSql.historyAttention('v')}) + (
+    SELECT COUNT(*) FROM forward_candidate ii
+    WHERE ii.outcome_unseen
+      AND ${AttentionDismissibleSql.outcomeReadabilityGuard}
+  ))::int AS unread_total,
+  COUNT(*) FILTER (WHERE ${AttentionDismissibleSql.liveObligation('v')})::int AS needs_you_total,
+  (${AttentionDismissibleSql.myDeskDotExpression}) AS my_desk_dot,
+  (${AttentionDismissibleSql.forYouDotExpression}) AS for_you_dot,
+  (${AttentionDismissibleSql.myDeskCountExpression}) AS my_desk_count,
+  (${AttentionDismissibleSql.forYouSweepEligibleExpression}) AS for_you_sweep_eligible,
+  (${AttentionDismissibleSql.forYouReceiptSweepEligibleExpression}) AS for_you_receipt_sweep_eligible
+FROM visible v
 ''',
           variables: [Variable<String>(accountId)],
         )
@@ -406,8 +380,28 @@ request_entry AS (
   WHERE state.account_id = $1
 )''';
 
-  static String get _forwardRowsCtes =>
+  static String _historyCloseRelayExists(String beaconId, String createdAt) =>
       '''
+EXISTS (
+      SELECT 1 FROM visible relay
+      WHERE relay.beacon_id = $beaconId
+        AND relay.presentation_key = 'relay_received'
+        AND relay.seen_at < $createdAt
+        AND relay.cleared_at < $createdAt
+    )''';
+
+  static String _forwardCandidateCte({bool historyClosesOnly = false}) {
+    // History's unread count only needs close candidates whose earlier relay
+    // was cleared. Restrict them before checking readability or building rows.
+    const closePosition =
+        'GREATEST(COALESCE(re.first_entry_at, ii.latest_forward_at), ii.outcome_changed_at)';
+    final historyFilter = historyClosesOnly
+        ? '''
+AND ii.status = 3
+    AND (ii.beacon_id IN (SELECT scope.beacon_id FROM scope)) IS NOT TRUE
+    AND ${_historyCloseRelayExists('ii.beacon_id', closePosition)}'''
+        : '';
+    return '''
 -- #747: every condition that needs no visibility check, materialized before
 -- the readability guard below. Inlined, the guard (it reads only inbox
 -- columns) ran on each of the viewer's inbox rows before the join dropped
@@ -434,6 +428,7 @@ forward_candidate AS MATERIALIZED (
   JOIN public.beacon b ON b.id = ii.beacon_id
   LEFT JOIN request_entry re ON re.beacon_id = ii.beacon_id
   WHERE ii.user_id = \$1
+    $historyFilter
     AND b.kind = 0
     -- #412: the author's own Request is never an outcome of theirs ("You
     -- offered help"); it lives on My Work. Mirrored in Set O
@@ -458,7 +453,12 @@ forward_candidate AS MATERIALIZED (
       ii.status <> 0
       OR ii.beacon_id IN (SELECT scope.beacon_id FROM scope)
     )
-),
+)''';
+  }
+
+  static String get _forwardRowsCtes =>
+      '''
+${_forwardCandidateCte()},
 eligible_forward AS (
   SELECT
     ii.*,
@@ -719,13 +719,7 @@ history_rows AS (
     NULL::public.notification_outbox, to_jsonb(f)
   ) receipt
   WHERE f.forward_outcome = 'closedBeforeResponse'
-    AND EXISTS (
-      SELECT 1 FROM visible relay
-      WHERE relay.beacon_id = f.beacon_id
-        AND relay.presentation_key = 'relay_received'
-        AND relay.seen_at < f.created_at
-        AND relay.cleared_at < f.created_at
-    )
+    AND ${_historyCloseRelayExists('f.beacon_id', 'f.created_at')}
 )''';
 
   static String get _activityPageStreamCte =>

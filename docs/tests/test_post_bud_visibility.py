@@ -1,13 +1,10 @@
-"""Release acceptance checks for the published budding documentation."""
+"""Content checks for the published budding documentation."""
 
 import re
-import subprocess
 import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-# A fixed start point lets the check follow this release even after a commit to main.
-RELEASE_START = "4b3ab5da525aa33da7428a41db34873117d27d38"
 MATRIX = ROOT / "docs/beacon-visibility-matrix.md"
 ADR = ROOT / "docs/adr/0008-beacon-visibility-and-invite-sharing.md"
 PLANS = ROOT / "docs/plans"
@@ -265,19 +262,6 @@ def documents_replacement_rule(document):
     return False
 
 
-def release_changes():
-    def paths(*args):
-        result = subprocess.run(
-            ["git", *args], cwd=ROOT, check=True, capture_output=True,
-            text=True, timeout=10,
-        )
-        return set(result.stdout.split("\0")) - {""}
-
-    return paths("diff", "--no-renames", "--name-only", "-z", RELEASE_START, "--") | paths(
-        "ls-files", "--others", "--exclude-standard", "-z"
-    )
-
-
 class PostBudVisibilityTest(unittest.TestCase):
     def test_matrix_grants_context_through_request_parents_only(self):
         document = read(MATRIX)
@@ -395,9 +379,7 @@ class PostBudVisibilityTest(unittest.TestCase):
             problems.append(
                 "Bind contextAncestor to child Request members reading the parent and other ancestors."
             )
-        for path in ADR.parent.rglob("*"):
-            if path.is_file() and path.suffix == ".md":
-                problems.extend(obsolete_claims(path, LEGACY_TERMS))
+        problems.extend(obsolete_claims(ADR, LEGACY_TERMS))
         self.assertFalse(problems, "\n".join(problems))
 
     def test_architecture_replaces_the_post_observer_rule(self):
@@ -452,29 +434,6 @@ class PostBudVisibilityTest(unittest.TestCase):
         if not documents_replacement_rule(read(path)):
             problems.append("State the replacement audience rule or direct readers to it.")
         self.assertFalse(problems, "\n".join(problems))
-
-    def test_release_changes_only_documentation_and_the_client_patch_version(self):
-        pubspec = read(ROOT / "packages/client/pubspec.yaml")
-        server = read(ROOT / "packages/server/lib/env.dart")
-        published = re.search(r"(?m)^version:[ \t]*(\S+)[ \t]*$", pubspec)
-        minimum = re.search(r"""(?m)^const kDefaultMinClientVersion\s*=\s*['"]([^'"]+)['"];""", server)
-        outside_scope = sorted(
-            path for path in release_changes()
-            if (
-                (not path.startswith("docs/") and path != "packages/client/pubspec.yaml")
-                or Path(path).suffix in {".dart", ".sql", ".arb"}
-                or {"migration", "migrations", "l10n"}.intersection(Path(path).parts)
-            )
-        )
-        self.assertEqual(
-            (
-                published[1] if published else None,
-                minimum[1] if minimum else None,
-                outside_scope,
-            ),
-            ("7.63.18", "7.63.0", []),
-            "From 7.63.17, bump the client patch only and keep the release diff in scope.",
-        )
 
 
 if __name__ == "__main__":

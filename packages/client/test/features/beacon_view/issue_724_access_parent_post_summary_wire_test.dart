@@ -4,7 +4,6 @@ import 'package:tentura_root/domain/entity/beacon_access.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
-import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon_view/ui/widget/request_access_reason_banner.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -14,28 +13,19 @@ import '../../support/phone_surface.dart';
 void main() {
   const requestId = 'Bea026c489fab';
   const postId = 'B797e767f5da1';
-  const excerpt = 'GQ1024: planning a weekend';
-
-  final postBeacon = Beacon(
-    id: postId,
-    kind: BeaconKind.post,
-    createdAt: DateTime.utc(2026, 10, 24),
-    updatedAt: DateTime.utc(2026, 10, 24),
-    author: const Profile(id: 'Ualice', displayName: 'Alice'),
-  );
-
   Beacon request({int accessReasons = 32 | 64}) => Beacon(
     id: requestId,
     title: 'GQ1024 Garden cleanup Saturday',
     createdAt: DateTime.utc(2026, 10, 24, 1),
     updatedAt: DateTime.utc(2026, 10, 24, 1),
+    lineageParentBeaconId: postId,
     accessLevel: BeaconAccessLevel.observer,
     accessReasons: accessReasons,
     author: const Profile(id: 'Ualice', displayName: 'Alice'),
   );
 
   testWidgets(
-    'Russian phone shows related Request access with a named Post parent',
+    'Russian phone explains observer access for a Request linked to a Post',
     (
       tester,
     ) async {
@@ -50,8 +40,6 @@ void main() {
             child: Scaffold(
               body: RequestAccessReasonBanner(
                 beacon: request(),
-                parent: postBeacon,
-                parentPostExcerpt: excerpt,
               ),
             ),
           ),
@@ -71,7 +59,7 @@ void main() {
   );
 
   testWidgets(
-    'Russian phone shows related Request access with an empty Post excerpt',
+    'Russian phone explains observer access without a lineage link',
     (
       tester,
     ) async {
@@ -85,8 +73,7 @@ void main() {
           home: TenturaResponsiveScope(
             child: Scaffold(
               body: RequestAccessReasonBanner(
-                beacon: request(),
-                parent: postBeacon,
+                beacon: request().copyWith(lineageParentBeaconId: null),
               ),
             ),
           ),

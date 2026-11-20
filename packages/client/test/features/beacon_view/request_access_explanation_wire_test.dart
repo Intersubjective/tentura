@@ -1,12 +1,22 @@
+import 'dart:io';
+
+import 'package:analyzer/dart/analysis/utilities.dart';
+import 'package:analyzer/dart/ast/ast.dart';
+import 'package:analyzer/dart/ast/visitor.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura_root/domain/entity/beacon_access.dart';
 
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/screen/beacon_view_screen.dart';
+import 'package:tentura/features/beacon_view/ui/widget/beacon_operational_header_card.dart';
+import 'package:tentura/features/beacon_view/ui/widget/beacon_showcase_surface.dart';
 import 'package:tentura/features/beacon_view/ui/widget/request_access_reason_banner.dart';
+import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../../support/phone_surface.dart';
 import '../../support/remote_wire_harness.dart';
@@ -93,74 +103,82 @@ const _postSummary = {
   'expiresAt': null,
 };
 
+Future<(BeaconViewCubit, List<WireSent>)> _loadRequest(
+  WidgetTester tester,
+) async {
+  final sent = <WireSent>[];
+  final realtime = buildTestRealtimeSync();
+  addTearDown(realtime.port.dispose);
+  late BeaconViewCubit cubit;
+  await tester.runAsync(() async {
+    await withRemoteWire(
+      const {},
+      sent,
+      (remote) async {
+        final repository = BeaconRepository(remote, realtime.port);
+        cubit = BeaconViewCubit(
+          id: _requestId,
+          myProfile: _viewer,
+          beaconViewCase: buildTestBeaconViewCase(
+            beaconRepo: repository,
+            realtimeSyncCase: realtime.case_,
+          ),
+          effects: FakeUiEffectPort(),
+        );
+        addTearDown(() => tester.runAsync(repository.dispose));
+        addTearDown(() => tester.runAsync(cubit.close));
+
+        if (!cubit.state.beaconContextLoaded) {
+          await cubit.stream
+              .firstWhere((state) => state.beaconContextLoaded)
+              .timeout(_deadline);
+        }
+        // Drain the background reads launched when Request content arrives.
+        await pumpEventQueue();
+      },
+      responseFor: (call) async => switch (call.operationName) {
+        'BeaconFetchById' => _beaconRead(
+          isPost: call.variables['id'] == _postId,
+        ),
+        'BeaconParentReference' => {
+          '__typename': 'query_root',
+          'beaconParentReference': {
+            '__typename': 'v2_BeaconParentReference',
+            'state': 'available',
+            'beaconId': _postId,
+            'title': '',
+            'isPost': true,
+          },
+        },
+        'BeaconAdmittedHelpersRoster' || 'BeaconTeamAcquaintances' => {
+          '__typename': 'query_root',
+          'beacon_by_pk': {
+            '__typename': 'beacon',
+            'id': _requestId,
+            'admitted_helpers': <Object>[],
+          },
+        },
+        'PostSummary' => {
+          '__typename': 'query_root',
+          'postSummary': _postSummary,
+        },
+        _ => throw StateError(
+          'Unexpected GraphQL operation: ${call.operationName}',
+        ),
+      },
+    ).timeout(_deadline);
+  });
+
+  return (cubit, sent);
+}
+
 void main() {
   testWidgets(
     'an observer opens a Request without looking up its access parent',
     (
       tester,
     ) async {
-      final sent = <WireSent>[];
-      final realtime = buildTestRealtimeSync();
-      addTearDown(realtime.port.dispose);
-      late BeaconViewCubit cubit;
-      await tester.runAsync(() async {
-        await withRemoteWire(
-          const {},
-          sent,
-          (remote) async {
-            final repository = BeaconRepository(remote, realtime.port);
-            cubit = BeaconViewCubit(
-              id: _requestId,
-              myProfile: _viewer,
-              beaconViewCase: buildTestBeaconViewCase(
-                beaconRepo: repository,
-                realtimeSyncCase: realtime.case_,
-              ),
-              effects: FakeUiEffectPort(),
-            );
-            addTearDown(() => tester.runAsync(repository.dispose));
-            addTearDown(() => tester.runAsync(cubit.close));
-
-            if (!cubit.state.beaconContextLoaded) {
-              await cubit.stream
-                  .firstWhere((state) => state.beaconContextLoaded)
-                  .timeout(_deadline);
-            }
-            // Drain the background reads launched when Request content arrives.
-            await pumpEventQueue();
-          },
-          responseFor: (call) async => switch (call.operationName) {
-            'BeaconFetchById' => _beaconRead(
-              isPost: call.variables['id'] == _postId,
-            ),
-            'BeaconParentReference' => {
-              '__typename': 'query_root',
-              'beaconParentReference': {
-                '__typename': 'v2_BeaconParentReference',
-                'state': 'available',
-                'beaconId': _postId,
-                'title': '',
-                'isPost': true,
-              },
-            },
-            'BeaconAdmittedHelpersRoster' || 'BeaconTeamAcquaintances' => {
-              '__typename': 'query_root',
-              'beacon_by_pk': {
-                '__typename': 'beacon',
-                'id': _requestId,
-                'admitted_helpers': <Object>[],
-              },
-            },
-            'PostSummary' => {
-              '__typename': 'query_root',
-              'postSummary': _postSummary,
-            },
-            _ => throw StateError(
-              'Unexpected GraphQL operation: ${call.operationName}',
-            ),
-          },
-        ).timeout(_deadline);
-      });
+      final (cubit, sent) = await _loadRequest(tester);
 
       expect(cubit.state.beacon.id, _requestId);
       expect(cubit.state.beacon.accessLevel, BeaconAccessLevel.observer);
@@ -205,10 +223,6 @@ void main() {
       ];
       expect(
         [
-          (
-            parent: cubit.state.accessParent,
-            excerpt: cubit.state.accessParentPostExcerpt,
-          ),
           reads,
           find.text(_relatedText).evaluate().length,
           find
@@ -217,7 +231,6 @@ void main() {
               .length,
         ],
         [
-          (parent: null, excerpt: ''),
           [('BeaconFetchById', _requestId)],
           1,
           0,
@@ -226,4 +239,182 @@ void main() {
       );
     },
   );
+
+  testWidgets(
+    'the showcase and operational header explain related access from the Request alone',
+    (tester) async {
+      final (cubit, _) = await _loadRequest(tester);
+      final host = beaconViewHarnessHost(beaconId: _requestId);
+      addTearDown(() async {
+        await tester.pumpWidget(const SizedBox());
+        final closing = host.close();
+        await tester.pump();
+        await closing;
+        await unregisterBeaconViewHarnessGetIt();
+      });
+      await pumpBeaconViewHarness(
+        tester,
+        size: kPhoneSurface,
+        locale: const Locale('ru'),
+        beaconState: cubit.state,
+        beaconViewCubit: cubit,
+        threadsState: beaconViewHarnessThreadsState(authorId: _author.id),
+        host: host,
+      );
+      await tester.pumpAndSettle();
+
+      void expectReadableBanner(Type surface, String copy) {
+        final text = find.descendant(
+          of: find.byType(surface),
+          matching: find.text(copy),
+        );
+        expect(text, findsOneWidget);
+        expect(
+          tester.renderObject<RenderParagraph>(text).didExceedMaxLines,
+          isFalse,
+        );
+        expect(tester.takeException(), isNull);
+      }
+
+      expectReadableBanner(BeaconShowcaseSurface, _relatedText);
+      final beacon = cubit.state.beacon;
+      for (final (locale, copy) in [
+        (const Locale('ru'), _relatedText),
+        (
+          const Locale('en'),
+          'You can see this request because you take part in a related request.',
+        ),
+      ]) {
+        for (final (level, reasons, shown) in [
+          (BeaconAccessLevel.observer, 64, true),
+          (BeaconAccessLevel.observer, 128, true),
+          (BeaconAccessLevel.observer, 32 | 64, true),
+          (BeaconAccessLevel.member, 64, false),
+          (BeaconAccessLevel.author, 64, false),
+          (null, 64, false),
+          (BeaconAccessLevel.observer, 8, false),
+          (BeaconAccessLevel.observer, 16 | 64, false),
+        ]) {
+          final state = cubit.state.copyWith(
+            beacon: beacon.copyWith(accessLevel: level, accessReasons: reasons),
+          );
+          await tester.pumpWidget(
+            MaterialApp(
+              locale: locale,
+              theme: TenturaTheme.light(),
+              localizationsDelegates: L10n.localizationsDelegates,
+              supportedLocales: L10n.supportedLocales,
+              home: TenturaResponsiveScope(
+                child: Scaffold(
+                  body: BeaconOperationalHeaderCard(
+                    state: state,
+                    onAuthorTap: () {},
+                    showHudRows: false,
+                  ),
+                ),
+              ),
+            ),
+          );
+          await tester.pumpAndSettle();
+          if (shown) {
+            expectReadableBanner(BeaconOperationalHeaderCard, copy);
+          } else {
+            expect(
+              find.descendant(
+                of: find.byType(RequestAccessReasonBanner),
+                matching: find.byType(Text),
+              ),
+              findsNothing,
+              reason: 'No access explanation for $level with reasons $reasons.',
+            );
+            expect(tester.takeException(), isNull);
+          }
+        }
+      }
+
+      const constructor = RequestAccessReasonBanner.new;
+      final obsoleteInputs = <Symbol, Object>{
+        #parent: beacon,
+        const Symbol(
+          'parentPost'
+          'Excerpt',
+        ): 'Unrelated Post',
+      };
+      for (final entry in obsoleteInputs.entries) {
+        expect(
+          () => Function.apply(
+            constructor,
+            [],
+            {#beacon: beacon, entry.key: entry.value},
+          ),
+          throwsNoSuchMethodError,
+          reason: 'The banner must reject the obsolete argument ${entry.key}.',
+        );
+      }
+    },
+  );
+
+  test(
+    'Request access callers and tests carry no parent data for the banner',
+    () {
+      const parentState =
+          'access'
+          'Parent';
+      const postExcerpt =
+          'parentPost'
+          'Excerpt';
+      const forbidden = [parentState, postExcerpt];
+      final violations = <String>[];
+      for (final directory in [Directory('lib'), Directory('test')]) {
+        for (final file
+            in directory.listSync(recursive: true).whereType<File>()) {
+          if (!file.path.endsWith('.dart')) continue;
+          final source = file.readAsStringSync();
+          for (final name in forbidden.where(source.contains)) {
+            violations.add('${file.path} refers to $name');
+          }
+          if (!source.contains('RequestAccessReasonBanner') ||
+              !source.contains('parent')) {
+            continue;
+          }
+
+          final parsed = parseString(content: source, path: file.path);
+          final calls = _BannerParentArguments();
+          parsed.unit.accept(calls);
+          for (final argument in calls.arguments) {
+            final line = parsed.lineInfo
+                .getLocation(argument.offset)
+                .lineNumber;
+            violations.add('${file.path}:$line passes parent to the banner');
+          }
+        }
+      }
+      expect(violations..sort(), isEmpty);
+    },
+  );
+}
+
+class _BannerParentArguments extends RecursiveAstVisitor<void> {
+  final arguments = <NamedArgument>[];
+
+  void _record(String name, ArgumentList argumentList) {
+    if (name != 'RequestAccessReasonBanner') return;
+    arguments.addAll(
+      argumentList.arguments.whereType<NamedArgument>().where(
+        (argument) => argument.name.lexeme == 'parent',
+      ),
+    );
+  }
+
+  @override
+  void visitInstanceCreationExpression(InstanceCreationExpression node) {
+    _record(node.constructorName.type.name.lexeme, node.argumentList);
+    super.visitInstanceCreationExpression(node);
+  }
+
+  @override
+  void visitMethodInvocation(MethodInvocation node) {
+    _record(node.methodName.name, node.argumentList);
+    super.visitMethodInvocation(node);
+  }
 }
