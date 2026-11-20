@@ -228,6 +228,92 @@ void main() {
     });
   });
 
+  group('Sentry filters expected browser session changes', () {
+    const accountChanged = AuthSessionAccountChangedException();
+    const accountChangedType = 'AuthSessionAccountChangedException';
+    const reloadMessage = 'Your account changed in another tab. Reloading…';
+
+    test('an account switch in another tab is benign when thrown', () {
+      expect(isBenignSentryThrowable(accountChanged), isTrue);
+    });
+
+    test('the English account switch reload message is benign', () {
+      expect(isBenignSentryExceptionText(reloadMessage), isTrue);
+    });
+
+    test('a named account switch event with the reload message is dropped', () {
+      expect(
+        isBenignSentryEvent(
+          _exceptionEvent(accountChangedType, reloadMessage),
+          Hint(),
+        ),
+        isTrue,
+      );
+    });
+
+    test('the account switch event type is enough to drop the event', () {
+      final event = _exceptionEvent(accountChangedType, '');
+
+      expect(isBenignSentryEvent(event, Hint()), isTrue);
+    });
+
+    test('the reload message identifies a minified account switch event', () {
+      expect(
+        isBenignSentryEvent(
+          _exceptionEvent('minified:Xy', reloadMessage),
+          Hint(),
+        ),
+        isTrue,
+      );
+    });
+
+    test(
+      'beforeSend drops a minified event carrying the account switch',
+      () async {
+        final event = SentryEvent(
+          throwable: accountChanged,
+          exceptions: [
+            SentryException(type: 'minified:Xy', value: '$accountChanged'),
+          ],
+        );
+
+        expect(await _runBeforeSend(event), isNull);
+      },
+    );
+
+    test(
+      'unexpected state errors and unrelated minified events still report',
+      () {
+        expect(isBenignSentryThrowable(StateError('unexpected')), isFalse);
+        expect(
+          isBenignSentryEvent(
+            _exceptionEvent('minified:Xy', 'Bad state: boom'),
+            Hint(),
+          ),
+          isFalse,
+        );
+      },
+    );
+
+    test('existing session recovery errors remain benign', () {
+      for (final (type, error) in const [
+        ('AuthSessionLostException', AuthSessionLostException()),
+        ('SessionAuthRejectedException', SessionAuthRejectedException()),
+        (
+          'SessionAccountMismatchException',
+          SessionAccountMismatchException('Alice'),
+        ),
+      ]) {
+        expect(isBenignSentryThrowable(error), isTrue, reason: type);
+        expect(
+          isBenignSentryEvent(_exceptionEvent(type, '$error'), Hint()),
+          isTrue,
+          reason: type,
+        );
+      }
+    });
+  });
+
   group('expected GraphQL business errors are not Sentry issues', () {
     test('"Description is required" validation text is benign', () {
       expect(isBenignSentryExceptionText('Description is required'), isTrue);

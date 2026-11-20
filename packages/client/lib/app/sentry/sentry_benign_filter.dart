@@ -24,6 +24,7 @@ bool isBenignSentryThrowable(Object? error) {
       error is RemoteApiRetryLaterException ||
       error is BeaconLobbyUnavailableException ||
       error is AuthSessionLostException ||
+      error is AuthSessionAccountChangedException ||
       error is AuthenticationNoKeyException ||
       error is SessionAuthRejectedException ||
       error is SessionAccountMismatchException) {
@@ -120,6 +121,7 @@ bool isBenignSentryEvent(SentryEvent event, Hint hint) {
         type.contains('RequestTimeoutException') ||
         type.contains('SocketException') ||
         type.contains('AuthSessionLostException') ||
+        type.contains('AuthSessionAccountChangedException') ||
         type.contains('AuthenticationNoKeyException') ||
         type.contains('SessionAuthRejectedException') ||
         type.contains('SessionAccountMismatchException')) {
@@ -240,7 +242,7 @@ bool _isUnlaidOutHitTest({
 ///   reported. `kind=server` (a GraphQL error) and `kind=unknown` (a parse or
 ///   mapping error) are always reported. The screen label is not a filter.
 ///
-/// The three texts match only when they are the whole exception text
+/// These patterns match only when they are the whole exception text
 /// (optionally behind `Exception: ` / `label: ` prefixes), so a programming
 /// error that merely quotes them (`StateError('... Id not found ...')`) is
 /// still a real fatal.
@@ -252,6 +254,7 @@ final _expectedErrorText = RegExp(
   'Plan text is required|'
   '${RegExp.escape(const RemoteApiRetryLaterException(Duration.zero).toEn)}|'
   '${RegExp.escape(const RequestTimeoutException().toEn)}|'
+  '${RegExp.escape(const AuthSessionAccountChangedException().toEn)}|'
   r'Plan text must be at most \d+ characters|'
   'Only open requests can be edited|'
   'Image is not attached to this request|'
