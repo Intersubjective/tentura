@@ -5,11 +5,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/entity/beacon_activity_event_consts.dart';
 import 'package:tentura/domain/entity/beacon_fact_card_consts.dart';
 import 'package:tentura/domain/entity/beacon_fact_history_entry.dart';
 import 'package:tentura/domain/entity/beacon_kind.dart';
 import 'package:tentura/features/beacon_threads/data/repository/beacon_fact_card_repository.dart';
+import 'package:tentura/features/beacon_threads/ui/widget/fact_actions_sheet.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/fact_history_sheet.dart';
+import 'package:tentura/features/beacon_view/ui/widget/beacon_pinned_fact_card.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../../support/phone_surface.dart';
@@ -63,47 +66,106 @@ final _longHistory = [
     ),
 ];
 
+Future<void> _openPinnedFact(
+  BuildContext context,
+  VoidCallback openHistory,
+) {
+  final fact = copiedFact(factText: _editedBody);
+  return showTenturaAdaptiveSheet<void>(
+    context: context,
+    builder: (sheetContext) => BeaconPinnedFactCard(
+      fact: fact,
+      l10n: L10n.of(sheetContext)!,
+      onManage: () => unawaited(
+        showFactActionsHostSheet(
+          context,
+          fact: fact,
+          canMutate: false,
+          onCorrect:
+              ({
+                required factCardId,
+                required newText,
+                attachmentsJson,
+              }) async {},
+          onRemove: ({required factCardId}) async {},
+          onSetVisibility:
+              ({required factCardId, required visibility}) async {},
+          onEditHistory: (_) => openHistory(),
+        ),
+      ),
+    ),
+  );
+}
+
 Future<void> _openHistory(
   WidgetTester tester,
   BeaconFactCardRepository repository, {
   Size surface = kPhoneSurface,
   bool canMutate = false,
   bool hasOrigin = true,
+  int baseRevisionSeq = 6,
+  bool fromPinnedFacts = false,
 }) async {
   tester.view.devicePixelRatio = 1;
   tester.view.physicalSize = surface;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
+  final page = TenturaResponsiveScope(
+    child: Scaffold(
+      body: Builder(
+        builder: (context) {
+          void openHistory() => unawaited(
+            showFactHistorySheet(
+              context,
+              beaconId: 'Bcopy0000001',
+              factCardId: 'Fcopy0000001',
+              baseRevisionSeq: baseRevisionSeq,
+              canMutate: canMutate,
+              originBeaconKind: hasOrigin ? BeaconKind.request.value : null,
+              repository: repository,
+            ),
+          );
+
+          return TextButton(
+            onPressed: fromPinnedFacts
+                ? () => unawaited(_openPinnedFact(context, openHistory))
+                : openHistory,
+            child: const Text('Показать историю'),
+          );
+        },
+      ),
+    ),
+  );
   await tester.pumpWidget(
     MaterialApp(
-      theme: TenturaTheme.light(),
+      theme: fromPinnedFacts
+          ? TenturaTheme.light().copyWith(platform: TargetPlatform.linux)
+          : TenturaTheme.light(),
       locale: const Locale('ru'),
       localizationsDelegates: L10n.localizationsDelegates,
       supportedLocales: L10n.supportedLocales,
-      home: TenturaResponsiveScope(
-        child: Scaffold(
-          body: Builder(
-            builder: (context) => TextButton(
-              onPressed: () => unawaited(
-                showFactHistorySheet(
-                  context,
-                  beaconId: 'Bcopy0000001',
-                  factCardId: 'Fcopy0000001',
-                  baseRevisionSeq: 6,
-                  canMutate: canMutate,
-                  originBeaconKind: hasOrigin ? BeaconKind.request.value : null,
-                  repository: repository,
-                ),
-              ),
-              child: const Text('Показать историю'),
-            ),
-          ),
-        ),
-      ),
+      home: fromPinnedFacts
+          ? Navigator(
+              onGenerateRoute: (_) =>
+                  MaterialPageRoute<void>(builder: (_) => page),
+            )
+          : page,
     ),
   );
   await tester.tap(find.text('Показать историю'));
   await tester.pumpAndSettle();
+  if (fromPinnedFacts) {
+    final card = find.byType(BeaconPinnedFactCard);
+    final cardRect = tester.getRect(card);
+    await tester.tapAt(
+      Offset(cardRect.center.dx, cardRect.top + 12),
+      buttons: kSecondaryMouseButton,
+      kind: PointerDeviceKind.mouse,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('История изменений'));
+    await tester.pumpAndSettle();
+  }
 }
 
 Finder _author(String name) => find.textContaining('$name · ');
@@ -153,6 +215,7 @@ Future<void> _reachOrigin(
   WidgetTester tester, {
   bool wheel = false,
   bool desktop = false,
+  PointerDeviceKind dragKind = PointerDeviceKind.touch,
 }) async {
   for (var attempt = 0; attempt < 8; attempt++) {
     final sheet = _sheetRect(tester, desktop: desktop);
@@ -163,7 +226,11 @@ Future<void> _reachOrigin(
     if (wheel) {
       await _wheel(tester, sheet.center, 220);
     } else {
-      await tester.dragFrom(sheet.center, const Offset(0, -220));
+      await tester.dragFrom(
+        sheet.center,
+        const Offset(0, -220),
+        kind: dragKind,
+      );
       await tester.pumpAndSettle();
     }
   }
@@ -217,7 +284,319 @@ Future<void> _expectPhoneHistoryScrollsByWheel(WidgetTester tester) async {
   expect(sheet.height, lessThanOrEqualTo(_maxSheetHeight));
 }
 
+const _copyAuthor = 'QA-FX Anna 1104';
+const _sourceBody = 'A 1293';
+const _editedBody = 'A 1293 F-mixQ';
+const _copiedLabel = '$_copyAuthor принёс(ла) это сюда';
+
+List<BeaconFactHistoryEntry> _copiedHistory({String olderBody = _sourceBody}) {
+  final now = DateTime.now();
+  return [
+    BeaconFactHistoryEdited(
+      id: 'revision-2',
+      factCardId: 'Fcopy0000001',
+      seq: 2,
+      factText: _editedBody,
+      actorId: 'Ueditor',
+      actorTitle: _copyAuthor,
+      createdAt: now.subtract(const Duration(seconds: 10)),
+    ),
+    BeaconFactHistoryCopied(
+      id: 'revision-1',
+      factCardId: 'Fcopy0000001',
+      seq: 1,
+      factText: olderBody,
+      actorId: 'Ueditor',
+      actorTitle: _copyAuthor,
+      createdAt: now.subtract(const Duration(hours: 2, minutes: 30)),
+    ),
+  ];
+}
+
+typedef _HistorySurface = ({Size size, bool desktop, double clippedHeight});
+
+Future<void> _openCopyHistory(
+  WidgetTester tester,
+  BeaconFactCardRepository repository,
+  _HistorySurface surface,
+) => _openHistory(
+  tester,
+  repository,
+  surface: surface.size,
+  baseRevisionSeq: 2,
+);
+
+Future<void> _reachCopyContent(
+  WidgetTester tester,
+  _HistorySurface surface,
+  List<Finder> targets, {
+  bool wheel = false,
+}) async {
+  for (final target in targets) {
+    for (var attempt = 0; attempt < 12; attempt++) {
+      final sheet = _sheetRect(tester, desktop: surface.desktop);
+      if (target.evaluate().length == 1 &&
+          _inside(tester.getRect(target), sheet)) {
+        break;
+      }
+      if (wheel) {
+        await _wheel(tester, sheet.center, 48);
+      } else {
+        await tester.timedDragFrom(
+          sheet.center,
+          const Offset(0, -56),
+          const Duration(milliseconds: 400),
+        );
+        await tester.pumpAndSettle();
+      }
+    }
+    _expectFullyVisible(
+      tester,
+      target,
+      _sheetRect(tester, desktop: surface.desktop),
+    );
+  }
+}
+
+void _expectCopyHead(
+  WidgetTester tester,
+  _HistorySurface surface, {
+  required Finder author,
+}) {
+  final sheet = _sheetRect(tester, desktop: surface.desktop);
+  expect(find.text(_restoreLabel), findsNothing);
+  for (final finder in [find.text(_title), author, _body(_editedBody)]) {
+    _expectFullyVisible(tester, finder, sheet);
+  }
+  expect(sheet.height, greaterThan(surface.clippedHeight));
+  expect(sheet.height, lessThanOrEqualTo(surface.size.height * 0.9));
+}
+
+List<Finder> _originContent() => [
+  find.text(_footer),
+  _originButton.hitTestable(),
+];
+
+void _testReadOnlyCopiedHistory() {
+  const phone = (size: kPhoneSurface, desktop: false, clippedHeight: 135.0);
+  const desktop = (size: _desktopSurface, desktop: true, clippedHeight: 113.0);
+
+  group('read-only history of a copied fact', () {
+    for (final (label, surface) in [('phone', phone), ('desktop', desktop)]) {
+      testWidgets('$label copied history from pinned facts uses one viewport', (
+        tester,
+      ) async {
+        await _openHistory(
+          tester,
+          _HistoryRepository.withEntries(_copiedHistory()),
+          surface: surface.size,
+          baseRevisionSeq: 2,
+          fromPinnedFacts: true,
+        );
+        final older = _body(_sourceBody);
+        final before = _sheetRect(tester, desktop: surface.desktop);
+        await _wheel(tester, before.center, 112);
+        final after = _sheetRect(tester, desktop: surface.desktop);
+        _expectFullyVisible(tester, older, after);
+        _expectFullyVisible(tester, _originButton.hitTestable(), after);
+        expect(after.height, greaterThan(surface.clippedHeight));
+        expect(after.height, lessThanOrEqualTo(surface.size.height * 0.9));
+        expect(
+          find.descendant(
+            of: find.byType(FactHistorySheet),
+            matching: find.byType(Scrollable),
+          ),
+          findsOneWidget,
+        );
+      });
+
+      for (final wheel in [false, true]) {
+        final gesture = wheel ? 'wheel' : 'drag';
+        testWidgets('$label $gesture reaches the earlier revision and origin', (
+          tester,
+        ) async {
+          await _openCopyHistory(
+            tester,
+            _HistoryRepository.withEntries(_copiedHistory()),
+            surface,
+          );
+          final authors = _author(_copyAuthor);
+          expect(authors, findsNWidgets(2));
+          _expectCopyHead(tester, surface, author: authors.first);
+          await _reachCopyContent(
+            tester,
+            surface,
+            [
+              authors.last,
+              find.text('$_copyAuthor · 2 ч назад'),
+              _body(_sourceBody),
+              ..._originContent(),
+            ],
+            wheel: wheel,
+          );
+        });
+      }
+
+      for (final wheel in [false, true]) {
+        final gesture = wheel ? 'wheel' : 'drag';
+        testWidgets(
+          '$label history grows on load and reaches the earlier revision and origin by $gesture',
+          (tester) async {
+            final response = Completer<BeaconFactHistoryPage>();
+            await _openCopyHistory(
+              tester,
+              _HistoryRepository(response.future),
+              surface,
+            );
+            final loading = _sheetRect(tester, desktop: surface.desktop);
+            final authors = _author(_copyAuthor);
+            expect(authors, findsNothing);
+            expect(_body(_sourceBody), findsNothing);
+
+            response.complete((entries: _copiedHistory(), nextCursor: null));
+            await tester.pumpAndSettle();
+
+            final loaded = _sheetRect(tester, desktop: surface.desktop);
+            expect(loaded.height, greaterThan(loading.height));
+            expect(authors, findsNWidgets(2));
+            _expectCopyHead(tester, surface, author: authors.first);
+            await _reachCopyContent(
+              tester,
+              surface,
+              [
+                authors.last,
+                find.text('$_copyAuthor · 2 ч назад'),
+                _body(_sourceBody),
+                ..._originContent(),
+              ],
+              wheel: wheel,
+            );
+          },
+        );
+      }
+
+      for (final variant in [
+        'empty copied revision',
+        'visibility event',
+        'imported revision',
+      ]) {
+        testWidgets('$label history reaches the $variant and origin', (
+          tester,
+        ) async {
+          final [head, copy] = _copiedHistory(olderBody: '');
+          final (
+            BeaconFactTimelineEntry older,
+            String label,
+          ) = switch (variant) {
+            'empty copied revision' => (copy, _copiedLabel),
+            'visibility event' => (
+              BeaconFactHistoryEvent(
+                id: 'visibility',
+                actorId: copy.actorId,
+                actorTitle: copy.actorTitle,
+                createdAt: copy.createdAt,
+                type: BeaconActivityEventTypeBits.factVisibilityChanged,
+                visibilityTo: BeaconFactCardVisibilityBits.public,
+              ),
+              '$_copyAuthor изменил(а) видимость на «Публичный»',
+            ),
+            _ => (
+              BeaconFactHistoryImported(
+                id: copy.id,
+                factCardId: copy.factCardId,
+                seq: copy.seq,
+                factText: _sourceBody,
+                actorId: copy.actorId,
+                actorTitle: copy.actorTitle,
+                createdAt: copy.createdAt,
+              ),
+              'Более ранняя история не сохранилась',
+            ),
+          };
+
+          await _openCopyHistory(
+            tester,
+            _HistoryRepository.withEntries([head, older]),
+            surface,
+          );
+          final sheet = _sheetRect(tester, desktop: surface.desktop);
+          final firstBody = _body(_editedBody);
+          for (final finder in [
+            find.text(_title),
+            _author(_copyAuthor).first,
+            firstBody,
+          ]) {
+            _expectFullyVisible(tester, finder, sheet);
+          }
+          expect(sheet.bottom, greaterThan(tester.getRect(firstBody).bottom));
+          expect(sheet.height, lessThanOrEqualTo(surface.size.height * 0.9));
+          expect(find.text(_restoreLabel), findsNothing);
+          await _reachCopyContent(
+            tester,
+            surface,
+            [
+              find.text(label),
+              if (older is BeaconFactHistoryImported) _body(_sourceBody),
+              ..._originContent(),
+            ],
+          );
+        });
+      }
+    }
+
+    testWidgets('phone wheel reaches the copied revision loaded over GraphQL', (
+      tester,
+    ) async {
+      final wire = (await tester.runAsync(
+        () => OriginWire.start(
+          origin: const {},
+          revisions: [
+            for (final entry in _copiedHistory())
+              {
+                ...wireRevisionRow(entry.seq),
+                'kind': entry.kind,
+                'actorId': entry.actorId,
+                'actorTitle': entry.actorTitle,
+                'factText': entry.factText,
+                'createdAt': entry.createdAt.toUtc().toIso8601String(),
+              },
+          ],
+        ),
+      ))!;
+      addTearDown(wire.close);
+
+      await _openCopyHistory(tester, wire.repository, phone);
+      for (var attempt = 0; attempt < 20; attempt++) {
+        if (_author(_copyAuthor).evaluate().length == 2) break;
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 50)),
+        );
+        await tester.pumpAndSettle();
+      }
+
+      expect(wire.sent, ['BeaconFactCardRevisions']);
+      final authors = _author(_copyAuthor);
+      expect(authors, findsNWidgets(2));
+      _expectCopyHead(tester, phone, author: authors.first);
+      await _reachCopyContent(
+        tester,
+        phone,
+        [
+          authors.last,
+          find.text('$_copyAuthor · 2 ч назад'),
+          find.text(_copiedLabel),
+          _body(_sourceBody),
+          ..._originContent(),
+        ],
+        wheel: true,
+      );
+    });
+  });
+}
+
 void main() {
+  _testReadOnlyCopiedHistory();
+
   testWidgets('two short revisions and the origin fit on a phone', (
     tester,
   ) async {
@@ -324,7 +703,11 @@ void main() {
     expect(dialog.height, lessThanOrEqualTo(0.9 * _desktopSurface.height));
     _expectFullyVisible(tester, find.text(_title), dialog);
     expect(_originButton.hitTestable(), findsNothing);
-    await _reachOrigin(tester, desktop: true);
+    await _reachOrigin(
+      tester,
+      desktop: true,
+      dragKind: PointerDeviceKind.mouse,
+    );
 
     final firstAuthor = _author('Автор 6');
     for (var attempt = 0; attempt < 8; attempt++) {

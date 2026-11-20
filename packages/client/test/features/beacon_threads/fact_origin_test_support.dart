@@ -11,6 +11,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' show Tristate;
 
+import 'package:flutter/gestures.dart' show PointerScrollEvent;
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -526,12 +527,28 @@ Finder historyScrollable() => find
     .first;
 
 /// Scrolls the history sheet until the row of revision [seq] is on screen.
-Future<void> scrollToRevision(WidgetTester tester, int seq) =>
-    tester.scrollUntilVisible(
-      find.textContaining(revisionActor(seq), findRichText: true).first,
-      200,
-      scrollable: historyScrollable(),
+Future<void> scrollToRevision(WidgetTester tester, int seq) async {
+  final revision = find.textContaining(revisionActor(seq));
+  final scrollable = historyScrollable();
+  final position = tester.state<ScrollableState>(scrollable).position;
+
+  while (revision.evaluate().isEmpty) {
+    final before = position.pixels;
+    await tester.sendEventToBinding(
+      PointerScrollEvent(
+        position: tester.getCenter(scrollable),
+        scrollDelta: Offset(0, position.viewportDimension),
+      ),
     );
+    await tester.pump();
+    expect(
+      position.pixels,
+      greaterThan(before),
+      reason: 'History stopped scrolling before reaching revision $seq',
+    );
+  }
+  await tester.ensureVisible(revision);
+}
 
 /// Revisions whose history row is marked for assistive technology and on
 /// screen: a semantics node in the selected state whose subtree (header and

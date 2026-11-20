@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -118,27 +119,103 @@ class _FactHistorySheetState extends State<FactHistorySheet> {
 
   @override
   Widget build(BuildContext context) {
+    final scrollBehavior = ScrollConfiguration.of(context);
     return BlocProvider.value(
       value: _cubit,
       child: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _FactHistorySheetBody(
-                canMutate: widget.canMutate,
-                highlightSeq: widget.highlightSeq,
-                onShowUndo: _showUndoBanner,
+        child: BlocBuilder<FactHistoryCubit, FactHistoryState>(
+          builder: (context, state) {
+            final l10n = L10n.of(context)!;
+            final tt = context.tt;
+            final entries = state.entries;
+            final baselines = _diffBaselines(entries);
+            final headSeq = entries
+                .whereType<BeaconFactHistoryEntry>()
+                .firstOrNull
+                ?.seq;
+            return CustomScrollView(
+              // Fit short histories under the adaptive sheet's height cap.
+              shrinkWrap: true,
+              scrollBehavior: scrollBehavior.copyWith(
+                dragDevices: {
+                  ...scrollBehavior.dragDevices,
+                  PointerDeviceKind.mouse,
+                },
               ),
-              if (widget.originBeaconKind != null)
-                _EarlierHistoryFooter(
-                  beaconId: widget.beaconId,
-                  factCardId: widget.factCardId,
+              slivers: [
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.only(
+                      left: tt.screenHPadding,
+                      right: tt.screenHPadding / 2,
+                      top: tt.rowGap,
+                      bottom: tt.rowGap / 2,
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            l10n.beaconRoomFactHistorySheetTitle,
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                        ),
+                        IconButton(
+                          tooltip: l10n.buttonClose,
+                          onPressed: () => Navigator.of(context).maybePop(),
+                          icon: Icon(Icons.close, size: tt.iconSize),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-              if (_undoBanner case final banner?) banner,
-            ],
-          ),
+                SliverPadding(
+                  padding: EdgeInsets.only(bottom: tt.rowGap),
+                  sliver: SliverList.builder(
+                    itemCount: entries.length,
+                    itemBuilder: (context, i) {
+                      final entry = entries[i];
+                      final row = _FactHistoryTimelineRow(
+                        entry: entry,
+                        olderRevision: baselines[i],
+                        canMutate: widget.canMutate,
+                        isHead:
+                            entry is BeaconFactHistoryEntry &&
+                            entry.seq == headSeq,
+                        isFirst: i == 0,
+                        isLast: i == entries.length - 1,
+                        showDividerAbove: i > 0,
+                        onShowUndo: _showUndoBanner,
+                      );
+                      if (entry is! BeaconFactHistoryEntry ||
+                          entry.seq != widget.highlightSeq) {
+                        return row;
+                      }
+                      // Mark the copied revision visually and for assistive technology.
+                      return Semantics(
+                        container: true,
+                        selected: true,
+                        child: ColoredBox(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.secondaryContainer,
+                          child: row,
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                if (widget.originBeaconKind != null)
+                  SliverToBoxAdapter(
+                    child: _EarlierHistoryFooter(
+                      beaconId: widget.beaconId,
+                      factCardId: widget.factCardId,
+                    ),
+                  ),
+                if (_undoBanner case final banner?)
+                  SliverToBoxAdapter(child: banner),
+              ],
+            );
+          },
         ),
       ),
     );
@@ -196,103 +273,6 @@ class _HistoryUndoBanner extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-class _FactHistorySheetBody extends StatelessWidget {
-  const _FactHistorySheetBody({
-    required this.canMutate,
-    required this.highlightSeq,
-    required this.onShowUndo,
-  });
-
-  final bool canMutate;
-  final int? highlightSeq;
-  final void Function({
-    required String message,
-    required String undoLabel,
-    required VoidCallback onUndo,
-  })
-  onShowUndo;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = L10n.of(context)!;
-    final tt = context.tt;
-    return BlocBuilder<FactHistoryCubit, FactHistoryState>(
-      builder: (context, state) {
-        final entries = state.entries;
-        final baselines = _diffBaselines(entries);
-        final headSeq = entries
-            .whereType<BeaconFactHistoryEntry>()
-            .firstOrNull
-            ?.seq;
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: EdgeInsets.only(
-                left: tt.screenHPadding,
-                right: tt.screenHPadding / 2,
-                top: tt.rowGap,
-                bottom: tt.rowGap / 2,
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      l10n.beaconRoomFactHistorySheetTitle,
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                  ),
-                  IconButton(
-                    tooltip: l10n.buttonClose,
-                    onPressed: () => Navigator.of(context).maybePop(),
-                    icon: Icon(Icons.close, size: tt.iconSize),
-                  ),
-                ],
-              ),
-            ),
-            ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              padding: EdgeInsets.only(bottom: tt.rowGap),
-              itemCount: entries.length,
-              itemBuilder: (context, i) {
-                final entry = entries[i];
-                final row = _FactHistoryTimelineRow(
-                  entry: entries[i],
-                  olderRevision: baselines[i],
-                  canMutate: canMutate,
-                  isHead:
-                      entries[i] is BeaconFactHistoryEntry &&
-                      (entries[i] as BeaconFactHistoryEntry).seq == headSeq,
-                  isFirst: i == 0,
-                  isLast: i == entries.length - 1,
-                  showDividerAbove: i > 0,
-                  onShowUndo: onShowUndo,
-                );
-                if (entry is! BeaconFactHistoryEntry ||
-                    entry.seq != highlightSeq) {
-                  return row;
-                }
-                // The copied revision: marked for sight and for assistive
-                // technology alike.
-                return Semantics(
-                  container: true,
-                  selected: true,
-                  child: ColoredBox(
-                    color: Theme.of(context).colorScheme.secondaryContainer,
-                    child: row,
-                  ),
-                );
-              },
-            ),
-          ],
-        );
-      },
     );
   }
 }
@@ -620,11 +600,16 @@ class _CollapsibleDiffBody extends StatefulWidget {
   State<_CollapsibleDiffBody> createState() => _CollapsibleDiffBodyState();
 }
 
-class _CollapsibleDiffBodyState extends State<_CollapsibleDiffBody> {
+class _CollapsibleDiffBodyState extends State<_CollapsibleDiffBody>
+    with AutomaticKeepAliveClientMixin<_CollapsibleDiffBody> {
   bool _expanded = false;
 
   @override
+  bool get wantKeepAlive => _expanded;
+
+  @override
   Widget build(BuildContext context) {
+    super.build(context);
     final l10n = L10n.of(context)!;
     final scheme = Theme.of(context).colorScheme;
     final fullSpan = TextSpan(children: widget.spans);
@@ -653,7 +638,10 @@ class _CollapsibleDiffBodyState extends State<_CollapsibleDiffBody> {
                     minimumSize: Size.zero,
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
-                  onPressed: () => setState(() => _expanded = true),
+                  onPressed: () {
+                    setState(() => _expanded = true);
+                    updateKeepAlive();
+                  },
                   child: Text(
                     l10n.beaconRoomFactHistoryShowFull,
                     style: TenturaText.status(scheme.primary),
