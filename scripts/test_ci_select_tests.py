@@ -69,6 +69,10 @@ class RealTreeShardsTest(unittest.TestCase):
         self.assertIn("--balance client", text)
         self.assertIn("--balance pg --reserve-last multi-connection", text)
 
+    def test_multi_connection_selection_includes_post_first_response(self):
+        files = run_select(REPO / "packages/server", "test", "--tag", "multi-connection")
+        self.assertIn("test/domain/use_case/post_first_response_pg_test.dart", files)
+
     def test_durations_file_is_well_formed(self):
         data = json.loads(DURATIONS.read_text(encoding="utf-8"))
         for family in ("client", "pg", "multi-connection"):

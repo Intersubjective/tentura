@@ -43,6 +43,7 @@ import 'package:tentura_server/env.dart';
 
 import '../../support/disposable_pg_target.dart';
 import '../../support/pg_test_public_keys.dart';
+import '../../support/pg_wait.dart';
 
 const _author = 'Ufirstrespauth1';
 const _memberB = 'Ufirstrespmemb1';
@@ -56,6 +57,9 @@ const _requestRoot = 'Rfirstrespreq001';
 
 const _kindMessage = 1;
 const _kindReaction = 2;
+const _responseBarrierKey = 104596;
+// Release the barrier before the disposable fixture diagnoses stuck backends.
+const _responseBarrierWait = Duration(seconds: 7);
 const _contactEngaged = 1;
 const _eventName = 'postFirstResponse';
 
@@ -96,6 +100,14 @@ Future<void> main() async {
       room = built.room;
       roomRepository = built.roomRepository;
       batonCase = built.batonCase;
+      final poolOverride = testPoolSizeOverride();
+      if (poolOverride != null) {
+        expect(
+          room.env.pgPoolSettings.maxConnectionCount,
+          poolOverride,
+          reason: 'The shared room fixture must honor the CI pool override',
+        );
+      }
     });
 
     setUp(() async => _seed(writer));
@@ -621,24 +633,53 @@ VALUES ('Efirstresprow001', '$_postRoot', '$_memberC', '👍')
       });
     });
 
-    test('a message and a reaction from the same member at the same time '
-        'make exactly one claim, in every round', () async {
-      for (var round = 0; round < 10; round++) {
-        await _seed(writer);
+    test(
+      'a message and a reaction from the same member at the same time '
+      'make exactly one claim, in every round',
+      tags: ['multi-connection'],
+      () async {
+        await _installResponseBarrier(writer);
+        final race = openMultiConnectionPgDatabase(target);
+        addTearDown(race.db.close);
+        final raceRoom = _buildRoom(race.db, race.env).room;
+        final poolSize = race.env.pgPoolSettings.maxConnectionCount;
+        for (var round = 0; round < 10; round++) {
+          await _seed(writer);
 
-        await Future.wait([
-          room.createMessage(
-            beaconId: _post,
-            userId: _memberB,
-            body: 'Round $round',
-          ),
-          react(_memberB),
-        ]);
+          await _requireConcurrentResponses(
+            writer,
+            round: round,
+            poolSize: poolSize,
+            sendResponses: () async {
+              await Future.wait([
+                raceRoom.createMessage(
+                  beaconId: _post,
+                  userId: _memberB,
+                  body: 'Round $round',
+                ),
+                raceRoom.reactionToggle(
+                  beaconId: _post,
+                  messageId: _postRoot,
+                  userId: _memberB,
+                  emoji: '👍',
+                ),
+              ]);
+            },
+          );
 
-        expect(await claims(_post), hasLength(1), reason: 'round $round');
-        expect(await receipts(_author), 1, reason: 'round $round');
-      }
-    });
+          final rows = await claims(_post);
+          expect(rows, hasLength(1), reason: 'round $round');
+          expect(rows.single[0], _memberB, reason: 'round $round');
+          expect(await receipts(_author), 1, reason: 'round $round');
+        }
+        expect(
+          poolSize,
+          greaterThan(1),
+          reason:
+              'The pool used for the message and reaction must allow overlap',
+        );
+      },
+    );
 
     group('repository', () {
       test('toggleReaction says whether the reaction was added', () async {
@@ -781,6 +822,97 @@ _buildRoom(
       logger: logger,
     ),
   );
+}
+
+// Pause both writes before any row trigger can lock the same Post. Only the
+// two response calls write to these tables while the observer holds the locks.
+Future<void> _installResponseBarrier(Connection writer) async {
+  await writer.execute('''
+CREATE FUNCTION public.test_pause_first_response_write() RETURNS trigger
+LANGUAGE plpgsql AS \$\$
+BEGIN
+  PERFORM pg_advisory_xact_lock($_responseBarrierKey, TG_ARGV[0]::integer);
+  RETURN NULL;
+END
+\$\$
+''');
+  await writer.execute('''
+CREATE TRIGGER test_pause_first_response_write
+BEFORE INSERT ON public.beacon_room_message
+FOR EACH STATEMENT
+EXECUTE FUNCTION public.test_pause_first_response_write('$_kindMessage')
+''');
+  await writer.execute('''
+CREATE TRIGGER test_pause_first_response_write
+BEFORE INSERT ON public.beacon_room_message_reaction
+FOR EACH STATEMENT
+EXECUTE FUNCTION public.test_pause_first_response_write('$_kindReaction')
+''');
+  addTearDown(() async {
+    await writer.execute(
+      'DROP FUNCTION public.test_pause_first_response_write() CASCADE',
+    );
+  });
+}
+
+Future<void> _requireConcurrentResponses(
+  Connection writer, {
+  required int round,
+  required int? poolSize,
+  required Future<void> Function() sendResponses,
+}) async {
+  Future<void>? responses;
+  try {
+    await writer.runTx((barrier) async {
+      await barrier.execute('''
+SELECT pg_advisory_xact_lock($_responseBarrierKey, $_kindMessage),
+       pg_advisory_xact_lock($_responseBarrierKey, $_kindReaction)
+''');
+      // Report errors after the barrier releases its locks.
+      responses = sendResponses()..ignore();
+
+      final clock = Stopwatch()..start();
+      Map<int, int> waiting;
+      do {
+        final rows = await barrier.execute('''
+SELECT objid::integer, pid FROM pg_locks
+WHERE locktype = 'advisory' AND NOT granted AND objsubid = 2
+  AND classid = $_responseBarrierKey AND objid IN ($_kindMessage, $_kindReaction)
+  AND database = (SELECT oid FROM pg_database WHERE datname = current_database())
+''', timeout: const Duration(seconds: 2));
+        waiting = {for (final row in rows) row[0]! as int: row[1]! as int};
+        if (waiting.length == 2) break;
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+      } while (clock.elapsed < _responseBarrierWait);
+      if (waiting.length < 2) {
+        final activity = await barrier.execute('''
+SELECT pid, wait_event, pg_blocking_pids(pid), query FROM pg_stat_activity
+WHERE datname = current_database() AND pid <> pg_backend_pid()
+  AND state = 'active'
+''', timeout: const Duration(seconds: 2));
+        printOnFailure('Postgres activity at the response barrier: $activity');
+      }
+      // Both transaction-scoped observer locks are still held. A waiter on
+      // either key cannot leave its BEFORE INSERT trigger, let alone commit.
+      // Require both keys and two PIDs in the same pg_locks query result.
+      expect(
+        waiting.keys,
+        unorderedEquals([_kindMessage, _kindReaction]),
+        reason:
+            'round $round: both response writes must wait before either '
+            'can commit (pool capacity $poolSize, waiting backends $waiting)',
+      );
+      expect(waiting.values.toSet(), hasLength(2), reason: 'round $round');
+    });
+  } on Object {
+    try {
+      await responses?.timeout(kCompletionWait);
+    } on Object catch (error) {
+      printOnFailure('Response cleanup after failed overlap check: $error');
+    }
+    rethrow;
+  }
+  await responses?.timeout(kCompletionWait);
 }
 
 Future<void> _seed(Connection writer) async {
