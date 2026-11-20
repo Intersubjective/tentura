@@ -54,7 +54,6 @@ Future<void> main() async {
 
   late PostBudPrivacyFixture fixture;
   late final Future<Map<String, Object?>> Function(String, String) query;
-  BeaconMetadataReader? metadata;
 
   setUpAll(() async {
     final session = await setUpDisposablePgWriter(target: target);
@@ -62,15 +61,28 @@ Future<void> main() async {
     addTearDown(
       () => tearDownDisposablePgWriter(session: session, drift: database),
     );
+    if (environment['TENTURA_BUD_PRIVACY_FIXTURE_VIEW'] == '1') {
+      // A separately tracked projection lets metadata fixtures vary the
+      // destination permission without changing the root beacon permission.
+      await session.writer.execute('''
+CREATE VIEW public.beacon_privacy_fixture AS
+SELECT id, user_id, parent_beacon_id, title FROM public.beacon
+''');
+      await session.writer.execute(r'''
+CREATE FUNCTION public.beacon_privacy_fixture_can_read_content(
+  fixture_row public.beacon_privacy_fixture, hasura_session json
+) RETURNS boolean LANGUAGE sql STABLE AS $$
+  SELECT public.beacon_get_can_read_content(beacon, hasura_session)
+  FROM public.beacon AS beacon WHERE beacon.id = fixture_row.id
+$$
+''');
+    }
     fixture = PostBudPrivacyFixture(
       session.writer,
       database,
       target.databaseEnv,
     );
-    if (!useHasura) {
-      metadata = BeaconMetadataReader.fromRepo(session.writer);
-      return;
-    }
+    if (!useHasura) return;
 
     final jwt = loadJwtKeysForHasuraPgTests();
     final auth = AuthCase(
@@ -111,6 +123,9 @@ Future<void> main() async {
   test(
     'Hasura reveals Request lineage only to viewers who can read its source',
     () async {
+      final metadata = useHasura
+          ? null
+          : await BeaconMetadataReader.fromRepo(fixture.writer);
       await fixture.seedPost();
       final childField = RegExp('child|descendant', caseSensitive: false);
       final countField = RegExp('count|total|number|num', caseSensitive: false);
@@ -257,11 +272,18 @@ VALUES (@fork, '$_bob', '$_carol')
       }
 
       final carol = await reads(_carol);
+      final violations = metadata?.privacyViolations ?? const <String>[];
+      final metadataError =
+          'Unsafe Hasura permissions: ${violations.join(', ')}';
       expect(
         carol['bud'],
         isNull,
-        reason: 'Carol must not be able to read the bud Request',
+        reason: [
+          'Carol must not be able to read the bud Request',
+          if (violations.isNotEmpty) metadataError,
+        ].join('\n'),
       );
+      expect(violations, isEmpty, reason: metadataError);
 
       final bob = await reads(_bob);
       expect(

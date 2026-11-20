@@ -7,6 +7,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from copy import deepcopy
 from pathlib import Path
 
 import yaml
@@ -21,6 +22,8 @@ TEST_POSTGRES_HOST = "127.0.0.1"
 TEST_POSTGRES_PORT = "5433"
 PRIVACY_SCENARIO = "Hasura reveals Request lineage only to viewers who can read its source"
 CAROL_BUD_ASSERTION = "Carol must not be able to read the bud Request"
+BEACON_FIXTURE_VIEW = {"schema": "public", "name": "beacon_privacy_fixture"}
+CONTENT_WALL = {"can_read_content": {"_eq": True}}
 MISSING_BACKEND = re.compile(
     r"(?:\bHasura\b|\bmetadata\.json\b).*(?:required|missing|not |unavailable|"
     r"unreachable|refused|no such|failed|could not|did not)"
@@ -342,6 +345,193 @@ dart() {
                 for event in events
             ),
             output,
+        )
+
+    def run_metadata_fixture(self, change):
+        server = self.scratch / "checkout" / "packages" / "server"
+        if not server.exists():
+            server = self.overlay_checkout()
+        metadata = json.loads(METADATA.read_text(encoding="utf-8"))
+        tables = {
+            table["table"]["name"]: table
+            for source in metadata["metadata"]["sources"]
+            for table in source["tables"]
+            if table["table"]["schema"] == "public"
+        }
+        change(tables)
+        if BEACON_FIXTURE_VIEW["name"] in tables:
+            self.assertEqual(self.user_select(tables["beacon"])["filter"], CONTENT_WALL)
+            for source in metadata["metadata"]["sources"]:
+                if tables["beacon"] in source["tables"]:
+                    source["tables"].append(tables[BEACON_FIXTURE_VIEW["name"]])
+                    break
+        path = server.parents[1] / "hasura" / "metadata.json"
+        path.parent.mkdir(exist_ok=True)
+        path.write_text(json.dumps(metadata), encoding="utf-8")
+        self.report.unlink(missing_ok=True)
+        return self.run_privacy(
+            cwd=server,
+            env={
+                **self.without_docker(),
+                "CI": "true",
+                "TENTURA_BUD_PRIVACY_FIXTURE_VIEW": (
+                    "1" if BEACON_FIXTURE_VIEW["name"] in tables else "0"
+                ),
+            },
+        )
+
+    @staticmethod
+    def user_select(table):
+        permission, = [
+            rule["permission"] for rule in table["select_permissions"]
+            if rule["role"] == "user"
+        ]
+        return permission
+
+    @staticmethod
+    def track_related_beacons(tables, *, filter_):
+        computed, = [
+            deepcopy(field) for field in tables["beacon"]["computed_fields"]
+            if field["name"] == "can_read_content"
+        ]
+        computed["definition"]["function"]["name"] = "beacon_privacy_fixture_can_read_content"
+        computed["definition"]["table_argument"] = "fixture_row"
+        tables[BEACON_FIXTURE_VIEW["name"]] = {
+            "table": BEACON_FIXTURE_VIEW,
+            "computed_fields": [computed],
+            "select_permissions": [{"role": "user", "permission": {
+                "columns": ["id", "user_id", "parent_beacon_id", "title"],
+                "computed_fields": ["can_read_content"],
+                "filter": filter_,
+                "query_root_fields": [],
+                "subscription_root_fields": [],
+            }}],
+        }
+
+    @staticmethod
+    def related_beacon_join(column, destination):
+        return {"manual_configuration": {
+            "remote_table": BEACON_FIXTURE_VIEW,
+            "column_mapping": {column: destination},
+            "insertion_order": None,
+        }}
+
+    def assert_metadata_rejected(self, result, field):
+        output = result_output(result)
+        self.assertTrue(self.report.is_file(), output)
+        self.assertNotEqual(
+            result.returncode, 0,
+            f"The pg privacy scenario accepted an unsafe {field} permission.\n{output}",
+        )
+        events = read_report(self.report)
+        finishes = self.privacy_finishes(events)
+        self.assertEqual(len(finishes), 1, output)
+        finish, = finishes
+        self.assertIn(finish["result"], {"failure", "error"}, output)
+        self.assertFalse(finish["skipped"] or finish["hidden"], output)
+        errors = [event for event in events if event["type"] == "error"]
+        self.assertEqual({event["testID"] for event in errors}, {finish["testID"]}, output)
+        self.assertRegex(
+            "\n".join(event["error"] for event in errors),
+            rf"(?<![\w.]){re.escape(field)}(?!\w|\.\w)",
+            output,
+        )
+
+    def test_children_relationship_and_counts_require_content_access(self):
+        def protected_children(tables):
+            beacon = tables["beacon"]
+            destination = beacon["table"]
+            beacon["array_relationships"].append({
+                "name": "children",
+                "using": {"foreign_key_constraint_on": {
+                    "table": destination, "column": "parent_beacon_id",
+                }},
+            })
+            # Hasura uses this same destination permission for children and
+            # children_aggregate, as well as for the root beacon fields.
+            permission = self.user_select(tables[destination["name"]])
+            self.assertEqual(permission["filter"], CONTENT_WALL)
+            permission["allow_aggregations"] = True
+
+        self.assert_privacy_passed(self.run_metadata_fixture(protected_children))
+
+        def unprotected_children(tables):
+            beacon = tables["beacon"]
+            beacon["array_relationships"].append({
+                "name": "children",
+                "using": self.related_beacon_join("id", "parent_beacon_id"),
+            })
+            self.user_select(beacon)["allow_aggregations"] = True
+            self.track_related_beacons(tables, filter_={})
+
+        self.assert_metadata_rejected(
+            self.run_metadata_fixture(unprotected_children), "beacon.children",
+        )
+
+    def test_lineage_parent_relationship_requires_content_access(self):
+        def unprotected_parent(tables):
+            beacon = tables["beacon"]
+            beacon["object_relationships"].append({
+                "name": "lineage_parent",
+                "using": self.related_beacon_join("lineage_parent_beacon_id", "id"),
+            })
+            self.track_related_beacons(tables, filter_={})
+
+        self.assert_metadata_rejected(
+            self.run_metadata_fixture(unprotected_parent), "beacon.lineage_parent",
+        )
+
+    def test_authors_other_beacons_require_content_access(self):
+        def unprotected_author_beacons(tables):
+            # Keep both GraphQL fields and the user_id join. Repoint the
+            # second hop to the same rows with an independent permission.
+            relationship, = [
+                entry for entry in tables["user"]["array_relationships"]
+                if entry["name"] == "beacons"
+            ]
+            relationship["using"] = self.related_beacon_join("id", "user_id")
+            self.track_related_beacons(tables, filter_={})
+
+        self.assert_metadata_rejected(
+            self.run_metadata_fixture(unprotected_author_beacons),
+            "beacon.author.beacons",
+        )
+
+    def test_beacon_totals_count_only_rows_with_content_access(self):
+        def unprotected_root_aggregate(tables):
+            permission = self.user_select(tables["beacon"])
+            permission["allow_aggregations"] = True
+            permission["filter"] = {}
+
+        self.assert_metadata_rejected(
+            self.run_metadata_fixture(unprotected_root_aggregate), "beacon_aggregate",
+        )
+
+    def test_beacon_image_totals_require_access_to_the_related_beacon(self):
+        def unprotected_image_aggregate(tables):
+            permission = self.user_select(tables["beacon_image"])
+            permission["allow_aggregations"] = True
+            related_beacon = permission["filter"]["beacon"]
+            related_beacon["kind"] = {"_eq": 0}
+            del related_beacon["can_read_content"]
+
+        self.assert_metadata_rejected(
+            self.run_metadata_fixture(unprotected_image_aggregate),
+            "beacon.beacon_images_aggregate",
+        )
+
+    def test_every_beacon_image_filter_branch_requires_content_access(self):
+        def unprotected_image_branch(tables):
+            permission = self.user_select(tables["beacon_image"])
+            permission["filter"] = {
+                "_or": [
+                    permission["filter"],
+                    {"beacon": {"kind": {"_eq": 0}}, "position": {"_eq": 0}},
+                ],
+            }
+
+        self.assert_metadata_rejected(
+            self.run_metadata_fixture(unprotected_image_branch), "beacon.beacon_images",
         )
 
     def sql(self, database, query):
