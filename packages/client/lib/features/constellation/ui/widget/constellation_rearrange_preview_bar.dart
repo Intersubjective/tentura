@@ -22,6 +22,24 @@ class ConstellationRearrangePreviewBar extends StatelessWidget {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
     final theme = Theme.of(context);
+    final summary = Text(
+      l10n.constellationRearrangePreview(movingCount),
+      style: theme.textTheme.titleSmall?.copyWith(
+        color: theme.colorScheme.onSecondaryContainer,
+      ),
+    );
+    final actions = [
+      TextButton(
+        key: const Key('constellation-rearrange-cancel'),
+        onPressed: onCancel,
+        child: Text(l10n.buttonCancel),
+      ),
+      TextButton(
+        key: const Key('constellation-rearrange-apply'),
+        onPressed: onApply,
+        child: Text(l10n.planEditApply),
+      ),
+    ];
     return Material(
       color: theme.colorScheme.secondaryContainer,
       child: Padding(
@@ -29,27 +47,30 @@ class ConstellationRearrangePreviewBar extends StatelessWidget {
           horizontal: tt.screenHPadding,
           vertical: tt.tightGap,
         ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                l10n.constellationRearrangePreview(movingCount),
-                style: theme.textTheme.titleSmall?.copyWith(
-                  color: theme.colorScheme.onSecondaryContainer,
-                ),
-              ),
-            ),
-            TextButton(
-              key: const Key('constellation-rearrange-cancel'),
-              onPressed: onCancel,
-              child: Text(l10n.buttonCancel),
-            ),
-            TextButton(
-              key: const Key('constellation-rearrange-apply'),
-              onPressed: onApply,
-              child: Text(l10n.planEditApply),
-            ),
-          ],
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            if (windowClassForWidth(constraints.maxWidth) ==
+                WindowClass.compact) {
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  summary,
+                  OverflowBar(
+                    alignment: MainAxisAlignment.end,
+                    overflowAlignment: OverflowBarAlignment.end,
+                    children: actions,
+                  ),
+                ],
+              );
+            }
+            return Row(
+              children: [
+                Expanded(child: summary),
+                ...actions,
+              ],
+            );
+          },
         ),
       ),
     );

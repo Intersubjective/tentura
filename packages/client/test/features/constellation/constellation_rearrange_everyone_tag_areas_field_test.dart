@@ -11,8 +11,10 @@
 library;
 
 import 'dart:math' as math;
+import 'dart:ui' show BoxHeightStyle;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:logging/logging.dart';
@@ -35,6 +37,7 @@ import 'package:tentura/features/constellation/ui/bloc/constellation_selection_c
 import 'package:tentura/features/constellation/ui/bloc/constellation_tag_lens_cubit.dart';
 import 'package:tentura/features/constellation/ui/scene/constellation_scene_controller.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_app_bar.dart';
+import 'package:tentura/features/constellation/ui/widget/constellation_arranging_toolbar.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_rearrange_preview_bar.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_tag_hull_layer.dart';
@@ -1067,7 +1070,231 @@ Future<void> _previewThenApply(
   _expectTagOrder(h.cubit);
 }
 
+const _nineteenPeopleSummary =
+    'Сдвинется 19 чел. · текущая расстановка сохранится в истории';
+const _previewDesktopSurface = Size(1280, 800);
+
+void _expectInside(Rect inner, Rect outer, String label) {
+  expect(inner.intersect(outer), inner, reason: '$label must fit within $outer');
+}
+
+void _expectPreviewLinesInside(
+  RenderParagraph paragraph,
+  String label,
+  Rect summaryRect,
+  Rect visibleBar,
+) {
+  expect(paragraph.didExceedMaxLines, isFalse);
+  final lineBoxes = paragraph.getBoxesForSelection(
+    TextSelection(baseOffset: 0, extentOffset: label.length),
+    boxHeightStyle: BoxHeightStyle.max,
+  );
+  expect(lineBoxes, isNotEmpty);
+  final paragraphToScreen = paragraph.getTransformTo(null);
+  for (final box in lineBoxes) {
+    final lineRect = MatrixUtils.transformRect(paragraphToScreen, box.toRect());
+    // Selection boxes include trailing spaces past a soft wrap.
+    expect(lineRect.top, greaterThanOrEqualTo(summaryRect.top));
+    expect(lineRect.bottom, lessThanOrEqualTo(summaryRect.bottom));
+    _expectInside(lineRect, visibleBar, 'Laid-out line in visible preview bar');
+  }
+}
+
+Future<void> _checkPreviewBar(
+  WidgetTester tester, {
+  required Size surface,
+  required bool singleLine,
+}) async {
+  var cancels = 0;
+  var applies = 0;
+  final previousWarningSetting = WidgetController.hitTestWarningShouldBeFatal;
+  WidgetController.hitTestWarningShouldBeFatal = true;
+  addTearDown(() {
+    WidgetController.hitTestWarningShouldBeFatal = previousWarningSetting;
+  });
+
+  await tester.pumpWidget(
+    MaterialApp(
+      theme: TenturaTheme.light(),
+      locale: const Locale('ru'),
+      localizationsDelegates: L10n.localizationsDelegates,
+      supportedLocales: L10n.supportedLocales,
+      home: TenturaResponsiveScope(
+        child: Scaffold(
+          body: Align(
+            alignment: Alignment.topCenter,
+            child: Builder(
+              builder: (context) => ConstrainedBox(
+                // Use the Field's viewport cap without mounting the Field.
+                constraints: BoxConstraints(
+                  maxHeight:
+                      surface.height * context.tt.fieldTopChromeMaxFraction,
+                ),
+                child: SingleChildScrollView(
+                  child: ConstellationRearrangePreviewBar(
+                    movingCount: 19,
+                    onCancel: () => cancels++,
+                    onApply: () => applies++,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+  expect(tester.takeException(), isNull);
+
+  final bar = find.byType(ConstellationRearrangePreviewBar);
+  final summary = find.text(_nineteenPeopleSummary);
+  final cancel = find.byKey(const Key('constellation-rearrange-cancel'));
+  final apply = find.byKey(const Key('constellation-rearrange-apply'));
+  expect(bar, findsOneWidget);
+  expect(summary, findsOneWidget);
+  expect(cancel, findsOneWidget);
+  expect(apply, findsOneWidget);
+  final viewport = find.byType(Scrollable);
+  expect(viewport, findsOneWidget);
+
+  final barRect = tester.getRect(bar);
+  final summaryRect = tester.getRect(summary);
+  final cancelRect = tester.getRect(cancel);
+  final applyRect = tester.getRect(apply);
+  final viewportRect = tester.getRect(viewport);
+  final screenRect = Offset.zero & surface;
+  _expectInside(summaryRect, barRect, 'Summary in preview bar');
+  _expectInside(cancelRect, barRect, 'Cancel in preview bar');
+  _expectInside(applyRect, barRect, 'Apply in preview bar');
+  _expectInside(cancelRect, screenRect, 'Cancel on screen');
+  _expectInside(applyRect, screenRect, 'Apply on screen');
+  expect(summaryRect.overlaps(cancelRect), isFalse);
+  expect(summaryRect.overlaps(applyRect), isFalse);
+  expect(cancelRect.overlaps(applyRect), isFalse);
+
+  final paragraph = tester.renderObject<RenderParagraph>(summary);
+  _expectPreviewLinesInside(
+    paragraph,
+    _nineteenPeopleSummary,
+    summaryRect,
+    barRect,
+  );
+  if (singleLine) {
+    // RenderParagraph does not expose its painter's line metrics.
+    final painter = TextPainter(
+      text: paragraph.text,
+      textAlign: paragraph.textAlign,
+      textDirection: paragraph.textDirection,
+      textScaler: paragraph.textScaler,
+      locale: paragraph.locale,
+      strutStyle: paragraph.strutStyle,
+      textWidthBasis: paragraph.textWidthBasis,
+      textHeightBehavior: paragraph.textHeightBehavior,
+    )..layout(
+        minWidth: paragraph.constraints.minWidth,
+        maxWidth: paragraph.constraints.maxWidth,
+      );
+    addTearDown(painter.dispose);
+    expect(painter.computeLineMetrics(), hasLength(1));
+  }
+
+  await tester.tap(cancel);
+  expect((cancels, applies), (1, 0));
+  cancels = 0;
+  await tester.tap(apply);
+  expect((cancels, applies), (0, 1));
+
+  _expectInside(summaryRect, viewportRect, 'Full summary in capped viewport');
+  _expectInside(cancelRect, viewportRect, 'Cancel in capped viewport');
+  _expectInside(applyRect, viewportRect, 'Apply in capped viewport');
+}
+
+Future<void> _checkFieldPreview(WidgetTester tester) async {
+  final h = await _openField(
+    tester,
+    surface: kPhoneSurface,
+    locale: const Locale('ru'),
+  );
+  final ru = L10nRu();
+  await tapConstellationArrangeOverflowAction(
+    tester,
+    ru.constellationRearrangeEveryone,
+  );
+  final preview = h.cubit.state.rearrangePreview;
+  expect(preview, isNotNull);
+  expect(tester.takeException(), isNull);
+
+  final bar = find.byType(ConstellationRearrangePreviewBar);
+  final label = ru.constellationRearrangePreview(preview!.movingCount);
+  final summary = find.descendant(of: bar, matching: find.text(label));
+  final cancel = find.descendant(
+    of: bar,
+    matching: find.byKey(const Key('constellation-rearrange-cancel')),
+  );
+  expect(bar, findsOneWidget);
+  expect(summary, findsOneWidget);
+  expect(cancel, findsOneWidget);
+
+  final chrome = find.ancestor(of: bar, matching: find.byType(Scrollable));
+  final toolbar = find.byType(ConstellationArrangingToolbar);
+  expect(chrome, findsOneWidget);
+  expect(toolbar, findsOneWidget);
+  final barRect = tester.getRect(bar);
+  final screenRect = Offset.zero & kPhoneSurface;
+  final viewport = tester.getRect(chrome).intersect(screenRect);
+  final visibleChrome = Rect.fromLTRB(
+    viewport.left,
+    math.max(viewport.top, tester.getBottomLeft(toolbar).dy),
+    viewport.right,
+    viewport.bottom,
+  );
+  final summaryRect = tester.getRect(summary);
+  _expectInside(summaryRect, barRect, 'Summary in the Field preview bar');
+  _expectInside(summaryRect, screenRect, 'Field preview summary on screen');
+  _expectInside(
+    summaryRect,
+    visibleChrome,
+    'Full Field preview summary at the opening scroll offset',
+  );
+  _expectPreviewLinesInside(
+    tester.renderObject<RenderParagraph>(summary),
+    label,
+    summaryRect,
+    barRect.intersect(visibleChrome),
+  );
+
+  expect(cancel.hitTestable(), findsOneWidget);
+  await tester.tap(cancel);
+  await _pumpFrames(tester, 5);
+  expect(bar, findsNothing);
+  expect(tester.takeException(), isNull);
+}
+
 void main() {
+  group('Russian rearrangement preview', () {
+    testWidgets('shows the full summary and both actions on a phone', (
+      tester,
+    ) async {
+      await usePhoneSurface(tester);
+      await _checkPreviewBar(tester, surface: kPhoneSurface, singleLine: false);
+    });
+
+    testWidgets(
+      'stays on one line on desktop and fits the Field on a phone',
+      (tester) async {
+        await tester.binding.setSurfaceSize(_previewDesktopSurface);
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+        await _checkPreviewBar(
+          tester,
+          surface: _previewDesktopSurface,
+          singleLine: true,
+        );
+        await _checkFieldPreview(tester);
+      },
+    );
+  });
+
   group(
     'Rearrange everyone on the Field gives each tag its own compact area',
     () {
