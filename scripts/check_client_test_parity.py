@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""Compare the actual tests run by modified client test files against HEAD."""
+"""Compare the tests run by modified client test files against a Git revision."""
 
+import argparse
 import json
 import shutil
 import subprocess
@@ -99,7 +100,14 @@ def read_report(report, client, expected):
 
 
 def main():
-    revision = git_output("rev-parse", "HEAD").decode().strip()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--baseline", default="HEAD", help="Git revision to compare against (default: HEAD)",
+    )
+    args = parser.parse_args()
+    revision = git_output(
+        "rev-parse", "--verify", "--end-of-options", f"{args.baseline}^{{commit}}",
+    ).decode().strip()
     modified = git_output(
         "diff", revision, "--name-only", "--diff-filter=M", "-z", "--",
         f"{TESTS}/*_test.dart",
