@@ -54,11 +54,19 @@ for p in pathlib.Path("/proc").iterdir():
     if not p.name.isdigit():
         continue
     try:
-        cmd = (p / "cmdline").read_bytes()
+        args = (p / "cmdline").read_bytes().split(b"\0")[1:]
         comm = (p / "comm").read_text().strip()
     except (FileNotFoundError, PermissionError):
         continue
-    if mark in cmd and comm.startswith("python"):
+    # Fixtures run inline Python. The lookup and watchdog also carry the
+    # marker in argv, but neither runs an inline program.
+    if args[:1] == [b"-u"]:
+        args = args[1:]
+    if (
+        comm.startswith("python")
+        and args[:1] == [b"-c"]
+        and any(mark in arg for arg in args[1:])
+    ):
         print(p.name)
         break
 PY
@@ -77,6 +85,40 @@ finish() {
   [[ "$fail" -eq 0 ]]
 }
 trap finish EXIT
+
+check_marker_lookup() {
+  local marker="selftest_marker_lookup_${BASHPID}_${RANDOM}_${RANDOM}"
+  local ready found fixture_pid
+  coproc MARKER_FIXTURE {
+    exec python3 -u -c 'import sys; print("ready"); sys.stdin.read()' "$marker"
+  }
+  fixture_pid="$MARKER_FIXTURE_PID"
+  if ! IFS= read -r -t 5 -u "${MARKER_FIXTURE[0]}" ready || [[ "$ready" != ready ]]; then
+    kill "$fixture_pid" 2>/dev/null || true
+    wait "$fixture_pid" 2>/dev/null || true
+    bad "marker lookup fixture did not start"
+    return
+  fi
+  found="$(pid_by_marker "$marker")"
+  kill "$fixture_pid"
+  wait "$fixture_pid" 2>/dev/null || true
+  if [[ "$found" != "$fixture_pid" ]]; then
+    bad "marker lookup returned '$found' for live fixture PID $fixture_pid"
+    return
+  fi
+
+  found="$(pid_by_marker "$marker")"
+  if [[ -z "$found" ]]; then
+    ok "marker lookup returns no PID after the matching fixture exits"
+  else
+    bad "marker lookup returned PID $found after the matching fixture exited"
+  fi
+}
+
+check_marker_lookup
+if [[ "${1:-}" == --marker-lookup-only ]]; then
+  exit "$((fail != 0))"
+fi
 
 # --- 1. unreferenced tmpfs dirs go away; referenced dirs stay ---
 KEEP_DIR="${TMPDIR:-/tmp}/flutter_tools.selftestkeep$$"
@@ -191,8 +233,11 @@ PGRP_MARK="selftest_pgrp_kill_$$"
 set +m
 setsid "$WRAP" --timeout 60s -- python3 -c "import time; time.sleep(90)  # $PGRP_MARK" </dev/null &
 WPID=$!
-sleep 0.3
-PGRP_PID="$(pid_by_marker "$PGRP_MARK")"
+for _ in $(seq 1 40); do
+  PGRP_PID="$(pid_by_marker "$PGRP_MARK")"
+  [[ -n "$PGRP_PID" ]] && break
+  sleep 0.1
+done
 if [[ -z "$PGRP_PID" ]]; then
   bad "PGID SIGKILL case: wrapper='$WPID' child='$PGRP_PID'"
 elif ! kill -KILL -- "-$WPID" 2>/dev/null; then
@@ -211,15 +256,16 @@ fi
 # and other_active_markers() counted any marker dir as "active" without
 # checking whether its reaper is actually still alive -- so one leaked
 # marker permanently disabled every future sweep.
-STATE_ROOT="${TMPDIR:-/tmp}/tentura-test-cleanup"
-mkdir -p "$STATE_ROOT"
-DEAD_MARKER="$STATE_ROOT/selftest_stale_$$"
+# The previous case's reaper can still be sweeping after its child exits.
+# Give this case its own marker directory and sweep scope.
+STALE_TMP="$TMPDIR/stale-marker"
+DEAD_MARKER="$STALE_TMP/tentura-test-cleanup/selftest_stale_$$"
 mkdir -p "$DEAD_MARKER"
 sh -c 'exit 0' & DEAD_PID=$!
 wait "$DEAD_PID" 2>/dev/null || true
 echo "$DEAD_PID" >"$DEAD_MARKER/reaper.pid"
 
-STALE_OUT="$("$WRAP" --timeout 10s -- true 2>&1)"
+STALE_OUT="$(TMPDIR="$STALE_TMP" "$WRAP" --timeout 10s -- true 2>&1)"
 if [[ "$STALE_OUT" == *"skipping orphan/tmpfs sweep"* ]]; then
   bad "stale marker dir with a dead reaper still blocked the sweep"
 else
@@ -237,6 +283,7 @@ fi
 # marker directory disappeared out from under an in-flight run (a race a
 # concurrent sweep can trigger), the wrapper crashed on that write and
 # reported the wrong exit code instead of the wrapped command's real one.
+STATE_ROOT="${TMPDIR:-/tmp}/tentura-test-cleanup"
 BEFORE_MARKERS="$(ls -1 "$STATE_ROOT" 2>/dev/null || true)"
 "$WRAP" --timeout 10s -- sh -c 'sleep 1; exit 7' >/tmp/selftest_fy2_out_$$ 2>&1 &
 RACE_WPID=$!
