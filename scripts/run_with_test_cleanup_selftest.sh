@@ -282,10 +282,11 @@ if [[ -d "$NT/tentura-st-fresh-C" ]]; then ok "fresh nested TMPDIR kept"; else b
 if [[ -d "$NT/tentura-st-foreign-D" ]]; then ok "tentura-* dir without nested signature kept"; else bad "foreign tentura-* dir deleted"; fi
 
 # --- 13. unset TMPDIR uses a RAM tmpfs, never disk; explicit values survive ---
+# These two cases exercise local tmpfs selection. CI deliberately uses /tmp.
 RUNTIME_DIR="$NT/runtime"
 mkdir -p "$RUNTIME_DIR"
 if [[ "$(stat -f -c %T "$RUNTIME_DIR")" == "tmpfs" ]]; then
-  if env -u TMPDIR XDG_RUNTIME_DIR="$RUNTIME_DIR" TENTURA_TEST_TMP_MIN_MB=1 \
+  if env -u CI -u TMPDIR XDG_RUNTIME_DIR="$RUNTIME_DIR" TENTURA_TEST_TMP_MIN_MB=1 \
     "$WRAP" --timeout 10s -- bash -c \
     '[[ "$TMPDIR" == "$1" && -d "$TMPDIR" ]]' bash "$RUNTIME_DIR/tentura-test-tmp"; then
     ok "unset TMPDIR uses and creates the runtime tmpfs dir"
@@ -297,7 +298,7 @@ else
 fi
 DISK_HOME="$NT/disk-home"
 rc=0
-env -u TMPDIR HOME="$DISK_HOME" XDG_RUNTIME_DIR="$RUNTIME_DIR" TENTURA_TEST_TMP_MIN_MB=999999999 \
+env -u CI -u TMPDIR HOME="$DISK_HOME" XDG_RUNTIME_DIR="$RUNTIME_DIR" TENTURA_TEST_TMP_MIN_MB=999999999 \
   "$WRAP" --timeout 10s -- true >/dev/null 2>&1 || rc=$?
 if [[ "$rc" -eq 75 && ! -e "$DISK_HOME/.cache/tentura-test-tmp" ]]; then
   ok "no tmpfs with room: refuses (75) instead of using disk"

@@ -148,6 +148,129 @@ void main() {
       expect(outcome.kernel, isNull, reason: outcome.diagnostics);
       expect(outcome.flutterCache, isNull, reason: outcome.diagnostics);
     });
+
+    test(
+      'cleanup preserves app.dill from a Flutter web compiler outside its PID view',
+      () async {
+        final scratch = await Directory.systemTemp.createTemp('web-compiler-');
+        addTearDown(() => scratch.delete(recursive: true));
+        final sharedTmp = await Directory('${scratch.path}/shared').create();
+        final sweepTmp = await Directory('${scratch.path}/private').create();
+        final procView = await Directory('${scratch.path}/proc-view').create();
+        await Link('${procView.path}/$pid').create('/proc/$pid');
+        final flutterTmp = await sharedTmp.createTemp('flutter_tools.');
+        final artifacts = await flutterTmp.createTemp('flutter_tool.');
+        final appDill = File('${artifacts.path}/app.dill');
+        final staleKernel = File('${sweepTmp.path}/dart_test.kernel.old');
+        await staleKernel.writeAsString('abandoned kernel');
+        await staleKernel.setLastModified(
+          DateTime.now().subtract(const Duration(days: 1)),
+        );
+
+        // Use Flutter's resident DDC compiler and app.dill output layout.
+        // Keep the compiler running after it publishes the kernel, then sweep
+        // before the build reads that kernel back from disk.
+        final sdkBin = File(Platform.resolvedExecutable).parent;
+        final webSdk = Directory(
+          '${sdkBin.parent.parent.path}/flutter_web_sdk',
+        );
+        final platform = File('${webSdk.path}/kernel/ddc_outline.dill');
+        expect(
+          platform.existsSync(),
+          isTrue,
+          reason: 'Run flutter precache --web.',
+        );
+        await File('${scratch.path}/main.dart').writeAsString(
+          "void main() { print('compiled for web'); }",
+        );
+        final packages = await File(
+          '${scratch.path}/package_config.json',
+        ).writeAsString('{"configVersion":2,"packages":[]}');
+        final compiler = await Process.start(
+          '${sdkBin.path}/dartaotruntime',
+          [
+            '${sdkBin.path}/snapshots/frontend_server_aot.dart.snapshot',
+            '--sdk-root',
+            webSdk.path,
+            '--incremental',
+            '--target=dartdevc',
+            '--experimental-emit-debug-metadata',
+            '--output-dill',
+            appDill.path,
+            '--packages',
+            packages.path,
+            '--filesystem-root',
+            scratch.path,
+            '--filesystem-scheme',
+            'org-dartlang-app',
+            '--platform',
+            platform.uri.toString(),
+            '--verbosity=error',
+          ],
+          environment: {'TMPDIR': sharedTmp.path},
+        );
+        addTearDown(() async {
+          compiler.kill();
+          await compiler.exitCode.timeout(const Duration(seconds: 5));
+        });
+        compiler.stderr.drain<void>().ignore();
+        final compilation = compiler.stdout
+            .transform(utf8.decoder)
+            .transform(const LineSplitter())
+            .firstWhere((line) => line.contains(' ${appDill.path} '))
+            .timeout(const Duration(seconds: 15));
+        compiler.stdin.writeln('compile org-dartlang-app:///main.dart');
+        await compiler.stdin.flush();
+        expect(await compilation, endsWith(' ${appDill.path} 0'));
+        final kernel = await appDill.readAsBytes();
+        expect(kernel, isNotEmpty);
+
+        // Isolate the wrapper's checkout-relative cache and database cleanup.
+        final scripts = await Directory('${scratch.path}/scripts').create();
+        final wrapper = await File(
+          '../../scripts/run_with_test_cleanup.sh',
+        ).copy('${scripts.path}/run_with_test_cleanup.sh');
+        final bin = await Directory('${scratch.path}/bin').create();
+        final docker = await File('${bin.path}/docker').writeAsString(
+          '#!/bin/sh\nexit 1\n',
+        );
+        final chmod = await Process.run('chmod', ['+x', docker.path]);
+        expect(chmod.exitCode, 0, reason: '${chmod.stderr}');
+        final result = await Process.run(
+          'timeout',
+          [
+            '15s',
+            executable.path,
+            '--sandbox',
+            '0',
+            '${compiler.pid}',
+            'bash',
+            wrapper.path,
+            '--sweep-only',
+          ],
+          environment: {
+            ...Platform.environment,
+            'TMPDIR': sweepTmp.path,
+            'TENTURA_TEST_CLEANUP_SYSTEM_TMP': sharedTmp.path,
+            'PATH': '${bin.path}:${Platform.environment['PATH']}',
+            'LD_PRELOAD': procViewLibrary.path,
+            'CLEANUP_SWEEP_PROC_VIEW': procView.path,
+          }..remove('TENTURA_TEST_CLEANUP_RUN'),
+          includeParentEnvironment: false,
+        );
+        final diagnostics = '${result.stdout}\n${result.stderr}';
+        expect(result.exitCode, 0, reason: diagnostics);
+        expect(staleKernel.existsSync(), isFalse, reason: diagnostics);
+
+        expect(
+          appDill.existsSync(),
+          isTrue,
+          reason:
+              'The build must be able to reopen ${appDill.path}.\n$diagnostics',
+        );
+        expect(await appDill.readAsBytes(), kernel);
+      },
+    );
   });
 
   group('fixture publication through the sweep runner', () {

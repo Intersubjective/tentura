@@ -9,11 +9,11 @@
 # Why a detached reaper: Cursor/Claude/Codex often SIGKILL the wrapper
 # bash. EXIT traps do not run on SIGKILL. The reaper lives in its own
 # session, watches the wrapper PID, then kills tagged descendants and
-# drops unreferenced /tmp/flutter_tools.* and /tmp/dart_test.kernel.*,
+# drops unreferenced test kernels and Flutter scratch directories,
 # and stale disposable `tentura_test_*` Postgres databases
 # (in `postgres-test` those sit on its tmpfs and count as RAM).
 #
-# Preserves: `flutter run` web compilers (`--target=dartdevc`),
+# Preserves: Flutter web compilers (`--target=dartdevc`) and their artifacts,
 # tentura-server, Serena language-server, Chrome, Cursor.
 #
 # Test temp files never touch the disk. Every test file compiles to a full
@@ -283,6 +283,13 @@ for root in roots:
             continue
         token = d.name.encode()
         if token in live:
+            continue
+        # The filesystem may be shared with another PID namespace. Leave
+        # Flutter's resident compiler and Chrome test output trees to Flutter,
+        # even before the compiler creates app.dill or the test bundle.
+        if pat == "flutter_tools.*" and (
+            any(d.glob("flutter_tool.*")) or any(d.glob("flutter_test.*"))
+        ):
             continue
         try:
             if d.is_dir():
