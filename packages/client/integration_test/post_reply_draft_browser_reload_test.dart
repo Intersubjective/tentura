@@ -28,6 +28,7 @@ const _snapshotHook = 'postReplySnapshot';
 const _actionHook = 'postReplyAction';
 const _reloadHook = 'postReplyReload';
 const _reloadMarker = 'data-post-reply-before-reload';
+const _reloadProbeLoads = 'postReplyReloadProbeLoads';
 const _draft = 'Draft reply 1105';
 const _keep = 'Вернуться к заполнению';
 const _discard = 'Выйти и сбросить';
@@ -129,6 +130,160 @@ Future<void> _launchInspectionTab() async {
   }).toJS;
 }
 
+enum _ReloadStage {
+  unsentReply('reloading the unsent reply'),
+  beforeVisitingAnotherPost('reloading before visiting another Post'),
+  afterSend('reloading after send'),
+  afterDiscard('reloading after confirmed discard'),
+  whitespace('reloading whitespace-only text'),
+  legacyLink('reloading a fresh legacy deep link'),
+  canonicalUrl('reloading a fresh canonical URL');
+
+  const _ReloadStage(this.description);
+
+  final String description;
+}
+
+class _InspectionTab {
+  _InspectionTab(this.tab, this.titles);
+
+  final web.Window tab;
+  final Map<String, String> titles;
+
+  Map<String, dynamic> snapshot(String id) {
+    final hook = tab.getProperty<JSFunction?>(_snapshotHook.toJS);
+    final result = hook?.callAsFunction(null, id.toJS) as JSString?;
+    if (result == null) return {};
+    return jsonDecode(result.toDart) as Map<String, dynamic>;
+  }
+
+  Future<void> waitInTab(
+    bool Function() condition, {
+    required String label,
+    Duration limit = const Duration(seconds: 60),
+  }) async {
+    // The opener is a background tab while the inspection tab renders.
+    // Poll the document without asking the opener to produce a frame.
+    final deadline = DateTime.now().add(limit);
+    while (DateTime.now().isBefore(deadline)) {
+      if (condition()) return;
+      // Flutter draws no frames in a hidden tab, so keep the popup in front.
+      tab.focus();
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+    }
+    throw TimeoutException(
+      'Timed out waiting for $label at ${tab.location.hash}',
+    );
+  }
+
+  Future<void> waitForPost(
+    String id,
+    String stage, {
+    Duration limit = const Duration(seconds: 60),
+  }) async {
+    try {
+      await waitInTab(
+        () {
+          final state = snapshot(id);
+          return state['post'] == id &&
+              state['body'] != null &&
+              state['rootBody'] == titles[id];
+        },
+        label: 'Post $id and its reply composer to load ($stage)',
+        limit: limit,
+      );
+    } on TimeoutException {
+      fail(
+        'Post $id did not load ($stage) at ${tab.location.hash}: ${snapshot(id)} closed=${tab.closed} ready=${tab.document.readyState} hook=${tab.getProperty<JSAny?>(_snapshotHook.toJS) != null} body=${tab.document.body?.innerText}',
+      );
+    }
+  }
+
+  Future<void> reload(
+    String id,
+    _ReloadStage stage, {
+    Duration readinessLimit = const Duration(seconds: 60),
+  }) async {
+    tab.callMethod<JSAny?>(_reloadHook.toJS);
+    await waitInTab(() {
+      final document = tab.getProperty<web.Document?>('document'.toJS);
+      return document?.documentElement?.hasAttribute(_reloadMarker) == false;
+    }, label: 'a fresh browser document after ${stage.description}');
+    await waitForPost(id, stage.description, limit: readinessLimit);
+  }
+}
+
+void runPostReplyReloadStageFailureTest() {
+  const postId = 'post-under-inspection';
+  const title = 'Post under inspection';
+  final readySnapshot = jsonEncode({
+    'post': postId,
+    'body': _draft,
+    'rootBody': title,
+  });
+
+  IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  testWidgets(
+    'Each unready Post reload fails its own stage after one document load',
+    (
+      tester,
+    ) async {
+      // Count documents as they load, before any framework code could run.
+      // The first reload has no Post. A retry would show the expected Post.
+      final html =
+          '''
+<!doctype html>
+<script>
+  const loads = Number(sessionStorage.getItem('$_reloadProbeLoads') ?? -1) + 1;
+  sessionStorage.setItem('$_reloadProbeLoads', String(loads));
+  window.$_snapshotHook = () => loads === 1 ? '{}' : JSON.stringify($readySnapshot);
+  window.$_reloadHook = () => {
+    document.documentElement.setAttribute('$_reloadMarker', '');
+    location.reload();
+  };
+</script>
+''';
+      final url = web.URL.createObjectURL(
+        web.Blob([html.toJS].toJS, web.BlobPropertyBag(type: 'text/html')),
+      );
+      addTearDown(() => web.URL.revokeObjectURL(url));
+      final tab = web.window.open(url, '_blank');
+      if (tab == null) fail('Chrome could not open the inspection tab');
+      addTearDown(() async => tab.close());
+      final inspection = _InspectionTab(tab, {postId: title});
+      await inspection.waitForPost(postId, 'opening the probe tab');
+
+      expect(_ReloadStage.values, hasLength(7));
+      for (final stage in _ReloadStage.values) {
+        tab.sessionStorage.setItem(_reloadProbeLoads, '0');
+        await expectLater(
+          inspection
+              .reload(
+                postId,
+                stage,
+                readinessLimit: const Duration(seconds: 2),
+              )
+              .timeout(const Duration(seconds: 45)),
+          throwsA(
+            isA<TestFailure>().having(
+              (error) => error.toString(),
+              'readiness error',
+              contains(stage.description),
+            ),
+          ),
+          reason: stage.description,
+        );
+        expect(
+          tab.sessionStorage.getItem(_reloadProbeLoads),
+          '1',
+          reason: 'Document loads while ${stage.description}',
+        );
+      }
+    },
+    timeout: const Timeout(Duration(minutes: 2)),
+  );
+}
+
 Future<void> main() async {
   if (Uri.base.queryParameters.containsKey(_fixtureTab)) {
     await _launchInspectionTab();
@@ -183,32 +338,11 @@ Future<void> main() async {
     }
 
     final tab = openInspectionTab(canonical);
-
-    Map<String, dynamic> snapshot(String id) {
-      final hook = tab.getProperty<JSFunction?>(_snapshotHook.toJS);
-      final result = hook?.callAsFunction(null, id.toJS) as JSString?;
-      if (result == null) return {};
-      return jsonDecode(result.toDart) as Map<String, dynamic>;
-    }
-
-    Future<void> waitInTab(
-      bool Function() condition, {
-      required String label,
-      Duration limit = const Duration(seconds: 60),
-    }) async {
-      // The opener is a background tab while the inspection tab renders.
-      // Poll the document without asking the opener to produce a frame.
-      final deadline = DateTime.now().add(limit);
-      while (DateTime.now().isBefore(deadline)) {
-        if (condition()) return;
-        // Flutter draws no frames in a hidden tab, so keep the popup in front.
-        tab.focus();
-        await Future<void>.delayed(const Duration(milliseconds: 100));
-      }
-      throw TimeoutException(
-        'Timed out waiting for $label at ${tab.location.hash}',
-      );
-    }
+    final inspection = _InspectionTab(tab, titles);
+    final snapshot = inspection.snapshot;
+    final waitInTab = inspection.waitInTab;
+    final waitForPost = inspection.waitForPost;
+    final reload = inspection.reload;
 
     var coldStarts = 0;
     // A full document load in the same popup: no history, a fresh app, and no
@@ -223,24 +357,6 @@ Future<void> main() async {
         final document = tab.getProperty<web.Document?>('document'.toJS);
         return document?.documentElement?.hasAttribute(_reloadMarker) == false;
       }, label: 'a fresh browser document for $path');
-    }
-
-    Future<void> waitForPost(String id, String stage) async {
-      try {
-        await waitInTab(
-          () {
-            final state = snapshot(id);
-            return state['post'] == id &&
-                state['body'] != null &&
-                state['rootBody'] == titles[id];
-          },
-          label: 'Post $id and its reply composer to load ($stage)',
-        );
-      } on TimeoutException {
-        fail(
-          'Post $id did not load ($stage) at ${tab.location.hash}: ${snapshot(id)} closed=${tab.closed} ready=${tab.document.readyState} hook=${tab.getProperty<JSAny?>(_snapshotHook.toJS) != null} body=${tab.document.body?.innerText}',
-        );
-      }
     }
 
     Future<void> open(String path, String id) async {
@@ -260,27 +376,6 @@ Future<void> main() async {
       if (error != null) {
         fail('Could not $action in ${tab.location.hash}: ${error.toDart}');
       }
-    }
-
-    Future<void> reload(String id, String stage) async {
-      tab.callMethod<JSAny?>(_reloadHook.toJS);
-      await waitInTab(() {
-        final document = tab.getProperty<web.Document?>('document'.toJS);
-        return document?.documentElement?.hasAttribute(_reloadMarker) == false;
-      }, label: 'a fresh browser document after $stage');
-      // The app's local-database open waits on a cross-tab lock for up to
-      // 3 x 8 s and then gives up (#1123); a reload that lands in that window
-      // never boots, so a user would reload once more.
-      try {
-        await waitInTab(
-          () => snapshot(id)['post'] == id,
-          label: 'the reloaded app to boot ($stage)',
-          limit: const Duration(seconds: 40),
-        );
-      } on TimeoutException {
-        tab.location.reload();
-      }
-      await waitForPost(id, stage);
     }
 
     void checkDraft(String label, String id, String? text) {
@@ -322,7 +417,7 @@ Future<void> main() async {
     await act('type', _draft);
     expect(snapshot(postA)['body'], _draft);
     expect(snapshot(postA)['stored'], _draft);
-    await reload(postA, 'reloading the unsent reply');
+    await reload(postA, _ReloadStage.unsentReply);
     checkDraft('reload restores the original reply', postA, _draft);
     await act('back');
     await waitForBackOutcome();
@@ -341,7 +436,7 @@ Future<void> main() async {
     await open(canonical, postA);
     await act('type', 'Draft A');
     expect(snapshot(postA)['stored'], 'Draft A');
-    await reload(postA, 'reloading before visiting another Post');
+    await reload(postA, _ReloadStage.beforeVisitingAnotherPost);
     await open('$kPathPostView/$postB', postB);
     checkDraft('another Post starts empty', postB, null);
     await open(canonical, postA);
@@ -358,7 +453,7 @@ Future<void> main() async {
       () => snapshot(postA)['sent'] == true,
       label: 'the server-confirmed reply to appear',
     );
-    await reload(postA, 'reloading after send');
+    await reload(postA, _ReloadStage.afterSend);
     checkDraft('sending clears the reply draft', postA, null);
 
     await act('type', 'Discard this reply');
@@ -380,12 +475,12 @@ Future<void> main() async {
     );
     await open(canonical, postA);
     checkDraft('reopening shows the discarded reply is gone', postA, null);
-    await reload(postA, 'reloading after confirmed discard');
+    await reload(postA, _ReloadStage.afterDiscard);
     checkDraft('reloading keeps the discarded reply cleared', postA, null);
 
     await act('type', '   ');
     expect(snapshot(postA)['body'], '   ');
-    await reload(postA, 'reloading whitespace-only text');
+    await reload(postA, _ReloadStage.whitespace);
     checkDraft('whitespace is absent after reload', postA, null);
     await act('back');
     await waitForBackOutcome();
@@ -402,14 +497,14 @@ Future<void> main() async {
 
     // Fresh tabs have no in-app history: after a reload, confirming the
     // discard must still land on Posts.
-    for (final (label, path) in [
-      ('legacy deep link', legacy),
-      ('canonical URL', canonical),
+    for (final (label, path, stage) in [
+      ('legacy deep link', legacy, _ReloadStage.legacyLink),
+      ('canonical URL', canonical, _ReloadStage.canonicalUrl),
     ]) {
       await coldStart(path);
       await waitForPost(postA, 'fresh $label');
       await act('type', _draft);
-      await reload(postA, 'reloading a fresh $label');
+      await reload(postA, stage);
       checkDraft('$label reload restores the reply', postA, _draft);
       await act('back');
       await waitInTab(
