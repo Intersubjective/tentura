@@ -1,14 +1,17 @@
 @Tags(['pg', 'repo-files'])
 library;
 
+import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:logging/logging.dart';
 import 'package:tentura/data/repository/attention_repository.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/attention/attention_case.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
@@ -16,10 +19,13 @@ import 'package:tentura/domain/attention/feed_session_registry.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/features/updates/ui/bloc/updates_feed_cubit.dart';
+import 'package:tentura/features/updates/ui/widget/updates_feed_pane.dart';
+import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../../support/attention_case_factory.dart';
 import '../../domain/attention/attention_case_test_support.dart';
 import '../../support/noop_attention_actor_profiles.dart';
+import '../../support/phone_surface.dart';
 import '../../support/production_receipt_transport.dart';
 import '../../support/test_realtime_sync.dart';
 import '../block/support/controllable_block_case.dart';
@@ -104,8 +110,9 @@ final class _Session {
 
 Future<void> _withServer(
   WidgetTester tester,
-  Future<void> Function() body,
-) =>
+  Future<void> Function() body, {
+  _ReadAllResponseOrder? responseOrder,
+}) =>
     tester.runAsync(() async {
           final transport = await ProductionReceiptTransport.start(
             leftoverForwardRequestFixture: true,
@@ -125,9 +132,14 @@ Future<void> _withServer(
                     headers: {'content-type': 'application/json'},
                   );
                 }
-                return transport.graphql(
-                  _viewer,
-                  jsonDecode(request.body) as Map<String, dynamic>,
+                final operation =
+                    jsonDecode(request.body) as Map<String, dynamic>;
+                if (responseOrder == null) {
+                  return transport.graphql(_viewer, operation);
+                }
+                return responseOrder.deliver(
+                  operation,
+                  () => transport.graphql(_viewer, operation),
                 );
               }),
             );
@@ -136,6 +148,44 @@ Future<void> _withServer(
           }
         })
         as Future<void>;
+
+/// Delivers the zero-count History head after the successful Read all sweep
+/// while withholding the surface refresh that removes sweep eligibility.
+final class _ReadAllResponseOrder {
+  final _releaseSummary = Completer<void>();
+  bool _sweepCompleted = false;
+
+  Future<http.Response> deliver(
+    Map<String, dynamic> operation,
+    Future<http.Response> Function() fetch,
+  ) async {
+    final requestedAfterSweep = _sweepCompleted;
+    final response = await fetch();
+    final name = operation['operationName'];
+    final variables = operation['variables'] as Map?;
+    final body = jsonDecode(response.body) as Map<String, dynamic>;
+    final data = body['data'] as Map?;
+    if (name == 'AttentionDismissAll' &&
+        variables?['includeOutcomes'] == false &&
+        (data?['attentionDismissAll'] as Map?)?['status'] == 'complete') {
+      _sweepCompleted = true;
+    }
+    if (!requestedAfterSweep) return response;
+
+    if (name == 'AttentionSurfaceSummary') {
+      final summary = data?['attentionSurfaceSummary'] as Map?;
+      if (summary?['unreadTotal'] == 0 &&
+          summary?['forYouReceiptSweepEligible'] == false) {
+        await _releaseSummary.future.timeout(const Duration(seconds: 25));
+      }
+    }
+    return response;
+  }
+
+  void release() {
+    if (!_releaseSummary.isCompleted) _releaseSummary.complete();
+  }
+}
 
 /// Every receipt the Unread view lists, following the next-page cursor.
 Future<(List<String> ids, int pages)> _unreadViewPages(
@@ -175,7 +225,127 @@ Future<void> _expectForwardReceiptRead(AttentionRepository repository) async {
   expect(found.single.isSeen, isTrue, reason: 'old forward receipt is read');
 }
 
+// Subscribe before the action so a subsequent surface refresh cannot hide an
+// incorrect state that the cubit emitted with the first zero count.
+Future<UpdatesFeedState> _readAllAtZero(
+  UpdatesFeedCubit cubit,
+  Future<void> Function() readAll,
+) async {
+  final firstZero = cubit.stream
+      .firstWhere(
+        (state) => state.summary.unreadTotal == 0 || state.hasActionError,
+      )
+      .timeout(const Duration(seconds: 15));
+  final (_, state) = await (readAll(), firstZero).wait;
+  expect(state.actionError, isNull);
+  return state;
+}
+
+typedef _HistoryReadAllResult = ({
+  bool canReadAllAtFirstZero,
+  int unreadTotal,
+  int? tabCount,
+  bool showsUnreadBadge,
+  bool buttonEnabled,
+});
+
+Future<_HistoryReadAllResult> _readAllThroughHistory(
+  WidgetTester tester, {
+  _ReadAllResponseOrder? responseOrder,
+}) async {
+  late _HistoryReadAllResult result;
+  await _withServer(
+    tester,
+    () async {
+      final session = await _Session.open();
+      try {
+        await _until(() => session.cubit.state.sweepEligible);
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: TenturaTheme.light(),
+            locale: const Locale('ru'),
+            localizationsDelegates: L10n.localizationsDelegates,
+            supportedLocales: L10n.supportedLocales,
+            home: TenturaResponsiveScope(
+              child: Scaffold(
+                body: BlocProvider.value(
+                  value: session.cubit,
+                  child: const UpdatesFeedPane(),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        final readAll = find.widgetWithText(TextButton, 'Прочитать всё');
+        final unreadBadge = find.descendant(
+          of: find.byKey(const ValueKey<String>('updates-unread')),
+          matching: find.textContaining(RegExp(r'\d')),
+        );
+        expect(unreadBadge, findsOneWidget);
+        expect(tester.widget<Text>(unreadBadge).data, '60');
+        expect(tester.widget<TextButton>(readAll).enabled, isTrue);
+        expect(tester.takeException(), isNull);
+
+        final firstZero = await _readAllAtZero(
+          session.cubit,
+          () => tester.tap(readAll),
+        );
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+        final tabs = tester.widget<TenturaUnderlineTabs>(
+          find.byType(TenturaUnderlineTabs),
+        );
+        final unreadTabIndex = tabs.tabIds!.indexOf('updates-unread');
+        result = (
+          canReadAllAtFirstZero: firstZero.canReadAll,
+          unreadTotal: session.cubit.state.summary.unreadTotal,
+          tabCount: tabs.badges![unreadTabIndex],
+          showsUnreadBadge: unreadBadge.evaluate().isNotEmpty,
+          buttonEnabled: tester.widget<TextButton>(readAll).enabled,
+        );
+      } finally {
+        responseOrder?.release();
+        await tester.pumpWidget(const SizedBox.shrink());
+        await session.close();
+      }
+    },
+    responseOrder: responseOrder,
+  );
+  return result;
+}
+
 void main() {
+  testWidgets(
+    'History disables Read all as soon as the unread badge clears',
+    (tester) async {
+      await usePhoneSurface(tester);
+      final natural = await _readAllThroughHistory(tester);
+      final responses = _ReadAllResponseOrder();
+      final delayed = await _readAllThroughHistory(
+        tester,
+        responseOrder: responses,
+      );
+      const disabledAtZero = (
+        canReadAllAtFirstZero: false,
+        unreadTotal: 0,
+        tabCount: 0,
+        showsUnreadBadge: false,
+        buttonEnabled: false,
+      );
+      expect(
+        {
+          'natural response order': natural,
+          'delayed surface summary': delayed,
+        },
+        {
+          'natural response order': disabledAtZero,
+          'delayed surface summary': disabledAtZero,
+        },
+      );
+    },
+  );
+
   testWidgets(
     'Read all over a history longer than one page leaves the old followed '
     'forwarded-Request receipt read, both Unread pages empty, and the count '
@@ -190,11 +360,10 @@ void main() {
           expect(before.summary.unreadTotal, 60, reason: 'precondition');
           expect(before.page.nextCursor, isNotNull, reason: 'two pages');
 
-          expect(await session.cubit.markAllSeen(), isTrue);
-          await _until(
-            () => session.cubit.state.summary.unreadTotal == 0,
-            why: () => session.cubit.state.summary,
-          );
+          final firstZero = await _readAllAtZero(session.cubit, () async {
+            expect(await session.cubit.markAllSeen(), isTrue);
+          });
+          expect(firstZero.canReadAll, isFalse);
           expect(session.cubit.state.canReadAll, isFalse);
 
           expect(
@@ -225,11 +394,11 @@ void main() {
         final first = await _Session.open();
         try {
           expect(first.cubit.state.summary.unreadTotal, 60);
-          expect(await first.cubit.markAllSeen(), isTrue);
-          await _until(
-            () => first.cubit.state.summary.unreadTotal == 0,
-            why: () => first.cubit.state.summary,
-          );
+          await _until(() => first.cubit.state.sweepEligible);
+          final firstZero = await _readAllAtZero(first.cubit, () async {
+            expect(await first.cubit.markAllSeen(), isTrue);
+          });
+          expect(firstZero.canReadAll, isFalse);
         } finally {
           await first.close();
         }

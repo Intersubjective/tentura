@@ -10,7 +10,6 @@ import 'package:tentura/domain/attention/attention_dismissible_membership.dart';
 import 'package:tentura/domain/attention/entity/attention_clear.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
-import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/capability/invite_seed_prompt_state.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
@@ -56,10 +55,6 @@ final class UpdatesFeedCubit extends Cubit<UpdatesFeedState> {
       _attention.setActiveView(_destinationId, pinnedView);
     }
     _accountSub = _attention.feedPages.listen((_) => _projectFromDomain());
-    _surfaceSummarySub = _attention.surfaceSummary.listen((summary) {
-      if (isClosed) return;
-      emit(state.copyWith(sweepEligible: summary.forYouReceiptSweepEligible));
-    });
     _sessionSub = _attention
         .watchFeedSession(_destinationId)
         .listen((_) => _projectFromDomain());
@@ -82,7 +77,6 @@ final class UpdatesFeedCubit extends Cubit<UpdatesFeedState> {
   final Logger _logger;
   late final StreamSubscription<AttentionFeedSnapshot> _accountSub;
   late final StreamSubscription<AttentionFeedSession> _sessionSub;
-  late final StreamSubscription<AttentionSurfaceSummary> _surfaceSummarySub;
   late final StreamSubscription<RealtimeEntityChange> _promptInvalidationSub;
   late final ReloadWhenOnline _reloadWhenOnline;
   final _clearNotices = StreamController<UpdatesClearNotice>.broadcast();
@@ -99,7 +93,11 @@ final class UpdatesFeedCubit extends Cubit<UpdatesFeedState> {
         view: session.activeView,
         searchText: session.searchText,
         summary: session.summary,
+        // Every sweepable receipt counts in unscoped History. Its page can
+        // reach zero before the separate surface refresh clears eligibility.
         sweepEligible:
+            (_destinationId != AttentionFeedDestinationId.history ||
+                session.summary.unreadTotal > 0) &&
             _attention.surfaceSummarySnapshot.forYouReceiptSweepEligible,
         items: items,
         hasNextPage: page?.nextCursor?.isNotEmpty ?? false,
@@ -382,7 +380,6 @@ final class UpdatesFeedCubit extends Cubit<UpdatesFeedState> {
     await _reloadWhenOnline.close();
     await _accountSub.cancel();
     await _sessionSub.cancel();
-    await _surfaceSummarySub.cancel();
     await _promptInvalidationSub.cancel();
     await _clearNotices.close();
     return super.close();
