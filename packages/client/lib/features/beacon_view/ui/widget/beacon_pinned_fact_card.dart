@@ -31,7 +31,7 @@ class BeaconPinnedFactCard extends StatefulWidget {
   final bool isNew;
   final VoidCallback? onManage;
 
-  /// Hover ⋮ for coordinators on pointer devices. Long-press still uses
+  /// Show ⋮ on hover or keyboard focus for coordinators. Long-press still uses
   /// [onManage] for every viewer.
   final bool showPointerManage;
 
@@ -56,13 +56,12 @@ class _BeaconPinnedFactCardState extends State<BeaconPinnedFactCard> {
       Theme.of(context),
     );
 
-    // Desktop: secondary tap / hover ⋮ open manage so text stays selectable.
+    // Desktop: secondary tap or ⋮ opens manage so text stays selectable.
     // Touch: whole card (incl. attachment-only) opens manage; nested image
     // GestureDetectors still open the album.
     final touchTapEnabled = onManage != null && !desktopSelection;
-
-    final showHoverToolbar =
-        _hovering && widget.showPointerManage && onManage != null;
+    final showManageControl =
+        widget.showPointerManage && (desktopSelection || _hovering);
 
     return Material(
       color: scheme.surfaceContainerHighest.withValues(alpha: 0.4),
@@ -106,8 +105,7 @@ class _BeaconPinnedFactCardState extends State<BeaconPinnedFactCard> {
                       ],
                     ),
                     SizedBox(height: tt.rowGap / 2),
-                    if (images.isNotEmpty)
-                      _FactCardImageZone(images: images),
+                    if (images.isNotEmpty) _FactCardImageZone(images: images),
                     if (images.isNotEmpty) SizedBox(height: tt.rowGap),
                     if (hasText)
                       TenturaSelectionArea(
@@ -135,13 +133,14 @@ class _BeaconPinnedFactCardState extends State<BeaconPinnedFactCard> {
                 ),
               ),
             ),
-            if (showHoverToolbar)
+            if (showManageControl && onManage != null)
               Positioned(
                 top: 0,
                 right: 0,
-                child: _FactHoverManageButton(
+                child: _FactManageButton(
                   tooltip: l10n.beaconRoomFactManageSheetTitle,
                   onPressed: onManage,
+                  hovering: _hovering,
                 ),
               ),
           ],
@@ -157,28 +156,50 @@ List<RoomMessageAttachment> _imageAttachments(BeaconFactCard fact) =>
 List<RoomMessageAttachment> _fileAttachments(BeaconFactCard fact) =>
     fact.attachments.where((a) => a.isFile).toList();
 
-class _FactHoverManageButton extends StatelessWidget {
-  const _FactHoverManageButton({
+class _FactManageButton extends StatefulWidget {
+  const _FactManageButton({
     required this.tooltip,
     required this.onPressed,
+    required this.hovering,
   });
 
   final String tooltip;
   final VoidCallback onPressed;
+  final bool hovering;
+
+  @override
+  State<_FactManageButton> createState() => _FactManageButtonState();
+}
+
+class _FactManageButtonState extends State<_FactManageButton> {
+  var _focused = false;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return Material(
-      color: scheme.surfaceContainerHighest.withValues(alpha: 0.88),
-      shape: const StadiumBorder(),
-      clipBehavior: Clip.antiAlias,
-      child: IconButton(
-        visualDensity: VisualDensity.compact,
-        iconSize: context.tt.iconSize,
-        tooltip: tooltip,
-        icon: const Icon(Icons.more_horiz),
-        onPressed: onPressed,
+    final visible = widget.hovering || _focused;
+    return Focus(
+      canRequestFocus: false,
+      onFocusChange: (focused) => setState(() => _focused = focused),
+      // Keep the button in Tab order while the card handles pointer input
+      // through the area where the button will appear.
+      child: IgnorePointer(
+        ignoring: !visible,
+        child: Opacity(
+          opacity: visible ? 1 : 0,
+          child: Material(
+            color: scheme.surfaceContainerHighest.withValues(alpha: 0.88),
+            shape: const StadiumBorder(),
+            clipBehavior: Clip.antiAlias,
+            child: IconButton(
+              visualDensity: VisualDensity.compact,
+              iconSize: context.tt.iconSize,
+              tooltip: widget.tooltip,
+              icon: const Icon(Icons.more_horiz),
+              onPressed: widget.onPressed,
+            ),
+          ),
+        ),
       ),
     );
   }
