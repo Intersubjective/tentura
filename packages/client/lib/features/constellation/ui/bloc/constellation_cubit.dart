@@ -943,6 +943,18 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
 
   Map<String, Offset> get tagMagnets => Map.unmodifiable(_tagMagnets);
 
+  Map<String, Size> Function()? _readTagMagnetControlSizes;
+
+  /// The mounted tag layer supplies the full controls' viewport sizes.
+  VoidCallback attachTagMagnetControlSizes(Map<String, Size> Function() read) {
+    _readTagMagnetControlSizes = read;
+    return () {
+      if (identical(_readTagMagnetControlSizes, read)) {
+        _readTagMagnetControlSizes = null;
+      }
+    };
+  }
+
   /// Bumped by every read and write of the saved magnets, so a read that
   /// started before a change never overwrites it.
   int _magnetEpoch = 0;
@@ -3536,7 +3548,14 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
 
   void _runFieldFrame({required EdgeInsets insets, double? floor}) {
     if (floor == null) {
-      _scene.fitWholeField(insets);
+      final sizes = _readTagMagnetControlSizes?.call() ?? const {};
+      _scene.fitWholeField(
+        insets,
+        fixedControls: [
+          for (final MapEntry(key: id, value: centre) in _tagMagnets.entries)
+            if (sizes[id] case final size?) (centre: centre, size: size),
+        ],
+      );
     } else {
       _scene.fitNodes(insets, minScale: floor, focus: 'fp:${_viewer.id}');
     }

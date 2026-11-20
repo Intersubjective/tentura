@@ -1371,8 +1371,14 @@ class ConstellationSceneController {
   /// Fit-all: frames every node on the Field, zooming out below the
   /// detail-level scales when that is what it takes; the view's own minimum
   /// zoom still bounds it.
-  void fitWholeField(EdgeInsets insets) =>
-      fitNodes(insets, reserveNodeRadius: true);
+  void fitWholeField(
+    EdgeInsets insets, {
+    List<({Offset centre, Size size})> fixedControls = const [],
+  }) => fitNodes(
+    insets,
+    reserveNodeRadius: true,
+    fixedControls: fixedControls,
+  );
 
   /// Scene pixels [GraphController.fitToRect] reserves around a fitted rect
   /// by default.
@@ -1391,6 +1397,7 @@ class ConstellationSceneController {
     double? minScale,
     GraphNodeId? focus,
     bool reserveNodeRadius = false,
+    List<({Offset centre, Size size})> fixedControls = const [],
   }) {
     if (!graphController.canLayout) {
       return;
@@ -1406,6 +1413,7 @@ class ConstellationSceneController {
     final viewport = graphController.viewportSize;
     var fitInsets = insets;
     var scenePadding = _fitPadding;
+    var maxScale = 1.0;
     if (reserveNodeRadius && viewport != null) {
       // Keep the scene padding when it already gives enough room on screen.
       // At smaller scales, reserve the radius in viewport pixels instead.
@@ -1440,12 +1448,95 @@ class ConstellationSceneController {
         height: window.height - 2 * _fitPadding,
       );
     }
+    if (fixedControls.isNotEmpty && viewport != null) {
+      final usable = insets.deflateSize(viewport);
+      final radius = placed.maxBodyRadius;
+      final fit = _fitWithFixedControls(
+        bounds,
+        usable,
+        fixedControls,
+        nodeMargin: reserveNodeRadius && usable.shortestSide > 2 * radius
+            ? radius
+            : 0,
+      );
+      if (fit != null) {
+        bounds = fit.bounds;
+        maxScale = fit.scale;
+        fitInsets = insets;
+        scenePadding = 0;
+      }
+    }
     graphController.fitToRect(
       bounds,
       padding: scenePadding,
       viewportInsets: fitInsets,
-      maxScale: 1,
+      maxScale: maxScale,
       minScale: minScale,
+    );
+  }
+
+  /// Finds the largest scale at which the padded node bounds and fixed-size
+  /// controls fit together. Their union is measured in viewport pixels first,
+  /// since the controls' sizes are independent of camera scale.
+  static ({Rect bounds, double scale})? _fitWithFixedControls(
+    Rect nodes,
+    Size usable,
+    List<({Offset centre, Size size})> controls, {
+    required double nodeMargin,
+  }) {
+    final origin = nodes.center;
+    final relativeNodes = nodes.shift(-origin);
+    Rect boundsAt(double scale) {
+      var bounds = Rect.fromLTRB(
+        relativeNodes.left * scale,
+        relativeNodes.top * scale,
+        relativeNodes.right * scale,
+        relativeNodes.bottom * scale,
+      ).inflate(math.max(_fitPadding * scale, nodeMargin));
+      for (final control in controls) {
+        bounds = bounds.expandToInclude(
+          Rect.fromCenter(
+            center: (control.centre - origin) * scale,
+            width: control.size.width,
+            height: control.size.height,
+          ),
+        );
+      }
+      return bounds;
+    }
+
+    // Leave room for rounding when the camera projects canvas coordinates.
+    const tolerance = 1e-6;
+    bool fits(Rect rect) =>
+        rect.width <= usable.width - tolerance &&
+        rect.height <= usable.height - tolerance;
+
+    if (!fits(boundsAt(0))) return null;
+    var scale = 1.0;
+    if (!fits(boundsAt(scale))) {
+      var lower = 0.0;
+      var upper = scale;
+      // Each axis spans centres that spread apart as scale increases.
+      for (var step = 0; step < 32; step++) {
+        final middle = (lower + upper) / 2;
+        if (fits(boundsAt(middle))) {
+          lower = middle;
+        } else {
+          upper = middle;
+        }
+      }
+      scale = lower;
+    }
+    if (scale == 0) return null;
+    final bounds = boundsAt(scale);
+    return (
+      bounds: Rect.fromLTRB(
+        origin.dx + bounds.left / scale,
+        origin.dy + bounds.top / scale,
+        origin.dx + bounds.right / scale,
+        origin.dy + bounds.bottom / scale,
+      ),
+      scale: scale,
     );
   }
 
