@@ -16,6 +16,7 @@ import 'package:tentura_server/api/controllers/websocket/session/qa_realtime_soc
 import 'package:tentura_server/api/controllers/websocket_controller.dart';
 import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
 import 'package:tentura_server/consts/beacon_hierarchy_consts.dart';
+import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/data/service/pg_notification_connection.dart';
 import 'package:tentura_server/data/service/pg_notification_service.dart';
 import 'package:tentura_server/domain/use_case/auth_case.dart';
@@ -174,6 +175,192 @@ VALUES (@id, @room, @author, 'The meeting starts at noon.')
             isNot(contains(_bob)),
           ),
           'after invitation': containsAll([_bob, _carol, _dave]),
+        },
+      );
+    },
+  );
+
+  test(
+    'attachment hints reach private bud invitees while preserving Chat privacy',
+    () async {
+      Future<Set<String>> audienceAfter({
+        required String roomId,
+        required String messageId,
+        required String event,
+        required Future<void> Function() write,
+      }) async {
+        final notifications = await record(write);
+        final hints = notifications.where(
+          (hint) =>
+              hint['entity'] == 'room_message' &&
+              hint['id'] == roomId &&
+              hint['message_id'] == messageId,
+        );
+        expect(hints, isNotEmpty, reason: 'Hints after $event: $notifications');
+        expect(hints, everyElement(containsPair('event', event)));
+        return _audience(hints);
+      }
+
+      Future<void> attach(String messageId) => writer.execute(
+        Sql.named('''
+INSERT INTO public.beacon_room_message_attachment
+  (message_id, kind, file_url, file_name, mime)
+VALUES (@message, ${BeaconRoomMessageAttachmentKind.file},
+        'room/plan.pdf', 'plan.pdf', 'application/pdf')
+'''),
+        parameters: {'message': messageId},
+      );
+
+      Future<Set<String>> attachmentAudience(
+        String roomId,
+        String messageId,
+        Future<void> Function() write,
+      ) => audienceAfter(
+        roomId: roomId,
+        messageId: messageId,
+        event: 'update',
+        write: write,
+      );
+
+      Future<void> removeBudAttachment() => writer.execute('''
+DELETE FROM public.beacon_room_message_attachment
+WHERE message_id = '$_budRoomMessage'
+''');
+
+      await writer.execute('''
+INSERT INTO public.beacon_participant (beacon_id, user_id, room_access)
+VALUES ('$_post', '$_bob', 3), ('$_post', '$_carol', 3)
+ON CONFLICT (beacon_id, user_id) DO UPDATE SET room_access = 3
+''');
+      await _invite(writer, _request, _requestAuthor, _bob);
+      final admitted = await writer.execute('''
+SELECT beacon_id, user_id FROM public.beacon_participant
+WHERE room_access = 3 AND ((beacon_id = '$_bud' AND user_id = '$_carol')
+   OR (beacon_id = '$_request' AND user_id = '$_bob'))
+''');
+      expect(admitted, isEmpty);
+      expect(await canRead(_bud, _bob), isFalse);
+
+      // The message has no mentions, so its insert hint is directly comparable.
+      final messageAudience = await audienceAfter(
+        roomId: _bud,
+        messageId: _budRoomMessage,
+        event: 'insert',
+        write: () => insertMessage(_budRoomMessage),
+      );
+      expect(messageAudience, containsAll([_dave, _carol]));
+      final added = await attachmentAudience(
+        _bud,
+        _budRoomMessage,
+        () => attach(_budRoomMessage),
+      );
+      final edited = await attachmentAudience(
+        _bud,
+        _budRoomMessage,
+        () => writer.execute('''
+UPDATE public.beacon_room_message_attachment SET file_name = 'revised.pdf'
+WHERE message_id = '$_budRoomMessage'
+'''),
+      );
+      final removed = await attachmentAudience(
+        _bud,
+        _budRoomMessage,
+        removeBudAttachment,
+      );
+
+      const requestMessage = 'Rattachreq001';
+      await insertMessage(
+        requestMessage,
+        room: _request,
+        author: _requestAuthor,
+      );
+      final request = await attachmentAudience(
+        _request,
+        requestMessage,
+        () => attach(requestMessage),
+      );
+
+      const postMessage = 'Rattachpost01';
+      await insertMessage(postMessage, room: _post, author: _ann);
+      final ordinaryPost = await attachmentAudience(
+        _post,
+        postMessage,
+        () => attach(postMessage),
+      );
+      const noticeMessage = 'Rattachnotice';
+      await writer.execute('''
+INSERT INTO public.beacon_room_message
+  (id, beacon_id, author_id, system_message_kind, system_payload)
+VALUES ('$noticeMessage', '$_post', '$_dave',
+        ${BeaconRoomSystemMessageKind.childCreated},
+        '{"version":1,"kind":"childCreated","childBeaconId":"$_bud"}'::jsonb)
+''');
+      final notice = await attachmentAudience(
+        _post,
+        noticeMessage,
+        () => attach(noticeMessage),
+      );
+
+      await writer.execute('''
+UPDATE public.beacon_forward_edge SET cancelled_at = now()
+WHERE beacon_id = '$_bud' AND recipient_id = '$_carol'
+''');
+      expect(await canRead(_bud, _carol), isFalse);
+      final cancelled = await attachmentAudience(
+        _bud,
+        _budRoomMessage,
+        () => attach(_budRoomMessage),
+      );
+      await removeBudAttachment();
+      await writer.execute('''
+UPDATE public.beacon_forward_edge
+SET cancelled_at = NULL, recipient_rejected = true
+WHERE beacon_id = '$_bud' AND recipient_id = '$_carol'
+''');
+      final rejected = await attachmentAudience(
+        _bud,
+        _budRoomMessage,
+        () => attach(_budRoomMessage),
+      );
+
+      final activeAudience = allOf(
+        containsAll([_dave, _carol]),
+        isNot(contains(_bob)),
+      );
+      final inactiveAudience = allOf(
+        contains(_dave),
+        isNot(contains(_carol)),
+        isNot(contains(_bob)),
+      );
+      expect(
+        {
+          'bud attachment added': added,
+          'bud attachment edited': edited,
+          'bud attachment removed': removed,
+          'cancelled bud invitation': cancelled,
+          'rejected bud invitation': rejected,
+          'ordinary Request attachment': request,
+          'ordinary Post attachment': ordinaryPost,
+          'Post notice about the private bud': notice,
+        },
+        {
+          'bud attachment added': allOf(
+            activeAudience,
+            equals(messageAudience),
+          ),
+          'bud attachment edited': activeAudience,
+          'bud attachment removed': activeAudience,
+          'cancelled bud invitation': inactiveAudience,
+          'rejected bud invitation': inactiveAudience,
+          'ordinary Request attachment': allOf(
+            containsAll([_requestAuthor, _requestMember]),
+            isNot(contains(_bob)),
+          ),
+          'ordinary Post attachment': contains(_bob),
+          'Post notice about the private bud': allOf(
+            containsAll([_carol, _dave]),
+            isNot(contains(_bob)),
+          ),
         },
       );
     },
