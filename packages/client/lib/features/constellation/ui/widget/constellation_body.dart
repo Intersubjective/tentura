@@ -1235,6 +1235,16 @@ class _ConstellationBodyState extends State<ConstellationBody>
       }
       final cubit = context.read<ConstellationCubit>();
       final state = cubit.state;
+      if (state.selectedRequestId case final id?
+          when cubit.isSearchTemporaryOutlineBeacon(id)) {
+        // Search centres the item itself. Use the space left by the measured
+        // sheet, which was not available when the result was first picked.
+        cubit.frameFieldBeacon(
+          id,
+          insets: _cameraViewportInsets(context, true),
+        );
+        return;
+      }
       final node = _selectedMapNode(cubit, state);
       if (node != null) {
         _revealNode(context, cubit, node);

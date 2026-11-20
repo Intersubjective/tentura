@@ -877,7 +877,8 @@ class ConstellationSceneController {
     final drawnRequestIds = plan.drawnRequestIds;
 
     final requestsById = {
-      for (final request in field.requests) request.id: request,
+      for (final request in composition?.automatic.requests ?? field.requests)
+        request.id: request,
     };
     if (overlay != null) {
       for (final request in overlay.pinnedRequests) {
@@ -1511,16 +1512,15 @@ class ConstellationSceneController {
     if (!graphController.canLayout) {
       return false;
     }
-    for (final candidate
-        in graphController.renderSnapshot.topology.nodesById.values) {
+    final snapshot = graphController.renderSnapshot;
+    for (final candidate in snapshot.topology.nodesById.values) {
       final payload = candidate.payload;
       if (payload is! FieldBeaconNode ||
           (payload.request?.id ?? payload.post?.id) != beaconId) {
         continue;
       }
-      final point = graphController.renderSnapshot.resolvePosition(
-        tenturaGraphNodeId(payload),
-      );
+      // A newly revealed beacon is seeded at its author until layout places it.
+      final point = snapshot.layout?.positions[tenturaGraphNodeId(payload)];
       if (point != null) {
         graphController.jumpToPosition(
           Offset(point.x, point.y),
@@ -1619,14 +1619,19 @@ class ConstellationSceneController {
     );
   }
 
-  Rect? _fieldNodeBodyViewportRect(GraphNodeId graphId) {
+  Rect? _fieldNodeBodyViewportRect(
+    GraphNodeId graphId, {
+    bool atLayoutTarget = false,
+  }) {
     final pixel = graphController.viewportSize;
     if (!graphController.canLayout || pixel == null) {
       return null;
     }
     final snapshot = graphController.renderSnapshot;
     final sceneNode = snapshot.topology.nodesById[graphId];
-    final point = snapshot.resolvePosition(graphId);
+    final point = atLayoutTarget
+        ? snapshot.resolveTargetPosition(graphId)
+        : snapshot.resolvePosition(graphId);
     if (sceneNode == null || point == null) {
       return null;
     }
@@ -1648,8 +1653,8 @@ class ConstellationSceneController {
     return Rect.fromPoints(topLeft, bottomRight);
   }
 
-  /// Whether any Field map body (person, Request, or Post) overlaps the safe
-  /// viewport inside [insets].
+  /// Whether a Field map body (person, Request, or Post) is in or moving
+  /// into the safe viewport inside [insets].
   bool anyFieldNodeBodyIntersectsSafeRect(EdgeInsets insets) {
     final safe = _fieldCameraSafeRect(insets);
     if (safe.width <= 0 || safe.height <= 0) {
@@ -1660,6 +1665,17 @@ class ConstellationSceneController {
       final viewportRect = _fieldNodeBodyViewportRect(graphId);
       if (viewportRect != null && safe.overlaps(viewportRect)) {
         return true;
+      }
+      // A search pick can centre the accepted layout before the node has
+      // finished moving there. The settle-back pan would undo that frame.
+      if (graphController.isLayoutTransitioning) {
+        final target = _fieldNodeBodyViewportRect(
+          graphId,
+          atLayoutTarget: true,
+        );
+        if (target != null && safe.overlaps(target)) {
+          return true;
+        }
       }
     }
     return false;

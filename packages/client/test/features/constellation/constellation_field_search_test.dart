@@ -1,5 +1,8 @@
+import 'dart:ui' show PointerDeviceKind;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:get_it/get_it.dart';
 import 'package:logging/logging.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -9,6 +12,7 @@ import 'package:tentura/features/constellation/domain/entity/constellation_ancho
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field_search_result.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field_hidden_item.dart';
+import 'package:tentura/features/constellation/domain/entity/constellation_field_target_kind.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_field_hide_port.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_field_search_port.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
@@ -17,17 +21,22 @@ import 'package:tentura/features/constellation/domain/use_case/constellation_fie
 import 'package:tentura/features/constellation/domain/use_case/constellation_field_search_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/screen/constellation_screen.dart';
-import 'package:tentura/features/graph/domain/entity/node_details.dart';
+import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
+import 'package:tentura/features/constellation/ui/widget/constellation_temporary_outline.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_person_search.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_visibility_bar.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_person_context_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/home_tab_reselect_cubit.dart';
+import 'package:tentura/features/people_tags/domain/entity/people_tags_entities.dart';
+import 'package:tentura/features/people_tags/domain/use_case/people_tags_case.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
+import '../../../integration_test/support/constellation_search_test_helpers.dart';
 import '../../support/constellation_store_fixture.dart';
+import '../../support/fake_people_tags_repository.dart';
 import '../../support/people_tags_widget_harness.dart';
 import '../../support/phone_surface.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
@@ -314,19 +323,6 @@ Future<ConstellationCubit> _pumpFieldMapScreen(
   return cubit;
 }
 
-Future<void> _waitForBeaconNode(
-  WidgetTester tester,
-  ConstellationCubit cubit,
-  String beaconId,
-) async {
-  for (var attempt = 0; attempt < 40; attempt++) {
-    if (_fieldHasBeaconNode(cubit, beaconId)) {
-      return;
-    }
-    await tester.pump(const Duration(milliseconds: 50));
-  }
-}
-
 void _expectComposedSearchBeacon(ConstellationCubit cubit, String beaconId) {
   final composition = cubit.state.composition;
   expect(composition, isNotNull);
@@ -335,20 +331,6 @@ void _expectComposedSearchBeacon(ConstellationCubit cubit, String beaconId) {
     composition.beaconNodes.any((node) => node.id == beaconId),
     isTrue,
   );
-}
-
-bool _fieldHasBeaconNode(ConstellationCubit cubit, String beaconId) {
-  for (final node
-      in cubit.graphController.renderSnapshot.topology.nodesById.values) {
-    final payload = node.payload;
-    if (payload is! FieldBeaconNode) {
-      continue;
-    }
-    if (payload.request?.id == beaconId || payload.post?.id == beaconId) {
-      return true;
-    }
-  }
-  return false;
 }
 
 Future<void> _pickHiddenSearchHit(
@@ -364,7 +346,594 @@ Future<void> _pickHiddenSearchHit(
   await tester.pumpAndSettle();
 }
 
+const _hiddenRequestId = 'req-h';
+const _hiddenPostId = 'post-h';
+
+ConstellationFieldSearchRequestHit _hiddenBeaconHit({bool isPost = false}) =>
+    ConstellationFieldSearchRequestHit(
+      id: isPost ? _hiddenPostId : _hiddenRequestId,
+      authorId: 'am',
+      title: isPost ? 'Spare ladder' : 'Need boxes',
+      status: 0,
+      hidden: true,
+      lastActivityAt: _loadedAt,
+    );
+
+final _hiddenPost = ConstellationPost(
+  id: _hiddenPostId,
+  authorId: 'am',
+  rootExcerpt: 'Spare ladder',
+  status: 0,
+  lastActivityAt: _loadedAt,
+);
+
+ConstellationFieldSearchCase _hiddenItemSearchCase() => _searchCase(
+  _QueryKeyedFakeSearchPort({
+    'boxes': ConstellationFieldSearchResult(requests: [_hiddenBeaconHit()]),
+    'ladder': ConstellationFieldSearchResult(
+      posts: [
+        ConstellationFieldSearchPostHit(
+          id: _hiddenPostId,
+          authorId: 'am',
+          rootExcerpt: _hiddenPost.rootExcerpt,
+          status: 0,
+          hidden: true,
+          lastActivityAt: _hiddenPost.lastActivityAt,
+        ),
+      ],
+    ),
+  }),
+);
+
+void _expectAbsentFromLoadedField(ConstellationCubit cubit, String id) {
+  final field = cubit.state.field!;
+  final projection = field.resolvedAnchorProjection;
+  expect(field.requests.map((request) => request.id), isNot(contains(id)));
+  expect(field.posts.map((post) => post.id), isNot(contains(id)));
+  expect(
+    projection.pinnedRequests.map((request) => request.id),
+    isNot(contains(id)),
+  );
+  expect(
+    projection.anchors.map((anchor) => anchor.target.id),
+    isNot(contains(id)),
+  );
+  expect(cubit.graphController.getPositionOrNullForId('fr:$id'), isNull);
+}
+
+Future<void> _parkCameraInEmptyCorner(
+  WidgetTester tester,
+  ConstellationCubit cubit,
+  Offset corner,
+) async {
+  final graph = cubit.graphController;
+  final beforeZoom = graph.cameraScale;
+  expect(graph.getPositionOrNullForId('fp:am'), isNotNull);
+  graph.zoomBy(1.5 / beforeZoom);
+  graph.jumpToPosition(corner);
+  await tester.pumpAndSettle();
+  final viewport = Offset.zero & graph.viewportSize!;
+  expect(graph.cameraScale, closeTo(1.5, 0.01));
+  expect(
+    (graph.viewportLocalToScene(viewport.center) - corner).distance,
+    lessThan(1),
+  );
+  for (final id in graph.renderSnapshot.topology.nodesById.keys) {
+    final at = graph.getPositionOrNullForId(id);
+    if (at != null) {
+      expect(
+        viewport.inflate(100).contains(graph.sceneToViewportLocal(at)),
+        isFalse,
+        reason: '$id should be far from the starting viewport',
+      );
+    }
+  }
+}
+
+Finder _hiddenNode(String id) => find.byKey(TestIds.key(TestIds.graphNode(id)));
+
+Finder _dashedOutline(String id) => find.byWidgetPredicate(
+  (widget) =>
+      widget is ConstellationTemporaryOutline &&
+      widget.key == TestIds.key(TestIds.constellationTemporaryOutline(id)),
+);
+
+final _showAgain = find.byKey(TestIds.key(TestIds.constellationShowAgain));
+final _unavailable = find.byKey(
+  const Key('constellation.selection_unavailable'),
+);
+
+Future<void> _settleSearchCamera(WidgetTester tester) async {
+  // Allow a layout job followed by a camera update, even if no frame is
+  // scheduled between the two. A missing placement must fail the assertion.
+  for (var frame = 0; frame < 20; frame++) {
+    await tester.pump(const Duration(milliseconds: 100));
+  }
+  await tester.pumpAndSettle();
+}
+
+Future<({EdgeInsets insets, Offset start})> _pickSearchHitFromEmptyCorner(
+  WidgetTester tester,
+  ConstellationCubit cubit, {
+  required String query,
+  required String kind,
+  required String id,
+  required Offset corner,
+}) async {
+  await _searchInOpenOverlay(tester, query);
+  final hit = find.byKey(Key('constellation.field_search.$kind.$id'));
+  expect(hit.hitTestable(), findsOneWidget);
+  await _parkCameraInEmptyCorner(tester, cubit, corner);
+  final graph = cubit.graphController;
+  final insets = fieldSearchPickInsets(cubit, tester.element(hit));
+  final safe = insets.deflateRect(Offset.zero & graph.viewportSize!);
+  expect(safe.isEmpty, isFalse);
+  final start = graph.viewportLocalToScene(safe.center);
+  await tester.tap(hit);
+  await _settleSearchCamera(tester);
+  return (insets: insets, start: start);
+}
+
+List<String> _hiddenBeaconDrawingMismatches(String id) => [
+  if (_hiddenNode(id).evaluate().length != 1) '$id has no rendered map node',
+  if (_dashedOutline(id).evaluate().length != 1) '$id has no dashed outline',
+];
+
+void _hiddenItemsOnTheFieldTests() {
+  group('Finding hidden items on the Field', () {
+    testWidgets(
+      'centres on the hidden Request on each pick from an empty corner',
+      (
+        tester,
+      ) async {
+        final cubit = await _loadCubit(
+          field: _emptyFieldBase(),
+          hidePortForCase: _RecordingHidePort(),
+        );
+        addTearDown(cubit.close);
+        await _pumpFieldMapScreen(
+          tester,
+          cubit,
+          locale: const Locale('en'),
+          size: const Size(1280, 800),
+        );
+        _expectAbsentFromLoadedField(cubit, _hiddenRequestId);
+        const insets = EdgeInsets.fromLTRB(24, 48, 84, 72);
+        final errors = <String>[];
+        for (final corner in [
+          const Offset(2000, 2000),
+          const Offset(14000, 14000),
+        ]) {
+          await _parkCameraInEmptyCorner(tester, cubit, corner);
+          final graph = cubit.graphController;
+          final safe = insets.deflateRect(Offset.zero & graph.viewportSize!);
+          final start = graph.viewportLocalToScene(safe.center);
+          cubit.pickFieldSearchBeacon(
+            hit: _hiddenBeaconHit(),
+            insets: insets,
+            isPost: false,
+          );
+          await _settleSearchCamera(tester);
+          expect(cubit.state.selectedRequestId, _hiddenRequestId);
+          expect(
+            cubit.isSearchTemporaryOutlineBeacon(_hiddenRequestId),
+            isTrue,
+          );
+          expect(_showAgain.hitTestable(), findsOneWidget);
+          expect(_unavailable, findsNothing);
+          if (_hiddenNode(_hiddenRequestId).evaluate().length != 1 ||
+              _dashedOutline(_hiddenRequestId).evaluate().length != 1) {
+            errors.add(
+              'Picking from $corner: the Request map node or its dashed outline is missing',
+            );
+          }
+          for (final failure in fieldSearchCameraMismatches(
+            cubit,
+            _hiddenRequestId,
+            insets,
+            start,
+          )) {
+            errors.add('Picking from $corner: $failure');
+          }
+        }
+        expect(errors, isEmpty);
+      },
+    );
+
+    testWidgets('reopening search and picking the same hidden Request '
+        'centres it from a second empty corner', (tester) async {
+      final cubit = await _loadCubit(
+        field: _emptyFieldBase(),
+        searchCase: _hiddenItemSearchCase(),
+        hidePortForCase: _RecordingHidePort(),
+      );
+      addTearDown(cubit.close);
+      await _pumpFieldMapScreen(
+        tester,
+        cubit,
+        locale: const Locale('en'),
+        size: const Size(1280, 800),
+      );
+      _expectAbsentFromLoadedField(cubit, _hiddenRequestId);
+      final errors = <String>[];
+      for (final corner in [
+        const Offset(2000, 2000),
+        const Offset(14000, 14000),
+      ]) {
+        final pick = await _pickSearchHitFromEmptyCorner(
+          tester,
+          cubit,
+          query: 'boxes',
+          kind: 'request',
+          id: _hiddenRequestId,
+          corner: corner,
+        );
+        expect(
+          find.byKey(const Key('constellation.field_search.request.req-h')),
+          findsNothing,
+        );
+        expect(cubit.state.selectedRequestId, _hiddenRequestId);
+        for (final failure in fieldSearchCameraMismatches(
+          cubit,
+          _hiddenRequestId,
+          pick.insets,
+          pick.start,
+        )) {
+          errors.add('Picking the Request result from $corner: $failure');
+        }
+      }
+      expect(errors, isEmpty);
+    });
+
+    for (final (locale, label) in [
+      (const Locale('ru'), 'Показать снова'),
+      (const Locale('en'), 'Show again'),
+    ]) {
+      testWidgets('frames both hidden item types with reachable actions '
+          'on a 375×667 ${locale.languageCode} phone', (tester) async {
+        // The suggestions are a Navigator route above the Field's MediaQuery.
+        tester.view.physicalSize = kPhoneSurface * tester.view.devicePixelRatio;
+        addTearDown(tester.view.resetPhysicalSize);
+        final cubit = await _loadCubit(
+          field: _emptyFieldBase(),
+          searchCase: _hiddenItemSearchCase(),
+          hidePortForCase: _RecordingHidePort(),
+        );
+        addTearDown(cubit.close);
+        await _pumpFieldMapScreen(tester, cubit, locale: locale);
+        final bodyContext = tester.element(find.byType(ConstellationBody));
+        expect(MediaQuery.sizeOf(bodyContext), kPhoneSurface);
+        expect(Localizations.localeOf(bodyContext), locale);
+        final errors = <String>[];
+        for (final (id, kind, query, corner) in [
+          (_hiddenRequestId, 'request', 'boxes', const Offset(2000, 2000)),
+          (_hiddenPostId, 'post', 'ladder', const Offset(14000, 14000)),
+        ]) {
+          _expectAbsentFromLoadedField(cubit, id);
+          await _searchInOpenOverlay(tester, query);
+          final hit = find.byKey(Key('constellation.field_search.$kind.$id'));
+          expect(hit.hitTestable(), findsOneWidget);
+          expect(MediaQuery.sizeOf(tester.element(hit)), kPhoneSurface);
+          await _parkCameraInEmptyCorner(tester, cubit, corner);
+          final graph = cubit.graphController;
+          final insets = fieldSearchPickInsets(cubit, tester.element(hit));
+          final safe = insets.deflateRect(Offset.zero & graph.viewportSize!);
+          expect(safe.isEmpty, isFalse);
+          final before = graph.viewportLocalToScene(safe.center);
+          await tester.tap(hit);
+          await _settleSearchCamera(tester);
+          expect(cubit.state.selectedRequestId, id);
+          expect(cubit.isSearchTemporaryOutlineBeacon(id), isTrue);
+          expect(_unavailable, findsNothing);
+          await tester.ensureVisible(_showAgain);
+          await tester.pumpAndSettle();
+          expect(_showAgain.hitTestable(), findsOneWidget);
+          expect(
+            find.descendant(of: _showAgain, matching: find.text(label)),
+            findsOneWidget,
+          );
+          expect(
+            tester.takeException(),
+            isNull,
+            reason: '$kind fits the phone',
+          );
+          if (_hiddenNode(id).evaluate().isEmpty ||
+              _dashedOutline(id).evaluate().isEmpty) {
+            errors.add(
+              '$id is missing its rendered map node or dashed outline',
+            );
+          }
+          errors.addAll(
+            fieldSearchCameraMismatches(
+              cubit,
+              id,
+              // The first pick opens the sheet after the tap. Check the
+              // final map against the insets of the measured sheet.
+              cubit.fieldCameraViewportSnapshotForTest,
+              before,
+              postAuthorId: kind == 'post' ? 'am' : null,
+            ),
+          );
+        }
+        expect(errors, isEmpty);
+      });
+    }
+
+    testWidgets(
+      'picks Request and Post results over the Field magnet menu button',
+      (
+        tester,
+      ) async {
+        const tag = PersonTag(
+          id: 'supplies',
+          name: 'Supplies',
+          glyph: 'S',
+          color: 0,
+          ord: 1,
+        );
+        final tags = await PeopleTagsTestRig.create(
+          FakePeopleTagsRepository(tagList: const [tag]),
+        );
+        GetIt.I.registerSingleton<PeopleTagsCase>(tags.peopleTags);
+        addTearDown(() async {
+          await GetIt.I.unregister<PeopleTagsCase>();
+          await tags.dispose();
+        });
+
+        const window = Size(1280, 800);
+        tester.view.physicalSize = window * tester.view.devicePixelRatio;
+        addTearDown(tester.view.resetPhysicalSize);
+        final cubit = await _loadCubit(
+          field: _emptyFieldBase(),
+          searchCase: _hiddenItemSearchCase(),
+        );
+        addTearDown(cubit.close);
+        await _pumpFieldMapScreen(
+          tester,
+          cubit,
+          locale: const Locale('en'),
+          size: window,
+        );
+        final graph = cubit.graphController;
+        final viewport = Offset.zero & graph.viewportSize!;
+        cubit.placeTagMagnet(
+          tagId: tag.id,
+          position: graph.viewportLocalToScene(viewport.center),
+          tagsOfPerson: tags.peopleTags.tagsOfPerson,
+        );
+        await tester.pumpAndSettle();
+        final magnetMenu = find.byType(PopupMenuItem<bool>);
+        // With no search overlay, the button really does open the magnet menu.
+        expect(fieldSearchMagnetMenuButton.hitTestable(), findsOneWidget);
+        await tester.tap(fieldSearchMagnetMenuButton);
+        await tester.pumpAndSettle();
+        expect(magnetMenu, findsOneWidget);
+        Navigator.of(tester.element(magnetMenu)).pop();
+        await tester.pumpAndSettle();
+
+        final errors = <String>[];
+        for (final (id, kind, query) in [
+          (_hiddenRequestId, 'request', 'boxes'),
+          (_hiddenPostId, 'post', 'ladder'),
+        ]) {
+          await _searchInOpenOverlay(tester, query);
+          await tester.pumpAndSettle();
+          final hit = find.byKey(Key('constellation.field_search.$kind.$id'));
+          expect(hit.hitTestable(), findsOneWidget);
+          final insets = fieldSearchPickInsets(cubit, tester.element(hit));
+          final point = await positionMagnetBehindSearchResult(
+            tester,
+            cubit,
+            hit,
+          );
+          final before = graph.viewportLocalToScene(
+            insets.deflateRect(viewport).center,
+          );
+          await tester.tapAt(point, kind: PointerDeviceKind.mouse);
+          await _settleSearchCamera(tester);
+          expect(cubit.state.selectedRequestId, id);
+          expect(
+            magnetMenu,
+            findsNothing,
+            reason: 'the $kind result kept the tap',
+          );
+          errors.addAll(
+            fieldSearchCameraMismatches(
+              cubit,
+              id,
+              insets,
+              before,
+              postAuthorId: kind == 'post' ? 'am' : null,
+            ),
+          );
+        }
+        expect(errors, isEmpty);
+      },
+    );
+
+    testWidgets('clearing search ends the hidden item selection', (
+      tester,
+    ) async {
+      final cubit = await _loadCubit(
+        field: _emptyFieldBase(),
+        searchCase: _hiddenItemSearchCase(),
+      );
+      addTearDown(cubit.close);
+      await _pumpFieldMapScreen(tester, cubit);
+      await _pickHiddenSearchHit(
+        tester,
+        query: 'ladder',
+        hitKey: 'constellation.field_search.post.post-h',
+      );
+      expect(cubit.state.selectedRequestId, _hiddenPostId);
+      expect(cubit.isSearchTemporaryOutlineBeacon(_hiddenPostId), isTrue);
+      expect(cubit.isSearchRevealedHiddenBeacon(_hiddenPostId), isTrue);
+      expect(cubit.postById(_hiddenPostId), isNotNull);
+      expect(_hiddenNode(_hiddenPostId), findsOneWidget);
+      await _searchInOpenOverlay(tester, 'ladder');
+      final clear = find.byTooltip(
+        MaterialLocalizations.of(
+          tester.element(find.byType(TextField).last),
+        ).clearButtonTooltip,
+      );
+      expect(clear.hitTestable(), findsOneWidget);
+      await tester.tap(clear);
+      await _settleSearchCamera(tester);
+      final input = find.descendant(
+        of: find.byType(SearchBar),
+        matching: find.byType(TextField),
+      );
+      if (input.evaluate().isNotEmpty) {
+        expect(tester.widget<TextField>(input).controller!.text, isEmpty);
+        // Close the suggestions so the following assertion sees the map.
+        await tester.tap(find.byType(BackButton));
+        await tester.pumpAndSettle();
+      }
+      final remainingPick = (
+        selected: cubit.state.selectedRequestId,
+        dashed: cubit.isSearchTemporaryOutlineBeacon(_hiddenPostId),
+        revealed: cubit.isSearchRevealedHiddenBeacon(_hiddenPostId),
+        injected: cubit.postById(_hiddenPostId) != null,
+        onMap: _hiddenNode(_hiddenPostId).evaluate().isNotEmpty,
+      );
+      expect(remainingPick, (
+        selected: null,
+        dashed: false,
+        revealed: false,
+        injected: false,
+        onMap: false,
+      ));
+    });
+
+    testWidgets(
+      'centres on the dashed hidden Post and restores it on Show again '
+      'while the Requests count stays at 31',
+      (tester) async {
+        final visibleField = _emptyFieldBase().copyWith(
+          requests: [
+            for (var i = 0; i < 31; i++)
+              ConstellationRequest(
+                id: 'box-request-$i',
+                authorId: 'ego',
+                title: 'Boxes $i',
+                status: 0,
+                lastActivityAt: _loadedAt,
+              ),
+          ],
+          posts: [_hiddenPost],
+        );
+        final repo = _MutableFieldRepository(visibleField);
+        final hidePort = _RecordingHidePort();
+        final cubit = await _loadCubit(
+          field: repo.field,
+          repositoryOverride: repo,
+          searchCase: _hiddenItemSearchCase(),
+          hidePortForCase: hidePort,
+        );
+        addTearDown(cubit.close);
+        await _pumpFieldMapScreen(
+          tester,
+          cubit,
+          locale: const Locale('en'),
+          size: const Size(1280, 800),
+        );
+        final count = find.byKey(
+          const Key('constellation.show.requests.count'),
+        );
+        void expectRequestCount() =>
+            expect(tester.widget<Text>(count).data, '31');
+        expectRequestCount();
+        cubit.selectRequest(_hiddenPostId);
+        await tester.pumpAndSettle();
+        final hide = find.byKey(
+          TestIds.key(TestIds.constellationHideFromField),
+        );
+        await tester.ensureVisible(hide);
+        await tester.tap(hide);
+        await tester.pumpAndSettle();
+        repo.field = visibleField.copyWith(posts: []);
+        _expectAbsentFromLoadedField(cubit, _hiddenPostId);
+        expectRequestCount();
+        await _parkCameraInEmptyCorner(tester, cubit, const Offset(2000, 2000));
+        const insets = EdgeInsets.fromLTRB(24, 48, 84, 72);
+        final graph = cubit.graphController;
+        final safe = insets.deflateRect(Offset.zero & graph.viewportSize!);
+        final start = graph.viewportLocalToScene(safe.center);
+        cubit.pickFieldSearchBeacon(
+          hit: _hiddenBeaconHit(isPost: true),
+          insets: insets,
+          isPost: true,
+        );
+        await _settleSearchCamera(tester);
+        expect(cubit.state.selectedRequestId, _hiddenPostId);
+        final cameraErrors = fieldSearchCameraMismatches(
+          cubit,
+          _hiddenPostId,
+          insets,
+          start,
+          postAuthorId: 'am',
+        );
+        expectRequestCount();
+        expect(cubit.isSearchTemporaryOutlineBeacon(_hiddenPostId), isTrue);
+        expect(_dashedOutline(_hiddenPostId), findsOneWidget);
+        cubit.selectRequest(null);
+        await _settleSearchCamera(tester);
+        _expectAbsentFromLoadedField(cubit, _hiddenPostId);
+        expect(cubit.state.selectedRequestId, isNull);
+
+        final rowPick = await _pickSearchHitFromEmptyCorner(
+          tester,
+          cubit,
+          query: 'ladder',
+          kind: 'post',
+          id: _hiddenPostId,
+          corner: const Offset(14000, 14000),
+        );
+        expect(cubit.state.selectedRequestId, _hiddenPostId);
+        expectRequestCount();
+        cameraErrors.addAll(
+          fieldSearchCameraMismatches(
+            cubit,
+            _hiddenPostId,
+            rowPick.insets,
+            rowPick.start,
+            postAuthorId: 'am',
+          ),
+        );
+        expect(cubit.isSearchTemporaryOutlineBeacon(_hiddenPostId), isTrue);
+        final outlineBefore = _dashedOutline(_hiddenPostId).evaluate().length;
+        await tester.ensureVisible(_showAgain);
+        expect(_showAgain.hitTestable(), findsOneWidget);
+        repo.field = visibleField;
+        await tester.tap(_showAgain);
+        await _settleSearchCamera(tester);
+        expect(hidePort.unhideCalls, [
+          (
+            targetKind: ConstellationFieldTargetKind.post.wireValue,
+            targetId: _hiddenPostId,
+          ),
+        ]);
+        expect(
+          cubit.state.field!.posts.map((post) => post.id),
+          contains(_hiddenPostId),
+        );
+        expect(cubit.isSearchTemporaryOutlineBeacon(_hiddenPostId), isFalse);
+        expect(_dashedOutline(_hiddenPostId), findsNothing);
+        expectRequestCount();
+        expect(
+          outlineBefore,
+          1,
+          reason: 'the temporarily revealed Post was drawn dashed',
+        );
+        expect(cameraErrors, isEmpty);
+      },
+    );
+  });
+}
+
 void main() {
+  _hiddenItemsOnTheFieldTests();
+
   group('Field search (#255)', () {
     test('searchField skips the port when the query is too short', () async {
       final port = _FakeSearchPort(emptyConstellationFieldSearchResult);
@@ -565,8 +1134,10 @@ void main() {
     });
 
     testWidgets(
-      'hidden Request search pick on Field map (RU phone, real body path)',
+      'frames and restores the dashed hidden Request from search on a Russian phone',
       (tester) async {
+        tester.view.physicalSize = kPhoneSurface * tester.view.devicePixelRatio;
+        addTearDown(tester.view.resetPhysicalSize);
         const requestId = 'req-h';
         final repo = _MutableFieldRepository(_emptyFieldBase());
         final hidePort = _RecordingHidePort();
@@ -597,15 +1168,13 @@ void main() {
           locale: const Locale('ru'),
         );
 
-        final controller = cubit.graphController;
-        final cameraBeforePick = controller.viewportLocalToScene(Offset.zero);
-        controller.jumpToPosition(const Offset(8000, 8000));
-        await tester.pump();
-
-        await _pickHiddenSearchHit(
+        final pick = await _pickSearchHitFromEmptyCorner(
           tester,
+          cubit,
           query: '1137',
-          hitKey: 'constellation.field_search.request.$requestId',
+          kind: 'request',
+          id: requestId,
+          corner: const Offset(2000, 2000),
         );
 
         expect(
@@ -615,21 +1184,15 @@ void main() {
         expect(cubit.state.selectedRequestId, requestId);
         expect(cubit.isSearchTemporaryOutlineBeacon(requestId), isTrue);
         _expectComposedSearchBeacon(cubit, requestId);
-        await _waitForBeaconNode(tester, cubit, requestId);
-        final outline = find.byKey(
-          Key(TestIds.constellationTemporaryOutline(requestId)),
-        );
-        if (outline.evaluate().isNotEmpty) {
-          expect(outline, findsWidgets);
-        }
-        final onMap = find.byKey(TestIds.key(TestIds.graphNode(requestId)));
-        if (_fieldHasBeaconNode(cubit, requestId)) {
-          expect(onMap, findsOneWidget);
-          expect(
-            controller.viewportLocalToScene(Offset.zero),
-            isNot(cameraBeforePick),
-          );
-        }
+        final revealErrors = [
+          ..._hiddenBeaconDrawingMismatches(requestId),
+          ...fieldSearchCameraMismatches(
+            cubit,
+            requestId,
+            cubit.fieldCameraViewportSnapshotForTest,
+            pick.start,
+          ),
+        ];
         expect(
           find.byKey(TestIds.key(TestIds.constellationShowAgain)),
           findsOneWidget,
@@ -665,6 +1228,7 @@ void main() {
           find.byKey(const Key('constellation.selection_unavailable')),
           findsNothing,
         );
+        expect(revealErrors, isEmpty);
       },
     );
 
@@ -717,8 +1281,10 @@ void main() {
     );
 
     testWidgets(
-      'hidden Post search pick on Field map (RU phone, real body path)',
+      'frames and restores the dashed hidden Post from search on a Russian phone',
       (tester) async {
+        tester.view.physicalSize = kPhoneSurface * tester.view.devicePixelRatio;
+        addTearDown(tester.view.resetPhysicalSize);
         const postId = 'post-h';
         final repo = _MutableFieldRepository(_emptyFieldBase());
         final hidePort = _RecordingHidePort();
@@ -749,10 +1315,13 @@ void main() {
           locale: const Locale('ru'),
         );
 
-        await _pickHiddenSearchHit(
+        final pick = await _pickSearchHitFromEmptyCorner(
           tester,
+          cubit,
           query: '1137',
-          hitKey: 'constellation.field_search.post.$postId',
+          kind: 'post',
+          id: postId,
+          corner: const Offset(2000, 2000),
         );
 
         expect(
@@ -762,7 +1331,17 @@ void main() {
         expect(cubit.state.selectedRequestId, postId);
         expect(cubit.isPostId(postId), isTrue);
         _expectComposedSearchBeacon(cubit, postId);
-        await _waitForBeaconNode(tester, cubit, postId);
+        expect(cubit.isSearchTemporaryOutlineBeacon(postId), isTrue);
+        final revealErrors = [
+          ..._hiddenBeaconDrawingMismatches(postId),
+          ...fieldSearchCameraMismatches(
+            cubit,
+            postId,
+            cubit.fieldCameraViewportSnapshotForTest,
+            pick.start,
+            postAuthorId: 'am',
+          ),
+        ];
         expect(
           find.byKey(TestIds.key(TestIds.constellationShowAgain)),
           findsOneWidget,
@@ -786,6 +1365,7 @@ void main() {
         await tester.tap(showAgain);
         await tester.pumpAndSettle();
         expect(hidePort.unhideCalls.map((e) => e.targetId), contains(postId));
+        expect(revealErrors, isEmpty);
       },
     );
 

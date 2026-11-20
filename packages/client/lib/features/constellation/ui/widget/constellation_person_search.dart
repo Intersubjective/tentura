@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -14,7 +13,6 @@ import 'package:tentura/ui/widget/semantics_free_tooltip.dart';
 import '../../domain/constellation_people.dart';
 import '../../domain/entity/constellation_field_search_result.dart';
 import '../bloc/constellation_cubit.dart';
-import 'constellation_camera_controls.dart';
 
 /// Most people a name search lists at once; typing narrows it further.
 const kConstellationPersonSearchLimit = 200;
@@ -85,6 +83,7 @@ class _ConstellationPersonSearchButtonState
   Timer? _debounce;
   int _searchSession = 0;
   final _viewState = _FieldSearchViewState();
+  final _controller = SearchController();
   SearchController? _searchTextController;
   ConstellationCubit? _searchCubit;
 
@@ -92,6 +91,7 @@ class _ConstellationPersonSearchButtonState
   void dispose() {
     _debounce?.cancel();
     _detachSearchTextListener();
+    _controller.dispose();
     _viewState.dispose();
     super.dispose();
   }
@@ -179,24 +179,11 @@ class _ConstellationPersonSearchButtonState
     ];
   }
 
-  EdgeInsets _cameraInsets(BuildContext context) {
-    try {
-      return context.read<ConstellationCubit>().fieldCameraViewportInsets(
-        context,
-        contextPanelVisible: true,
-      );
-    } on ProviderNotFoundException {
-      // List/search-only harnesses mount the cubit above this widget without
-      // a Provider scope around the suggestion rows.
-      return ConstellationCameraControls.cameraViewportInsets(
-        context,
-        contextPanelVisible: true,
-      );
-    }
-  }
+  EdgeInsets _cameraInsets(BuildContext context, ConstellationCubit cubit) =>
+      cubit.fieldCameraViewportInsets(context, contextPanelVisible: true);
 
   void _pickPerson(BuildContext context, ConstellationCubit cubit, String id) {
-    cubit.pickFieldSearchPerson(id, insets: _cameraInsets(context));
+    cubit.pickFieldSearchPerson(id, insets: _cameraInsets(context, cubit));
   }
 
   void _pickRequest(
@@ -206,7 +193,7 @@ class _ConstellationPersonSearchButtonState
   ) {
     cubit.pickFieldSearchBeacon(
       hit: hit,
-      insets: _cameraInsets(context),
+      insets: _cameraInsets(context, cubit),
       isPost: false,
     );
   }
@@ -225,7 +212,7 @@ class _ConstellationPersonSearchButtonState
         hidden: hit.hidden,
         lastActivityAt: hit.lastActivityAt,
       ),
-      insets: _cameraInsets(context),
+      insets: _cameraInsets(context, cubit),
       isPost: true,
     );
   }
@@ -544,9 +531,25 @@ class _ConstellationPersonSearchButtonState
     final cubit = context.read<ConstellationCubit>();
     return SearchAnchor(
       key: TestIds.key(TestIds.constellationFieldSearch),
+      searchController: _controller,
       viewHintText: l10n.constellationFieldSearchHint,
       viewOnOpen: _resetSearchSession,
       viewOnClose: _resetSearchSession,
+      viewTrailing: [
+        ValueListenableBuilder(
+          valueListenable: _controller,
+          builder: (context, value, _) => value.text.isEmpty
+              ? const SizedBox.shrink()
+              : IconButton(
+                  icon: const Icon(Icons.close),
+                  tooltip: MaterialLocalizations.of(context).clearButtonTooltip,
+                  onPressed: () {
+                    _controller.clear();
+                    cubit.clearFieldSearchBeaconPick();
+                  },
+                ),
+        ),
+      ],
       builder: (context, controller) => SemanticsFreeTooltip(
         message: l10n.constellationSearchPeople,
         child: IconButton(

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
 import 'package:get_it/get_it.dart';
 import 'package:tentura/consts.dart';
+import 'package:tentura/design_system/tentura_window_class.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura/domain/contacts/contact_name_overlay.dart';
 import 'package:tentura/domain/contacts/contact_name_store.dart';
@@ -1244,6 +1245,13 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     required bool contextPanelVisible,
     double compactSheetHeight = 0,
   }) {
+    if (contextPanelVisible &&
+        compactSheetHeight == 0 &&
+        context.windowClass == WindowClass.compact &&
+        (state.selectedRequestId != null || state.selectedPersonId != null) &&
+        _fieldCameraViewportSnapshot != EdgeInsets.zero) {
+      return _fieldCameraViewportSnapshot;
+    }
     return ConstellationCameraControls.cameraViewportInsets(
       context,
       contextPanelVisible: contextPanelVisible,
@@ -1551,7 +1559,9 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     }
     _scene.awaitingLayoutOutcome = false;
     if (outcome is! GraphLayoutOutcomeSucceeded) {
-      _pendingFieldCamera = null;
+      if (outcome is! GraphLayoutOutcomeCancelled || !_hasPendingSearchFrame) {
+        _pendingFieldCamera = null;
+      }
       _pendingOverflowRefit = null;
     }
 
@@ -3295,9 +3305,9 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   Future<void> _fetchRequestWebs(String requestId) async {
     final case_ = _memberWebsCase;
     if (case_ == null ||
+        isPostId(requestId) ||
         _requestWebsById.containsKey(requestId) ||
-        !_requestWebsInFlight.add(requestId) ||
-        (state.field?.posts.any((post) => post.id == requestId) ?? false)) {
+        !_requestWebsInFlight.add(requestId)) {
       return;
     }
     try {
@@ -3687,6 +3697,12 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   })?
   _pendingFieldCamera;
 
+  // A search pick owns its camera request through any replacement layout,
+  // such as the recompose when the selected Request's members arrive.
+  bool get _hasPendingSearchFrame =>
+      _searchPickBeaconId != null &&
+      _pendingFieldCamera?.centerOnBeaconId == _searchPickBeaconId;
+
   @visibleForTesting
   bool get fieldCameraPendingForTest => _pendingFieldCamera != null;
 
@@ -3698,12 +3714,19 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       return;
     }
     selectRequest(beaconId);
-    if (state.placementPhase != ConstellationPlacementPhase.idle) {
+    frameFieldBeacon(beaconId, insets: insets);
+  }
+
+  /// Centres the camera without changing the selection or its layout.
+  void frameFieldBeacon(String beaconId, {required EdgeInsets insets}) {
+    if (isClosed || state.placementPhase != ConstellationPlacementPhase.idle) {
       return;
     }
-    if (_scene.centreOnBeacon(beaconId, insets)) {
+    if (!_shouldDeferProgrammaticFieldCamera() &&
+        _scene.centreOnBeacon(beaconId, insets)) {
       // The targeted camera is this visit's frame; the automatic fit-all of a
       // new visit («Show on Field» from another tab) must not replace it.
+      _pendingFieldCamera = null;
       _recordProgrammaticFieldCamera();
       return;
     }
@@ -5602,6 +5625,12 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   bool isSearchRevealedHiddenBeacon(String beaconId) =>
       _searchRevealedHiddenBeaconIds.contains(beaconId);
 
+  void clearFieldSearchBeaconPick() {
+    if (_searchPickBeaconId != null) {
+      selectRequest(null);
+    }
+  }
+
   bool searchHitOnField({required String beaconId, required bool hidden}) {
     if (hidden) {
       return false;
@@ -5936,7 +5965,9 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   }
 
   void _recomposeAndLayout() {
-    _pendingFieldCamera = null;
+    if (!_hasPendingSearchFrame) {
+      _pendingFieldCamera = null;
+    }
     _pendingOverflowRefit = null;
     final field = state.field;
     if (field == null) {
