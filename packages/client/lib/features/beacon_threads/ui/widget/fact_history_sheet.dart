@@ -375,12 +375,20 @@ class _FactHistoryTimelineRow extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (row is BeaconFactHistoryEvent)
+                    if (row is BeaconFactHistoryEvent) ...[
                       Text(
                         _eventLabel(l10n, row),
                         style: TenturaText.status(scheme.onSurfaceVariant),
-                      )
-                    else if (row is BeaconFactHistoryEntry) ...[
+                      ),
+                      if (row.type ==
+                          BeaconActivityEventTypeBits.factPinned) ...[
+                        SizedBox(height: tt.tightGap),
+                        Text(
+                          l10n.beaconActivityFactPinned,
+                          style: TenturaText.status(scheme.onSurfaceVariant),
+                        ),
+                      ],
+                    ] else if (row is BeaconFactHistoryEntry) ...[
                       if (row is! BeaconFactHistoryImported)
                         Text(
                           _authorLabel(l10n, row),

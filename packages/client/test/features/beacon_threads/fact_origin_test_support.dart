@@ -226,10 +226,12 @@ final class OriginWire {
   final List<String> sent;
 
   /// [origin] is the BeaconFactCardOrigin row; [revisions] answers
-  /// BeaconFactCardRevisions. Call inside `tester.runAsync`.
+  /// BeaconFactCardRevisions unless [revisionsResponse] supplies the full
+  /// HTTP response body. In a widget test, call inside `tester.runAsync`.
   static Future<OriginWire> start({
     required Map<String, Object?> origin,
     List<Map<String, Object?>> revisions = const [],
+    Map<String, Object?>? revisionsResponse,
   }) {
     final sent = <String>[];
     return http.runWithClient(
@@ -255,6 +257,9 @@ final class OriginWire {
         final body = jsonDecode(request.body) as Map<String, dynamic>;
         final name = body['operationName'] as String;
         sent.add(name);
+        if (name == 'BeaconFactCardRevisions' && revisionsResponse != null) {
+          return _json(revisionsResponse);
+        }
         return _json({
           'data': switch (name) {
             'BeaconFactCardOrigin' => {

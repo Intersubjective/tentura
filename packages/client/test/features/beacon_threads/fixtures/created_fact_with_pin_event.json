@@ -1,0 +1,39 @@
+{
+  "data": {
+    "__typename": "Query",
+    "BeaconFactCardRevisions": {
+      "__typename": "v2_BeaconFactCardRevisionsPage",
+      "entries": [
+        {
+          "__typename": "v2_BeaconFactHistoryEntryRow",
+          "entry": "revision",
+          "entryKey": "r0000000001",
+          "seq": 1,
+          "kind": 0,
+          "factText": "A 1293 F-mixQ",
+          "restoredFromSeq": null,
+          "visibilityFrom": null,
+          "visibilityTo": null,
+          "actorId": "U000000000001",
+          "actorTitle": "Анна",
+          "createdAt": "2026-11-16T07:38:19.343511Z"
+        },
+        {
+          "__typename": "v2_BeaconFactHistoryEntryRow",
+          "entry": "event",
+          "entryKey": "e1794814699343511",
+          "seq": null,
+          "kind": 2,
+          "factText": null,
+          "restoredFromSeq": null,
+          "visibilityFrom": null,
+          "visibilityTo": null,
+          "actorId": "U000000000001",
+          "actorTitle": "Анна",
+          "createdAt": "2026-11-16T07:38:19.343511Z"
+        }
+      ],
+      "nextCursor": null
+    }
+  }
+}
