@@ -39,7 +39,9 @@ run_case() {
   : >"$EVENTS"
   : >"$CURL_LOG"
   echo current >"$T/schema_state"
-  cp "$SCRIPT" "$ROOT/scripts/"
+  cp "$SCRIPT" "$REAL_ROOT/scripts/hasura_apply_metadata.sh" "$ROOT/scripts/"
+  mkdir -p "$ROOT/hasura"
+  cp "$REAL_ROOT/hasura/metadata.json" "$ROOT/hasura/"
   cat >"$ROOT/.env" <<'EOF'
 QA_AUTH_ENABLED=true
 QA_SIMPLE_LOGIN_MODE=true
@@ -56,9 +58,26 @@ exit 0'
   cat >"$BIN/curl" <<'EOF'
 #!/usr/bin/env bash
 echo "$*" >>"$CURL_LOG"
-url=""
-for a in "$@"; do case "$a" in http*) url="$a";; esac; done
+url="" write_out="" output=""
+while (($#)); do
+  case "$1" in
+    http*) url="$1"; shift ;;
+    -w|--write-out) write_out="$2"; shift 2 ;;
+    -o|--output) output="$2"; shift 2 ;;
+    *) shift ;;
+  esac
+done
 case "$url" in
+  */v1/metadata)
+    body="{\"is_consistent\":true,\"inconsistent_objects\":[]}"
+    if [[ -n "$output" ]]; then
+      printf "%s" "$body" >"$output"
+    else
+      printf "%s" "$body"
+    fi
+    printf "%b" "${write_out//\%\{http_code\}/200}"
+    exit 0
+    ;;
   */api/v2/graphql)
     # Give a just-restarted server time to flip the schema state.
     sleep 0.3
@@ -95,7 +114,7 @@ EOF
   stub "$BIN/lsof" 'exit 1'
 
   set +e
-  env ${extra_env:+"$extra_env"} PATH="$BIN:$PATH" CURL_LOG="$CURL_LOG" EVENTS="$EVENTS" T_DIR="$T" \
+  env -u HASURA_URL -u METADATA_FILE ${extra_env:+"$extra_env"} PATH="$BIN:$PATH" CURL_LOG="$CURL_LOG" EVENTS="$EVENTS" T_DIR="$T" \
     timeout 45 bash "$ROOT/scripts/run_client_integration_web_local.sh" \
     integration_test/placement_probe_test.dart >"$OUT" 2>&1
   RC=$?

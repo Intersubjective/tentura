@@ -37,7 +37,9 @@ run_case() {
   OUT="$T/out.log"
   local BIN="$T/bin"
   mkdir -p "$ROOT/scripts" "$BIN"
-  cp "$SCRIPT" "$ROOT/scripts/"
+  cp "$SCRIPT" "$REAL_ROOT/scripts/hasura_apply_metadata.sh" "$ROOT/scripts/"
+  mkdir -p "$ROOT/hasura"
+  cp "$REAL_ROOT/hasura/metadata.json" "$ROOT/hasura/"
   cp "${REAL_ROOT}/scripts/gen-dev-jwt.sh" "$ROOT/scripts/"
   cp "$EXAMPLE_ENV" "$ROOT/.env.example"
 
@@ -53,9 +55,26 @@ EOF
   stub "$ROOT/scripts/run-server-local.sh" 'exit 0'
 
   stub "$BIN/curl" '
-url=""
-for a in "$@"; do case "$a" in http*) url="$a";; esac; done
+url="" write_out="" output=""
+while (($#)); do
+  case "$1" in
+    http*) url="$1"; shift ;;
+    -w|--write-out) write_out="$2"; shift 2 ;;
+    -o|--output) output="$2"; shift 2 ;;
+    *) shift ;;
+  esac
+done
 case "$url" in
+  */v1/metadata)
+    body="{\"is_consistent\":true,\"inconsistent_objects\":[]}"
+    if [[ -n "$output" ]]; then
+      printf "%s" "$body" >"$output"
+    else
+      printf "%s" "$body"
+    fi
+    printf "%b" "${write_out//\%\{http_code\}/200}"
+    exit 0
+    ;;
   *:8080/healthz|*:2080/health) exit 0 ;;
   */_qa/integration/bootstrap)
     example_pub="$(grep -E "^JWT_PUBLIC_PEM=" "$SCRATCH_ROOT/.env.example" | cut -d= -f2-)"
@@ -68,7 +87,7 @@ case "$url" in
 esac'
 
   set +e
-  env PATH="$BIN:$PATH" SCRATCH_ROOT="$ROOT" timeout 45 bash "$ROOT/scripts/run_client_integration_web_local.sh" \
+  env -u HASURA_URL -u METADATA_FILE PATH="$BIN:$PATH" SCRATCH_ROOT="$ROOT" timeout 45 bash "$ROOT/scripts/run_client_integration_web_local.sh" \
     >"$OUT" 2>&1
   RC=$?
   set -e

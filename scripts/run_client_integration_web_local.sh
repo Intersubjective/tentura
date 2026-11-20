@@ -32,9 +32,10 @@
 # What it does (reuses whatever is already running, starts what is not):
 #   1. docker compose infra (postgres, meritrank, hasura, minio) — started if down
 #   2. tentura-server on :2080 — started via scripts/run-server-local.sh if down
-#   3. chromedriver on :4444 — auto-downloaded to .local/chromedriver to match
+#   3. Hasura metadata — applied after tentura-server is healthy
+#   4. chromedriver on :4444 — auto-downloaded to .local/chromedriver to match
 #      the installed Google Chrome major version
-#   4. flutter drive -d web-server (headless Chrome) per test file
+#   5. flutter drive -d web-server (headless Chrome) per test file
 #
 # Default mode: the app under test is served by Flutter's dev server on
 # localhost:8888 which proxies /api/v2, /api/v1/graphql and /_qa to the backend
@@ -142,15 +143,10 @@ if ! curl -sf -m 3 http://127.0.0.1:2080/health >/dev/null 2>&1; then
 fi
 log "tentura-server OK (:2080)"
 
-# Hasura caches the server's GraphQL schema at the time it last loaded it; a
-# long-lived compose hasura then rejects mutations added since ("field ... not
-# found in type: 'mutation_root'"). Refresh it against the server just checked.
-curl -sf -m 30 http://127.0.0.1:8080/v1/metadata \
-  -H "X-Hasura-Admin-Secret: ${HASURA_GRAPHQL_ADMIN_SECRET:-password}" \
-  -H 'Content-Type: application/json' \
-  -d '{"type":"reload_remote_schema","args":{"name":"tentura"}}' >/dev/null \
-  || die "hasura reload_remote_schema failed (admin secret? set HASURA_GRAPHQL_ADMIN_SECRET)"
-log "hasura remote schema reloaded"
+# Apply the checkout's metadata after startup migrations. The helper also
+# refreshes Hasura's cached schema for the Tentura API.
+HASURA_URL=http://127.0.0.1:8080 METADATA_FILE="$ROOT/hasura/metadata.json" \
+  bash "$ROOT/scripts/hasura_apply_metadata.sh" || die "Hasura metadata application failed"
 
 # A reused server may predate the current build; /health cannot tell. Placement
 # apply needs ConstellationAnchorOpInput, so refuse a server whose GraphQL schema
