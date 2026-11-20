@@ -379,7 +379,7 @@ PY
 # template copy both grow. One run with that backlog took 4:35 against a usual
 # 3:30 and failed five unrelated tests on 30-second timeouts.
 #
-# Runs only under `--sweep-only`, never as part of a test run. Only databases
+# Runs only under `--sweep-only` outside the cleanup self-tests. Only databases
 # with no active connection and older than PG_GC_MIN_AGE_MIN minutes are
 # dropped, so a concurrent run's databases are never touched either.
 # `tentura_test_tpl_*` are schema templates, deliberately long-lived and
@@ -701,10 +701,11 @@ main() {
 
   if [[ "$sweep_only" -eq 1 ]]; then
     sweep_run "sweep-only-$$"
-    # Database GC is maintenance, not part of a test run: a few non-pg-tagged
-    # tests still open Postgres connections, and there is no reason to let
-    # housekeeping touch the database while any suite might be using it.
-    sweep_pg_databases || true
+    # Cleanup self-tests use this mode for their process and file fixtures.
+    # Reserve database maintenance for standalone sweeps.
+    if [[ -z "${SELFTEST_ISOLATED:-}" ]]; then
+      sweep_pg_databases || true
+    fi
     exit 0
   fi
 

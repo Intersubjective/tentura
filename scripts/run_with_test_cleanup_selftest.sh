@@ -316,15 +316,17 @@ fi
 
 # Create fixtures inside the child so their names are absent from live
 # command lines when the exit sweep checks whether they are referenced.
+SYSTEM_TMP="${TENTURA_TEST_CLEANUP_SYSTEM_TMP:-/tmp}"
 if TMPDIR="$EXPLICIT_TMP" "$WRAP" --timeout 10s -- python3 - <<'PY'
 import os, pathlib
-for root in (pathlib.Path('/tmp'), pathlib.Path(os.environ['TMPDIR'])):
+for root in (pathlib.Path(os.environ.get('TENTURA_TEST_CLEANUP_SYSTEM_TMP') or '/tmp'),
+             pathlib.Path(os.environ['TMPDIR'])):
     for pattern in ('flutter_tools.', 'dart_test.kernel.'):
         (root / (pattern + 'lt6i-' + str(os.getppid()))).mkdir()
 PY
 then
-  if compgen -G '/tmp/flutter_tools.lt6i-*' >/dev/null || \
-    compgen -G '/tmp/dart_test.kernel.lt6i-*' >/dev/null || \
+  if compgen -G "$SYSTEM_TMP/flutter_tools.lt6i-*" >/dev/null || \
+    compgen -G "$SYSTEM_TMP/dart_test.kernel.lt6i-*" >/dev/null || \
     compgen -G "$EXPLICIT_TMP/flutter_tools.*" >/dev/null || \
     compgen -G "$EXPLICIT_TMP/dart_test.kernel.*" >/dev/null; then
     bad "exit sweep left temporary fixtures behind"
