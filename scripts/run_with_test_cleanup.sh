@@ -759,11 +759,11 @@ main() {
   # New session so a SIGKILL of this wrapper's process group cannot
   # silently take the reaper — and so leftover testers are findable by
   # environ even if they later reparent to PID 1.
-  set +e
+  # A trap can interrupt the wait builtin. Bash defers it while waiting for
+  # a foreground command. Explicitly pass stdin to the asynchronous launcher.
   "${command_launcher[@]}" timeout --kill-after="$KILL_AFTER" -- "$timeout" \
-    env TENTURA_TEST_CLEANUP_RUN="$run_id" "${cmd[@]}" 9>&-
-  rc=$?
-  set -e
+    env TENTURA_TEST_CLEANUP_RUN="$run_id" "${cmd[@]}" <&0 9>&- &
+  wait "$!" || rc=$?
 
   # tentura-fy2: a concurrent sweep can reclaim this marker dir as stale
   # (e.g. a narrow window around reaper startup elsewhere) even while this

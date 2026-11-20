@@ -115,6 +115,46 @@ check_marker_lookup() {
   fi
 }
 
+check_sigterm() {
+  local inactivity="$1" label="inactivity=$1" wrapper_pid child_pid="" rc=0
+  local fixture="$TMPDIR/selftest_sigterm_${BASHPID}_${RANDOM}"
+  "$WRAP" --timeout 6s --inactivity "$inactivity" -- \
+    python3 -c 'import os, pathlib, sys, time
+assert input() == "ready"
+pathlib.Path(sys.argv[1]).write_text(str(os.getpid()))
+time.sleep(20)' "$fixture.pid" <<<ready >"$fixture.log" 2>&1 &
+  wrapper_pid=$!
+  for _ in $(seq 1 30); do
+    if [[ -s "$fixture.pid" ]]; then
+      child_pid="$(cat "$fixture.pid")"
+      break
+    fi
+    sleep 0.1
+  done
+  if [[ -z "$child_pid" ]] || ! kill -TERM "$wrapper_pid"; then
+    bad "SIGTERM ($label): fixture did not reach the wrapped command"
+  else
+    if wait_dead "$child_pid"; then
+      ok "SIGTERM ($label) stops the child before the 6s timeout"
+    else
+      bad "SIGTERM ($label) left the child running until the timeout"
+    fi
+  fi
+  wait "$wrapper_pid" || rc=$?
+  if [[ "$rc" -eq 143 ]]; then
+    ok "SIGTERM ($label) returns 143"
+  else
+    bad "SIGTERM ($label) returned $rc, expected 143"
+    cat "$fixture.log"
+  fi
+}
+
+if [[ "${1:-}" == --sigterm-only ]]; then
+  check_sigterm 10m
+  check_sigterm 0
+  exit "$((fail != 0))"
+fi
+
 check_marker_lookup
 if [[ "${1:-}" == --marker-lookup-only ]]; then
   exit "$((fail != 0))"
@@ -168,22 +208,8 @@ if [[ "$to_rc" -eq 124 ]]; then ok "timeout returns 124"; else bad "timeout rc=$
 if [[ -z "$HANG_PID" ]] || wait_dead "$HANG_PID"; then ok "timed-out hang is gone"; else bad "timed-out hang pid $HANG_PID still alive"; fi
 
 # --- 5. SIGTERM wrapper kills tagged children ---
-TERM_MARK="selftest_sigterm_child_$$"
-"$WRAP" --timeout 60s -- python3 -c "import time; time.sleep(90)  # $TERM_MARK" &
-WPID=$!
-cleanup_pids+=("$WPID")
-for _ in $(seq 1 30); do
-  TERM_PID="$(pid_by_marker "$TERM_MARK")"
-  [[ -n "$TERM_PID" ]] && break
-  sleep 0.1
-done
-if [[ -z "${TERM_PID:-}" ]]; then
-  bad "SIGTERM case: child never appeared"
-else
-  kill -TERM "$WPID" 2>/dev/null || true
-  wait "$WPID" 2>/dev/null || true
-  if wait_dead "$TERM_PID"; then ok "SIGTERM wrapper kills tagged child"; else bad "SIGTERM wrapper left child $TERM_PID"; fi
-fi
+check_sigterm 10m
+check_sigterm 0
 
 # --- 6. SIGKILL wrapper: EXIT trap cannot run; reaper must ---
 KILL_MARK="selftest_sigkill_child_$$"
