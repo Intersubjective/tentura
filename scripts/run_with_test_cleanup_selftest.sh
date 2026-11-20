@@ -187,21 +187,18 @@ if still_alive "$OTHER_PID"; then ok "unrelated process not swept"; else bad "sw
 
 # --- 9. SIGKILL of the wrapper's own session (not the caller's group) ---
 PGRP_MARK="selftest_pgrp_kill_$$"
-setsid -f "$WRAP" --timeout 60s -- python3 -c "import time; time.sleep(90)  # $PGRP_MARK" </dev/null
+# Without job control, setsid can exec in place and $! is the new group ID.
+set +m
+setsid "$WRAP" --timeout 60s -- python3 -c "import time; time.sleep(90)  # $PGRP_MARK" </dev/null &
+WPID=$!
 sleep 0.3
 PGRP_PID="$(pid_by_marker "$PGRP_MARK")"
-WPID=""
-for _ in $(seq 1 40); do
-  WPID="$(pgrep -f "run_with_test_cleanup.sh --timeout 60s" | awk 'NR==1')"
-  [[ -n "$WPID" ]] && break
-  sleep 0.1
-done
-if [[ -z "${PGRP_PID:-}" || -z "$WPID" ]]; then
+if [[ -z "$PGRP_PID" ]]; then
   bad "PGID SIGKILL case: wrapper='$WPID' child='$PGRP_PID'"
+elif ! kill -KILL -- "-$WPID" 2>/dev/null; then
+  bad "could not SIGKILL wrapper group $WPID"
 else
-  cleanup_pids+=("$WPID")
-  WPGID="$(ps -o pgid= -p "$WPID" | tr -d ' ')"
-  kill -KILL -- "-$WPGID" 2>/dev/null || kill -KILL "$WPID" 2>/dev/null || true
+  wait "$WPID" 2>/dev/null || true
   for _ in $(seq 1 25); do
     still_alive "$PGRP_PID" || break
     sleep 0.2
