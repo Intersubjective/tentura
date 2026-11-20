@@ -34,6 +34,7 @@ import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 import 'package:tentura/features/beacon/domain/beacon_hierarchy_exception.dart';
 import 'package:tentura/features/beacon_create/ui/bloc/beacon_create_cubit.dart';
 import 'package:tentura/features/beacon_create/ui/screen/beacon_create_screen.dart';
+import 'package:tentura/features/beacon_create/ui/widget/recipients_tab.dart';
 import 'package:tentura/features/context/ui/bloc/context_cubit.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect_handler.dart';
@@ -261,6 +262,123 @@ Localizable _localizedPromotionConflict() {
 }
 
 void main() {
+  group('Recipients on a reopened child request', () {
+    for (final locale in ['en', 'ru']) {
+      testWidgets('opens the picker after the title changes ($locale)', (
+        tester,
+      ) async {
+        final contextCubit = await registerChildSendCollaborators();
+        addTearDown(contextCubit.close);
+        final effects = FakeUiEffectPort();
+        final sent = <WireSent>[];
+        const creationContext = BeaconCreationContextPromotedChild(
+          parentBeaconId: _parentId,
+          sourceMessageId: 'msg-1',
+        );
+        const oldId = 'cmd-old';
+        const draftId = 'Bdraft000001';
+        final store = InMemoryBeaconChildCommandStore();
+        await store.write(creationContext, oldId);
+
+        await tester.runAsync(
+          () => withRemoteWire(
+            const {
+              ..._sourceResponses,
+              'BeaconChildCreate': {
+                '__typename': 'mutation_root',
+                'beaconChildCreate': {
+                  '__typename': 'v2_BeaconChildCreateResult',
+                  'outcome': 'created',
+                  'beaconId': draftId,
+                  'beacon': {'__typename': 'v2_Beacon', 'id': draftId},
+                },
+              },
+            },
+            sent,
+            (remote) async {
+              final hierarchy = BeaconHierarchyRepository(remote);
+              final write = FakeBeaconWritePort();
+              final createCase = BeaconCreateCase(write, FakeBeaconImagePort());
+              final cubit = BeaconCreateCubit(
+                beaconCreateCase: createCase,
+                hierarchyCase: buildBeaconHierarchyCaseForTest(
+                  hierarchy,
+                  createCase: createCase,
+                  beacons: write,
+                  commandStore: store,
+                ),
+                messagePrefillCase: MessagePrefillCase(hierarchy),
+                postBuddingEnabled: false,
+                childCreationContext: creationContext,
+                effects: effects,
+              );
+              addTearDown(cubit.close);
+              if (cubit.state.clientCommandId == null) {
+                await cubit.stream
+                    .firstWhere((s) => s.clientCommandId != null)
+                    .timeout(const Duration(seconds: 5));
+              }
+              cubit
+                ..setTitle('Other title')
+                ..setDescription('For Saturday.');
+              await _pumpApp(
+                tester,
+                locale: locale,
+                effects: effects,
+                cubit: cubit,
+                contextCubit: contextCubit,
+                surface: kPhoneSurface,
+                screen: const BeaconCreateScreen(
+                  parentBeaconId: _parentId,
+                  sourceMessageId: 'msg-1',
+                ),
+              );
+
+              await tester.tap(
+                find.byKey(TestIds.key(TestIds.requestRecipientsTab)),
+              );
+              await _settle(tester);
+
+              final creates = sent.where(
+                (request) => request.operationName == 'BeaconChildCreate',
+              );
+              expect(creates, isNotEmpty);
+              expect(
+                creates.last.variables,
+                containsPair('title', 'Other title'),
+              );
+              expect(creates.last.variables, containsPair('draft', true));
+              expect(tester.takeException(), isNull);
+              expect(
+                find.text(
+                  lookupL10n(Locale(locale)).beaconRecipientsPrepareFailed,
+                ),
+                findsNothing,
+              );
+              final picker = find.byType(BeaconRecipientsTab);
+              expect(picker, findsOneWidget);
+              expect(
+                tester.widget<BeaconRecipientsTab>(picker).beaconId,
+                draftId,
+              );
+            },
+            errorFor: (request) {
+              if (request.operationName != 'BeaconChildCreate' ||
+                  request.variables['clientCommandId'] != oldId ||
+                  request.variables['title'] == 'Original title') {
+                return null;
+              }
+              return const {
+                'message': 'Client command id was reused with different input',
+                'extensions': {'code': '1313'},
+              };
+            },
+          ),
+        );
+      });
+    }
+  });
+
   for (final locale in ['en', 'ru']) {
     testWidgets(
       'Send shows the localized child Request conflict and becomes usable again ($locale)',

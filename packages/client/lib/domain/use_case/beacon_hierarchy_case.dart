@@ -183,10 +183,11 @@ class BeaconHierarchyCase {
   }
 
   Future<String> _resolveClientCommandId(
-    BeaconCreationContext creationContext,
-  ) async {
+    BeaconCreationContext creationContext, {
+    String? rejectedCommandId,
+  }) async {
     final stored = await _commandStore.read(creationContext);
-    if (stored != null && stored.isNotEmpty) {
+    if (stored != null && stored.isNotEmpty && stored != rejectedCommandId) {
       return stored;
     }
     final created = _opIds.newOpId();
@@ -296,7 +297,9 @@ class BeaconHierarchyCase {
     }
   }
 
-  Future<BeaconSaveResult> _createChildDraft(BeaconChildSaveCommand command) {
+  Future<BeaconSaveResult> _createChildDraft(
+    BeaconChildSaveCommand command,
+  ) async {
     final fields = command.saveCommand.fields;
     final parentBeaconId = switch (command.creationContext) {
       BeaconCreationContextChild(:final parentBeaconId) => parentBeaconId,
@@ -312,12 +315,32 @@ class BeaconHierarchyCase {
       _ => null,
     };
 
-    return _runCreateChild(
-      command: command,
-      parentBeaconId: parentBeaconId,
-      sourceMessageId: sourceMessageId,
-      fields: fields,
-    );
+    try {
+      return await _runCreateChild(
+        command: command,
+        parentBeaconId: parentBeaconId,
+        sourceMessageId: sourceMessageId,
+        fields: fields,
+      );
+    } on BeaconSaveFailure catch (failure) {
+      if (sourceMessageId == null ||
+          failure.beaconId != null ||
+          failure.cause is! BeaconChildCommandConflictException) {
+        rethrow;
+      }
+      // The server confirmed this ID belongs to different input. Replace it
+      // in storage before sending again so a lost reply can still be replayed.
+      final replacementId = await _resolveClientCommandId(
+        command.creationContext,
+        rejectedCommandId: command.clientCommandId,
+      );
+      return _runCreateChild(
+        command: command.copyWith(clientCommandId: replacementId),
+        parentBeaconId: parentBeaconId,
+        sourceMessageId: sourceMessageId,
+        fields: fields,
+      );
+    }
   }
 
   Future<BeaconSaveResult> _runCreateChild({
@@ -434,6 +457,7 @@ class BeaconHierarchyCase {
     coverKey: command.saveCommand.coverKey,
     coverThumb: command.saveCommand.coverThumb,
     clientCommandId: command.clientCommandId,
+    exactRetrySnapshot: command.saveCommand,
   );
 
   bool _sameCreatePayload(BeaconSaveCommand a, BeaconSaveCommand b) {

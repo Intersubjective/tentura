@@ -16,6 +16,9 @@ import 'package:tentura_root/domain/entity/beacon_child_command_outcome.dart';
 import 'package:tentura_root/domain/entity/beacon_hierarchy_denial_code.dart';
 import 'package:tentura_root/domain/entity/beacon_parent_reference.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
+import 'package:tentura_root/domain/entity/localizable.dart';
+
+import '../../support/remote_wire_harness.dart';
 
 class _FakeLink extends Link {
   _FakeLink(this.response);
@@ -33,6 +36,62 @@ const _fetchPolicies = {
 };
 
 void main() {
+  test(
+    'a child draft command conflict carries localized existing-child copy',
+    () async {
+      const en = 'A child request already exists for this message.';
+      const ru = 'Из этого сообщения уже создан дочерний запрос.';
+      final localizedCopy = isA<Localizable>()
+          .having((e) => e.toL10n('en'), 'English message', en)
+          .having((e) => e.toL10n('ru'), 'Russian message', ru);
+
+      expect(
+        () => throwIfBeaconHierarchyError(1312, {'beaconId': 'child-7'}),
+        throwsA(
+          allOf(
+            isA<BeaconSourceAlreadyPromotedException>().having(
+              (e) => e.existingChildBeaconId,
+              'existing child ID',
+              'child-7',
+            ),
+            localizedCopy,
+          ),
+        ),
+      );
+
+      final sent = <WireSent>[];
+      await withRemoteWire(
+        const {},
+        sent,
+        (remote) async {
+          await expectLater(
+            BeaconHierarchyRepository(remote).createChild(
+              parentBeaconId: 'parent-1',
+              sourceMessageId: 'msg-1',
+              clientCommandId: 'cmd-old',
+              title: 'Other title',
+              draft: true,
+            ),
+            throwsA(isA<BeaconChildCommandConflictException>()),
+          );
+        },
+        errors: const {
+          'BeaconChildCreate': {
+            'message': 'Client command id was reused with different input',
+            'extensions': {'code': '1313'},
+          },
+        },
+      );
+      expect(sent.single.operationName, 'BeaconChildCreate');
+      expect(
+        () => throwIfBeaconHierarchyError(1313, null),
+        throwsA(
+          allOf(isA<BeaconChildCommandConflictException>(), localizedCopy),
+        ),
+      );
+    },
+  );
+
   group('BeaconHierarchyRepository mapping', () {
     test('mapCapabilities success with and without a denial code', () async {
       final client = Client(

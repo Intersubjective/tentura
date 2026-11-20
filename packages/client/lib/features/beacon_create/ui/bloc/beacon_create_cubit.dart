@@ -1327,6 +1327,9 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
       emit(
         state.copyWith(
           draftId: state.draftId ?? failure.beaconId,
+          clientCommandId: failure.exactRetrySnapshot != null
+              ? failure.clientCommandId
+              : state.clientCommandId,
           images: failure.images,
           coverKey: failure.coverKey,
           coverThumb: failure.coverThumb,
@@ -1334,11 +1337,12 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
       );
     }
     _rememberExactRetrySnapshot(
-      _command(
-        context: _autosaveContext,
-        id: failure.beaconId ?? '',
-        draftSafeTitle: true,
-      ),
+      failure.exactRetrySnapshot ??
+          _command(
+            context: _autosaveContext,
+            id: failure.beaconId ?? '',
+            draftSafeTitle: true,
+          ),
     );
   }
 

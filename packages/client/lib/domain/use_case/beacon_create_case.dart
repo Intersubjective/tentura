@@ -84,6 +84,7 @@ class BeaconSaveFailure implements Exception {
     required this.coverKey,
     this.coverThumb,
     this.clientCommandId,
+    this.exactRetrySnapshot,
   });
 
   final Object cause;
@@ -99,6 +100,9 @@ class BeaconSaveFailure implements Exception {
 
   /// Child creation: durable command identity retained for idempotent retry.
   final String? clientCommandId;
+
+  /// Child creation: the payload sent with that identity.
+  final BeaconSaveCommand? exactRetrySnapshot;
 
   @override
   String toString() => 'BeaconSaveFailure(${phase.name}): $cause';

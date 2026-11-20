@@ -52,10 +52,21 @@ final class BeaconPromotionSourceInvalidException
   };
 }
 
+mixin _ExistingChildRequestCopy implements Localizable {
+  @override
+  String get toEn => 'A child request already exists for this message.';
+
+  @override
+  String get toRu => 'Из этого сообщения уже создан дочерний запрос.';
+
+  @override
+  String toL10n(String? locale) => locale == 'ru' ? toRu : toEn;
+}
+
 /// The source message already has a published child.
 final class BeaconSourceAlreadyPromotedException
     extends BeaconHierarchyException
-    implements Localizable {
+    with _ExistingChildRequestCopy {
   const BeaconSourceAlreadyPromotedException({
     this.existingChildBeaconId,
     Object? message,
@@ -67,20 +78,11 @@ final class BeaconSourceAlreadyPromotedException
   final String? existingChildBeaconId;
 
   static const codeNumber = 1312;
-
-  @override
-  String get toEn => 'A child request already exists for this message.';
-
-  @override
-  String get toRu => 'Из этого сообщения уже создан дочерний запрос.';
-
-  @override
-  String toL10n(String? locale) => locale == 'ru' ? toRu : toEn;
 }
 
 /// The `clientCommandId` was reused with different input.
-final class BeaconChildCommandConflictException
-    extends BeaconHierarchyException {
+final class BeaconChildCommandConflictException extends BeaconHierarchyException
+    with _ExistingChildRequestCopy {
   const BeaconChildCommandConflictException([super.message]);
 
   static const codeNumber = 1313;
