@@ -2810,7 +2810,8 @@ CROSS JOIN LATERAL (
   SELECT ev.*
   FROM public.beacon_activity_event ev
   WHERE ev.beacon_id = ids.beacon_id
-    AND public.beacon_can_read_content(ids.beacon_id, \$2)
+    AND (NOT public.realtime_is_post_bud(ids.beacon_id)
+         OR public.beacon_can_read_content(ids.beacon_id, \$2))
     AND ((ev.type >= 100 AND ev.type < 500) OR ev.type IN ($meaningfulTypes))
     AND (
       ev.visibility = ${BeaconActivityEventVisibilityBits.public}
