@@ -1152,7 +1152,13 @@ class BeaconRoomCase extends UseCaseBase {
     const denied = UnauthorizedException(
       description: 'Room or item thread access required',
     );
-    final roomMember = await _canUseRoom(beaconId: beaconId, userId: userId);
+    final bool roomMember;
+    try {
+      roomMember = await _canUseRoom(beaconId: beaconId, userId: userId);
+    } on IdNotFoundException {
+      // The Post block check loads the beacon while deciding room access.
+      throw denied;
+    }
     // Questions readers may have access independently of the General Chat.
     if (!roomMember &&
         !(await _questionsAccess(beaconId: beaconId, userId: userId)).canRead) {

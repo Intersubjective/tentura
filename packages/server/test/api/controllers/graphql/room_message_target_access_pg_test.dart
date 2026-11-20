@@ -10,6 +10,7 @@ import 'package:shelf_plus/shelf_plus.dart';
 import 'package:tentura_server/api/controllers/graphql_controller.dart';
 import 'package:tentura_server/app/di.dart';
 import 'package:tentura_server/consts.dart' show kContextJwtKey;
+import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/jwt_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/use_case/beacon_room_case.dart';
@@ -161,8 +162,9 @@ VALUES
 
   Future<({int status, Map<String, Object?> payload})> postTarget(
     String viewer,
-    String messageId,
-  ) async {
+    String messageId, {
+    String? beaconId,
+  }) async {
     final response = await api(
       Request(
         'POST',
@@ -173,7 +175,7 @@ VALUES
           'query':
               '''
 {
-  roomMessageTarget(beaconId: "$requestId", messageId: "$messageId") { id }
+  roomMessageTarget(beaconId: "${beaconId ?? requestId}", messageId: "$messageId") { id }
 }
 ''',
         }),
@@ -263,6 +265,30 @@ VALUES
   });
 
   group('GraphQL Chat message lookup', () {
+    test(
+      'an uninvited Post member gets identical denials for private and unknown Request IDs',
+      () async {
+        final private = await postTarget(_uninvited, _ownMessage);
+        final unknown = await postTarget(
+          _uninvited,
+          _ownMessage,
+          beaconId: BeaconEntity.newId,
+        );
+
+        expect(private.status, 200);
+        expect(private.payload, {
+          'errors': [
+            {
+              'message': 'Room or item thread access required',
+              'extensions': {'code': '1102', 'path': ''},
+            },
+          ],
+        });
+        expect(unknown.status, private.status);
+        expect(unknown.payload, private.payload);
+      },
+    );
+
     for (final chat in _foreignChats) {
       test(
         'an uninvited viewer gets the same error for a missing ID and a message in ${chat.label}',
