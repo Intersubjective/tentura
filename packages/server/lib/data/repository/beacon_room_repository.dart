@@ -2623,6 +2623,7 @@ ORDER BY seen.last_seen_at DESC
     );
   });
 
+  @override
   Future<bool> canReadContent({
     required String beaconId,
     required String viewerId,
