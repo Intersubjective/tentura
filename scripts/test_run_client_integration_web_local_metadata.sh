@@ -70,7 +70,7 @@ exit 91'
   cat >"$bin/curl" <<'CURL'
 #!/usr/bin/env bash
 set -euo pipefail
-url="" method="" payload="" secret="" output="" write_out="" fail_http=0
+url="" method="" payload="" secret="" output="" write_out="" fail_http=0 max_time=""
 while (($#)); do
   case "$1" in
     http://*|https://*) url="$1"; shift ;;
@@ -83,7 +83,8 @@ while (($#)); do
       shift 2 ;;
     -o|--output) output="$2"; shift 2 ;;
     -w|--write-out) write_out="$2"; shift 2 ;;
-    -D|--dump-header|-m|--max-time|--connect-timeout) shift 2 ;;
+    -m|--max-time) max_time="$2"; shift 2 ;;
+    -D|--dump-header|--connect-timeout) shift 2 ;;
     -sf|-fs|-f|--fail|--fail-with-body) fail_http=1; shift ;;
     -s|-S|-sS|--silent|--show-error) shift ;;
     *) echo "unexpected curl argument: $1" >&2; exit 2 ;;
@@ -105,7 +106,8 @@ case "$url" in
     body="$SCHEMA_BODY"
     ;;
   http://127.0.0.1:8080/v1/metadata)
-    case "$(jq -er '.type' <<<"$payload")" in
+    operation="$(jq -er '.type' <<<"$payload")"
+    case "$operation" in
       reload_remote_schema) body='{"message":"success"}' ;;
       replace_metadata)
         # curl -d sends POST unless the caller explicitly selects a method.
@@ -117,6 +119,16 @@ case "$url" in
         ;;
       *) echo "unexpected metadata operation" >&2; exit 2 ;;
     esac
+    if [[ "$STALL_METADATA" == 1 ]]; then
+      # Model an unresponsive endpoint. A bounded curl returns exit 28,
+      # while an unbounded one waits past the runner test's watchdog.
+      if [[ ! "$max_time" =~ ^[1-9][0-9]?$ ]]; then
+        echo "unbounded metadata request: $operation" >&2
+        sleep 25
+      fi
+      echo "metadata request timed out: $operation" >&2
+      exit 28
+    fi
     ;;
   https://dev.lvh.me:9443/)
     body=$'HTTP/2 200\ncross-origin-embedder-policy: require-corp\n\n<script src="flutter_bootstrap.js"></script>'
@@ -152,7 +164,7 @@ fi'
     PATH="$bin:$PATH" EVENTS="$EVENTS" STUB_STATE="$CASE_DIR" SERVER_LOG="$CASE_DIR/server.log" \
     START_WITHOUT_SERVER=0 TENTURA_WEB_E2E_WASM=0 CHROMEDRIVER_PORT=4444 \
     SCHEMA_BODY='{"data":{"__type":{"name":"ConstellationAnchorOpInput"}}}' \
-    REPLACE_STATUS="$status" REPLACE_BODY="$body" "$@" \
+    REPLACE_STATUS="$status" REPLACE_BODY="$body" STALL_METADATA=0 "$@" \
     timeout --kill-after=2s 20s bash "$ROOT/scripts/run_client_integration_web_local.sh" "$TARGET" \
     >"$OUT" 2>"$ERR" || RC=$?
 
@@ -250,6 +262,16 @@ http_failure() {
   assert_rejected
 }
 
+metadata_timeout_after_startup() {
+  run_case metadata-timeout 200 "$CONSISTENT" START_WITHOUT_SERVER=1 STALL_METADATA=1
+  assert_rejected
+  grep -Fxq 'metadata request timed out: reload_remote_schema' "$ERR" \
+    || fail "the stalled remote schema reload must time out"
+  grep -Fxq 'metadata request timed out: replace_metadata' "$ERR" \
+    || fail "the stalled metadata replacement must time out"
+  assert_started_server_stopped
+}
+
 error_body() {
   run_case error-body 200 '{"error":"metadata validation failed"}'
   assert_rejected
@@ -296,6 +318,7 @@ run_test 'authenticates metadata replacement with the configured Hasura admin se
 run_test 'waits for the server it starts to become healthy before replacing metadata' server_started_by_runner
 run_test 'stops the server it starts when the schema probe fails' schema_failure_after_startup
 run_test 'reports an HTTP failure applying metadata and skips flutter drive' http_failure
+run_test 'bounds both stalled metadata requests and stops the server it started' metadata_timeout_after_startup
 run_test 'reports a metadata error in a successful HTTP response and skips flutter drive' error_body
 run_test 'reports the inconsistent object reason and skips flutter drive' inconsistent_metadata
 run_test 'applies repository metadata before launching WASM drive' wasm_success

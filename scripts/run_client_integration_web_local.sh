@@ -154,6 +154,7 @@ log "tentura-server OK (:2080)"
 # Apply the checkout's metadata after startup migrations. The helper also
 # refreshes Hasura's cached schema for the Tentura API.
 HASURA_URL=http://127.0.0.1:8080 METADATA_FILE="$ROOT/hasura/metadata.json" \
+  HASURA_METADATA_MAX_TIME=15 \
   bash "$ROOT/scripts/hasura_apply_metadata.sh" || die "Hasura metadata application failed"
 
 # A reused server may predate the current build; /health cannot tell. Placement

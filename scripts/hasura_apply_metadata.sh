@@ -6,6 +6,7 @@
 # Usage:
 #   ./scripts/hasura_apply_metadata.sh
 #   HASURA_URL=http://127.0.0.1:8080 HASURA_GRAPHQL_ADMIN_SECRET=secret ./scripts/hasura_apply_metadata.sh
+#   HASURA_METADATA_MAX_TIME sets the per-request limit in seconds (0 means unlimited).
 
 set -euo pipefail
 
@@ -13,6 +14,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 METADATA_FILE="${METADATA_FILE:-$ROOT/hasura/metadata.json}"
 HASURA_URL="${HASURA_URL:-http://127.0.0.1:8080}"
 ADMIN_SECRET="${HASURA_GRAPHQL_ADMIN_SECRET:-password}"
+MAX_TIME="${HASURA_METADATA_MAX_TIME:-0}"
 
 if ! command -v jq >/dev/null 2>&1; then
   echo "error: jq is required" >&2
@@ -31,12 +33,12 @@ payload="$(jq -n --argjson metadata "$(jq '.metadata' "$METADATA_FILE")" \
 # changes scalars (e.g. image.created_at), Hasura can stay inconsistent until
 # reload; replace_metadata then fails with errors like "Could not find type
 # timestamptz" even when the live remote already exposes Date.
-curl -sS -o /dev/null -X POST "${HASURA_URL%/}/v1/metadata" \
+curl -sS --max-time "$MAX_TIME" -o /dev/null -X POST "${HASURA_URL%/}/v1/metadata" \
   -H "X-Hasura-Admin-Secret: ${ADMIN_SECRET}" \
   -H "Content-Type: application/json" \
   -d '{"type":"reload_remote_schema","args":{"name":"tentura"}}' || true
 
-resp="$(curl -sS -w '\n%{http_code}' "${HASURA_URL%/}/v1/metadata" \
+resp="$(curl -sS --max-time "$MAX_TIME" -w '\n%{http_code}' "${HASURA_URL%/}/v1/metadata" \
   -H "X-Hasura-Admin-Secret: ${ADMIN_SECRET}" \
   -H "Content-Type: application/json" \
   -d "$payload")"
